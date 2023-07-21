@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3 uid="uid://dhptbdbjxq468"]
+[gd_scene load_steps=6 format=3 uid="uid://dhptbdbjxq468"]
 
 [ext_resource type="PackedScene" uid="uid://bpawj4a7llynx" path="res://addons/gdsql/table.tscn" id="1_2tgi5"]
 [ext_resource type="PackedScene" uid="uid://c3bjm6oe0687p" path="res://addons/gdsql/tree_databases.tscn" id="1_2yut5"]
@@ -6,6 +6,8 @@
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i3kgl"]
 bg_color = Color(0.145098, 0.168627, 0.203922, 1)
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_2ech8"]
 
 [node name="Index" type="MarginContainer"]
 anchors_preset = 15
@@ -53,6 +55,7 @@ text = "SCHEMAS"
 
 [node name="ButtonRefresh" type="Button" parent="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer/HBoxContainer"]
 layout_mode = 2
+theme_override_styles/focus = SubResource("StyleBoxEmpty_2ech8")
 text = "🔄️"
 
 [node name="TreeDatabases" parent="VBoxContainer/HSplitContainer/VBoxContainer" instance=ExtResource("1_2yut5")]
