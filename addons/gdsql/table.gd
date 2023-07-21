@@ -1,5 +1,5 @@
 @tool
-extends Control
+extends VBoxContainer
 
 @onready var header: MarginContainer = $VBoxContainer/Header
 @onready var header_col_model: Control = $HSplitContainer/HeaderColModel
@@ -33,8 +33,10 @@ func _ready() -> void:
 	reset_header()
 	await await create_tween().tween_callback(func(): return).set_delay(1).finished
 	datas = datas
-	await await create_tween().tween_callback(func(): return).set_delay(0.5).finished
-	realign_rows()
+	await await create_tween().tween_callback(func(): realign_rows()).set_delay(0.2).finished
+	await await create_tween().tween_callback(func(): realign_rows()).set_delay(0.5).finished
+	await await create_tween().tween_callback(func(): realign_rows()).set_delay(1.0).finished
+	await await create_tween().tween_callback(func(): realign_rows()).set_delay(2.0).finished
 	
 
 func reset_header():

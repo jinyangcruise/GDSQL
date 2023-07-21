@@ -1,6 +1,11 @@
-[gd_scene load_steps=2 format=3 uid="uid://dhptbdbjxq468"]
+[gd_scene load_steps=5 format=3 uid="uid://dhptbdbjxq468"]
 
 [ext_resource type="PackedScene" uid="uid://bpawj4a7llynx" path="res://addons/gdsql/table.tscn" id="1_2tgi5"]
+[ext_resource type="PackedScene" uid="uid://c3bjm6oe0687p" path="res://addons/gdsql/tree_databases.tscn" id="1_2yut5"]
+[ext_resource type="Script" path="res://addons/gdsql/index.gd" id="1_ixupm"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i3kgl"]
+bg_color = Color(0.145098, 0.168627, 0.203922, 1)
 
 [node name="Index" type="MarginContainer"]
 anchors_preset = 15
@@ -13,6 +18,7 @@ size_flags_vertical = 3
 theme_override_constants/margin_left = 8
 theme_override_constants/margin_right = 20
 theme_override_constants/margin_bottom = 20
+script = ExtResource("1_ixupm")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
 layout_mode = 2
@@ -29,9 +35,29 @@ text = "文件(F)"
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="TreeDatabases" type="Tree" parent="VBoxContainer/HSplitContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/HSplitContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="PanelContainer" type="PanelContainer" parent="VBoxContainer/HSplitContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_i3kgl")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "SCHEMAS"
+
+[node name="ButtonRefresh" type="Button" parent="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer/HBoxContainer"]
+layout_mode = 2
+text = "🔄️"
+
+[node name="TreeDatabases" parent="VBoxContainer/HSplitContainer/VBoxContainer" instance=ExtResource("1_2yut5")]
+layout_mode = 2
+size_flags_vertical = 3
 
 [node name="VSplitContainer" type="VSplitContainer" parent="VBoxContainer/HSplitContainer"]
 layout_mode = 2
@@ -67,4 +93,6 @@ size_flags_vertical = 3
 layout_mode = 2
 colums = Array[String](["Status", "#", "Time", "Action", "Message", "Duration"])
 datas = Array[Array]([["正常", 1, "00:00:00", "SELECT * from t_user", "1 row returned", "0.002 secs"]])
-buttons = [NodePath("VBoxContainer/Header/@HSplitContainer@44593/Button"), NodePath("VBoxContainer/Header/@HSplitContainer@44593/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/@HSplitContainer@44593/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/@HSplitContainer@44593/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/@HSplitContainer@44593/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/@HSplitContainer@44593/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/@HSplitContainer@44593/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/@HSplitContainer@44593/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button")]
+buttons = [NodePath("VBoxContainer/Header/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button")]
+
+[connection signal="pressed" from="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer/HBoxContainer/ButtonRefresh" to="." method="_on_button_refresh_pressed"]
