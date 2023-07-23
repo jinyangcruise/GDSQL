@@ -1,6 +1,9 @@
 @tool
 extends Tree
 
+@onready var popup_menu_table_item: PopupMenu = $PopupMenuTableItem
+
+
 var root: TreeItem
 
 var databases: Array[Dictionary] = [
@@ -63,7 +66,7 @@ func add_database(db_name: String) -> TreeItem:
 	database_item.set_text(0, db_name)
 	database_item.set_icon(0, preload("res://addons/gdsql/img/icon_db.png"))
 	database_item.set_icon_max_width(0, 20)
-	database_item.add_button(0, preload("res://addons/gdsql/img/arrow-up-right-from-square.png"), 1, false, "打开目录")
+	database_item.add_button(0, preload("res://addons/gdsql/img/folder.png"), 1, false, "打开目录")
 	
 	
 	var arr := ["Tables", "Views", "Stored Procedures", "Functions"]
@@ -88,7 +91,7 @@ func add_table(db: TreeItem, file_name: String, tooltip: String = "") -> TreeIte
 	table_item.set_tooltip_text(0, tooltip)
 	table_item.set_metadata(0, db.get_metadata(0) + file_name)
 	table_item.add_button(0, preload("res://addons/gdsql/img/quick_search.png"), 0, false, "select * from %s limit 0, 1000" % table_name)
-	table_item.add_button(0, preload("res://addons/gdsql/img/arrow-up-right-from-square.png"), 1, false, "在文件管理器中显示")
+#	table_item.add_button(0, preload("res://addons/gdsql/img/arrow-up-right-from-square.png"), 1, false, "在文件管理器中显示")
 	return table_item
 
 
@@ -122,3 +125,14 @@ func _on_item_activated() -> void:
 				
 		if need_collapsed:
 			item.collapsed = !item.collapsed
+			
+
+
+func _on_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		var item := get_item_at_position(get_local_mouse_position())
+		if item:
+			item.select(0)
+#			printt(DisplayServer.mouse_get_position(), get_viewport().get_mouse_position(), get_window().get_mouse_position())
+			popup_menu_table_item.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
+			popup_menu_table_item.popup()

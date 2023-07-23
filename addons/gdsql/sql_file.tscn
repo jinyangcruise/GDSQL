@@ -1,0 +1,20 @@
+[gd_scene format=3 uid="uid://cug26w6vmiwng"]
+
+[node name="SQL File 1" type="VSplitContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CodeEdit" type="CodeEdit" parent="."]
+layout_mode = 2
+middle_mouse_paste_enabled = false
+highlight_all_occurrences = true
+highlight_current_line = true
+scroll_smooth = true
+caret_blink = true
+gutters_draw_line_numbers = true
+indent_automatic = true
+auto_brace_completion_enabled = true
+auto_brace_completion_highlight_matching = true

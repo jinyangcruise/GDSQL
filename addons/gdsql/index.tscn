@@ -1,8 +1,9 @@
-[gd_scene load_steps=6 format=3 uid="uid://dhptbdbjxq468"]
+[gd_scene load_steps=7 format=3 uid="uid://dhptbdbjxq468"]
 
 [ext_resource type="PackedScene" uid="uid://bpawj4a7llynx" path="res://addons/gdsql/table.tscn" id="1_2tgi5"]
 [ext_resource type="PackedScene" uid="uid://c3bjm6oe0687p" path="res://addons/gdsql/tree_databases.tscn" id="1_2yut5"]
 [ext_resource type="Script" path="res://addons/gdsql/index.gd" id="1_ixupm"]
+[ext_resource type="Script" path="res://addons/gdsql/TabContainer.gd" id="3_kg5nd"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i3kgl"]
 bg_color = Color(0.145098, 0.168627, 0.203922, 1)
@@ -71,31 +72,24 @@ size_flags_stretch_ratio = 6.0
 layout_mode = 2
 size_flags_vertical = 3
 size_flags_stretch_ratio = 4.0
-drag_to_rearrange_enabled = true
+script = ExtResource("3_kg5nd")
 
-[node name="SQL File 1" type="VSplitContainer" parent="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer"]
+[node name="aa" type="Control" parent="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer"]
 layout_mode = 2
 
-[node name="CodeEdit" type="CodeEdit" parent="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer/SQL File 1"]
+[node name="aa2" type="Control" parent="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer"]
+visible = false
 layout_mode = 2
-middle_mouse_paste_enabled = false
-highlight_all_occurrences = true
-highlight_current_line = true
-scroll_smooth = true
-caret_blink = true
-gutters_draw_line_numbers = true
-indent_automatic = true
-auto_brace_completion_enabled = true
-auto_brace_completion_highlight_matching = true
 
 [node name="Control" type="MarginContainer" parent="VBoxContainer/HSplitContainer/VSplitContainer"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="Table" parent="VBoxContainer/HSplitContainer/VSplitContainer/Control" node_paths=PackedStringArray("buttons") instance=ExtResource("1_2tgi5")]
+[node name="LogTable" parent="VBoxContainer/HSplitContainer/VSplitContainer/Control" node_paths=PackedStringArray("buttons") instance=ExtResource("1_2tgi5")]
 layout_mode = 2
 colums = Array[String](["Status", "#", "Time", "Action", "Message", "Duration"])
 datas = Array[Array]([["正常", 1, "00:00:00", "SELECT * from t_user", "1 row returned", "0.002 secs"]])
 buttons = [NodePath("VBoxContainer/Header/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button")]
 
 [connection signal="pressed" from="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer/HBoxContainer/ButtonRefresh" to="." method="_on_button_refresh_pressed"]
+[connection signal="tab_clicked" from="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" to="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" method="_on_tab_clicked"]
