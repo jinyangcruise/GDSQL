@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://cug26w6vmiwng"]
 
-[node name="SQL File 1" type="VSplitContainer"]
+[node name="SQL File" type="VSplitContainer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0

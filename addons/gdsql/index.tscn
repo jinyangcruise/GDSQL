@@ -74,11 +74,7 @@ size_flags_vertical = 3
 size_flags_stretch_ratio = 4.0
 script = ExtResource("3_kg5nd")
 
-[node name="aa" type="Control" parent="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer"]
-layout_mode = 2
-
-[node name="aa2" type="Control" parent="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer"]
-visible = false
+[node name="➕" type="Control" parent="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer"]
 layout_mode = 2
 
 [node name="Control" type="MarginContainer" parent="VBoxContainer/HSplitContainer/VSplitContainer"]
@@ -92,4 +88,6 @@ datas = Array[Array]([["正常", 1, "00:00:00", "SELECT * from t_user", "1 row r
 buttons = [NodePath("VBoxContainer/Header/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button")]
 
 [connection signal="pressed" from="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer/HBoxContainer/ButtonRefresh" to="." method="_on_button_refresh_pressed"]
+[connection signal="tab_button_pressed" from="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" to="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" method="_on_tab_button_pressed"]
+[connection signal="tab_changed" from="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" to="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" method="_on_tab_changed"]
 [connection signal="tab_clicked" from="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" to="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" method="_on_tab_clicked"]
