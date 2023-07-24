@@ -58,6 +58,10 @@ item_9/text = "在外部程序中打开"
 item_9/icon = ExtResource("3_cmntk")
 item_9/id = 9
 
+[node name="PopupMenuCreateTableLike" type="PopupMenu" parent="PopupMenuTableItem"]
+
 [connection signal="button_clicked" from="." to="." method="_on_button_clicked"]
 [connection signal="gui_input" from="." to="." method="_on_gui_input"]
 [connection signal="item_activated" from="." to="." method="_on_item_activated"]
+[connection signal="index_pressed" from="PopupMenuTableItem" to="." method="_on_popup_menu_table_item_index_pressed"]
+[connection signal="index_pressed" from="PopupMenuTableItem/PopupMenuCreateTableLike" to="." method="_on_popup_menu_create_table_like_index_pressed"]

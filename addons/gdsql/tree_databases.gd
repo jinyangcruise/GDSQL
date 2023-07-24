@@ -1,7 +1,10 @@
 @tool
 extends Tree
 
+signal new_sql_command(cmd: String)
+
 @onready var popup_menu_table_item: PopupMenu = $PopupMenuTableItem
+@onready var popup_menu_create_table_like: PopupMenu = $PopupMenuTableItem/PopupMenuCreateTableLike
 
 
 var root: TreeItem
@@ -10,20 +13,29 @@ var databases: Array[Dictionary] = [
 	{
 		"path": "user://",
 		"name": "用户",
+		"table_items": [],
 	},{
 		"path": "res://src/config/",
 		"name": "配置文件",
+		"table_items": [],
 	}
 ]
 
 var database_items: Array[TreeItem] = []
 
+func clear():
+	super.clear()
+	database_items.clear()
+	popup_menu_create_table_like.clear()
+	for i in databases:
+		i["table_items"].clear()
+
 func _ready():
+	popup_menu_table_item.set_item_submenu(3, "PopupMenuCreateTableLike")
 	refresh()
 	
 func refresh() -> void:
-	database_items.clear()
-	clear()
+	self.clear()
 	await get_tree().create_timer(0.1).timeout
 	root = create_item()
 	var collapsed = false
@@ -36,7 +48,15 @@ func refresh() -> void:
 		collapsed = true # 除了第一个数据库不折叠，其他都折叠
 		var table_files = _get_gsql_file(data["path"])
 		for file_name in table_files:
-			add_table(db, file_name, file_name)
+			var table_item = add_table(db, file_name, file_name)
+			data["table_items"].push_back(table_item)
+			
+	# create table like 子菜单重新生成
+	for data in databases:
+		if !data["table_items"].is_empty():
+			popup_menu_create_table_like.add_separator("数据库：%s" % data["name"])
+		for t in data["table_items"]:
+			popup_menu_create_table_like.add_item((t as TreeItem).get_text(0))
 	
 func _get_gsql_file(path: String) -> Array[String]:
 	var ret: Array[String] = []
@@ -99,7 +119,7 @@ func _on_button_clicked(item: TreeItem, column: int, id: int, mouse_button_index
 	if column == 0:
 		match id:
 			0:
-				printt(item.get_button_tooltip_text(column, id))
+				new_sql_command.emit(item.get_button_tooltip_text(column, id))
 			1:
 				var path = ProjectSettings.globalize_path(item.get_metadata(0))
 				OS.shell_show_in_file_manager(path, true)
@@ -136,3 +156,17 @@ func _on_gui_input(event: InputEvent) -> void:
 #			printt(DisplayServer.mouse_get_position(), get_viewport().get_mouse_position(), get_window().get_mouse_position())
 			popup_menu_table_item.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
 			popup_menu_table_item.popup()
+			
+func _on_popup_menu_table_item_index_pressed(index: int) -> void:
+	printt(popup_menu_table_item.get_item_text(index))
+	match popup_menu_table_item.get_item_text(index):
+		"Select Rows - Limit 1000":
+			pass
+		"Create Table ...":
+			pass
+		"Create Table Like...":
+			pass
+
+
+func _on_popup_menu_create_table_like_index_pressed(index: int) -> void:
+	printt("aaa", popup_menu_create_table_like.get_item_text(index))
