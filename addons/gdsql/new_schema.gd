@@ -15,7 +15,9 @@ func _on_button_pressed(access) -> void:
 	var editor_file_dialog = EditorFileDialog.new()
 	editor_file_dialog.access = access
 	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_DIR
-	editor_file_dialog.dir_selected.connect(func(dir):
+	editor_file_dialog.dir_selected.connect(func(dir: String):
+		if not dir.ends_with("/"):
+			dir += "/"
 		line_edit_path.text = dir
 	)
 	h_box_container_2.add_child(editor_file_dialog)
@@ -34,7 +36,6 @@ func _on_button_apply_pressed() -> void:
 		
 	button_apply_pressed.emit(db_name, path, check_box.button_pressed, name)
 	#queue_free() 已改为让TabContainer接收到成功添加的信号后删除该页签
-
 
 func _on_button_cancel_pressed() -> void:
 	queue_free()

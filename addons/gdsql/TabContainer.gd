@@ -2,6 +2,7 @@
 extends TabContainer
 
 signal add_new_schema(db_name: String, path: String, save: bool, id: String)
+signal alter_old_schema(old_db_name, new_db_name: String, path: String, save: bool, id: String)
 
 @onready var new_tab_button: Control = $"➕"
 
@@ -30,6 +31,20 @@ func add_tab_new_schema() -> void:
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
 	set_tab_title(current_tab, "new_schema")
+		
+func add_tab_alter_schema(db_name, path, save) -> void:
+	var alter_schema = preload("res://addons/gdsql/alter_schema.tscn").instantiate()
+	alter_schema.old_db_name = db_name
+	alter_schema.db_name = db_name
+	alter_schema.path = path
+	alter_schema.save = save
+	alter_schema.button_apply_pressed.connect(func(a_old_db_name, a_new_db_name, a_path, a_save, id):
+		alter_old_schema.emit(a_old_db_name, a_new_db_name, a_path, a_save, id)
+	)
+	add_child(alter_schema)
+	move_child(new_tab_button, get_child_count() - 1)
+	current_tab = get_child_count() - 2
+	set_tab_title(current_tab, "alter_schema")
 	
 func _on_tab_button_pressed(tab: int) -> void:
 	remove_child(get_tab_control(tab))

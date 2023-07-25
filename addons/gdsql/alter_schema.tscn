@@ -1,0 +1,77 @@
+[gd_scene load_steps=3 format=3 uid="uid://cefck4hclp808"]
+
+[ext_resource type="Script" path="res://addons/gdsql/alter_schema.gd" id="1_1dobv"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_oeto1"]
+
+[node name="alter_schema" type="VBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_1dobv")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="HBoxContainer"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+text = "Name"
+horizontal_alignment = 2
+
+[node name="LineEditName" type="LineEdit" parent="HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "database alias name"
+context_menu_enabled = false
+caret_blink = true
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="HBoxContainer2"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+text = "Path"
+horizontal_alignment = 2
+
+[node name="LineEditPath" type="LineEdit" parent="HBoxContainer2"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/focus = SubResource("StyleBoxEmpty_oeto1")
+placeholder_text = "choose a dir"
+editable = false
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="HBoxContainer3"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+tooltip_text = "if not checked, the workbench will not show this database when restart Godot"
+mouse_filter = 0
+text = "Remember Me"
+horizontal_alignment = 2
+
+[node name="CheckBox" type="CheckBox" parent="HBoxContainer3"]
+layout_mode = 2
+tooltip_text = "if not checked, the workbench will not show this database when restart Godot"
+
+[node name="HFlowContainer" type="HFlowContainer" parent="."]
+layout_mode = 2
+alignment = 1
+
+[node name="ButtonApply" type="Button" parent="HFlowContainer"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Apply"
+
+[node name="ButtonCancel" type="Button" parent="HFlowContainer"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Cancel"
+
+[connection signal="pressed" from="HFlowContainer/ButtonApply" to="." method="_on_button_apply_pressed"]
+[connection signal="pressed" from="HFlowContainer/ButtonCancel" to="." method="_on_button_cancel_pressed"]
