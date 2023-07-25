@@ -57,6 +57,7 @@ text = "SCHEMAS"
 
 [node name="ButtonRefresh" type="Button" parent="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer/HBoxContainer"]
 layout_mode = 2
+tooltip_text = "Refresh All"
 theme_override_styles/focus = SubResource("StyleBoxEmpty_2ech8")
 text = "🔄️"
 

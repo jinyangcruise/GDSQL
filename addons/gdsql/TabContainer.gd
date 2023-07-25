@@ -1,6 +1,8 @@
 @tool
 extends TabContainer
 
+signal add_new_schema(db_name: String, path: String, save: bool, id: String)
+
 @onready var new_tab_button: Control = $"➕"
 
 var _tab_index = 1
@@ -14,14 +16,29 @@ func _on_tab_clicked(tab: int) -> void:
 	if get_child(tab) == new_tab_button:
 		var sql_file = preload("res://addons/gdsql/sql_file.tscn").instantiate()
 		add_child(sql_file)
-		move_child(new_tab_button, get_child_count())
+		move_child(new_tab_button, get_child_count() - 1)
 		current_tab = get_child_count() - 2
 		set_tab_title(current_tab, "SQL File %d" % _tab_index)
 		_tab_index += 1
 		
+func add_tab_new_schema() -> void:
+	var new_schema = preload("res://addons/gdsql/new_schema.tscn").instantiate()
+	new_schema.button_apply_pressed.connect(func(db_name, path, save, id):
+		add_new_schema.emit(db_name, path, save, id)
+	)
+	add_child(new_schema)
+	move_child(new_tab_button, get_child_count() - 1)
+	current_tab = get_child_count() - 2
+	set_tab_title(current_tab, "new_schema")
+	
 func _on_tab_button_pressed(tab: int) -> void:
 	remove_child(get_tab_control(tab))
 	# TODO 有内容的时候要提示保存或者二次确认
+	
+func close_content_window(content_id: String):
+	var child = get_node(content_id)
+	if child:
+		child.queue_free()
 
 ## 切换标签的时候，把激活的标签上加一个关闭按钮，没激活的标签取消关闭按钮防止误触
 func _on_tab_changed(tab: int) -> void:

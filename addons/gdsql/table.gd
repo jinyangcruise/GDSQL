@@ -85,8 +85,8 @@ func reset_header():
 	parent.queue_free()
 	clear_rows()
 	
-func _on_header_col_model_dragged(offset: int, h_split_container: HSplitContainer) -> void:
-	var child_button: Button = h_split_container.get_child(0)
+func _on_header_col_model_dragged(_offset: int, h_split_container: HSplitContainer) -> void:
+	#var child_button: Button = h_split_container.get_child(0)
 	var child_control = h_split_container.get_child(1)
 	child_control.custom_minimum_size.x = 1
 	await get_tree().process_frame
@@ -132,7 +132,7 @@ func _on_button_pressed() -> void:
 #		var splitCol = parent.get_parent()
 #		printt(button.size_flags_horizontal, button.size.x, splitCol, splitCol.size_flags_horizontal, splitCol.size.x)
 		
-func _on_dragger_gui_input(event: InputEvent, split_container: HSplitContainer):
+func _on_dragger_gui_input(event: InputEvent, _split_container: HSplitContainer):
 	# 让control不要自动填充
 	if event is InputEventMouseButton:
 		if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
