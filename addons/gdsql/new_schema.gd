@@ -22,6 +22,9 @@ func _on_button_pressed(access) -> void:
 	)
 	h_box_container_2.add_child(editor_file_dialog)
 	editor_file_dialog.popup_centered_ratio(0.5)
+	editor_file_dialog.close_requested.connect(func():
+		editor_file_dialog.queue_free()
+	)
 
 
 func _on_button_apply_pressed() -> void:
@@ -32,6 +35,9 @@ func _on_button_apply_pressed() -> void:
 		dialog.dialog_text = "name and path must be set!"
 		add_child(dialog)
 		dialog.popup_centered()
+		dialog.close_requested.connect(func():
+			dialog.queue_free()
+		)
 		return
 		
 	button_apply_pressed.emit(db_name, path, check_box.button_pressed, name)

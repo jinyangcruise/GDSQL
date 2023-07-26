@@ -1,6 +1,7 @@
-[gd_scene load_steps=12 format=3 uid="uid://cug26w6vmiwng"]
+[gd_scene load_steps=13 format=3 uid="uid://cug26w6vmiwng"]
 
 [ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="1_2i2u8"]
+[ext_resource type="Script" path="res://addons/gdsql/sql_file.gd" id="1_taekh"]
 [ext_resource type="Texture2D" uid="uid://lu2m6lhnamxh" path="res://addons/gdsql/img/floppy-disk.png" id="2_576jt"]
 [ext_resource type="Texture2D" uid="uid://fud4boba7d2j" path="res://addons/gdsql/img/bolt-lightning.png" id="3_88dm5"]
 [ext_resource type="Texture2D" uid="uid://bj6qe4a23bjvc" path="res://addons/gdsql/img/bolt-lightning-edit.png" id="4_knscp"]
@@ -12,7 +13,7 @@
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_03x0p"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0ukqh"]
-bg_color = Color(0.286275, 0.12549, 0.576471, 1)
+bg_color = Color(0.541176, 0.168627, 0.890196, 1)
 corner_radius_top_left = 3
 corner_radius_top_right = 3
 corner_radius_bottom_right = 3
@@ -26,6 +27,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("1_taekh")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
 layout_mode = 2

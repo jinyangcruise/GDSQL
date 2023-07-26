@@ -1,14 +1,21 @@
 @tool
 extends VBoxContainer
 
+## 通过该信号可以把需要在检查器中查看的对象发送给EditorInterface
+signal inspect_object(object: Object, for_property: String, inspector_only: bool)
+
 @onready var header: MarginContainer = $VBoxContainer/Header
 @onready var header_col_model: Control = $HSplitContainer/HeaderColModel
 @onready var v_box_container: VBoxContainer = $VBoxContainer/ScrollContainer/VBoxContainer
 @onready var row_model: HBoxContainer = $Models/RowModel
 @onready var label_model: Label = $Models/LabelModel
+@onready var text_edit_model: TextEdit = $Models/TextEditModel
+@onready var texture_button_model: TextureButton = $Models/TextureButtonModel
+@onready var check_box_model: CheckBox = $Models/CheckBoxModel
 
 
-
+@export var show_raw_data: bool = false
+@export var editable: bool = true
 
 @export var colums: Array[String]:
 	set(val):
@@ -26,7 +33,7 @@ extends VBoxContainer
 				add_row(d)
 		
 		
-@export var buttons: Array[Button] = []
+var buttons: Array[Button] = []
 var controls: Array = []
 
 func _ready() -> void:
@@ -103,11 +110,39 @@ func add_row(data: Array):
 	a_row.show()
 	var control: Control
 	for i in data.size():
-		match typeof(data[i]):
-			_:
-				control = label_model.duplicate()
-				control.text = str(data[i])
-		
+		var handled = false
+		if not show_raw_data:
+			match typeof(data[i]):
+				TYPE_BOOL:
+					handled = true
+					control = check_box_model.duplicate()
+					control.button_pressed = data[i]
+					control.disabled = !editable
+				TYPE_STRING, TYPE_STRING_NAME:
+					handled = true
+					control = label_model.duplicate()
+					control.text = data[i]
+					control.gui_input.connect(_on_label_model_gui_input.bind(control, false))
+				TYPE_OBJECT:
+					if data[i] is Resource:
+						handled = true
+						var editor_resource_picker := EditorResourcePicker.new()
+						editor_resource_picker.base_type = data[i].get_class()
+						editor_resource_picker.edited_resource = data[i].duplicate()
+						editor_resource_picker.editable = editable
+						control = editor_resource_picker
+						control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+						#control = texture_button_model.duplicate()
+						#control.texture_normal = data[i]
+						#control.pressed.connect(_on_texture_button_model_button_up.bind(control))
+					## TODO 其他类型待添加，例如音频
+					
+		if not handled:
+			control = label_model.duplicate()
+			control.text = var_to_str(data[i])
+			control.gui_input.connect(_on_label_model_gui_input.bind(control, true))
+			
+		control.set_meta("data", data[i])
 		a_row.add_child(control)
 		if i == 0 or i == data.size() - 1:
 			control.hide()
@@ -144,3 +179,61 @@ func _on_dragger_gui_input(event: InputEvent, _split_container: HSplitContainer)
 			for control in controls:
 				control.custom_minimum_size = control.size
 			
+
+
+func _on_texture_button_model_button_up(node: TextureButton) -> void:
+	if not editable:
+		return
+	var editor_file_dialog = EditorFileDialog.new()
+	editor_file_dialog.access = EditorFileDialog.ACCESS_RESOURCES
+	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
+	editor_file_dialog.file_selected.connect(func(path: String):
+		node.texture_normal = load(path)
+	)
+	add_child(editor_file_dialog)
+	editor_file_dialog.popup_centered_ratio(0.5)
+	editor_file_dialog.close_requested.connect(func():
+		editor_file_dialog.queue_free()
+	)
+
+
+func _on_label_model_gui_input(event: InputEvent, node: Label, need_var_to_str: bool) -> void:
+	if not editable:
+		return
+	if not event is InputEventMouseButton:
+		return
+	if not (event as InputEventMouseButton).double_click:
+		return
+		
+	var save_button = Button.new()
+	save_button.text = "save"
+	var obj = DictionaryObject.new({
+		"id": randi(),
+		"name": "jinyang",
+		"good": true,
+		"level": 20,
+		"age": 33,
+		"title": preload("res://resource/bitmap/icon/skill/icon_skill1.s110.png"),
+	})
+	inspect_object.emit(obj, "", false)
+	return
+		
+	var text_edit = text_edit_model.duplicate()
+	if need_var_to_str:
+		text_edit.text = var_to_str(node.get_meta("data")) # 从meta取数据可能更安全点
+	else:
+		text_edit.text = node.get_meta("data")
+		
+	text_edit.focus_exited.connect(func():
+		node.set_meta("data", text_edit.text)
+		node.text = text_edit.text
+		node.size_flags_stretch_ratio = text_edit.size_flags_stretch_ratio
+		text_edit.replace_by(node)
+		#if not node.is_connected("gui_input", _on_label_model_gui_input.bind(node)):
+			#node.gui_input.connect(_on_label_model_gui_input.bind(node))
+			#printt("reconnect label gui input")
+	)
+	#text_edit.custom_minimum_size.y = max(node.custom_minimum_size.y, node.size.y) * 3
+	text_edit.size_flags_stretch_ratio = node.size_flags_stretch_ratio
+	node.replace_by(text_edit)
+	text_edit.grab_focus()

@@ -45,6 +45,9 @@ func _on_button_apply_pressed() -> void:
 		dialog.dialog_text = "name and path must be set!"
 		add_child(dialog)
 		dialog.popup_centered()
+		dialog.close_requested.connect(func():
+			dialog.queue_free()
+		)
 		return
 		
 	button_apply_pressed.emit(old_db_name, _db_name, _path, check_box.button_pressed, name)

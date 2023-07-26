@@ -4,7 +4,7 @@
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_a63dc"]
 
-[node name="Table" type="VBoxContainer" node_paths=PackedStringArray("buttons")]
+[node name="Table" type="VBoxContainer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -14,9 +14,8 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 script = ExtResource("1_s1y7s")
 colums = Array[String](["id", "name", "level", "age"])
-buttons = [NodePath("VBoxContainer/Header/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button"), NodePath("VBoxContainer/Header/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Control/HeaderColModel/Button")]
 
-[node name="Models" type="HSplitContainer" parent="."]
+[node name="Models" type="HBoxContainer" parent="."]
 visible = false
 layout_mode = 2
 
@@ -30,8 +29,26 @@ layout_mode = 2
 size_flags_horizontal = 3
 auto_translate = false
 localize_numeral_system = false
-horizontal_alignment = 1
+focus_mode = 2
+mouse_filter = 0
 text_overrun_behavior = 3
+
+[node name="TextEditModel" type="TextEdit" parent="Models"]
+layout_mode = 2
+size_flags_horizontal = 3
+wrap_mode = 1
+scroll_smooth = true
+scroll_fit_content_height = true
+caret_blink = true
+
+[node name="TextureButtonModel" type="TextureButton" parent="Models"]
+layout_mode = 2
+size_flags_horizontal = 3
+ignore_texture_size = true
+stretch_mode = 5
+
+[node name="CheckBoxModel" type="CheckBox" parent="Models"]
+layout_mode = 2
 
 [node name="HSplitContainer" type="HSplitContainer" parent="."]
 visible = false

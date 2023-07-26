@@ -63,3 +63,11 @@ func _on_tab_changed(tab: int) -> void:
 		for i in get_tab_count():
 			if i != tab:
 				set_tab_button_icon(i, null)
+				
+func receive_content(content: String):
+	# 当前打开的页签是一个编辑器，则直接发送，否则创建一个
+	if not get_tab_title(current_tab).begins_with("SQL File"):
+		_on_tab_clicked(current_tab)
+		
+	var code_edit = get_tab_control(current_tab).code_edit as CodeEdit
+	code_edit.text += content

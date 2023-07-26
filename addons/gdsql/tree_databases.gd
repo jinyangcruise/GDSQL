@@ -6,6 +6,7 @@ signal alter_schema(db_name, path, save)
 signal new_sql_command(cmd: String)
 signal add_db_to_config_success(id: String)
 signal modify_db_to_config_success(id: String)
+signal send_to_editor(content: String)
 
 @onready var popup_menu_database: PopupMenu = $PopupMenuDatabase
 @onready var popup_menu_table_item: PopupMenu = $PopupMenuTableItem
@@ -45,6 +46,8 @@ func load_config():
 	_tmp_config = ConfigFile.new()
 	
 func refresh_databases():
+	_config_file.clear()
+	_config_file.load("res://addons/gdsql/config/config.cfg")
 	databases = []
 	for conf in [_config_file, _tmp_config] as Array[ConfigFile]:
 		for db_name in conf.get_sections():
@@ -66,6 +69,9 @@ func add_db_to_config(db_name: String, path: String, save: bool, id: String):
 					
 				add_child(dialog)
 				dialog.popup_centered()
+				dialog.close_requested.connect(func():
+					dialog.queue_free()
+				)
 				return
 		
 	var conf: ConfigFile = _config_file if save else _tmp_config
@@ -299,6 +305,9 @@ func _on_popup_menu_database_index_pressed(index: int) -> void:
 				)
 				add_child(dialog)
 				dialog.popup_centered()
+				dialog.close_requested.connect(func():
+					dialog.queue_free()
+				)
 		"Refresh All":
 			refresh()
 		_:
@@ -342,13 +351,23 @@ func _on_popup_menu_send_to_index_pressed(index: int) -> void:
 		"Name":
 			var item := get_selected()
 			if item:
-				DisplayServer.clipboard_set(item.get_meta("db_name"))
+				send_to_editor.emit(item.get_meta("db_name"))
 		"Path":
 			var item := get_selected()
 			if item:
-				DisplayServer.clipboard_set(item.get_meta("path"))
+				send_to_editor.emit(item.get_meta("path"))
 		"Create Statement":
 			var item := get_selected()
 			if item:
 				var statement = "CREATE DATABASE `%s` AS `%s`;" % [item.get_meta("path"), item.get_meta("db_name")]
-				DisplayServer.clipboard_set(statement)
+				send_to_editor.emit(statement)
+
+
+func _on_popup_menu_tables_index_pressed(index: int) -> void:
+	match popup_menu_table_item.get_item_text(index):
+		"Create Table ...":
+			pass
+		"Create Table Like...":
+			pass
+		"Refresh All":
+			refresh()
