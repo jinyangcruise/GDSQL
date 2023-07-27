@@ -1,10 +1,9 @@
-[gd_scene load_steps=8 format=3 uid="uid://dhptbdbjxq468"]
+[gd_scene load_steps=7 format=3 uid="uid://dhptbdbjxq468"]
 
 [ext_resource type="PackedScene" uid="uid://bpawj4a7llynx" path="res://addons/gdsql/table.tscn" id="1_2tgi5"]
 [ext_resource type="PackedScene" uid="uid://c3bjm6oe0687p" path="res://addons/gdsql/tree_databases.tscn" id="1_2yut5"]
 [ext_resource type="Script" path="res://addons/gdsql/index.gd" id="1_ixupm"]
 [ext_resource type="Script" path="res://addons/gdsql/tab_container.gd" id="3_2dwia"]
-[ext_resource type="Texture2D" uid="uid://c8bawf3vrxg61" path="res://icon.svg" id="5_2tl1s"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i3kgl"]
 bg_color = Color(0.145098, 0.168627, 0.203922, 1)
@@ -101,8 +100,9 @@ size_flags_horizontal = 3
 
 [node name="LogTable" parent="VBoxContainer/HSplitContainer/VSplitContainer/Control/VBoxContainer" instance=ExtResource("1_2tgi5")]
 layout_mode = 2
-colums = Array[String](["Status", "#", "Time", "Action", "Message", "Duration", "Icon"])
-datas = Array[Array]([["正常", 1, "00:00:00", "SELECT * from t_user", "1 row returned", "0.002 secs", ExtResource("5_2tl1s")]])
+editable = true
+colums = Array[String](["Status", "#", "Time", "Action", "Message", "Duration"])
+ratios = Array[float]([20.0, 30.0, 15.0, 0.55, 0.4, 1.0])
 
 [connection signal="pressed" from="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer/HBoxContainer/ButtonRefresh" to="." method="_on_button_refresh_pressed"]
 [connection signal="tab_button_pressed" from="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" to="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" method="_on_tab_button_pressed"]

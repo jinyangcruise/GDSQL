@@ -7,30 +7,34 @@ signal inspect_object(object: Object, for_property: String, inspector_only: bool
 @onready var header: MarginContainer = $VBoxContainer/Header
 @onready var header_col_model: Control = $HSplitContainer/HeaderColModel
 @onready var v_box_container: VBoxContainer = $VBoxContainer/ScrollContainer/VBoxContainer
-#@onready var row_model: HBoxContainer = $Models/RowModel
 @onready var row_panel_container: PanelContainer = $Models/RowPanelContainer
 @onready var label_model: Label = $Models/LabelModel
 @onready var texture_rect_model: TextureRect = $Models/TextureRectModel
 @onready var check_box_model: CheckBox = $Models/CheckBoxModel
 
 
-@export var show_raw_data: bool = false
-@export var editable: bool = true
-
+## 表格是否可编辑（datas中的元素必须是DictionaryObject才有效）
+@export var editable: bool = false
+## 每列的名称
 @export var colums: Array[String]:
 	set(val):
 		colums = val
 		if is_node_ready():
 			reset_header()
 			
-@export var datas: Array[Array]:
+## 每列的初始宽度比例
+## 第N个元素是X，表示第N列的宽度是后面宽度之和的1/X
+## 例如，第一个元素是20，表示第一列的宽度是后面宽度之和的1/20
+@export var ratios: Array[float] = []
+	
+## 表格中的数据，datas中的元素可以是数组、字典或DictionayObject
+@export var datas: Array:
 	set(val):
 		datas = val
 		if is_node_ready():
 			clear_rows()
 			for data in datas:
-				var d = data.duplicate()
-				add_row(d)
+				add_row(data)
 		
 		
 var buttons: Array[Button] = []
@@ -38,7 +42,7 @@ var controls: Array = []
 
 func _ready() -> void:
 	reset_header()
-	await await create_tween().tween_callback(func(): return).set_delay(1).finished
+	await get_tree().create_timer(1).timeout
 	datas = datas
 	for i in 50:
 		await create_tween().tween_callback(func(): realign_rows()).set_delay(0.1).finished
@@ -72,8 +76,13 @@ func reset_header():
 		elif i == fake_columns.size() - 2:
 			button.size_flags_stretch_ratio = 10000
 			c.dragger_visibility = HSplitContainer.DRAGGER_HIDDEN_COLLAPSED
+		elif i == fake_columns.size() - 1:
+			button.size_flags_stretch_ratio = 1
 		else:
-			control.size_flags_stretch_ratio = fake_columns.size() - i - 2
+			if ratios.size() > i - 1:
+				control.size_flags_stretch_ratio = ratios[i - 1]
+			else:
+				control.size_flags_stretch_ratio = fake_columns.size() - i - 2
 			
 		if i == fake_columns.size() - 1:
 			button.hide()
@@ -100,44 +109,92 @@ func _on_header_col_model_dragged(_offset: int, h_split_container: HSplitContain
 	next_h_split_container.size.x = child_control.size.x
 	realign_rows()
 	
-func add_row(data: Array):
+func add_row(a_data):
+	var data: Array
+	if a_data is Array:
+		data = a_data.duplicate()
+		if colums.is_empty():
+			for i in data.size():
+				colums.push_back("#%d" % i)
+	elif a_data is Dictionary:
+		data = []
+		if colums.is_empty():
+			colums = []
+			for key in a_data:
+				colums.push_back(key)
+				data.push_back(a_data[key])
+		else:
+			for key in colums:
+				data.push_back(a_data[key])
+	elif a_data is DictionaryObject:
+		data = []
+		if colums.is_empty():
+			colums = []
+			for info in a_data._get_property_list():
+				colums.push_back(info["name"])
+				data.push_back(a_data.get(info["name"]))
+		else:
+			for key in colums:
+				data.push_back(a_data.get(key))
+				
 	var a_row = row_panel_container.duplicate()
 	v_box_container.add_child(a_row)
-	a_row.show()
-	a_row.gui_input.connect(_on_row_gui_input.bind(a_row, data.duplicate()))
+	a_row.gui_input.connect(_on_row_gui_input.bind(a_data))
 	data.insert(0, "")
 	data.push_back("")
 	var control: Control
 	for i in data.size():
 		var handled = false
-		if not show_raw_data:
-			match typeof(data[i]):
-				TYPE_BOOL:
+		match typeof(data[i]):
+			TYPE_BOOL:
+				handled = true
+				control = check_box_model.duplicate()
+				control.button_pressed = data[i]
+				if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
+					var callback = func(new_value, control_ref: WeakRef):
+						var ctl = control_ref.get_ref()
+						if ctl:
+							ctl.button_pressed = new_value
+					a_data.set_update_callback(colums[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
+			TYPE_STRING, TYPE_STRING_NAME:
+				handled = true
+				control = label_model.duplicate()
+				control.text = data[i]
+				if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
+					var callback = func(new_value, control_ref: WeakRef):
+						var ctl = control_ref.get_ref()
+						if ctl:
+							ctl.text = new_value
+					a_data.set_update_callback(colums[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
+			TYPE_OBJECT:
+				if data[i] is Resource:
 					handled = true
-					control = check_box_model.duplicate()
-					control.button_pressed = data[i]
-					#control.disabled = true # 需要通过检查器inspector来修改 # 也不用专门设置了，因为a_row的mouse_filter是stop
-				TYPE_STRING, TYPE_STRING_NAME:
-					handled = true
-					control = label_model.duplicate()
-					control.text = data[i]
-				TYPE_OBJECT:
-					if data[i] is Texture:
-						handled = true
-						var editor_resource_picker := EditorResourcePicker.new()
-						editor_resource_picker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-						editor_resource_picker.propagate_call("set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
-						editor_resource_picker.base_type = data[i].get_class()
-						editor_resource_picker.edited_resource = data[i].duplicate()
-						editor_resource_picker.editable = false
-						control = editor_resource_picker
-						#control = texture_rect_model.duplicate()
-						#control.texture = data[i]
-					## TODO 其他类型待添加，例如音频
-					
+					var editor_resource_picker := EditorResourcePicker.new()
+					editor_resource_picker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+					editor_resource_picker.propagate_call("set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
+					editor_resource_picker.base_type = "Resource"
+					editor_resource_picker.edited_resource = data[i]
+					editor_resource_picker.editable = false
+					control = editor_resource_picker
+					if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
+						var callback = func(new_value, control_ref: WeakRef):
+							var ctl = control_ref.get_ref()
+							if ctl:
+								ctl.edited_resource = new_value
+						a_data.set_update_callback(colums[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
+					#control = texture_rect_model.duplicate()
+					#control.texture = data[i]
+				## TODO 可能需要添加其他有必要预览的类型
+				
 		if not handled:
 			control = label_model.duplicate()
 			control.text = var_to_str(data[i])
+			if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
+				var callback = func(new_value, control_ref: WeakRef):
+					var ctl = control_ref.get_ref()
+					if ctl:
+						ctl.text = var_to_str(new_value)
+				a_data.set_update_callback(colums[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
 			
 		control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		#control.set_meta("data", data[i])
@@ -196,32 +253,18 @@ func _on_dragger_gui_input(event: InputEvent, _split_container: HSplitContainer)
 	#)
 
 
-func _on_row_gui_input(event: InputEvent, row: Control, data: Array) -> void:
+func _on_row_gui_input(event: InputEvent, source_data) -> void:
 	if not editable:
 		return
+		
 	if not event is InputEventMouseButton:
 		return
 		
 	if not (event as InputEventMouseButton).double_click:
 		return
 		
-	var save_button = Button.new()
-	save_button.text = "save"
-	var obj = DictionaryObject.new({
-		"id": randi(),
-		"name": "jinyang",
-		"good": true,
-		"level": 20,
-		"age": 33,
-		"title": preload("res://resource/bitmap/icon/skill/icon_skill7.s110.png"),
-	}, {
-		"title": {
-			"hint": PROPERTY_HINT_RESOURCE_TYPE,
-			"hint_string": "Texture2D"
-		}
-	})
-	inspect_object.emit(obj, "", false)
-
+	if source_data is Object and editable:
+		inspect_object.emit(source_data, "", false)
 
 func _on_row_panel_container_focus_entered() -> void:
 	var style_box: StyleBoxFlat = row_panel_container.get_theme_stylebox("panel")

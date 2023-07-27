@@ -19,6 +19,17 @@ func _ready() -> void:
 	tree_databases.send_to_editor.connect(tab_container.receive_content) # 发出发送到编辑器内容的请求
 	
 	log_table.inspect_object.connect(transfer_inspect_object)
+	
+	var dic_obj := DictionaryObject.new({
+		"Status": true,
+		"#": 1,
+		"Time": "09:30:22",
+		"Action": "UPDATE T_USER SET UNAME = 'PETER' WHERE ID = 1",
+		"Message": "2 rows affected",
+		"Duration": "0.0001 sec",
+		"Icon": preload("res://addons/gdsql/img/2人脚步-06.mp3"),
+	})
+	log_table.datas = [dic_obj]
 
 func _on_button_refresh_pressed() -> void:
 	tree_databases.refresh()

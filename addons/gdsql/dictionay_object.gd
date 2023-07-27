@@ -4,6 +4,7 @@ class_name DictionaryObject
 var _origin: Dictionary
 var _data: Dictionary
 var _hint: Dictionary
+var _update_callback: Dictionary
 
 ## data： 一个key-value形成的字典数据。或一个长度为2的数组，第一个元素是key的一维数组，第二个元素是value的一维数组
 ## hint： 一个key-dictionay字典数据。key为data中的key，dictionary为包含"hint"和"hint_string"键的数据。@see PropertyHint 
@@ -26,6 +27,8 @@ func _set(property: StringName, value: Variant) -> bool:
 		if not _origin.has(property):
 			_origin[property] = _data[property]
 		_data[property] = value
+		if _update_callback and _update_callback.has(property):
+			_update_callback[property].call(value)
 		return true
 	return false
 	
@@ -50,5 +53,8 @@ func _property_get_revert(property: StringName) -> Variant:
 	if _data.has(property):
 		return _data[property]
 	return null
-
+	
+func set_update_callback(property: String, callback: Callable) -> void:
+	_update_callback[property] = callback
+	
 
