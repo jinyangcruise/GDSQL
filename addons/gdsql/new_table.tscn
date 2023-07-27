@@ -63,6 +63,4 @@ layout_mode = 2
 
 [node name="Table" parent="VBoxContainer" instance=ExtResource("1_24m38")]
 layout_mode = 2
-show_raw_data = false
-editable = true
 colums = Array[String](["Column Name", "Data Type", "PK", "NN", "UQ", "AI", "Default/Expression", "Comments"])

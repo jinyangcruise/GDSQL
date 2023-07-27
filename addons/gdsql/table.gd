@@ -7,10 +7,10 @@ signal inspect_object(object: Object, for_property: String, inspector_only: bool
 @onready var header: MarginContainer = $VBoxContainer/Header
 @onready var header_col_model: Control = $HSplitContainer/HeaderColModel
 @onready var v_box_container: VBoxContainer = $VBoxContainer/ScrollContainer/VBoxContainer
-@onready var row_model: HBoxContainer = $Models/RowModel
+#@onready var row_model: HBoxContainer = $Models/RowModel
+@onready var row_panel_container: PanelContainer = $Models/RowPanelContainer
 @onready var label_model: Label = $Models/LabelModel
-@onready var text_edit_model: TextEdit = $Models/TextEditModel
-@onready var texture_button_model: TextureButton = $Models/TextureButtonModel
+@onready var texture_rect_model: TextureRect = $Models/TextureRectModel
 @onready var check_box_model: CheckBox = $Models/CheckBoxModel
 
 
@@ -40,10 +40,8 @@ func _ready() -> void:
 	reset_header()
 	await await create_tween().tween_callback(func(): return).set_delay(1).finished
 	datas = datas
-	await await create_tween().tween_callback(func(): realign_rows()).set_delay(0.2).finished
-	await await create_tween().tween_callback(func(): realign_rows()).set_delay(0.5).finished
-	await await create_tween().tween_callback(func(): realign_rows()).set_delay(1.0).finished
-	await await create_tween().tween_callback(func(): realign_rows()).set_delay(2.0).finished
+	for i in 50:
+		await create_tween().tween_callback(func(): realign_rows()).set_delay(0.1).finished
 	
 
 func reset_header():
@@ -103,11 +101,12 @@ func _on_header_col_model_dragged(_offset: int, h_split_container: HSplitContain
 	realign_rows()
 	
 func add_row(data: Array):
-	data.insert(0, "")
-	data.push_back("")
-	var a_row = row_model.duplicate()
+	var a_row = row_panel_container.duplicate()
 	v_box_container.add_child(a_row)
 	a_row.show()
+	a_row.gui_input.connect(_on_row_gui_input.bind(a_row, data.duplicate()))
+	data.insert(0, "")
+	data.push_back("")
 	var control: Control
 	for i in data.size():
 		var handled = false
@@ -117,33 +116,33 @@ func add_row(data: Array):
 					handled = true
 					control = check_box_model.duplicate()
 					control.button_pressed = data[i]
-					control.disabled = !editable
+					#control.disabled = true # 需要通过检查器inspector来修改 # 也不用专门设置了，因为a_row的mouse_filter是stop
 				TYPE_STRING, TYPE_STRING_NAME:
 					handled = true
 					control = label_model.duplicate()
 					control.text = data[i]
-					control.gui_input.connect(_on_label_model_gui_input.bind(control, false))
 				TYPE_OBJECT:
-					if data[i] is Resource:
+					if data[i] is Texture:
 						handled = true
 						var editor_resource_picker := EditorResourcePicker.new()
+						editor_resource_picker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+						editor_resource_picker.propagate_call("set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
 						editor_resource_picker.base_type = data[i].get_class()
 						editor_resource_picker.edited_resource = data[i].duplicate()
-						editor_resource_picker.editable = editable
+						editor_resource_picker.editable = false
 						control = editor_resource_picker
-						control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-						#control = texture_button_model.duplicate()
-						#control.texture_normal = data[i]
-						#control.pressed.connect(_on_texture_button_model_button_up.bind(control))
+						#control = texture_rect_model.duplicate()
+						#control.texture = data[i]
 					## TODO 其他类型待添加，例如音频
 					
 		if not handled:
 			control = label_model.duplicate()
 			control.text = var_to_str(data[i])
-			control.gui_input.connect(_on_label_model_gui_input.bind(control, true))
 			
-		control.set_meta("data", data[i])
-		a_row.add_child(control)
+		control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		#control.set_meta("data", data[i])
+		#control.gui_input.connect(_on_label_model_gui_input.bind(control))
+		a_row.get_child(0).add_child(control)
 		if i == 0 or i == data.size() - 1:
 			control.hide()
 		control.size_flags_stretch_ratio = buttons[i].size.x + 4 # HSplitContainer间隔为8，两边各取一半
@@ -156,8 +155,8 @@ func clear_rows():
 		
 func realign_rows():
 	for row in v_box_container.get_children():
-		for i in row.get_child_count():
-			row.get_child(i).size_flags_stretch_ratio = buttons[i].size.x + 4
+		for i in row.get_child(0).get_child_count():
+			row.get_child(0).get_child(i).size_flags_stretch_ratio = buttons[i].size.x + 4
 		
 func _on_button_pressed() -> void:
 	realign_rows()
@@ -181,27 +180,28 @@ func _on_dragger_gui_input(event: InputEvent, _split_container: HSplitContainer)
 			
 
 
-func _on_texture_button_model_button_up(node: TextureButton) -> void:
-	if not editable:
-		return
-	var editor_file_dialog = EditorFileDialog.new()
-	editor_file_dialog.access = EditorFileDialog.ACCESS_RESOURCES
-	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
-	editor_file_dialog.file_selected.connect(func(path: String):
-		node.texture_normal = load(path)
-	)
-	add_child(editor_file_dialog)
-	editor_file_dialog.popup_centered_ratio(0.5)
-	editor_file_dialog.close_requested.connect(func():
-		editor_file_dialog.queue_free()
-	)
+#func _on_texture_button_model_button_up(node: TextureButton) -> void:
+	#if not editable:
+		#return
+	#var editor_file_dialog = EditorFileDialog.new()
+	#editor_file_dialog.access = EditorFileDialog.ACCESS_RESOURCES
+	#editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
+	#editor_file_dialog.file_selected.connect(func(path: String):
+		#node.texture_normal = load(path)
+	#)
+	#add_child(editor_file_dialog)
+	#editor_file_dialog.popup_centered_ratio(0.5)
+	#editor_file_dialog.close_requested.connect(func():
+		#editor_file_dialog.queue_free()
+	#)
 
 
-func _on_label_model_gui_input(event: InputEvent, node: Label, need_var_to_str: bool) -> void:
+func _on_row_gui_input(event: InputEvent, row: Control, data: Array) -> void:
 	if not editable:
 		return
 	if not event is InputEventMouseButton:
 		return
+		
 	if not (event as InputEventMouseButton).double_click:
 		return
 		
@@ -213,27 +213,21 @@ func _on_label_model_gui_input(event: InputEvent, node: Label, need_var_to_str: 
 		"good": true,
 		"level": 20,
 		"age": 33,
-		"title": preload("res://resource/bitmap/icon/skill/icon_skill1.s110.png"),
+		"title": preload("res://resource/bitmap/icon/skill/icon_skill7.s110.png"),
+	}, {
+		"title": {
+			"hint": PROPERTY_HINT_RESOURCE_TYPE,
+			"hint_string": "Texture2D"
+		}
 	})
 	inspect_object.emit(obj, "", false)
-	return
-		
-	var text_edit = text_edit_model.duplicate()
-	if need_var_to_str:
-		text_edit.text = var_to_str(node.get_meta("data")) # 从meta取数据可能更安全点
-	else:
-		text_edit.text = node.get_meta("data")
-		
-	text_edit.focus_exited.connect(func():
-		node.set_meta("data", text_edit.text)
-		node.text = text_edit.text
-		node.size_flags_stretch_ratio = text_edit.size_flags_stretch_ratio
-		text_edit.replace_by(node)
-		#if not node.is_connected("gui_input", _on_label_model_gui_input.bind(node)):
-			#node.gui_input.connect(_on_label_model_gui_input.bind(node))
-			#printt("reconnect label gui input")
-	)
-	#text_edit.custom_minimum_size.y = max(node.custom_minimum_size.y, node.size.y) * 3
-	text_edit.size_flags_stretch_ratio = node.size_flags_stretch_ratio
-	node.replace_by(text_edit)
-	text_edit.grab_focus()
+
+
+func _on_row_panel_container_focus_entered() -> void:
+	var style_box: StyleBoxFlat = row_panel_container.get_theme_stylebox("panel")
+	style_box.bg_color.a = 0.788
+
+
+func _on_row_panel_container_focus_exited() -> void:
+	var style_box: StyleBoxFlat = row_panel_container.get_theme_stylebox("panel")
+	style_box.bg_color.a = 0.0

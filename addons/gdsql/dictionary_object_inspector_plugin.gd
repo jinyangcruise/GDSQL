@@ -5,8 +5,14 @@ func _can_handle(object: Object) -> bool:
 	return object is DictionaryObject
 	
 func _parse_begin(object: Object) -> void:
-	var save_button := Button.new()
-	save_button.text = "SAVE"
-	save_button.custom_minimum_size.y = 100
-	# TODO 事件绑定
-	add_custom_control(save_button)
+	if object.has_method("get_custom_begin_control"):
+		var contorl: Control = object.call("get_custom_begin_control")
+		if contorl:
+			add_custom_control(contorl)
+			
+func _parse_end(object: Object) -> void:
+	if object.has_method("get_custom_end_control"):
+		var contorl: Control = object.call("get_custom_end_control")
+		if contorl:
+			add_custom_control(contorl)
+			#contorl.print_tree_pretty()

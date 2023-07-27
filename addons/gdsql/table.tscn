@@ -1,6 +1,9 @@
-[gd_scene load_steps=3 format=3 uid="uid://bpawj4a7llynx"]
+[gd_scene load_steps=4 format=3 uid="uid://bpawj4a7llynx"]
 
 [ext_resource type="Script" path="res://addons/gdsql/table.gd" id="1_s1y7s"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_n2en8"]
+bg_color = Color(0.815686, 0.384314, 0.933333, 0)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_a63dc"]
 
@@ -19,9 +22,16 @@ colums = Array[String](["id", "name", "level", "age"])
 visible = false
 layout_mode = 2
 
-[node name="RowModel" type="HBoxContainer" parent="Models"]
+[node name="RowPanelContainer" type="PanelContainer" parent="Models"]
 layout_mode = 2
 size_flags_horizontal = 3
+focus_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_n2en8")
+
+[node name="RowModel" type="HBoxContainer" parent="Models/RowPanelContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
 theme_override_constants/separation = 14
 
 [node name="LabelModel" type="Label" parent="Models"]
@@ -30,25 +40,17 @@ size_flags_horizontal = 3
 auto_translate = false
 localize_numeral_system = false
 focus_mode = 2
-mouse_filter = 0
 text_overrun_behavior = 3
 
-[node name="TextEditModel" type="TextEdit" parent="Models"]
+[node name="TextureRectModel" type="TextureRect" parent="Models"]
 layout_mode = 2
 size_flags_horizontal = 3
-wrap_mode = 1
-scroll_smooth = true
-scroll_fit_content_height = true
-caret_blink = true
-
-[node name="TextureButtonModel" type="TextureButton" parent="Models"]
-layout_mode = 2
-size_flags_horizontal = 3
-ignore_texture_size = true
+expand_mode = 2
 stretch_mode = 5
 
 [node name="CheckBoxModel" type="CheckBox" parent="Models"]
 layout_mode = 2
+mouse_filter = 2
 
 [node name="HSplitContainer" type="HSplitContainer" parent="."]
 visible = false
@@ -91,4 +93,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
+[connection signal="focus_entered" from="Models/RowPanelContainer" to="." method="_on_row_panel_container_focus_entered"]
+[connection signal="focus_exited" from="Models/RowPanelContainer" to="." method="_on_row_panel_container_focus_exited"]
 [connection signal="pressed" from="VBoxContainer/ButtonForDebug" to="." method="_on_button_pressed"]
