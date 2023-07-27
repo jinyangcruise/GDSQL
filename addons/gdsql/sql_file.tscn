@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://cug26w6vmiwng"]
+[gd_scene load_steps=15 format=3 uid="uid://cug26w6vmiwng"]
 
 [ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="1_2i2u8"]
 [ext_resource type="Script" path="res://addons/gdsql/sql_file.gd" id="1_taekh"]
@@ -11,6 +11,14 @@
 [ext_resource type="Texture2D" uid="uid://yd6w0qkc1whq" path="res://addons/gdsql/img/autocommit.png" id="8_oerwa"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_03x0p"]
+
+[sub_resource type="InputEventKey" id="InputEventKey_olocg"]
+device = -1
+ctrl_pressed = true
+keycode = 83
+
+[sub_resource type="Shortcut" id="Shortcut_abyjw"]
+events = [SubResource("InputEventKey_olocg")]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0ukqh"]
 bg_color = Color(0.541176, 0.168627, 0.890196, 1)
@@ -28,6 +36,10 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_taekh")
+metadata/type = "sql_file"
+metadata/is_file = false
+metadata/file_name = ""
+metadata/file_path = ""
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
 layout_mode = 2
@@ -38,13 +50,17 @@ layout_mode = 2
 
 [node name="ButtonOpen" type="Button" parent="VBoxContainer/HFlowContainer"]
 layout_mode = 2
+tooltip_text = "Open a script file in this editor"
 theme_override_styles/focus = SubResource("StyleBoxEmpty_03x0p")
 icon = ExtResource("1_2i2u8")
 icon_alignment = 1
 
-[node name="ButtonSave" type="Button" parent="VBoxContainer/HFlowContainer"]
+[node name="ButtonSave" type="Button" parent="VBoxContainer/HFlowContainer" node_paths=PackedStringArray("shortcut_context")]
 layout_mode = 2
+tooltip_text = "Save the script to a file"
+shortcut_context = NodePath("../../..")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_03x0p")
+shortcut = SubResource("Shortcut_abyjw")
 icon = ExtResource("2_576jt")
 icon_alignment = 1
 
@@ -53,12 +69,14 @@ layout_mode = 2
 
 [node name="ButtonRunAll" type="Button" parent="VBoxContainer/HFlowContainer"]
 layout_mode = 2
+tooltip_text = "Execute the selected portion of the script or everything, if there is no selection"
 theme_override_styles/focus = SubResource("StyleBoxEmpty_03x0p")
 icon = ExtResource("3_88dm5")
 icon_alignment = 1
 
 [node name="ButtonRunEdit" type="Button" parent="VBoxContainer/HFlowContainer"]
 layout_mode = 2
+tooltip_text = "Execute the statement under the keyboard cursor"
 theme_override_styles/focus = SubResource("StyleBoxEmpty_03x0p")
 icon = ExtResource("4_knscp")
 icon_alignment = 1
@@ -68,11 +86,11 @@ layout_mode = 2
 
 [node name="ButtonContinueRun" type="Button" parent="VBoxContainer/HFlowContainer"]
 layout_mode = 2
+tooltip_text = "Toggle whether execution of SQL script should continue after failed statements"
 theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
 theme_override_styles/pressed = SubResource("StyleBoxFlat_0ukqh")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_03x0p")
 toggle_mode = true
-button_pressed = true
 icon = ExtResource("5_ig0gm")
 icon_alignment = 1
 
@@ -81,6 +99,8 @@ layout_mode = 2
 
 [node name="ButtonCommit" type="Button" parent="VBoxContainer/HFlowContainer"]
 layout_mode = 2
+tooltip_text = "Commit the current transaction.
+NOTE: all query tabs in the same connection share the same transaction. To have independent transactions, you must open a new Godot."
 theme_override_styles/focus = SubResource("StyleBoxEmpty_03x0p")
 disabled = true
 icon = ExtResource("6_jf8c7")
@@ -88,6 +108,8 @@ icon_alignment = 1
 
 [node name="ButtonRollback" type="Button" parent="VBoxContainer/HFlowContainer"]
 layout_mode = 2
+tooltip_text = "Rollback the current transaction.
+NOTE: all query tabs in the same connection share the same transaction. To have independent transactions, you must open a new Godot."
 theme_override_styles/focus = SubResource("StyleBoxEmpty_03x0p")
 disabled = true
 icon = ExtResource("7_bmit6")
@@ -95,6 +117,8 @@ icon_alignment = 1
 
 [node name="ButtonAutoCommit" type="Button" parent="VBoxContainer/HFlowContainer"]
 layout_mode = 2
+tooltip_text = "Toggle autocommit mode. When enabled, each statement will be committed immediately.
+NOTE: all query tabs in the same connection share the same transaction. To have independent transactions, you must open a new Godot."
 theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
 theme_override_styles/pressed = SubResource("StyleBoxFlat_0ukqh")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_03x0p")
@@ -108,6 +132,8 @@ layout_mode = 2
 
 [node name="OptionButtonLimitRow" type="OptionButton" parent="VBoxContainer/HFlowContainer"]
 layout_mode = 2
+tooltip_text = "Set limit for number of rows returned by queries.
+Workbench will automatically add the LIMIT clause with the configured number of rows to SELECT queries."
 theme_override_styles/focus = SubResource("StyleBoxEmpty_35ij8")
 item_count = 6
 selected = 0
@@ -137,3 +163,8 @@ gutters_draw_line_numbers = true
 indent_automatic = true
 auto_brace_completion_enabled = true
 auto_brace_completion_highlight_matching = true
+
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonOpen" to="." method="_on_button_open_pressed"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSave" to="." method="_on_button_save_pressed"]
+[connection signal="toggled" from="VBoxContainer/HFlowContainer/ButtonAutoCommit" to="." method="_on_button_auto_commit_toggled"]
+[connection signal="text_changed" from="VBoxContainer/CodeEdit" to="." method="_on_code_edit_text_changed"]

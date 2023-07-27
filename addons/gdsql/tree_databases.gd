@@ -7,6 +7,7 @@ signal new_sql_command(cmd: String)
 signal add_db_to_config_success(id: String)
 signal modify_db_to_config_success(id: String)
 signal send_to_editor(content: String)
+signal send_to_editor_and_execute(content: String)
 
 @onready var popup_menu_database: PopupMenu = $PopupMenuDatabase
 @onready var popup_menu_table_item: PopupMenu = $PopupMenuTableItem
@@ -196,6 +197,7 @@ func add_table(db: TreeItem, file_name: String, tooltip: String = "") -> TreeIte
 	table_item.set_icon_max_width(0, 20)
 	table_item.set_tooltip_text(0, tooltip)
 	table_item.add_button(0, preload("res://addons/gdsql/img/quick_search.png"), 0, false, "select * from %s limit 0, 1000" % table_name)
+	table_item.set_meta("db_name", db.get_meta("db_name"))
 	table_item.set_meta("table_name", table_name)
 	table_item.set_meta("path", db.get_meta("path") + file_name)
 	table_item.set_meta("type", "table")
@@ -263,11 +265,13 @@ func _on_gui_input(event: InputEvent) -> void:
 			popup_menu.popup()
 			
 func _on_popup_menu_table_item_index_pressed(index: int) -> void:
-	printt(popup_menu_table_item.get_item_text(index))
 	match popup_menu_table_item.get_item_text(index):
 		"Select Rows - Limit 1000":
-			pass
-		"Create Table ...":
+			var item := get_selected()
+			if item:
+				send_to_editor.emit("select * from `%s`.`%s`;" \
+					% [item.get_meta("db_name"), item.get_meta("table_name")])
+		"Create Table...":
 			pass
 		"Create Table Like...":
 			pass

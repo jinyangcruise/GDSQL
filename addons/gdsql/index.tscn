@@ -79,6 +79,7 @@ script = ExtResource("3_2dwia")
 
 [node name="➕" type="Control" parent="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer"]
 layout_mode = 2
+metadata/type = "new_tab_button"
 
 [node name="Control" type="MarginContainer" parent="VBoxContainer/HSplitContainer/VSplitContainer"]
 layout_mode = 2

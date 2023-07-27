@@ -8,6 +8,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+metadata/type = "new_table"
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
 layout_mode = 2
@@ -63,4 +64,5 @@ layout_mode = 2
 
 [node name="Table" parent="VBoxContainer" instance=ExtResource("1_24m38")]
 layout_mode = 2
+editable = true
 colums = Array[String](["Column Name", "Data Type", "PK", "NN", "UQ", "AI", "Default/Expression", "Comments"])
