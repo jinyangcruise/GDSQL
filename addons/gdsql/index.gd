@@ -16,9 +16,11 @@ func _ready() -> void:
 	tree_databases.add_db_to_config_success.connect(tab_container.close_content_window) # 确认新增数据库成功
 	tab_container.alter_old_schema.connect(tree_databases.modify_db_to_config) # 确认修改数据库的信息
 	tree_databases.modify_db_to_config_success.connect(tab_container.close_content_window) # 确认修改数据库成功
+	tree_databases.new_table.connect(tab_container.add_tab_new_table) # 发出新建数据表的请求
 	tree_databases.send_to_editor.connect(tab_container.receive_content) # 发出发送到编辑器内容的请求
 	tree_databases.send_to_editor_and_execute.connect(tab_container.receive_content_and_execute) # 发出发送到编辑器内容并执行的请求
 	
+	tab_container.inspect_object.connect(transfer_inspect_object)
 	log_table.inspect_object.connect(transfer_inspect_object)
 	
 	#var dic_obj := DictionaryObject.new({

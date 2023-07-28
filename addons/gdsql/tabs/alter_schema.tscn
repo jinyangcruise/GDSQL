@@ -1,20 +1,17 @@
-[gd_scene load_steps=5 format=3 uid="uid://du31pexhv4cpk"]
+[gd_scene load_steps=3 format=3 uid="uid://cefck4hclp808"]
 
-[ext_resource type="Script" path="res://addons/gdsql/new_schema.gd" id="1_438pb"]
-[ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="2_lsuxh"]
+[ext_resource type="Script" path="res://addons/gdsql/tabs/alter_schema.gd" id="1_1dobv"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_oeto1"]
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_0kgcd"]
-
-[node name="new_schema" type="VBoxContainer"]
+[node name="alter_schema" type="VBoxContainer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1_438pb")
-metadata/type = "new_schema"
+script = ExtResource("1_1dobv")
+metadata/type = "alter_schema"
 
 [node name="HBoxContainer" type="HBoxContainer" parent="."]
 layout_mode = 2
@@ -48,27 +45,6 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_oeto1")
 placeholder_text = "choose a dir"
 editable = false
 
-[node name="Button" type="Button" parent="HBoxContainer2"]
-layout_mode = 2
-tooltip_text = "open project's dir"
-theme_override_styles/focus = SubResource("StyleBoxEmpty_0kgcd")
-text = "Resource"
-icon = ExtResource("2_lsuxh")
-
-[node name="Button2" type="Button" parent="HBoxContainer2"]
-layout_mode = 2
-tooltip_text = "open user's data dir"
-theme_override_styles/focus = SubResource("StyleBoxEmpty_0kgcd")
-text = "UserData"
-icon = ExtResource("2_lsuxh")
-
-[node name="Button3" type="Button" parent="HBoxContainer2"]
-layout_mode = 2
-tooltip_text = "open any dir of your system"
-theme_override_styles/focus = SubResource("StyleBoxEmpty_0kgcd")
-text = "FileSystem"
-icon = ExtResource("2_lsuxh")
-
 [node name="HBoxContainer3" type="HBoxContainer" parent="."]
 layout_mode = 2
 
@@ -98,8 +74,5 @@ custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 text = "Cancel"
 
-[connection signal="pressed" from="HBoxContainer2/Button" to="." method="_on_button_pressed" binds= [0]]
-[connection signal="pressed" from="HBoxContainer2/Button2" to="." method="_on_button_pressed" binds= [1]]
-[connection signal="pressed" from="HBoxContainer2/Button3" to="." method="_on_button_pressed" binds= [2]]
 [connection signal="pressed" from="HFlowContainer/ButtonApply" to="." method="_on_button_apply_pressed"]
 [connection signal="pressed" from="HFlowContainer/ButtonCancel" to="." method="_on_button_cancel_pressed"]

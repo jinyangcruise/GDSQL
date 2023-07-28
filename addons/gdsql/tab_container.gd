@@ -4,6 +4,9 @@ extends TabContainer
 signal add_new_schema(db_name: String, path: String, save: bool, id: String)
 signal alter_old_schema(old_db_name, new_db_name: String, path: String, save: bool, id: String)
 
+## 通过该信号可以把需要在检查器中查看的对象发送给EditorInterface
+signal inspect_object(object: Object, for_property: String, inspector_only: bool)
+
 @onready var new_tab_button: Control = $"➕"
 
 var _tab_index = 1
@@ -17,7 +20,7 @@ func _ready() -> void:
 func _on_tab_clicked(tab: int) -> void:
 	# 点击了“新建SQL页面”（加号），增加一个编辑页面，并激活
 	if get_child(tab) == new_tab_button:
-		var sql_file = preload("res://addons/gdsql/sql_file.tscn").instantiate()
+		var sql_file = preload("res://addons/gdsql/tabs/sql_file.tscn").instantiate()
 		sql_file.request_open_file.connect(func(path):
 			# 是否已经打开过了，就直接激活
 			for i in get_tab_count():
@@ -42,7 +45,7 @@ func _on_tab_clicked(tab: int) -> void:
 		_tab_index += 1
 		
 func add_tab_new_schema() -> void:
-	var new_schema = preload("res://addons/gdsql/new_schema.tscn").instantiate()
+	var new_schema = preload("res://addons/gdsql/tabs/new_schema.tscn").instantiate()
 	new_schema.button_apply_pressed.connect(func(db_name, path, save, id):
 		add_new_schema.emit(db_name, path, save, id)
 	)
@@ -52,7 +55,7 @@ func add_tab_new_schema() -> void:
 	set_tab_title(current_tab, "new_schema")
 		
 func add_tab_alter_schema(db_name, path, save) -> void:
-	var alter_schema = preload("res://addons/gdsql/alter_schema.tscn").instantiate()
+	var alter_schema = preload("res://addons/gdsql/tabs/alter_schema.tscn").instantiate()
 	alter_schema.old_db_name = db_name
 	alter_schema.db_name = db_name
 	alter_schema.path = path
@@ -64,6 +67,18 @@ func add_tab_alter_schema(db_name, path, save) -> void:
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
 	set_tab_title(current_tab, "alter_schema")
+	
+func add_tab_new_table(db_name) -> void:
+	var new_table = preload("res://addons/gdsql/tabs/new_table.tscn").instantiate()
+	new_table.inspect_object.connect(func(object, for_property, inspector_only): 
+		inspect_object.emit(object, for_property, inspector_only))
+	#new_table.button_apply_pressed.connect(func(db_name, path, save, id):
+		#add_new_schema.emit(db_name, path, save, id)
+	#)
+	add_child(new_table)
+	move_child(new_tab_button, get_child_count() - 1)
+	current_tab = get_child_count() - 2
+	set_tab_title(current_tab, "new_table")
 	
 func _on_tab_button_pressed(tab: int) -> void:
 	if tab != current_tab:
@@ -114,9 +129,11 @@ func receive_content(content: String, force_new: bool = false, file_path: String
 		page.set_meta("file_path", file_path)
 		set_tab_title(current_tab, file_name)
 	
-func receive_content_and_execute(content: String):
+func receive_content_and_execute(title: String, content: String):
 	# 因为要执行，所以直接创建新页面
 	_on_tab_clicked(get_tab_count()-1)
+	
+	set_tab_title(current_tab, title)
 	
 	var code_edit = get_tab_control(current_tab).code_edit as CodeEdit
 	code_edit.text = content

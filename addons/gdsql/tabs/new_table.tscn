@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://dum56t56ttfbf"]
+[gd_scene load_steps=3 format=3 uid="uid://dum56t56ttfbf"]
 
 [ext_resource type="PackedScene" uid="uid://bpawj4a7llynx" path="res://addons/gdsql/table.tscn" id="1_24m38"]
+[ext_resource type="Script" path="res://addons/gdsql/tabs/new_table.gd" id="1_oqb4v"]
 
 [node name="new_table" type="ScrollContainer"]
 anchors_preset = 15
@@ -8,6 +9,8 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("1_oqb4v")
+aaa = 24
 metadata/type = "new_table"
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
@@ -51,7 +54,7 @@ layout_mode = 2
 text = "Comments"
 horizontal_alignment = 2
 
-[node name="TextEdit" type="TextEdit" parent="VBoxContainer/HBoxContainer3"]
+[node name="TextEditComment" type="TextEdit" parent="VBoxContainer/HBoxContainer3"]
 custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -62,7 +65,37 @@ caret_blink = true
 [node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
 layout_mode = 2
 
+[node name="ButtonNewColumn" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "➕New Column"
+
 [node name="Table" parent="VBoxContainer" instance=ExtResource("1_24m38")]
 layout_mode = 2
 editable = true
-colums = Array[String](["Column Name", "Data Type", "PK", "NN", "UQ", "AI", "Default/Expression", "Comments"])
+columns = Array[String](["Column Name", "Data Type", "PK", "NN", "UQ", "AI", "Default(Expression)", "Comment"])
+ratios = Array[float]([4.0, 4.0, 20.0, 19.0, 18.0, 17.0, 1.0, 1.0])
+datas = [Object(RefCounted,"script":Resource("res://addons/gdsql/dictionay_object.gd"),"_origin":{},"_data":{
+"AI": true,
+"Column Name": "idnew_table",
+"Comment": "",
+"Data Type": 2,
+"Default(Expression)": "",
+"NN": true,
+"PK": true,
+"UQ": false
+},"_hint":{
+"Data Type": {
+"hint": 2,
+"hint_string": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37"
+}
+},"_update_callback":{
+"AI": Callable(),
+"Column Name": Callable(),
+"Comment": Callable(),
+"Data Type": Callable(),
+"Default(Expression)": Callable(),
+"NN": Callable(),
+"PK": Callable(),
+"UQ": Callable()
+},"Column Name":"idnew_table","Data Type":2,"PK":true,"NN":true,"UQ":false,"AI":true,"Default(Expression)":"","Comment":"")
+]

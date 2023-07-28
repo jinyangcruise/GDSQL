@@ -3,11 +3,11 @@ extends Tree
 
 signal new_schema
 signal alter_schema(db_name, path, save)
-signal new_sql_command(cmd: String)
+signal new_table(db_name)
 signal add_db_to_config_success(id: String)
 signal modify_db_to_config_success(id: String)
 signal send_to_editor(content: String)
-signal send_to_editor_and_execute(content: String)
+signal send_to_editor_and_execute(title: String, content: String)
 
 @onready var popup_menu_database: PopupMenu = $PopupMenuDatabase
 @onready var popup_menu_table_item: PopupMenu = $PopupMenuTableItem
@@ -184,6 +184,7 @@ func add_database(db_name: String, path: String) -> TreeItem:
 		item.set_icon_max_width(0, 16)
 		item.set_tooltip_text(0, tooltips[i])
 		item.set_meta("type", arr[i])
+		item.set_meta("db_name", db_name)
 		if i > 0:
 			item.set_collapsed_recursive(true)
 	
@@ -196,7 +197,8 @@ func add_table(db: TreeItem, file_name: String, tooltip: String = "") -> TreeIte
 	table_item.set_icon(0, preload("res://addons/gdsql/img/table.png"))
 	table_item.set_icon_max_width(0, 20)
 	table_item.set_tooltip_text(0, tooltip)
-	table_item.add_button(0, preload("res://addons/gdsql/img/quick_search.png"), 0, false, "select * from %s limit 0, 1000" % table_name)
+	table_item.add_button(0, preload("res://addons/gdsql/img/quick_search.png"), 0, false, 
+		"select * from %s.%s" % [db.get_meta("db_name"), table_name])
 	table_item.set_meta("db_name", db.get_meta("db_name"))
 	table_item.set_meta("table_name", table_name)
 	table_item.set_meta("path", db.get_meta("path") + file_name)
@@ -209,7 +211,7 @@ func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_inde
 	if column == 0:
 		match id:
 			0:
-				new_sql_command.emit(item.get_button_tooltip_text(column, id))
+				send_to_editor_and_execute.emit(item.get_meta("table_name"), item.get_button_tooltip_text(column, id))
 			1:
 				var path = ProjectSettings.globalize_path(item.get_meta("path"))
 				OS.shell_show_in_file_manager(path, true)
@@ -266,13 +268,15 @@ func _on_gui_input(event: InputEvent) -> void:
 			
 func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 	match popup_menu_table_item.get_item_text(index):
-		"Select Rows - Limit 1000":
+		"Select Rows":
 			var item := get_selected()
 			if item:
-				send_to_editor.emit("select * from `%s`.`%s`;" \
+				send_to_editor_and_execute.emit(item.get_meta("table_name"), "select * from %s.%s" \
 					% [item.get_meta("db_name"), item.get_meta("table_name")])
 		"Create Table...":
-			pass
+			var item := get_selected()
+			if item:
+				new_table.emit(item.get_meta("db_name"))
 		"Create Table Like...":
 			pass
 			
@@ -297,7 +301,8 @@ func _on_popup_menu_database_index_pressed(index: int) -> void:
 			var item := get_selected()
 			if item:
 				var dialog := ConfirmationDialog.new()
-				dialog.dialog_text = "Are you sure to drop this database `%s`? This will not delete the folder from your operation system." % get_selected().get_meta("db_name")
+				dialog.dialog_text = "Are you sure to drop this database `%s`? This will NOT delete the folder from your operation system." \
+					% get_selected().get_meta("db_name")
 				dialog.confirmed.connect(func():
 					var conf: ConfigFile = _config_file if _config_file.has_section(item.get_meta("db_name")) else _tmp_config
 					if _default_database_path == conf.get_value(item.get_meta("db_name"), "path"):
@@ -369,8 +374,10 @@ func _on_popup_menu_send_to_index_pressed(index: int) -> void:
 
 func _on_popup_menu_tables_index_pressed(index: int) -> void:
 	match popup_menu_table_item.get_item_text(index):
-		"Create Table ...":
-			pass
+		"Create Table...":
+			var item := get_selected()
+			if item:
+				new_table.emit(item.get_meta("db_name"))
 		"Create Table Like...":
 			pass
 		"Refresh All":

@@ -16,9 +16,9 @@ signal inspect_object(object: Object, for_property: String, inspector_only: bool
 ## 表格是否可编辑（datas中的元素必须是DictionaryObject才有效）
 @export var editable: bool = false
 ## 每列的名称
-@export var colums: Array[String]:
+@export var columns: Array[String]:
 	set(val):
-		colums = val
+		columns = val
 		if is_node_ready():
 			reset_header()
 			
@@ -44,8 +44,9 @@ func _ready() -> void:
 	reset_header()
 	await get_tree().create_timer(1).timeout
 	datas = datas
-	for i in 50:
-		await create_tween().tween_callback(func(): realign_rows()).set_delay(0.1).finished
+	if is_inside_tree() and !datas.is_empty():
+		for i in 50:
+			await create_tween().tween_callback(func(): realign_rows()).set_delay(0.1).finished
 	
 
 func reset_header():
@@ -58,7 +59,7 @@ func reset_header():
 		h.queue_free()
 	
 	var fake_columns = [""]
-	fake_columns.append_array(colums)
+	fake_columns.append_array(columns)
 	fake_columns.push_back("")
 	
 	var parent = header
@@ -113,28 +114,28 @@ func add_row(a_data):
 	var data: Array
 	if a_data is Array:
 		data = a_data.duplicate()
-		if colums.is_empty():
+		if columns.is_empty():
 			for i in data.size():
-				colums.push_back("#%d" % i)
+				columns.push_back("#%d" % i)
 	elif a_data is Dictionary:
 		data = []
-		if colums.is_empty():
-			colums = []
+		if columns.is_empty():
+			columns = []
 			for key in a_data:
-				colums.push_back(key)
+				columns.push_back(key)
 				data.push_back(a_data[key])
 		else:
-			for key in colums:
+			for key in columns:
 				data.push_back(a_data[key])
 	elif a_data is DictionaryObject:
 		data = []
-		if colums.is_empty():
-			colums = []
+		if columns.is_empty():
+			columns = []
 			for info in a_data._get_property_list():
-				colums.push_back(info["name"])
+				columns.push_back(info["name"])
 				data.push_back(a_data.get(info["name"]))
 		else:
-			for key in colums:
+			for key in columns:
 				data.push_back(a_data.get(key))
 				
 	var a_row = row_panel_container.duplicate()
@@ -155,7 +156,7 @@ func add_row(a_data):
 						var ctl = control_ref.get_ref()
 						if ctl:
 							ctl.button_pressed = new_value
-					a_data.set_update_callback(colums[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
+					a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
 			TYPE_STRING, TYPE_STRING_NAME:
 				handled = true
 				control = label_model.duplicate()
@@ -165,7 +166,7 @@ func add_row(a_data):
 						var ctl = control_ref.get_ref()
 						if ctl:
 							ctl.text = new_value
-					a_data.set_update_callback(colums[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
+					a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
 			TYPE_OBJECT:
 				if data[i] is Resource:
 					handled = true
@@ -181,7 +182,7 @@ func add_row(a_data):
 							var ctl = control_ref.get_ref()
 							if ctl:
 								ctl.edited_resource = new_value
-						a_data.set_update_callback(colums[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
+						a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
 					#control = texture_rect_model.duplicate()
 					#control.texture = data[i]
 				## TODO 可能需要添加其他有必要预览的类型
@@ -194,7 +195,7 @@ func add_row(a_data):
 					var ctl = control_ref.get_ref()
 					if ctl:
 						ctl.text = var_to_str(new_value)
-				a_data.set_update_callback(colums[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
+				a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
 			
 		control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		#control.set_meta("data", data[i])
