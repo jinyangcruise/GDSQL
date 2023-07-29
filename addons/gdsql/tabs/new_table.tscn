@@ -72,21 +72,21 @@ text = "➕New Column"
 [node name="Table" parent="VBoxContainer" instance=ExtResource("1_24m38")]
 layout_mode = 2
 editable = true
-columns = Array[String](["Column Name", "Data Type", "PK", "NN", "UQ", "AI", "Default(Expression)", "Comment"])
-ratios = Array[float]([4.0, 4.0, 20.0, 19.0, 18.0, 17.0, 1.0, 1.0])
+columns = Array[String](["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Default(Expression)", "Comment"])
+ratios = Array[float]([4.0, 4.0, 3.0, 2.0, 20.0, 19.0, 18.0, 17.0, 1.0, 1.0])
 datas = [Object(RefCounted,"script":Resource("res://addons/gdsql/dictionay_object.gd"),"_origin":{},"_data":{
-"AI": true,
+"AI": "",
 "Column Name": "idnew_table",
-"Comment": "",
 "Data Type": 2,
 "Default(Expression)": "",
-"NN": true,
+"Hint String": true,
+"NN": false,
 "PK": true,
-"UQ": false
+"UQ": true
 },"_hint":{
 "Data Type": {
 "hint": 2,
-"hint_string": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37"
+"hint_string": "Bool:1,Int:2,Float:3,String:4,Vector 2:5,Vector 2i:6,Rect 2:7,Rect 2i:8,Vector 3:9,Vector 3i:10,Transform 2d:11,Vector 4:12,Vector 4i:13,Plane:14,Quaternion:15,Aabb:16,Basis:17,Transform 3d:18,Projection:19,Color:20,String Name:21,Node Path:22,Resource:24,Dictionary:27,Array:28,Packed Byte Array:29,Packed Int 32 Array:30,Packed Int 64 Array:31,Packed Float 32 Array:32,Packed Float 64 Array:33,Packed String Array:34,Packed Vector 2 Array:35,Packed Vector 3 Array:36,Packed Color Array:37"
 }
 },"_update_callback":{
 "AI": Callable(),
@@ -94,8 +94,11 @@ datas = [Object(RefCounted,"script":Resource("res://addons/gdsql/dictionay_objec
 "Comment": Callable(),
 "Data Type": Callable(),
 "Default(Expression)": Callable(),
+"Hint String": Callable(),
 "NN": Callable(),
 "PK": Callable(),
 "UQ": Callable()
-},"Column Name":"idnew_table","Data Type":2,"PK":true,"NN":true,"UQ":false,"AI":true,"Default(Expression)":"","Comment":"")
+},"Column Name":"idnew_table","Data Type":2,"Hint String":true,"PK":true,"NN":false,"UQ":true,"AI":"","Default(Expression)":"")
 ]
+
+[connection signal="pressed" from="VBoxContainer/ButtonNewColumn" to="." method="_on_button_new_column_pressed"]

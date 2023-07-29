@@ -42,7 +42,7 @@ var controls: Array = []
 
 func _ready() -> void:
 	reset_header()
-	await get_tree().create_timer(1).timeout
+	await get_tree().process_frame
 	datas = datas
 	if is_inside_tree() and !datas.is_empty():
 		for i in 50:
@@ -141,51 +141,63 @@ func add_row(a_data):
 	var a_row = row_panel_container.duplicate()
 	v_box_container.add_child(a_row)
 	a_row.gui_input.connect(_on_row_gui_input.bind(a_data))
+	a_row.focus_entered.connect(_on_row_panel_container_focus_entered.bind(a_row))
+	a_row.focus_exited.connect(_on_row_panel_container_focus_exited.bind(a_row))
+	var style_box: StyleBoxFlat = a_row.get_theme_stylebox("panel").duplicate()
+	a_row.add_theme_stylebox_override("panel", style_box)
 	data.insert(0, "")
 	data.push_back("")
 	var control: Control
 	for i in data.size():
 		var handled = false
-		match typeof(data[i]):
-			TYPE_BOOL:
-				handled = true
-				control = check_box_model.duplicate()
-				control.button_pressed = data[i]
-				if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
-					var callback = func(new_value, control_ref: WeakRef):
-						var ctl = control_ref.get_ref()
-						if ctl:
-							ctl.button_pressed = new_value
-					a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
-			TYPE_STRING, TYPE_STRING_NAME:
-				handled = true
-				control = label_model.duplicate()
-				control.text = data[i]
-				if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
-					var callback = func(new_value, control_ref: WeakRef):
-						var ctl = control_ref.get_ref()
-						if ctl:
-							ctl.text = new_value
-					a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
-			TYPE_OBJECT:
-				if data[i] is Resource:
+		
+		# 如果该数据提供了自定义显示控件，就直接使用
+		if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("get_custom_display_control"):
+			control = a_data.get_custom_display_control(columns[i-1])
+			handled = control != null
+			
+		# 否则，用表格自带的显示控件
+		if handled:
+			match typeof(data[i]):
+				TYPE_BOOL:
 					handled = true
-					var editor_resource_picker := EditorResourcePicker.new()
-					editor_resource_picker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-					editor_resource_picker.propagate_call("set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
-					editor_resource_picker.base_type = "Resource"
-					editor_resource_picker.edited_resource = data[i]
-					editor_resource_picker.editable = false
-					control = editor_resource_picker
+					control = check_box_model.duplicate()
+					control.button_pressed = data[i]
 					if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
 							if ctl:
-								ctl.edited_resource = new_value
+								ctl.button_pressed = new_value
 						a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
-					#control = texture_rect_model.duplicate()
-					#control.texture = data[i]
-				## TODO 可能需要添加其他有必要预览的类型
+				TYPE_STRING, TYPE_STRING_NAME:
+					handled = true
+					control = label_model.duplicate()
+					control.text = data[i]
+					if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
+						var callback = func(new_value, control_ref: WeakRef):
+							var ctl = control_ref.get_ref()
+							if ctl:
+								ctl.text = new_value
+						a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
+				TYPE_OBJECT:
+					if data[i] is Resource:
+						handled = true
+						var editor_resource_picker := EditorResourcePicker.new()
+						editor_resource_picker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+						editor_resource_picker.propagate_call("set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
+						editor_resource_picker.base_type = "Resource"
+						editor_resource_picker.edited_resource = data[i]
+						editor_resource_picker.editable = false
+						control = editor_resource_picker
+						if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
+							var callback = func(new_value, control_ref: WeakRef):
+								var ctl = control_ref.get_ref()
+								if ctl:
+									ctl.edited_resource = new_value
+							a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
+						#control = texture_rect_model.duplicate()
+						#control.texture = data[i]
+					## TODO 可能需要添加其他有必要预览的类型
 				
 		if not handled:
 			control = label_model.duplicate()
@@ -200,6 +212,7 @@ func add_row(a_data):
 		control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		#control.set_meta("data", data[i])
 		#control.gui_input.connect(_on_label_model_gui_input.bind(control))
+		# 表格刷新时某些自定义控件可能需要重复使用，要去掉parent
 		a_row.get_child(0).add_child(control)
 		if i == 0 or i == data.size() - 1:
 			control.hide()
@@ -267,11 +280,11 @@ func _on_row_gui_input(event: InputEvent, source_data) -> void:
 	if source_data is Object and editable:
 		inspect_object.emit(source_data, "", false)
 
-func _on_row_panel_container_focus_entered() -> void:
-	var style_box: StyleBoxFlat = row_panel_container.get_theme_stylebox("panel")
+func _on_row_panel_container_focus_entered(row_panel: PanelContainer) -> void:
+	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")
 	style_box.bg_color.a = 0.788
 
 
-func _on_row_panel_container_focus_exited() -> void:
-	var style_box: StyleBoxFlat = row_panel_container.get_theme_stylebox("panel")
+func _on_row_panel_container_focus_exited(row_panel: PanelContainer) -> void:
+	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")
 	style_box.bg_color.a = 0.0

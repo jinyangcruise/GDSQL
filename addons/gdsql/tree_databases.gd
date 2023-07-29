@@ -281,12 +281,15 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 			pass
 			
 			
+## Tables目录的create table like子目录的菜单
 func _on_popup_menu_create_table_like_tables_index_pressed(index: int) -> void:
 	printt("aaa", popup_menu_create_table_like_tables.get_item_text(index))
 
+## Table Item的create table like子目录的菜单
 func _on_popup_menu_create_table_like_table_item_index_pressed(index: int) -> void:
 	printt("aaa", popup_menu_create_table_like_table_item.get_item_text(index))
 	
+## 数据库目录的右键菜单
 func _on_popup_menu_database_index_pressed(index: int) -> void:
 	match popup_menu_database.get_item_text(index):
 		"Set as Default Schema [Double Click]":
@@ -322,14 +325,14 @@ func _on_popup_menu_database_index_pressed(index: int) -> void:
 		_:
 			push_error("not support this %s" % popup_menu_database.get_item_text(index))
 
-
+## 在空白位置弹出右键菜单
 func _on_empty_clicked(_position: Vector2, mouse_button_index: int) -> void:
 	# 右键
 	if mouse_button_index == 2:
 		popup_menu_empty.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
 		popup_menu_empty.popup()
 
-
+## 树的空白位置的右键菜单
 func _on_popup_menu_empty_index_pressed(index: int) -> void:
 	match popup_menu_empty.get_item_text(index):
 		"Create Schema...":
@@ -337,7 +340,7 @@ func _on_popup_menu_empty_index_pressed(index: int) -> void:
 		"Refresh All":
 			refresh()
 
-
+## 数据库”复制到“子菜单
 func _on_popup_menu_copy_to_index_pressed(index: int) -> void:
 	match popup_menu_copy_to.get_item_text(index):
 		"Name":
@@ -354,7 +357,7 @@ func _on_popup_menu_copy_to_index_pressed(index: int) -> void:
 				var statement = "CREATE DATABASE `%s` AS `%s`;" % [item.get_meta("path"), item.get_meta("db_name")]
 				DisplayServer.clipboard_set(statement)
 
-
+## 数据库”发送到“子菜单
 func _on_popup_menu_send_to_index_pressed(index: int) -> void:
 	match popup_menu_send_to.get_item_text(index):
 		"Name":
@@ -371,10 +374,11 @@ func _on_popup_menu_send_to_index_pressed(index: int) -> void:
 				var statement = "CREATE DATABASE `%s` AS `%s`;" % [item.get_meta("path"), item.get_meta("db_name")]
 				send_to_editor.emit(statement)
 
-
+## Tables目录右键菜单
 func _on_popup_menu_tables_index_pressed(index: int) -> void:
-	match popup_menu_table_item.get_item_text(index):
+	match popup_menu_tables.get_item_text(index):
 		"Create Table...":
+			printt("xxxxxxxxx")
 			var item := get_selected()
 			if item:
 				new_table.emit(item.get_meta("db_name"))

@@ -5,6 +5,7 @@ var _origin: Dictionary
 var _data: Dictionary
 var _hint: Dictionary
 var _update_callback: Dictionary
+var _custom_display_control: Dictionary
 
 ## data： 一个key-value形成的字典数据。或一个长度为2的数组，第一个元素是key的一维数组，第二个元素是value的一维数组
 ## hint： 一个key-dictionay字典数据。key为data中的key，dictionary为包含"hint"和"hint_string"键的数据。@see PropertyHint 
@@ -54,7 +55,39 @@ func _property_get_revert(property: StringName) -> Variant:
 		return _data[property]
 	return null
 	
+## 设置一个属性的更新回调函数。当该属性值修改时，调用该函数
 func set_update_callback(property: String, callback: Callable) -> void:
 	_update_callback[property] = callback
 	
+## 获取一个属性的更新回调函数。若不存在，返回一个空函数。
+func get_update_callback(property: String) -> Callable:
+	return _update_callback[property] if _update_callback.has(property) else Callable()
+	
+## 为某个属性设置自定义显示控件（通过control）。当然，外部也需要相关的逻辑来支持用户设置的自定义控件。
+## 如果需要数据和控件进行单、双向绑定，需要用户自行完成绑定逻辑。
+## 用户需要充分了解外部可能释放该控件（queue_free），因此需要多加注意。请根据实际情况，是直接使用传入的control还是复制一份再使用。
+## property: 属性名称
+## control: 自定义显示控件（注意！！！请避免同一个控件被多个DictionaryObject使用，可使用duplicate复制。除非您充分了解自己要干什么。）
+## update_callback: 当属性的值发生改变时的回调函数。比如：用户可以利用该函数进行显示控件的更新。
+func set_custom_display_control(property: String, control: Control, update_callback: Callable = Callable()) -> void:
+	_custom_display_control[property] = control
+	if update_callback.is_valid():
+		set_update_callback(property, update_callback)
+	
+## 获取某个属性的自定义显示控件。如果不存在，则返回null
+## 用户需要充分了解外部可能释放该控件（queue_free），因此需要多加注意。
+## 如果用户自己对控件进行了复制，那么本方法返回的仍旧是内部记录的控件，而不是用户自行复制的控件。
+## 如果需要修改内部记录，请使用get_custom_display_control_duplicate
+func get_custom_display_control(property: String) -> Control:
+	return _custom_display_control[property] if _custom_display_control.has(property) else null
+	
+## 获取某个属性的自定义显示控件的新副本。如果不存在，则返回null。
+## 每次使用该方法将使内部记录的自定义显示控件被替换为新的副本。
+## 所以一些情况下，需要结合get_custom_display_control来使用。
+func get_custom_display_control_duplicate(property: String) -> Control:
+	if _custom_display_control.has(property):
+		var ret = _custom_display_control[property].duplicate() as Control
+		_custom_display_control[property] = ret
+		return ret
+	return null
 
