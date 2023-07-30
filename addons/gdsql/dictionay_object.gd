@@ -69,10 +69,12 @@ func get_update_callback(property: String) -> Callable:
 ## property: 属性名称
 ## control: 自定义显示控件（注意！！！请避免同一个控件被多个DictionaryObject使用，可使用duplicate复制。除非您充分了解自己要干什么。）
 ## update_callback: 当属性的值发生改变时的回调函数。比如：用户可以利用该函数进行显示控件的更新。
-func set_custom_display_control(property: String, control: Control, update_callback: Callable = Callable()) -> void:
+func set_custom_display_control(property: String, control: Control, update_callback: Callable = Callable(), update_immediately: bool = true) -> void:
 	_custom_display_control[property] = control
 	if update_callback.is_valid():
 		set_update_callback(property, update_callback)
+		if update_immediately:
+			update_callback.call(_get(property))
 	
 ## 获取某个属性的自定义显示控件。如果不存在，则返回null
 ## 用户需要充分了解外部可能释放该控件（queue_free），因此需要多加注意。

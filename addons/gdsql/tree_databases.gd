@@ -378,7 +378,6 @@ func _on_popup_menu_send_to_index_pressed(index: int) -> void:
 func _on_popup_menu_tables_index_pressed(index: int) -> void:
 	match popup_menu_tables.get_item_text(index):
 		"Create Table...":
-			printt("xxxxxxxxx")
 			var item := get_selected()
 			if item:
 				new_table.emit(item.get_meta("db_name"))

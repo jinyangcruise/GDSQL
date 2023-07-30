@@ -15,6 +15,7 @@ signal inspect_object(object: Object, for_property: String, inspector_only: bool
 
 ## 表格是否可编辑（datas中的元素必须是DictionaryObject才有效）
 @export var editable: bool = false
+
 ## 每列的名称
 @export var columns: Array[String]:
 	set(val):
@@ -22,6 +23,9 @@ signal inspect_object(object: Object, for_property: String, inspector_only: bool
 		if is_node_ready():
 			reset_header()
 			
+## 表头tooltip
+@export var column_tips: Array[String] = []
+
 ## 每列的初始宽度比例
 ## 第N个元素是X，表示第N列的宽度是后面宽度之和的1/X
 ## 例如，第一个元素是20，表示第一列的宽度是后面宽度之和的1/20
@@ -68,7 +72,7 @@ func reset_header():
 		parent.add_child(c)
 		var split_container_dragger = c.get_child(c.get_child_count(true)-1, true)
 		split_container_dragger.gui_input.connect(_on_dragger_gui_input.bind(c))
-		var button = c.get_child(0)
+		var button = c.get_child(0) as Button
 		var control = c.get_child(1)
 		if i == 0:
 			button.hide()
@@ -77,9 +81,14 @@ func reset_header():
 		elif i == fake_columns.size() - 2:
 			button.size_flags_stretch_ratio = 10000
 			c.dragger_visibility = HSplitContainer.DRAGGER_HIDDEN_COLLAPSED
+			if not column_tips.is_empty():
+				button.tooltip_text = column_tips[i-1]
 		elif i == fake_columns.size() - 1:
 			button.size_flags_stretch_ratio = 1
 		else:
+			if not column_tips.is_empty():
+				button.tooltip_text = column_tips[i-1]
+				
 			if ratios.size() > i - 1:
 				control.size_flags_stretch_ratio = ratios[i - 1]
 			else:
@@ -152,12 +161,12 @@ func add_row(a_data):
 		var handled = false
 		
 		# 如果该数据提供了自定义显示控件，就直接使用
-		if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("get_custom_display_control"):
-			control = a_data.get_custom_display_control(columns[i-1])
+		if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("get_custom_display_control_duplicate"):
+			control = a_data.get_custom_display_control_duplicate(columns[i-1])
 			handled = control != null
 			
 		# 否则，用表格自带的显示控件
-		if handled:
+		if not handled:
 			match typeof(data[i]):
 				TYPE_BOOL:
 					handled = true
@@ -270,13 +279,13 @@ func _on_dragger_gui_input(event: InputEvent, _split_container: HSplitContainer)
 func _on_row_gui_input(event: InputEvent, source_data) -> void:
 	if not editable:
 		return
-		
+
 	if not event is InputEventMouseButton:
 		return
-		
-	if not (event as InputEventMouseButton).double_click:
-		return
-		
+
+	#if not (event as InputEventMouseButton).double_click:
+		#return
+
 	if source_data is Object and editable:
 		inspect_object.emit(source_data, "", false)
 
@@ -288,3 +297,4 @@ func _on_row_panel_container_focus_entered(row_panel: PanelContainer) -> void:
 func _on_row_panel_container_focus_exited(row_panel: PanelContainer) -> void:
 	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")
 	style_box.bg_color.a = 0.0
+	
