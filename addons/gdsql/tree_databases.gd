@@ -6,6 +6,7 @@ signal alter_schema(db_name, path, save)
 signal new_table(db_name, db_path)
 signal add_db_to_config_success(id: String)
 signal modify_db_to_config_success(id: String)
+signal add_table_to_config_success(id: String)
 signal send_to_editor(content: String)
 signal send_to_editor_and_execute(title: String, content: String)
 
@@ -16,9 +17,16 @@ signal send_to_editor_and_execute(title: String, content: String)
 @onready var popup_menu_stored_procedures: PopupMenu = $PopupMenuStoredProcedures
 @onready var popup_menu_functions: PopupMenu = $PopupMenuFunctions
 @onready var popup_menu_empty: PopupMenu = $PopupMenuEmpty
+@onready var popup_menu_column: PopupMenu = $PopupMenuColumn
 
 @onready var popup_menu_copy_to: PopupMenu = $PopupMenuDatabase/PopupMenuCopyTo
 @onready var popup_menu_send_to: PopupMenu = $PopupMenuDatabase/PopupMenuSendTo
+
+@onready var popup_menu_copy_to_of_table: PopupMenu = $PopupMenuTableItem/PopupMenuCopyTo
+@onready var popup_menu_send_to_of_table: PopupMenu = $PopupMenuTableItem/PopupMenuSendTo
+
+@onready var popup_menu_copy_to_of_column: PopupMenu = $PopupMenuColumn/PopupMenuCopyTo
+@onready var popup_menu_send_to_of_column: PopupMenu = $PopupMenuColumn/PopupMenuSendTo
 
 @onready var popup_menu_create_table_like_tables: PopupMenu = $PopupMenuTables/PopupMenuCreateTableLike
 @onready var popup_menu_create_table_like_table_item: PopupMenu = $PopupMenuTableItem/PopupMenuCreateTableLike
@@ -142,6 +150,8 @@ func add_table_to_config(db_name: String, db_path: String, table_name: String, c
 	var file = FileAccess.open(db_path + table_name + ".gsql", FileAccess.WRITE)
 	file.store_string("")
 	
+	add_table_to_config_success.emit(id)
+	
 	refresh()
 	
 func modify_db_to_config(old_db_name: String, new_db_name: String, path: String, save: bool, id: String):
@@ -168,7 +178,11 @@ func _ready():
 	popup_menu_database.set_item_submenu(2, "PopupMenuCopyTo")
 	popup_menu_database.set_item_submenu(3, "PopupMenuSendTo")
 	popup_menu_tables.set_item_submenu(1, "PopupMenuCreateTableLike")
-	popup_menu_table_item.set_item_submenu(3, "PopupMenuCreateTableLike")
+	popup_menu_table_item.set_item_submenu(3, "PopupMenuCopyTo")
+	popup_menu_table_item.set_item_submenu(7, "PopupMenuSendTo")
+	popup_menu_table_item.set_item_submenu(10, "PopupMenuCreateTableLike")
+	popup_menu_column.set_item_submenu(2, "PopupMenuCopyTo")
+	popup_menu_column.set_item_submenu(3, "PopupMenuSendTo")
 	refresh()
 	
 func refresh() -> void:
@@ -191,8 +205,8 @@ func refresh() -> void:
 	# create table like 子菜单重新生成
 	for data in databases:
 		if !data["table_items"].is_empty():
-			popup_menu_create_table_like_tables.add_separator("数据库：%s" % data["name"])
-			popup_menu_create_table_like_table_item.add_separator("数据库：%s" % data["name"])
+			popup_menu_create_table_like_tables.add_separator("SCHEMA：%s" % data["name"])
+			popup_menu_create_table_like_table_item.add_separator("SCHEMA：%s" % data["name"])
 		for t in data["table_items"]:
 			popup_menu_create_table_like_tables.add_item((t as TreeItem).get_meta("table_name"))
 			popup_menu_create_table_like_table_item.add_item((t as TreeItem).get_meta("table_name"))
@@ -265,19 +279,27 @@ func add_table(db: TreeItem, file_name: String, tooltip: String = "") -> TreeIte
 	table_item.set_meta("path", db.get_meta("path") + file_name)
 	table_item.set_meta("type", "table")
 	table_item.set_meta("persistent", db.get_meta("persistent"))
+	table_item.collapsed = true
 	
+	# TODO 让column可以多选
 	# column的子tree
 	var table_confs = _config_file.get_value(db.get_meta("db_name"), "tables", {}) as Dictionary
 	if table_confs.has(table_name):
 		for col in table_confs[table_name]:
 			var col_item = create_item(table_item)
-			var texts = [col["Column Name"], " "]
+			var texts = [col["Column Name"]]
 			texts.push_back((data_types[col["Data Type"]] as String).split(":")[0].replace("TYPE_", "").capitalize())
-			col_item.set_text(0, " ".join(texts))
+			col_item.set_text(0, ": ".join(texts))
 			col_item.set_icon(0, preload("res://addons/gdsql/img/dot.png"))
-			for i in ["AI", "NN", "UQ", "PK"]:
-				if col[i]:
-					col_item.add_button(0, load("res://addons/gdsql/img/word_%s.png" % (i as String).to_lower()), 2)
+			col_item.set_meta("db_name", db.get_meta("db_name"))
+			col_item.set_meta("table_name", table_name)
+			col_item.set_meta("column_name", col["Column Name"])
+			col_item.set_meta("type", "column")
+			var properties = ["AI", "NN", "UQ", "PK"]
+			var tooltips = ["Auto Increment", "Not NULL", "Uniq", "Primary Key"]
+			for i in properties.size():
+				if col[properties[i]]:
+					col_item.add_button(0, load("res://addons/gdsql/img/word_%s.png" % (properties[i] as String).to_lower()), 2, true, tooltips[i])
 			
 	
 	return table_item
@@ -321,7 +343,7 @@ func _on_item_activated(item: TreeItem = null) -> void:
 func _on_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		var item := get_item_at_position(get_local_mouse_position())
-		if item:
+		if item and item.has_meta("type"):
 			item.select(0)
 			var popup_menu: PopupMenu
 			match item.get_meta("type"):
@@ -329,8 +351,8 @@ func _on_gui_input(event: InputEvent) -> void:
 					popup_menu = popup_menu_database
 				"Tables":
 					popup_menu = popup_menu_tables
-					popup_menu.set_item_disabled(0, !item.get_meta("persistent"))
-					popup_menu.set_item_disabled(1, !item.get_meta("persistent"))
+					popup_menu.set_item_disabled(0, !item.get_meta("persistent")) # Create Table...
+					popup_menu.set_item_disabled(1, !item.get_meta("persistent")) # Create Table Like...
 				"Views":
 					popup_menu = popup_menu_veiws
 				"Stored Procedures":
@@ -339,8 +361,11 @@ func _on_gui_input(event: InputEvent) -> void:
 					popup_menu = popup_menu_functions
 				"table":
 					popup_menu = popup_menu_table_item
-					popup_menu.set_item_disabled(2, !item.get_meta("persistent"))
-					popup_menu.set_item_disabled(3, !item.get_meta("persistent"))
+					popup_menu.set_item_disabled(9, !item.get_meta("persistent")) # Create Table...
+					popup_menu.set_item_disabled(10, !item.get_meta("persistent")) # Create Table Like...
+					popup_menu.set_item_disabled(11, !item.get_meta("persistent")) # Alter Table...
+				"column":
+					popup_menu = popup_menu_column
 					
 #			printt(DisplayServer.mouse_get_position(), get_viewport().get_mouse_position(), get_window().get_mouse_position())
 			popup_menu.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
