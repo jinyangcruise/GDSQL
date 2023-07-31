@@ -55,6 +55,9 @@ func _property_get_revert(property: StringName) -> Variant:
 		return _data[property]
 	return null
 	
+func _to_string() -> String:
+	return var_to_str(_data)
+	
 ## 设置一个属性的更新回调函数。当该属性值修改时，调用该函数
 func set_update_callback(property: String, callback: Callable) -> void:
 	_update_callback[property] = callback

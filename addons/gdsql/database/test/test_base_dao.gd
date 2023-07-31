@@ -72,7 +72,7 @@ func test_update():
 		})\
 		.where("id > 30")\
 		.query()
-	Utils.print_dictionary(ret)
+	printt(ret)
 	
 func test_select():
 	var dao: BaseDao = BaseDao.new()
@@ -91,7 +91,7 @@ func test_select2():
 		.from("t_user_2.gsql")\
 		.order_by("id", BaseDao.ORDER_BY.DESC)\
 		.query()
-	Utils.print_array(ret)
+	printt(ret)
 	
 func test_select_limit():
 	var dao: BaseDao = BaseDao.new()
@@ -124,7 +124,7 @@ func test_union():
 		.query()
 		
 	print(ret.size())
-	Utils.print_array(ret)
+	printt(ret)
 	
 func test_left_join():
 	var dao: BaseDao = BaseDao.new()
@@ -134,7 +134,7 @@ func test_left_join():
 		.left_join("", "t_user_1.gsql", "t1", "t2.id == t1.id", "")\
 		.query()
 		
-	Utils.print_array(ret)
+	printt(ret)
 
 func test_insert_into_complex_node():
 	var dao: BaseDao = BaseDao.new()

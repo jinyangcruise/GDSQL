@@ -60,6 +60,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 context_menu_enabled = false
 scroll_smooth = true
+scroll_fit_content_height = true
 caret_blink = true
 
 [node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
@@ -122,4 +123,19 @@ datas = [Object(RefCounted,"script":Resource("res://addons/gdsql/dictionay_objec
 },"Column Name":"idnew_table","Data Type":2,"Hint":0,"Hint String":"","PK":true,"NN":true,"UQ":false,"AI":true,"Default(Expression)":"","Comment":"")
 ]
 
+[node name="HFlowContainer" type="HFlowContainer" parent="VBoxContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="ButtonApply" type="Button" parent="VBoxContainer/HFlowContainer"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Apply"
+
+[node name="ButtonCancel" type="Button" parent="VBoxContainer/HFlowContainer"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Cancel"
+
 [connection signal="pressed" from="VBoxContainer/ButtonNewColumn" to="." method="_on_button_new_column_pressed"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonApply" to="." method="_on_button_apply_pressed"]
