@@ -3,7 +3,8 @@ extends Node2D
 func _ready() -> void:
 	#test_update()
 	#test_select2()
-	test_insert_db_config()
+	#test_insert_db_config()
+	test_left_join()
 
 func test_insert():
 	var dao: BaseDao = BaseDao.new()

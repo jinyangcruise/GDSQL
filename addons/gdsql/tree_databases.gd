@@ -155,14 +155,19 @@ func add_table_to_config(db_name: String, db_path: String, table_name: String, c
 	refresh()
 	
 func modify_db_to_config(old_db_name: String, new_db_name: String, path: String, save: bool, id: String):
-	if _config_file.has_section(old_db_name):
-		_config_file.erase_section(old_db_name)
-	elif _tmp_config.has_section(old_db_name):
-		_tmp_config.erase_section(old_db_name)
-			
 	var conf: ConfigFile = _config_file if save else _tmp_config
-	conf.set_value(new_db_name, "name", new_db_name)
-	conf.set_value(new_db_name, "path", path)
+	var old_data = {}
+	
+	for key in _config_file.get_section_keys(old_db_name):
+		old_data[key] = _config_file.get_value(old_db_name, key)
+		
+	old_data["name"] = new_db_name
+	old_data["path"] = path
+	
+	conf.erase_section(old_db_name)
+	
+	for key in old_data:
+		conf.set_value(new_db_name, key, old_data[key])
 	
 	if save:
 		conf.save("res://addons/gdsql/config/config.cfg")
@@ -273,7 +278,7 @@ func add_table(db: TreeItem, file_name: String, tooltip: String = "") -> TreeIte
 	table_item.set_icon_max_width(0, 20)
 	table_item.set_tooltip_text(0, tooltip)
 	table_item.add_button(0, preload("res://addons/gdsql/img/quick_search.png"), 0, false, 
-		"select * from %s.%s" % [db.get_meta("db_name"), table_name])
+		"select * from %s.%s;" % [db.get_meta("db_name"), table_name])
 	table_item.set_meta("db_name", db.get_meta("db_name"))
 	table_item.set_meta("table_name", table_name)
 	table_item.set_meta("path", db.get_meta("path") + file_name)
@@ -344,7 +349,6 @@ func _on_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		var item := get_item_at_position(get_local_mouse_position())
 		if item and item.has_meta("type"):
-			item.select(0)
 			var popup_menu: PopupMenu
 			match item.get_meta("type"):
 				"database":
@@ -376,7 +380,7 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 		"Select Rows":
 			var item := get_selected()
 			if item:
-				send_to_editor_and_execute.emit(item.get_meta("table_name"), "select * from %s.%s" \
+				send_to_editor_and_execute.emit(item.get_meta("table_name"), "select * from %s.%s;" \
 					% [item.get_meta("db_name"), item.get_meta("table_name")])
 		"Create Table...":
 			var item := get_selected()

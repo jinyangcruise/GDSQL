@@ -1,6 +1,5 @@
 @tool
 extends VSplitContainer
-class_name SQLFile
 
 signal request_open_file(path: String)
 signal change_tab_title(page: Control, title: String)

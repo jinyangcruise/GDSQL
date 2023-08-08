@@ -20,12 +20,12 @@ func _ready() -> void:
 func _on_tab_clicked(tab: int) -> void:
 	# 点击了“新建SQL页面”（加号），增加一个编辑页面，并激活
 	if get_child(tab) == new_tab_button:
-		var sql_file = preload("res://addons/gdsql/tabs/sql_file.tscn").instantiate()
+		var sql_file = preload("res://addons/gdsql/tabs/sql_graph.tscn").instantiate()
 		sql_file.request_open_file.connect(func(path):
 			# 是否已经打开过了，就直接激活
 			for i in get_tab_count():
 				var page = get_tab_control(i)
-				if page.get_meta("type") == "sql_file" and page.get_meta("file_path") == path:
+				if page.get_meta("type") == "sql_graph" and page.get_meta("file_path") == path:
 					current_tab = i
 					return
 					
@@ -112,7 +112,7 @@ func _on_tab_changed(tab: int) -> void:
 				
 func receive_content(content: String, force_new: bool = false, file_path: String = ""):
 	# 当前打开的页签是一个编辑器，则直接发送，否则创建一个
-	if get_tab_control(current_tab).get_meta("type") == "sql_file":
+	if get_tab_control(current_tab).get_meta("type") == "sql_graph":
 		if force_new:
 			var code_edit_1 = get_tab_control(current_tab).code_edit as CodeEdit
 			# 空的可以直接用，非空的还是需要创建新的；如果是文件，即使是空的，也要开新的
