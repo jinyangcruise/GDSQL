@@ -1,4 +1,8 @@
-[gd_scene format=3 uid="uid://dd5jupbshubij"]
+[gd_scene load_steps=3 format=3 uid="uid://dd5jupbshubij"]
+
+[ext_resource type="Script" path="res://addons/gdsql/tabs/sql_graph_node/graph_node_text_edit.gd" id="1_pumsg"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_c24ud"]
 
 [node name="GraphNodeTextEdit" type="GraphNode"]
 offset_right = 361.0
@@ -14,6 +18,16 @@ slot/0/right_type = 0
 slot/0/right_color = Color(0, 1, 1, 1)
 slot/0/right_icon = null
 slot/0/draw_stylebox = true
+slot/1/left_enabled = false
+slot/1/left_type = 0
+slot/1/left_color = Color(1, 1, 1, 1)
+slot/1/left_icon = null
+slot/1/right_enabled = false
+slot/1/right_type = 0
+slot/1/right_color = Color(1, 1, 1, 1)
+slot/1/right_icon = null
+slot/1/draw_stylebox = true
+script = ExtResource("1_pumsg")
 
 [node name="TextEdit" type="TextEdit" parent="."]
 custom_minimum_size = Vector2(0, 80)
@@ -23,3 +37,11 @@ wrap_mode = 1
 scroll_smooth = true
 scroll_fit_content_height = true
 caret_blink = true
+
+[node name="CheckButtonEnable" type="CheckButton" parent="."]
+layout_mode = 2
+theme_override_styles/focus = SubResource("StyleBoxEmpty_c24ud")
+button_pressed = true
+text = "enable"
+
+[connection signal="toggled" from="CheckButtonEnable" to="." method="_on_check_button_enable_toggled"]

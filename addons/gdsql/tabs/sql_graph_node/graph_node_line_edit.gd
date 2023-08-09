@@ -1,11 +1,11 @@
 @tool
 extends GraphNode
 
-signal query
 signal node_enabled
 
 @onready var check_button_enable: CheckButton = $CheckButtonEnable
-@onready var button: Button = $Button
+@onready var line_edit: LineEdit = $LineEdit
+
 
 var enabled: bool:
 	get:
@@ -13,12 +13,15 @@ var enabled: bool:
 	set(val):
 		if check_button_enable:
 			check_button_enable.button_pressed = val
-			button.disabled = !val
 			if val:
 				node_enabled.emit()
-				
-func _on_button_pressed() -> void:
-	query.emit()
+		
+var value: Variant:
+	get:
+		return line_edit.text if line_edit else ""
+	set(val):
+		if line_edit:
+			line_edit.text = val
 
 
 func _on_check_button_enable_toggled(button_pressed: bool) -> void:

@@ -1,11 +1,12 @@
 @tool
 extends GraphNode
 
-signal query
 signal node_enabled
 
+@onready var option_button: OptionButton = $HBoxContainer/OptionButton
 @onready var check_button_enable: CheckButton = $CheckButtonEnable
-@onready var button: Button = $Button
+
+
 
 var enabled: bool:
 	get:
@@ -13,12 +14,20 @@ var enabled: bool:
 	set(val):
 		if check_button_enable:
 			check_button_enable.button_pressed = val
-			button.disabled = !val
 			if val:
 				node_enabled.emit()
-				
-func _on_button_pressed() -> void:
-	query.emit()
+		
+var value: Variant:
+	get:
+		if option_button:
+			return option_button.get_item_text(option_button.selected)
+		return ""
+	set(val):
+		if option_button:
+			for i in option_button.item_count:
+				if option_button.get_item_text(i) == val:
+					option_button.select(i)
+					break
 
 
 func _on_check_button_enable_toggled(button_pressed: bool) -> void:

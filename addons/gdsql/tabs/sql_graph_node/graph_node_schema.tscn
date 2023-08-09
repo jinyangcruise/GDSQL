@@ -1,0 +1,70 @@
+[gd_scene load_steps=2 format=3 uid="uid://klac5ghbl5eu"]
+
+[ext_resource type="Script" path="res://addons/gdsql/tabs/sql_graph_node/graph_node_schema.gd" id="1_cwxjv"]
+
+[node name="GraphNodeSchema" type="GraphNode"]
+offset_right = 280.0
+offset_bottom = 136.0
+title = "Schema"
+show_close = true
+resizable = true
+slot/0/left_enabled = true
+slot/0/left_type = 0
+slot/0/left_color = Color(1, 1, 1, 1)
+slot/0/left_icon = null
+slot/0/right_enabled = false
+slot/0/right_type = 0
+slot/0/right_color = Color(1, 1, 1, 1)
+slot/0/right_icon = null
+slot/0/draw_stylebox = true
+slot/1/left_enabled = false
+slot/1/left_type = 0
+slot/1/left_color = Color(1, 1, 1, 1)
+slot/1/left_icon = null
+slot/1/right_enabled = true
+slot/1/right_type = 2
+slot/1/right_color = Color(0, 1, 1, 1)
+slot/1/right_icon = null
+slot/1/draw_stylebox = true
+slot/2/left_enabled = false
+slot/2/left_type = 0
+slot/2/left_color = Color(1, 1, 1, 1)
+slot/2/left_icon = null
+slot/2/right_enabled = false
+slot/2/right_type = 0
+slot/2/right_color = Color(1, 1, 1, 1)
+slot/2/right_icon = null
+slot/2/draw_stylebox = true
+script = ExtResource("1_cwxjv")
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 2
+auto_translate = false
+localize_numeral_system = false
+text = "Password"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+auto_translate = false
+localize_numeral_system = false
+text = "Name"
+
+[node name="OptionButton" type="OptionButton" parent="HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+auto_translate = false
+localize_numeral_system = false
+
+[node name="CheckButtonEnable" type="CheckButton" parent="."]
+layout_mode = 2
+auto_translate = false
+localize_numeral_system = false
+button_pressed = true
+text = "enable"
+
+[connection signal="toggled" from="CheckButtonEnable" to="." method="_on_check_button_enable_toggled"]

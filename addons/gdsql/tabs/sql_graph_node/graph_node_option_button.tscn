@@ -1,4 +1,8 @@
-[gd_scene format=3 uid="uid://bc6lf7o0p05j0"]
+[gd_scene load_steps=3 format=3 uid="uid://bc6lf7o0p05j0"]
+
+[ext_resource type="Script" path="res://addons/gdsql/tabs/sql_graph_node/graph_node_option_button.gd" id="1_kxwnd"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_5bfq7"]
 
 [node name="GraphNodeOptionButton" type="GraphNode"]
 offset_right = 36.0
@@ -14,6 +18,24 @@ slot/0/right_type = 0
 slot/0/right_color = Color(0, 1, 1, 1)
 slot/0/right_icon = null
 slot/0/draw_stylebox = true
+slot/1/left_enabled = false
+slot/1/left_type = 0
+slot/1/left_color = Color(1, 1, 1, 1)
+slot/1/left_icon = null
+slot/1/right_enabled = false
+slot/1/right_type = 0
+slot/1/right_color = Color(1, 1, 1, 1)
+slot/1/right_icon = null
+slot/1/draw_stylebox = true
+script = ExtResource("1_kxwnd")
 
 [node name="OptionButton" type="OptionButton" parent="."]
 layout_mode = 2
+
+[node name="CheckButtonEnable" type="CheckButton" parent="."]
+layout_mode = 2
+theme_override_styles/focus = SubResource("StyleBoxEmpty_5bfq7")
+button_pressed = true
+text = "enable"
+
+[connection signal="toggled" from="CheckButtonEnable" to="." method="_on_check_button_enable_toggled"]

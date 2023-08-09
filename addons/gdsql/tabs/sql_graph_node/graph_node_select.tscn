@@ -1,6 +1,8 @@
-[gd_scene load_steps=2 format=3 uid="uid://bmry325tvuyc3"]
+[gd_scene load_steps=3 format=3 uid="uid://bmry325tvuyc3"]
 
 [ext_resource type="Script" path="res://addons/gdsql/tabs/sql_graph_node/graph_node_select.gd" id="1_4duxb"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_bksfl"]
 
 [node name="GraphNodeSelect" type="GraphNode"]
 offset_top = 46.0
@@ -14,16 +16,16 @@ slot/0/left_enabled = true
 slot/0/left_type = 0
 slot/0/left_color = Color(1, 1, 0, 1)
 slot/0/left_icon = null
-slot/0/right_enabled = false
+slot/0/right_enabled = true
 slot/0/right_type = 0
 slot/0/right_color = Color(0, 1, 1, 1)
 slot/0/right_icon = null
 slot/0/draw_stylebox = true
 slot/1/left_enabled = true
 slot/1/left_type = 1
-slot/1/left_color = Color(1, 1, 1, 1)
+slot/1/left_color = Color(1, 1, 0, 1)
 slot/1/left_icon = null
-slot/1/right_enabled = true
+slot/1/right_enabled = false
 slot/1/right_type = 0
 slot/1/right_color = Color(0, 1, 1, 1)
 slot/1/right_icon = null
@@ -32,7 +34,7 @@ slot/2/left_enabled = true
 slot/2/left_type = 2
 slot/2/left_color = Color(1, 1, 1, 1)
 slot/2/left_icon = null
-slot/2/right_enabled = true
+slot/2/right_enabled = false
 slot/2/right_type = 0
 slot/2/right_color = Color(0, 1, 1, 1)
 slot/2/right_icon = null
@@ -41,16 +43,16 @@ slot/3/left_enabled = true
 slot/3/left_type = 3
 slot/3/left_color = Color(1, 1, 1, 1)
 slot/3/left_icon = null
-slot/3/right_enabled = true
+slot/3/right_enabled = false
 slot/3/right_type = 0
-slot/3/right_color = Color(0, 1, 1, 1)
+slot/3/right_color = Color(0.984314, 0, 0.517647, 1)
 slot/3/right_icon = null
 slot/3/draw_stylebox = true
 slot/4/left_enabled = true
 slot/4/left_type = 4
 slot/4/left_color = Color(1, 1, 1, 1)
 slot/4/left_icon = null
-slot/4/right_enabled = true
+slot/4/right_enabled = false
 slot/4/right_type = 0
 slot/4/right_color = Color(0, 1, 1, 1)
 slot/4/right_icon = null
@@ -59,7 +61,7 @@ slot/5/left_enabled = true
 slot/5/left_type = 5
 slot/5/left_color = Color(1, 1, 1, 1)
 slot/5/left_icon = null
-slot/5/right_enabled = true
+slot/5/right_enabled = false
 slot/5/right_type = 0
 slot/5/right_color = Color(0, 1, 1, 1)
 slot/5/right_icon = null
@@ -68,7 +70,7 @@ slot/6/left_enabled = true
 slot/6/left_type = 6
 slot/6/left_color = Color(1, 1, 1, 1)
 slot/6/left_icon = null
-slot/6/right_enabled = true
+slot/6/right_enabled = false
 slot/6/right_type = 0
 slot/6/right_color = Color(0.658824, 0.478431, 0.909804, 1)
 slot/6/right_icon = null
@@ -77,7 +79,7 @@ slot/7/left_enabled = true
 slot/7/left_type = 7
 slot/7/left_color = Color(1, 1, 1, 1)
 slot/7/left_icon = null
-slot/7/right_enabled = true
+slot/7/right_enabled = false
 slot/7/right_type = 0
 slot/7/right_color = Color(0.658824, 0.478431, 0.909804, 1)
 slot/7/right_icon = null
@@ -86,43 +88,56 @@ slot/8/left_enabled = true
 slot/8/left_type = 8
 slot/8/left_color = Color(1, 1, 1, 1)
 slot/8/left_icon = null
-slot/8/right_enabled = true
+slot/8/right_enabled = false
 slot/8/right_type = 0
 slot/8/right_color = Color(0.658824, 0.478431, 0.909804, 1)
 slot/8/right_icon = null
 slot/8/draw_stylebox = true
-slot/9/left_enabled = true
+slot/9/left_enabled = false
 slot/9/left_type = 9
 slot/9/left_color = Color(1, 1, 1, 1)
 slot/9/left_icon = null
-slot/9/right_enabled = true
+slot/9/right_enabled = false
 slot/9/right_type = 0
 slot/9/right_color = Color(0.658824, 0.478431, 0.909804, 1)
 slot/9/right_icon = null
 slot/9/draw_stylebox = true
-slot/10/left_enabled = true
+slot/10/left_enabled = false
 slot/10/left_type = 10
 slot/10/left_color = Color(1, 1, 1, 1)
 slot/10/left_icon = null
-slot/10/right_enabled = true
+slot/10/right_enabled = false
 slot/10/right_type = 0
 slot/10/right_color = Color(0.658824, 0.478431, 0.909804, 1)
 slot/10/right_icon = null
 slot/10/draw_stylebox = true
-slot/11/left_enabled = false
-slot/11/left_type = 0
-slot/11/left_color = Color(1, 1, 1, 1)
-slot/11/left_icon = null
-slot/11/right_enabled = false
-slot/11/right_type = 0
-slot/11/right_color = Color(1, 1, 1, 1)
-slot/11/right_icon = null
-slot/11/draw_stylebox = true
 script = ExtResource("1_4duxb")
 
-[node name="Label" type="Label" parent="."]
+[node name="HBoxContainer11" type="HBoxContainer" parent="."]
 layout_mode = 2
-text = "Union"
+
+[node name="Label" type="Label" parent="HBoxContainer11"]
+layout_mode = 2
+size_flags_horizontal = 3
+auto_translate = false
+localize_numeral_system = false
+text = "Union All"
+
+[node name="LabelOutput" type="Label" parent="HBoxContainer11"]
+layout_mode = 2
+size_flags_horizontal = 3
+auto_translate = false
+localize_numeral_system = false
+text = "Output"
+horizontal_alignment = 2
+
+[node name="LabelLeftJoin" type="Label" parent="."]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+auto_translate = false
+localize_numeral_system = false
+text = "Left Join"
 
 [node name="HBoxContainer" type="HBoxContainer" parent="."]
 layout_mode = 2
@@ -131,30 +146,9 @@ layout_mode = 2
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3
+auto_translate = false
+localize_numeral_system = false
 text = "Schema"
-
-[node name="LabelLeftJoin" type="Label" parent="HBoxContainer"]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Left Join 0"
-horizontal_alignment = 2
-
-[node name="HBoxContainer2" type="HBoxContainer" parent="."]
-layout_mode = 2
-
-[node name="LabelPassword" type="Label" parent="HBoxContainer2"]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Passwrod"
-
-[node name="LabelLeftJoin" type="Label" parent="HBoxContainer2"]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Left Join 1"
-horizontal_alignment = 2
 
 [node name="HBoxContainer3" type="HBoxContainer" parent="."]
 layout_mode = 2
@@ -163,30 +157,9 @@ layout_mode = 2
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3
+auto_translate = false
+localize_numeral_system = false
 text = "Table"
-
-[node name="LabelLeftJoin" type="Label" parent="HBoxContainer3"]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Left Join 2"
-horizontal_alignment = 2
-
-[node name="HBoxContainer4" type="HBoxContainer" parent="."]
-layout_mode = 2
-
-[node name="LabelTableAlias" type="Label" parent="HBoxContainer4"]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Table Alias"
-
-[node name="LabelLeftJoin" type="Label" parent="HBoxContainer4"]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Left Join 3"
-horizontal_alignment = 2
 
 [node name="HBoxContainer5" type="HBoxContainer" parent="."]
 layout_mode = 2
@@ -195,14 +168,9 @@ layout_mode = 2
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3
+auto_translate = false
+localize_numeral_system = false
 text = "Fields"
-
-[node name="LabelLeftJoin" type="Label" parent="HBoxContainer5"]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Left Join 4"
-horizontal_alignment = 2
 
 [node name="HBoxContainer6" type="HBoxContainer" parent="."]
 layout_mode = 2
@@ -211,14 +179,9 @@ layout_mode = 2
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3
+auto_translate = false
+localize_numeral_system = false
 text = "Where"
-
-[node name="LabelLeftUnionAll" type="Label" parent="HBoxContainer6"]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Union All 0"
-horizontal_alignment = 2
 
 [node name="HBoxContainer7" type="HBoxContainer" parent="."]
 layout_mode = 2
@@ -227,30 +190,9 @@ layout_mode = 2
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3
+auto_translate = false
+localize_numeral_system = false
 text = "Order By"
-
-[node name="LabelLeftUnionAll" type="Label" parent="HBoxContainer7"]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Union All 1"
-horizontal_alignment = 2
-
-[node name="HBoxContainer8" type="HBoxContainer" parent="."]
-layout_mode = 2
-
-[node name="LabelTableOrder" type="Label" parent="HBoxContainer8"]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Order"
-
-[node name="LabelLeftUnionAll" type="Label" parent="HBoxContainer8"]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Union All 2"
-horizontal_alignment = 2
 
 [node name="HBoxContainer9" type="HBoxContainer" parent="."]
 layout_mode = 2
@@ -259,14 +201,9 @@ layout_mode = 2
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3
+auto_translate = false
+localize_numeral_system = false
 text = "Offset"
-
-[node name="LabelLeftUnionAll" type="Label" parent="HBoxContainer9"]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Union All 3"
-horizontal_alignment = 2
 
 [node name="HBoxContainer10" type="HBoxContainer" parent="."]
 layout_mode = 2
@@ -275,15 +212,22 @@ layout_mode = 2
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3
+auto_translate = false
+localize_numeral_system = false
 text = "Limit"
-
-[node name="LabelLeftUnionAll" type="Label" parent="HBoxContainer10"]
-custom_minimum_size = Vector2(100, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-text = "Union All 4"
-horizontal_alignment = 2
 
 [node name="Button" type="Button" parent="."]
 layout_mode = 2
+auto_translate = false
+localize_numeral_system = false
 text = "Query"
+
+[node name="CheckButtonEnable" type="CheckButton" parent="."]
+layout_mode = 2
+auto_translate = false
+theme_override_styles/focus = SubResource("StyleBoxEmpty_bksfl")
+button_pressed = true
+text = "enable"
+
+[connection signal="pressed" from="Button" to="." method="_on_button_pressed"]
+[connection signal="toggled" from="CheckButtonEnable" to="." method="_on_check_button_enable_toggled"]
