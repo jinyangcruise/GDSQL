@@ -1,8 +1,8 @@
 @tool
 extends VBoxContainer
 
-## 通过该信号可以把需要在检查器中查看的对象发送给EditorInterface
-signal inspect_object(object: Object, for_property: String, inspector_only: bool)
+const __Singletons := preload("res://addons/gdsql/autoload/singletons.gd")
+const __Manager := preload("res://addons/gdsql/singletons/gdsql_workbench_manager.gd")
 
 @onready var header: MarginContainer = $VBoxContainer/Header
 @onready var header_col_model: Control = $HSplitContainer/HeaderColModel
@@ -285,9 +285,11 @@ func _on_row_gui_input(event: InputEvent, source_data) -> void:
 
 	#if not (event as InputEventMouseButton).double_click:
 		#return
-
+		
+	var mgr: __Manager = __Singletons.instance_of(__Manager, self)
+	
 	if source_data is Object and editable:
-		inspect_object.emit(source_data, "", false)
+		mgr.editor_interface.inspect_object(source_data, "", false)
 
 func _on_row_panel_container_focus_entered(row_panel: PanelContainer) -> void:
 	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")

@@ -1,6 +1,10 @@
 @tool
 extends VSplitContainer
 
+const __Singletons := preload("res://addons/gdsql/autoload/singletons.gd")
+const __Manager := preload("res://addons/gdsql/singletons/gdsql_workbench_manager.gd")
+
+
 signal request_open_file(path: String)
 signal change_tab_title(page: Control, title: String)
 
@@ -18,9 +22,55 @@ func _ready() -> void:
 	button_commit.disabled = button_auto_commit.button_pressed
 	button_rollback.disabled = button_auto_commit.button_pressed
 	
+	
+	
 func _on_button_auto_commit_toggled(button_pressed: bool) -> void:
 	button_commit.disabled = button_pressed
 	button_rollback.disabled = button_pressed
+	
+	#var _hint_string = {
+		#"Data Type": {
+			#"hint": PROPERTY_HINT_ENUM,
+			#"hint_string": ""
+		#},
+		#"Hint": {
+			#"hint": PROPERTY_HINT_ENUM,
+			#"hint_string": ""
+		#},
+		#"Default(Expression)": {
+			#"hint": PROPERTY_HINT_EXPRESSION,
+			#"hint_string": ""
+		#},
+		#"Comment": {
+			#"hint": PROPERTY_HINT_MULTILINE_TEXT,
+			#"hint_string": ""
+		#},
+	#}
+	#var row := DictionaryObject.new([
+		#["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Default(Expression)", "Comment"], 
+		#["idnew_table", TYPE_INT, PROPERTY_HINT_NONE , "", true, true, false, true, "", ""]
+	#], _hint_string, true)
+	#var mgr: __Manager = __Singletons.instance_of(__Manager, self)
+	#var v = DictionaryObject.new({"p": [0]})
+	#mgr.editor_interface.inspect_object(v, "", false)
+	#mgr.editor_interface.get_inspector().print_tree_pretty()
+	#var editor_properties = mgr.editor_interface.get_inspector().find_children("@EditorProperty*", "", true, false)
+	#var graph_node = GraphNode.new()
+	#graph_node.show_close = true
+	#graph_node.resizable = true
+	##mgr.editor_interface.get_inspector().get_child(0).reparent(graph_node)
+	##graph_edit.add_child(graph_node)
+	##var tb
+	#for i in editor_properties:
+		##var graph_node = GraphNode.new()
+		##graph_node.show_close = true
+		##graph_node.resizable = true
+		#i.get_parent().reparent(graph_node)
+		#graph_edit.add_child(graph_node)
+	#mgr.editor_interface.inspect_object(null, "", false)
+		
+	#get_tree().create_tween().set_loops(10).tween_callback(func(): printt(v)).set_delay(2)
+	
 	
 func _on_button_open_pressed() -> void:
 	var editor_file_dialog = EditorFileDialog.new()
@@ -99,6 +149,30 @@ func node_enabled(node: GraphNode):
 func _on_button_add_node_select_pressed() -> void:
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
+	
+	var graph_node = preload("res://addons/gdsql/tabs/sql_graph_node/graph_node.tscn").instantiate()
+	var datas: Array[Array] = [
+		["Union All", "Result"],
+		["Left Join", null],
+		[DictionaryObject.new({"Schema": "Six:6", "_password": ""}, {"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": "Zero,One,Three:3,Four,Six:6"}, "_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}}), null],
+		[DictionaryObject.new({"Table": "", "_alias": ""}, {"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": "t1,t2,t3"}, "_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}}), null],
+		[DictionaryObject.new({"Fields": ""}, {"Fields": {"hint": PROPERTY_HINT_MULTILINE_TEXT}}), null],
+		[DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_MULTILINE_TEXT}}), null],
+		[DictionaryObject.new({"Order By": "", "_order": "ASC"}, {"_order": {"hint": PROPERTY_HINT_ENUM, "hint_string": "ASC,DESC"}}), null],
+		[DictionaryObject.new({"Offset": 0}), null],
+		[DictionaryObject.new({"Limit": 0}), null],
+	]
+	graph_node.datas = datas
+	graph_node.title = "Select"
+	graph_node.set_meta("type", "select")
+	graph_node.set_meta("node", true)
+	graph_node.close_request.connect(node_close.bind(graph_node)) # 关闭事件
+	graph_edit.add_child(graph_node)
+	graph_node.selected = true
+	graph_node.size.x = 600
+	graph_node.position_offset = (graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+	return
+	
 	var node: GraphNode = preload("res://addons/gdsql/tabs/sql_graph_node/graph_node_select.tscn").instantiate()
 	node.set_meta("type", "select")
 	node.set_meta("node", true)
@@ -107,21 +181,21 @@ func _on_button_add_node_select_pressed() -> void:
 	graph_edit.add_child(node)
 	node.selected = true
 	node.position_offset = (graph_edit.get_rect().get_center() - node.get_rect().size + graph_edit.scroll_offset) / graph_edit.zoom
-	var base_pos = node.position_offset
-	var position_offsets = [
-		Vector2	(0, 0),#	union all
-		Vector2	(0, 0),#	left join
-		Vector2	(-603, -305.5),#	GraphNodeOptionButton
-		#Vector2	(-383, -275.5),#	GraphNodeLineEditSecret
-		Vector2	(-603, -135.5),#	@GraphNode@174675
-		Vector2	(-603, 4.5),#	GraphNodeTextEdit
-		Vector2	(-603, 184.5),#	@GraphNode@174686
-		Vector2	(-603, 364.5),#	@GraphNode@174687
-		Vector2	(-603, 554.5),#	GraphNodeSpinBox
-		Vector2	(-383, 554.5),#	@GraphNode@174699
-	]
-	for i in 9:
-		set_input_of_select(i, base_pos + position_offsets[i], node, true)
+	#var base_pos = node.position_offset
+	#var position_offsets = [
+		#Vector2	(0, 0),#	union all
+		#Vector2	(0, 0),#	left join
+		#Vector2	(-603, -305.5),#	GraphNodeOptionButton
+		##Vector2	(-383, -275.5),#	GraphNodeLineEditSecret
+		#Vector2	(-603, -135.5),#	@GraphNode@174675
+		#Vector2	(-603, 4.5),#	GraphNodeTextEdit
+		#Vector2	(-603, 184.5),#	@GraphNode@174686
+		#Vector2	(-603, 364.5),#	@GraphNode@174687
+		#Vector2	(-603, 554.5),#	GraphNodeSpinBox
+		#Vector2	(-383, 554.5),#	@GraphNode@174699
+	#]
+	#for i in 9:
+		#set_input_of_select(i, base_pos + position_offsets[i], node, true)
 		
 # Select 执行
 func on_select_node_query(node: GraphNode):
@@ -243,3 +317,7 @@ func _on_graph_edit_connection_request(from_node: StringName, from_port: int, to
 	graph_edit.connect_node(from_node, from_port, to_node, to_port)
 	var f_node = graph_edit.get_node(str(from_node))
 	f_node.enabled = true
+
+
+func _on_graph_edit_connection_drag_started(_from_node: StringName, _from_port: int, _is_output: bool) -> void:
+	unselect_all_node()

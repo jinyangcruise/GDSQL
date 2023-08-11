@@ -4,8 +4,6 @@ extends TabContainer
 signal add_new_schema(db_name: String, path: String, save: bool, id: String)
 signal alter_old_schema(old_db_name, new_db_name: String, path: String, save: bool, id: String)
 signal add_new_table(db_name: String, db_path: String, table_name: String, id: String)
-## 通过该信号可以把需要在检查器中查看的对象发送给EditorInterface
-signal inspect_object(object: Object, for_property: String, inspector_only: bool)
 
 @onready var new_tab_button: Control = $"➕"
 
@@ -72,8 +70,6 @@ func add_tab_new_table(db_name, db_path) -> void:
 	var new_table = preload("res://addons/gdsql/tabs/new_table.tscn").instantiate()
 	new_table.schema = db_name
 	new_table.schema_path = db_path
-	new_table.inspect_object.connect(func(object, for_property, inspector_only): 
-		inspect_object.emit(object, for_property, inspector_only))
 	new_table.button_apply_pressed.connect(func(schema, schema_path, table_name, columns, id):
 		add_new_table.emit(schema, schema_path, table_name, columns, id))
 	#new_table.button_apply_pressed.connect(func(db_name, path, save, id):

@@ -6,17 +6,24 @@ var _data: Dictionary
 var _hint: Dictionary
 var _update_callback: Dictionary
 var _custom_display_control: Dictionary
+var _read_only: bool
 
 ## data： 一个key-value形成的字典数据。或一个长度为2的数组，第一个元素是key的一维数组，第二个元素是value的一维数组
 ## hint： 一个key-dictionay字典数据。key为data中的key，dictionary为包含"hint"和"hint_string"键的数据。@see PropertyHint 
-func _init(data, hint: Dictionary = {}) -> void:
+## 是否只读
+func _init(data, hint: Dictionary = {}, read_only: bool = false) -> void:
 	_hint = hint
+	_read_only = read_only
 	if data is Dictionary:
 		_data = data
 	elif data is Array and data.size() == 2 and data[0] is Array and data[1] is Array:
 		_data = {}
 		for i in data[0].size():
 			_data[data[0][i]] = data[1][i]
+			
+## 用于在检查器界面显示的时候是否只读
+func _is_read_only() -> bool:
+	return _read_only
 	
 func _get(property: StringName) -> Variant:
 	if _data.has(property):

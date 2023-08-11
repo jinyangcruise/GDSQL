@@ -1,9 +1,6 @@
 @tool
 extends ScrollContainer
 
-## 通过该信号可以把需要在检查器中查看的对象发送给EditorInterface
-signal inspect_object(object: Object, for_property: String, inspector_only: bool)
-
 signal button_apply_pressed(sechema: String, schema_path: String, table_name: String, columns: Array, id: String)
 
 @onready var table: VBoxContainer = $VBoxContainer/Table
@@ -158,9 +155,6 @@ func _ready() -> void:
 		table_name = table_name
 	if comment != null:
 		comment = comment
-		
-	table.inspect_object.connect(func(object, for_property, inspector_only): 
-		inspect_object.emit(object, for_property, inspector_only))
 		
 	var label_data_type := Label.new()
 	label_data_type.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS

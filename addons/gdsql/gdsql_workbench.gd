@@ -1,6 +1,9 @@
 @tool
 extends EditorPlugin
 
+const __Singletons := preload("res://addons/gdsql/autoload/singletons.gd")
+const __Manager := preload("res://addons/gdsql/singletons/gdsql_workbench_manager.gd")
+
 const MainPanel = preload("res://addons/gdsql/index.tscn")
 
 var main_panel_instance
@@ -18,10 +21,9 @@ func _enter_tree():
 	dictionay_object_inspector_plugin = preload("res://addons/gdsql/dictionary_object_inspector_plugin.gd").new()
 	add_inspector_plugin(dictionay_object_inspector_plugin)
 	
-	main_panel_instance.inspect_object.connect(func(object: Object, for_property: String, inspector_only: bool):
-		get_editor_interface().inspect_object(object, for_property, inspector_only)
-	)
-
+	# 单例注册
+	var mgr: __Manager = __Singletons.instance_of(__Manager, self)
+	mgr.editor_interface = get_editor_interface()
 
 func _exit_tree():
 	if main_panel_instance:

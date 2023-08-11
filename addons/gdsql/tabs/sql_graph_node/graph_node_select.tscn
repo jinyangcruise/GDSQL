@@ -6,8 +6,8 @@
 
 [node name="GraphNodeSelect" type="GraphNode"]
 offset_top = 46.0
-offset_right = 320.0
-offset_bottom = 224.0
+offset_right = 438.0
+offset_bottom = 453.0
 mouse_filter = 1
 title = "Select"
 show_close = true
@@ -150,6 +150,21 @@ auto_translate = false
 localize_numeral_system = false
 text = "Schema"
 
+[node name="HBoxContainer" type="HBoxContainer" parent="HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+
+[node name="OptionButton" type="OptionButton" parent="HBoxContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+
+[node name="LineEdit" type="LineEdit" parent="HBoxContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "password"
+
 [node name="HBoxContainer3" type="HBoxContainer" parent="."]
 layout_mode = 2
 
@@ -160,6 +175,21 @@ size_flags_horizontal = 3
 auto_translate = false
 localize_numeral_system = false
 text = "Table"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="HBoxContainer3"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+
+[node name="OptionButton" type="OptionButton" parent="HBoxContainer3/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+
+[node name="LineEdit" type="LineEdit" parent="HBoxContainer3/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "alias"
 
 [node name="HBoxContainer5" type="HBoxContainer" parent="."]
 layout_mode = 2
@@ -172,6 +202,14 @@ auto_translate = false
 localize_numeral_system = false
 text = "Fields"
 
+[node name="TextEdit" type="TextEdit" parent="HBoxContainer5"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+wrap_mode = 1
+scroll_fit_content_height = true
+caret_blink = true
+
 [node name="HBoxContainer6" type="HBoxContainer" parent="."]
 layout_mode = 2
 
@@ -182,6 +220,14 @@ size_flags_horizontal = 3
 auto_translate = false
 localize_numeral_system = false
 text = "Where"
+
+[node name="TextEdit" type="TextEdit" parent="HBoxContainer6"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+wrap_mode = 1
+scroll_fit_content_height = true
+caret_blink = true
 
 [node name="HBoxContainer7" type="HBoxContainer" parent="."]
 layout_mode = 2
@@ -194,6 +240,25 @@ auto_translate = false
 localize_numeral_system = false
 text = "Order By"
 
+[node name="HBoxContainer" type="HBoxContainer" parent="HBoxContainer7"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+
+[node name="LineEdit" type="LineEdit" parent="HBoxContainer7/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="OptionButton" type="OptionButton" parent="HBoxContainer7/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+item_count = 2
+selected = 0
+popup/item_0/text = "ASC"
+popup/item_0/id = 0
+popup/item_1/text = "DESC"
+popup/item_1/id = 1
+
 [node name="HBoxContainer9" type="HBoxContainer" parent="."]
 layout_mode = 2
 
@@ -205,6 +270,11 @@ auto_translate = false
 localize_numeral_system = false
 text = "Offset"
 
+[node name="SpinBox" type="SpinBox" parent="HBoxContainer9"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+
 [node name="HBoxContainer10" type="HBoxContainer" parent="."]
 layout_mode = 2
 
@@ -215,6 +285,13 @@ size_flags_horizontal = 3
 auto_translate = false
 localize_numeral_system = false
 text = "Limit"
+
+[node name="SpinBox" type="SpinBox" parent="HBoxContainer10"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+value = 100.0
+allow_greater = true
 
 [node name="Button" type="Button" parent="."]
 layout_mode = 2
