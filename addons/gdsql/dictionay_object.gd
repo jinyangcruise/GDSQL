@@ -18,7 +18,6 @@ func _init(data, hint: Dictionary = {}, read_only: bool = false) -> void:
 	_read_only = read_only
 	if data is Dictionary:
 		_data = data
-		printt(8888888888888888888, _data.hash(), self)
 	elif data is Array and data.size() == 2 and data[0] is Array and data[1] is Array:
 		_data = {}
 		for i in data[0].size():

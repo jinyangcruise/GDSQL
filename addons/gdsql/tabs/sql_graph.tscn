@@ -162,6 +162,7 @@ icon = ExtResource("10_8cnpe")
 [node name="GraphEdit" type="GraphEdit" parent="VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
+right_disconnects = true
 scroll_offset = Vector2(0, -32)
 snapping_enabled = false
 
@@ -173,3 +174,4 @@ snapping_enabled = false
 [connection signal="connection_from_empty" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_connection_from_empty"]
 [connection signal="connection_request" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_connection_request"]
 [connection signal="delete_nodes_request" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_delete_nodes_request"]
+[connection signal="disconnection_request" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_disconnection_request"]

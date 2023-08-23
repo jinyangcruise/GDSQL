@@ -107,6 +107,11 @@ func _on_button_add_node_select_pressed() -> void:
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
 	
+	var graph_node = gen_select_node()
+	graph_edit.add_child(graph_node)
+	graph_node.position_offset = (graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+	
+func gen_select_node() -> GraphNode:
 	var mgr: __Manager = __Singletons.instance_of(__Manager, self)
 	var databases = mgr.databases.map(func(v): return v["name"])
 	
@@ -123,9 +128,17 @@ func _on_button_add_node_select_pressed() -> void:
 				if i["name"] == new_val:
 					tables = i["table_items"].map(func(v): return v["table_name"])
 					break
-			table_dict_obj.reset_hint({"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}})
+			table_dict_obj.reset_hint({"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, "_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
 			graph_node.redraw_slot_control(3, 2) # table是第4行第3个控件。
 	)
+	
+	var btn_query = Button.new()
+	btn_query.text = "query"
+	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_query.pressed.connect(on_select_node_query.bind(graph_node))
+	
+	var separator = Control.new()
+	separator.custom_minimum_size.y = 5
 	
 	var datas: Array[Array] = [
 		["Union All", "Result"],
@@ -137,50 +150,107 @@ func _on_button_add_node_select_pressed() -> void:
 		[null, null, DictionaryObject.new({"Order By": "", "_order": "ASC"}, {"_order": {"hint": PROPERTY_HINT_ENUM, "hint_string": "ASC,DESC"}}), null],
 		[null, null, DictionaryObject.new({"Offset": 0}), null],
 		[null, null, DictionaryObject.new({"Limit": 100}), null],
+		[null, null, separator],
+		[null, null, btn_query]
 	]
 	graph_node.datas = datas
 	graph_node.title = "Select"
-	graph_node.set_meta("type", "select")
+	graph_node.ready.connect(func():
+		graph_node.set_slot_type_left(0, 0) # Union All's type is 0
+		graph_node.set_slot_type_left(1, 1) # Left Join's type is 1
+		graph_node.set_slot_type_right(0, 0) # Result's type is 0
+		graph_node.size.x = 650
+		graph_node.selected = true
+	)
+	graph_node.set_meta("type", "Select")
 	graph_node.set_meta("node", true)
 	graph_node.close_request.connect(node_close.bind(graph_node)) # 关闭事件
-	graph_edit.add_child(graph_node)
-	graph_node.selected = true
-	graph_node.size.x = 600
-	graph_node.position_offset = (graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 	
-func set_input_of_select(to_port: int, release_position: Vector2, to_node: GraphNode, show_close: bool = false):
+	return graph_node
+	
+func gen_left_join_node() -> GraphNode:
+	var mgr: __Manager = __Singletons.instance_of(__Manager, self)
+	var databases = mgr.databases.map(func(v): return v["name"])
+	
+	var schema_dict_obj = DictionaryObject.new({"Schema": "", "_password": ""}, {"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, "_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
+	var table_dict_obj = DictionaryObject.new({"Table": "", "_alias": ""}, {"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}, "_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
+	
+	var graph_node = SQLGraphNode.instantiate()
+	
+	# 根据选择的数据库来更新表名备选项
+	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		if prop == "Schema":
+			var tables = []
+			for i in mgr.databases:
+				if i["name"] == new_val:
+					tables = i["table_items"].map(func(v): return v["table_name"])
+					break
+			table_dict_obj.reset_hint({"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, "_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
+			graph_node.redraw_slot_control(2, 2) # table是第3行第3个控件。
+	)
+	
+	var btn_query = Button.new()
+	btn_query.text = "query"
+	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_query.pressed.connect(on_select_node_query.bind(graph_node))
+	
+	var separator = Control.new()
+	separator.custom_minimum_size.y = 5
+	
+	var datas: Array[Array] = [
+		[null, "Result"],
+		[null, null, schema_dict_obj, null],
+		[null, null, table_dict_obj, null],
+		[null, null, DictionaryObject.new({"On": ""}, {"On": {"hint": PROPERTY_HINT_MULTILINE_TEXT}}), null]
+	]
+	graph_node.datas = datas
+	graph_node.title = "Left Join"
+	graph_node.ready.connect(func():
+		graph_node.set_slot_type_right(0, 1) # Result's type is 1
+		graph_node.size.x = 650
+		graph_node.selected = true
+	)
+	graph_node.set_meta("type", "Left Join")
+	graph_node.set_meta("node", true)
+	graph_node.close_request.connect(node_close.bind(graph_node)) # 关闭事件
+	
+	return graph_node
+	
+func set_input(to_port: int, release_position: Vector2, to_node: GraphNode, show_close: bool = false):
 	var input_node: GraphNode
 	var from_port = 0
 	var xenophobic: bool # 是否排外
 	var port_data = to_node.datas[to_port][0] # 0 is left port index; 1 is right port index
 	match port_data:
 		"Union All":
-			xenophobic = false
+			xenophobic = true
+			input_node = gen_select_node()
 		"Left Join":
 			xenophobic = false
-		_:
-			if port_data is DictionaryObject:
-				var dict_obj = port_data as DictionaryObject
-				var props = dict_obj._get_property_list()
-				var graph_node = SQLGraphNode.instantiate()
-				if props.size() == 0:
-					return
-					
-				input_node = graph_node
-				var datas: Array[Array] = [[null, port_data.duplicate(true)]]
-				graph_node.datas = datas
-				graph_node.title = props[0]["name"]
-				graph_node.size.x = 400
-				to_node.hide_property_control(to_port)
-				match graph_node.title:
-					"Schema", "Table", "Fields", "Offset", "Limit":
-						xenophobic = true
-					"Where", "Order By":
-						xenophobic = false
-					_:
-						push_warning("please specify xenophobic of this type of node:" + graph_node.title)
-			else:
-				push_warning("no input node match this port_data:" + var_to_str(port_data))
+			input_node = gen_left_join_node()
+		#_:
+			#if port_data is DictionaryObject:
+				#var dict_obj = port_data as DictionaryObject
+				#var props = dict_obj._get_property_list()
+				#var graph_node = SQLGraphNode.instantiate()
+				#if props.size() == 0:
+					#return
+#
+				#input_node = graph_node
+				#var datas: Array[Array] = [[null, port_data.duplicate(true)]]
+				#graph_node.datas = datas
+				#graph_node.title = props[0]["name"]
+				#graph_node.size.x = 400
+				#to_node.hide_property_control(to_port)
+				#match graph_node.title:
+					#"Schema", "Table", "Fields", "Offset", "Limit":
+						#xenophobic = true
+					#"Where", "Order By":
+						#xenophobic = false
+					#_:
+						#push_warning("please specify xenophobic of this type of node:" + graph_node.title)
+			#else:
+				#push_warning("no input node match this port_data:" + var_to_str(port_data))
 			
 	if input_node:
 		#input_node.set_slot_type_right(from_port, to_node.get_slot_type_left(to_port))
@@ -188,6 +258,7 @@ func set_input_of_select(to_port: int, release_position: Vector2, to_node: Graph
 	
 # Select 执行
 func on_select_node_query(node: GraphNode):
+	printt("query...")
 	var schema
 	for info in graph_edit.get_connection_list():
 		if node.name == info["to_node"]:
@@ -204,26 +275,25 @@ func handle_input_node(input_node: GraphNode, connected_node_name, from_port, to
 	graph_edit.add_child(input_node)
 	input_node.set_meta("type", input_node.title)
 	input_node.set_meta("node", true)
-	input_node.selected = true
 	input_node.position_offset = release_position # (release_position + graph_edit.scroll_offset) / graph_edit.zoom
 	input_node.show_close = show_close
-	input_node.close_request.connect(node_close.bind(input_node)) # 关闭事件
+	if not input_node.is_connected("close_request", node_close):
+		input_node.close_request.connect(node_close.bind(input_node)) # 关闭事件
 	if xenophobic:
 		input_node.node_enabled.connect(node_enabled.bind(input_node)) # 互斥激活事件
 	graph_edit.connect_node(input_node.name, from_port, connected_node_name, to_port)
 	input_node.enabled = true # 触发同一端口的其余输入端口失效
-		
+	
 
 func _on_graph_edit_connection_from_empty(to_node: StringName, to_port: int, release_position: Vector2) -> void:
 	# 该信号给出的release_position和实际的position_offset不是一个概念，需要做转化
 	# WARNING 暂不清楚引擎开发团队是否会修改这个东西，需要注意
-	printt(222222)
 	release_position = (release_position + graph_edit.scroll_offset) / graph_edit.zoom
 	var node = graph_edit.get_node(str(to_node))
 	assert(node.has_meta("type"), "node dose not have meta: type")
 	match node.get_meta("type"):
-		"select":
-			set_input_of_select(to_port, release_position, node, true)
+		"Select":
+			set_input(to_port, release_position, node, true)
 
 ## delete快捷键删除node
 func _on_graph_edit_delete_nodes_request(nodes: Array) -> void:
@@ -250,3 +320,7 @@ func _on_graph_edit_connection_request(from_node: StringName, from_port: int, to
 
 func _on_graph_edit_connection_drag_started(_from_node: StringName, _from_port: int, _is_output: bool) -> void:
 	unselect_all_node()
+
+
+func _on_graph_edit_disconnection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
+	graph_edit.disconnect_node(from_node, from_port, to_node, to_port)
