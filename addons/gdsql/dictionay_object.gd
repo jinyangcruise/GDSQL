@@ -1,7 +1,9 @@
 extends RefCounted
 class_name DictionaryObject
 
-var _origin: Dictionary
+signal value_changed(prop: StringName, new_value: Variant, old_value: Variant)
+
+#var _origin: Dictionary
 var _data: Dictionary
 var _hint: Dictionary
 var _update_callback: Dictionary
@@ -16,11 +18,37 @@ func _init(data, hint: Dictionary = {}, read_only: bool = false) -> void:
 	_read_only = read_only
 	if data is Dictionary:
 		_data = data
+		printt(8888888888888888888, _data.hash(), self)
 	elif data is Array and data.size() == 2 and data[0] is Array and data[1] is Array:
 		_data = {}
 		for i in data[0].size():
 			_data[data[0][i]] = data[1][i]
 			
+func reset_data(data, hint = null):
+	_data = data
+	if hint != null:
+		_hint = hint
+	notify_property_list_changed()
+	
+func reset_hint(hint: Dictionary):
+	_hint = hint
+	notify_property_list_changed()
+	
+func reset_read_only(read_only: bool):
+	_read_only = read_only
+	notify_property_list_changed()
+	
+func duplicate(deep: bool = false) -> DictionaryObject:
+	var dict_obj = DictionaryObject.new(_data.duplicate(deep), _hint.duplicate(deep), _read_only)
+	#if _origin:
+		#dict_obj._origin = _origin.duplicate(deep)
+	if _update_callback:
+		dict_obj._update_callback = _update_callback.duplicate(deep)
+	if _custom_display_control:
+		dict_obj._custom_display_control = _custom_display_control.duplicate(deep)
+	return dict_obj
+	
+	
 ## 用于在检查器界面显示的时候是否只读
 func _is_read_only() -> bool:
 	return _read_only
@@ -32,11 +60,13 @@ func _get(property: StringName) -> Variant:
 	
 func _set(property: StringName, value: Variant) -> bool:
 	if _data.has(property):
-		if not _origin.has(property):
-			_origin[property] = _data[property]
+		var old_value = _data[property]
+		#if not _origin.has(property):
+			#_origin[property] = old_value
 		_data[property] = value
 		if _update_callback and _update_callback.has(property):
 			_update_callback[property].call(value)
+		value_changed.emit(property, value, old_value)
 		return true
 	return false
 	
@@ -52,18 +82,19 @@ func _get_property_list() -> Array[Dictionary]:
 		})
 	return properties
 	
-func _property_can_revert(property: StringName) -> bool:
-	return _data.has(property)
+#由于检查器当前显示的属性不一定是本属性，可能导致revert的对象不是本属性，所以直接屏蔽该功能
+#func _property_can_revert(property: StringName) -> bool:
+	#return _data.has(property)
+#
+#func _property_get_revert(property: StringName) -> Variant:
+	#if _origin.has(property):
+		#return _origin[property]
+	#if _data.has(property):
+		#return _data[property]
+	#return null
 	
-func _property_get_revert(property: StringName) -> Variant:
-	if _origin.has(property):
-		return _origin[property]
-	if _data.has(property):
-		return _data[property]
-	return null
-	
-func _to_string() -> String:
-	return var_to_str(_data)
+#func _to_string() -> String:
+	#return var_to_str(_data)
 	
 ## 设置一个属性的更新回调函数。当该属性值修改时，调用该函数
 func set_update_callback(property: String, callback: Callable) -> void:

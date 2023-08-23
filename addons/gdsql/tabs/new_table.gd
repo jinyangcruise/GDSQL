@@ -8,8 +8,6 @@ signal button_apply_pressed(sechema: String, schema_path: String, table_name: St
 @onready var line_edit_table_name: LineEdit = $VBoxContainer/HBoxContainer2/LineEditTableName
 @onready var text_edit_comment: TextEdit = $VBoxContainer/HBoxContainer3/TextEditComment
 
-@export var aaa: Variant.Type
-
 var schema: String:
 	set(val):
 		schema = val

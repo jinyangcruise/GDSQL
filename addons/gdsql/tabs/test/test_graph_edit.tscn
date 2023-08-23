@@ -1,0 +1,22 @@
+[gd_scene load_steps=2 format=3 uid="uid://cnxg1ny5jimwv"]
+
+[ext_resource type="Script" path="res://addons/gdsql/tabs/test/test_graph_edit.gd" id="1_g428d"]
+
+[node name="GraphEdit" type="GraphEdit"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+scroll_offset = Vector2(-40, -40)
+script = ExtResource("1_g428d")
+
+[node name="Button" type="Button" parent="."]
+layout_mode = 0
+offset_left = 124.0
+offset_top = 216.0
+offset_right = 255.0
+offset_bottom = 284.0
+text = "trigger"
+
+[connection signal="pressed" from="Button" to="." method="_on_button_pressed"]

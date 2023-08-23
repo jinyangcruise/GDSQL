@@ -1,6 +1,9 @@
 @tool
 extends Tree
 
+const __Singletons := preload("res://addons/gdsql/autoload/singletons.gd")
+const __Manager := preload("res://addons/gdsql/singletons/gdsql_workbench_manager.gd")
+
 signal new_schema
 signal alter_schema(db_name, path, save)
 signal new_table(db_name, db_path)
@@ -193,7 +196,6 @@ func _ready():
 func refresh() -> void:
 	_clear()
 	refresh_databases()
-	await get_tree().create_timer(0.1).timeout
 	root = create_item()
 	var collapsed = false
 	for data in databases:
@@ -207,14 +209,17 @@ func refresh() -> void:
 			var table_item = add_table(db, file_name, file_name)
 			data["table_items"].push_back(table_item)
 			
+	var mgr: __Manager = __Singletons.instance_of(__Manager, self)
+	mgr.databases = databases
+	
 	# create table like 子菜单重新生成
 	for data in databases:
 		if !data["table_items"].is_empty():
 			popup_menu_create_table_like_tables.add_separator("SCHEMA：%s" % data["name"])
 			popup_menu_create_table_like_table_item.add_separator("SCHEMA：%s" % data["name"])
 		for t in data["table_items"]:
-			popup_menu_create_table_like_tables.add_item((t as TreeItem).get_meta("table_name"))
-			popup_menu_create_table_like_table_item.add_item((t as TreeItem).get_meta("table_name"))
+			popup_menu_create_table_like_tables.add_item(t["table_name"])
+			popup_menu_create_table_like_table_item.add_item(t["table_name"])
 	
 func _get_gsql_file(path: String) -> Array[String]:
 	var ret: Array[String] = []
@@ -270,7 +275,7 @@ func add_database(db_name: String, path: String, persistent: bool) -> TreeItem:
 	
 	return database_item
 	
-func add_table(db: TreeItem, file_name: String, tooltip: String = "") -> TreeItem:
+func add_table(db: TreeItem, file_name: String, tooltip: String = "") -> Dictionary:
 	var table_item = create_item(db.get_child(0))
 	var table_name = file_name.replace(".gsql", "").replace(".cfg", "")
 	table_item.set_text(0, table_name)
@@ -307,7 +312,11 @@ func add_table(db: TreeItem, file_name: String, tooltip: String = "") -> TreeIte
 					col_item.add_button(0, load("res://addons/gdsql/img/word_%s.png" % (properties[i] as String).to_lower()), 2, true, tooltips[i])
 			
 	
-	return table_item
+	var info = {
+		"table_name": table_name,
+		"path": table_item.get_meta("path")
+	}
+	return info
 
 
 func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_index: int) -> void:

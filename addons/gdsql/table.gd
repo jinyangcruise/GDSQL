@@ -286,9 +286,8 @@ func _on_row_gui_input(event: InputEvent, source_data) -> void:
 	#if not (event as InputEventMouseButton).double_click:
 		#return
 		
-	var mgr: __Manager = __Singletons.instance_of(__Manager, self)
-	
 	if source_data is Object and editable:
+		var mgr: __Manager = __Singletons.instance_of(__Manager, self)
 		mgr.editor_interface.inspect_object(source_data, "", false)
 
 func _on_row_panel_container_focus_entered(row_panel: PanelContainer) -> void:

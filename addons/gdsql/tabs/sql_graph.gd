@@ -4,7 +4,6 @@ extends VSplitContainer
 const __Singletons := preload("res://addons/gdsql/autoload/singletons.gd")
 const __Manager := preload("res://addons/gdsql/singletons/gdsql_workbench_manager.gd")
 
-
 signal request_open_file(path: String)
 signal change_tab_title(page: Control, title: String)
 
@@ -13,6 +12,7 @@ signal change_tab_title(page: Control, title: String)
 @onready var button_rollback: Button = $VBoxContainer/HFlowContainer/ButtonRollback
 @onready var button_auto_commit: Button = $VBoxContainer/HFlowContainer/ButtonAutoCommit
 
+var SQLGraphNode= preload("res://addons/gdsql/tabs/sql_graph_node/graph_node.tscn")
 
 var graph_edit: GraphEdit:
 	get:
@@ -27,49 +27,6 @@ func _ready() -> void:
 func _on_button_auto_commit_toggled(button_pressed: bool) -> void:
 	button_commit.disabled = button_pressed
 	button_rollback.disabled = button_pressed
-	
-	#var _hint_string = {
-		#"Data Type": {
-			#"hint": PROPERTY_HINT_ENUM,
-			#"hint_string": ""
-		#},
-		#"Hint": {
-			#"hint": PROPERTY_HINT_ENUM,
-			#"hint_string": ""
-		#},
-		#"Default(Expression)": {
-			#"hint": PROPERTY_HINT_EXPRESSION,
-			#"hint_string": ""
-		#},
-		#"Comment": {
-			#"hint": PROPERTY_HINT_MULTILINE_TEXT,
-			#"hint_string": ""
-		#},
-	#}
-	#var row := DictionaryObject.new([
-		#["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Default(Expression)", "Comment"], 
-		#["idnew_table", TYPE_INT, PROPERTY_HINT_NONE , "", true, true, false, true, "", ""]
-	#], _hint_string, true)
-	#var mgr: __Manager = __Singletons.instance_of(__Manager, self)
-	#var v = DictionaryObject.new({"p": [0]})
-	#mgr.editor_interface.inspect_object(v, "", false)
-	#mgr.editor_interface.get_inspector().print_tree_pretty()
-	#var editor_properties = mgr.editor_interface.get_inspector().find_children("@EditorProperty*", "", true, false)
-	#var graph_node = GraphNode.new()
-	#graph_node.show_close = true
-	#graph_node.resizable = true
-	##mgr.editor_interface.get_inspector().get_child(0).reparent(graph_node)
-	##graph_edit.add_child(graph_node)
-	##var tb
-	#for i in editor_properties:
-		##var graph_node = GraphNode.new()
-		##graph_node.show_close = true
-		##graph_node.resizable = true
-		#i.get_parent().reparent(graph_node)
-		#graph_edit.add_child(graph_node)
-	#mgr.editor_interface.inspect_object(null, "", false)
-		
-	#get_tree().create_tween().set_loops(10).tween_callback(func(): printt(v)).set_delay(2)
 	
 	
 func _on_button_open_pressed() -> void:
@@ -150,17 +107,36 @@ func _on_button_add_node_select_pressed() -> void:
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
 	
-	var graph_node = preload("res://addons/gdsql/tabs/sql_graph_node/graph_node.tscn").instantiate()
+	var mgr: __Manager = __Singletons.instance_of(__Manager, self)
+	var databases = mgr.databases.map(func(v): return v["name"])
+	
+	var schema_dict_obj = DictionaryObject.new({"Schema": "", "_password": ""}, {"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, "_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
+	var table_dict_obj = DictionaryObject.new({"Table": "", "_alias": ""}, {"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}, "_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
+	
+	var graph_node = SQLGraphNode.instantiate()
+	
+	# 根据选择的数据库来更新表名备选项
+	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		if prop == "Schema":
+			var tables = []
+			for i in mgr.databases:
+				if i["name"] == new_val:
+					tables = i["table_items"].map(func(v): return v["table_name"])
+					break
+			table_dict_obj.reset_hint({"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}})
+			graph_node.redraw_slot_control(3, 2) # table是第4行第3个控件。
+	)
+	
 	var datas: Array[Array] = [
 		["Union All", "Result"],
 		["Left Join", null],
-		[DictionaryObject.new({"Schema": "Six:6", "_password": ""}, {"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": "Zero,One,Three:3,Four,Six:6"}, "_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}}), null],
-		[DictionaryObject.new({"Table": "", "_alias": ""}, {"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": "t1,t2,t3"}, "_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}}), null],
-		[DictionaryObject.new({"Fields": ""}, {"Fields": {"hint": PROPERTY_HINT_MULTILINE_TEXT}}), null],
-		[DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_MULTILINE_TEXT}}), null],
-		[DictionaryObject.new({"Order By": "", "_order": "ASC"}, {"_order": {"hint": PROPERTY_HINT_ENUM, "hint_string": "ASC,DESC"}}), null],
-		[DictionaryObject.new({"Offset": 0}), null],
-		[DictionaryObject.new({"Limit": 0}), null],
+		[null, null, schema_dict_obj, null],
+		[null, null, table_dict_obj, null],
+		[null, null, DictionaryObject.new({"Fields": ""}, {"Fields": {"hint": PROPERTY_HINT_MULTILINE_TEXT}}), null],
+		[null, null, DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_MULTILINE_TEXT}}), null],
+		[null, null, DictionaryObject.new({"Order By": "", "_order": "ASC"}, {"_order": {"hint": PROPERTY_HINT_ENUM, "hint_string": "ASC,DESC"}}), null],
+		[null, null, DictionaryObject.new({"Offset": 0}), null],
+		[null, null, DictionaryObject.new({"Limit": 100}), null],
 	]
 	graph_node.datas = datas
 	graph_node.title = "Select"
@@ -171,32 +147,45 @@ func _on_button_add_node_select_pressed() -> void:
 	graph_node.selected = true
 	graph_node.size.x = 600
 	graph_node.position_offset = (graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
-	return
 	
-	var node: GraphNode = preload("res://addons/gdsql/tabs/sql_graph_node/graph_node_select.tscn").instantiate()
-	node.set_meta("type", "select")
-	node.set_meta("node", true)
-	node.close_request.connect(node_close.bind(node)) # 关闭事件
-	node.query.connect(on_select_node_query.bind(node))
-	graph_edit.add_child(node)
-	node.selected = true
-	node.position_offset = (graph_edit.get_rect().get_center() - node.get_rect().size + graph_edit.scroll_offset) / graph_edit.zoom
-	#var base_pos = node.position_offset
-	#var position_offsets = [
-		#Vector2	(0, 0),#	union all
-		#Vector2	(0, 0),#	left join
-		#Vector2	(-603, -305.5),#	GraphNodeOptionButton
-		##Vector2	(-383, -275.5),#	GraphNodeLineEditSecret
-		#Vector2	(-603, -135.5),#	@GraphNode@174675
-		#Vector2	(-603, 4.5),#	GraphNodeTextEdit
-		#Vector2	(-603, 184.5),#	@GraphNode@174686
-		#Vector2	(-603, 364.5),#	@GraphNode@174687
-		#Vector2	(-603, 554.5),#	GraphNodeSpinBox
-		#Vector2	(-383, 554.5),#	@GraphNode@174699
-	#]
-	#for i in 9:
-		#set_input_of_select(i, base_pos + position_offsets[i], node, true)
-		
+func set_input_of_select(to_port: int, release_position: Vector2, to_node: GraphNode, show_close: bool = false):
+	var input_node: GraphNode
+	var from_port = 0
+	var xenophobic: bool # 是否排外
+	var port_data = to_node.datas[to_port][0] # 0 is left port index; 1 is right port index
+	match port_data:
+		"Union All":
+			xenophobic = false
+		"Left Join":
+			xenophobic = false
+		_:
+			if port_data is DictionaryObject:
+				var dict_obj = port_data as DictionaryObject
+				var props = dict_obj._get_property_list()
+				var graph_node = SQLGraphNode.instantiate()
+				if props.size() == 0:
+					return
+					
+				input_node = graph_node
+				var datas: Array[Array] = [[null, port_data.duplicate(true)]]
+				graph_node.datas = datas
+				graph_node.title = props[0]["name"]
+				graph_node.size.x = 400
+				to_node.hide_property_control(to_port)
+				match graph_node.title:
+					"Schema", "Table", "Fields", "Offset", "Limit":
+						xenophobic = true
+					"Where", "Order By":
+						xenophobic = false
+					_:
+						push_warning("please specify xenophobic of this type of node:" + graph_node.title)
+			else:
+				push_warning("no input node match this port_data:" + var_to_str(port_data))
+			
+	if input_node:
+		#input_node.set_slot_type_right(from_port, to_node.get_slot_type_left(to_port))
+		handle_input_node(input_node, to_node.name, from_port, to_port, release_position, show_close, xenophobic)
+	
 # Select 执行
 func on_select_node_query(node: GraphNode):
 	var schema
@@ -210,50 +199,6 @@ func unselect_all_node():
 		if i.has_meta("node"):
 			i.selected = false
 
-func set_input_of_select(to_port: int, release_position: Vector2, select_node: GraphNode, show_close: bool = false):
-	var pre_node: GraphNode
-	var from_port = 0
-	var xenophobic: bool # 是否排外
-	match to_port:
-		0:# Union All
-			xenophobic = false
-		1:# Left Join
-			xenophobic = false
-		2:# Schema
-			xenophobic = true
-			pre_node = preload("res://addons/gdsql/tabs/sql_graph_node/graph_node_schema.tscn").instantiate()
-			pre_node.title = "Schema"
-			pre_node.set_slot_type_left(0, 1000+to_port) # schema节点的密码插槽类型设置为schema节点的输出插槽的index+1000
-		3:# Table
-			xenophobic = true
-			pre_node = preload("res://addons/gdsql/tabs/sql_graph_node/graph_node_table.tscn").instantiate()
-			pre_node.title = "Table"
-		4:# Fields
-			xenophobic = true
-			pre_node = preload("res://addons/gdsql/tabs/sql_graph_node/graph_node_text_edit.tscn").instantiate()
-			pre_node.title = "Fields"
-		5:# Where
-			xenophobic = false
-			pre_node = preload("res://addons/gdsql/tabs/sql_graph_node/graph_node_text_edit.tscn").instantiate()
-			pre_node.title = "Where"
-		6:# Order By
-			xenophobic = false
-			pre_node = preload("res://addons/gdsql/tabs/sql_graph_node/graph_node_order_by.tscn").instantiate()
-			pre_node.title = "Order By"
-		7:# Offset
-			xenophobic = true
-			pre_node = preload("res://addons/gdsql/tabs/sql_graph_node/graph_node_spin_box.tscn").instantiate()
-			pre_node.title = "Offset"
-		8:# Limit
-			xenophobic = true
-			pre_node = preload("res://addons/gdsql/tabs/sql_graph_node/graph_node_spin_box.tscn").instantiate()
-			pre_node.title = "Limit"
-		_:
-			push_error("not support this, larger than 10")
-			
-	if pre_node:
-		pre_node.set_slot_type_right(from_port, select_node.get_slot_type_left(to_port)) # select节点的每个输入节点的输出插槽类型设置为select插槽的index值
-		handle_input_node(pre_node, select_node.name, from_port, to_port, release_position, show_close, xenophobic)
 		
 func handle_input_node(input_node: GraphNode, connected_node_name, from_port, to_port, release_position, show_close, xenophobic):
 	graph_edit.add_child(input_node)
@@ -268,33 +213,17 @@ func handle_input_node(input_node: GraphNode, connected_node_name, from_port, to
 	graph_edit.connect_node(input_node.name, from_port, connected_node_name, to_port)
 	input_node.enabled = true # 触发同一端口的其余输入端口失效
 		
-func set_input_of_schema(to_port: int, release_position: Vector2, schema_node: GraphNode, show_close: bool = false):
-	var pre_node: GraphNode
-	var from_port = 0
-	var xenophobic: bool # 是否排外
-	match to_port:
-		0:# Password
-			xenophobic = true
-			pre_node = preload("res://addons/gdsql/tabs/sql_graph_node/graph_node_line_edit_secret.tscn").instantiate()
-			pre_node.title = "Password"
-		_:
-			push_error("not support this, larger than 10")
-			
-	if pre_node:
-		pre_node.set_slot_type_right(from_port, schema_node.get_slot_type_left(to_port))
-		handle_input_node(pre_node, schema_node.name, from_port, to_port, release_position, show_close, xenophobic)
 
 func _on_graph_edit_connection_from_empty(to_node: StringName, to_port: int, release_position: Vector2) -> void:
 	# 该信号给出的release_position和实际的position_offset不是一个概念，需要做转化
 	# WARNING 暂不清楚引擎开发团队是否会修改这个东西，需要注意
+	printt(222222)
 	release_position = (release_position + graph_edit.scroll_offset) / graph_edit.zoom
 	var node = graph_edit.get_node(str(to_node))
 	assert(node.has_meta("type"), "node dose not have meta: type")
 	match node.get_meta("type"):
 		"select":
 			set_input_of_select(to_port, release_position, node, true)
-		"Schema":
-			set_input_of_schema(to_port, release_position, node, true)
 
 ## delete快捷键删除node
 func _on_graph_edit_delete_nodes_request(nodes: Array) -> void:
