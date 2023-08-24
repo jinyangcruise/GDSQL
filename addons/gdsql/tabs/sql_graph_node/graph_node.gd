@@ -1,10 +1,10 @@
 @tool
 extends GraphNode
 
-const __Singletons := preload("res://addons/gdsql/autoload/singletons.gd")
-const __Manager := preload("res://addons/gdsql/singletons/gdsql_workbench_manager.gd")
+var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
 signal node_enabled
+signal node_enable_status(enabled: bool)
 
 @onready var check_button_enable: CheckButton = $CheckButtonEnable
 
@@ -15,7 +15,6 @@ signal node_enabled
 ## 元素是DictionaryObject时，若属性名称为下划线开头的，将隐藏属性名称，只保留属性值的设置界面。
 ## 左侧元素和右侧元素可以相同。
 ## 元素是Control时，添加到对应的行上。
-## TODO 拖动port怎么引出节点？
 var datas: Array[Array]:
 	set(val):
 		if datas != val:
@@ -30,6 +29,7 @@ var enabled: bool:
 			check_button_enable.button_pressed = val
 			if val:
 				node_enabled.emit()
+			node_enable_status.emit(val)
 				
 var __property_old_parents = {}
 
@@ -60,6 +60,7 @@ func redraw():
 		for arr in datas:
 			index += 1
 			var hb = HBoxContainer.new()
+			hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			var left = 0
 			if arr.size() > 2:
 				assert(arr[0] == null and arr[1] == null, "first two datas must be null if datas' size is larger than 2")
@@ -72,16 +73,18 @@ func redraw():
 						set_slot_enabled_right(index, true)
 						
 					if data is String or data is int or data is float:
-						var label = Label.new()
-						label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if left == 1 else HORIZONTAL_ALIGNMENT_RIGHT
-						label.text = str(data)
-						label.auto_translate = false
-						label.localize_numeral_system = false
-						label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-						hb.add_child(label)
+						if data is String and data == "":
+							hb.add_child(Control.new())
+						else:
+							var label = Label.new()
+							label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if left == 1 else HORIZONTAL_ALIGNMENT_RIGHT
+							label.text = str(data)
+							label.auto_translate = false
+							label.localize_numeral_system = false
+							label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+							hb.add_child(label)
 					elif data is DictionaryObject:
-						var mgr: __Manager = __Singletons.instance_of(__Manager, self)
-						mgr.editor_interface.inspect_object(data, "", false)
+						mgr.inspect_object(data)
 						var properties = data._get_property_list().map(func(v): return v["name"])
 						var editor_properties = mgr.editor_interface.get_inspector().find_children("@EditorProperty*", "", true, false)
 						for i in properties.size():
@@ -134,8 +137,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 			hb.remove_child(hb.get_child(0))
 				
 		# 添加新的
-		var mgr: __Manager = __Singletons.instance_of(__Manager, self)
-		mgr.editor_interface.inspect_object(data, "", false)
+		mgr.inspect_object(data)
 		var properties = data._get_property_list().map(func(v): return v["name"])
 		var editor_properties = mgr.editor_interface.get_inspector().find_children("@EditorProperty*", "", true, false)
 		for i in properties.size():
@@ -153,7 +155,16 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 				hb.add_child(container)
 			else:
 				editor_property.reparent(hb)
-		
+				
+## 返回第一个匹配该属性名称的值
+func get_prop_value(prop):
+	for row_datas in datas:
+		for data in row_datas:
+			if data is DictionaryObject:
+				if data._get(prop) != null:
+					return data._get(prop)
+	return null
+	
 func hide_property_control(index):
 	var p = get_child(index)
 	if p is HBoxContainer and p.get_child(0) is EditorProperty:
@@ -183,8 +194,7 @@ func disconnect_focused_propagate(control: Control):
 				child.focus_entered.disconnect(editor_property_focused)
 	
 func editor_property_focused(data):
-	var mgr: __Manager = __Singletons.instance_of(__Manager, self)
-	mgr.editor_interface.inspect_object(data, "", false)
+	mgr.inspect_object(data)
 	
 func _exit_tree() -> void:
 	clear()

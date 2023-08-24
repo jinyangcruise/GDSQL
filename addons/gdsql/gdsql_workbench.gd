@@ -1,35 +1,49 @@
 @tool
 extends EditorPlugin
 
-const __Singletons := preload("res://addons/gdsql/autoload/singletons.gd")
-const __Manager := preload("res://addons/gdsql/singletons/gdsql_workbench_manager.gd")
-
 const MainPanel = preload("res://addons/gdsql/index.tscn")
 
 var main_panel_instance
 var dictionay_object_inspector_plugin
 
 func _enter_tree():
+	# 注册配置单例，让非插件范围的代码能使用ConfManager
+	add_autoload_singleton("ConfManager", "res://addons/gdsql/database/conf_manager.gd")
+	
+	# 注册配置单例，让插件范围内的代码能使用ConfManager（需通过类型转换为ConfManagerClass来实现编辑器代码提示）
+	if not Engine.get_singleton_list().has("ConfManager"):
+		Engine.register_singleton("ConfManager", preload("res://addons/gdsql/database/conf_manager.gd").new())
+	
+	# 注册配置单例，让插件范围内的代码能使用GDSQLWorkbenchManager（需通过类型转换为GDSQLWorkbenchManageClass来实现编辑器代码提示）
+	if not Engine.get_singleton_list().has("GDSQLWorkbenchManager"):
+		Engine.register_singleton("GDSQLWorkbenchManager", preload("res://addons/gdsql/singletons/gdsql_workbench_manager.gd").new())
+		
+	# 编辑器界面注入单例
+	(Engine.get_singleton("GDSQLWorkbenchManager") as GDSQLWorkbenchManagerClass).editor_interface = get_editor_interface()
+	
+	# 特别需求，让检查器能够查看DictionaryObject
+	# EditorInspectorPlugin is a resource, so we use `new()` instead of `instance()`.
+	dictionay_object_inspector_plugin = preload("res://addons/gdsql/dictionary_object_inspector_plugin.gd").new()
+	add_inspector_plugin(dictionay_object_inspector_plugin)
+	
+	# 进入界面
 	main_panel_instance = MainPanel.instantiate()
 	# Add the main panel to the editor's main viewport.
 	get_editor_interface().get_editor_main_screen().add_child(main_panel_instance)
 	# Hide the main panel. Very much required.
 	_make_visible(false)
 	
-	# 特别需求
-	# EditorInspectorPlugin is a resource, so we use `new()` instead of `instance()`.
-	dictionay_object_inspector_plugin = preload("res://addons/gdsql/dictionary_object_inspector_plugin.gd").new()
-	add_inspector_plugin(dictionay_object_inspector_plugin)
 	
-	# 单例注册
-	var mgr: __Manager = __Singletons.instance_of(__Manager, self)
-	mgr.editor_interface = get_editor_interface()
 
 func _exit_tree():
 	if main_panel_instance:
 		main_panel_instance.queue_free()
 	if dictionay_object_inspector_plugin:
 		remove_inspector_plugin(dictionay_object_inspector_plugin)
+	if Engine.get_singleton_list().has("ConfManager"):
+		Engine.unregister_singleton("ConfManager")
+	if Engine.get_singleton_list().has("GDSQLWorkbenchManager"):
+		Engine.unregister_singleton("GDSQLWorkbenchManager")
 
 func _has_main_screen():
 	return true

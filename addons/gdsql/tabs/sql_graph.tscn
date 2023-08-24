@@ -159,6 +159,11 @@ layout_mode = 2
 text = "SELECT"
 icon = ExtResource("10_8cnpe")
 
+[node name="ButtonAddNodeLeftJoin" type="Button" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+text = "LEFT JOIN"
+icon = ExtResource("10_8cnpe")
+
 [node name="GraphEdit" type="GraphEdit" parent="VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
@@ -170,6 +175,7 @@ snapping_enabled = false
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSave" to="." method="_on_button_save_pressed"]
 [connection signal="toggled" from="VBoxContainer/HFlowContainer/ButtonAutoCommit" to="." method="_on_button_auto_commit_toggled"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNodeSelect" to="." method="_on_button_add_node_select_pressed"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNodeLeftJoin" to="." method="_on_button_add_node_left_join_pressed"]
 [connection signal="connection_drag_started" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_connection_drag_started"]
 [connection signal="connection_from_empty" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_connection_from_empty"]
 [connection signal="connection_request" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_connection_request"]

@@ -1,8 +1,7 @@
 @tool
 extends Tree
 
-const __Singletons := preload("res://addons/gdsql/autoload/singletons.gd")
-const __Manager := preload("res://addons/gdsql/singletons/gdsql_workbench_manager.gd")
+var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
 signal new_schema
 signal alter_schema(db_name, path, save)
@@ -209,7 +208,6 @@ func refresh() -> void:
 			var table_item = add_table(db, file_name, file_name)
 			data["table_items"].push_back(table_item)
 			
-	var mgr: __Manager = __Singletons.instance_of(__Manager, self)
 	mgr.databases = databases
 	
 	# create table like 子菜单重新生成
@@ -314,6 +312,7 @@ func add_table(db: TreeItem, file_name: String, tooltip: String = "") -> Diction
 	
 	var info = {
 		"table_name": table_name,
+		"file_name": file_name,
 		"path": table_item.get_meta("path")
 	}
 	return info

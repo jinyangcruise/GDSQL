@@ -1,8 +1,7 @@
 @tool
 extends VBoxContainer
 
-const __Singletons := preload("res://addons/gdsql/autoload/singletons.gd")
-const __Manager := preload("res://addons/gdsql/singletons/gdsql_workbench_manager.gd")
+var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
 @onready var header: MarginContainer = $VBoxContainer/Header
 @onready var header_col_model: Control = $HSplitContainer/HeaderColModel
@@ -17,7 +16,7 @@ const __Manager := preload("res://addons/gdsql/singletons/gdsql_workbench_manage
 @export var editable: bool = false
 
 ## 每列的名称
-@export var columns: Array[String]:
+@export var columns: Array:
 	set(val):
 		columns = val
 		if is_node_ready():
@@ -287,8 +286,7 @@ func _on_row_gui_input(event: InputEvent, source_data) -> void:
 		#return
 		
 	if source_data is Object and editable:
-		var mgr: __Manager = __Singletons.instance_of(__Manager, self)
-		mgr.editor_interface.inspect_object(source_data, "", false)
+		mgr.inspect_object(source_data)
 
 func _on_row_panel_container_focus_entered(row_panel: PanelContainer) -> void:
 	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")
