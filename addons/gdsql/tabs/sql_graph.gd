@@ -119,7 +119,7 @@ func _on_button_add_node_left_join_pressed():
 	
 	
 func gen_select_node() -> GraphNode:
-	var databases = mgr.databases.map(func(v): return v["name"])
+	var databases = mgr.databases.keys()
 	
 	var schema_dict_obj = DictionaryObject.new({"Schema": "", "_password": ""}, {"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, "_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
 	var table_dict_obj = DictionaryObject.new({"Table": "", "_alias": ""}, {"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}, "_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
@@ -129,11 +129,7 @@ func gen_select_node() -> GraphNode:
 	# 根据选择的数据库来更新表名备选项
 	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		if prop == "Schema":
-			var tables = []
-			for i in mgr.databases:
-				if i["name"] == new_val:
-					tables = i["table_items"].map(func(v): return v["table_name"])
-					break
+			var tables = mgr.databases[new_val]["table_items"].keys()
 			table_dict_obj.reset_hint({"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, "_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
 			graph_node.redraw_slot_control(3, 2) # table是第4行第3个控件。
 	)
@@ -179,7 +175,7 @@ func gen_select_node() -> GraphNode:
 	return graph_node
 	
 func gen_left_join_node() -> GraphNode:
-	var databases = mgr.databases.map(func(v): return v["name"])
+	var databases = mgr.databases.keys()
 	
 	var schema_dict_obj = DictionaryObject.new({"Schema": "", "_password": ""}, {"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, "_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
 	var table_dict_obj = DictionaryObject.new({"Table": "", "_alias": ""}, {"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}, "_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
@@ -189,11 +185,7 @@ func gen_left_join_node() -> GraphNode:
 	# 根据选择的数据库来更新表名备选项
 	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		if prop == "Schema":
-			var tables = []
-			for i in mgr.databases:
-				if i["name"] == new_val:
-					tables = i["table_items"].map(func(v): return v["table_name"])
-					break
+			var tables = mgr.databases[new_val]["table_items"].keys()
 			table_dict_obj.reset_hint({"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, "_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
 			graph_node.redraw_slot_control(2, 2) # table是第3行第3个控件。
 	)
@@ -314,12 +306,12 @@ func on_select_node_query(node: GraphNode):
 	# 每个源头都要query
 	for node_name in arr_source_node:
 		var source_node = graph_edit.get_node(str(node_name)) as GraphNode # 一个select node
-		var db_info = mgr.databases.filter(func(v): return v["name"] == source_node.get_prop_value("Schema")).front()
+		var db_info = mgr.databases[source_node.get_prop_value("Schema")]
 		var dao: BaseDao = BaseDao.new()
 		dao.use_db(db_info["path"])
 		dao.set_password(source_node.get_prop_value("_password"))
 		dao.select(source_node.get_prop_value("Fields"), true)
-		dao.from(db_info["table_items"].filter(func(v): return v["table_name"] == source_node.get_prop_value("Table")).front()["file_name"], source_node.get_prop_value("_alias"))
+		dao.from(db_info["table_items"][source_node.get_prop_value("Table")]["file_name"], source_node.get_prop_value("_alias"))
 		dao.where(source_node.get_prop_value("Where"))
 		dao.order_by(source_node.get_prop_value("Order By"), source_node.get_prop_value("_order"))
 		dao.limit(source_node.get_prop_value("Offset"), source_node.get_prop_value("Limit"))

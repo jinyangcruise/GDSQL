@@ -340,7 +340,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 				ret.append_array(row_result)
 				
 	if ret.is_empty():
-		return ret
+		return ret# TODO 表头没返呢……
 		
 	# where条件
 	var cond = ""
@@ -417,8 +417,21 @@ func ___select(path: String, fill_primary_key: String = ""):
 	# 下面按照用户需要的字段及其顺序，返回相应的数据
 	# 单表查询并查全字段
 	if __left_join_tables.is_empty() and __select.size() == 1 and (__select[0] == "*" or __select[0] == __table_alias + ".*"):
-		var head = ret_filter[0][__table_alias].keys()
+		var head
+		if Engine.has_singleton("GDSQLWorkbenchManager"):
+			var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
+			head = mgr.get_table_columns(__database, __table).values()
+		if head == null:
+			pass # TODO 手动抽取一次配置
+		elif head.is_empty():
+			# 推断表头
+			if all_datas[__table_alias].is_empty():
+				assert(__need_head == false, "cannot get table's head because there are no definations of this table or any data of this table")
+			else:
+				head = all_datas[__table_alias][0].keys()
+			
 		if __need_head and __parent_union == null:
+			printt("vvvvvvvv", head)
 			ret_post_process.push_back(head)
 			
 		for d in ret_filter:
@@ -441,7 +454,16 @@ func ___select(path: String, fill_primary_key: String = ""):
 		var fields = [] # 真正待求值的字段
 		for s in __select:
 			# 根据实际的第一条数据，把星号替代的字段具体化出来
-			if s.ends_with(".*"):
+			if s == "*":
+				# 尝试从单例中获取所有数据表定义 TODO
+				if Engine.has_singleton("GDSQLWorkbenchManager"):
+					var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
+					#var columns = mgr.get_table_columns()
+				if __left_join_tables.is_empty():
+					fields.append_array(ret_filter[0][__table_alias].keys())
+				else:
+					pass
+			elif s.ends_with(".*"):
 				var t = s.replace(".*", "") # t自带小数点.
 				fields.append_array(ret_filter[0][t].keys())
 			else:
@@ -457,6 +479,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 				else:
 					head.push_back(f)
 					
+			printt("rrrrrrrr", head)
 			ret_post_process.push_back(head)
 				
 		# 数据格式是统一按表分类的，把字段中点号取值处理成方括号取值

@@ -36,7 +36,7 @@ signal send_to_editor_and_execute(title: String, content: String)
 
 var root: TreeItem
 
-var databases: Array[Dictionary]
+var databases: Dictionary
 
 var database_items: Array[TreeItem] = []
 var _default_database_path: String = ""
@@ -90,8 +90,6 @@ func _clear():
 	database_items.clear()
 	popup_menu_create_table_like_tables.clear()
 	popup_menu_create_table_like_table_item.clear()
-	for i in databases:
-		i["table_items"].clear()
 		
 func load_config():
 	_config_file = ConfigFile.new()
@@ -101,15 +99,15 @@ func load_config():
 func refresh_databases():
 	_config_file.clear()
 	_config_file.load("res://addons/gdsql/config/config.cfg")
-	databases = []
+	databases = {}
 	for conf in [_config_file, _tmp_config] as Array[ConfigFile]:
 		for db_name in conf.get_sections():
-			databases.push_back({
+			databases[conf.get_value(db_name, "name")] = {
 				"name": conf.get_value(db_name, "name"),
 				"path": conf.get_value(db_name, "path"),
-				"table_items": [],
+				"table_items": {},
 				"persistent": conf == _config_file, # 是否是持久化的
-			})
+			}
 		
 func add_db_to_config(db_name: String, path: String, save: bool, id: String):
 	for conf in [_config_file, _tmp_config] as Array[ConfigFile]:
@@ -197,7 +195,8 @@ func refresh() -> void:
 	refresh_databases()
 	root = create_item()
 	var collapsed = false
-	for data in databases:
+	for db_name in databases:
+		var data = databases[db_name]
 		var db := add_database(data["name"], data["path"], data["persistent"])
 		db.collapsed = collapsed if _default_database_path.is_empty() else _default_database_path != data["path"]
 		database_items.push_back(db)
@@ -206,18 +205,19 @@ func refresh() -> void:
 		var table_files = _get_gsql_file(data["path"])
 		for file_name in table_files:
 			var table_item = add_table(db, file_name, file_name)
-			data["table_items"].push_back(table_item)
+			data["table_items"][table_item["table_name"]] = table_item
 			
 	mgr.databases = databases
 	
 	# create table like 子菜单重新生成
-	for data in databases:
+	for db_name in databases:
+		var data = databases[db_name]
 		if !data["table_items"].is_empty():
 			popup_menu_create_table_like_tables.add_separator("SCHEMA：%s" % data["name"])
 			popup_menu_create_table_like_table_item.add_separator("SCHEMA：%s" % data["name"])
 		for t in data["table_items"]:
-			popup_menu_create_table_like_tables.add_item(t["table_name"])
-			popup_menu_create_table_like_table_item.add_item(t["table_name"])
+			popup_menu_create_table_like_tables.add_item(t)
+			popup_menu_create_table_like_table_item.add_item(t)
 	
 func _get_gsql_file(path: String) -> Array[String]:
 	var ret: Array[String] = []
@@ -313,7 +313,8 @@ func add_table(db: TreeItem, file_name: String, tooltip: String = "") -> Diction
 	var info = {
 		"table_name": table_name,
 		"file_name": file_name,
-		"path": table_item.get_meta("path")
+		"path": table_item.get_meta("path"),
+		"columns": table_confs.get(table_name, [])
 	}
 	return info
 

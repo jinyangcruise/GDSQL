@@ -11,11 +11,11 @@ func _enter_tree():
 	add_autoload_singleton("ConfManager", "res://addons/gdsql/database/conf_manager.gd")
 	
 	# 注册配置单例，让插件范围内的代码能使用ConfManager（需通过类型转换为ConfManagerClass来实现编辑器代码提示）
-	if not Engine.get_singleton_list().has("ConfManager"):
+	if not Engine.has_singleton("ConfManager"):
 		Engine.register_singleton("ConfManager", preload("res://addons/gdsql/database/conf_manager.gd").new())
 	
 	# 注册配置单例，让插件范围内的代码能使用GDSQLWorkbenchManager（需通过类型转换为GDSQLWorkbenchManageClass来实现编辑器代码提示）
-	if not Engine.get_singleton_list().has("GDSQLWorkbenchManager"):
+	if not Engine.has_singleton("GDSQLWorkbenchManager"):
 		Engine.register_singleton("GDSQLWorkbenchManager", preload("res://addons/gdsql/singletons/gdsql_workbench_manager.gd").new())
 		
 	# 编辑器界面注入单例
@@ -40,9 +40,9 @@ func _exit_tree():
 		main_panel_instance.queue_free()
 	if dictionay_object_inspector_plugin:
 		remove_inspector_plugin(dictionay_object_inspector_plugin)
-	if Engine.get_singleton_list().has("ConfManager"):
+	if Engine.has_singleton("ConfManager"):
 		Engine.unregister_singleton("ConfManager")
-	if Engine.get_singleton_list().has("GDSQLWorkbenchManager"):
+	if Engine.has_singleton("GDSQLWorkbenchManager"):
 		Engine.unregister_singleton("GDSQLWorkbenchManager")
 
 func _has_main_screen():
