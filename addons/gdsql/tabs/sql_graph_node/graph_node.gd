@@ -198,3 +198,7 @@ func editor_property_focused(data):
 	
 func _exit_tree() -> void:
 	clear()
+
+
+func _on_resize_request(new_minsize):
+	size = new_minsize

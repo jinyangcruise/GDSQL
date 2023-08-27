@@ -38,8 +38,8 @@ var databases: Dictionary
 func inspect_object(obj):
 	editor_interface.inspect_object(obj, "", false)
 
-func get_table_columns(db, table):
+func get_table_columns(db, table) -> Dictionary:
 	if databases:
 		return databases.get(db, {}).get("table_items", {}).get(table, {})\
 			.get("columns", {})
-	return null
+	return {}

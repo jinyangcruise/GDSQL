@@ -233,19 +233,31 @@ func clear_rows():
 		r.queue_free()
 		
 func realign_rows():
+	if v_box_container == null:
+		return
 	for row in v_box_container.get_children():
 		for i in row.get_child(0).get_child_count():
 			row.get_child(0).get_child(i).size_flags_stretch_ratio = buttons[i].size.x + 4
 		
 func _on_button_pressed() -> void:
-	realign_rows()
+	#realign_rows()
 #	print_tree_pretty()
 #	for button in buttons:
 #		var parent = button.get_parent()
 #		var splitCol = parent.get_parent()
 #		printt(button.size_flags_horizontal, button.size.x, splitCol, splitCol.size_flags_horizontal, splitCol.size.x)
+	test(header)
+	printt("---------------------------")
+	test($VBoxContainer/ScrollContainer/VBoxContainer)
+	
+func test(container):
+	if container.get_child_count() == 0:
+		printt(container, container.size, container.custom_minimum_size)
+	for child in container.get_children():
+		test(child)
 		
 func _on_dragger_gui_input(event: InputEvent, _split_container: HSplitContainer):
+	return
 	# 让control不要自动填充
 	if event is InputEventMouseButton:
 		if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
@@ -256,9 +268,10 @@ func _on_dragger_gui_input(event: InputEvent, _split_container: HSplitContainer)
 		else:
 			for control in controls:
 				control.custom_minimum_size = control.size
-			
-
-
+	
+func _on_resized():
+	realign_rows()
+	
 #func _on_texture_button_model_button_up(node: TextureButton) -> void:
 	#if not editable:
 		#return
@@ -296,4 +309,3 @@ func _on_row_panel_container_focus_entered(row_panel: PanelContainer) -> void:
 func _on_row_panel_container_focus_exited(row_panel: PanelContainer) -> void:
 	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")
 	style_box.bg_color.a = 0.0
-	

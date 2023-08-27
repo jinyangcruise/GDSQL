@@ -221,19 +221,25 @@ func gen_left_join_node() -> GraphNode:
 func gen_table_node(columns: Array, table_datas: Array) -> GraphNode:
 	var graph_node = SQLGraphNode.instantiate()
 	
+	var margin_container = MarginContainer.new()
+	margin_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	margin_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	margin_container.add_theme_constant_override("margin_top", 10)
+	margin_container.add_theme_constant_override("margin_bottom", 10)
 	var table = preload("res://addons/gdsql/table.tscn").instantiate()
 	table.editable = true
 	table.columns = columns
 	table.datas = table_datas
+	margin_container.add_child(table)
 	
 	var datas: Array[Array] = [
-		[table, null]
+		[margin_container, null]
 	]
 	graph_node.datas = datas
 	graph_node.title = "Result"
 	graph_node.ready.connect(func():
 		graph_node.set_slot_type_left(0, 1) # Result's type is 1
-		graph_node.size.x = 650
+		graph_node.size = Vector2(350, 400)
 		graph_node.selected = true
 	)
 	graph_node.set_meta("type", "Result")
@@ -323,15 +329,15 @@ func on_select_node_query(node: GraphNode):
 				var to_node = graph_edit.get_node(str(to))
 				if to_node.get_meta("type") == "Result":
 					if to_node.enabled:
-						var table = to_node.datas[0][0]
-						table.columns = ret[0]
+						var table = to_node.datas[0][0].get_child(0)
+						table.columns = ret[0].map(func(v): return v["field_as"])
 						table.datas = ret.slice(1) # TODO 可编辑，转成DictionaryObject
 						update_result = true
 					else:
 						_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
 					
 		if not update_result:
-			var table_node = gen_table_node(ret[0], ret.slice(1))
+			var table_node = gen_table_node(ret[0].map(func(v): return v["field_as"]), ret.slice(1))
 			graph_edit.add_child(table_node)
 			table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 			_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)

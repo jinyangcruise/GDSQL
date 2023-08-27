@@ -26,3 +26,22 @@ func get_all_section_values(keys: Array = []) -> Array[Dictionary]:
 	for section in get_sections():
 		ret.push_back(get_section_values(section, keys))
 	return ret
+	
+## 返回筛选后的数据。筛选规则是，prop==value的数据。num规定了返回多少个匹配的数据。0表示不限制
+func filter_values(prop: String, value: Variant, num: int = 0) -> Array[Dictionary]:
+	var ret: Array[Dictionary] = []
+	var _num = 0
+	for section in get_sections():
+		if get_value(section, prop) == value:
+			ret.push_back(get_section_values(section))
+			_num += 1
+			if num > 0 and _num >= num:
+				break
+	return ret
+	
+## 返回筛选后的第1个数据。筛选规则是，prop==value的数据。num规定了返回多少个匹配的数据。0表示不限制
+func filter_first_values(prop: String, value: Variant) -> Dictionary:
+	for section in get_sections():
+		if get_value(section, prop) == value:
+			return get_section_values(section)
+	return {}

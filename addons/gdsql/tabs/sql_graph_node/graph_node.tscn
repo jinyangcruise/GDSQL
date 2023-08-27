@@ -26,4 +26,5 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_w76yc")
 button_pressed = true
 text = "enable"
 
+[connection signal="resize_request" from="." to="." method="_on_resize_request"]
 [connection signal="toggled" from="CheckButtonEnable" to="." method="_on_check_button_enable_toggled"]

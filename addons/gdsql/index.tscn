@@ -78,6 +78,7 @@ size_flags_stretch_ratio = 4.0
 script = ExtResource("3_2dwia")
 
 [node name="➕" type="Control" parent="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer"]
+visible = false
 layout_mode = 2
 metadata/type = "new_tab_button"
 
@@ -102,7 +103,7 @@ size_flags_horizontal = 3
 [node name="LogTable" parent="VBoxContainer/HSplitContainer/VSplitContainer/Control/VBoxContainer" instance=ExtResource("1_2tgi5")]
 layout_mode = 2
 editable = true
-columns = Array[String](["Status", "#", "Time", "Action", "Message", "Duration"])
+columns = ["Status", "#", "Time", "Action", "Message", "Duration"]
 ratios = Array[float]([20.0, 30.0, 15.0, 0.55, 0.4, 1.0])
 
 [connection signal="pressed" from="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer/HBoxContainer/ButtonRefresh" to="." method="_on_button_refresh_pressed"]

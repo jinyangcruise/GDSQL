@@ -4,7 +4,8 @@ func _ready() -> void:
 	#test_update()
 	#test_select2()
 	#test_insert_db_config()
-	test_left_join()
+	#test_left_join()
+	test_select2()
 
 func test_insert():
 	var dao: BaseDao = BaseDao.new()
@@ -88,8 +89,8 @@ func test_select2():
 	var dao: BaseDao = BaseDao.new()
 	var ret = dao.use_user_db()\
 		.set_password("")\
-		.select("*", true)\
-		.from("t_user_2.gsql")\
+		.select("t.*, t.name,1,2, 'a,b', t.name.substr(0, 3)", true)\
+		.from("t_user_1.gsql", "t")\
 		.order_by("id", BaseDao.ORDER_BY.DESC)\
 		.query()
 	printt(ret)
