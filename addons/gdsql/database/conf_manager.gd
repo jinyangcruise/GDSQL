@@ -10,9 +10,9 @@ func get_conf(path: String, password: String) -> ImprovedConfigFile:
 		
 	var conf := ImprovedConfigFile.new()
 	
-	if FileAccess.file_exists(path):
-		var err = conf.load(path) if password.is_empty() else conf.load_encrypted_pass(path, password)
-		assert(err == OK, "conf load failed! " + path + ":" + password)
+	assert(FileAccess.file_exists(path), "file:[%s] not exist" % path)
+	var err = conf.load(path) if password.is_empty() else conf.load_encrypted_pass(path, password)
+	assert(err == OK, "conf load failed! " + path + ":" + password)
 		
 	confMap[path] = conf
 	return conf

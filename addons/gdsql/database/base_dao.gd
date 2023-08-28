@@ -19,7 +19,8 @@ var __primary_key: String = "" ## 【外部请勿使用】主键是什么
 var __autoincrement_keys: Dictionary = {} ## 【外部请勿使用】自增键有哪些
 var __union_all: BaseDao ## 【外部请勿使用】union的单元
 var __parent_union: BaseDao ## 【外部请勿使用】被uion的单元
-var __left_join_tables: Dictionary = {} ## 【外部请勿使用】联表查询的表相关信息
+#var __left_join_tables: Dictionary = {} ## 【外部请勿使用】联表查询的表相关信息
+var __left_join: LeftJoin ## 【外部请勿使用】第一个联表对象（获取第N个联表对象需要通过第N-1个联表对象来获取）
 var __need_post_porcess: bool = true ## 【外部请勿使用】select最终返回数据时处理：是否按照用户所需的字段进行精简
 var __need_head: bool ## 【外部请勿使用】select返回的数据是否包含一行表头（在第一行）
 var __auto_commit: bool = true
@@ -74,10 +75,12 @@ func commit() -> void:
 ## 注意：若联表查询还要求返回平数据，则query后会在每条数据的每个字段前加上表的别名和小数点。例如：[["t1.a": xx, "t2.m": yy]]
 ## 这个方法会预处理每个要求的字段和字段的别名（如有），但不会马上在这里处理星号，而是推迟到query的时候才处理。
 func select(someting: String, need_head: bool) -> BaseDao:
-	assert(__cmd == "", "already set command %s" % __cmd)
-	if __parent_union and need_head:
-		push_warning("union table cannot have head but the param `need_head` is true, this param will be ignored")
+	assert(__cmd == "" or __cmd == "select", "already set command %s" % __cmd)
+	#if __parent_union and need_head:
+		#push_warning("union table cannot have head but the param `need_head` is true, this param will be ignored")
 	__cmd = "select"
+	__select = []
+	__field_as = {}
 	__need_head = need_head
 	someting = someting.strip_edges()
 	# 拆分select的字段。不能简单用split(",")，因为字段有可能是函数调用，它不支持正则（至少Godot 4.1不支持）
@@ -91,7 +94,7 @@ func select(someting: String, need_head: bool) -> BaseDao:
 	var regex_2 = RegEx.new()
 	regex_2.compile("[\\s]+as[\\s]+([0-9a-zA-Z_]+)$")
 	
-	if matches:
+	if not matches.is_empty():
 		
 		var start = 0
 		for i in matches:
@@ -133,6 +136,7 @@ func select_same() -> BaseDao:
 	assert(__cmd == "", "already set command %s" % __cmd)
 	__cmd = "select"
 	__select = __parent_union.__select.duplicate()
+	__field_as = __parent_union.__field_as.duplicate()
 	__need_head = false
 	return self
 	
@@ -204,12 +208,62 @@ func union_all() -> BaseDao:
 	bd.__parent_union = self
 	return bd
 	
+## 设置unionall对象，返回的仍旧是自己
+func set_union_all(base_dao: BaseDao) -> BaseDao:
+	assert(__cmd == "select", "'union_all' can only be used after 'select'")
+	__union_all = base_dao
+	base_dao.__parent_union = self
+	return self
+	
+func remove_union_all(base_dao: BaseDao) -> bool:
+	if __union_all == base_dao:
+		__union_all.__parent_union = null
+		__union_all = null
+		return true
+	return false
+	
+func has_union_all(base_dao: BaseDao) -> bool:
+	return __union_all == base_dao
+	
 ## 注意该方法具有嵌套效果，在union的时候，链条中某个环节的order_by会对后面所有环节进行排序
 func order_by(field: String, order: ORDER_BY) -> BaseDao:
 	assert(__cmd == "select", "'order_by' can only be used after 'select'")
 	field = field.strip_edges()
 	if not field.is_empty():
 		__order_by.push_back([field, order])
+	return self
+	
+## 注意，若用该方法，就一次性传入字符串。如果多次使用，只有最后一次的有效。
+func order_by_str(str: String) -> BaseDao:
+	assert(__cmd == "select", "'order_by' can only be used after 'select'")
+	# 清空
+	__order_by = []
+	var regex = RegEx.new()
+	regex.compile(",(?=(([^']*'){2})*[^']*$)(?=(([^\"]*\"){2})*[^\"]*$)(?![^()]*\\))") # 匹配逗号的位置，括号、引号内的逗号都不匹配
+	var matches = regex.search_all(str)
+	var arr = []
+	if not matches.is_empty():
+		var start = 0
+		for i in matches:
+			start = i.get_end()
+			var a_order = str.substr(start, i.get_start() - start).strip_edges() # 知道逗号的起始位置，就可以截取逗号前的位置到上一个逗号的结束位置
+			arr.push_back(a_order)
+			
+		# 别忘了还有最后一个逗号到最后
+		if start < str.length():
+			var a_order = str.substr(start).strip_edges()
+			arr.push_back(a_order)
+	else:
+		arr.push_back(str)
+		
+	for a_order in arr:
+		if a_order.ends_with("asc") or a_order.ends_with("ASC"):
+			__order_by.push_back([a_order.substr(0, a_order.length() - 3).strip_edges(), ORDER_BY.ASC])
+		elif a_order.ends_with("desc") or a_order.ends_with("DESC"):
+			__order_by.push_back([a_order.substr(0, a_order.length() - 4).strip_edges(), ORDER_BY.DESC])
+		else:
+			__order_by.push_back([a_order, ORDER_BY.ASC])
+			
 	return self
 	
 ## 注意该方法具有嵌套效果，在union的时候，链条中某个环节的limit会对后面所有环节进行limit
@@ -235,6 +289,7 @@ func primary_key(a_key: String, auto_increment: bool = true) -> BaseDao:
 ## 注意1：如果用户自己设定了某个非主键自增字段的值，则不会自增；
 ## 注意2：如果用户命令是insert_or_update，只有在新增数据的情况下才可能（也关系到注意1的情况）自增）
 func add_auto_increment_key(a_key: String) -> BaseDao:
+	# TODO 读取数据库配置
 	assert(__cmd.begins_with("insert") or __cmd.begins_with("replace"), "'add_auto_increment_key' can only be used after 'insert' or 'replace'")
 	__autoincrement_keys[a_key] = 0
 	return self
@@ -242,7 +297,7 @@ func add_auto_increment_key(a_key: String) -> BaseDao:
 func left_join(db: String, table: String, alias: String, cond: String, password: String) -> BaseDao:
 	assert(__cmd.begins_with("select"), "left_join must use after select")
 	assert(__table_alias != "", "main table must have alias name before use 'left join'")
-	assert(alias != __table_alias and !__left_join_tables.has(alias), "duplicate table alias")
+	assert(alias != __table_alias and (__left_join == null or not __left_join.chain_has_alias(alias)), "duplicate table alias")
 	if db == "":
 		db = __database
 	var regex = RegEx.new()
@@ -253,8 +308,30 @@ func left_join(db: String, table: String, alias: String, cond: String, password:
 		var t = i.get_string(1)
 		if t != alias and !dependencies.has(t):
 			dependencies.push_back(t)
-	__left_join_tables[alias] = [db, table, password, cond, dependencies]
+			
+	var left_join_obj: LeftJoin
+	if __left_join == null:
+		__left_join = LeftJoin.new()
+		left_join_obj = __left_join
+	else:
+		left_join_obj = __left_join.create_left_join_to_end()
+	left_join_obj.set_db(db)
+	left_join_obj.set_password(password)
+	left_join_obj.set_table(table)
+	left_join_obj.set_alias(alias)
+	left_join_obj.set_condition(cond)
+	left_join_obj.set_dependencies(dependencies)
 	return self
+	
+func set_left_join(left_join_obj: LeftJoin) -> BaseDao:
+	__left_join = left_join_obj
+	return self
+	
+func remove_left_join(left_join_obj: LeftJoin) -> bool:
+	if __left_join == left_join_obj:
+		__left_join = null
+		return true
+	return false
 	
 ## 联表查询，简化用户输入参数，使用与主表相同的数据库和密码
 func left_join_use_same_db_and_pass(table: String, alias: String, cond: String) -> BaseDao:
@@ -283,17 +360,18 @@ func ___loop_table_row(result: Array, all_datas: Dictionary, loop_tables: Array,
 	if loop_index == loop_tables.size():
 		var ret = curr_row.duplicate()
 		# 循环到头了，依次检查每个表是否满足on条件
-		for table_alias in __left_join_tables:
-			var cond = __left_join_tables[table_alias][3]
+		var arr_left_join = __left_join.get_chain_left_joins()
+		for a_left_join in arr_left_join:
+			var cond = a_left_join.get_condition()
 			var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
 			if not conditionWrapper.cond(cond).check(curr_row):
-				ret.erase(table_alias)
+				ret.erase(a_left_join.get_alias())
 				
 		# 多次检查依赖项是否存在，不存在需要删除
 		for i in 10000:
 			var delete_flag = false
-			for table_alias in __left_join_tables:
-				var dependencies: Array = __left_join_tables[table_alias][4]
+			for a_left_join in arr_left_join:
+				var dependencies: Array = a_left_join.get_dependencies()
 				for t in dependencies:
 					if t != __table_alias and !ret.has(t):
 						ret.erase(t)
@@ -324,16 +402,16 @@ func ___select(path: String, fill_primary_key: String = ""):
 	all_datas[__table_alias] = conf.get_all_section_values()
 	
 	# 取联表所有数据
-	if !__left_join_tables.is_empty():
-		for table_alias in __left_join_tables:
-			var pt = __left_join_tables[table_alias][0] + __left_join_tables[table_alias][1]# path
-			var ps = __left_join_tables[table_alias][2]# passwrod
-			var conf1: ImprovedConfigFile = __CONF_MANAGER.get_conf(pt, ps)
-			conf1.fill_primary_key = fill_primary_key
-			all_datas[table_alias] = conf1.get_all_section_values()
+	var arr_left_join = __left_join.get_chain_left_joins() if __left_join != null else []
+	for a_left_join in arr_left_join:
+		var pt = a_left_join.get_path()
+		var ps = a_left_join.get_password()
+		var conf1: ImprovedConfigFile = __CONF_MANAGER.get_conf(pt, ps)
+		conf1.fill_primary_key = fill_primary_key
+		all_datas[a_left_join.get_alias()] = conf1.get_all_section_values()
 		
 	# 不联表的情况
-	if __left_join_tables.is_empty():
+	if __left_join == null:
 		# 统一转化成按表名分类的结构
 		for data in all_datas[__table_alias]:
 			ret.push_back({__table_alias: data})
@@ -367,19 +445,19 @@ func ___select(path: String, fill_primary_key: String = ""):
 				if alias == __table_alias:
 					real_select.append_array(__get_table_columns(__database, __table, __table_alias, all_datas))
 				else:
-					var info = __left_join_tables[alias]
-					real_select.append_array(__get_table_columns(info[0], info[1], alias, all_datas))
+					var a_left_join = __left_join.get_left_join_by_alias(alias)
+					real_select.append_array(__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas))
 		elif s.ends_with(".*"):
 			var alias = s.substr(0, s.length() - 2)
 			if alias == __table_alias:
 				real_select.append_array(__get_table_columns(__database, __table, __table_alias, all_datas))
 			else:
-				var info = __left_join_tables[alias]
-				real_select.append_array(__get_table_columns(info[0], info[1], alias, all_datas))
+				var a_left_join = __left_join.get_left_join_by_alias(alias)
+				real_select.append_array(__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas))
 		else:
 			var m = regex_symbol.search(s)
 			if m != null and m.get_string() == s:
-				assert(__left_join_tables.is_empty(), "must specify table alias name in select fields if using left join")
+				assert(__left_join == null, "must specify table alias name in select fields if using left join")
 				var column = __get_table_column_defination(__database, __table, m.get_string())
 				if column != null and !column.is_empty():
 					column = column.duplicate()
@@ -416,15 +494,15 @@ func ___select(path: String, fill_primary_key: String = ""):
 					real_select.push_back(gen_dict.call(s, s, false))
 			else:
 				var find = false
-				for alias in __left_join_tables:
+				for a_left_join in arr_left_join:
+					var alias = a_left_join.get_alias()
 					if s.contains(alias + "."):
 						find = true
 						regex_field.compile(alias + "\\.([a-zA-Z_]+[0-9a-zA-Z]*)") # 获取字段名称的正则
 						m = regex_field.search(s)
 						if m:
 							var field = m.get_string(1)
-							var info = __left_join_tables[alias]
-							var column = __get_table_column_defination(info[0], info[1], field)
+							var column = __get_table_column_defination(a_left_join.get_db(), a_left_join.get_table(), field)
 							if column != null and !column.is_empty():
 								column = column.duplicate()
 								if s == alias + "." + field:
@@ -437,7 +515,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 							else:
 								if s == alias + "." + field:
 									assert(not all_datas[alias].is_empty() and all_datas[alias][0].has(field),
-										"field:[%s] not exist in table:[%s], db:[%s]" % [field, info[1], info[0]])
+										"field:[%s] not exist in table:[%s], db:[%s]" % [field, a_left_join.get_table(), a_left_join.get_db()])
 									real_select.push_back(gen_dict.call(s, field, true))
 								else:
 									real_select.push_back(gen_dict.call(s, s, false))
@@ -470,7 +548,6 @@ func ___select(path: String, fill_primary_key: String = ""):
 		var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
 		if conditionWrapper.cond(cond).check(data):
 			ret_filter.push_back(data)
-		
 	# 合并union
 	if __union_all:
 #		__union_all.__need_post_porcess = false # 改为需要后处理
@@ -487,6 +564,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 	if not __order_by.is_empty():
 		var compare := func(a, b):
 			for a_order_by in __order_by:
+				printt("ddddd", a_order_by)
 				var s = a_order_by[0].split(".")
 				var t1 = s[0] if s.size() > 1 else ""
 				var t2 = t1 # t1、t2分开是因为在union时，可能不同表有不同的别名
@@ -510,11 +588,13 @@ func ___select(path: String, fill_primary_key: String = ""):
 					continue
 				else:
 					if a_order_by[1] == ORDER_BY.ASC:
+						printt("asc", a_order_by, typeof(d1.get(f)), typeof(d2.get(f)))
 						return d1.get(f) < d2.get(f) # TODO 用evaluate的方式
 					else:
+						printt("desc", a_order_by, typeof(d1.get(f)), typeof(d2.get(f)))
 						return d1.get(f) > d2.get(f)
 						
-			return true
+			return true# TODO 检查bug
 			
 		ret_filter.sort_custom(compare)
 		
@@ -532,7 +612,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 	var ret_post_process: Array = []
 	# 下面按照用户需要的字段及其顺序，返回相应的数据
 	# 为了提升效率，简化一些常用查询。单表查询并查全字段
-	if __left_join_tables.is_empty() and __select.size() == 1 and (__select[0] == "*" or __select[0] == __table_alias + ".*"):
+	if __left_join == null and __select.size() == 1 and (__select[0] == "*" or __select[0] == __table_alias + ".*"):
 		if __need_head and __parent_union == null:
 			ret_post_process.push_back(real_select)
 			
@@ -616,7 +696,7 @@ func __get_table_columns(db_path, table_name, table_alias, all_datas: Dictionary
 	if Engine.has_singleton("GDSQLWorkbenchManager"):
 		var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 		if mgr.databases:
-			columns = mgr.get_table_columns(db_path, table_name).values()
+			columns = mgr.get_table_columns(db_path, table_name)
 		
 	if columns == null or columns.is_empty():
 		if __config == null:
@@ -626,8 +706,7 @@ func __get_table_columns(db_path, table_name, table_alias, all_datas: Dictionary
 		
 	if columns == null or columns.is_empty():
 		# 推断表头
-		assert(not all_datas.get(table_alias, []).is_empty(), "db: [%s] table [%s] cannot get head \
-			because there are no definations of this table or any data of this table" % [db_path, table_name])
+		assert(not all_datas.get(table_alias, []).is_empty(), "db: [%s] table [%s] cannot get head because there are no definations of this table or any data of this table" % [db_path, table_name])
 		columns = all_datas[table_alias][0].keys().map(func(v): return {"select_name": v, "Column Name": v, "is_field": true})
 		
 	return columns
@@ -637,7 +716,9 @@ func __get_table_column_defination(db_path, table_name, column_name):
 	if Engine.has_singleton("GDSQLWorkbenchManager"):
 		var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 		if mgr.databases:
-			column = mgr.get_table_columns(db_path, table_name).get(column_name, null)
+			var columns = mgr.get_table_columns(db_path, table_name).filter(func(v): return v["Column Name"] == column_name)
+			if !columns.is_empty():
+				column = columns.front()
 		
 	if column == null:
 		if __config == null:
@@ -743,7 +824,9 @@ func query():
 			reset()
 			return ret
 			
-func reset():
+func reset(force = false):
+	if force == false and Engine.is_editor_hint():
+		return
 	__select = []
 	__table = ""
 	__cmd = ""
@@ -758,7 +841,9 @@ func reset():
 	__autoincrement_keys = {}
 	__union_all = null
 	__parent_union = null
-	__left_join_tables = {}
+	if __left_join:
+		__left_join.clear_chain()
+		__left_join = null
 	__CONF_MANAGER = null
 	if __config:
 		__config.clear()

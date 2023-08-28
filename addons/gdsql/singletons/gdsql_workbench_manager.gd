@@ -14,8 +14,8 @@ var editor_interface: EditorInterface
 				#"table_name": "",
 				#"file_name": "",
 				#"path": ""
-				#"columns": { # 可能为空
-					#"col1": {
+				#"columns": [ # 可能为空
+					#{
 						#"AI": false,
 						#"Column Name": "col1",
 						#"Comment": "",
@@ -27,7 +27,7 @@ var editor_interface: EditorInterface
 						#"PK": false,
 						#"UQ": false
 					#}
-				#}
+				#]
 			#}
 		#},
 		#"persistent": conf == _config_file, # 是否是持久化的
@@ -38,8 +38,8 @@ var databases: Dictionary
 func inspect_object(obj):
 	editor_interface.inspect_object(obj, "", false)
 
-func get_table_columns(db, table) -> Dictionary:
+func get_table_columns(db, table) -> Array:
 	if databases:
 		return databases.get(db, {}).get("table_items", {}).get(table, {})\
-			.get("columns", {})
-	return {}
+			.get("columns", [])
+	return []
