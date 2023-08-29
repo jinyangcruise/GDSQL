@@ -140,8 +140,19 @@ func select_same() -> BaseDao:
 	__need_head = false
 	return self
 	
+## 同时设置表名和别名
 func from(table: String, alias: String = "") -> BaseDao:
 	__table = table
+	__table_alias = alias
+	return self
+	
+## 单独设置表名
+func set_table(table: String) -> BaseDao:
+	__table = table
+	return self
+	
+## 单独设置表别名
+func set_table_alias(alias: String) -> BaseDao:
 	__table_alias = alias
 	return self
 	
@@ -234,27 +245,27 @@ func order_by(field: String, order: ORDER_BY) -> BaseDao:
 	return self
 	
 ## 注意，若用该方法，就一次性传入字符串。如果多次使用，只有最后一次的有效。
-func order_by_str(str: String) -> BaseDao:
+func order_by_str(string: String) -> BaseDao:
 	assert(__cmd == "select", "'order_by' can only be used after 'select'")
 	# 清空
 	__order_by = []
 	var regex = RegEx.new()
 	regex.compile(",(?=(([^']*'){2})*[^']*$)(?=(([^\"]*\"){2})*[^\"]*$)(?![^()]*\\))") # 匹配逗号的位置，括号、引号内的逗号都不匹配
-	var matches = regex.search_all(str)
+	var matches = regex.search_all(string)
 	var arr = []
 	if not matches.is_empty():
 		var start = 0
 		for i in matches:
 			start = i.get_end()
-			var a_order = str.substr(start, i.get_start() - start).strip_edges() # 知道逗号的起始位置，就可以截取逗号前的位置到上一个逗号的结束位置
+			var a_order = string.substr(start, i.get_start() - start).strip_edges() # 知道逗号的起始位置，就可以截取逗号前的位置到上一个逗号的结束位置
 			arr.push_back(a_order)
 			
 		# 别忘了还有最后一个逗号到最后
-		if start < str.length():
-			var a_order = str.substr(start).strip_edges()
+		if start < string.length():
+			var a_order = string.substr(start).strip_edges()
 			arr.push_back(a_order)
 	else:
-		arr.push_back(str)
+		arr.push_back(string)
 		
 	for a_order in arr:
 		if a_order.ends_with("asc") or a_order.ends_with("ASC"):
@@ -439,21 +450,24 @@ func ___select(path: String, fill_primary_key: String = ""):
 	regex_symbol.compile("[a-zA-Z_]+[0-9a-zA-Z]*")
 	var regex_field = RegEx.new()
 	var gen_dict = func(s, c, f): return {"select_name": s, "Column Name": c, "is_field": f}
+	var fill_select_name = func(element, alias):
+		element["select_name"] = alias + "." + element["Column Name"]
+		return element
 	for s in __select:
 		if s == "*":
 			for alias in all_datas:
 				if alias == __table_alias:
-					real_select.append_array(__get_table_columns(__database, __table, __table_alias, all_datas))
+					real_select.append_array(__get_table_columns(__database, __table, __table_alias, all_datas).map(fill_select_name.bind(alias)))
 				else:
 					var a_left_join = __left_join.get_left_join_by_alias(alias)
-					real_select.append_array(__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas))
+					real_select.append_array(__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas).map(fill_select_name.bind(alias)))
 		elif s.ends_with(".*"):
 			var alias = s.substr(0, s.length() - 2)
 			if alias == __table_alias:
-				real_select.append_array(__get_table_columns(__database, __table, __table_alias, all_datas))
+				real_select.append_array(__get_table_columns(__database, __table, __table_alias, all_datas).map(fill_select_name.bind(alias)))
 			else:
 				var a_left_join = __left_join.get_left_join_by_alias(alias)
-				real_select.append_array(__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas))
+				real_select.append_array(__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas).map(fill_select_name.bind(alias)))
 		else:
 			var m = regex_symbol.search(s)
 			if m != null and m.get_string() == s:
@@ -528,8 +542,8 @@ func ___select(path: String, fill_primary_key: String = ""):
 		if not f.has("select_name"):
 			f["select_name"] = f["Column Name"]
 			
-		if __field_as.has(f["Column Name"]):
-			f["field_as"] = __field_as[f["Column Name"]]
+		if __field_as.has(f["select_name"]):
+			f["field_as"] = __field_as[f["select_name"]]
 		else:
 			f["field_as"] = f["Column Name"]
 			
@@ -548,6 +562,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 		var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
 		if conditionWrapper.cond(cond).check(data):
 			ret_filter.push_back(data)
+			
 	# 合并union
 	if __union_all:
 #		__union_all.__need_post_porcess = false # 改为需要后处理
@@ -564,7 +579,6 @@ func ___select(path: String, fill_primary_key: String = ""):
 	if not __order_by.is_empty():
 		var compare := func(a, b):
 			for a_order_by in __order_by:
-				printt("ddddd", a_order_by)
 				var s = a_order_by[0].split(".")
 				var t1 = s[0] if s.size() > 1 else ""
 				var t2 = t1 # t1、t2分开是因为在union时，可能不同表有不同的别名
@@ -588,13 +602,11 @@ func ___select(path: String, fill_primary_key: String = ""):
 					continue
 				else:
 					if a_order_by[1] == ORDER_BY.ASC:
-						printt("asc", a_order_by, typeof(d1.get(f)), typeof(d2.get(f)))
 						return d1.get(f) < d2.get(f) # TODO 用evaluate的方式
 					else:
-						printt("desc", a_order_by, typeof(d1.get(f)), typeof(d2.get(f)))
 						return d1.get(f) > d2.get(f)
 						
-			return true# TODO 检查bug
+			return true
 			
 		ret_filter.sort_custom(compare)
 		
@@ -641,11 +653,12 @@ func ___select(path: String, fill_primary_key: String = ""):
 		# 匹配t.name.substr(10)这种字符串。不匹配的会原样输出，不会被替换
 		# 注意：这里不兼容t.name.a.b.substr(10)这种太多级的写法。会被改成t["name"].a["b"].substr(10)
 		for i in real_select.size():
-			real_select[i]["name_4_computing"] = ConditionWrapper.modify_dot_to_get(real_select[i]["Column Name"]) # t.name.substr(10) 被替换为：t["name"].substr(10)
+			real_select[i]["name_4_computing"] = ConditionWrapper.modify_dot_to_get(real_select[i]["select_name"]) # t.name.substr(10) 被替换为：t["name"].substr(10)
 				
 		# 求值
 		var is_single_table = ret_filter[0].size() == 1 or \
 			(ret_filter[0].size() == 2 and ret_filter[0].has(__ROW_POST_PROCESS__)) # 每行数据是否只有一个表
+			
 		for data in ret_filter:
 			if data.has(__ROW_POST_PROCESS__):
 				if __parent_union:
@@ -755,7 +768,7 @@ func query():
 			var primary_value = str(__data.get(__primary_key))
 			if primary_value == null:
 				# 这几种插入操作都需要主键存在，用户要不就直接在data里写好了主键，要不就设置为自增，否则报错
-				if __autoincrement_keys.has(__primary_key):
+				if __autoincrement_keys.has(__primary_key):# TODO 配置
 					pass # 后面会统一把所有需要自增的键一起处理
 				else:
 					push_error("key 'PRIMARY' is missing for %s" % __cmd)

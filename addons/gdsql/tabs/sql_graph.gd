@@ -167,9 +167,9 @@ func gen_select_node() -> GraphNode:
 			"Table":
 				var db_info = mgr.databases[schema_dict_obj._get("Schema")]
 				var table = db_info["table_items"][new_val]["file_name"]
-				base_dao.from(table, table_dict_obj._get("_alias"))
+				base_dao.set_table(table)
 			"_alias":
-				base_dao.from(table_dict_obj._get("Table"), new_val)
+				base_dao.set_table_alias(new_val)
 	)
 	fields_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		match prop:
@@ -257,7 +257,7 @@ func gen_left_join_node() -> GraphNode:
 	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		match prop:
 			"Schema":
-				left_join_obj.set_db(new_val)
+				left_join_obj.set_db(mgr.databases[new_val]["path"])
 				var tables = mgr.databases[new_val]["table_items"].keys()
 				table_dict_obj.reset_hint({"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, "_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
 				graph_node.redraw_slot_control(2, 2) # table是第3行第3个控件。
@@ -267,7 +267,9 @@ func gen_left_join_node() -> GraphNode:
 	table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		match prop:
 			"Table":
-				left_join_obj.set_table(new_val)
+				var db_info = mgr.databases[schema_dict_obj._get("Schema")]
+				var table = db_info["table_items"][new_val]["file_name"]
+				left_join_obj.set_table(table)
 			"_alias":
 				left_join_obj.set_alias(new_val)
 	)
