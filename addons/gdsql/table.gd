@@ -113,7 +113,6 @@ func _on_header_col_model_dragged(_offset: int, h_split_container: HSplitContain
 	var child_control = h_split_container.get_child(1)
 	child_control.custom_minimum_size.x = 1
 	await get_tree().process_frame
-	await get_tree().process_frame
 	var next_h_split_container: HSplitContainer = child_control.get_child(0)
 	next_h_split_container.size.x = child_control.size.x
 	realign_rows()

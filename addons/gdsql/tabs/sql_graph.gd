@@ -326,9 +326,29 @@ func gen_table_node(columns: Array, table_datas: Array) -> GraphNode:
 	margin_container.add_theme_constant_override("margin_top", 10)
 	margin_container.add_theme_constant_override("margin_bottom", 10)
 	var table = preload("res://addons/gdsql/table.tscn").instantiate()
-	table.editable = true
-	table.columns = columns
-	table.datas = table_datas
+	table.columns = columns.map(func(v): return v["field_as"])
+	
+	# 根据表头的情况决定是否需要支持数据修改
+	# 根据表头分析，1.数据是否来源于同一张表，2.是否有主键，3.没有相同的字段
+	var info = columns.reduce(func(acc, v):
+		acc["paths"][v["db_path"]] = true
+		var num = acc["columns"].get(v["Column Name"], 0)
+		acc["columns"][v["Column Name"]] = num + 1
+		if num > 0:
+			acc["duplicate_column"] = true
+		if v["PK"]:
+			acc["PK"] = v
+	, {"paths":{}, "PK": null, "columns":{}, "duplicate_column": false})
+	
+	if info["PK"] and info["duplicate_column"] == false and info["paths"].size() == 1:
+		table.editable = true
+	
+	if table.editable:
+		pass# TODO 
+		# 转成DictionaryObject
+		
+	else:
+		table.datas = table_datas
 	margin_container.add_child(table)
 	
 	var datas: Array[Array] = [
@@ -473,7 +493,7 @@ func on_select_node_query(node: GraphNode):
 						_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
 					
 		if not update_result:
-			var table_node = gen_table_node(ret[0].map(func(v): return v["field_as"]), ret.slice(1))
+			var table_node = gen_table_node(ret[0], ret.slice(1))
 			graph_edit.add_child(table_node)
 			table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 			_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
