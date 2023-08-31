@@ -296,7 +296,7 @@ func add_table(db: TreeItem, file_name: String, tooltip: String = "") -> Diction
 		for col in table_confs[table_name]:
 			var col_item = create_item(table_item)
 			var texts = [col["Column Name"]]
-			texts.push_back((data_types[col["Data Type"]] as String).split(":")[0].replace("TYPE_", "").capitalize())
+			texts.push_back(DataTypeDef.DATA_TYPE_NAMES[col["Data Type"]].replace("TYPE_", "").capitalize())
 			col_item.set_text(0, ": ".join(texts))
 			col_item.set_icon(0, preload("res://addons/gdsql/img/dot.png"))
 			col_item.set_meta("db_name", db.get_meta("db_name"))

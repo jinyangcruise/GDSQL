@@ -308,3 +308,7 @@ func _on_row_panel_container_focus_entered(row_panel: PanelContainer) -> void:
 func _on_row_panel_container_focus_exited(row_panel: PanelContainer) -> void:
 	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")
 	style_box.bg_color.a = 0.0
+
+func row_grab_focus(row: int):
+	if v_box_container.get_child_count() > row:
+		v_box_container.get_child(row).grab_focus()

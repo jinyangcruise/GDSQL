@@ -449,7 +449,8 @@ func ___select(path: String, fill_primary_key: String = ""):
 	var regex_symbol = RegEx.new()
 	regex_symbol.compile("[a-zA-Z_]+[0-9a-zA-Z]*")
 	var regex_field = RegEx.new()
-	var gen_dict = func(s, c, f, d = "", t = ""): return {"select_name": s, "Column Name": c, "is_field": f, "db_path": d, "table_name": t}
+	var gen_dict = func(s, c, f, d = "", t = ""):
+		return {"select_name": s, "Column Name": c, "is_field": f, "db_path": d, "table_name": t, "Hint": "", "Hint String": ""}
 	var fill_select_name = func(element, alias):
 		element["select_name"] = alias + "." + element["Column Name"]
 		return element
@@ -545,7 +546,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 			f["field_as"] = f["Column Name"]
 			
 	if ret.is_empty():
-		return real_select
+		return [real_select]
 		
 	# where条件
 	var cond = ""

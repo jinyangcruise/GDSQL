@@ -317,16 +317,40 @@ func gen_left_join_node() -> GraphNode:
 	return graph_node
 	
 ## 生成一个【表格】节点
-func gen_table_node(columns: Array, table_datas: Array) -> GraphNode:
-	var graph_node = SQLGraphNode.instantiate()
+func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNode = null) -> GraphNode:
+	var graph_node = old_graph_node
+	var table
+	var graph_datas: Array[Array]
+	if graph_node == null:
+		graph_node = SQLGraphNode.instantiate()
 	
-	var margin_container = MarginContainer.new()
-	margin_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	margin_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	margin_container.add_theme_constant_override("margin_top", 10)
-	margin_container.add_theme_constant_override("margin_bottom", 10)
-	var table = preload("res://addons/gdsql/table.tscn").instantiate()
-	table.columns = columns.map(func(v): return v["field_as"])
+		var margin_container = MarginContainer.new()
+		margin_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		margin_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		margin_container.add_theme_constant_override("margin_top", 10)
+		margin_container.add_theme_constant_override("margin_bottom", 10)
+		table = preload("res://addons/gdsql/table.tscn").instantiate()
+		table.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		margin_container.add_child(table)
+		
+		table.columns = columns.map(func(v): return v["field_as"])
+		graph_datas = [
+			[margin_container, null]
+		]
+		
+		graph_node.title = "Result"
+		graph_node.ready.connect(func():
+			graph_node.set_slot_type_left(0, 1) # Result's type is 1
+			graph_node.size = Vector2(350, 400)
+			graph_node.selected = true
+		)
+		graph_node.set_meta("type", "Result")
+		graph_node.set_meta("node", true)
+		graph_node.close_request.connect(node_close.bind(graph_node)) # 关闭事件
+	else:
+		graph_datas = graph_node.datas
+		table = graph_datas[0][0].get_child(0) # [0][0]是margin_container
+		table.columns = columns.map(func(v): return v["field_as"])
 	
 	# 根据表头的情况决定是否需要支持数据修改
 	# 根据表头分析，1.数据是否来源于同一张表，2.是否有主键，3.没有相同的字段
@@ -336,34 +360,89 @@ func gen_table_node(columns: Array, table_datas: Array) -> GraphNode:
 		acc["columns"][v["Column Name"]] = num + 1
 		if num > 0:
 			acc["duplicate_column"] = true
-		if v["PK"]:
+		if v.has("PK") and v["PK"]:
 			acc["PK"] = v
+		return acc
 	, {"paths":{}, "PK": null, "columns":{}, "duplicate_column": false})
 	
 	if info["PK"] and info["duplicate_column"] == false and info["paths"].size() == 1:
 		table.editable = true
 	
 	if table.editable:
-		pass# TODO 
-		# 转成DictionaryObject
+		var hint = {}
+		var last_data = {}
+		for i in columns:
+			hint[i["Column Name"]] = {"hint": i["Hint"], "hint_string": i["Hint String"]}
+			last_data[i["Column Name"]] = DataTypeDef.DEFUALT_VALUES[i["Data Type"]]
+			
+		# 加俩按钮:1.新建一条数据；2.应用
+		# 旧按钮删除
+		if graph_datas.size() > 1:
+			graph_datas.remove_at(1)
+			
+		var flow_container = HFlowContainer.new()
+		flow_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		flow_container.alignment = FlowContainer.ALIGNMENT_END
 		
+		var btn_apply = Button.new()
+		btn_apply.text = "apply"
+		btn_apply.disabled = true
+		btn_apply.pressed.connect(func():
+			for i in table.datas:
+				var modified_data = (i as DictionaryObject).get_modified_value()
+				if not modified_data.is_empty():
+					printt("bbbbbbb", modified_data)
+			# 更新数据库
+			pass
+		)
+		
+		var btn_new = Button.new()
+		btn_new.text = "new"
+		btn_new.pressed.connect(func():
+			var _datas = table.datas.duplicate()
+			var dict_obj = DictionaryObject.new(last_data, hint, false)
+			dict_obj.value_changed.connect(func(_prop, _new_val, _old_val):
+				for j in table.datas:
+					var modified_data = (j as DictionaryObject).get_modified_value()
+					if not modified_data.is_empty():
+						btn_apply.disabled = false
+						return
+				btn_apply.disabled = true
+			)
+			_datas.push_back(dict_obj)
+			table.datas = _datas # 触发更新
+			table.row_grab_focus(_datas.size() - 1)
+		)
+	
+		flow_container.add_child(btn_new)
+		flow_container.add_child(btn_apply)
+		flow_container.ready.connect(func():
+			flow_container.get_parent_control().size_flags_vertical = Control.SIZE_FILL
+		)
+		
+		graph_datas.push_back([null, null, flow_container])
+		
+		# 每行数据转成一个DictionaryObject
+		var new_table_datas = []
+		for i in table_datas:
+			var data = {}
+			for j in columns.size():
+				data[columns[j]["Column Name"]] = i[j]
+			var dict_obj = DictionaryObject.new(data, hint, false)
+			dict_obj.value_changed.connect(func(_prop, _new_val, _old_val):
+				for j in table.datas:
+					var modified_data = (j as DictionaryObject).get_modified_value()
+					if not modified_data.is_empty():
+						btn_apply.disabled = false
+						return
+				btn_apply.disabled = true
+			)
+			new_table_datas.push_back(dict_obj)
+		table.datas = new_table_datas
 	else:
 		table.datas = table_datas
-	margin_container.add_child(table)
-	
-	var datas: Array[Array] = [
-		[margin_container, null]
-	]
-	graph_node.datas = datas
-	graph_node.title = "Result"
-	graph_node.ready.connect(func():
-		graph_node.set_slot_type_left(0, 1) # Result's type is 1
-		graph_node.size = Vector2(350, 400)
-		graph_node.selected = true
-	)
-	graph_node.set_meta("type", "Result")
-	graph_node.set_meta("node", true)
-	graph_node.close_request.connect(node_close.bind(graph_node)) # 关闭事件
+		
+	graph_node.datas = graph_datas
 	
 	return graph_node
 	
@@ -485,15 +564,13 @@ func on_select_node_query(node: GraphNode):
 				var to_node = graph_edit.get_node(str(to))
 				if to_node.get_meta("type") == "Result":
 					if to_node.enabled:
-						var table = to_node.datas[0][0].get_child(0)
-						table.columns = ret[0].map(func(v): return v["field_as"])
-						table.datas = ret.slice(1) # TODO 可编辑，转成DictionaryObject
+						gen_table_node(ret[0], ret.slice(1) if ret.size() > 1 else [], to_node)
 						update_result = true
 					else:
 						_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
 					
 		if not update_result:
-			var table_node = gen_table_node(ret[0], ret.slice(1))
+			var table_node = gen_table_node(ret[0], ret.slice(1) if ret.size() > 1 else [])
 			graph_edit.add_child(table_node)
 			table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 			_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)

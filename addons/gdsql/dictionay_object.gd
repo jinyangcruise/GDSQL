@@ -3,7 +3,7 @@ class_name DictionaryObject
 
 signal value_changed(prop: StringName, new_value: Variant, old_value: Variant)
 
-#var _origin: Dictionary
+var _origin: Dictionary
 var _data: Dictionary
 var _hint: Dictionary
 var _update_callback: Dictionary
@@ -39,8 +39,8 @@ func reset_read_only(read_only: bool):
 	
 func duplicate(deep: bool = false) -> DictionaryObject:
 	var dict_obj = DictionaryObject.new(_data.duplicate(deep), _hint.duplicate(deep), _read_only)
-	#if _origin:
-		#dict_obj._origin = _origin.duplicate(deep)
+	if _origin:
+		dict_obj._origin = _origin.duplicate(deep)
 	if _update_callback:
 		dict_obj._update_callback = _update_callback.duplicate(deep)
 	if _custom_display_control:
@@ -60,8 +60,8 @@ func _get(property: StringName) -> Variant:
 func _set(property: StringName, value: Variant) -> bool:
 	if _data.has(property):
 		var old_value = _data[property]
-		#if not _origin.has(property):
-			#_origin[property] = old_value
+		if not _origin.has(property):
+			_origin[property] = old_value
 		_data[property] = value
 		if _update_callback and _update_callback.has(property):
 			_update_callback[property].call(value)
@@ -133,3 +133,10 @@ func get_custom_display_control_duplicate(property: String) -> Control:
 		return ret
 	return null
 
+func get_modified_value() -> Dictionary:
+	var ret = {}
+	if _origin:
+		for key in _origin:
+			if _origin[key] != _data[key]:
+				ret[key] = _data[key]
+	return ret
