@@ -138,5 +138,18 @@ func get_modified_value() -> Dictionary:
 	if _origin:
 		for key in _origin:
 			if _origin[key] != _data[key]:
-				ret[key] = _data[key]
+				ret[key] = {"new": _data[key], "old": _origin[key]}
 	return ret
+	
+## 返回数据对的行字符串形式，比如：a = 1, b = "something"
+func get_key_value_line() -> String:
+	var arr = []
+	for key in _data:
+		arr.push_back(key + " = " + var_to_str(_data[key]))
+	return ", ".join(arr)
+	
+func get_keys_line() -> String:
+	return ", ".join(_data.keys())
+	
+func get_values_line() -> String:
+	return ", ".join(_data.values().map(func(v): return var_to_str(v)))

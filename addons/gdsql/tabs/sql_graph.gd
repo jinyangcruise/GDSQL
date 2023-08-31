@@ -365,7 +365,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		return acc
 	, {"paths":{}, "PK": null, "columns":{}, "duplicate_column": false})
 	
-	if info["PK"] and info["duplicate_column"] == false and info["paths"].size() == 1:
+	if info["PK"] != null and info["duplicate_column"] == false and info["paths"].size() == 1:
 		table.editable = true
 	
 	if table.editable:
@@ -388,10 +388,32 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		btn_apply.text = "apply"
 		btn_apply.disabled = true
 		btn_apply.pressed.connect(func():
+			var primary_key = info["PK"]["Column Name"]
+			var table_name = info["PK"]["table_name"].replace(".gsql", "")
+			var cmds = []
 			for i in table.datas:
-				var modified_data = (i as DictionaryObject).get_modified_value()
+				i = i as DictionaryObject
+				var modified_data = i.get_modified_value()
 				if not modified_data.is_empty():
-					printt("bbbbbbb", modified_data)
+					# 修改数据包含主键，先删除原数据，再插入新的全量数据
+					if modified_data.has(primary_key):
+						var cmd_1 = "delete from %s where %s = %s" % \
+							[table_name, primary_key, var_to_str(modified_data[primary_key]["old"])]
+						cmds.push_back(cmd_1)
+						var cmd_2 = "insert into %s (%s) values (%s)" % \
+							[table_name, i.get_keys_line(), i.get_values_line()]
+						cmds.push_back(cmd_2)
+					# update的情况
+					else:
+						var arr = []
+						for key in modified_data:
+							arr.push_back(key + " = " + var_to_str(modified_data[key]))
+						var cmd_3 = "update %s set %s where %s = %s" % \
+							[table_name, ", ".join(arr), primary_key, var_to_str(modified_data[primary_key]["old"])]
+						cmds.push_back(cmd_3)
+						
+			for i in cmds:
+				printt("ccccccccc", i)
 			# 更新数据库
 			pass
 		)
@@ -401,6 +423,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		btn_new.pressed.connect(func():
 			var _datas = table.datas.duplicate()
 			var dict_obj = DictionaryObject.new(last_data, hint, false)
+			dict_obj.set_meta("new", true)
 			dict_obj.value_changed.connect(func(_prop, _new_val, _old_val):
 				for j in table.datas:
 					var modified_data = (j as DictionaryObject).get_modified_value()

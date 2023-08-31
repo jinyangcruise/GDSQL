@@ -783,6 +783,7 @@ func query():
 					push_error("key 'PRIMARY' is missing for %s" % __cmd)
 					printt(__data)
 					print_stack()
+					return ret
 			else:
 				if conf.has_section(primary_value):
 					if __cmd == "insert_ignore":
@@ -800,6 +801,7 @@ func query():
 						ret["affected_rows"] += 1
 					else:
 						push_error("Duplicate entry '%s' for key 'PRIMARY'" % primary_value)
+						return ret
 				
 			# 自增:找到当前最大的
 			var datas: Array[Dictionary] = conf.get_all_section_values()
@@ -845,6 +847,9 @@ func query():
 			ret["affected_rows"] = datas.size()
 			reset()
 			return ret
+			
+func get_query_cmd() -> String:
+	return ""# TODO 得到要执行的语句
 			
 func reset(force = false):
 	if force == false and Engine.is_editor_hint():
