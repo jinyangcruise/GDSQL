@@ -348,9 +348,18 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		graph_node.set_meta("node", true)
 		graph_node.close_request.connect(node_close.bind(graph_node)) # 关闭事件
 	else:
+		graph_node.selected = true
 		graph_datas = graph_node.datas
 		table = graph_datas[0][0].get_child(0) # [0][0]是margin_container
 		table.columns = columns.map(func(v): return v["field_as"])
+		table.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		# 旧按钮删除
+		if graph_datas.size() > 1:
+			graph_node.remove_child(graph_node.get_child(-2))
+			#graph_datas.remove_at(1)
+			for i in graph_datas.size():
+				if i > 0:
+					graph_datas[i] = [null, null] # 要维持graph_datas原来的大小，不能直接remove，否则graphnode报错
 	
 	# 根据表头的情况决定是否需要支持数据修改
 	# 根据表头分析，1.数据是否来源于同一张表，2.是否有主键，3.没有相同的字段
@@ -367,7 +376,9 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 	
 	if info["PK"] != null and info["duplicate_column"] == false and info["paths"].size() == 1:
 		table.editable = true
-	
+	else:
+		table.editable = false
+		
 	if table.editable:
 		var hint = {}
 		var last_data = {}
@@ -376,10 +387,6 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 			last_data[i["Column Name"]] = DataTypeDef.DEFUALT_VALUES[i["Data Type"]]
 			
 		# 加俩按钮:1.新建一条数据；2.应用
-		# 旧按钮删除
-		if graph_datas.size() > 1:
-			graph_datas.remove_at(1)
-			
 		var flow_container = HFlowContainer.new()
 		flow_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		flow_container.alignment = FlowContainer.ALIGNMENT_END
@@ -389,33 +396,40 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		btn_apply.disabled = true
 		btn_apply.pressed.connect(func():
 			var primary_key = info["PK"]["Column Name"]
-			var table_name = info["PK"]["table_name"].replace(".gsql", "")
-			var cmds = []
+			var db_path = info["PK"]["db_path"]
+			var table_name = info["PK"]["table_name"]
+			var daos: Array[BaseDao] = []
 			for i in table.datas:
 				i = i as DictionaryObject
 				var modified_data = i.get_modified_value()
 				if not modified_data.is_empty():
 					# 修改数据包含主键，先删除原数据，再插入新的全量数据
 					if modified_data.has(primary_key):
-						var cmd_1 = "delete from %s where %s = %s" % \
-							[table_name, primary_key, var_to_str(modified_data[primary_key]["old"])]
-						cmds.push_back(cmd_1)
-						var cmd_2 = "insert into %s (%s) values (%s)" % \
-							[table_name, i.get_keys_line(), i.get_values_line()]
-						cmds.push_back(cmd_2)
+						printt(primary_key, var_to_str(modified_data[primary_key]["old"]))
+						daos.push_back(BaseDao.new().use_db(db_path).delete_from(table_name)
+							.where("%s == %s" % [primary_key, var_to_str(modified_data[primary_key]["old"])]))
+						daos.push_back(BaseDao.new().use_db(db_path).insert_into(table_name).values(i.get_data()))
 					# update的情况
 					else:
-						var arr = []
-						for key in modified_data:
-							arr.push_back(key + " = " + var_to_str(modified_data[key]))
-						var cmd_3 = "update %s set %s where %s = %s" % \
-							[table_name, ", ".join(arr), primary_key, var_to_str(modified_data[primary_key]["old"])]
-						cmds.push_back(cmd_3)
+						daos.push_back(BaseDao.new().use_db(db_path).update(table_name).sets(i.get_data()))
 						
-			for i in cmds:
-				printt("ccccccccc", i)
-			# 更新数据库
-			pass
+			mgr.create_confirmation_dialog(self, 
+				"Please confirm:\n" + "\n".join(daos.map(func(v: BaseDao): return v.get_query_cmd())),
+				func():
+					for i in daos:
+						i.query()
+			)
+		)
+		
+		var btn_revert = Button.new()
+		btn_revert.text = "revert"
+		btn_revert.disabled = true
+		btn_revert.pressed.connect(func():
+			var old_datas: Array = []
+			for i in table.datas:
+				if i.has_meta("new") and i.get_meta("new") == true:
+					old_datas.push_back(i)
+			table.datas = old_datas
 		)
 		
 		var btn_new = Button.new()
@@ -429,8 +443,10 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 					var modified_data = (j as DictionaryObject).get_modified_value()
 					if not modified_data.is_empty():
 						btn_apply.disabled = false
+						btn_revert.disabled = false
 						return
 				btn_apply.disabled = true
+				btn_revert.disabled = true
 			)
 			_datas.push_back(dict_obj)
 			table.datas = _datas # 触发更新
@@ -439,6 +455,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 	
 		flow_container.add_child(btn_new)
 		flow_container.add_child(btn_apply)
+		flow_container.add_child(btn_revert)
 		flow_container.ready.connect(func():
 			flow_container.get_parent_control().size_flags_vertical = Control.SIZE_FILL
 		)
@@ -464,6 +481,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		table.datas = new_table_datas
 	else:
 		table.datas = table_datas
+		# 去掉按钮
 		
 	graph_node.datas = graph_datas
 	

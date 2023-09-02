@@ -114,4 +114,12 @@ func clear_chain():
 		obj = obj.__left_join
 	for i in arr:
 		i.__left_join = null
+		
+func get_query_cmds() -> Array:
+	var ret = ["left join %s %s on %s" % [__table, __table_alias, __condition]]
+	var obj = __left_join
+	while obj != null:
+		ret.push_back(["left join %s %s on %s" % [obj.__table, obj.__table_alias, obj.__condition]])
+		obj = obj.__left_join
+	return ret
 	

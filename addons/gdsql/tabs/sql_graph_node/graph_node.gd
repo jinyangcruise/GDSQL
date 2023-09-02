@@ -17,9 +17,9 @@ signal node_enable_status(enabled: bool)
 ## 元素是Control时，添加到对应的行上。
 var datas: Array[Array]:
 	set(val):
-		if datas != val:
-			datas = val
-			redraw()
+		#if datas != val:
+		datas = val
+		redraw()
 		
 var enabled: bool:
 	get:
@@ -48,7 +48,13 @@ func clear():
 				i.queue_free()
 			
 	__property_old_parents.clear()
-
+	
+	if is_node_ready():
+		var children = get_children()
+		for i in children:
+			if i != check_button_enable and i != null and !i.is_queued_for_deletion():
+				remove_child(i)
+				
 func redraw():
 	clear()
 	
@@ -60,7 +66,8 @@ func redraw():
 		for arr in datas:
 			index += 1
 			var hb = HBoxContainer.new()
-			hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			var has_content = false
+			#hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			var left = 0
 			if arr.size() > 2:
 				assert(arr[0] == null and arr[1] == null, "first two datas must be null if datas' size is larger than 2")
@@ -76,6 +83,7 @@ func redraw():
 						if data is String and data == "":
 							hb.add_child(Control.new())
 						else:
+							has_content = true
 							var label = Label.new()
 							label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if left == 1 else HORIZONTAL_ALIGNMENT_RIGHT
 							label.text = str(data)
@@ -84,6 +92,7 @@ func redraw():
 							label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 							hb.add_child(label)
 					elif data is DictionaryObject:
+						has_content = true
 						mgr.inspect_object(data)
 						var properties = data._get_property_list().map(func(v): return v["name"])
 						var editor_properties = mgr.editor_interface.get_inspector().find_children("@EditorProperty*", "", true, false)
@@ -104,9 +113,17 @@ func redraw():
 								editor_property.reparent(hb)
 								
 					elif data is Control:
-						hb.add_child(data)
+						has_content = true
+						if data.get_parent() != null and data.get_parent() != hb:
+							data.reparent(hb)
+						else:
+							hb.add_child(data)
+			if hb.get_child_count() == 0 or not has_content:
+				hb.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			else:
+				hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			add_child(hb)
-		move_child(check_button_enable, get_child_count() - 1)
+		check_button_enable.move_to_front()
 		
 ## 强制刷新某个栏位的控件
 func redraw_slot_control(slot_row_index, slot_col_index):

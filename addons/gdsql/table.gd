@@ -69,7 +69,7 @@ func reset_header():
 	for i in fake_columns.size():
 		var c: HSplitContainer = header_col_model.duplicate()
 		parent.add_child(c)
-		var split_container_dragger = c.get_child(c.get_child_count(true)-1, true)
+		var split_container_dragger = c.get_child(-1, true)
 		split_container_dragger.gui_input.connect(_on_dragger_gui_input.bind(c))
 		var button = c.get_child(0) as Button
 		var control = c.get_child(1)

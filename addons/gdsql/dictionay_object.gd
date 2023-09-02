@@ -23,6 +23,9 @@ func _init(data, hint: Dictionary = {}, read_only: bool = false) -> void:
 		for i in data[0].size():
 			_data[data[0][i]] = data[1][i]
 			
+func get_data() -> Dictionary:
+	return _data
+	
 func reset_data(data, hint = null):
 	_data = data
 	if hint != null:

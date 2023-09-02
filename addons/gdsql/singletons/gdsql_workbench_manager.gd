@@ -43,3 +43,28 @@ func get_table_columns(db, table) -> Array:
 		return databases.get(db, {}).get("table_items", {}).get(table, {})\
 			.get("columns", [])
 	return []
+
+func create_confirmation_dialog(requester:Node, msg: String, confirmed_callback: Callable = Callable(), canceled_callback: Callable = Callable()):
+	var dialog := ConfirmationDialog.new()
+	dialog.dialog_text = msg
+	if confirmed_callback.is_valid():
+		dialog.confirmed.connect(confirmed_callback)
+	if canceled_callback.is_valid():
+		dialog.canceled.connect(canceled_callback)
+	requester.get_tree().get_root().add_child(dialog)
+	dialog.popup_centered()
+	dialog.close_requested.connect(func():
+		if canceled_callback.is_valid():
+			dialog.canceled.connect(canceled_callback)
+		dialog.queue_free()
+	)
+	
+func create_accept_dialog(requester:Node, msg: String):
+	var dialog := AcceptDialog.new()
+	dialog.dialog_text = msg
+	requester.get_tree().get_root().add_child(dialog)
+	dialog.popup_centered()
+	dialog.close_requested.connect(func():
+		dialog.queue_free()
+	)
+	

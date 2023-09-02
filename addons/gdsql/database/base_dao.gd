@@ -199,7 +199,7 @@ func update(table: String) -> BaseDao:
 	
 func delete_from(table: String) -> BaseDao:
 	assert(__cmd == "", "already set command %s" % __cmd)
-	__cmd = "delete"
+	__cmd = "delete_from"
 	__table = table
 	return self
 	
@@ -549,11 +549,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 		return [real_select]
 		
 	# where条件
-	var cond = ""
-	for i in __where:
-		if cond != "":
-			cond += " and "
-		cond += "(" + i + ")"
+	var cond = _get_cond(false)
 		
 	var ret_filter: Array[Dictionary] = []
 	for data in ret:
@@ -848,8 +844,49 @@ func query():
 			reset()
 			return ret
 			
+func _get_cond(need_where: bool) -> String:
+	var cond = ""
+	for i in __where:
+		if cond != "":
+			cond += " and "
+		cond += "(" + i + ")"
+	
+	if cond.is_empty() or not need_where:
+		return cond
+	return " where " + cond
+	
+## 获取正正执行的语句
 func get_query_cmd() -> String:
-	return ""# TODO 得到要执行的语句
+	var a_table = __table.substr(0, __table.length() - VALID_FILE_EXTENSION.length())
+	match __cmd:
+		"select":
+			return "select %s from %s%s%s%s%s;" % [
+				", ".join(__select.map(func(v): return (v + " as " + __field_as[v]) if __field_as.has(v) else v)), 
+				__table,
+				"" if __table_alias.is_empty() else " " + __table_alias,
+				"" if __left_join == null else "\n" + "\n".join(__left_join.get_query_cmds()),
+				_get_cond(true) if __left_join == null else "\nwhere " + _get_cond(false),
+				"" if __union_all == null else "\n" + __union_all.get_query_cmd()
+			]
+		"insert_into":
+			return "insert into %s (%s) values (%s);" % [a_table, ", ".join(__data.keys()), ", ".join(__data.values().map(func(v): return var_to_str(v)))]
+		"insert_ignore":
+			return "insert ignore into %s (%s) values (%s);" % [a_table, ", ".join(__data.keys()), ", ".join(__data.values().map(func(v): return var_to_str(v)))]
+		"insert_or_update":
+			var arr = []
+			for key in __data:
+				arr.push_back(key + " = " + var_to_str(__data[key]))
+			return "insert into %s (%s) values (%s) on duplicate key update %s;" % \
+				[a_table, ", ".join(__data.keys()), ", ".join(__data.values().map(func(v): return var_to_str(v))), ", ".join(arr)]
+		"update":
+			var arr = []
+			for key in __data:
+				arr.push_back(key + " = " + var_to_str(__data[key]))
+			return "update %s set %s%s;" % [a_table, ", ".join(arr), _get_cond(true)]
+		"delete_from":
+			return "delete from %s%s;" % [a_table, _get_cond(true)]
+	return ""
+	
 			
 func reset(force = false):
 	if force == false and Engine.is_editor_hint():
