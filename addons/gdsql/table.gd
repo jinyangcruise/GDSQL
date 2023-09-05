@@ -15,12 +15,19 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 ## 表格是否可编辑（datas中的元素必须是DictionaryObject才有效）
 @export var editable: bool = false
 
-## 每列的名称
+## 每列的名称。注意：如果要正确显示tooltip，需要先设置column_tips，再设置columns
 @export var columns: Array:
 	set(val):
 		columns = val
 		if is_node_ready():
-			reset_header()
+			# 与原先的表头数量一致，就不重绘，只修改文字显示
+			if buttons.size() == columns.size() + 2:
+				for i in columns.size():
+					buttons[i+1].text = columns[i]
+					if not column_tips.is_empty():
+						buttons[i+1].tooltip_text = column_tips[i]
+			else:
+				reset_header()
 			
 ## 表头tooltip
 @export var column_tips: Array[String] = []
@@ -39,7 +46,7 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 			for data in datas:
 				add_row(data)
 		
-		
+## 表头
 var buttons: Array[Button] = []
 var controls: Array = []
 

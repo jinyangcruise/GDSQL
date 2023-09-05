@@ -16,7 +16,9 @@ var __offset: int = -1 ## 【外部请勿使用】select返回数据截取起始
 var __limit: int = -1 ## 【外部请勿使用】select返回数据截取长度
 var __duplicate_update_fields: Array = [] ## 【外部请勿使用】主键重复时更新哪些字段
 var __primary_key: String = "" ## 【外部请勿使用】主键是什么
+var __primary_key_def: String = "" ## 【外部请勿使用】定义文件中的主键
 var __autoincrement_keys: Dictionary = {} ## 【外部请勿使用】自增键有哪些
+var __autoincrement_keys_def: Dictionary = {} ## 【外部请勿使用】定义文件中的自增键
 var __union_all: BaseDao ## 【外部请勿使用】union的单元
 var __parent_union: BaseDao ## 【外部请勿使用】被uion的单元
 #var __left_join_tables: Dictionary = {} ## 【外部请勿使用】联表查询的表相关信息
@@ -142,8 +144,19 @@ func select_same() -> BaseDao:
 	
 ## 同时设置表名和别名
 func from(table: String, alias: String = "") -> BaseDao:
+	assert(__database != null and __database != "", "please set db first!")
 	__table = table
 	__table_alias = alias
+	__primary_key_def = ""
+	__autoincrement_keys_def = {}
+	var defination = __get_table_defination(__database, __table)
+	if defination != null and !defination.is_empty():
+		for column in defination:
+			if column["PK"]:
+				__primary_key_def = column["Column Name"]
+				__primary_key = __primary_key_def
+			if column["AI"]:
+				__autoincrement_keys_def[column["Column Name"]] = 0
 	return self
 	
 ## 单独设置表名
@@ -290,17 +303,19 @@ func on_duplicate_update(fields: Array[String]) -> BaseDao:
 	__duplicate_update_fields = fields
 	return self
 	
+## 指定主键（适用于没有定义文件的表。如果表有定义文件，则勿设置其他键为主键。）
 func primary_key(a_key: String, auto_increment: bool = true) -> BaseDao:
+	assert(__primary_key_def.is_empty() or a_key == __primary_key_def, "this table has defination of primary key, do not set a different primary key")
 	__primary_key = a_key
 	if auto_increment:
 		__autoincrement_keys[a_key] = 0
 	return self
 	
 ## 增加自增字段
-## 注意1：如果用户自己设定了某个非主键自增字段的值，则不会自增；
-## 注意2：如果用户命令是insert_or_update，只有在新增数据的情况下才可能（也关系到注意1的情况）自增）
+## 注意1：如果用户自己设定了某个非主键自增字段的值，则按用户设置的值为准，不会自增；
+## 注意2：如果用户命令是insert_or_update，只有在新增数据的情况下才可能（也关系到注意1的情况）自增
+## 注意3：如果操作的表的定义文件中该字段并非自增字段，不影响本次操作临时把其当成自增字段。
 func add_auto_increment_key(a_key: String) -> BaseDao:
-	# TODO 读取数据库配置
 	assert(__cmd.begins_with("insert") or __cmd.begins_with("replace"), "'add_auto_increment_key' can only be used after 'insert' or 'replace'")
 	__autoincrement_keys[a_key] = 0
 	return self
@@ -698,7 +713,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 			
 	return ret_post_process
 	
-func __get_table_columns(db_path, table_name, table_alias, all_datas: Dictionary = {}):
+func __get_table_defination(db_path, table_name):
 	var columns: Array
 	if Engine.has_singleton("GDSQLWorkbenchManager"):
 		var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
@@ -710,6 +725,14 @@ func __get_table_columns(db_path, table_name, table_alias, all_datas: Dictionary
 			__config = ImprovedConfigFile.new()
 			__config.load(CONFIG_PATH)
 		columns = __config.filter_first_values("path", db_path).get("tables", {}).get(table_name.substr(0, table_name.length() - VALID_FILE_EXTENSION.length()), [])
+		
+	return columns
+	
+func __get_table_columns(db_path, table_name, table_alias, all_datas: Dictionary = {}):
+	var columns: Array
+	var defination = __get_table_defination(db_path, table_name)
+	if defination:
+		columns = defination
 		
 	if columns == null or columns.is_empty():
 		# 推断表头
@@ -725,19 +748,9 @@ func __get_table_columns(db_path, table_name, table_alias, all_datas: Dictionary
 	return columns
 	
 func __get_table_column_defination(db_path, table_name, column_name):
+	var columns = __get_table_defination(db_path, table_name)
 	var column
-	if Engine.has_singleton("GDSQLWorkbenchManager"):
-		var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
-		if mgr.databases:
-			var columns = mgr.get_table_columns(db_path, table_name).filter(func(v): return v["Column Name"] == column_name)
-			if !columns.is_empty():
-				column = columns.front()
-		
-	if column == null:
-		if __config == null:
-			__config = ImprovedConfigFile.new()
-			__config.load(CONFIG_PATH)
-		var columns = __config.filter_first_values("path", db_path).get("tables", {}).get(table_name.substr(0, table_name.length() - VALID_FILE_EXTENSION.length()), [])
+	if columns != null:
 		for i in columns:
 			if i["Column Name"] == column_name:
 				column = i
@@ -773,7 +786,7 @@ func query():
 			var primary_value = str(__data.get(__primary_key))
 			if primary_value == null:
 				# 这几种插入操作都需要主键存在，用户要不就直接在data里写好了主键，要不就设置为自增，否则报错
-				if __autoincrement_keys.has(__primary_key):# TODO 配置
+				if __autoincrement_keys.has(__primary_key) or __autoincrement_keys_def.has(__primary_key):
 					pass # 后面会统一把所有需要自增的键一起处理
 				else:
 					push_error("key 'PRIMARY' is missing for %s" % __cmd)
@@ -801,15 +814,17 @@ func query():
 				
 			# 自增:找到当前最大的
 			var datas: Array[Dictionary] = conf.get_all_section_values()
-			for field in __autoincrement_keys:
+			var autoincrement_keys = __autoincrement_keys.duplicate()
+			autoincrement_keys.merge(__autoincrement_keys_def) # 合并字典，不要重复计算
+			for field in autoincrement_keys:
 				if __data.get(field) == null or __data.get(field) == 0:
 					for data in datas:
-						if data.get(field) != null and data.get(field) >= __autoincrement_keys.get(field):
-							__autoincrement_keys[field] = data.get(field)
+						if data.get(field) != null and data.get(field) >= autoincrement_keys.get(field):
+							autoincrement_keys[field] = data.get(field)
 							
-			for field in __autoincrement_keys:
+			for field in autoincrement_keys:
 				if __data.get(field) == null or __data.get(field) == 0:
-					__data[field] = __autoincrement_keys.get(field) + 1
+					__data[field] = autoincrement_keys.get(field) + 1
 					
 			# 插入
 			conf.set_values(str(__data.get(__primary_key)), __data)
@@ -902,7 +917,9 @@ func reset(force = false):
 	__limit = -1
 	__duplicate_update_fields = []
 	__primary_key = ""
+	__primary_key_def = ""
 	__autoincrement_keys = {}
+	__autoincrement_keys_def = {}
 	__union_all = null
 	__parent_union = null
 	if __left_join:

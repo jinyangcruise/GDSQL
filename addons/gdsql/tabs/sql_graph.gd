@@ -405,9 +405,10 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 				if not modified_data.is_empty():
 					# 修改数据包含主键，先删除原数据，再插入新的全量数据
 					if modified_data.has(primary_key):
-						printt(primary_key, var_to_str(modified_data[primary_key]["old"]))
-						daos.push_back(BaseDao.new().use_db(db_path).delete_from(table_name)
-							.where("%s == %s" % [primary_key, var_to_str(modified_data[primary_key]["old"])]))
+						if not i.has_meta("new"):
+							# 新增数据不用删原数据
+							daos.push_back(BaseDao.new().use_db(db_path).delete_from(table_name)
+								.where("%s == %s" % [primary_key, var_to_str(modified_data[primary_key]["old"])]))
 						daos.push_back(BaseDao.new().use_db(db_path).insert_into(table_name).values(i.get_data()))
 					# update的情况
 					else:
@@ -418,6 +419,8 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 				func():
 					for i in daos:
 						i.query()
+					for node in get_from_nodes(graph_node, "Select"):
+						on_select_node_query(node)
 			)
 		)
 		
@@ -427,7 +430,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		btn_revert.pressed.connect(func():
 			var old_datas: Array = []
 			for i in table.datas:
-				if i.has_meta("new") and i.get_meta("new") == true:
+				if not i.has_meta("new"):
 					old_datas.push_back(i)
 			table.datas = old_datas
 		)
@@ -435,8 +438,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		var btn_new = Button.new()
 		btn_new.text = "new"
 		btn_new.pressed.connect(func():
-			var _datas = table.datas.duplicate()
-			var dict_obj = DictionaryObject.new(last_data, hint, false)
+			var dict_obj = DictionaryObject.new(last_data.duplicate(true), hint, false)
 			dict_obj.set_meta("new", true)
 			dict_obj.value_changed.connect(func(_prop, _new_val, _old_val):
 				for j in table.datas:
@@ -448,6 +450,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 				btn_apply.disabled = true
 				btn_revert.disabled = true
 			)
+			var _datas = table.datas.duplicate()
 			_datas.push_back(dict_obj)
 			table.datas = _datas # 触发更新
 			table.row_grab_focus(_datas.size() - 1)
@@ -561,6 +564,16 @@ func get_to_nodes(node: GraphNode, type: String = "") -> Array[GraphNode]:
 			var to_node = graph_edit.get_node(str(info["to_node"])) as GraphNode
 			if type == "" or type == to_node.get_meta("type"):
 				ret.push_back(to_node)
+	return ret
+	
+## 获取数据来源的节点
+func get_from_nodes(node: GraphNode, type: String = "") -> Array[GraphNode]:
+	var ret: Array[GraphNode] = []
+	for info in graph_edit.get_connection_list():
+		if info["to_node"] == node.name:
+			var from_node = graph_edit.get_node(str(info["from_node"])) as GraphNode
+			if type == "" or type == from_node.get_meta("type"):
+				ret.push_back(from_node)
 	return ret
 	
 # Select 执行
@@ -711,6 +724,21 @@ func _on_graph_edit_disconnection_request(from_node: StringName, from_port: int,
 			match t_node.get_meta("type"):
 				"Select":
 					(t_node.get_meta("base_dao") as BaseDao).remove_union_all(f_node.get_meta("base_dao") as BaseDao)
+				"Result":
+					# 如果有修改数据的按钮，需要屏蔽
+					var graph_datas = t_node.datas
+					if graph_datas.size() > 1:
+						#┖╴@HBoxContainer                  get_child(-2)
+							#┖╴@HFlowContainer             get_child(0)
+								#┠╴@Button
+								#┠╴@Button
+								#┖╴@Button
+						var flow_container = t_node.get_child(-2).get_child(0)
+						for i in flow_container.get_children():
+							i.disabled = true
+						var table = graph_datas[0][0].get_child(0)
+						for i in table.datas:
+							(i as DictionaryObject).reset_read_only(true)
 		"Left Join":
 			match t_node.get_meta("type"):
 				"Select":
