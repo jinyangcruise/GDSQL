@@ -433,6 +433,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 				if not i.has_meta("new"):
 					old_datas.push_back(i)
 			table.datas = old_datas
+			btn_revert.disabled = true
 		)
 		
 		var btn_new = Button.new()

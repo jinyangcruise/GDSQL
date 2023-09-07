@@ -161,7 +161,7 @@ func from(table: String, alias: String = "") -> BaseDao:
 	
 ## 单独设置表名
 func set_table(table: String) -> BaseDao:
-	__table = table
+	from(table, __table_alias)
 	return self
 	
 ## 单独设置表别名
@@ -182,38 +182,38 @@ func sets(data: Dictionary) -> BaseDao:
 func insert_into(table: String) -> BaseDao:
 	assert(__cmd == "", "already set command %s" % __cmd)
 	__cmd = "insert_into"
-	__table = table
+	set_table(table)
 	return self
 	
 func insert_ignore(table: String) -> BaseDao:
 	assert(__cmd == "", "already set command %s" % __cmd)
 	__cmd = "insert_ignore"
-	__table = table
+	set_table(table)
 	return self
 	
 func insert_or_update(table: String) -> BaseDao:
 	assert(__cmd == "", "already set command %s" % __cmd)
 	__cmd = "insert_or_update"
-	__table = table
+	set_table(table)
 	return self
 	
 func replace_into(table: String) -> BaseDao:
 	assert(__cmd == "", "already set command %s" % __cmd)
 	__cmd = "replace_into"
-	__table = table
+	set_table(table)
 	return self
 	
 func update(table: String) -> BaseDao:
 	assert(__cmd == "", "already set command %s" % __cmd)
 	assert(__table_alias == "", "table alias must be empty")
 	__cmd = "update"
-	__table = table
+	set_table(table)
 	return self
 	
 func delete_from(table: String) -> BaseDao:
 	assert(__cmd == "", "already set command %s" % __cmd)
 	__cmd = "delete_from"
-	__table = table
+	set_table(table)
 	return self
 	
 ## 如果多次调用，那么这些条件将是`and`的关系
