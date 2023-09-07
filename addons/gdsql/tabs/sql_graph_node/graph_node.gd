@@ -93,9 +93,9 @@ func redraw():
 							hb.add_child(label)
 					elif data is DictionaryObject:
 						has_content = true
-						mgr.inspect_object(data)
+						EditorInterface.inspect_object(data)
 						var properties = data._get_property_list().map(func(v): return v["name"])
-						var editor_properties = mgr.editor_interface.get_inspector().find_children("@EditorProperty*", "", true, false)
+						var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
 						for i in properties.size():
 							# 下划线开头的隐藏label。隐藏方法是把控件整个添加到一个能按比例隐藏子控件的控件中
 							var editor_property = editor_properties[i]
@@ -154,9 +154,9 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 			hb.remove_child(hb.get_child(0))
 				
 		# 添加新的
-		mgr.inspect_object(data)
+		EditorInterface.inspect_object(data)
 		var properties = data._get_property_list().map(func(v): return v["name"])
-		var editor_properties = mgr.editor_interface.get_inspector().find_children("@EditorProperty*", "", true, false)
+		var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
 		for i in properties.size():
 			# 下划线开头的隐藏label。隐藏方法是把控件整个添加到一个能按比例隐藏子控件的控件中
 			var editor_property = editor_properties[i]
@@ -211,7 +211,7 @@ func disconnect_focused_propagate(control: Control):
 				child.focus_entered.disconnect(editor_property_focused)
 	
 func editor_property_focused(data):
-	mgr.inspect_object(data)
+	EditorInterface.inspect_object(data)
 	
 func _exit_tree() -> void:
 	clear()

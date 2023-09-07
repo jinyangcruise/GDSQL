@@ -17,9 +17,6 @@ func _enter_tree():
 	# 注册配置单例，让插件范围内的代码能使用GDSQLWorkbenchManager（需通过类型转换为GDSQLWorkbenchManageClass来实现编辑器代码提示）
 	if not Engine.has_singleton("GDSQLWorkbenchManager"):
 		Engine.register_singleton("GDSQLWorkbenchManager", preload("res://addons/gdsql/singletons/gdsql_workbench_manager.gd").new())
-		
-	# 编辑器界面注入单例
-	(Engine.get_singleton("GDSQLWorkbenchManager") as GDSQLWorkbenchManagerClass).editor_interface = get_editor_interface()
 	
 	# 特别需求，让检查器能够查看DictionaryObject
 	# EditorInspectorPlugin is a resource, so we use `new()` instead of `instance()`.
@@ -59,4 +56,4 @@ func _get_plugin_name():
 
 
 func _get_plugin_icon():
-	return get_editor_interface().get_base_control().get_theme_icon("ItemList", "EditorIcons")
+	return EditorInterface.get_base_control().get_theme_icon("ItemList", "EditorIcons")

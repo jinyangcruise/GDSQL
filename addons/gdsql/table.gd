@@ -305,7 +305,7 @@ func _on_row_gui_input(event: InputEvent, source_data) -> void:
 		#return
 		
 	if source_data is Object and editable:
-		mgr.inspect_object(source_data)
+		EditorInterface.inspect_object(source_data)
 
 func _on_row_panel_container_focus_entered(row_panel: PanelContainer) -> void:
 	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")
@@ -319,3 +319,6 @@ func _on_row_panel_container_focus_exited(row_panel: PanelContainer) -> void:
 func row_grab_focus(row: int):
 	if v_box_container.get_child_count() > row:
 		v_box_container.get_child(row).grab_focus()
+		
+		if datas[row] is Object and editable:
+			EditorInterface.inspect_object(datas[row])

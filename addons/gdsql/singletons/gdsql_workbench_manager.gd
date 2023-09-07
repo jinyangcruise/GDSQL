@@ -1,9 +1,6 @@
 extends Node
 class_name GDSQLWorkbenchManagerClass
 
-## 属性检查器
-var editor_interface: EditorInterface
-
 ## 数据库配置
 #databases = {
 	#"db1": {
@@ -34,9 +31,6 @@ var editor_interface: EditorInterface
 	#}
 #}
 var databases: Dictionary
-
-func inspect_object(obj):
-	editor_interface.inspect_object(obj, "", false)
 
 func get_table_columns(db, table) -> Array:
 	if databases:
