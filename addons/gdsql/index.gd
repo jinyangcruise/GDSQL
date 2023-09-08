@@ -19,6 +19,10 @@ func _ready() -> void:
 	tab_container.add_new_table.connect(tree_databases.add_table_to_config) # 确认新增数据表
 	tree_databases.add_table_to_config_success.connect(tab_container.close_content_window) # 确认新增数据表成功
 	
+	tree_databases.alter_table.connect(tab_container.add_tab_alter_table) # 发出修改数据表的请求
+	tab_container.alter_old_table.connect(tree_databases.modify_table_to_config) # 确认修改数据表的信息
+	tree_databases.modify_table_to_config_success.connect(tab_container.close_content_window) # 确认修改数据表成功
+	
 	tree_databases.send_to_editor.connect(tab_container.receive_content) # 发出发送到编辑器内容的请求
 	tree_databases.send_to_editor_and_execute.connect(tab_container.receive_content_and_execute) # 发出发送到编辑器内容并执行的请求
 	

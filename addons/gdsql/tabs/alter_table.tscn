@@ -1,0 +1,129 @@
+[gd_scene load_steps=8 format=3 uid="uid://dxiqfy1dnu7m4"]
+
+[ext_resource type="Script" path="res://addons/gdsql/tabs/alter_table.gd" id="1_xbqm1"]
+[ext_resource type="PackedScene" uid="uid://bpawj4a7llynx" path="res://addons/gdsql/table.tscn" id="2_mrk7n"]
+[ext_resource type="Texture2D" uid="uid://dhrujeh8nxhtd" path="res://addons/gdsql/img/trash-can.png" id="3_46hvr"]
+[ext_resource type="Texture2D" uid="uid://ckn3uyjso63l0" path="res://addons/gdsql/img/arrow-up-line.png" id="4_kytjc"]
+[ext_resource type="Texture2D" uid="uid://cuvi8ddapu1jl" path="res://addons/gdsql/img/arrow-up.png" id="5_5qu86"]
+[ext_resource type="Texture2D" uid="uid://b7ff01dmwhqry" path="res://addons/gdsql/img/arrow-down.png" id="6_40j5r"]
+[ext_resource type="Texture2D" uid="uid://b3lvu5w27beu6" path="res://addons/gdsql/img/arrow-down-line.png" id="7_a132x"]
+
+[node name="alter_table" type="ScrollContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_xbqm1")
+metadata/type = "new_table"
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+text = "Schema"
+horizontal_alignment = 2
+
+[node name="LineEditSchema" type="LineEdit" parent="VBoxContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+editable = false
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer2"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+text = "Table Name"
+horizontal_alignment = 2
+
+[node name="LineEditTableName" type="LineEdit" parent="VBoxContainer/HBoxContainer2"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer3"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+text = "Comments"
+horizontal_alignment = 2
+
+[node name="TextEditComment" type="TextEdit" parent="VBoxContainer/HBoxContainer3"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+size_flags_horizontal = 3
+context_menu_enabled = false
+scroll_smooth = true
+scroll_fit_content_height = true
+caret_blink = true
+
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="ButtonNewColumn" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "➕New Column"
+
+[node name="Table" parent="VBoxContainer" instance=ExtResource("2_mrk7n")]
+layout_mode = 2
+editable = true
+columns = ["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Default(Expression)", "Comment"]
+column_tips = Array[String](["字段名称", "数据类型", "检查器属性提示", "提示字符串", "是否为主键", "是否非空", "是否唯一", "是否自增", "默认值（支持表达式）", "备注"])
+ratios = Array[float]([4.0, 4.0, 3.0, 2.0, 20.0, 19.0, 18.0, 17.0, 1.0, 1.0])
+
+[node name="HFlowContainer" type="HFlowContainer" parent="VBoxContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="ButtonApply" type="Button" parent="VBoxContainer/HFlowContainer"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Apply"
+
+[node name="ButtonCancel" type="Button" parent="VBoxContainer/HFlowContainer"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Cancel"
+
+[node name="PopupMenu" type="PopupMenu" parent="."]
+item_count = 9
+item_0/text = "remove"
+item_0/icon = ExtResource("3_46hvr")
+item_0/id = 0
+item_1/text = ""
+item_1/id = 2
+item_1/separator = true
+item_2/text = "move top"
+item_2/icon = ExtResource("4_kytjc")
+item_2/id = 1
+item_3/text = "move up"
+item_3/icon = ExtResource("5_5qu86")
+item_3/id = 3
+item_4/text = "move down"
+item_4/icon = ExtResource("6_40j5r")
+item_4/id = 4
+item_5/text = "move bottom"
+item_5/icon = ExtResource("7_a132x")
+item_5/id = 5
+item_6/text = ""
+item_6/id = 6
+item_6/separator = true
+item_7/text = "insert above"
+item_7/id = 7
+item_8/text = "insert below"
+item_8/id = 8
+
+[connection signal="pressed" from="VBoxContainer/ButtonNewColumn" to="." method="_on_button_new_column_pressed"]
+[connection signal="row_clicked" from="VBoxContainer/Table" to="." method="_on_table_row_clicked"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonApply" to="." method="_on_button_apply_pressed"]
+[connection signal="index_pressed" from="PopupMenu" to="." method="_on_popup_menu_index_pressed"]

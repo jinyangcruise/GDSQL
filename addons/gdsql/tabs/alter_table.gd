@@ -1,7 +1,7 @@
 @tool
 extends ScrollContainer
 
-signal button_apply_pressed(sechema: String, table_name: String, comments: String, columns: Array, id: String)
+signal button_apply_pressed(sechema: String, old_table_name: String, new_table_name: String, comments: String, columns: Array, id: String)
 
 var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
@@ -17,7 +17,8 @@ var schema: String:
 		if line_edit_schema and is_inside_tree():
 			line_edit_schema.text = val
 			
-			
+var old_table_name: String
+
 var table_name: String:
 	set(val):
 		table_name = val
@@ -30,7 +31,20 @@ var comment: String:
 		if text_edit_comment and is_inside_tree():
 			text_edit_comment.text = val
 			
-var datas: Array = []
+var raw_datas: Array = []:
+	set(val):
+		raw_datas = val
+		if table and is_inside_tree():
+			datas = []
+			for i: Dictionary in raw_datas:
+				var row = _gen_row()
+				for column in table.columns:
+					row._set(column, i.get(column, null))
+				datas.push_back(row)
+			table.datas = datas
+			printt("qeeeeeee", raw_datas, datas)
+			
+var datas: Array = [] # array of dictionary object
 
 static var _hint_string = {
 		"Data Type": {
@@ -73,24 +87,8 @@ func _ready() -> void:
 		table_name = table_name
 	if comment != null:
 		comment = comment
-		
-	var label_data_type := Label.new()
-	label_data_type.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	label_data_type.auto_translate = false
-	label_data_type.localize_numeral_system = false
-	
-	var label_hint = label_data_type.duplicate()
-	
-	var row := DictionaryObject.new([
-		table.columns, 
-		["idnew_table", TYPE_INT, PROPERTY_HINT_NONE , "", true, true, false, true, "", ""]
-	], _hint_string)
-	row.set_custom_display_control("Data Type", label_data_type, update_callback.bind("Data Type", weakref(row), DataTypeDef.DATA_TYPE_NAMES), true)
-	row.set_custom_display_control("Hint", label_hint, update_callback.bind("Hint", weakref(row), DataTypeDef.PROPERTY_HINT_NAMES), true)
-	
-	datas.push_back(row)
-	table.datas = datas
-
+	if not raw_datas.is_empty():
+		raw_datas = raw_datas
 
 func _on_button_new_column_pressed() -> void:
 	var row = _gen_row()
@@ -126,7 +124,7 @@ func _on_button_apply_pressed() -> void:
 	var column_infos = []
 	for i in table.datas:
 		column_infos.push_back(i._data)
-	button_apply_pressed.emit(schema, curr_table_name, comments, column_infos, name)
+	button_apply_pressed.emit(schema, old_table_name, curr_table_name, comments, column_infos, name)
 
 var selected_row_index = -1
 func _on_table_row_clicked(row_index, mouse_button_index, _data):
@@ -137,40 +135,40 @@ func _on_table_row_clicked(row_index, mouse_button_index, _data):
 
 
 func _on_popup_menu_index_pressed(index):
-	var _datas: Array = table.datas
+	var datas: Array = table.datas
 	match popup_menu.get_item_text(index):
 		"remove":
-			_datas.remove_at(selected_row_index)
-			table.datas = _datas
+			datas.remove_at(selected_row_index)
+			table.datas = datas
 		"move top":
 			if selected_row_index > 0:
 				var data = datas[selected_row_index]
-				_datas.remove_at(selected_row_index)
-				_datas.push_front(data)
-				table.datas = _datas
+				datas.remove_at(selected_row_index)
+				datas.push_front(data)
+				table.datas = datas
 		"move up":
 			if selected_row_index > 0:
 				var data = datas[selected_row_index]
-				_datas.remove_at(selected_row_index)
-				_datas.insert(selected_row_index - 1, data)
-				table.datas = _datas
+				datas.remove_at(selected_row_index)
+				datas.insert(selected_row_index - 1, data)
+				table.datas = datas
 		"move down":
 			if selected_row_index < datas.size() - 1:
 				var data = datas[selected_row_index]
-				_datas.remove_at(selected_row_index)
-				_datas.insert(selected_row_index + 1, data)
-				table.datas = _datas
+				datas.remove_at(selected_row_index)
+				datas.insert(selected_row_index + 1, data)
+				table.datas = datas
 		"move bottom":
 			if selected_row_index < datas.size() - 1:
 				var data = datas[selected_row_index]
-				_datas.remove_at(selected_row_index)
-				_datas.push_back(data)
-				table.datas = _datas
+				datas.remove_at(selected_row_index)
+				datas.push_back(data)
+				table.datas = datas
 		"insert above":
 			var row = _gen_row()
-			_datas.insert(selected_row_index, row)
-			table.datas = _datas
+			datas.insert(selected_row_index, row)
+			table.datas = datas
 		"insert below":
 			var row = _gen_row()
-			_datas.insert(selected_row_index + 1, row)
-			table.datas = _datas
+			datas.insert(selected_row_index + 1, row)
+			table.datas = datas

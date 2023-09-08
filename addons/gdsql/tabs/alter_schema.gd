@@ -4,6 +4,8 @@ extends VBoxContainer
 ## id: 发出信号的是谁
 signal button_apply_pressed(old_db_name: String, new_db_name: String, path: String, save: bool, id: String)
 
+var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
+
 var old_db_name: String = ""
 
 var db_name: String:
@@ -41,13 +43,7 @@ func _on_button_apply_pressed() -> void:
 	var _db_name = line_edit_name.text.strip_edges()
 	var _path = line_edit_path.text.strip_edges()
 	if _db_name.is_empty() or _path.is_empty():
-		var dialog := AcceptDialog.new()
-		dialog.dialog_text = "name and path must be set!"
-		add_child(dialog)
-		dialog.popup_centered()
-		dialog.close_requested.connect(func():
-			dialog.queue_free()
-		)
+		mgr.create_accept_dialog(self, "name and path must be set!")
 		return
 		
 	button_apply_pressed.emit(old_db_name, _db_name, _path, check_box.button_pressed, name)

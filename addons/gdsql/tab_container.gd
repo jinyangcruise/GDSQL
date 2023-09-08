@@ -3,7 +3,12 @@ extends TabContainer
 
 signal add_new_schema(db_name: String, path: String, save: bool, id: String)
 signal alter_old_schema(old_db_name, new_db_name: String, path: String, save: bool, id: String)
-signal add_new_table(db_name: String, db_path: String, table_name: String, id: String)
+signal add_new_table(db_name: String, table_name: String, comments: String, id: String)
+signal alter_old_table(db_name: String, old_table_name: String, new_table_name, comments: String, column_infos: Array, id: String)
+
+var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
+
+var SQLGraph = preload("res://addons/gdsql/tabs/sql_graph.tscn")
 
 @onready var new_tab_button: Control = $"➕"
 
@@ -18,7 +23,7 @@ func _ready() -> void:
 func _on_tab_clicked(tab: int) -> void:
 	# 点击了“新建SQL页面”（加号），增加一个编辑页面，并激活
 	if get_child(tab) == new_tab_button:
-		var sql_file = preload("res://addons/gdsql/tabs/sql_graph.tscn").instantiate()
+		var sql_file = SQLGraph.instantiate()
 		sql_file.request_open_file.connect(func(path):
 			# 是否已经打开过了，就直接激活
 			for i in get_tab_count():
@@ -66,19 +71,29 @@ func add_tab_alter_schema(db_name, path, save) -> void:
 	current_tab = get_child_count() - 2
 	set_tab_title(current_tab, "alter_schema")
 	
-func add_tab_new_table(db_name, db_path) -> void:
+func add_tab_new_table(db_name) -> void:
 	var new_table = preload("res://addons/gdsql/tabs/new_table.tscn").instantiate()
 	new_table.schema = db_name
-	new_table.schema_path = db_path
-	new_table.button_apply_pressed.connect(func(schema, schema_path, table_name, columns, id):
-		add_new_table.emit(schema, schema_path, table_name, columns, id))
-	#new_table.button_apply_pressed.connect(func(db_name, path, save, id):
-		#add_new_schema.emit(db_name, path, save, id)
-	#)
+	new_table.button_apply_pressed.connect(func(schema, table_name, comments, columns, id):
+		add_new_table.emit(schema, table_name, comments, columns, id))
 	add_child(new_table)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
 	set_tab_title(current_tab, "new_table")
+	
+func add_tab_alter_table(db_name, table_name) -> void:
+	var alter_table = preload("res://addons/gdsql/tabs/alter_table.tscn").instantiate()
+	alter_table.schema = db_name
+	alter_table.old_table_name = table_name
+	alter_table.table_name = table_name
+	alter_table.comment = mgr.databases.get(db_name, {}).get("comments", {}).get(table_name, "")
+	alter_table.raw_datas = mgr.databases.get(db_name, {}).get("table_items", {}).get(table_name, {}).get("columns", [])
+	alter_table.button_apply_pressed.connect(func(schema, old_table_name, new_table_name, comments, columns, id):
+		alter_old_table.emit(schema, old_table_name, new_table_name, comments, columns, id))
+	add_child(alter_table)
+	move_child(new_tab_button, get_child_count() - 1)
+	current_tab = get_child_count() - 2
+	set_tab_title(current_tab, "alter_table")
 	
 func _on_tab_button_pressed(tab: int) -> void:
 	if tab != current_tab:
@@ -110,15 +125,15 @@ func receive_content(content: String, force_new: bool = false, file_path: String
 	# 当前打开的页签是一个编辑器，则直接发送，否则创建一个
 	if get_tab_control(current_tab).get_meta("type") == "sql_graph":
 		if force_new:
-			var code_edit_1 = get_tab_control(current_tab).code_edit as CodeEdit
+			var graph_edit_1 = get_tab_control(current_tab).graph_edit as GraphEdit
 			# 空的可以直接用，非空的还是需要创建新的；如果是文件，即使是空的，也要开新的
-			if not code_edit_1.text.is_empty() or get_tab_control(current_tab).get_meta("is_file"):
+			if graph_edit_1.get_child_count() > 0 or get_tab_control(current_tab).has_meta("is_file"):
 				_on_tab_clicked(get_tab_count()-1)
 	else :
 		_on_tab_clicked(get_tab_count()-1)
 		
-	var code_edit = get_tab_control(current_tab).code_edit as CodeEdit
-	code_edit.text += content
+	var graph_edit = get_tab_control(current_tab).graph_edit as GraphEdit
+	#code_edit.text += content TODO
 	
 	if not file_path.is_empty():
 		var sp = file_path.rsplit("/", true, 1)
@@ -129,11 +144,19 @@ func receive_content(content: String, force_new: bool = false, file_path: String
 		page.set_meta("file_path", file_path)
 		set_tab_title(current_tab, file_name)
 	
-func receive_content_and_execute(title: String, content: String):
+func receive_content_and_execute(title: String, info: Dictionary):
 	# 因为要执行，所以直接创建新页面
 	_on_tab_clicked(get_tab_count()-1)
 	
 	set_tab_title(current_tab, title)
 	
-	var code_edit = get_tab_control(current_tab).code_edit as CodeEdit
-	code_edit.text = content
+	var sql_graph = get_tab_control(current_tab)
+	if not sql_graph.is_node_ready():
+		await sql_graph.ready
+		
+	if not sql_graph.graph_edit.is_node_ready():
+		await sql_graph.graph_edit.ready
+		
+	match info["cmd"]:
+		"select":
+			sql_graph.add_select_node(info["db_name"], info["table_name"], info["fields"])

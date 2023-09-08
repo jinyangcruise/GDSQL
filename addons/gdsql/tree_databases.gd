@@ -5,12 +5,14 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 
 signal new_schema
 signal alter_schema(db_name, path, save)
-signal new_table(db_name, db_path)
+signal new_table(db_name)
+signal alter_table(db_name, table_name)
 signal add_db_to_config_success(id: String)
 signal modify_db_to_config_success(id: String)
 signal add_table_to_config_success(id: String)
+signal modify_table_to_config_success(id: String)
 signal send_to_editor(content: String)
-signal send_to_editor_and_execute(title: String, content: String)
+signal send_to_editor_and_execute(title: String, info: Dictionary)
 
 @onready var popup_menu_database: PopupMenu = $PopupMenuDatabase
 @onready var popup_menu_table_item: PopupMenu = $PopupMenuTableItem
@@ -115,7 +117,7 @@ func add_db_to_config(db_name: String, path: String, save: bool, id: String):
 			if a_db_name.to_lower() == db_name.to_lower() or conf.get_value(a_db_name, "path") == path:
 				var content = "failed! database name `%s` already exist!" % db_name if a_db_name == db_name \
 					else "failed! database path `%s`(%s) already exist!" % [path, a_db_name]
-				show_error_msg_dialog(content)
+				mgr.create_accept_dialog(self, content)
 				return
 		
 	var conf: ConfigFile = _config_file if save else _tmp_config
@@ -129,24 +131,26 @@ func add_db_to_config(db_name: String, path: String, save: bool, id: String):
 	refresh()
 	
 	# TODO 日志
-func add_table_to_config(db_name: String, db_path: String, table_name: String, column_infos: Array, id: String):
+	
+func add_table_to_config(db_name: String, table_name: String, comment: String, column_infos: Array, id: String):
 	if !_config_file.has_section(db_name):
-		show_error_msg_dialog("failed! database not exists!" % db_name)
-		return
-		
-	if _config_file.get_value(db_name, "path") != db_path:
-		show_error_msg_dialog("failed! database path might have changed!")
+		mgr.create_accept_dialog(self, "failed! database not exists!" % db_name)
 		return
 		
 	var table_confs = _config_file.get_value(db_name, "tables", {}) as Dictionary
 	if table_confs.has(table_name):
-		show_error_msg_dialog("failed! table already exist!")
+		mgr.create_accept_dialog(self, "failed! table already exist!")
 		return
+		
+	var table_commnets = _config_file.get_value(db_name, "comments", {}) as Dictionary
+	table_commnets[table_name] = comment
 		
 	table_confs[table_name] = column_infos
 	_config_file.set_value(db_name, "tables", table_confs)
+	_config_file.set_value(db_name, "comments", table_commnets)
 	_config_file.save("res://addons/gdsql/config/config.cfg")
 	
+	var db_path = _config_file.get_value(db_name, "path")
 	var file = FileAccess.open(db_path + table_name + ".gsql", FileAccess.WRITE)
 	file.store_string("")
 	
@@ -177,6 +181,10 @@ func modify_db_to_config(old_db_name: String, new_db_name: String, path: String,
 	refresh()
 	
 	# TODO 日志
+	
+func modify_table_to_config(db_name: String, old_table_name: String, new_table_name, comments: String, column_infos: Array, id: String):
+	pass
+	# TODO 检查新增列、删除列、修改列对存量数据的影响
 
 func _ready():
 	load_config()
@@ -210,14 +218,27 @@ func refresh() -> void:
 	mgr.databases = databases
 	
 	# create table like 子菜单重新生成
+	var id = 0
 	for db_name in databases:
 		var data = databases[db_name]
 		if !data["table_items"].is_empty():
-			popup_menu_create_table_like_tables.add_separator("SCHEMA：%s" % data["name"])
-			popup_menu_create_table_like_table_item.add_separator("SCHEMA：%s" % data["name"])
+			popup_menu_create_table_like_tables.add_separator("SCHEMA：%s" % data["name"], id)
+			popup_menu_create_table_like_table_item.add_separator("SCHEMA：%s" % data["name"], id)
+			id += 1
 		for t in data["table_items"]:
-			popup_menu_create_table_like_tables.add_item(t)
+			popup_menu_create_table_like_tables.add_item(t, id)
+			var idx_1 = popup_menu_create_table_like_tables.get_item_index(id)
+			popup_menu_create_table_like_tables.set_item_metadata(idx_1, {
+				"db_name": data["name"],
+				"table_name": t
+			})
+			
 			popup_menu_create_table_like_table_item.add_item(t)
+			var idx_2 = popup_menu_create_table_like_table_item.get_item_index(id)
+			popup_menu_create_table_like_tables.set_item_metadata(idx_2, {
+				"db_name": data["name"],
+				"table_name": t
+			})
 	
 func _get_gsql_file(path: String) -> Array[String]:
 	var ret: Array[String] = []
@@ -314,6 +335,7 @@ func add_table(db: TreeItem, file_name: String, tooltip: String = "") -> Diction
 		"table_name": table_name,
 		"file_name": file_name,
 		"path": table_item.get_meta("path"),
+		"comment": _config_file.get_value(db.get_meta("db_name"), "comments", {}).get(table_name, ""),
 		"columns": table_confs.get(table_name, [])
 	}
 	return info
@@ -323,7 +345,12 @@ func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_inde
 	if column == 0:
 		match id:
 			0:
-				send_to_editor_and_execute.emit(item.get_meta("table_name"), item.get_button_tooltip_text(column, id))
+				send_to_editor_and_execute.emit(item.get_meta("table_name"), {
+					"cmd": "select",
+					"db_name": item.get_meta("db_name"),
+					"table_name": item.get_meta("table_name"),
+					"fields": "*"
+				})
 			1:
 				var path = ProjectSettings.globalize_path(item.get_meta("path"))
 				OS.shell_show_in_file_manager(path, true)
@@ -389,14 +416,22 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 		"Select Rows":
 			var item := get_selected()
 			if item:
-				send_to_editor_and_execute.emit(item.get_meta("table_name"), "select * from %s.%s;" \
-					% [item.get_meta("db_name"), item.get_meta("table_name")])
+				send_to_editor_and_execute.emit(item.get_meta("table_name"), {
+					"cmd": "select",
+					"db_name": item.get_meta("db_name"),
+					"table_name": item.get_meta("table_name"),
+					"fields": "*"
+				})
 		"Create Table...":
 			var item := get_selected()
 			if item:
-				new_table.emit(item.get_meta("db_name"), item.get_meta("path"))
+				new_table.emit(item.get_meta("db_name"))
 		"Create Table Like...":
 			pass
+		"Alter Table...":
+			var item := get_selected()
+			if item:
+				alter_table.emit(item.get_meta("db_name"), item.get_meta("table_name"))
 			
 			
 ## Tables目录的create table like子目录的菜单
@@ -498,17 +533,9 @@ func _on_popup_menu_tables_index_pressed(index: int) -> void:
 		"Create Table...":
 			var item := get_selected()
 			if item:
-				new_table.emit(item.get_meta("db_name"), item.get_meta("path"))
+				new_table.emit(item.get_meta("db_name"))
 		"Create Table Like...":
 			pass
 		"Refresh All":
 			refresh()
 			
-func show_error_msg_dialog(content: String):
-	var dialog := AcceptDialog.new()
-	dialog.dialog_text = content
-	add_child(dialog)
-	dialog.popup_centered()
-	dialog.close_requested.connect(func():
-		dialog.queue_free()
-	)

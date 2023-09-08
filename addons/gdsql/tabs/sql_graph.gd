@@ -132,6 +132,43 @@ func _on_button_add_node_left_join_pressed():
 	graph_edit.add_child(graph_node)
 	graph_node.position_offset = (graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 	
+func add_select_node(schema = "", table = "", fields = "", where = "", order_by = "", offset = 0, limit = 100):
+	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
+	unselect_all_node()
+	
+	var graph_node = gen_select_node()
+	graph_edit.add_child(graph_node)
+	
+	# 等待页面就绪
+	if not graph_edit.get_rect().has_area():
+		await graph_edit.resized
+		
+	graph_node.position_offset = (graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+	
+	var schema_dict_obj: DictionaryObject = graph_node.datas[2][2]
+	var table_dict_obj: DictionaryObject = graph_node.datas[3][2]
+	var fields_dict_obj: DictionaryObject = graph_node.datas[4][2]
+	var where_dict_obj: DictionaryObject = graph_node.datas[5][2]
+	var order_dict_obj: DictionaryObject = graph_node.datas[6][2]
+	var limit_dict_obj: DictionaryObject = graph_node.datas[7][2]
+	var btn_query: Button = graph_node.datas[9][2]
+	
+	if schema != schema_dict_obj._get("Schema"):
+		schema_dict_obj._set("Schema", schema)
+	if table != table_dict_obj._get("Table"):
+		table_dict_obj._set("Table", table)
+	if fields != fields_dict_obj._get("Fields"):
+		fields_dict_obj._set("Fields", fields)
+	if where != where_dict_obj._get("Where"):
+		where_dict_obj._set("Where", where)
+	if order_by != order_dict_obj._get("Order By"):
+		order_dict_obj._set("Order By", order_by)
+	if limit != limit_dict_obj._get("Offset"):
+		limit_dict_obj._set("Offset", offset)
+	if offset != limit_dict_obj._get("Limit"):
+		limit_dict_obj._set("Limit", limit)
+		
+	btn_query.emit_signal("pressed")
 	
 func gen_select_node() -> GraphNode:
 	var databases = mgr.databases.keys()
@@ -161,6 +198,7 @@ func gen_select_node() -> GraphNode:
 				graph_node.redraw_slot_control(3, 2) # table是第4行第3个控件。
 			"_password":
 				base_dao.set_password(new_val)
+		graph_node.redraw_slot_control(2, 2) # 如果不是通过点击的控件修改的dict obj，就需要重绘一下。这里偷个懒，直接重绘。
 	)
 	table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		match prop:
@@ -170,21 +208,25 @@ func gen_select_node() -> GraphNode:
 				base_dao.set_table(table)
 			"_alias":
 				base_dao.set_table_alias(new_val)
+		graph_node.redraw_slot_control(3, 2)
 	)
 	fields_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		match prop:
 			"Fields":
 				base_dao.select(new_val, true)
+		graph_node.redraw_slot_control(4, 2)
 	)
 	where_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		match prop:
 			"Where":
 				base_dao.where(new_val)
+		graph_node.redraw_slot_control(5, 2)
 	)
 	order_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		match prop:
 			"Order By":
 				base_dao.order_by_str(new_val)
+		graph_node.redraw_slot_control(6, 2)
 	)
 	limit_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		match prop:
@@ -192,6 +234,7 @@ func gen_select_node() -> GraphNode:
 				base_dao.limit(new_val, limit_dict_obj._get("Limit"))
 			"Limit":
 				base_dao.limit(limit_dict_obj._get("Offset"), new_val)
+		graph_node.redraw_slot_control(7, 2)
 	)
 	
 	var btn_query = Button.new()

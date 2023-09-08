@@ -1,6 +1,8 @@
 @tool
 extends VBoxContainer
 
+signal row_clicked(row_index: int, mouse_button_index: int, data)
+
 var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
 @onready var header: MarginContainer = $VBoxContainer/Header
@@ -262,18 +264,18 @@ func test(container):
 	for child in container.get_children():
 		test(child)
 		
-func _on_dragger_gui_input(event: InputEvent, _split_container: HSplitContainer):
+func _on_dragger_gui_input(_event: InputEvent, _split_container: HSplitContainer):
 	return
-	# 让control不要自动填充
-	if event is InputEventMouseButton:
-		if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-			for control in controls:
-				if control.size_flags_horizontal == Control.SIZE_EXPAND_FILL:
-					control.custom_minimum_size = control.size
-					control.size_flags_horizontal = Control.SIZE_FILL
-		else:
-			for control in controls:
-				control.custom_minimum_size = control.size
+	## 让control不要自动填充
+	#if event is InputEventMouseButton:
+		#if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+			#for control in controls:
+				#if control.size_flags_horizontal == Control.SIZE_EXPAND_FILL:
+					#control.custom_minimum_size = control.size
+					#control.size_flags_horizontal = Control.SIZE_FILL
+		#else:
+			#for control in controls:
+				#control.custom_minimum_size = control.size
 	
 func _on_resized():
 	realign_rows()
@@ -295,10 +297,16 @@ func _on_resized():
 
 
 func _on_row_gui_input(event: InputEvent, source_data) -> void:
+	var emit_click = func():
+		if event is InputEventMouseButton:
+			row_clicked.emit(datas.find(source_data), event.button_index, source_data)
+			
 	if not editable:
+		emit_click.call()
 		return
 
 	if not event is InputEventMouseButton:
+		emit_click.call()
 		return
 
 	#if not (event as InputEventMouseButton).double_click:
@@ -306,6 +314,8 @@ func _on_row_gui_input(event: InputEvent, source_data) -> void:
 		
 	if source_data is Object and editable:
 		EditorInterface.inspect_object(source_data)
+		
+	emit_click.call()
 
 func _on_row_panel_container_focus_entered(row_panel: PanelContainer) -> void:
 	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")

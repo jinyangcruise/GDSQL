@@ -1,7 +1,12 @@
-[gd_scene load_steps=3 format=3 uid="uid://dum56t56ttfbf"]
+[gd_scene load_steps=8 format=3 uid="uid://dum56t56ttfbf"]
 
 [ext_resource type="PackedScene" uid="uid://bpawj4a7llynx" path="res://addons/gdsql/table.tscn" id="1_24m38"]
 [ext_resource type="Script" path="res://addons/gdsql/tabs/new_table.gd" id="1_oqb4v"]
+[ext_resource type="Texture2D" uid="uid://dhrujeh8nxhtd" path="res://addons/gdsql/img/trash-can.png" id="3_4x6ft"]
+[ext_resource type="Texture2D" uid="uid://ckn3uyjso63l0" path="res://addons/gdsql/img/arrow-up-line.png" id="4_rwnmr"]
+[ext_resource type="Texture2D" uid="uid://cuvi8ddapu1jl" path="res://addons/gdsql/img/arrow-up.png" id="5_vcpeo"]
+[ext_resource type="Texture2D" uid="uid://b7ff01dmwhqry" path="res://addons/gdsql/img/arrow-down.png" id="6_yfkbg"]
+[ext_resource type="Texture2D" uid="uid://b3lvu5w27beu6" path="res://addons/gdsql/img/arrow-down-line.png" id="7_r13yh"]
 
 [node name="new_table" type="ScrollContainer"]
 anchors_preset = 15
@@ -10,7 +15,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_oqb4v")
-aaa = 24
 metadata/type = "new_table"
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
@@ -73,7 +77,7 @@ text = "➕New Column"
 [node name="Table" parent="VBoxContainer" instance=ExtResource("1_24m38")]
 layout_mode = 2
 editable = true
-columns = Array[String](["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Default(Expression)", "Comment"])
+columns = ["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Default(Expression)", "Comment"]
 column_tips = Array[String](["字段名称", "数据类型", "检查器属性提示", "提示字符串", "是否为主键", "是否非空", "是否唯一", "是否自增", "默认值（支持表达式）", "备注"])
 ratios = Array[float]([4.0, 4.0, 3.0, 2.0, 20.0, 19.0, 18.0, 17.0, 1.0, 1.0])
 datas = [Object(RefCounted,"script":Resource("res://addons/gdsql/dictionay_object.gd"),"_origin":{},"_data":{
@@ -116,9 +120,9 @@ datas = [Object(RefCounted,"script":Resource("res://addons/gdsql/dictionay_objec
 "PK": Callable(),
 "UQ": Callable()
 },"_custom_display_control":{
-"Data Type": Object(Label,"_import_path":NodePath(""),"unique_name_in_owner":false,"process_mode":0,"process_priority":0,"process_physics_priority":0,"process_thread_group":0,"editor_description":"","visible":true,"modulate":Color(1, 1, 1, 1),"self_modulate":Color(1, 1, 1, 1),"show_behind_parent":false,"top_level":false,"clip_children":0,"light_mask":1,"visibility_layer":1,"z_index":0,"z_as_relative":true,"y_sort_enabled":false,"texture_filter":0,"texture_repeat":0,"material":null,"use_parent_material":false,"clip_contents":false,"custom_minimum_size":Vector2(0, 0),"layout_direction":0,"layout_mode":2,"size_flags_horizontal":3,"size_flags_vertical":4,"size_flags_stretch_ratio":90.0,"auto_translate":false,"localize_numeral_system":false,"tooltip_text":"","focus_neighbor_left":NodePath(""),"focus_neighbor_top":NodePath(""),"focus_neighbor_right":NodePath(""),"focus_neighbor_bottom":NodePath(""),"focus_next":NodePath(""),"focus_previous":NodePath(""),"focus_mode":0,"mouse_filter":2,"mouse_force_pass_scroll_events":true,"mouse_default_cursor_shape":0,"shortcut_context":null,"theme":null,"theme_type_variation":&"","text":"TYPE_INT","label_settings":null,"horizontal_alignment":0,"vertical_alignment":0,"autowrap_mode":0,"justification_flags":163,"clip_text":false,"text_overrun_behavior":3,"uppercase":false,"tab_stops":PackedFloat32Array(),"lines_skipped":0,"max_lines_visible":-1,"visible_characters":-1,"visible_characters_behavior":0,"visible_ratio":1.0,"text_direction":0,"language":"","structured_text_bidi_override":0,"structured_text_bidi_override_options":[],"script":null)
+"Data Type": Object(Label,"_import_path":NodePath(""),"unique_name_in_owner":false,"process_mode":0,"process_priority":0,"process_physics_priority":0,"process_thread_group":0,"editor_description":"","visible":true,"modulate":Color(1, 1, 1, 1),"self_modulate":Color(1, 1, 1, 1),"show_behind_parent":false,"top_level":false,"clip_children":0,"light_mask":1,"visibility_layer":1,"z_index":0,"z_as_relative":true,"y_sort_enabled":false,"texture_filter":0,"texture_repeat":0,"material":null,"use_parent_material":false,"clip_contents":false,"custom_minimum_size":Vector2(0, 0),"layout_direction":0,"layout_mode":2,"size_flags_horizontal":3,"size_flags_vertical":4,"size_flags_stretch_ratio":613.0,"auto_translate":false,"localize_numeral_system":false,"tooltip_text":"","focus_neighbor_left":NodePath(""),"focus_neighbor_top":NodePath(""),"focus_neighbor_right":NodePath(""),"focus_neighbor_bottom":NodePath(""),"focus_next":NodePath(""),"focus_previous":NodePath(""),"focus_mode":0,"mouse_filter":2,"mouse_force_pass_scroll_events":true,"mouse_default_cursor_shape":0,"shortcut_context":null,"theme":null,"theme_type_variation":&"","text":"TYPE_INT","label_settings":null,"horizontal_alignment":0,"vertical_alignment":0,"autowrap_mode":0,"justification_flags":163,"clip_text":false,"text_overrun_behavior":3,"uppercase":false,"tab_stops":PackedFloat32Array(),"lines_skipped":0,"max_lines_visible":-1,"visible_characters":-1,"visible_characters_behavior":0,"visible_ratio":1.0,"text_direction":0,"language":"","structured_text_bidi_override":0,"structured_text_bidi_override_options":[],"script":null)
 ,
-"Hint": Object(Label,"_import_path":NodePath(""),"unique_name_in_owner":false,"process_mode":0,"process_priority":0,"process_physics_priority":0,"process_thread_group":0,"editor_description":"","visible":true,"modulate":Color(1, 1, 1, 1),"self_modulate":Color(1, 1, 1, 1),"show_behind_parent":false,"top_level":false,"clip_children":0,"light_mask":1,"visibility_layer":1,"z_index":0,"z_as_relative":true,"y_sort_enabled":false,"texture_filter":0,"texture_repeat":0,"material":null,"use_parent_material":false,"clip_contents":false,"custom_minimum_size":Vector2(0, 0),"layout_direction":0,"layout_mode":2,"size_flags_horizontal":3,"size_flags_vertical":4,"size_flags_stretch_ratio":45.0,"auto_translate":false,"localize_numeral_system":false,"tooltip_text":"","focus_neighbor_left":NodePath(""),"focus_neighbor_top":NodePath(""),"focus_neighbor_right":NodePath(""),"focus_neighbor_bottom":NodePath(""),"focus_next":NodePath(""),"focus_previous":NodePath(""),"focus_mode":0,"mouse_filter":2,"mouse_force_pass_scroll_events":true,"mouse_default_cursor_shape":0,"shortcut_context":null,"theme":null,"theme_type_variation":&"","text":"PROPERTY_HINT_NONE","label_settings":null,"horizontal_alignment":0,"vertical_alignment":0,"autowrap_mode":0,"justification_flags":163,"clip_text":false,"text_overrun_behavior":3,"uppercase":false,"tab_stops":PackedFloat32Array(),"lines_skipped":0,"max_lines_visible":-1,"visible_characters":-1,"visible_characters_behavior":0,"visible_ratio":1.0,"text_direction":0,"language":"","structured_text_bidi_override":0,"structured_text_bidi_override_options":[],"script":null)
+"Hint": Object(Label,"_import_path":NodePath(""),"unique_name_in_owner":false,"process_mode":0,"process_priority":0,"process_physics_priority":0,"process_thread_group":0,"editor_description":"","visible":true,"modulate":Color(1, 1, 1, 1),"self_modulate":Color(1, 1, 1, 1),"show_behind_parent":false,"top_level":false,"clip_children":0,"light_mask":1,"visibility_layer":1,"z_index":0,"z_as_relative":true,"y_sort_enabled":false,"texture_filter":0,"texture_repeat":0,"material":null,"use_parent_material":false,"clip_contents":false,"custom_minimum_size":Vector2(0, 0),"layout_direction":0,"layout_mode":2,"size_flags_horizontal":3,"size_flags_vertical":4,"size_flags_stretch_ratio":612.0,"auto_translate":false,"localize_numeral_system":false,"tooltip_text":"","focus_neighbor_left":NodePath(""),"focus_neighbor_top":NodePath(""),"focus_neighbor_right":NodePath(""),"focus_neighbor_bottom":NodePath(""),"focus_next":NodePath(""),"focus_previous":NodePath(""),"focus_mode":0,"mouse_filter":2,"mouse_force_pass_scroll_events":true,"mouse_default_cursor_shape":0,"shortcut_context":null,"theme":null,"theme_type_variation":&"","text":"PROPERTY_HINT_NONE","label_settings":null,"horizontal_alignment":0,"vertical_alignment":0,"autowrap_mode":0,"justification_flags":163,"clip_text":false,"text_overrun_behavior":3,"uppercase":false,"tab_stops":PackedFloat32Array(),"lines_skipped":0,"max_lines_visible":-1,"visible_characters":-1,"visible_characters_behavior":0,"visible_ratio":1.0,"text_direction":0,"language":"","structured_text_bidi_override":0,"structured_text_bidi_override_options":[],"script":null)
 
 },"_read_only":false,"Column Name":"idnew_table","Data Type":2,"Hint":0,"Hint String":"","PK":true,"NN":true,"UQ":false,"AI":true,"Default(Expression)":"","Comment":"")
 ]
@@ -137,5 +141,35 @@ custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 text = "Cancel"
 
+[node name="PopupMenu" type="PopupMenu" parent="."]
+item_count = 9
+item_0/text = "remove"
+item_0/icon = ExtResource("3_4x6ft")
+item_0/id = 0
+item_1/text = ""
+item_1/id = 2
+item_1/separator = true
+item_2/text = "move top"
+item_2/icon = ExtResource("4_rwnmr")
+item_2/id = 1
+item_3/text = "move up"
+item_3/icon = ExtResource("5_vcpeo")
+item_3/id = 3
+item_4/text = "move down"
+item_4/icon = ExtResource("6_yfkbg")
+item_4/id = 4
+item_5/text = "move bottom"
+item_5/icon = ExtResource("7_r13yh")
+item_5/id = 5
+item_6/text = ""
+item_6/id = 6
+item_6/separator = true
+item_7/text = "insert above"
+item_7/id = 7
+item_8/text = "insert below"
+item_8/id = 8
+
 [connection signal="pressed" from="VBoxContainer/ButtonNewColumn" to="." method="_on_button_new_column_pressed"]
+[connection signal="row_clicked" from="VBoxContainer/Table" to="." method="_on_table_row_clicked"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonApply" to="." method="_on_button_apply_pressed"]
+[connection signal="index_pressed" from="PopupMenu" to="." method="_on_popup_menu_index_pressed"]
