@@ -457,8 +457,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 					else:
 						daos.push_back(BaseDao.new().use_db(db_path).update(table_name).sets(i.get_data()))
 						
-			mgr.create_confirmation_dialog(self, 
-				"Please confirm:\n" + "\n".join(daos.map(func(v: BaseDao): return v.get_query_cmd())),
+			mgr.create_confirmation_dialog("Please confirm:\n" + "\n".join(daos.map(func(v: BaseDao): return v.get_query_cmd())),
 				func():
 					for i in daos:
 						i.query()

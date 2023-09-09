@@ -1,7 +1,7 @@
 @tool
 extends ScrollContainer
 
-signal button_apply_pressed(sechema: String, old_table_name: String, new_table_name: String, comments: String, columns: Array, id: String)
+signal button_apply_pressed(sechema: String, old_table_name: String, new_table_name: String, comments: String, password: String, columns: Array, id: String)
 
 var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
@@ -9,6 +9,7 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 @onready var line_edit_schema: LineEdit = $VBoxContainer/HBoxContainer/LineEditSchema
 @onready var line_edit_table_name: LineEdit = $VBoxContainer/HBoxContainer2/LineEditTableName
 @onready var text_edit_comment: TextEdit = $VBoxContainer/HBoxContainer3/TextEditComment
+@onready var line_edit_password = $VBoxContainer/HBoxContainer4/LineEditPassword
 @onready var popup_menu = $PopupMenu
 
 var schema: String:
@@ -30,6 +31,12 @@ var comment: String:
 		comment = val
 		if text_edit_comment and is_inside_tree():
 			text_edit_comment.text = val
+			
+var password: String:
+	set(val):
+		password = val
+		if line_edit_password and is_inside_tree():
+			line_edit_password.text = val
 			
 var raw_datas: Array = []:
 	set(val):
@@ -81,12 +88,14 @@ static func update_callback(new_value, property, dict_obj_ref: WeakRef, readable
 		label.text = readable_map[new_value]
 
 func _ready() -> void:
-	if schema != null:
+	if schema != "":
 		schema = schema
-	if table_name != null:
+	if table_name != "":
 		table_name = table_name
-	if comment != null:
+	if comment != "":
 		comment = comment
+	if password != "":
+		password = password
 	if not raw_datas.is_empty():
 		raw_datas = raw_datas
 
@@ -116,15 +125,16 @@ func _on_button_apply_pressed() -> void:
 	var curr_schema = line_edit_schema.text.strip_edges()
 	var curr_table_name = line_edit_table_name.text.strip_edges()
 	if curr_schema.is_empty() or curr_table_name.is_empty():
-		mgr.create_accept_dialog(self, "schema and table name must be set!")
+		mgr.create_accept_dialog("schema and table name must be set!")
 		return
 		
 	var comments = text_edit_comment.text
+	var _password = line_edit_password.text
 		
 	var column_infos = []
 	for i in table.datas:
 		column_infos.push_back(i._data)
-	button_apply_pressed.emit(schema, old_table_name, curr_table_name, comments, column_infos, name)
+	button_apply_pressed.emit(schema, old_table_name, curr_table_name, comments, _password, column_infos, name)
 
 var selected_row_index = -1
 func _on_table_row_clicked(row_index, mouse_button_index, _data):

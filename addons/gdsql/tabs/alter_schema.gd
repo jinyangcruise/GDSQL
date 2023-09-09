@@ -43,7 +43,7 @@ func _on_button_apply_pressed() -> void:
 	var _db_name = line_edit_name.text.strip_edges()
 	var _path = line_edit_path.text.strip_edges()
 	if _db_name.is_empty() or _path.is_empty():
-		mgr.create_accept_dialog(self, "name and path must be set!")
+		mgr.create_accept_dialog("name and path must be set!")
 		return
 		
 	button_apply_pressed.emit(old_db_name, _db_name, _path, check_box.button_pressed, name)

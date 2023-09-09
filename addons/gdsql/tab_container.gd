@@ -3,8 +3,8 @@ extends TabContainer
 
 signal add_new_schema(db_name: String, path: String, save: bool, id: String)
 signal alter_old_schema(old_db_name, new_db_name: String, path: String, save: bool, id: String)
-signal add_new_table(db_name: String, table_name: String, comments: String, id: String)
-signal alter_old_table(db_name: String, old_table_name: String, new_table_name, comments: String, column_infos: Array, id: String)
+signal add_new_table(db_name: String, table_name: String, comments: String, password: String, id: String)
+signal alter_old_table(db_name: String, old_table_name: String, new_table_name, comments: String, password: String, column_infos: Array, id: String)
 
 var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
@@ -74,8 +74,8 @@ func add_tab_alter_schema(db_name, path, save) -> void:
 func add_tab_new_table(db_name) -> void:
 	var new_table = preload("res://addons/gdsql/tabs/new_table.tscn").instantiate()
 	new_table.schema = db_name
-	new_table.button_apply_pressed.connect(func(schema, table_name, comments, columns, id):
-		add_new_table.emit(schema, table_name, comments, columns, id))
+	new_table.button_apply_pressed.connect(func(schema, table_name, comments, password, columns, id):
+		add_new_table.emit(schema, table_name, comments, password, columns, id))
 	add_child(new_table)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
@@ -88,8 +88,8 @@ func add_tab_alter_table(db_name, table_name) -> void:
 	alter_table.table_name = table_name
 	alter_table.comment = mgr.databases.get(db_name, {}).get("comments", {}).get(table_name, "")
 	alter_table.raw_datas = mgr.databases.get(db_name, {}).get("table_items", {}).get(table_name, {}).get("columns", [])
-	alter_table.button_apply_pressed.connect(func(schema, old_table_name, new_table_name, comments, columns, id):
-		alter_old_table.emit(schema, old_table_name, new_table_name, comments, columns, id))
+	alter_table.button_apply_pressed.connect(func(schema, old_table_name, new_table_name, comments, password, columns, id):
+		alter_old_table.emit(schema, old_table_name, new_table_name, comments, password, columns, id))
 	add_child(alter_table)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2

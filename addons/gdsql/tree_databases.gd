@@ -42,50 +42,9 @@ var databases: Dictionary
 
 var database_items: Array[TreeItem] = []
 var _default_database_path: String = ""
-var _config_file: ConfigFile
-var _tmp_config: ConfigFile # 只在内存里，非持久化。重启godot或插件会丢失
+var _config_file: ImprovedConfigFile
+var _tmp_config: ImprovedConfigFile # 只在内存里，非持久化。重启godot或插件会丢失
 
-static var data_types = [
-	"TYPE_NIL:0",
-	"TYPE_BOOL:1",
-	"TYPE_INT:2",
-	"TYPE_FLOAT:3",
-	"TYPE_STRING:4",
-	"TYPE_VECTOR2:5",
-	"TYPE_VECTOR2I:6",
-	"TYPE_RECT2:7",
-	"TYPE_RECT2I:8",
-	"TYPE_VECTOR3:9",
-	"TYPE_VECTOR3I:10",
-	"TYPE_TRANSFORM2D:11",
-	"TYPE_VECTOR4:12",
-	"TYPE_VECTOR4I:13",
-	"TYPE_PLANE:14",
-	"TYPE_QUATERNION:15",
-	"TYPE_AABB:16",
-	"TYPE_BASIS:17",
-	"TYPE_TRANSFORM3D:18",
-	"TYPE_PROJECTION:19",
-	"TYPE_COLOR:20",
-	"TYPE_STRING_NAME:21",
-	"TYPE_NODE_PATH:22",
-	"TYPE_RID:23",
-	"TYPE_OBJECT:24",
-	"TYPE_CALLABLE:25",
-	"TYPE_SIGNAL:26",
-	"TYPE_DICTIONARY:27",
-	"TYPE_ARRAY:28",
-	"TYPE_PACKED_BYTE_ARRAY:29",
-	"TYPE_PACKED_INT32_ARRAY:30",
-	"TYPE_PACKED_INT64_ARRAY:31",
-	"TYPE_PACKED_FLOAT32_ARRAY:32",
-	"TYPE_PACKED_FLOAT64_ARRAY:33",
-	"TYPE_PACKED_STRING_ARRAY:34",
-	"TYPE_PACKED_VECTOR2_ARRAY:35",
-	"TYPE_PACKED_VECTOR3_ARRAY:36",
-	"TYPE_PACKED_COLOR_ARRAY:37",
-	"TYPE_MAX:38",
-]
 
 func _clear():
 	clear()
@@ -94,9 +53,9 @@ func _clear():
 	popup_menu_create_table_like_table_item.clear()
 		
 func load_config():
-	_config_file = ConfigFile.new()
+	_config_file = ImprovedConfigFile.new()
 	_config_file.load("res://addons/gdsql/config/config.cfg")
-	_tmp_config = ConfigFile.new()
+	_tmp_config = ImprovedConfigFile.new()
 	
 func refresh_databases():
 	_config_file.clear()
@@ -117,8 +76,7 @@ func add_db_to_config(db_name: String, path: String, save: bool, id: String):
 			if a_db_name.to_lower() == db_name.to_lower() or conf.get_value(a_db_name, "path") == path:
 				var content = "failed! database name `%s` already exist!" % db_name if a_db_name == db_name \
 					else "failed! database path `%s`(%s) already exist!" % [path, a_db_name]
-				mgr.create_accept_dialog(self, content)
-				return
+				return mgr.create_accept_dialog(content)
 		
 	var conf: ConfigFile = _config_file if save else _tmp_config
 	conf.set_value(db_name, "name", db_name)
@@ -132,15 +90,25 @@ func add_db_to_config(db_name: String, path: String, save: bool, id: String):
 	
 	# TODO 日志
 	
-func add_table_to_config(db_name: String, table_name: String, comment: String, column_infos: Array, id: String):
+func add_table_to_config(db_name: String, table_name: String, comment: String, password: String, column_infos: Array, id: String):
 	if !_config_file.has_section(db_name):
-		mgr.create_accept_dialog(self, "failed! database not exists!" % db_name)
-		return
+		return mgr.create_accept_dialog("failed! database not exists!" % db_name)
 		
 	var table_confs = _config_file.get_value(db_name, "tables", {}) as Dictionary
 	if table_confs.has(table_name):
-		mgr.create_accept_dialog(self, "failed! table already exist!")
-		return
+		return mgr.create_accept_dialog("failed! table already exist!")
+		
+	var db_path = _config_file.get_value(db_name, "path")
+	var table_path = db_path + table_name + ".gsql"
+	if FileAccess.file_exists(table_path):
+		return mgr.create_accept_dialog("failed! file [%s] already exist!" % table_path)
+		
+	# 检查是否有重复的字段
+	var exist_col = {}
+	for i in column_infos:
+		if exist_col.has(i["Column Name"]):
+			return mgr.create_accept_dialog("duplicate field [%s]" % i["Column Name"])
+		exist_col[i["Column Name"]] = true
 		
 	var table_commnets = _config_file.get_value(db_name, "comments", {}) as Dictionary
 	table_commnets[table_name] = comment
@@ -150,9 +118,8 @@ func add_table_to_config(db_name: String, table_name: String, comment: String, c
 	_config_file.set_value(db_name, "comments", table_commnets)
 	_config_file.save("res://addons/gdsql/config/config.cfg")
 	
-	var db_path = _config_file.get_value(db_name, "path")
-	var file = FileAccess.open(db_path + table_name + ".gsql", FileAccess.WRITE)
-	file.store_string("")
+	var table_gsql = ConfigFile.new()
+	table_gsql.save(table_path) if password.is_empty() else table_gsql.save_encrypted_pass(table_path, password)
 	
 	add_table_to_config_success.emit(id)
 	
@@ -182,9 +149,133 @@ func modify_db_to_config(old_db_name: String, new_db_name: String, path: String,
 	
 	# TODO 日志
 	
-func modify_table_to_config(db_name: String, old_table_name: String, new_table_name, comments: String, column_infos: Array, id: String):
-	pass
-	# TODO 检查新增列、删除列、修改列对存量数据的影响
+func modify_table_to_config(db_name: String, old_table_name: String, new_table_name, \
+		comments: String, password: String, column_infos: Array, id: String):
+	if !_config_file.has_section(db_name):
+		return mgr.create_accept_dialog("failed! database not exists!" % db_name)
+		
+	var table_confs = _config_file.get_value(db_name, "tables", {}) as Dictionary
+	if not table_confs.has(old_table_name):
+		return mgr.create_accept_dialog("failed! table [%s] not exist!" % old_table_name)
+		
+	if table_confs.has(new_table_name):
+		return mgr.create_accept_dialog("failed! table [%s] already exist!" % new_table_name)
+		
+	var db_path = _config_file.get_value(db_name, "path")
+	var old_table_path = db_path + old_table_name + ".gsql"
+	var new_table_path = db_path + new_table_name + ".gsql"
+	if not FileAccess.file_exists(old_table_path):
+		return mgr.create_accept_dialog("failed! file [%s] not exist!" % old_table_path)
+		
+	if FileAccess.file_exists(new_table_path):
+		return mgr.create_accept_dialog("failed! file [%s] already exist!" % new_table_path)
+		
+	var old_table_file = ImprovedConfigFile.new()
+	var err: Error
+	if password.is_empty():
+		err = old_table_file.load(old_table_path)
+	else:
+		err = old_table_file.load_encrypted_pass(old_table_path, password)
+		
+	if err != OK:
+		return mgr.create_accept_dialog("failed! load table [%s] failed! Err [%s]" % [old_table_path, err])
+	
+	# 检查是否有重复的字段
+	var exist_col = {}
+	for i in column_infos:
+		if exist_col.has(i["Column Name"]):
+			return mgr.create_accept_dialog("duplicate field [%s]" % i["Column Name"])
+		exist_col[i["Column Name"]] = true
+		
+	var old_values = old_table_file.get_all_section_values() # 数据表中的旧数据
+	var warnings = []
+	var primary_key = ""
+	# 数据为空就没必要检查字段了
+	if not old_values.is_empty():
+		var old_columns = _config_file.get_value(db_name, "tables", {}).get(old_table_name, [])
+		var old_columns_map = {} # 转成map
+		for i in old_columns:
+			old_columns_map[i["Column Name"]] = i
+			
+		for i in column_infos:
+			var col_name = i["Column Name"]
+			if old_columns_map.has(col_name):
+				# 检查字段类型发生变化
+				if old_columns_map[col_name]["Data Type"] != i["Data Type"]:
+					warnings.push_back("field [%s] data type changed from [%s] to [%s], datas will be converted!" % \
+						[col_name, DataTypeDef.DATA_TYPE_NAMES[old_columns_map[col_name]["Data Type"]], i["Data Type"]])
+					for j: Dictionary in old_values:
+						j[col_name] = convert(j[col_name], i["Data Type"])
+				# 检查自增
+				if not old_columns_map[col_name]["AI"] and i["AI"]:
+					if not [TYPE_INT, TYPE_FLOAT].has(i["Data Type"]):
+						return mgr.create_accept_dialog(
+							"field [%s] data type must be int or float to support auto increment!" % col_name)
+						
+					for j: Dictionary in old_values:
+						if not [TYPE_INT, TYPE_FLOAT].has(typeof(j[col_name])):
+							return mgr.create_accept_dialog(
+								"old datas' field [%s] are not int or float, cannot support auto increment!" % col_name)
+				# 检查主键
+				if i["PK"]:
+					# 只允许一个字段为主键
+					if old_columns.filter(func(v): return v["PK"]).size() != 1:
+						return mgr.create_accept_dialog("multiple primary key is not supported!")
+						
+					# 唯一
+					var exist = {}
+					for j: Dictionary in old_values:
+						if exist.has(j[col_name]):
+							return mgr.create_accept_dialog("old datas have duplicate value of primary key [%s]" % col_name)
+						exist[j[col_name]] = true
+						
+					primary_key = col_name
+					
+				# 检查唯一
+				if i["UQ"]:
+					var exist = {}
+					for j: Dictionary in old_values:
+						if exist.has(j[col_name]):
+							return mgr.create_accept_dialog("old datas have duplicate value of unique key [%s]" % col_name)
+						exist[j[col_name]] = true
+				# 检查非null
+				if i["NN"]:
+					for j: Dictionary in old_values:
+						if j[col_name] == null:
+							return mgr.create_accept_dialog("old datas have NULL value of not null key [%s]" % col_name)
+							
+	var apply = func():
+		if primary_key.is_empty():
+			return mgr.create_accept_dialog("primary key is not set!")
+			
+		var new_table_file = ImprovedConfigFile.new()
+		for i: Dictionary in old_values:
+			var primary_value = str(old_values[primary_key])
+			for c in column_infos:
+				var col_name = c["Column Name"]
+				var default_value = Evaluate.evaluate_command(null, c["Default(Expression)"])
+				new_table_file.set_value(primary_value, col_name, i.get(col_name, default_value))
+				
+		new_table_file.save(new_table_path) if password.is_empty() else new_table_file.save_encrypted_pass(new_table_path, password)
+		
+		var table_commnets = _config_file.get_value(db_name, "comments", {}) as Dictionary
+		table_commnets[new_table_name] = comments
+			
+		table_confs[new_table_name] = column_infos
+		_config_file.set_value(db_name, "tables", table_confs)
+		_config_file.set_value(db_name, "comments", table_commnets)
+		_config_file.save("res://addons/gdsql/config/config.cfg")
+		
+		
+		modify_table_to_config_success.emit(id)
+		
+		refresh()
+		# TODO 历史记录
+		
+	if warnings.is_empty():
+		apply.call()
+	else:
+		mgr.create_confirmation_dialog("\n".join(warnings), apply)
 
 func _ready():
 	load_config()
@@ -328,7 +419,8 @@ func add_table(db: TreeItem, file_name: String, tooltip: String = "") -> Diction
 			var tooltips = ["Auto Increment", "Not NULL", "Uniq", "Primary Key"]
 			for i in properties.size():
 				if col[properties[i]]:
-					col_item.add_button(0, load("res://addons/gdsql/img/word_%s.png" % (properties[i] as String).to_lower()), 2, true, tooltips[i])
+					col_item.add_button(0, load("res://addons/gdsql/img/word_%s.png" \
+					% (properties[i] as String).to_lower()), 2, true, tooltips[i])
 			
 	
 	var info = {
@@ -457,7 +549,8 @@ func _on_popup_menu_database_index_pressed(index: int) -> void:
 			var item := get_selected()
 			if item:
 				var dialog := ConfirmationDialog.new()
-				dialog.dialog_text = "Are you sure to drop this database `%s`? This will NOT delete the folder from your operation system." \
+				dialog.dialog_text = \
+				"Are you sure to drop this database `%s`? This will NOT delete the folder from your operation system." \
 					% get_selected().get_meta("db_name")
 				dialog.confirmed.connect(func():
 					var conf: ConfigFile = _config_file if _config_file.has_section(item.get_meta("db_name")) else _tmp_config
