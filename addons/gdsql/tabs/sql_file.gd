@@ -51,8 +51,7 @@ func _on_button_save_pressed() -> void:
 	editor_file_dialog.file_selected.connect(func(path: String):
 		var file = FileAccess.open(path, FileAccess.WRITE)
 		file.store_string(code_edit.text)
-		var sp = path.rsplit("/", true, 1)
-		var file_name = sp[sp.size()-1]
+		var file_name = path.get_file()
 		change_tab_title.emit(self, file_name)
 		set_meta("is_file", true)
 		set_meta("file_name", file_name)

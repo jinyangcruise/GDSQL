@@ -1,41 +1,31 @@
 @tool
 extends MarginContainer
 
+var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
+
 @onready var tree_databases: Tree = $VBoxContainer/HSplitContainer/VBoxContainer/TreeDatabases
 @onready var tab_container: TabContainer = $VBoxContainer/HSplitContainer/VSplitContainer/TabContainer
 @onready var log_table: VBoxContainer = $VBoxContainer/HSplitContainer/VSplitContainer/Control/VBoxContainer/LogTable
 
 
 func _ready() -> void:
-	tree_databases.new_schema.connect(tab_container.add_tab_new_schema) # 发出新建数据库的请求
-	tab_container.add_new_schema.connect(tree_databases.add_db_to_config) # 确认新增数据库的信息
-	tree_databases.add_db_to_config_success.connect(tab_container.close_content_window) # 确认新增数据库成功
+	mgr.add_log_history.connect(add_a_log)
 	
-	tree_databases.alter_schema.connect(tab_container.add_tab_alter_schema) # 发出修改数据库的请求
-	tab_container.alter_old_schema.connect(tree_databases.modify_db_to_config) # 确认修改数据库的信息
-	tree_databases.modify_db_to_config_success.connect(tab_container.close_content_window) # 确认修改数据库成功
-	
-	tree_databases.new_table.connect(tab_container.add_tab_new_table) # 发出新建数据表的请求
-	tab_container.add_new_table.connect(tree_databases.add_table_to_config) # 确认新增数据表
-	tree_databases.add_table_to_config_success.connect(tab_container.close_content_window) # 确认新增数据表成功
-	
-	tree_databases.alter_table.connect(tab_container.add_tab_alter_table) # 发出修改数据表的请求
-	tab_container.alter_old_table.connect(tree_databases.modify_table_to_config) # 确认修改数据表的信息
-	tree_databases.modify_table_to_config_success.connect(tab_container.close_content_window) # 确认修改数据表成功
-	
-	tree_databases.send_to_editor.connect(tab_container.receive_content) # 发出发送到编辑器内容的请求
-	tree_databases.send_to_editor_and_execute.connect(tab_container.receive_content_and_execute) # 发出发送到编辑器内容并执行的请求
-	
-	
-	#var dic_obj := DictionaryObject.new({
-		#"Status": true,
-		#"#": 1,
-		#"Time": "09:30:22",
-		#"Action": "UPDATE T_USER SET UNAME = 'PETER' WHERE ID = 1",
-		#"Message": "2 rows affected",
-		#"Duration": "0.0001 sec",
-	#})
-	#log_table.datas = [dic_obj]
+func _exit_tree():
+	mgr.add_log_history.disconnect(add_a_log)
 
 func _on_button_refresh_pressed() -> void:
 	tree_databases.refresh()
+	
+func add_a_log(status: String, begin_timestamp: float, action: String, message: String) -> void:
+	var datas: Array = log_table.datas
+	var new_log = [
+		status,
+		datas.size() + 1,
+		Time.get_datetime_string_from_unix_time(int(Time.get_unix_time_from_system() if is_zero_approx(begin_timestamp) else begin_timestamp), true),
+		action,
+		message,
+		"%.3f sec" % (Time.get_unix_time_from_system() - begin_timestamp)
+	]
+	datas.push_back(new_log)
+	log_table.datas = datas

@@ -1,6 +1,44 @@
 extends Node
 class_name GDSQLWorkbenchManagerClass
 
+## 打开新建数据库标签页的信号
+signal open_add_schema_tab
+## 用户确认新建数据库的信号
+signal user_confirm_add_schema(db_name: String, path: String, save: bool, id: String)
+## 系统确认新建数据库的信号
+signal sys_confirm_add_schema(id: String)
+
+## 打开修改数据库标签页的信号
+signal open_alter_schema_tab(db_name: String, path: String, save: bool)
+## 用户确认修改数据库的信号
+signal user_confirm_alter_schema(old_db_name: String, new_db_name: String, path: String, save: bool, id: String)
+## 系统确认修改数据库的信号
+signal sys_confirm_alter_schema(id: String)
+
+## 打开新建数据表标签页的信号
+signal open_add_table_tab(db_name: String)
+## 用户确认新建表的信号
+signal user_confirm_add_table(sechema: String, table_name: String, comments: String, 
+	password: String, columns: Array, id: String)
+## 系统确认新建数据表的信号
+signal sys_confirm_add_table(id: String)
+
+## 打开修改数据表标签页的信号
+signal open_alter_table_tab(db_name: String, table_name: String)
+## 用户确认修改数据表的信号
+signal user_confirm_alter_table(sechema: String, old_table_name: String, new_table_name: String, 
+	comments: String, password: String, columns: Array, id: String)
+## 系统确认修改数据表的信号
+signal sys_confirm_alter_table(id: String)
+
+## 发送到编辑器
+signal send_to_editor(content: String)
+## 发送到编辑器并执行的信号
+signal send_to_editor_and_execute(title: String, info: Dictionary)
+
+## 记录操作日志
+signal add_log_history(status: String, begin_timestamp: String, action: String, message: String)
+
 ## 数据库配置
 #databases = {
 	#"db1": {

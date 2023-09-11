@@ -2,7 +2,7 @@
 extends VBoxContainer
 
 ## id: 发出信号的是谁
-signal button_apply_pressed(db_name: String, path: String, save: bool, id: String)
+#signal button_apply_pressed(db_name: String, path: String, save: bool, id: String)
 
 var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
@@ -36,7 +36,7 @@ func _on_button_apply_pressed() -> void:
 		mgr.create_accept_dialog("name and path must be set!")
 		return
 		
-	button_apply_pressed.emit(db_name, path, check_box.button_pressed, name)
+	mgr.user_confirm_add_schema.emit(db_name, path, check_box.button_pressed, name)
 	#queue_free() 已改为让TabContainer接收到成功添加的信号后删除该页签
 
 func _on_button_cancel_pressed() -> void:

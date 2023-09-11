@@ -1,11 +1,6 @@
 @tool
 extends TabContainer
 
-signal add_new_schema(db_name: String, path: String, save: bool, id: String)
-signal alter_old_schema(old_db_name, new_db_name: String, path: String, save: bool, id: String)
-signal add_new_table(db_name: String, table_name: String, comments: String, password: String, id: String)
-signal alter_old_table(db_name: String, old_table_name: String, new_table_name, comments: String, password: String, column_infos: Array, id: String)
-
 var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
 var SQLGraph = preload("res://addons/gdsql/tabs/sql_graph.tscn")
@@ -17,9 +12,35 @@ var _tab_index = 1
 var _tab_activate_time: float = 0
 
 func _ready() -> void:
+	mgr.open_add_schema_tab.connect(add_tab_new_schema)
+	mgr.open_add_table_tab.connect(add_tab_new_table)
+	mgr.open_alter_schema_tab.connect(add_tab_alter_schema)
+	mgr.open_alter_table_tab.connect(add_tab_alter_table)
+	
+	mgr.sys_confirm_add_schema.connect(close_content_window)
+	mgr.sys_confirm_add_table.connect(close_content_window)
+	mgr.sys_confirm_alter_schema.connect(close_content_window)
+	mgr.sys_confirm_alter_table.connect(close_content_window)
+	
+	mgr.send_to_editor.connect(receive_content)
+	mgr.send_to_editor_and_execute.connect(receive_content_and_execute)
+	
 	_on_tab_clicked(0)
-
-
+	
+func _exit_tree():
+	mgr.open_add_schema_tab.disconnect(add_tab_new_schema)
+	mgr.open_add_table_tab.disconnect(add_tab_new_table)
+	mgr.open_alter_schema_tab.disconnect(add_tab_alter_schema)
+	mgr.open_alter_table_tab.disconnect(add_tab_alter_table)
+	
+	mgr.sys_confirm_add_schema.disconnect(close_content_window)
+	mgr.sys_confirm_add_table.disconnect(close_content_window)
+	mgr.sys_confirm_alter_schema.disconnect(close_content_window)
+	mgr.sys_confirm_alter_table.disconnect(close_content_window)
+	
+	mgr.send_to_editor.disconnect(receive_content)
+	mgr.send_to_editor_and_execute.disconnect(receive_content_and_execute)
+	
 func _on_tab_clicked(tab: int) -> void:
 	# 点击了“新建SQL页面”（加号），增加一个编辑页面，并激活
 	if get_child(tab) == new_tab_button:
@@ -49,9 +70,6 @@ func _on_tab_clicked(tab: int) -> void:
 		
 func add_tab_new_schema() -> void:
 	var new_schema = preload("res://addons/gdsql/tabs/new_schema.tscn").instantiate()
-	new_schema.button_apply_pressed.connect(func(db_name, path, save, id):
-		add_new_schema.emit(db_name, path, save, id)
-	)
 	add_child(new_schema)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
@@ -63,9 +81,6 @@ func add_tab_alter_schema(db_name, path, save) -> void:
 	alter_schema.db_name = db_name
 	alter_schema.path = path
 	alter_schema.save = save
-	alter_schema.button_apply_pressed.connect(func(a_old_db_name, a_new_db_name, a_path, a_save, id):
-		alter_old_schema.emit(a_old_db_name, a_new_db_name, a_path, a_save, id)
-	)
 	add_child(alter_schema)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
@@ -74,8 +89,6 @@ func add_tab_alter_schema(db_name, path, save) -> void:
 func add_tab_new_table(db_name) -> void:
 	var new_table = preload("res://addons/gdsql/tabs/new_table.tscn").instantiate()
 	new_table.schema = db_name
-	new_table.button_apply_pressed.connect(func(schema, table_name, comments, password, columns, id):
-		add_new_table.emit(schema, table_name, comments, password, columns, id))
 	add_child(new_table)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
@@ -88,8 +101,6 @@ func add_tab_alter_table(db_name, table_name) -> void:
 	alter_table.table_name = table_name
 	alter_table.comment = mgr.databases.get(db_name, {}).get("comments", {}).get(table_name, "")
 	alter_table.raw_datas = mgr.databases.get(db_name, {}).get("table_items", {}).get(table_name, {}).get("columns", [])
-	alter_table.button_apply_pressed.connect(func(schema, old_table_name, new_table_name, comments, password, columns, id):
-		alter_old_table.emit(schema, old_table_name, new_table_name, comments, password, columns, id))
 	add_child(alter_table)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
@@ -136,8 +147,7 @@ func receive_content(content: String, force_new: bool = false, file_path: String
 	#code_edit.text += content TODO
 	
 	if not file_path.is_empty():
-		var sp = file_path.rsplit("/", true, 1)
-		var file_name = sp[sp.size()-1]
+		var file_name = file_path.get_file()
 		var page = get_current_tab_control()
 		page.set_meta("is_file", true)
 		page.set_meta("file_name", file_name)

@@ -1,7 +1,7 @@
 @tool
 extends ScrollContainer
 
-signal button_apply_pressed(sechema: String, old_table_name: String, new_table_name: String, comments: String, password: String, columns: Array, id: String)
+#signal button_apply_pressed(sechema: String, old_table_name: String, new_table_name: String, comments: String, password: String, columns: Array, id: String)
 
 var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
@@ -134,7 +134,9 @@ func _on_button_apply_pressed() -> void:
 	var column_infos = []
 	for i in table.datas:
 		column_infos.push_back(i._data)
-	button_apply_pressed.emit(schema, old_table_name, curr_table_name, comments, _password, column_infos, name)
+		
+	mgr.user_confirm_alter_table.emit(schema, old_table_name, curr_table_name, comments, _password, column_infos, name)
+	#button_apply_pressed.emit(schema, old_table_name, curr_table_name, comments, _password, column_infos, name)
 
 var selected_row_index = -1
 func _on_table_row_clicked(row_index, mouse_button_index, _data):

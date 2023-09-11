@@ -40,7 +40,7 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 @export var ratios: Array[float] = []
 	
 ## 表格中的数据，datas中的元素可以是数组、字典或DictionayObject
-@export var datas: Array:
+@export var datas: Array = []:
 	set(val):
 		datas = val
 		if is_node_ready():
