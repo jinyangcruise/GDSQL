@@ -94,7 +94,7 @@ editable = true
 columns = ["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Default(Expression)", "Comment"]
 column_tips = Array[String](["字段名称", "数据类型", "检查器属性提示", "提示字符串", "是否为主键", "是否非空", "是否唯一", "是否自增", "默认值（支持表达式）", "备注"])
 ratios = Array[float]([4.0, 4.0, 3.0, 2.0, 20.0, 19.0, 18.0, 17.0, 1.0, 1.0])
-datas = [Object(RefCounted,"script":Resource("res://addons/gdsql/dictionay_object.gd"),"_origin":{},"_data":{
+datas = [Object(RefCounted,"script":Resource("res://addons/gdsql/dictionary_object.gd"),"_origin":{},"_data":{
 "AI": true,
 "Column Name": "idnew_table",
 "Comment": "",
@@ -186,4 +186,5 @@ item_8/id = 8
 [connection signal="pressed" from="VBoxContainer/ButtonNewColumn" to="." method="_on_button_new_column_pressed"]
 [connection signal="row_clicked" from="VBoxContainer/Table" to="." method="_on_table_row_clicked"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonApply" to="." method="_on_button_apply_pressed"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonCancel" to="." method="_on_button_cancel_pressed"]
 [connection signal="index_pressed" from="PopupMenu" to="." method="_on_popup_menu_index_pressed"]

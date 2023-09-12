@@ -11,7 +11,7 @@ var _custom_display_control: Dictionary
 var _read_only: bool
 
 ## data： 一个key-value形成的字典数据。或一个长度为2的数组，第一个元素是key的一维数组，第二个元素是value的一维数组
-## hint： 一个key-dictionay字典数据。key为data中的key，dictionary为包含"hint"和"hint_string"键的数据。@see PropertyHint 
+## hint： 一个key-dictionary字典数据。key为data中的key，dictionary为包含"hint"和"hint_string"键的数据。@see PropertyHint 
 ## 是否只读
 func _init(data, hint: Dictionary = {}, read_only: bool = false) -> void:
 	_hint = hint
@@ -112,7 +112,8 @@ func get_update_callback(property: String) -> Callable:
 ## property: 属性名称
 ## control: 自定义显示控件（注意！！！请避免同一个控件被多个DictionaryObject使用，可使用duplicate复制。除非您充分了解自己要干什么。）
 ## update_callback: 当属性的值发生改变时的回调函数。比如：用户可以利用该函数进行显示控件的更新。
-func set_custom_display_control(property: String, control: Control, update_callback: Callable = Callable(), update_immediately: bool = true) -> void:
+func set_custom_display_control(property: String, control: Control, update_callback: Callable = Callable(), 
+	update_immediately: bool = true) -> void:
 	_custom_display_control[property] = control
 	if update_callback.is_valid():
 		set_update_callback(property, update_callback)

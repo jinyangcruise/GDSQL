@@ -40,6 +40,7 @@ size_flags_horizontal = 3
 auto_translate = false
 localize_numeral_system = false
 focus_mode = 2
+mouse_filter = 1
 text_overrun_behavior = 3
 
 [node name="TextureRectModel" type="TextureRect" parent="Models"]

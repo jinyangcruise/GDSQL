@@ -1,7 +1,8 @@
 @tool
 extends ScrollContainer
 
-#signal button_apply_pressed(sechema: String, old_table_name: String, new_table_name: String, comments: String, password: String, columns: Array, id: String)
+#signal button_apply_pressed(sechema: String, old_table_name: String, new_table_name: String, 
+#comments: String, password: String, columns: Array, id: String)
 
 var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
@@ -49,7 +50,6 @@ var raw_datas: Array = []:
 					row._set(column, i.get(column, null))
 				datas.push_back(row)
 			table.datas = datas
-			printt("qeeeeeee", raw_datas, datas)
 			
 var datas: Array = [] # array of dictionary object
 
@@ -74,8 +74,8 @@ static var _hint_string = {
 
 
 static func _static_init() -> void:
-	# https://github.com/godotengine/godot/blob/da81ca62a5f6d615516929896caa0b6b09ceccfc/editor/editor_inspector.cpp#L4129
-	# https://github.com/godotengine/godot/blob/da81ca62a5f6d615516929896caa0b6b09ceccfc/modules/gdscript/gdscript_parser.cpp#L4020
+# https://github.com/godotengine/godot/blob/da81ca62a5f6d615516929896caa0b6b09ceccfc/editor/editor_inspector.cpp#L4129
+# https://github.com/godotengine/godot/blob/da81ca62a5f6d615516929896caa0b6b09ceccfc/modules/gdscript/gdscript_parser.cpp#L4020
 	_hint_string["Data Type"]["hint_string"] = ",".join(DataTypeDef.DATA_TYPE_NAME_INDEXES)
 	_hint_string["Hint"]["hint_string"] = ",".join(DataTypeDef.PROPERTY_HINT_INDEXES)
 
@@ -116,8 +116,10 @@ func _gen_row() -> DictionaryObject:
 		table.columns, 
 		["new_table_col", TYPE_INT, PROPERTY_HINT_NONE, "", false, false, false, false, "", ""]
 	], _hint_string)
-	row.set_custom_display_control("Data Type", label_data_type, update_callback.bind("Data Type", weakref(row), DataTypeDef.DATA_TYPE_NAMES), true)
-	row.set_custom_display_control("Hint", label_hint, update_callback.bind("Hint", weakref(row), DataTypeDef.PROPERTY_HINT_NAMES), true)
+	row.set_custom_display_control("Data Type", label_data_type, update_callback.bind("Data Type", 
+		weakref(row), DataTypeDef.DATA_TYPE_NAMES), true)
+	row.set_custom_display_control("Hint", label_hint, update_callback.bind("Hint", 
+		weakref(row), DataTypeDef.PROPERTY_HINT_NAMES), true)
 	return row
 
 
@@ -147,40 +149,44 @@ func _on_table_row_clicked(row_index, mouse_button_index, _data):
 
 
 func _on_popup_menu_index_pressed(index):
-	var datas: Array = table.datas
+	var _datas: Array = table.datas
 	match popup_menu.get_item_text(index):
 		"remove":
-			datas.remove_at(selected_row_index)
-			table.datas = datas
+			_datas.remove_at(selected_row_index)
+			table.datas = _datas
 		"move top":
 			if selected_row_index > 0:
 				var data = datas[selected_row_index]
-				datas.remove_at(selected_row_index)
-				datas.push_front(data)
-				table.datas = datas
+				_datas.remove_at(selected_row_index)
+				_datas.push_front(data)
+				table.datas = _datas
 		"move up":
 			if selected_row_index > 0:
 				var data = datas[selected_row_index]
-				datas.remove_at(selected_row_index)
-				datas.insert(selected_row_index - 1, data)
-				table.datas = datas
+				_datas.remove_at(selected_row_index)
+				_datas.insert(selected_row_index - 1, data)
+				table.datas = _datas
 		"move down":
 			if selected_row_index < datas.size() - 1:
 				var data = datas[selected_row_index]
-				datas.remove_at(selected_row_index)
-				datas.insert(selected_row_index + 1, data)
-				table.datas = datas
+				_datas.remove_at(selected_row_index)
+				_datas.insert(selected_row_index + 1, data)
+				table.datas = _datas
 		"move bottom":
 			if selected_row_index < datas.size() - 1:
 				var data = datas[selected_row_index]
-				datas.remove_at(selected_row_index)
-				datas.push_back(data)
-				table.datas = datas
+				_datas.remove_at(selected_row_index)
+				_datas.push_back(data)
+				table.datas = _datas
 		"insert above":
 			var row = _gen_row()
-			datas.insert(selected_row_index, row)
-			table.datas = datas
+			_datas.insert(selected_row_index, row)
+			table.datas = _datas
 		"insert below":
 			var row = _gen_row()
-			datas.insert(selected_row_index + 1, row)
-			table.datas = datas
+			_datas.insert(selected_row_index + 1, row)
+			table.datas = _datas
+
+
+func _on_button_cancel_pressed():
+	queue_free()

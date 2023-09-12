@@ -39,7 +39,7 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 ## 例如，第一个元素是20，表示第一列的宽度是后面宽度之和的1/20
 @export var ratios: Array[float] = []
 	
-## 表格中的数据，datas中的元素可以是数组、字典或DictionayObject
+## 表格中的数据，datas中的元素可以是数组、字典或DictionaryObject
 @export var datas: Array = []:
 	set(val):
 		datas = val
@@ -156,7 +156,7 @@ func add_row(a_data):
 				
 	var a_row = row_panel_container.duplicate()
 	v_box_container.add_child(a_row)
-	a_row.gui_input.connect(_on_row_gui_input.bind(a_data))
+	a_row.gui_input.connect(_on_row_gui_input.bind(a_row, a_data))
 	a_row.focus_entered.connect(_on_row_panel_container_focus_entered.bind(a_row))
 	a_row.focus_exited.connect(_on_row_panel_container_focus_exited.bind(a_row))
 	var style_box: StyleBoxFlat = a_row.get_theme_stylebox("panel").duplicate()
@@ -189,6 +189,7 @@ func add_row(a_data):
 					handled = true
 					control = label_model.duplicate()
 					control.text = data[i]
+					control.tooltip_text = data[i]
 					if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
@@ -296,7 +297,7 @@ func _on_resized():
 	#)
 
 
-func _on_row_gui_input(event: InputEvent, source_data) -> void:
+func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 	var emit_click = func():
 		if event is InputEventMouseButton:
 			row_clicked.emit(datas.find(source_data), event.button_index, source_data)
@@ -313,6 +314,7 @@ func _on_row_gui_input(event: InputEvent, source_data) -> void:
 		#return
 		
 	if source_data is Object and editable:
+		row_panel.grab_focus()
 		EditorInterface.inspect_object(source_data)
 		
 	emit_click.call()

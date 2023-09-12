@@ -18,7 +18,7 @@ var control: Control:
 				else:
 					control.reparent(container)
 				control.position = Vector2.ZERO
-				custom_minimum_size = control.size
+				#custom_minimum_size = control.size 会导致显示问题
 
 @onready var container: Control = $Container
 

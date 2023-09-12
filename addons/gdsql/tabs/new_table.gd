@@ -186,3 +186,7 @@ func _on_popup_menu_index_pressed(index):
 			var row = _gen_row()
 			_datas.insert(selected_row_index + 1, row)
 			table.datas = _datas
+
+
+func _on_button_cancel_pressed():
+	queue_free()

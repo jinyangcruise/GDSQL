@@ -121,7 +121,8 @@ func _on_button_add_node_select_pressed() -> void:
 	
 	var graph_node = gen_select_node()
 	graph_edit.add_child(graph_node)
-	graph_node.position_offset = (graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+	graph_node.position_offset = \
+		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 	
 func _on_button_add_node_left_join_pressed():
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
@@ -129,7 +130,8 @@ func _on_button_add_node_left_join_pressed():
 	
 	var graph_node = gen_left_join_node()
 	graph_edit.add_child(graph_node)
-	graph_node.position_offset = (graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+	graph_node.position_offset = \
+		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 	
 func add_select_node(schema = "", table = "", fields = "", where = "", order_by = "", offset = 0, limit = 100):
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
@@ -142,7 +144,8 @@ func add_select_node(schema = "", table = "", fields = "", where = "", order_by 
 	if not graph_edit.get_rect().has_area():
 		await graph_edit.resized
 		
-	graph_node.position_offset = (graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+	graph_node.position_offset = \
+		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 	
 	var schema_dict_obj: DictionaryObject = graph_node.datas[2][2]
 	var table_dict_obj: DictionaryObject = graph_node.datas[3][2]
@@ -172,8 +175,14 @@ func add_select_node(schema = "", table = "", fields = "", where = "", order_by 
 func gen_select_node() -> GraphNode:
 	var databases = mgr.databases.keys()
 	
-	var schema_dict_obj = DictionaryObject.new({"Schema": "", "_password": ""}, {"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, "_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
-	var table_dict_obj = DictionaryObject.new({"Table": "", "_alias": ""}, {"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}, "_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
+	var schema_dict_obj = DictionaryObject.new(
+		{"Schema": "", "_password": ""}, 
+		{"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
+		"_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
+	var table_dict_obj = DictionaryObject.new(
+		{"Table": "", "_alias": ""}, 
+		{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}, 
+		"_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
 	var fields_dict_obj = DictionaryObject.new({"Fields": ""}, {"Fields": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
 	var where_dict_obj = DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
 	var order_dict_obj = DictionaryObject.new({"Order By": ""}, {"Order By": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
@@ -193,10 +202,13 @@ func gen_select_node() -> GraphNode:
 			"Schema":
 				base_dao.use_db(mgr.databases[new_val]["path"])
 				var tables = mgr.databases[new_val]["table_items"].keys()
-				table_dict_obj.reset_hint({"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, "_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
+				table_dict_obj.reset_hint(
+					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, 
+					"_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
 				graph_node.redraw_slot_control(3, 2) # table是第4行第3个控件。
 			"_password":
 				base_dao.set_password(new_val)
+		
 		graph_node.redraw_slot_control(2, 2) # 如果不是通过点击的控件修改的dict obj，就需要重绘一下。这里偷个懒，直接重绘。
 	)
 	table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
@@ -285,8 +297,14 @@ func gen_select_node() -> GraphNode:
 func gen_left_join_node() -> GraphNode:
 	var databases = mgr.databases.keys()
 	
-	var schema_dict_obj = DictionaryObject.new({"Schema": "", "_password": ""}, {"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, "_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
-	var table_dict_obj = DictionaryObject.new({"Table": "", "_alias": ""}, {"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}, "_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
+	var schema_dict_obj = DictionaryObject.new(
+		{"Schema": "", "_password": ""}, 
+		{"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
+		"_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
+	var table_dict_obj = DictionaryObject.new(
+		{"Table": "", "_alias": ""}, 
+		{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}, 
+		"_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
 	var cond_dict_obj = DictionaryObject.new({"On": ""}, {"On": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
 	
 	# 与该节点关联的LeftJoin对象
@@ -301,7 +319,9 @@ func gen_left_join_node() -> GraphNode:
 			"Schema":
 				left_join_obj.set_db(mgr.databases[new_val]["path"])
 				var tables = mgr.databases[new_val]["table_items"].keys()
-				table_dict_obj.reset_hint({"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, "_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
+				table_dict_obj.reset_hint(
+					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, 
+					"_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
 				graph_node.redraw_slot_control(2, 2) # table是第3行第3个控件。
 			"_password":
 				left_join_obj.set_password(new_val)

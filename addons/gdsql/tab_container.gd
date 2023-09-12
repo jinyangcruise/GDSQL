@@ -99,8 +99,9 @@ func add_tab_alter_table(db_name, table_name) -> void:
 	alter_table.schema = db_name
 	alter_table.old_table_name = table_name
 	alter_table.table_name = table_name
-	alter_table.comment = mgr.databases.get(db_name, {}).get("comments", {}).get(table_name, "")
-	alter_table.raw_datas = mgr.databases.get(db_name, {}).get("table_items", {}).get(table_name, {}).get("columns", [])
+	var defination = mgr.databases.get(db_name, {}).get("table_items", {}).get(table_name, {}) as Dictionary
+	alter_table.comment = defination.get("comment", "")
+	alter_table.raw_datas = defination.get("columns", [])
 	add_child(alter_table)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2

@@ -125,11 +125,18 @@ func redraw():
 			add_child(hb)
 		check_button_enable.move_to_front()
 		
-## 强制刷新某个栏位的控件
+## 强制刷新某个栏位的控件。只有该栏位是一个DictionaryObject时才刷新
 func redraw_slot_control(slot_row_index, slot_col_index):
 	var data = datas[slot_row_index][slot_col_index]
 	if data is DictionaryObject:
+		# 记录焦点控件，用于恢复（如果不恢复，正在修改被刷新控件的内容，则会造成用户无法连续输入
+		var focus_owner = get_viewport().gui_get_focus_owner()
 		var hb = get_child(slot_row_index)
+		
+		# 等失去焦点的时候再重绘，免得影响连续输入
+		if focus_owner != null and hb.is_ancestor_of(focus_owner):
+			await focus_owner.focus_exited
+		
 		# 释放旧的
 		for child in hb.get_children():
 			var old_editor_property
@@ -138,7 +145,6 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 			else:
 				old_editor_property = child.control # child is a cut_control
 				child.control = null
-				
 			disconnect_focused_propagate(old_editor_property)
 			if __property_old_parents[old_editor_property].get_ref():
 				if old_editor_property.get_parent():
@@ -219,3 +225,4 @@ func _exit_tree() -> void:
 
 func _on_resize_request(new_minsize):
 	size = new_minsize
+	

@@ -4,7 +4,7 @@ extends EditorPlugin
 const MainPanel = preload("res://addons/gdsql/index.tscn")
 
 var main_panel_instance
-var dictionay_object_inspector_plugin
+var dictionary_object_inspector_plugin
 
 func _enter_tree():
 	# 注册配置单例，让非插件范围的代码能使用ConfManager
@@ -20,13 +20,13 @@ func _enter_tree():
 	
 	# 特别需求，让检查器能够查看DictionaryObject
 	# EditorInspectorPlugin is a resource, so we use `new()` instead of `instance()`.
-	dictionay_object_inspector_plugin = preload("res://addons/gdsql/dictionary_object_inspector_plugin.gd").new()
-	add_inspector_plugin(dictionay_object_inspector_plugin)
+	dictionary_object_inspector_plugin = preload("res://addons/gdsql/dictionary_object_inspector_plugin.gd").new()
+	add_inspector_plugin(dictionary_object_inspector_plugin)
 	
 	# 进入界面
 	main_panel_instance = MainPanel.instantiate()
 	# Add the main panel to the editor's main viewport.
-	get_editor_interface().get_editor_main_screen().add_child(main_panel_instance)
+	EditorInterface.get_editor_main_screen().add_child(main_panel_instance)
 	# Hide the main panel. Very much required.
 	_make_visible(false)
 	
@@ -35,8 +35,8 @@ func _enter_tree():
 func _exit_tree():
 	if main_panel_instance:
 		main_panel_instance.queue_free()
-	if dictionay_object_inspector_plugin:
-		remove_inspector_plugin(dictionay_object_inspector_plugin)
+	if dictionary_object_inspector_plugin:
+		remove_inspector_plugin(dictionary_object_inspector_plugin)
 	if Engine.has_singleton("ConfManager"):
 		Engine.unregister_singleton("ConfManager")
 	if Engine.has_singleton("GDSQLWorkbenchManager"):

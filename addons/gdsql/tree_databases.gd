@@ -56,6 +56,7 @@ func refresh_databases():
 				"name": conf.get_value(db_name, "name"),
 				"path": conf.get_value(db_name, "path"),
 				"table_items": {},
+				"comments": {},
 				"persistent": conf == _config_file, # 是否是持久化的
 			}
 		
@@ -89,7 +90,7 @@ func add_table_to_config(db_name: String, table_name: String, comment: String, p
 	action += "CREATE TABLE `%s`.`%s` (" % [db_name, table_name]
 	var primarys = [] # 不代表支持多主键，只是为了反映用户本身的输入
 	for i in column_infos:
-		action += "\n\t`%s` %s%s%s%s%s%s," % [ 
+		action += "\n    `%s` %s%s%s%s%s%s," % [ 
 			i["Column Name"],
 			DataTypeDef.DATA_TYPE_NAMES[i["Data Type"]],
 			" NOT NULL" if i["NN"] else "",
@@ -100,7 +101,7 @@ func add_table_to_config(db_name: String, table_name: String, comment: String, p
 		]
 		if i["PK"]:
 			primarys.push_back("`%s`" % i["Column Name"])
-	action += "\n\tPRIMARY KEY (%s)\n);" % ",".join(primarys)
+	action += "\n    PRIMARY KEY (%s)\n);" % ",".join(primarys)
 	
 	if !_config_file.has_section(db_name):
 		var msg = "failed! database not exists!" % db_name
@@ -145,7 +146,7 @@ func add_table_to_config(db_name: String, table_name: String, comment: String, p
 	refresh()
 	mgr.add_log_history.emit("OK", begin_time, action, "1 row affected")
 	
-func modify_db_to_config(old_db_name: String, new_db_name: String, path: String, save: bool, id: String):
+func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String, save: bool, id: String):
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "ALTER DATABASE `%s` RENAME `%s`;" % [old_db_name, new_db_name]
 	
@@ -189,7 +190,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 	action += "ALTER TABLE `%s`.`%s` to `%s`.`%s` (" % [db_name, old_table_name, db_name, new_table_name]
 	var primarys = [] # 不代表支持多主键，只是为了反映用户本身的输入
 	for i in column_infos:
-		action += "\n\t`%s` %s%s%s%s%s%s," % [ 
+		action += "\n    `%s` %s%s%s%s%s%s," % [ 
 			i["Column Name"],
 			DataTypeDef.DATA_TYPE_NAMES[i["Data Type"]],
 			" NOT NULL" if i["NN"] else "",
@@ -200,7 +201,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		]
 		if i["PK"]:
 			primarys.push_back("`%s`" % i["Column Name"])
-	action += "\n\tPRIMARY KEY (%s)\n);" % ",".join(primarys)
+	action += "\n    PRIMARY KEY (%s)\n);" % ",".join(primarys)
 	
 	if !_config_file.has_section(db_name):
 		var msg = "failed! database not exists!" % db_name
@@ -213,8 +214,10 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		mgr.add_log_history.emit("Err", begin_time, action, msg)
 		return mgr.create_accept_dialog(msg)
 		
-	if table_confs.has(new_table_name):
-		return mgr.create_accept_dialog("failed! table [%s] defination already exist!" % new_table_name)
+	if new_table_name != old_table_name and table_confs.has(new_table_name):
+		var msg = "failed! table [%s] defination already exist!" % new_table_name
+		mgr.add_log_history.emit("Err", begin_time, action, msg)
+		return mgr.create_accept_dialog(msg)
 		
 	var db_path = _config_file.get_value(db_name, "path")
 	var old_table_path = db_path + old_table_name + ".gsql"
@@ -224,7 +227,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		mgr.add_log_history.emit("Err", begin_time, action, msg)
 		return mgr.create_accept_dialog(msg)
 		
-	if FileAccess.file_exists(new_table_path):
+	if new_table_path != old_table_path and FileAccess.file_exists(new_table_path):
 		var msg = "failed! file [%s] already exist!" % new_table_path
 		mgr.add_log_history.emit("Err", begin_time, action, msg)
 		return mgr.create_accept_dialog(msg)
@@ -328,10 +331,12 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 			
 		var new_table_file = ImprovedConfigFile.new()
 		for i: Dictionary in old_values:
-			var primary_value = str(old_values[primary_key])
+			var primary_value = str(i[primary_key])
 			for c in column_infos:
 				var col_name = c["Column Name"]
-				var default_value = Evaluate.evaluate_command(null, c["Default(Expression)"])
+				var default_value = null
+				if not (c["Default(Expression)"] as String).strip_edges().is_empty():
+					default_value = Evaluate.evaluate_command(null, c["Default(Expression)"])
 				new_table_file.set_value(primary_value, col_name, i.get(col_name, default_value))
 				
 		new_table_file.save(new_table_path) if password.is_empty() else new_table_file.save_encrypted_pass(new_table_path, password)

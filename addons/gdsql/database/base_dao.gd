@@ -467,7 +467,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 	var gen_dict = func(s, c, f, d = "", t = ""):
 		return {"select_name": s, "Column Name": c, "is_field": f, "db_path": d, "table_name": t, "Hint": "", "Hint String": ""}
 	var fill_select_name = func(element, alias):
-		element["select_name"] = alias + "." + element["Column Name"]
+		element["select_name"] = element["Column Name"] if alias.is_empty() else (alias + "." + element["Column Name"])
 		return element
 	for s in __select:
 		if s == "*":
@@ -482,7 +482,9 @@ func ___select(path: String, fill_primary_key: String = ""):
 			if alias == __table_alias:
 				real_select.append_array(__get_table_columns(__database, __table, __table_alias, all_datas).map(fill_select_name.bind(alias)))
 			else:
+				assert(__left_join != null, "table `%s` not found" % alias)
 				var a_left_join = __left_join.get_left_join_by_alias(alias)
+				assert(a_left_join != null, "table `%s` not found" % alias)
 				real_select.append_array(__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas).map(fill_select_name.bind(alias)))
 		else:
 			var m = regex_symbol.search(s)
@@ -697,6 +699,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 			# 所以考虑返回数据的第一行是一个表头（用户可以传参数要不要这个表头）。（这个考虑的结果最终决定了在上面的代码中增加了表头处理）
 			var row = []
 			# 按字段顺序挨个处理
+			printt("bbbbbb", real_select)
 			for field in real_select:
 				# 如果field不是一个字段，比如是一个单纯的数字、字符串，在union的时候，会有问题，后续表会用首表的字段
 				# 考虑union的时候，开启__need_post_porcess，并把最终结果放到某个特定的字段下，且仍旧返回按表分类的数据结构
