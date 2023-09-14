@@ -34,8 +34,8 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 ## 表头tooltip
 @export var column_tips: Array[String] = []
 
-## 每列的初始宽度比例
-## 第N个元素是X，表示第N列的宽度是后面宽度之和的1/X
+## 每列的初始宽度比例。
+## 第N个元素是X，表示第N列的宽度是后面宽度之和的1/X。
 ## 例如，第一个元素是20，表示第一列的宽度是后面宽度之和的1/20
 @export var ratios: Array[float] = []
 	

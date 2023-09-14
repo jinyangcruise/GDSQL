@@ -102,23 +102,29 @@ item_3/icon = ExtResource("7_udc60")
 item_3/id = 3
 
 [node name="PopupMenuCreateTableLike" type="PopupMenu" parent="PopupMenuTables"]
-item_count = 7
-item_0/text = "SCHEMA：GameConfig"
-item_0/id = -1
+item_count = 10
+item_0/text = "SCHEMA：UserData"
+item_0/id = 0
 item_0/separator = true
-item_1/text = "skills"
+item_1/text = "t_test_password"
 item_1/id = 1
-item_2/text = "SCHEMA：UserData"
-item_2/id = -1
-item_2/separator = true
+item_2/text = "t_test_password_2"
+item_2/id = 1
 item_3/text = "t_user_1"
-item_3/id = 3
+item_3/id = 1
 item_4/text = "t_user_3"
-item_4/id = 4
+item_4/id = 1
 item_5/text = "t_user_4"
-item_5/id = 5
+item_5/id = 1
 item_6/text = "t_user_5"
-item_6/id = 6
+item_6/id = 1
+item_7/text = "t_user_6"
+item_7/id = 1
+item_8/text = "SCHEMA：GameConfig"
+item_8/id = 1
+item_8/separator = true
+item_9/text = "skills"
+item_9/id = 2
 
 [node name="PopupMenuVeiws" type="PopupMenu" parent="."]
 item_count = 3
@@ -255,15 +261,14 @@ item_6/text = "Create Statement"
 item_6/id = 6
 
 [node name="PopupMenuCreateTableLike" type="PopupMenu" parent="PopupMenuTableItem"]
-item_count = 7
-item_0/text = "SCHEMA：GameConfig"
-item_0/id = -1
+item_count = 10
+item_0/text = "SCHEMA：UserData"
+item_0/id = 0
 item_0/separator = true
-item_1/text = "skills"
+item_1/text = "t_test_password"
 item_1/id = 1
-item_2/text = "SCHEMA：UserData"
-item_2/id = -1
-item_2/separator = true
+item_2/text = "t_test_password_2"
+item_2/id = 2
 item_3/text = "t_user_1"
 item_3/id = 3
 item_4/text = "t_user_3"
@@ -272,6 +277,13 @@ item_5/text = "t_user_4"
 item_5/id = 5
 item_6/text = "t_user_5"
 item_6/id = 6
+item_7/text = "t_user_6"
+item_7/id = 7
+item_8/text = "SCHEMA：GameConfig"
+item_8/id = 1
+item_8/separator = true
+item_9/text = "skills"
+item_9/id = 9
 
 [node name="PopupMenuEmpty" type="PopupMenu" parent="."]
 item_count = 3

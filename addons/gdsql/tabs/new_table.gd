@@ -10,6 +10,7 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 @onready var line_edit_table_name: LineEdit = $VBoxContainer/HBoxContainer2/LineEditTableName
 @onready var text_edit_comment: TextEdit = $VBoxContainer/HBoxContainer3/TextEditComment
 @onready var line_edit_password = $VBoxContainer/HBoxContainer4/LineEditPassword
+@onready var line_edit_password_again = $VBoxContainer/HBoxContainer5/LineEditPasswordAgain
 @onready var popup_menu = $PopupMenu
 
 var schema: String:
@@ -36,6 +37,12 @@ var password: String:
 		password = val
 		if line_edit_password and is_inside_tree():
 			line_edit_password.text = val
+			
+var password_again: String:
+	set(val):
+		password_again = val
+		if line_edit_password_again and is_inside_tree():
+			line_edit_password_again.text = val
 			
 var datas: Array = []
 
@@ -82,6 +89,8 @@ func _ready() -> void:
 		comment = comment
 	if password != "":
 		password = password
+	if password_again != "":
+		password_again = password_again
 		
 	var label_data_type := Label.new()
 	label_data_type.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -127,11 +136,12 @@ func _on_button_apply_pressed() -> void:
 	var curr_schema = line_edit_schema.text.strip_edges()
 	var curr_table_name = line_edit_table_name.text.strip_edges()
 	if curr_schema.is_empty() or curr_table_name.is_empty():
-		mgr.create_accept_dialog("schema and table name must be set!")
-		return
+		return mgr.create_accept_dialog("schema and table name must be set!")
 		
 	var comments = text_edit_comment.text
 	var _password = line_edit_password.text
+	if _password != line_edit_password_again.text:
+		return mgr.create_accept_dialog("must input the same password again!")
 		
 	var column_infos = []
 	for i in table.datas:

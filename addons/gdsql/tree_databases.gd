@@ -60,7 +60,7 @@ func refresh_databases():
 				"persistent": conf == _config_file, # 是否是持久化的
 			}
 		
-func add_db_to_config(db_name: String, path: String, save: bool, id: String):
+func add_db_to_config(db_name: String, path: String, save: bool, id: String) -> void:
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "CREATE DATABASE %s PATH %s;" % [db_name, path]
 	
@@ -84,10 +84,10 @@ func add_db_to_config(db_name: String, path: String, save: bool, id: String):
 	
 	mgr.add_log_history.emit("OK", begin_time, action, "1 row affected")
 	
-func add_table_to_config(db_name: String, table_name: String, comment: String, password: String, column_infos: Array, id: String):
+func add_table_to_config(db_name: String, table_name: String, comment: String, 
+	password: String, column_infos: Array, id: String) -> void:
 	var begin_time = Time.get_unix_time_from_system()
-	var action = "" if comment.is_empty() else "-- %s\n" % comment
-	action += "CREATE TABLE `%s`.`%s` (" % [db_name, table_name]
+	var action = "CREATE TABLE `%s`.`%s` (" % [db_name, table_name]
 	var primarys = [] # 不代表支持多主键，只是为了反映用户本身的输入
 	for i in column_infos:
 		action += "\n    `%s` %s%s%s%s%s%s," % [ 
@@ -95,13 +95,14 @@ func add_table_to_config(db_name: String, table_name: String, comment: String, p
 			DataTypeDef.DATA_TYPE_NAMES[i["Data Type"]],
 			" NOT NULL" if i["NN"] else "",
 			" AUTO_INCREMENT" if i["AI"] else "",
-			" NOT NULL" if i["NN"] else "",
+			" UNIQUE" if i["UQ"] else "",
 			(" DEFAULT %s" % i["Default(Expression)"]) if i["Default(Expression)"] != "" else "",
 			" COMMENT '%s'" % (i["Comment"] as String).c_escape() if i["Comment"] != "" else ""
 		]
 		if i["PK"]:
 			primarys.push_back("`%s`" % i["Column Name"])
-	action += "\n    PRIMARY KEY (%s)\n);" % ",".join(primarys)
+	action += "\n    PRIMARY KEY (%s)\n)" % ",".join(primarys)
+	action += ";" if comment.is_empty() else " COMMENT '%s';" % comment.c_escape()
 	
 	if !_config_file.has_section(db_name):
 		var msg = "failed! database not exists!" % db_name
@@ -132,10 +133,16 @@ func add_table_to_config(db_name: String, table_name: String, comment: String, p
 		
 	var table_commnets = _config_file.get_value(db_name, "comments", {}) as Dictionary
 	table_commnets[table_name] = comment
-		
+	
 	table_confs[table_name] = column_infos
 	_config_file.set_value(db_name, "tables", table_confs)
 	_config_file.set_value(db_name, "comments", table_commnets)
+	
+	if not password.is_empty():
+		var encrypted = _config_file.get_value(db_name, "encrypted", {}) as Dictionary
+		encrypted[table_name] = true
+		_config_file.set_value(db_name, "encrypted", encrypted)
+		
 	_config_file.save("res://addons/gdsql/config/config.cfg")
 	
 	var table_gsql = ConfigFile.new()
@@ -146,7 +153,7 @@ func add_table_to_config(db_name: String, table_name: String, comment: String, p
 	refresh()
 	mgr.add_log_history.emit("OK", begin_time, action, "1 row affected")
 	
-func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String, save: bool, id: String):
+func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String, save: bool, id: String) -> void:
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "ALTER DATABASE `%s` RENAME `%s`;" % [old_db_name, new_db_name]
 	
@@ -183,11 +190,10 @@ func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String
 	mgr.add_log_history.emit("OK", begin_time, action, "1 row affected")
 	
 func modify_table_to_config(db_name: String, old_table_name: String, new_table_name, \
-		comments: String, password: String, column_infos: Array, id: String):
+		comments: String, old_password, new_password: String, column_infos: Array, id: String) -> void:
 	
 	var begin_time = Time.get_unix_time_from_system()
-	var action = "" if comments.is_empty() else "-- %s\n" % comments
-	action += "ALTER TABLE `%s`.`%s` to `%s`.`%s` (" % [db_name, old_table_name, db_name, new_table_name]
+	var action = "ALTER TABLE `%s`.`%s` to `%s`.`%s` (" % [db_name, old_table_name, db_name, new_table_name]
 	var primarys = [] # 不代表支持多主键，只是为了反映用户本身的输入
 	for i in column_infos:
 		action += "\n    `%s` %s%s%s%s%s%s," % [ 
@@ -195,13 +201,14 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 			DataTypeDef.DATA_TYPE_NAMES[i["Data Type"]],
 			" NOT NULL" if i["NN"] else "",
 			" AUTO_INCREMENT" if i["AI"] else "",
-			" NOT NULL" if i["NN"] else "",
+			" UNIQUE" if i["UQ"] else "",
 			(" DEFAULT %s" % i["Default(Expression)"]) if i["Default(Expression)"] != "" else "",
 			" COMMENT '%s'" % (i["Comment"] as String).c_escape() if i["Comment"] != "" else ""
 		]
 		if i["PK"]:
 			primarys.push_back("`%s`" % i["Column Name"])
-	action += "\n    PRIMARY KEY (%s)\n);" % ",".join(primarys)
+	action += "\n    PRIMARY KEY (%s)\n)" % ",".join(primarys)
+	action += ";" if comments.is_empty() else " COMMENT '%s';" % comments.c_escape()
 	
 	if !_config_file.has_section(db_name):
 		var msg = "failed! database not exists!" % db_name
@@ -234,10 +241,10 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		
 	var old_table_file = ImprovedConfigFile.new()
 	var err: Error
-	if password.is_empty():
+	if old_password.is_empty():
 		err = old_table_file.load(old_table_path)
 	else:
-		err = old_table_file.load_encrypted_pass(old_table_path, password)
+		err = old_table_file.load_encrypted_pass(old_table_path, old_password)
 		
 	if err != OK:
 		var msg = "failed! load table [%s] failed! Err [%s]" % [old_table_path, err]
@@ -323,7 +330,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 							mgr.add_log_history.emit("Err", begin_time, action, msg)
 							return mgr.create_accept_dialog(msg)
 							
-	var apply = func():
+	var apply = func() -> void:
 		if primary_key.is_empty():
 			var msg = "primary key is not set!"
 			mgr.add_log_history.emit("Err", begin_time, action, msg)
@@ -339,14 +346,22 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 					default_value = Evaluate.evaluate_command(null, c["Default(Expression)"])
 				new_table_file.set_value(primary_value, col_name, i.get(col_name, default_value))
 				
-		new_table_file.save(new_table_path) if password.is_empty() else new_table_file.save_encrypted_pass(new_table_path, password)
+		new_table_file.save(new_table_path) if new_password.is_empty() \
+			else new_table_file.save_encrypted_pass(new_table_path, new_password)
 		
 		var table_commnets = _config_file.get_value(db_name, "comments", {}) as Dictionary
+		table_commnets.erase(old_table_name)
 		table_commnets[new_table_name] = comments
-			
+		
+		var encrypted = _config_file.get_value(db_name, "encrypted", {}) as Dictionary
+		encrypted.erase(old_table_name)
+		if not new_password.is_empty():
+			encrypted[new_table_name] = true
+		
 		table_confs[new_table_name] = column_infos
 		_config_file.set_value(db_name, "tables", table_confs)
 		_config_file.set_value(db_name, "comments", table_commnets)
+		_config_file.set_value(db_name, "encrypted", encrypted)
 		_config_file.save("res://addons/gdsql/config/config.cfg")
 		
 		mgr.sys_confirm_alter_table.emit(id)
@@ -360,10 +375,14 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		mgr.create_confirmation_dialog("\n".join(warnings), apply)
 
 func _ready():
-	mgr.user_confirm_add_schema.connect(add_db_to_config)
-	mgr.user_confirm_add_table.connect(add_table_to_config)
-	mgr.user_confirm_alter_schema.connect(modify_db_to_config)
-	mgr.user_confirm_alter_table.connect(modify_table_to_config)
+	if not mgr.user_confirm_add_schema.is_connected(add_db_to_config):
+		mgr.user_confirm_add_schema.connect(add_db_to_config)
+	if not mgr.user_confirm_add_table.is_connected(add_table_to_config):
+		mgr.user_confirm_add_table.connect(add_table_to_config)
+	if not mgr.user_confirm_alter_schema.is_connected(modify_db_to_config):
+		mgr.user_confirm_alter_schema.connect(modify_db_to_config)
+	if not mgr.user_confirm_alter_table.is_connected(modify_table_to_config):
+		mgr.user_confirm_alter_table.connect(modify_table_to_config)
 	
 	load_config()
 	popup_menu_database.set_item_submenu(2, "PopupMenuCopyTo")
@@ -377,10 +396,14 @@ func _ready():
 	refresh()
 	
 func _exit_tree():
-	mgr.user_confirm_add_schema.disconnect(add_db_to_config)
-	mgr.user_confirm_add_table.disconnect(add_table_to_config)
-	mgr.user_confirm_alter_schema.disconnect(modify_db_to_config)
-	mgr.user_confirm_alter_table.disconnect(modify_table_to_config)
+	if mgr.user_confirm_add_schema.is_connected(add_db_to_config):
+		mgr.user_confirm_add_schema.disconnect(add_db_to_config)
+	if mgr.user_confirm_add_table.is_connected(add_table_to_config):
+		mgr.user_confirm_add_table.disconnect(add_table_to_config)
+	if mgr.user_confirm_alter_schema.is_connected(modify_db_to_config):
+		mgr.user_confirm_alter_schema.disconnect(modify_db_to_config)
+	if mgr.user_confirm_alter_table.is_connected(modify_table_to_config):
+		mgr.user_confirm_alter_table.disconnect(modify_table_to_config)
 	
 func refresh() -> void:
 	_clear()
@@ -521,6 +544,7 @@ func add_table(db: TreeItem, file_name: String, tooltip: String = "") -> Diction
 		"file_name": file_name,
 		"path": table_item.get_meta("path"),
 		"comment": _config_file.get_value(db.get_meta("db_name"), "comments", {}).get(table_name, ""),
+		"encrypted": _config_file.get_value(db.get_meta("db_name"), "encrypted", {}).get(table_name, false),
 		"columns": table_confs.get(table_name, [])
 	}
 	return info
@@ -615,8 +639,22 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 			pass
 		"Alter Table...":
 			var item := get_selected()
+			var db_name = item.get_meta("db_name")
+			var table_name = item.get_meta("table_name")
+			var password_dict_obj = DictionaryObject.new({"Password": ""}, 
+				{"Password": {"hint": PROPERTY_HINT_PASSWORD}})
+			# 加密的表需要输入密码
+			if databases[db_name]["table_items"][table_name]["encrypted"]:
+				var cancel = func():
+					password_dict_obj._set("Password", "")
+				var arr = [
+					["This table is encrypted."],
+					["Please input password of this table."],
+					[password_dict_obj],
+				]
+				mgr.create_custom_dialog(arr, Callable(), cancel)
 			if item:
-				mgr.open_alter_table_tab.emit(item.get_meta("db_name"), item.get_meta("table_name"))
+				mgr.open_alter_table_tab.emit(db_name, table_name, password_dict_obj._get("Password"))
 			
 			
 ## Tables目录的create table like子目录的菜单

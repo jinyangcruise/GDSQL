@@ -22,7 +22,8 @@ func add_a_log(status: String, begin_timestamp: float, action: String, message: 
 	var new_log = [
 		status,
 		datas.size() + 1,
-		Time.get_datetime_string_from_unix_time(int(Time.get_unix_time_from_system() if is_zero_approx(begin_timestamp) else begin_timestamp), true),
+		Time.get_datetime_string_from_unix_time(
+			int(Time.get_unix_time_from_system() if is_zero_approx(begin_timestamp) else begin_timestamp), true),
 		action,
 		message,
 		"%.3f sec" % (Time.get_unix_time_from_system() - begin_timestamp)

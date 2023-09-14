@@ -662,17 +662,11 @@ func on_select_node_query(node: GraphNode):
 	# 每个源头都要query
 	for node_name in arr_source_node:
 		var source_node = graph_edit.get_node(str(node_name)) as GraphNode # 一个select node
-		#var db_info = mgr.databases[source_node.get_prop_value("Schema")]
-		#var dao: BaseDao = BaseDao.new()
-		#dao.use_db(db_info["path"])
-		#dao.set_password(source_node.get_prop_value("_password"))
-		#dao.select(source_node.get_prop_value("Fields"), true)
-		#dao.from(db_info["table_items"][source_node.get_prop_value("Table")]["file_name"], source_node.get_prop_value("_alias"))
-		#dao.where(source_node.get_prop_value("Where"))
-		#dao.order_by(source_node.get_prop_value("Order By"), source_node.get_prop_value("_order"))
-		#dao.limit(source_node.get_prop_value("Offset"), source_node.get_prop_value("Limit"))
 		var dao = source_node.get_meta("base_dao") as BaseDao
+		var begin_time = Time.get_unix_time_from_system()
+		var action = dao.get_query_cmd()
 		var ret: Array = dao.query()
+		mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) returned" % (ret.size()-1)) # 去掉表头
 		
 		var update_result = false
 		if from_to_map.has(source_node.name):

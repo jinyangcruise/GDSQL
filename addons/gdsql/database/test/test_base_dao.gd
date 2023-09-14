@@ -5,7 +5,47 @@ func _ready() -> void:
 	#test_select2()
 	#test_insert_db_config()
 	#test_left_join()
-	test_select2()
+	#test_select2()
+	#test_assert()
+	test_pass()
+	
+func test_pass():
+	var conf0 = ConfigFile.new()
+	#var err0 = conf0.load_encrypted_pass("user://t_test_password_2.gsql", "123456")
+	#assert(err0 == OK, "not load!")
+	#conf0.set_value("__EMPTY__", "a", "a")
+	conf0.save_encrypted_pass("user://t_test_password_2.gsql", "123456")
+	#var conf0 = ConfigFile.new()
+	#var err0 = conf0.load("user://t_test_password_2.gsql")
+	#assert(err0 == OK, "not load!")
+	#conf0.set_value("__EMPTY__", "a", "a")
+	#conf0.save("user://t_test_password_2.gsql")
+	return
+	
+	#var conf = ConfigFile.new()
+	#var err = conf.load("user://t_test_password_2.gsql")
+	#assert(err == OK, "not load")
+	#printt("aaaaaaaaaa", err, conf.get_sections())
+	
+	var fa = FileAccess.open("user://t_user_4.gsql", FileAccess.READ)
+	printt("ccccccccc", fa.get_length())
+	
+	var conf2 = ConfigFile.new()
+	var err2 = conf2.load_encrypted_pass("user://t_test_password_2.gsql", "123456")
+	assert(err2 == OK, "not load")
+	printt("bbbbbbbbbb", err2, conf2.get_sections())
+	
+func test_assert():
+	printt(11111)
+	assert(_assert("test", false, "err occur"))
+	printt(22222)
+	
+	
+func _assert(action: String, success: bool, msg: String) -> bool:
+	if not success:
+		printt(action, success, msg)
+		return false
+	return true
 
 func test_insert():
 	var dao: BaseDao = BaseDao.new()

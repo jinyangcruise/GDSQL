@@ -42,6 +42,7 @@ localize_numeral_system = false
 focus_mode = 2
 mouse_filter = 1
 text_overrun_behavior = 3
+max_lines_visible = 1
 
 [node name="TextureRectModel" type="TextureRect" parent="Models"]
 layout_mode = 2

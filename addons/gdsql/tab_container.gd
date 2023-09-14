@@ -12,34 +12,54 @@ var _tab_index = 1
 var _tab_activate_time: float = 0
 
 func _ready() -> void:
-	mgr.open_add_schema_tab.connect(add_tab_new_schema)
-	mgr.open_add_table_tab.connect(add_tab_new_table)
-	mgr.open_alter_schema_tab.connect(add_tab_alter_schema)
-	mgr.open_alter_table_tab.connect(add_tab_alter_table)
+	if not mgr.open_add_schema_tab.is_connected(add_tab_new_schema):
+		mgr.open_add_schema_tab.connect(add_tab_new_schema)
+	if not mgr.open_add_table_tab.is_connected(add_tab_new_table):
+		mgr.open_add_table_tab.connect(add_tab_new_table)
+	if not mgr.open_alter_schema_tab.is_connected(add_tab_alter_schema):
+		mgr.open_alter_schema_tab.connect(add_tab_alter_schema)
+	if not mgr.open_alter_table_tab.is_connected(add_tab_alter_table):
+		mgr.open_alter_table_tab.connect(add_tab_alter_table)
 	
-	mgr.sys_confirm_add_schema.connect(close_content_window)
-	mgr.sys_confirm_add_table.connect(close_content_window)
-	mgr.sys_confirm_alter_schema.connect(close_content_window)
-	mgr.sys_confirm_alter_table.connect(close_content_window)
+	if not mgr.sys_confirm_add_schema.is_connected(close_content_window):
+		mgr.sys_confirm_add_schema.connect(close_content_window)
+	if not mgr.sys_confirm_add_table.is_connected(close_content_window):
+		mgr.sys_confirm_add_table.connect(close_content_window)
+	if not mgr.sys_confirm_alter_schema.is_connected(close_content_window):
+		mgr.sys_confirm_alter_schema.connect(close_content_window)
+	if not mgr.sys_confirm_alter_table.is_connected(close_content_window):
+		mgr.sys_confirm_alter_table.connect(close_content_window)
 	
-	mgr.send_to_editor.connect(receive_content)
-	mgr.send_to_editor_and_execute.connect(receive_content_and_execute)
+	if not mgr.send_to_editor.is_connected(receive_content):
+		mgr.send_to_editor.connect(receive_content)
+	if not mgr.send_to_editor_and_execute.is_connected(receive_content_and_execute):
+		mgr.send_to_editor_and_execute.connect(receive_content_and_execute)
 	
 	_on_tab_clicked(0)
 	
 func _exit_tree():
-	mgr.open_add_schema_tab.disconnect(add_tab_new_schema)
-	mgr.open_add_table_tab.disconnect(add_tab_new_table)
-	mgr.open_alter_schema_tab.disconnect(add_tab_alter_schema)
-	mgr.open_alter_table_tab.disconnect(add_tab_alter_table)
+	if mgr.open_add_schema_tab.is_connected(add_tab_new_schema):
+		mgr.open_add_schema_tab.disconnect(add_tab_new_schema)
+	if mgr.open_add_table_tab.is_connected(add_tab_new_table):
+		mgr.open_add_table_tab.disconnect(add_tab_new_table)
+	if mgr.open_alter_schema_tab.is_connected(add_tab_alter_schema):
+		mgr.open_alter_schema_tab.disconnect(add_tab_alter_schema)
+	if mgr.open_alter_table_tab.is_connected(add_tab_alter_table):
+		mgr.open_alter_table_tab.disconnect(add_tab_alter_table)
 	
-	mgr.sys_confirm_add_schema.disconnect(close_content_window)
-	mgr.sys_confirm_add_table.disconnect(close_content_window)
-	mgr.sys_confirm_alter_schema.disconnect(close_content_window)
-	mgr.sys_confirm_alter_table.disconnect(close_content_window)
+	if mgr.sys_confirm_add_schema.is_connected(close_content_window):
+		mgr.sys_confirm_add_schema.disconnect(close_content_window)
+	if mgr.sys_confirm_add_table.is_connected(close_content_window):
+		mgr.sys_confirm_add_table.disconnect(close_content_window)
+	if mgr.sys_confirm_alter_schema.is_connected(close_content_window):
+		mgr.sys_confirm_alter_schema.disconnect(close_content_window)
+	if mgr.sys_confirm_alter_table.is_connected(close_content_window):
+		mgr.sys_confirm_alter_table.disconnect(close_content_window)
 	
-	mgr.send_to_editor.disconnect(receive_content)
-	mgr.send_to_editor_and_execute.disconnect(receive_content_and_execute)
+	if mgr.send_to_editor.is_connected(receive_content):
+		mgr.send_to_editor.disconnect(receive_content)
+	if mgr.send_to_editor_and_execute.is_connected(receive_content_and_execute):
+		mgr.send_to_editor_and_execute.disconnect(receive_content_and_execute)
 	
 func _on_tab_clicked(tab: int) -> void:
 	# 点击了“新建SQL页面”（加号），增加一个编辑页面，并激活
@@ -94,11 +114,12 @@ func add_tab_new_table(db_name) -> void:
 	current_tab = get_child_count() - 2
 	set_tab_title(current_tab, "new_table")
 	
-func add_tab_alter_table(db_name, table_name) -> void:
+func add_tab_alter_table(db_name, table_name, old_password) -> void:
 	var alter_table = preload("res://addons/gdsql/tabs/alter_table.tscn").instantiate()
 	alter_table.schema = db_name
 	alter_table.old_table_name = table_name
 	alter_table.table_name = table_name
+	alter_table.old_password = old_password
 	var defination = mgr.databases.get(db_name, {}).get("table_items", {}).get(table_name, {}) as Dictionary
 	alter_table.comment = defination.get("comment", "")
 	alter_table.raw_datas = defination.get("columns", [])
