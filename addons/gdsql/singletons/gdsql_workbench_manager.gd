@@ -24,10 +24,10 @@ signal user_confirm_add_table(sechema: String, table_name: String, comments: Str
 signal sys_confirm_add_table(id: String)
 
 ## 打开修改数据表标签页的信号
-signal open_alter_table_tab(db_name: String, table_name: String, old_password: String)
+signal open_alter_table_tab(db_name: String, table_name: String)
 ## 用户确认修改数据表的信号
 signal user_confirm_alter_table(sechema: String, old_table_name: String, new_table_name: String, 
-	comments: String, old_password, new_password: String, columns: Array, id: String)
+	comments: String, columns: Array, id: String)
 ## 系统确认修改数据表的信号
 signal sys_confirm_alter_table(id: String)
 
@@ -122,9 +122,13 @@ func create_custom_dialog(datas: Array[Array], confirmed_callback: Callable = Ca
 			canceled_callback.call()
 		dialog.queue_free()
 	)
-	var index = -1
+	
+	var vbox_container = VBoxContainer.new()
+	vbox_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	dialog.add_child(vbox_container)
+	
 	for arr in datas:
-		index += 1
 		var hb = HBoxContainer.new()
 		var has_content = false
 		for data in arr:
@@ -172,7 +176,7 @@ func create_custom_dialog(datas: Array[Array], confirmed_callback: Callable = Ca
 			hb.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		else:
 			hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		dialog.add_child(hb)
+		vbox_container.add_child(hb)
 	
 func connect_focused_propagate(control: Control, data):
 	for child in control.get_children(true):

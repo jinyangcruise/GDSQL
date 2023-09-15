@@ -33,7 +33,13 @@ var database_items: Array[TreeItem] = []
 var _default_database_path: String = ""
 var _config_file: ImprovedConfigFile
 var _tmp_config: ImprovedConfigFile # 只在内存里，非持久化。重启godot或插件会丢失
+var __CONF_MANAGER: ConfManagerClass
 
+func _init():
+	if Engine.has_singleton("ConfManager"):
+		__CONF_MANAGER = Engine.get_singleton("ConfManager")
+	else:
+		__CONF_MANAGER = ConfManager
 
 func _clear():
 	clear()
@@ -140,7 +146,7 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 	
 	if not password.is_empty():
 		var encrypted = _config_file.get_value(db_name, "encrypted", {}) as Dictionary
-		encrypted[table_name] = true
+		encrypted[table_name] = password.md5_text()
 		_config_file.set_value(db_name, "encrypted", encrypted)
 		
 	_config_file.save("res://addons/gdsql/config/config.cfg")
@@ -190,7 +196,7 @@ func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String
 	mgr.add_log_history.emit("OK", begin_time, action, "1 row affected")
 	
 func modify_table_to_config(db_name: String, old_table_name: String, new_table_name, \
-		comments: String, old_password, new_password: String, column_infos: Array, id: String) -> void:
+		comments: String, column_infos: Array, id: String) -> void:
 	
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "ALTER TABLE `%s`.`%s` to `%s`.`%s` (" % [db_name, old_table_name, db_name, new_table_name]
@@ -216,13 +222,14 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		return mgr.create_accept_dialog(msg)
 		
 	var table_confs = _config_file.get_value(db_name, "tables", {}) as Dictionary
-	if not table_confs.has(old_table_name):
-		var msg = "failed! table [%s] defination not exist!" % old_table_name
-		mgr.add_log_history.emit("Err", begin_time, action, msg)
-		return mgr.create_accept_dialog(msg)
+	# 没有定义的表怎么办？没影响。
+	#if not table_confs.has(old_table_name):
+		#var msg = "failed! table [%s] defination not exist!" % old_table_name
+		#mgr.add_log_history.emit("Err", begin_time, action, msg)
+		#return mgr.create_accept_dialog(msg)
 		
 	if new_table_name != old_table_name and table_confs.has(new_table_name):
-		var msg = "failed! table [%s] defination already exist!" % new_table_name
+		var msg = "failed! table [%s] name is occupied!" % new_table_name
 		mgr.add_log_history.emit("Err", begin_time, action, msg)
 		return mgr.create_accept_dialog(msg)
 		
@@ -239,18 +246,6 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		mgr.add_log_history.emit("Err", begin_time, action, msg)
 		return mgr.create_accept_dialog(msg)
 		
-	var old_table_file = ImprovedConfigFile.new()
-	var err: Error
-	if old_password.is_empty():
-		err = old_table_file.load(old_table_path)
-	else:
-		err = old_table_file.load_encrypted_pass(old_table_path, old_password)
-		
-	if err != OK:
-		var msg = "failed! load table [%s] failed! Err [%s]" % [old_table_path, err]
-		mgr.add_log_history.emit("Err", begin_time, action, msg)
-		return mgr.create_accept_dialog(msg)
-	
 	# 检查是否有重复的字段
 	var exist_col = {}
 	for i in column_infos:
@@ -261,18 +256,23 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 			
 		exist_col[i["Column Name"]] = true
 		
+	# 注意，这里随便传了一个密码，因为实际操作中用户已经输入过密码了，__CONF_MANAGER后续会从缓存中获取，无需再次输入密码
+	var old_table_file = __CONF_MANAGER.get_conf(old_table_path, "")
 	var old_values = old_table_file.get_all_section_values() # 数据表中的旧数据
 	var warnings = []
 	var primary_key = ""
 	# 数据为空就没必要检查字段了
 	if not old_values.is_empty():
-		var old_columns = _config_file.get_value(db_name, "tables", {}).get(old_table_name, [])
+		var old_columns = table_confs.get(old_table_name, [])
 		var old_columns_map = {} # 转成map
 		for i in old_columns:
 			old_columns_map[i["Column Name"]] = i
 			
 		for i in column_infos:
 			var col_name = i["Column Name"]
+			if i["PK"]:
+				primary_key = col_name
+				
 			if old_columns_map.has(col_name):
 				# 检查字段类型发生变化
 				if old_columns_map[col_name]["Data Type"] != i["Data Type"]:
@@ -295,7 +295,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 				# 检查主键
 				if i["PK"]:
 					# 只允许一个字段为主键
-					if old_columns.filter(func(v): return v["PK"]).size() != 1:
+					if primary_key != "" and primary_key != col_name:
 						var msg = "multiple primary key is not supported!"
 						mgr.add_log_history.emit("Err", begin_time, action, msg)
 						return mgr.create_accept_dialog(msg)
@@ -310,8 +310,6 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 							
 						exist[j[col_name]] = true
 						
-					primary_key = col_name
-					
 				# 检查唯一
 				if i["UQ"]:
 					var exist = {}
@@ -336,7 +334,10 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 			mgr.add_log_history.emit("Err", begin_time, action, msg)
 			return mgr.create_accept_dialog(msg)
 			
-		var new_table_file = ImprovedConfigFile.new()
+		var new_table_file = old_table_file if old_table_path == new_table_path \
+			else __CONF_MANAGER.create_conf(new_table_path, "")
+		new_table_file.clear()
+		
 		for i: Dictionary in old_values:
 			var primary_value = str(i[primary_key])
 			for c in column_infos:
@@ -346,22 +347,23 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 					default_value = Evaluate.evaluate_command(null, c["Default(Expression)"])
 				new_table_file.set_value(primary_value, col_name, i.get(col_name, default_value))
 				
-		new_table_file.save(new_table_path) if new_password.is_empty() \
-			else new_table_file.save_encrypted_pass(new_table_path, new_password)
+		__CONF_MANAGER.save_conf_by_same_password(new_table_path, old_table_path)
 		
 		var table_commnets = _config_file.get_value(db_name, "comments", {}) as Dictionary
-		table_commnets.erase(old_table_name)
+		if old_table_name != new_table_name:
+			table_commnets.erase(old_table_name)
 		table_commnets[new_table_name] = comments
 		
-		var encrypted = _config_file.get_value(db_name, "encrypted", {}) as Dictionary
-		encrypted.erase(old_table_name)
-		if not new_password.is_empty():
-			encrypted[new_table_name] = true
+		if old_table_name != new_table_name:
+			var encrypted = _config_file.get_value(db_name, "encrypted", {}) as Dictionary
+			encrypted[new_table_name] = encrypted[old_table_name]
+			encrypted.erase(old_table_name)
+			_config_file.set_value(db_name, "encrypted", encrypted)
+			table_confs.erase(old_table_name)
 		
 		table_confs[new_table_name] = column_infos
 		_config_file.set_value(db_name, "tables", table_confs)
 		_config_file.set_value(db_name, "comments", table_commnets)
-		_config_file.set_value(db_name, "encrypted", encrypted)
 		_config_file.save("res://addons/gdsql/config/config.cfg")
 		
 		mgr.sys_confirm_alter_table.emit(id)
@@ -460,7 +462,7 @@ func _get_gsql_file(path: String) -> Array[String]:
 				pass # 不支持发现子目录里的数据，用户可自行把子目录创建为新的数据库即可
 			# 文件
 			else:
-				if file_name.ends_with(".gsql") or file_name.ends_with(".cfg"):
+				if file_name.ends_with(".gsql"):# or file_name.ends_with(".cfg"):
 					ret.push_back(file_name)
 					
 			file_name = dir.get_next()
@@ -544,7 +546,7 @@ func add_table(db: TreeItem, file_name: String, tooltip: String = "") -> Diction
 		"file_name": file_name,
 		"path": table_item.get_meta("path"),
 		"comment": _config_file.get_value(db.get_meta("db_name"), "comments", {}).get(table_name, ""),
-		"encrypted": _config_file.get_value(db.get_meta("db_name"), "encrypted", {}).get(table_name, false),
+		"encrypted": _config_file.get_value(db.get_meta("db_name"), "encrypted", {}).get(table_name, ""),
 		"columns": table_confs.get(table_name, [])
 	}
 	return info
@@ -639,22 +641,33 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 			pass
 		"Alter Table...":
 			var item := get_selected()
-			var db_name = item.get_meta("db_name")
-			var table_name = item.get_meta("table_name")
-			var password_dict_obj = DictionaryObject.new({"Password": ""}, 
-				{"Password": {"hint": PROPERTY_HINT_PASSWORD}})
-			# 加密的表需要输入密码
-			if databases[db_name]["table_items"][table_name]["encrypted"]:
-				var cancel = func():
-					password_dict_obj._set("Password", "")
-				var arr = [
-					["This table is encrypted."],
-					["Please input password of this table."],
-					[password_dict_obj],
-				]
-				mgr.create_custom_dialog(arr, Callable(), cancel)
 			if item:
-				mgr.open_alter_table_tab.emit(db_name, table_name, password_dict_obj._get("Password"))
+				var db_name = item.get_meta("db_name")
+				var table_name = item.get_meta("table_name")
+				var table_path = item.get_meta("path")
+				var password_dict_obj = DictionaryObject.new({"Password": ""}, 
+					{"Password": {"hint": PROPERTY_HINT_PASSWORD}})
+				# 加密的表首次操作时需要输入密码
+				var valid_pass_md5 = databases[db_name]["table_items"][table_name]["encrypted"]
+				if valid_pass_md5 != "":
+					if __CONF_MANAGER.has_conf(table_path):
+						mgr.open_alter_table_tab.emit(db_name, table_name)
+					else:
+						var confirmed = func():
+							if valid_pass_md5 == (password_dict_obj._get("Password") as String).md5_text():
+								# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
+								__CONF_MANAGER.get_conf(table_path, password_dict_obj._get("Password"))
+								mgr.open_alter_table_tab.emit(db_name, table_name)
+							else:
+								mgr.create_accept_dialog("Password is not correct!")
+							
+						var arr: Array[Array] = [
+							["This table is encrypted. Please input password of this table."],
+							[password_dict_obj],
+						]
+						mgr.create_custom_dialog(arr, confirmed)
+				else:
+					mgr.open_alter_table_tab.emit(db_name, table_name)
 			
 			
 ## Tables目录的create table like子目录的菜单

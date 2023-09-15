@@ -114,12 +114,11 @@ func add_tab_new_table(db_name) -> void:
 	current_tab = get_child_count() - 2
 	set_tab_title(current_tab, "new_table")
 	
-func add_tab_alter_table(db_name, table_name, old_password) -> void:
+func add_tab_alter_table(db_name, table_name) -> void:
 	var alter_table = preload("res://addons/gdsql/tabs/alter_table.tscn").instantiate()
 	alter_table.schema = db_name
 	alter_table.old_table_name = table_name
 	alter_table.table_name = table_name
-	alter_table.old_password = old_password
 	var defination = mgr.databases.get(db_name, {}).get("table_items", {}).get(table_name, {}) as Dictionary
 	alter_table.comment = defination.get("comment", "")
 	alter_table.raw_datas = defination.get("columns", [])
@@ -155,6 +154,7 @@ func _on_tab_changed(tab: int) -> void:
 				set_tab_button_icon(i, null)
 				
 func receive_content(content: String, force_new: bool = false, file_path: String = ""):
+	#TODO
 	# 当前打开的页签是一个编辑器，则直接发送，否则创建一个
 	if get_tab_control(current_tab).get_meta("type") == "sql_graph":
 		if force_new:

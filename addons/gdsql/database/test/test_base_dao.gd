@@ -7,7 +7,8 @@ func _ready() -> void:
 	#test_left_join()
 	#test_select2()
 	#test_assert()
-	test_pass()
+	#test_pass()
+	printt("123456".md5_text())
 	
 func test_pass():
 	var conf0 = ConfigFile.new()
