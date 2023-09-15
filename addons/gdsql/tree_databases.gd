@@ -556,12 +556,14 @@ func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_inde
 	if column == 0:
 		match id:
 			0:
-				mgr.send_to_editor_and_execute.emit(item.get_meta("table_name"), {
-					"cmd": "select",
-					"db_name": item.get_meta("db_name"),
-					"table_name": item.get_meta("table_name"),
-					"fields": "*"
-				})
+				var exe_select = func():
+					mgr.send_to_editor_and_execute.emit(item.get_meta("table_name"), {
+						"cmd": "select",
+						"db_name": item.get_meta("db_name"),
+						"table_name": item.get_meta("table_name"),
+						"fields": "*"
+					})
+				deal_password_before_table_cmd(item, exe_select)
 			1:
 				var path = ProjectSettings.globalize_path(item.get_meta("path"))
 				OS.shell_show_in_file_manager(path, true)
@@ -627,12 +629,14 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 		"Select Rows":
 			var item := get_selected()
 			if item:
-				mgr.send_to_editor_and_execute.emit(item.get_meta("table_name"), {
-					"cmd": "select",
-					"db_name": item.get_meta("db_name"),
-					"table_name": item.get_meta("table_name"),
-					"fields": "*"
-				})
+				var exe_select = func():
+					mgr.send_to_editor_and_execute.emit(item.get_meta("table_name"), {
+						"cmd": "select",
+						"db_name": item.get_meta("db_name"),
+						"table_name": item.get_meta("table_name"),
+						"fields": "*"
+					})
+				deal_password_before_table_cmd(item, exe_select)
 		"Create Table...":
 			var item := get_selected()
 			if item:
@@ -644,32 +648,41 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 			if item:
 				var db_name = item.get_meta("db_name")
 				var table_name = item.get_meta("table_name")
-				var table_path = item.get_meta("path")
-				var password_dict_obj = DictionaryObject.new({"Password": ""}, 
-					{"Password": {"hint": PROPERTY_HINT_PASSWORD}})
-				# 加密的表首次操作时需要输入密码
-				var valid_pass_md5 = databases[db_name]["table_items"][table_name]["encrypted"]
-				if valid_pass_md5 != "":
-					if __CONF_MANAGER.has_conf(table_path):
-						mgr.open_alter_table_tab.emit(db_name, table_name)
-					else:
-						var confirmed = func():
-							if valid_pass_md5 == (password_dict_obj._get("Password") as String).md5_text():
-								# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
-								__CONF_MANAGER.get_conf(table_path, password_dict_obj._get("Password"))
-								mgr.open_alter_table_tab.emit(db_name, table_name)
-							else:
-								mgr.create_accept_dialog("Password is not correct!")
-							
-						var arr: Array[Array] = [
-							["This table is encrypted. Please input password of this table."],
-							[password_dict_obj],
-						]
-						mgr.create_custom_dialog(arr, confirmed)
-				else:
+				var open_tab = func():
 					mgr.open_alter_table_tab.emit(db_name, table_name)
+				deal_password_before_table_cmd(item, open_tab)
 			
-			
+func deal_password_before_table_cmd(table_item: TreeItem, pass_callback: Callable):
+	var db_name = table_item.get_meta("db_name")
+	var table_name = table_item.get_meta("table_name")
+	var table_path = table_item.get_meta("path")
+	var password_dict_obj = DictionaryObject.new({"Password": ""}, 
+		{"Password": {"hint": PROPERTY_HINT_PASSWORD}})
+	# 加密的表首次操作时需要输入密码
+	var valid_pass_md5 = databases[db_name]["table_items"][table_name]["encrypted"]
+	if valid_pass_md5 != "":
+		if __CONF_MANAGER.has_conf(table_path):
+			if pass_callback.is_valid():
+				pass_callback.call()
+		else:
+			var confirmed = func():
+				if valid_pass_md5 == (password_dict_obj._get("Password") as String).md5_text():
+					# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
+					__CONF_MANAGER.get_conf(table_path, password_dict_obj._get("Password"))
+					if pass_callback.is_valid():
+						pass_callback.call()
+				else:
+					mgr.create_accept_dialog("Password is not correct!")
+				
+			var arr: Array[Array] = [
+				["This table is encrypted. Please input password of this table."],
+				[password_dict_obj],
+			]
+			mgr.create_custom_dialog(arr, confirmed)
+	else:
+		if pass_callback.is_valid():
+			pass_callback.call()
+	
 ## Tables目录的create table like子目录的菜单
 func _on_popup_menu_create_table_like_tables_index_pressed(index: int) -> void:
 	printt("aaa", popup_menu_create_table_like_tables.get_item_text(index))

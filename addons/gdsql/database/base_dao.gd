@@ -74,6 +74,7 @@ func auto_commit(auto: bool) -> BaseDao:
 	
 func _assert(action: String, success: bool, msg: String) -> bool:
 	if not success:
+		mgr.create_accept_dialog(msg)
 		mgr.add_log_history.emit("Err", Time.get_unix_time_from_system(), action, msg)
 		return false
 	return true

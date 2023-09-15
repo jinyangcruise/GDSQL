@@ -22,11 +22,14 @@ func add_a_log(status: String, begin_timestamp: float, action: String, message: 
 	var new_log = [
 		status,
 		datas.size() + 1,
-		Time.get_datetime_string_from_unix_time(
-			int(Time.get_unix_time_from_system() if is_zero_approx(begin_timestamp) else begin_timestamp), true),
+		Time.get_datetime_string_from_system(false, true) if is_zero_approx(begin_timestamp) else (
+			Time.get_datetime_string_from_unix_time(
+				Time.get_unix_time_from_system() + Time.get_time_zone_from_system().get("bias", 0) * 60, true
+			)
+		),
 		action,
 		message,
-		"%.3f sec" % (Time.get_unix_time_from_system() - begin_timestamp)
+		"%.3f sec" % (0.0 if is_zero_approx(begin_timestamp) else (Time.get_unix_time_from_system() - begin_timestamp))
 	]
 	datas.push_back(new_log)
 	log_table.datas = datas
