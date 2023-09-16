@@ -13,8 +13,12 @@ func get_conf(path: String, password: String) -> ImprovedConfigFile:
 	var conf := ImprovedConfigFile.new()
 	
 	assert(FileAccess.file_exists(path), "file:[%s] not exist" % path)
-	var err = conf.load(path) if password.is_empty() else conf.load_encrypted_pass(path, password)
-	assert(err == OK, "conf load failed! " + path + ":" + password)
+	var err = OK
+	if password.is_empty():
+		err = conf.load(path)
+	else:
+		err = conf.load_encrypted_pass(path, password)
+	assert(err == OK, "conf load failed! err:%s, `%s`:`%s`" % [err, path, password])
 	var fa = FileAccess.open(path, FileAccess.READ)
 	if password.is_empty() and fa.get_length() > 0:
 		assert(not conf.get_sections().is_empty(), "conf load failed! file [%s] is encrypted! " % path)
@@ -52,5 +56,7 @@ func save_conf_by_same_password(path: String, ref_path: String):
 	_passwords[path] = _passwords[ref_path]
 	if _passwords[ref_path] == "":
 		conf.save(path)
+		printt("ccccccc `%s` save by pass:`%s`", path, _passwords[ref_path])
 	else:
 		conf.save_encrypted_pass(path, _passwords[ref_path])
+		printt("bbbbbbb `%s` save by pass:`%s`", path, _passwords[ref_path])

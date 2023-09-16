@@ -33,7 +33,7 @@ var database_items: Array[TreeItem] = []
 var _default_database_path: String = ""
 var _config_file: ImprovedConfigFile
 var _tmp_config: ImprovedConfigFile # 只在内存里，非持久化。重启godot或插件会丢失
-var __CONF_MANAGER: ConfManagerClass
+var __CONF_MANAGER: ConfManagerClass # 管理表数据
 
 func _init():
 	if Engine.has_singleton("ConfManager"):
@@ -151,6 +151,7 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 		
 	_config_file.save("res://addons/gdsql/config/config.cfg")
 	
+	# 这里不通过__CONF_MANAGER，可以让用户下次使用该表时输入一次密码加深记忆，防止用户加入了很多数据后才发现密码错误
 	var table_gsql = ConfigFile.new()
 	table_gsql.save(table_path) if password.is_empty() else table_gsql.save_encrypted_pass(table_path, password)
 	
@@ -197,7 +198,7 @@ func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String
 	
 func modify_table_to_config(db_name: String, old_table_name: String, new_table_name, \
 		comments: String, column_infos: Array, id: String) -> void:
-	
+		
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "ALTER TABLE `%s`.`%s` to `%s`.`%s` (" % [db_name, old_table_name, db_name, new_table_name]
 	var primarys = [] # 不代表支持多主键，只是为了反映用户本身的输入
@@ -212,9 +213,14 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 			" COMMENT '%s'" % (i["Comment"] as String).c_escape() if i["Comment"] != "" else ""
 		]
 		if i["PK"]:
-			primarys.push_back("`%s`" % i["Column Name"])
-	action += "\n    PRIMARY KEY (%s)\n)" % ",".join(primarys)
+			primarys.push_back(i["Column Name"])
+	action += "\n    PRIMARY KEY (%s)\n)" % ",".join(primarys.map(func(v): return "`%s`" % v))
 	action += ";" if comments.is_empty() else " COMMENT '%s';" % comments.c_escape()
+	
+	if primarys.size() != 1:
+		var msg = "multiple primary key or none primary key is not supported!"
+		mgr.add_log_history.emit("Err", begin_time, action, msg)
+		return mgr.create_accept_dialog(msg)
 	
 	if !_config_file.has_section(db_name):
 		var msg = "failed! database not exists!" % db_name
@@ -260,7 +266,6 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 	var old_table_file = __CONF_MANAGER.get_conf(old_table_path, "")
 	var old_values = old_table_file.get_all_section_values() # 数据表中的旧数据
 	var warnings = []
-	var primary_key = ""
 	# 数据为空就没必要检查字段了
 	if not old_values.is_empty():
 		var old_columns = table_confs.get(old_table_name, [])
@@ -270,8 +275,6 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 			
 		for i in column_infos:
 			var col_name = i["Column Name"]
-			if i["PK"]:
-				primary_key = col_name
 				
 			if old_columns_map.has(col_name):
 				# 检查字段类型发生变化
@@ -279,7 +282,10 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 					warnings.push_back("field [%s] data type changed from [%s] to [%s], datas will be converted!" % \
 						[col_name, DataTypeDef.DATA_TYPE_NAMES[old_columns_map[col_name]["Data Type"]], i["Data Type"]])
 					for j: Dictionary in old_values:
-						j[col_name] = convert(j[col_name], i["Data Type"])
+						printt("cccccccccc", var_to_str(j[col_name]), var_to_str(i["Data Type"]))
+						j[col_name] = convert(j[col_name], i["Data Type"])# TODO FIXME 期待godot新版本支持
+						# type_convert
+						# https://github.com/godotengine/godot/pull/70080
 				# 检查自增
 				if not old_columns_map[col_name]["AI"] and i["AI"]:
 					if not [TYPE_INT, TYPE_FLOAT].has(i["Data Type"]):
@@ -294,12 +300,6 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 							return mgr.create_accept_dialog(msg)
 				# 检查主键
 				if i["PK"]:
-					# 只允许一个字段为主键
-					if primary_key != "" and primary_key != col_name:
-						var msg = "multiple primary key is not supported!"
-						mgr.add_log_history.emit("Err", begin_time, action, msg)
-						return mgr.create_accept_dialog(msg)
-						
 					# 唯一
 					var exist = {}
 					for j: Dictionary in old_values:
@@ -329,17 +329,13 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 							return mgr.create_accept_dialog(msg)
 							
 	var apply = func() -> void:
-		if primary_key.is_empty():
-			var msg = "primary key is not set!"
-			mgr.add_log_history.emit("Err", begin_time, action, msg)
-			return mgr.create_accept_dialog(msg)
 			
 		var new_table_file = old_table_file if old_table_path == new_table_path \
 			else __CONF_MANAGER.create_conf(new_table_path, "")
 		new_table_file.clear()
 		
 		for i: Dictionary in old_values:
-			var primary_value = str(i[primary_key])
+			var primary_value = str(i[primarys[0]])
 			for c in column_infos:
 				var col_name = c["Column Name"]
 				var default_value = null
@@ -365,6 +361,10 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		_config_file.set_value(db_name, "tables", table_confs)
 		_config_file.set_value(db_name, "comments", table_commnets)
 		_config_file.save("res://addons/gdsql/config/config.cfg")
+		
+		if old_table_path != new_table_path:
+			if OS.has_feature("editor"):
+				OS.move_to_trash(ProjectSettings.globalize_path(old_table_path))
 		
 		mgr.sys_confirm_alter_table.emit(id)
 		

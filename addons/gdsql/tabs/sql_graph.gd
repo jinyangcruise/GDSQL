@@ -479,7 +479,10 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 			mgr.create_confirmation_dialog("Please confirm:\n" + "\n".join(daos.map(func(v: BaseDao): return v.get_query_cmd())),
 				func():
 					for i in daos:
-						i.query()
+						var begin_time = Time.get_unix_time_from_system()
+						var ret = i.query()
+						if ret != null:
+							mgr.add_log_history.emit("OK", begin_time, i.get_query_cmd(), "%d row(s) affected" % ret["affected_rows"])
 					for node in get_from_nodes(graph_node, "Select"):
 						on_select_node_query(node)
 			)

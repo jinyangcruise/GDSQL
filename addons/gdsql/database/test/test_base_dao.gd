@@ -9,7 +9,11 @@ func _ready() -> void:
 	#test_assert()
 	#test_pass()
 	#printt("123456".md5_text())
-	printt(EditorInterface)
+
+	var a = 2
+	var b = convert(a, TYPE_STRING)
+	print(b)
+
 	
 func test_pass():
 	var conf0 = ConfigFile.new()

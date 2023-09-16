@@ -85,7 +85,8 @@ func commit() -> void:
 	assert(_assert("commit", __table != "", "table name is empty"))
 	var path = __database + __table
 	var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
-	conf.save(path) if _PASSWORD.is_empty() else conf.save_encrypted_pass(path, _PASSWORD)
+	assert(_assert("commit", conf != null, "load conf err!"))
+	__CONF_MANAGER.save_conf_by_origin_password(path)
 	reset()
 	
 ## 查询数据子句
@@ -822,6 +823,7 @@ func query():
 			assert(_assert("query:%s" % __cmd, __primary_key != null and __primary_key != "", "primary key is empty"))
 			var ret = { "affected_rows": 0 }
 			var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
+			assert(_assert("query:%s" % __cmd, conf != null, "load conf err!"))
 			var primary_value = str(__data.get(__primary_key))
 			if primary_value == null:
 				# 这几种插入操作都需要主键存在，用户要不就直接在data里写好了主键，要不就设置为自增，否则报错
@@ -868,7 +870,7 @@ func query():
 			# 插入
 			conf.set_values(str(__data.get(__primary_key)), __data)
 			if __auto_commit:
-				conf.save(path) if _PASSWORD.is_empty() else conf.save_encrypted_pass(path, _PASSWORD)
+				__CONF_MANAGER.save_conf_by_origin_password(path)
 			ret["affected_rows"] += 1
 			ret["last_insert_id"] = __data.get(__primary_key)
 			reset()
@@ -887,13 +889,14 @@ func query():
 			
 			# 更新数据
 			var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
+			assert(_assert("query:%s" % __cmd, conf != null, "load conf err!"))
 			for data in datas:
 				data = data[__table_alias] # 未经过后处理的肯定是用表名分类的结构
 				for field in __data:
 					conf.set_value(str(data.get(primary)), field, __data.get(field))
 					
 			if __auto_commit:
-				conf.save(path) if _PASSWORD.is_empty() else conf.save_encrypted_pass(path, _PASSWORD)
+				__CONF_MANAGER.save_conf_by_origin_password(path)
 			ret["affected_rows"] = datas.size()
 			reset()
 			return ret
@@ -916,7 +919,7 @@ func get_query_cmd() -> String:
 		"select":
 			return "select %s from %s%s%s%s%s;" % [
 				", ".join(__select.map(func(v): return (v + " as " + __field_as[v]) if __field_as.has(v) else v)), 
-				__table,
+				a_table,
 				"" if __table_alias.is_empty() else " " + __table_alias,
 				"" if __left_join == null else "\n" + "\n".join(__left_join.get_query_cmds()),
 				_get_cond(true) if __left_join == null else "\nwhere " + _get_cond(false),
