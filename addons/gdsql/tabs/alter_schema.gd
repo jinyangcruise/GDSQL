@@ -19,25 +19,15 @@ var path: String:
 		path = val
 		if line_edit_path:
 			line_edit_path.text = val
-			
-var save: bool:
-	set(val):
-		save = val
-		if check_box:
-			check_box.button_pressed = val
-			if val:
-				check_box.disabled = true
 
 @onready var line_edit_name: LineEdit = $HBoxContainer/LineEditName
 @onready var line_edit_path: LineEdit = $HBoxContainer2/LineEditPath
-@onready var check_box: CheckBox = $HBoxContainer3/CheckBox
 
 func _ready() -> void:
 	if db_name:
 		db_name = db_name
 	if path:
 		path = path
-	save = save
 
 func _on_button_apply_pressed() -> void:
 	var _db_name = line_edit_name.text.strip_edges()
@@ -46,7 +36,7 @@ func _on_button_apply_pressed() -> void:
 		mgr.create_accept_dialog("name and path must be set!")
 		return
 		
-	mgr.user_confirm_alter_schema.emit(old_db_name, _db_name, _path, check_box.button_pressed, name)
+	mgr.user_confirm_alter_schema.emit(old_db_name, _db_name, _path, name)
 	#button_apply_pressed.emit(old_db_name, _db_name, _path, check_box.button_pressed, name)
 	#queue_free() 已改为让TabContainer接收到成功添加的信号后删除该页签
 

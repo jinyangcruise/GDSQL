@@ -69,21 +69,6 @@ theme_override_styles/focus = SubResource("StyleBoxEmpty_0kgcd")
 text = "FileSystem"
 icon = ExtResource("2_lsuxh")
 
-[node name="HBoxContainer3" type="HBoxContainer" parent="."]
-layout_mode = 2
-
-[node name="Label" type="Label" parent="HBoxContainer3"]
-custom_minimum_size = Vector2(200, 0)
-layout_mode = 2
-tooltip_text = "if not checked, the workbench will not show this database when restart Godot"
-mouse_filter = 0
-text = "Remember Me"
-horizontal_alignment = 2
-
-[node name="CheckBox" type="CheckBox" parent="HBoxContainer3"]
-layout_mode = 2
-tooltip_text = "if not checked, the workbench will not show this database when restart Godot"
-
 [node name="HFlowContainer" type="HFlowContainer" parent="."]
 layout_mode = 2
 alignment = 1

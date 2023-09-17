@@ -10,9 +10,10 @@ func _ready() -> void:
 	#test_pass()
 	#printt("123456".md5_text())
 
-	var a = 2
-	var b = convert(a, TYPE_STRING)
-	print(b)
+	#var a = 2
+	#var b = convert(a, TYPE_STRING)
+	#print(b)
+	printt("".md5_text())
 
 	
 func test_pass():
@@ -20,7 +21,7 @@ func test_pass():
 	#var err0 = conf0.load_encrypted_pass("user://t_test_password_2.gsql", "123456")
 	#assert(err0 == OK, "not load!")
 	#conf0.set_value("__EMPTY__", "a", "a")
-	conf0.save_encrypted_pass("user://t_test_password_2.gsql", "123456")
+	#conf0.save_encrypted_pass("user://t_test_password_2.gsql", "123456")
 	#var conf0 = ConfigFile.new()
 	#var err0 = conf0.load("user://t_test_password_2.gsql")
 	#assert(err0 == OK, "not load!")

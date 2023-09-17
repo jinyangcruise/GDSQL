@@ -8,7 +8,6 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 
 @onready var line_edit_name: LineEdit = $HBoxContainer/LineEditName
 @onready var line_edit_path: LineEdit = $HBoxContainer2/LineEditPath
-@onready var check_box: CheckBox = $HBoxContainer3/CheckBox
 
 @onready var h_box_container_2: HBoxContainer = $HBoxContainer2
 
@@ -36,7 +35,7 @@ func _on_button_apply_pressed() -> void:
 		mgr.create_accept_dialog("name and path must be set!")
 		return
 		
-	mgr.user_confirm_add_schema.emit(db_name, path, check_box.button_pressed, name)
+	mgr.user_confirm_add_schema.emit(db_name, path, name)
 	#queue_free() 已改为让TabContainer接收到成功添加的信号后删除该页签
 
 func _on_button_cancel_pressed() -> void:

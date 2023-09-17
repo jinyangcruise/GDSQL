@@ -17,7 +17,9 @@ func _exit_tree():
 func _on_button_refresh_pressed() -> void:
 	tree_databases.refresh()
 	
-func add_a_log(status: String, begin_timestamp: float, action: String, message: String) -> void:
+func add_a_log(status: String, begin_timestamp: float, action: String, message) -> void:
+	if message is Array:
+		message = " ".join(message)
 	var datas: Array = log_table.datas
 	var new_log = [
 		status,

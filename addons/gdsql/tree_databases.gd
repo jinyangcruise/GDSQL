@@ -32,8 +32,12 @@ var databases: Dictionary
 var database_items: Array[TreeItem] = []
 var _default_database_path: String = ""
 var _config_file: ImprovedConfigFile
-var _tmp_config: ImprovedConfigFile # 只在内存里，非持久化。重启godot或插件会丢失
 var __CONF_MANAGER: ConfManagerClass # 管理表数据
+
+const CONFIG_ROOT = "res://addons/gdsql/config/"
+const ROOT_CONFIG = "res://addons/gdsql/config/config.cfg"
+const CONFIG_EXTENSION = ".cfg"
+const DATA_EXTENSION = ".gsql"
 
 func _init():
 	if Engine.has_singleton("ConfManager"):
@@ -49,51 +53,77 @@ func _clear():
 		
 func load_config():
 	_config_file = ImprovedConfigFile.new()
-	_config_file.load("res://addons/gdsql/config/config.cfg")
-	_tmp_config = ImprovedConfigFile.new()
+	_config_file.load(ROOT_CONFIG)
 	
 func refresh_databases():
 	_config_file.clear()
-	_config_file.load("res://addons/gdsql/config/config.cfg")
+	_config_file.load(ROOT_CONFIG)
 	databases = {}
-	for conf in [_config_file, _tmp_config] as Array[ConfigFile]:
-		for db_name in conf.get_sections():
-			databases[conf.get_value(db_name, "name")] = {
-				"name": conf.get_value(db_name, "name"),
-				"path": conf.get_value(db_name, "path"),
-				"table_items": {},
-				"comments": {},
-				"persistent": conf == _config_file, # 是否是持久化的
-			}
+	for db_name in _config_file.get_sections():
+		var config_path = _config_file.get_value(db_name, "config_path")
+		databases[db_name] = {
+			"data_path": _config_file.get_value(db_name, "data_path"),
+			"config_path": config_path,
+			"tables": {}
+		}
 		
-func add_db_to_config(db_name: String, path: String, save: bool, id: String) -> void:
+		var table_confs = _get_specific_extension_files(config_path, CONFIG_EXTENSION.substr(1))
+		for file_name in table_confs:
+			var table_conf = ImprovedConfigFile.new()
+			table_conf.load(config_path + file_name)
+			databases[db_name]["tables"][file_name.get_basename()] = table_conf.get_all_section_values()[0]
+				
+	mgr.databases = databases
+		
+		
+func add_db_to_config(db_name: String, path: String, id: String) -> void:
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "CREATE DATABASE %s PATH %s;" % [db_name, path]
+	var msgs = []
 	
-	for conf in [_config_file, _tmp_config] as Array[ConfigFile]:
-		for a_db_name in conf.get_sections():
-			if a_db_name.to_lower() == db_name.to_lower() or conf.get_value(a_db_name, "path") == path:
-				var content = "failed! database name `%s` already exist!" % db_name if a_db_name == db_name \
-					else "failed! database path `%s`(%s) already exist!" % [path, a_db_name]
-				mgr.add_log_history.emit("Err", begin_time, action, content)
-				return mgr.create_accept_dialog(content)
+	for a_db_name in databases:
+		if a_db_name.to_lower() == db_name.to_lower():
+			msgs.push_back("Failed! Database name `%s` is occupied!" % db_name)
+			mgr.add_log_history.emit("Err", begin_time, action, msgs)
+			return mgr.create_accept_dialog(msgs)
+			
+		if databases[a_db_name]["data_path"] == path:
+			msgs.push_back("Failed! Database path `%s`(%s) already exist!" % [path, a_db_name])
+			mgr.add_log_history.emit("Err", begin_time, action, msgs)
+			return mgr.create_accept_dialog(msgs)
+			
+	var config_path = CONFIG_ROOT + db_name.to_lower().to_snake_case() + "/"
+	_config_file.set_value(db_name, "data_path", path)
+	_config_file.set_value(db_name, "config_path", config_path)
+	_config_file.save(ROOT_CONFIG)
+	msgs.push_back("1 file:%s is modified." % ROOT_CONFIG)
+	
+	var dir = DirAccess.open(CONFIG_ROOT)
+	if dir == null:
+		msgs.push_back("Failed! Cannot open config root %s dir! Err:%s." % [CONFIG_ROOT, DirAccess.get_open_error()])
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
 		
-	var conf: ConfigFile = _config_file if save else _tmp_config
-	conf.set_value(db_name, "name", db_name)
-	conf.set_value(db_name, "path", path)
-	if save:
-		conf.save("res://addons/gdsql/config/config.cfg")
+	if not dir.dir_exists(config_path):
+		var err = dir.make_dir_recursive(config_path)
+		if err == OK:
+			msgs.push_back("dir:%s is made." % config_path)
+		else:
+			msgs.push_back("Failed! Cannot make dir %s ! Err:%s." % [config_path, err])
+			mgr.add_log_history.emit("Err", begin_time, action, msgs)
+			return mgr.create_accept_dialog(msgs)
 		
 	mgr.sys_confirm_add_schema.emit(id)
+	mgr.add_log_history.emit("OK", begin_time, action, msgs)
 	
 	refresh()
 	
-	mgr.add_log_history.emit("OK", begin_time, action, "1 row affected")
 	
 func add_table_to_config(db_name: String, table_name: String, comment: String, 
 	password: String, column_infos: Array, id: String) -> void:
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "CREATE TABLE `%s`.`%s` (" % [db_name, table_name]
+	var msgs = []
 	var primarys = [] # 不代表支持多主键，只是为了反映用户本身的输入
 	for i in column_infos:
 		action += "\n    `%s` %s%s%s%s%s%s," % [ 
@@ -106,101 +136,131 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 			" COMMENT '%s'" % (i["Comment"] as String).c_escape() if i["Comment"] != "" else ""
 		]
 		if i["PK"]:
-			primarys.push_back("`%s`" % i["Column Name"])
-	action += "\n    PRIMARY KEY (%s)\n)" % ",".join(primarys)
+			primarys.push_back(i["Column Name"])
+	action += "\n    PRIMARY KEY (%s)\n)" % ",".join(primarys.map(func(v): return "`%s`" % v))
 	action += ";" if comment.is_empty() else " COMMENT '%s';" % comment.c_escape()
 	
-	if !_config_file.has_section(db_name):
-		var msg = "failed! database not exists!" % db_name
-		mgr.add_log_history.emit("Err", begin_time, action, msg)
-		return mgr.create_accept_dialog(msg)
-		
-	var table_confs = _config_file.get_value(db_name, "tables", {}) as Dictionary
-	if table_confs.has(table_name):
-		var msg = "failed! table already exist!"
-		mgr.add_log_history.emit("Err", begin_time, action, msg)
-		return mgr.create_accept_dialog(msg)
-		
-	var db_path = _config_file.get_value(db_name, "path")
-	var table_path = db_path + table_name + ".gsql"
-	if FileAccess.file_exists(table_path):
-		var msg = "failed! file [%s] already exist!" % table_path
-		mgr.add_log_history.emit("Err", begin_time, action, msg)
-		return mgr.create_accept_dialog(msg)
-		
 	# 检查是否有重复的字段
 	var exist_col = {}
 	for i in column_infos:
 		if exist_col.has(i["Column Name"]):
-			var msg = "duplicate field [%s]" % i["Column Name"]
-			mgr.add_log_history.emit("Err", begin_time, action, msg)
-			return mgr.create_accept_dialog(msg)
+			msgs.push_back("duplicate field [%s]." % i["Column Name"])
+			mgr.add_log_history.emit("Err", begin_time, action, msgs)
+			return mgr.create_accept_dialog(msgs)
+			
 		exist_col[i["Column Name"]] = true
 		
-	var table_commnets = _config_file.get_value(db_name, "comments", {}) as Dictionary
-	table_commnets[table_name] = comment
-	
-	table_confs[table_name] = column_infos
-	_config_file.set_value(db_name, "tables", table_confs)
-	_config_file.set_value(db_name, "comments", table_commnets)
-	
-	if not password.is_empty():
-		var encrypted = _config_file.get_value(db_name, "encrypted", {}) as Dictionary
-		encrypted[table_name] = password.md5_text()
-		_config_file.set_value(db_name, "encrypted", encrypted)
+	if not databases.has(db_name):
+		var msg = "failed! database not exists!" % db_name
+		mgr.add_log_history.emit("Err", begin_time, action, msg)
+		return mgr.create_accept_dialog(msg)
 		
-	_config_file.save("res://addons/gdsql/config/config.cfg")
-	
-	# 这里不通过__CONF_MANAGER，可以让用户下次使用该表时输入一次密码加深记忆，防止用户加入了很多数据后才发现密码错误
-	var table_gsql = ConfigFile.new()
-	table_gsql.save(table_path) if password.is_empty() else table_gsql.save_encrypted_pass(table_path, password)
+	var conf_dir = DirAccess.open(databases[db_name]["config_path"])
+	if conf_dir == null:
+		msgs.push_back("Failed! Cannot open database config dir %s! Err:%s." \
+			% [databases[db_name]["config_path"], DirAccess.get_open_error()])
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	if conf_dir.file_exists(table_name + CONFIG_EXTENSION):
+		msgs.push_back("failed! table conf %s already exist!" % (table_name + CONFIG_EXTENSION))
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	var db_absolute_path = ProjectSettings.globalize_path(databases[db_name]["data_path"])
+	var table_data_path = db_absolute_path + table_name + DATA_EXTENSION
+	if not DirAccess.dir_exists_absolute(db_absolute_path):
+		var err = DirAccess.make_dir_recursive_absolute(db_absolute_path)
+		if err == OK:
+			msgs.push_back("dir:%s is made." % db_absolute_path)
+		else:
+			msgs.push_back("Failed! Cannot make dir %s ! Err:%s." % [db_absolute_path, err])
+			mgr.add_log_history.emit("Err", begin_time, action, msgs)
+			return mgr.create_accept_dialog(msgs)
+	else:
+		if FileAccess.file_exists(table_data_path):
+			msgs.push_back("failed! data file [%s] already exist!" % table_data_path)
+			mgr.add_log_history.emit("Err", begin_time, action, msgs)
+			return mgr.create_accept_dialog(msgs)
+			
+	# 这里不通过__CONF_MANAGER，可以让用户使用该表时输入一次密码加深记忆，防止用户加入了很多数据后才发现密码错误
+	# 不记录path、database等信息，是方便转移数据表时，直接剪切文件到对应的数据库目录即可（配置文件和数据文件分别到各自目录）
+	var config_file = ConfigFile.new()
+	var table_conf_path = databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
+	config_file.set_value("0", "encrypted", "" if password.is_empty() else password.md5_text())
+	config_file.set_value("0", "comment", comment)
+	config_file.set_value("0", "columns", column_infos)
+	config_file.save(table_conf_path)
+	msgs.push_back("1 file:%s is saved." % table_conf_path)
 	
 	mgr.sys_confirm_add_table.emit(id)
+	mgr.add_log_history.emit("OK", begin_time, action, msgs)
 	
 	refresh()
-	mgr.add_log_history.emit("OK", begin_time, action, "1 row affected")
 	
-func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String, save: bool, id: String) -> void:
+func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String, id: String) -> void:
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "ALTER DATABASE `%s` RENAME `%s`;" % [old_db_name, new_db_name]
+	var msgs = []
 	
-	var conf: ConfigFile = _config_file if save else _tmp_config
-	if not conf.has_section(old_db_name):
-		var msg = "database [%s] not exist" % old_db_name
-		mgr.add_log_history.emit("Err", begin_time, action, msg)
-		return mgr.create_accept_dialog(msg)
+	if old_db_name == new_db_name:
+		msgs.push_back("nothing changed!")
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
 		
-	if conf.has_section(new_db_name):
-		var msg = "database's name [%s] has been occupied" % new_db_name
-		mgr.add_log_history.emit("Err", begin_time, action, msg)
-		return mgr.create_accept_dialog(msg)
+	if not databases.has(old_db_name):
+		msgs.push_back("database [%s] not exist!" % old_db_name)
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
 		
-	var old_data = {}
-	
-	for key in _config_file.get_section_keys(old_db_name):
-		old_data[key] = _config_file.get_value(old_db_name, key)
+	if databases.has(new_db_name):
+		msgs.push_back("database's name [%s] has been occupied!" % new_db_name)
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
 		
-	old_data["name"] = new_db_name
-	#old_data["path"] = path # not allowed to modify
+	var old_config_path = CONFIG_ROOT + old_db_name.to_lower().to_snake_case() + "/"
+	var new_config_path = CONFIG_ROOT + new_db_name.to_lower().to_snake_case() + "/"
+	var old_data = databases[old_db_name]
+	_config_file.erase_section(old_db_name)
+	_config_file.set_value(new_db_name, "data_path", old_data["data_path"])
+	_config_file.set_value(new_db_name, "config_path", new_config_path)
+	_config_file.save(ROOT_CONFIG)
+	msgs.push_back("1 file:%s is modified." % ROOT_CONFIG)
 	
-	conf.erase_section(old_db_name)
-	
-	for key in old_data:
-		conf.set_value(new_db_name, key, old_data[key])
-	
-	if save:
-		conf.save("res://addons/gdsql/config/config.cfg")
+	var dir = DirAccess.open(CONFIG_ROOT)
+	if dir == null:
+		msgs.push_back("Failed! Cannot open config root %s dir! Err:%s." % [CONFIG_ROOT, DirAccess.get_open_error()])
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
 		
+	if dir.dir_exists(old_config_path):
+		var err = dir.rename(old_config_path, new_config_path)
+		if err == OK:
+			msgs.push_back("1 file:%s is renamed to %s." % [old_config_path, new_config_path])
+		else:
+			msgs.push_back("Failed! Cannot rename dir from %s to %s ! Err:%s." % [old_config_path, new_config_path, err])
+			mgr.add_log_history.emit("Err", begin_time, action, msgs)
+			return mgr.create_accept_dialog(msgs)
+	else:
+		var err = dir.make_dir_recursive(new_config_path)
+		if err == OK:
+			msgs.push_back("dir:%s is made" % new_config_path)
+		else:
+			msgs.push_back("Failed! Cannot make dir %s ! Err:%s." % [new_config_path, err])
+			mgr.add_log_history.emit("Err", begin_time, action, msgs)
+			return mgr.create_accept_dialog(msgs)
+			
 	mgr.sys_confirm_alter_schema.emit(id)
+	mgr.add_log_history.emit("OK", begin_time, action, msgs)
 	
 	refresh()
-	mgr.add_log_history.emit("OK", begin_time, action, "1 row affected")
 	
 func modify_table_to_config(db_name: String, old_table_name: String, new_table_name, \
 		comments: String, column_infos: Array, id: String) -> void:
 		
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "ALTER TABLE `%s`.`%s` to `%s`.`%s` (" % [db_name, old_table_name, db_name, new_table_name]
+	var msgs = []
 	var primarys = [] # 不代表支持多主键，只是为了反映用户本身的输入
 	for i in column_infos:
 		action += "\n    `%s` %s%s%s%s%s%s," % [ 
@@ -218,16 +278,16 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 	action += ";" if comments.is_empty() else " COMMENT '%s';" % comments.c_escape()
 	
 	if primarys.size() != 1:
-		var msg = "multiple primary key or none primary key is not supported!"
-		mgr.add_log_history.emit("Err", begin_time, action, msg)
-		return mgr.create_accept_dialog(msg)
+		msgs.push_back("multiple primary key or none primary key is not supported!")
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
 	
-	if !_config_file.has_section(db_name):
-		var msg = "failed! database not exists!" % db_name
-		mgr.add_log_history.emit("Err", begin_time, action, msg)
-		return mgr.create_accept_dialog(msg)
+	if not databases.has(db_name):
+		msgs.push_back("failed! database not exists!" % db_name)
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
 		
-	var table_confs = _config_file.get_value(db_name, "tables", {}) as Dictionary
+	var table_confs = databases[db_name]["tables"] as Dictionary
 	# 没有定义的表怎么办？没影响。
 	#if not table_confs.has(old_table_name):
 		#var msg = "failed! table [%s] defination not exist!" % old_table_name
@@ -235,22 +295,22 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		#return mgr.create_accept_dialog(msg)
 		
 	if new_table_name != old_table_name and table_confs.has(new_table_name):
-		var msg = "failed! table [%s] name is occupied!" % new_table_name
-		mgr.add_log_history.emit("Err", begin_time, action, msg)
-		return mgr.create_accept_dialog(msg)
+		msgs.push_back("failed! table [%s] name is occupied!" % new_table_name)
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
 		
-	var db_path = _config_file.get_value(db_name, "path")
-	var old_table_path = db_path + old_table_name + ".gsql"
-	var new_table_path = db_path + new_table_name + ".gsql"
-	if not FileAccess.file_exists(old_table_path):
-		var msg = "failed! file [%s] not exist!" % old_table_path
-		mgr.add_log_history.emit("Err", begin_time, action, msg)
-		return mgr.create_accept_dialog(msg)
+	var db_path = databases[db_name]["data_path"]
+	var old_table_data_path = db_path + old_table_name + DATA_EXTENSION
+	var new_table_data_path = db_path + new_table_name + DATA_EXTENSION
+	if not FileAccess.file_exists(old_table_data_path):
+		msgs.push_back("failed! file [%s] not exist!" % old_table_data_path)
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
 		
-	if new_table_path != old_table_path and FileAccess.file_exists(new_table_path):
-		var msg = "failed! file [%s] already exist!" % new_table_path
-		mgr.add_log_history.emit("Err", begin_time, action, msg)
-		return mgr.create_accept_dialog(msg)
+	if new_table_data_path != old_table_data_path and FileAccess.file_exists(new_table_data_path):
+		msgs.push_back("failed! file [%s] already exist!" % new_table_data_path)
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
 		
 	# 检查是否有重复的字段
 	var exist_col = {}
@@ -263,8 +323,8 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		exist_col[i["Column Name"]] = true
 		
 	# 注意，这里随便传了一个密码，因为实际操作中用户已经输入过密码了，__CONF_MANAGER后续会从缓存中获取，无需再次输入密码
-	var old_table_file = __CONF_MANAGER.get_conf(old_table_path, "")
-	var old_values = old_table_file.get_all_section_values() # 数据表中的旧数据
+	var old_table_data_file = __CONF_MANAGER.get_conf(old_table_data_path, "")
+	var old_values = old_table_data_file.get_all_section_values() # 数据表中的旧数据
 	var warnings = []
 	# 数据为空就没必要检查字段了
 	if not old_values.is_empty():
@@ -275,38 +335,38 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 			
 		for i in column_infos:
 			var col_name = i["Column Name"]
-				
+			
 			if old_columns_map.has(col_name):
 				# 检查字段类型发生变化
 				if old_columns_map[col_name]["Data Type"] != i["Data Type"]:
 					warnings.push_back("field [%s] data type changed from [%s] to [%s], datas will be converted!" % \
 						[col_name, DataTypeDef.DATA_TYPE_NAMES[old_columns_map[col_name]["Data Type"]], i["Data Type"]])
 					for j: Dictionary in old_values:
-						printt("cccccccccc", var_to_str(j[col_name]), var_to_str(i["Data Type"]))
 						j[col_name] = convert(j[col_name], i["Data Type"])# TODO FIXME 期待godot新版本支持
 						# type_convert
 						# https://github.com/godotengine/godot/pull/70080
 				# 检查自增
 				if not old_columns_map[col_name]["AI"] and i["AI"]:
 					if not [TYPE_INT, TYPE_FLOAT].has(i["Data Type"]):
-						var msg = "field [%s] data type must be int or float to support auto increment!" % col_name
-						mgr.add_log_history.emit("Err", begin_time, action, msg)
-						return mgr.create_accept_dialog(msg)
+						msgs.push_back("field [%s] data type must be int or float to support auto increment!" % col_name)
+						mgr.add_log_history.emit("Err", begin_time, action, msgs)
+						return mgr.create_accept_dialog(msgs)
 						
 					for j: Dictionary in old_values:
 						if not [TYPE_INT, TYPE_FLOAT].has(typeof(j[col_name])):
-							var msg = "old datas' field [%s] are not int or float, cannot support auto increment!" % col_name
-							mgr.add_log_history.emit("Err", begin_time, action, msg)
-							return mgr.create_accept_dialog(msg)
+							msgs.push_back(
+								"old datas' field [%s] are not int or float, cannot support auto increment!" % col_name)
+							mgr.add_log_history.emit("Err", begin_time, action, msgs)
+							return mgr.create_accept_dialog(msgs)
 				# 检查主键
 				if i["PK"]:
 					# 唯一
 					var exist = {}
 					for j: Dictionary in old_values:
 						if exist.has(j[col_name]):
-							var msg = "old datas have duplicate value of primary key [%s]" % col_name
-							mgr.add_log_history.emit("Err", begin_time, action, msg)
-							return mgr.create_accept_dialog(msg)
+							msgs.push_back("old datas have duplicate value of primary key [%s]!" % col_name)
+							mgr.add_log_history.emit("Err", begin_time, action, msgs)
+							return mgr.create_accept_dialog(msgs)
 							
 						exist[j[col_name]] = true
 						
@@ -315,24 +375,24 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 					var exist = {}
 					for j: Dictionary in old_values:
 						if exist.has(j[col_name]):
-							var msg = "old datas have duplicate value of unique key [%s]" % col_name
-							mgr.add_log_history.emit("Err", begin_time, action, msg)
-							return mgr.create_accept_dialog(msg)
+							msgs.push_back("old datas have duplicate value of unique key [%s]!" % col_name)
+							mgr.add_log_history.emit("Err", begin_time, action, msgs)
+							return mgr.create_accept_dialog(msgs)
 							
 						exist[j[col_name]] = true
 				# 检查非null
 				if i["NN"]:
 					for j: Dictionary in old_values:
 						if j[col_name] == null:
-							var msg = "old datas have NULL value of not null key [%s]" % col_name
-							mgr.add_log_history.emit("Err", begin_time, action, msg)
-							return mgr.create_accept_dialog(msg)
+							msgs.push_back("old datas have NULL value of not null key [%s]!" % col_name)
+							mgr.add_log_history.emit("Err", begin_time, action, msgs)
+							return mgr.create_accept_dialog(msgs)
 							
 	var apply = func() -> void:
 			
-		var new_table_file = old_table_file if old_table_path == new_table_path \
-			else __CONF_MANAGER.create_conf(new_table_path, "")
-		new_table_file.clear()
+		var new_table_data_file = old_table_data_file if old_table_data_path == new_table_data_path \
+			else __CONF_MANAGER.create_conf(new_table_data_path, "")
+		new_table_data_file.clear()
 		
 		for i: Dictionary in old_values:
 			var primary_value = str(i[primarys[0]])
@@ -341,40 +401,60 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 				var default_value = null
 				if not (c["Default(Expression)"] as String).strip_edges().is_empty():
 					default_value = Evaluate.evaluate_command(null, c["Default(Expression)"])
-				new_table_file.set_value(primary_value, col_name, i.get(col_name, default_value))
+				new_table_data_file.set_value(primary_value, col_name, i.get(col_name, default_value))
 				
-		__CONF_MANAGER.save_conf_by_same_password(new_table_path, old_table_path)
+		__CONF_MANAGER.save_conf_by_same_password(new_table_data_path, old_table_data_path)
+		msgs.push_back("1 file:%s is saved." % new_table_data_file)
+		if new_table_data_path != old_table_data_path:
+			__CONF_MANAGER.remove_conf(old_table_data_path)
 		
-		var table_commnets = _config_file.get_value(db_name, "comments", {}) as Dictionary
-		if old_table_name != new_table_name:
-			table_commnets.erase(old_table_name)
-		table_commnets[new_table_name] = comments
+		var config_file = ConfigFile.new()
+		var table_conf_path = databases[db_name]["config_path"] + new_table_name + CONFIG_EXTENSION
+		config_file.set_value("0", "encrypted", table_confs[old_table_name]["encrypted"]) # 保留原密码
+		config_file.set_value("0", "comment", comments)
+		config_file.set_value("0", "columns", column_infos)
+		config_file.save(table_conf_path) # 如果新路径和旧路径一致，就会覆盖掉，也是我们所期待的
+		msgs.push_back("1 file:%s is saved." % table_conf_path)
 		
-		if old_table_name != new_table_name:
-			var encrypted = _config_file.get_value(db_name, "encrypted", {}) as Dictionary
-			encrypted[new_table_name] = encrypted[old_table_name]
-			encrypted.erase(old_table_name)
-			_config_file.set_value(db_name, "encrypted", encrypted)
-			table_confs.erase(old_table_name)
-		
-		table_confs[new_table_name] = column_infos
-		_config_file.set_value(db_name, "tables", table_confs)
-		_config_file.set_value(db_name, "comments", table_commnets)
-		_config_file.save("res://addons/gdsql/config/config.cfg")
-		
-		if old_table_path != new_table_path:
-			if OS.has_feature("editor"):
-				OS.move_to_trash(ProjectSettings.globalize_path(old_table_path))
-		
+		if old_table_data_path != new_table_data_path:
+			var old_table_conf_path = databases[db_name]["config_path"] + old_table_name + CONFIG_EXTENSION
+			var old_table_conf_path_abs = ProjectSettings.globalize_path(old_table_conf_path)
+			var old_table_data_path_abs = ProjectSettings.globalize_path(old_table_data_path)
+			if FileAccess.file_exists(old_table_conf_path_abs):
+				OS.move_to_trash(old_table_conf_path_abs) # 删配置
+				msgs.push_back("1 file:%s is moved to trash." % old_table_conf_path_abs)
+			if FileAccess.file_exists(old_table_data_path_abs):
+				OS.move_to_trash(old_table_data_path_abs) # 删数据
+				msgs.push_back("1 file:%s is moved to trash." % old_table_data_path_abs)
+			
 		mgr.sys_confirm_alter_table.emit(id)
+		mgr.add_log_history.emit("OK", begin_time, action, msgs)
 		
 		refresh()
-		mgr.add_log_history.emit("OK", begin_time, action, "1 row affected")
 		
 	if warnings.is_empty():
 		apply.call()
 	else:
 		mgr.create_confirmation_dialog("\n".join(warnings), apply)
+
+func drop_db_from_config(db_name: String) -> void:
+	var begin_time = Time.get_unix_time_from_system()
+	var action = "Drop Schema %s" % db_name
+	
+	if databases.has(db_name):
+		var content = "database:%s not exist!" % db_name
+		mgr.add_log_history.emit("Err", begin_time, action, content)
+		return mgr.create_accept_dialog(content)
+	
+	if _default_database_path == databases[db_name]["data_path"]:
+		_default_database_path = ""
+	_config_file.erase_section(db_name)
+	_config_file.save(ROOT_CONFIG)
+	
+	var msg = "1 file:%s is modified" % ROOT_CONFIG
+	mgr.add_log_history.emit("OK", begin_time, action, msg)
+	
+	refresh()
 
 func _ready():
 	if not mgr.user_confirm_add_schema.is_connected(add_db_to_config):
@@ -414,42 +494,39 @@ func refresh() -> void:
 	var collapsed = false
 	for db_name in databases:
 		var data = databases[db_name]
-		var db := add_database(data["name"], data["path"], data["persistent"])
-		db.collapsed = collapsed if _default_database_path.is_empty() else _default_database_path != data["path"]
+		var db := add_database(db_name, data["data_path"])
+		db.collapsed = collapsed if _default_database_path.is_empty() else _default_database_path != data["data_path"]
 		database_items.push_back(db)
 		collapsed = true # 在没默认数据库的情况下，除了第一个数据库不折叠，其他都折叠
 		
-		var table_files = _get_gsql_file(data["path"])
-		for file_name in table_files:
-			var table_item = add_table(db, file_name, file_name)
-			data["table_items"][table_item["table_name"]] = table_item
+		for table_name in data["tables"]:
+			add_table(db, table_name)
 			
-	mgr.databases = databases
 	
 	# create table like 子菜单重新生成
 	var id = 0
 	for db_name in databases:
 		var data = databases[db_name]
-		if !data["table_items"].is_empty():
-			popup_menu_create_table_like_tables.add_separator("SCHEMA：%s" % data["name"], id)
-			popup_menu_create_table_like_table_item.add_separator("SCHEMA：%s" % data["name"], id)
+		if !data["tables"].is_empty():
+			popup_menu_create_table_like_tables.add_separator("SCHEMA：%s" % db_name, id)
+			popup_menu_create_table_like_table_item.add_separator("SCHEMA：%s" % db_name, id)
 			id += 1
-		for t in data["table_items"]:
+		for t in data["tables"]:
 			popup_menu_create_table_like_tables.add_item(t, id)
 			var idx_1 = popup_menu_create_table_like_tables.get_item_index(id)
 			popup_menu_create_table_like_tables.set_item_metadata(idx_1, {
-				"db_name": data["name"],
+				"db_name": db_name,
 				"table_name": t
 			})
 			
 			popup_menu_create_table_like_table_item.add_item(t)
 			var idx_2 = popup_menu_create_table_like_table_item.get_item_index(id)
 			popup_menu_create_table_like_tables.set_item_metadata(idx_2, {
-				"db_name": data["name"],
+				"db_name": db_name,
 				"table_name": t
 			})
 	
-func _get_gsql_file(path: String) -> Array[String]:
+func _get_specific_extension_files(path: String, extension: String) -> Array[String]:
 	var ret: Array[String] = []
 	var dir = DirAccess.open(path)
 	if dir:
@@ -462,7 +539,7 @@ func _get_gsql_file(path: String) -> Array[String]:
 				pass # 不支持发现子目录里的数据，用户可自行把子目录创建为新的数据库即可
 			# 文件
 			else:
-				if file_name.ends_with(".gsql"):# or file_name.ends_with(".cfg"):
+				if file_name.get_extension() == extension:
 					ret.push_back(file_name)
 					
 			file_name = dir.get_next()
@@ -472,7 +549,7 @@ func _get_gsql_file(path: String) -> Array[String]:
 		
 	return ret
 
-func add_database(db_name: String, path: String, persistent: bool) -> TreeItem:
+func add_database(db_name: String, path: String) -> TreeItem:
 	var database_item = create_item(root)
 	database_item.set_text(0, db_name)
 	database_item.set_icon(0, preload("res://addons/gdsql/img/icon_db.png"))
@@ -480,9 +557,8 @@ func add_database(db_name: String, path: String, persistent: bool) -> TreeItem:
 	database_item.add_button(0, preload("res://addons/gdsql/img/folder.png"), 1, false, "打开目录")
 	database_item.set_tooltip_text(0, path)
 	database_item.set_meta("db_name", db_name)
-	database_item.set_meta("path", path)
+	database_item.set_meta("data_path", path)
 	database_item.set_meta("type", "database")
-	database_item.set_meta("persistent", persistent)
 	if path == _default_database_path:
 		database_item.set_custom_bg_color(0, Color.BLUE_VIOLET)
 	
@@ -496,62 +572,49 @@ func add_database(db_name: String, path: String, persistent: bool) -> TreeItem:
 		item.set_tooltip_text(0, tooltips[i])
 		item.set_meta("type", arr[i])
 		item.set_meta("db_name", db_name)
-		item.set_meta("path", path)
-		item.set_meta("persistent", persistent)
+		item.set_meta("data_path", path)
 		if i > 0:
 			item.set_collapsed_recursive(true)
 	
 	return database_item
 	
-func add_table(db: TreeItem, file_name: String, tooltip: String = "") -> Dictionary:
-	var table_item = create_item(db.get_child(0))
-	var table_name = file_name.replace(".gsql", "").replace(".cfg", "")
+func add_table(db: TreeItem, table_name: String):
+	var table_item = create_item(db.get_child(0)) # child 0 是 Tables。其他是Views、Stored Procedures等等
+	var file_name = table_name + DATA_EXTENSION
+	var db_name = db.get_meta("db_name")
 	table_item.set_text(0, table_name)
 	table_item.set_icon(0, preload("res://addons/gdsql/img/table.png"))
 	table_item.set_icon_max_width(0, 20)
-	table_item.set_tooltip_text(0, tooltip)
+	table_item.set_tooltip_text(0, file_name)
 	table_item.add_button(0, preload("res://addons/gdsql/img/quick_search.png"), 0, false, 
-		"select * from %s.%s;" % [db.get_meta("db_name"), table_name])
-	table_item.set_meta("db_name", db.get_meta("db_name"))
+		"select * from %s.%s;" % [db_name, table_name])
+	table_item.set_meta("db_name", db_name)
 	table_item.set_meta("table_name", table_name)
-	table_item.set_meta("path", db.get_meta("path") + file_name)
+	table_item.set_meta("data_path", db.get_meta("data_path") + file_name)
 	table_item.set_meta("type", "table")
-	table_item.set_meta("persistent", db.get_meta("persistent"))
 	table_item.collapsed = true
 	
 	# TODO 让column可以多选
 	# column的子tree
-	var table_confs = _config_file.get_value(db.get_meta("db_name"), "tables", {}) as Dictionary
-	if table_confs.has(table_name):
-		for col in table_confs[table_name]:
-			var col_item = create_item(table_item)
-			var texts = [col["Column Name"]]
-			texts.push_back(DataTypeDef.DATA_TYPE_NAMES[col["Data Type"]].replace("TYPE_", "").capitalize())
-			col_item.set_text(0, ": ".join(texts))
-			col_item.set_icon(0, preload("res://addons/gdsql/img/dot.png"))
-			col_item.set_meta("db_name", db.get_meta("db_name"))
-			col_item.set_meta("table_name", table_name)
-			col_item.set_meta("column_name", col["Column Name"])
-			col_item.set_meta("type", "column")
-			var properties = ["AI", "NN", "UQ", "PK"]
-			var tooltips = ["Auto Increment", "Not NULL", "Uniq", "Primary Key"]
-			for i in properties.size():
-				if col[properties[i]]:
-					col_item.add_button(0, load("res://addons/gdsql/img/word_%s.png" \
-					% (properties[i] as String).to_lower()), 2, true, tooltips[i])
-			
-	
-	var info = {
-		"table_name": table_name,
-		"file_name": file_name,
-		"path": table_item.get_meta("path"),
-		"comment": _config_file.get_value(db.get_meta("db_name"), "comments", {}).get(table_name, ""),
-		"encrypted": _config_file.get_value(db.get_meta("db_name"), "encrypted", {}).get(table_name, ""),
-		"columns": table_confs.get(table_name, [])
-	}
-	return info
-
-
+	var table_columns = databases[db_name]["tables"][table_name]["columns"]
+	for col in table_columns:
+		var col_item = create_item(table_item)
+		var texts = [col["Column Name"]]
+		texts.push_back(DataTypeDef.DATA_TYPE_NAMES[col["Data Type"]].replace("TYPE_", "").capitalize())
+		col_item.set_text(0, ": ".join(texts))
+		col_item.set_icon(0, preload("res://addons/gdsql/img/dot.png"))
+		col_item.set_meta("db_name", db_name)
+		col_item.set_meta("table_name", table_name)
+		col_item.set_meta("column_name", col["Column Name"])
+		col_item.set_meta("type", "column")
+		var properties = ["AI", "NN", "UQ", "PK"]
+		var tooltips = ["Auto Increment", "Not NULL", "Uniq", "Primary Key"]
+		for i in properties.size():
+			if col[properties[i]]:
+				col_item.add_button(0, load("res://addons/gdsql/img/word_%s.png" \
+				% (properties[i] as String).to_lower()), 2, true, tooltips[i])
+				
+				
 func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_index: int) -> void:
 	if column == 0:
 		match id:
@@ -565,7 +628,7 @@ func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_inde
 					})
 				deal_password_before_table_cmd(item, exe_select)
 			1:
-				var path = ProjectSettings.globalize_path(item.get_meta("path"))
+				var path = ProjectSettings.globalize_path(item.get_meta("data_path"))
 				OS.shell_show_in_file_manager(path, true)
 
 
@@ -578,7 +641,7 @@ func _on_item_activated(item: TreeItem = null) -> void:
 		for db_item in database_items:
 			if db_item == item:
 				is_db_item = true
-				_default_database_path = db_item.get_meta("path")
+				_default_database_path = db_item.get_meta("data_path")
 				if db_item.get_custom_bg_color(0) != Color.BLUE_VIOLET:
 					db_item.set_custom_bg_color(0, Color.BLUE_VIOLET)
 					need_collapsed = false # 双击数据库，优先改背景颜色，改了背景颜色就不折叠，而且直接展开（保持展开）
@@ -604,8 +667,6 @@ func _on_gui_input(event: InputEvent) -> void:
 					popup_menu = popup_menu_database
 				"Tables":
 					popup_menu = popup_menu_tables
-					popup_menu.set_item_disabled(0, !item.get_meta("persistent")) # Create Table...
-					popup_menu.set_item_disabled(1, !item.get_meta("persistent")) # Create Table Like...
 				"Views":
 					popup_menu = popup_menu_veiws
 				"Stored Procedures":
@@ -614,9 +675,6 @@ func _on_gui_input(event: InputEvent) -> void:
 					popup_menu = popup_menu_functions
 				"table":
 					popup_menu = popup_menu_table_item
-					popup_menu.set_item_disabled(9, !item.get_meta("persistent")) # Create Table...
-					popup_menu.set_item_disabled(10, !item.get_meta("persistent")) # Create Table Like...
-					popup_menu.set_item_disabled(11, !item.get_meta("persistent")) # Alter Table...
 				"column":
 					popup_menu = popup_menu_column
 					
@@ -655,33 +713,29 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 func deal_password_before_table_cmd(table_item: TreeItem, pass_callback: Callable):
 	var db_name = table_item.get_meta("db_name")
 	var table_name = table_item.get_meta("table_name")
-	var table_path = table_item.get_meta("path")
+	var table_path = table_item.get_meta("data_path")
 	var password_dict_obj = DictionaryObject.new({"Password": ""}, 
 		{"Password": {"hint": PROPERTY_HINT_PASSWORD}})
 	# 加密的表首次操作时需要输入密码
-	var valid_pass_md5 = databases[db_name]["table_items"][table_name]["encrypted"]
-	if valid_pass_md5 != "":
-		if __CONF_MANAGER.has_conf(table_path):
-			if pass_callback.is_valid():
-				pass_callback.call()
-		else:
-			var confirmed = func():
-				if valid_pass_md5 == (password_dict_obj._get("Password") as String).md5_text():
-					# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
-					__CONF_MANAGER.get_conf(table_path, password_dict_obj._get("Password"))
-					if pass_callback.is_valid():
-						pass_callback.call()
-				else:
-					mgr.create_accept_dialog("Password is not correct!")
-				
-			var arr: Array[Array] = [
-				["This table is encrypted. Please input password of this table."],
-				[password_dict_obj],
-			]
-			mgr.create_custom_dialog(arr, confirmed)
-	else:
+	var valid_pass_md5 = databases[db_name]["tables"][table_name]["encrypted"]
+	if valid_pass_md5 == "" or __CONF_MANAGER.has_conf(table_path):
 		if pass_callback.is_valid():
 			pass_callback.call()
+	else:
+		var confirmed = func():
+			if valid_pass_md5 == (password_dict_obj._get("Password") as String).md5_text():
+				# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
+				__CONF_MANAGER.get_conf(table_path, password_dict_obj._get("Password"))
+				if pass_callback.is_valid():
+					pass_callback.call()
+			else:
+				mgr.create_accept_dialog("Password is not correct!")
+				
+		var arr: Array[Array] = [
+			["This table is encrypted. Please input password of this table."],
+			[password_dict_obj],
+		]
+		mgr.create_custom_dialog(arr, confirmed)
 	
 ## Tables目录的create table like子目录的菜单
 func _on_popup_menu_create_table_like_tables_index_pressed(index: int) -> void:
@@ -701,28 +755,14 @@ func _on_popup_menu_database_index_pressed(index: int) -> void:
 		"Alter Schema...":
 			var item := get_selected()
 			if item:
-				mgr.open_alter_schema_tab.emit(item.get_meta("db_name"), item.get_meta("path"), 
-					_config_file.has_section(item.get_meta("db_name")))
+				mgr.open_alter_schema_tab.emit(item.get_meta("db_name"), item.get_meta("data_path"))
 		"Drop Schema...":
 			var item := get_selected()
 			if item:
-				var dialog := ConfirmationDialog.new()
-				dialog.dialog_text = \
-				"Are you sure to drop this database `%s`? This will NOT delete the folder from your operation system." \
-					% get_selected().get_meta("db_name")
-				dialog.confirmed.connect(func():
-					var conf: ConfigFile = _config_file if _config_file.has_section(item.get_meta("db_name")) else _tmp_config
-					if _default_database_path == conf.get_value(item.get_meta("db_name"), "path"):
-						_default_database_path = ""
-					conf.erase_section(item.get_meta("db_name"))
-					if conf == _config_file:
-						conf.save("res://addons/gdsql/config/config.cfg")
-					refresh()
-				)
-				add_child(dialog)
-				dialog.popup_centered()
-				dialog.close_requested.connect(func():
-					dialog.queue_free()
+				mgr.create_confirmation_dialog(
+					"Are you sure to drop this database `%s`? This will NOT delete the folder from your operation system." \
+					% get_selected().get_meta("db_name"),
+					drop_db_from_config.bind(item.get_meta("db_name"))
 				)
 		"Refresh All":
 			refresh()
@@ -758,7 +798,7 @@ func _on_popup_menu_copy_to_index_pressed(index: int) -> void:
 		"Create Statement":
 			var item := get_selected()
 			if item:
-				var statement = "CREATE DATABASE `%s` AS `%s`;" % [item.get_meta("path"), item.get_meta("db_name")]
+				var statement = "CREATE DATABASE %s PATH %s;" % [item.get_meta("db_name"), item.get_meta("path")]
 				DisplayServer.clipboard_set(statement)
 
 ## 数据库”发送到“子菜单
@@ -771,11 +811,11 @@ func _on_popup_menu_send_to_index_pressed(index: int) -> void:
 		"Path":
 			var item := get_selected()
 			if item:
-				mgr.send_to_editor.emit(item.get_meta("path"))
+				mgr.send_to_editor.emit(item.get_meta("data_path"))
 		"Create Statement":
 			var item := get_selected()
 			if item:
-				var statement = "CREATE DATABASE `%s` AS `%s`;" % [item.get_meta("path"), item.get_meta("db_name")]
+				var statement = "CREATE DATABASE %s PATH %s;" % [item.get_meta("db_name"), item.get_meta("path")]
 				mgr.send_to_editor.emit(statement)
 
 ## Tables目录右键菜单

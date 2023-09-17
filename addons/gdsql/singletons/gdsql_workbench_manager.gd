@@ -4,14 +4,14 @@ class_name GDSQLWorkbenchManagerClass
 ## 打开新建数据库标签页的信号
 signal open_add_schema_tab
 ## 用户确认新建数据库的信号
-signal user_confirm_add_schema(db_name: String, path: String, save: bool, id: String)
+signal user_confirm_add_schema(db_name: String, path: String, id: String)
 ## 系统确认新建数据库的信号
 signal sys_confirm_add_schema(id: String)
 
 ## 打开修改数据库标签页的信号
-signal open_alter_schema_tab(db_name: String, path: String, save: bool)
+signal open_alter_schema_tab(db_name: String, path: String)
 ## 用户确认修改数据库的信号
-signal user_confirm_alter_schema(old_db_name: String, new_db_name: String, path: String, save: bool, id: String)
+signal user_confirm_alter_schema(old_db_name: String, new_db_name: String, path: String, id: String)
 ## 系统确认修改数据库的信号
 signal sys_confirm_alter_schema(id: String)
 
@@ -42,15 +42,14 @@ signal add_log_history(status: String, begin_timestamp: String, action: String, 
 ## 数据库配置
 #databases = {
 	#"db1": {
-		#"name": conf.get_value(db_name, "name"),
-		#"path": conf.get_value(db_name, "path"),
-		#"table_items": {
+		#"data_path": conf.get_value(db_name, "data_path"),
+		#"config_path": conf.get_value(db_name, "config_path"),
+		#"tables": {
 			#"table1": {
-				#"table_name": "",
 				#"file_name": "",
-				#"path": ""
+				#"data_path": ""
 				#"comment": ""
-				#"encrypted": false/true
+				#"encrypted": "3423df23523fvsdgdfg"
 				#"columns": [ # 可能为空
 					#{
 						#"AI": false,
@@ -93,7 +92,9 @@ func create_confirmation_dialog(msg: String, confirmed_callback: Callable = Call
 		dialog.queue_free()
 	)
 	
-func create_accept_dialog(msg: String) -> void:
+func create_accept_dialog(msg) -> void:
+	if msg is Array:
+		msg = " ".join(msg)
 	var dialog := AcceptDialog.new()
 	dialog.dialog_text = msg
 	EditorInterface.get_base_control().get_tree().get_root().add_child(dialog)
