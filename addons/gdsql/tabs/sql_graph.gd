@@ -1,6 +1,8 @@
 @tool
 extends VSplitContainer
 
+const DATA_EXTENSION = ".gsql"
+
 var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
 signal request_open_file(path: String)
@@ -200,8 +202,8 @@ func gen_select_node() -> GraphNode:
 	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		match prop:
 			"Schema":
-				base_dao.use_db(mgr.databases[new_val]["path"])
-				var tables = mgr.databases[new_val]["table_items"].keys()
+				base_dao.use_db(mgr.databases[new_val]["data_path"])
+				var tables = mgr.databases[new_val]["tables"].keys()
 				table_dict_obj.reset_hint(
 					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, 
 					"_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
@@ -214,9 +216,7 @@ func gen_select_node() -> GraphNode:
 	table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		match prop:
 			"Table":
-				var db_info = mgr.databases[schema_dict_obj._get("Schema")]
-				var table = db_info["table_items"][new_val]["file_name"]
-				base_dao.set_table(table)
+				base_dao.set_table(new_val + DATA_EXTENSION)
 			"_alias":
 				base_dao.set_table_alias(new_val)
 		graph_node.redraw_slot_control(3, 2)
@@ -317,8 +317,8 @@ func gen_left_join_node() -> GraphNode:
 	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		match prop:
 			"Schema":
-				left_join_obj.set_db(mgr.databases[new_val]["path"])
-				var tables = mgr.databases[new_val]["table_items"].keys()
+				left_join_obj.set_db(mgr.databases[new_val]["data_path"])
+				var tables = mgr.databases[new_val]["tables"].keys()
 				table_dict_obj.reset_hint(
 					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, 
 					"_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
@@ -329,9 +329,7 @@ func gen_left_join_node() -> GraphNode:
 	table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		match prop:
 			"Table":
-				var db_info = mgr.databases[schema_dict_obj._get("Schema")]
-				var table = db_info["table_items"][new_val]["file_name"]
-				left_join_obj.set_table(table)
+				left_join_obj.set_table(new_val + DATA_EXTENSION)
 			"_alias":
 				left_join_obj.set_alias(new_val)
 	)

@@ -46,8 +46,6 @@ signal add_log_history(status: String, begin_timestamp: String, action: String, 
 		#"config_path": conf.get_value(db_name, "config_path"),
 		#"tables": {
 			#"table1": {
-				#"file_name": "",
-				#"data_path": ""
 				#"comment": ""
 				#"encrypted": "3423df23523fvsdgdfg"
 				#"columns": [ # 可能为空

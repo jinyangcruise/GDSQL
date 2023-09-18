@@ -74,8 +74,8 @@ func refresh_databases():
 			databases[db_name]["tables"][file_name.get_basename()] = table_conf.get_all_section_values()[0]
 				
 	mgr.databases = databases
-		
-		
+	
+	
 func add_db_to_config(db_name: String, path: String, id: String) -> void:
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "CREATE DATABASE %s PATH %s;" % [db_name, path]
@@ -183,7 +183,6 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 			mgr.add_log_history.emit("Err", begin_time, action, msgs)
 			return mgr.create_accept_dialog(msgs)
 			
-	# 这里不通过__CONF_MANAGER，可以让用户使用该表时输入一次密码加深记忆，防止用户加入了很多数据后才发现密码错误
 	# 不记录path、database等信息，是方便转移数据表时，直接剪切文件到对应的数据库目录即可（配置文件和数据文件分别到各自目录）
 	var config_file = ConfigFile.new()
 	var table_conf_path = databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
@@ -192,6 +191,12 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 	config_file.set_value("0", "columns", column_infos)
 	config_file.save(table_conf_path)
 	msgs.push_back("1 file:%s is saved." % table_conf_path)
+	
+	# 这里不通过__CONF_MANAGER，可以让用户使用该表时输入一次密码加深记忆，防止用户加入了很多数据后才发现密码错误
+	var data_file = ConfigFile.new()
+	data_file.save(table_data_path) if password.is_empty() \
+		else data_file.save_encrypted_pass(table_data_path, password)
+	msgs.push_back("1 file:%s is saved." % table_data_path)
 	
 	mgr.sys_confirm_add_table.emit(id)
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
@@ -439,9 +444,9 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 
 func drop_db_from_config(db_name: String) -> void:
 	var begin_time = Time.get_unix_time_from_system()
-	var action = "Drop Schema %s" % db_name
+	var action = "Drop Schema %s;" % db_name
 	
-	if databases.has(db_name):
+	if not databases.has(db_name):
 		var content = "database:%s not exist!" % db_name
 		mgr.add_log_history.emit("Err", begin_time, action, content)
 		return mgr.create_accept_dialog(content)
