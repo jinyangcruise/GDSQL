@@ -12,6 +12,9 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 @onready var label_model: Label = $Models/LabelModel
 @onready var texture_rect_model: TextureRect = $Models/TextureRectModel
 @onready var check_box_model: CheckBox = $Models/CheckBoxModel
+@onready var scroll_container = $VBoxContainer/ScrollContainer
+@onready var popup_menu_text = $PopupMenuText
+
 
 
 ## 表格是否可编辑（datas中的元素必须是DictionaryObject才有效）
@@ -163,8 +166,8 @@ func add_row(a_data):
 	a_row.add_theme_stylebox_override("panel", style_box)
 	data.insert(0, "")
 	data.push_back("")
-	var control: Control
 	for i in data.size():
+		var control: Control
 		var handled = false
 		
 		# 如果该数据提供了自定义显示控件，就直接使用
@@ -190,6 +193,7 @@ func add_row(a_data):
 					control = label_model.duplicate()
 					control.text = data[i]
 					control.tooltip_text = data[i]
+					control.gui_input.connect(_label_gui_input.bind(control.text))
 					if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
@@ -219,6 +223,7 @@ func add_row(a_data):
 		if not handled:
 			control = label_model.duplicate()
 			control.text = var_to_str(data[i])
+			control.gui_input.connect(_label_gui_input.bind(control.text))
 			if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
 				var callback = func(new_value, control_ref: WeakRef):
 					var ctl = control_ref.get_ref()
@@ -334,3 +339,19 @@ func row_grab_focus(row: int):
 		
 		if datas[row] is Object and editable:
 			EditorInterface.inspect_object(datas[row])
+			
+func scroll_to_bottom():
+	var v_scroll_bar = scroll_container.get_v_scroll_bar() as VScrollBar
+	await get_tree().create_timer(0.1).timeout
+	v_scroll_bar.value = v_scroll_bar.max_value
+
+func _label_gui_input(event: InputEvent, content: String):
+	if event is InputEventMouseButton and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+		popup_menu_text.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
+		popup_menu_text.set_item_metadata(0, content)
+		popup_menu_text.popup()
+
+func _on_popup_menu_text_index_pressed(index):
+	match popup_menu_text.get_item_text(index):
+		"Copy":
+			DisplayServer.clipboard_set(popup_menu_text.get_item_metadata(index))

@@ -1,6 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://bpawj4a7llynx"]
+[gd_scene load_steps=5 format=3 uid="uid://bpawj4a7llynx"]
 
 [ext_resource type="Script" path="res://addons/gdsql/table.gd" id="1_s1y7s"]
+[ext_resource type="Texture2D" uid="uid://uv864j1h58kn" path="res://addons/gdsql/img/copy.png" id="2_y6tia"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4fjn8"]
 resource_local_to_scene = true
@@ -97,5 +98,12 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
+[node name="PopupMenuText" type="PopupMenu" parent="."]
+item_count = 1
+item_0/text = "Copy"
+item_0/icon = ExtResource("2_y6tia")
+item_0/id = 0
+
 [connection signal="resized" from="." to="." method="_on_resized"]
 [connection signal="pressed" from="VBoxContainer/ButtonForDebug" to="." method="_on_button_pressed"]
+[connection signal="index_pressed" from="PopupMenuText" to="." method="_on_popup_menu_text_index_pressed"]

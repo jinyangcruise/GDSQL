@@ -7,7 +7,7 @@ var __database = "user://" ## 【外部请勿使用】数据库路径
 var __cmd: String = "" ## 【外部请勿使用】命令
 var __select: Array[String] = [] ## 【外部请勿使用】select哪些字段
 var __field_as: Dictionary = {} ## 【外部请勿使用】字段别名
-var __table: String = "" ## 【外部请勿使用】表名
+var __table: String = "" ## 【外部请勿使用】表名（带extension的）
 var __table_alias: String = "" # 【外部请勿使用】别名
 var __data: Dictionary ## 【外部请勿使用】更新数据使用
 var __where: Array = [] ## 【外部请勿使用】筛选数据条件
@@ -25,15 +25,17 @@ var __parent_union: BaseDao ## 【外部请勿使用】被uion的单元
 var __left_join: LeftJoin ## 【外部请勿使用】第一个联表对象（获取第N个联表对象需要通过第N-1个联表对象来获取）
 var __need_post_porcess: bool = true ## 【外部请勿使用】select最终返回数据时处理：是否按照用户所需的字段进行精简
 var __need_head: bool ## 【外部请勿使用】select返回的数据是否包含一行表头（在第一行）
-var __auto_commit: bool = true
+var __auto_commit: bool = true ## 【外部请勿使用】自动提交标志
+var __root_config: ImprovedConfigFile ## 【外部请勿使用】临时获取数据库定义文件
 var __config: ImprovedConfigFile ## 【外部请勿使用】临时为了获取数据库定义文件
 var __unique_keys: Array = [] ## TODO
 var __unique_keys_def: Array = [] ## TODO
 var __not_null_keys: Array = [] ## TODO
 var __not_null_keys_def: Array = [] ## TODO
 
-const CONFIG_PATH = "res://addons/gdsql/config/config.cfg"
-const VALID_FILE_EXTENSION = ".gsql"
+const ROOT_CONFIG_PATH = "res://addons/gdsql/config/config.cfg"
+const DATA_EXTENSION = ".gsql"
+const CONF_EXTENSION = ".cfg"
 
 var __CONF_MANAGER: ConfManagerClass
 var mgr: GDSQLWorkbenchManagerClass
@@ -76,6 +78,7 @@ func _assert(action: String, success: bool, msg: String) -> bool:
 	if not success:
 		mgr.create_accept_dialog(msg)
 		mgr.add_log_history.emit("Err", Time.get_unix_time_from_system(), action, msg)
+		push_error(msg)
 		return false
 	return true
 	
@@ -751,18 +754,29 @@ func ___select(path: String, fill_primary_key: String = ""):
 			
 	return ret_post_process
 	
-func __get_table_defination(db_path, table_name):
+func __get_table_defination(db_path: String, table_name: String):
 	var columns: Array
 	if Engine.has_singleton("GDSQLWorkbenchManager"):
 		if mgr.databases:
 			columns = mgr.get_table_columns(db_path, table_name)
 		
 	if columns == null or columns.is_empty():
+		if __root_config == null:
+			__root_config = ImprovedConfigFile.new()
+			__root_config.load(ROOT_CONFIG_PATH)
 		if __config == null:
+			var db_info = __root_config.filter_first_values("data_path", db_path)
+			if db_info.is_empty():
+				return []
+				
+			var table_conf_path = db_info.get("config_path") + table_name.get_basename() + CONF_EXTENSION
+			if not FileAccess.file_exists(table_conf_path):
+				return []
+				
 			__config = ImprovedConfigFile.new()
-			__config.load(CONFIG_PATH)
-		columns = __config.filter_first_values("path", db_path).get("tables", {})\
-			.get(table_name.substr(0, table_name.length() - VALID_FILE_EXTENSION.length()), [])
+			__config.load(table_conf_path)
+			
+		columns = __config.get_value(table_name.get_basename(), "columns", [])
 		
 	return columns
 	
@@ -914,7 +928,7 @@ func _get_cond(need_where: bool) -> String:
 	
 ## 获取正正执行的语句
 func get_query_cmd() -> String:
-	var a_table = __table.substr(0, __table.length() - VALID_FILE_EXTENSION.length())
+	var a_table = __table.substr(0, __table.length() - DATA_EXTENSION.length())
 	match __cmd:
 		"select":
 			return "select %s from %s%s%s%s%s;" % [
@@ -973,3 +987,6 @@ func reset(force = false):
 	if __config:
 		__config.clear()
 		__config = null
+	if __root_config:
+		__root_config.clear()
+		__root_config = null

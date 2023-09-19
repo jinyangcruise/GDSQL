@@ -71,7 +71,7 @@ var databases: Dictionary
 
 func get_table_columns(db, table) -> Array:
 	if databases:
-		return databases.get(db, {}).get("table_items", {}).get(table, {})\
+		return databases.get(db, {}).get("tables", {}).get(table, {})\
 			.get("columns", [])
 	return []
 

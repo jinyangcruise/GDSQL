@@ -71,8 +71,9 @@ func refresh_databases():
 		for file_name in table_confs:
 			var table_conf = ImprovedConfigFile.new()
 			table_conf.load(config_path + file_name)
-			databases[db_name]["tables"][file_name.get_basename()] = table_conf.get_all_section_values()[0]
-				
+			var table_name = file_name.get_basename()
+			databases[db_name]["tables"][table_name] = table_conf.get_section_values(table_name)
+			
 	mgr.databases = databases
 	
 	
@@ -186,9 +187,9 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 	# 不记录path、database等信息，是方便转移数据表时，直接剪切文件到对应的数据库目录即可（配置文件和数据文件分别到各自目录）
 	var config_file = ConfigFile.new()
 	var table_conf_path = databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
-	config_file.set_value("0", "encrypted", "" if password.is_empty() else password.md5_text())
-	config_file.set_value("0", "comment", comment)
-	config_file.set_value("0", "columns", column_infos)
+	config_file.set_value(table_name, "encrypted", "" if password.is_empty() else password.md5_text())
+	config_file.set_value(table_name, "comment", comment)
+	config_file.set_value(table_name, "columns", column_infos)
 	config_file.save(table_conf_path)
 	msgs.push_back("1 file:%s is saved." % table_conf_path)
 	
@@ -415,9 +416,9 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		
 		var config_file = ConfigFile.new()
 		var table_conf_path = databases[db_name]["config_path"] + new_table_name + CONFIG_EXTENSION
-		config_file.set_value("0", "encrypted", table_confs[old_table_name]["encrypted"]) # 保留原密码
-		config_file.set_value("0", "comment", comments)
-		config_file.set_value("0", "columns", column_infos)
+		config_file.set_value(new_table_name, "encrypted", table_confs[old_table_name]["encrypted"]) # 保留原密码
+		config_file.set_value(new_table_name, "comment", comments)
+		config_file.set_value(new_table_name, "columns", column_infos)
 		config_file.save(table_conf_path) # 如果新路径和旧路径一致，就会覆盖掉，也是我们所期待的
 		msgs.push_back("1 file:%s is saved." % table_conf_path)
 		

@@ -35,3 +35,4 @@ func add_a_log(status: String, begin_timestamp: float, action: String, message) 
 	]
 	datas.push_back(new_log)
 	log_table.datas = datas
+	log_table.scroll_to_bottom()
