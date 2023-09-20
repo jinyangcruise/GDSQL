@@ -75,17 +75,18 @@ func node_close(node: GraphNode):
 	for info in graph_edit.get_connection_list():
 		# 表示node是被输入的节点
 		if node.name == info["to_node"]:
-			var from_node = graph_edit.get_node(str(info["from_node"]))
+			#var from_node = graph_edit.get_node(str(info["from_node"]))
 			graph_edit.disconnect_node(info["from_node"], info["from_port"], info["to_node"], info["to_port"])
-			if not from_node.show_close:
-				# 清空一些数据代理
-				if from_node.has_meta("base_dao"):
-					(from_node.get_meta("base_dao") as BaseDao).reset(true)
-					from_node.remove_meta("base_dao")
-				if from_node.has_meta("left_join"):
-					(from_node.get_meta("left_join") as LeftJoin).clear_chain()
-					from_node.remove_meta("left_join")
-				from_node.queue_free()
+			#godot团队移出了show_close属性
+			#if not from_node.show_close:
+				## 清空一些数据代理
+				#if from_node.has_meta("base_dao"):
+					#(from_node.get_meta("base_dao") as BaseDao).reset(true)
+					#from_node.remove_meta("base_dao")
+				#if from_node.has_meta("left_join"):
+					#(from_node.get_meta("left_join") as LeftJoin).clear_chain()
+					#from_node.remove_meta("left_join")
+				#from_node.queue_free()
 		# 表示node是输入节点
 		elif node.name == info["from_node"]:
 			graph_edit.disconnect_node(info["from_node"], info["from_port"], info["to_node"], info["to_port"])
@@ -155,7 +156,7 @@ func add_select_node(schema = "", table = "", fields = "", where = "", order_by 
 	var where_dict_obj: DictionaryObject = graph_node.datas[5][2]
 	var order_dict_obj: DictionaryObject = graph_node.datas[6][2]
 	var limit_dict_obj: DictionaryObject = graph_node.datas[7][2]
-	var btn_query: Button = graph_node.datas[9][2]
+	var btn_query: Button = graph_node.datas[8][2]
 	
 	if schema != schema_dict_obj._get("Schema"):
 		schema_dict_obj._set("Schema", schema)
@@ -200,7 +201,7 @@ func gen_select_node() -> GraphNode:
 	
 	# 根据选择的数据库来更新表名备选项
 	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
-		graph_node.redraw_slot_control(2, 2) # 如果不是通过点击的控件修改的dict obj，就需要重绘一下。这里偷个懒，直接重绘。
+		graph_node.push_redraw_slot_control(2, 2) # 如果不是通过点击的控件修改的dict obj，就需要重绘一下。这里偷个懒，直接重绘。
 		match prop:
 			"Schema":
 				base_dao.use_db(mgr.databases[new_val]["data_path"])
@@ -213,7 +214,7 @@ func gen_select_node() -> GraphNode:
 				base_dao.set_password(new_val)
 	)
 	table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
-		graph_node.redraw_slot_control(3, 2)
+		graph_node.push_redraw_slot_control(3, 2)
 		match prop:
 			"Table":
 				base_dao.set_table(new_val + DATA_EXTENSION)
@@ -221,25 +222,25 @@ func gen_select_node() -> GraphNode:
 				base_dao.set_table_alias(new_val)
 	)
 	fields_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
-		graph_node.redraw_slot_control(4, 2)
+		graph_node.push_redraw_slot_control(4, 2)
 		match prop:
 			"Fields":
 				base_dao.select(new_val, true)
 	)
 	where_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
-		graph_node.redraw_slot_control(5, 2)
+		graph_node.push_redraw_slot_control(5, 2)
 		match prop:
 			"Where":
-				base_dao.where(new_val)
+				base_dao.set_where(new_val)
 	)
 	order_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
-		graph_node.redraw_slot_control(6, 2)
+		graph_node.push_redraw_slot_control(6, 2)
 		match prop:
 			"Order By":
 				base_dao.order_by_str(new_val)
 	)
 	limit_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
-		graph_node.redraw_slot_control(7, 2)
+		graph_node.push_redraw_slot_control(7, 2)
 		match prop:
 			"Offset":
 				base_dao.limit(new_val, limit_dict_obj._get("Limit"))
@@ -254,7 +255,7 @@ func gen_select_node() -> GraphNode:
 	btn_query.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	
 	var separator = Control.new()
-	separator.custom_minimum_size.y = 5
+	separator.custom_minimum_size.y = 60
 	
 	var datas: Array[Array] = [
 		["Union All", "Result"],
@@ -265,8 +266,8 @@ func gen_select_node() -> GraphNode:
 		[null, null, where_dict_obj],
 		[null, null, order_dict_obj],
 		[null, null, limit_dict_obj],
-		[null, null, separator],
-		[null, null, btn_query]
+		[null, null, btn_query],
+		[null, null, separator]
 	]
 	graph_node.datas = datas
 	graph_node.title = "Select"
@@ -314,7 +315,7 @@ func gen_left_join_node() -> GraphNode:
 	
 	# 根据选择的数据库来更新表名备选项
 	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
-		graph_node.redraw_slot_control(1, 2)
+		graph_node.push_redraw_slot_control(1, 2)
 		match prop:
 			"Schema":
 				left_join_obj.set_db(mgr.databases[new_val]["data_path"])
@@ -327,7 +328,7 @@ func gen_left_join_node() -> GraphNode:
 				left_join_obj.set_password(new_val)
 	)
 	table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
-		graph_node.redraw_slot_control(2, 2) # table是第3行第3个控件。
+		graph_node.push_redraw_slot_control(2, 2) # table是第3行第3个控件。
 		match prop:
 			"Table":
 				left_join_obj.set_table(new_val + DATA_EXTENSION)
@@ -335,7 +336,7 @@ func gen_left_join_node() -> GraphNode:
 				left_join_obj.set_alias(new_val)
 	)
 	cond_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
-		graph_node.redraw_slot_control(3, 2)
+		graph_node.push_redraw_slot_control(3, 2)
 		match prop:
 			"On":
 				left_join_obj.set_condition(new_val)
@@ -347,13 +348,14 @@ func gen_left_join_node() -> GraphNode:
 	btn_query.pressed.connect(on_select_node_query.bind(graph_node))
 	
 	var separator = Control.new()
-	separator.custom_minimum_size.y = 5
+	separator.custom_minimum_size.y = 60
 	
 	var datas: Array[Array] = [
 		["Next Left Join", "Result"],
 		[null, null, schema_dict_obj],
 		[null, null, table_dict_obj],
-		[null, null, cond_dict_obj]
+		[null, null, cond_dict_obj],
+		[null, null, separator]
 	]
 	graph_node.datas = datas
 	graph_node.title = "Left Join"
@@ -530,6 +532,10 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		
 		graph_datas.push_back([null, null, flow_container])
 		
+		var separator = Control.new()
+		separator.custom_minimum_size.y = 60
+		graph_datas.push_back([null, null, separator])
+		
 		# 每行数据转成一个DictionaryObject
 		var new_table_datas = []
 		for i in table_datas:
@@ -581,7 +587,7 @@ func make_useless_of_left_join_node(graph_node: GraphNode):
 	for node in to_left_join_nodes:
 		(node.get_meta("left_join") as LeftJoin).remove_left_join(graph_node.get_meta("left_join") as LeftJoin)
 		
-func set_input(to_port: int, release_position: Vector2, to_node: GraphNode, show_close: bool = false):
+func set_input(to_port: int, release_position: Vector2, to_node: GraphNode):
 	var input_node: GraphNode
 	var from_port = 0
 	var xenophobic: bool # 是否排外
@@ -619,7 +625,7 @@ func set_input(to_port: int, release_position: Vector2, to_node: GraphNode, show
 			
 	if input_node:
 		#input_node.set_slot_type_right(from_port, to_node.get_slot_type_left(to_port))
-		handle_input_node(input_node, to_node.name, from_port, to_port, release_position, show_close, xenophobic)
+		handle_input_node(input_node, to_node.name, from_port, to_port, release_position, xenophobic)
 	
 ## 获取接收输入数据的节点
 func get_to_nodes(node: GraphNode, type: String = "") -> Array[GraphNode]:
@@ -713,12 +719,11 @@ func unselect_all_node():
 			i.selected = false
 
 		
-func handle_input_node(input_node: GraphNode, connected_node_name, from_port, to_port, release_position, show_close, xenophobic):
+func handle_input_node(input_node: GraphNode, connected_node_name, from_port, to_port, release_position, xenophobic):
 	graph_edit.add_child(input_node)
 	input_node.set_meta("type", input_node.title)
 	input_node.set_meta("node", true)
 	input_node.position_offset = release_position # (release_position + graph_edit.scroll_offset) / graph_edit.zoom
-	input_node.show_close = show_close
 	if xenophobic:
 		input_node.node_enabled.connect(node_enabled.bind(input_node)) # 互斥激活事件
 	graph_edit.connect_node(input_node.name, from_port, connected_node_name, to_port)
@@ -733,23 +738,7 @@ func _on_graph_edit_connection_from_empty(to_node: StringName, to_port: int, rel
 	assert(node.has_meta("type"), "node dose not have meta: type")
 	match node.get_meta("type"):
 		"Select":
-			set_input(to_port, release_position, node, true)
-
-## delete快捷键删除node
-func _on_graph_edit_delete_nodes_request(nodes: Array) -> void:
-	var titles = nodes.map(func(v): return graph_edit.get_node(str(v)).title)
-	var dialog := ConfirmationDialog.new()
-	dialog.dialog_text = "Are you sure to delete selected nodes `%s`?" \
-		% ", ".join(titles)
-	dialog.confirmed.connect(func():
-		for i in nodes:
-			node_close(graph_edit.get_node(str(i)))
-	)
-	add_child(dialog)
-	dialog.popup_centered()
-	dialog.close_requested.connect(func():
-		dialog.queue_free()
-	)
+			set_input(to_port, release_position, node)
 
 
 func _on_graph_edit_connection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
@@ -809,3 +798,19 @@ func _exit_tree():
 	for node in graph_edit.get_children():
 		if node is GraphNode:
 			node_close(node)
+
+
+func _on_graph_edit_close_nodes_request(nodes):
+	var titles = nodes.map(func(v): return graph_edit.get_node(str(v)).title)
+	var dialog := ConfirmationDialog.new()
+	dialog.dialog_text = "Are you sure to delete selected nodes `%s`?" \
+		% ", ".join(titles)
+	dialog.confirmed.connect(func():
+		for i in nodes:
+			node_close(graph_edit.get_node(str(i)))
+	)
+	add_child(dialog)
+	dialog.popup_centered()
+	dialog.close_requested.connect(func():
+		dialog.queue_free()
+	)

@@ -239,11 +239,20 @@ func delete_from(table: String) -> BaseDao:
 	set_table(table)
 	return self
 	
-## 如果多次调用，那么这些条件将是`and`的关系
+## 如果多次调用，那么这些条件将是`and`的关系。如需避免多次调用，请使用set_where
 func where(cond: String) -> BaseDao:
 	assert(_assert("where", __cmd == "select" or __cmd == "update" or __cmd == "delete_from", 
 		"'where' can only be used after 'select' or 'update' or 'delete_from'"))
 	cond = cond.strip_edges()
+	if not cond.is_empty():
+		__where.push_back(cond)
+	return self
+	
+func set_where(cond: String) -> BaseDao:
+	assert(_assert("where", __cmd == "select" or __cmd == "update" or __cmd == "delete_from", 
+		"'where' can only be used after 'select' or 'update' or 'delete_from'"))
+	cond = cond.strip_edges()
+	__where.clear()
 	if not cond.is_empty():
 		__where.push_back(cond)
 	return self
@@ -915,49 +924,85 @@ func query():
 			reset()
 			return ret
 			
-func _get_cond(need_where: bool) -> String:
+func _get_cond(need_where: bool, new_line = false) -> String:
 	var cond = ""
 	for i in __where:
 		if cond != "":
 			cond += " and "
 		cond += "(" + i + ")"
 	
-	if cond.is_empty() or not need_where:
+	if cond.is_empty():
 		return cond
+		
+	if not need_where:
+		if new_line:
+			return "\n" + cond
+		return cond
+		
+	if new_line:
+		return "\nwhere " + cond
 	return " where " + cond
+	
+func _get_order_by(need_order_by: bool, new_line = false) -> String:
+	if __order_by.is_empty():
+		return ""
+		
+	var arr = []
+	for i in __order_by:
+		arr.push_back("%s %s" % [i[0], "asc" if i[1] == ORDER_BY.ASC else "desc"])
+	var s = ", ".join(arr)
+	
+	if not need_order_by:
+		if new_line:
+			return "\n" + s
+		return s
+	
+	if new_line:
+		return "\norder by " + s
+	return " order by " + s
+	
+func _get_limit(new_line = false) -> String:
+	if __limit < 0 or __offset < 0:
+		return ""
+		
+	if new_line:
+		return "\n limit %d, %d" % [__offset, __limit]
+	return " limit %d, %d" % [__offset, __limit]
 	
 ## 获取正正执行的语句
 func get_query_cmd() -> String:
 	var a_table = __table.substr(0, __table.length() - DATA_EXTENSION.length())
 	match __cmd:
 		"select":
-			return "select %s from %s%s%s%s%s;" % [
+			return "select %s from %s%s%s%s%s%s%s" % [
 				", ".join(__select.map(func(v): return (v + " as " + __field_as[v]) if __field_as.has(v) else v)), 
 				a_table,
 				"" if __table_alias.is_empty() else " " + __table_alias,
 				"" if __left_join == null else "\n" + "\n".join(__left_join.get_query_cmds()),
-				_get_cond(true) if __left_join == null else "\nwhere " + _get_cond(false),
-				"" if __union_all == null else "\n" + __union_all.get_query_cmd()
+				_get_cond(true, false) if __left_join == null else _get_cond(true, true),
+				"" if __union_all == null else "\nunion all " + __union_all.get_query_cmd(),
+				_get_order_by(true, false) if __union_all == null and __left_join == null else _get_order_by(true, true),
+				_get_limit(false) if __union_all == null and __left_join == null else _get_limit(true)
 			]
 		"insert_into":
-			return "insert into %s (%s) values (%s);" \
+			return "insert into %s (%s) values (%s)" \
 				% [a_table, ", ".join(__data.keys()), ", ".join(__data.values().map(func(v): return var_to_str(v)))]
 		"insert_ignore":
-			return "insert ignore into %s (%s) values (%s);" \
+			return "insert ignore into %s (%s) values (%s)" \
 				% [a_table, ", ".join(__data.keys()), ", ".join(__data.values().map(func(v): return var_to_str(v)))]
 		"insert_or_update":
 			var arr = []
 			for key in __data:
 				arr.push_back(key + " = " + var_to_str(__data[key]))
-			return "insert into %s (%s) values (%s) on duplicate key update %s;" % \
+			return "insert into %s (%s) values (%s) on duplicate key update %s" % \
 				[a_table, ", ".join(__data.keys()), ", ".join(__data.values().map(func(v): return var_to_str(v))), ", ".join(arr)]
 		"update":
 			var arr = []
 			for key in __data:
 				arr.push_back(key + " = " + var_to_str(__data[key]))
-			return "update %s set %s%s;" % [a_table, ", ".join(arr), _get_cond(true)]
+			return "update %s set %s%s" % [a_table, ", ".join(arr), _get_cond(true)]
 		"delete_from":
-			return "delete from %s%s;" % [a_table, _get_cond(true)]
+			return "delete from %s%s" % [a_table, _get_cond(true)]
 	return ""
 	
 			

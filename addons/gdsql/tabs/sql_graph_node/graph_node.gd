@@ -6,7 +6,7 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 signal node_enabled
 signal node_enable_status(enabled: bool)
 
-@onready var check_button_enable: CheckButton = $CheckButtonEnable
+var check_button_enable: CheckButton
 
 ## datas的元素是一个长度至少为2的数组，第一个元素是左侧输入port代表的数据，第二个元素是右侧输出port代表的数据。
 ## 当前两个元素都为null时，这行将不显示port，而显示从第三个元素所代表的控件。
@@ -32,9 +32,51 @@ var enabled: bool:
 			node_enable_status.emit(val)
 				
 var __property_old_parents = {}
+var _redraw_queue = {}
+var _mutex: Mutex
 
 func _ready() -> void:
+	# enable button
+	check_button_enable = CheckButton.new()
+	check_button_enable.text = "enable"
+	check_button_enable.button_pressed = true
+	check_button_enable.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	check_button_enable.toggled.connect(_on_check_button_enable_toggled)
+	get_titlebar_hbox().add_child(check_button_enable)
+	
+	# close button
+	var close_btn = TextureButton.new()
+	close_btn.stretch_mode = TextureButton.STRETCH_KEEP_CENTERED
+	close_btn.texture_normal = preload("res://addons/gdsql/img/xmark.png")
+	close_btn.pressed.connect(func():
+		if get_parent_control() is GraphEdit:
+			var nodes: Array[StringName] = [name]
+			(get_parent_control() as GraphEdit).close_nodes_request.emit(nodes)
+	)
+	get_titlebar_hbox().add_child(close_btn)
+	
+	# 队列
+	_mutex = Mutex.new()
+	RenderingServer.frame_post_draw.connect(_flush_redraw_queue)
+	
 	redraw()
+	
+func _flush_redraw_queue():
+	if _redraw_queue.is_empty():
+		return
+		
+	_mutex.lock()
+	# 再次确认
+	if _redraw_queue.is_empty():
+		_mutex.unlock()
+		return
+		
+	for row in _redraw_queue:
+		for col in _redraw_queue[row]:
+			redraw_slot_control(row, col)
+			
+	_redraw_queue.clear()
+	_mutex.unlock()
 
 func clear():
 	for i in __property_old_parents:
@@ -52,12 +94,11 @@ func clear():
 	if is_node_ready():
 		var children = get_children()
 		for i in children:
-			if i != check_button_enable and i != null and !i.is_queued_for_deletion():
+			if i != null and !i.is_queued_for_deletion():
 				remove_child(i)
 				
 func redraw():
 	clear()
-	
 	if datas and !datas.is_empty() and is_inside_tree():
 		#var graph_node = GraphNode.new()
 		#graph_node.show_close = true
@@ -113,7 +154,10 @@ func redraw():
 								editor_property.reparent(hb)
 								
 					elif data is Control:
-						has_content = true
+						if data.get_class() == "Control" and data.get_child_count() == 0:
+							has_content = false
+						else:
+							has_content = true
 						if data.get_parent() != null and data.get_parent() != hb:
 							data.reparent(hb)
 						else:
@@ -123,11 +167,18 @@ func redraw():
 			else:
 				hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			add_child(hb)
-		check_button_enable.move_to_front()
 		
+		
+## 把要刷新的控件推送到队列中
+func push_redraw_slot_control(slot_row_index, slot_col_index):
+	_mutex.lock()
+	var cols = _redraw_queue.get(slot_row_index, {})
+	cols[slot_col_index] = true
+	_redraw_queue[slot_row_index] = cols
+	_mutex.unlock()
+	
 ## 强制刷新某个栏位的控件。只有该栏位是一个DictionaryObject时才刷新
 func redraw_slot_control(slot_row_index, slot_col_index):
-	# TODO 用一个队列，延迟刷新
 	var data = datas[slot_row_index][slot_col_index]
 	if data is DictionaryObject:
 		# 记录焦点控件，用于恢复（如果不恢复，正在修改被刷新控件的内容，则会造成用户无法连续输入
@@ -136,7 +187,8 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 		
 		# 等失去焦点的时候再重绘，免得影响连续输入
 		if focus_owner != null and hb.is_ancestor_of(focus_owner):
-			await focus_owner.focus_exited
+			push_redraw_slot_control(slot_row_index, slot_col_index)
+			return
 			
 		# 释放旧的
 		for child in hb.get_children():

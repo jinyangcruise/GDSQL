@@ -176,6 +176,21 @@ func create_custom_dialog(datas: Array[Array], confirmed_callback: Callable = Ca
 		else:
 			hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		vbox_container.add_child(hb)
+		
+	# 自动聚焦到第一个输入组件上
+	var editable_control = _find_editable_control(vbox_container)
+	if editable_control != null:
+		editable_control.grab_focus()
+		
+func _find_editable_control(control: Node) -> Control:
+	if control is LineEdit or control is TextEdit:
+		return control
+		
+	for i in control.get_children(true):
+		var c = _find_editable_control(i)
+		if c != null:
+			return c
+	return null
 	
 func connect_focused_propagate(control: Control, data):
 	for child in control.get_children(true):
