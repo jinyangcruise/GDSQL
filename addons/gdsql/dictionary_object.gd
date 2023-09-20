@@ -68,6 +68,7 @@ func _set(property: StringName, value: Variant) -> bool:
 		_data[property] = value
 		if _update_callback and _update_callback.has(property):
 			_update_callback[property].call(value)
+			
 		value_changed.emit(property, value, old_value)
 		return true
 	return false

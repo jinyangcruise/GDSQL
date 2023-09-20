@@ -127,6 +127,7 @@ func redraw():
 		
 ## 强制刷新某个栏位的控件。只有该栏位是一个DictionaryObject时才刷新
 func redraw_slot_control(slot_row_index, slot_col_index):
+	# TODO 用一个队列，延迟刷新
 	var data = datas[slot_row_index][slot_col_index]
 	if data is DictionaryObject:
 		# 记录焦点控件，用于恢复（如果不恢复，正在修改被刷新控件的内容，则会造成用户无法连续输入
@@ -136,7 +137,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 		# 等失去焦点的时候再重绘，免得影响连续输入
 		if focus_owner != null and hb.is_ancestor_of(focus_owner):
 			await focus_owner.focus_exited
-		
+			
 		# 释放旧的
 		for child in hb.get_children():
 			var old_editor_property
@@ -165,7 +166,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 		var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
 		for i in properties.size():
 			# 下划线开头的隐藏label。隐藏方法是把控件整个添加到一个能按比例隐藏子控件的控件中
-			var editor_property = editor_properties[i]
+			var editor_property: EditorProperty = editor_properties[i]
 			# 只有让检查器显示这个属性，才能修改这个属性。否则修改的是检查器当前显示的属性。
 			connect_focused_propagate(editor_property, data)
 			__property_old_parents[editor_property] = weakref(editor_property.get_parent())

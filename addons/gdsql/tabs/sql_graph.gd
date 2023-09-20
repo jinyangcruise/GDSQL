@@ -200,6 +200,7 @@ func gen_select_node() -> GraphNode:
 	
 	# 根据选择的数据库来更新表名备选项
 	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.redraw_slot_control(2, 2) # 如果不是通过点击的控件修改的dict obj，就需要重绘一下。这里偷个懒，直接重绘。
 		match prop:
 			"Schema":
 				base_dao.use_db(mgr.databases[new_val]["data_path"])
@@ -207,45 +208,43 @@ func gen_select_node() -> GraphNode:
 				table_dict_obj.reset_hint(
 					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, 
 					"_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
-				graph_node.redraw_slot_control(3, 2) # table是第4行第3个控件。
+				table_dict_obj._set("Table", "")
 			"_password":
 				base_dao.set_password(new_val)
-		
-		graph_node.redraw_slot_control(2, 2) # 如果不是通过点击的控件修改的dict obj，就需要重绘一下。这里偷个懒，直接重绘。
 	)
 	table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.redraw_slot_control(3, 2)
 		match prop:
 			"Table":
 				base_dao.set_table(new_val + DATA_EXTENSION)
 			"_alias":
 				base_dao.set_table_alias(new_val)
-		graph_node.redraw_slot_control(3, 2)
 	)
 	fields_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.redraw_slot_control(4, 2)
 		match prop:
 			"Fields":
 				base_dao.select(new_val, true)
-		graph_node.redraw_slot_control(4, 2)
 	)
 	where_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.redraw_slot_control(5, 2)
 		match prop:
 			"Where":
 				base_dao.where(new_val)
-		graph_node.redraw_slot_control(5, 2)
 	)
 	order_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.redraw_slot_control(6, 2)
 		match prop:
 			"Order By":
 				base_dao.order_by_str(new_val)
-		graph_node.redraw_slot_control(6, 2)
 	)
 	limit_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.redraw_slot_control(7, 2)
 		match prop:
 			"Offset":
 				base_dao.limit(new_val, limit_dict_obj._get("Limit"))
 			"Limit":
 				base_dao.limit(limit_dict_obj._get("Offset"), new_val)
-		graph_node.redraw_slot_control(7, 2)
 	)
 	
 	var btn_query = Button.new()
@@ -315,6 +314,7 @@ func gen_left_join_node() -> GraphNode:
 	
 	# 根据选择的数据库来更新表名备选项
 	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.redraw_slot_control(1, 2)
 		match prop:
 			"Schema":
 				left_join_obj.set_db(mgr.databases[new_val]["data_path"])
@@ -322,11 +322,12 @@ func gen_left_join_node() -> GraphNode:
 				table_dict_obj.reset_hint(
 					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, 
 					"_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
-				graph_node.redraw_slot_control(2, 2) # table是第3行第3个控件。
+				table_dict_obj._set("Table", "")
 			"_password":
 				left_join_obj.set_password(new_val)
 	)
 	table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.redraw_slot_control(2, 2) # table是第3行第3个控件。
 		match prop:
 			"Table":
 				left_join_obj.set_table(new_val + DATA_EXTENSION)
@@ -334,6 +335,7 @@ func gen_left_join_node() -> GraphNode:
 				left_join_obj.set_alias(new_val)
 	)
 	cond_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.redraw_slot_control(3, 2)
 		match prop:
 			"On":
 				left_join_obj.set_condition(new_val)
