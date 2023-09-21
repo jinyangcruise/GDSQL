@@ -2,6 +2,7 @@
 extends VBoxContainer
 
 signal row_clicked(row_index: int, mouse_button_index: int, data)
+signal row_deleted(row_index: int, data)
 
 var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
@@ -19,6 +20,8 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 
 ## 表格是否可编辑（datas中的元素必须是DictionaryObject才有效）
 @export var editable: bool = false
+
+@export var support_delete_row: bool = false
 
 ## 每列的名称。注意：如果要正确显示tooltip，需要先设置column_tips，再设置columns
 @export var columns: Array:
@@ -63,6 +66,9 @@ func _ready() -> void:
 		for i in 50:
 			await create_tween().tween_callback(func(): realign_rows()).set_delay(0.1).finished
 	
+func _exit_tree():
+	popup_menu_text.set_item_metadata(0, null)
+	popup_menu_text.set_item_metadata(1, null)
 
 func reset_header():
 	buttons.clear()
@@ -158,6 +164,7 @@ func add_row(a_data):
 				data.push_back(a_data.get(key))
 				
 	var a_row = row_panel_container.duplicate()
+	a_row.set_meta("data", a_data)
 	v_box_container.add_child(a_row)
 	a_row.gui_input.connect(_on_row_gui_input.bind(a_row, a_data))
 	a_row.focus_entered.connect(_on_row_panel_container_focus_entered.bind(a_row))
@@ -243,6 +250,7 @@ func add_row(a_data):
 func clear_rows():
 	while v_box_container.get_child_count() > 0:
 		var r = v_box_container.get_child(0)
+		r.remove_meta("data")
 		v_box_container.remove_child(r)
 		r.queue_free()
 		
@@ -327,7 +335,17 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 func _on_row_panel_container_focus_entered(row_panel: PanelContainer) -> void:
 	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")
 	style_box.bg_color.a = 0.788
-
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) and \
+		row_panel.get_rect().has_point(v_box_container.get_local_mouse_position()):
+		popup_menu_text.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
+		popup_menu_text.set_item_metadata(1, row_panel.get_meta("data"))
+		if support_delete_row:
+			popup_menu_text.set_item_disabled(1, false)
+		else:
+			popup_menu_text.set_item_disabled(1, true)
+		popup_menu_text.popup()
+	else:
+		popup_menu_text.set_item_disabled(1, true)
 
 func _on_row_panel_container_focus_exited(row_panel: PanelContainer) -> void:
 	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")
@@ -349,9 +367,24 @@ func _label_gui_input(event: InputEvent, content: String):
 	if event is InputEventMouseButton and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		popup_menu_text.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
 		popup_menu_text.set_item_metadata(0, content)
+		if support_delete_row and popup_menu_text.get_item_metadata(1) != null:
+			popup_menu_text.set_item_disabled(1, false)
+		else:
+			popup_menu_text.set_item_disabled(1, true)
 		popup_menu_text.popup()
 
 func _on_popup_menu_text_index_pressed(index):
 	match popup_menu_text.get_item_text(index):
 		"Copy":
 			DisplayServer.clipboard_set(popup_menu_text.get_item_metadata(index))
+		"Delete":
+			var data = popup_menu_text.get_item_metadata(index)
+			var pos = datas.find(data)
+			datas.remove_at(pos)
+			datas = datas
+			row_deleted.emit(pos, data)
+
+
+func _on_popup_menu_text_popup_hide():
+	popup_menu_text.set_item_metadata(0, null)
+	popup_menu_text.set_item_metadata(1, null)

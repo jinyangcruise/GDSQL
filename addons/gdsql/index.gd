@@ -9,10 +9,12 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 
 
 func _ready() -> void:
-	mgr.add_log_history.connect(add_a_log)
+	if not mgr.add_log_history.is_connected(add_a_log):
+		mgr.add_log_history.connect(add_a_log)
 	
 func _exit_tree():
-	mgr.add_log_history.disconnect(add_a_log)
+	if mgr.add_log_history.is_connected(add_a_log):
+		mgr.add_log_history.disconnect(add_a_log)
 
 func _on_button_refresh_pressed() -> void:
 	tree_databases.refresh()

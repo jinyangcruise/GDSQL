@@ -460,6 +460,7 @@ func ___loop_table_row(result: Array, all_datas: Dictionary, loop_tables: Array,
 func ___select(path: String, fill_primary_key: String = ""):
 	var ret: Array = []
 	var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
+	assert(_assert("___select", conf != null, "failed to get conf:%s" % path))
 	conf.fill_primary_key = fill_primary_key
 	var all_datas: Dictionary = {} # 把其他联表数据放到这个里边
 	
@@ -844,7 +845,10 @@ func query():
 		"insert_into", "insert_ignore", "insert_or_update", "replace_into":
 			assert(_assert("query:%s" % __cmd, !__data.is_empty(), "data is empty"))
 			assert(_assert("query:%s" % __cmd, __primary_key != null and __primary_key != "", "primary key is empty"))
-			var ret = { "affected_rows": 0 }
+			var ret = {
+				"err": OK,
+				"affected_rows": 0
+			}
 			var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
 			assert(_assert("query:%s" % __cmd, conf != null, "load conf err!"))
 			var primary_value = str(__data.get(__primary_key))
@@ -853,9 +857,8 @@ func query():
 				if __autoincrement_keys.has(__primary_key) or __autoincrement_keys_def.has(__primary_key):
 					pass # 后面会统一把所有需要自增的键一起处理
 				else:
-					push_error("key 'PRIMARY' is missing for %s" % __cmd)
-					printt(__data)
-					print_stack()
+					ret["err"] = "key 'PRIMARY' is missing for %s" % __cmd
+					push_error(ret["err"])
 					return ret
 			else:
 				if conf.has_section(primary_value):
@@ -873,7 +876,8 @@ func query():
 						conf.erase_section(primary_value)
 						ret["affected_rows"] += 1
 					else:
-						push_error("Duplicate entry '%s' for key 'PRIMARY'" % primary_value)
+						ret["err"] = "Duplicate entry '%s' for key 'PRIMARY'" % primary_value
+						push_error(ret["err"])
 						return ret
 				
 			# 自增:找到当前最大的
@@ -902,7 +906,10 @@ func query():
 		"update":
 			assert(_assert("query:%s" % __cmd, !__data.is_empty(), "data is empty"))
 			assert(_assert("query:%s" % __cmd, !__where.is_empty(), "where is empty"))
-			var ret = { "affected_rows": 0 }
+			var ret = {
+				"err": OK,
+				"affected_rows": 0
+			}
 			# 筛选出要更新的数据
 			var primary = "__PRIMARY_1355--5--__" # 让数据库把主键存到这个键里，祈祷用户没有用到这个字段
 			__need_post_porcess = false # update一定是单表，用内部返回模式返回数据
@@ -913,14 +920,20 @@ func query():
 			# 更新数据
 			var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
 			assert(_assert("query:%s" % __cmd, conf != null, "load conf err!"))
+			var affected_rows = 0
 			for data in datas:
 				data = data[__table_alias] # 未经过后处理的肯定是用表名分类的结构
+				var affected = false
 				for field in __data:
-					conf.set_value(str(data.get(primary)), field, __data.get(field))
+					if conf.get_value(str(data.get(primary)), field) != __data.get(field):
+						conf.set_value(str(data.get(primary)), field, __data.get(field))
+						affected = true
+				if affected:
+					affected_rows += 1
 					
-			if __auto_commit:
+			if __auto_commit and affected_rows > 0:
 				__CONF_MANAGER.save_conf_by_origin_password(path)
-			ret["affected_rows"] = datas.size()
+			ret["affected_rows"] = affected_rows
 			reset()
 			return ret
 			

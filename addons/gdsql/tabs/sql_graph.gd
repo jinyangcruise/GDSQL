@@ -136,7 +136,7 @@ func _on_button_add_node_left_join_pressed():
 	graph_node.position_offset = \
 		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 	
-func add_select_node(schema = "", table = "", fields = "", where = "", order_by = "", offset = 0, limit = 100):
+func add_select_node(schema = "", table = "", fields = "*", where = "", order_by = "", offset = 0, limit = 100):
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
 	
@@ -186,14 +186,14 @@ func gen_select_node() -> GraphNode:
 		{"Table": "", "_alias": ""}, 
 		{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}, 
 		"_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
-	var fields_dict_obj = DictionaryObject.new({"Fields": ""}, {"Fields": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
+	var fields_dict_obj = DictionaryObject.new({"Fields": "*"}, {"Fields": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
 	var where_dict_obj = DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
 	var order_dict_obj = DictionaryObject.new({"Order By": ""}, {"Order By": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
 	var limit_dict_obj = DictionaryObject.new({"Offset": 0, "Limit": 100})
 	
 	# 关联该节点的BaseDao
 	var base_dao = BaseDao.new()
-	base_dao.select("", true)
+	base_dao.select("*", true)
 	base_dao.limit(0, 100)
 	
 	var graph_node = SQLGraphNode.instantiate()
@@ -251,7 +251,7 @@ func gen_select_node() -> GraphNode:
 	var btn_query = Button.new()
 	btn_query.text = "query"
 	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_query.pressed.connect(on_select_node_query.bind(graph_node))
+	btn_query.pressed.connect(on_select_node_query.bind(graph_node, true))
 	btn_query.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	
 	var separator = Control.new()
@@ -345,7 +345,7 @@ func gen_left_join_node() -> GraphNode:
 	var btn_query = Button.new()
 	btn_query.text = "query"
 	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_query.pressed.connect(on_select_node_query.bind(graph_node))
+	btn_query.pressed.connect(on_select_node_query.bind(graph_node, true))
 	
 	var separator = Control.new()
 	separator.custom_minimum_size.y = 60
@@ -440,8 +440,10 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 	
 	if info["PK"] != null and info["duplicate_column"] == false and info["paths"].size() == 1:
 		table.editable = true
+		table.support_delete_row = true
 	else:
 		table.editable = false
+		table.support_delete_row = false
 		
 	if table.editable:
 		var hint = {}
@@ -476,7 +478,11 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 						daos.push_back(BaseDao.new().use_db(db_path).insert_into(table_name).values(i.get_data()))
 					# update的情况
 					else:
-						daos.push_back(BaseDao.new().use_db(db_path).update(table_name).sets(i.get_data()))
+						var data = {}
+						for key in modified_data:
+							data[key] = modified_data[key]["new"]
+						daos.push_back(BaseDao.new().use_db(db_path).update(table_name).sets(data)
+							.where("%s == %s" % [primary_key, var_to_str(i._get(primary_key))]))
 						
 			mgr.create_confirmation_dialog("Please confirm:\n" + "\n".join(daos.map(func(v: BaseDao): return v.get_query_cmd())),
 				func():
@@ -484,9 +490,15 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 						var begin_time = Time.get_unix_time_from_system()
 						var ret = i.query()
 						if ret != null:
-							mgr.add_log_history.emit("OK", begin_time, i.get_query_cmd(), "%d row(s) affected" % ret["affected_rows"])
+							if ret["err"] is int and ret["err"] == OK:
+								mgr.add_log_history.emit("OK", begin_time, i.get_query_cmd(), 
+									"%d row(s) affected" % ret["affected_rows"])
+							else:
+								mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), ret["err"])
+						else:
+							mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), "something wrong")
 					for node in get_from_nodes(graph_node, "Select"):
-						on_select_node_query(node)
+						on_select_node_query(node, false)
 			)
 		)
 		
@@ -649,7 +661,7 @@ func get_from_nodes(node: GraphNode, type: String = "") -> Array[GraphNode]:
 	
 # Select 执行
 # node: 被点击的select节点
-func on_select_node_query(node: GraphNode):
+func on_select_node_query(node: GraphNode, log_history: bool):
 	unselect_all_node()
 	var from_to_map = {}
 	var to_from_map = {}
@@ -674,8 +686,13 @@ func on_select_node_query(node: GraphNode):
 		var dao = source_node.get_meta("base_dao") as BaseDao
 		var begin_time = Time.get_unix_time_from_system()
 		var action = dao.get_query_cmd()
-		var ret: Array = dao.query()
-		mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) returned" % (ret.size()-1)) # 去掉表头
+		var ret = dao.query()
+		if ret == null:
+			mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
+			continue
+		ret = ret as Array
+		if log_history:
+			mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) returned" % (ret.size()-1)) # 去掉表头
 		
 		var update_result = false
 		if from_to_map.has(source_node.name):

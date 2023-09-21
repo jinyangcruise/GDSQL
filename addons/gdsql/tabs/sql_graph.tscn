@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3 uid="uid://bltgws3ddejkr"]
+[gd_scene load_steps=15 format=3 uid="uid://bltgws3ddejkr"]
 
 [ext_resource type="Script" path="res://addons/gdsql/tabs/sql_graph.gd" id="1_jxiqt"]
 [ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="2_1i8qu"]
@@ -27,8 +27,6 @@ corner_radius_top_left = 3
 corner_radius_top_right = 3
 corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
-
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_35ij8"]
 
 [node name="SQL Graph" type="VSplitContainer"]
 anchors_preset = 15
@@ -66,9 +64,11 @@ icon = ExtResource("3_v3m7u")
 icon_alignment = 1
 
 [node name="VSeparator" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+visible = false
 layout_mode = 2
 
 [node name="ButtonRunAll" type="Button" parent="VBoxContainer/HFlowContainer"]
+visible = false
 layout_mode = 2
 tooltip_text = "Execute the selected portion of the script or everything, if there is no selection"
 theme_override_styles/focus = SubResource("StyleBoxEmpty_03x0p")
@@ -76,6 +76,7 @@ icon = ExtResource("4_lvyhj")
 icon_alignment = 1
 
 [node name="ButtonRunEdit" type="Button" parent="VBoxContainer/HFlowContainer"]
+visible = false
 layout_mode = 2
 tooltip_text = "Execute the statement under the keyboard cursor"
 theme_override_styles/focus = SubResource("StyleBoxEmpty_03x0p")
@@ -83,9 +84,11 @@ icon = ExtResource("5_e6n08")
 icon_alignment = 1
 
 [node name="VSeparator2" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+visible = false
 layout_mode = 2
 
 [node name="ButtonContinueRun" type="Button" parent="VBoxContainer/HFlowContainer"]
+visible = false
 layout_mode = 2
 tooltip_text = "Toggle whether execution of SQL script should continue after failed statements"
 theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
@@ -96,9 +99,11 @@ icon = ExtResource("6_g6q5o")
 icon_alignment = 1
 
 [node name="VSeparator3" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+visible = false
 layout_mode = 2
 
 [node name="ButtonCommit" type="Button" parent="VBoxContainer/HFlowContainer"]
+visible = false
 layout_mode = 2
 tooltip_text = "Commit the current transaction.
 NOTE: all query tabs in the same connection share the same transaction. To have independent transactions, you must open a new Godot."
@@ -108,6 +113,7 @@ icon = ExtResource("7_cgnvr")
 icon_alignment = 1
 
 [node name="ButtonRollback" type="Button" parent="VBoxContainer/HFlowContainer"]
+visible = false
 layout_mode = 2
 tooltip_text = "Rollback the current transaction.
 NOTE: all query tabs in the same connection share the same transaction. To have independent transactions, you must open a new Godot."
@@ -117,6 +123,7 @@ icon = ExtResource("8_xf11y")
 icon_alignment = 1
 
 [node name="ButtonAutoCommit" type="Button" parent="VBoxContainer/HFlowContainer"]
+visible = false
 layout_mode = 2
 tooltip_text = "Toggle autocommit mode. When enabled, each statement will be committed immediately.
 NOTE: all query tabs in the same connection share the same transaction. To have independent transactions, you must open a new Godot."
@@ -129,27 +136,8 @@ icon = ExtResource("9_itstw")
 icon_alignment = 1
 
 [node name="VSeparator4" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+visible = false
 layout_mode = 2
-
-[node name="OptionButtonLimitRow" type="OptionButton" parent="VBoxContainer/HFlowContainer"]
-layout_mode = 2
-tooltip_text = "Set limit for number of rows returned by queries.
-Workbench will automatically add the LIMIT clause with the configured number of rows to SELECT queries."
-theme_override_styles/focus = SubResource("StyleBoxEmpty_35ij8")
-item_count = 6
-selected = 0
-popup/item_0/text = "Don't Limit"
-popup/item_0/id = 0
-popup/item_1/text = "Limit to 10 rows"
-popup/item_1/id = 1
-popup/item_2/text = "Limit to 100 rows"
-popup/item_2/id = 2
-popup/item_3/text = "Limit to 1000 rows"
-popup/item_3/id = 3
-popup/item_4/text = "Limit to 10000 rows"
-popup/item_4/id = 4
-popup/item_5/text = "Limit to 100000 rows"
-popup/item_5/id = 5
 
 [node name="VSeparator5" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
 layout_mode = 2
@@ -168,7 +156,7 @@ icon = ExtResource("10_8cnpe")
 layout_mode = 2
 size_flags_vertical = 3
 right_disconnects = true
-scroll_offset = Vector2(0, -32)
+scroll_offset = Vector2(0, -46)
 snapping_enabled = false
 
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonOpen" to="." method="_on_button_open_pressed"]
