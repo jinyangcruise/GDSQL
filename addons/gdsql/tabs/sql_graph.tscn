@@ -158,6 +158,7 @@ size_flags_vertical = 3
 right_disconnects = true
 scroll_offset = Vector2(0, -46)
 snapping_enabled = false
+minimap_enabled = false
 
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonOpen" to="." method="_on_button_open_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSave" to="." method="_on_button_save_pressed"]

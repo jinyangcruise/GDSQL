@@ -21,7 +21,7 @@ func _ready() -> void:
 	}
 	var row := DictionaryObject.new([
 		["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Default(Expression)", "Comment"], 
-		["idnew_table", TYPE_INT, PROPERTY_HINT_NONE , "", true, true, false, true, "", ""]
+		["id", TYPE_INT, PROPERTY_HINT_NONE , "", true, true, false, true, "", ""]
 	], _hint_string)
 	var list = row.get_property_list()
 	for i in list:

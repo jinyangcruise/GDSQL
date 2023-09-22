@@ -334,7 +334,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 	var warnings = []
 	# 数据为空就没必要检查字段了
 	if not old_values.is_empty():
-		var old_columns = table_confs.get(old_table_name, [])
+		var old_columns = table_confs.get(old_table_name, {}).get("columns", [])
 		var old_columns_map = {} # 转成map
 		for i in old_columns:
 			old_columns_map[i["Column Name"]] = i
@@ -346,9 +346,10 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 				# 检查字段类型发生变化
 				if old_columns_map[col_name]["Data Type"] != i["Data Type"]:
 					warnings.push_back("field [%s] data type changed from [%s] to [%s], datas will be converted!" % \
-						[col_name, DataTypeDef.DATA_TYPE_NAMES[old_columns_map[col_name]["Data Type"]], i["Data Type"]])
+						[col_name, DataTypeDef.DATA_TYPE_NAMES[old_columns_map[col_name]["Data Type"]], 
+						DataTypeDef.DATA_TYPE_NAMES[i["Data Type"]]])
 					for j: Dictionary in old_values:
-						j[col_name] = convert(j[col_name], i["Data Type"])# TODO FIXME 期待godot新版本支持
+						j[col_name] = type_convert(j[col_name], i["Data Type"])
 						# type_convert
 						# https://github.com/godotengine/godot/pull/70080
 				# 检查自增
@@ -410,7 +411,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 				new_table_data_file.set_value(primary_value, col_name, i.get(col_name, default_value))
 				
 		__CONF_MANAGER.save_conf_by_same_password(new_table_data_path, old_table_data_path)
-		msgs.push_back("1 file:%s is saved." % new_table_data_file)
+		msgs.push_back("1 file:%s is saved." % new_table_data_path)
 		if new_table_data_path != old_table_data_path:
 			__CONF_MANAGER.remove_conf(old_table_data_path)
 		

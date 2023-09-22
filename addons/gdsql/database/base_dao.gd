@@ -76,8 +76,9 @@ func auto_commit(auto: bool) -> BaseDao:
 	
 func _assert(action: String, success: bool, msg: String) -> bool:
 	if not success:
-		mgr.create_accept_dialog(msg)
-		mgr.add_log_history.emit("Err", Time.get_unix_time_from_system(), action, msg)
+		if Engine.is_editor_hint():
+			mgr.create_accept_dialog(msg)
+			mgr.add_log_history.emit("Err", Time.get_unix_time_from_system(), action, msg)
 		push_error(msg)
 		return false
 	return true
@@ -849,6 +850,14 @@ func query():
 				"err": OK,
 				"affected_rows": 0
 			}
+			# 检查数据类型是否正确
+			var columns_def = __get_table_defination(__database, __table)
+			for col in columns_def:
+				var col_name = col["Column Name"]
+				if __data.has(col_name):
+					assert(_assert("query:%s" % __cmd, typeof(__data[col_name]) == col["Data Type"], 
+						"data type of %s is not %s" % [col_name, DataTypeDef.DATA_TYPE_NAMES[typeof(__data[col_name])]]))
+						
 			var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
 			assert(_assert("query:%s" % __cmd, conf != null, "load conf err!"))
 			var primary_value = str(__data.get(__primary_key))
@@ -910,6 +919,15 @@ func query():
 				"err": OK,
 				"affected_rows": 0
 			}
+			
+			# 检查数据类型是否正确
+			var columns_def = __get_table_defination(__database, __table)
+			for col in columns_def:
+				var col_name = col["Column Name"]
+				if __data.has(col_name):
+					assert(_assert("query:%s" % __cmd, typeof(__data[col_name]) == col["Data Type"], 
+						"data type of field `%s` is not %s" % [col_name, DataTypeDef.DATA_TYPE_NAMES[typeof(__data[col_name])]]))
+						
 			# 筛选出要更新的数据
 			var primary = "__PRIMARY_1355--5--__" # 让数据库把主键存到这个键里，祈祷用户没有用到这个字段
 			__need_post_porcess = false # update一定是单表，用内部返回模式返回数据

@@ -56,7 +56,5 @@ func save_conf_by_same_password(path: String, ref_path: String):
 	_passwords[path] = _passwords[ref_path]
 	if _passwords[ref_path] == "":
 		conf.save(path)
-		printt("ccccccc `%s` save by pass:`%s`", path, _passwords[ref_path])
 	else:
 		conf.save_encrypted_pass(path, _passwords[ref_path])
-		printt("bbbbbbb `%s` save by pass:`%s`", path, _passwords[ref_path])

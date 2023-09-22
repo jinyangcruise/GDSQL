@@ -44,6 +44,39 @@ func _ready() -> void:
 	check_button_enable.toggled.connect(_on_check_button_enable_toggled)
 	get_titlebar_hbox().add_child(check_button_enable)
 	
+	# maximize button
+	var max_btn = TextureButton.new()
+	max_btn.toggle_mode = true
+	max_btn.stretch_mode = TextureButton.STRETCH_KEEP_CENTERED
+	max_btn.texture_normal = preload("res://addons/gdsql/img/maximize.png")
+	max_btn.toggled.connect(func(toggled_on: bool):
+		if toggled_on:
+			max_btn.set_meta("old_size", size)
+			var graph_edit = get_parent_control()
+			if not graph_edit is GraphEdit:
+				return
+			graph_edit = graph_edit as GraphEdit
+			# 移动到节点左上角和窗口左上角对齐
+			# edit中心点的偏移
+			var center_offset = (graph_edit.get_rect().get_center() - \
+				get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+			# edit左上角的偏移
+			var left_top_cornor_offset = center_offset - graph_edit.size/2
+			# node和edit左上角的偏移量
+			var diff = position_offset - size/2 - left_top_cornor_offset \
+				# graphnode的size的bug补偿
+				+ Vector2(0, 60) \
+				# top边框
+				- Vector2(0, 5) \
+				- Vector2.ONE * 8 # 留一个边框
+			# edit移动到节点左上角和窗口左上角对齐
+			graph_edit.scroll_offset += diff
+			size = graph_edit.size - Vector2(16, 20)
+		else:
+			size = max_btn.get_meta("old_size")
+	)
+	get_titlebar_hbox().add_child(max_btn)
+	
 	# close button
 	var close_btn = TextureButton.new()
 	close_btn.stretch_mode = TextureButton.STRETCH_KEEP_CENTERED
@@ -158,14 +191,16 @@ func redraw():
 							has_content = false
 						else:
 							has_content = true
+							if data.size_flags_vertical == Control.SIZE_EXPAND_FILL:
+								hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 						if data.get_parent() != null and data.get_parent() != hb:
 							data.reparent(hb)
 						else:
 							hb.add_child(data)
-			if hb.get_child_count() == 0 or not has_content:
-				hb.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-			else:
-				hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			#if hb.get_child_count() == 0 or not has_content:
+				#hb.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			#else:
+				#hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			add_child(hb)
 		
 		

@@ -101,7 +101,7 @@ func _ready() -> void:
 	
 	var row := DictionaryObject.new([
 		table.columns, 
-		["idnew_table", TYPE_INT, PROPERTY_HINT_NONE , "", true, true, false, true, "", ""]
+		["id", TYPE_INT, PROPERTY_HINT_NONE , "", true, true, false, true, "", ""]
 	], _hint_string)
 	row.set_custom_display_control("Data Type", label_data_type, update_callback.bind("Data Type", weakref(row), DataTypeDef.DATA_TYPE_NAMES), true)
 	row.set_custom_display_control("Hint", label_hint, update_callback.bind("Hint", weakref(row), DataTypeDef.PROPERTY_HINT_NAMES), true)

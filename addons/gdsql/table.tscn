@@ -19,7 +19,6 @@ grow_vertical = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 script = ExtResource("1_s1y7s")
-support_delete_row = null
 
 [node name="Models" type="HBoxContainer" parent="."]
 visible = false
