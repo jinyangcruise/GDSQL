@@ -1,8 +1,6 @@
 @tool
 extends ScrollContainer
 
-#signal button_apply_pressed(sechema: String, table_name: String, comments: String, password: String, columns: Array, id: String)
-
 var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
 @onready var table: VBoxContainer = $VBoxContainer/Table
@@ -96,18 +94,26 @@ func _ready() -> void:
 	label_data_type.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	label_data_type.auto_translate = false
 	label_data_type.localize_numeral_system = false
-	
+
 	var label_hint = label_data_type.duplicate()
 	
 	var row := DictionaryObject.new([
 		table.columns, 
 		["id", TYPE_INT, PROPERTY_HINT_NONE , "", true, true, false, true, "", ""]
 	], _hint_string)
-	row.set_custom_display_control("Data Type", label_data_type, update_callback.bind("Data Type", weakref(row), DataTypeDef.DATA_TYPE_NAMES), true)
-	row.set_custom_display_control("Hint", label_hint, update_callback.bind("Hint", weakref(row), DataTypeDef.PROPERTY_HINT_NAMES), true)
+	row.set_custom_display_control("Data Type", label_data_type, 
+		update_callback.bind("Data Type", weakref(row), DataTypeDef.DATA_TYPE_NAMES), true)
+	row.set_custom_display_control("Hint", label_hint, 
+		update_callback.bind("Hint", weakref(row), DataTypeDef.PROPERTY_HINT_NAMES), true)
 	
 	datas.push_back(row)
 	table.datas = datas
+	
+func _exit_tree():
+	for i: DictionaryObject in datas:
+		i.get_custom_display_control("Data Type").queue_free()
+		i.get_custom_display_control("Hint").queue_free()
+	datas.clear()
 
 
 func _on_button_new_column_pressed() -> void:
@@ -127,8 +133,10 @@ func _gen_row() -> DictionaryObject:
 		table.columns, 
 		["new_table_col", TYPE_INT, PROPERTY_HINT_NONE, "", false, false, false, false, "", ""]
 	], _hint_string)
-	row.set_custom_display_control("Data Type", label_data_type, update_callback.bind("Data Type", weakref(row), DataTypeDef.DATA_TYPE_NAMES), true)
-	row.set_custom_display_control("Hint", label_hint, update_callback.bind("Hint", weakref(row), DataTypeDef.PROPERTY_HINT_NAMES), true)
+	row.set_custom_display_control("Data Type", label_data_type, 
+		update_callback.bind("Data Type", weakref(row), DataTypeDef.DATA_TYPE_NAMES), true)
+	row.set_custom_display_control("Hint", label_hint, 
+		update_callback.bind("Hint", weakref(row), DataTypeDef.PROPERTY_HINT_NAMES), true)
 	return row
 
 
@@ -162,6 +170,9 @@ func _on_popup_menu_index_pressed(index):
 	var _datas: Array = table.datas
 	match popup_menu.get_item_text(index):
 		"remove":
+			var data = datas[selected_row_index]
+			data.get_custom_display_control("Data Type").queue_free()
+			data.get_custom_display_control("Hint").queue_free()
 			_datas.remove_at(selected_row_index)
 			table.datas = _datas
 		"move top":

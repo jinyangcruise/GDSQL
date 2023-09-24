@@ -25,6 +25,7 @@ func _enter_tree():
 	
 	# 进入界面
 	main_panel_instance = MainPanel.instantiate()
+	Engine.get_singleton("GDSQLWorkbenchManager").main_panel = main_panel_instance
 	# Add the main panel to the editor's main viewport.
 	EditorInterface.get_editor_main_screen().add_child(main_panel_instance)
 	# Hide the main panel. Very much required.
@@ -35,6 +36,7 @@ func _enter_tree():
 func _exit_tree():
 	if main_panel_instance:
 		main_panel_instance.queue_free()
+	Engine.get_singleton("GDSQLWorkbenchManager").main_panel = null
 	if dictionary_object_inspector_plugin:
 		remove_inspector_plugin(dictionary_object_inspector_plugin)
 	if Engine.has_singleton("ConfManager"):

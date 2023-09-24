@@ -23,6 +23,16 @@ func _init(data, hint: Dictionary = {}, read_only: bool = false) -> void:
 		for i in data[0].size():
 			_data[data[0][i]] = data[1][i]
 			
+func _notification(what):
+	if what == NOTIFICATION_PREDELETE:
+		_origin = {}
+		_data = {}
+		_hint = {}
+		if _update_callback:
+			_update_callback.clear()
+		if _custom_display_control:
+			_custom_display_control.clear()
+		
 func get_data() -> Dictionary:
 	return _data
 	
@@ -130,9 +140,11 @@ func get_custom_display_control(property: String) -> Control:
 	
 ## 获取某个属性的自定义显示控件的新副本。如果不存在，则返回null。
 ## 每次使用该方法将使内部记录的自定义显示控件被替换为新的副本。
+## 调用者需要自行释放原来的控件。
 ## 所以一些情况下，需要结合get_custom_display_control来使用。
 func get_custom_display_control_duplicate(property: String) -> Control:
-	if _custom_display_control.has(property):
+	if _custom_display_control.has(property) and _custom_display_control[property] != null \
+		and _custom_display_control[property] is Control:
 		var ret = _custom_display_control[property].duplicate() as Control
 		_custom_display_control[property] = ret
 		return ret

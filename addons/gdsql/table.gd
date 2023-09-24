@@ -69,15 +69,19 @@ func _ready() -> void:
 func _exit_tree():
 	popup_menu_text.set_item_metadata(0, null)
 	popup_menu_text.set_item_metadata(1, null)
+	clear_header()
+	clear_rows()
+	
+func clear_header():
+	while header.get_child_count() > 0:
+		var h = header.get_child(0)
+		header.remove_child(h)
+		h.queue_free()
 
 func reset_header():
 	buttons.clear()
 	controls.clear()
-	
-	if header.get_child_count() > 0:
-		var h = header.get_child(0)
-		header.remove_child(h)
-		h.queue_free()
+	clear_header()
 	
 	var fake_columns = [""]
 	fake_columns.append_array(columns)
@@ -178,8 +182,8 @@ func add_row(a_data):
 		var handled = false
 		
 		# 如果该数据提供了自定义显示控件，就直接使用
-		if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("get_custom_display_control_duplicate"):
-			control = a_data.get_custom_display_control_duplicate(columns[i-1])
+		if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("get_custom_display_control"):
+			control = a_data.get_custom_display_control(columns[i-1])
 			handled = control != null
 			
 		# 否则，用表格自带的显示控件
@@ -242,7 +246,10 @@ func add_row(a_data):
 		#control.set_meta("data", data[i])
 		#control.gui_input.connect(_on_label_model_gui_input.bind(control))
 		# 表格刷新时某些自定义控件可能需要重复使用，要去掉parent
-		a_row.get_child(0).add_child(control)
+		if control.get_parent() == null:
+			a_row.get_child(0).add_child(control)
+		else:
+			control.reparent(a_row.get_child(0))
 		if i == 0 or i == data.size() - 1:
 			control.hide()
 		control.size_flags_stretch_ratio = buttons[i].size.x + 4 # HSplitContainer间隔为8，两边各取一半

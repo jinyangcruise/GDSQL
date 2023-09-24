@@ -39,18 +39,12 @@ const ROOT_CONFIG = "res://addons/gdsql/config/config.cfg"
 const CONFIG_EXTENSION = ".cfg"
 const DATA_EXTENSION = ".gsql"
 
-func _init():
-	if Engine.has_singleton("ConfManager"):
-		__CONF_MANAGER = Engine.get_singleton("ConfManager")
-	else:
-		__CONF_MANAGER = ConfManager
-
 func _clear():
 	clear()
 	database_items.clear()
 	popup_menu_create_table_like_tables.clear()
 	popup_menu_create_table_like_table_item.clear()
-		
+	
 func load_config():
 	_config_file = ImprovedConfigFile.new()
 	_config_file.load(ROOT_CONFIG)
@@ -464,6 +458,14 @@ func drop_db_from_config(db_name: String) -> void:
 	refresh()
 
 func _ready():
+	if not mgr.run_in_plugin(self):
+		return
+		
+	if Engine.has_singleton("ConfManager"):
+		__CONF_MANAGER = Engine.get_singleton("ConfManager")
+	else:
+		__CONF_MANAGER = ConfManager
+		
 	if not mgr.user_confirm_add_schema.is_connected(add_db_to_config):
 		mgr.user_confirm_add_schema.connect(add_db_to_config)
 	if not mgr.user_confirm_add_table.is_connected(add_table_to_config):
@@ -485,6 +487,12 @@ func _ready():
 	refresh()
 	
 func _exit_tree():
+	if not mgr.run_in_plugin(self):
+		return
+		
+	_clear()
+	_config_file = null
+	__CONF_MANAGER = null
 	if mgr.user_confirm_add_schema.is_connected(add_db_to_config):
 		mgr.user_confirm_add_schema.disconnect(add_db_to_config)
 	if mgr.user_confirm_add_table.is_connected(add_table_to_config):
@@ -627,6 +635,7 @@ func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_inde
 		match id:
 			0:
 				var exe_select = func():
+					printt("ooooooooo")
 					mgr.send_to_editor_and_execute.emit(item.get_meta("table_name"), {
 						"cmd": "select",
 						"db_name": item.get_meta("db_name"),

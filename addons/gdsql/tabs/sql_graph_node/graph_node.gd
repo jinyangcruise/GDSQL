@@ -129,6 +129,7 @@ func clear():
 		for i in children:
 			if i != null and !i.is_queued_for_deletion():
 				remove_child(i)
+				i.queue_free()
 				
 func redraw():
 	clear()
@@ -140,7 +141,7 @@ func redraw():
 		for arr in datas:
 			index += 1
 			var hb = HBoxContainer.new()
-			var has_content = false
+			#var has_content = false
 			#hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			var left = 0
 			if arr.size() > 2:
@@ -157,7 +158,7 @@ func redraw():
 						if data is String and data == "":
 							hb.add_child(Control.new())
 						else:
-							has_content = true
+							#has_content = true
 							var label = Label.new()
 							label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if left == 1 else HORIZONTAL_ALIGNMENT_RIGHT
 							label.text = str(data)
@@ -166,7 +167,7 @@ func redraw():
 							label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 							hb.add_child(label)
 					elif data is DictionaryObject:
-						has_content = true
+						#has_content = true
 						EditorInterface.inspect_object(data)
 						var properties = data._get_property_list().map(func(v): return v["name"])
 						var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
@@ -188,9 +189,10 @@ func redraw():
 								
 					elif data is Control:
 						if data.get_class() == "Control" and data.get_child_count() == 0:
-							has_content = false
+							#has_content = false
+							pass
 						else:
-							has_content = true
+							#has_content = true
 							if data.size_flags_vertical == Control.SIZE_EXPAND_FILL:
 								hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 						if data.get_parent() != null and data.get_parent() != hb:

@@ -89,6 +89,13 @@ func _ready() -> void:
 		comment = comment
 	if not raw_datas.is_empty():
 		raw_datas = raw_datas
+		
+func _exit_tree():
+	raw_datas = []
+	for i: DictionaryObject in datas:
+		i.get_custom_display_control("Data Type").queue_free()
+		i.get_custom_display_control("Hint").queue_free()
+	datas.clear()
 
 func _on_button_new_column_pressed() -> void:
 	var row = _gen_row()
@@ -140,6 +147,9 @@ func _on_popup_menu_index_pressed(index):
 	var _datas: Array = table.datas
 	match popup_menu.get_item_text(index):
 		"remove":
+			var data = datas[selected_row_index]
+			data.get_custom_display_control("Data Type").queue_free()
+			data.get_custom_display_control("Hint").queue_free()
 			_datas.remove_at(selected_row_index)
 			table.datas = _datas
 		"move top":

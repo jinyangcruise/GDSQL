@@ -12,6 +12,9 @@ var _tab_index = 1
 var _tab_activate_time: float = 0
 
 func _ready() -> void:
+	if not mgr.run_in_plugin(self):
+		return
+		
 	if not mgr.open_add_schema_tab.is_connected(add_tab_new_schema):
 		mgr.open_add_schema_tab.connect(add_tab_new_schema)
 	if not mgr.open_add_table_tab.is_connected(add_tab_new_table):
@@ -38,6 +41,9 @@ func _ready() -> void:
 	_on_tab_clicked(0)
 	
 func _exit_tree():
+	if not mgr.run_in_plugin(self):
+		return
+		
 	if mgr.open_add_schema_tab.is_connected(add_tab_new_schema):
 		mgr.open_add_schema_tab.disconnect(add_tab_new_schema)
 	if mgr.open_add_table_tab.is_connected(add_tab_new_table):
@@ -60,6 +66,11 @@ func _exit_tree():
 		mgr.send_to_editor.disconnect(receive_content)
 	if mgr.send_to_editor_and_execute.is_connected(receive_content_and_execute):
 		mgr.send_to_editor_and_execute.disconnect(receive_content_and_execute)
+		
+	while get_child_count() > 0:
+		var child = get_child(0)
+		remove_child(child)
+		child.queue_free()
 	
 func _on_tab_clicked(tab: int) -> void:
 	# 点击了“新建SQL页面”（加号），增加一个编辑页面，并激活
@@ -95,12 +106,11 @@ func add_tab_new_schema() -> void:
 	current_tab = get_child_count() - 2
 	set_tab_title(current_tab, "new_schema")
 		
-func add_tab_alter_schema(db_name, path, save) -> void:
+func add_tab_alter_schema(db_name, path) -> void:
 	var alter_schema = preload("res://addons/gdsql/tabs/alter_schema.tscn").instantiate()
 	alter_schema.old_db_name = db_name
 	alter_schema.db_name = db_name
 	alter_schema.path = path
-	alter_schema.save = save
 	add_child(alter_schema)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2

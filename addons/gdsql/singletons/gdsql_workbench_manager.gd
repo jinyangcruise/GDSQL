@@ -39,6 +39,9 @@ signal send_to_editor_and_execute(title: String, info: Dictionary)
 ## 记录操作日志
 signal add_log_history(status: String, begin_timestamp: String, action: String, message: String)
 
+## 主界面引用。只有设定了该变量，才能使用run_in_plugin方法
+var main_panel: Control
+
 ## 数据库配置
 #databases = {
 	#"db1": {
@@ -68,6 +71,13 @@ signal add_log_history(status: String, begin_timestamp: String, action: String, 
 	#}
 #}
 var databases: Dictionary
+
+## 返回某个节点是否运行在插件模式中。（脚本的@tool会让它运行在编辑器编辑界面中，而不是插件中，
+## 可能导致信号多次绑定、额外数据被写入tscn中等问题）
+func run_in_plugin(node: Node) -> bool:
+	if main_panel == null:
+		return false
+	return node == main_panel or main_panel.is_ancestor_of(node)
 
 func get_table_columns(db, table) -> Array:
 	if databases:
