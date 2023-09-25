@@ -50,6 +50,7 @@ func _ready() -> void:
 	max_btn.stretch_mode = TextureButton.STRETCH_KEEP_CENTERED
 	max_btn.texture_normal = preload("res://addons/gdsql/img/maximize.png")
 	max_btn.toggled.connect(func(toggled_on: bool):
+		
 		if toggled_on:
 			max_btn.set_meta("old_size", size)
 			var graph_edit = get_parent_control()
@@ -125,12 +126,31 @@ func clear():
 	__property_old_parents.clear()
 	
 	if is_node_ready():
+		# 把自定义控件从树中剥离出来，不然会给下面的queue_free带来麻烦
+		if datas and !datas.is_empty():
+			for arr in datas:
+				for data in arr:
+					if data is Control:
+						if data.get_parent_control():
+							data.get_parent_control().remove_child(data)
+						
 		var children = get_children()
 		for i in children:
 			if i != null and !i.is_queued_for_deletion():
 				remove_child(i)
 				i.queue_free()
 				
+func _notification(what):
+	if what == NOTIFICATION_PREDELETE:
+		clear()
+		
+		if datas and !datas.is_empty():
+			for arr in datas:
+				for data in arr:
+					if data is Control:
+						data.queue_free()
+			datas = []
+		
 func redraw():
 	clear()
 	if datas and !datas.is_empty() and is_inside_tree():
@@ -308,10 +328,6 @@ func disconnect_focused_propagate(control: Control):
 	
 func editor_property_focused(data):
 	EditorInterface.inspect_object(data)
-	
-func _exit_tree() -> void:
-	clear()
-
 
 func _on_resize_request(new_minsize):
 	size = new_minsize

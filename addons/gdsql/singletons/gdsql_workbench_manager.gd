@@ -212,3 +212,17 @@ func connect_focused_propagate(control: Control, data):
 					
 func editor_property_focused(data):
 	EditorInterface.inspect_object(data)
+
+## 执行一个表达式
+## target：环境对象。比如command里使用的一些函数、变量是在target里定义的
+## command：表达式
+## variable_names：参数名称列表
+## variable_values：参数值列表
+func evaluate_command(target: Object, command: String, variable_names = [], variable_values = []):
+	var expression = Expression.new()
+	var error = expression.parse(command, variable_names)
+	if error != OK:
+		push_error(expression.get_error_text())
+		return null
+		
+	return expression.execute(variable_values, target, false)

@@ -76,7 +76,7 @@ func check(datas: Dictionary):
 					variable_names.push_back(f) # 祈祷字段名称和表名以及用户使用的函数名称不一样吧……
 					variable_values.push_back(datas[key][f])
 			
-		ret = Evaluate.evaluate_command(null, _cond, variable_names, variable_values)
+		ret = evaluate_command(null, _cond, variable_names, variable_values)
 		
 	# and / or
 	if _and_wrapper:
@@ -105,3 +105,16 @@ func or_(wrapper: ConditionWrapper) -> ConditionWrapper:
 	_or_wrapper = wrapper
 	return self
 	
+## 执行一个表达式
+## target：环境对象。比如command里使用的一些函数、变量是在target里定义的
+## command：表达式
+## variable_names：参数名称列表
+## variable_values：参数值列表
+func evaluate_command(target: Object, command: String, variable_names = [], variable_values = []):
+	var expression = Expression.new()
+	var error = expression.parse(command, variable_names)
+	if error != OK:
+		push_error(expression.get_error_text())
+		return null
+		
+	return expression.execute(variable_values, target, false)

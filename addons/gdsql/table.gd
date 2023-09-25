@@ -66,14 +66,21 @@ func _ready() -> void:
 		for i in 50:
 			await create_tween().tween_callback(func(): realign_rows()).set_delay(0.1).finished
 	
-func _exit_tree():
-	popup_menu_text.set_item_metadata(0, null)
-	popup_menu_text.set_item_metadata(1, null)
-	clear_header()
-	clear_rows()
+func _notification(what):
+	if what == NOTIFICATION_PREDELETE:
+		popup_menu_text.set_item_metadata(0, null)
+		popup_menu_text.set_item_metadata(1, null)
+		clear_header()
+		clear_rows()
+		datas = []
+		# 下面3个清空的话会导致用户只能通过代码来设置这三个属性，不能通过检查器来设置
+		#ratios.clear()
+		#column_tips.clear()
+		#columns.clear()
 	
 func clear_header():
-	while header.get_child_count() > 0:
+	# header是嵌套的，所以删除第一个就行
+	if header.get_child_count() > 0:
 		var h = header.get_child(0)
 		header.remove_child(h)
 		h.queue_free()

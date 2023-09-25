@@ -98,7 +98,7 @@ func node_close(node: GraphNode):
 	if node.has_meta("left_join"):
 		(node.get_meta("left_join") as LeftJoin).clear_chain()
 		node.remove_meta("left_join")
-			
+		
 	node.queue_free()
 	
 ## 如果node是排外的输入节点，激活该节点的时候，把同一个输入端口的其他节点关闭
@@ -156,7 +156,8 @@ func add_select_node(schema = "", table = "", fields = "*", where = "", order_by
 	var where_dict_obj: DictionaryObject = graph_node.datas[5][2]
 	var order_dict_obj: DictionaryObject = graph_node.datas[6][2]
 	var limit_dict_obj: DictionaryObject = graph_node.datas[7][2]
-	var btn_query: Button = graph_node.datas[8][2]
+	#var separetor: Control = graph_node.datas[8][2]
+	var btn_query: Button = graph_node.datas[9][2]
 	
 	if schema != schema_dict_obj._get("Schema"):
 		schema_dict_obj._set("Schema", schema)
@@ -255,7 +256,9 @@ func gen_select_node() -> GraphNode:
 	btn_query.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	
 	var separator = Control.new()
-	separator.custom_minimum_size.y = 60
+	separator.custom_minimum_size.y = 10
+	var separator2 = Control.new()
+	separator2.custom_minimum_size.y = 10
 	
 	var datas: Array[Array] = [
 		["Union All", "Result"],
@@ -266,8 +269,9 @@ func gen_select_node() -> GraphNode:
 		[null, null, where_dict_obj],
 		[null, null, order_dict_obj],
 		[null, null, limit_dict_obj],
+		[null, null, separator],
 		[null, null, btn_query],
-		[null, null, separator]
+		[null, null, separator2]
 	]
 	graph_node.datas = datas
 	graph_node.title = "Select"
@@ -348,7 +352,7 @@ func gen_left_join_node() -> GraphNode:
 	btn_query.pressed.connect(on_select_node_query.bind(graph_node, true))
 	
 	var separator = Control.new()
-	separator.custom_minimum_size.y = 60
+	separator.custom_minimum_size.y = 20
 	
 	var datas: Array[Array] = [
 		["Next Left Join", "Result"],
@@ -399,7 +403,9 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		
 		table.columns = columns.map(func(v): return v["field_as"])
 		graph_datas = [
-			[margin_container, null]
+			[margin_container, null],
+			[null, null], # buttons
+			[null, null], # separetor
 		]
 		
 		graph_node.title = "Result"
@@ -542,11 +548,11 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 			flow_container.get_parent_control().size_flags_vertical = Control.SIZE_FILL
 		)
 		
-		graph_datas.push_back([null, null, flow_container])
+		graph_datas[1] = [null, null, flow_container]
 		
 		var separator = Control.new()
 		separator.custom_minimum_size.y = 60
-		graph_datas.push_back([null, null, separator])
+		graph_datas[2] = [null, null, separator]
 		
 		# 每行数据转成一个DictionaryObject
 		var new_table_datas = []
@@ -819,15 +825,10 @@ func _exit_tree():
 
 func _on_graph_edit_close_nodes_request(nodes):
 	var titles = nodes.map(func(v): return graph_edit.get_node(str(v)).title)
-	var dialog := ConfirmationDialog.new()
-	dialog.dialog_text = "Are you sure to delete selected nodes `%s`?" \
-		% ", ".join(titles)
-	dialog.confirmed.connect(func():
+	mgr.create_confirmation_dialog("Are you sure to delete selected nodes `%s`?" % ", ".join(titles),
+		func():
 		for i in nodes:
-			node_close(graph_edit.get_node(str(i)))
-	)
-	add_child(dialog)
-	dialog.popup_centered()
-	dialog.close_requested.connect(func():
-		dialog.queue_free()
+			var node = graph_edit.get_node(str(i))
+			node_close(node)
+			node.queue_free()
 	)
