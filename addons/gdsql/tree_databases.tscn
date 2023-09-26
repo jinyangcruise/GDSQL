@@ -46,6 +46,7 @@ item_2/id = 2
 item_3/text = "Send to SQL Editor"
 item_3/icon = ExtResource("2_sdu3l")
 item_3/id = 3
+item_3/disabled = true
 item_4/text = ""
 item_4/id = 4
 item_4/separator = true
@@ -69,13 +70,16 @@ item_10/icon = ExtResource("7_udc60")
 item_10/id = 10
 
 [node name="PopupMenuCopyTo" type="PopupMenu" parent="PopupMenuDatabase"]
-item_count = 3
+item_count = 4
 item_0/text = "Name"
 item_0/id = 0
-item_1/text = "Path"
+item_1/text = "Config Path"
 item_1/id = 2
-item_2/text = "Create Statement"
-item_2/id = 1
+item_2/text = "Data Path"
+item_2/id = 3
+item_3/text = "Create Statement"
+item_3/id = 1
+item_3/disabled = true
 
 [node name="PopupMenuSendTo" type="PopupMenu" parent="PopupMenuDatabase"]
 item_count = 3

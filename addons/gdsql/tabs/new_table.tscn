@@ -107,6 +107,9 @@ text = "➕New Column"
 [node name="Table" parent="VBoxContainer" instance=ExtResource("1_24m38")]
 layout_mode = 2
 editable = true
+columns = ["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Default(Expression)", "Comment"]
+column_tips = Array[String](["字段名称", "数据类型", "检查器属性提示", "提示字符串", "是否为主键", "是否非空", "是否唯一", "是否自增", "默认值（支持表达式）", "备注"])
+ratios = Array[float]([4.0, 4.0, 3.0, 2.0, 20.0, 19.0, 18.0, 17.0, 1.0, 1.0])
 
 [node name="HFlowContainer" type="HFlowContainer" parent="VBoxContainer"]
 layout_mode = 2

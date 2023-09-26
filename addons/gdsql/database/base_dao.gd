@@ -944,7 +944,13 @@ func query():
 						push_error(ret["err"])
 						return ret
 					else:
-						__data[col_name] = null
+						__data[col_name] = type_convert("", col["Data Type"])
+						if __data[col_name] == null:
+							ret["affected_rows"] = 0
+							ret["err"] = \
+							"field '%s' is implicitly cast to null which is not support by ConfigFile." % col_name
+							push_error(ret["err"])
+							return ret
 						
 				if __data.size() != columns_def.size():
 					ret["affected_rows"] = 0

@@ -914,10 +914,14 @@ func _on_popup_menu_copy_to_index_pressed(index: int) -> void:
 			var item := get_selected()
 			if item:
 				DisplayServer.clipboard_set(item.get_meta("db_name"))
-		"Path":
+		"Config Path":
 			var item := get_selected()
 			if item:
-				DisplayServer.clipboard_set(item.get_meta("path"))
+				DisplayServer.clipboard_set(item.get_meta("config_path"))
+		"Data Path":
+			var item := get_selected()
+			if item:
+				DisplayServer.clipboard_set(item.get_meta("data_path"))
 		"Create Statement":
 			var item := get_selected()
 			if item:

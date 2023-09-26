@@ -27,7 +27,7 @@ layout_mode = 2
 [node name="RowPanelContainer" type="PanelContainer" parent="Models"]
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 2
+focus_mode = 1
 theme_override_styles/panel = SubResource("StyleBoxFlat_4fjn8")
 
 [node name="RowModel" type="HBoxContainer" parent="Models/RowPanelContainer"]
