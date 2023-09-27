@@ -116,9 +116,14 @@ func add_tab_alter_schema(db_name, path) -> void:
 	current_tab = get_child_count() - 2
 	set_tab_title(current_tab, "alter_schema")
 	
-func add_tab_new_table(db_name) -> void:
+func add_tab_new_table(db_name, like_db_name = "", like_table_name = "") -> void:
 	var new_table = preload("res://addons/gdsql/tabs/new_table.tscn").instantiate()
 	new_table.schema = db_name
+	# 如果是create table like，把参考表的表结构复制过来
+	if like_db_name != "" and like_table_name != "":
+		var defination = mgr.databases.get(like_db_name, {}).get("tables", {}).get(like_table_name, {}) as Dictionary
+		new_table.comment = defination.get("comment", "")
+		new_table.raw_datas = defination.get("columns", [])
 	add_child(new_table)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2

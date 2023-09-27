@@ -595,8 +595,8 @@ func refresh() -> void:
 		if !data["tables"].is_empty():
 			popup_menu_create_table_like_tables.add_separator("SCHEMA：%s" % db_name, id)
 			popup_menu_create_table_like_table_item.add_separator("SCHEMA：%s" % db_name, id)
-			id += 1
 		for t in data["tables"]:
+			id += 1
 			popup_menu_create_table_like_tables.add_item(t, id)
 			var idx_1 = popup_menu_create_table_like_tables.get_item_index(id)
 			popup_menu_create_table_like_tables.set_item_metadata(idx_1, {
@@ -862,11 +862,23 @@ func deal_password_before_table_cmd(table_item: TreeItem, pass_callback: Callabl
 	
 ## Tables目录的create table like子目录的菜单
 func _on_popup_menu_create_table_like_tables_index_pressed(index: int) -> void:
-	printt("aaa", popup_menu_create_table_like_tables.get_item_text(index))
+	var item = get_selected()
+	if item:
+		var db_name = item.get_meta("db_name")
+		var meta_data = popup_menu_create_table_like_tables.get_item_metadata(index)
+		var like_db_name = meta_data["db_name"]
+		var like_table_name = meta_data["table_name"]
+		mgr.open_add_table_tab.emit(db_name, like_db_name, like_table_name)
 
 ## Table Item的create table like子目录的菜单
 func _on_popup_menu_create_table_like_table_item_index_pressed(index: int) -> void:
-	printt("aaa", popup_menu_create_table_like_table_item.get_item_text(index))
+	var item = get_selected()
+	if item:
+		var db_name = item.get_meta("db_name")
+		var meta_data = popup_menu_create_table_like_table_item.get_item_metadata(index)
+		var like_db_name = meta_data["db_name"]
+		var like_table_name = meta_data["table_name"]
+		mgr.open_add_table_tab.emit(db_name, like_db_name, like_table_name)
 	
 ## 数据库目录的右键菜单
 func _on_popup_menu_database_index_pressed(index: int) -> void:

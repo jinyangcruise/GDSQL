@@ -1,9 +1,6 @@
 @tool
 extends ScrollContainer
 
-#signal button_apply_pressed(sechema: String, old_table_name: String, new_table_name: String, 
-#comments: String, password: String, columns: Array, id: String)
-
 var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
 @onready var table: VBoxContainer = $VBoxContainer/Table
@@ -118,10 +115,10 @@ func _gen_row() -> DictionaryObject:
 		table.columns, 
 		["new_table_col", TYPE_INT, PROPERTY_HINT_NONE, "", false, false, false, false, "", ""]
 	], _hint_string)
-	row.set_custom_display_control("Data Type", label_data_type, update_callback.bind("Data Type", 
-		weakref(row), DataTypeDef.DATA_TYPE_NAMES), true)
-	row.set_custom_display_control("Hint", label_hint, update_callback.bind("Hint", 
-		weakref(row), DataTypeDef.PROPERTY_HINT_NAMES), true)
+	row.set_custom_display_control("Data Type", label_data_type, 
+		update_callback.bind("Data Type", weakref(row), DataTypeDef.DATA_TYPE_NAMES), true)
+	row.set_custom_display_control("Hint", label_hint, 
+		update_callback.bind("Hint", weakref(row), DataTypeDef.PROPERTY_HINT_NAMES), true)
 	return row
 
 

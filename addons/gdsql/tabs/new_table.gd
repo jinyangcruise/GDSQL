@@ -42,6 +42,18 @@ var password_again: String:
 		if line_edit_password_again and is_inside_tree():
 			line_edit_password_again.text = val
 			
+var raw_datas: Array = []:
+	set(val):
+		raw_datas = val
+		if table and is_inside_tree():
+			datas = []
+			for i: Dictionary in raw_datas:
+				var row = _gen_row()
+				for column in table.columns:
+					row._set(column, i.get(column, null))
+				datas.push_back(row)
+			table.datas = datas
+			
 var datas: Array = []
 
 static var _hint_string = {
@@ -65,8 +77,8 @@ static var _hint_string = {
 
 
 static func _static_init() -> void:
-	# https://github.com/godotengine/godot/blob/da81ca62a5f6d615516929896caa0b6b09ceccfc/editor/editor_inspector.cpp#L4129
-	# https://github.com/godotengine/godot/blob/da81ca62a5f6d615516929896caa0b6b09ceccfc/modules/gdscript/gdscript_parser.cpp#L4020
+# https://github.com/godotengine/godot/blob/da81ca62a5f6d615516929896caa0b6b09ceccfc/editor/editor_inspector.cpp#L4129
+# https://github.com/godotengine/godot/blob/da81ca62a5f6d615516929896caa0b6b09ceccfc/modules/gdscript/gdscript_parser.cpp#L4020
 	_hint_string["Data Type"]["hint_string"] = ",".join(DataTypeDef.DATA_TYPE_NAME_INDEXES)
 	_hint_string["Hint"]["hint_string"] = ",".join(DataTypeDef.PROPERTY_HINT_INDEXES)
 
@@ -93,6 +105,8 @@ func _ready() -> void:
 		password = password
 	if password_again != "":
 		password_again = password_again
+	if not raw_datas.is_empty():
+		raw_datas = raw_datas
 		
 	var label_data_type := Label.new()
 	label_data_type.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
@@ -101,19 +115,21 @@ func _ready() -> void:
 
 	var label_hint = label_data_type.duplicate()
 	
-	var row := DictionaryObject.new([
-		table.columns, 
-		["id", TYPE_INT, PROPERTY_HINT_NONE , "", true, true, false, true, "", ""]
-	], _hint_string)
-	row.set_custom_display_control("Data Type", label_data_type, 
-		update_callback.bind("Data Type", weakref(row), DataTypeDef.DATA_TYPE_NAMES), true)
-	row.set_custom_display_control("Hint", label_hint, 
-		update_callback.bind("Hint", weakref(row), DataTypeDef.PROPERTY_HINT_NAMES), true)
-	
-	datas.push_back(row)
-	table.datas = datas
+	if raw_datas.is_empty():
+		var row := DictionaryObject.new([
+			table.columns, 
+			["id", TYPE_INT, PROPERTY_HINT_NONE , "", true, true, false, true, "", ""]
+		], _hint_string)
+		row.set_custom_display_control("Data Type", label_data_type, 
+			update_callback.bind("Data Type", weakref(row), DataTypeDef.DATA_TYPE_NAMES), true)
+		row.set_custom_display_control("Hint", label_hint, 
+			update_callback.bind("Hint", weakref(row), DataTypeDef.PROPERTY_HINT_NAMES), true)
+		
+		datas.push_back(row)
+		table.datas = datas
 	
 func _exit_tree():
+	raw_datas = []
 	for i: DictionaryObject in datas:
 		i.get_custom_display_control("Data Type").queue_free()
 		i.get_custom_display_control("Hint").queue_free()
