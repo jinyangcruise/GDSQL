@@ -39,6 +39,13 @@ const ROOT_CONFIG = "res://addons/gdsql/config/config.cfg"
 const CONFIG_EXTENSION = ".cfg"
 const DATA_EXTENSION = ".gsql"
 
+enum ITEM_BUTTON_INDEX {
+	QUICK_SEARCH = 0,
+	FOLDER = 1,
+	COLUMN_PROPERTY = 2,
+	ENCRYPT = 3,
+}
+
 func _clear():
 	clear()
 	database_items.clear()
@@ -639,7 +646,8 @@ func add_database(db_name: String, path: String) -> TreeItem:
 	database_item.set_text(0, db_name)
 	database_item.set_icon(0, preload("res://addons/gdsql/img/icon_db.png"))
 	database_item.set_icon_max_width(0, 20)
-	database_item.add_button(0, preload("res://addons/gdsql/img/folder.png"), 1, false, "Show in File Manager")
+	database_item.add_button(0, preload("res://addons/gdsql/img/folder.png"), 
+		ITEM_BUTTON_INDEX.FOLDER, false, "Show in File Manager")
 	database_item.set_tooltip_text(0, path)
 	database_item.set_meta("db_name", db_name)
 	database_item.set_meta("data_path", path)
@@ -667,15 +675,26 @@ func add_table(db: TreeItem, table_name: String):
 	var table_item = create_item(db.get_child(0)) # child 0 是 Tables。其他是Views、Stored Procedures等等
 	var file_name = table_name + DATA_EXTENSION
 	var db_name = db.get_meta("db_name")
+	var data_path = db.get_meta("data_path") + file_name
 	table_item.set_text(0, table_name)
 	table_item.set_icon(0, preload("res://addons/gdsql/img/table.png"))
 	table_item.set_icon_max_width(0, 20)
 	table_item.set_tooltip_text(0, file_name)
-	table_item.add_button(0, preload("res://addons/gdsql/img/quick_search.png"), 0, false, 
-		"select * from %s.%s;" % [db_name, table_name])
+	if databases[db_name]["tables"][table_name]["encrypted"] != "":
+		var texture
+		var tooltip
+		if __CONF_MANAGER.has_conf(data_path):
+			texture = preload("res://addons/gdsql/img/unlock.png")
+			tooltip = "This table is encrypted and you have entered the right password."
+		else:
+			texture = preload("res://addons/gdsql/img/lock.png") 
+			tooltip = "This table's data file is encrypted. Enter password before using it."
+		table_item.add_button(0, texture, ITEM_BUTTON_INDEX.ENCRYPT, false, tooltip)
+	table_item.add_button(0, preload("res://addons/gdsql/img/quick_search.png"), 
+		ITEM_BUTTON_INDEX.QUICK_SEARCH, false, "select * from %s.%s;" % [db_name, table_name])
 	table_item.set_meta("db_name", db_name)
 	table_item.set_meta("table_name", table_name)
-	table_item.set_meta("data_path", db.get_meta("data_path") + file_name)
+	table_item.set_meta("data_path", data_path)
 	table_item.set_meta("type", "table")
 	table_item.collapsed = true
 	
@@ -687,6 +706,8 @@ func add_table(db: TreeItem, table_name: String):
 		var texts = [col["Column Name"]]
 		texts.push_back(DataTypeDef.DATA_TYPE_NAMES[col["Data Type"]].replace("TYPE_", "").capitalize())
 		col_item.set_text(0, ": ".join(texts))
+		col_item.set_tooltip_text(0, "Comment: %s\nDefault(Expression): %s" % \
+			[col["Comment"], col["Default(Expression)"]])
 		col_item.set_icon(0, preload("res://addons/gdsql/img/dot.png"))
 		col_item.set_meta("db_name", db_name)
 		col_item.set_meta("table_name", table_name)
@@ -697,14 +718,15 @@ func add_table(db: TreeItem, table_name: String):
 		for i in properties.size():
 			if col[properties[i]]:
 				col_item.add_button(0, load("res://addons/gdsql/img/word_%s.png" \
-				% (properties[i] as String).to_lower()), 2, true, tooltips[i])
+				% (properties[i] as String).to_lower()), ITEM_BUTTON_INDEX.COLUMN_PROPERTY
+				, true, tooltips[i])
 				
 				
 func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_index: int) -> void:
 	if column == 0:
 		match id:
 			# Select Rows
-			0:
+			ITEM_BUTTON_INDEX.QUICK_SEARCH:
 				var exe_select = func():
 					mgr.send_to_editor_and_execute.emit(item.get_meta("table_name"), {
 						"cmd": "select",
@@ -714,9 +736,13 @@ func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_inde
 					})
 				deal_password_before_table_cmd(item, exe_select)
 			# Show in File Manager
-			1:
+			ITEM_BUTTON_INDEX.FOLDER:
 				var path = ProjectSettings.globalize_path(item.get_meta("data_path"))
 				OS.shell_show_in_file_manager(path, true)
+			ITEM_BUTTON_INDEX.COLUMN_PROPERTY:
+				pass
+			ITEM_BUTTON_INDEX.ENCRYPT:
+				deal_password_before_table_cmd(item, Callable())
 
 
 func _on_item_activated(item: TreeItem = null) -> void:
@@ -849,6 +875,11 @@ func deal_password_before_table_cmd(table_item: TreeItem, pass_callback: Callabl
 			if valid_pass_md5 == (password_dict_obj._get("Password") as String).md5_text():
 				# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
 				__CONF_MANAGER.get_conf(table_path, password_dict_obj._get("Password"))
+				var texture = preload("res://addons/gdsql/img/unlock.png")
+				var tooltip = "This table is encrypted and you have entered the right password."
+				var index = table_item.get_button_by_id(0, ITEM_BUTTON_INDEX.ENCRYPT)
+				table_item.set_button(0, index, texture)
+				table_item.set_button_tooltip_text(0, index, tooltip)
 				if pass_callback.is_valid():
 					pass_callback.call()
 			else:
