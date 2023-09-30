@@ -551,6 +551,8 @@ func _ready():
 		mgr.user_confirm_alter_schema.connect(modify_db_to_config)
 	if not mgr.user_confirm_alter_table.is_connected(modify_table_to_config):
 		mgr.user_confirm_alter_table.connect(modify_table_to_config)
+	if not mgr.request_user_enter_password.is_connected(deal_password_before_table_cmd_2):
+		mgr.request_user_enter_password.connect(deal_password_before_table_cmd_2)
 	
 	load_config()
 	popup_menu_database.set_item_submenu(2, "PopupMenuCopyTo")
@@ -582,6 +584,8 @@ func _exit_tree():
 func refresh() -> void:
 	_clear()
 	refresh_databases()
+	if root:
+		root.free()
 	root = create_item()
 	var collapsed = false
 	for db_name in databases:
@@ -809,7 +813,9 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 					})
 				deal_password_before_table_cmd(item, exe_select)
 		"Table Inspector":
-			printt("Table Inspector")
+			var item := get_selected()
+			if item:
+				mgr.open_table_inspector_tab.emit(item.get_meta("db_name"), item.get_meta("table_name"))
 		"Table Data Export Wizard":
 			printt("Table Data Export Wizard")
 		"Table Data Import Wizard":
@@ -859,6 +865,16 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 		"Refresh All":
 			refresh()
 			
+func deal_password_before_table_cmd_2(db_name: String, table_name: String, pass_callback: Callable):
+	for db_item in root.get_children():
+		if db_item.get_meta("db_name") == db_name:
+			for collection in db_item.get_children():
+				if collection.get_meta("type") == "Tables":
+					for table_item in collection.get_children():
+						if table_item.get_meta("table_name") == table_name:
+							deal_password_before_table_cmd(table_item, pass_callback)
+							return
+	
 func deal_password_before_table_cmd(table_item: TreeItem, pass_callback: Callable):
 	var db_name = table_item.get_meta("db_name")
 	var table_name = table_item.get_meta("table_name")

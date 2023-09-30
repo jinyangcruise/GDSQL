@@ -31,6 +31,11 @@ signal user_confirm_alter_table(sechema: String, old_table_name: String, new_tab
 ## 系统确认修改数据表的信号
 signal sys_confirm_alter_table(id: String)
 
+## 打开数据表检查器页签的信号
+signal open_table_inspector_tab(db_name: String, table_name: String)
+## 请求用户输入数据表密码的信号
+signal request_user_enter_password(db_name: String, table_name: String, callback: Callable)
+
 ## 发送到编辑器
 signal send_to_editor(content: String)
 ## 发送到编辑器并执行的信号

@@ -11,9 +11,19 @@ var _tab_index = 1
 
 var _tab_activate_time: float = 0
 
+const CONFIG_EXTENSION = ".cfg"
+const DATA_EXTENSION = ".gsql"
+
+var __CONF_MANAGER: ConfManagerClass # 管理表数据
+
 func _ready() -> void:
 	if not mgr.run_in_plugin(self):
 		return
+		
+	if Engine.has_singleton("ConfManager"):
+		__CONF_MANAGER = Engine.get_singleton("ConfManager")
+	else:
+		__CONF_MANAGER = ConfManager
 		
 	if not mgr.open_add_schema_tab.is_connected(add_tab_new_schema):
 		mgr.open_add_schema_tab.connect(add_tab_new_schema)
@@ -23,6 +33,8 @@ func _ready() -> void:
 		mgr.open_alter_schema_tab.connect(add_tab_alter_schema)
 	if not mgr.open_alter_table_tab.is_connected(add_tab_alter_table):
 		mgr.open_alter_table_tab.connect(add_tab_alter_table)
+	if not mgr.open_table_inspector_tab.is_connected(add_tab_table_inspector):
+		mgr.open_table_inspector_tab.connect(add_tab_table_inspector)
 	
 	if not mgr.sys_confirm_add_schema.is_connected(close_content_window):
 		mgr.sys_confirm_add_schema.connect(close_content_window)
@@ -44,6 +56,8 @@ func _exit_tree():
 	if not mgr.run_in_plugin(self):
 		return
 		
+	__CONF_MANAGER = null
+	
 	if mgr.open_add_schema_tab.is_connected(add_tab_new_schema):
 		mgr.open_add_schema_tab.disconnect(add_tab_new_schema)
 	if mgr.open_add_table_tab.is_connected(add_tab_new_table):
@@ -52,6 +66,8 @@ func _exit_tree():
 		mgr.open_alter_schema_tab.disconnect(add_tab_alter_schema)
 	if mgr.open_alter_table_tab.is_connected(add_tab_alter_table):
 		mgr.open_alter_table_tab.disconnect(add_tab_alter_table)
+	if mgr.open_table_inspector_tab.is_connected(add_tab_table_inspector):
+		mgr.open_table_inspector_tab.disconnect(add_tab_table_inspector)
 	
 	if mgr.sys_confirm_add_schema.is_connected(close_content_window):
 		mgr.sys_confirm_add_schema.disconnect(close_content_window)
@@ -141,6 +157,32 @@ func add_tab_alter_table(db_name, table_name) -> void:
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
 	set_tab_title(current_tab, "alter_table")
+	
+func add_tab_table_inspector(db_name, table_name) -> void:
+	var table_inspector = preload("res://addons/gdsql/tabs/table_inspector.tscn").instantiate()
+	table_inspector.schema = db_name
+	table_inspector.table_name = table_name
+	var defination = mgr.databases.get(db_name, {}).get("tables", {}).get(table_name, {}) as Dictionary
+	table_inspector.comment = defination.get("comment", "")
+	var data_file_path = mgr.databases[db_name]["data_path"] + table_name + DATA_EXTENSION
+	var absolute_path = ProjectSettings.globalize_path(data_file_path)
+	table_inspector.data_file_path = data_file_path if data_file_path == absolute_path \
+		else "%s (%s)" % [data_file_path, absolute_path]
+	var data_file = FileAccess.open(absolute_path, FileAccess.READ)
+	table_inspector.data_file_size = "%d KB (%d Byte)" % [ceili(data_file.get_length() / 1024.0), data_file.get_length()]
+	var update_total_data_count = func():
+		if mgr.databases[db_name]["tables"][table_name]["encrypted"] == "" or __CONF_MANAGER.has_conf(data_file_path):
+			table_inspector.total_data_count = str(__CONF_MANAGER.get_conf(data_file_path, "").get_sections().size())
+		else:
+			table_inspector.total_data_count = ""
+	table_inspector.update_total_data_count = update_total_data_count
+	update_total_data_count.call()
+	table_inspector.comment = defination.get("comment", "")
+	table_inspector.raw_datas = defination.get("columns", [])
+	add_child(table_inspector)
+	move_child(new_tab_button, get_child_count() - 1)
+	current_tab = get_child_count() - 2
+	set_tab_title(current_tab, "Inspector:%s" % table_name)
 	
 func _on_tab_button_pressed(tab: int) -> void:
 	if tab != current_tab:
