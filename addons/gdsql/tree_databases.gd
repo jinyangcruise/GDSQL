@@ -590,7 +590,7 @@ func refresh() -> void:
 	var collapsed = false
 	for db_name in databases:
 		var data = databases[db_name]
-		var db := add_database(db_name, data["data_path"])
+		var db := add_database(db_name, data["data_path"], data["config_path"])
 		db.collapsed = collapsed if _default_database_path.is_empty() else _default_database_path != data["data_path"]
 		database_items.push_back(db)
 		collapsed = true # 在没默认数据库的情况下，除了第一个数据库不折叠，其他都折叠
@@ -645,18 +645,19 @@ func _get_specific_extension_files(path: String, extension: String) -> Array[Str
 		
 	return ret
 
-func add_database(db_name: String, path: String) -> TreeItem:
+func add_database(db_name: String, data_path: String, conf_path: String) -> TreeItem:
 	var database_item = create_item(root)
 	database_item.set_text(0, db_name)
 	database_item.set_icon(0, preload("res://addons/gdsql/img/icon_db.png"))
 	database_item.set_icon_max_width(0, 20)
 	database_item.add_button(0, preload("res://addons/gdsql/img/folder.png"), 
 		ITEM_BUTTON_INDEX.FOLDER, false, "Show in File Manager")
-	database_item.set_tooltip_text(0, path)
+	database_item.set_tooltip_text(0, data_path)
 	database_item.set_meta("db_name", db_name)
-	database_item.set_meta("data_path", path)
+	database_item.set_meta("data_path", data_path)
+	database_item.set_meta("config_path", conf_path)
 	database_item.set_meta("type", "database")
-	if path == _default_database_path:
+	if data_path == _default_database_path:
 		database_item.set_custom_bg_color(0, Color.BLUE_VIOLET)
 	
 	var arr := ["Tables", "Views", "Stored Procedures", "Functions"]
@@ -669,7 +670,7 @@ func add_database(db_name: String, path: String) -> TreeItem:
 		item.set_tooltip_text(0, tooltips[i])
 		item.set_meta("type", arr[i])
 		item.set_meta("db_name", db_name)
-		item.set_meta("data_path", path)
+		item.set_meta("data_path", data_path)
 		if i > 0:
 			item.set_collapsed_recursive(true)
 	
@@ -817,7 +818,13 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 			if item:
 				mgr.open_table_inspector_tab.emit(item.get_meta("db_name"), item.get_meta("table_name"))
 		"Table Data Export Wizard":
-			printt("Table Data Export Wizard")
+			var item := get_selected()
+			if item:
+				var db_name = item.get_meta("db_name")
+				var table_name = item.get_meta("table_name")
+				var open_tab = func():
+					mgr.open_table_data_export_tab.emit(db_name, table_name)
+				deal_password_before_table_cmd(item, open_tab)
 		"Table Data Import Wizard":
 			printt("Table Data Import Wizard")
 		"Create Table...":
@@ -1016,3 +1023,90 @@ func _on_popup_menu_tables_index_pressed(index: int) -> void:
 		"Refresh All":
 			refresh()
 			
+
+
+func _on_popup_menu_copy_to_of_table_item_index_pressed(index):
+	match popup_menu_copy_to_of_table.get_item_text(index):
+		"Name (Short)":
+			var item := get_selected()
+			if item:
+				DisplayServer.clipboard_set(item.get_meta("table_name"))
+		"Name (long)":
+			var item := get_selected()
+			if item:
+				var db_name = item.get_meta("db_name")
+				var table_name = item.get_meta("table_name")
+				DisplayServer.clipboard_set("`%s`.`%s`" % [db_name, table_name])
+		"Select All Statement":
+			var item := get_selected()
+			if item:
+				var db_name = item.get_meta("db_name")
+				var table_name = item.get_meta("table_name")
+				var cmd = """
+var dao = BaseDao.new()
+var ret = dao.use_db("%s")\\
+	.set_password("")\\
+	.select("*", true)\\
+	.from("%s")\\
+	.query()
+""" % [db_name, table_name]
+				DisplayServer.clipboard_set(cmd)
+		"Insert Statement":
+			var item := get_selected()
+			if item:
+				var db_name = item.get_meta("db_name")
+				var table_name = item.get_meta("table_name")
+				var cmd = """
+var dao = BaseDao.new()
+var ret = dao.use_db("%s")\\
+	.set_password("")\\
+	.insert_into("%s")\\
+	.values(<data: Dictionary>)\\
+	.query()
+""" % [db_name, table_name]
+				DisplayServer.clipboard_set(cmd)
+		"Update Statement":
+			var item := get_selected()
+			if item:
+				var db_name = item.get_meta("db_name")
+				var table_name = item.get_meta("table_name")
+				var cmd = """
+var dao = BaseDao.new()
+var ret = dao.use_db("%s")\\
+	.set_password("")\\
+	.update("%s")\\
+	.sets(<data: Dictionary>)\\
+	.where(<cond: String>)\\
+	.query()
+""" % [db_name, table_name]
+				DisplayServer.clipboard_set(cmd)
+		"Delete Statement":
+			var item := get_selected()
+			if item:
+				var db_name = item.get_meta("db_name")
+				var table_name = item.get_meta("table_name")
+				var cmd = """
+var dao = BaseDao.new()
+var ret = dao.use_db("%s")\\
+	.set_password("")\\
+	.delete_from("%s")\\
+	.where(<cond: String>)\\
+	.query()
+""" % [db_name, table_name]
+				DisplayServer.clipboard_set(cmd)
+		"Config Path":
+			var item := get_selected()
+			if item:
+				var db_name = item.get_meta("db_name")
+				var table_name = item.get_meta("table_name")
+				var config_path = databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
+				DisplayServer.clipboard_set(config_path)
+		"Data Path":
+			var item := get_selected()
+			if item:
+				DisplayServer.clipboard_set(item.get_meta("data_path"))
+		"Create Statement":
+			var item := get_selected()
+			if item:
+				var statement = "TODO"
+				DisplayServer.clipboard_set(statement)

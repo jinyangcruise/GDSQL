@@ -1,6 +1,7 @@
 extends RefCounted
 class_name BaseDao
 
+#region Members
 var _PASSWORD = "" ## 数据表密码
 
 var __database = "user://" ## 【外部请勿使用】数据库路径
@@ -35,6 +36,7 @@ const CONF_EXTENSION = ".cfg"
 
 var __CONF_MANAGER: ConfManagerClass
 var mgr: GDSQLWorkbenchManagerClass
+#endregion
 
 enum ORDER_BY { ASC, DESC }
 
@@ -1020,6 +1022,39 @@ func query():
 					
 			if __auto_commit and affected_rows > 0:
 				__CONF_MANAGER.save_conf_by_origin_password(path)
+			ret["affected_rows"] = affected_rows
+			reset()
+			return ret
+		"delete_from":
+			var ret = {
+				"err": OK,
+				"affected_rows": 0
+			}
+			
+			var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
+			assert(_assert("query:%s" % __cmd, conf != null, "load conf err!"))
+			
+			var affected_rows = 0
+			if __where.is_empty():
+				affected_rows = conf.get_sections().size()
+				conf.clear()
+			else:
+				# 筛选出要删除的数据
+				var primary = "__PRIMARY_1355--5--__" # 让数据库把主键存到这个键里，祈祷用户没有用到这个字段
+				__need_post_porcess = false # update一定是单表，用内部返回模式返回数据
+				var datas = ___select(path)
+				if datas.is_empty():
+					return ret
+					
+				# 删除数据
+				for data in datas:
+					data = data[__table_alias] # 未经过后处理的肯定是用表名分类的结构
+					conf.erase_section(str(data.get(primary)))
+					affected_rows += 1
+					
+			if __auto_commit and affected_rows > 0:
+				__CONF_MANAGER.save_conf_by_origin_password(path)
+				
 			ret["affected_rows"] = affected_rows
 			reset()
 			return ret

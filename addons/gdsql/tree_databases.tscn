@@ -210,7 +210,7 @@ item_19/id = 19
 
 [node name="PopupMenuCopyTo" type="PopupMenu" parent="PopupMenuTableItem"]
 size = Vector2i(254, 293)
-item_count = 7
+item_count = 10
 item_0/text = "Name (Short)"
 item_0/id = 0
 item_1/text = "Name (long)"
@@ -225,6 +225,14 @@ item_5/text = "Delete Statement"
 item_5/id = 5
 item_6/text = "Create Statement"
 item_6/id = 6
+item_6/disabled = true
+item_7/text = ""
+item_7/id = 7
+item_7/separator = true
+item_8/text = "Config Path"
+item_8/id = 8
+item_9/text = "Data Path"
+item_9/id = 9
 
 [node name="PopupMenuSendTo" type="PopupMenu" parent="PopupMenuTableItem"]
 item_count = 7
@@ -316,5 +324,6 @@ item_4/id = 4
 [connection signal="index_pressed" from="PopupMenuTables" to="." method="_on_popup_menu_tables_index_pressed"]
 [connection signal="index_pressed" from="PopupMenuTables/PopupMenuCreateTableLike" to="." method="_on_popup_menu_create_table_like_tables_index_pressed"]
 [connection signal="index_pressed" from="PopupMenuTableItem" to="." method="_on_popup_menu_table_item_index_pressed"]
+[connection signal="index_pressed" from="PopupMenuTableItem/PopupMenuCopyTo" to="." method="_on_popup_menu_copy_to_of_table_item_index_pressed"]
 [connection signal="index_pressed" from="PopupMenuTableItem/PopupMenuCreateTableLike" to="." method="_on_popup_menu_create_table_like_table_item_index_pressed"]
 [connection signal="index_pressed" from="PopupMenuEmpty" to="." method="_on_popup_menu_empty_index_pressed"]

@@ -33,6 +33,8 @@ signal sys_confirm_alter_table(id: String)
 
 ## 打开数据表检查器页签的信号
 signal open_table_inspector_tab(db_name: String, table_name: String)
+## 打开数据表导出页签的信号
+signal open_table_data_export_tab(db_name: String, table_name: String)
 ## 请求用户输入数据表密码的信号
 signal request_user_enter_password(db_name: String, table_name: String, callback: Callable)
 
