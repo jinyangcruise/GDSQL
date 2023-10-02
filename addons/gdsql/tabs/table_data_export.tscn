@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3 uid="uid://d0o7o40foayti"]
+[gd_scene load_steps=6 format=3 uid="uid://d0o7o40foayti"]
 
 [ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="1_0rcxb"]
 [ext_resource type="Script" path="res://addons/gdsql/tabs/table_data_export.gd" id="1_h6j2y"]
@@ -9,6 +9,8 @@ border_width_left = 2
 border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_4lc0g"]
 
 [sub_resource type="ButtonGroup" id="ButtonGroup_i2xwr"]
 
@@ -37,21 +39,22 @@ layout_mode = 2
 
 [node name="Label" type="Label" parent="VBoxContainer"]
 layout_mode = 2
-text = "Select columns you'd like to export"
+text = "Select columns you'd like to export:"
 
 [node name="MarginContainer" type="MarginContainer" parent="VBoxContainer"]
 layout_mode = 2
 theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 10
 
 [node name="PanelContainer" type="PanelContainer" parent="VBoxContainer/MarginContainer"]
 layout_mode = 2
+size_flags_horizontal = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_j2xwm")
 
 [node name="GridContainerColumns" type="GridContainer" parent="VBoxContainer/MarginContainer/PanelContainer"]
 layout_mode = 2
+size_flags_horizontal = 0
 columns = 3
 
 [node name="LabelHead1" type="Label" parent="VBoxContainer/MarginContainer/PanelContainer/GridContainerColumns"]
@@ -75,6 +78,7 @@ layout_mode = 2
 [node name="CheckBoxSelectAll" type="CheckBox" parent="VBoxContainer/HBoxContainer2"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_styles/focus = SubResource("StyleBoxEmpty_4lc0g")
 button_pressed = true
 text = "Select / Deselect all entries"
 
@@ -129,7 +133,7 @@ layout_mode = 2
 layout_mode = 2
 button_pressed = true
 button_group = SubResource("ButtonGroup_i2xwr")
-text = "gsql"
+text = "cfg"
 
 [node name="CheckBoxCSV" type="CheckBox" parent="VBoxContainer/HFlowContainer"]
 layout_mode = 2
@@ -151,6 +155,7 @@ theme_override_constants/margin_bottom = 10
 
 [node name="PanelContainer2" type="PanelContainer" parent="VBoxContainer/MarginContainerCSVOptions"]
 layout_mode = 2
+size_flags_horizontal = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_j2xwm")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/MarginContainerCSVOptions/PanelContainer2"]
@@ -158,6 +163,7 @@ layout_mode = 2
 
 [node name="GridContainer" type="GridContainer" parent="VBoxContainer/MarginContainerCSVOptions/PanelContainer2/VBoxContainer"]
 layout_mode = 2
+size_flags_horizontal = 0
 columns = 2
 
 [node name="Label" type="Label" parent="VBoxContainer/MarginContainerCSVOptions/PanelContainer2/VBoxContainer/GridContainer"]
@@ -168,18 +174,16 @@ text = "Field Seperator"
 [node name="OptionButtonFieldSeperator" type="OptionButton" parent="VBoxContainer/MarginContainerCSVOptions/PanelContainer2/VBoxContainer/GridContainer"]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
-item_count = 5
-selected = 4
-popup/item_0/text = "TAB"
-popup/item_0/id = 0
-popup/item_1/text = "|"
-popup/item_1/id = 1
-popup/item_2/text = ";"
-popup/item_2/id = 2
-popup/item_3/text = ":"
-popup/item_3/id = 3
-popup/item_4/text = ","
-popup/item_4/id = 4
+item_count = 4
+selected = 3
+popup/item_0/text = "|"
+popup/item_0/id = 1
+popup/item_1/text = ";"
+popup/item_1/id = 2
+popup/item_2/text = ":"
+popup/item_2/id = 3
+popup/item_3/text = ","
+popup/item_3/id = 4
 
 [node name="Label2" type="Label" parent="VBoxContainer/MarginContainerCSVOptions/PanelContainer2/VBoxContainer/GridContainer"]
 layout_mode = 2
@@ -191,11 +195,11 @@ custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 item_count = 3
 selected = 2
-popup/item_0/text = "CR"
+popup/item_0/text = "Mac (CR)"
 popup/item_0/id = 0
-popup/item_1/text = "CR LF"
+popup/item_1/text = "Windows (CR+LF)"
 popup/item_1/id = 1
-popup/item_2/text = "LF"
+popup/item_2/text = "Unix (LF)"
 popup/item_2/id = 2
 
 [node name="Label3" type="Label" parent="VBoxContainer/MarginContainerCSVOptions/PanelContainer2/VBoxContainer/GridContainer"]
@@ -207,6 +211,11 @@ text = "Enclose Strings in"
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 text = "\""
+
+[node name="CheckBoxOpenFolderWhenFinished" type="CheckBox" parent="VBoxContainer"]
+layout_mode = 2
+button_pressed = true
+text = "Open folder when finished"
 
 [node name="HFlowContainer2" type="HFlowContainer" parent="VBoxContainer"]
 layout_mode = 2
@@ -230,4 +239,5 @@ text = "Cancel"
 [connection signal="toggled" from="VBoxContainer/HFlowContainer/CheckBoxGSQL" to="." method="_on_check_box_gsql_toggled"]
 [connection signal="toggled" from="VBoxContainer/HFlowContainer/CheckBoxCSV" to="." method="_on_check_box_csv_toggled"]
 [connection signal="toggled" from="VBoxContainer/HFlowContainer/CheckBoxJSON" to="." method="_on_check_box_json_toggled"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer2/ButtonApply" to="." method="_on_button_apply_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer2/ButtonCancel" to="." method="_on_button_cancel_pressed"]
