@@ -26,6 +26,7 @@ func _ready():
 			
 func _exit_tree():
 	option_button_tables.clear()
+	mgr = null
 	
 func select_table(db_name, table_name):
 	for i in option_button_tables.item_count:
@@ -38,6 +39,8 @@ func _on_option_button_tables_item_selected(index):
 	while grid_container_columns.get_child_count() > 3:
 		var cb = grid_container_columns.get_child(grid_container_columns.get_child_count() - 1)
 		grid_container_columns.remove_child(cb)
+		cb.queue_free()
+		
 	if index < 0:
 		return
 	var table = option_button_tables.get_item_text(index).split(".")
@@ -71,11 +74,11 @@ func _on_button_file_path_pressed(access):
 	editor_file_dialog.access = access
 	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_SAVE_FILE
 	editor_file_dialog.file_selected.connect(func(path: String):
-		if path.ends_with(".cfg"):
+		if path.to_lower().ends_with(".cfg"):
 			check_box_gsql.button_pressed = true
-		elif path.ends_with(".csv"):
+		elif path.to_lower().ends_with(".csv"):
 			check_box_csv.button_pressed = true
-		elif path.ends_with(".json"):
+		elif path.to_lower().ends_with(".json"):
 			check_box_json.button_pressed = true
 		line_edit_file_path.text = path
 	)
@@ -98,7 +101,6 @@ func _on_check_box_csv_toggled(toggled_on):
 		if line_edit_file_path.text != "":
 			line_edit_file_path.text = (line_edit_file_path.text as String).get_basename() + ".csv"
 	#margin_container_csv_options.visible = toggled_on
-	#隐藏，不搞了
 
 ## 导出json
 func _on_check_box_json_toggled(toggled_on):
@@ -121,7 +123,7 @@ func _on_button_apply_pressed() -> void:
 		return mgr.create_accept_dialog("Must export at least one column!")
 		
 	if line_edit_file_path.text == "":
-		return mgr.create_accept_dialog("Must enter a export file path!")
+		return mgr.create_accept_dialog("Must enter an export file path!")
 		
 	var table = option_button_tables.get_item_text(option_button_tables.selected).split(".")
 	var db_name = table[0]
@@ -147,7 +149,8 @@ func _on_button_apply_pressed() -> void:
 			return
 			
 		if err == OK:
-			mgr.add_log_history.emit("OK", begin_time, "Export table data of %s.%s" % [db_name, table_name], "1 file was exported!")
+			mgr.add_log_history.emit("OK", begin_time, "Export table data of %s.%s" % [db_name, table_name], 
+				"1 file: %s was exported!" % line_edit_file_path.text)
 			if check_box_open_folder_when_finished.button_pressed:
 				OS.shell_show_in_file_manager(ProjectSettings.globalize_path(line_edit_file_path.text), true)
 		else:
@@ -175,7 +178,8 @@ func export_csv(datas):
 	var csv = FileAccess.open(line_edit_file_path.text, FileAccess.WRITE)
 	if csv == null:
 		return FileAccess.get_open_error()
-	var delim = option_button_field_seperator.get_item_text(option_button_field_seperator.selected)
+	#var delim = option_button_field_seperator.get_item_text(option_button_field_seperator.selected)
+	var delim = ","
 	csv.store_csv_line(PackedStringArray(columns), delim)
 	for i in datas.size():
 		if i > 0:
@@ -189,13 +193,14 @@ func export_json(datas):
 		if columns[i]["PK"]:
 			primary_index = i
 			break
-	var map = {}
+	var map = []
 	for i in datas.size():
 		if i > 0:
 			var section = str(datas[i][primary_index])
-			map[section] = {}
+			var data = {}
 			for j in columns.size():
-				map[section][columns[j]["Column Name"]] = datas[i][j]
+				data[columns[j]["Column Name"]] = datas[i][j]
+			map.push_back(data)
 	var json_string = JSON.stringify(map, "\t", false)
 	var json_file = FileAccess.open(line_edit_file_path.text, FileAccess.WRITE)
 	if json_file == null:

@@ -53,7 +53,14 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 			clear_rows()
 			for data in datas:
 				add_row(data)
+				
+			if not _entered_tree:
+				await tree_entered
+			if is_inside_tree():
+				for i in 50:
+					await create_tween().tween_callback(func(): realign_rows()).set_delay(0.1).finished
 		
+var _entered_tree = false
 ## 表头
 var buttons: Array[Button] = []
 var controls: Array = []
@@ -77,6 +84,8 @@ func _notification(what):
 		#ratios.clear()
 		#column_tips.clear()
 		#columns.clear()
+	elif what == NOTIFICATION_ENTER_TREE:
+		_entered_tree = true
 	
 func clear_header():
 	# header是嵌套的，所以删除第一个就行

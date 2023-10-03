@@ -50,6 +50,7 @@ func _init():
 		mgr = Engine.get_singleton("GDSQLWorkbenchManager")
 	else:
 		mgr = GDSQLWorkbenchManagerClass.new()
+		
 
 func use_db(database: String) -> BaseDao:
 	__database = database
@@ -875,9 +876,17 @@ func query():
 			for col in columns_def:
 				var col_name = col["Column Name"]
 				if __data.has(col_name):
-					assert(_assert("query:%s" % __cmd, typeof(__data[col_name]) == col["Data Type"], 
-						"data type of %s is not %s" % \
-						[col_name, DataTypeDef.DATA_TYPE_NAMES[typeof(__data[col_name])]]))
+					if typeof(__data[col_name]) != col["Data Type"]:
+						printt("bbbb type", typeof(__data[col_name]), col["Data Type"])
+						var v1 = type_convert(__data[col_name], col["Data Type"])
+						printt("vvvv1", v1, var_to_str(v1))
+						var v2 = type_convert(v1, typeof(__data[col_name]))
+						printt("vvvv2", v2, var_to_str(v2))
+						printt("fffffffff", var_to_str(v2), var_to_str(__data[col_name]))
+						# 转化过程有损失时，抛出错误
+						assert(_assert("query:%s" % __cmd, v2 == __data[col_name], 
+							"data type of %s is not %s" % \
+							[col_name, DataTypeDef.DATA_TYPE_NAMES[typeof(__data[col_name])]]))
 						
 			var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
 			assert(_assert("query:%s" % __cmd, conf != null, "load conf err!"))

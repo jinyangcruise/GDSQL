@@ -122,7 +122,7 @@ func add_db_to_config(db_name: String, path: String, id: String) -> void:
 	
 	
 func add_table_to_config(db_name: String, table_name: String, comment: String, 
-	password: String, column_infos: Array, id: String) -> void:
+	password: String, column_infos: Array, id: String = "") -> void:
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "CREATE TABLE `%s`.`%s` (" % [db_name, table_name]
 	var msgs = []
@@ -200,7 +200,8 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 		else data_file.save_encrypted_pass(table_data_path, password)
 	msgs.push_back("1 file: %s has been saved." % table_data_path)
 	
-	mgr.sys_confirm_add_table.emit(id)
+	if id != "":
+		mgr.sys_confirm_add_table.emit(id)
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
 	
 	refresh()
@@ -553,6 +554,10 @@ func _ready():
 		mgr.user_confirm_alter_table.connect(modify_table_to_config)
 	if not mgr.request_user_enter_password.is_connected(deal_password_before_table_cmd_2):
 		mgr.request_user_enter_password.connect(deal_password_before_table_cmd_2)
+	if not mgr.request_drop_table.is_connected(drop_table_from_config):
+		mgr.request_drop_table.connect(drop_table_from_config)
+	if not mgr.request_create_table.is_connected(add_table_to_config):
+		mgr.request_create_table.connect(add_table_to_config)
 	
 	load_config()
 	popup_menu_database.set_item_submenu(2, "PopupMenuCopyTo")
@@ -580,12 +585,16 @@ func _exit_tree():
 		mgr.user_confirm_alter_schema.disconnect(modify_db_to_config)
 	if mgr.user_confirm_alter_table.is_connected(modify_table_to_config):
 		mgr.user_confirm_alter_table.disconnect(modify_table_to_config)
+	if mgr.request_user_enter_password.is_connected(deal_password_before_table_cmd_2):
+		mgr.request_user_enter_password.disconnect(deal_password_before_table_cmd_2)
+	if mgr.request_drop_table.is_connected(drop_table_from_config):
+		mgr.request_drop_table.disconnect(drop_table_from_config)
+	if mgr.request_create_table.is_connected(add_table_to_config):
+		mgr.request_create_table.disconnect(add_table_to_config)
 	
 func refresh() -> void:
 	_clear()
 	refresh_databases()
-	if root:
-		root.free()
 	root = create_item()
 	var collapsed = false
 	for db_name in databases:
@@ -826,7 +835,13 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 					mgr.open_table_data_export_tab.emit(db_name, table_name)
 				deal_password_before_table_cmd(item, open_tab)
 		"Table Data Import Wizard":
-			printt("Table Data Import Wizard")
+			var item := get_selected()
+			if item:
+				var db_name = item.get_meta("db_name")
+				var table_name = item.get_meta("table_name")
+				var open_tab = func():
+					mgr.open_table_data_import_tab.emit(db_name, table_name)
+				deal_password_before_table_cmd(item, open_tab)
 		"Create Table...":
 			var item := get_selected()
 			if item:
@@ -881,6 +896,7 @@ func deal_password_before_table_cmd_2(db_name: String, table_name: String, pass_
 						if table_item.get_meta("table_name") == table_name:
 							deal_password_before_table_cmd(table_item, pass_callback)
 							return
+	mgr.create_accept_dialog("%s.%s not exist!" % [db_name, table_name])
 	
 func deal_password_before_table_cmd(table_item: TreeItem, pass_callback: Callable):
 	var db_name = table_item.get_meta("db_name")
@@ -1049,7 +1065,7 @@ var ret = dao.use_db("%s")\\
 	.select("*", true)\\
 	.from("%s")\\
 	.query()
-""" % [db_name, table_name]
+""" % [databases[db_name]["data_path"], table_name + DATA_EXTENSION]
 				DisplayServer.clipboard_set(cmd)
 		"Insert Statement":
 			var item := get_selected()
@@ -1063,7 +1079,7 @@ var ret = dao.use_db("%s")\\
 	.insert_into("%s")\\
 	.values(<data: Dictionary>)\\
 	.query()
-""" % [db_name, table_name]
+""" % [databases[db_name]["data_path"], table_name + DATA_EXTENSION]
 				DisplayServer.clipboard_set(cmd)
 		"Update Statement":
 			var item := get_selected()
@@ -1078,7 +1094,7 @@ var ret = dao.use_db("%s")\\
 	.sets(<data: Dictionary>)\\
 	.where(<cond: String>)\\
 	.query()
-""" % [db_name, table_name]
+""" % [databases[db_name]["data_path"], table_name + DATA_EXTENSION]
 				DisplayServer.clipboard_set(cmd)
 		"Delete Statement":
 			var item := get_selected()
@@ -1092,7 +1108,7 @@ var ret = dao.use_db("%s")\\
 	.delete_from("%s")\\
 	.where(<cond: String>)\\
 	.query()
-""" % [db_name, table_name]
+""" % [databases[db_name]["data_path"], table_name + DATA_EXTENSION]
 				DisplayServer.clipboard_set(cmd)
 		"Config Path":
 			var item := get_selected()
