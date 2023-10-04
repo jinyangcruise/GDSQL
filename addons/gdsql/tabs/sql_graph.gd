@@ -698,7 +698,7 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 			continue
 			
 		if log_history:
-			mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) returned" % (ret.size()-1)) # 去掉表头
+			mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) returned" % (ret.get_data().size())) # 去掉表头
 		
 		var update_result = false
 		if from_to_map.has(source_node.name):
