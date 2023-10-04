@@ -122,12 +122,14 @@ func reset_columns():
 			id += 1
 			
 		var i_pos = _columns.find(i)
-		opb1.selected = typeof(table_sample.datas[0][i_pos])
 		grid_container_columns_create_new_table.add_child(opb1)
 		opb1.item_selected.connect(func(index):
+			printt("xxxxxxxxxxxxxxxxxxxx", index, opb1.get_item_metadata(index))
 			var sibling_cb = opb1.get_parent().get_child(opb1.get_index() - 2)
 			sibling_cb.set_meta("dataType", opb1.get_item_metadata(index))
 		)
+		opb1.selected = typeof(table_sample.datas[0][i_pos])
+		opb1.item_selected.emit(opb1.selected)
 		
 		var cb2 = CheckBox.new() # primary key
 		grid_container_columns_create_new_table.add_child(cb2)

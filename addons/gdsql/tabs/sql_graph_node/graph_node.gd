@@ -85,7 +85,7 @@ func _ready() -> void:
 	close_btn.pressed.connect(func():
 		if get_parent_control() is GraphEdit:
 			var nodes: Array[StringName] = [name]
-			(get_parent_control() as GraphEdit).close_nodes_request.emit(nodes)
+			(get_parent_control() as GraphEdit).delete_nodes_request.emit(nodes)
 	)
 	get_titlebar_hbox().add_child(close_btn)
 	

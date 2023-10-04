@@ -400,14 +400,11 @@ func _on_popup_menu_text_index_pressed(index):
 	match popup_menu_text.get_item_text(index):
 		"Copy":
 			DisplayServer.clipboard_set(popup_menu_text.get_item_metadata(index))
+			popup_menu_text.set_item_metadata(index, null)
 		"Delete":
 			var data = popup_menu_text.get_item_metadata(index)
 			var pos = datas.find(data)
 			datas.remove_at(pos)
 			datas = datas
 			row_deleted.emit(pos, data)
-
-
-func _on_popup_menu_text_popup_hide():
-	popup_menu_text.set_item_metadata(0, null)
-	popup_menu_text.set_item_metadata(1, null)
+			

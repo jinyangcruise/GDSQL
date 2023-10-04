@@ -284,7 +284,7 @@ func gen_select_node() -> GraphNode:
 	)
 	graph_node.set_meta("type", "Select")
 	graph_node.set_meta("node", true)
-	graph_node.close_request.connect(func():
+	graph_node.delete_request.connect(func():
 		make_useless_of_select_node(graph_node)
 		node_close(graph_node)
 	)
@@ -416,7 +416,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		)
 		graph_node.set_meta("type", "Result")
 		graph_node.set_meta("node", true)
-		graph_node.close_request.connect(node_close.bind(graph_node)) # 关闭事件
+		graph_node.delete_request.connect(node_close.bind(graph_node)) # 关闭事件
 	else:
 		graph_node.selected = true
 		graph_datas = graph_node.datas
@@ -823,7 +823,7 @@ func _exit_tree():
 			node_close(node)
 
 
-func _on_graph_edit_close_nodes_request(nodes):
+func _on_graph_edit_delete_nodes_request(nodes):
 	var titles = nodes.map(func(v): return graph_edit.get_node(str(v)).title)
 	mgr.create_confirmation_dialog("Are you sure to delete selected nodes `%s`?" % ", ".join(titles),
 		func():
