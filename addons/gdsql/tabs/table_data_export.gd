@@ -136,14 +136,14 @@ func _on_button_apply_pressed() -> void:
 		if ret == null:
 			mgr.add_log_history.emit("Err", begin_time, "Export table data of %s.%s" % [db_name, table_name], "something wrong")
 			return
-		ret = ret as Array
+			
 		var err
 		if check_box_gsql.button_pressed:
-			err = export_cfg(ret)
+			err = export_cfg(ret.get_raw_data())
 		elif check_box_csv.button_pressed:
-			err = export_csv(ret)
+			err = export_csv(ret.get_raw_data())
 		elif check_box_json.button_pressed:
-			err = export_json(ret)
+			err = export_json(ret.get_raw_data())
 		else:
 			mgr.create_accept_dialog("Do not select an export type!")
 			return

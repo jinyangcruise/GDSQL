@@ -849,7 +849,7 @@ func __get_table_column_defination(db_path, table_name, column_name):
 	return column
 	
 ## 执行。注意：在union的情况下，会自动执行第一个BaseDao的query方法。
-func query():
+func query() -> QueryResult:
 	assert(_assert("query", !__database.is_empty(), "database is empty"))
 	assert(_assert("query", !__table.is_empty(), "table is empty"))
 	assert(_assert("query", !__cmd.is_empty(), "command is empty"))
@@ -858,19 +858,17 @@ func query():
 		return __parent_union.query()
 		
 	var path = __database + __table
+	var result = QueryResult.new()
 	match __cmd:
 		"select":
 			var ret = ___select(path)
 			reset()
-			return ret
+			result._data = ret
+			return result
 		"insert_into", "insert_ignore", "insert_or_update", "replace_into":
 			assert(_assert("query:%s" % __cmd, !__data.is_empty(), "data is empty"))
 			assert(_assert("query:%s" % __cmd, 
 				__primary_key != null and __primary_key != "", "primary key is empty"))
-			var ret = {
-				"err": OK,
-				"affected_rows": 0
-			}
 			# 检查数据类型是否正确
 			var columns_def = __get_table_defination(__database, __table)
 			for col in columns_def:
@@ -894,14 +892,14 @@ func query():
 				if __autoincrement_keys.has(__primary_key) or __autoincrement_keys_def.has(__primary_key):
 					pass # 后面会统一把所有需要自增的键一起处理
 				else:
-					ret["err"] = "key 'PRIMARY' is missing for %s" % __cmd
-					push_error(ret["err"])
-					return ret
+					result._err = "key 'PRIMARY' is missing for %s" % __cmd
+					push_error(result.get_err())
+					return result
 			else:
 				if conf.has_section(primary_value):
 					if __cmd == "insert_ignore":
 						# 数据存在，不用插入
-						return ret
+						return result
 					elif __cmd == "insert_or_update":
 						# 数据存在，只更新部分字段，所以把旧数据的其他字段塞到新数据里
 						var old_data = conf.get_section_values(primary_value)
@@ -913,11 +911,11 @@ func query():
 					elif __cmd == "replace_into":
 						# 数据存在，删除旧数据，插入新数据
 						conf.erase_section(primary_value)
-						ret["affected_rows"] += 1
+						result._affected_rows += 1
 					else:
-						ret["err"] = "Duplicate entry '%s' for key 'PRIMARY'" % primary_value
-						push_error(ret["err"])
-						return ret
+						result._err = "Duplicate entry '%s' for key 'PRIMARY'" % primary_value
+						push_error(result.get_err())
+						return result
 						
 			# 自增:找到当前最大的
 			var datas: Array[Dictionary] = conf.get_all_section_values()
@@ -947,25 +945,25 @@ func query():
 						continue
 						
 					if col["NN"]:
-						ret["affected_rows"] = 0
-						ret["err"] = "field '%s' needs to be set" % col_name
-						push_error(ret["err"])
-						return ret
+						result._affected_rows = 0
+						result._err = "field '%s' needs to be set" % col_name
+						push_error(result.get_err())
+						return result
 					else:
 						__data[col_name] = type_convert("", col["Data Type"])
 						if __data[col_name] == null:
-							ret["affected_rows"] = 0
-							ret["err"] = \
+							result._affected_rows = 0
+							result._err = \
 							"field '%s' is implicitly cast to null which is not support by ConfigFile." % col_name
-							push_error(ret["err"])
-							return ret
+							push_error(result.get_err())
+							return result
 						
 				if __data.size() != columns_def.size():
-					ret["affected_rows"] = 0
-					ret["err"] = "invalid field(s): %s" % ",".join(
+					result._affected_rows = 0
+					result._err = "invalid field(s): %s" % ",".join(
 						__data.keys().filter(func(v): return not col_names.find(v)))
-					push_error(ret["err"])
-					return ret
+					push_error(result.get_err())
+					return result
 					
 			# 检查唯一性：只关注新插入的数据是否与旧数据重复
 			for col in columns_def:
@@ -974,28 +972,24 @@ func query():
 				var col_name = col["Column Name"] 
 				for data in datas:
 					if __data[col_name] == data.get(col_name, null):
-						ret["affected_rows"] = 0
-						ret["err"] = "Duplicate field value '%s' for key '%s'" % \
+						result._affected_rows = 0
+						result._err = "Duplicate field value '%s' for key '%s'" % \
 							[var_to_str(__data[col_name]), col_name]
-						push_error(ret["err"])
-						return ret
+						push_error(result.get_err())
+						return result
 						
 			# 插入
 			conf.set_values(str(__data.get(__primary_key)), __data)
 			if __auto_commit:
 				__CONF_MANAGER.save_conf_by_origin_password(path)
-			ret["affected_rows"] += 1
-			ret["last_insert_id"] = __data.get(__primary_key)
+			result._affected_rows += 1
+			result._last_insert_id = __data.get(__primary_key)
 			reset()
-			return ret
+			return result
 			
 		"update":
 			assert(_assert("query:%s" % __cmd, !__data.is_empty(), "data is empty"))
 			assert(_assert("query:%s" % __cmd, !__where.is_empty(), "where is empty"))
-			var ret = {
-				"err": OK,
-				"affected_rows": 0
-			}
 			
 			# 检查数据类型是否正确
 			var columns_def = __get_table_defination(__database, __table)
@@ -1010,12 +1004,11 @@ func query():
 			__need_post_porcess = false # update一定是单表，用内部返回模式返回数据
 			var datas = ___select(path, primary)
 			if datas.is_empty():
-				return ret
+				return result
 			
 			# 更新数据
 			var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
 			assert(_assert("query:%s" % __cmd, conf != null, "load conf err!"))
-			var affected_rows = 0
 			for data in datas:
 				data = data[__table_alias] # 未经过后处理的肯定是用表名分类的结构
 				var affected = false
@@ -1024,25 +1017,19 @@ func query():
 						conf.set_value(str(data.get(primary)), field, __data.get(field))
 						affected = true
 				if affected:
-					affected_rows += 1
+					result._affected_rows += 1
 					
-			if __auto_commit and affected_rows > 0:
+			if __auto_commit and result._affected_rows > 0:
 				__CONF_MANAGER.save_conf_by_origin_password(path)
-			ret["affected_rows"] = affected_rows
 			reset()
-			return ret
-		"delete_from":
-			var ret = {
-				"err": OK,
-				"affected_rows": 0
-			}
+			return result
 			
+		"delete_from":
 			var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
 			assert(_assert("query:%s" % __cmd, conf != null, "load conf err!"))
 			
-			var affected_rows = 0
 			if __where.is_empty():
-				affected_rows = conf.get_sections().size()
+				result._affected_rows = conf.get_sections().size()
 				conf.clear()
 			else:
 				# 筛选出要删除的数据
@@ -1050,21 +1037,23 @@ func query():
 				__need_post_porcess = false # update一定是单表，用内部返回模式返回数据
 				var datas = ___select(path)
 				if datas.is_empty():
-					return ret
+					return result
 					
 				# 删除数据
 				for data in datas:
 					data = data[__table_alias] # 未经过后处理的肯定是用表名分类的结构
 					conf.erase_section(str(data.get(primary)))
-					affected_rows += 1
+					result._affected_rows += 1
 					
-			if __auto_commit and affected_rows > 0:
+			if __auto_commit and result._affected_rows > 0:
 				__CONF_MANAGER.save_conf_by_origin_password(path)
 				
-			ret["affected_rows"] = affected_rows
 			reset()
-			return ret
+			return result
 			
+	return result
+	
+	
 func _get_cond(need_where: bool, new_line = false) -> String:
 	var cond = ""
 	for i in __where:

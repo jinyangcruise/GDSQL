@@ -290,13 +290,13 @@ func _on_button_apply_pressed() -> void:
 	if line_edit_file_path.text == "":
 		return mgr.create_accept_dialog("Must enter an import file path!")
 		
-	if check_box_create_new_table and line_edit_table_name.text == "":
+	if check_box_create_new_table.button_pressed and line_edit_table_name.text == "":
 		return mgr.create_accept_dialog("Must enter a table name")
 		
 	var db_name
 	var table_name
 	# 导入到新建表中
-	if check_box_create_new_table:
+	if check_box_create_new_table.button_pressed:
 		var column_infos = []
 		var has_pk = false
 		for cb: CheckBox in checked:
@@ -333,7 +333,7 @@ func _on_button_apply_pressed() -> void:
 		# 请求新建表
 		mgr.request_create_table.emit(db_name, table_name, "", "", column_infos)
 	# 导入到存量表中
-	elif check_box_use_existing_table:
+	elif check_box_use_existing_table.button_pressed:
 		var table = option_button_tables.get_item_text(option_button_tables.selected).split(".")
 		db_name = table[0]
 		table_name = table[1]
@@ -353,8 +353,8 @@ func _on_button_apply_pressed() -> void:
 				mgr.add_log_history.emit("Err", begin_time, action, "somthing wrong")
 				return
 				
-			if ret["err"] != OK:
-				mgr.add_log_history.emit("Err", begin_time, action, ret["err"])
+			if not ret.ok():
+				mgr.add_log_history.emit("Err", begin_time, action, ret.get_err())
 				return
 				
 			mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) affected" % ret["affected_rows"])
@@ -393,13 +393,13 @@ func _on_button_apply_pressed() -> void:
 				mgr.add_log_history.emit("Err", begin_time, dao.get_query_cmd(), err)
 				break
 				
-			if ret["err"] != OK:
-				err = ret["err"]
+			if not ret.ok():
+				err = ret.get_err()
 				mgr.add_log_history.emit("Err", begin_time, dao.get_query_cmd(), err)
 				break
 				
-			total_affected_rows += 1
-			mgr.add_log_history.emit("OK", begin_time, dao.get_query_cmd(), "%d row(s) affected." % ret["affected_rows"])
+			total_affected_rows += ret.get_affected_rows()
+			mgr.add_log_history.emit("OK", begin_time, dao.get_query_cmd(), "%d row(s) affected." % ret.get_affected_rows())
 		# 最后再统一提交
 		dao.commit()
 		if err is int and err == OK:

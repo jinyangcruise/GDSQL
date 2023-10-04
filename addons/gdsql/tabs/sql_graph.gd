@@ -496,11 +496,11 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 						var begin_time = Time.get_unix_time_from_system()
 						var ret = i.query()
 						if ret != null:
-							if ret["err"] is int and ret["err"] == OK:
+							if ret.ok():
 								mgr.add_log_history.emit("OK", begin_time, i.get_query_cmd(), 
-									"%d row(s) affected" % ret["affected_rows"])
+									"%d row(s) affected" % ret.get_affected_rows())
 							else:
-								mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), ret["err"])
+								mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), ret.get_err())
 						else:
 							mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), "something wrong")
 					for node in get_from_nodes(graph_node, "Select"):
@@ -696,7 +696,7 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 		if ret == null:
 			mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
 			continue
-		ret = ret as Array
+			
 		if log_history:
 			mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) returned" % (ret.size()-1)) # 去掉表头
 		
@@ -706,13 +706,13 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 				var to_node = graph_edit.get_node(str(to))
 				if to_node.get_meta("type") == "Result":
 					if to_node.enabled:
-						gen_table_node(ret[0], ret.slice(1) if ret.size() > 1 else [], to_node)
+						gen_table_node(ret.get_head(), ret.get_data(), to_node)
 						update_result = true
 					else:
 						_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
 					
 		if not update_result:
-			var table_node = gen_table_node(ret[0], ret.slice(1) if ret.size() > 1 else [])
+			var table_node = gen_table_node(ret.get_head(), ret.get_data())
 			graph_edit.add_child(table_node)
 			table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 			_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
