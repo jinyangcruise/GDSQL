@@ -626,7 +626,7 @@ func refresh() -> void:
 			
 			popup_menu_create_table_like_table_item.add_item(t)
 			var idx_2 = popup_menu_create_table_like_table_item.get_item_index(id)
-			popup_menu_create_table_like_tables.set_item_metadata(idx_2, {
+			popup_menu_create_table_like_table_item.set_item_metadata(idx_2, {
 				"db_name": db_name,
 				"table_name": t
 			})
