@@ -1035,14 +1035,15 @@ func query() -> QueryResult:
 				# 筛选出要删除的数据
 				var primary = "__PRIMARY_1355--5--__" # 让数据库把主键存到这个键里，祈祷用户没有用到这个字段
 				__need_post_porcess = false # update一定是单表，用内部返回模式返回数据
-				var datas = ___select(path)
+				var datas = ___select(path, primary)
 				if datas.is_empty():
 					return result
 					
 				# 删除数据
 				for data in datas:
 					data = data[__table_alias] # 未经过后处理的肯定是用表名分类的结构
-					conf.erase_section(str(data.get(primary)))
+					var section = str(data.get(primary))
+					conf.erase_section(section)
 					result._affected_rows += 1
 					
 			if __auto_commit and result._affected_rows > 0:
