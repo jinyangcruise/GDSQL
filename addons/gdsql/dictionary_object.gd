@@ -42,6 +42,12 @@ func reset_data(data, hint = null):
 		_hint = hint
 	notify_property_list_changed()
 	
+func revert():
+	if _origin:
+		for k in _origin:
+			_data[k] = _origin[k]
+		_origin.clear()
+	
 func reset_hint(hint: Dictionary):
 	_hint = hint
 	notify_property_list_changed()
