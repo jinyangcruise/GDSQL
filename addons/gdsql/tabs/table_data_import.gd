@@ -30,12 +30,21 @@ const MAX_INT = 9223372036854775807
 var _columns = []
 
 func _ready():
+	if not mgr.run_in_plugin(self):
+		return
+	option_button_tables.clear()
+	option_button_dbs.clear()
 	for a_db_name in mgr.databases:
 		for a_table_name in mgr.databases[a_db_name]["tables"]:
 			option_button_tables.add_item(a_db_name + "." + a_table_name)
 		option_button_dbs.add_item(a_db_name)
 
 func _exit_tree():
+	if not mgr.run_in_plugin(self):
+		return
+	option_button_tables.clear()
+	option_button_dbs.clear()
+	clear_columns()
 	mgr = null
 	
 func select_table(db_name, table_name):
@@ -124,7 +133,6 @@ func reset_columns():
 		var i_pos = _columns.find(i)
 		grid_container_columns_create_new_table.add_child(opb1)
 		opb1.item_selected.connect(func(index):
-			printt("xxxxxxxxxxxxxxxxxxxx", index, opb1.get_item_metadata(index))
 			var sibling_cb = opb1.get_parent().get_child(opb1.get_index() - 2)
 			sibling_cb.set_meta("dataType", opb1.get_item_metadata(index))
 		)
