@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://c3bjm6oe0687p"]
+[gd_scene load_steps=18 format=3 uid="uid://c3bjm6oe0687p"]
 
 [ext_resource type="Script" path="res://addons/gdsql/tree_databases.gd" id="1_e77h1"]
 [ext_resource type="Texture2D" uid="uid://dhrujeh8nxhtd" path="res://addons/gdsql/img/trash-can.png" id="2_1e3si"]
@@ -15,6 +15,7 @@
 [ext_resource type="Texture2D" uid="uid://bgsurijylxgeu" path="res://addons/gdsql/img/pen-to-square.png" id="8_qmvfl"]
 [ext_resource type="Texture2D" uid="uid://cdy7ibprpxqjo" path="res://addons/gdsql/img/download.png" id="9_s5rbm"]
 [ext_resource type="Texture2D" uid="uid://bowjgvek2y3aw" path="res://addons/gdsql/img/upload.png" id="10_8aje2"]
+[ext_resource type="Texture2D" uid="uid://dlx17p6r8ac6t" path="res://addons/gdsql/img/lock.png" id="13_h0vib"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ou145"]
 
@@ -144,8 +145,8 @@ item_2/icon = ExtResource("7_udc60")
 item_2/id = 2
 
 [node name="PopupMenuTableItem" type="PopupMenu" parent="."]
-size = Vector2i(337, 683)
-item_count = 20
+size = Vector2i(337, 724)
+item_count = 21
 item_0/text = "Select Rows"
 item_0/icon = ExtResource("2_obdc1")
 item_0/id = 0
@@ -183,30 +184,33 @@ item_10/id = 10
 item_11/text = "Alter Table..."
 item_11/icon = ExtResource("8_qmvfl")
 item_11/id = 11
-item_12/text = ""
+item_12/text = "Password"
+item_12/icon = ExtResource("13_h0vib")
 item_12/id = 12
-item_12/separator = true
-item_13/text = "Drop Table..."
-item_13/icon = ExtResource("2_1e3si")
+item_13/text = ""
 item_13/id = 13
-item_14/text = "Truncate Table..."
-item_14/icon = ExtResource("3_2yegw")
+item_13/separator = true
+item_14/text = "Drop Table..."
+item_14/icon = ExtResource("2_1e3si")
 item_14/id = 14
-item_15/text = ""
+item_15/text = "Truncate Table..."
+item_15/icon = ExtResource("3_2yegw")
 item_15/id = 15
-item_15/separator = true
-item_16/text = "Show in File Manager"
-item_16/icon = ExtResource("2_ffwpe")
+item_16/text = ""
 item_16/id = 16
-item_17/text = "Open in External Program"
-item_17/icon = ExtResource("3_cmntk")
+item_16/separator = true
+item_17/text = "Show in File Manager"
+item_17/icon = ExtResource("2_ffwpe")
 item_17/id = 17
-item_18/text = ""
+item_18/text = "Open in External Program"
+item_18/icon = ExtResource("3_cmntk")
 item_18/id = 18
-item_18/separator = true
-item_19/text = "Refresh All"
-item_19/icon = ExtResource("7_udc60")
+item_19/text = ""
 item_19/id = 19
+item_19/separator = true
+item_20/text = "Refresh All"
+item_20/icon = ExtResource("7_udc60")
+item_20/id = 20
 
 [node name="PopupMenuCopyTo" type="PopupMenu" parent="PopupMenuTableItem"]
 size = Vector2i(254, 293)
@@ -252,6 +256,16 @@ item_6/text = "Create Statement"
 item_6/id = 6
 
 [node name="PopupMenuCreateTableLike" type="PopupMenu" parent="PopupMenuTableItem"]
+
+[node name="PopupMenuPassword" type="PopupMenu" parent="PopupMenuTableItem"]
+size = Vector2i(234, 129)
+item_count = 3
+item_0/text = "Set Password"
+item_0/id = 0
+item_1/text = "Clear Password"
+item_1/id = 1
+item_2/text = "Change Password"
+item_2/id = 2
 
 [node name="PopupMenuEmpty" type="PopupMenu" parent="."]
 item_count = 3
@@ -326,4 +340,6 @@ item_4/id = 4
 [connection signal="index_pressed" from="PopupMenuTableItem" to="." method="_on_popup_menu_table_item_index_pressed"]
 [connection signal="index_pressed" from="PopupMenuTableItem/PopupMenuCopyTo" to="." method="_on_popup_menu_copy_to_of_table_item_index_pressed"]
 [connection signal="index_pressed" from="PopupMenuTableItem/PopupMenuCreateTableLike" to="." method="_on_popup_menu_create_table_like_table_item_index_pressed"]
+[connection signal="about_to_popup" from="PopupMenuTableItem/PopupMenuPassword" to="." method="_on_popup_menu_password_about_to_popup"]
+[connection signal="index_pressed" from="PopupMenuTableItem/PopupMenuPassword" to="." method="_on_popup_menu_password_index_pressed"]
 [connection signal="index_pressed" from="PopupMenuEmpty" to="." method="_on_popup_menu_empty_index_pressed"]

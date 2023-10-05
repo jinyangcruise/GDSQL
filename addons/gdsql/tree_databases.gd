@@ -17,6 +17,7 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 
 @onready var popup_menu_copy_to_of_table: PopupMenu = $PopupMenuTableItem/PopupMenuCopyTo
 @onready var popup_menu_send_to_of_table: PopupMenu = $PopupMenuTableItem/PopupMenuSendTo
+@onready var popup_menu_password = $PopupMenuTableItem/PopupMenuPassword
 
 @onready var popup_menu_copy_to_of_column: PopupMenu = $PopupMenuColumn/PopupMenuCopyTo
 @onready var popup_menu_send_to_of_column: PopupMenu = $PopupMenuColumn/PopupMenuSendTo
@@ -566,6 +567,7 @@ func _ready():
 	popup_menu_table_item.set_item_submenu(3, "PopupMenuCopyTo")
 	popup_menu_table_item.set_item_submenu(7, "PopupMenuSendTo")
 	popup_menu_table_item.set_item_submenu(10, "PopupMenuCreateTableLike")
+	popup_menu_table_item.set_item_submenu(12, "PopupMenuPassword")
 	popup_menu_column.set_item_submenu(2, "PopupMenuCopyTo")
 	popup_menu_column.set_item_submenu(3, "PopupMenuSendTo")
 	refresh()
@@ -1126,3 +1128,28 @@ var ret = dao.use_db("%s")\\
 			if item:
 				var statement = "TODO"
 				DisplayServer.clipboard_set(statement)
+
+
+func _on_popup_menu_password_index_pressed(index):
+	match popup_menu_password.get_item_text(index):
+		"Set Password":
+			pass# TODO
+		"Clear Password":
+			pass
+		"Change Password":
+			pass
+
+## 密码修改相关操作
+func _on_popup_menu_password_about_to_popup():
+	var item := get_selected()
+	if item:
+		var db_name = item.get_meta("db_name")
+		var table_name = item.get_meta("table_name")
+		if databases[db_name]["tables"][table_name]["encrypted"] == "":
+			popup_menu_password.set_item_disabled(0, false)
+			popup_menu_password.set_item_disabled(1, true)
+			popup_menu_password.set_item_disabled(2, true)
+		else:
+			popup_menu_password.set_item_disabled(0, true)
+			popup_menu_password.set_item_disabled(1, false)
+			popup_menu_password.set_item_disabled(2, false)
