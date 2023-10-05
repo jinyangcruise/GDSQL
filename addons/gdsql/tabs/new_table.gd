@@ -46,7 +46,7 @@ var raw_datas: Array = []:
 	set(val):
 		raw_datas = val
 		if table and is_inside_tree():
-			datas = []
+			var datas = []
 			for i: Dictionary in raw_datas:
 				var row = _gen_row()
 				for column in table.columns:
@@ -54,7 +54,6 @@ var raw_datas: Array = []:
 				datas.push_back(row)
 			table.datas = datas
 			
-var datas: Array = []
 
 static var _hint_string = {
 		"Data Type": {
@@ -125,21 +124,18 @@ func _ready() -> void:
 		row.set_custom_display_control("Hint", label_hint, 
 			update_callback.bind("Hint", weakref(row), DataTypeDef.PROPERTY_HINT_NAMES), true)
 		
-		datas.push_back(row)
-		table.datas = datas
+		table.datas = [row]
 	
 func _exit_tree():
 	raw_datas = []
-	for i: DictionaryObject in datas:
+	for i: DictionaryObject in table.datas:
 		i.get_custom_display_control("Data Type").queue_free()
 		i.get_custom_display_control("Hint").queue_free()
-	datas.clear()
 
 
 func _on_button_new_column_pressed() -> void:
 	var row = _gen_row()
-	datas.push_back(row)
-	table.datas = datas
+	table.append_data(row)
 	
 func _gen_row() -> DictionaryObject:
 	var label_data_type := Label.new()
@@ -184,49 +180,32 @@ func _on_table_row_clicked(row_index, mouse_button_index, _data):
 		popup_menu.position = DisplayServer.mouse_get_position()
 		popup_menu.popup()
 		selected_row_index = row_index
+		printt("vvvvvvvvv selected index", row_index)
 
 
 func _on_popup_menu_index_pressed(index):
 	var _datas: Array = table.datas
 	match popup_menu.get_item_text(index):
 		"remove":
-			var data = datas[selected_row_index]
-			data.get_custom_display_control("Data Type").queue_free()
-			data.get_custom_display_control("Hint").queue_free()
-			_datas.remove_at(selected_row_index)
-			table.datas = _datas
+			table.remove_data_at(selected_row_index, true)
 		"move top":
 			if selected_row_index > 0:
-				var data = datas[selected_row_index]
-				_datas.remove_at(selected_row_index)
-				_datas.push_front(data)
-				table.datas = _datas
+				table.move_data(selected_row_index, 0)
 		"move up":
 			if selected_row_index > 0:
-				var data = datas[selected_row_index]
-				_datas.remove_at(selected_row_index)
-				_datas.insert(selected_row_index - 1, data)
-				table.datas = _datas
+				table.move_data(selected_row_index, selected_row_index - 1)
 		"move down":
-			if selected_row_index < datas.size() - 1:
-				var data = datas[selected_row_index]
-				_datas.remove_at(selected_row_index)
-				_datas.insert(selected_row_index + 1, data)
-				table.datas = _datas
+			if selected_row_index < table.datas.size() - 1:
+				table.move_data(selected_row_index, selected_row_index + 1)
 		"move bottom":
-			if selected_row_index < datas.size() - 1:
-				var data = datas[selected_row_index]
-				_datas.remove_at(selected_row_index)
-				_datas.push_back(data)
-				table.datas = _datas
+			if selected_row_index < table.datas.size() - 1:
+				table.move_data(selected_row_index, table.datas.size() - 1)
 		"insert above":
 			var row = _gen_row()
-			_datas.insert(selected_row_index, row)
-			table.datas = _datas
+			table.insert_data(selected_row_index, row)
 		"insert below":
 			var row = _gen_row()
-			_datas.insert(selected_row_index + 1, row)
-			table.datas = _datas
+			table.insert_data(selected_row_index + 1, row)
 
 
 func _on_button_cancel_pressed():

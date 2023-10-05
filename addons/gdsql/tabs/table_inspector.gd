@@ -62,15 +62,13 @@ var raw_datas: Array = []:
 	set(val):
 		raw_datas = val
 		if table and is_inside_tree():
-			datas = []
+			var datas = []
 			for i: Dictionary in raw_datas:
 				var row = _gen_row()
 				for column in table.columns:
 					row._set(column, i.get(column, null))
 				datas.push_back(row)
 			table.datas = datas
-			
-var datas: Array = [] # array of dictionary object
 
 static var _hint_string = {
 		"Data Type": {
@@ -127,16 +125,10 @@ func _ready() -> void:
 		
 func _exit_tree():
 	raw_datas = []
-	for i: DictionaryObject in datas:
+	for i: DictionaryObject in table.datas:
 		i.get_custom_display_control("Data Type").queue_free()
 		i.get_custom_display_control("Hint").queue_free()
-	datas.clear()
 	update_total_data_count = Callable()
-
-func _on_button_new_column_pressed() -> void:
-	var row = _gen_row()
-	datas.push_back(row)
-	table.datas = datas
 	
 func _gen_row() -> DictionaryObject:
 	var label_data_type := Label.new()

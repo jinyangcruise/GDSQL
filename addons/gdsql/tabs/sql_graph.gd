@@ -425,12 +425,16 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		table.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		# 旧按钮删除
 		if graph_datas.size() > 1:
-			graph_node.remove_child(graph_node.get_child(-2))
+			var old_flow_container: HFlowContainer = graph_node.get_child(-2).get_child(0)
+			graph_node.get_child(-2).remove_child(old_flow_container)
 			#graph_datas.remove_at(1)
 			for i in graph_datas.size():
 				if i > 0:
 					graph_datas[i] = [null, null] # 要维持graph_datas原来的大小，不能直接remove，否则graphnode报错
-	
+			old_flow_container.queue_free()
+			for i in table.row_deleted.get_connections():
+				table.row_deleted.disconnect(i["callable"])
+			
 	# 根据表头的情况决定是否需要支持数据修改
 	# 根据表头分析，1.数据是否来源于同一张表，2.是否有主键，3.没有相同的字段
 	var info = columns.reduce(func(acc, v):
@@ -471,8 +475,16 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 			var db_path = info["PK"]["db_path"]
 			var table_name = info["PK"]["table_name"]
 			var daos: Array[BaseDao] = []
-			for i in table.datas:
-				i = i as DictionaryObject
+			var deleted_datas = table.get_meta("deleted_datas", {})
+			for i in deleted_datas:
+				var data = deleted_datas[i]
+				var modified_data = data.get_modified_value()
+				var primary_value = data._get(primary_key)
+				if modified_data.has(primary_key):
+					primary_value = modified_data[primary_key]["old"]
+				daos.push_back(BaseDao.new().use_db(db_path).delete_from(table_name)
+					.where("%s == %s" % [primary_key, var_to_str(primary_value)]))
+			for i: DictionaryObject in table.datas:
 				var modified_data = i.get_modified_value()
 				if not modified_data.is_empty():
 					# 修改数据包含主键，先删除原数据，再插入新的全量数据
@@ -503,6 +515,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 								mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), ret.get_err())
 						else:
 							mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), "something wrong")
+					table.remove_meta("deleted_datas")
 					for node in get_from_nodes(graph_node, "Select"):
 						on_select_node_query(node, false)
 			)
@@ -513,11 +526,28 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		btn_revert.disabled = true
 		btn_revert.pressed.connect(func():
 			var old_datas: Array = []
-			for i in table.datas:
+			# 恢复被修改的数据
+			for i: DictionaryObject in table.datas:
 				if not i.has_meta("new"):
+					i.revert()
 					old_datas.push_back(i)
+			# 恢复被删除的数据
+			var deleted_datas = table.get_meta("deleted_datas", {})
+			table.remove_meta("deleted_datas")
+			for i in deleted_datas:
+				old_datas.insert(i, deleted_datas[i]) # 注意：前提是新建的数据都是放在最后面的，不影响数据回到原来的位置。
 			table.datas = old_datas
 			btn_revert.disabled = true
+		)
+		
+		table.row_deleted.connect(func(row_index, data):
+			if data.has_meta("new"):
+				return
+			var deleted_datas = table.get_meta("deleted_datas", {}) as Dictionary
+			deleted_datas[row_index] = data
+			table.set_meta("deleted_datas", deleted_datas)
+			btn_apply.disabled = false
+			btn_revert.disabled = false
 		)
 		
 		var btn_new = Button.new()
@@ -526,6 +556,9 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 			var dict_obj = DictionaryObject.new(last_data.duplicate(true), hint, false)
 			dict_obj.set_meta("new", true)
 			dict_obj.value_changed.connect(func(_prop, _new_val, _old_val):
+				if not table.get_meta("deleted_datas", {}).is_empty():
+					return
+					
 				for j in table.datas:
 					var modified_data = (j as DictionaryObject).get_modified_value()
 					if not modified_data.is_empty():
@@ -535,10 +568,8 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 				btn_apply.disabled = true
 				btn_revert.disabled = true
 			)
-			var _datas = table.datas.duplicate()
-			_datas.push_back(dict_obj)
-			table.datas = _datas # 触发更新
-			table.row_grab_focus(_datas.size() - 1)
+			table.append_data(dict_obj)
+			table.row_grab_focus(table.datas.size() - 1)
 		)
 	
 		flow_container.add_child(btn_new)
@@ -573,7 +604,6 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		table.datas = new_table_datas
 	else:
 		table.datas = table_datas
-		# 去掉按钮
 		
 	graph_node.datas = graph_datas
 	

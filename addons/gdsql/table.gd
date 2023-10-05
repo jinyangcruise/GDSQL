@@ -45,7 +45,8 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 ## 例如，第一个元素是20，表示第一列的宽度是后面宽度之和的1/20
 @export var ratios: Array[float] = []
 	
-## 表格中的数据，datas中的元素可以是数组、字典或DictionaryObject
+## 表格中的数据，datas中的元素可以是数组、字典或DictionaryObject。
+## 如果要增量添加元素，请使用table.append_data(data)，避免重新对datas进行赋值，在数据量大时效率很低。
 @export var datas: Array = []:
 	set(val):
 		datas = val
@@ -64,6 +65,7 @@ var _entered_tree = false
 ## 表头
 var buttons: Array[Button] = []
 var controls: Array = []
+var data_of_focused_row
 
 func _ready() -> void:
 	reset_header()
@@ -80,6 +82,7 @@ func _notification(what):
 		clear_header()
 		clear_rows()
 		datas = []
+		data_of_focused_row = null
 		# 下面3个清空的话会导致用户只能通过代码来设置这三个属性，不能通过检查器来设置
 		#ratios.clear()
 		#column_tips.clear()
@@ -155,6 +158,41 @@ func _on_header_col_model_dragged(_offset: int, h_split_container: HSplitContain
 	next_h_split_container.size.x = child_control.size.x
 	realign_rows()
 	
+#region 增量操作
+func append_data(a_data):
+	datas.push_back(a_data)
+	if is_node_ready():
+		add_row(a_data)
+		
+func insert_data(pos: int, a_data):
+	datas.insert(pos, a_data)
+	if is_node_ready():
+		add_row(a_data)
+		if pos != v_box_container.get_child_count() - 1:
+			v_box_container.move_child(v_box_container.get_child(-1), pos)
+		
+func remove_data_at(index: int, free_data: bool):
+	if free_data and datas[index] is DictionaryObject:
+		var data = datas[index]
+		data.get_custom_display_control("Data Type").queue_free()
+		data.get_custom_display_control("Hint").queue_free()
+	datas.remove_at(index)
+	if is_node_ready():
+		var row = v_box_container.get_child(index)
+		row.remove_meta("data")
+		v_box_container.remove_child(row)
+		row.queue_free()
+		
+func move_data(from: int, to: int):
+	if from != to:
+		var data = datas[from]
+		datas.remove_at(from)
+		datas.insert(to, data)
+		if is_node_ready():
+			var row = v_box_container.get_child(from)
+			v_box_container.move_child(row, to)
+#endregion
+		
 func add_row(a_data):
 	var data: Array
 	if a_data is Array:
@@ -187,10 +225,15 @@ func add_row(a_data):
 	a_row.set_meta("data", a_data)
 	v_box_container.add_child(a_row)
 	a_row.gui_input.connect(_on_row_gui_input.bind(a_row, a_data))
-	a_row.focus_entered.connect(_on_row_panel_container_focus_entered.bind(a_row))
-	a_row.focus_exited.connect(_on_row_panel_container_focus_exited.bind(a_row))
 	var style_box: StyleBoxFlat = a_row.get_theme_stylebox("panel").duplicate()
 	a_row.add_theme_stylebox_override("panel", style_box)
+	# add_child好像会导致之前的focus丢失
+	if a_data == data_of_focused_row:
+		highlight_row(a_row)
+	#elif data_of_focused_row != null:
+		#for i in v_box_container.get_children():
+			#if i.get_meta("data") == data_of_focused_row:
+				#highlight_row(i)
 	data.insert(0, "")
 	data.push_back("")
 	for i in data.size():
@@ -215,11 +258,11 @@ func add_row(a_data):
 							if ctl:
 								ctl.button_pressed = new_value
 						a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
-				TYPE_STRING, TYPE_STRING_NAME:
+				TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME:
 					handled = true
 					control = label_model.duplicate()
-					control.text = data[i]
-					control.tooltip_text = data[i]
+					control.text = str(data[i])
+					control.tooltip_text = str(data[i])
 					control.gui_input.connect(_label_gui_input.bind(control.text))
 					if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
 						var callback = func(new_value, control_ref: WeakRef):
@@ -335,7 +378,9 @@ func _on_resized():
 
 func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 	var emit_click = func():
-		if event is InputEventMouseButton:
+		if event is InputEventMouseButton and \
+			(event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT):
+			highlight_row(row_panel)
 			row_clicked.emit(datas.find(source_data), event.button_index, source_data)
 			
 	if not editable:
@@ -343,21 +388,28 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 		return
 
 	if not event is InputEventMouseButton:
-		emit_click.call()
+		#emit_click.call()
 		return
 
 	#if not (event as InputEventMouseButton).double_click:
 		#return
 		
-	if source_data is Object and editable:
-		row_panel.grab_focus()
+	if source_data is Object and editable and event is InputEventMouseButton and \
+			(event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT):
 		EditorInterface.inspect_object(source_data)
 		
 	emit_click.call()
 
-func _on_row_panel_container_focus_entered(row_panel: PanelContainer) -> void:
+func highlight_row(row_panel: PanelContainer) -> void:
 	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")
 	style_box.bg_color.a = 0.788
+	# 清空兄弟节点的背景色。这个逻辑不放在focus_exited里是因为这两个信号的发生顺序，是先exited，再entered
+	for i in v_box_container.get_children():
+		if i != row_panel:
+			var style_box_1: StyleBoxFlat = i.get_theme_stylebox("panel")
+			style_box_1.bg_color.a = 0.0
+			
+	data_of_focused_row = row_panel.get_meta("data", null)
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) and \
 		row_panel.get_rect().has_point(v_box_container.get_local_mouse_position()):
 		popup_menu_text.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
@@ -369,14 +421,10 @@ func _on_row_panel_container_focus_entered(row_panel: PanelContainer) -> void:
 		popup_menu_text.popup()
 	else:
 		popup_menu_text.set_item_disabled(1, true)
-
-func _on_row_panel_container_focus_exited(row_panel: PanelContainer) -> void:
-	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")
-	style_box.bg_color.a = 0.0
-
+		
 func row_grab_focus(row: int):
 	if v_box_container.get_child_count() > row:
-		v_box_container.get_child(row).grab_focus()
+		highlight_row(v_box_container.get_child(row))
 		
 		if datas[row] is Object and editable:
 			EditorInterface.inspect_object(datas[row])
@@ -400,7 +448,6 @@ func _on_popup_menu_text_index_pressed(index):
 	match popup_menu_text.get_item_text(index):
 		"Copy":
 			DisplayServer.clipboard_set(popup_menu_text.get_item_metadata(index))
-			popup_menu_text.set_item_metadata(index, null)
 		"Delete":
 			var data = popup_menu_text.get_item_metadata(index)
 			var pos = datas.find(data)
@@ -408,3 +455,4 @@ func _on_popup_menu_text_index_pressed(index):
 			datas = datas
 			row_deleted.emit(pos, data)
 			
+	popup_menu_text.set_item_metadata(index, null)

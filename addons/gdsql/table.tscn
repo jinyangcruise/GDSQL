@@ -27,7 +27,6 @@ layout_mode = 2
 [node name="RowPanelContainer" type="PanelContainer" parent="Models"]
 layout_mode = 2
 size_flags_horizontal = 3
-focus_mode = 1
 theme_override_styles/panel = SubResource("StyleBoxFlat_4fjn8")
 
 [node name="RowModel" type="HBoxContainer" parent="Models/RowPanelContainer"]
@@ -41,7 +40,6 @@ layout_mode = 2
 size_flags_horizontal = 3
 auto_translate = false
 localize_numeral_system = false
-focus_mode = 2
 mouse_filter = 1
 text_overrun_behavior = 3
 max_lines_visible = 1
