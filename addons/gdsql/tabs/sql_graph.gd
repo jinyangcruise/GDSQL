@@ -402,10 +402,14 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		margin_container.add_child(table)
 		
 		table.columns = columns.map(func(v): return v["field_as"])
+		
+		var separator = Control.new()
+		separator.custom_minimum_size.y = 60
+		
 		graph_datas = [
 			[margin_container, null],
 			[null, null], # buttons
-			[null, null], # separetor
+			[null, null, separator], # separetor
 		]
 		
 		graph_node.title = "Result"
@@ -424,15 +428,14 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		table.columns = columns.map(func(v): return v["field_as"])
 		table.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		# 旧按钮删除
-		if graph_datas.size() > 1:
-			var old_flow_container: HFlowContainer = graph_node.get_child(-2).get_child(0)
-			graph_node.get_child(-2).remove_child(old_flow_container)
-			#graph_datas.remove_at(1)
-			for i in graph_datas.size():
-				if i > 0:
-					graph_datas[i] = [null, null] # 要维持graph_datas原来的大小，不能直接remove，否则graphnode报错
-			old_flow_container.queue_free()
+		if graph_datas[1].size() == 3:
+			var old_flow_container: HFlowContainer = graph_datas[1][2]
+			old_flow_container.get_parent().remove_child(old_flow_container)
+			graph_datas[1] = [null, null] # 要维持graph_datas原来的大小，不能直接remove，否则graphnode报错
+			if old_flow_container != null:
+				old_flow_container.queue_free()
 			for i in table.row_deleted.get_connections():
+				# 由于按钮释放了，原来connect的引用的按钮无法再使用，disconnect掉，后面会重新连接
 				table.row_deleted.disconnect(i["callable"])
 			
 	# 根据表头的情况决定是否需要支持数据修改
@@ -580,10 +583,6 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		)
 		
 		graph_datas[1] = [null, null, flow_container]
-		
-		var separator = Control.new()
-		separator.custom_minimum_size.y = 60
-		graph_datas[2] = [null, null, separator]
 		
 		# 每行数据转成一个DictionaryObject
 		var new_table_datas = []
