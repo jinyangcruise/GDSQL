@@ -350,24 +350,22 @@ func _on_button_apply_pressed() -> void:
 	mgr.request_user_enter_password.emit(db_name, table_name, func():
 		var db_path = mgr.databases[db_name]["data_path"]
 		var table_path = table_name + DATA_EXTENSION
-		var begin_time
+		var begin_time_1 = Time.get_unix_time_from_system()
 		var action
 		if check_box_truncate_table.button_pressed:
-			begin_time = Time.get_unix_time_from_system()
 			var dao1 = BaseDao.new()
 			var ret = dao1.use_db(db_path).delete_from(table_path).query()
 			action = "Delete from %s.%s" % [db_name, table_name]
 			if ret == null:
-				mgr.add_log_history.emit("Err", begin_time, action, "somthing wrong")
+				mgr.add_log_history.emit("Err", begin_time_1, action, "somthing wrong")
 				return
 				
 			if not ret.ok():
-				mgr.add_log_history.emit("Err", begin_time, action, ret.get_err())
+				mgr.add_log_history.emit("Err", begin_time_1, action, ret.get_err())
 				return
 				
-			mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) affected" % ret["affected_rows"])
+			mgr.add_log_history.emit("OK", begin_time_1, action, "%d row(s) affected" % ret.get_affected_rows())
 			
-		begin_time = Time.get_unix_time_from_system()
 		action = "Table data import to %s.%s" % [db_name, table_name]
 		var file_ret
 		var path = line_edit_file_path.text
@@ -391,6 +389,7 @@ func _on_button_apply_pressed() -> void:
 		var err = OK
 		var total_affected_rows = 0
 		for data in datas:
+			var begin_time_2 = Time.get_unix_time_from_system()
 			var value = {}
 			for i in col_indexes:
 				value[columns[i]] = data[i]
@@ -398,21 +397,21 @@ func _on_button_apply_pressed() -> void:
 			var ret = dao.auto_commit(false).use_db(db_path).insert_into(table_path).values(value).query()
 			if ret == null:
 				err = "something wrong"
-				mgr.add_log_history.emit("Err", begin_time, dao.get_query_cmd(), err)
+				mgr.add_log_history.emit("Err", begin_time_2, dao.get_query_cmd(), err)
 				break
 				
 			if not ret.ok():
 				err = ret.get_err()
-				mgr.add_log_history.emit("Err", begin_time, dao.get_query_cmd(), err)
+				mgr.add_log_history.emit("Err", begin_time_2, dao.get_query_cmd(), err)
 				break
 				
 			total_affected_rows += ret.get_affected_rows()
-			mgr.add_log_history.emit("OK", begin_time, dao.get_query_cmd(), "%d row(s) affected." % ret.get_affected_rows())
+			mgr.add_log_history.emit("OK", begin_time_2, dao.get_query_cmd(), "%d row(s) affected." % ret.get_affected_rows())
 		# 最后再统一提交
 		dao.commit()
 		if err is int and err == OK:
-			mgr.add_log_history.emit("OK", begin_time, action, "Finished! Total %d row(s) affected." % total_affected_rows)
+			mgr.add_log_history.emit("OK", begin_time_1, action, "Finished! Total %d row(s) affected." % total_affected_rows)
 		else:
-			mgr.add_log_history.emit("Err", begin_time, action, "Err occur! Total %d row(s) affected." % total_affected_rows)
+			mgr.add_log_history.emit("Err", begin_time_1, action, "Err occur! Total %d row(s) affected." % total_affected_rows)
 	)
 	
