@@ -104,10 +104,13 @@ func create_confirmation_dialog(msg: String, confirmed_callback: Callable = Call
 	dialog.dialog_text = msg
 	if confirmed_callback.is_valid():
 		dialog.confirmed.connect(confirmed_callback)
-	if canceled_callback.is_valid():
-		dialog.canceled.connect(canceled_callback)
 	EditorInterface.get_base_control().get_tree().get_root().add_child(dialog)
 	dialog.popup_centered()
+	dialog.canceled.connect(func():
+		if canceled_callback.is_valid():
+			canceled_callback.call()
+		dialog.queue_free()
+	)
 	dialog.close_requested.connect(func():
 		if canceled_callback.is_valid():
 			canceled_callback.call()
@@ -125,6 +128,40 @@ func create_accept_dialog(msg) -> void:
 		dialog.queue_free()
 	)
 	
+var __property_old_parents = {}
+var __custom_dialog_datas = {}
+func _clear_custom_dialog(dialog: ConfirmationDialog):
+	for i in __property_old_parents[dialog]:
+		if i:
+			disconnect_focused_propagate(i)
+			if __property_old_parents[dialog][i].get_ref():
+				i.reparent(__property_old_parents[dialog][i].get_ref())
+			else:
+				i.queue_free()
+			
+	__property_old_parents[dialog].clear()
+	
+	if dialog.is_node_ready():
+		# 把自定义控件从树中剥离出来，不然会给下面的queue_free带来麻烦
+		var datas = __custom_dialog_datas.get(dialog)
+		if datas and !datas.is_empty():
+			for arr in datas:
+				for data in arr:
+					if data is Control:
+						if dialog.is_ancestor_of(data):
+							data.get_parent_control().remove_child(data)
+						
+		var children = dialog.get_children()
+		for i in children:
+			if i != null and !i.is_queued_for_deletion():
+				dialog.remove_child(i)
+				i.queue_free()
+				
+	__property_old_parents.erase(dialog)
+	__custom_dialog_datas.erase(dialog)
+	dialog.queue_free()
+	
+## 创建并弹出自定义对话框。
 ## 利用DictionaryObject来产生自定义对话框。类似graph_node.gd
 ## [
 ## 		["please input somthing"],
@@ -132,19 +169,31 @@ func create_accept_dialog(msg) -> void:
 ## 		[dictObj2],
 ## 		[contorl1],
 ## ]
-func create_custom_dialog(datas: Array[Array], confirmed_callback: Callable = Callable(), canceled_callback: Callable = Callable()):
+## 注意：datas中的controls（不包括DictionaryObject）需要用户自行释放。
+## 可以把释放逻辑放入defered_callback中。该函数会在对话框关闭（确定、取消、关闭按钮被点击）时自动调用。
+func create_custom_dialog(datas: Array[Array], defered_callback: Callable = Callable(), 
+confirmed_callback: Callable = Callable(), canceled_callback: Callable = Callable()):
 	var dialog := ConfirmationDialog.new()
-	if confirmed_callback.is_valid():
-		dialog.confirmed.connect(confirmed_callback)
-	if canceled_callback.is_valid():
-		dialog.canceled.connect(canceled_callback)
-	EditorInterface.get_base_control().get_tree().get_root().add_child(dialog)
-	dialog.popup_centered()
-	dialog.close_requested.connect(func():
+	__custom_dialog_datas[dialog] = datas
+	__property_old_parents[dialog] = {}
+	# 确定
+	dialog.confirmed.connect(func():
+		if confirmed_callback.is_valid():
+			confirmed_callback.call()
+		_clear_custom_dialog(dialog)
+		if defered_callback.is_valid():
+			defered_callback.call()
+	)
+	# 取消、关闭（关闭也会触发canceled）
+	dialog.canceled.connect(func():
 		if canceled_callback.is_valid():
 			canceled_callback.call()
-		dialog.queue_free()
+		_clear_custom_dialog(dialog)
+		if defered_callback.is_valid():
+			defered_callback.call()
 	)
+	EditorInterface.get_base_control().get_tree().get_root().add_child(dialog)
+	dialog.popup_centered()
 	
 	var vbox_container = VBoxContainer.new()
 	vbox_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -179,6 +228,7 @@ func create_custom_dialog(datas: Array[Array], confirmed_callback: Callable = Ca
 						var editor_property = editor_properties[i]
 						# 只有让检查器显示这个属性，才能修改这个属性。否则修改的是检查器当前显示的属性。
 						connect_focused_propagate(editor_property, data)
+						__property_old_parents[dialog][editor_property] = weakref(editor_property.get_parent())
 						editor_property.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 						editor_property.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
 						if (properties[i] as String).begins_with("_"):
@@ -224,6 +274,13 @@ func connect_focused_propagate(control: Control, data):
 				if not (child as Control).is_connected("focus_entered", editor_property_focused):
 					child.focus_entered.connect(editor_property_focused.bind(data))
 					
+func disconnect_focused_propagate(control: Control):
+	for child in control.get_children(true):
+		if child is Control:
+			disconnect_focused_propagate(child)
+			if (child as Control).is_connected("focus_entered", editor_property_focused):
+				child.focus_entered.disconnect(editor_property_focused)
+				
 func editor_property_focused(data):
 	EditorInterface.inspect_object(data)
 
