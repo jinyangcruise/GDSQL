@@ -98,20 +98,33 @@ func get_table_columns(db, table) -> Array:
 		return databases.get(db, {}).get("tables", {}).get(table, {})\
 			.get("columns", [])
 	return []
+	
+func _add_dialog(dialog: AcceptDialog):
+	var root = EditorInterface.get_base_control().get_tree().get_root()
+	var dialog_root = root.find_child("DialogRoot", false, false)
+	if dialog_root == null:
+		dialog_root = Node.new()
+		dialog_root.name = "DialogRoot"
+		root.add_child(dialog_root, true)
+	# 把新的对话框加到最深一层
+	var p = dialog_root
+	while p.get_child_count() > 0:
+		p = p.get_child(0)
+	p.add_child(dialog)
 
 func create_confirmation_dialog(msg: String, confirmed_callback: Callable = Callable(), canceled_callback: Callable = Callable()):
 	var dialog := ConfirmationDialog.new()
 	dialog.dialog_text = msg
 	if confirmed_callback.is_valid():
 		dialog.confirmed.connect(confirmed_callback)
-	EditorInterface.get_base_control().get_tree().get_root().add_child(dialog)
+	_add_dialog(dialog)
 	dialog.popup_centered()
-	dialog.canceled.connect(func():
-		if canceled_callback.is_valid():
-			canceled_callback.call()
+	dialog.confirmed.connect(func():
+		if confirmed_callback.is_valid():
+			confirmed_callback.call()
 		dialog.queue_free()
 	)
-	dialog.close_requested.connect(func():
+	dialog.canceled.connect(func():
 		if canceled_callback.is_valid():
 			canceled_callback.call()
 		dialog.queue_free()
@@ -122,8 +135,11 @@ func create_accept_dialog(msg) -> void:
 		msg = " ".join(msg)
 	var dialog := AcceptDialog.new()
 	dialog.dialog_text = msg
-	EditorInterface.get_base_control().get_tree().get_root().add_child(dialog)
+	_add_dialog(dialog)
 	dialog.popup_centered()
+	dialog.confirmed.connect(func():
+		dialog.queue_free()
+	)
 	dialog.close_requested.connect(func():
 		dialog.queue_free()
 	)
@@ -171,18 +187,25 @@ func _clear_custom_dialog(dialog: ConfirmationDialog):
 ## ]
 ## 注意：datas中的controls（不包括DictionaryObject）需要用户自行释放。
 ## 可以把释放逻辑放入defered_callback中。该函数会在对话框关闭（确定、取消、关闭按钮被点击）时自动调用。
+## 如果confirmed_callback有效且返回true，则对话框在点击确定后会自动关闭。confirmed_callback无效或返回其他值，对话框不关闭。
 func create_custom_dialog(datas: Array[Array], defered_callback: Callable = Callable(), 
 confirmed_callback: Callable = Callable(), canceled_callback: Callable = Callable()):
 	var dialog := ConfirmationDialog.new()
+	dialog.dialog_hide_on_ok = false
 	__custom_dialog_datas[dialog] = datas
 	__property_old_parents[dialog] = {}
 	# 确定
 	dialog.confirmed.connect(func():
+		var close = true
 		if confirmed_callback.is_valid():
-			confirmed_callback.call()
-		_clear_custom_dialog(dialog)
-		if defered_callback.is_valid():
-			defered_callback.call()
+			var ret = confirmed_callback.call()
+			if not(typeof(ret) == TYPE_BOOL and ret == true):
+				close = false
+				
+		if close:
+			_clear_custom_dialog(dialog)
+			if defered_callback.is_valid():
+				defered_callback.call()
 	)
 	# 取消、关闭（关闭也会触发canceled）
 	dialog.canceled.connect(func():
@@ -192,7 +215,7 @@ confirmed_callback: Callable = Callable(), canceled_callback: Callable = Callabl
 		if defered_callback.is_valid():
 			defered_callback.call()
 	)
-	EditorInterface.get_base_control().get_tree().get_root().add_child(dialog)
+	_add_dialog(dialog)
 	dialog.popup_centered()
 	
 	var vbox_container = VBoxContainer.new()
