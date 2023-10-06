@@ -923,8 +923,10 @@ func deal_password_before_table_cmd(table_item: TreeItem, pass_callback: Callabl
 				table_item.set_button_tooltip_text(0, index, tooltip)
 				if pass_callback.is_valid():
 					pass_callback.call()
+				return true
 			else:
 				mgr.create_accept_dialog("Password is not correct!")
+				return false
 				
 		var arr: Array[Array] = [
 			["This table is encrypted. Please input password of this table."],
@@ -1133,7 +1135,23 @@ var ret = dao.use_db("%s")\\
 func _on_popup_menu_password_index_pressed(index):
 	match popup_menu_password.get_item_text(index):
 		"Set Password":
-			pass# TODO
+			var password_dict_obj_1 = DictionaryObject.new({"Password": ""}, 
+				{"Password": {"hint": PROPERTY_HINT_PASSWORD}})
+			var password_dict_obj_2 = DictionaryObject.new({"Password": ""}, 
+				{"Password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "Enter same password agian."}})
+			var confirmed = func():
+				if password_dict_obj_1._get("Password") != password_dict_obj_2._get("Password"):
+					mgr.create_accept_dialog("Passwords are different!")
+					return false
+				pass#TODO
+				return true
+				
+			var arr: Array[Array] = [
+				["Set password for this table:"],
+				[password_dict_obj_1],
+				[password_dict_obj_2],
+			]
+			mgr.create_custom_dialog(arr, Callable(), confirmed)
 		"Clear Password":
 			pass
 		"Change Password":
