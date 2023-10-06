@@ -154,7 +154,7 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 		exist_col[i["Column Name"]] = true
 		
 	if not databases.has(db_name):
-		var msg = "Failed! database not exists!" % db_name
+		var msg = "Failed! Database %s not exists!" % db_name
 		mgr.add_log_history.emit("Err", begin_time, action, msg)
 		return mgr.create_accept_dialog(msg)
 		
@@ -166,7 +166,7 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 		return mgr.create_accept_dialog(msgs)
 		
 	if conf_dir.file_exists(table_name + CONFIG_EXTENSION):
-		msgs.push_back("Failed! table conf %s already exist!" % (table_name + CONFIG_EXTENSION))
+		msgs.push_back("Failed! Table conf %s already exist!" % (table_name + CONFIG_EXTENSION))
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
@@ -182,7 +182,7 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 			return mgr.create_accept_dialog(msgs)
 	else:
 		if FileAccess.file_exists(table_data_path):
-			msgs.push_back("Failed! data file [%s] already exist!" % table_data_path)
+			msgs.push_back("Failed! Data file [%s] already exist!" % table_data_path)
 			mgr.add_log_history.emit("Err", begin_time, action, msgs)
 			return mgr.create_accept_dialog(msgs)
 			
@@ -292,7 +292,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		return mgr.create_accept_dialog(msgs)
 	
 	if not databases.has(db_name):
-		msgs.push_back("Failed! database not exists!" % db_name)
+		msgs.push_back("Failed! Database %s not exists!" % db_name)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
@@ -304,7 +304,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		#return mgr.create_accept_dialog(msg)
 		
 	if new_table_name != old_table_name and table_confs.has(new_table_name):
-		msgs.push_back("Failed! table [%s] name has been occupied!" % new_table_name)
+		msgs.push_back("Failed! Table [%s] name has been occupied!" % new_table_name)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
@@ -312,12 +312,12 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 	var old_table_data_path = db_path + old_table_name + DATA_EXTENSION
 	var new_table_data_path = db_path + new_table_name + DATA_EXTENSION
 	if not FileAccess.file_exists(old_table_data_path):
-		msgs.push_back("Failed! file [%s] not exist!" % old_table_data_path)
+		msgs.push_back("Failed! File [%s] not exist!" % old_table_data_path)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	if new_table_data_path != old_table_data_path and FileAccess.file_exists(new_table_data_path):
-		msgs.push_back("Failed! file [%s] already exist!" % new_table_data_path)
+		msgs.push_back("Failed! File [%s] already exist!" % new_table_data_path)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
@@ -446,7 +446,169 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		apply.call()
 	else:
 		mgr.create_confirmation_dialog("\n".join(warnings), apply)
-
+		
+		
+## set password for a non-enctyped table
+func set_password(db_name: String, table_name: String, password: String) -> void:
+	var begin_time = Time.get_unix_time_from_system()
+	var action = "ALTER TABLE `%s`.`%s` SET PASSWORD" % [db_name, table_name]
+	var msgs = []
+	
+	if password == "":
+		msgs.push_back("Failed! Password is empty!")
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	if not databases.has(db_name):
+		msgs.push_back("Failed! Database %s not exists!" % db_name)
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	if not databases[db_name]["tables"].has(table_name):
+		msgs.push_back("Failed! Table %s.%s not exists!" % [db_name, table_name])
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	if databases[db_name]["tables"][table_name]["encrypted"] != "":
+		msgs.push_back("Failed! Table %s.%s is encrypted already!" % [db_name, table_name])
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	var table_conf_path = databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
+	if not FileAccess.file_exists(table_conf_path):
+		msgs.push_back("Failed! Table conf %s does not exist!" % table_conf_path)
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	var db_absolute_path = ProjectSettings.globalize_path(databases[db_name]["data_path"])
+	var table_data_path = db_absolute_path + table_name + DATA_EXTENSION
+	if not FileAccess.file_exists(table_data_path):
+		msgs.push_back("Failed! Data file [%s] dose not exist!" % table_data_path)
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	var config_file = ConfigFile.new()
+	config_file.load(table_conf_path)
+	config_file.set_value(table_name, "encrypted", password.md5_text())
+	config_file.save(table_conf_path)
+	msgs.push_back("1 file: %s has been saved." % table_conf_path)
+	
+	__CONF_MANAGER.get_conf(table_data_path, "") # load data
+	__CONF_MANAGER.save_conf_by_password(table_data_path, password)
+	msgs.push_back("1 file: %s has been encrypted." % table_data_path)
+	
+	# 清除该表数据的缓存，可以让用户使用该表时必须输入密码，以加深印象
+	__CONF_MANAGER.remove_conf(table_data_path)
+	
+	mgr.add_log_history.emit("OK", begin_time, action, msgs)
+	refresh()
+	
+## clear password for an encrypted table
+func clear_password(db_name: String, table_name: String) -> void:
+	var begin_time = Time.get_unix_time_from_system()
+	var action = "ALTER TABLE `%s`.`%s` CLEAR PASSWORD" % [db_name, table_name]
+	var msgs = []
+	
+	if not databases.has(db_name):
+		msgs.push_back("Failed! Database %s not exists!" % db_name)
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	if not databases[db_name]["tables"].has(table_name):
+		msgs.push_back("Failed! Table %s.%s not exists!" % [db_name, table_name])
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	if databases[db_name]["tables"][table_name]["encrypted"] == "":
+		msgs.push_back("Failed! Table %s.%s is not encrypted! No need to clear password." % [db_name, table_name])
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	var table_conf_path = databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
+	if not FileAccess.file_exists(table_conf_path):
+		msgs.push_back("Failed! Table conf %s does not exist!" % table_conf_path)
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	var db_absolute_path = ProjectSettings.globalize_path(databases[db_name]["data_path"])
+	var table_data_path = db_absolute_path + table_name + DATA_EXTENSION
+	if not FileAccess.file_exists(table_data_path):
+		msgs.push_back("Failed! Data file [%s] dose not exist!" % table_data_path)
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	var config_file = ConfigFile.new()
+	config_file.load(table_conf_path)
+	config_file.set_value(table_name, "encrypted", "")
+	config_file.save(table_conf_path)
+	msgs.push_back("1 file: %s has been saved." % table_conf_path)
+	
+	# 注意，这里随便传了一个密码，因为实际操作中用户已经输入过密码了，__CONF_MANAGER后续会从缓存中获取，无需再次输入密码
+	__CONF_MANAGER.get_conf(table_data_path, "") # load data 以防万一上面说的“实际操作。。。”并未发生
+	__CONF_MANAGER.save_conf_by_password(table_data_path, "")
+	msgs.push_back("1 file: %s has been decrypt." % table_data_path)
+	
+	mgr.add_log_history.emit("OK", begin_time, action, msgs)
+	refresh()
+	
+	
+## change password for an enctyped table
+func change_password(db_name: String, table_name: String, password: String) -> void:
+	var begin_time = Time.get_unix_time_from_system()
+	var action = "ALTER TABLE `%s`.`%s` SET PASSWORD" % [db_name, table_name]
+	var msgs = []
+	
+	if password == "":
+		msgs.push_back("Failed! Password is empty!")
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	if not databases.has(db_name):
+		msgs.push_back("Failed! Database %s not exists!" % db_name)
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	if not databases[db_name]["tables"].has(table_name):
+		msgs.push_back("Failed! Table %s.%s not exists!" % [db_name, table_name])
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	if databases[db_name]["tables"][table_name]["encrypted"] == "":
+		msgs.push_back("Failed! Table %s.%s is not encrypted!" % [db_name, table_name])
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	var table_conf_path = databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
+	if not FileAccess.file_exists(table_conf_path):
+		msgs.push_back("Failed! Table conf %s does not exist!" % table_conf_path)
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	var db_absolute_path = ProjectSettings.globalize_path(databases[db_name]["data_path"])
+	var table_data_path = db_absolute_path + table_name + DATA_EXTENSION
+	if not FileAccess.file_exists(table_data_path):
+		msgs.push_back("Failed! Data file [%s] dose not exist!" % table_data_path)
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	var config_file = ConfigFile.new()
+	config_file.load(table_conf_path)
+	config_file.set_value(table_name, "encrypted", password.md5_text())
+	config_file.save(table_conf_path)
+	msgs.push_back("1 file: %s has been saved." % table_conf_path)
+	
+	# 注意，这里随便传了一个密码，因为实际操作中用户已经输入过密码了，__CONF_MANAGER后续会从缓存中获取，无需再次输入密码
+	__CONF_MANAGER.get_conf(table_data_path, "") # load data 以防万一上面说的“实际操作。。。”并未发生
+	__CONF_MANAGER.save_conf_by_password(table_data_path, password)
+	msgs.push_back("1 file: %s has been encrypted." % table_data_path)
+	
+	# 清除该表数据的缓存，可以让用户使用该表时必须输入密码，以加深印象
+	__CONF_MANAGER.remove_conf(table_data_path)
+	
+	mgr.add_log_history.emit("OK", begin_time, action, msgs)
+	refresh()
+	
+	
 func drop_db_from_config(db_name: String) -> void:
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "Drop Schema %s;" % db_name
@@ -1135,15 +1297,25 @@ var ret = dao.use_db("%s")\\
 func _on_popup_menu_password_index_pressed(index):
 	match popup_menu_password.get_item_text(index):
 		"Set Password":
+			var item := get_selected()
+			if item == null:
+				return
+				
+			var db_name = item.get_meta("db_name")
+			var table_name = item.get_meta("table_name")
+			
 			var password_dict_obj_1 = DictionaryObject.new({"Password": ""}, 
 				{"Password": {"hint": PROPERTY_HINT_PASSWORD}})
 			var password_dict_obj_2 = DictionaryObject.new({"Password": ""}, 
 				{"Password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "Enter same password agian."}})
+				
 			var confirmed = func():
 				if password_dict_obj_1._get("Password") != password_dict_obj_2._get("Password"):
 					mgr.create_accept_dialog("Passwords are different!")
 					return false
-				pass#TODO
+				# 安全起见还是通过检查是否需要用户输入密码再执行后续方法
+				deal_password_before_table_cmd_2(db_name, table_name, 
+					set_password.bind(db_name, table_name, password_dict_obj_1._get("Password")))
 				return true
 				
 			var arr: Array[Array] = [
@@ -1152,6 +1324,7 @@ func _on_popup_menu_password_index_pressed(index):
 				[password_dict_obj_2],
 			]
 			mgr.create_custom_dialog(arr, Callable(), confirmed)
+			
 		"Clear Password":
 			pass
 		"Change Password":

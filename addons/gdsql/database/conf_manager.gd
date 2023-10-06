@@ -67,3 +67,13 @@ func save_conf_by_same_password(path: String, ref_path: String):
 		conf.save(path)
 	else:
 		conf.save_encrypted_pass(path, _passwords[ref_path])
+		
+func save_conf_by_password(path: String, password: String):
+	path = ProjectSettings.globalize_path(path)
+	assert(has_conf(path), "this conf %s is not under control" % path)
+	var conf = get_conf(path, "")
+	_passwords[path] = password
+	if _passwords[path] == "":
+		conf.save(path)
+	else:
+		conf.save_encrypted_pass(path, _passwords[path])
