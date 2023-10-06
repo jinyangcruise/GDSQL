@@ -930,7 +930,7 @@ func deal_password_before_table_cmd(table_item: TreeItem, pass_callback: Callabl
 			["This table is encrypted. Please input password of this table."],
 			[password_dict_obj],
 		]
-		mgr.create_custom_dialog(arr, confirmed)
+		mgr.create_custom_dialog(arr, Callable(), confirmed)
 	
 ## Tables目录的create table like子目录的菜单
 func _on_popup_menu_create_table_like_tables_index_pressed(index: int) -> void:
