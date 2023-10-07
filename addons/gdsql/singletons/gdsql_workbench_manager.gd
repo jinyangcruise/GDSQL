@@ -86,6 +86,25 @@ var main_panel: Control
 #}
 var databases: Dictionary
 
+func _notification(what):
+	if what == NOTIFICATION_PREDELETE:
+		main_panel = null
+		databases.clear()
+		
+		var root = EditorInterface.get_base_control().get_tree().get_root()
+		var dialog_root = root.find_child("DialogRoot", false, false)
+		var dummy = Node.new()
+		if dialog_root != null:
+			dialog_root.propagate_call("reparent", [dummy])
+			dummy.remove_child(dialog_root)
+			for i in dummy.get_children():
+				if i is AcceptDialog:
+					_clear_custom_dialog(i as AcceptDialog)
+				else:
+					i.print_tree_pretty()
+					push_error("why there is a non-AcceptDialog (%s) here?!" % i.to_string())
+			dialog_root.queue_free()
+
 ## 返回某个节点是否运行在插件模式中。（脚本的@tool会让它运行在编辑器编辑界面中，而不是插件中，
 ## 可能导致信号多次绑定、额外数据被写入tscn中等问题）
 func run_in_plugin(node: Node) -> bool:
@@ -109,7 +128,22 @@ func _add_dialog(dialog: AcceptDialog):
 	# 把新的对话框加到最深一层
 	var p = dialog_root
 	while p.get_child_count() > 0:
-		p = p.get_child(0)
+		for i: Window in p.get_children():
+			if i != null and not i.is_queued_for_deletion():
+				p = p.get_child(0)
+				break
+			else:
+				# 能到这里说明上一个对话框正在关闭，把独占关闭一下，免得引擎报错，例如：
+				# scene/main/window.cpp:886 - Attempting to make child window exclusive, 
+				# but the parent window already has another exclusive child. This window: 
+				# /root/DialogRoot/@ConfirmationDialog@23258, parent window: /root, 
+				# current exclusive child window: /root/DialogRoot/@ConfirmationDialog@23219
+				#printt("xxxxxxxxxxxxxx", p.get_child_count())
+				#await root.create_tween().tween_interval(0.1).finished
+				#dialog_root.print_tree_pretty()
+				#printt("rrrrrrrr", dialog_root.get_root())
+				i.exclusive = false
+		break
 	p.add_child(dialog)
 
 func create_confirmation_dialog(msg: String, confirmed_callback: Callable = Callable(), canceled_callback: Callable = Callable()):
@@ -146,18 +180,19 @@ func create_accept_dialog(msg) -> void:
 	
 var __property_old_parents = {}
 var __custom_dialog_datas = {}
-func _clear_custom_dialog(dialog: ConfirmationDialog):
-	for i in __property_old_parents[dialog]:
-		if i:
-			disconnect_focused_propagate(i)
-			if __property_old_parents[dialog][i].get_ref():
-				i.reparent(__property_old_parents[dialog][i].get_ref())
-			else:
-				i.queue_free()
-			
-	__property_old_parents[dialog].clear()
+func _clear_custom_dialog(dialog: AcceptDialog):
+	if __property_old_parents.has(dialog):
+		for i in __property_old_parents[dialog]:
+			if i:
+				disconnect_focused_propagate(i)
+				if __property_old_parents[dialog][i].get_ref():
+					i.reparent(__property_old_parents[dialog][i].get_ref())
+				else:
+					i.queue_free()
+				
+		__property_old_parents[dialog].clear()
 	
-	if dialog.is_node_ready():
+	if dialog.is_node_ready() and __custom_dialog_datas.has(dialog):
 		# 把自定义控件从树中剥离出来，不然会给下面的queue_free带来麻烦
 		var datas = __custom_dialog_datas.get(dialog)
 		if datas and !datas.is_empty():
@@ -178,7 +213,7 @@ func _clear_custom_dialog(dialog: ConfirmationDialog):
 	dialog.queue_free()
 	
 ## 创建并弹出自定义对话框。
-## 利用DictionaryObject来产生自定义对话框。类似graph_node.gd
+## 【datas】: 构建自定义对话框的数据，类似graph_node.gd，例如：
 ## [
 ## 		["please input somthing"],
 ## 		[dictObj1],
@@ -186,10 +221,18 @@ func _clear_custom_dialog(dialog: ConfirmationDialog):
 ## 		[contorl1],
 ## ]
 ## 注意：datas中的controls（不包括DictionaryObject）需要用户自行释放。
-## 可以把释放逻辑放入defered_callback中。该函数会在对话框关闭（确定、取消、关闭按钮被点击）时自动调用。
-## 如果confirmed_callback有效且返回true，则对话框在点击确定后会自动关闭。confirmed_callback无效或返回其他值，对话框不关闭。
-func create_custom_dialog(datas: Array[Array], defered_callback: Callable = Callable(), 
-confirmed_callback: Callable = Callable(), canceled_callback: Callable = Callable()):
+## 【confirmed_callback_before_close】：点击确定后执行的函数，必须返回一个长度为2的数组，第一个元素是布尔值，
+## true表示保留对话框，false表示关闭对话框。第二个元素用于用户传递一些数据。
+## 【canceled_callback_before_close】：点击取消或关闭按钮后执行的函数，必须返回一个长度为2的数组，
+## 第一个元素是布尔值，true表示保留对话框，false表示关闭对话框。第二个元素用于用户传递一些数据。
+## 【defered_callback】：对话框关闭后执行的函数。可以把对话框关闭后要执行的逻辑（比如释放自定义control等）
+## 放入defered_callback中。需接收2个参数：
+## 参数1：bool，true表示用户点击的是“确定”，false表示用户点击的是“取消”或“关闭”
+## 参数2：请勿指定数据类型，其值等于confirmed_callback_before_close或canceled_callback_before_close返回数组的第二个元素。
+func create_custom_dialog(datas: Array[Array],
+confirmed_callback_before_close: Callable = Callable(), 
+canceled_callback_before_close: Callable = Callable(),
+defered_callback: Callable = Callable()):
 	var dialog := ConfirmationDialog.new()
 	dialog.dialog_hide_on_ok = false
 	__custom_dialog_datas[dialog] = datas
@@ -197,23 +240,34 @@ confirmed_callback: Callable = Callable(), canceled_callback: Callable = Callabl
 	# 确定
 	dialog.confirmed.connect(func():
 		var close = true
-		if confirmed_callback.is_valid():
-			var ret = confirmed_callback.call()
-			if not(typeof(ret) == TYPE_BOOL and ret == true):
+		var ret
+		if confirmed_callback_before_close.is_valid():
+			ret = confirmed_callback_before_close.call()
+			assert(ret is Array and ret.size() == 2 and ret[0] is bool, 
+				"Return value of confirmed_callback_before_close must be a 2-elements-array(first element must be a bool)!")
+			if ret[0] == true:
 				close = false
 				
 		if close:
 			_clear_custom_dialog(dialog)
 			if defered_callback.is_valid():
-				defered_callback.call()
+				defered_callback.call(true, ret[1] if ret is Array else null)
 	)
 	# 取消、关闭（关闭也会触发canceled）
 	dialog.canceled.connect(func():
-		if canceled_callback.is_valid():
-			canceled_callback.call()
-		_clear_custom_dialog(dialog)
-		if defered_callback.is_valid():
-			defered_callback.call()
+		var close = true
+		var ret
+		if canceled_callback_before_close.is_valid():
+			ret = canceled_callback_before_close.call()
+			assert(ret is Array and ret.size() == 2 and ret[0] is bool, 
+				"Return value of canceled_callback_before_close must be a 2-elements-array(first element must be a bool)!")
+			if ret == true:
+				close = false
+				
+		if close:
+			_clear_custom_dialog(dialog)
+			if defered_callback.is_valid():
+				defered_callback.call(false, ret[1] if ret is Array else null)
 	)
 	_add_dialog(dialog)
 	dialog.popup_centered()
@@ -279,6 +333,11 @@ confirmed_callback: Callable = Callable(), canceled_callback: Callable = Callabl
 	if editable_control != null:
 		editable_control.grab_focus()
 		
+	# 注册回车键的输入组件
+	var last_line_edit = _find_last_line_edit(vbox_container)
+	if last_line_edit != null:
+		dialog.register_text_enter(last_line_edit)
+		
 func _find_editable_control(control: Node) -> Control:
 	if control is LineEdit or control is TextEdit:
 		return control
@@ -288,6 +347,18 @@ func _find_editable_control(control: Node) -> Control:
 		if c != null:
 			return c
 	return null
+	
+func _find_last_line_edit(control: Node) -> Control:
+	var ret = null
+	if control is LineEdit:
+		ret = control
+		
+	for i in control.get_children(true):
+		var c = _find_last_line_edit(i)
+		if c != null:
+			ret = c
+	return ret
+	
 	
 func connect_focused_propagate(control: Control, data):
 	for child in control.get_children(true):
