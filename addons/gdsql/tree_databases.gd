@@ -721,7 +721,7 @@ func _ready():
 		mgr.request_drop_table.connect(drop_table_from_config)
 	if not mgr.request_create_table.is_connected(add_table_to_config):
 		mgr.request_create_table.connect(add_table_to_config)
-	
+		
 	load_config()
 	popup_menu_database.set_item_submenu(2, "PopupMenuCopyTo")
 	popup_menu_database.set_item_submenu(3, "PopupMenuSendTo")
@@ -814,7 +814,9 @@ func _get_specific_extension_files(path: String, extension: String) -> Array[Str
 			file_name = dir.get_next()
 		dir.list_dir_end()
 	else:
-		push_error("An error occurred when trying to access the path:" + path)
+		# 注意：git不能提交空目录，可能是因为这个导致clone下来的代码没有空目录
+		# 这种情况下，请自己手动创建个空目录即可
+		push_warning("Can not open the path: %s." % path)
 		
 	return ret
 
