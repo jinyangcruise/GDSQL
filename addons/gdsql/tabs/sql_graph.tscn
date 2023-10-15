@@ -152,6 +152,20 @@ layout_mode = 2
 text = "LEFT JOIN"
 icon = ExtResource("10_8cnpe")
 
+[node name="VSeparator6" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+
+[node name="ButtonAddNodeUpdate" type="Button" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+text = "UPDATE"
+icon = ExtResource("10_8cnpe")
+
+[node name="ButtonAddNodeDelete" type="Button" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+text = "Delete
+"
+icon = ExtResource("10_8cnpe")
+
 [node name="GraphEdit" type="GraphEdit" parent="VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
