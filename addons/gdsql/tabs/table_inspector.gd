@@ -129,6 +129,7 @@ func _exit_tree():
 		i.get_custom_display_control("Data Type").queue_free()
 		i.get_custom_display_control("Hint").queue_free()
 	update_total_data_count = Callable()
+	mgr = null
 	
 func _gen_row() -> DictionaryObject:
 	var label_data_type := Label.new()

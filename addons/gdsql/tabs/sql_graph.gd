@@ -371,7 +371,7 @@ func gen_left_join_node() -> GraphNode:
 	)
 	graph_node.set_meta("type", "Left Join")
 	graph_node.set_meta("node", true)
-	graph_node.close_request.connect(func():
+	graph_node.delete_request.connect(func():
 		make_useless_of_left_join_node(graph_node)
 		node_close(graph_node)
 	)
@@ -850,6 +850,8 @@ func _exit_tree():
 	for node in graph_edit.get_children():
 		if node is GraphNode:
 			node_close(node)
+			
+	mgr = null
 
 
 func _on_graph_edit_delete_nodes_request(nodes):

@@ -30,7 +30,7 @@ const MAX_INT = 9223372036854775807
 var _columns = []
 
 func _ready():
-	if not mgr.run_in_plugin(self):
+	if mgr == null or not mgr.run_in_plugin(self):
 		return
 	option_button_tables.clear()
 	option_button_dbs.clear()
@@ -40,7 +40,7 @@ func _ready():
 		option_button_dbs.add_item(a_db_name)
 
 func _exit_tree():
-	if not mgr.run_in_plugin(self):
+	if mgr == null or not mgr.run_in_plugin(self):
 		return
 	option_button_tables.clear()
 	option_button_dbs.clear()

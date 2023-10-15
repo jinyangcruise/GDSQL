@@ -9,7 +9,7 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 
 
 func _ready() -> void:
-	if not mgr.run_in_plugin(self):
+	if mgr == null or not mgr.run_in_plugin(self):
 		return
 		
 	if not mgr.add_log_history.is_connected(add_a_log):
@@ -19,7 +19,7 @@ func _ready() -> void:
 	log_table.columns = ["Status", "#", "Time", "Action", "Message", "Duration"] as Array[String]
 	
 func _exit_tree():
-	if not mgr.run_in_plugin(self):
+	if mgr == null or not mgr.run_in_plugin(self):
 		return
 
 	if mgr.add_log_history.is_connected(add_a_log):

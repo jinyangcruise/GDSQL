@@ -6,10 +6,10 @@ const MainPanel = preload("res://addons/gdsql/index.tscn")
 var main_panel_instance
 var dictionary_object_inspector_plugin
 
-#region Singleton
+##region Singleton
 var conf_manager: Node
 var gdsql_workbench_manager: Node
-#endregion
+##endregion
 
 func _enter_tree():
 	# 注册配置单例，让非插件范围的代码能使用ConfManager

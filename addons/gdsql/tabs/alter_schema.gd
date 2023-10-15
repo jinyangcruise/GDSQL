@@ -41,4 +41,5 @@ func _on_button_apply_pressed() -> void:
 	#queue_free() 已改为让TabContainer接收到成功添加的信号后删除该页签
 
 func _on_button_cancel_pressed() -> void:
+	mgr = null
 	queue_free()

@@ -699,7 +699,7 @@ func truncate_table_from_config(db_name: String, table_name: String) -> void:
 	refresh()
 
 func _ready():
-	if not mgr.run_in_plugin(self):
+	if mgr == null or not mgr.run_in_plugin(self):
 		return
 		
 	if Engine.has_singleton("ConfManager"):
@@ -735,7 +735,7 @@ func _ready():
 	refresh()
 	
 func _exit_tree():
-	if not mgr.run_in_plugin(self):
+	if mgr == null or not mgr.run_in_plugin(self):
 		return
 		
 	_clear()
@@ -755,6 +755,8 @@ func _exit_tree():
 		mgr.request_drop_table.disconnect(drop_table_from_config)
 	if mgr.request_create_table.is_connected(add_table_to_config):
 		mgr.request_create_table.disconnect(add_table_to_config)
+		
+	mgr = null
 	
 func refresh() -> void:
 	_clear()

@@ -131,6 +131,7 @@ func _exit_tree():
 	for i: DictionaryObject in table.datas:
 		i.get_custom_display_control("Data Type").queue_free()
 		i.get_custom_display_control("Hint").queue_free()
+	mgr = null
 
 
 func _on_button_new_column_pressed() -> void:

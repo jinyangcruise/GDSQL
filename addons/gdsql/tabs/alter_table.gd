@@ -97,6 +97,7 @@ func _exit_tree():
 		i.get_custom_display_control("Data Type").queue_free()
 		i.get_custom_display_control("Hint").queue_free()
 	datas.clear()
+	mgr = null
 
 func _on_button_new_column_pressed() -> void:
 	var row = _gen_row()

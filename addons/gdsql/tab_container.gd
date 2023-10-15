@@ -17,7 +17,7 @@ const DATA_EXTENSION = ".gsql"
 var __CONF_MANAGER: ConfManagerClass # 管理表数据
 
 func _ready() -> void:
-	if not mgr.run_in_plugin(self):
+	if mgr == null or not mgr.run_in_plugin(self):
 		return
 		
 	if Engine.has_singleton("ConfManager"):
@@ -57,7 +57,7 @@ func _ready() -> void:
 	_on_tab_clicked(0)
 	
 func _exit_tree():
-	if not mgr.run_in_plugin(self):
+	if mgr == null or not mgr.run_in_plugin(self):
 		return
 		
 	__CONF_MANAGER = null
@@ -95,6 +95,8 @@ func _exit_tree():
 		var child = get_child(0)
 		remove_child(child)
 		child.queue_free()
+		
+	mgr = null
 	
 func _on_tab_clicked(tab: int) -> void:
 	# 点击了“新建SQL页面”（加号），增加一个编辑页面，并激活

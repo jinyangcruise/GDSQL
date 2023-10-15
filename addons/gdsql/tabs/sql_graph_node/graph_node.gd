@@ -150,6 +150,8 @@ func _notification(what):
 					if data is Control:
 						data.queue_free()
 			datas = []
+			
+		mgr = null
 		
 func redraw():
 	clear()

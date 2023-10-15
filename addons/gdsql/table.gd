@@ -87,6 +87,7 @@ func _notification(what):
 		#ratios.clear()
 		#column_tips.clear()
 		#columns.clear()
+		mgr = null
 	elif what == NOTIFICATION_ENTER_TREE:
 		_entered_tree = true
 	
@@ -158,7 +159,7 @@ func _on_header_col_model_dragged(_offset: int, h_split_container: HSplitContain
 	next_h_split_container.size.x = child_control.size.x
 	realign_rows()
 	
-#region 增量操作
+##region 增量操作
 func append_data(a_data):
 	datas.push_back(a_data)
 	if is_node_ready():
@@ -191,7 +192,7 @@ func move_data(from: int, to: int):
 		if is_node_ready():
 			var row = v_box_container.get_child(from)
 			v_box_container.move_child(row, to)
-#endregion
+##endregion
 		
 func add_row(a_data):
 	var data: Array

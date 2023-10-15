@@ -1,7 +1,8 @@
 extends RefCounted
 class_name BaseDao
 
-#region Members
+
+##region Members
 var _PASSWORD = "" ## 数据表密码
 
 var __database = "user://" ## 【外部请勿使用】数据库路径
@@ -36,7 +37,7 @@ const CONF_EXTENSION = ".cfg"
 
 var __CONF_MANAGER: ConfManagerClass
 var mgr: GDSQLWorkbenchManagerClass
-#endregion
+##endregion
 
 enum ORDER_BY { ASC, DESC }
 
@@ -1166,3 +1167,4 @@ func reset(force = false):
 	if __root_config:
 		__root_config.clear()
 		__root_config = null
+	mgr = null
