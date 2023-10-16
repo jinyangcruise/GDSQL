@@ -608,6 +608,97 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 	
 	return graph_node
 	
+func gen_update_node() -> GraphNode:
+	var databases = mgr.databases.keys()
+	
+	var schema_dict_obj = DictionaryObject.new(
+		{"Schema": "", "_password": ""}, 
+		{"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
+		"_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
+	var table_dict_obj = DictionaryObject.new(
+		{"Table": ""}, {"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}})
+	var fields_dict_obj = null
+	var where_dict_obj = DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
+	
+	# 关联该节点的BaseDao
+	var base_dao = BaseDao.new()
+	var graph_node = SQLGraphNode.instantiate()
+	graph_node.set_meta("base_dao", base_dao)
+	
+	# 根据选择的数据库来更新表名备选项
+	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.push_redraw_slot_control(0, 2) # 如果不是通过点击的控件修改的dict obj，就需要重绘一下。这里偷个懒，直接重绘。
+		match prop:
+			"Schema":
+				base_dao.use_db(mgr.databases[new_val]["data_path"])
+				var tables = mgr.databases[new_val]["tables"].keys()
+				table_dict_obj.reset_hint(
+					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}})
+				table_dict_obj._set("Table", "")
+			"_password":
+				base_dao.set_password(new_val)
+	)
+	table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.push_redraw_slot_control(1, 2)
+		match prop:
+			"Table":
+				base_dao.set_table(new_val + DATA_EXTENSION)
+				if new_val != "" and mgr.databases[schema_dict_obj._get("Schema")]["tables"].has(new_val):
+					var data = {}
+					var hints = {}
+					for col in mgr.databases[schema_dict_obj._get("Schema")]["tables"][new_val]["columns"]:
+						data[col["Column Name"]] = DataTypeDef.DEFUALT_VALUES[col["Data Type"]]
+						hints[col["Column Name"]] = {"hint": col["Hint"], "hint_string": col["Hint String"]}
+					fields_dict_obj = DictionaryObject.new(data, hints)
+				else:
+					fields_dict_obj = null
+				graph_node.datas[2][2] = fields_dict_obj
+				graph_node.push_redraw_slot_control(2, 2)
+	)
+	where_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.push_redraw_slot_control(3, 2)
+		match prop:
+			"Where":
+				base_dao.set_where(new_val)
+	)
+	
+	var btn_query = Button.new()
+	btn_query.text = "apply"
+	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_query.pressed.connect(on_update_node_query.bind(graph_node))
+	btn_query.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	
+	var separator = Control.new()
+	separator.custom_minimum_size.y = 10
+	var separator2 = Control.new()
+	separator2.custom_minimum_size.y = 10
+	
+	var datas: Array[Array] = [
+		[null, null, schema_dict_obj],
+		[null, null, table_dict_obj],
+		[null, null, fields_dict_obj],
+		[null, null, where_dict_obj],
+		[null, null, separator],
+		[null, null, btn_query],
+		[null, null, separator2]
+	]
+	graph_node.datas = datas
+	graph_node.title = "Update"
+	graph_node.ready.connect(func():
+		#graph_node.size.x = 650
+		graph_node.selected = true
+	)
+	graph_node.set_meta("type", "Update")
+	graph_node.set_meta("node", true)
+	graph_node.delete_request.connect(func():
+		node_close(graph_node)
+	)
+	graph_node.node_enable_status.connect(func(enabled):
+		btn_query.disabled = !enabled
+	)
+	
+	return graph_node
+	
 func make_useful_of_select_node(graph_node: GraphNode):
 	var to_nodes = get_to_nodes(graph_node, "Select")
 	for node in to_nodes:
@@ -745,7 +836,22 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 			graph_edit.add_child(table_node)
 			table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 			_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
-	
+			
+# Update 执行
+# node: 被点击的update节点
+func on_update_node_query(node: GraphNode):
+	var dao = node.get_meta("base_dao") as BaseDao
+	var begin_time = Time.get_unix_time_from_system()
+	var action = dao.get_query_cmd()
+	var ret = dao.query()
+	if ret == null:
+		mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
+		return
+		
+	if not ret.ok():
+		mgr.add_log_history.emit("Err", begin_time, action, ret.get_err())
+		
+	mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) affected" % (ret.get_affected_rows()))
 	
 func _get_final_source(from, map: Dictionary, result: Array, node_type: String):
 	var node = graph_edit.get_node(str(from))

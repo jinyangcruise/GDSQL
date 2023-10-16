@@ -196,6 +196,7 @@ func redraw():
 						for i in properties.size():
 							# 下划线开头的隐藏label。隐藏方法是把控件整个添加到一个能按比例隐藏子控件的控件中
 							var editor_property = editor_properties[i]
+							editor_property.set_meta("isDictObj", true)
 							# 只有让检查器显示这个属性，才能修改这个属性。否则修改的是检查器当前显示的属性。
 							connect_focused_propagate(editor_property, data)
 							__property_old_parents[editor_property] = weakref(editor_property.get_parent())
@@ -205,6 +206,7 @@ func redraw():
 								var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
 								container.invisible_ratio = 0.5
 								container.control = editor_property
+								container.set_meta("hasDictObj", true)
 								hb.add_child(container)
 							else:
 								editor_property.reparent(hb)
@@ -236,42 +238,79 @@ func push_redraw_slot_control(slot_row_index, slot_col_index):
 	_redraw_queue[slot_row_index] = cols
 	_mutex.unlock()
 	
-## 强制刷新某个栏位的控件。只有该栏位是一个DictionaryObject时才刷新
+## 强制刷新某个栏位的控件。
 func redraw_slot_control(slot_row_index, slot_col_index):
-	var data = datas[slot_row_index][slot_col_index]
-	if data is DictionaryObject:
-		# 记录焦点控件，用于恢复（如果不恢复，正在修改被刷新控件的内容，则会造成用户无法连续输入
-		var focus_owner = get_viewport().gui_get_focus_owner()
-		var hb = get_child(slot_row_index)
+	# 记录焦点控件，用于恢复（如果不恢复，正在修改被刷新控件的内容，则会造成用户无法连续输入
+	var focus_owner = get_viewport().gui_get_focus_owner()
+	var hb = get_child(slot_row_index)
+	
+	# 等失去焦点的时候再重绘，免得影响连续输入
+	if focus_owner != null and hb.is_ancestor_of(focus_owner):
+		push_redraw_slot_control(slot_row_index, slot_col_index)
+		return
 		
-		# 等失去焦点的时候再重绘，免得影响连续输入
-		if focus_owner != null and hb.is_ancestor_of(focus_owner):
-			push_redraw_slot_control(slot_row_index, slot_col_index)
-			return
+	var data = datas[slot_row_index][slot_col_index]
+	if slot_col_index == 0:
+		if data == null:
+			set_slot_enabled_left(slot_row_index, false)
+		else:
+			set_slot_enabled_left(slot_row_index, true)
+	elif slot_col_index == 1:
+		if data == null:
+			set_slot_enabled_right(slot_row_index, false)
+		else:
+			set_slot_enabled_right(slot_row_index, true)
 			
-		# 释放旧的
-		for child in hb.get_children():
-			var old_editor_property
-			if child is EditorProperty:
-				old_editor_property = child
+	# 释放旧的
+	for child in hb.get_children():
+		var old_editor_property # 通过剥夺检查器里的元素获取到的控件
+		if child.has_meta("isDictObj"):
+			old_editor_property = child
+		elif child.has_meta("hasDictObj"):
+			old_editor_property = child.control # child is a cut_control
+			child.control = null
+		else:
+			continue
+			
+		disconnect_focused_propagate(old_editor_property)
+		if __property_old_parents[old_editor_property].get_ref():
+			if old_editor_property.get_parent():
+				old_editor_property.reparent(__property_old_parents[old_editor_property].get_ref())
 			else:
-				old_editor_property = child.control # child is a cut_control
-				child.control = null
-			disconnect_focused_propagate(old_editor_property)
-			if __property_old_parents[old_editor_property].get_ref():
-				if old_editor_property.get_parent():
-					old_editor_property.reparent(__property_old_parents[old_editor_property].get_ref())
-				else:
-					__property_old_parents[old_editor_property].get_ref().add_child(old_editor_property)
-				__property_old_parents.erase(old_editor_property)
-			else:
-				__property_old_parents.erase(old_editor_property)
-				old_editor_property.queue_free()
-				
-		while hb.get_child_count() > 0:
-			hb.remove_child(hb.get_child(0))
-				
-		# 添加新的
+				__property_old_parents[old_editor_property].get_ref().add_child(old_editor_property)
+			__property_old_parents.erase(old_editor_property)
+		else:
+			__property_old_parents.erase(old_editor_property)
+			old_editor_property.queue_free()
+			
+	while hb.get_child_count() > 0:
+		var c = hb.get_child(0)
+		hb.remove_child(c)
+		c.queue_free()
+		
+	# 添加新的
+	if data is String or data is int or data is float:
+		if data is String and data == "":
+			hb.add_child(Control.new())
+		else:
+			var label = Label.new()
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if slot_row_index == 0 else HORIZONTAL_ALIGNMENT_RIGHT
+			label.text = str(data)
+			label.auto_translate = false
+			label.localize_numeral_system = false
+			label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			hb.add_child(label)
+	elif data is Control:
+		if data.get_class() == "Control" and data.get_child_count() == 0:
+			pass
+		else:
+			if data.size_flags_vertical == Control.SIZE_EXPAND_FILL:
+				hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		if data.get_parent() != null and data.get_parent() != hb:
+			data.reparent(hb)
+		else:
+			hb.add_child(data)
+	elif data is DictionaryObject:
 		EditorInterface.inspect_object(data)
 		var properties = data._get_property_list().map(func(v): return v["name"])
 		var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
