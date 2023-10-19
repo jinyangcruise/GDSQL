@@ -881,7 +881,7 @@ func query() -> QueryResult:
 						# 转化过程有损失时，抛出错误
 						assert(_assert("query:%s" % __cmd, v2 == __data[col_name], 
 							"data type of %s is not %s" % \
-							[col_name, DataTypeDef.DATA_TYPE_NAMES[typeof(__data[col_name])]]))
+							[col_name, type_string(col["Data Type"])]))
 						__data[col_name] = v1
 						
 			var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
@@ -997,8 +997,14 @@ func query() -> QueryResult:
 			for col in columns_def:
 				var col_name = col["Column Name"]
 				if __data.has(col_name):
-					assert(_assert("query:%s" % __cmd, typeof(__data[col_name]) == col["Data Type"], 
-						"data type of field `%s` is not %s" % [col_name, DataTypeDef.DATA_TYPE_NAMES[typeof(__data[col_name])]]))
+					var new_val = __data[col_name]
+					if typeof(new_val) != col["Data Type"]:
+						var v1 = type_convert(new_val, col["Data Type"])
+						var v2 = type_convert(v1, typeof(new_val))
+						# 转化过程有损失时，抛出错误
+						assert(_assert("query:%s" % __cmd, v2 == new_val, 
+							"data type of %s is not %s" % [col_name, type_string(col["Data Type"])]))
+						__data[col_name] = v1
 						
 			# 筛选出要更新的数据
 			var primary = "__PRIMARY_1355--5--__" # 让数据库把主键存到这个键里，祈祷用户没有用到这个字段
@@ -1012,10 +1018,11 @@ func query() -> QueryResult:
 			assert(_assert("query:%s" % __cmd, conf != null, "load conf err!"))
 			for data in datas:
 				data = data[__table_alias] # 未经过后处理的肯定是用表名分类的结构
+				var primary_value = str(data.get(primary))
 				var affected = false
 				for field in __data:
-					if conf.get_value(str(data.get(primary)), field) != __data.get(field):
-						conf.set_value(str(data.get(primary)), field, __data.get(field))
+					if conf.get_value(primary_value, field) != __data.get(field):
+						conf.set_value(primary_value, field, __data.get(field))
 						affected = true
 				if affected:
 					result._affected_rows += 1

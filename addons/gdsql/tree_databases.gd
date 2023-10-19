@@ -131,7 +131,7 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 	for i in column_infos:
 		action += "\n    `%s` %s%s%s%s%s%s," % [ 
 			i["Column Name"],
-			DataTypeDef.DATA_TYPE_NAMES[i["Data Type"]],
+			type_string(i["Data Type"]),
 			" NOT NULL" if i["NN"] else "",
 			" AUTO_INCREMENT" if i["AI"] else "",
 			" UNIQUE" if i["UQ"] else "",
@@ -274,7 +274,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 	for i in column_infos:
 		action += "\n    `%s` %s%s%s%s%s%s," % [ 
 			i["Column Name"],
-			DataTypeDef.DATA_TYPE_NAMES[i["Data Type"]],
+			type_string(i["Data Type"]),
 			" NOT NULL" if i["NN"] else "",
 			" AUTO_INCREMENT" if i["AI"] else "",
 			" UNIQUE" if i["UQ"] else "",
@@ -349,8 +349,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 				# 检查字段类型发生变化
 				if old_columns_map[col_name]["Data Type"] != i["Data Type"]:
 					warnings.push_back("Field [%s] data type changed from [%s] to [%s], datas will be converted!" % \
-						[col_name, DataTypeDef.DATA_TYPE_NAMES[old_columns_map[col_name]["Data Type"]], 
-						DataTypeDef.DATA_TYPE_NAMES[i["Data Type"]]])
+						[col_name, type_string(old_columns_map[col_name]["Data Type"]), type_string(i["Data Type"])])
 					for j: Dictionary in old_values:
 						j[col_name] = type_convert(j[col_name], i["Data Type"])
 						# type_convert
@@ -886,7 +885,7 @@ func add_table(db: TreeItem, table_name: String):
 	for col in table_columns:
 		var col_item = create_item(table_item)
 		var texts = [col["Column Name"]]
-		texts.push_back(DataTypeDef.DATA_TYPE_NAMES[col["Data Type"]].replace("TYPE_", "").capitalize())
+		texts.push_back(type_string(col["Data Type"]))
 		col_item.set_text(0, ": ".join(texts))
 		col_item.set_tooltip_text(0, "Comment: %s\nDefault(Expression): %s" % \
 			[col["Comment"], col["Default(Expression)"]])

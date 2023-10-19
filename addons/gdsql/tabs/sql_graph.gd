@@ -135,6 +135,15 @@ func _on_button_add_node_left_join_pressed():
 	graph_edit.add_child(graph_node)
 	graph_node.position_offset = \
 		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+
+func _on_button_add_node_update_pressed():
+	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
+	unselect_all_node()
+	
+	var graph_node = gen_update_node()
+	graph_edit.add_child(graph_node)
+	graph_node.position_offset = \
+		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 	
 func add_select_node(schema = "", table = "", fields = "*", where = "", order_by = "", offset = 0, limit = 100):
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
@@ -622,6 +631,7 @@ func gen_update_node() -> GraphNode:
 	
 	# 关联该节点的BaseDao
 	var base_dao = BaseDao.new()
+	base_dao.update("")
 	var graph_node = SQLGraphNode.instantiate()
 	graph_node.set_meta("base_dao", base_dao)
 	
@@ -685,7 +695,7 @@ func gen_update_node() -> GraphNode:
 	graph_node.datas = datas
 	graph_node.title = "Update"
 	graph_node.ready.connect(func():
-		#graph_node.size.x = 650
+		graph_node.size.x = 650
 		graph_node.selected = true
 	)
 	graph_node.set_meta("type", "Update")
@@ -840,7 +850,18 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 # Update 执行
 # node: 被点击的update节点
 func on_update_node_query(node: GraphNode):
+	var modified_datas = node.datas[2][2]
+	if modified_datas == null:
+		mgr.create_accept_dialog("Nothing changed")
+		return
+		
+	modified_datas = (modified_datas as DictionaryObject).get_modified_new_value()
+	if modified_datas.is_empty():
+		mgr.create_accept_dialog("Nothing changed")
+		return
+		
 	var dao = node.get_meta("base_dao") as BaseDao
+	dao.sets(modified_datas)
 	var begin_time = Time.get_unix_time_from_system()
 	var action = dao.get_query_cmd()
 	var ret = dao.query()
@@ -969,3 +990,4 @@ func _on_graph_edit_delete_nodes_request(nodes):
 			node_close(node)
 			node.queue_free()
 	)
+

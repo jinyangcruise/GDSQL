@@ -163,6 +163,14 @@ func get_modified_value() -> Dictionary:
 			if _origin[key] != _data[key]:
 				ret[key] = {"new": _data[key], "old": _origin[key]}
 	return ret
+
+func get_modified_new_value() -> Dictionary:
+	var ret = {}
+	if _origin:
+		for key in _origin:
+			if _origin[key] != _data[key]:
+				ret[key] = _data[key]
+	return ret
 	
 ## 返回数据对的行字符串形式，比如：a = 1, b = "something"
 func get_key_value_line() -> String:
