@@ -38,7 +38,7 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 				reset_header()
 			
 ## 表头tooltip
-@export var column_tips: Array[String] = []
+@export var column_tips: Array = []
 
 ## 每列的初始宽度比例。
 ## 第N个元素是X，表示第N列的宽度是后面宽度之和的1/X。

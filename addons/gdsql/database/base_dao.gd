@@ -65,9 +65,15 @@ func use_conf_db() -> BaseDao:
 	__database = "res://src/config/"
 	return self
 	
+func get_db() -> String:
+	return __database
+	
 func set_password(password: String) -> BaseDao:
 	_PASSWORD = password
 	return self
+	
+func get_password() -> String:
+	return _PASSWORD
 	
 ## 是否自动提交（保存文件），不提交只是在内存中更改数据
 func auto_commit(auto: bool) -> BaseDao:
@@ -189,6 +195,12 @@ func from(table: String, alias: String = "") -> BaseDao:
 func set_table(table: String) -> BaseDao:
 	from(table, __table_alias)
 	return self
+	
+func get_table() -> String:
+	return __table
+	
+func get_short_table() -> String:
+	return get_table().get_file().get_basename()
 	
 ## 单独设置表别名
 func set_table_alias(alias: String) -> BaseDao:

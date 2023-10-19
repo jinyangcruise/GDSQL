@@ -330,7 +330,7 @@ func _on_button_apply_pressed() -> void:
 		db_name = option_button_dbs.get_item_text(option_button_dbs.selected)
 		table_name = line_edit_table_name.text
 		if check_box_drop_table.button_pressed and mgr.databases[db_name]["tables"].has(table_name):
-			mgr.request_user_enter_password.emit(db_name, table_name, func():
+			mgr.request_user_enter_password.emit(db_name, table_name, "", func():
 				mgr.request_drop_table.emit(db_name, table_name)
 			)
 			
@@ -347,7 +347,7 @@ func _on_button_apply_pressed() -> void:
 		table_name = table[1]
 		
 	# 不管是新建的表，还是存量表，逻辑一致
-	mgr.request_user_enter_password.emit(db_name, table_name, func():
+	mgr.request_user_enter_password.emit(db_name, table_name, "", func():
 		var db_path = mgr.databases[db_name]["data_path"]
 		var table_path = table_name + DATA_EXTENSION
 		var begin_time_1 = Time.get_unix_time_from_system()

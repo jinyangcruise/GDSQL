@@ -915,7 +915,7 @@ func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_inde
 						"table_name": item.get_meta("table_name"),
 						"fields": "*"
 					})
-				deal_password_before_table_cmd(item, exe_select)
+				deal_password_before_table_cmd(item, "", exe_select)
 			# Show in File Manager
 			ITEM_BUTTON_INDEX.FOLDER:
 				var path = ProjectSettings.globalize_path(item.get_meta("data_path"))
@@ -923,7 +923,7 @@ func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_inde
 			ITEM_BUTTON_INDEX.COLUMN_PROPERTY:
 				pass
 			ITEM_BUTTON_INDEX.ENCRYPT:
-				deal_password_before_table_cmd(item, Callable())
+				deal_password_before_table_cmd(item, "", Callable())
 
 
 func _on_item_activated(item: TreeItem = null) -> void:
@@ -988,7 +988,7 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 						"table_name": item.get_meta("table_name"),
 						"fields": "*"
 					})
-				deal_password_before_table_cmd(item, exe_select)
+				deal_password_before_table_cmd(item, "", exe_select)
 		"Table Inspector":
 			var item := get_selected()
 			if item:
@@ -1000,7 +1000,7 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 				var table_name = item.get_meta("table_name")
 				var open_tab = func():
 					mgr.open_table_data_export_tab.emit(db_name, table_name)
-				deal_password_before_table_cmd(item, open_tab)
+				deal_password_before_table_cmd(item, "", open_tab)
 		"Table Data Import Wizard":
 			var item := get_selected()
 			if item:
@@ -1008,7 +1008,7 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 				var table_name = item.get_meta("table_name")
 				var open_tab = func():
 					mgr.open_table_data_import_tab.emit(db_name, table_name)
-				deal_password_before_table_cmd(item, open_tab)
+				deal_password_before_table_cmd(item, "", open_tab)
 		"Create Table...":
 			var item := get_selected()
 			if item:
@@ -1020,7 +1020,7 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 				var table_name = item.get_meta("table_name")
 				var open_tab = func():
 					mgr.open_alter_table_tab.emit(db_name, table_name)
-				deal_password_before_table_cmd(item, open_tab)
+				deal_password_before_table_cmd(item, "", open_tab)
 		"Drop Table...":
 			var item := get_selected()
 			if item:
@@ -1030,7 +1030,7 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 					mgr.create_confirmation_dialog(
 						"Are you sure to Drop table `%s`.`%s`? Config file and data file of this table will be moved to trash." % \
 						[db_name, table_name], drop_table_from_config.bind(db_name, table_name))
-				deal_password_before_table_cmd(item, open_dialog)
+				deal_password_before_table_cmd(item, "", open_dialog)
 		"Truncate Table...":
 			var item := get_selected()
 			if item:
@@ -1040,7 +1040,7 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 					mgr.create_confirmation_dialog(
 						"Are you sure to Truncate table `%s`.`%s`?" % \
 						[db_name, table_name], truncate_table_from_config.bind(db_name, table_name))
-				deal_password_before_table_cmd(item, open_dialog)
+				deal_password_before_table_cmd(item, "", open_dialog)
 		"Show in File Manager":
 			var item := get_selected()
 			if item:
@@ -1054,18 +1054,19 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 		"Refresh All":
 			refresh()
 			
-func deal_password_before_table_cmd_2(db_name: String, table_name: String, pass_callback: Callable):
+func deal_password_before_table_cmd_2(db_name: String, table_name: String, try_password: String, pass_callback: Callable):
 	for db_item in root.get_children():
-		if db_item.get_meta("db_name") == db_name:
+		if db_item.get_meta("db_name") == db_name or db_item.get_meta("data_path") == db_name:
 			for collection in db_item.get_children():
 				if collection.get_meta("type") == "Tables":
 					for table_item in collection.get_children():
-						if table_item.get_meta("table_name") == table_name:
-							deal_password_before_table_cmd(table_item, pass_callback)
+						if table_item.get_meta("table_name") == table_name or \
+							table_item.get_meta("data_path").get_file() == table_name:
+							deal_password_before_table_cmd(table_item, try_password, pass_callback)
 							return
 	mgr.create_accept_dialog("%s.%s not exist!" % [db_name, table_name])
 	
-func deal_password_before_table_cmd(table_item: TreeItem, pass_callback: Callable):
+func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, pass_callback: Callable):
 	var db_name = table_item.get_meta("db_name")
 	var table_name = table_item.get_meta("table_name")
 	var table_path = table_item.get_meta("data_path")
@@ -1076,33 +1077,44 @@ func deal_password_before_table_cmd(table_item: TreeItem, pass_callback: Callabl
 	if valid_pass_md5 == "" or __CONF_MANAGER.has_conf(table_path):
 		if pass_callback.is_valid():
 			pass_callback.call()
-	else:
-		var arr: Array[Array] = [
-			["This table is encrypted. Please input password of this table."],
-			[password_dict_obj],
-		]
-		var confirmed = func():
-			if valid_pass_md5 == (password_dict_obj._get("Password") as String).md5_text():
-				# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
-				__CONF_MANAGER.get_conf(table_path, password_dict_obj._get("Password"))
-				return [false, true] # false表示让对话框关闭，true表示密码正确
-			mgr.create_accept_dialog("Password is not correct!")
-			return [true, false] # true表示让对话框存在，false表示密码错误
-				
-		var defered = func(clicked_confirm: bool, validation):
-			if clicked_confirm:
-				if validation is bool and validation == true:
-					# 更新锁的图标为打开的样式
-					var texture = preload("res://addons/gdsql/img/unlock.png")
-					var tooltip = "This table is encrypted and you have entered the right password."
-					var index = table_item.get_button_by_id(0, ITEM_BUTTON_INDEX.ENCRYPT)
-					table_item.set_button(0, index, texture)
-					table_item.set_button_tooltip_text(0, index, tooltip)
-					# 执行用户传入的函数
-					if pass_callback.is_valid():
-						pass_callback.call()
-				
-		mgr.create_custom_dialog(arr, confirmed, Callable(), defered)
+			return
+			
+	var msg = "This table is encrypted. Please input password of this table."
+	if try_password != "":
+		if valid_pass_md5 == try_password.md5_text():
+			# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
+			__CONF_MANAGER.get_conf(table_path, password_dict_obj._get("Password"))
+			pass_callback.call()
+			return
+			
+		msg = "Your password is incorrect! Please enter again!"
+		
+	var arr: Array[Array] = [
+		[msg],
+		[password_dict_obj],
+	]
+	var confirmed = func():
+		if valid_pass_md5 == (password_dict_obj._get("Password") as String).md5_text():
+			# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
+			__CONF_MANAGER.get_conf(table_path, password_dict_obj._get("Password"))
+			return [false, true] # false表示让对话框关闭，true表示密码正确
+		mgr.create_accept_dialog("Password is not correct!")
+		return [true, false] # true表示让对话框存在，false表示密码错误
+		
+	var defered = func(clicked_confirm: bool, validation):
+		if clicked_confirm:
+			if validation is bool and validation == true:
+				# 更新锁的图标为打开的样式
+				var texture = preload("res://addons/gdsql/img/unlock.png")
+				var tooltip = "This table is encrypted and you have entered the right password."
+				var index = table_item.get_button_by_id(0, ITEM_BUTTON_INDEX.ENCRYPT)
+				table_item.set_button(0, index, texture)
+				table_item.set_button_tooltip_text(0, index, tooltip)
+				# 执行用户传入的函数
+				if pass_callback.is_valid():
+					pass_callback.call()
+			
+	mgr.create_custom_dialog(arr, confirmed, Callable(), defered)
 	
 ## Tables目录的create table like子目录的菜单
 func _on_popup_menu_create_table_like_tables_index_pressed(index: int) -> void:
@@ -1332,7 +1344,7 @@ func _on_popup_menu_password_index_pressed(index):
 				if clicked_confirm:
 					if validation is bool and validation == true:
 						# 安全起见还是通过检查是否需要用户输入密码再执行后续方法
-						deal_password_before_table_cmd(item, 
+						deal_password_before_table_cmd(item, "", 
 							set_password.bind(db_name, table_name, password_dict_obj_1._get("Password")))
 				
 			mgr.create_custom_dialog(arr, confirmed, Callable(), defered)
@@ -1367,7 +1379,7 @@ func _on_popup_menu_password_index_pressed(index):
 			var callback = func():
 				mgr.create_custom_dialog(arr, confirmed, Callable(), defered)
 				
-			deal_password_before_table_cmd(item, callback)
+			deal_password_before_table_cmd(item, "", callback)
 			
 		"Change Password":
 			var item := get_selected()
@@ -1410,7 +1422,7 @@ func _on_popup_menu_password_index_pressed(index):
 			var callback = func():
 				mgr.create_custom_dialog(arr, confirmed, Callable(), defered)
 				
-			deal_password_before_table_cmd(item, callback)
+			deal_password_before_table_cmd(item, "", callback)
 
 ## 密码修改相关操作
 func _on_popup_menu_password_about_to_popup():

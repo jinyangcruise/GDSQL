@@ -106,7 +106,8 @@ static func update_callback(new_value, property, dict_obj_ref: WeakRef, readable
 
 func _ready() -> void:
 	table.ratios = [4.0, 4.0, 3.0, 2.0, 20.0, 19.0, 18.0, 17.0, 1.0, 1.0] as Array[float]
-	table.column_tips = ["字段名称", "数据类型", "检查器属性提示", "提示字符串", "是否为主键", "是否非空", "是否唯一", "是否自增", "默认值（支持表达式）", "备注"] as Array[String]
+	table.column_tips = ["字段名称", "数据类型", "检查器属性提示", "提示字符串", 
+	"是否为主键", "是否非空", "是否唯一", "是否自增", "默认值（支持表达式）", "备注"] as Array[String]
 	table.columns = ["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Default(Expression)", "Comment"]
 	
 	if schema != "":
@@ -155,7 +156,7 @@ func _on_button_apply_pressed():
 
 func _on_button_enter_password_pressed():
 	if update_total_data_count != null:
-		mgr.request_user_enter_password.emit(schema, table_name, update_total_data_count)
+		mgr.request_user_enter_password.emit(schema, table_name, "", update_total_data_count)
 
 
 func _on_button_show_in_file_manager_pressed():

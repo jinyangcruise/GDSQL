@@ -128,7 +128,7 @@ func _on_button_apply_pressed() -> void:
 	var table = option_button_tables.get_item_text(option_button_tables.selected).split(".")
 	var db_name = table[0]
 	var table_name = table[1]
-	mgr.request_user_enter_password.emit(db_name, table_name, func():
+	mgr.request_user_enter_password.emit(db_name, table_name, "", func():
 		var begin_time = Time.get_unix_time_from_system()
 		var dao = BaseDao.new()
 		var ret = dao.use_db(mgr.databases[db_name]["data_path"])\
@@ -188,15 +188,9 @@ func export_csv(datas):
 	
 func export_json(datas):
 	var columns = datas[0] as Array
-	var primary_index
-	for i in columns.size():
-		if columns[i]["PK"]:
-			primary_index = i
-			break
 	var map = []
 	for i in datas.size():
 		if i > 0:
-			var section = str(datas[i][primary_index])
 			var data = {}
 			for j in columns.size():
 				data[columns[j]["Column Name"]] = datas[i][j]

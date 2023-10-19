@@ -38,7 +38,7 @@ signal open_table_data_export_tab(db_name: String, table_name: String)
 ## 打开数据表导入页签的信号
 signal open_table_data_import_tab(db_name: String, table_name: String)
 ## 请求用户输入数据表密码的信号
-signal request_user_enter_password(db_name: String, table_name: String, callback: Callable)
+signal request_user_enter_password(db_name: String, table_name: String, try_password: String, callback: Callable)
 
 ## 请求新建某表
 signal request_create_table(db_name: String, table_name: String, comment: String, password: String, column_infos: Array)

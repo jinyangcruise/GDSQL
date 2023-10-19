@@ -398,6 +398,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 	var graph_node = old_graph_node
 	var table
 	var graph_datas: Array[Array]
+	
 	if graph_node == null:
 		graph_node = SQLGraphNode.instantiate()
 	
@@ -409,7 +410,8 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		table = preload("res://addons/gdsql/table.tscn").instantiate()
 		table.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		margin_container.add_child(table)
-		
+		table.column_tips = columns.map(func(v): 
+			return type_string(v["Data Type"]) if v.has("Data Type") else "")
 		table.columns = columns.map(func(v): return v["field_as"])
 		
 		var separator = Control.new()
@@ -434,6 +436,8 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		graph_node.selected = true
 		graph_datas = graph_node.datas
 		table = graph_datas[0][0].get_child(0) # [0][0]是margin_container
+		table.column_tips = columns.map(func(v): 
+			return type_string(v["Data Type"]) if v.has("Data Type") else "")
 		table.columns = columns.map(func(v): return v["field_as"])
 		table.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		# 旧按钮删除
@@ -820,33 +824,35 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 	for node_name in arr_source_node:
 		var source_node = graph_edit.get_node(str(node_name)) as GraphNode # 一个select node
 		var dao = source_node.get_meta("base_dao") as BaseDao
-		var begin_time = Time.get_unix_time_from_system()
-		var action = dao.get_query_cmd()
-		var ret = dao.query()
-		if ret == null:
-			mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
-			continue
+		mgr.request_user_enter_password.emit(dao.get_db(), dao.get_table(), dao.get_password(), func():
+			var begin_time = Time.get_unix_time_from_system()
+			var action = dao.get_query_cmd()
+			var ret = dao.query()
+			if ret == null:
+				mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
+				return
+				
+			if log_history:
+				mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) returned" % (ret.get_data().size())) # 去掉表头
 			
-		if log_history:
-			mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) returned" % (ret.get_data().size())) # 去掉表头
+			var update_result = false
+			if from_to_map.has(source_node.name):
+				for to in from_to_map[source_node.name]:
+					var to_node = graph_edit.get_node(str(to))
+					if to_node.get_meta("type") == "Result":
+						if to_node.enabled:
+							gen_table_node(ret.get_head(), ret.get_data(), to_node)
+							update_result = true
+						else:
+							_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
+						
+			if not update_result:
+				var table_node = gen_table_node(ret.get_head(), ret.get_data())
+				graph_edit.add_child(table_node)
+				table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
+				_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
+		)
 		
-		var update_result = false
-		if from_to_map.has(source_node.name):
-			for to in from_to_map[source_node.name]:
-				var to_node = graph_edit.get_node(str(to))
-				if to_node.get_meta("type") == "Result":
-					if to_node.enabled:
-						gen_table_node(ret.get_head(), ret.get_data(), to_node)
-						update_result = true
-					else:
-						_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
-					
-		if not update_result:
-			var table_node = gen_table_node(ret.get_head(), ret.get_data())
-			graph_edit.add_child(table_node)
-			table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
-			_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
-			
 # Update 执行
 # node: 被点击的update节点
 func on_update_node_query(node: GraphNode):
@@ -862,17 +868,19 @@ func on_update_node_query(node: GraphNode):
 		
 	var dao = node.get_meta("base_dao") as BaseDao
 	dao.sets(modified_datas)
-	var begin_time = Time.get_unix_time_from_system()
-	var action = dao.get_query_cmd()
-	var ret = dao.query()
-	if ret == null:
-		mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
-		return
-		
-	if not ret.ok():
-		mgr.add_log_history.emit("Err", begin_time, action, ret.get_err())
-		
-	mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) affected" % (ret.get_affected_rows()))
+	mgr.request_user_enter_password.emit(dao.get_db(), dao.get_table(), dao.get_password(), func():
+		var begin_time = Time.get_unix_time_from_system()
+		var action = dao.get_query_cmd()
+		var ret = dao.query()
+		if ret == null:
+			mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
+			return
+			
+		if not ret.ok():
+			mgr.add_log_history.emit("Err", begin_time, action, ret.get_err())
+			
+		mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) affected" % (ret.get_affected_rows()))
+	)
 	
 func _get_final_source(from, map: Dictionary, result: Array, node_type: String):
 	var node = graph_edit.get_node(str(from))
