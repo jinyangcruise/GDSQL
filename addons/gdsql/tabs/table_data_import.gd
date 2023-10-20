@@ -93,7 +93,7 @@ func reset_columns():
 				cb.set_meta("PK", true)
 			else:
 				cb.set_meta("PK", false)
-	)
+	, CONNECT_DEFERRED)
 	for i in _columns:
 		# using existing table
 		var cb = CheckBox.new()
@@ -135,7 +135,7 @@ func reset_columns():
 		opb1.item_selected.connect(func(index):
 			var sibling_cb = opb1.get_parent().get_child(opb1.get_index() - 2)
 			sibling_cb.set_meta("dataType", opb1.get_item_metadata(index))
-		)
+		, CONNECT_DEFERRED)
 		opb1.selected = typeof(table_sample.datas[0][i_pos])
 		opb1.item_selected.emit(opb1.selected)
 		
@@ -179,12 +179,12 @@ func _on_button_file_path_pressed(access):
 		table_sample.datas = ret[1]
 		_columns = ret[0]
 		reset_columns()
-	)
+	, CONNECT_DEFERRED)
 	add_child(editor_file_dialog)
 	editor_file_dialog.popup_centered_ratio(0.5)
 	editor_file_dialog.close_requested.connect(func():
 		editor_file_dialog.queue_free()
-	)
+	, CONNECT_DEFERRED)
 	
 func clear_columns():
 	while grid_container_columns_using_existing_table.get_child_count() > 3:

@@ -879,9 +879,9 @@ func query() -> QueryResult:
 			result._data = ret
 			return result
 		"insert_into", "insert_ignore", "insert_or_update", "replace_into":
-			assert(_assert("query:%s" % __cmd, !__data.is_empty(), "data is empty"))
+			assert(_assert("query:%s" % __cmd, !__data.is_empty(), "Data is empty"))
 			assert(_assert("query:%s" % __cmd, 
-				__primary_key != null and __primary_key != "", "primary key is empty"))
+				__primary_key != null and __primary_key != "", "Primary key is empty"))
 			# 检查数据类型是否正确
 			var columns_def = __get_table_defination(__database, __table)
 			for col in columns_def:
@@ -1001,8 +1001,8 @@ func query() -> QueryResult:
 			return result
 			
 		"update":
-			assert(_assert("query:%s" % __cmd, !__data.is_empty(), "data is empty"))
-			assert(_assert("query:%s" % __cmd, !__where.is_empty(), "where is empty"))
+			assert(_assert("query:%s" % __cmd, !__data.is_empty(), "Data is empty"))
+			assert(_assert("query:%s" % __cmd, !__where.is_empty(), "Condition is empty. This limitition if for safety."))
 			
 			# 检查数据类型是否正确
 			var columns_def = __get_table_defination(__database, __table)
@@ -1027,7 +1027,7 @@ func query() -> QueryResult:
 			
 			# 更新数据
 			var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
-			assert(_assert("query:%s" % __cmd, conf != null, "load conf err!"))
+			assert(_assert("query:%s" % __cmd, conf != null, "Load conf err!"))
 			for data in datas:
 				data = data[__table_alias] # 未经过后处理的肯定是用表名分类的结构
 				var primary_value = str(data.get(primary))
@@ -1046,7 +1046,7 @@ func query() -> QueryResult:
 			
 		"delete_from":
 			var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
-			assert(_assert("query:%s" % __cmd, conf != null, "load conf err!"))
+			assert(_assert("query:%s" % __cmd, conf != null, "Load conf err!"))
 			
 			if __where.is_empty():
 				result._affected_rows = conf.get_sections().size()

@@ -707,19 +707,19 @@ func _ready():
 		__CONF_MANAGER = ConfManager
 		
 	if not mgr.user_confirm_add_schema.is_connected(add_db_to_config):
-		mgr.user_confirm_add_schema.connect(add_db_to_config)
+		mgr.user_confirm_add_schema.connect(add_db_to_config, CONNECT_DEFERRED)
 	if not mgr.user_confirm_add_table.is_connected(add_table_to_config):
-		mgr.user_confirm_add_table.connect(add_table_to_config)
+		mgr.user_confirm_add_table.connect(add_table_to_config, CONNECT_DEFERRED)
 	if not mgr.user_confirm_alter_schema.is_connected(modify_db_to_config):
-		mgr.user_confirm_alter_schema.connect(modify_db_to_config)
+		mgr.user_confirm_alter_schema.connect(modify_db_to_config, CONNECT_DEFERRED)
 	if not mgr.user_confirm_alter_table.is_connected(modify_table_to_config):
-		mgr.user_confirm_alter_table.connect(modify_table_to_config)
+		mgr.user_confirm_alter_table.connect(modify_table_to_config, CONNECT_DEFERRED)
 	if not mgr.request_user_enter_password.is_connected(deal_password_before_table_cmd_2):
-		mgr.request_user_enter_password.connect(deal_password_before_table_cmd_2)
+		mgr.request_user_enter_password.connect(deal_password_before_table_cmd_2, CONNECT_DEFERRED)
 	if not mgr.request_drop_table.is_connected(drop_table_from_config):
-		mgr.request_drop_table.connect(drop_table_from_config)
+		mgr.request_drop_table.connect(drop_table_from_config, CONNECT_DEFERRED)
 	if not mgr.request_create_table.is_connected(add_table_to_config):
-		mgr.request_create_table.connect(add_table_to_config)
+		mgr.request_create_table.connect(add_table_to_config, CONNECT_DEFERRED)
 		
 	load_config()
 	popup_menu_database.set_item_submenu(2, "PopupMenuCopyTo")

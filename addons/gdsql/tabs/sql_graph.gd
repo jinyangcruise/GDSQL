@@ -135,12 +135,30 @@ func _on_button_add_node_left_join_pressed():
 	graph_edit.add_child(graph_node)
 	graph_node.position_offset = \
 		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+		
+func _on_button_add_node_insert_pressed():
+	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
+	unselect_all_node()
+	
+	var graph_node = gen_insert_node()
+	graph_edit.add_child(graph_node)
+	graph_node.position_offset = \
+		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 
 func _on_button_add_node_update_pressed():
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
 	
 	var graph_node = gen_update_node()
+	graph_edit.add_child(graph_node)
+	graph_node.position_offset = \
+		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+
+func _on_button_add_node_delete_pressed():
+	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
+	unselect_all_node()
+	
+	var graph_node = gen_delete_node()
 	graph_edit.add_child(graph_node)
 	graph_node.position_offset = \
 		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
@@ -621,6 +639,90 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 	
 	return graph_node
 	
+func gen_insert_node() -> GraphNode:
+	var databases = mgr.databases.keys()
+	
+	var schema_dict_obj = DictionaryObject.new(
+		{"Schema": "", "_password": ""}, 
+		{"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
+		"_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
+	var table_dict_obj = DictionaryObject.new(
+		{"Table": ""}, {"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}})
+	var fields_dict_obj = null
+	
+	# 关联该节点的BaseDao
+	var base_dao = BaseDao.new()
+	base_dao.insert_into("")
+	var graph_node = SQLGraphNode.instantiate()
+	graph_node.set_meta("base_dao", base_dao)
+	
+	# 根据选择的数据库来更新表名备选项
+	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.push_redraw_slot_control(0, 2) # 如果不是通过点击的控件修改的dict obj，就需要重绘一下。这里偷个懒，直接重绘。
+		match prop:
+			"Schema":
+				base_dao.use_db(mgr.databases[new_val]["data_path"])
+				var tables = mgr.databases[new_val]["tables"].keys()
+				table_dict_obj.reset_hint(
+					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}})
+				table_dict_obj._set("Table", "")
+			"_password":
+				base_dao.set_password(new_val)
+	)
+	table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.push_redraw_slot_control(1, 2)
+		match prop:
+			"Table":
+				base_dao.set_table(new_val + DATA_EXTENSION)
+				if new_val != "" and mgr.databases[schema_dict_obj._get("Schema")]["tables"].has(new_val):
+					var data = {}
+					var hints = {}
+					for col in mgr.databases[schema_dict_obj._get("Schema")]["tables"][new_val]["columns"]:
+						data[col["Column Name"]] = DataTypeDef.DEFUALT_VALUES[col["Data Type"]]
+						hints[col["Column Name"]] = {"hint": col["Hint"], "hint_string": col["Hint String"]}
+					fields_dict_obj = DictionaryObject.new(data, hints)
+				else:
+					fields_dict_obj = null
+				graph_node.datas[2][2] = fields_dict_obj
+				graph_node.push_redraw_slot_control(2, 2)
+	)
+	
+	var btn_query = Button.new()
+	btn_query.text = "apply"
+	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_query.pressed.connect(on_insert_node_query.bind(graph_node))
+	btn_query.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	
+	var separator = Control.new()
+	separator.custom_minimum_size.y = 10
+	var separator2 = Control.new()
+	separator2.custom_minimum_size.y = 10
+	
+	var datas: Array[Array] = [
+		[null, null, schema_dict_obj],
+		[null, null, table_dict_obj],
+		[null, null, fields_dict_obj],
+		[null, null, separator],
+		[null, null, btn_query],
+		[null, null, separator2]
+	]
+	graph_node.datas = datas
+	graph_node.title = "Insert"
+	graph_node.ready.connect(func():
+		graph_node.size.x = 650
+		graph_node.selected = true
+	)
+	graph_node.set_meta("type", "Insert")
+	graph_node.set_meta("node", true)
+	graph_node.delete_request.connect(func():
+		node_close(graph_node)
+	)
+	graph_node.node_enable_status.connect(func(enabled):
+		btn_query.disabled = !enabled
+	)
+	
+	return graph_node
+	
 func gen_update_node() -> GraphNode:
 	var databases = mgr.databases.keys()
 	
@@ -703,6 +805,85 @@ func gen_update_node() -> GraphNode:
 		graph_node.selected = true
 	)
 	graph_node.set_meta("type", "Update")
+	graph_node.set_meta("node", true)
+	graph_node.delete_request.connect(func():
+		node_close(graph_node)
+	)
+	graph_node.node_enable_status.connect(func(enabled):
+		btn_query.disabled = !enabled
+	)
+	
+	return graph_node
+	
+func gen_delete_node() -> GraphNode:
+	var databases = mgr.databases.keys()
+	
+	var schema_dict_obj = DictionaryObject.new(
+		{"Schema": "", "_password": ""}, 
+		{"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
+		"_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
+	var table_dict_obj = DictionaryObject.new(
+		{"Table": ""}, {"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}})
+	var where_dict_obj = DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
+	
+	# 关联该节点的BaseDao
+	var base_dao = BaseDao.new()
+	base_dao.delete_from("")
+	var graph_node = SQLGraphNode.instantiate()
+	graph_node.set_meta("base_dao", base_dao)
+	
+	# 根据选择的数据库来更新表名备选项
+	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.push_redraw_slot_control(0, 2) # 如果不是通过点击的控件修改的dict obj，就需要重绘一下。这里偷个懒，直接重绘。
+		match prop:
+			"Schema":
+				base_dao.use_db(mgr.databases[new_val]["data_path"])
+				var tables = mgr.databases[new_val]["tables"].keys()
+				table_dict_obj.reset_hint(
+					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}})
+				table_dict_obj._set("Table", "")
+			"_password":
+				base_dao.set_password(new_val)
+	)
+	table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.push_redraw_slot_control(1, 2)
+		match prop:
+			"Table":
+				base_dao.set_table(new_val + DATA_EXTENSION)
+	)
+	where_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.push_redraw_slot_control(2, 2)
+		match prop:
+			"Where":
+				base_dao.set_where(new_val)
+	)
+	
+	var btn_query = Button.new()
+	btn_query.text = "apply"
+	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_query.pressed.connect(on_delete_node_query.bind(graph_node))
+	btn_query.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	
+	var separator = Control.new()
+	separator.custom_minimum_size.y = 10
+	var separator2 = Control.new()
+	separator2.custom_minimum_size.y = 10
+	
+	var datas: Array[Array] = [
+		[null, null, schema_dict_obj],
+		[null, null, table_dict_obj],
+		[null, null, where_dict_obj],
+		[null, null, separator],
+		[null, null, btn_query],
+		[null, null, separator2]
+	]
+	graph_node.datas = datas
+	graph_node.title = "Delete"
+	graph_node.ready.connect(func():
+		graph_node.size.x = 650
+		graph_node.selected = true
+	)
+	graph_node.set_meta("type", "Delete")
 	graph_node.set_meta("node", true)
 	graph_node.delete_request.connect(func():
 		node_close(graph_node)
@@ -853,6 +1034,38 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 				_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
 		)
 		
+# Insert 执行
+# node: 被点击的insert节点
+func on_insert_node_query(node: GraphNode):
+	var modified_datas = node.datas[2][2]
+	if modified_datas == null:
+		mgr.create_accept_dialog("Nothing changed")
+		return
+		
+	modified_datas = (modified_datas as DictionaryObject).get_modified_new_value()
+	if modified_datas.is_empty():
+		mgr.create_accept_dialog("Nothing changed")
+		return
+		
+	var dao = node.get_meta("base_dao") as BaseDao
+	dao.values(modified_datas)
+	var action = dao.get_query_cmd()
+	mgr.create_confirmation_dialog("Please confirm:\n" + action, func():
+		mgr.request_user_enter_password.emit(dao.get_db(), dao.get_table(), dao.get_password(), func():
+			var begin_time = Time.get_unix_time_from_system()
+			var ret = dao.query()
+			if ret == null:
+				mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
+				return
+				
+			if not ret.ok():
+				mgr.add_log_history.emit("Err", begin_time, action, ret.get_err())
+				return
+				
+			mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) affected" % (ret.get_affected_rows()))
+		)
+	)
+	
 # Update 执行
 # node: 被点击的update节点
 func on_update_node_query(node: GraphNode):
@@ -868,18 +1081,42 @@ func on_update_node_query(node: GraphNode):
 		
 	var dao = node.get_meta("base_dao") as BaseDao
 	dao.sets(modified_datas)
-	mgr.request_user_enter_password.emit(dao.get_db(), dao.get_table(), dao.get_password(), func():
-		var begin_time = Time.get_unix_time_from_system()
-		var action = dao.get_query_cmd()
-		var ret = dao.query()
-		if ret == null:
-			mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
-			return
-			
-		if not ret.ok():
-			mgr.add_log_history.emit("Err", begin_time, action, ret.get_err())
-			
-		mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) affected" % (ret.get_affected_rows()))
+	var action = dao.get_query_cmd()
+	mgr.create_confirmation_dialog("Please confirm:\n" + action, func():
+		mgr.request_user_enter_password.emit(dao.get_db(), dao.get_table(), dao.get_password(), func():
+			var begin_time = Time.get_unix_time_from_system()
+			var ret = dao.query()
+			if ret == null:
+				mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
+				return
+				
+			if not ret.ok():
+				mgr.add_log_history.emit("Err", begin_time, action, ret.get_err())
+				return
+				
+			mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) affected" % (ret.get_affected_rows()))
+		)
+	)
+	
+# Delete 执行
+# node: 被点击的delete节点
+func on_delete_node_query(node: GraphNode):
+	var dao = node.get_meta("base_dao") as BaseDao
+	var action = dao.get_query_cmd()
+	mgr.create_confirmation_dialog("Please confirm:\n" + action, func():
+		mgr.request_user_enter_password.emit(dao.get_db(), dao.get_table(), dao.get_password(), func():
+			var begin_time = Time.get_unix_time_from_system()
+			var ret = dao.query()
+			if ret == null:
+				mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
+				return
+				
+			if not ret.ok():
+				mgr.add_log_history.emit("Err", begin_time, action, ret.get_err())
+				return
+				
+			mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) affected" % (ret.get_affected_rows()))
+		)
 	)
 	
 func _get_final_source(from, map: Dictionary, result: Array, node_type: String):

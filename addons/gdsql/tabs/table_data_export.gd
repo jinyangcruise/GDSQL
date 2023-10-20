@@ -81,12 +81,12 @@ func _on_button_file_path_pressed(access):
 		elif path.to_lower().ends_with(".json"):
 			check_box_json.button_pressed = true
 		line_edit_file_path.text = path
-	)
+	, CONNECT_DEFERRED)
 	add_child(editor_file_dialog)
 	editor_file_dialog.popup_centered_ratio(0.5)
 	editor_file_dialog.close_requested.connect(func():
 		editor_file_dialog.queue_free()
-	)
+	, CONNECT_DEFERRED)
 	
 	
 ## 导出GSQL

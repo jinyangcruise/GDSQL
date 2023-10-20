@@ -26,33 +26,33 @@ func _ready() -> void:
 		__CONF_MANAGER = ConfManager
 		
 	if not mgr.open_add_schema_tab.is_connected(add_tab_new_schema):
-		mgr.open_add_schema_tab.connect(add_tab_new_schema)
+		mgr.open_add_schema_tab.connect(add_tab_new_schema, CONNECT_DEFERRED)
 	if not mgr.open_add_table_tab.is_connected(add_tab_new_table):
-		mgr.open_add_table_tab.connect(add_tab_new_table)
+		mgr.open_add_table_tab.connect(add_tab_new_table, CONNECT_DEFERRED)
 	if not mgr.open_alter_schema_tab.is_connected(add_tab_alter_schema):
-		mgr.open_alter_schema_tab.connect(add_tab_alter_schema)
+		mgr.open_alter_schema_tab.connect(add_tab_alter_schema, CONNECT_DEFERRED)
 	if not mgr.open_alter_table_tab.is_connected(add_tab_alter_table):
-		mgr.open_alter_table_tab.connect(add_tab_alter_table)
+		mgr.open_alter_table_tab.connect(add_tab_alter_table, CONNECT_DEFERRED)
 	if not mgr.open_table_inspector_tab.is_connected(add_tab_table_inspector):
-		mgr.open_table_inspector_tab.connect(add_tab_table_inspector)
+		mgr.open_table_inspector_tab.connect(add_tab_table_inspector, CONNECT_DEFERRED)
 	if not mgr.open_table_data_export_tab.is_connected(add_tab_table_data_export):
-		mgr.open_table_data_export_tab.connect(add_tab_table_data_export)
+		mgr.open_table_data_export_tab.connect(add_tab_table_data_export, CONNECT_DEFERRED)
 	if not mgr.open_table_data_import_tab.is_connected(add_tab_table_data_import):
-		mgr.open_table_data_import_tab.connect(add_tab_table_data_import)
+		mgr.open_table_data_import_tab.connect(add_tab_table_data_import, CONNECT_DEFERRED)
 	
 	if not mgr.sys_confirm_add_schema.is_connected(close_content_window):
-		mgr.sys_confirm_add_schema.connect(close_content_window)
+		mgr.sys_confirm_add_schema.connect(close_content_window, CONNECT_DEFERRED)
 	if not mgr.sys_confirm_add_table.is_connected(close_content_window):
-		mgr.sys_confirm_add_table.connect(close_content_window)
+		mgr.sys_confirm_add_table.connect(close_content_window, CONNECT_DEFERRED)
 	if not mgr.sys_confirm_alter_schema.is_connected(close_content_window):
-		mgr.sys_confirm_alter_schema.connect(close_content_window)
+		mgr.sys_confirm_alter_schema.connect(close_content_window, CONNECT_DEFERRED)
 	if not mgr.sys_confirm_alter_table.is_connected(close_content_window):
-		mgr.sys_confirm_alter_table.connect(close_content_window)
+		mgr.sys_confirm_alter_table.connect(close_content_window, CONNECT_DEFERRED)
 	
 	if not mgr.send_to_editor.is_connected(receive_content):
-		mgr.send_to_editor.connect(receive_content)
+		mgr.send_to_editor.connect(receive_content, CONNECT_DEFERRED)
 	if not mgr.send_to_editor_and_execute.is_connected(receive_content_and_execute):
-		mgr.send_to_editor_and_execute.connect(receive_content_and_execute)
+		mgr.send_to_editor_and_execute.connect(receive_content_and_execute, CONNECT_DEFERRED)
 	
 	_on_tab_clicked(0)
 	
@@ -113,12 +113,12 @@ func _on_tab_clicked(tab: int) -> void:
 			var file = FileAccess.open(path, FileAccess.READ)
 			var content = file.get_as_text()
 			receive_content(content, true, path)
-		)
+		, CONNECT_DEFERRED)
 		sql_file.change_tab_title.connect(func(page, title):
 			var idx = get_tab_idx_from_control(page)
 			if idx >= 0:
 				set_tab_title(idx, title)
-		)
+		, CONNECT_DEFERRED)
 		add_child(sql_file)
 		move_child(new_tab_button, get_child_count() - 1)
 		current_tab = get_child_count() - 2

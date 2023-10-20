@@ -13,7 +13,7 @@ func _ready() -> void:
 		return
 		
 	if not mgr.add_log_history.is_connected(add_a_log):
-		mgr.add_log_history.connect(add_a_log)
+		mgr.add_log_history.connect(add_a_log, CONNECT_DEFERRED)
 		
 	log_table.ratios = [22.0, 30.0, 8.0, 1.5, 0.4, 1.0] as Array[float]
 	log_table.columns = ["Status", "#", "Time", "Action", "Message", "Duration"] as Array[String]

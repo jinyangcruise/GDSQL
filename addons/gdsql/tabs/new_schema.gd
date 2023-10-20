@@ -20,12 +20,12 @@ func _on_button_pressed(access) -> void:
 		if not dir.ends_with("/"):
 			dir += "/"
 		line_edit_path.text = dir
-	)
+	, CONNECT_DEFERRED)
 	h_box_container_2.add_child(editor_file_dialog)
 	editor_file_dialog.popup_centered_ratio(0.5)
 	editor_file_dialog.close_requested.connect(func():
 		editor_file_dialog.queue_free()
-	)
+	, CONNECT_DEFERRED)
 
 
 func _on_button_apply_pressed() -> void:

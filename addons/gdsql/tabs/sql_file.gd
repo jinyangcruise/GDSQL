@@ -29,12 +29,12 @@ func _on_button_open_pressed() -> void:
 	editor_file_dialog.add_filter("*.gdsql", "GDSQL File")
 	editor_file_dialog.file_selected.connect(func(path: String):
 		request_open_file.emit(path)
-	)
+	, CONNECT_DEFERRED)
 	add_child(editor_file_dialog)
 	editor_file_dialog.popup_centered_ratio(0.7)
 	editor_file_dialog.close_requested.connect(func():
 		editor_file_dialog.queue_free()
-	)
+	, CONNECT_DEFERRED)
 	
 func _on_button_save_pressed() -> void:
 	# 本身就是一个已经保存的文件，就直接保存
@@ -56,12 +56,12 @@ func _on_button_save_pressed() -> void:
 		set_meta("is_file", true)
 		set_meta("file_name", file_name)
 		set_meta("file_path", path)
-	)
+	, CONNECT_DEFERRED)
 	add_child(editor_file_dialog)
 	editor_file_dialog.popup_centered_ratio(0.7)
 	editor_file_dialog.close_requested.connect(func():
 		editor_file_dialog.queue_free()
-	)
+	, CONNECT_DEFERRED)
 
 
 func _on_code_edit_text_changed() -> void:

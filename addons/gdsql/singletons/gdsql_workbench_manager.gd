@@ -149,20 +149,18 @@ func _add_dialog(dialog: AcceptDialog):
 func create_confirmation_dialog(msg: String, confirmed_callback: Callable = Callable(), canceled_callback: Callable = Callable()):
 	var dialog := ConfirmationDialog.new()
 	dialog.dialog_text = msg
-	if confirmed_callback.is_valid():
-		dialog.confirmed.connect(confirmed_callback)
 	_add_dialog(dialog)
 	dialog.popup_centered()
 	dialog.confirmed.connect(func():
+		dialog.queue_free()
 		if confirmed_callback.is_valid():
 			confirmed_callback.call()
-		dialog.queue_free()
-	)
+	, CONNECT_DEFERRED)
 	dialog.canceled.connect(func():
+		dialog.queue_free()
 		if canceled_callback.is_valid():
 			canceled_callback.call()
-		dialog.queue_free()
-	)
+	, CONNECT_DEFERRED)
 	
 func create_accept_dialog(msg) -> void:
 	if msg is Array:
@@ -173,10 +171,10 @@ func create_accept_dialog(msg) -> void:
 	dialog.popup_centered()
 	dialog.confirmed.connect(func():
 		dialog.queue_free()
-	)
+	, CONNECT_DEFERRED)
 	dialog.close_requested.connect(func():
 		dialog.queue_free()
-	)
+	, CONNECT_DEFERRED)
 	
 var __property_old_parents = {}
 var __custom_dialog_datas = {}
@@ -252,7 +250,7 @@ defered_callback: Callable = Callable()):
 			_clear_custom_dialog(dialog)
 			if defered_callback.is_valid():
 				defered_callback.call(true, ret[1] if ret is Array else null)
-	)
+	, CONNECT_DEFERRED)
 	# 取消、关闭（关闭也会触发canceled）
 	dialog.canceled.connect(func():
 		var close = true
@@ -268,7 +266,7 @@ defered_callback: Callable = Callable()):
 			_clear_custom_dialog(dialog)
 			if defered_callback.is_valid():
 				defered_callback.call(false, ret[1] if ret is Array else null)
-	)
+	, CONNECT_DEFERRED)
 	_add_dialog(dialog)
 	dialog.popup_centered()
 	
@@ -366,7 +364,7 @@ func connect_focused_propagate(control: Control, data):
 			connect_focused_propagate(child, data)
 			if child.mouse_filter != Control.MOUSE_FILTER_IGNORE and child.has_signal("focus_entered"):
 				if not (child as Control).is_connected("focus_entered", editor_property_focused):
-					child.focus_entered.connect(editor_property_focused.bind(data))
+					child.focus_entered.connect(editor_property_focused.bind(data), CONNECT_DEFERRED)
 					
 func disconnect_focused_propagate(control: Control):
 	for child in control.get_children(true):

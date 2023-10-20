@@ -50,7 +50,6 @@ func _ready() -> void:
 	max_btn.stretch_mode = TextureButton.STRETCH_KEEP_CENTERED
 	max_btn.texture_normal = preload("res://addons/gdsql/img/maximize.png")
 	max_btn.toggled.connect(func(toggled_on: bool):
-		
 		if toggled_on:
 			max_btn.set_meta("old_size", size)
 			var graph_edit = get_parent_control()
@@ -360,7 +359,7 @@ func connect_focused_propagate(control: Control, data):
 				if not (child as Control).is_connected("focus_entered", editor_property_focused):
 					child.focus_entered.connect(editor_property_focused.bind(data))
 			
-func disconnect_focused_propagate(control: Control):
+func disconnect_focused_propagate(control):
 	for child in control.get_children(true):
 		if child is Control:
 			disconnect_focused_propagate(child)

@@ -112,7 +112,7 @@ func reset_header():
 		var c: HSplitContainer = header_col_model.duplicate()
 		parent.add_child(c)
 		var split_container_dragger = c.get_child(-1, true)
-		split_container_dragger.gui_input.connect(_on_dragger_gui_input.bind(c))
+		split_container_dragger.gui_input.connect(_on_dragger_gui_input.bind(c), CONNECT_DEFERRED)
 		var button = c.get_child(0) as Button
 		var control = c.get_child(1)
 		if i == 0:
@@ -144,7 +144,7 @@ func reset_header():
 		if i < fake_columns.size() - 1:
 			controls.push_back(control)
 		
-		c.dragged.connect(_on_header_col_model_dragged.bind(c))
+		c.dragged.connect(_on_header_col_model_dragged.bind(c), CONNECT_DEFERRED)
 		
 	# 把最后一个空control删掉，免得占空间
 	parent.queue_free()
@@ -225,7 +225,7 @@ func add_row(a_data):
 	var a_row = row_panel_container.duplicate()
 	a_row.set_meta("data", a_data)
 	v_box_container.add_child(a_row)
-	a_row.gui_input.connect(_on_row_gui_input.bind(a_row, a_data))
+	a_row.gui_input.connect(_on_row_gui_input.bind(a_row, a_data), CONNECT_DEFERRED)
 	var style_box: StyleBoxFlat = a_row.get_theme_stylebox("panel").duplicate()
 	a_row.add_theme_stylebox_override("panel", style_box)
 	# add_child好像会导致之前的focus丢失
@@ -264,7 +264,7 @@ func add_row(a_data):
 					control = label_model.duplicate()
 					control.text = str(data[i])
 					control.tooltip_text = str(data[i])
-					control.gui_input.connect(_label_gui_input.bind(control.text))
+					control.gui_input.connect(_label_gui_input.bind(control.text), CONNECT_DEFERRED)
 					if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
@@ -294,7 +294,7 @@ func add_row(a_data):
 		if not handled:
 			control = label_model.duplicate()
 			control.text = var_to_str(data[i])
-			control.gui_input.connect(_label_gui_input.bind(control.text))
+			control.gui_input.connect(_label_gui_input.bind(control.text), CONNECT_DEFERRED)
 			if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
 				var callback = func(new_value, control_ref: WeakRef):
 					var ctl = control_ref.get_ref()
@@ -304,7 +304,7 @@ func add_row(a_data):
 			
 		control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		#control.set_meta("data", data[i])
-		#control.gui_input.connect(_on_label_model_gui_input.bind(control))
+		#control.gui_input.connect(_on_label_model_gui_input.bind(control), CONNECT_DEFERRED)
 		# 表格刷新时某些自定义控件可能需要重复使用，要去掉parent
 		if control.get_parent() == null:
 			a_row.get_child(0).add_child(control)
@@ -369,12 +369,12 @@ func _on_resized():
 	#editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
 	#editor_file_dialog.file_selected.connect(func(path: String):
 		#node.texture_normal = load(path)
-	#)
+	#, CONNECT_DEFERRED)
 	#add_child(editor_file_dialog)
 	#editor_file_dialog.popup_centered_ratio(0.5)
 	#editor_file_dialog.close_requested.connect(func():
 		#editor_file_dialog.queue_free()
-	#)
+	#, CONNECT_DEFERRED)
 
 
 func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
