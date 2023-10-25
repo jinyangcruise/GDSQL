@@ -93,8 +93,8 @@ func _notification(what):
 		
 		var root = EditorInterface.get_base_control().get_tree().get_root()
 		var dialog_root = root.find_child("DialogRoot", false, false)
-		var dummy = Node.new()
 		if dialog_root != null:
+			var dummy = Node.new()
 			dialog_root.propagate_call("reparent", [dummy])
 			dummy.remove_child(dialog_root)
 			for i in dummy.get_children():
