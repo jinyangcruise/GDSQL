@@ -3,53 +3,80 @@
 
 ## 系统表
 ## t_system
-## language: String				语言
+## : String				语言
 ## fullscreen: bool				是否全屏
 
 ## 玩家表
 ## t_user
 ## id: int						玩家id
+## name: String					玩家名称
 ## create_time: float			创建时间（unix_time）
 ## curr_level_id: int			当前所在关卡id
 
 ## 英雄表
 ## t_hero
 ## id: int						英雄id
-## uid: int						所属玩家id
+## name: String					英雄名称
 ## tid: int						模板id
-## level: int					等级
 ## exp: int						经验值
-## max_hp: int					最大血量
-## curr_hp: int					当前血量
+## level: int					等级
+## max_hp: int					最大生命
+## curr_hp: int					当前生命
 ## max_mp: int					最大魔法
 ## curr_mp: int					当前魔法
 ## max_ap: int					最大行动力
 ## curr_ap: int					当前行动力
-## arr_ability: int				拥有天赋
+## init_skill_num: int			初始技能数
+## keep_skill_num: int			技能保留数
+
+## 玩家-英雄关联表
+## t_user_hero
+## id: int
+## uid: int
+## hid: int
 
 ## 技能表
 ## t_skill
 ## id: int								技能id
-## uid: int								所属玩家id
-## tid: int							模板id
+## tid: int								模板id
 ## level: int							技能等级
 ## custom_deploy_range: Array[String]	自定义部署范围
-## custom_deploy_center: Vector2		自定义部署范围对施放中心
+## custom_deploy_center: Vector2		自定义部署范围的施放中心
+
+## 英雄-技能关联表
+## t_user_skill
+## id: int
+## hid: int
+## sid: int
 
 ## 装备表
-# t_equipment
+## t_equip
 ## id: int						装备id
-## uid: int						所属玩家id
 ## tid: id						模板id
 ## level: int					装备等级
+
+## 英雄-装备关联表
+## 
+## id: int
+## hid: int
+## eid: int
 
 ## 扇形表
 ## t_sector
 ## id: int						扇形id
-## uid: int						所属玩家id
-## tid: int					模板id
+## tid: int						模板id
 ## angle: int					扇形角度（deg）
-## skill_id: int				关联技能id（为0表示没关联）
 ## equiped: bool				是否装备到了转盘
 ## core_rotation: float			如果装备到了转盘上，sector_core的旋转位置
 
+## 英雄-扇形关联表
+## t_hero_sector
+## id
+## hid
+## sid
+
+## 扇形-技能关联表
+## 
+## id
+## : int
+## skill_id: int
