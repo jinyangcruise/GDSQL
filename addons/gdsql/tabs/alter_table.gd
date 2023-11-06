@@ -102,6 +102,7 @@ func _exit_tree():
 func _on_button_new_column_pressed() -> void:
 	var row = _gen_row()
 	table.append_data(row)
+	table.row_grab_focus(table.datas.size() - 1)
 	
 func _gen_row() -> DictionaryObject:
 	var label_data_type := Label.new()

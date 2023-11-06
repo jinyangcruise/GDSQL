@@ -137,6 +137,7 @@ func _exit_tree():
 func _on_button_new_column_pressed() -> void:
 	var row = _gen_row()
 	table.append_data(row)
+	table.row_grab_focus(table.datas.size() - 1)
 	
 func _gen_row() -> DictionaryObject:
 	var label_data_type := Label.new()
@@ -181,7 +182,6 @@ func _on_table_row_clicked(row_index, mouse_button_index, _data):
 		popup_menu.position = DisplayServer.mouse_get_position()
 		popup_menu.popup()
 		selected_row_index = row_index
-		printt("vvvvvvvvv selected index", row_index)
 
 
 func _on_popup_menu_index_pressed(index):
