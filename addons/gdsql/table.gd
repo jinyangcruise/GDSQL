@@ -21,6 +21,10 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 ## 表格是否可编辑（datas中的元素必须是DictionaryObject才有效）
 @export var editable: bool = false
 
+## 是否显示默认的右键菜单（包括copy、delete）
+@export var show_menu: bool = false
+
+## 是否支持从右键菜单delete行
 @export var support_delete_row: bool = false
 
 ## 每列的名称。注意：如果要正确显示tooltip，需要先设置column_tips，再设置columns
@@ -411,7 +415,7 @@ func highlight_row(row_panel: PanelContainer) -> void:
 			style_box_1.bg_color.a = 0.0
 			
 	data_of_focused_row = row_panel.get_meta("data", null)
-	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) and \
+	if show_menu and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) and \
 		row_panel.get_rect().has_point(v_box_container.get_local_mouse_position()):
 		popup_menu_text.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
 		popup_menu_text.set_item_metadata(1, row_panel.get_meta("data"))
@@ -436,7 +440,7 @@ func scroll_to_bottom():
 	v_scroll_bar.value = v_scroll_bar.max_value
 
 func _label_gui_input(event: InputEvent, content: String):
-	if event is InputEventMouseButton and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
+	if show_menu and event is InputEventMouseButton and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		popup_menu_text.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
 		popup_menu_text.set_item_metadata(0, content)
 		if support_delete_row and popup_menu_text.get_item_metadata(1) != null:
