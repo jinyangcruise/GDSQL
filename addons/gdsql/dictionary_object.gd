@@ -94,7 +94,8 @@ func _get_property_list() -> Array[Dictionary]:
 	for key in _data:
 		properties.append({
 			"name": key,
-			"type": typeof(_data[key]),
+			"type": _hint[key]["type"] if (_hint.has(key) and _hint[key].has("type")) else (TYPE_NIL if _data[key] == null else typeof(_data[key])),
+			#"type": typeof(_data[key]) if _data[key] != null else (_hint[key]["type"] if _hint.has(key) and _hint[key].has("type") else TYPE_NIL),
 			"usage": PROPERTY_USAGE_DEFAULT,
 			"hint": PROPERTY_HINT_NONE if not (_hint.has(key) and _hint[key].has("hint")) else _hint[key]["hint"],
 			"hint_string": "" if not (_hint.has(key) and _hint[key].has("hint_string")) else _hint[key]["hint_string"]
