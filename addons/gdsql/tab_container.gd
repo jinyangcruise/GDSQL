@@ -148,6 +148,7 @@ func add_tab_new_table(db_name, like_db_name = "", like_table_name = "") -> void
 	# 如果是create table like，把参考表的表结构复制过来
 	if like_db_name != "" and like_table_name != "":
 		var defination = mgr.databases.get(like_db_name, {}).get("tables", {}).get(like_table_name, {}) as Dictionary
+		new_table.table_name = like_table_name
 		new_table.comment = defination.get("comment", "")
 		new_table.raw_datas = defination.get("columns", [])
 	add_child(new_table)

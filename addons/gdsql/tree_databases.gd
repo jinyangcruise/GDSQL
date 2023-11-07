@@ -789,7 +789,7 @@ func refresh() -> void:
 				"table_name": t
 			})
 			
-			popup_menu_create_table_like_table_item.add_item(t)
+			popup_menu_create_table_like_table_item.add_item(t, id)
 			var idx_2 = popup_menu_create_table_like_table_item.get_item_index(id)
 			popup_menu_create_table_like_table_item.set_item_metadata(idx_2, {
 				"db_name": db_name,
@@ -1221,7 +1221,7 @@ func _on_popup_menu_tables_index_pressed(index: int) -> void:
 			if item:
 				mgr.open_add_table_tab.emit(item.get_meta("db_name"))
 		"Create Table Like...":
-			pass
+			pass # 子menu实现，所以留空
 		"Refresh All":
 			refresh()
 			
