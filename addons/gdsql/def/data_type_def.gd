@@ -136,6 +136,8 @@ static var DEFUALT_VALUES = [
 	String(),
 	Vector2(),
 	Vector2i(),
+	Rect2(),
+	Rect2i(),
 	Vector3(),
 	Vector3i(),
 	Transform2D(),
