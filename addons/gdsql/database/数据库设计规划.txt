@@ -127,7 +127,7 @@
 ## hgid: int
 
 ## 技能-魔法消耗关联模板
-## 
+## c_skill_mp_cost
 ## id: int
 ## sid: int
 ## mcid: int
@@ -209,6 +209,7 @@
 ## 		[mental]: 精神技能
 
 ## 技能-元素关联模板
+## c_skill_element
 ## id: int
 ## sid: int						技能id
 ## eid: int						元素id
@@ -231,7 +232,7 @@
 ## desc: String					描述
 
 ## 技能-部署中心模板
-## c_skill_deploy_offset
+## c_skill_deploy_center
 ## id: int
 ## sid: int						技能id
 ## cid: int						中心id
@@ -320,7 +321,7 @@
 ## 装备模板
 ## c_equip
 ## id: int
-## name: int					名称
+## name: String					名称
 ## icon: Texture2D				图标
 
 ## 装备-效果关联
