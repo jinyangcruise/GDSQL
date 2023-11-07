@@ -11,12 +11,10 @@
 ## id: int						玩家id
 ## name: String					玩家名称
 ## create_time: float			创建时间（unix_time）
-## curr_level_id: int			当前所在关卡id
 
 ## 英雄表
 ## t_hero
 ## id: int						英雄id
-## name: String					英雄名称
 ## tid: int						模板id
 ## exp: int						经验值
 ## level: int					等级
@@ -28,6 +26,7 @@
 ## curr_ap: int					当前行动力
 ## init_skill_num: int			初始技能数
 ## keep_skill_num: int			技能保留数
+## curr_level_id: int			当前所在关卡id
 
 ## 玩家-英雄关联表
 ## t_user_hero
@@ -40,8 +39,6 @@
 ## id: int								技能id
 ## tid: int								模板id
 ## level: int							技能等级
-## custom_deploy_range: Array[String]	自定义部署范围
-## custom_deploy_center: Vector2		自定义部署范围的施放中心
 
 ## 英雄-技能关联表
 ## t_user_skill
@@ -76,7 +73,157 @@
 ## sid
 
 ## 扇形-技能关联表
-## 
-## id
-## : int
+## t_sector_skill
+## id: int
+## sector_id: int
 ## skill_id: int
+
+## 技能-效果关联表
+## t_skill_effect
+## id: int
+## sid: int
+## eid: int
+
+## 技能-对象关联表
+## t_skill_target
+## id: int
+## sid: int
+## tid: int
+
+
+## ############################### 配置 ###############################
+
+## 英雄模板
+## c_hero
+## id: int						模板id
+## name: String					英雄名称
+## max_hp: int					初始最大生命
+## max_mp: int					初始最大魔法
+## max_ap: int					初始最大行动力
+## init_skill_num: int			初始技能数
+## keep_skill_num: int			技能保留数
+## desc: String					人物描述
+## stand_texture: Texture2D		立绘
+## head_texture: Texture2D		头像
+
+## 技能模板
+## c_skill
+## id: int						模板id
+## name: String					技能名称
+## icon: Texture2D				技能图标
+## desc: String					技能描述
+## max_level: int				等级上限
+## init_mp_cost: int			初始魔法消耗
+## mp_cost: Curve				魔法消耗曲线
+
+## 元素表（如果技能旁边有相应的加强元素，则技能会加强？升级？）
+## c_element
+## id: int
+## desc: String					描述
+## icon: Texture2D				图标
+## 		[qte]: 快速反应（子弹时间）
+## 		[basic]: 基础技能
+## 		[fire]: 火系技能
+## 		[wind]: 风系技能
+## 		[water]: 水系技能
+## 		[earth]: 土系技能
+## 		[wood]: 木系技能
+## 		[metal]: 金系技能
+## 		[electri]: 电系技能
+## 		[quantu]: 量子技能
+## 		[seal]: 封印技能
+## 		[mental]: 精神技能
+
+## 技能-元素关联模板
+## id: int
+## sid: int						技能id
+## eid: int						元素id
+
+## 部署偏移
+## c_deploy_offset
+## id: int
+## range: Vector2				相对于中心点的距离向量
+## desc: String					描述
+
+## 技能-部署偏移模板
+## c_skill_deploy_offset
+## id: int
+## sid: int						技能id
+## oid: int						偏移id
+
+## 部署中心
+## t_deploy_center
+## id: int
+## desc: String					描述
+
+## 技能-部署中心模板
+## c_skill_deploy_offset
+## id: int
+## sid: int						技能id
+## cid: int						中心id
+
+## 效果模板
+## c_effect
+## id: int
+## node: NodePath
+## desc: String
+
+## 技能-效果关联模板
+## c_skill_effect
+## id: int
+## sid: int
+## eid: int
+
+## 施法对象表
+## c_target
+## id: int
+## desc: String
+
+## 技能-对象关联模板
+## c_skill_target
+## id: int
+## sid: int
+## tid: int
+
+## 效果-对象关联模板
+## c_effect_target
+## id: int
+## eid: int
+## tid: int
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
