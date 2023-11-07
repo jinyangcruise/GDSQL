@@ -493,7 +493,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		var hint = {}
 		var last_data = {}
 		for i in columns:
-			hint[i["Column Name"]] = {"hint": i["Hint"], "hint_string": i["Hint String"]}
+			hint[i["Column Name"]] = {"hint": i["Hint"], "hint_string": i["Hint String"], "type": i["Data Type"]}
 			last_data[i["Column Name"]] = DataTypeDef.DEFUALT_VALUES[i["Data Type"]]
 			
 		# 加俩按钮:1.新建一条数据；2.应用
