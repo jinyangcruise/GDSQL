@@ -273,14 +273,14 @@ func add_row(a_data):
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
 							if ctl:
-								ctl.text = new_value
+								ctl.text = str(new_value)
 						a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
 				TYPE_OBJECT:
 					if data[i] is Resource:
 						handled = true
 						var editor_resource_picker := EditorResourcePicker.new()
-						editor_resource_picker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-						editor_resource_picker.propagate_call("set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
+						#editor_resource_picker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+						#editor_resource_picker.propagate_call("set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
 						editor_resource_picker.base_type = "Resource"
 						editor_resource_picker.edited_resource = data[i]
 						editor_resource_picker.editable = false
