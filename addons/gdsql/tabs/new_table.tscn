@@ -110,6 +110,52 @@ editable = true
 columns = ["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Default(Expression)", "Comment"]
 column_tips = Array[String](["字段名称", "数据类型", "检查器属性提示", "提示字符串", "是否为主键", "是否非空", "是否唯一", "是否自增", "默认值（支持表达式）", "备注"])
 ratios = Array[float]([4.0, 4.0, 3.0, 2.0, 20.0, 19.0, 18.0, 17.0, 1.0, 1.0])
+datas = [Object(RefCounted,"script":Resource("res://addons/gdsql/dictionary_object.gd"),"_origin":{},"_data":{
+"AI": true,
+"Column Name": "id",
+"Comment": "",
+"Data Type": 2,
+"Default(Expression)": "",
+"Hint": 0,
+"Hint String": "",
+"NN": true,
+"PK": true,
+"UQ": false
+},"_hint":{
+"Comment": {
+"hint": 18,
+"hint_string": ""
+},
+"Data Type": {
+"hint": 2,
+"hint_string": "TYPE_NIL:0,TYPE_BOOL:1,TYPE_INT:2,TYPE_FLOAT:3,TYPE_STRING:4,TYPE_VECTOR2:5,TYPE_VECTOR2I:6,TYPE_RECT2:7,TYPE_RECT2I:8,TYPE_VECTOR3:9,TYPE_VECTOR3I:10,TYPE_TRANSFORM2D:11,TYPE_VECTOR4:12,TYPE_VECTOR4I:13,TYPE_PLANE:14,TYPE_QUATERNION:15,TYPE_AABB:16,TYPE_BASIS:17,TYPE_TRANSFORM3D:18,TYPE_PROJECTION:19,TYPE_COLOR:20,TYPE_STRING_NAME:21,TYPE_NODE_PATH:22,TYPE_RID:23,TYPE_OBJECT:24,TYPE_CALLABLE:25,TYPE_SIGNAL:26,TYPE_DICTIONARY:27,TYPE_ARRAY:28,TYPE_PACKED_BYTE_ARRAY:29,TYPE_PACKED_INT32_ARRAY:30,TYPE_PACKED_INT64_ARRAY:31,TYPE_PACKED_FLOAT32_ARRAY:32,TYPE_PACKED_FLOAT64_ARRAY:33,TYPE_PACKED_STRING_ARRAY:34,TYPE_PACKED_VECTOR2_ARRAY:35,TYPE_PACKED_VECTOR3_ARRAY:36,TYPE_PACKED_COLOR_ARRAY:37,TYPE_MAX:38"
+},
+"Default(Expression)": {
+"hint": 19,
+"hint_string": ""
+},
+"Hint": {
+"hint": 2,
+"hint_string": "PROPERTY_HINT_NONE:0,PROPERTY_HINT_RANGE:1,PROPERTY_HINT_ENUM:2,PROPERTY_HINT_ENUM_SUGGESTION:3,PROPERTY_HINT_EXP_EASING:4,PROPERTY_HINT_LINK:5,PROPERTY_HINT_FLAGS:6,PROPERTY_HINT_LAYERS_2D_RENDER:7,PROPERTY_HINT_LAYERS_2D_PHYSICS:8,PROPERTY_HINT_LAYERS_2D_NAVIGATION:9,PROPERTY_HINT_LAYERS_3D_RENDER:10,PROPERTY_HINT_LAYERS_3D_PHYSICS:11,PROPERTY_HINT_LAYERS_3D_NAVIGATION:12,PROPERTY_HINT_FILE:13,PROPERTY_HINT_DIR:14,PROPERTY_HINT_GLOBAL_FILE:15,PROPERTY_HINT_GLOBAL_DIR:16,PROPERTY_HINT_RESOURCE_TYPE:17,PROPERTY_HINT_MULTILINE_TEXT:18,PROPERTY_HINT_EXPRESSION:19,PROPERTY_HINT_PLACEHOLDER_TEXT:20,PROPERTY_HINT_COLOR_NO_ALPHA:21,PROPERTY_HINT_OBJECT_ID:22,PROPERTY_HINT_TYPE_STRING:23,PROPERTY_HINT_NODE_PATH_TO_EDITED_NODE:24,PROPERTY_HINT_OBJECT_TOO_BIG:25,PROPERTY_HINT_NODE_PATH_VALID_TYPES:26,PROPERTY_HINT_SAVE_FILE:27,PROPERTY_HINT_GLOBAL_SAVE_FILE:28,PROPERTY_HINT_INT_IS_OBJECTID:29,PROPERTY_HINT_INT_IS_POINTER:30,PROPERTY_HINT_ARRAY_TYPE:31,PROPERTY_HINT_LOCALE_ID:32,PROPERTY_HINT_LOCALIZABLE_STRING:33,PROPERTY_HINT_NODE_TYPE:34,PROPERTY_HINT_HIDE_QUATERNION_EDIT:35,PROPERTY_HINT_PASSWORD:36,PROPERTY_HINT_LAYERS_AVOIDANCE:37,PROPERTY_HINT_MAX:38"
+}
+},"_update_callback":{
+"AI": Callable(),
+"Column Name": Callable(),
+"Comment": Callable(),
+"Data Type": Callable(),
+"Default(Expression)": Callable(),
+"Hint": Callable(),
+"Hint String": Callable(),
+"NN": Callable(),
+"PK": Callable(),
+"UQ": Callable()
+},"_custom_display_control":{
+"Data Type": Object(Label,"_import_path":NodePath(""),"unique_name_in_owner":false,"process_mode":0,"process_priority":0,"process_physics_priority":0,"process_thread_group":0,"editor_description":"","visible":true,"modulate":Color(1, 1, 1, 1),"self_modulate":Color(1, 1, 1, 1),"show_behind_parent":false,"top_level":false,"clip_children":0,"light_mask":1,"visibility_layer":1,"z_index":0,"z_as_relative":true,"y_sort_enabled":false,"texture_filter":0,"texture_repeat":0,"material":null,"use_parent_material":false,"clip_contents":false,"custom_minimum_size":Vector2(0, 0),"layout_direction":0,"layout_mode":2,"size_flags_horizontal":3,"size_flags_vertical":4,"size_flags_stretch_ratio":611.0,"auto_translate":false,"localize_numeral_system":false,"tooltip_text":"","focus_neighbor_left":NodePath(""),"focus_neighbor_top":NodePath(""),"focus_neighbor_right":NodePath(""),"focus_neighbor_bottom":NodePath(""),"focus_next":NodePath(""),"focus_previous":NodePath(""),"focus_mode":0,"mouse_filter":2,"mouse_force_pass_scroll_events":true,"mouse_default_cursor_shape":0,"shortcut_context":null,"theme":null,"theme_type_variation":&"","text":"TYPE_INT","label_settings":null,"horizontal_alignment":0,"vertical_alignment":0,"autowrap_mode":0,"justification_flags":163,"clip_text":false,"text_overrun_behavior":3,"uppercase":false,"tab_stops":PackedFloat32Array(),"lines_skipped":0,"max_lines_visible":-1,"visible_characters":-1,"visible_characters_behavior":0,"visible_ratio":1.0,"text_direction":0,"language":"","structured_text_bidi_override":0,"structured_text_bidi_override_options":[],"script":null)
+,
+"Hint": Object(Label,"_import_path":NodePath(""),"unique_name_in_owner":false,"process_mode":0,"process_priority":0,"process_physics_priority":0,"process_thread_group":0,"editor_description":"","visible":true,"modulate":Color(1, 1, 1, 1),"self_modulate":Color(1, 1, 1, 1),"show_behind_parent":false,"top_level":false,"clip_children":0,"light_mask":1,"visibility_layer":1,"z_index":0,"z_as_relative":true,"y_sort_enabled":false,"texture_filter":0,"texture_repeat":0,"material":null,"use_parent_material":false,"clip_contents":false,"custom_minimum_size":Vector2(0, 0),"layout_direction":0,"layout_mode":2,"size_flags_horizontal":3,"size_flags_vertical":4,"size_flags_stretch_ratio":609.0,"auto_translate":false,"localize_numeral_system":false,"tooltip_text":"","focus_neighbor_left":NodePath(""),"focus_neighbor_top":NodePath(""),"focus_neighbor_right":NodePath(""),"focus_neighbor_bottom":NodePath(""),"focus_next":NodePath(""),"focus_previous":NodePath(""),"focus_mode":0,"mouse_filter":2,"mouse_force_pass_scroll_events":true,"mouse_default_cursor_shape":0,"shortcut_context":null,"theme":null,"theme_type_variation":&"","text":"PROPERTY_HINT_NONE","label_settings":null,"horizontal_alignment":0,"vertical_alignment":0,"autowrap_mode":0,"justification_flags":163,"clip_text":false,"text_overrun_behavior":3,"uppercase":false,"tab_stops":PackedFloat32Array(),"lines_skipped":0,"max_lines_visible":-1,"visible_characters":-1,"visible_characters_behavior":0,"visible_ratio":1.0,"text_direction":0,"language":"","structured_text_bidi_override":0,"structured_text_bidi_override_options":[],"script":null)
+
+},"_read_only":false,"Column Name":"id","Data Type":2,"Hint":0,"Hint String":"","PK":true,"NN":true,"UQ":false,"AI":true,"Default(Expression)":"","Comment":"")
+]
 
 [node name="HFlowContainer" type="HFlowContainer" parent="VBoxContainer"]
 layout_mode = 2

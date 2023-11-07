@@ -113,14 +113,88 @@
 ## icon: Texture2D				技能图标
 ## desc: String					技能描述
 ## max_level: int				等级上限
-## init_mp_cost: int			初始魔法消耗
-## mp_cost: Curve				魔法消耗曲线
+
+## 技能-关联模板
+## c_skill_hp_cost
+## id: int
+## sid: int
+## hcid: int
+
+## 技能-生命关联模板
+## c_skill_hp_gain
+## id: int
+## sid: int
+## hgid: int
+
+## 技能-魔法消耗关联模板
+## 
+## id: int
+## sid: int
+## mcid: int
+
+## 技能-魔法恢复关联模板
+## c_skill_mp_gain
+## id: int
+## sid: int
+## mgid: int
+
+## 技能-行动力消耗关联模板
+## c_skill_ap_cost
+## id: int
+## sid: int
+## acid: int
+
+## 技能-行动力恢复关联模板
+## c_skill_ap_gain
+## id: int
+## sid: int
+## agid: int
+
+## 生命消耗模板
+## c_hp_cost
+## id: int
+## cost: int					大于0：消耗；小于0：减少消耗
+
+## 生命恢复模板
+## c_hp_gain
+## id: int
+## gain: int					大于0：恢复；小于0：减少恢复
+
+## 魔法消耗模板
+## c_mp_cost
+## id: int
+## cost: int					大于0：消耗；小于0：减少消耗
+
+## 魔法恢复模板
+## c_mp_gain
+## id: int
+## gain: int					大于0：恢复；小于0：减少恢复
+
+## 行动力消耗模板
+## c_ap_cost
+## id: int
+## cost: int					大于0：消耗；小于0：减少消耗
+
+## 行动力恢复模板
+## c_ap_gain
+## id: int
+## gain: int					大于0：恢复；小于0：减少恢复
+
+## 初始技能数
+## c_init_skill_num
+## id: int
+## num: int						大于0：增加；小于0：减少
+
+## 技能保留数
+## c_keep_skill_num
+## id: int
+## num: int						大于0：增加；小于0：减少
 
 ## 元素表（如果技能旁边有相应的加强元素，则技能会加强？升级？）
 ## c_element
 ## id: int
-## desc: String					描述
 ## icon: Texture2D				图标
+## desc: String					描述
 ## 		[qte]: 快速反应（子弹时间）
 ## 		[basic]: 基础技能
 ## 		[fire]: 火系技能
@@ -162,11 +236,14 @@
 ## sid: int						技能id
 ## cid: int						中心id
 
-## 效果模板
+## 效果模板（对属性的影响通过和其他表联表来体现。）
+## 一个效果完不成的东西，就通过多个效果组合完成。
 ## c_effect
 ## id: int
-## node: NodePath
-## desc: String
+## name: String					效果名称
+## node: NodePath				效果节点（node自身不要对数值做影响）
+## node_params: Array			效果节点的参数
+## desc: String					描述
 
 ## 技能-效果关联模板
 ## c_skill_effect
@@ -178,6 +255,7 @@
 ## c_target
 ## id: int
 ## desc: String
+## TODO 枚举
 
 ## 技能-对象关联模板
 ## c_skill_target
@@ -191,8 +269,65 @@
 ## eid: int
 ## tid: int
 
+## 效果-生命消耗关联模板
+## c_effect_hp_cost
+## id: int
+## eid: int
+## hcid: int
 
+## 效果-生命恢复关联模板
+## c_effect_hp_gain
+## id: int
+## eid: int
+## hgid: int
 
+## 效果-魔法消耗关联模板
+## c_effect_mp_cost
+## id: int
+## eid: int
+## mcid: int
+
+## 效果-魔法恢复关联模板
+## c_effect_mp_gain
+## id: int
+## eid: int
+## mgid: int
+
+## 效果-行动力消耗关联模板
+## c_effect_ap_cost
+## id: int
+## eid: int
+## acid: int
+
+## 效果-行动力恢复关联模板
+## c_effect_ap_gain
+## id: int
+## eid: int
+## agid: int
+
+## 效果-初始技能数关联模板
+## c_effect_init_skill_num
+## id: int
+## eid: int
+## iid: int
+
+## 效果-技能保留数关联模板
+## c_effect_keep_skill_num
+## id: int
+## eid: int
+## kid: int
+
+## 装备模板
+## c_equip
+## id: int
+## name: int					名称
+## icon: Texture2D				图标
+
+## 装备-效果关联
+## c_equip_effect
+## id: int
+## eqid: int					装备id
+## efid: int					效果id
 
 
 
