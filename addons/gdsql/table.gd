@@ -281,7 +281,8 @@ func add_row(a_data):
 						if data[i] is Texture2D:
 							var texture_rect = TextureRect.new()
 							texture_rect.texture = data[i]
-							texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+							texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+							texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 							texture_rect.tooltip_text = "%s\nType: %s\nSize: %s" % [data[i].resource_path, data[i].get_class(), data[i].get_size()]
 							control = texture_rect
 						else:
