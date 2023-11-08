@@ -278,21 +278,29 @@ func add_row(a_data):
 				TYPE_OBJECT:
 					if data[i] is Resource:
 						handled = true
-						var editor_resource_picker := EditorResourcePicker.new()
-						#editor_resource_picker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-						#editor_resource_picker.propagate_call("set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
-						editor_resource_picker.base_type = "Resource"
-						editor_resource_picker.edited_resource = data[i]
-						editor_resource_picker.editable = false
-						control = editor_resource_picker
-						if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
-							var callback = func(new_value, control_ref: WeakRef):
-								var ctl = control_ref.get_ref()
-								if ctl:
-									ctl.edited_resource = new_value
-							a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
-						#control = texture_rect_model.duplicate()
-						#control.texture = data[i]
+						if data[i] is Texture2D:
+							var texture_rect = TextureRect.new()
+							texture_rect.texture = data[i]
+							texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
+							texture_rect.tooltip_text = "%s\nType: %s\nSize: %s" % [data[i].resource_path, data[i].get_class(), data[i].get_size()]
+							control = texture_rect
+						else:
+							## 注意：EditorResourcePicker有些慢，如果数据量比较大，会很卡，所以尽可能把常用的类型单独处理，比如上面的Texture2D
+							var editor_resource_picker := EditorResourcePicker.new()
+							#editor_resource_picker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+							#editor_resource_picker.propagate_call("set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
+							editor_resource_picker.base_type = "Resource"
+							editor_resource_picker.edited_resource = data[i]
+							editor_resource_picker.editable = false
+							control = editor_resource_picker
+							if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
+								var callback = func(new_value, control_ref: WeakRef):
+									var ctl = control_ref.get_ref()
+									if ctl:
+										ctl.edited_resource = new_value
+								a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
+							#control = texture_rect_model.duplicate()
+							#control.texture = data[i]
 					## TODO 可能需要添加其他有必要预览的类型
 				
 		if not handled:
