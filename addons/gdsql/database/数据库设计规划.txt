@@ -195,7 +195,7 @@
 ## id: int
 ## icon: Texture2D				图标
 ## desc: String					描述
-## 		[qte]: 快速反应（子弹时间）
+## 		[qte]: 
 ## 		[basic]: 基础技能
 ## 		[fire]: 火系技能
 ## 		[wind]: 风系技能
@@ -203,8 +203,8 @@
 ## 		[earth]: 土系技能
 ## 		[wood]: 木系技能
 ## 		[metal]: 金系技能
-## 		[electri]: 电系技能
-## 		[quantu]: 量子技能
+## 		[electric]: 电系技能
+## 		[quantum]: 量子技能
 ## 		[seal]: 封印技能
 ## 		[mental]: 精神技能
 
