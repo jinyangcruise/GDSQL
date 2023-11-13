@@ -679,8 +679,9 @@ func gen_insert_node() -> GraphNode:
 					var hints = {}
 					for col in mgr.databases[schema_dict_obj._get("Schema")]["tables"][new_val]["columns"]:
 						data[col["Column Name"]] = DataTypeDef.DEFUALT_VALUES[col["Data Type"]]
-						hints[col["Column Name"]] = {"hint": col["Hint"], "hint_string": col["Hint String"]}
+						hints[col["Column Name"]] = {"hint": col["Hint"], "hint_string": col["Hint String"], "type": col["Data Type"]}
 					fields_dict_obj = DictionaryObject.new(data, hints)
+					fields_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
 				else:
 					fields_dict_obj = null
 				graph_node.datas[2][2] = fields_dict_obj
@@ -764,8 +765,9 @@ func gen_update_node() -> GraphNode:
 					var hints = {}
 					for col in mgr.databases[schema_dict_obj._get("Schema")]["tables"][new_val]["columns"]:
 						data[col["Column Name"]] = DataTypeDef.DEFUALT_VALUES[col["Data Type"]]
-						hints[col["Column Name"]] = {"hint": col["Hint"], "hint_string": col["Hint String"]}
+						hints[col["Column Name"]] = {"hint": col["Hint"], "hint_string": col["Hint String"], "type": col["Data Type"]}
 					fields_dict_obj = DictionaryObject.new(data, hints)
+					fields_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
 				else:
 					fields_dict_obj = null
 				graph_node.datas[2][2] = fields_dict_obj
