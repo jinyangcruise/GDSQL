@@ -440,41 +440,54 @@ func ___datas_struct_is_key_dict(datas: Array) -> bool:
 	return true
 	
 func ___loop_table_row(result: Array, all_datas: Dictionary, loop_tables: Array, loop_index: int, 
-curr_row: Dictionary):
+curr_row: Dictionary, all_dependencies: Array):
 	if loop_index == loop_tables.size():
-		var ret = curr_row.duplicate()
+		var ret = curr_row.duplicate() # 当前这条数据
 		# 循环到头了，依次检查每个表是否满足on条件
+		var ok = true
 		var arr_left_join = __left_join.get_chain_left_joins()
+		# 只要有一个条件不满足，这条数据就无效
 		for a_left_join in arr_left_join:
 			var cond = a_left_join.get_condition()
 			var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
 			if not conditionWrapper.cond(cond).check(curr_row):
 				ret.erase(a_left_join.get_alias())
+				ok = false
+				break
 				
 		# 多次检查依赖项是否存在，不存在需要删除
-		for i in 10000:
-			var delete_flag = false
-			for a_left_join in arr_left_join:
-				var dependencies: Array = a_left_join.get_dependencies()
-				for t in dependencies:
-					if t != __table_alias and !ret.has(t):
-						ret.erase(t)
-						delete_flag = true # 删除过就需要重新检查
-						
-			if delete_flag == false:
-				break
+		#for i in 10000:
+			#var delete_flag = false
+			#for a_left_join in arr_left_join:
+				#var dependencies: Array = a_left_join.get_dependencies()
+				#for t in dependencies:
+					#if t != __table_alias and !ret.has(t):
+						#ret.erase(t)
+						#delete_flag = true # 删除过就需要重新检查
+						#
+			#if delete_flag == false:
+				#break
 				
 		# 这条数据可用
 		# 至少要包含两个表（因为ret必定包含主表，还需要再多包含一个别的表，那么长度就大于1了）
-		if ret.size() > 1:
+		#if ret.size() > 1:
+			#result.push_back(ret)
+		if ok:
 			result.push_back(ret)
 			
 	else:
 		var table = loop_tables[loop_index]
-		for row in all_datas[table]:
-			var acc_row = curr_row.duplicate()
-			acc_row[table] = row
-			___loop_table_row(result, all_datas, loop_tables, loop_index + 1, acc_row)
+		if all_datas[table].size() > 0:
+			for row in all_datas[table]:
+				var acc_row = curr_row.duplicate()
+				acc_row[table] = row
+				___loop_table_row(result, all_datas, loop_tables, loop_index + 1, acc_row, all_dependencies)
+		# 当前表没有数据依旧要保持循环继续
+		else:
+			# 如果有其他表要依赖当前表，则说明on条件永远无法达成，就不用继续了。否则继续
+			if not all_dependencies.has(table):
+				var acc_row = curr_row.duplicate()
+				___loop_table_row(result, all_datas, loop_tables, loop_index + 1, acc_row, all_dependencies)
 	
 func ___select(path: String, fill_primary_key: String = ""):
 	var ret: Array = []
@@ -495,6 +508,11 @@ func ___select(path: String, fill_primary_key: String = ""):
 		conf1.fill_primary_key = fill_primary_key
 		all_datas[a_left_join.get_alias()] = conf1.get_all_section_values()
 		
+	# 提前汇总一下所有需要的依赖表
+	var dependencies = []
+	for a_left_join in arr_left_join:
+		dependencies.append_array(a_left_join.get_dependencies())
+		
 	# 不联表的情况
 	if __left_join == null:
 		# 统一转化成按表名分类的结构
@@ -507,7 +525,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 		loop_tables.erase(__table_alias)
 		for row in all_datas[__table_alias]:
 			var row_result = []
-			___loop_table_row(row_result, all_datas, loop_tables, 0, {__table_alias: row})
+			___loop_table_row(row_result, all_datas, loop_tables, 0, {__table_alias: row}, dependencies)
 			# 这行主表的数据没有联到任何其他表的数据，因此需要一条别的表全为null的数据
 			if row_result.is_empty():
 				ret.push_back({__table_alias: row})
@@ -801,7 +819,7 @@ func __get_table_defination(db_path: String, table_name: String):
 	var columns: Array
 	if Engine.has_singleton("GDSQLWorkbenchManager"):
 		if mgr.databases:
-			columns = mgr.get_table_columns(db_path, table_name)
+			columns = mgr.get_table_columns_by_datapath(db_path, table_name)
 		
 	if columns == null or columns.is_empty():
 		if __root_config == null:
@@ -810,7 +828,9 @@ func __get_table_defination(db_path: String, table_name: String):
 		if __config == null:
 			var db_info = __root_config.filter_first_values("data_path", db_path)
 			if db_info.is_empty():
-				return []
+				db_info = __root_config.filter_first_values("data_path", ProjectSettings.globalize_path(db_path))
+				if db_info.is_empty():
+					return []
 				
 			var table_conf_path = db_info.get("config_path") + table_name.get_basename() + CONF_EXTENSION
 			if not FileAccess.file_exists(table_conf_path):
