@@ -491,10 +491,13 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		
 	if table.editable:
 		var hint = {}
-		var last_data = {}
+		var column_map = {}
+		var new_data = {}
 		for i in columns:
+			column_map[i["Column Name"]] = i
 			hint[i["Column Name"]] = {"hint": i["Hint"], "hint_string": i["Hint String"], "type": i["Data Type"]}
-			last_data[i["Column Name"]] = DataTypeDef.DEFUALT_VALUES[i["Data Type"]]
+			new_data[i["Column Name"]] = DataTypeDef.DEFUALT_VALUES[i["Data Type"]] if i["Default(Expression)"] == "" \
+				else mgr.evaluate_command(null, i["Default(Expression)"])
 			
 		# 加俩按钮:1.新建一条数据；2.应用
 		var flow_container = HFlowContainer.new()
@@ -528,6 +531,9 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 							daos.push_back(BaseDao.new().use_db(db_path).delete_from(table_name)
 								.where("%s == %s" % [primary_key, var_to_str(modified_data[primary_key]["old"])]))
 						daos.push_back(BaseDao.new().use_db(db_path).insert_into(table_name).values(i.get_data()))
+					# 不包含主键，但是新增
+					elif i.has_meta("new"):
+						daos.push_back(BaseDao.new().use_db(db_path).insert_into(table_name).values(i.get_modified_new_value()))
 					# update的情况
 					else:
 						var data = {}
@@ -587,7 +593,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		var btn_new = Button.new()
 		btn_new.text = "new"
 		btn_new.pressed.connect(func():
-			var dict_obj = DictionaryObject.new(last_data.duplicate(true), hint, false)
+			var dict_obj = DictionaryObject.new(new_data.duplicate(true), hint, false)
 			dict_obj.set_meta("new", true)
 			dict_obj.value_changed.connect(func(_prop, _new_val, _old_val):
 				if not table.get_meta("deleted_datas", {}).is_empty():
@@ -1164,6 +1170,8 @@ func _on_graph_edit_connection_from_empty(to_node: StringName, to_port: int, rel
 	assert(node.has_meta("type"), "node dose not have meta: type")
 	match node.get_meta("type"):
 		"Select":
+			set_input(to_port, release_position, node)
+		"Left Join":
 			set_input(to_port, release_position, node)
 
 
