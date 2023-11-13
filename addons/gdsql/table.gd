@@ -40,6 +40,12 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 						buttons[i+1].tooltip_text = column_tips[i]
 			else:
 				reset_header()
+				
+@export var label_max_lines_visible: int = 1:
+	set(val):
+		label_max_lines_visible = val
+		if label_model:
+			label_model.max_lines_visible = val
 			
 ## 表头tooltip
 @export var column_tips: Array = []
@@ -75,6 +81,7 @@ func _ready() -> void:
 	reset_header()
 	await get_tree().process_frame
 	datas = datas
+	label_max_lines_visible = label_max_lines_visible
 	if is_inside_tree() and !datas.is_empty():
 		for i in 50:
 			await create_tween().tween_callback(func(): realign_rows()).set_delay(0.1).finished
@@ -415,6 +422,8 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 	emit_click.call()
 
 func highlight_row(row_panel: PanelContainer) -> void:
+	await get_tree().create_timer(0.1).timeout
+	scroll_container.scroll_vertical = row_panel.position.y + row_panel.size.y
 	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")
 	style_box.bg_color.a = 0.788
 	# 清空兄弟节点的背景色。这个逻辑不放在focus_exited里是因为这两个信号的发生顺序，是先exited，再entered
