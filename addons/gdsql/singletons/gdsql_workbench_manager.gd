@@ -112,10 +112,23 @@ func run_in_plugin(node: Node) -> bool:
 		return false
 	return node == main_panel or main_panel.is_ancestor_of(node)
 
-func get_table_columns(db, table) -> Array:
+func get_table_columns(db, table: String) -> Array:
 	if databases:
+		if table.ends_with(".gsql"):
+			table = table.replace(".gsql", "")
 		return databases.get(db, {}).get("tables", {}).get(table, {})\
 			.get("columns", [])
+	return []
+
+func get_table_columns_by_datapath(data_path, table: String) -> Array:
+	if databases:
+		if table.ends_with(".gsql"):
+			table = table.replace(".gsql", "")
+		for db in databases:
+			if databases[db]["data_path"] == data_path or \
+			ProjectSettings.globalize_path(databases[db]["data_path"]) == ProjectSettings.globalize_path(data_path):
+				return databases[db].get("tables", {}).get(table, {})\
+					.get("columns", [])
 	return []
 	
 func _add_dialog(dialog: AcceptDialog):
