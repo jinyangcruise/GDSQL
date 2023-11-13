@@ -422,8 +422,8 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 	emit_click.call()
 
 func highlight_row(row_panel: PanelContainer) -> void:
-	await get_tree().create_timer(0.1).timeout
-	scroll_container.scroll_vertical = row_panel.position.y + row_panel.size.y
+	#await get_tree().create_timer(0.1).timeout
+	#scroll_container.scroll_vertical = row_panel.position.y + row_panel.size.y
 	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")
 	style_box.bg_color.a = 0.788
 	# 清空兄弟节点的背景色。这个逻辑不放在focus_exited里是因为这两个信号的发生顺序，是先exited，再entered
