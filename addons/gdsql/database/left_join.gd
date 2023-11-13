@@ -119,7 +119,7 @@ func get_query_cmds() -> Array:
 	var ret = ["left join %s %s on %s" % [__table, __table_alias, __condition]]
 	var obj = __left_join
 	while obj != null:
-		ret.push_back(["left join %s %s on %s" % [obj.__table, obj.__table_alias, obj.__condition]])
+		ret.push_back("left join %s %s on %s" % [obj.__table, obj.__table_alias, obj.__condition])
 		obj = obj.__left_join
 	return ret
 	
