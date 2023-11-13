@@ -189,26 +189,46 @@ func redraw():
 							hb.add_child(label)
 					elif data is DictionaryObject:
 						#has_content = true
+						# 一些控件依赖inspector，为了简化，所有情况都使用inspector。
+						# 比如：EditorPropertyResource，如果不放到一个inspector中的话，reparent的时候（它想折叠资源）会报错，影响体验。
+						var inspector = EditorInspector.new()
+						inspector.queue_redraw()
+						inspector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+						inspector.size_flags_vertical = Control.SIZE_EXPAND_FILL
+						inspector.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+						hb.add_child(inspector)
+						
+						# 允许用户使用垂直方式排列属性（默认横向）
+						var p_container
+						if data.get_meta("align", "horizontal") == "vertical":
+							p_container = VBoxContainer.new()
+						else:
+							p_container = HBoxContainer.new()
+						p_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+						p_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+						hb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+						inspector.add_child(p_container)
+						
 						EditorInterface.inspect_object(data)
 						var properties = data._get_property_list().map(func(v): return v["name"])
 						var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
 						for i in properties.size():
 							# 下划线开头的隐藏label。隐藏方法是把控件整个添加到一个能按比例隐藏子控件的控件中
 							var editor_property = editor_properties[i]
-							editor_property.set_meta("isDictObj", true)
 							# 只有让检查器显示这个属性，才能修改这个属性。否则修改的是检查器当前显示的属性。
 							connect_focused_propagate(editor_property, data)
 							__property_old_parents[editor_property] = weakref(editor_property.get_parent())
 							editor_property.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+							editor_property.size_flags_vertical = Control.SIZE_EXPAND_FILL
 							editor_property.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
 							if (properties[i] as String).begins_with("_"):
 								var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
 								container.invisible_ratio = 0.5
 								container.control = editor_property
-								container.set_meta("hasDictObj", true)
-								hb.add_child(container)
+								container.set_meta("cut_control", true)
+								p_container.add_child(container)
 							else:
-								editor_property.reparent(hb)
+								editor_property.reparent(p_container)
 								
 					elif data is Control:
 						if data.get_class() == "Control" and data.get_child_count() == 0:
@@ -239,11 +259,12 @@ func push_redraw_slot_control(slot_row_index, slot_col_index):
 	
 ## 强制刷新某个栏位的控件。
 func redraw_slot_control(slot_row_index, slot_col_index):
-	# 记录焦点控件，用于恢复（如果不恢复，正在修改被刷新控件的内容，则会造成用户无法连续输入
+	# 记录焦点控件，用于恢复（如果不恢复，正在修改被刷新控件的内容，则会造成无法连续输入或用户输入后数据并没生效
 	var focus_owner = get_viewport().gui_get_focus_owner()
 	var hb = get_child(slot_row_index)
 	
-	# 等失去焦点的时候再重绘，免得影响连续输入
+	# 如果请求刷新某hb里的内容，但是该hb里边的内容正在被编辑，就会造成无法输入。
+	# 所以等失去焦点的时候再重绘或者要刷新的地方和正被编辑的地方无关时再重绘，免得影响连续输入或用户输入后数据并没生效。
 	if focus_owner != null and hb.is_ancestor_of(focus_owner):
 		push_redraw_slot_control(slot_row_index, slot_col_index)
 		return
@@ -260,27 +281,25 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 		else:
 			set_slot_enabled_right(slot_row_index, true)
 			
-	# 释放旧的
-	for child in hb.get_children():
-		var old_editor_property # 通过剥夺检查器里的元素获取到的控件
-		if child.has_meta("isDictObj"):
-			old_editor_property = child
-		elif child.has_meta("hasDictObj"):
-			old_editor_property = child.control # child is a cut_control
-			child.control = null
-		else:
-			continue
+	# 释放旧的EditorProperty
+	var arr = []
+	search_editor_property(hb, arr)
+	
+	for ep: EditorProperty in arr:
+		# parent is a cut_control
+		if ep.get_parent() != null and ep.get_parent().has_meta("cut_control"):
+			ep.get_parent().control = null
 			
-		disconnect_focused_propagate(old_editor_property)
-		if __property_old_parents[old_editor_property].get_ref():
-			if old_editor_property.get_parent():
-				old_editor_property.reparent(__property_old_parents[old_editor_property].get_ref())
+		disconnect_focused_propagate(ep)
+		if __property_old_parents[ep].get_ref():
+			if ep.get_parent():
+				ep.reparent(__property_old_parents[ep].get_ref())
 			else:
-				__property_old_parents[old_editor_property].get_ref().add_child(old_editor_property)
-			__property_old_parents.erase(old_editor_property)
+				__property_old_parents[ep].get_ref().add_child(ep)
+			__property_old_parents.erase(ep)
 		else:
-			__property_old_parents.erase(old_editor_property)
-			old_editor_property.queue_free()
+			__property_old_parents.erase(ep)
+			ep.queue_free()
 			
 	while hb.get_child_count() > 0:
 		var c = hb.get_child(0)
@@ -310,24 +329,56 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 		else:
 			hb.add_child(data)
 	elif data is DictionaryObject:
+		# 一些控件依赖inspector，为了简化，所有情况都使用inspector
+		var inspector = EditorInspector.new()
+		inspector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		inspector.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		inspector.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		hb.add_child(inspector)
+		
+		# 允许用户使用垂直方式排列属性（默认横向）
+		var p_container
+		if data.get_meta("align", "horizontal") == "vertical":
+			p_container = VBoxContainer.new()
+		else:
+			p_container = HBoxContainer.new()
+		p_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		p_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		hb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		inspector.add_child(p_container)
+		
 		EditorInterface.inspect_object(data)
 		var properties = data._get_property_list().map(func(v): return v["name"])
 		var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
 		for i in properties.size():
 			# 下划线开头的隐藏label。隐藏方法是把控件整个添加到一个能按比例隐藏子控件的控件中
 			var editor_property: EditorProperty = editor_properties[i]
+			
 			# 只有让检查器显示这个属性，才能修改这个属性。否则修改的是检查器当前显示的属性。
 			connect_focused_propagate(editor_property, data)
 			__property_old_parents[editor_property] = weakref(editor_property.get_parent())
 			editor_property.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			editor_property.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			editor_property.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
 			if (properties[i] as String).begins_with("_"):
 				var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
 				container.invisible_ratio = 0.5
 				container.control = editor_property
-				hb.add_child(container)
+				container.set_meta("cut_control", true)
+				p_container.add_child(container)
 			else:
-				editor_property.reparent(hb)
+				editor_property.reparent(p_container)
+				
+	# 上面的过程中几乎肯定会改变检查器当前编辑的对象，从而影响原来正被编辑的对象的修改，所以需要激活原来的对象编辑
+	if focus_owner != null:
+		focus_owner.emit_signal("focus_entered") # 可以触发之前绑定的函数：editor_property_focused
+				
+func search_editor_property(container: Control, ret: Array):
+	if container is EditorProperty:
+		ret.push_back(container)
+	elif container.get_child_count() > 0:
+		for i in container.get_children():
+			search_editor_property(i, ret)
 				
 ## 返回第一个匹配该属性名称的值
 func get_prop_value(prop):
@@ -338,15 +389,15 @@ func get_prop_value(prop):
 					return data._get(prop)
 	return null
 	
-func hide_property_control(index):
-	var p = get_child(index)
-	if p is HBoxContainer and p.get_child(0) is EditorProperty:
-		p.get_child(0).get_child(0).hide()
-		
-func show_property_control(index):
-	var p = get_child(index)
-	if p is HBoxContainer and p.get_child(0) is EditorProperty:
-		p.get_child(0).get_child(0).show()
+#func hide_property_control(index):
+	#var p = get_child(index)
+	#if p is HBoxContainer and p.get_child(0) is EditorProperty:
+		#p.get_child(0).get_child(0).hide()
+		#
+#func show_property_control(index):
+	#var p = get_child(index)
+	#if p is HBoxContainer and p.get_child(0) is EditorProperty:
+		#p.get_child(0).get_child(0).show()
 	
 func _on_check_button_enable_toggled(button_pressed: bool) -> void:
 	enabled = button_pressed
