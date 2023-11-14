@@ -33,7 +33,7 @@ func _on_button_open_pressed() -> void:
 	var editor_file_dialog = EditorFileDialog.new()
 	editor_file_dialog.access = EditorFileDialog.ACCESS_FILESYSTEM
 	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
-	editor_file_dialog.add_filter("*.gdsql", "GDSQL File")
+	editor_file_dialog.add_filter("*.gdsqlgraph", "GDSQL GRAPH File")
 	editor_file_dialog.file_selected.connect(func(path: String):
 		request_open_file.emit(path)
 	)
@@ -46,23 +46,36 @@ func _on_button_open_pressed() -> void:
 func _on_button_save_pressed() -> void:
 	# 本身就是一个已经保存的文件，就直接保存
 	if get_meta("is_file"):
-		var file = FileAccess.open(get_meta("file_path"), FileAccess.WRITE)
-		file.store_string(graph_edit.text) # TODO 怎么保存图？
+		var config = ImprovedConfigFile.new()
+		config.set_value("data", "nodes", get_nodes_params())
+		config.set_value("data", "connections", graph_edit.get_connection_list().map(func(v):
+			v["from_node"] = v["from_node"].validate_node_name()
+			v["to_node"] = v["to_node"].validate_node_name()
+			return v
+		))
+		config.save(get_meta("file_path"))
 		change_tab_title.emit(self, get_meta("file_name"))
 		return
 		
 	var editor_file_dialog = EditorFileDialog.new()
 	editor_file_dialog.access = EditorFileDialog.ACCESS_FILESYSTEM
 	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_SAVE_FILE
-	editor_file_dialog.add_filter("*.gdsql", "GDSQL File")
+	editor_file_dialog.add_filter("*.gdsqlgraph", "GDSQL GRAPH File")
 	editor_file_dialog.file_selected.connect(func(path: String):
-		var file = FileAccess.open(path, FileAccess.WRITE)
-		file.store_string(graph_edit.text)
+		var config = ImprovedConfigFile.new()
+		config.set_value("data", "nodes", get_nodes_params())
+		config.set_value("data", "connections", graph_edit.get_connection_list().map(func(v):
+			v["from_node"] = v["from_node"].validate_node_name()
+			v["to_node"] = v["to_node"].validate_node_name()
+			return v
+		))
+		config.save(path)
 		var file_name = path.get_file()
 		change_tab_title.emit(self, file_name)
+		set_meta("type", "sql_graph")
 		set_meta("is_file", true)
-		set_meta("file_name", file_name)
 		set_meta("file_path", path)
+		set_meta("file_name", file_name)
 	)
 	add_child(editor_file_dialog)
 	editor_file_dialog.popup_centered_ratio(0.7)
@@ -126,6 +139,8 @@ func _on_button_add_node_select_pressed() -> void:
 	graph_edit.add_child(graph_node)
 	graph_node.position_offset = \
 		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+		
+	mark_modified()
 	
 func _on_button_add_node_left_join_pressed():
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
@@ -136,6 +151,8 @@ func _on_button_add_node_left_join_pressed():
 	graph_node.position_offset = \
 		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 		
+	mark_modified()
+		
 func _on_button_add_node_insert_pressed():
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
@@ -144,6 +161,8 @@ func _on_button_add_node_insert_pressed():
 	graph_edit.add_child(graph_node)
 	graph_node.position_offset = \
 		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+		
+	mark_modified()
 
 func _on_button_add_node_update_pressed():
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
@@ -153,6 +172,8 @@ func _on_button_add_node_update_pressed():
 	graph_edit.add_child(graph_node)
 	graph_node.position_offset = \
 		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+		
+	mark_modified()
 
 func _on_button_add_node_delete_pressed():
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
@@ -162,20 +183,31 @@ func _on_button_add_node_delete_pressed():
 	graph_edit.add_child(graph_node)
 	graph_node.position_offset = \
 		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+		
+	mark_modified()
 	
-func add_select_node(schema = "", table = "", fields = "*", where = "", order_by = "", offset = 0, limit = 100):
+func add_select_node(schema = "", table = "", fields = "*", where = "", order_by = "", offset = 0, 
+limit = 100, alias = "", password = "", asize = null, pos_offset = null, aname = "", query = true):
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
 	
 	var graph_node = gen_select_node()
+	if aname != "":
+		graph_node.name = aname
 	graph_edit.add_child(graph_node)
 	
 	# 等待页面就绪
 	if not graph_edit.get_rect().has_area():
 		await graph_edit.resized
 		
-	graph_node.position_offset = \
-		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+	if pos_offset == null:
+		graph_node.position_offset = \
+			(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+	else:
+		graph_node.position_offset = pos_offset
+		
+	if asize != null:
+		graph_node.set_deferred("size", asize)
 	
 	var schema_dict_obj: DictionaryObject = graph_node.datas[2][2]
 	var table_dict_obj: DictionaryObject = graph_node.datas[3][2]
@@ -188,8 +220,12 @@ func add_select_node(schema = "", table = "", fields = "*", where = "", order_by
 	
 	if schema != schema_dict_obj._get("Schema"):
 		schema_dict_obj._set("Schema", schema)
+	if password != schema_dict_obj._get("_password"):
+		schema_dict_obj._set("_password", password)
 	if table != table_dict_obj._get("Table"):
 		table_dict_obj._set("Table", table)
+	if alias != table_dict_obj._get("_alias"):
+		table_dict_obj._set("_alias", alias)
 	if fields != fields_dict_obj._get("Fields"):
 		fields_dict_obj._set("Fields", fields)
 	if where != where_dict_obj._get("Where"):
@@ -201,7 +237,8 @@ func add_select_node(schema = "", table = "", fields = "*", where = "", order_by
 	if offset != limit_dict_obj._get("Limit"):
 		limit_dict_obj._set("Limit", limit)
 		
-	btn_query.emit_signal("pressed")
+	if query:
+		btn_query.emit_signal("pressed")
 	
 func gen_select_node() -> GraphNode:
 	var databases = mgr.databases.keys()
@@ -226,6 +263,7 @@ func gen_select_node() -> GraphNode:
 	
 	var graph_node = SQLGraphNode.instantiate()
 	graph_node.set_meta("base_dao", base_dao)
+	graph_node.node_enable_status.connect(mark_modified)
 	
 	# 根据选择的数据库来更新表名备选项
 	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
@@ -324,7 +362,45 @@ func gen_select_node() -> GraphNode:
 	)
 	
 	return graph_node
+	
+func add_left_join_node(schema = "", password = "", table = "", alias = "", 
+cond = "", asize = null, pos_offset = null, aname = ""):
+	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
+	unselect_all_node()
+	
+	var graph_node = gen_left_join_node()
+	if aname != "":
+		graph_node.name = aname
+	graph_edit.add_child(graph_node)
+	
+	# 等待页面就绪
+	if not graph_edit.get_rect().has_area():
+		await graph_edit.resized
 		
+	if pos_offset == null:
+		graph_node.position_offset = \
+			(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+	else:
+		graph_node.position_offset = pos_offset
+		
+	if asize != null:
+		graph_node.set_deferred("size", asize)
+	
+	var schema_dict_obj: DictionaryObject = graph_node.datas[1][2]
+	var table_dict_obj: DictionaryObject = graph_node.datas[2][2]
+	var cond_dict_obj: DictionaryObject = graph_node.datas[3][2]
+	
+	if schema != schema_dict_obj._get("Schema"):
+		schema_dict_obj._set("Schema", schema)
+	if password != schema_dict_obj._get("_password"):
+		schema_dict_obj._set("_password", password)
+	if table != table_dict_obj._get("Table"):
+		table_dict_obj._set("Table", table)
+	if alias != table_dict_obj._get("_alias"):
+		table_dict_obj._set("_alias", alias)
+	if cond != cond_dict_obj._get("On"):
+		cond_dict_obj._set("On", cond)
+	
 func gen_left_join_node() -> GraphNode:
 	var databases = mgr.databases.keys()
 	
@@ -343,6 +419,7 @@ func gen_left_join_node() -> GraphNode:
 	
 	var graph_node = SQLGraphNode.instantiate()
 	graph_node.set_meta("left_join", left_join_obj)
+	graph_node.node_enable_status.connect(mark_modified)
 	
 	# 根据选择的数据库来更新表名备选项
 	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
@@ -372,11 +449,6 @@ func gen_left_join_node() -> GraphNode:
 			"On":
 				left_join_obj.set_condition(new_val)
 	)
-	
-	var btn_query = Button.new()
-	btn_query.text = "query"
-	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_query.pressed.connect(on_select_node_query.bind(graph_node, true))
 	
 	var separator = Control.new()
 	separator.custom_minimum_size.y = 20
@@ -411,6 +483,29 @@ func gen_left_join_node() -> GraphNode:
 	
 	return graph_node
 	
+func add_table_node(columns: Array, table_datas: Array, asize = null, pos_offset = null, aname = ""):
+	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
+	unselect_all_node()
+	
+	var graph_node = gen_table_node(columns, table_datas)
+	if aname != "":
+		graph_node.name = aname
+	graph_edit.add_child(graph_node)
+	
+	# 等待页面就绪
+	if not graph_edit.get_rect().has_area():
+		await graph_edit.resized
+		
+	if pos_offset == null:
+		graph_node.position_offset = \
+			(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+	else:
+		graph_node.position_offset = pos_offset
+		
+	if asize != null:
+		graph_node.set_deferred("size", asize)
+		
+	
 ## 生成一个【表格】节点
 func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNode = null) -> GraphNode:
 	var graph_node = old_graph_node
@@ -419,6 +514,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 	
 	if graph_node == null:
 		graph_node = SQLGraphNode.instantiate()
+		graph_node.node_enable_status.connect(mark_modified)
 	
 		var margin_container = MarginContainer.new()
 		margin_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -428,6 +524,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		table = preload("res://addons/gdsql/table.tscn").instantiate()
 		table.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		margin_container.add_child(table)
+		table.set_meta("columns", columns)
 		table.column_tips = columns.map(func(v): 
 			return type_string(v["Data Type"]) if v.has("Data Type") else "")
 		table.columns = columns.map(func(v): return v["field_as"])
@@ -454,6 +551,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		graph_node.selected = true
 		graph_datas = graph_node.datas
 		table = graph_datas[0][0].get_child(0) # [0][0]是margin_container
+		table.set_meta("columns", columns)
 		table.column_tips = columns.map(func(v): 
 			return type_string(v["Data Type"]) if v.has("Data Type") else "")
 		table.columns = columns.map(func(v): return v["field_as"])
@@ -645,6 +743,52 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 	
 	return graph_node
 	
+func add_insert_node(schema = "", password = "", table = "", fields = {}, 
+asize = null, pos_offset = null, aname = ""):
+	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
+	unselect_all_node()
+	
+	var graph_node = gen_insert_node()
+	if aname != "":
+		graph_node.name = aname
+	graph_edit.add_child(graph_node)
+	
+	# 等待页面就绪
+	if not graph_edit.get_rect().has_area():
+		await graph_edit.resized
+		
+	if pos_offset == null:
+		graph_node.position_offset = \
+			(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+	else:
+		graph_node.position_offset = pos_offset
+		
+	if asize != null:
+		graph_node.set_deferred("size", asize)
+	
+	var schema_dict_obj: DictionaryObject = graph_node.datas[0][2]
+	var table_dict_obj: DictionaryObject = graph_node.datas[1][2]
+	
+	if not fields.is_empty():
+		var redraw_call_ref: Callable
+		var redraw_call = func(row, col):
+			if row == 2 and col == 2 and table_dict_obj._get("Table") == table:
+				var fields_dict_obj: DictionaryObject = graph_node.datas[2][2]
+				for key in fields:
+					fields_dict_obj._set(key, fields[key])
+				graph_node.redraw_slot.disconnect(redraw_call_ref)
+				
+		redraw_call_ref = redraw_call
+		graph_node.redraw_slot.connect(redraw_call_ref)
+		
+	if schema != schema_dict_obj._get("Schema"):
+		schema_dict_obj._set("Schema", schema)
+	if password != schema_dict_obj._get("_password"):
+		schema_dict_obj._set("_password", password)
+	if table != table_dict_obj._get("Table"):
+		table_dict_obj._set("Table", table)
+		
+	
 func gen_insert_node() -> GraphNode:
 	var databases = mgr.databases.keys()
 	
@@ -661,6 +805,7 @@ func gen_insert_node() -> GraphNode:
 	base_dao.insert_into("")
 	var graph_node = SQLGraphNode.instantiate()
 	graph_node.set_meta("base_dao", base_dao)
+	graph_node.node_enable_status.connect(mark_modified)
 	
 	# 根据选择的数据库来更新表名备选项
 	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
@@ -730,6 +875,55 @@ func gen_insert_node() -> GraphNode:
 	
 	return graph_node
 	
+func add_update_node(schema = "", password = "", table = "", fields = {}, where = "", 
+asize = null, pos_offset = null, aname = ""):
+	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
+	unselect_all_node()
+	
+	var graph_node = gen_update_node()
+	if aname != "":
+		graph_node.name = aname
+	graph_edit.add_child(graph_node)
+	
+	# 等待页面就绪
+	if not graph_edit.get_rect().has_area():
+		await graph_edit.resized
+		
+	if pos_offset == null:
+		graph_node.position_offset = \
+			(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+	else:
+		graph_node.position_offset = pos_offset
+		
+	if asize != null:
+		graph_node.set_deferred("size", asize)
+	
+	var schema_dict_obj: DictionaryObject = graph_node.datas[0][2]
+	var table_dict_obj: DictionaryObject = graph_node.datas[1][2]
+	var where_dict_obj: DictionaryObject = graph_node.datas[3][2]
+	
+	if not fields.is_empty():
+		var redraw_call_ref: Callable
+		var redraw_call = func(row, col):
+			if row == 2 and col == 2 and table_dict_obj._get("Table") == table:
+				var fields_dict_obj: DictionaryObject = graph_node.datas[2][2]
+				for key in fields:
+					fields_dict_obj._set(key, fields[key])
+				graph_node.redraw_slot.disconnect(redraw_call_ref)
+				
+		redraw_call_ref = redraw_call
+		graph_node.redraw_slot.connect(redraw_call_ref)
+		
+	if schema != schema_dict_obj._get("Schema"):
+		schema_dict_obj._set("Schema", schema)
+	if password != schema_dict_obj._get("_password"):
+		schema_dict_obj._set("_password", password)
+	if table != table_dict_obj._get("Table"):
+		table_dict_obj._set("Table", table)
+	if where != where_dict_obj._get("Where"):
+		where_dict_obj._set("Where", where)
+		
+	
 func gen_update_node() -> GraphNode:
 	var databases = mgr.databases.keys()
 	
@@ -747,6 +941,7 @@ func gen_update_node() -> GraphNode:
 	base_dao.update("")
 	var graph_node = SQLGraphNode.instantiate()
 	graph_node.set_meta("base_dao", base_dao)
+	graph_node.node_enable_status.connect(mark_modified)
 	
 	# 根据选择的数据库来更新表名备选项
 	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
@@ -823,6 +1018,43 @@ func gen_update_node() -> GraphNode:
 	
 	return graph_node
 	
+func add_delete_node(schema = "", password = "", table = "", where = "", 
+asize = null, pos_offset = null, aname = ""):
+	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
+	unselect_all_node()
+	
+	var graph_node = gen_update_node()
+	if aname != "":
+		graph_node.name = aname
+	graph_edit.add_child(graph_node)
+	
+	# 等待页面就绪
+	if not graph_edit.get_rect().has_area():
+		await graph_edit.resized
+		
+	if pos_offset == null:
+		graph_node.position_offset = \
+			(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+	else:
+		graph_node.position_offset = pos_offset
+		
+	if asize != null:
+		graph_node.set_deferred("size", asize)
+	
+	var schema_dict_obj: DictionaryObject = graph_node.datas[0][2]
+	var table_dict_obj: DictionaryObject = graph_node.datas[1][2]
+	var where_dict_obj: DictionaryObject = graph_node.datas[2][2]
+	
+	if schema != schema_dict_obj._get("Schema"):
+		schema_dict_obj._set("Schema", schema)
+	if password != schema_dict_obj._get("_password"):
+		schema_dict_obj._set("_password", password)
+	if table != table_dict_obj._get("Table"):
+		table_dict_obj._set("Table", table)
+	if where != where_dict_obj._get("Where"):
+		where_dict_obj._set("Where", where)
+		
+	
 func gen_delete_node() -> GraphNode:
 	var databases = mgr.databases.keys()
 	
@@ -839,6 +1071,7 @@ func gen_delete_node() -> GraphNode:
 	base_dao.delete_from("")
 	var graph_node = SQLGraphNode.instantiate()
 	graph_node.set_meta("base_dao", base_dao)
+	graph_node.node_enable_status.connect(mark_modified)
 	
 	# 根据选择的数据库来更新表名备选项
 	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
@@ -902,6 +1135,110 @@ func gen_delete_node() -> GraphNode:
 	
 	return graph_node
 	
+func get_nodes_params():
+	var all_data = {}
+	var extract_table_data_call = func(v, columns):
+		if v is DictionaryObject:
+			var arr = []
+			for i in columns:
+				arr.push_back(v._get(i["Column Name"]))
+			return arr
+		return v
+	for graph_node in graph_edit.get_children():
+		var type = graph_node.get_meta("type", "")
+		var data = {}
+		match type:
+			"Select", "Left Join", "Delete":
+				for arr in graph_node.datas:
+					for i in arr:
+						if i is DictionaryObject:
+							data.merge((i as DictionaryObject).get_data())
+			"Result":
+				var table = graph_node.datas[0][0].get_child(0)
+				data["columns"] = table.get_meta("columns")
+				data["table_datas"] = table.datas.map(extract_table_data_call.bind(data["columns"]))
+			"Insert":
+				var schema_dict_obj: DictionaryObject = graph_node.datas[0][2]
+				var table_dict_obj: DictionaryObject = graph_node.datas[1][2]
+				var fields_dict_obj = graph_node.datas[2][2]
+				data["Schema"] = schema_dict_obj._get("Schema")
+				data["_password"] = schema_dict_obj._get("_password")
+				data["Table"] = table_dict_obj._get("Table")
+				data["_alias"] = table_dict_obj._get("_alias")
+				data["Fields"] = {} if fields_dict_obj == null else fields_dict_obj.get_data()
+			"Update":
+				var schema_dict_obj: DictionaryObject = graph_node.datas[0][2]
+				var table_dict_obj: DictionaryObject = graph_node.datas[1][2]
+				var fields_dict_obj = graph_node.datas[2][2]
+				var where_dict_obj: DictionaryObject = graph_node.datas[3][2]
+				data["Schema"] = schema_dict_obj._get("Schema")
+				data["_password"] = schema_dict_obj._get("_password")
+				data["Table"] = table_dict_obj._get("Table")
+				data["_alias"] = table_dict_obj._get("_alias")
+				data["Fields"] = {} if fields_dict_obj == null else fields_dict_obj.get_data()
+				data["Where"] = where_dict_obj._get("Where")
+			_:
+				continue
+				
+		all_data[graph_node.name.validate_node_name()] = { # validate一下，不然会存在@符号，再次设置name的时候会被替换为下划线
+			"type": type,
+			"params": data,
+			"size": graph_node.size,
+			"position_offset": graph_node.position_offset,
+			"enabled": graph_node.enabled,
+		}
+		
+	return all_data
+		
+func load_graph_file(path):
+	var config = ImprovedConfigFile.new()
+	config.load(path)
+	var nodes = config.get_value("data", "nodes", {})
+	var connections = config.get_value("data", "connections", [])
+	
+	# genarate nodes
+	for node_name in nodes:
+		var type = nodes[node_name]["type"]
+		var params = nodes[node_name]["params"]
+		var asize = nodes[node_name]["size"]
+		var position_offset = nodes[node_name]["position_offset"]
+		match type:
+			"Select":
+				await add_select_node(params["Schema"], params["Table"], params["Fields"], 
+					params["Where"], params["Order By"], params["Offset"], 
+					params["Limit"], params["_alias"], params["_password"],
+					asize, position_offset, node_name, false)
+			"Left Join":
+				await add_left_join_node(params["Schema"], params["_password"], params["Table"],
+					params["_alias"], params["On"], asize, position_offset, node_name)
+			"Result":
+				await add_table_node(params["columns"], params["table_datas"], asize, 
+					position_offset, node_name)
+			"Insert":
+				await add_insert_node(params["Schema"], params["_password"], params["Table"],
+					params["Fields"], asize, position_offset, node_name)
+			"Update":
+				await add_update_node(params["Schema"], params["_password"], params["Table"],
+					params["Fields"], params["Where"], asize, position_offset, node_name)
+			"Delete":
+				await add_delete_node(params["Schema"], params["_password"], params["Table"],
+					params["Where"], asize, position_offset, node_name)
+					
+	# make connections
+	for info in connections:
+		_on_graph_edit_connection_request(info["from_node"], info["from_port"], 
+			info["to_node"], info["to_port"])
+			
+	# enable会影响connection对象间的数据关联，最好最后设置
+	for node_name in nodes:
+		var node = graph_edit.get_node(node_name) as GraphNode
+		node.enabled = nodes[node_name]["enabled"]
+		
+	set_meta("type", "sql_graph")
+	set_meta("is_file", true)
+	set_meta("file_path", path)
+	set_meta("file_name", path.get_file())
+	
 func make_useful_of_select_node(graph_node: GraphNode):
 	var to_nodes = get_to_nodes(graph_node, "Select")
 	for node in to_nodes:
@@ -940,29 +1277,6 @@ func set_input(to_port: int, release_position: Vector2, to_node: GraphNode):
 		"Left Join", "Next Left Join":
 			xenophobic = true
 			input_node = gen_left_join_node()
-		#_:
-			#if port_data is DictionaryObject:
-				#var dict_obj = port_data as DictionaryObject
-				#var props = dict_obj._get_property_list()
-				#var graph_node = SQLGraphNode.instantiate()
-				#if props.size() == 0:
-					#return
-#
-				#input_node = graph_node
-				#var datas: Array[Array] = [[null, port_data.duplicate(true)]]
-				#graph_node.datas = datas
-				#graph_node.title = props[0]["name"]
-				#graph_node.size.x = 400
-				#to_node.hide_property_control(to_port)
-				#match graph_node.title:
-					#"Schema", "Table", "Fields", "Offset", "Limit":
-						#xenophobic = true
-					#"Where", "Order By":
-						#xenophobic = false
-					#_:
-						#push_warning("please specify xenophobic of this type of node:" + graph_node.title)
-			#else:
-				#push_warning("no input node match this port_data:" + var_to_str(port_data))
 			
 	if input_node:
 		#input_node.set_slot_type_right(from_port, to_node.get_slot_type_left(to_port))
@@ -1041,6 +1355,8 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 				table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 				_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
 		)
+		
+	mark_modified()
 		
 # Insert 执行
 # node: 被点击的insert节点
@@ -1160,6 +1476,7 @@ func handle_input_node(input_node: GraphNode, connected_node_name, from_port, to
 		input_node.node_enabled.connect(node_enabled.bind(input_node)) # 互斥激活事件
 	graph_edit.connect_node(input_node.name, from_port, connected_node_name, to_port)
 	input_node.enabled = true # 触发同一端口的其余输入端口失效
+	mark_modified()
 	
 
 func _on_graph_edit_connection_from_empty(to_node: StringName, to_port: int, release_position: Vector2) -> void:
@@ -1177,6 +1494,7 @@ func _on_graph_edit_connection_from_empty(to_node: StringName, to_port: int, rel
 
 func _on_graph_edit_connection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
 	graph_edit.connect_node(from_node, from_port, to_node, to_port)
+	mark_modified()
 	var f_node = graph_edit.get_node(str(from_node))
 	var t_node = graph_edit.get_node(str(to_node))
 	## select 连 select（即union all）需要做成排他性的
@@ -1197,6 +1515,7 @@ func _on_graph_edit_connection_drag_started(_from_node: StringName, _from_port: 
 	
 func _on_graph_edit_disconnection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
 	graph_edit.disconnect_node(from_node, from_port, to_node, to_port)
+	mark_modified()
 	# 删除BaseDao和LeftJoin数据关联
 	var f_node = graph_edit.get_node(str(from_node))
 	var t_node = graph_edit.get_node(str(to_node))
@@ -1240,9 +1559,14 @@ func _on_graph_edit_delete_nodes_request(nodes):
 	var titles = nodes.map(func(v): return graph_edit.get_node(str(v)).title)
 	mgr.create_confirmation_dialog("Are you sure to delete selected nodes `%s`?" % ", ".join(titles),
 		func():
-		for i in nodes:
-			var node = graph_edit.get_node(str(i))
-			node_close(node)
-			node.queue_free()
+			for i in nodes:
+				var node = graph_edit.get_node(str(i))
+				node_close(node)
+				node.queue_free()
+			mark_modified()
 	)
+	
+func mark_modified(_whatever = null):
+	if get_meta("is_file", false):
+		change_tab_title.emit(self, get_meta("file_name") + "*")
 

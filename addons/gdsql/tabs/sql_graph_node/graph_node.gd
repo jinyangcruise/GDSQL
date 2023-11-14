@@ -5,6 +5,7 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 
 signal node_enabled
 signal node_enable_status(enabled: bool)
+signal redraw_slot(row, col)
 
 var check_button_enable: CheckButton
 
@@ -372,7 +373,10 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 	# 上面的过程中几乎肯定会改变检查器当前编辑的对象，从而影响原来正被编辑的对象的修改，所以需要激活原来的对象编辑
 	if focus_owner != null:
 		focus_owner.emit_signal("focus_entered") # 可以触发之前绑定的函数：editor_property_focused
-				
+		
+	redraw_slot.emit(slot_row_index, slot_col_index)
+	
+	
 func search_editor_property(container: Control, ret: Array):
 	if container is EditorProperty:
 		ret.push_back(container)

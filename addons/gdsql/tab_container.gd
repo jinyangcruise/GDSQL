@@ -102,29 +102,40 @@ func _on_tab_clicked(tab: int) -> void:
 	# 点击了“新建SQL页面”（加号），增加一个编辑页面，并激活
 	if get_child(tab) == new_tab_button:
 		var sql_file = SQLGraph.instantiate()
-		sql_file.request_open_file.connect(func(path):
-			# 是否已经打开过了，就直接激活
-			for i in get_tab_count():
-				var page = get_tab_control(i)
-				if page.get_meta("type") == "sql_graph" and page.get_meta("file_path") == path:
-					current_tab = i
-					return
-					
-			var file = FileAccess.open(path, FileAccess.READ)
-			var content = file.get_as_text()
-			receive_content(content, true, path)
-		, CONNECT_DEFERRED)
+		sql_file.request_open_file.connect(add_tab_graph_file)
 		sql_file.change_tab_title.connect(func(page, title):
 			var idx = get_tab_idx_from_control(page)
 			if idx >= 0:
 				set_tab_title(idx, title)
-		, CONNECT_DEFERRED)
+		)
 		add_child(sql_file)
 		move_child(new_tab_button, get_child_count() - 1)
 		current_tab = get_child_count() - 2
 		set_tab_title(current_tab, "SQL File %d" % _tab_index)
 		_tab_index += 1
 		
+func add_tab_graph_file(path: String) -> void:
+	# 是否已经打开过了，就直接激活
+	for i in get_tab_count():
+		var page = get_tab_control(i)
+		if page.get_meta("type") == "sql_graph" and page.get_meta("file_path", "") == path:
+			current_tab = i
+			return
+			
+	var sql_file = SQLGraph.instantiate()
+	sql_file.request_open_file.connect(add_tab_graph_file)
+	sql_file.change_tab_title.connect(func(page, title):
+		var idx = get_tab_idx_from_control(page)
+		if idx >= 0:
+			set_tab_title(idx, title)
+	)
+	add_child(sql_file)
+	move_child(new_tab_button, get_child_count() - 1)
+	current_tab = get_child_count() - 2
+	set_tab_title(current_tab, path.get_file())
+	_tab_index += 1
+	sql_file.load_graph_file(path)
+	
 func add_tab_new_schema() -> void:
 	var new_schema = preload("res://addons/gdsql/tabs/new_schema.tscn").instantiate()
 	add_child(new_schema)
