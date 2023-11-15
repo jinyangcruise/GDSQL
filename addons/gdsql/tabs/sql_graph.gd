@@ -529,12 +529,27 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 			return type_string(v["Data Type"]) if v.has("Data Type") else "")
 		table.columns = columns.map(func(v): return v["field_as"])
 		
+		var flow_container = HFlowContainer.new()
+		flow_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		flow_container.alignment = FlowContainer.ALIGNMENT_END
+		flow_container.ready.connect(func():
+			flow_container.get_parent_control().size_flags_vertical = Control.SIZE_FILL
+		, CONNECT_ONE_SHOT)
+		
+		var btn_export = Button.new()
+		btn_export.text = "export"
+		btn_export.pressed.connect(func():
+			var _columns = table.get_meta("columns")
+			mgr.open_select_data_export_tab.emit(_columns, table.datas.map(extract_table_data_call.bind(_columns)))
+		)
+		flow_container.add_child(btn_export)
+		
 		var separator = Control.new()
 		separator.custom_minimum_size.y = 60
 		
 		graph_datas = [
 			[margin_container, null],
-			[null, null], # buttons
+			[null, null, flow_container], # buttons
 			[null, null, separator], # separetor
 		]
 		
@@ -556,21 +571,20 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 			return type_string(v["Data Type"]) if v.has("Data Type") else "")
 		table.columns = columns.map(func(v): return v["field_as"])
 		table.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		# 旧按钮删除
-		if graph_datas[1].size() == 3:
-			var old_flow_container: HFlowContainer = graph_datas[1][2]
-			old_flow_container.get_parent().remove_child(old_flow_container)
-			graph_datas[1] = [null, null] # 要维持graph_datas原来的大小，不能直接remove，否则graphnode报错
-			if old_flow_container != null:
-				old_flow_container.queue_free()
-			for i in table.row_deleted.get_connections():
-				# 由于按钮释放了，原来connect的引用的按钮无法再使用，disconnect掉，后面会重新连接
-				table.row_deleted.disconnect(i["callable"])
+		# 除了最后一个导出按钮，其他按钮删除
+		var flow_container: HFlowContainer = graph_datas[1][2]
+		while flow_container.get_child_count() > 1:
+			var child = flow_container.get_child(0)
+			flow_container.remove_child(child)
+			child.queue_free()
+		for i in table.row_deleted.get_connections():
+			# 由于按钮释放了，原来connect的引用的按钮无法再使用，disconnect掉，后面会重新连接
+			table.row_deleted.disconnect(i["callable"])
 			
 	# 根据表头的情况决定是否需要支持数据修改
 	# 根据表头分析，1.数据是否来源于同一张表，2.是否有主键，3.没有相同的字段
 	var info = columns.reduce(func(acc, v):
-		acc["paths"][v["db_path"]] = true
+		acc["paths"][v["db_path"] + v["table_name"]] = true
 		var num = acc["columns"].get(v["Column Name"], 0)
 		acc["columns"][v["Column Name"]] = num + 1
 		if num > 0:
@@ -598,10 +612,6 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 				else mgr.evaluate_command(null, i["Default(Expression)"])
 			
 		# 加俩按钮:1.新建一条数据；2.应用
-		var flow_container = HFlowContainer.new()
-		flow_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		flow_container.alignment = FlowContainer.ALIGNMENT_END
-		
 		var btn_apply = Button.new()
 		btn_apply.text = "apply"
 		btn_apply.disabled = true
@@ -709,15 +719,12 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 			table.append_data(dict_obj)
 			table.row_grab_focus(table.datas.size() - 1)
 		)
-	
+		
+		var flow_container = graph_datas[1][2]
 		flow_container.add_child(btn_new)
 		flow_container.add_child(btn_apply)
 		flow_container.add_child(btn_revert)
-		flow_container.ready.connect(func():
-			flow_container.get_parent_control().size_flags_vertical = Control.SIZE_FILL
-		)
-		
-		graph_datas[1] = [null, null, flow_container]
+		flow_container.get_child(0).move_to_front() # move export button to last
 		
 		# 每行数据转成一个DictionaryObject
 		var new_table_datas = []
@@ -1135,15 +1142,16 @@ func gen_delete_node() -> GraphNode:
 	
 	return graph_node
 	
+func extract_table_data_call(v, columns):
+	if v is DictionaryObject:
+		var arr = []
+		for i in columns.size():
+			arr.push_back(v._get_by_index(i))
+		return arr
+	return v
+	
 func get_nodes_params():
 	var all_data = {}
-	var extract_table_data_call = func(v, columns):
-		if v is DictionaryObject:
-			var arr = []
-			for i in columns:
-				arr.push_back(v._get(i["Column Name"]))
-			return arr
-		return v
 	for graph_node in graph_edit.get_children():
 		var type = graph_node.get_meta("type", "")
 		var data = {}

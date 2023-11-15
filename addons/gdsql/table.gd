@@ -220,8 +220,8 @@ func add_row(a_data):
 				columns.push_back(key)
 				data.push_back(a_data[key])
 		else:
-			for key in columns:
-				data.push_back(a_data[key])
+			for i in columns.size():
+				data.push_back(a_data.get(a_data.keys()[i], null))
 	elif a_data is DictionaryObject:
 		data = []
 		if columns.is_empty():
@@ -230,8 +230,8 @@ func add_row(a_data):
 				columns.push_back(info["name"])
 				data.push_back(a_data.get(info["name"]))
 		else:
-			for key in columns:
-				data.push_back(a_data.get(key))
+			for i in columns.size():
+				data.push_back(a_data._get_by_index(i)) # 不用字段名称去获取是因为columns的字段名称和实际数据的字段名称不一定一致
 				
 	var a_row = row_panel_container.duplicate()
 	a_row.set_meta("data", a_data)
@@ -240,7 +240,7 @@ func add_row(a_data):
 	var style_box: StyleBoxFlat = a_row.get_theme_stylebox("panel").duplicate()
 	a_row.add_theme_stylebox_override("panel", style_box)
 	# add_child好像会导致之前的focus丢失
-	if a_data == data_of_focused_row:
+	if typeof(a_data) == typeof(data_of_focused_row) and a_data == data_of_focused_row:
 		highlight_row(a_row)
 	#elif data_of_focused_row != null:
 		#for i in v_box_container.get_children():

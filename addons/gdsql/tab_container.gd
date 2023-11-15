@@ -39,6 +39,8 @@ func _ready() -> void:
 		mgr.open_table_data_export_tab.connect(add_tab_table_data_export, CONNECT_DEFERRED)
 	if not mgr.open_table_data_import_tab.is_connected(add_tab_table_data_import):
 		mgr.open_table_data_import_tab.connect(add_tab_table_data_import, CONNECT_DEFERRED)
+	if not mgr.open_select_data_export_tab.is_connected(add_tab_select_data_export):
+		mgr.open_select_data_export_tab.connect(add_tab_select_data_export, CONNECT_DEFERRED)
 	
 	if not mgr.sys_confirm_add_schema.is_connected(close_content_window):
 		mgr.sys_confirm_add_schema.connect(close_content_window, CONNECT_DEFERRED)
@@ -76,6 +78,8 @@ func _exit_tree():
 		mgr.open_table_data_export_tab.disconnect(add_tab_table_data_export)
 	if mgr.open_table_data_import_tab.is_connected(add_tab_table_data_import):
 		mgr.open_table_data_import_tab.disconnect(add_tab_table_data_import)
+	if mgr.open_select_data_export_tab.is_connected(add_tab_select_data_export):
+		mgr.open_select_data_export_tab.disconnect(add_tab_select_data_export)
 	
 	if mgr.sys_confirm_add_schema.is_connected(close_content_window):
 		mgr.sys_confirm_add_schema.disconnect(close_content_window)
@@ -221,6 +225,14 @@ func add_tab_table_data_import(db_name, table_name) -> void:
 	current_tab = get_child_count() - 2
 	set_tab_title(current_tab, "Table Data Import")
 	table_data_import.select_table(db_name, table_name)
+	
+func add_tab_select_data_export(columns: Array, datas: Array) -> void:
+	var select_data_export = preload("res://addons/gdsql/tabs/select_data_export.tscn").instantiate()
+	add_child(select_data_export)
+	move_child(new_tab_button, get_child_count() - 1)
+	current_tab = get_child_count() - 2
+	set_tab_title(current_tab, "Select Data Export")
+	select_data_export.load_data(columns, datas)
 	
 func _on_tab_button_pressed(tab: int) -> void:
 	if tab != current_tab:

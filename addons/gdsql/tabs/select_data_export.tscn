@@ -1,0 +1,228 @@
+[gd_scene load_steps=7 format=3 uid="uid://4u05xd0k1wnr"]
+
+[ext_resource type="Script" path="res://addons/gdsql/tabs/select_data_export.gd" id="1_u7rj5"]
+[ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="2_n1k8g"]
+[ext_resource type="PackedScene" uid="uid://bpawj4a7llynx" path="res://addons/gdsql/table.tscn" id="2_vkw16"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_j2xwm"]
+bg_color = Color(0.6, 0.6, 0.6, 0)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_4lc0g"]
+
+[sub_resource type="ButtonGroup" id="ButtonGroup_i2xwr"]
+
+[node name="SelectDataExport" type="ScrollContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 2
+script = ExtResource("1_u7rj5")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Label" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Data samples:"
+
+[node name="TableDataSamples" parent="VBoxContainer" instance=ExtResource("2_vkw16")]
+custom_minimum_size = Vector2(0, 250)
+layout_mode = 2
+
+[node name="Label2" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Select columns you'd like to export:"
+
+[node name="MarginContainer" type="MarginContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="PanelContainer" type="PanelContainer" parent="VBoxContainer/MarginContainer"]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_j2xwm")
+
+[node name="GridContainerColumns" type="GridContainer" parent="VBoxContainer/MarginContainer/PanelContainer"]
+layout_mode = 2
+size_flags_horizontal = 0
+columns = 4
+
+[node name="LabelHead1" type="Label" parent="VBoxContainer/MarginContainer/PanelContainer/GridContainerColumns"]
+layout_mode = 2
+size_flags_horizontal = 6
+text = "Export"
+
+[node name="LabelHead2" type="Label" parent="VBoxContainer/MarginContainer/PanelContainer/GridContainerColumns"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Column name"
+
+[node name="LabelHead3" type="Label" parent="VBoxContainer/MarginContainer/PanelContainer/GridContainerColumns"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Comment"
+
+[node name="LabelHead4" type="Label" parent="VBoxContainer/MarginContainer/PanelContainer/GridContainerColumns"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Choose a field as section key (only influence cfg. If none checked, section key will be set to 1, 2, 3...)"
+
+[node name="HBoxContainer2" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="CheckBoxSelectAll" type="CheckBox" parent="VBoxContainer/HBoxContainer2"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/focus = SubResource("StyleBoxEmpty_4lc0g")
+button_pressed = true
+text = "Select / Deselect all entries"
+
+[node name="HBoxContainer3" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer3"]
+layout_mode = 2
+text = "File Path"
+
+[node name="LineEditFilePath" type="LineEdit" parent="VBoxContainer/HBoxContainer3"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ButtonFilePathResource" type="Button" parent="VBoxContainer/HBoxContainer3"]
+layout_mode = 2
+text = "Resource"
+icon = ExtResource("2_n1k8g")
+
+[node name="ButtonFilePathUserData" type="Button" parent="VBoxContainer/HBoxContainer3"]
+layout_mode = 2
+text = "UserData"
+icon = ExtResource("2_n1k8g")
+
+[node name="ButtonFilePathFileSystem" type="Button" parent="VBoxContainer/HBoxContainer3"]
+layout_mode = 2
+text = "FileSystem"
+icon = ExtResource("2_n1k8g")
+
+[node name="HFlowContainer" type="HFlowContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="CheckBoxGSQL" type="CheckBox" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+button_pressed = true
+button_group = SubResource("ButtonGroup_i2xwr")
+text = "cfg"
+
+[node name="CheckBoxCSV" type="CheckBox" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+button_group = SubResource("ButtonGroup_i2xwr")
+text = "csv"
+
+[node name="CheckBoxJSON" type="CheckBox" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+button_group = SubResource("ButtonGroup_i2xwr")
+text = "json"
+
+[node name="MarginContainerCSVOptions" type="MarginContainer" parent="VBoxContainer"]
+visible = false
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="PanelContainer2" type="PanelContainer" parent="VBoxContainer/MarginContainerCSVOptions"]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_j2xwm")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/MarginContainerCSVOptions/PanelContainer2"]
+layout_mode = 2
+
+[node name="GridContainer" type="GridContainer" parent="VBoxContainer/MarginContainerCSVOptions/PanelContainer2/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 0
+columns = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/MarginContainerCSVOptions/PanelContainer2/VBoxContainer/GridContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Field Seperator"
+
+[node name="OptionButtonFieldSeperator" type="OptionButton" parent="VBoxContainer/MarginContainerCSVOptions/PanelContainer2/VBoxContainer/GridContainer"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+item_count = 4
+selected = 3
+popup/item_0/text = "|"
+popup/item_0/id = 1
+popup/item_1/text = ";"
+popup/item_1/id = 2
+popup/item_2/text = ":"
+popup/item_2/id = 3
+popup/item_3/text = ","
+popup/item_3/id = 4
+
+[node name="Label2" type="Label" parent="VBoxContainer/MarginContainerCSVOptions/PanelContainer2/VBoxContainer/GridContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Line Seperator"
+
+[node name="OptionButtonLineSeperator" type="OptionButton" parent="VBoxContainer/MarginContainerCSVOptions/PanelContainer2/VBoxContainer/GridContainer"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+item_count = 3
+selected = 2
+popup/item_0/text = "Mac (CR)"
+popup/item_0/id = 0
+popup/item_1/text = "Windows (CR+LF)"
+popup/item_1/id = 1
+popup/item_2/text = "Unix (LF)"
+popup/item_2/id = 2
+
+[node name="Label3" type="Label" parent="VBoxContainer/MarginContainerCSVOptions/PanelContainer2/VBoxContainer/GridContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Enclose Strings in"
+
+[node name="LineEditEncloseStringsIn" type="LineEdit" parent="VBoxContainer/MarginContainerCSVOptions/PanelContainer2/VBoxContainer/GridContainer"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+text = "\""
+
+[node name="CheckBoxOpenFolderWhenFinished" type="CheckBox" parent="VBoxContainer"]
+layout_mode = 2
+button_pressed = true
+text = "Open folder when finished"
+
+[node name="HFlowContainer2" type="HFlowContainer" parent="VBoxContainer"]
+layout_mode = 2
+alignment = 1
+
+[node name="ButtonApply" type="Button" parent="VBoxContainer/HFlowContainer2"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Export"
+
+[node name="ButtonCancel" type="Button" parent="VBoxContainer/HFlowContainer2"]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Cancel"
+
+[connection signal="toggled" from="VBoxContainer/HBoxContainer2/CheckBoxSelectAll" to="." method="_on_check_box_select_all_toggled"]
+[connection signal="pressed" from="VBoxContainer/HBoxContainer3/ButtonFilePathResource" to="." method="_on_button_file_path_pressed" binds= [0]]
+[connection signal="pressed" from="VBoxContainer/HBoxContainer3/ButtonFilePathUserData" to="." method="_on_button_file_path_pressed" binds= [1]]
+[connection signal="pressed" from="VBoxContainer/HBoxContainer3/ButtonFilePathFileSystem" to="." method="_on_button_file_path_pressed" binds= [2]]
+[connection signal="toggled" from="VBoxContainer/HFlowContainer/CheckBoxGSQL" to="." method="_on_check_box_gsql_toggled"]
+[connection signal="toggled" from="VBoxContainer/HFlowContainer/CheckBoxCSV" to="." method="_on_check_box_csv_toggled"]
+[connection signal="toggled" from="VBoxContainer/HFlowContainer/CheckBoxJSON" to="." method="_on_check_box_json_toggled"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer2/ButtonApply" to="." method="_on_button_apply_pressed"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer2/ButtonCancel" to="." method="_on_button_cancel_pressed"]

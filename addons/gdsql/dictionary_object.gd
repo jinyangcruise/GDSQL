@@ -89,6 +89,18 @@ func _set(property: StringName, value: Variant) -> bool:
 		return true
 	return false
 	
+func _get_by_index(index: int) -> Variant:
+	var properties = _data.keys()
+	if properties.size() <= index:
+		return null
+	return _data[properties[index]]
+	
+func _set_by_index(index: int, value: Variant) -> bool:
+	var properties = _data.keys()
+	if properties.size() <= index:
+		return false
+	return _set(properties[index], value)
+	
 func _get_property_list() -> Array[Dictionary]:
 	var properties: Array[Dictionary] = []
 	for key in _data:
