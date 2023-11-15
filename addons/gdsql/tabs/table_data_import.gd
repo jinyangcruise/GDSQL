@@ -369,12 +369,15 @@ func _on_button_apply_pressed() -> void:
 		action = "Table data import to %s.%s" % [db_name, table_name]
 		var file_ret
 		var path = line_edit_file_path.text
+		var need_trans = false # 是否需要把str转成var
 		match path.get_extension().to_lower():
 			"cfg":
 				file_ret = read_cfg(path, MAX_INT)
 			"csv":
+				need_trans = true
 				file_ret = read_csv(path, MAX_INT)
 			"json":
+				need_trans = true
 				file_ret = read_json(path, MAX_INT)
 			_:
 				mgr.create_accept_dialog("Do not support this file! Valid file extension: .cfg, .csv, .json")
@@ -392,7 +395,7 @@ func _on_button_apply_pressed() -> void:
 			var begin_time_2 = Time.get_unix_time_from_system()
 			var value = {}
 			for i in col_indexes:
-				value[columns[i]] = data[i]
+				value[columns[i]] = str_to_var(data[i]) if need_trans else data[i]
 			dao = BaseDao.new()
 			var ret = dao.auto_commit(false).use_db(db_path).insert_into(table_path).values(value).query()
 			if ret == null:

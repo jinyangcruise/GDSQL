@@ -139,11 +139,11 @@ func _on_button_apply_pressed() -> void:
 			
 		var err
 		if check_box_gsql.button_pressed:
-			err = export_cfg(ret.get_raw_data())
+			err = export_cfg(ret.get_head_and_data())
 		elif check_box_csv.button_pressed:
-			err = export_csv(ret.get_raw_data())
+			err = export_csv(ret.get_raw())
 		elif check_box_json.button_pressed:
-			err = export_json(ret.get_raw_data())
+			err = export_json(ret.get_raw())
 		else:
 			mgr.create_accept_dialog("Do not select an export type!")
 			return
@@ -180,6 +180,7 @@ func export_csv(datas):
 		return FileAccess.get_open_error()
 	#var delim = option_button_field_seperator.get_item_text(option_button_field_seperator.selected)
 	var delim = ","
+	csv.store_buffer([0xEF, 0xBB, 0xBF]) # 带BOM
 	csv.store_csv_line(PackedStringArray(columns), delim)
 	for i in datas.size():
 		if i > 0:
