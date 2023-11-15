@@ -613,7 +613,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 			hint[i["Column Name"]] = {"hint": i["Hint"], "hint_string": i["Hint String"], "type": i["Data Type"]}
 			new_data[i["Column Name"]] = DataTypeDef.DEFUALT_VALUES[i["Data Type"]] if i["Default(Expression)"] == "" \
 				else mgr.evaluate_command(null, i["Default(Expression)"])
-			
+				
 		# 加俩按钮:1.新建一条数据；2.应用
 		var btn_apply = Button.new()
 		btn_apply.text = "apply"
@@ -746,8 +746,12 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 			)
 			new_table_datas.push_back(dict_obj)
 		table.datas = new_table_datas
+		table.show_menu = true
+		table.support_delete_row = true
 	else:
 		table.datas = table_datas
+		table.show_menu = false
+		table.supprot_delete_row = false
 		
 	graph_node.datas = graph_datas
 	

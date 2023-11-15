@@ -88,6 +88,11 @@ func _ready() -> void:
 	
 func _notification(what):
 	if what == NOTIFICATION_PREDELETE:
+		# 取消编辑本表中的对象
+		var obj = EditorInterface.get_inspector().get_edited_object()
+		if obj != null and obj is DictionaryObject and datas.has(obj):
+			EditorInterface.inspect_object(null)
+			
 		popup_menu_text.set_item_metadata(0, null)
 		popup_menu_text.set_item_metadata(1, null)
 		clear_header()
@@ -466,11 +471,12 @@ func _label_gui_input(event: InputEvent, content: String):
 		else:
 			popup_menu_text.set_item_disabled(1, true)
 		popup_menu_text.popup()
-
+		
 func _on_popup_menu_text_index_pressed(index):
 	match popup_menu_text.get_item_text(index):
 		"Copy":
-			DisplayServer.clipboard_set(popup_menu_text.get_item_metadata(index))
+			if popup_menu_text.get_item_metadata(index) != null:
+				DisplayServer.clipboard_set(popup_menu_text.get_item_metadata(index))
 		"Delete":
 			var data = popup_menu_text.get_item_metadata(index)
 			var pos = datas.find(data)
