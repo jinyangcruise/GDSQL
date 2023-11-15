@@ -57,6 +57,9 @@ func _on_button_save_pressed() -> void:
 		change_tab_title.emit(self, get_meta("file_name"))
 		return
 		
+	_on_button_save_as_pressed()
+
+func _on_button_save_as_pressed():
 	var editor_file_dialog = EditorFileDialog.new()
 	editor_file_dialog.access = EditorFileDialog.ACCESS_FILESYSTEM
 	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_SAVE_FILE
@@ -1577,4 +1580,5 @@ func _on_graph_edit_delete_nodes_request(nodes):
 func mark_modified(_whatever = null):
 	if get_meta("is_file", false):
 		change_tab_title.emit(self, get_meta("file_name") + "*")
+
 

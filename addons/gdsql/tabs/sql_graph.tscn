@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://bltgws3ddejkr"]
+[gd_scene load_steps=17 format=3 uid="uid://bltgws3ddejkr"]
 
 [ext_resource type="Script" path="res://addons/gdsql/tabs/sql_graph.gd" id="1_jxiqt"]
 [ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="2_1i8qu"]
@@ -13,13 +13,22 @@
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_03x0p"]
 
-[sub_resource type="InputEventKey" id="InputEventKey_olocg"]
+[sub_resource type="InputEventKey" id="InputEventKey_lpdh8"]
 device = -1
 ctrl_pressed = true
 keycode = 83
 
+[sub_resource type="Shortcut" id="Shortcut_xtwaq"]
+events = [SubResource("InputEventKey_lpdh8")]
+
+[sub_resource type="InputEventKey" id="InputEventKey_w5ona"]
+device = -1
+shift_pressed = true
+ctrl_pressed = true
+keycode = 83
+
 [sub_resource type="Shortcut" id="Shortcut_abyjw"]
-events = [SubResource("InputEventKey_olocg")]
+events = [SubResource("InputEventKey_w5ona")]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0ukqh"]
 bg_color = Color(0.541176, 0.168627, 0.890196, 1)
@@ -57,6 +66,15 @@ icon_alignment = 1
 [node name="ButtonSave" type="Button" parent="VBoxContainer/HFlowContainer" node_paths=PackedStringArray("shortcut_context")]
 layout_mode = 2
 tooltip_text = "Save the script to a file"
+shortcut_context = NodePath("../../..")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_03x0p")
+shortcut = SubResource("Shortcut_xtwaq")
+icon = ExtResource("3_v3m7u")
+icon_alignment = 1
+
+[node name="ButtonSaveAs" type="Button" parent="VBoxContainer/HFlowContainer" node_paths=PackedStringArray("shortcut_context")]
+layout_mode = 2
+tooltip_text = "(Save As) Save the script to a file"
 shortcut_context = NodePath("../../..")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_03x0p")
 shortcut = SubResource("Shortcut_abyjw")
@@ -180,6 +198,7 @@ minimap_enabled = false
 
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonOpen" to="." method="_on_button_open_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSave" to="." method="_on_button_save_pressed"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSaveAs" to="." method="_on_button_save_as_pressed"]
 [connection signal="toggled" from="VBoxContainer/HFlowContainer/ButtonAutoCommit" to="." method="_on_button_auto_commit_toggled"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNodeSelect" to="." method="_on_button_add_node_select_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNodeLeftJoin" to="." method="_on_button_add_node_left_join_pressed"]
