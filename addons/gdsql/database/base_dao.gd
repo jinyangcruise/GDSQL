@@ -580,7 +580,6 @@ func ___select(path: String, fill_primary_key: String = ""):
 					"must specify table alias name in select fields if using left join"))
 				var column = __get_table_column_defination(__database, __table, m.get_string())
 				if column != null and !column.is_empty():
-					column["is_field"] = true # 表示该字段是表本身就有的字段
 					real_select.push_back(column)
 				else:
 					assert(_assert("___select", 
@@ -595,12 +594,10 @@ func ___select(path: String, fill_primary_key: String = ""):
 					var column = __get_table_column_defination(__database, __table, field)
 					if column != null and !column.is_empty():
 						if s == __table_alias + "." + field:
-							column["is_field"] = true # 表示该字段是表本身就有的字段
+							column["select_name"] = s
+							real_select.push_back(column)
 						else:
-							column["Column Name"] = s
-							column["is_field"] = false
-						column["select_name"] = s
-						real_select.push_back(column)
+							real_select.push_back(gen_dict.call(s, s, false))
 					else:
 						if s == __table_alias + "." + field:
 							assert(_assert("___select", 
@@ -626,12 +623,10 @@ func ___select(path: String, fill_primary_key: String = ""):
 								a_left_join.get_db(), a_left_join.get_table(), field)
 							if column != null and !column.is_empty():
 								if s == alias + "." + field:
-									column["is_field"] = true # 表示该字段是表本身就有的字段
+									column["select_name"] = s
+									real_select.push_back(column)
 								else:
-									column["Column Name"] = s
-									column["is_field"] = false
-								column["select_name"] = s
-								real_select.push_back(column)
+									real_select.push_back(gen_dict.call(s, s, false))
 							else:
 								if s == alias + "." + field:
 									assert(_assert("___select", 
@@ -639,7 +634,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 										"field:[%s] not exist in table:[%s], db:[%s]" \
 										% [field, a_left_join.get_table(), a_left_join.get_db()]))
 									real_select.push_back(
-										gen_dict.call(s, field, true, a_left_join.get_db(), a_left_join.get_table()))
+										gen_dict.call(s, field, false, a_left_join.get_db(), a_left_join.get_table()))
 								else:
 									real_select.push_back(gen_dict.call(s, s, false))
 						break
@@ -862,6 +857,7 @@ func __get_table_columns(db_path, table_name, table_alias, all_datas: Dictionary
 		for i in columns:
 			i["db_path"] = db_path
 			i["table_name"] = table_name
+			i["is_field"] = true
 			
 	return columns
 	
@@ -878,6 +874,7 @@ func __get_table_column_defination(db_path, table_name, column_name):
 		column = (column as Dictionary).duplicate(true)
 		column["db_path"] = db_path
 		column["table_name"] = table_name
+		column["is_field"] = true
 		
 	return column
 	
