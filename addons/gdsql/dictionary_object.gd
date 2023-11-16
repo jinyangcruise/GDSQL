@@ -6,9 +6,13 @@ signal value_changed(prop: StringName, new_value: Variant, old_value: Variant)
 var _origin: Dictionary
 var _data: Dictionary
 var _hint: Dictionary
+var _usage: Dictionary
 var _update_callback: Dictionary
 var _custom_display_control: Dictionary
 var _read_only: bool
+## 连接属性
+var _duplicate_property: Dictionary
+var _prop_index_cache: Dictionary
 
 ## data： 一个key-value形成的字典数据。或一个长度为2的数组，第一个元素是key的一维数组，第二个元素是value的一维数组
 ## hint： 一个key-dictionary字典数据。key为data中的key，dictionary为包含"hint"和"hint_string"键的数据。@see PropertyHint 
@@ -38,6 +42,9 @@ func get_data() -> Dictionary:
 	
 func reset_data(data, hint = null):
 	_data = data
+	_usage = {}
+	_duplicate_property = {}
+	_prop_index_cache = {}
 	if hint != null:
 		_hint = hint
 	notify_property_list_changed()
@@ -56,6 +63,13 @@ func reset_read_only(read_only: bool):
 	_read_only = read_only
 	notify_property_list_changed()
 	
+## @see PROPERTY_USAGE_DEFAULT
+func set_usage(property, usage):
+	if usage == null:
+		_usage.erase(property)
+	else:
+		_usage[property] = usage
+	
 func duplicate(deep: bool = false) -> DictionaryObject:
 	var dict_obj = DictionaryObject.new(_data.duplicate(deep), _hint.duplicate(deep), _read_only)
 	if _origin:
@@ -64,6 +78,8 @@ func duplicate(deep: bool = false) -> DictionaryObject:
 		dict_obj._update_callback = _update_callback.duplicate(deep)
 	if _custom_display_control:
 		dict_obj._custom_display_control = _custom_display_control.duplicate(deep)
+	if _duplicate_property:
+		dict_obj._duplicate_property = _duplicate_property.duplicate() # 没必要deep
 	return dict_obj
 	
 	
@@ -90,16 +106,65 @@ func _set(property: StringName, value: Variant) -> bool:
 	return false
 	
 func _get_by_index(index: int) -> Variant:
-	var properties = _data.keys()
-	if properties.size() <= index:
-		return null
-	return _data[properties[index]]
+	return _data[__get_index_prop(index)]
 	
+	
+## 获取index位置的属性名称
+func __get_index_prop(index) -> String:
+	# x表示category、group、subgroup等非数据属性
+	# _表示链接属性
+	# _data:	[x, a, b, x, x, c, d, x]
+	# 加上链接：	[x, _, a, b, _, x, x, c, d, x, _]
+	# index：	[ , 0, 1, 2, 3,  ,  , 4, 5,  , 6]
+	# 要求 0, 1, 2, 3, 4, 5, 6分别对应的是哪个属性
+	
+	# 缓存的数据里取
+	if _prop_index_cache.has(index):
+		return _prop_index_cache[index]
+	
+	# 连接属性的可以直接给出
+	if _duplicate_property.has(index):
+		return _duplicate_property[index]
+		
+	if _prop_index_cache.is_empty():
+		_prop_index_cache = _duplicate_property.duplicate()
+		
+	var arr = [] # 剩余的可分配的index
+	for i in _data.size() + _duplicate_property.size():
+		if _duplicate_property.has(i):
+			continue
+		arr.push_back(i)
+		
+	for key in _data:
+		if _usage.has(key) and (_usage[key] & PROPERTY_USAGE_CATEGORY or _usage[key] & PROPERTY_USAGE_GROUP \
+			or _usage[key] & PROPERTY_USAGE_SUBGROUP):
+			continue
+			
+		_prop_index_cache[arr.pop_front()] = key
+		
+	return _prop_index_cache[index]
+	
+# 前提是index位置的属性是存在的
 func _set_by_index(index: int, value: Variant) -> bool:
-	var properties = _data.keys()
-	if properties.size() <= index:
-		return false
-	return _set(properties[index], value)
+	return _set(__get_index_prop(index), value)
+	
+## 增加一条连接属性（占用一个index），但是这个属性实际上是已经存在的某属性。
+## 连接属性不会导致_get_property_list()发生变化，
+## 只影响_get_by_index和_set_by_index。
+func add_duplicate_prop(prop: String) -> void:
+	assert(_data.has(prop), "prop [%s] not exist!" % prop)
+	var num = 0 # 正常属性的个数
+	for key in _data:
+		if _usage.has(key) and (_usage[key] & PROPERTY_USAGE_CATEGORY or _usage[key] & PROPERTY_USAGE_GROUP \
+			or _usage[key] & PROPERTY_USAGE_SUBGROUP):
+			continue
+		num += 1
+	_duplicate_property[num + _duplicate_property.size()] = prop
+	
+## @see add_duplicate_prop
+func set_duplicate_prop(index: int, prop: String) -> void:
+	assert(_data.has(prop), "prop [%s] not exist!" % prop)
+	_duplicate_property[index] = prop
 	
 func _get_property_list() -> Array[Dictionary]:
 	var properties: Array[Dictionary] = []
@@ -108,7 +173,7 @@ func _get_property_list() -> Array[Dictionary]:
 			"name": key,
 			"type": _hint[key]["type"] if (_hint.has(key) and _hint[key].has("type")) else (TYPE_NIL if _data[key] == null else typeof(_data[key])),
 			#"type": typeof(_data[key]) if _data[key] != null else (_hint[key]["type"] if _hint.has(key) and _hint[key].has("type") else TYPE_NIL),
-			"usage": PROPERTY_USAGE_DEFAULT,
+			"usage": PROPERTY_USAGE_DEFAULT if not _usage.has(key) else _usage[key],
 			"hint": PROPERTY_HINT_NONE if not (_hint.has(key) and _hint[key].has("hint")) else _hint[key]["hint"],
 			"hint_string": "" if not (_hint.has(key) and _hint[key].has("hint_string")) else _hint[key]["hint_string"]
 		})

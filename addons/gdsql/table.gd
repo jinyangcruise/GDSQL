@@ -232,6 +232,9 @@ func add_row(a_data):
 		if columns.is_empty():
 			columns = []
 			for info in a_data._get_property_list():
+				if info["usage"] & PROPERTY_USAGE_CATEGORY or info["usage"] & PROPERTY_USAGE_GROUP \
+					or info["usage"] & PROPERTY_USAGE_SUBGROUP:
+					continue
 				columns.push_back(info["name"])
 				data.push_back(a_data.get(info["name"]))
 		else:

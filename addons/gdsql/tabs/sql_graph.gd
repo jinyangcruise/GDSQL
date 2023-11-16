@@ -604,12 +604,13 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		table.editable = false
 		table.support_delete_row = false
 		
+	table.editable = true
 	if table.editable:
 		var hint = {}
-		var column_map = {}
 		var new_data = {}
 		for i in columns:
-			column_map[i["Column Name"]] = i
+			if not i["is_field"]:
+				continue
 			hint[i["Column Name"]] = {"hint": i["Hint"], "hint_string": i["Hint String"], "type": i["Data Type"]}
 			new_data[i["Column Name"]] = DataTypeDef.DEFUALT_VALUES[i["Data Type"]] if i["Default(Expression)"] == "" \
 				else mgr.evaluate_command(null, i["Default(Expression)"])
@@ -729,13 +730,60 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		flow_container.add_child(btn_revert)
 		flow_container.get_child(0).move_to_front() # move export button to last
 		
-		# 每行数据转成一个DictionaryObject
+		# 每行数据转成一个DictionaryObject# TODO FIXME 一个吗？
 		var new_table_datas = []
 		for i in table_datas:
 			var data = {}
+			var map_table_path_index = {}
+			var last_prefix = ""
+			var link_properties = {}
+			var dealed_columns = []
+			var computing_columns = []
 			for j in columns.size():
-				data[columns[j]["Column Name"]] = i[j]
+				var table_path
+				# 表中的字段
+				if columns[j]["is_field"]:
+					table_path = (columns[j]["db_path"] + columns[j]["table_name"]).validate_node_name()
+				else:
+					table_path = "ComputingData"
+					
+				var prefix = table_path.get_basename()
+				var real_column_name = prefix + "_" + columns[j]["Column Name"]
+				if dealed_columns.has(real_column_name):
+					link_properties[j] = real_column_name
+					continue
+					
+				var column_name = real_column_name
+				if prefix != last_prefix:
+					data[table_path] = "" # for category
+					if map_table_path_index.has(prefix):
+						prefix += "@" + str(map_table_path_index[table_path])
+						column_name = prefix + "_" + columns[j]["Column Name"]
+						data[prefix] = "" # for group
+						hint[prefix] = {"hint_string": prefix + "_"}
+						map_table_path_index[table_path] += 1
+					else:
+						data[table_path] = "" # for group
+						hint[table_path] = {"hint_string": table_path + "_"}
+						map_table_path_index[table_path] = 1
+					last_prefix = prefix
+					
+				data[column_name] = i[j]
+				dealed_columns.push_back(real_column_name)
+				if table_path == "ComputingData":
+					computing_columns.push_back(column_name)
+				
 			var dict_obj = DictionaryObject.new(data, hint, false)
+			for table_name in map_table_path_index:
+				dict_obj.set_usage(table_name + DATA_EXTENSION, PROPERTY_USAGE_CATEGORY)
+				dict_obj.set_usage(table_name, PROPERTY_USAGE_GROUP)
+				for k in map_table_path_index[table_name]:
+					dict_obj.set_usage(table_name + "@" + str(k+1), PROPERTY_USAGE_GROUP)
+			for col in computing_columns:
+				dict_obj.set_usage(col, PROPERTY_USAGE_READ_ONLY | PROPERTY_USAGE_EDITOR)
+			for p in link_properties:
+				dict_obj.set_duplicate_prop(p, link_properties[p])
+				
 			dict_obj.value_changed.connect(func(_prop, _new_val, _old_val):
 				for j in table.datas:
 					var modified_data = (j as DictionaryObject).get_modified_value()
@@ -751,7 +799,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 	else:
 		table.datas = table_datas
 		table.show_menu = false
-		table.supprot_delete_row = false
+		table.support_delete_row = false
 		
 	graph_node.datas = graph_datas
 	
