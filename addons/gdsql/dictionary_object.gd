@@ -13,6 +13,7 @@ var _read_only: bool
 ## 连接属性
 var _duplicate_property: Dictionary
 var _prop_index_cache: Dictionary
+var _duplicate_property_name: Dictionary
 
 ## data： 一个key-value形成的字典数据。或一个长度为2的数组，第一个元素是key的一维数组，第二个元素是value的一维数组
 ## hint： 一个key-dictionary字典数据。key为data中的key，dictionary为包含"hint"和"hint_string"键的数据。@see PropertyHint 
@@ -88,6 +89,8 @@ func _is_read_only() -> bool:
 	return _read_only
 	
 func _get(property: StringName) -> Variant:
+	if _duplicate_property_name.has(property):
+		property = _duplicate_property_name[property]
 	if _data.has(property):
 		return _data[property]
 	return null
@@ -136,8 +139,7 @@ func __get_index_prop(index) -> String:
 		arr.push_back(i)
 		
 	for key in _data:
-		if _usage.has(key) and (_usage[key] & PROPERTY_USAGE_CATEGORY or _usage[key] & PROPERTY_USAGE_GROUP \
-			or _usage[key] & PROPERTY_USAGE_SUBGROUP):
+		if _is_hidden_prop(key):
 			continue
 			
 		_prop_index_cache[arr.pop_front()] = key
@@ -155,8 +157,7 @@ func add_duplicate_prop(prop: String) -> void:
 	assert(_data.has(prop), "prop [%s] not exist!" % prop)
 	var num = 0 # 正常属性的个数
 	for key in _data:
-		if _usage.has(key) and (_usage[key] & PROPERTY_USAGE_CATEGORY or _usage[key] & PROPERTY_USAGE_GROUP \
-			or _usage[key] & PROPERTY_USAGE_SUBGROUP):
+		if _is_hidden_prop(key):
 			continue
 		num += 1
 	_duplicate_property[num + _duplicate_property.size()] = prop
@@ -166,17 +167,52 @@ func set_duplicate_prop(index: int, prop: String) -> void:
 	assert(_data.has(prop), "prop [%s] not exist!" % prop)
 	_duplicate_property[index] = prop
 	
+func _is_hidden_prop(prop: String) -> bool:
+	return _usage.has(prop) and (_usage[prop] & PROPERTY_USAGE_CATEGORY or _usage[prop] & PROPERTY_USAGE_GROUP \
+		or _usage[prop] & PROPERTY_USAGE_SUBGROUP)
+	
 func _get_property_list() -> Array[Dictionary]:
+	# x表示category、group、subgroup等非数据属性
+	# _表示链接属性
+	# _data:	[x, a, b, x, x, c, d, x]
+	# 加上链接：	[x, _, a, b, _, x, x, c, d, x, _]
+	# i：		[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 	var properties: Array[Dictionary] = []
-	for key in _data:
-		properties.append({
+	var prop_num = {}
+	var data_index = 0 # _data游标
+	var visible_index = 0 # 可见属性游标
+	var props = _data.keys()
+	for i in _data.size() + _duplicate_property.size():
+		var key
+		if props.has(data_index) and _is_hidden_prop(props[data_index]):
+			key = props[data_index]
+			data_index += 1
+		else:
+			if _duplicate_property.has(visible_index):
+				key = _duplicate_property[visible_index]
+			else:
+				key = props[data_index]
+				data_index += 1
+			visible_index += 1
+			
+		var info = {
 			"name": key,
 			"type": _hint[key]["type"] if (_hint.has(key) and _hint[key].has("type")) else (TYPE_NIL if _data[key] == null else typeof(_data[key])),
 			#"type": typeof(_data[key]) if _data[key] != null else (_hint[key]["type"] if _hint.has(key) and _hint[key].has("type") else TYPE_NIL),
 			"usage": PROPERTY_USAGE_DEFAULT if not _usage.has(key) else _usage[key],
 			"hint": PROPERTY_HINT_NONE if not (_hint.has(key) and _hint[key].has("hint")) else _hint[key]["hint"],
 			"hint_string": "" if not (_hint.has(key) and _hint[key].has("hint_string")) else _hint[key]["hint_string"]
-		})
+		}
+		
+		if prop_num.has(key):
+			var new_name = key + "@" + str(prop_num[key]) # TODO 确保这个名称不是_data中本来就存在的
+			_duplicate_property_name[new_name] = info["name"]
+			info["name"] = new_name
+			info["usage"] = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
+			prop_num[key] += 1
+		else:
+			prop_num[key] = 2
+		properties.append(info)
 	return properties
 	
 #由于检查器当前显示的属性不一定是本属性，可能导致revert的对象不是本属性，所以直接屏蔽该功能

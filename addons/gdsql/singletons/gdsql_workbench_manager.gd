@@ -131,7 +131,7 @@ func get_table_columns_by_datapath(data_path, table: String) -> Array:
 			if databases[db]["data_path"] == data_path or \
 			ProjectSettings.globalize_path(databases[db]["data_path"]) == ProjectSettings.globalize_path(data_path):
 				return databases[db].get("tables", {}).get(table, {})\
-					.get("columns", [])
+					.get("columns", []).map(func(v): v["db_name"] = db; return v)
 	return []
 	
 func _add_dialog(dialog: AcceptDialog):

@@ -743,29 +743,28 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 				var table_path
 				# 表中的字段
 				if columns[j]["is_field"]:
-					table_path = (columns[j]["db_path"] + columns[j]["table_name"]).validate_node_name()
+					table_path = columns[j]["db_name"] + " " + columns[j]["table_name"].get_basename()
 				else:
 					table_path = "ComputingData"
 					
 				var prefix = table_path.get_basename()
-				var real_column_name = prefix + "_" + columns[j]["Column Name"]
+				var real_column_name = prefix + " " + columns[j]["Column Name"]
 				if dealed_columns.has(real_column_name):
 					link_properties[j] = real_column_name
 					continue
 					
 				var column_name = real_column_name
 				if prefix != last_prefix:
-					data[table_path] = "" # for category
 					if map_table_path_index.has(prefix):
 						prefix += "@" + str(map_table_path_index[table_path])
-						column_name = prefix + "_" + columns[j]["Column Name"]
+						column_name = prefix + " " + columns[j]["Column Name"]
 						data[prefix] = "" # for group
-						hint[prefix] = {"hint_string": prefix + "_"}
+						hint[prefix] = {"hint_string": prefix + " "}
 						map_table_path_index[table_path] += 1
 					else:
 						data[table_path] = "" # for group
-						hint[table_path] = {"hint_string": table_path + "_"}
-						map_table_path_index[table_path] = 1
+						hint[table_path] = {"hint_string": table_path + " "}
+						map_table_path_index[table_path] = 2
 					last_prefix = prefix
 					
 				data[column_name] = i[j]
@@ -774,11 +773,10 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 					computing_columns.push_back(column_name)
 				
 			var dict_obj = DictionaryObject.new(data, hint, false)
-			for table_name in map_table_path_index:
-				dict_obj.set_usage(table_name + DATA_EXTENSION, PROPERTY_USAGE_CATEGORY)
-				dict_obj.set_usage(table_name, PROPERTY_USAGE_GROUP)
-				for k in map_table_path_index[table_name]:
-					dict_obj.set_usage(table_name + "@" + str(k+1), PROPERTY_USAGE_GROUP)
+			for table_path in map_table_path_index:
+				dict_obj.set_usage(table_path, PROPERTY_USAGE_GROUP)
+				for k in map_table_path_index[table_path]:
+					dict_obj.set_usage(table_path + "@" + str(k+1), PROPERTY_USAGE_GROUP)
 			for col in computing_columns:
 				dict_obj.set_usage(col, PROPERTY_USAGE_READ_ONLY | PROPERTY_USAGE_EDITOR)
 			for p in link_properties:
