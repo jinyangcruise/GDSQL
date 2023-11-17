@@ -732,6 +732,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		
 		# 每行数据转成一个DictionaryObject# TODO FIXME 一个吗？
 		var new_table_datas = []
+		printt("qqqqq", columns)
 		for i in table_datas:
 			var data = {}
 			var map_table_path_index = {}
@@ -747,25 +748,36 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 				else:
 					table_path = "ComputingData"
 					
-				var prefix = table_path.get_basename()
+				var prefix = table_path
 				var real_column_name = prefix + " " + columns[j]["Column Name"]
 				if dealed_columns.has(real_column_name):
 					link_properties[j] = real_column_name
+					if prefix != last_prefix:
+						if map_table_path_index.has(table_path):
+							prefix += "@" + str(map_table_path_index[table_path])
+							data[prefix] = "" # for group
+							hint[prefix] = {"hint_string": table_path + " "}
+							map_table_path_index[table_path] += 1
+						else:
+							data[table_path] = "" # for group
+							hint[table_path] = {"hint_string": table_path + " "}
+							map_table_path_index[table_path] = 2
+						last_prefix = table_path
 					continue
 					
 				var column_name = real_column_name
 				if prefix != last_prefix:
-					if map_table_path_index.has(prefix):
+					if map_table_path_index.has(table_path):
 						prefix += "@" + str(map_table_path_index[table_path])
 						column_name = prefix + " " + columns[j]["Column Name"]
 						data[prefix] = "" # for group
-						hint[prefix] = {"hint_string": prefix + " "}
+						hint[prefix] = {"hint_string": table_path + " "} # 不使用prefix是因为dictobj不方便修改属性名称为：db table@num field@num
 						map_table_path_index[table_path] += 1
 					else:
 						data[table_path] = "" # for group
 						hint[table_path] = {"hint_string": table_path + " "}
 						map_table_path_index[table_path] = 2
-					last_prefix = prefix
+					last_prefix = table_path
 					
 				data[column_name] = i[j]
 				dealed_columns.push_back(real_column_name)
@@ -775,8 +787,9 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 			var dict_obj = DictionaryObject.new(data, hint, false)
 			for table_path in map_table_path_index:
 				dict_obj.set_usage(table_path, PROPERTY_USAGE_GROUP)
-				for k in map_table_path_index[table_path]:
-					dict_obj.set_usage(table_path + "@" + str(k+1), PROPERTY_USAGE_GROUP)
+				if map_table_path_index[table_path] > 2:
+					for k in map_table_path_index[table_path]-2:
+						dict_obj.set_usage(table_path + "@" + str(k+2), PROPERTY_USAGE_GROUP) # 第一个重复的编号为2，第二个重复的编号为3。。。
 			for col in computing_columns:
 				dict_obj.set_usage(col, PROPERTY_USAGE_READ_ONLY | PROPERTY_USAGE_EDITOR)
 			for p in link_properties:

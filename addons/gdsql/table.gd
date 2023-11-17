@@ -245,6 +245,7 @@ func add_row(a_data):
 	a_row.set_meta("data", a_data)
 	v_box_container.add_child(a_row)
 	a_row.gui_input.connect(_on_row_gui_input.bind(a_row, a_data), CONNECT_DEFERRED)
+	printt("ttttttttttttttttt", a_row)
 	var style_box: StyleBoxFlat = a_row.get_theme_stylebox("panel").duplicate()
 	a_row.add_theme_stylebox_override("panel", style_box)
 	# add_child好像会导致之前的focus丢失
@@ -406,6 +407,9 @@ func _on_resized():
 
 
 func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
+	if not (event is InputEventMouseButton and event.is_pressed()):
+		return
+		
 	var emit_click = func():
 		if event is InputEventMouseButton and \
 			(event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT):
@@ -426,6 +430,10 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 	if source_data is Object and editable and event is InputEventMouseButton and \
 			(event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT):
 		EditorInterface.inspect_object(source_data)
+		# 全部展开（方便用户修改数据）
+		for i: MenuButton in EditorInterface.get_inspector().get_parent().find_children("@MenuButton*", "MenuButton", true, false):
+			if i.tooltip_text == tr("Manage object properties."):
+				i.get_popup().emit_signal("id_pressed", 12) # 12 is for EXPAND_ALL, @see editor\inspector_dock.h
 		
 	emit_click.call()
 
@@ -459,6 +467,10 @@ func row_grab_focus(row: int):
 		
 		if datas[row] is Object and editable:
 			EditorInterface.inspect_object(datas[row])
+			# 全部展开（方便用户修改数据）
+			for i: MenuButton in EditorInterface.get_inspector().get_parent().find_children("@MenuButton*", "MenuButton", true, false):
+				if i.tooltip_text == tr("Manage object properties."):
+					i.get_popup().emit_signal("id_pressed", 12) # 12 is for EXPAND_ALL, @see editor\inspector_dock.h
 			
 func scroll_to_bottom():
 	var v_scroll_bar = scroll_container.get_v_scroll_bar() as VScrollBar

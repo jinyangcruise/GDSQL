@@ -183,22 +183,32 @@ func _get_property_list() -> Array[Dictionary]:
 	var visible_index = 0 # 可见属性游标
 	var props = _data.keys()
 	for i in _data.size() + _duplicate_property.size():
+		printt("-----------")
 		var key
-		if props.has(data_index) and _is_hidden_prop(props[data_index]):
+		#if _duplicate_property.has(visible_index):
+			#key = _duplicate_property[visible_index]
+			#printt(i, "dddddddddd is link prop", key, visible_index)
+		#else:
+			#
+		
+		if data_index < props.size() and _is_hidden_prop(props[data_index]):
 			key = props[data_index]
 			data_index += 1
+			printt(i, "ccccccccc is group", key)
 		else:
 			if _duplicate_property.has(visible_index):
 				key = _duplicate_property[visible_index]
+				printt(i, "dddddddddd is link prop", key, visible_index)
 			else:
 				key = props[data_index]
+				printt(i, "eeeeeeeeee is normal prop", key, data_index)
 				data_index += 1
 			visible_index += 1
 			
 		var info = {
 			"name": key,
-			"type": _hint[key]["type"] if (_hint.has(key) and _hint[key].has("type")) else (TYPE_NIL if _data[key] == null else typeof(_data[key])),
-			#"type": typeof(_data[key]) if _data[key] != null else (_hint[key]["type"] if _hint.has(key) and _hint[key].has("type") else TYPE_NIL),
+			"type": _hint[key]["type"] if (_hint.has(key) and _hint[key].has("type")) \
+				else (TYPE_NIL if _data[key] == null else typeof(_data[key])),
 			"usage": PROPERTY_USAGE_DEFAULT if not _usage.has(key) else _usage[key],
 			"hint": PROPERTY_HINT_NONE if not (_hint.has(key) and _hint[key].has("hint")) else _hint[key]["hint"],
 			"hint_string": "" if not (_hint.has(key) and _hint[key].has("hint_string")) else _hint[key]["hint_string"]
@@ -213,6 +223,7 @@ func _get_property_list() -> Array[Dictionary]:
 		else:
 			prop_num[key] = 2
 		properties.append(info)
+	printt("ggggggg", properties, _data, _hint, _usage, _duplicate_property)
 	return properties
 	
 #由于检查器当前显示的属性不一定是本属性，可能导致revert的对象不是本属性，所以直接屏蔽该功能
