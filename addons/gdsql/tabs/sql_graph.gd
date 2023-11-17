@@ -608,13 +608,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 	if table.editable:
 		var hint = {}
 		var new_data = {}
-		for i in columns:
-			if not i["is_field"]:
-				continue
-			hint[i["Column Name"]] = {"hint": i["Hint"], "hint_string": i["Hint String"], "type": i["Data Type"]}
-			new_data[i["Column Name"]] = DataTypeDef.DEFUALT_VALUES[i["Data Type"]] if i["Default(Expression)"] == "" \
-				else mgr.evaluate_command(null, i["Default(Expression)"])
-				
+		
 		# 加俩按钮:1.新建一条数据；2.应用
 		var btn_apply = Button.new()
 		btn_apply.text = "apply"
@@ -730,71 +724,67 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		flow_container.add_child(btn_revert)
 		flow_container.get_child(0).move_to_front() # move export button to last
 		
-		# 每行数据转成一个DictionaryObject# TODO FIXME 一个吗？
+		# 每列的属性名称要重新定义
+		var map_table_path_index = {}
+		var last_table_path = ""
+		var last_prefix = ""
+		var dealed_columns = {}
+		var real_col_name_name = {}
+		var new_column_prop_name = []
+		for j in columns.size():
+			var table_path
+			# 表中的字段
+			if columns[j]["is_field"]:
+				table_path = columns[j]["db_name"] + " " + columns[j]["table_name"].get_basename()
+			else:
+				table_path = "ComputingData"
+				
+			# 分组名称
+			var prefix
+			if table_path == last_table_path:
+				prefix = last_prefix
+			else:
+				prefix = table_path
+				if map_table_path_index.has(table_path):
+					prefix += "@" + str(map_table_path_index[table_path])
+					map_table_path_index[table_path] += 1
+				else:
+					map_table_path_index[table_path] = 2 # 可以使未来重复的分组名称后缀从2开始命名
+				new_column_prop_name.push_back({"type": "group", "prop": prefix})
+				hint[prefix] = {"hint_string": prefix + " ", "usage": PROPERTY_USAGE_GROUP} # 如此，检查器就可以省略属性的prefix
+				
+			last_table_path = table_path
+			last_prefix = prefix
+			
+			# 属性名称
+			var real_column_name = table_path + " " + columns[j]["Column Name"]
+			if dealed_columns.has(real_column_name):
+				var col_name = prefix + " " + columns[j]["Column Name"] + " (Copy" + str(dealed_columns[real_column_name]) + ")"
+				new_column_prop_name.push_back({"type": j, "prop": col_name}) # 记录j列数据的属性名称
+				hint[col_name] = {"link": real_col_name_name[real_column_name]}
+				dealed_columns[real_column_name] += 1
+			else:
+				var col_name = prefix + " " + columns[j]["Column Name"]
+				new_column_prop_name.push_back({"type": j, "prop": col_name}) # 记录j列数据的属性名称
+				if columns[j]["is_field"]:
+					hint[col_name] = {"hint": columns[j]["Hint"], 
+						"hint_string": columns[j]["Hint String"], "type": columns[j]["Data Type"]}
+				else:
+					hint[col_name] = {"usage": PROPERTY_USAGE_READ_ONLY | PROPERTY_USAGE_EDITOR}
+				real_col_name_name[real_column_name] = col_name
+				dealed_columns[real_column_name] = 2 # 可以使未来重复的变量名称后缀从2开始命名
+				
+		# 每行数据转成一个DictionaryObject
 		var new_table_datas = []
-		printt("qqqqq", columns)
 		for i in table_datas:
 			var data = {}
-			var map_table_path_index = {}
-			var last_prefix = ""
-			var link_properties = {}
-			var dealed_columns = []
-			var computing_columns = []
-			for j in columns.size():
-				var table_path
-				# 表中的字段
-				if columns[j]["is_field"]:
-					table_path = columns[j]["db_name"] + " " + columns[j]["table_name"].get_basename()
+			for j in new_column_prop_name:
+				if j["type"] is String and j["type"] == "group":
+					data[j["prop"]] = "" # for group
 				else:
-					table_path = "ComputingData"
+					data[j["prop"]] = i[j["type"]]
 					
-				var prefix = table_path
-				var real_column_name = prefix + " " + columns[j]["Column Name"]
-				if dealed_columns.has(real_column_name):
-					link_properties[j] = real_column_name
-					if prefix != last_prefix:
-						if map_table_path_index.has(table_path):
-							prefix += "@" + str(map_table_path_index[table_path])
-							data[prefix] = "" # for group
-							hint[prefix] = {"hint_string": table_path + " "}
-							map_table_path_index[table_path] += 1
-						else:
-							data[table_path] = "" # for group
-							hint[table_path] = {"hint_string": table_path + " "}
-							map_table_path_index[table_path] = 2
-						last_prefix = table_path
-					continue
-					
-				var column_name = real_column_name
-				if prefix != last_prefix:
-					if map_table_path_index.has(table_path):
-						prefix += "@" + str(map_table_path_index[table_path])
-						column_name = prefix + " " + columns[j]["Column Name"]
-						data[prefix] = "" # for group
-						hint[prefix] = {"hint_string": table_path + " "} # 不使用prefix是因为dictobj不方便修改属性名称为：db table@num field@num
-						map_table_path_index[table_path] += 1
-					else:
-						data[table_path] = "" # for group
-						hint[table_path] = {"hint_string": table_path + " "}
-						map_table_path_index[table_path] = 2
-					last_prefix = table_path
-					
-				data[column_name] = i[j]
-				dealed_columns.push_back(real_column_name)
-				if table_path == "ComputingData":
-					computing_columns.push_back(column_name)
-				
 			var dict_obj = DictionaryObject.new(data, hint, false)
-			for table_path in map_table_path_index:
-				dict_obj.set_usage(table_path, PROPERTY_USAGE_GROUP)
-				if map_table_path_index[table_path] > 2:
-					for k in map_table_path_index[table_path]-2:
-						dict_obj.set_usage(table_path + "@" + str(k+2), PROPERTY_USAGE_GROUP) # 第一个重复的编号为2，第二个重复的编号为3。。。
-			for col in computing_columns:
-				dict_obj.set_usage(col, PROPERTY_USAGE_READ_ONLY | PROPERTY_USAGE_EDITOR)
-			for p in link_properties:
-				dict_obj.set_duplicate_prop(p, link_properties[p])
-				
 			dict_obj.value_changed.connect(func(_prop, _new_val, _old_val):
 				for j in table.datas:
 					var modified_data = (j as DictionaryObject).get_modified_value()

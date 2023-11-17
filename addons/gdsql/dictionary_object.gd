@@ -11,12 +11,10 @@ var _update_callback: Dictionary
 var _custom_display_control: Dictionary
 var _read_only: bool
 ## 连接属性
-var _duplicate_property: Dictionary
-var _prop_index_cache: Dictionary
-var _duplicate_property_name: Dictionary
+var _duplicate_property: Array
 
 ## data： 一个key-value形成的字典数据。或一个长度为2的数组，第一个元素是key的一维数组，第二个元素是value的一维数组
-## hint： 一个key-dictionary字典数据。key为data中的key，dictionary为包含"hint"和"hint_string"键的数据。@see PropertyHint 
+## hint： 一个key-dictionary字典数据。key为data中的key，dictionary为包含"hint"和"hint_string"，"link"，"usage"，"type"键的数据。@see PropertyHint 
 ## 是否只读
 func _init(data, hint: Dictionary = {}, read_only: bool = false) -> void:
 	_hint = hint
@@ -27,6 +25,12 @@ func _init(data, hint: Dictionary = {}, read_only: bool = false) -> void:
 		_data = {}
 		for i in data[0].size():
 			_data[data[0][i]] = data[1][i]
+	for key in hint:
+		if hint[key].has("link"):
+			_data[key] = hint[key]["link"]
+			_duplicate_property.push_back(key)
+		if hint[key].has("usage"):
+			_usage[key] = hint[key]["usage"]
 			
 func _notification(what):
 	if what == NOTIFICATION_PREDELETE:
@@ -44,8 +48,7 @@ func get_data() -> Dictionary:
 func reset_data(data, hint = null):
 	_data = data
 	_usage = {}
-	_duplicate_property = {}
-	_prop_index_cache = {}
+	_duplicate_property = []
 	if hint != null:
 		_hint = hint
 	notify_property_list_changed()
@@ -63,13 +66,6 @@ func reset_hint(hint: Dictionary):
 func reset_read_only(read_only: bool):
 	_read_only = read_only
 	notify_property_list_changed()
-	
-## @see PROPERTY_USAGE_DEFAULT
-func set_usage(property, usage):
-	if usage == null:
-		_usage.erase(property)
-	else:
-		_usage[property] = usage
 	
 func duplicate(deep: bool = false) -> DictionaryObject:
 	var dict_obj = DictionaryObject.new(_data.duplicate(deep), _hint.duplicate(deep), _read_only)
@@ -89,13 +85,15 @@ func _is_read_only() -> bool:
 	return _read_only
 	
 func _get(property: StringName) -> Variant:
-	if _duplicate_property_name.has(property):
-		property = _duplicate_property_name[property]
+	if _duplicate_property.has(property):
+		property = _data[property]
 	if _data.has(property):
 		return _data[property]
 	return null
 	
 func _set(property: StringName, value: Variant) -> bool:
+	if _duplicate_property.has(property):
+		property = _data[property]
 	if _data.has(property):
 		var old_value = _data[property]
 		if not _origin.has(property):
@@ -105,125 +103,64 @@ func _set(property: StringName, value: Variant) -> bool:
 			_update_callback[property].call(value)
 			
 		value_changed.emit(property, value, old_value)
+		# 连接属性也发出信号
+		for i in _duplicate_property:
+			if _data[i] == property:
+				value_changed.emit(i, value, old_value)
 		return true
 	return false
 	
 func _get_by_index(index: int) -> Variant:
-	return _data[__get_index_prop(index)]
+	return _get(__get_index_prop(index))
 	
 	
 ## 获取index位置的属性名称
 func __get_index_prop(index) -> String:
-	# x表示category、group、subgroup等非数据属性
-	# _表示链接属性
-	# _data:	[x, a, b, x, x, c, d, x]
-	# 加上链接：	[x, _, a, b, _, x, x, c, d, x, _]
-	# index：	[ , 0, 1, 2, 3,  ,  , 4, 5,  , 6]
-	# 要求 0, 1, 2, 3, 4, 5, 6分别对应的是哪个属性
-	
-	# 缓存的数据里取
-	if _prop_index_cache.has(index):
-		return _prop_index_cache[index]
-	
-	# 连接属性的可以直接给出
-	if _duplicate_property.has(index):
-		return _duplicate_property[index]
-		
-	if _prop_index_cache.is_empty():
-		_prop_index_cache = _duplicate_property.duplicate()
-		
-	var arr = [] # 剩余的可分配的index
-	for i in _data.size() + _duplicate_property.size():
-		if _duplicate_property.has(i):
-			continue
-		arr.push_back(i)
-		
+	var i = 0
 	for key in _data:
 		if _is_hidden_prop(key):
 			continue
-			
-		_prop_index_cache[arr.pop_front()] = key
-		
-	return _prop_index_cache[index]
+		if i == index:
+			return key
+		i += 1
+	return ""
 	
 # 前提是index位置的属性是存在的
 func _set_by_index(index: int, value: Variant) -> bool:
 	return _set(__get_index_prop(index), value)
 	
-## 增加一条连接属性（占用一个index），但是这个属性实际上是已经存在的某属性。
-## 连接属性不会导致_get_property_list()发生变化，
-## 只影响_get_by_index和_set_by_index。
-func add_duplicate_prop(prop: String) -> void:
+## 设置属性为链接属性，链接属性的值指向到被链接的属性的值。
+## 被链接属性的名称可以从_hint[链接属性]["link"]获取到。
+## 请勿嵌套链接。
+## 还有一种设置链接属性的方法，就是在hint中设置"link"为true。
+func mark_link_prop(prop: String, src_prop: String) -> void:
 	assert(_data.has(prop), "prop [%s] not exist!" % prop)
-	var num = 0 # 正常属性的个数
-	for key in _data:
-		if _is_hidden_prop(key):
-			continue
-		num += 1
-	_duplicate_property[num + _duplicate_property.size()] = prop
-	
-## @see add_duplicate_prop
-func set_duplicate_prop(index: int, prop: String) -> void:
-	assert(_data.has(prop), "prop [%s] not exist!" % prop)
-	_duplicate_property[index] = prop
+	assert(_data.has(_data[prop]), "prop [%s] value is not a prop")
+	_data[prop] = src_prop
+	_duplicate_property.push_back(prop)
 	
 func _is_hidden_prop(prop: String) -> bool:
 	return _usage.has(prop) and (_usage[prop] & PROPERTY_USAGE_CATEGORY or _usage[prop] & PROPERTY_USAGE_GROUP \
 		or _usage[prop] & PROPERTY_USAGE_SUBGROUP)
 	
 func _get_property_list() -> Array[Dictionary]:
-	# x表示category、group、subgroup等非数据属性
-	# _表示链接属性
-	# _data:	[x, a, b, x, x, c, d, x]
-	# 加上链接：	[x, _, a, b, _, x, x, c, d, x, _]
-	# i：		[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 	var properties: Array[Dictionary] = []
-	var prop_num = {}
-	var data_index = 0 # _data游标
-	var visible_index = 0 # 可见属性游标
-	var props = _data.keys()
-	for i in _data.size() + _duplicate_property.size():
-		printt("-----------")
-		var key
-		#if _duplicate_property.has(visible_index):
-			#key = _duplicate_property[visible_index]
-			#printt(i, "dddddddddd is link prop", key, visible_index)
-		#else:
-			#
-		
-		if data_index < props.size() and _is_hidden_prop(props[data_index]):
-			key = props[data_index]
-			data_index += 1
-			printt(i, "ccccccccc is group", key)
-		else:
-			if _duplicate_property.has(visible_index):
-				key = _duplicate_property[visible_index]
-				printt(i, "dddddddddd is link prop", key, visible_index)
-			else:
-				key = props[data_index]
-				printt(i, "eeeeeeeeee is normal prop", key, data_index)
-				data_index += 1
-			visible_index += 1
+	for key in _data:
+		var key_bak = key
+		var usage = PROPERTY_USAGE_DEFAULT if not _usage.has(key) else _usage[key]
+		if _duplicate_property.has(key):
+			key = _data[key]
+			usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
 			
-		var info = {
-			"name": key,
+		properties.append({
+			"name": key if key == key_bak else key_bak,
 			"type": _hint[key]["type"] if (_hint.has(key) and _hint[key].has("type")) \
 				else (TYPE_NIL if _data[key] == null else typeof(_data[key])),
-			"usage": PROPERTY_USAGE_DEFAULT if not _usage.has(key) else _usage[key],
+			"usage": usage,
 			"hint": PROPERTY_HINT_NONE if not (_hint.has(key) and _hint[key].has("hint")) else _hint[key]["hint"],
 			"hint_string": "" if not (_hint.has(key) and _hint[key].has("hint_string")) else _hint[key]["hint_string"]
-		}
+		})
 		
-		if prop_num.has(key):
-			var new_name = key + "@" + str(prop_num[key]) # TODO 确保这个名称不是_data中本来就存在的
-			_duplicate_property_name[new_name] = info["name"]
-			info["name"] = new_name
-			info["usage"] = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
-			prop_num[key] += 1
-		else:
-			prop_num[key] = 2
-		properties.append(info)
-	printt("ggggggg", properties, _data, _hint, _usage, _duplicate_property)
 	return properties
 	
 #由于检查器当前显示的属性不一定是本属性，可能导致revert的对象不是本属性，所以直接屏蔽该功能
