@@ -959,13 +959,13 @@ func query() -> QueryResult:
 			var autoincrement_keys = __autoincrement_keys.duplicate()
 			autoincrement_keys.merge(__autoincrement_keys_def) # 合并字典，不要重复计算
 			for field in autoincrement_keys:
-				if __data.get(field) == null or __data.get(field) == 0:
+				if __data.get(field) == null or (__data.get(field) is int and __data.get(field) == 0):
 					for data in datas:
 						if data.get(field) != null and data.get(field) >= autoincrement_keys.get(field):
 							autoincrement_keys[field] = data.get(field)
 							
 			for field in autoincrement_keys:
-				if __data.get(field) == null or __data.get(field) == 0:
+				if __data.get(field) == null or (__data.get(field) is int and __data.get(field) == 0):
 					__data[field] = autoincrement_keys.get(field) + 1
 					
 			# insert模式下，对于有表结构定义的数据，每个字段都必须插入，也不能有多余的字段。需在自增之后检查。
