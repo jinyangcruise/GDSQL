@@ -28,7 +28,7 @@ const CONF_EXTENSION = ".cfg"
 const MAX_INT = 9223372036854775807
 
 var _columns = []
-
+var _col_names = []
 func _ready():
 	if mgr == null or not mgr.run_in_plugin(self):
 		return
@@ -60,6 +60,7 @@ func _on_option_button_tables_item_selected(_index):
 	refresh_dest_column()
 	
 func refresh_dest_column():
+	_col_names.clear()
 	var table = option_button_tables.get_item_text(option_button_tables.selected).split(".")
 	var db_name = table[0]
 	var table_name = table[1]
@@ -78,7 +79,14 @@ func refresh_dest_column():
 			if i["Column Name"].to_lower().to_camel_case() == source_column_name.to_lower().to_camel_case():
 				potential_pos = pos
 		option.selected = potential_pos
+		_col_names.push_back(option.get_item_text(potential_pos))
+		if not option.item_selected.is_connected(refresh_col_name):
+			option.item_selected.connect(refresh_col_name.bind(option, _col_names.size()-1))
 		
+func refresh_col_name(index, option, i):
+	_col_names[i] = option.get_item_text(index)
+	Utils.print_variant(_col_names)
+	
 func reset_columns():
 	clear_columns()
 	check_box_select_all_1.button_pressed = true
@@ -395,7 +403,7 @@ func _on_button_apply_pressed() -> void:
 			var begin_time_2 = Time.get_unix_time_from_system()
 			var value = {}
 			for i in col_indexes:
-				value[columns[i]] = str_to_var(data[i]) if need_trans else data[i]
+				value[_col_names[i]] = str_to_var(data[i]) if need_trans else data[i]
 			dao = BaseDao.new()
 			var ret = dao.auto_commit(false).use_db(db_path).insert_into(table_path).values(value).query()
 			if ret == null:
