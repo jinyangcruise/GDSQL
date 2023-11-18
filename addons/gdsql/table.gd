@@ -228,6 +228,7 @@ func add_row(a_data):
 			for i in columns.size():
 				data.push_back(a_data.get(a_data.keys()[i], null))
 	elif a_data is DictionaryObject:
+		# TODO value_changed时进行显示更新
 		data = []
 		if columns.is_empty():
 			columns = []
@@ -436,6 +437,7 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 		
 	emit_click.call()
 
+# TODO 支持多选高亮、多选编辑
 func highlight_row(row_panel: PanelContainer) -> void:
 	#await get_tree().create_timer(0.1).timeout
 	#scroll_container.scroll_vertical = row_panel.position.y + row_panel.size.y
