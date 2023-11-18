@@ -6,6 +6,7 @@ var _affected_rows = 0
 var _warnings
 var _data
 var _last_insert_id = 0
+var _has_head = true
 
 func ok() -> bool:
 	return _err is int and _err == OK
@@ -25,12 +26,16 @@ func get_head_and_data() -> Array:
 	
 ## 获取query后的数据，不包括表头
 func get_data() -> Array:
+	if not _has_head:
+		return get_head_and_data()
 	if _data is Array and _data.size() > 1:
 		return (_data as Array).slice(1)
 	return []
 	
 ## 获取query后的数据的表头
 func get_head() -> Array:
+	if not _has_head:
+		return []
 	if _data is Array and _data.size() > 0:
 		return (_data as Array)[0]
 	return []

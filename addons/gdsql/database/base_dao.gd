@@ -893,6 +893,7 @@ func query() -> QueryResult:
 		"select":
 			var ret = ___select(path)
 			reset()
+			result._has_head = __need_head
 			result._data = ret
 			return result
 		"insert_into", "insert_ignore", "insert_or_update", "replace_into":
