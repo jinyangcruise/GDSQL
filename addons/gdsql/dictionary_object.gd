@@ -45,6 +45,13 @@ func _notification(what):
 func get_data() -> Dictionary:
 	return _data
 	
+func get_visible_data() -> Dictionary:
+	var ret = {}
+	for key in _data:
+		if not _is_hidden_prop(key):
+			ret[key] = _data[key]
+	return ret
+	
 func reset_data(data, hint = null):
 	_data = data
 	_usage = {}
