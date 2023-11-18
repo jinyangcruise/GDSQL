@@ -159,14 +159,27 @@ func _get_property_list() -> Array[Dictionary]:
 			key = _data[key]
 			usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
 			
-		properties.append({
+		var info = {
 			"name": key if key == key_bak else key_bak,
 			"type": _hint[key]["type"] if (_hint.has(key) and _hint[key].has("type")) \
 				else (TYPE_NIL if _data[key] == null else typeof(_data[key])),
 			"usage": usage,
 			"hint": PROPERTY_HINT_NONE if not (_hint.has(key) and _hint[key].has("hint")) else _hint[key]["hint"],
 			"hint_string": "" if not (_hint.has(key) and _hint[key].has("hint_string")) else _hint[key]["hint_string"]
-		})
+		}
+		
+		# 可能需要从数据库提供字典值
+		if info["hint"] == PROPERTY_HINT_ENUM or info["hint"] == PROPERTY_HINT_ENUM_SUGGESTION:
+			var arr = (info["hint_string"] as String).rsplit(":", true, 1)
+			if arr.size() == 2 and (arr[0] as String).is_absolute_path():
+				var conf = ImprovedConfigFile.new()
+				var err = conf.load(arr[0])
+				if err == OK:
+					info["hint_string"] = ",".join(conf.get_all_section_value(arr[1]))
+				else:
+					push_error("Can not load file [%s]" % arr[0])
+		
+		properties.append(info)
 		
 	return properties
 	
