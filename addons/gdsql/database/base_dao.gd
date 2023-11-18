@@ -672,6 +672,12 @@ func ___select(path: String, fill_primary_key: String = ""):
 		# 防止内存占用
 		__union_all.reset()
 		
+	# 筛了、合并查询了发现是空
+	if ret_filter.is_empty():
+		if __need_head and __parent_union == null:
+			return [real_select]
+		return []
+		
 	# 特殊标记
 	var __ROW_POST_PROCESS__ = "__ROW_POST_PROCESS_1355--5--__" # 祈祷用户没有用这个字段或表名
 	
@@ -716,7 +722,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 	if __offset >= 0 and __limit > 0:
 		ret_filter = ret_filter.slice(__offset, __limit)
 		
-	# 不用后处理，那么就返回所有字段，这基本就是update的时候内部调用select才使用。用户不应该到这里。
+	# 不用后处理，那么就返回所有字段，这基本就是update的时候内部调用select才使用。用户不应该到这里。所以不加表头了。
 	if not __need_post_porcess:
 		return ret_filter
 		
