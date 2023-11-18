@@ -511,10 +511,72 @@ func add_table_node(columns: Array, table_datas: Array, asize = null, pos_offset
 	
 ## 生成一个【表格】节点
 func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNode = null) -> GraphNode:
+#region 每列的属性名称要重新定义
+	var hint = {} # 每列的hint
+	var map_table_path_index = {} # 临时变量：记录每个表分组的序号
+	var last_table_path = "" # 临时变量：记录上一列的表路径
+	var last_prefix = "" # 临时变量：记录上一列使用的名称前缀
+	var dealed_columns = {} # 临时变量：记录已经处理过的真实列名
+	var real_col_name_name = {} # 临时变量：记录列名对应的真实列名
+	var new_column_prop_name = [] # 保存包含用于分组的属性和数据列的所有属性
+	var table_primary_index = {} # 保存每个表的主键在new_column_prop_name中的序号
+	var table_col_index = {} # 保存每个表的键在new_column_prop_name中的序号
+	for j in columns.size():
+		var table_path
+		# 表中的字段
+		if columns[j]["is_field"]:
+			table_path = columns[j]["db_name"] + " " + columns[j]["table_name"].get_basename() # 实际上用的是数据库名称（而不是路径）+表名（去后缀）
+			if not table_primary_index.has(columns[j]["db_path"] + columns[j]["table_name"]): # 这里用的是数据库的路径+表名
+				table_primary_index[columns[j]["db_path"] + columns[j]["table_name"]] = -1
+		else:
+			table_path = "ComputingData"
+			
+		# 分组名称
+		var prefix
+		if table_path == last_table_path:
+			prefix = last_prefix
+		else:
+			prefix = table_path
+			if map_table_path_index.has(table_path):
+				prefix += "@" + str(map_table_path_index[table_path])
+				map_table_path_index[table_path] += 1
+			else:
+				map_table_path_index[table_path] = 2 # 可以使未来重复的分组名称后缀从2开始命名
+			new_column_prop_name.push_back({"type": "group", "prop": prefix})
+			hint[prefix] = {"hint_string": prefix + " ", "usage": PROPERTY_USAGE_GROUP} # 如此，检查器就可以省略属性的prefix
+			
+		last_table_path = table_path
+		last_prefix = prefix
+		
+		# 属性名称
+		var real_column_name = table_path + " " + columns[j]["Column Name"]
+		if dealed_columns.has(real_column_name):
+			var col_name = prefix + " " + columns[j]["Column Name"] + " (Copy" + str(dealed_columns[real_column_name]) + ")"
+			new_column_prop_name.push_back({"type": j, "prop": col_name, "col_name": columns[j]["Column Name"],
+				"table_path": columns[j]["db_path"] + columns[j]["table_name"]}) # 记录j列数据的属性名称等信息
+			hint[col_name] = {"link": real_col_name_name[real_column_name]}
+			dealed_columns[real_column_name] += 1
+		else:
+			var col_name = prefix + " " + columns[j]["Column Name"]
+			new_column_prop_name.push_back({"type": j, "prop": col_name, "col_name": columns[j]["Column Name"],
+				"table_path": columns[j]["db_path"] + columns[j]["table_name"]}) # 记录j列数据的属性名称等信息
+			if columns[j]["is_field"]:
+				hint[col_name] = {"hint": columns[j]["Hint"], 
+					"hint_string": columns[j]["Hint String"], "type": columns[j]["Data Type"]}
+				# 记录键位置信息
+				table_col_index[col_name] = new_column_prop_name.size() - 1
+				# 记录主键信息
+				if columns[j]["PK"]:
+					table_primary_index[columns[j]["db_path"] + columns[j]["table_name"]] = table_col_index[col_name] # 主键位置
+			else:
+				hint[col_name] = {"usage": PROPERTY_USAGE_READ_ONLY | PROPERTY_USAGE_EDITOR}
+			real_col_name_name[real_column_name] = col_name
+			dealed_columns[real_column_name] = 2 # 可以使未来重复的变量名称后缀从2开始命名
+#endregion
+			
 	var graph_node = old_graph_node
 	var table
 	var graph_datas: Array[Array]
-	
 	if graph_node == null:
 		graph_node = SQLGraphNode.instantiate()
 		graph_node.node_enable_status.connect(mark_modified)
@@ -559,7 +621,7 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		graph_node.title = "Result"
 		graph_node.ready.connect(func():
 			graph_node.set_slot_type_left(0, 1) # Result's type is 1
-			graph_node.size = Vector2(350, 400)
+			graph_node.size = Vector2(400, 400)
 			graph_node.selected = true
 		)
 		graph_node.set_meta("type", "Result")
@@ -584,69 +646,145 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 			# 由于按钮释放了，原来connect的引用的按钮无法再使用，disconnect掉，后面会重新连接
 			table.row_deleted.disconnect(i["callable"])
 			
-	# 根据表头的情况决定是否需要支持数据修改
-	# 根据表头分析，1.数据是否来源于同一张表，2.是否有主键，3.没有相同的字段
-	var info = columns.reduce(func(acc, v):
-		acc["paths"][v["db_path"] + v["table_name"]] = true
-		var num = acc["columns"].get(v["Column Name"], 0)
-		acc["columns"][v["Column Name"]] = num + 1
-		if num > 0:
-			acc["duplicate_column"] = true
-		if v.has("PK") and v["PK"]:
-			acc["PK"] = v
-		return acc
-	, {"paths":{}, "PK": null, "columns":{}, "duplicate_column": false})
-	
-	if info["PK"] != null and info["duplicate_column"] == false and info["paths"].size() == 1:
-		table.editable = true
-		table.support_delete_row = true
-	else:
-		table.editable = false
-		table.support_delete_row = false
-		
 	table.editable = true
+	# 只有单表查询才支持右键删除。联表查询无法知道用户想删除哪个表的数据，即便能勾选要执行的命令，也容易误操作
+	var single_table_query = table_primary_index.size() == 1
+	table.support_delete_row = single_table_query
+	
 	if table.editable:
-		var hint = {}
-		var new_data = {}
-		
+		# 用于把修改数据按照表路径做归类
+		# return：{
+			#"res://src/config/c_skill.gsql": {
+				#"PK_key": "id",
+				#"PK_value_new": 7,
+				#"PK_value_old": 6,
+				#"modified": {
+					#"id": {
+						#"new": 7,
+						#"old": 6
+					#}
+				#}
+			#}
+		#}
+		var group_modified_data_call = func(data: DictionaryObject) -> Dictionary:
+			var tables = {} # 更新数据可能涉及多个表，所以把modified_data按表分类
+			var modified_data = data.get_modified_value()
+			var all_data = data.get_visible_data()
+			for prop in all_data:
+				var col_info = new_column_prop_name[table_col_index[prop]]
+				var table_path = col_info["table_path"]
+				if not tables.has(table_path):
+					tables[table_path] = {}
+					var primary_index = table_primary_index[table_path]
+					var primary_key
+					var primary_value_new
+					var primary_value_old
+					if primary_index != -1:
+						var primary_info = new_column_prop_name[primary_index]
+						primary_key = primary_info["col_name"]
+						primary_value_new = data._get(primary_info["prop"])
+						primary_value_old = primary_value_new \
+							if not modified_data.has(primary_info["prop"]) \
+							else modified_data[primary_info["prop"]]["old"]
+					tables[table_path]["PK_key"] = primary_key
+					tables[table_path]["PK_value_new"] = primary_value_new
+					tables[table_path]["PK_value_old"] = primary_value_old
+					tables[table_path]["modified"] = {}
+					tables[table_path]["all"] = {}
+				tables[table_path]["all"][col_info["col_name"]] = all_data[prop]
+				if modified_data.has(prop):
+					tables[table_path]["modified"][col_info["col_name"]] = modified_data[prop] # {"new":xx, "old":xx}
+			return tables
+			
 		# 加俩按钮:1.新建一条数据；2.应用
 		var btn_apply = Button.new()
 		btn_apply.text = "apply"
 		btn_apply.disabled = true
 		btn_apply.pressed.connect(func():
-			var primary_key = info["PK"]["Column Name"]
-			var db_path = info["PK"]["db_path"]
-			var table_name = info["PK"]["table_name"]
 			var daos: Array[BaseDao] = []
+			# 整条被删的数据。【WARNING】规定联表查询时禁止删除操作（屏蔽右键删除功能）
 			var deleted_datas = table.get_meta("deleted_datas", {})
 			for i in deleted_datas:
-				var data = deleted_datas[i]
-				var modified_data = data.get_modified_value()
-				var primary_value = data._get(primary_key)
-				if modified_data.has(primary_key):
-					primary_value = modified_data[primary_key]["old"]
-				daos.push_back(BaseDao.new().use_db(db_path).delete_from(table_name)
-					.where("%s == %s" % [primary_key, var_to_str(primary_value)]))
-			for i: DictionaryObject in table.datas:
-				var modified_data = i.get_modified_value()
-				if not modified_data.is_empty():
-					# 修改数据包含主键，先删除原数据，再插入新的全量数据
-					if modified_data.has(primary_key):
-						if not i.has_meta("new"):
-							# 新增数据不用删原数据
-							daos.push_back(BaseDao.new().use_db(db_path).delete_from(table_name)
-								.where("%s == %s" % [primary_key, var_to_str(modified_data[primary_key]["old"])]))
-						daos.push_back(BaseDao.new().use_db(db_path).insert_into(table_name).values(i.get_data()))
-					# 不包含主键，但是新增
-					elif i.has_meta("new"):
-						daos.push_back(BaseDao.new().use_db(db_path).insert_into(table_name).values(i.get_modified_new_value()))
-					# update的情况
+				var data: DictionaryObject = deleted_datas[i]
+				var grouped_modified_data = group_modified_data_call.call(data)
+				for table_path: String in grouped_modified_data:
+					var base_dao = BaseDao.new()
+					base_dao.use_db(table_path.get_base_dir() + "/").delete_from(table_path.get_file())
+					if grouped_modified_data[table_path]["PK_key"] == null:
+						base_dao.set_meta("lackWhere", true)
 					else:
-						var data = {}
-						for key in modified_data:
-							data[key] = modified_data[key]["new"]
-						daos.push_back(BaseDao.new().use_db(db_path).update(table_name).sets(data)
-							.where("%s == %s" % [primary_key, var_to_str(i._get(primary_key))]))
+						base_dao.where("%s == %s" % [grouped_modified_data[table_path]["PK_key"], 
+							var_to_str(grouped_modified_data[table_path]["PK_value_old"])])
+					daos.push_back(base_dao)
+					
+				
+			# 要更新部分字段的数据
+			for i: DictionaryObject in table.datas:
+				var grouped_modified_data = group_modified_data_call.call(i)
+				for table_path: String in grouped_modified_data:
+					var modified_data = grouped_modified_data[table_path]
+					if modified_data["modified"].is_empty():
+						continue
+						
+					var db_path = table_path.get_base_dir()
+					if not db_path.ends_with("/"): db_path += "/"
+					var table_name = table_path.get_file()
+					# 新增（用户在联表查询结果中new新数据时，在new的这行数据中对联表旧数据进行修改的可能性不大，所以逻辑中忽略这种奇怪的操作）
+					# TODO union的情况如何处理？要不直接editable=false算了，记得保存文件也需要保存这个情况
+					var insert_call = func():
+						# 把该表设置过的所有字段取出
+						var values = {}
+						for col_name in modified_data["modified"]:
+							values[col_name] = modified_data["modified"][col_name]["new"]
+						var base_dao = BaseDao.new()
+						base_dao.use_db(db_path).insert_into(table_name).values(values)
+						daos.push_back(base_dao)
+						
+					if i.has_meta("new"):
+							
+						# 单表查询时，由用户自己负责
+						if single_table_query:
+							insert_call.call()
+						# 联表查询时，修改数据若包含主键，那可以先检查一下（主键）是不是在数据库已经存在，如果存在就不需要新增了。
+						# 实际上，联表查询时，用户输入了主键如果在数据库里存在，会自动帮用户填充数据。如果不存在，就算新增数据。TODO
+						# 新增数据如果没有包含主键呢？可能一：主键自增，用户可以不设置；可能二：需要用户填写主键但未填，那么query时会报错。
+						else:
+							var primary_key = modified_data["PK_key"]
+							var primary_value = modified_data["PK_value_new"]
+							if primary_key != null and modified_data["modified"].has(primary_key):
+								if exist_callable(db_path, table_name, primary_key, primary_value):
+									continue
+									
+							insert_call.call()
+					# 非新增，也就是更新（用户联表查询时，有产生新增数据的可能性，比如修改全为null值的表，所以要考虑这种情况）
+					else:
+						var primary_key = modified_data["PK_key"]
+						var primary_value = modified_data["PK_value_new"]
+						var update_call = func():
+							var data = {}
+							for key in modified_data["modified"]:
+								data[key] = modified_data["modified"][key]["new"]
+							var base_dao = BaseDao.new().use_db(db_path).update(table_name).sets(data)
+							if primary_key == null:
+								base_dao.set_meta("lackWhere", true)
+							else:
+								base_dao.where("%s == %s" % [primary_key, var_to_str(primary_value)])
+							daos.push_back(base_dao)
+							
+						# 单表查询时的所有情况
+						if single_table_query:# or primary_key == null or not modified_data["modified"].has(primary_key):
+							update_call.call()
+						# 联表查询涉及主键修改的情况。只有一种被允许的情况，那就是该主键的旧值为null（实际上该主键所属表的其他字段都是null）。
+						# 这样的话，用户修改该主键的值，只能是新建一条数据。
+						# 其他情况涉及逻辑冲突，所以禁止用户在联表查询中进行修改主键和关联键的行为（通过hint的usage禁止）。TODO
+						# TODO 如果用户需要删除关联，考虑右键菜单加入删除关联。
+						else:
+							Utils.print_variant(modified_data)
+							if primary_key == null or primary_value == null or modified_data["modified"].has(primary_key):
+								insert_call.call()
+							# 更新非主键字段、非关联键字段
+							else:
+								update_call.call()
 						
 			mgr.create_confirmation_dialog("Please confirm:\n" + "\n".join(daos.map(func(v: BaseDao): return v.get_query_cmd())),
 				func():
@@ -699,7 +837,21 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		var btn_new = Button.new()
 		btn_new.text = "new"
 		btn_new.pressed.connect(func():
-			var dict_obj = DictionaryObject.new(new_data.duplicate(true), hint, false)
+			# 构造一个默认新数据
+			var new_data = {}
+			for j in new_column_prop_name:
+				if j["type"] is String and j["type"] == "group":
+					new_data[j["prop"]] = "" # for group
+				else:
+					var col_def = columns.filter(func(v):
+						return v["is_field"] and v["Column Name"] == j["col_name"]
+					).front()
+					if (col_def["Default(Expression)"] as String).strip_edges().is_empty():
+						new_data[j["prop"]] = DataTypeDef.DEFUALT_VALUES[col_def["Data Type"]]
+					else:
+						new_data[j["prop"]] = mgr.evaluate_command(null, col_def["Default(Expression)"])
+						
+			var dict_obj = DictionaryObject.new(new_data, hint, false)
 			dict_obj.set_meta("new", true)
 			dict_obj.value_changed.connect(func(_prop, _new_val, _old_val):
 				if not table.get_meta("deleted_datas", {}).is_empty():
@@ -724,56 +876,6 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 		flow_container.add_child(btn_revert)
 		flow_container.get_child(0).move_to_front() # move export button to last
 		
-		# 每列的属性名称要重新定义
-		var map_table_path_index = {}
-		var last_table_path = ""
-		var last_prefix = ""
-		var dealed_columns = {}
-		var real_col_name_name = {}
-		var new_column_prop_name = []
-		for j in columns.size():
-			var table_path
-			# 表中的字段
-			if columns[j]["is_field"]:
-				table_path = columns[j]["db_name"] + " " + columns[j]["table_name"].get_basename()
-			else:
-				table_path = "ComputingData"
-				
-			# 分组名称
-			var prefix
-			if table_path == last_table_path:
-				prefix = last_prefix
-			else:
-				prefix = table_path
-				if map_table_path_index.has(table_path):
-					prefix += "@" + str(map_table_path_index[table_path])
-					map_table_path_index[table_path] += 1
-				else:
-					map_table_path_index[table_path] = 2 # 可以使未来重复的分组名称后缀从2开始命名
-				new_column_prop_name.push_back({"type": "group", "prop": prefix})
-				hint[prefix] = {"hint_string": prefix + " ", "usage": PROPERTY_USAGE_GROUP} # 如此，检查器就可以省略属性的prefix
-				
-			last_table_path = table_path
-			last_prefix = prefix
-			
-			# 属性名称
-			var real_column_name = table_path + " " + columns[j]["Column Name"]
-			if dealed_columns.has(real_column_name):
-				var col_name = prefix + " " + columns[j]["Column Name"] + " (Copy" + str(dealed_columns[real_column_name]) + ")"
-				new_column_prop_name.push_back({"type": j, "prop": col_name}) # 记录j列数据的属性名称
-				hint[col_name] = {"link": real_col_name_name[real_column_name]}
-				dealed_columns[real_column_name] += 1
-			else:
-				var col_name = prefix + " " + columns[j]["Column Name"]
-				new_column_prop_name.push_back({"type": j, "prop": col_name}) # 记录j列数据的属性名称
-				if columns[j]["is_field"]:
-					hint[col_name] = {"hint": columns[j]["Hint"], 
-						"hint_string": columns[j]["Hint String"], "type": columns[j]["Data Type"]}
-				else:
-					hint[col_name] = {"usage": PROPERTY_USAGE_READ_ONLY | PROPERTY_USAGE_EDITOR}
-				real_col_name_name[real_column_name] = col_name
-				dealed_columns[real_column_name] = 2 # 可以使未来重复的变量名称后缀从2开始命名
-				
 		# 每行数据转成一个DictionaryObject
 		var new_table_datas = []
 		for i in table_datas:
@@ -805,6 +907,18 @@ func gen_table_node(columns: Array, table_datas: Array, old_graph_node: GraphNod
 	graph_node.datas = graph_datas
 	
 	return graph_node
+	
+## 检查是否存在某主键的Callable
+func exist_callable(db_path, table_name, field_name, field_value) -> bool:
+	var ret = BaseDao.new().use_db(db_path).select(field_name, false).from(table_name)\
+		.where("%s == %s" % [field_name, var_to_str(field_value)]).query()
+	if ret == null or not ret.ok():
+		push_warning("Something weired. Check this.")
+		return true # 报错了，不知道具体啥情况，视为true
+	# 数据库有该条数据
+	if not ret.get_data().is_empty():
+		return true
+	return false
 	
 func add_insert_node(schema = "", password = "", table = "", fields = {}, 
 asize = null, pos_offset = null, aname = ""):
