@@ -826,9 +826,9 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 						
 			var arr: Array[Array] = [["Please confirm:"]]
 			var table_2 = preload("res://addons/gdsql/table.tscn").instantiate()
-			table_2.ratios = [10.0, 0.2, 2.0, 10.0] as Array[float]
-			table_2.columns = ["#", "action", "extra info", "do"]
-			table_2.column_tips = ["", "", "If necessary.", "Only execute checked actions."]
+			table_2.ratios = [10.0, 0.2, 2.0, 10.0, 8.0] as Array[float]
+			table_2.columns = ["#", "action", "extra info", "do", "status"]
+			table_2.column_tips = ["", "", "If necessary.", "Only execute checked actions.", "Execute status."]
 			var datas = []
 			var k = 0
 			for i: BaseDao in daos:
@@ -839,10 +839,14 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 					row.push_back(line_edit)
 				else:
 					row.push_back("")
+					
 				var cb = CheckBox.new()
 				cb.button_pressed = true
 				cb.set_meta("index", k)
 				row.push_back(cb)
+				
+				var pb = ProgressBar.new()
+				row.push_back(pb)
 				datas.push_back(row)
 				k += 1
 			table_2.datas = datas
@@ -861,29 +865,60 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			)
 			arr.push_back([check_all_btn])
 			
+			# TODO 面临着一个困难，就是部分更新后，再更新，要排除那些更新过的。思考在dictobj里增加一个commit方法，并且能更新table
 			var confirmed = func():
-				# TODO
-				pass
-				
-			mgr.create_custom_dialog(arr, confirmed, Callable(), Callable(), Vector2i(900, 300))
-			return
-			mgr.create_confirmation_dialog("Please confirm:\n" + "\n".join(daos.map(func(v: BaseDao): return v.get_query_cmd())),
-				func():
-					for i in daos:
-						var begin_time = Time.get_unix_time_from_system()
-						var ret = i.query()
-						if ret != null:
-							if ret.ok():
-								mgr.add_log_history.emit("OK", begin_time, i.get_query_cmd(), 
-									"%d row(s) affected" % ret.get_affected_rows())
-							else:
-								mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), ret.get_err())
+				var index = -1
+				var executed = false
+				for i: BaseDao in daos:
+					index += 1
+					if not (table_2.datas[index][3] as CheckBox).button_pressed:
+						continue
+					if (table_2.datas[index][4] as ProgressBar).value == 100:
+						continue
+					executed = true
+					var begin_time = Time.get_unix_time_from_system()
+					var ret = i.query()
+					if ret != null:
+						if ret.ok():
+							mgr.add_log_history.emit("OK", begin_time, i.get_query_cmd(), 
+								"%d row(s) affected" % ret.get_affected_rows())
+							(table_2.datas[index][4] as ProgressBar).value = 100
 						else:
-							mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), "something wrong")
-					table.remove_meta("deleted_datas")
+							mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), ret.get_err())
+					else:
+						mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), "something wrong")
+						
+					var key = table.get_meta("deleted_datas", {}).find_key(i)
+					if key != null:
+						table.get_meta("deleted_datas").erase(key)
+						
+				return [true, executed]
+				
+			var defered = func(clicked_confirm: bool, executed):
+				if clicked_confirm and executed:
 					for node in get_from_nodes(graph_node, "Select"):
 						on_select_node_query(node, false)
-			)
+						
+					
+			mgr.create_custom_dialog(arr, confirmed, Callable(), defered, Vector2i(900, 300))
+			#return
+			#mgr.create_confirmation_dialog("Please confirm:\n" + "\n".join(daos.map(func(v: BaseDao): return v.get_query_cmd())),
+				#func():
+					#for i in daos:
+						#var begin_time = Time.get_unix_time_from_system()
+						#var ret = i.query()
+						#if ret != null:
+							#if ret.ok():
+								#mgr.add_log_history.emit("OK", begin_time, i.get_query_cmd(), 
+									#"%d row(s) affected" % ret.get_affected_rows())
+							#else:
+								#mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), ret.get_err())
+						#else:
+							#mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), "something wrong")
+					#table.remove_meta("deleted_datas")
+					#for node in get_from_nodes(graph_node, "Select"):
+						#on_select_node_query(node, false)
+			#)
 		)
 		
 		var btn_revert = Button.new()
@@ -900,8 +935,9 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			var deleted_datas = table.get_meta("deleted_datas", {})
 			table.remove_meta("deleted_datas")
 			for i in deleted_datas:
-				old_datas.insert(i, deleted_datas[i]) # 注意：前提是新建的数据都是放在最后面的，不影响数据回到原来的位置。
-			table.datas = old_datas
+				#old_datas.insert(i, deleted_datas[i]) # 注意：前提是新建的数据都是放在最后面的，不影响数据回到原来的位置。
+				table.insert_data(i, deleted_datas[i]) # 注意：前提是新建的数据都是放在最后面的，不影响数据回到原来的位置。
+			#table.datas = old_datas
 			btn_revert.disabled = true
 		)
 		
