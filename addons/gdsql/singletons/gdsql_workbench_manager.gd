@@ -359,6 +359,8 @@ min_size: Vector2i = Vector2i.ZERO):
 	if last_line_edit != null:
 		dialog.register_text_enter(last_line_edit)
 		
+	return dialog
+	
 func _find_editable_control(control: Node) -> Control:
 	if control is LineEdit or control is TextEdit:
 		return control
