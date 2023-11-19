@@ -498,11 +498,11 @@ func gen_left_join_node() -> GraphNode:
 	
 	return graph_node
 	
-func add_table_node(columns: Array, table_datas: Array, is_union_all: bool, asize = null, pos_offset = null, aname = ""):
+func add_table_node(columns: Array, table_datas: Array, is_union_all: bool, join_conds: Array, asize = null, pos_offset = null, aname = ""):
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
 	
-	var graph_node = gen_table_node(columns, table_datas, is_union_all)
+	var graph_node = gen_table_node(columns, table_datas, is_union_all, join_conds)
 	if aname != "":
 		graph_node.name = aname
 	graph_edit.add_child(graph_node)
@@ -522,7 +522,7 @@ func add_table_node(columns: Array, table_datas: Array, is_union_all: bool, asiz
 		
 	
 ## 生成一个【表格】节点
-func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, old_graph_node: GraphNode = null) -> GraphNode:
+func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join_conds: Array, old_graph_node: GraphNode = null) -> GraphNode:
 #region 每列的属性名称要重新定义
 	var hint = {} # 每列的hint
 	var map_table_path_index = {} # 临时变量：记录每个表分组的序号
@@ -660,6 +660,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, old_
 			
 	# 非unionall就可以编辑。
 	graph_node.set_meta("is_union_all", is_union_all)
+	graph_node.set_meta("join_conds", join_conds)
 	table.editable = not is_union_all
 	# 只有单表查询才支持右键删除。联表查询无法知道用户想删除哪个表的数据，即便能勾选要执行的命令，也容易误操作
 	var single_table_query = table_primary_index.size() == 1
@@ -1347,6 +1348,7 @@ func get_nodes_params():
 			"Result":
 				var table = graph_node.datas[0][0].get_child(0)
 				data["is_union_all"] = graph_node.get_meta("is_union_all")
+				data["join_conds"] = graph_node.get_meta("join_conds")
 				data["columns"] = table.get_meta("columns")
 				data["table_datas"] = table.datas.map(extract_table_data_call.bind(data["columns"]))
 			"Insert":
@@ -1405,7 +1407,7 @@ func load_graph_file(path):
 					params["_alias"], params["On"], asize, position_offset, node_name)
 			"Result":
 				await add_table_node(params["columns"], params["table_datas"], params["is_union_all"],
-					asize, position_offset, node_name)
+					params["join_conds"], asize, position_offset, node_name)
 			"Insert":
 				await add_insert_node(params["Schema"], params["_password"], params["Table"],
 					params["Fields"], asize, position_offset, node_name)
@@ -1536,13 +1538,13 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 					var to_node = graph_edit.get_node(str(to))
 					if to_node.get_meta("type") == "Result":
 						if to_node.enabled:
-							gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), to_node)
+							gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds(), to_node)
 							update_result = true
 						else:
 							_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
 						
 			if not update_result:
-				var table_node = gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all())
+				var table_node = gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds())
 				graph_edit.add_child(table_node)
 				table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 				_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
