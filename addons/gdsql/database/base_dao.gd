@@ -283,7 +283,7 @@ func union_all() -> BaseDao:
 	
 ## 是否uionall了
 func is_union_all() -> bool:
-	return __union_all == null and __parent_union == null
+	return not (__union_all == null and __parent_union == null)
 	
 ## 设置unionall对象，返回的仍旧是自己
 func set_union_all(base_dao: BaseDao) -> BaseDao:
@@ -432,6 +432,15 @@ func left_join_use_user_db_and_default_pass(table: String, alias: String, cond: 
 func left_join_use_conf_db_and_default_pass(table: String, alias: String, cond: String) -> BaseDao:
 	return left_join("res://src/config/", table, alias, cond, PasswordDef.CONFIG_ENCRYPTED_PASS)
 	
+## 获取联表查询的on条件（外部表格可能用到）。
+func get_left_join_conds() -> Array:
+	var ret = []
+	var arr_left_join = __left_join.get_chain_left_joins()
+	for a_left_join in arr_left_join:
+		var cond = a_left_join.get_condition()
+		ret.push_back(cond)
+	return ret
+	
 ## 检查数组中的单个数据的结构是否都是一个键对应一个字典
 func ___datas_struct_is_key_dict(datas: Array) -> bool:
 	if datas.is_empty():
@@ -445,6 +454,8 @@ func ___datas_struct_is_key_dict(datas: Array) -> bool:
 	
 func ___loop_table_row(result: Array, all_datas: Dictionary, loop_tables: Array, loop_index: int, 
 curr_row: Dictionary, all_dependencies: Array):
+	# TODO 优化：如果on条件连接的是主键、唯一键，那么找到一条数据就可以停止了
+	# TODO 优化：某个where条件如果只涉及一张表，那么可以提前对这张表进行筛选
 	if loop_index == loop_tables.size():
 		var ret = curr_row.duplicate() # 当前这条数据
 		# 循环到头了，依次检查每个表是否满足on条件
@@ -455,7 +466,7 @@ curr_row: Dictionary, all_dependencies: Array):
 			var cond = a_left_join.get_condition()
 			var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
 			if not conditionWrapper.cond(cond).check(curr_row):
-				ret.erase(a_left_join.get_alias())
+				#ret.erase(a_left_join.get_alias())
 				ok = false
 				break
 				
@@ -543,11 +554,11 @@ func ___select(path: String, fill_primary_key: String = ""):
 	# 计算表头
 	var real_select = []
 	var regex_symbol = RegEx.new()
-	regex_symbol.compile("[a-zA-Z_]+[0-9a-zA-Z]*")
+	regex_symbol.compile("[a-zA-Z_]+[0-9a-zA-Z_]*")
 	var regex_field = RegEx.new()
-	var gen_dict = func(s, c, f, d = "", t = ""):
-		return {"select_name": s, "Column Name": c, "is_field": f, "db_path": d, 
-				"table_name": t, "Hint": "", "Hint String": ""}
+	var gen_dict = func(s, c, f, t_alias = "", d = "", t = ""):
+		return {"select_name": s, "Column Name": c, "is_field": f, "table_alias": t_alias,
+			"db_path": d, "table_name": t, "Hint": "", "Hint String": ""}
 	var fill_select_name = func(element, alias):
 		element["select_name"] = element["Column Name"] if alias.is_empty() \
 			else (alias + "." + element["Column Name"])
@@ -582,20 +593,20 @@ func ___select(path: String, fill_primary_key: String = ""):
 			if m != null and m.get_string() == s:
 				assert(_assert("___select", __left_join == null, 
 					"must specify table alias name in select fields if using left join"))
-				var column = __get_table_column_defination(__database, __table, m.get_string())
+				var column = __get_table_column_defination(__database, __table, __table_alias, m.get_string())
 				if column != null and !column.is_empty():
 					real_select.push_back(column)
 				else:
 					assert(_assert("___select", 
 						not all_datas[__table_alias].is_empty() and all_datas[__table_alias][0].has(s),
 						"field:[%s] not exist in table:[%s], db:[%s]" % [s, __table, __database]))
-					real_select.push_back(gen_dict.call(s, s, true))
+					real_select.push_back(gen_dict.call(s, s, true, __table_alias)) # 可能没有定义文件
 			elif s.contains(__table_alias + "."):
-				regex_field.compile(__table_alias + "\\.([a-zA-Z_]+[0-9a-zA-Z]*)") # 获取字段名称的正则
+				regex_field.compile(__table_alias + "\\.([a-zA-Z_]+[0-9a-zA-Z_]*)") # 获取字段名称的正则
 				m = regex_field.search(s)
 				if m:
 					var field = m.get_string(1)
-					var column = __get_table_column_defination(__database, __table, field)
+					var column = __get_table_column_defination(__database, __table, __table_alias, field)
 					if column != null and !column.is_empty():
 						if s == __table_alias + "." + field:
 							column["select_name"] = s
@@ -607,7 +618,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 							assert(_assert("___select", 
 								not all_datas[__table_alias].is_empty() and all_datas[__table_alias][0].has(field),
 								"field:[%s] not exist in table:[%s], db:[%s]" % [field, __table, __database]))
-							real_select.push_back(gen_dict.call(s, field, true, __database, __table))
+							real_select.push_back(gen_dict.call(s, field, true, __table_alias, __database, __table))
 						else:
 							real_select.push_back(gen_dict.call(s, s, false))
 				else:
@@ -624,7 +635,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 						if m:
 							var field = m.get_string(1)
 							var column = __get_table_column_defination(
-								a_left_join.get_db(), a_left_join.get_table(), field)
+								a_left_join.get_db(), a_left_join.get_table(), alias, field)
 							if column != null and !column.is_empty():
 								if s == alias + "." + field:
 									column["select_name"] = s
@@ -637,8 +648,8 @@ func ___select(path: String, fill_primary_key: String = ""):
 										not all_datas[alias].is_empty() and all_datas[alias][0].has(field),
 										"field:[%s] not exist in table:[%s], db:[%s]" \
 										% [field, a_left_join.get_table(), a_left_join.get_db()]))
-									real_select.push_back(
-										gen_dict.call(s, field, false, a_left_join.get_db(), a_left_join.get_table()))
+									real_select.push_back(gen_dict.call(s, field, true, alias, 
+										a_left_join.get_db(), a_left_join.get_table())) # 没定义的文件
 								else:
 									real_select.push_back(gen_dict.call(s, s, false))
 						break
@@ -860,7 +871,7 @@ func __get_table_columns(db_path, table_name, table_alias, all_datas: Dictionary
 			"db: [%s] table [%s] cannot get head: no defination of this table or any data of this table" \
 			% [db_path, table_name]))
 		columns = all_datas[table_alias][0].keys().map(func(v):
-			return {"select_name": v, "Column Name": v, "is_field": true})
+			return {"select_name": v, "Column Name": v, "is_field": true, "table_alias": table_alias})
 		
 	if columns != null:
 		columns = columns.duplicate(true)
@@ -868,10 +879,11 @@ func __get_table_columns(db_path, table_name, table_alias, all_datas: Dictionary
 			i["db_path"] = db_path
 			i["table_name"] = table_name
 			i["is_field"] = true
+			i["table_alias"] = table_alias
 			
 	return columns
 	
-func __get_table_column_defination(db_path, table_name, column_name):
+func __get_table_column_defination(db_path, table_name, table_alias, column_name):
 	var columns = __get_table_defination(db_path, table_name)
 	var column
 	if columns != null:
@@ -885,6 +897,7 @@ func __get_table_column_defination(db_path, table_name, column_name):
 		column["db_path"] = db_path
 		column["table_name"] = table_name
 		column["is_field"] = true
+		column["table_alias"] = table_alias
 		
 	return column
 	
