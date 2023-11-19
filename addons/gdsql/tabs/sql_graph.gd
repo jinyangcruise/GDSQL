@@ -53,6 +53,12 @@ func _on_button_save_pressed() -> void:
 			v["to_node"] = v["to_node"].validate_node_name()
 			return v
 		))
+		
+		# 防止报错导致丢失文件中的旧数据
+		if config.get_value("data", "nodes", null) == null or\
+			config.get_value("data", "connections", null) == null:
+			return
+			
 		config.save(get_meta("file_path"))
 		change_tab_title.emit(self, get_meta("file_name"))
 		return
@@ -72,6 +78,12 @@ func _on_button_save_as_pressed():
 			v["to_node"] = v["to_node"].validate_node_name()
 			return v
 		))
+		
+		# 防止报错导致丢失文件中的旧数据
+		if config.get_value("data", "nodes", null) == null or\
+			config.get_value("data", "connections", null) == null:
+			return
+			
 		config.save(path)
 		var file_name = path.get_file()
 		change_tab_title.emit(self, file_name)
@@ -646,7 +658,8 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, old_
 			# 由于按钮释放了，原来connect的引用的按钮无法再使用，disconnect掉，后面会重新连接
 			table.row_deleted.disconnect(i["callable"])
 			
-	# 非unionall就可以编辑
+	# 非unionall就可以编辑。
+	graph_node.set_meta("is_union_all", is_union_all)
 	table.editable = not is_union_all
 	# 只有单表查询才支持右键删除。联表查询无法知道用户想删除哪个表的数据，即便能勾选要执行的命令，也容易误操作
 	var single_table_query = table_primary_index.size() == 1
@@ -731,7 +744,6 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, old_
 					if not db_path.ends_with("/"): db_path += "/"
 					var table_name = table_path.get_file()
 					# 新增（用户在联表查询结果中new新数据时，在new的这行数据中对联表旧数据进行修改的可能性不大，所以逻辑中忽略这种奇怪的操作）
-					# TODO union的情况如何处理？要不直接editable=false算了，记得保存文件也需要保存这个情况
 					var insert_call = func():
 						# 把该表设置过的所有字段取出
 						var values = {}
