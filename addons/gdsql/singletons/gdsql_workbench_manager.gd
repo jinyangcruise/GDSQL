@@ -246,7 +246,8 @@ func _clear_custom_dialog(dialog: AcceptDialog):
 func create_custom_dialog(datas: Array[Array],
 confirmed_callback_before_close: Callable = Callable(), 
 canceled_callback_before_close: Callable = Callable(),
-defered_callback: Callable = Callable()):
+defered_callback: Callable = Callable(),
+min_size: Vector2i = Vector2i.ZERO):
 	var dialog := ConfirmationDialog.new()
 	dialog.dialog_hide_on_ok = false
 	__custom_dialog_datas[dialog] = datas
@@ -284,11 +285,11 @@ defered_callback: Callable = Callable()):
 				defered_callback.call(false, ret[1] if ret is Array else null)
 	, CONNECT_DEFERRED)
 	_add_dialog(dialog)
-	dialog.popup_centered()
+	dialog.popup_centered(min_size)
 	
 	var vbox_container = VBoxContainer.new()
 	vbox_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	dialog.add_child(vbox_container)
 	
 	for arr in datas:
@@ -298,7 +299,13 @@ defered_callback: Callable = Callable()):
 			if data == null:
 				hb.add_child(Control.new())
 			else:
-				if data is String or data is int or data is float:
+				if data is bool:
+					has_content = true
+					var cb = CheckBox.new()
+					cb.button_pressed = data
+					cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+					hb.add_child(cb)
+				elif data is String or data is int or data is float:
 					if data is String and data == "":
 						hb.add_child(Control.new())
 					else:
@@ -336,10 +343,10 @@ defered_callback: Callable = Callable()):
 						data.reparent(hb)
 					else:
 						hb.add_child(data)
-		if hb.get_child_count() == 0 or not has_content:
-			hb.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		else:
-			hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		#if hb.get_child_count() == 0 or not has_content:
+		hb.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		#else:
+			#hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		vbox_container.add_child(hb)
 		
 	# 自动聚焦到第一个输入组件上
