@@ -318,6 +318,9 @@ func add_row(a_data):
 								a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
 							#control = texture_rect_model.duplicate()
 							#control.texture = data[i]
+					elif data[i] is Control:
+						handled = true
+						control = data[i]
 					## TODO 可能需要添加其他有必要预览的类型
 				
 		if not handled:
