@@ -435,6 +435,8 @@ func left_join_use_conf_db_and_default_pass(table: String, alias: String, cond: 
 ## 获取联表查询的on条件（外部表格可能用到）。
 func get_left_join_conds() -> Array:
 	var ret = []
+	if __left_join == null:
+		return ret
 	var arr_left_join = __left_join.get_chain_left_joins()
 	for a_left_join in arr_left_join:
 		var cond = a_left_join.get_condition()
