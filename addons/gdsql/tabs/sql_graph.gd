@@ -524,6 +524,7 @@ func add_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 ## 生成一个【表格】节点
 func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join_conds: Array, old_graph_node: GraphNode = null) -> GraphNode:
 #region 每列的属性名称要重新定义
+	var single_table_query = join_conds.is_empty() # 是否为单表查询
 	var hint = {} # 每列的hint
 	var map_table_path_index = {} # 临时变量：记录每个表分组的序号
 	var last_table_path = "" # 临时变量：记录上一列的表路径
@@ -533,6 +534,29 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 	var new_column_prop_name = [] # 保存包含用于分组的属性和数据列的所有属性
 	var table_primary_index = {} # 保存每个表的主键在new_column_prop_name中的序号
 	var table_col_index = {} # 保存每个表的键在new_column_prop_name中的序号
+	var table_alias_fields = {} # 临时变量：记录所有的t.xxx及其第一次出现时的序号（序号是columns中的序号）
+	var uneditable_index = [] # 保存不能被编辑的列序号（假设值不是null）（序号是columns中的序号）
+	
+	# 联表查询不能修改主键和关联字段，找到这些字段
+	if not single_table_query:
+		for i in columns.size():
+			if columns[i]["is_field"]:
+				var ta = columns[i]["table_alias"] + "." + columns[i]["Column Name"]
+				if not table_alias_fields.has(ta): # 重复的不记录是因为重复的本来就不可编辑
+					table_alias_fields[ta] = i
+				if columns[i]["PK"]:
+					uneditable_index.push_back(i) # 不考虑用户select重复的主键了，不影响效果
+					
+		# 找到join_conds中的t.xxx
+		var regex_field = RegEx.new()
+		regex_field.compile("([a-zA-Z_]+[0-9a-zA-Z_]*\\.[a-zA-Z_]+[0-9a-zA-Z_]*)")
+		for i in join_conds:
+			var matches = regex_field.search_all(i)
+			for a_match in matches:
+				var s = a_match.get_string(0)
+				if not s.is_empty() and table_alias_fields.has(s):
+					uneditable_index.push_back(table_alias_fields[s]) # 就不去重了，不影响效果
+					
 	for j in columns.size():
 		var table_path
 		# 表中的字段
@@ -586,6 +610,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			dealed_columns[real_column_name] = 2 # 可以使未来重复的变量名称后缀从2开始命名
 #endregion
 			
+#region table graph node UI
 	var graph_node = old_graph_node
 	var table
 	var graph_datas: Array[Array]
@@ -657,13 +682,13 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		for i in table.row_deleted.get_connections():
 			# 由于按钮释放了，原来connect的引用的按钮无法再使用，disconnect掉，后面会重新连接
 			table.row_deleted.disconnect(i["callable"])
+#endregion
 			
 	# 非unionall就可以编辑。
 	graph_node.set_meta("is_union_all", is_union_all)
 	graph_node.set_meta("join_conds", join_conds)
 	table.editable = not is_union_all
 	# 只有单表查询才支持右键删除。联表查询无法知道用户想删除哪个表的数据，即便能勾选要执行的命令，也容易误操作
-	var single_table_query = table_primary_index.size() == 1
 	table.support_delete_row = single_table_query
 	
 	if table.editable:
@@ -760,7 +785,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 						if single_table_query:
 							insert_call.call()
 						# 联表查询时，修改数据若包含主键，那可以先检查一下（主键）是不是在数据库已经存在，如果存在就不需要新增了。
-						# 实际上，联表查询时，用户输入了主键如果在数据库里存在，会自动帮用户填充数据。如果不存在，就算新增数据。TODO
+						# 实际上，联表查询时，用户输入了主键如果在数据库里存在，则提示用户有误。如果不存在，就算新增数据。
 						# 新增数据如果没有包含主键呢？可能一：主键自增，用户可以不设置；可能二：需要用户填写主键但未填，那么query时会报错。
 						else:
 							var primary_key = modified_data["PK_key"]
@@ -790,16 +815,58 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 							update_call.call()
 						# 联表查询涉及主键修改的情况。只有一种被允许的情况，那就是该主键的旧值为null（实际上该主键所属表的其他字段都是null）。
 						# 这样的话，用户修改该主键的值，只能是新建一条数据。
-						# 其他情况涉及逻辑冲突，所以禁止用户在联表查询中进行修改主键和关联键的行为（通过hint的usage禁止）。TODO
+						# 其他情况涉及逻辑冲突，所以禁止用户在联表查询中进行修改主键和关联键的行为（通过hint的usage禁止）。
 						# TODO 如果用户需要删除关联，考虑右键菜单加入删除关联。
 						else:
-							Utils.print_variant(modified_data)
 							if primary_key == null or primary_value == null or modified_data["modified"].has(primary_key):
 								insert_call.call()
 							# 更新非主键字段、非关联键字段
 							else:
 								update_call.call()
 						
+			var arr: Array[Array] = [["Please confirm:"]]
+			var table_2 = preload("res://addons/gdsql/table.tscn").instantiate()
+			table_2.ratios = [10.0, 0.2, 2.0, 10.0] as Array[float]
+			table_2.columns = ["#", "action", "extra info", "do"]
+			table_2.column_tips = ["", "", "If necessary.", "Only execute checked actions."]
+			var datas = []
+			var k = 0
+			for i: BaseDao in daos:
+				var row = [k+1, i.get_query_cmd()]
+				if i.has_meta("lackWhere"):
+					var line_edit = LineEdit.new()
+					line_edit.placeholder_text = "Enter some conditons for this action."
+					row.push_back(line_edit)
+				else:
+					row.push_back("")
+				var cb = CheckBox.new()
+				cb.button_pressed = true
+				cb.set_meta("index", k)
+				row.push_back(cb)
+				datas.push_back(row)
+				k += 1
+			table_2.datas = datas
+			table_2.show_menu = true
+			table_2.support_delete_row = false
+			table_2.ready.connect(func():
+				table_2.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
+			, CONNECT_ONE_SHOT)
+			arr.push_back([table_2])
+			var check_all_btn = CheckBox.new()
+			check_all_btn.text = "Check all"
+			check_all_btn.button_pressed = true
+			check_all_btn.toggled.connect(func(toggled_on):
+				for row in table_2.datas:
+					(row[3] as CheckBox).button_pressed = toggled_on
+			)
+			arr.push_back([check_all_btn])
+			
+			var confirmed = func():
+				# TODO
+				pass
+				
+			mgr.create_custom_dialog(arr, confirmed, Callable(), Callable(), Vector2i(900, 300))
+			return
 			mgr.create_confirmation_dialog("Please confirm:\n" + "\n".join(daos.map(func(v: BaseDao): return v.get_query_cmd())),
 				func():
 					for i in daos:
@@ -894,13 +961,20 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		var new_table_datas = []
 		for i in table_datas:
 			var data = {}
+			var new_hint = hint
 			for j in new_column_prop_name:
 				if j["type"] is String and j["type"] == "group":
 					data[j["prop"]] = "" # for group
 				else:
 					data[j["prop"]] = i[j["type"]]
-					
-			var dict_obj = DictionaryObject.new(data, hint, false)
+					# 联表时，主键和关联键禁止修改，除键值为null。而且就算修改，也不能使用已存在的键值（null说明原本就跟已存在的键值没关联）
+					if i[j["type"]] != null and uneditable_index.has(j["type"]):
+						if new_hint == hint:
+							new_hint = hint.duplicate(true)
+						new_hint[j["prop"]]["usage"] = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
+						# TODO 不能使用已存在的键值
+						
+			var dict_obj = DictionaryObject.new(data, new_hint, false)
 			dict_obj.value_changed.connect(func(_prop, _new_val, _old_val):
 				for j in table.datas:
 					var modified_data = (j as DictionaryObject).get_modified_value()
