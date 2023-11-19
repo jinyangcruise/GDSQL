@@ -281,6 +281,10 @@ func union_all() -> BaseDao:
 	bd.__parent_union = self
 	return bd
 	
+## 是否uionall了
+func is_union_all() -> bool:
+	return __union_all == null and __parent_union == null
+	
 ## 设置unionall对象，返回的仍旧是自己
 func set_union_all(base_dao: BaseDao) -> BaseDao:
 	assert(_assert("set_union_all", __cmd == "select", "'union_all' can only be used after 'select'"))
