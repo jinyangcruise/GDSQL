@@ -75,7 +75,7 @@ var _entered_tree = false
 ## 表头
 var buttons: Array[Button] = []
 var controls: Array = []
-var data_of_focused_row
+#var data_of_focused_row
 
 func _ready() -> void:
 	reset_header()
@@ -98,7 +98,7 @@ func _notification(what):
 		clear_header()
 		clear_rows()
 		datas = []
-		data_of_focused_row = null
+		#data_of_focused_row = null
 		# 下面3个清空的话会导致用户只能通过代码来设置这三个属性，不能通过检查器来设置
 		#ratios.clear()
 		#column_tips.clear()
@@ -256,8 +256,8 @@ func add_row(a_data):
 	var style_box: StyleBoxFlat = a_row.get_theme_stylebox("panel").duplicate()
 	a_row.add_theme_stylebox_override("panel", style_box)
 	# add_child好像会导致之前的focus丢失
-	if typeof(a_data) == typeof(data_of_focused_row) and a_data == data_of_focused_row:
-		highlight_row(a_row)
+	#if typeof(a_data) == typeof(data_of_focused_row) and a_data == data_of_focused_row:
+		#highlight_row(a_row)
 	#elif data_of_focused_row != null:
 		#for i in v_box_container.get_children():
 			#if i.get_meta("data") == data_of_focused_row:
@@ -471,7 +471,7 @@ func highlight_row(row_panel: PanelContainer) -> void:
 			var style_box_1: StyleBoxFlat = i.get_theme_stylebox("panel")
 			style_box_1.bg_color.a = 0.0
 			
-	data_of_focused_row = row_panel.get_meta("data", null)
+	#data_of_focused_row = row_panel.get_meta("data", null)
 	# 由于一开始等了0.1秒，可能导致检测鼠标按下无效，所以加入检查是否弹出了菜单
 	if show_menu and (Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or popup_menu_text.visible) and \
 		row_panel.get_rect().has_point(v_box_container.get_local_mouse_position()):
