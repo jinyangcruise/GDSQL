@@ -290,7 +290,7 @@ func gen_select_node() -> GraphNode:
 				table_dict_obj.reset_hint(
 					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, 
 					"_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
-				table_dict_obj._set("Table", "")
+				table_dict_obj._set("Table", "", true) # 强制设置（可以避免值没变化导致没有发出信号）
 			"_password":
 				base_dao.set_password(new_val)
 	)
@@ -446,7 +446,7 @@ func gen_left_join_node() -> GraphNode:
 				table_dict_obj.reset_hint(
 					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, 
 					"_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
-				table_dict_obj._set("Table", "")
+				table_dict_obj._set("Table", "", true)
 			"_password":
 				left_join_obj.set_password(new_val)
 	)
@@ -736,8 +736,25 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 					tables[table_path]["modified"][col_info["col_name"]] = modified_data[prop] # {"new":xx, "old":xx}
 			return tables
 			
+		# 更新apply和revert两个按钮状态
+		var btn_ref: Array[Button] = []
+		btn_ref.resize(2)
+		var update_btn_disable_status = func(_prop, _new_val, _old_val):
+			# 如果有删除的行，btn_revert肯定需要激活，不用再检查表中的数据了
+			if not table.get_meta("deleted_datas", {}).is_empty():
+				return
+				
+			for j: DictionaryObject in table.datas:
+				if not j.get_modified_new_value().is_empty():
+					btn_ref[0].disabled = false
+					btn_ref[1].disabled = false
+					return
+			btn_ref[0].disabled = true
+			btn_ref[1].disabled = true
+			
 		# 加俩按钮:1.新建一条数据；2.应用
 		var btn_apply = Button.new()
+		btn_ref[0] = btn_apply
 		btn_apply.text = "apply"
 		btn_apply.disabled = true
 		btn_apply.pressed.connect(func():
@@ -777,10 +794,10 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 							values[col_name] = modified_data["modified"][col_name]["new"]
 						var base_dao = BaseDao.new()
 						base_dao.use_db(db_path).insert_into(table_name).values(values)
+						base_dao.set_meta("dict_obj_id", i.get_instance_id())
 						daos.push_back(base_dao)
 						
 					if i.has_meta("new"):
-							
 						# 单表查询时，由用户自己负责
 						if single_table_query:
 							insert_call.call()
@@ -808,6 +825,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 								base_dao.set_meta("lackWhere", true)
 							else:
 								base_dao.where("%s == %s" % [primary_key, var_to_str(primary_value)])
+							base_dao.set_meta("dict_obj_id", i.get_instance_id())
 							daos.push_back(base_dao)
 							
 						# 单表查询时的所有情况
@@ -824,18 +842,27 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 							else:
 								update_call.call()
 						
+			# 弹对话框让用户选择更新哪些数据
 			var arr: Array[Array] = [["Please confirm:"]]
 			var table_2 = preload("res://addons/gdsql/table.tscn").instantiate()
-			table_2.ratios = [10.0, 0.2, 2.0, 10.0, 8.0] as Array[float]
+			table_2.ratios = [15.0, 0.2, 2.0, 10.0, 8.0] as Array[float]
 			table_2.columns = ["#", "action", "extra info", "do", "status"]
 			table_2.column_tips = ["", "", "If necessary.", "Only execute checked actions.", "Execute status."]
+			var check_all_btn = CheckBox.new()
+			check_all_btn.text = "Check all"
+			check_all_btn.button_pressed = true
+			check_all_btn.toggled.connect(func(toggled_on):
+				for row in table_2.datas:
+					if not (row[3] as CheckBox).disabled:
+						(row[3] as CheckBox).button_pressed = toggled_on
+			)
 			var datas = []
 			var k = 0
 			for i: BaseDao in daos:
 				var row = [k+1, i.get_query_cmd()]
 				if i.has_meta("lackWhere"):
 					var line_edit = LineEdit.new()
-					line_edit.placeholder_text = "Enter some conditons for this action."
+					line_edit.placeholder_text = "Conditions for this action if necessary."
 					row.push_back(line_edit)
 				else:
 					row.push_back("")
@@ -843,6 +870,17 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 				var cb = CheckBox.new()
 				cb.button_pressed = true
 				cb.set_meta("index", k)
+				cb.toggled.connect(func(toggled_on):
+					if toggled_on:
+						for a_row in table_2.datas:
+							if not (a_row[3] as CheckBox).disabled:
+								if not (a_row[3] as CheckBox).button_pressed:
+									check_all_btn.set_pressed_no_signal(false)
+									return
+						check_all_btn.set_pressed_no_signal(true)
+					else:
+						check_all_btn.set_pressed_no_signal(false)
+				)
 				row.push_back(cb)
 				
 				var pb = ProgressBar.new()
@@ -856,72 +894,104 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 				table_2.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
 			, CONNECT_ONE_SHOT)
 			arr.push_back([table_2])
-			var check_all_btn = CheckBox.new()
-			check_all_btn.text = "Check all"
-			check_all_btn.button_pressed = true
-			check_all_btn.toggled.connect(func(toggled_on):
-				for row in table_2.datas:
-					(row[3] as CheckBox).button_pressed = toggled_on
-			)
 			arr.push_back([check_all_btn])
 			
-			# TODO 面临着一个困难，就是部分更新后，再更新，要排除那些更新过的。思考在dictobj里增加一个commit方法，并且能更新table
+			# 只执行用户勾选的项目。执行成功的项目标绿进度100%；执行失败的项目标红。
+			# 可以多次执行，直到没有可勾选的项目。
+			var dialog_ref: Array[ConfirmationDialog] = []
 			var confirmed = func():
+				# 该按钮名称是关闭，则直接关闭，否则执行命令
+				if dialog_ref[0].ok_button_text == "close":
+					# 更新按钮状态
+					update_btn_disable_status.call("", 0, 0) # 随便传几个参数
+					return [false, false] # 不涉及defered函数，所以第二个参数传的没什么意义
+					
 				var index = -1
-				var executed = false
 				for i: BaseDao in daos:
 					index += 1
 					if not (table_2.datas[index][3] as CheckBox).button_pressed:
 						continue
 					if (table_2.datas[index][4] as ProgressBar).value == 100:
 						continue
-					executed = true
 					var begin_time = Time.get_unix_time_from_system()
 					var ret = i.query()
 					if ret != null:
 						if ret.ok():
+							var dict_obj_id = i.get_meta("dict_obj_id", null)
+							if dict_obj_id != null:
+								var dict_obj = instance_from_id(dict_obj_id) as DictionaryObject
+								# commit data of modified row
+								dict_obj.commit()
+								# remove meta of new-created row
+								if dict_obj.has_meta("new"):
+									dict_obj.remove_meta("new")
+									
+							# remove deleted data
+							var key = table.get_meta("deleted_datas", {}).find_key(i)
+							if key != null:
+								table.get_meta("deleted_datas").erase(key)
+								
+							# log and UI
 							mgr.add_log_history.emit("OK", begin_time, i.get_query_cmd(), 
 								"%d row(s) affected" % ret.get_affected_rows())
 							(table_2.datas[index][4] as ProgressBar).value = 100
+							(table_2.datas[index][4] as ProgressBar).modulate = Color.GREEN
+							(table_2.datas[index][3] as CheckBox).button_pressed = false
+							(table_2.datas[index][3] as CheckBox).disabled = true
 						else:
 							mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), ret.get_err())
+							(table_2.datas[index][4] as ProgressBar).modulate = Color.RED
 					else:
 						mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), "something wrong")
+						(table_2.datas[index][4] as ProgressBar).modulate = Color.RED
 						
-					var key = table.get_meta("deleted_datas", {}).find_key(i)
-					if key != null:
-						table.get_meta("deleted_datas").erase(key)
+				var can_execute = false
+				for row in table_2.datas:
+					if not (row[3] as CheckBox).disabled:
+						can_execute = true
+						break
 						
-				return [true, executed]
-				
-			var defered = func(clicked_confirm: bool, executed):
-				if clicked_confirm and executed:
-					for node in get_from_nodes(graph_node, "Select"):
-						on_select_node_query(node, false)
-						
+				# 不能再执行时，把按钮名称改为“关闭”，这样下次用户点击该按钮时，对话框就可以关闭了
+				if not can_execute:
+					dialog_ref[0].ok_button_text = "close"
 					
-			mgr.create_custom_dialog(arr, confirmed, Callable(), defered, Vector2i(900, 300))
-			#return
-			#mgr.create_confirmation_dialog("Please confirm:\n" + "\n".join(daos.map(func(v: BaseDao): return v.get_query_cmd())),
-				#func():
-					#for i in daos:
-						#var begin_time = Time.get_unix_time_from_system()
-						#var ret = i.query()
-						#if ret != null:
-							#if ret.ok():
-								#mgr.add_log_history.emit("OK", begin_time, i.get_query_cmd(), 
-									#"%d row(s) affected" % ret.get_affected_rows())
-							#else:
-								#mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), ret.get_err())
-						#else:
-							#mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), "something wrong")
-					#table.remove_meta("deleted_datas")
-					#for node in get_from_nodes(graph_node, "Select"):
-						#on_select_node_query(node, false)
-			#)
+				# true：让该页面不关闭
+				return [true, false] # 不涉及defered函数，所以第二个参数传的没什么意义
+				
+			# 对话框关闭时要执行的方法
+			var defered = func(_confirmed, _dummy):
+				update_btn_disable_status.call("", 0, 0) # 刷新按钮状态。参数随便传。
+				
+			var dialog = mgr.create_custom_dialog(arr, confirmed, Callable(), defered, Vector2i(1000, 600))
+			dialog_ref.push_back(dialog)
+			dialog.ok_button_text = "execute"
+			var btn_close_refresh = dialog.add_button("close and refresh", true, "close_and_refresh")
+			btn_close_refresh.tooltip_text = "Refresh the table. Actions that not have been executed will be discarded."
+			btn_close_refresh.disabled = get_from_nodes(graph_node, "Select").filter(func(v):
+				return v.enabled
+			).is_empty() # 如果这个表格没有关联select节点，就无法刷新
+			if btn_close_refresh.disabled:
+				btn_close_refresh.tooltip_text += "\n[Tip]This button is disabled because this Result-node is "\
+					+ "not connected to a Select-node or the Select-node is not enabled."
+			dialog.custom_action.connect(func(action):
+				if action == "close_and_refresh":
+					update_btn_disable_status.call("", 0, 0)
+					var onclose = func ():
+						for node in get_from_nodes(graph_node, "Select"):
+							on_select_node_query(node, true)
+						mgr._clear_custom_dialog(dialog)
+						
+					if btn_apply.disabled:
+						onclose.call()
+					else:
+						mgr.create_confirmation_dialog("You have some modifications that have not been executed.\n"\
+							+ "If you refresh, these modifications will be discarded. \nAre you sure to refresh the table?"
+							, onclose)
+			)
 		)
 		
 		var btn_revert = Button.new()
+		btn_ref[1] = btn_revert
 		btn_revert.text = "revert"
 		btn_revert.disabled = true
 		btn_revert.pressed.connect(func():
@@ -938,6 +1008,10 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 				#old_datas.insert(i, deleted_datas[i]) # 注意：前提是新建的数据都是放在最后面的，不影响数据回到原来的位置。
 				table.insert_data(i, deleted_datas[i]) # 注意：前提是新建的数据都是放在最后面的，不影响数据回到原来的位置。
 			#table.datas = old_datas
+			# 删除新建的数据
+			for i in range(table.datas.size()-1, -1, -1):
+				if table.datas[i].has_meta("new"):
+					table.remove_data_at(i, true)
 			btn_revert.disabled = true
 		)
 		
@@ -968,21 +1042,10 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 					else:
 						new_data[j["prop"]] = mgr.evaluate_command(null, col_def["Default(Expression)"])
 						
+						
 			var dict_obj = DictionaryObject.new(new_data, hint, false)
 			dict_obj.set_meta("new", true)
-			dict_obj.value_changed.connect(func(_prop, _new_val, _old_val):
-				if not table.get_meta("deleted_datas", {}).is_empty():
-					return
-					
-				for j in table.datas:
-					var modified_data = (j as DictionaryObject).get_modified_value()
-					if not modified_data.is_empty():
-						btn_apply.disabled = false
-						btn_revert.disabled = false
-						return
-				btn_apply.disabled = true
-				btn_revert.disabled = true
-			)
+			dict_obj.value_changed.connect(update_btn_disable_status)
 			table.append_data(dict_obj)
 			table.row_grab_focus(table.datas.size() - 1)
 		)
@@ -1011,14 +1074,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 						# TODO 不能使用已存在的键值
 						
 			var dict_obj = DictionaryObject.new(data, new_hint, false)
-			dict_obj.value_changed.connect(func(_prop, _new_val, _old_val):
-				for j in table.datas:
-					var modified_data = (j as DictionaryObject).get_modified_value()
-					if not modified_data.is_empty():
-						btn_apply.disabled = false
-						return
-				btn_apply.disabled = true
-			)
+			dict_obj.value_changed.connect(update_btn_disable_status)
 			new_table_datas.push_back(dict_obj)
 		table.datas = new_table_datas
 		table.show_menu = true
@@ -1071,16 +1127,16 @@ asize = null, pos_offset = null, aname = ""):
 	var table_dict_obj: DictionaryObject = graph_node.datas[1][2]
 	
 	if not fields.is_empty():
-		var redraw_call_ref: Callable
+		var arr = []
 		var redraw_call = func(row, col):
 			if row == 2 and col == 2 and table_dict_obj._get("Table") == table:
 				var fields_dict_obj: DictionaryObject = graph_node.datas[2][2]
 				for key in fields:
 					fields_dict_obj._set(key, fields[key])
-				graph_node.redraw_slot.disconnect(redraw_call_ref)
+				graph_node.redraw_slot.disconnect(arr[0])
 				
-		redraw_call_ref = redraw_call
-		graph_node.redraw_slot.connect(redraw_call_ref)
+		arr.push_back(redraw_call)
+		graph_node.redraw_slot.connect(redraw_call)
 		
 	if schema != schema_dict_obj._get("Schema"):
 		schema_dict_obj._set("Schema", schema)
@@ -1117,7 +1173,7 @@ func gen_insert_node() -> GraphNode:
 				var tables = mgr.databases[new_val]["tables"].keys()
 				table_dict_obj.reset_hint(
 					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}})
-				table_dict_obj._set("Table", "")
+				table_dict_obj._set("Table", "", true)
 			"_password":
 				base_dao.set_password(new_val)
 	)
@@ -1204,16 +1260,16 @@ asize = null, pos_offset = null, aname = ""):
 	var where_dict_obj: DictionaryObject = graph_node.datas[3][2]
 	
 	if not fields.is_empty():
-		var redraw_call_ref: Callable
+		var arr = []
 		var redraw_call = func(row, col):
 			if row == 2 and col == 2 and table_dict_obj._get("Table") == table:
 				var fields_dict_obj: DictionaryObject = graph_node.datas[2][2]
 				for key in fields:
 					fields_dict_obj._set(key, fields[key])
-				graph_node.redraw_slot.disconnect(redraw_call_ref)
+				graph_node.redraw_slot.disconnect(arr[0])
 				
-		redraw_call_ref = redraw_call
-		graph_node.redraw_slot.connect(redraw_call_ref)
+		arr.push_back(redraw_call)
+		graph_node.redraw_slot.connect(redraw_call)
 		
 	if schema != schema_dict_obj._get("Schema"):
 		schema_dict_obj._set("Schema", schema)
@@ -1253,7 +1309,7 @@ func gen_update_node() -> GraphNode:
 				var tables = mgr.databases[new_val]["tables"].keys()
 				table_dict_obj.reset_hint(
 					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}})
-				table_dict_obj._set("Table", "")
+				table_dict_obj._set("Table", "", true)
 			"_password":
 				base_dao.set_password(new_val)
 	)
@@ -1383,7 +1439,7 @@ func gen_delete_node() -> GraphNode:
 				var tables = mgr.databases[new_val]["tables"].keys()
 				table_dict_obj.reset_hint(
 					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}})
-				table_dict_obj._set("Table", "")
+				table_dict_obj._set("Table", "", true)
 			"_password":
 				base_dao.set_password(new_val)
 	)
