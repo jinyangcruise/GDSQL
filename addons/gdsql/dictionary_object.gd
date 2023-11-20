@@ -60,10 +60,16 @@ func reset_data(data, hint = null):
 		_hint = hint
 	notify_property_list_changed()
 	
+## 提交：将目前修改过的值全部标记为非修改状态
+func commit() -> void:
+	if _origin:
+		_origin.clear()
+		
+## 回滚：
 func revert():
 	if _origin:
 		for k in _origin:
-			_data[k] = _origin[k]
+			_set(k, _origin[k])
 		_origin.clear()
 	
 func reset_hint(hint: Dictionary):
@@ -98,11 +104,14 @@ func _get(property: StringName) -> Variant:
 		return _data[property]
 	return null
 	
-func _set(property: StringName, value: Variant) -> bool:
+## 设置属性的值。默认情况下如果值无变化，则不会触发value_changed信号，除非force为true。
+func _set(property: StringName, value: Variant, force: bool = false) -> bool:
 	if _duplicate_property.has(property):
 		property = _data[property]
 	if _data.has(property):
 		var old_value = _data[property]
+		if value == old_value and not force:
+			return true
 		if not _origin.has(property):
 			_origin[property] = old_value
 		_data[property] = value
@@ -237,6 +246,17 @@ func get_custom_display_control_duplicate(property: String) -> Control:
 		_custom_display_control[property] = ret
 		return ret
 	return null
+	
+func free_custom_display_control(property: String) -> void:
+	var ctl = get_custom_display_control(property)
+	if ctl:
+		ctl.queue_free()
+		_custom_display_control.erase(property)
+		
+func free_all_custom_display_controls() -> void:
+	for p in _custom_display_control:
+		(_custom_display_control[p] as Control).queue_free()
+	_custom_display_control.clear()
 
 func get_modified_value() -> Dictionary:
 	var ret = {}
