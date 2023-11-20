@@ -189,12 +189,20 @@ func insert_data(pos: int, a_data):
 			v_box_container.move_child(v_box_container.get_child(-1), pos)
 		
 func remove_data_at(index: int, free_data: bool):
-	if free_data and datas[index] is DictionaryObject:
-		var data = datas[index]
-		data.get_custom_display_control("Data Type").queue_free()
-		data.get_custom_display_control("Hint").queue_free()
+	if datas[index] is DictionaryObject:
+		var data = datas[index] as DictionaryObject
+		if free_data:
+			data.free_all_custom_display_controls()
+		else:
+			# 把自定义控件剥离出来，不然后面row释放的时候会把子控件都销毁
+			if v_box_container.get_child_count() > index:
+				var row = v_box_container.get_child(index)
+				for i in columns.size():
+					var ctl = data.get_custom_display_control(data.__get_index_prop(i))
+					if row.is_ancestor_of(ctl):
+						ctl.get_parent().remove_child(ctl)
 	datas.remove_at(index)
-	if is_node_ready():
+	if v_box_container.get_child_count() > index:
 		var row = v_box_container.get_child(index)
 		row.remove_meta("data")
 		v_box_container.remove_child(row)
@@ -228,7 +236,6 @@ func add_row(a_data):
 			for i in columns.size():
 				data.push_back(a_data.get(a_data.keys()[i], null))
 	elif a_data is DictionaryObject:
-		# TODO value_changed时进行显示更新
 		data = []
 		if columns.is_empty():
 			columns = []
@@ -262,8 +269,9 @@ func add_row(a_data):
 		var handled = false
 		
 		# 如果该数据提供了自定义显示控件，就直接使用
-		if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("get_custom_display_control"):
-			control = a_data.get_custom_display_control(columns[i-1])
+		if i > 0 and i < data.size() - 1 and a_data is DictionaryObject:
+			a_data = a_data as DictionaryObject
+			control = a_data.get_custom_display_control(a_data.__get_index_prop(i-1))
 			handled = control != null
 			
 		# 否则，用表格自带的显示控件
@@ -273,24 +281,27 @@ func add_row(a_data):
 					handled = true
 					control = check_box_model.duplicate()
 					control.button_pressed = data[i]
-					if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
+					if i > 0 and i < data.size() - 1 and a_data is DictionaryObject:
+						a_data = a_data as DictionaryObject
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
 							if ctl:
 								ctl.button_pressed = new_value
-						a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
+						 # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
+						a_data.set_update_callback(a_data.__get_index_prop(i-1), callback.bind(weakref(control)))
 				TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME:
 					handled = true
 					control = label_model.duplicate()
 					control.text = str(data[i])
 					control.tooltip_text = str(data[i])
 					control.gui_input.connect(_label_gui_input.bind(control.text), CONNECT_DEFERRED)
-					if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
+					if i > 0 and i < data.size() - 1 and a_data is DictionaryObject:
+						a_data = a_data as DictionaryObject
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
 							if ctl:
 								ctl.text = str(new_value)
-						a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
+						a_data.set_update_callback(a_data.__get_index_prop(i-1), callback.bind(weakref(control)))
 				TYPE_OBJECT:
 					if data[i] is Resource:
 						handled = true
@@ -299,8 +310,15 @@ func add_row(a_data):
 							texture_rect.texture = data[i]
 							texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 							texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-							texture_rect.tooltip_text = "%s\nType: %s\nSize: %s" % [data[i].resource_path, data[i].get_class(), data[i].get_size()]
+							texture_rect.tooltip_text = \
+								"%s\nType: %s\nSize: %s" % [data[i].resource_path, data[i].get_class(), data[i].get_size()]
 							control = texture_rect
+							if i > 0 and i < data.size() - 1 and a_data is DictionaryObject:
+								var callback = func(new_value, control_ref: WeakRef):
+									var ctl = control_ref.get_ref()
+									if ctl:
+										ctl.texture = new_value
+								a_data.set_update_callback(a_data.__get_index_prop(i-1), callback.bind(weakref(control)))
 						else:
 							## 注意：EditorResourcePicker有些慢，如果数据量比较大，会很卡，所以尽可能把常用的类型单独处理，比如上面的Texture2D
 							var editor_resource_picker := EditorResourcePicker.new()
@@ -310,14 +328,14 @@ func add_row(a_data):
 							editor_resource_picker.edited_resource = data[i]
 							editor_resource_picker.editable = false
 							control = editor_resource_picker
-							if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
+							if i > 0 and i < data.size() - 1 and a_data is DictionaryObject:
 								var callback = func(new_value, control_ref: WeakRef):
 									var ctl = control_ref.get_ref()
 									if ctl:
 										ctl.edited_resource = new_value
-								a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
-							#control = texture_rect_model.duplicate()
-							#control.texture = data[i]
+								a_data.set_update_callback(a_data.__get_index_prop(i-1), callback.bind(weakref(control)))
+						#control = texture_rect_model.duplicate()
+						#control.texture = data[i]
 					elif data[i] is Control:
 						handled = true
 						control = data[i]
@@ -327,12 +345,13 @@ func add_row(a_data):
 			control = label_model.duplicate()
 			control.text = var_to_str(data[i])
 			control.gui_input.connect(_label_gui_input.bind(control.text), CONNECT_DEFERRED)
-			if i > 0 and i < data.size() - 1 and a_data is Object and a_data.has_method("set_update_callback"):
+			if i > 0 and i < data.size() - 1 and a_data is DictionaryObject and a_data.has_method("set_update_callback"):
+				a_data = a_data as DictionaryObject
 				var callback = func(new_value, control_ref: WeakRef):
 					var ctl = control_ref.get_ref()
 					if ctl:
 						ctl.text = var_to_str(new_value)
-				a_data.set_update_callback(columns[i-1], callback.bind(weakref(control))) # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
+				a_data.set_update_callback(a_data.__get_index_prop(i-1), callback.bind(weakref(control)))
 			
 		control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		#control.set_meta("data", data[i])
@@ -442,8 +461,8 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 
 # TODO 支持多选高亮、多选编辑
 func highlight_row(row_panel: PanelContainer) -> void:
-	#await get_tree().create_timer(0.1).timeout
-	#scroll_container.scroll_vertical = row_panel.position.y + row_panel.size.y
+	await get_tree().create_timer(0.1).timeout
+	scroll_container.ensure_control_visible(row_panel)
 	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")
 	style_box.bg_color.a = 0.788
 	# 清空兄弟节点的背景色。这个逻辑不放在focus_exited里是因为这两个信号的发生顺序，是先exited，再entered
@@ -453,15 +472,14 @@ func highlight_row(row_panel: PanelContainer) -> void:
 			style_box_1.bg_color.a = 0.0
 			
 	data_of_focused_row = row_panel.get_meta("data", null)
-	if show_menu and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) and \
+	# 由于一开始等了0.1秒，可能导致检测鼠标按下无效，所以加入检查是否弹出了菜单
+	if show_menu and (Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or popup_menu_text.visible) and \
 		row_panel.get_rect().has_point(v_box_container.get_local_mouse_position()):
 		popup_menu_text.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
 		popup_menu_text.set_item_metadata(1, row_panel.get_meta("data"))
-		if support_delete_row:
-			popup_menu_text.set_item_disabled(1, false)
-		else:
-			popup_menu_text.set_item_disabled(1, true)
-		popup_menu_text.popup()
+		popup_menu_text.set_item_disabled(1, not support_delete_row)
+		if not popup_menu_text.visible:
+			popup_menu_text.popup()
 	else:
 		popup_menu_text.set_item_disabled(1, true)
 		
