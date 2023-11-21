@@ -19,6 +19,7 @@ grow_vertical = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 script = ExtResource("1_s1y7s")
+support_multi_rows_selected = null
 
 [node name="Models" type="HBoxContainer" parent="."]
 visible = false
@@ -96,16 +97,20 @@ mouse_force_pass_scroll_events = false
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+theme_override_constants/separation = 0
 
 [node name="PopupMenuText" type="PopupMenu" parent="."]
-item_count = 2
-item_0/text = "Copy"
+item_count = 3
+item_0/text = "Copy Field"
 item_0/icon = ExtResource("2_y6tia")
 item_0/id = 0
-item_1/text = "Delete"
-item_1/icon = ExtResource("3_8c6f0")
+item_1/text = "Copy Line"
+item_1/icon = ExtResource("2_y6tia")
 item_1/id = 1
-item_1/disabled = true
+item_2/text = "Delete"
+item_2/icon = ExtResource("3_8c6f0")
+item_2/id = 2
+item_2/disabled = true
 
 [connection signal="resized" from="." to="." method="_on_resized"]
 [connection signal="pressed" from="VBoxContainer/ButtonForDebug" to="." method="_on_button_pressed"]

@@ -27,6 +27,9 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 ## 是否支持从右键菜单delete行
 @export var support_delete_row: bool = false
 
+## 是否支持多行选择（高亮）
+@export var support_multi_rows_selected: bool = false
+
 ## 每列的名称。注意：如果要正确显示tooltip，需要先设置column_tips，再设置columns
 @export var columns: Array:
 	set(val):
@@ -95,6 +98,7 @@ func _notification(what):
 			
 		popup_menu_text.set_item_metadata(0, null)
 		popup_menu_text.set_item_metadata(1, null)
+		popup_menu_text.set_item_metadata(2, null)
 		clear_header()
 		clear_rows()
 		datas = []
@@ -240,28 +244,24 @@ func add_row(a_data):
 		if columns.is_empty():
 			columns = []
 			for info in a_data._get_property_list():
-				if info["usage"] & PROPERTY_USAGE_CATEGORY or info["usage"] & PROPERTY_USAGE_GROUP \
-					or info["usage"] & PROPERTY_USAGE_SUBGROUP:
+				if a_data._is_hidden_prop(info["name"]):
 					continue
 				columns.push_back(info["name"])
 				data.push_back(a_data.get(info["name"]))
 		else:
 			for i in columns.size():
 				data.push_back(a_data._get_by_index(i)) # 不用字段名称去获取是因为columns的字段名称和实际数据的字段名称不一定一致
-				
+	else:
+		push_error("Table only support Array, Dictionary or DictionaryObject.")
+		return
+		
 	var a_row = row_panel_container.duplicate()
 	a_row.set_meta("data", a_data)
 	v_box_container.add_child(a_row)
 	a_row.gui_input.connect(_on_row_gui_input.bind(a_row, a_data), CONNECT_DEFERRED)
 	var style_box: StyleBoxFlat = a_row.get_theme_stylebox("panel").duplicate()
 	a_row.add_theme_stylebox_override("panel", style_box)
-	# add_child好像会导致之前的focus丢失
-	#if typeof(a_data) == typeof(data_of_focused_row) and a_data == data_of_focused_row:
-		#highlight_row(a_row)
-	#elif data_of_focused_row != null:
-		#for i in v_box_container.get_children():
-			#if i.get_meta("data") == data_of_focused_row:
-				#highlight_row(i)
+	
 	data.insert(0, "")
 	data.push_back("")
 	for i in data.size():
@@ -281,6 +281,8 @@ func add_row(a_data):
 					handled = true
 					control = check_box_model.duplicate()
 					control.button_pressed = data[i]
+					control.tooltip_text = str(data[i])
+					control.gui_input.connect(_label_gui_input.bind(i-1), CONNECT_DEFERRED)
 					if i > 0 and i < data.size() - 1 and a_data is DictionaryObject:
 						a_data = a_data as DictionaryObject
 						var callback = func(new_value, control_ref: WeakRef):
@@ -294,7 +296,7 @@ func add_row(a_data):
 					control = label_model.duplicate()
 					control.text = str(data[i])
 					control.tooltip_text = str(data[i])
-					control.gui_input.connect(_label_gui_input.bind(control.text), CONNECT_DEFERRED)
+					control.gui_input.connect(_label_gui_input.bind(i-1), CONNECT_DEFERRED)
 					if i > 0 and i < data.size() - 1 and a_data is DictionaryObject:
 						a_data = a_data as DictionaryObject
 						var callback = func(new_value, control_ref: WeakRef):
@@ -313,6 +315,7 @@ func add_row(a_data):
 							texture_rect.tooltip_text = \
 								"%s\nType: %s\nSize: %s" % [data[i].resource_path, data[i].get_class(), data[i].get_size()]
 							control = texture_rect
+							control.gui_input.connect(_label_gui_input.bind(i-1), CONNECT_DEFERRED)
 							if i > 0 and i < data.size() - 1 and a_data is DictionaryObject:
 								var callback = func(new_value, control_ref: WeakRef):
 									var ctl = control_ref.get_ref()
@@ -328,6 +331,7 @@ func add_row(a_data):
 							editor_resource_picker.edited_resource = data[i]
 							editor_resource_picker.editable = false
 							control = editor_resource_picker
+							control.gui_input.connect(_label_gui_input.bind(i-1), CONNECT_DEFERRED)
 							if i > 0 and i < data.size() - 1 and a_data is DictionaryObject:
 								var callback = func(new_value, control_ref: WeakRef):
 									var ctl = control_ref.get_ref()
@@ -344,7 +348,7 @@ func add_row(a_data):
 		if not handled:
 			control = label_model.duplicate()
 			control.text = var_to_str(data[i])
-			control.gui_input.connect(_label_gui_input.bind(control.text), CONNECT_DEFERRED)
+			control.gui_input.connect(_label_gui_input.bind(i-1), CONNECT_DEFERRED)
 			if i > 0 and i < data.size() - 1 and a_data is DictionaryObject and a_data.has_method("set_update_callback"):
 				a_data = a_data as DictionaryObject
 				var callback = func(new_value, control_ref: WeakRef):
@@ -435,7 +439,7 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 	var emit_click = func():
 		if event is InputEventMouseButton and \
 			(event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT):
-			highlight_row(row_panel)
+			highlight_row(row_panel, true, event.button_index == MOUSE_BUTTON_RIGHT)
 			row_clicked.emit(datas.find(source_data), event.button_index, source_data)
 			
 	if not editable:
@@ -458,30 +462,66 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 				i.get_popup().emit_signal("id_pressed", 12) # 12 is for EXPAND_ALL, @see editor\inspector_dock.h
 		
 	emit_click.call()
+	
+## 获取高亮行的关联数据
+func get_data_of_highlight_rows() -> Array:
+	var ret = []
+	for i in v_box_container.get_children():
+		var style_box: StyleBoxFlat = i.get_theme_stylebox("panel")
+		if style_box and not is_zero_approx(style_box.bg_color.a):
+			ret.push_back(i.get_meta("data"))
+	return ret
 
 # TODO 支持多选高亮、多选编辑
-func highlight_row(row_panel: PanelContainer) -> void:
-	await get_tree().create_timer(0.1).timeout
+# TODO shift连选
+func highlight_row(row_panel: PanelContainer, skip_await: bool = false, mouse_button_right: bool = false) -> void:
+	# 是否按下ctrl键
+	var ctrl_pressed = Input.is_key_pressed(KEY_CTRL)
+	
+	# 自动滚动到高亮行。
+	# 但是一些刚刚添加的新行，需要await才能ensure_control_visible
+	if skip_await:
+		await get_tree().create_timer(0.1).timeout
 	scroll_container.ensure_control_visible(row_panel)
+	
+	# 高亮本行
 	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")
+	var old_alpha = style_box.bg_color.a
 	style_box.bg_color.a = 0.788
-	# 清空兄弟节点的背景色。这个逻辑不放在focus_exited里是因为这两个信号的发生顺序，是先exited，再entered
-	for i in v_box_container.get_children():
-		if i != row_panel:
-			var style_box_1: StyleBoxFlat = i.get_theme_stylebox("panel")
-			style_box_1.bg_color.a = 0.0
+	
+	# 是否清空其他高亮行
+	var clear_other_hightlight = true
+	if support_multi_rows_selected:
+		# 如果是右键触发的
+		if mouse_button_right:
+			if ctrl_pressed:
+				clear_other_hightlight = false
+			elif not is_zero_approx(old_alpha):
+				clear_other_hightlight = false
+		# 左键触发的或默认（相当于）左键触发的
+		else:
+			if ctrl_pressed:
+				clear_other_hightlight = false
+	else:
+		clear_other_hightlight = true
+		
+	if clear_other_hightlight:
+		for i in v_box_container.get_children():
+			if i != row_panel:
+				var style_box_1: StyleBoxFlat = i.get_theme_stylebox("panel")
+				style_box_1.bg_color.a = 0.0
 			
 	#data_of_focused_row = row_panel.get_meta("data", null)
 	# 由于一开始等了0.1秒，可能导致检测鼠标按下无效，所以加入检查是否弹出了菜单
 	if show_menu and (Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or popup_menu_text.visible) and \
 		row_panel.get_rect().has_point(v_box_container.get_local_mouse_position()):
 		popup_menu_text.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
-		popup_menu_text.set_item_metadata(1, row_panel.get_meta("data"))
-		popup_menu_text.set_item_disabled(1, not support_delete_row)
+		popup_menu_text.set_item_metadata(2, row_panel.get_meta("data"))
+		popup_menu_text.set_item_disabled(2, not support_delete_row)
 		if not popup_menu_text.visible:
 			popup_menu_text.popup()
 	else:
-		popup_menu_text.set_item_disabled(1, true)
+		popup_menu_text.set_item_disabled(2, true)
 		
 func row_grab_focus(row: int):
 	if v_box_container.get_child_count() > row:
@@ -499,22 +539,58 @@ func scroll_to_bottom():
 	await get_tree().create_timer(0.1).timeout
 	v_scroll_bar.value = v_scroll_bar.max_value
 
-func _label_gui_input(event: InputEvent, content: String):
+func _label_gui_input(event: InputEvent, col_index: int):
 	if show_menu and event is InputEventMouseButton and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		popup_menu_text.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
-		popup_menu_text.set_item_metadata(0, content)
-		if support_delete_row and popup_menu_text.get_item_metadata(1) != null:
-			popup_menu_text.set_item_disabled(1, false)
+		popup_menu_text.set_item_metadata(0, col_index)
+		#popup_menu_text.set_item_metadata(1, col_index)
+		if support_delete_row and popup_menu_text.get_item_metadata(2) != null:
+			popup_menu_text.set_item_disabled(2, false)
 		else:
-			popup_menu_text.set_item_disabled(1, true)
+			popup_menu_text.set_item_disabled(2, true)
 		popup_menu_text.popup()
 		
 func _on_popup_menu_text_index_pressed(index):
 	match popup_menu_text.get_item_text(index):
-		"Copy":
-			if popup_menu_text.get_item_metadata(index) != null:
-				DisplayServer.clipboard_set(popup_menu_text.get_item_metadata(index))
+		"Copy Field":
+			var col_index = popup_menu_text.get_item_metadata(index)
+			if col_index != null:
+				var arr_content = []
+				for data in get_data_of_highlight_rows():
+					var value = data[col_index] if (data is Array or data is Dictionary) \
+						else (data as DictionaryObject)._get_by_index(col_index)
+					match typeof(value):
+						TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME:
+							arr_content.push_back(str(value))
+						TYPE_OBJECT:
+							if value is Resource:
+								arr_content.push_back(value.resource_path)
+							else:
+								arr_content.push_back(var_to_str(value))
+						_:
+							arr_content.push_back(var_to_str(value))
+				DisplayServer.clipboard_set("\n".join(arr_content))
+		"Copy Line":
+			var arr = []
+			for data in get_data_of_highlight_rows():
+				var arr_content = []
+				for col_index in columns.size():
+					var value = data[col_index] if (data is Array or data is Dictionary) \
+						else (data as DictionaryObject)._get_by_index(col_index)
+					match typeof(value):
+						TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME:
+							arr_content.push_back(var_to_str(value))
+						TYPE_OBJECT:
+							if value is Resource:
+								arr_content.push_back(var_to_str(value.resource_path))
+							else:
+								arr_content.push_back(var_to_str(value))
+						_:
+							arr_content.push_back(var_to_str(value))
+				arr.push_back("\t".join(arr_content))
+			DisplayServer.clipboard_set("\n".join(arr))
 		"Delete":
+			# TODO 多行删除
 			var data = popup_menu_text.get_item_metadata(index)
 			var pos = datas.find(data)
 			datas.remove_at(pos)
