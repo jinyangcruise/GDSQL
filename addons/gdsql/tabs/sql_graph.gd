@@ -748,11 +748,13 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 				
 			for j: DictionaryObject in table.datas:
 				if not j.get_modified_new_value().is_empty():
-					btn_ref[0].disabled = false
-					btn_ref[1].disabled = false
+					if btn_ref and btn_ref.size() == 2 and is_instance_valid(btn_ref[0]) and is_instance_valid(btn_ref[1]):
+						btn_ref[0].disabled = false
+						btn_ref[1].disabled = false
 					return
-			btn_ref[0].disabled = true
-			btn_ref[1].disabled = true
+			if btn_ref and btn_ref.size() == 2 and is_instance_valid(btn_ref[0]) and is_instance_valid(btn_ref[1]):
+				btn_ref[0].disabled = true
+				btn_ref[1].disabled = true
 			
 		# 加俩按钮:1.新建一条数据；2.应用
 		var btn_apply = Button.new()

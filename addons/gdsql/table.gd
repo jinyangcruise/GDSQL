@@ -463,15 +463,189 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 	#if not (event as InputEventMouseButton).double_click:
 		#return
 		
-	if source_data is Object and editable and event is InputEventMouseButton and \
-			(event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT):
-		EditorInterface.inspect_object(source_data)
+	emit_click.call()
+	
+	if editable and event is InputEventMouseButton and \
+		(event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT):
+		inspect_highlight_rows()
+		
+		
+## 支持批量编辑多个数据
+func inspect_highlight_rows() -> void:
+	await get_tree().create_timer(0.05).timeout
+	var rows = get_data_of_highlight_rows()
+	if rows.is_empty():
+		return
+		
+	if rows.size() == 1:
+		EditorInterface.inspect_object(rows[0])
 		# 全部展开（方便用户修改数据）
-		for i: MenuButton in EditorInterface.get_inspector().get_parent().find_children("@MenuButton*", "MenuButton", true, false):
+		await get_tree().process_frame
+		for i: MenuButton in EditorInterface.get_inspector().get_parent().\
+			find_children("@MenuButton*", "MenuButton", true, false):
 			if i.tooltip_text == tr("Manage object properties."):
 				i.get_popup().emit_signal("id_pressed", 12) # 12 is for EXPAND_ALL, @see editor\inspector_dock.h
+				break
+		return
 		
-	emit_click.call()
+	# 多个数据的构造一个MultiNodeEdit。参考Godot源码。
+	# @see editor\multi_node_edit.cpp：MultiNodeEdit::_get_property_list
+	# 这段主要是得出选中的数据的共同属性。
+	var usage = {}
+	var p_list = []
+	var data_list = []
+	var nc = 0
+	for data in rows:
+		if not data is Object:
+			continue
+		
+		var plist = (data as Object).get_property_list()
+		for F in plist:
+			# 下面这段不用写，对gdscript来说没用
+			#if (F.name == "script") {
+				#continue; // Added later manually, since this is intercepted before being set (check Variant Object::get()).
+			#} else if (F.name.begins_with("metadata/")) {
+				#F.name = F.name.replace_first("metadata/", "Metadata/"); // Trick to not get actual metadata edited from MultiNodeEdit.
+			#}
+				
+			if not usage.has(F["name"]):
+				usage[F["name"]] = {"uses": 0, "info": F}
+				data_list.push_back(usage[F["name"]])
+				
+			# Make sure only properties with the same exact PropertyInfo data will appear.
+			if usage[F["name"]]["info"] == F:
+				usage[F["name"]]["uses"] += 1
+				
+		nc += 1
+		
+	for E in data_list:
+		if nc == E["uses"]:
+			p_list.push_back(E["info"])
+			
+	#p_list->push_back(PropertyInfo(Variant::OBJECT, "scripts", PROPERTY_HINT_RESOURCE_TYPE, "Script")); 同样gdscript没用处
+	
+	# 根据共同属性，我们构造一个dict obj。要去掉共同属性中属于共同基类的属性。所以我们要找到这些Object的最小共同基类名称。
+	# @see MultiNodeEdit::get_edited_class_name()
+	var get_common_class_name = func():
+		var a_class_name
+		var check_again = true
+		while check_again:
+			check_again = false
+			
+			# Check that all nodes inherit from class_name.
+			for data in rows:
+				if not data is Object:
+					continue
+					
+				data = data as Object
+				var obj_class_name = data.get_class()
+				if a_class_name == null:
+					a_class_name = obj_class_name # a_class_name初始化为第一个object的类名
+					
+				if obj_class_name == "Object":
+					# All nodes inherit from Object, so no need to continue checking.
+					return obj_class_name
+					
+				if a_class_name == obj_class_name or ClassDB.is_parent_class(obj_class_name, a_class_name):
+					# class_name is the same or a parent of the object's class.
+					continue
+					
+				# class_name is not a parent of the node's class, so check again with the parent class.
+				a_class_name = ClassDB.get_parent_class(a_class_name)
+				check_again = true
+				break
+				
+		return a_class_name
+		
+	var common_class_name = get_common_class_name.call()
+	if common_class_name == null:
+		push_error("Can not find common parent class name")
+		return
+		
+	# 整一个脚本继承该类，得出基类的属性
+	var script = GDScript.new()
+	script.source_code = "extends %s" % common_class_name
+	script.reload()
+	var obj = script.new()
+	var props_of_common_class = obj.get_property_list()
+	if obj.has_method("free") and not obj is RefCounted:
+		obj.free()
+	
+	# 去掉p_list中的基类的属性
+	for i in props_of_common_class:
+		for j in p_list.size():
+			if i == p_list[j]:
+				p_list.remove_at(j)
+				break
+				
+	# 去掉dict obj本身的属性。因为我们要用dict obj来构造一个能被检查器检查的属性。
+	var dummy_dict_obj = DictionaryObject.new({})
+	for i in dummy_dict_obj.get_property_list():
+		for j in p_list.size():
+			if i == p_list[j]:
+				p_list.remove_at(j)
+				break
+				
+	# 剩下的属性用于构造dict obj
+	var impl_data = {}
+	var impl_hint = {}
+	for i in p_list:
+		var prop = i["name"]
+		# 如果所有数据该属性有共同的值，就设置上
+		var common_value = null
+		var inited = false
+		for data in rows:
+			if not data is Object:
+				continue
+			if not inited:
+				common_value = data.get(prop)
+				impl_hint[prop] = {
+					"type": i["type"],
+					"usage": i["usage"],
+					"hint": i["hint"],
+					"hint_string": i["hint_string"],
+				}
+				inited = true
+			elif common_value != data.get(prop):
+				common_value = null
+				break # 在这个属性上，有不同的值，那就不设置了
+				
+		impl_data[prop] = common_value
+		
+	var impl_dict_obj = DictionaryObject.new(impl_data, impl_hint)
+	
+	# 监听值改变的信号，把数据同步到被编辑的对象
+	var on_value_changed_ref = []
+	var on_value_changed = func(prop, new_value, _old_value):
+		var valid = false
+		for data in rows:
+			if not data is Object or not is_instance_valid(data): # 考虑被编辑对象已经不存在了
+				continue
+			data.set(prop, new_value)
+			valid = true
+		if not valid:
+			impl_dict_obj.value_changed.disconnect(on_value_changed_ref[0])
+			EditorInterface.inspect_object(null)
+	on_value_changed_ref.push_back(on_value_changed)
+	impl_dict_obj.value_changed.connect(on_value_changed)
+	
+	# 发送到检查器
+	EditorInterface.inspect_object(impl_dict_obj)
+	# 全部展开（方便用户修改数据）
+	await get_tree().process_frame
+	for i: MenuButton in EditorInterface.get_inspector().get_parent().\
+		find_children("@MenuButton*", "MenuButton", true, false):
+		if i.tooltip_text == tr("Manage object properties."):
+			i.get_popup().emit_signal("id_pressed", 12) # 12 is for EXPAND_ALL, @see editor\inspector_dock.h
+			break
+			
+	# 告诉用户正在编辑多个
+	# @see editor\gui\editor_object_selector.cpp:EditorObjectSelector::update_path()
+	var selector = EditorInterface.get_inspector().get_parent().find_child("@EditorObjectSelector*", true, false)
+	if selector != null:
+		var label = selector.find_child("@Label*", true, false)
+		if label != null:
+			label.text = tr("%s (%d Selected)") % [common_class_name, rows.size()]
 	
 ## 获取高亮行的关联数据
 func get_data_of_highlight_rows() -> Array:
@@ -507,8 +681,8 @@ func highlight_row(row_panel: PanelContainer, skip_await: bool = false, mouse_bu
 	
 	# 自动滚动到高亮行。
 	# 但是一些刚刚添加的新行，需要await才能ensure_control_visible
-	if skip_await:
-		await get_tree().create_timer(0.1).timeout
+	if not skip_await:
+		await get_tree().create_timer(0.01).timeout
 	scroll_container.ensure_control_visible(row_panel)
 	
 	# shift优先级最高，shift按下，不管左右键，统一按选中处理，而且不影响原来已经选中的项目
@@ -580,6 +754,7 @@ func highlight_row(row_panel: PanelContainer, skip_await: bool = false, mouse_bu
 	else:
 		popup_menu_text.set_item_disabled(2, true)
 		
+## 给外部使用的单独选中某一行
 func row_grab_focus(row: int):
 	if v_box_container.get_child_count() > row:
 		highlight_row(v_box_container.get_child(row))
@@ -587,9 +762,11 @@ func row_grab_focus(row: int):
 		if datas[row] is Object and editable:
 			EditorInterface.inspect_object(datas[row])
 			# 全部展开（方便用户修改数据）
+			await get_tree().process_frame
 			for i: MenuButton in EditorInterface.get_inspector().get_parent().find_children("@MenuButton*", "MenuButton", true, false):
 				if i.tooltip_text == tr("Manage object properties."):
 					i.get_popup().emit_signal("id_pressed", 12) # 12 is for EXPAND_ALL, @see editor\inspector_dock.h
+					break
 			
 func scroll_to_bottom():
 	var v_scroll_bar = scroll_container.get_v_scroll_bar() as VScrollBar
