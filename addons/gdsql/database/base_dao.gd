@@ -93,7 +93,7 @@ func _assert(action: String, success: bool, msg: String) -> bool:
 func commit() -> void:
 	assert(_assert("commit", __database != "", "database is empty"))
 	assert(_assert("commit", __table != "", "table name is empty"))
-	var path = __database + __table
+	var path = __database.path_join(__table)
 	var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
 	assert(_assert("commit", conf != null, "load conf err!"))
 	__CONF_MANAGER.save_conf_by_origin_password(path)
@@ -684,7 +684,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 	if __union_all:
 #		__union_all.__need_post_porcess = false # 改为需要后处理
 #		__union_all.__need_head = false
-		var union_datas = __union_all.___select(__union_all.__database + __union_all.__table)
+		var union_datas = __union_all.___select(__union_all.__database.path_join(__union_all.__table))
 		ret_filter.append_array(union_datas)
 		# 防止内存占用
 		__union_all.reset()
@@ -912,7 +912,7 @@ func query() -> QueryResult:
 	if __parent_union:
 		return __parent_union.query()
 		
-	var path = __database + __table
+	var path = __database.path_join(__table)
 	var result = QueryResult.new()
 	match __cmd:
 		"select":
@@ -1162,6 +1162,9 @@ func _get_limit(new_line = false) -> String:
 	if new_line:
 		return "\n limit %d, %d" % [__offset, __limit]
 	return " limit %d, %d" % [__offset, __limit]
+	
+func get_cmd() -> String:
+	return __cmd
 	
 ## 获取正正执行的语句
 func get_query_cmd() -> String:

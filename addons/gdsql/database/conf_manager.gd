@@ -8,7 +8,7 @@ var _passwords: Dictionary = {}
 ## 获取配置：前提是该配置的文件是存在的
 func get_conf(path: String, password: String) -> ImprovedConfigFile:
 	# 使用绝对路径，防止用户对同一个文件使用不同形式的路径导致获得了多个配置实例
-	path = ProjectSettings.globalize_path(path)
+	path = ProjectSettings.globalize_path(path).simplify_path()
 	
 	if _conf_map.has(path):
 		return _conf_map.get(path)
