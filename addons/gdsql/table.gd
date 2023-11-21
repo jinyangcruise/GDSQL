@@ -2,7 +2,7 @@
 extends VBoxContainer
 
 signal row_clicked(row_index: int, mouse_button_index: int, data)
-signal row_deleted(row_index: int, data)
+signal row_deleted(datas) # {index: data}
 
 var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
@@ -15,6 +15,7 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 @onready var check_box_model: CheckBox = $Models/CheckBoxModel
 @onready var scroll_container = $VBoxContainer/ScrollContainer
 @onready var popup_menu_text = $PopupMenuText
+@onready var button_select_all = $Control/ButtonSelectAll
 
 
 
@@ -78,6 +79,10 @@ var _entered_tree = false
 ## 表头
 var buttons: Array[Button] = []
 var controls: Array = []
+# 最后focus的行
+var last_focused_row
+const HIGHTLIGHT_COLOR = Color(Color.MEDIUM_PURPLE, 0.788)
+const CLICKED_COLOR = Color(Color.LIGHT_BLUE, 0.1)
 #var data_of_focused_row
 
 func _ready() -> void:
@@ -102,6 +107,7 @@ func _notification(what):
 		clear_header()
 		clear_rows()
 		datas = []
+		last_focused_row = null
 		#data_of_focused_row = null
 		# 下面3个清空的话会导致用户只能通过代码来设置这三个属性，不能通过检查器来设置
 		#ratios.clear()
@@ -208,6 +214,8 @@ func remove_data_at(index: int, free_data: bool):
 	datas.remove_at(index)
 	if v_box_container.get_child_count() > index:
 		var row = v_box_container.get_child(index)
+		if row == last_focused_row:
+			last_focused_row = null
 		row.remove_meta("data")
 		v_box_container.remove_child(row)
 		row.queue_free()
@@ -372,6 +380,8 @@ func add_row(a_data):
 func clear_rows():
 	while v_box_container.get_child_count() > 0:
 		var r = v_box_container.get_child(0)
+		if r == last_focused_row:
+			last_focused_row = null
 		r.remove_meta("data")
 		v_box_container.remove_child(r)
 		r.queue_free()
@@ -468,15 +478,32 @@ func get_data_of_highlight_rows() -> Array:
 	var ret = []
 	for i in v_box_container.get_children():
 		var style_box: StyleBoxFlat = i.get_theme_stylebox("panel")
-		if style_box and not is_zero_approx(style_box.bg_color.a):
+		if style_box and style_box.bg_color == HIGHTLIGHT_COLOR:
 			ret.push_back(i.get_meta("data"))
 	return ret
 
-# TODO 支持多选高亮、多选编辑
-# TODO shift连选
+func mark_last_clicked_row(row_panel: PanelContainer, highlight: bool) -> void:
+	last_focused_row = row_panel
+	var style_box = row_panel.get_theme_stylebox("panel") as StyleBoxFlat
+	style_box.bg_color = HIGHTLIGHT_COLOR if highlight else CLICKED_COLOR
+	for i in v_box_container.get_children():
+		if i != row_panel:
+			var style_box_1 = i.get_theme_stylebox("panel") as StyleBoxFlat
+			if style_box_1.bg_color.a < 0.2:
+				style_box_1.bg_color.a = 0.0
+				
+func _on_button_select_all_pressed():
+	for i in v_box_container.get_children():
+		(i.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = HIGHTLIGHT_COLOR
+	if last_focused_row == null:
+		last_focused_row = v_box_container.get_child(0)
+		
+## 支持多选高亮\多选编辑\shift连选
 func highlight_row(row_panel: PanelContainer, skip_await: bool = false, mouse_button_right: bool = false) -> void:
-	# 是否按下ctrl键
+	button_select_all.grab_focus()
+	# 是否按下ctrl键、shift键
 	var ctrl_pressed = Input.is_key_pressed(KEY_CTRL)
+	var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
 	
 	# 自动滚动到高亮行。
 	# 但是一些刚刚添加的新行，需要await才能ensure_control_visible
@@ -484,10 +511,40 @@ func highlight_row(row_panel: PanelContainer, skip_await: bool = false, mouse_bu
 		await get_tree().create_timer(0.1).timeout
 	scroll_container.ensure_control_visible(row_panel)
 	
+	# shift优先级最高，shift按下，不管左右键，统一按选中处理，而且不影响原来已经选中的项目
+	if shift_pressed:
+		# 没有上次选的项目，那本次就单独高亮当前行（不影响之前高亮的）
+		if last_focused_row == null:
+			mark_last_clicked_row(row_panel, true)
+		# 有上次选的项目，那本次批量高亮范围内的所有行
+		else:
+			if last_focused_row == row_panel:
+				(row_panel.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = HIGHTLIGHT_COLOR
+			else:
+				var start = false
+				for i in v_box_container.get_children():
+					if start:
+						(i.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = HIGHTLIGHT_COLOR
+						if i == last_focused_row or i == row_panel:
+							break
+					elif i == last_focused_row or i == row_panel:
+						start = true
+						(i.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = HIGHTLIGHT_COLOR
+		last_focused_row = row_panel
+		return
+	
+	# 本行原先的颜色
+	var style_box = row_panel.get_theme_stylebox("panel") as StyleBoxFlat
+	var old_color = style_box.bg_color
+	
+	# 是否取消高亮
+	if ctrl_pressed and old_color == HIGHTLIGHT_COLOR and not mouse_button_right:
+		mark_last_clicked_row(row_panel, false)
+		return
+	
 	# 高亮本行
-	var style_box: StyleBoxFlat = row_panel.get_theme_stylebox("panel")
-	var old_alpha = style_box.bg_color.a
-	style_box.bg_color.a = 0.788
+	last_focused_row = row_panel
+	mark_last_clicked_row(row_panel, true)
 	
 	# 是否清空其他高亮行
 	var clear_other_hightlight = true
@@ -496,7 +553,7 @@ func highlight_row(row_panel: PanelContainer, skip_await: bool = false, mouse_bu
 		if mouse_button_right:
 			if ctrl_pressed:
 				clear_other_hightlight = false
-			elif not is_zero_approx(old_alpha):
+			elif old_color == HIGHTLIGHT_COLOR:
 				clear_other_hightlight = false
 		# 左键触发的或默认（相当于）左键触发的
 		else:
@@ -508,7 +565,7 @@ func highlight_row(row_panel: PanelContainer, skip_await: bool = false, mouse_bu
 	if clear_other_hightlight:
 		for i in v_box_container.get_children():
 			if i != row_panel:
-				var style_box_1: StyleBoxFlat = i.get_theme_stylebox("panel")
+				var style_box_1 = i.get_theme_stylebox("panel") as StyleBoxFlat
 				style_box_1.bg_color.a = 0.0
 			
 	#data_of_focused_row = row_panel.get_meta("data", null)
@@ -590,11 +647,42 @@ func _on_popup_menu_text_index_pressed(index):
 				arr.push_back("\t".join(arr_content))
 			DisplayServer.clipboard_set("\n".join(arr))
 		"Delete":
-			# TODO 多行删除
-			var data = popup_menu_text.get_item_metadata(index)
-			var pos = datas.find(data)
-			datas.remove_at(pos)
-			datas = datas
-			row_deleted.emit(pos, data)
+			var deleted_datas = {}
+			var j = -1
+			for i in v_box_container.get_children():
+				j += 1
+				var style_box: StyleBoxFlat = i.get_theme_stylebox("panel")
+				if style_box and style_box.bg_color == HIGHTLIGHT_COLOR:
+					deleted_datas[j] = i.get_meta("data")
+			var indexes = deleted_datas.keys()
+			indexes.reverse() # 倒着删除，不然会因为先删了前面的后面的index已经变了
+			for i in indexes:
+				remove_data_at(i, true) # WARNING 有可能把用户自定义控件释放掉，这个规则缺乏明确的告知
+			if not deleted_datas.is_empty():
+				row_deleted.emit(deleted_datas)
 			
 	popup_menu_text.set_item_metadata(index, null)
+
+
+
+func _on_focus_entered():
+	button_select_all.grab_focus()
+
+
+func _on_v_box_container_focus_entered():
+	button_select_all.grab_focus()
+
+
+func _on_scroll_container_focus_entered():
+	button_select_all.grab_focus()
+
+
+func _on_button_select_all_focus_exited():
+	pass
+	#await get_tree().process_frame
+	#var focus_owner = get_viewport().gui_get_focus_owner()
+	## 如果焦点不在Table中，把检查器中的对象取消掉
+	#if focus_owner == null or not mgr.main_panel.is_ancestor_of(focus_owner):
+		#var obj = EditorInterface.get_inspector().get_edited_object()
+		#if obj != null and obj is DictionaryObject and datas.has(obj):
+			#EditorInterface.inspect_object(null)
