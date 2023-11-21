@@ -658,7 +658,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		graph_node.title = "Result"
 		graph_node.ready.connect(func():
 			graph_node.set_slot_type_left(0, 1) # Result's type is 1
-			graph_node.size = Vector2(400, 400)
+			graph_node.size = Vector2(400, 600)
 			graph_node.selected = true
 		)
 		graph_node.set_meta("type", "Result")
@@ -688,6 +688,8 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 	graph_node.set_meta("is_union_all", is_union_all)
 	graph_node.set_meta("join_conds", join_conds)
 	table.editable = not is_union_all
+	table.show_menu = true
+	table.support_multi_rows_selected = true # 支持批量操作
 	# 只有单表查询才支持右键删除。联表查询无法知道用户想删除哪个表的数据，即便能勾选要执行的命令，也容易误操作
 	table.support_delete_row = single_table_query
 	
@@ -766,12 +768,13 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 				var grouped_modified_data = group_modified_data_call.call(data)
 				for table_path: String in grouped_modified_data:
 					var base_dao = BaseDao.new()
-					base_dao.use_db(table_path.get_base_dir() + "/").delete_from(table_path.get_file())
+					base_dao.use_db(table_path.get_base_dir()).delete_from(table_path.get_file())
 					if grouped_modified_data[table_path]["PK_key"] == null:
 						base_dao.set_meta("lackWhere", true)
 					else:
 						base_dao.where("%s == %s" % [grouped_modified_data[table_path]["PK_key"], 
 							var_to_str(grouped_modified_data[table_path]["PK_value_old"])])
+					base_dao.set_meta("dict_obj_id", data.get_instance_id())
 					daos.push_back(base_dao)
 					
 				
@@ -906,6 +909,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 					update_btn_disable_status.call("", 0, 0) # 随便传几个参数
 					return [false, false] # 不涉及defered函数，所以第二个参数传的没什么意义
 					
+				# sql query
 				var index = -1
 				for i: BaseDao in daos:
 					index += 1
@@ -917,19 +921,22 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 					var ret = i.query()
 					if ret != null:
 						if ret.ok():
-							var dict_obj_id = i.get_meta("dict_obj_id", null)
-							if dict_obj_id != null:
-								var dict_obj = instance_from_id(dict_obj_id) as DictionaryObject
+							var dict_obj_id = i.get_meta("dict_obj_id")
+							var dict_obj = instance_from_id(dict_obj_id) as DictionaryObject
+							
+							# remove deleted data
+							if i.get_cmd().to_lower().contains("delete"):
+								var key = table.get_meta("deleted_datas", {}).find_key(dict_obj)
+								if key != null:
+									table.get_meta("deleted_datas").erase(key)
+									
+							else:
 								# commit data of modified row
 								dict_obj.commit()
+								
 								# remove meta of new-created row
 								if dict_obj.has_meta("new"):
 									dict_obj.remove_meta("new")
-									
-							# remove deleted data
-							var key = table.get_meta("deleted_datas", {}).find_key(i)
-							if key != null:
-								table.get_meta("deleted_datas").erase(key)
 								
 							# log and UI
 							mgr.add_log_history.emit("OK", begin_time, i.get_query_cmd(), 
@@ -977,6 +984,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 				if action == "close_and_refresh":
 					update_btn_disable_status.call("", 0, 0)
 					var onclose = func ():
+						table.remove_meta("deleted_datas")
 						for node in get_from_nodes(graph_node, "Select"):
 							on_select_node_query(node, true)
 						mgr._clear_custom_dialog(dialog)
@@ -1012,14 +1020,17 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			for i in range(table.datas.size()-1, -1, -1):
 				if table.datas[i].has_meta("new"):
 					table.remove_data_at(i, true)
+			btn_apply.disabled = true
 			btn_revert.disabled = true
 		)
 		
-		table.row_deleted.connect(func(row_index, data):
-			if data.has_meta("new"):
-				return
+		table.row_deleted.connect(func(datas):
 			var deleted_datas = table.get_meta("deleted_datas", {}) as Dictionary
-			deleted_datas[row_index] = data
+			for i in datas:
+				var data = datas[i]
+				if data.has_meta("new"):
+					return
+				deleted_datas[i] = data
 			table.set_meta("deleted_datas", deleted_datas)
 			btn_apply.disabled = false
 			btn_revert.disabled = false
@@ -1077,11 +1088,9 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			dict_obj.value_changed.connect(update_btn_disable_status)
 			new_table_datas.push_back(dict_obj)
 		table.datas = new_table_datas
-		table.show_menu = true
 		table.support_delete_row = true
 	else:
 		table.datas = table_datas
-		table.show_menu = false
 		table.support_delete_row = false
 		
 	graph_node.datas = graph_datas

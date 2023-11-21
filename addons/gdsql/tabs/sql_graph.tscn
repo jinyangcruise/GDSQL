@@ -192,7 +192,6 @@ icon = ExtResource("10_8cnpe")
 layout_mode = 2
 size_flags_vertical = 3
 scroll_offset = Vector2(0, -46)
-snapping_enabled = false
 right_disconnects = true
 minimap_enabled = false
 
