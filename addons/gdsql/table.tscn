@@ -31,6 +31,7 @@ script = ExtResource("1_s1y7s")
 
 [node name="Control" type="Control" parent="."]
 layout_mode = 2
+mouse_filter = 2
 
 [node name="ButtonSelectAll" type="Button" parent="Control" node_paths=PackedStringArray("shortcut_context")]
 modulate = Color(1, 1, 1, 0)
@@ -134,6 +135,10 @@ item_2/text = "Delete"
 item_2/icon = ExtResource("3_8c6f0")
 item_2/id = 2
 item_2/disabled = true
+
+[node name="BordersContainer" type="Control" parent="."]
+layout_mode = 2
+mouse_filter = 2
 
 [connection signal="focus_entered" from="." to="." method="_on_focus_entered"]
 [connection signal="resized" from="." to="." method="_on_resized"]

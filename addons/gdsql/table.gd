@@ -10,12 +10,14 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 @onready var header_col_model: Control = $HSplitContainer/HeaderColModel
 @onready var v_box_container: VBoxContainer = $VBoxContainer/ScrollContainer/VBoxContainer
 @onready var row_panel_container: PanelContainer = $Models/RowPanelContainer
+@onready var row_model = $Models/RowPanelContainer/RowModel
 @onready var label_model: Label = $Models/LabelModel
 @onready var texture_rect_model: TextureRect = $Models/TextureRectModel
 @onready var check_box_model: CheckBox = $Models/CheckBoxModel
 @onready var scroll_container = $VBoxContainer/ScrollContainer
 @onready var popup_menu_text = $PopupMenuText
 @onready var button_select_all = $Control/ButtonSelectAll
+@onready var borders_container = $BordersContainer
 
 
 
@@ -84,6 +86,9 @@ var last_focused_row
 const HIGHTLIGHT_COLOR = Color(Color.MEDIUM_PURPLE, 0.788)
 const CLICKED_COLOR = Color(Color.LIGHT_BLUE, 0.1)
 #var data_of_focused_row
+# 选框
+var selected_borders = []
+var last_selected_pos = Vector2(0, 0) # 默认选中第一行第一列
 
 func _ready() -> void:
 	reset_header()
@@ -267,6 +272,7 @@ func add_row(a_data):
 	a_row.set_meta("data", a_data)
 	v_box_container.add_child(a_row)
 	a_row.gui_input.connect(_on_row_gui_input.bind(a_row, a_data), CONNECT_DEFERRED)
+	a_row.mouse_entered.connect(_on_row_mouse_entered.bind(a_row), CONNECT_DEFERRED)
 	var style_box: StyleBoxFlat = a_row.get_theme_stylebox("panel").duplicate()
 	a_row.add_theme_stylebox_override("panel", style_box)
 	
@@ -468,7 +474,47 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 	if editable and event is InputEventMouseButton and \
 		(event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT):
 		inspect_highlight_rows()
+		make_table_border(row_panel)# 选框
 		
+func _on_row_mouse_entered(row_panel) -> void:
+	#printt(row_panel)
+	pass
+	
+func clear_all_borders() -> void:
+	for i in range(selected_borders.size() - 1, -1, -1):
+		var tb = selected_borders[i]
+		selected_borders.remove_at(i)
+		tb.queue_free()
+	
+## 制作选框
+func make_table_border(clicked_row_panel: Control) -> void:
+	if datas.is_empty():
+		return
+		
+	# 是否按下ctrl键、shift键
+	var ctrl_pressed = Input.is_key_pressed(KEY_CTRL)
+	var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
+	
+	# shift按下时，把起始点到终点（clicked_row_panel）的矩形范围都选中。这不会改变起始点。
+	if shift_pressed:
+		clear_all_borders() # FIXME 单区域（点击、ctrl建的）不应该删除，
+		var table_border = preload("res://addons/gdsql/table_border.tscn").instantiate() as Control # TODO 利用起始点的边框，而不是新建
+		var cell_control = v_box_container.get_child(last_selected_pos.x).get_child(0).get_child(last_selected_pos.y) as Control
+		table_border.set_meta("start_pos", last_selected_pos)
+		borders_container.add_child(table_border)
+		table_border.set_position(cell_control.global_position - borders_container.global_position)
+		var separation = row_model.get_theme_constant("separation")
+		for i: Control in clicked_row_panel.get_child(0).get_children():
+			# 包括间隙
+			if Rect2(i.global_position, i.get_rect().size + Vector2(separation, 0)).has_point(get_global_mouse_position()):
+				table_border.set_size(i.global_position - cell_control.global_position + i.size)
+				break
+		selected_borders.push_back(table_border)
+		return
+		
+	# ctrl按下时，增加一个选区，会改变起始点
+	if ctrl_pressed:
+		pass# TODO
 		
 ## 支持批量编辑多个数据
 func inspect_highlight_rows() -> void:
@@ -646,6 +692,11 @@ func inspect_highlight_rows() -> void:
 		var label = selector.find_child("@Label*", true, false)
 		if label != null:
 			label.text = tr("%s (%d Selected)") % [common_class_name, rows.size()]
+			
+	# history里的名称没法做到修改。history的MenuButton每次弹出前会重新计算，
+	# 而我们又获取不到EditorNode::get_singleton()->get_editor_selection_history()，
+	# 无法取得对象与Popup item之间的关联。
+	# @see editor\inspector_dock.cpp: void InspectorDock::_prepare_history()
 	
 ## 获取高亮行的关联数据
 func get_data_of_highlight_rows() -> Array:
@@ -671,6 +722,7 @@ func _on_button_select_all_pressed():
 		(i.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = HIGHTLIGHT_COLOR
 	if last_focused_row == null:
 		last_focused_row = v_box_container.get_child(0)
+	inspect_highlight_rows()
 		
 ## 支持多选高亮\多选编辑\shift连选
 func highlight_row(row_panel: PanelContainer, skip_await: bool = false, mouse_button_right: bool = false) -> void:
