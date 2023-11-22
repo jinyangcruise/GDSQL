@@ -191,7 +191,6 @@ icon = ExtResource("10_8cnpe")
 [node name="GraphEdit" type="GraphEdit" parent="VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
-scroll_offset = Vector2(0, -46)
 right_disconnects = true
 minimap_enabled = false
 
