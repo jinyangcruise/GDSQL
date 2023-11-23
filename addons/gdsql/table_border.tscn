@@ -4,22 +4,19 @@
 [ext_resource type="Shader" path="res://addons/gdsql/shader/table_border.gdshader" id="1_mqf3e"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ew56t"]
-bg_color = Color(0.6, 0.6, 0.6, 0.176471)
+bg_color = Color(1, 1, 1, 0.560784)
 draw_center = false
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-expand_margin_left = 1.0
-expand_margin_top = 1.0
-expand_margin_right = 1.0
-expand_margin_bottom = 1.0
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.8, 0.8, 0.8, 0.6)
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_l6bgx"]
 shader = ExtResource("1_mqf3e")
-shader_parameter/size = Vector2(107, 271)
-shader_parameter/dash_length_x = 3.05714
-shader_parameter/dash_length_y = 2.97802
+shader_parameter/size = Vector2(232, 80)
+shader_parameter/dash_length_x = 3.01299
+shader_parameter/dash_length_y = 2.96296
 shader_parameter/moving_speed = 0.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pd7qo"]

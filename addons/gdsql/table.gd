@@ -33,6 +33,9 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 ## 是否支持多行选择（高亮）
 @export var support_multi_rows_selected: bool = false
 
+## 是否显示外纵向框架1\2\3\4...
+@export var show_frame: bool = false
+
 ## 每列的名称。注意：如果要正确显示tooltip，需要先设置column_tips，再设置columns
 @export var columns: Array:
 	set(val):
@@ -71,6 +74,11 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 			for data in datas:
 				add_row(data)
 				
+			if editable:
+				# 默认选中第一个
+				#make_table_border(v_box_container.get_child(0))
+				pass
+				
 			if not _entered_tree:
 				await tree_entered
 			if is_inside_tree():
@@ -81,6 +89,7 @@ var _entered_tree = false
 ## 表头
 var buttons: Array[Button] = []
 var controls: Array = []
+var style_box_empty = StyleBoxEmpty.new()
 # 最后focus的行
 var last_focused_row
 const HIGHTLIGHT_COLOR = Color(Color.MEDIUM_PURPLE, 0.788)
@@ -135,6 +144,8 @@ func reset_header():
 	clear_header()
 	
 	var fake_columns = [""]
+	if show_frame:
+		fake_columns.push_back("") # 给外纵向框架再加1列
 	fake_columns.append_array(columns)
 	fake_columns.push_back("")
 	
@@ -150,21 +161,29 @@ func reset_header():
 			button.hide()
 			control.size_flags_stretch_ratio = 10000
 			c.dragger_visibility = HSplitContainer.DRAGGER_HIDDEN_COLLAPSED
+		elif i == 1 and show_frame:
+			button.icon = preload("res://addons/gdsql/img/2D.png") # 全选
+			button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			button.pressed.connect(func():
+				# TODO signal
+				pass
+			)
+			control.size_flags_stretch_ratio = 10000
 		elif i == fake_columns.size() - 2:
 			button.size_flags_stretch_ratio = 10000
 			c.dragger_visibility = HSplitContainer.DRAGGER_HIDDEN_COLLAPSED
 			if not column_tips.is_empty():
-				button.tooltip_text = column_tips[i-1]
+				button.tooltip_text = column_tips[i-1-int(show_frame)]
 		elif i == fake_columns.size() - 1:
 			button.size_flags_stretch_ratio = 1
 		else:
 			if not column_tips.is_empty():
-				button.tooltip_text = column_tips[i-1]
+				button.tooltip_text = column_tips[i-1-int(show_frame)]
 				
 			if ratios.size() > i - 1:
-				control.size_flags_stretch_ratio = ratios[i - 1]
+				control.size_flags_stretch_ratio = ratios[i - 1 - int(show_frame)]
 			else:
-				control.size_flags_stretch_ratio = fake_columns.size() - i - 2
+				control.size_flags_stretch_ratio = fake_columns.size() - i - 2 - int(show_frame)
 			
 		if i == fake_columns.size() - 1:
 			button.hide()
@@ -277,15 +296,34 @@ func add_row(a_data):
 	a_row.add_theme_stylebox_override("panel", style_box)
 	
 	data.insert(0, "")
+	if show_frame:
+		data.insert(1, Button.new())
 	data.push_back("")
 	for i in data.size():
 		var control: Control
 		var handled = false
 		
+		# 外边框的按钮
+		if show_frame and i == 1:
+			control = data[i] as Button
+			control.text = str(v_box_container.get_child_count())
+			control.custom_minimum_size.x = buttons[1].size.x
+			control.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+			control.add_theme_stylebox_override("focus", style_box_empty)
+			control.add_theme_font_size_override("font_size", 12)
+			control.pressed.connect(func():
+				# TODO signal
+				printt("aaaaaaaa")
+			)
+			handled = true
+		
+		# 该条数据在column中的位置
+		var col_index = i - 1 - int(show_frame)
+		
 		# 如果该数据提供了自定义显示控件，就直接使用
-		if i > 0 and i < data.size() - 1 and a_data is DictionaryObject:
+		if not handled and col_index >= 0 and i < data.size() - 1 and a_data is DictionaryObject:
 			a_data = a_data as DictionaryObject
-			control = a_data.get_custom_display_control(a_data.__get_index_prop(i-1))
+			control = a_data.get_custom_display_control(a_data.__get_index_prop(col_index))
 			handled = control != null
 			
 		# 否则，用表格自带的显示控件
@@ -296,28 +334,28 @@ func add_row(a_data):
 					control = check_box_model.duplicate()
 					control.button_pressed = data[i]
 					control.tooltip_text = str(data[i])
-					control.gui_input.connect(_label_gui_input.bind(i-1), CONNECT_DEFERRED)
-					if i > 0 and i < data.size() - 1 and a_data is DictionaryObject:
+					control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
+					if col_index >= 0 and i < data.size() - 1 and a_data is DictionaryObject:
 						a_data = a_data as DictionaryObject
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
 							if ctl:
 								ctl.button_pressed = new_value
-						 # 绕这么一圈用弱引用是怕内存溢出;i-1是因为data前面比column多一个空值
-						a_data.set_update_callback(a_data.__get_index_prop(i-1), callback.bind(weakref(control)))
+						 # 绕这么一圈用弱引用是怕内存溢出
+						a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
 				TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME:
 					handled = true
 					control = label_model.duplicate()
 					control.text = str(data[i])
 					control.tooltip_text = str(data[i])
-					control.gui_input.connect(_label_gui_input.bind(i-1), CONNECT_DEFERRED)
-					if i > 0 and i < data.size() - 1 and a_data is DictionaryObject:
+					control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
+					if col_index >= 0 and i < data.size() - 1 and a_data is DictionaryObject:
 						a_data = a_data as DictionaryObject
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
 							if ctl:
 								ctl.text = str(new_value)
-						a_data.set_update_callback(a_data.__get_index_prop(i-1), callback.bind(weakref(control)))
+						a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
 				TYPE_OBJECT:
 					if data[i] is Resource:
 						handled = true
@@ -329,13 +367,13 @@ func add_row(a_data):
 							texture_rect.tooltip_text = \
 								"%s\nType: %s\nSize: %s" % [data[i].resource_path, data[i].get_class(), data[i].get_size()]
 							control = texture_rect
-							control.gui_input.connect(_label_gui_input.bind(i-1), CONNECT_DEFERRED)
-							if i > 0 and i < data.size() - 1 and a_data is DictionaryObject:
+							control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
+							if col_index >= 0 and i < data.size() - 1 and a_data is DictionaryObject:
 								var callback = func(new_value, control_ref: WeakRef):
 									var ctl = control_ref.get_ref()
 									if ctl:
 										ctl.texture = new_value
-								a_data.set_update_callback(a_data.__get_index_prop(i-1), callback.bind(weakref(control)))
+								a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
 						else:
 							## 注意：EditorResourcePicker有些慢，如果数据量比较大，会很卡，所以尽可能把常用的类型单独处理，比如上面的Texture2D
 							var editor_resource_picker := EditorResourcePicker.new()
@@ -345,13 +383,13 @@ func add_row(a_data):
 							editor_resource_picker.edited_resource = data[i]
 							editor_resource_picker.editable = false
 							control = editor_resource_picker
-							control.gui_input.connect(_label_gui_input.bind(i-1), CONNECT_DEFERRED)
-							if i > 0 and i < data.size() - 1 and a_data is DictionaryObject:
+							control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
+							if col_index >= 0 and i < data.size() - 1 and a_data is DictionaryObject:
 								var callback = func(new_value, control_ref: WeakRef):
 									var ctl = control_ref.get_ref()
 									if ctl:
 										ctl.edited_resource = new_value
-								a_data.set_update_callback(a_data.__get_index_prop(i-1), callback.bind(weakref(control)))
+								a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
 						#control = texture_rect_model.duplicate()
 						#control.texture = data[i]
 					elif data[i] is Control:
@@ -362,14 +400,14 @@ func add_row(a_data):
 		if not handled:
 			control = label_model.duplicate()
 			control.text = var_to_str(data[i])
-			control.gui_input.connect(_label_gui_input.bind(i-1), CONNECT_DEFERRED)
-			if i > 0 and i < data.size() - 1 and a_data is DictionaryObject and a_data.has_method("set_update_callback"):
+			control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
+			if col_index >= 0 and i < data.size() - 1 and a_data is DictionaryObject and a_data.has_method("set_update_callback"):
 				a_data = a_data as DictionaryObject
 				var callback = func(new_value, control_ref: WeakRef):
 					var ctl = control_ref.get_ref()
 					if ctl:
 						ctl.text = var_to_str(new_value)
-				a_data.set_update_callback(a_data.__get_index_prop(i-1), callback.bind(weakref(control)))
+				a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
 			
 		control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		#control.set_meta("data", data[i])
@@ -381,7 +419,9 @@ func add_row(a_data):
 			control.reparent(a_row.get_child(0))
 		if i == 0 or i == data.size() - 1:
 			control.hide()
-		control.size_flags_stretch_ratio = buttons[i].size.x + 4 # HSplitContainer间隔为8，两边各取一半
+		if control.size_flags_stretch_ratio != 10000:
+			control.size_flags_stretch_ratio = buttons[i].size.x + 4 # HSplitContainer间隔为8，两边各取一半
+		
 		
 func clear_rows():
 	while v_box_container.get_child_count() > 0:
@@ -397,7 +437,8 @@ func realign_rows():
 		return
 	for row in v_box_container.get_children():
 		for i in row.get_child(0).get_child_count():
-			row.get_child(0).get_child(i).size_flags_stretch_ratio = buttons[i].size.x + 4
+			if row.get_child(0).get_child(i).size_flags_stretch_ratio != 10000:
+				row.get_child(0).get_child(i).size_flags_stretch_ratio = buttons[i].size.x + 4
 		
 func _on_button_pressed() -> void:
 	#realign_rows()
@@ -480,11 +521,40 @@ func _on_row_mouse_entered(row_panel) -> void:
 	#printt(row_panel)
 	pass
 	
-func clear_all_borders() -> void:
-	for i in range(selected_borders.size() - 1, -1, -1):
+func clear_borders(type) -> void:
+	var c = selected_borders.size()
+	for i in range(c - 1, -1, -1):
 		var tb = selected_borders[i]
-		selected_borders.remove_at(i)
-		tb.queue_free()
+		if (type is String and tb.get_meta("type") == type)\
+			or (type is Array and (type as Array).has(tb.get_meta("type"))):
+			selected_borders.remove_at(i)
+			tb.queue_free()
+			
+func add_border(border) -> void:
+	# 如果是第一个
+	if selected_borders.is_empty():
+		border.set_border(1.0, 2, 1)
+		border.set_draw_center(false)
+		border.set_drag_area(true)
+	# 有其他的
+	else:
+		# 管好上一个就行
+		var last_border = selected_borders.back()
+		last_border.set_border(0.0, 2, 1)
+		last_border.set_draw_center(true)
+		last_border.set_drag_area(false)
+		border.set_border(0.6, 1, 0)
+		border.set_draw_center(false)
+		border.set_drag_area(false)
+		
+	selected_borders.push_back(border)
+	
+	
+#func get_border(type):
+	#for i in selected_borders:
+		#if i.get_meta("type") == type:
+			#return i
+	#return null
 	
 ## 制作选框
 func make_table_border(clicked_row_panel: Control) -> void:
@@ -497,8 +567,7 @@ func make_table_border(clicked_row_panel: Control) -> void:
 	
 	# shift按下时，把起始点到终点（clicked_row_panel）的矩形范围都选中。这不会改变起始点。
 	if shift_pressed:
-		clear_all_borders() # FIXME 单区域（点击、ctrl建的）不应该删除，
-		var table_border = preload("res://addons/gdsql/table_border.tscn").instantiate() as Control # TODO 利用起始点的边框，而不是新建
+		var table_border = preload("res://addons/gdsql/table_border.tscn").instantiate() as Control
 		var cell_control = v_box_container.get_child(last_selected_pos.x).get_child(0).get_child(last_selected_pos.y) as Control
 		table_border.set_meta("start_pos", last_selected_pos)
 		borders_container.add_child(table_border)
@@ -509,7 +578,7 @@ func make_table_border(clicked_row_panel: Control) -> void:
 			if Rect2(i.global_position, i.get_rect().size + Vector2(separation, 0)).has_point(get_global_mouse_position()):
 				table_border.set_size(i.global_position - cell_control.global_position + i.size)
 				break
-		selected_borders.push_back(table_border)
+		add_border(table_border)
 		return
 		
 	# ctrl按下时，增加一个选区，会改变起始点
@@ -722,7 +791,8 @@ func _on_button_select_all_pressed():
 		(i.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = HIGHTLIGHT_COLOR
 	if last_focused_row == null:
 		last_focused_row = v_box_container.get_child(0)
-	inspect_highlight_rows()
+	if editable:
+		inspect_highlight_rows()
 		
 ## 支持多选高亮\多选编辑\shift连选
 func highlight_row(row_panel: PanelContainer, skip_await: bool = false, mouse_button_right: bool = false) -> void:

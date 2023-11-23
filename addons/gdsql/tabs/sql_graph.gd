@@ -624,6 +624,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		margin_container.add_theme_constant_override("margin_top", 10)
 		margin_container.add_theme_constant_override("margin_bottom", 10)
 		table = preload("res://addons/gdsql/table.tscn").instantiate()
+		table.show_frame = true
 		table.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		margin_container.add_child(table)
 		table.set_meta("columns", columns)

@@ -106,7 +106,6 @@ text = "Clear"
 
 [node name="LogTable" parent="VBoxContainer/HSplitContainer/VSplitContainer/Control/VBoxContainer" instance=ExtResource("1_2tgi5")]
 layout_mode = 2
-editable = true
 show_menu = true
 support_delete_row = true
 label_max_lines_visible = -1

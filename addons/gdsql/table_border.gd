@@ -7,8 +7,15 @@ extends PanelContainer
 @onready var margin_container_for_drag = $MarginContainerForDrag
 @onready var panel = $MarginContainer/Panel
 
+enum APPERANCE_FLAG {
+	APPERANCE_
+}
+
 var start_drag = false
 var start_drag_position = Vector2.ZERO
+
+func _ready():
+	position = Vector2(300, 600)
 
 func _on_dash_border_resized():
 	var a_material = dash_border.material as ShaderMaterial
@@ -70,9 +77,11 @@ func on_stop_drag():
 	size = dash_border.size + Vector2(sb.border_width_left + sb.border_width_right, sb.border_width_top + sb.border_width_bottom)
 	set_dash_border(false, 0.0)
 	
-func set_border(border_show: bool):
+func set_border(border_alpha: float, width: int, expand: int):
 	var sb = get_theme_stylebox("panel") as StyleBoxFlat
-	sb.border_color.a = float(border_show)
+	sb.border_color.a = border_alpha
+	sb.set_border_width_all(width)
+	sb.set_expand_margin_all(expand)
 	
 func set_draw_center(draw_center: bool):
 	var sb = get_theme_stylebox("panel") as StyleBoxFlat
@@ -83,8 +92,5 @@ func set_dash_border(border_show: bool, moving_speed: float):
 	var a_material = dash_border.material as ShaderMaterial
 	a_material.set_shader_parameter("moving_speed", moving_speed)
 	
-# 显示时，整体边框颜色实；不显示时，整体边框半透明
 func set_drag_area(area_show: bool):
 	panel.visible = area_show
-	var sb = get_theme_stylebox("panel") as StyleBoxFlat
-	sb.border_color = Color(0.8, 0.8, 0.8) if area_show else Color(0.8, 0.8, 0.8, 0.5)
