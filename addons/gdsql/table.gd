@@ -79,11 +79,11 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 				#make_table_border(v_box_container.get_child(0))
 				pass
 				
-			if not _entered_tree:
-				await tree_entered
-			if is_inside_tree():
-				for i in 50:
-					await create_tween().tween_callback(func(): realign_rows()).set_delay(0.1).finished
+			#if not _entered_tree:
+				#await tree_entered
+			#if is_inside_tree():
+				#for i in 50:
+					#await create_tween().tween_callback(func(): realign_rows()).set_delay(0.1).finished
 		
 var _entered_tree = false
 ## 表头
@@ -104,9 +104,9 @@ func _ready() -> void:
 	await get_tree().process_frame
 	datas = datas
 	label_max_lines_visible = label_max_lines_visible
-	if is_inside_tree() and !datas.is_empty():
-		for i in 50:
-			await create_tween().tween_callback(func(): realign_rows()).set_delay(0.1).finished
+	#if is_inside_tree() and !datas.is_empty():
+		#for i in 50:
+			#await create_tween().tween_callback(func(): realign_rows()).set_delay(0.1).finished
 	
 func _notification(what):
 	if what == NOTIFICATION_PREDELETE:
@@ -159,18 +159,15 @@ func reset_header():
 		var control = c.get_child(1)
 		if i == 0:
 			button.hide()
-			control.size_flags_stretch_ratio = 10000
+			control.size_flags_stretch_ratio = 1000000
 			c.dragger_visibility = HSplitContainer.DRAGGER_HIDDEN_COLLAPSED
 		elif i == 1 and show_frame:
 			button.icon = preload("res://addons/gdsql/img/2D.png") # 全选
 			button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
-			button.pressed.connect(func():
-				# TODO signal
-				pass
-			)
+			button.pressed.connect(_on_button_select_all_pressed)
 			control.size_flags_stretch_ratio = 10000
 		elif i == fake_columns.size() - 2:
-			button.size_flags_stretch_ratio = 10000
+			button.size_flags_stretch_ratio = 1000000
 			c.dragger_visibility = HSplitContainer.DRAGGER_HIDDEN_COLLAPSED
 			if not column_tips.is_empty():
 				button.tooltip_text = column_tips[i-1-int(show_frame)]
@@ -180,10 +177,10 @@ func reset_header():
 			if not column_tips.is_empty():
 				button.tooltip_text = column_tips[i-1-int(show_frame)]
 				
-			if ratios.size() > i - 1:
+			if ratios.size() > i - 1 - int(show_frame):
 				control.size_flags_stretch_ratio = ratios[i - 1 - int(show_frame)]
 			else:
-				control.size_flags_stretch_ratio = fake_columns.size() - i - 2 - int(show_frame)
+				control.size_flags_stretch_ratio = fake_columns.size() - i - 2
 			
 		if i == fake_columns.size() - 1:
 			button.hide()
@@ -221,6 +218,10 @@ func insert_data(pos: int, a_data):
 		add_row(a_data)
 		if pos != v_box_container.get_child_count() - 1:
 			v_box_container.move_child(v_box_container.get_child(-1), pos)
+		if show_frame:
+			for i in range(pos, v_box_container.get_child_count(), 1):
+				var line_btn = v_box_container.get_child(i).get_child(0).get_child(1)
+				line_btn.text = str(i+1)
 		
 func remove_data_at(index: int, free_data: bool):
 	if datas[index] is DictionaryObject:
@@ -243,6 +244,10 @@ func remove_data_at(index: int, free_data: bool):
 		row.remove_meta("data")
 		v_box_container.remove_child(row)
 		row.queue_free()
+		if show_frame:
+			for i in range(index, v_box_container.get_child_count(), 1):
+				var line_btn = v_box_container.get_child(i).get_child(0).get_child(1)
+				line_btn.text = str(int(line_btn.text)-1)
 		
 func move_data(from: int, to: int):
 	if from != to:
@@ -252,6 +257,9 @@ func move_data(from: int, to: int):
 		if is_node_ready():
 			var row = v_box_container.get_child(from)
 			v_box_container.move_child(row, to)
+			for i in range(from, to+1, 1):
+				var line_btn = v_box_container.get_child(i).get_child(0).get_child(1)
+				line_btn.text = str(i+1)
 #endregion
 		
 func add_row(a_data):
@@ -409,7 +417,8 @@ func add_row(a_data):
 						ctl.text = var_to_str(new_value)
 				a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
 			
-		control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if col_index >= 0:# 行号的button不用填充
+			control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		#control.set_meta("data", data[i])
 		#control.gui_input.connect(_on_label_model_gui_input.bind(control), CONNECT_DEFERRED)
 		# 表格刷新时某些自定义控件可能需要重复使用，要去掉parent
@@ -419,8 +428,7 @@ func add_row(a_data):
 			control.reparent(a_row.get_child(0))
 		if i == 0 or i == data.size() - 1:
 			control.hide()
-		if control.size_flags_stretch_ratio != 10000:
-			control.size_flags_stretch_ratio = buttons[i].size.x + 4 # HSplitContainer间隔为8，两边各取一半
+		control.size_flags_stretch_ratio = buttons[i].size.x + 4 # HSplitContainer间隔为8，两边各取一半
 		
 		
 func clear_rows():
@@ -437,8 +445,8 @@ func realign_rows():
 		return
 	for row in v_box_container.get_children():
 		for i in row.get_child(0).get_child_count():
-			if row.get_child(0).get_child(i).size_flags_stretch_ratio != 10000:
-				row.get_child(0).get_child(i).size_flags_stretch_ratio = buttons[i].size.x + 4
+			row.get_child(0).get_child(i).size_flags_stretch_ratio = buttons[i].size.x + 4
+	# TODO 选框更新
 		
 func _on_button_pressed() -> void:
 	#realign_rows()
@@ -568,7 +576,7 @@ func make_table_border(clicked_row_panel: Control) -> void:
 	# shift按下时，把起始点到终点（clicked_row_panel）的矩形范围都选中。这不会改变起始点。
 	if shift_pressed:
 		var table_border = preload("res://addons/gdsql/table_border.tscn").instantiate() as Control
-		var cell_control = v_box_container.get_child(last_selected_pos.x).get_child(0).get_child(last_selected_pos.y) as Control
+		var cell_control = v_box_container.get_child(last_selected_pos.x).get_child(0).get_child(last_selected_pos.y+2) as Control
 		table_border.set_meta("start_pos", last_selected_pos)
 		borders_container.add_child(table_border)
 		table_border.set_position(cell_control.global_position - borders_container.global_position)
@@ -793,6 +801,7 @@ func _on_button_select_all_pressed():
 		last_focused_row = v_box_container.get_child(0)
 	if editable:
 		inspect_highlight_rows()
+		# TODO 选框
 		
 ## 支持多选高亮\多选编辑\shift连选
 func highlight_row(row_panel: PanelContainer, skip_await: bool = false, mouse_button_right: bool = false) -> void:
