@@ -42,11 +42,11 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 		columns = val
 		if is_node_ready():
 			# 与原先的表头数量一致，就不重绘，只修改文字显示
-			if buttons.size() == columns.size() + 2:
+			if buttons.size() == columns.size() + 2 + int(show_frame):
 				for i in columns.size():
-					buttons[i+1].text = columns[i]
+					buttons[i+1+int(show_frame)].text = columns[i]
 					if not column_tips.is_empty():
-						buttons[i+1].tooltip_text = column_tips[i]
+						buttons[i+1+int(show_frame)].tooltip_text = column_tips[i]
 			else:
 				reset_header()
 				
@@ -97,7 +97,19 @@ const CLICKED_COLOR = Color(Color.LIGHT_BLUE, 0.1)
 #var data_of_focused_row
 # 选框
 var selected_borders = []
-var last_selected_pos = Vector2(0, 0) # 默认选中第一行第一列
+var last_selected_pos = Vector2(0, 0) # 默认选中第一行第一列，不算表格的辅助内部节点
+const SOLID_BORDER_TYPE = {
+	"ALL": preload("res://addons/gdsql/table/solid/all.stylebox"),
+	"BOTTOM" : preload("res://addons/gdsql/table/solid/bottom.stylebox"),
+	"BOTTOM_LEFT" : preload("res://addons/gdsql/table/solid/bottom_left.stylebox"),
+	"BOTTOM_RIGHT" : preload("res://addons/gdsql/table/solid/bottom_right.stylebox"),
+	"MIDDLE" : preload("res://addons/gdsql/table/solid/middle.stylebox"),
+	"MIDDLE_LEFT" : preload("res://addons/gdsql/table/solid/middle_left.stylebox"),
+	"MIDDLE_RIGHT" : preload("res://addons/gdsql/table/solid/middle_right.stylebox"),
+	"TOP" : preload("res://addons/gdsql/table/solid/top.stylebox"),
+	"TOP_LEFT" : preload("res://addons/gdsql/table/solid/top_left.stylebox"),
+	"TOP_RIGHT" : preload("res://addons/gdsql/table/solid/top_right.tres"),
+}
 
 func _ready() -> void:
 	reset_header()
@@ -163,9 +175,11 @@ func reset_header():
 			c.dragger_visibility = HSplitContainer.DRAGGER_HIDDEN_COLLAPSED
 		elif i == 1 and show_frame:
 			button.icon = preload("res://addons/gdsql/img/2D.png") # 全选
+			button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 			button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			button.pressed.connect(_on_button_select_all_pressed)
 			control.size_flags_stretch_ratio = 10000
+			c.collapsed = true
 		elif i == fake_columns.size() - 2:
 			button.size_flags_stretch_ratio = 1000000
 			c.dragger_visibility = HSplitContainer.DRAGGER_HIDDEN_COLLAPSED
@@ -204,6 +218,7 @@ func _on_header_col_model_dragged(_offset: int, h_split_container: HSplitContain
 	await get_tree().process_frame
 	var next_h_split_container: HSplitContainer = child_control.get_child(0)
 	next_h_split_container.size.x = child_control.size.x
+	await get_tree().process_frame
 	realign_rows()
 	
 #region 增量操作
@@ -315,7 +330,10 @@ func add_row(a_data):
 		if show_frame and i == 1:
 			control = data[i] as Button
 			control.text = str(v_box_container.get_child_count())
-			control.custom_minimum_size.x = buttons[1].size.x
+			control.ready.connect(func():
+				await get_tree().process_frame
+				control.custom_minimum_size.x = buttons[1].size.x
+			, CONNECT_ONE_SHOT)
 			control.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			control.add_theme_stylebox_override("focus", style_box_empty)
 			control.add_theme_font_size_override("font_size", 12)
@@ -327,9 +345,10 @@ func add_row(a_data):
 		
 		# 该条数据在column中的位置
 		var col_index = i - 1 - int(show_frame)
-		
+		if i == data.size() - 1:
+			col_index = -1
 		# 如果该数据提供了自定义显示控件，就直接使用
-		if not handled and col_index >= 0 and i < data.size() - 1 and a_data is DictionaryObject:
+		if not handled and col_index >= 0 and a_data is DictionaryObject:
 			a_data = a_data as DictionaryObject
 			control = a_data.get_custom_display_control(a_data.__get_index_prop(col_index))
 			handled = control != null
@@ -343,7 +362,7 @@ func add_row(a_data):
 					control.button_pressed = data[i]
 					control.tooltip_text = str(data[i])
 					control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
-					if col_index >= 0 and i < data.size() - 1 and a_data is DictionaryObject:
+					if col_index >= 0 and a_data is DictionaryObject:
 						a_data = a_data as DictionaryObject
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
@@ -357,7 +376,7 @@ func add_row(a_data):
 					control.text = str(data[i])
 					control.tooltip_text = str(data[i])
 					control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
-					if col_index >= 0 and i < data.size() - 1 and a_data is DictionaryObject:
+					if col_index >= 0 and a_data is DictionaryObject:
 						a_data = a_data as DictionaryObject
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
@@ -409,7 +428,7 @@ func add_row(a_data):
 			control = label_model.duplicate()
 			control.text = var_to_str(data[i])
 			control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
-			if col_index >= 0 and i < data.size() - 1 and a_data is DictionaryObject and a_data.has_method("set_update_callback"):
+			if col_index >= 0 and a_data is DictionaryObject and a_data.has_method("set_update_callback"):
 				a_data = a_data as DictionaryObject
 				var callback = func(new_value, control_ref: WeakRef):
 					var ctl = control_ref.get_ref()
@@ -417,18 +436,32 @@ func add_row(a_data):
 						ctl.text = var_to_str(new_value)
 				a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
 			
-		if col_index >= 0:# 行号的button不用填充
-			control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		#control.set_meta("data", data[i])
 		#control.gui_input.connect(_on_label_model_gui_input.bind(control), CONNECT_DEFERRED)
 		# 表格刷新时某些自定义控件可能需要重复使用，要去掉parent
-		if control.get_parent() == null:
-			a_row.get_child(0).add_child(control)
+		var panel_container = PanelContainer.new()
+		panel_container.mouse_filter = Control.MOUSE_FILTER_PASS
+		panel_container.add_theme_stylebox_override("panel", SOLID_BORDER_TYPE["MIDDLE"])
+		panel_container.gui_input.connect(_on_border_panel_container_gui_input.bind(panel_container), CONNECT_DEFERRED)
+		if col_index >= 0:# 行号的button不用填充
+			control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			panel_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			panel_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			
+		if i == 0 or (i == 1 and show_frame):
+			a_row.get_child(0).add_child(panel_container, false, INTERNAL_MODE_FRONT)
+		elif i == data.size() - 1:
+			a_row.get_child(0).add_child(panel_container, false, INTERNAL_MODE_BACK)
 		else:
-			control.reparent(a_row.get_child(0))
+			a_row.get_child(0).add_child(panel_container)
+			
+		if control.get_parent() == null:
+			panel_container.add_child(control)
+		else:
+			control.reparent(panel_container)
 		if i == 0 or i == data.size() - 1:
-			control.hide()
-		control.size_flags_stretch_ratio = buttons[i].size.x + 4 # HSplitContainer间隔为8，两边各取一半
+			panel_container.hide()
+		panel_container.size_flags_stretch_ratio = buttons[i].size.x + 4 # HSplitContainer间隔为8，两边各取一半
 		
 		
 func clear_rows():
@@ -444,8 +477,8 @@ func realign_rows():
 	if v_box_container == null:
 		return
 	for row in v_box_container.get_children():
-		for i in row.get_child(0).get_child_count():
-			row.get_child(0).get_child(i).size_flags_stretch_ratio = buttons[i].size.x + 4
+		for i in row.get_child(0).get_child_count(true):
+			row.get_child(0).get_child(i, true).size_flags_stretch_ratio = buttons[i].size.x + 4
 	# TODO 选框更新
 		
 func _on_button_pressed() -> void:
@@ -479,6 +512,7 @@ func _on_dragger_gui_input(_event: InputEvent, _split_container: HSplitContainer
 				#control.custom_minimum_size = control.size
 	
 func _on_resized():
+	await get_tree().process_frame
 	realign_rows()
 	
 #func _on_texture_button_model_button_up(node: TextureButton) -> void:
@@ -575,18 +609,18 @@ func make_table_border(clicked_row_panel: Control) -> void:
 	
 	# shift按下时，把起始点到终点（clicked_row_panel）的矩形范围都选中。这不会改变起始点。
 	if shift_pressed:
-		var table_border = preload("res://addons/gdsql/table_border.tscn").instantiate() as Control
-		var cell_control = v_box_container.get_child(last_selected_pos.x).get_child(0).get_child(last_selected_pos.y+2) as Control
-		table_border.set_meta("start_pos", last_selected_pos)
-		borders_container.add_child(table_border)
-		table_border.set_position(cell_control.global_position - borders_container.global_position)
-		var separation = row_model.get_theme_constant("separation")
-		for i: Control in clicked_row_panel.get_child(0).get_children():
-			# 包括间隙
-			if Rect2(i.global_position, i.get_rect().size + Vector2(separation, 0)).has_point(get_global_mouse_position()):
-				table_border.set_size(i.global_position - cell_control.global_position + i.size)
-				break
-		add_border(table_border)
+		#var table_border = preload("res://addons/gdsql/table_border.tscn").instantiate() as Control
+		#var cell_control = v_box_container.get_child(last_selected_pos.x).get_child(0).get_child(last_selected_pos.y+2) as Control
+		#table_border.set_meta("start_pos", last_selected_pos)
+		#borders_container.add_child(table_border)
+		#table_border.set_position(cell_control.global_position - borders_container.global_position)
+		#var separation = row_model.get_theme_constant("separation")
+		#for i: Control in clicked_row_panel.get_child(0).get_children():
+			## 包括间隙
+			#if Rect2(i.global_position, i.get_rect().size + Vector2(separation, 0)).has_point(get_global_mouse_position()):
+				#table_border.set_size(i.global_position - cell_control.global_position + i.size)
+				#break
+		#add_border(table_border)
 		return
 		
 	# ctrl按下时，增加一个选区，会改变起始点
@@ -914,6 +948,48 @@ func _label_gui_input(event: InputEvent, col_index: int):
 		else:
 			popup_menu_text.set_item_disabled(2, true)
 		popup_menu_text.popup()
+		
+func _on_border_panel_container_gui_input(event: InputEvent, panel_container: PanelContainer):
+	if datas.is_empty() or not editable:
+		return
+		
+	# 是否按下ctrl键、shift键
+	var ctrl_pressed = Input.is_key_pressed(KEY_CTRL)
+	var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
+	
+	# shift按下时，把起始点到终点（clicked_row_panel）的矩形范围都选中。这不会改变起始点。
+	if shift_pressed:
+		var pos_row = panel_container.get_parent().get_parent().get_index()
+		var pos_col = panel_container.get_index()
+		var start_pos = Vector2(min(last_selected_pos.x, pos_row), min(last_selected_pos.y, pos_col)) # 选区左上角
+		var end_pos =  Vector2(max(last_selected_pos.x, pos_row), max(last_selected_pos.y, pos_col)) # 选区右下角
+		for row in range(start_pos.x, end_pos.x+1):
+			for col in range(start_pos.y, end_pos.y+1):
+				var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
+				var sb = pc.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
+				if row == start_pos.x:
+					sb.border_width_top = 2
+				if col == start_pos.y:
+					sb.border_width_left = 2
+				if row == end_pos.x:
+					sb.border_width_bottom = 2
+				if col == end_pos.y:
+					sb.border_width_right = 2
+					
+				if (sb.border_width_top > 0 and (sb.border_width_left + sb.border_width_right + sb.border_width_bottom) == 0)\
+				or (sb.border_width_bottom > 0 and (sb.border_width_left + sb.border_width_right + sb.border_width_top) == 0):
+					sb.expand_margin_left = 8
+					sb.expand_margin_right = 8
+					
+				pc.add_theme_stylebox_override("panel", sb)
+				# TODO
+		return
+		
+	# ctrl按下时，增加一个选区，会改变起始点
+	if ctrl_pressed:
+		pass# TODO
+		
+	#panel_container.add_theme_stylebox_override("panel", SOLID_BORDER_TYPE["ALL"])=
 		
 func _on_popup_menu_text_index_pressed(index):
 	match popup_menu_text.get_item_text(index):
