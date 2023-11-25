@@ -96,8 +96,10 @@ const HIGHTLIGHT_COLOR = Color(Color.MEDIUM_PURPLE, 0.788)
 const CLICKED_COLOR = Color(Color.LIGHT_BLUE, 0.1)
 #var data_of_focused_row
 # 选框
+var start_drag = false
 var selected_borders = []
-var last_selected_pos = Vector2(0, 0) # 默认选中第一行第一列，不算表格的辅助内部节点
+var last_selected_pos = Vector2i(0, 0) # 默认选中第一行第一列，不算表格的辅助内部节点
+const DEFAULT_BORDER_STYLE = preload("res://addons/gdsql/table/solid/middle.stylebox")
 const SOLID_BORDER_TYPE = {
 	"ALL": preload("res://addons/gdsql/table/solid/all.stylebox"),
 	"BOTTOM" : preload("res://addons/gdsql/table/solid/bottom.stylebox"),
@@ -116,6 +118,13 @@ func _ready() -> void:
 	await get_tree().process_frame
 	datas = datas
 	label_max_lines_visible = label_max_lines_visible
+	var v_scroll_bar = scroll_container.get_v_scroll_bar() as VScrollBar
+	v_scroll_bar.visibility_changed.connect(func():
+		if not buttons.is_empty():
+			(buttons.back() as Button).custom_minimum_size.x = int(v_scroll_bar.visible) * v_scroll_bar.size.x
+			await get_tree().process_frame
+			realign_rows()
+	)
 	#if is_inside_tree() and !datas.is_empty():
 		#for i in 50:
 			#await create_tween().tween_callback(func(): realign_rows()).set_delay(0.1).finished
@@ -187,6 +196,11 @@ func reset_header():
 				button.tooltip_text = column_tips[i-1-int(show_frame)]
 		elif i == fake_columns.size() - 1:
 			button.size_flags_stretch_ratio = 1
+			button.self_modulate.a = 0
+			button.add_theme_stylebox_override("normal", style_box_empty)
+			button.add_theme_stylebox_override("hover", style_box_empty)
+			button.add_theme_stylebox_override("pressed", style_box_empty)
+			button.add_theme_stylebox_override("focus", style_box_empty)
 		else:
 			if not column_tips.is_empty():
 				button.tooltip_text = column_tips[i-1-int(show_frame)]
@@ -196,8 +210,8 @@ func reset_header():
 			else:
 				control.size_flags_stretch_ratio = fake_columns.size() - i - 2
 			
-		if i == fake_columns.size() - 1:
-			button.hide()
+		#if i == fake_columns.size() - 1:
+			#button.hide()
 			
 		button.text = fake_columns[i]
 		parent = control
@@ -441,7 +455,7 @@ func add_row(a_data):
 		# 表格刷新时某些自定义控件可能需要重复使用，要去掉parent
 		var panel_container = PanelContainer.new()
 		panel_container.mouse_filter = Control.MOUSE_FILTER_PASS
-		panel_container.add_theme_stylebox_override("panel", SOLID_BORDER_TYPE["MIDDLE"])
+		panel_container.add_theme_stylebox_override("panel", DEFAULT_BORDER_STYLE)
 		panel_container.gui_input.connect(_on_border_panel_container_gui_input.bind(panel_container), CONNECT_DEFERRED)
 		if col_index >= 0:# 行号的button不用填充
 			control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -461,7 +475,7 @@ func add_row(a_data):
 			control.reparent(panel_container)
 		if i == 0 or i == data.size() - 1:
 			panel_container.hide()
-		panel_container.size_flags_stretch_ratio = buttons[i].size.x + 4 # HSplitContainer间隔为8，两边各取一半
+		panel_container.size_flags_stretch_ratio = buttons[i].size.x + 6 # HSplitContainer间隔为8，两边各取一半
 		
 		
 func clear_rows():
@@ -478,7 +492,7 @@ func realign_rows():
 		return
 	for row in v_box_container.get_children():
 		for i in row.get_child(0).get_child_count(true):
-			row.get_child(0).get_child(i, true).size_flags_stretch_ratio = buttons[i].size.x + 4
+			row.get_child(0).get_child(i, true).size_flags_stretch_ratio = buttons[i].size.x + 6
 	# TODO 选框更新
 		
 func _on_button_pressed() -> void:
@@ -563,33 +577,59 @@ func _on_row_mouse_entered(row_panel) -> void:
 	#printt(row_panel)
 	pass
 	
-func clear_borders(type) -> void:
-	var c = selected_borders.size()
-	for i in range(c - 1, -1, -1):
-		var tb = selected_borders[i]
-		if (type is String and tb.get_meta("type") == type)\
-			or (type is Array and (type as Array).has(tb.get_meta("type"))):
+func clear_borders() -> void:
+	for info in selected_borders:
+		var rect = info["rect"] as Rect2i
+		var start_pos = rect.position # 选区左上角
+		var end_pos =  rect.end # 选区右下角
+		for row in range(start_pos.x, end_pos.x):
+			for col in range(start_pos.y, end_pos.y):
+				var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
+				pc.add_theme_stylebox_override("panel", DEFAULT_BORDER_STYLE)
+	selected_borders.clear()
+	
+func clear_border_of_start(start: Vector2i) -> void:
+	var i = -1
+	for info in selected_borders:
+		i += 1
+		if info["start"] == start:
+			var rect = info["rect"] as Rect2i
+			var start_pos = rect.position # 选区左上角
+			var end_pos =  rect.end # 选区右下角
+			for row in range(start_pos.x, end_pos.x):
+				for col in range(start_pos.y, end_pos.y):
+					var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
+					pc.add_theme_stylebox_override("panel", DEFAULT_BORDER_STYLE)
 			selected_borders.remove_at(i)
-			tb.queue_free()
-			
+			break
+				
+# 一个start最多只能为一个区域的起点
+func get_border_of_start(start: Vector2i):
+	for info in selected_borders:
+		if info["start"] == start:
+			return info
+	return null
+	
 func add_border(border) -> void:
-	# 如果是第一个
-	if selected_borders.is_empty():
-		border.set_border(1.0, 2, 1)
-		border.set_draw_center(false)
-		border.set_drag_area(true)
-	# 有其他的
-	else:
-		# 管好上一个就行
-		var last_border = selected_borders.back()
-		last_border.set_border(0.0, 2, 1)
-		last_border.set_draw_center(true)
-		last_border.set_drag_area(false)
-		border.set_border(0.6, 1, 0)
-		border.set_draw_center(false)
-		border.set_drag_area(false)
-		
+	last_selected_pos = border["start"]
 	selected_borders.push_back(border)
+	## 如果是第一个
+	#if selected_borders.is_empty():
+		#border.set_border(1.0, 2, 1)
+		#border.set_draw_center(false)
+		#border.set_drag_area(true)
+	## 有其他的
+	#else:
+		## 管好上一个就行
+		#var last_border = selected_borders.back()
+		#last_border.set_border(0.0, 2, 1)
+		#last_border.set_draw_center(true)
+		#last_border.set_drag_area(false)
+		#border.set_border(0.6, 1, 0)
+		#border.set_draw_center(false)
+		#border.set_drag_area(false)
+		#
+	#selected_borders.push_back(border)
 	
 	
 #func get_border(type):
@@ -949,20 +989,63 @@ func _label_gui_input(event: InputEvent, col_index: int):
 			popup_menu_text.set_item_disabled(2, true)
 		popup_menu_text.popup()
 		
+# TODO 二分法搜索
+func get_panel_container_under_mouse():
+	if not v_box_container.get_rect().has_point(scroll_container.get_local_mouse_position()):
+		return null
+	for i: PanelContainer in v_box_container.get_children():
+		if i.get_rect().has_point(v_box_container.get_local_mouse_position()):
+			for j: PanelContainer in i.get_child(0).get_children():
+				if j.get_rect().has_point(i.get_child(0).get_local_mouse_position()):
+					return j
+	return null
+		
 func _on_border_panel_container_gui_input(event: InputEvent, panel_container: PanelContainer):
-	if datas.is_empty() or not editable:
+	if datas.is_empty() or not editable or not (Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) \
+		or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)):
+		start_drag = false
 		return
 		
 	# 是否按下ctrl键、shift键
 	var ctrl_pressed = Input.is_key_pressed(KEY_CTRL)
 	var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
+		
+	# 当前点击位置
+	var pos_row = panel_container.get_parent().get_parent().get_index()
+	var pos_col = panel_container.get_index()
+	var old_last_selected_pos = last_selected_pos
 	
-	# shift按下时，把起始点到终点（clicked_row_panel）的矩形范围都选中。这不会改变起始点。
-	if shift_pressed:
-		var pos_row = panel_container.get_parent().get_parent().get_index()
-		var pos_col = panel_container.get_index()
-		var start_pos = Vector2(min(last_selected_pos.x, pos_row), min(last_selected_pos.y, pos_col)) # 选区左上角
-		var end_pos =  Vector2(max(last_selected_pos.x, pos_row), max(last_selected_pos.y, pos_col)) # 选区右下角
+	if event is InputEventMouseButton:
+		if not start_drag:
+			if not shift_pressed: # 按着shift等同于按原先的位置进行单一选区拖动
+				last_selected_pos = Vector2i(pos_row, pos_col)
+			
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			if event.is_pressed():
+				start_drag = true
+			if event.is_released():
+				start_drag = false
+		else:
+			start_drag = false
+			
+	if not panel_container.get_rect().has_point(panel_container.get_parent_control().get_local_mouse_position()):
+		panel_container = get_panel_container_under_mouse()
+		if panel_container == null:
+			return
+		pos_row = panel_container.get_parent().get_parent().get_index()
+		pos_col = panel_container.get_index()
+		
+	# 只选中一个的情况或拖动选单一选区的情况
+	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or not ctrl_pressed:
+		if start_drag:
+			clear_border_of_start(old_last_selected_pos)
+		else:
+			clear_borders()
+		var x = last_selected_pos.x if start_drag else pos_row
+		var y = last_selected_pos.y if start_drag else pos_col
+		var start_pos = Vector2i(min(x, pos_row), min(y, pos_col)) # 选区左上角
+		var end_pos =  Vector2i(max(x, pos_row), max(y, pos_col)) # 选区右下角
+		
 		for row in range(start_pos.x, end_pos.x+1):
 			for col in range(start_pos.y, end_pos.y+1):
 				var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
@@ -976,16 +1059,61 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 				if col == end_pos.y:
 					sb.border_width_right = 2
 					
-				if (sb.border_width_top > 0 and (sb.border_width_left + sb.border_width_right + sb.border_width_bottom) == 0)\
-				or (sb.border_width_bottom > 0 and (sb.border_width_left + sb.border_width_right + sb.border_width_top) == 0):
-					sb.expand_margin_left = 8
-					sb.expand_margin_right = 8
+				if col > 0:
+					sb.expand_margin_left = 6
+				if col < columns.size()-1:
+					sb.expand_margin_right = 6
+					
+				if not (row == last_selected_pos.x and col == last_selected_pos.y):
+					sb.draw_center = true
+					sb.bg_color.a *= 1.05
 					
 				pc.add_theme_stylebox_override("panel", sb)
-				# TODO
+		add_border({
+			"start": last_selected_pos,
+			"rect": Rect2i(start_pos, end_pos - start_pos + Vector2i.ONE)
+		})
 		return
+	
+	## shift按下时，把起始点到终点（clicked_row_panel）的矩形范围都选中。这不会改变起始点。
+	#if shift_pressed:
+		#var start_pos = Vector2i(min(last_selected_pos.x, pos_row), min(last_selected_pos.y, pos_col)) # 选区左上角
+		#var end_pos =  Vector2i(max(last_selected_pos.x, pos_row), max(last_selected_pos.y, pos_col)) # 选区右下角
+		#for row in range(start_pos.x, end_pos.x+1):
+			#for col in range(start_pos.y, end_pos.y+1):
+				#var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
+				#var sb = pc.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
+				#if row == start_pos.x:
+					#sb.border_width_top = 2
+				#if col == start_pos.y:
+					#sb.border_width_left = 2
+				#if row == end_pos.x:
+					#sb.border_width_bottom = 2
+				#if col == end_pos.y:
+					#sb.border_width_right = 2
+					#
+				#if col > 0:
+					#sb.expand_margin_left = 6
+				#if col < columns.size()-1:
+					#sb.expand_margin_right = 6
+					#
+				#if not (row == last_selected_pos.x and col == last_selected_pos.y):
+					#sb.draw_center = true
+					#sb.bg_color.a *= 1.05
+					#
+				#pc.add_theme_stylebox_override("panel", sb)
+				## TODO
+		#var info = {
+			#"start": last_selected_pos,
+			#"rect": Rect2i(start_pos, end_pos - start_pos + Vector2i.ONE)
+		#}
+		#return
 		
-	# ctrl按下时，增加一个选区，会改变起始点
+	# ctrl按下时：
+	# 1. 点到了一个非选区位置，鼠标按下时所有选区边框立刻消失，起始点位置改变，起始点有绿细边框，无背景。保持按下可拖动扩大选区。鼠标释放时，停止扩大选区，各状态维持当前状况。
+	# 2. 点到了某选区中的位置，鼠标按下时在点击位置产生灰色的边框，保持按下可拖动扩大选区，选区背景色较淡，旧选区背景和边框不变。鼠标释放时，新选区变为非选区，旧选区
+	# 剩余的部分边框消失，剩余部分被划分为新的若干矩形区域。若旧起始点仍在选区内，则起始点有绿细边框，无背景；若旧起始点不在选区内，则新划分的若干选区的第一个选区的
+	# 第一格变为起始点，有绿细边框，无背景。
 	if ctrl_pressed:
 		pass# TODO
 		
@@ -1070,3 +1198,4 @@ func _on_button_select_all_focus_exited():
 		#var obj = EditorInterface.get_inspector().get_edited_object()
 		#if obj != null and obj is DictionaryObject and datas.has(obj):
 			#EditorInterface.inspect_object(null)
+

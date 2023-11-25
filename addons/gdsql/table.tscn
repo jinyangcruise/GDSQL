@@ -56,7 +56,7 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_4fjn8")
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 12
 
 [node name="LabelModel" type="Label" parent="Models"]
 layout_mode = 2
@@ -84,7 +84,7 @@ layout_mode = 2
 [node name="HeaderColModel" type="HSplitContainer" parent="HSplitContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 8
+theme_override_constants/separation = 12
 
 [node name="Button" type="Button" parent="HSplitContainer/HeaderColModel"]
 layout_mode = 2
