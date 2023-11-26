@@ -611,9 +611,57 @@ func get_border_of_start(start: Vector2i):
 	return null
 	
 func add_border(border) -> void:
+	# 起始点
 	last_selected_pos = border["start"]
+	
+	# 与该选区同起始点的选区（一个起始点有且只能有一个以该点为起始点的选区）
+	var same_start_border
+	
+	# 唯一选区要更新区域，清了重画
+	if selected_borders.size() == 1 and selected_borders[0]["start"] == last_selected_pos:
+		clear_border_of_start(last_selected_pos)
+	else:
+		same_start_border = get_border_of_start(last_selected_pos) # 可能返回null
+		
+	var start_pos = (border["rect"] as Rect2i).position
+	var end_pos = (border["rect"] as Rect2i).end
+	for row in range(start_pos.x, end_pos.x):
+		for col in range(start_pos.y, end_pos.y):
+			var sb = DEFAULT_BORDER_STYLE.duplicate()
+			
+			# 边框设置。
+			# 1. 该选区是唯一的选区
+			if selected_borders.is_empty():
+				if row == start_pos.x:
+					sb.border_width_top = 2
+				if col == start_pos.y:
+					sb.border_width_left = 2
+				if row == end_pos.x - 1:
+					sb.border_width_bottom = 2
+				if col == end_pos.y - 1:
+					sb.border_width_right = 2
+					
+				if col > 0:
+					sb.expand_margin_left = 6
+				if col < columns.size()-1:
+					sb.expand_margin_right = 6
+					
+				if not (row == last_selected_pos.x and col == last_selected_pos.y):
+					sb.draw_center = true
+					sb.bg_color.a *= 1.05
+			# 2. 不唯一
+			else:
+				# 把上一个选区边框取消掉，所有单元格背景显现
+				
+				
+				pass
+				
+				
+			var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
+			pc.add_theme_stylebox_override("panel", sb)
+			
 	selected_borders.push_back(border)
-	## 如果是第一个
+	# 如果是第一个
 	#if selected_borders.is_empty():
 		#border.set_border(1.0, 2, 1)
 		#border.set_draw_center(false)
@@ -1004,30 +1052,36 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 	if datas.is_empty() or not editable or not (Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) \
 		or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)):
 		start_drag = false
+		# TODO 鼠标释放在这里
 		return
 		
 	# 是否按下ctrl键、shift键
 	var ctrl_pressed = Input.is_key_pressed(KEY_CTRL)
 	var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
 		
-	# 当前点击位置
+	# 触发鼠标事件的panel_container的位置
 	var pos_row = panel_container.get_parent().get_parent().get_index()
 	var pos_col = panel_container.get_index()
 	var old_last_selected_pos = last_selected_pos
 	
 	if event is InputEventMouseButton:
 		if not start_drag:
-			if not shift_pressed: # 按着shift等同于按原先的位置进行单一选区拖动
+			# 如果按着shift等同于按原先的位置进行单一选区拖动，所以last_selected_pos不变。
+			# 否则要变。
+			if not shift_pressed:
 				last_selected_pos = Vector2i(pos_row, pos_col)
 			
 		if event.button_index == MOUSE_BUTTON_LEFT:
-			if event.is_pressed():
-				start_drag = true
-			if event.is_released():
-				start_drag = false
+			#if event.is_pressed(): is_pressed一定是true，否则在上面就return了
+			start_drag = true
+			#if event.is_released(): release就不会出现在这里，在上面就return了
+				#start_drag = false
 		else:
-			start_drag = false
+			start_drag = false # 鼠标右键走这行
 			
+	# 经过实验得知，执行到这里时，只要左键在按时，start_drag都为true。但是panel_container却不一定是鼠标下方的那个，
+	# 经过实验发现，在鼠标按下且没有释放时，不管怎么移动鼠标，触发鼠标事件（点击和移动事件）的一直是最开始按下触发鼠标事件
+	# 的那个panel_container，即便其他panel_container注册了gui_input或mouse_entered，也无法触发。
 	if not panel_container.get_rect().has_point(panel_container.get_parent_control().get_local_mouse_position()):
 		panel_container = get_panel_container_under_mouse()
 		if panel_container == null:
@@ -1035,85 +1089,26 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 		pos_row = panel_container.get_parent().get_parent().get_index()
 		pos_col = panel_container.get_index()
 		
-	# 只选中一个的情况或拖动选单一选区的情况
-	if Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or not ctrl_pressed:
-		if start_drag:
-			clear_border_of_start(old_last_selected_pos)
-		else:
+	# 没按ctrl
+	if not ctrl_pressed:
+		# 如果没拖动（比如右键点击），要清空所有边框
+		if not start_drag:
 			clear_borders()
 		var x = last_selected_pos.x if start_drag else pos_row
 		var y = last_selected_pos.y if start_drag else pos_col
 		var start_pos = Vector2i(min(x, pos_row), min(y, pos_col)) # 选区左上角
 		var end_pos =  Vector2i(max(x, pos_row), max(y, pos_col)) # 选区右下角
-		
-		for row in range(start_pos.x, end_pos.x+1):
-			for col in range(start_pos.y, end_pos.y+1):
-				var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
-				var sb = pc.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
-				if row == start_pos.x:
-					sb.border_width_top = 2
-				if col == start_pos.y:
-					sb.border_width_left = 2
-				if row == end_pos.x:
-					sb.border_width_bottom = 2
-				if col == end_pos.y:
-					sb.border_width_right = 2
-					
-				if col > 0:
-					sb.expand_margin_left = 6
-				if col < columns.size()-1:
-					sb.expand_margin_right = 6
-					
-				if not (row == last_selected_pos.x and col == last_selected_pos.y):
-					sb.draw_center = true
-					sb.bg_color.a *= 1.05
-					
-				pc.add_theme_stylebox_override("panel", sb)
 		add_border({
 			"start": last_selected_pos,
 			"rect": Rect2i(start_pos, end_pos - start_pos + Vector2i.ONE)
 		})
 		return
-	
-	## shift按下时，把起始点到终点（clicked_row_panel）的矩形范围都选中。这不会改变起始点。
-	#if shift_pressed:
-		#var start_pos = Vector2i(min(last_selected_pos.x, pos_row), min(last_selected_pos.y, pos_col)) # 选区左上角
-		#var end_pos =  Vector2i(max(last_selected_pos.x, pos_row), max(last_selected_pos.y, pos_col)) # 选区右下角
-		#for row in range(start_pos.x, end_pos.x+1):
-			#for col in range(start_pos.y, end_pos.y+1):
-				#var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
-				#var sb = pc.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
-				#if row == start_pos.x:
-					#sb.border_width_top = 2
-				#if col == start_pos.y:
-					#sb.border_width_left = 2
-				#if row == end_pos.x:
-					#sb.border_width_bottom = 2
-				#if col == end_pos.y:
-					#sb.border_width_right = 2
-					#
-				#if col > 0:
-					#sb.expand_margin_left = 6
-				#if col < columns.size()-1:
-					#sb.expand_margin_right = 6
-					#
-				#if not (row == last_selected_pos.x and col == last_selected_pos.y):
-					#sb.draw_center = true
-					#sb.bg_color.a *= 1.05
-					#
-				#pc.add_theme_stylebox_override("panel", sb)
-				## TODO
-		#var info = {
-			#"start": last_selected_pos,
-			#"rect": Rect2i(start_pos, end_pos - start_pos + Vector2i.ONE)
-		#}
-		#return
 		
 	# ctrl按下时：
 	# 1. 点到了一个非选区位置，鼠标按下时所有选区边框立刻消失，起始点位置改变，起始点有绿细边框，无背景。保持按下可拖动扩大选区。鼠标释放时，停止扩大选区，各状态维持当前状况。
 	# 2. 点到了某选区中的位置，鼠标按下时在点击位置产生灰色的边框，保持按下可拖动扩大选区，选区背景色较淡，旧选区背景和边框不变。鼠标释放时，新选区变为非选区，旧选区
-	# 剩余的部分边框消失，剩余部分被划分为新的若干矩形区域。若旧起始点仍在选区内，则起始点有绿细边框，无背景；若旧起始点不在选区内，则新划分的若干选区的第一个选区的
-	# 第一格变为起始点，有绿细边框，无背景。
+	# 剩余的部分边框消失，剩余部分被划分为新的若干矩形区域，若没有剩余部分，则选区变为起始点单元格。若旧起始点仍在选区内，则起始点有绿细边框，无背景；
+	# 若旧起始点不在选区内，则新划分的若干选区的第一个选区的第一格变为起始点，有绿细边框，无背景。若只剩余一个选区，则选区有边框，无背景。
 	if ctrl_pressed:
 		pass# TODO
 		
