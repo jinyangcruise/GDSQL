@@ -97,23 +97,19 @@ const CLICKED_COLOR = Color(Color.LIGHT_BLUE, 0.1)
 #var data_of_focused_row
 # 选框
 var start_drag = false
+var start_drag_with_ctrl = false
 var selected_borders = []
-var last_selected_pos = Vector2i(0, 0) # 默认选中第一行第一列，不算表格的辅助内部节点
-const DEFAULT_BORDER_STYLE = preload("res://addons/gdsql/table/solid/middle.stylebox")
-const SOLID_BORDER_TYPE = {
-	"ALL": preload("res://addons/gdsql/table/solid/all.stylebox"),
-	"BOTTOM" : preload("res://addons/gdsql/table/solid/bottom.stylebox"),
-	"BOTTOM_LEFT" : preload("res://addons/gdsql/table/solid/bottom_left.stylebox"),
-	"BOTTOM_RIGHT" : preload("res://addons/gdsql/table/solid/bottom_right.stylebox"),
-	"MIDDLE" : preload("res://addons/gdsql/table/solid/middle.stylebox"),
-	"MIDDLE_LEFT" : preload("res://addons/gdsql/table/solid/middle_left.stylebox"),
-	"MIDDLE_RIGHT" : preload("res://addons/gdsql/table/solid/middle_right.stylebox"),
-	"TOP" : preload("res://addons/gdsql/table/solid/top.stylebox"),
-	"TOP_LEFT" : preload("res://addons/gdsql/table/solid/top_left.stylebox"),
-	"TOP_RIGHT" : preload("res://addons/gdsql/table/solid/top_right.tres"),
-}
+var last_selected_pos = Vector2(0, 0) # 默认选中第一行第一列，不算表格的辅助内部节点
+var exclude_mode = false # 排除模式：ctrl到选区中时再次选择会开启排除模式，将选区变为非选区
+var exclude_border
+var DEFAULT_BORDER_STYLE = StyleBoxFlat.new()
+const DEFAULT_BORDER_BG_COLOR = Color(Color.WHITE, 0.05)
+const DEFAULT_BORDER_BORDER_COLOR = Color(Color.WHITE_SMOKE, 0.75)
 
 func _ready() -> void:
+	DEFAULT_BORDER_STYLE.draw_center = false
+	DEFAULT_BORDER_STYLE.bg_color = DEFAULT_BORDER_BG_COLOR
+	DEFAULT_BORDER_STYLE.border_color = DEFAULT_BORDER_BORDER_COLOR
 	reset_header()
 	await get_tree().process_frame
 	datas = datas
@@ -454,6 +450,7 @@ func add_row(a_data):
 		#control.gui_input.connect(_on_label_model_gui_input.bind(control), CONNECT_DEFERRED)
 		# 表格刷新时某些自定义控件可能需要重复使用，要去掉parent
 		var panel_container = PanelContainer.new()
+		panel_container.set_meta("overlapping", 0) # 选区重叠次数
 		panel_container.mouse_filter = Control.MOUSE_FILTER_PASS
 		panel_container.add_theme_stylebox_override("panel", DEFAULT_BORDER_STYLE)
 		panel_container.gui_input.connect(_on_border_panel_container_gui_input.bind(panel_container), CONNECT_DEFERRED)
@@ -479,6 +476,7 @@ func add_row(a_data):
 		
 		
 func clear_rows():
+	clear_borders()
 	while v_box_container.get_child_count() > 0:
 		var r = v_box_container.get_child(0)
 		if r == last_focused_row:
@@ -579,59 +577,144 @@ func _on_row_mouse_entered(row_panel) -> void:
 	
 func clear_borders() -> void:
 	for info in selected_borders:
-		var rect = info["rect"] as Rect2i
+		var rect = info["rect"] as Rect2
 		var start_pos = rect.position # 选区左上角
 		var end_pos =  rect.end # 选区右下角
 		for row in range(start_pos.x, end_pos.x):
 			for col in range(start_pos.y, end_pos.y):
 				var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
-				pc.add_theme_stylebox_override("panel", DEFAULT_BORDER_STYLE)
+				if pc.get_theme_stylebox("panel") != DEFAULT_BORDER_STYLE:
+					pc.add_theme_stylebox_override("panel", DEFAULT_BORDER_STYLE)
+				pc.set_meta("overlapping", 0)
 	selected_borders.clear()
 	
-func clear_border_of_start(start: Vector2i) -> void:
+func clear_border_of_start(start: Vector2) -> void:
 	var i = -1
 	for info in selected_borders:
 		i += 1
 		if info["start"] == start:
-			var rect = info["rect"] as Rect2i
+			var rect = info["rect"] as Rect2
 			var start_pos = rect.position # 选区左上角
 			var end_pos =  rect.end # 选区右下角
 			for row in range(start_pos.x, end_pos.x):
 				for col in range(start_pos.y, end_pos.y):
 					var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
 					pc.add_theme_stylebox_override("panel", DEFAULT_BORDER_STYLE)
+					pc.set_meta("overlapping", pc.get_meta("overlapping") - 1)
 			selected_borders.remove_at(i)
 			break
 				
 # 一个start最多只能为一个区域的起点
-func get_border_of_start(start: Vector2i):
+func get_border_of_start(start: Vector2):
 	for info in selected_borders:
 		if info["start"] == start:
 			return info
 	return null
 	
 func add_border(border) -> void:
+	printt("begin add border", border)
 	# 起始点
 	last_selected_pos = border["start"]
-	
-	# 与该选区同起始点的选区（一个起始点有且只能有一个以该点为起始点的选区）
-	var same_start_border
 	
 	# 唯一选区要更新区域，清了重画
 	if selected_borders.size() == 1 and selected_borders[0]["start"] == last_selected_pos:
 		clear_border_of_start(last_selected_pos)
+		printt("iiiiii")
 	else:
-		same_start_border = get_border_of_start(last_selected_pos) # 可能返回null
-		
-	var start_pos = (border["rect"] as Rect2i).position
-	var end_pos = (border["rect"] as Rect2i).end
+		if not selected_borders.is_empty():
+			# 和上一个选区是同一个起始点，要先还原一下（背景色）再重新画
+			if selected_borders.back()["start"] == last_selected_pos:
+				printt("ppp")
+				var old_start_pos = (selected_borders.back()["rect"] as Rect2).position
+				var old_end_pos = (selected_borders.back()["rect"] as Rect2).end
+				for row in range(old_start_pos.x, old_end_pos.x):
+					for col in range(old_start_pos.y, old_end_pos.y):
+						var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
+						var sb = pc.get_theme_stylebox("panel") as StyleBoxFlat
+						var overlapping = pc.get_meta("overlapping") - 1
+						pc.set_meta("overlapping", overlapping)
+						if overlapping == 0:
+							sb = DEFAULT_BORDER_STYLE
+							pc.add_theme_stylebox_override("panel", sb)
+						else:
+							sb.bg_color.a = DEFAULT_BORDER_BG_COLOR.a * overlapping * 1.05
+							sb.border_color = Color(DEFAULT_BORDER_BORDER_COLOR, 0.1)#sb.bg_color
+							# 还原时要看是否在边框，从而设定边框宽度
+							sb.set_border_width_all(0) # 先统一设为0
+							for a_border in selected_borders:
+								if a_border["start"] == last_selected_pos:
+									continue
+								var rect = a_border["rect"] as Rect2
+								if row == rect.position.x:
+									sb.border_width_top = 2
+								if col == rect.position.y:
+									sb.border_width_left = 2
+								if row == rect.end.x - 1:
+									sb.border_width_bottom = 2
+								if col == rect.end.y - 1:
+									sb.border_width_right = 2
+									
+				selected_borders.pop_back()
+			# 非同一起点
+			else:
+				printt("jjjjjjjjj")
+				# 如果按了ctrl，上一选区要把边框取消、起始点显示背景
+				if border["ctrl"]:
+					printt("3333333 ctrl pressed")
+					var old_start_pos = (selected_borders.back()["rect"] as Rect2).position
+					var old_end_pos = (selected_borders.back()["rect"] as Rect2).end
+					for row in range(old_start_pos.x, old_end_pos.x):
+						for col in range(old_start_pos.y, old_end_pos.y):
+							var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
+							var sb = pc.get_theme_stylebox("panel") as StyleBoxFlat
+							sb.draw_center = true
+							var overlapping = pc.get_meta("overlapping")
+							sb.bg_color.a = DEFAULT_BORDER_BG_COLOR.a * overlapping * 1.05
+							sb.border_color = Color(DEFAULT_BORDER_BORDER_COLOR, 0.1)#sb.bg_color # 相当于把边框取消了
+							printt("uuuuuuu", sb.bg_color.a, overlapping, DEFAULT_BORDER_BG_COLOR.a)
+				# 没按ctrl，全部选区清空
+				else:
+					printt("kk")
+					clear_borders()
+					
+	var start_pos = (border["rect"] as Rect2).position
+	var end_pos = (border["rect"] as Rect2).end
 	for row in range(start_pos.x, end_pos.x):
 		for col in range(start_pos.y, end_pos.y):
-			var sb = DEFAULT_BORDER_STYLE.duplicate()
+			var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
+			var overlapping = pc.get_meta("overlapping") + 1
+			var sb
 			
 			# 边框设置。
 			# 1. 该选区是唯一的选区
 			if selected_borders.is_empty():
+				if row == start_pos.x:
+					if sb == null: sb = DEFAULT_BORDER_STYLE.duplicate()
+					sb.border_width_top = 2
+				if col == start_pos.y:
+					if sb == null: sb = DEFAULT_BORDER_STYLE.duplicate()
+					sb.border_width_left = 2
+				if row == end_pos.x - 1:
+					if sb == null: sb = DEFAULT_BORDER_STYLE.duplicate()
+					sb.border_width_bottom = 2
+				if col == end_pos.y - 1:
+					if sb == null: sb = DEFAULT_BORDER_STYLE.duplicate()
+					sb.border_width_right = 2
+					
+				if col > 0:
+					if sb == null: sb = DEFAULT_BORDER_STYLE.duplicate()
+					sb.expand_margin_left = 6
+				if col < columns.size()-1:
+					if sb == null: sb = DEFAULT_BORDER_STYLE.duplicate()
+					sb.expand_margin_right = 6
+					
+				if not(row == last_selected_pos.x and col == last_selected_pos.y):
+					if sb == null: sb = DEFAULT_BORDER_STYLE.duplicate()
+					sb.draw_center = true
+					printt("vvvv", row, col)
+			# 2. 不唯一
+			else:
+				sb = DEFAULT_BORDER_STYLE.duplicate() as StyleBoxFlat
 				if row == start_pos.x:
 					sb.border_width_top = 2
 				if col == start_pos.y:
@@ -646,38 +729,153 @@ func add_border(border) -> void:
 				if col < columns.size()-1:
 					sb.expand_margin_right = 6
 					
-				if not (row == last_selected_pos.x and col == last_selected_pos.y):
+				if row == last_selected_pos.x and col == last_selected_pos.y:
+					sb.border_color = Color(DEFAULT_BORDER_BORDER_COLOR, 0.1)#Color(sb.bg_color, DEFAULT_BORDER_BG_COLOR.a * overlapping * 1.05)
+				else:
+					sb.border_color = Color(DEFAULT_BORDER_BORDER_COLOR, 0.1)#Color(sb.bg_color, DEFAULT_BORDER_BG_COLOR.a * overlapping * 1.05)
 					sb.draw_center = true
-					sb.bg_color.a *= 1.05
-			# 2. 不唯一
-			else:
-				# 把上一个选区边框取消掉，所有单元格背景显现
-				
 				
 				pass
 				
-				
-			var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
-			pc.add_theme_stylebox_override("panel", sb)
+			if sb != null:
+				pc.add_theme_stylebox_override("panel", sb)
+				pc.set_meta("overlapping", overlapping)
+				sb.bg_color.a = DEFAULT_BORDER_BG_COLOR.a * overlapping * 1.05
+				printt("rrrrrr", sb.draw_center, row, col)
 			
 	selected_borders.push_back(border)
-	# 如果是第一个
-	#if selected_borders.is_empty():
-		#border.set_border(1.0, 2, 1)
-		#border.set_draw_center(false)
-		#border.set_drag_area(true)
-	## 有其他的
-	#else:
-		## 管好上一个就行
-		#var last_border = selected_borders.back()
-		#last_border.set_border(0.0, 2, 1)
-		#last_border.set_draw_center(true)
-		#last_border.set_drag_area(false)
-		#border.set_border(0.6, 1, 0)
-		#border.set_draw_center(false)
-		#border.set_drag_area(false)
-		#
-	#selected_borders.push_back(border)
+	Utils.print_variant(selected_borders)
+	
+func add_exclude_border(border) -> void:
+	# 先还原（类似add_border中【和上一个选区是同一个起始点，要先还原一下（背景色）再重新画】这段逻辑
+	if exclude_border != null:
+		var old_start_pos = (exclude_border["rect"] as Rect2).position
+		var old_end_pos = (exclude_border["rect"] as Rect2).end
+		for row in range(old_start_pos.x, old_end_pos.x):
+			for col in range(old_start_pos.y, old_end_pos.y):
+				var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
+				var sb = pc.get_theme_stylebox("panel") as StyleBoxFlat
+				var overlapping = pc.get_meta("overlapping")
+				pc.set_meta("overlapping", overlapping)
+				if overlapping == 0:
+					sb = DEFAULT_BORDER_STYLE
+					pc.add_theme_stylebox_override("panel", sb)
+				else:
+					sb.bg_color = Color(DEFAULT_BORDER_BG_COLOR, DEFAULT_BORDER_BG_COLOR.a * overlapping * 1.05)
+					if selected_borders.size() <= 1:
+						sb.border_color = DEFAULT_BORDER_BORDER_COLOR
+					else:
+						sb.border_color = Color(DEFAULT_BORDER_BORDER_COLOR, 0.1)
+					# 还原时要看是否在边框，从而设定边框宽度
+					sb.set_border_width_all(0) # 先统一设为0
+					for a_border in selected_borders:
+						if a_border["start"] == last_selected_pos:
+							continue
+						var rect = a_border["rect"] as Rect2
+						if row == rect.position.x:
+							sb.border_width_top = 2
+						if col == rect.position.y:
+							sb.border_width_left = 2
+						if row == rect.end.x - 1:
+							sb.border_width_bottom = 2
+						if col == rect.end.y - 1:
+							sb.border_width_right = 2
+							
+	var start_pos = (border["rect"] as Rect2).position
+	var end_pos = (border["rect"] as Rect2).end
+	for row in range(start_pos.x, end_pos.x):
+		for col in range(start_pos.y, end_pos.y):
+			var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
+			var sb = pc.get_theme_stylebox("panel").duplicate() as StyleBoxFlat
+			# 为了简单起见，只修改背景
+			sb.bg_color = Color(Color.DARK_BLUE, 0.25)
+			sb.border_color = Color(Color.DARK_BLUE, 0.2)
+			sb.draw_center = true
+			if row == start_pos.x:
+				sb.border_width_top = 2
+			if col == start_pos.y:
+				sb.border_width_left = 2
+			if row == end_pos.x - 1:
+				sb.border_width_bottom = 2
+			if col == end_pos.y - 1:
+				sb.border_width_right = 2
+				
+			if col > 0:
+				sb.expand_margin_left = 6
+			if col < columns.size()-1:
+				sb.expand_margin_right = 6
+			pc.add_theme_stylebox_override("panel", sb)
+			
+	exclude_border = border
+			
+func commit_exclude_border():
+	if exclude_border == null:
+		return
+		
+	# 还原一下
+	var old_start_pos = (exclude_border["rect"] as Rect2).position
+	var old_end_pos = (exclude_border["rect"] as Rect2).end
+	for row in range(old_start_pos.x, old_end_pos.x):
+		for col in range(old_start_pos.y, old_end_pos.y):
+			var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
+			var sb = pc.get_theme_stylebox("panel") as StyleBoxFlat
+			var overlapping = pc.get_meta("overlapping")
+			pc.set_meta("overlapping", overlapping)
+			if overlapping == 0:
+				sb = DEFAULT_BORDER_STYLE
+				pc.add_theme_stylebox_override("panel", sb)
+			else:
+				sb.bg_color = Color(DEFAULT_BORDER_BG_COLOR, DEFAULT_BORDER_BG_COLOR.a * overlapping * 1.05)
+				if selected_borders.size() <= 1:
+					sb.border_color = DEFAULT_BORDER_BORDER_COLOR
+				else:
+					sb.border_color = Color(DEFAULT_BORDER_BORDER_COLOR, 0.1)
+				# 还原时要看是否在边框，从而设定边框宽度
+				sb.set_border_width_all(0) # 先统一设为0
+				for a_border in selected_borders:
+					if a_border["start"] == last_selected_pos:
+						continue
+					var rect = a_border["rect"] as Rect2
+					if row == rect.position.x:
+						sb.border_width_top = 2
+					if col == rect.position.y:
+						sb.border_width_left = 2
+					if row == rect.end.x - 1:
+						sb.border_width_bottom = 2
+					if col == rect.end.y - 1:
+						sb.border_width_right = 2
+						
+	var exclude_rect = exclude_border["rect"] as Rect2
+	
+	# 完全处于exclude选框内的要删除
+	var clears = []
+	var need_update = [] # 需要更新的范围
+	for i in selected_borders.size():
+		var border = selected_borders[i]
+		if exclude_rect.encloses(border["rect"]):
+			clears.push_back(i)
+			var a_start_pos = (border["rect"] as Rect2).position
+			var a_end_pos = (border["rect"] as Rect2).end
+			for row in range(a_start_pos.x, a_end_pos.x):
+				for col in range(a_start_pos.y, a_end_pos.y):
+					var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
+					pc.set_meta("overlapping", pc.get_meta("overlapping") - 1)
+					
+	need_update.append_array(clears)
+	clears.reverse()
+	for i in clears:
+		selected_borders.remove_at(i)
+		
+	# 有交集
+	var empty_rect = Rect2()
+	for i in selected_borders.size():
+		var border = selected_borders[i]
+		var intersection = exclude_rect.intersection(border["rect"])
+		if intersection == empty_rect:
+			continue
+		#TODO
+		
+	printt(selected_borders)
 	
 	
 #func get_border(type):
@@ -1047,12 +1245,26 @@ func get_panel_container_under_mouse():
 				if j.get_rect().has_point(i.get_child(0).get_local_mouse_position()):
 					return j
 	return null
-		
+	
+# 检查一个单元格是不是处于某选区中
+func pos_is_selected(pos: Vector2) -> bool:
+	for border in selected_borders:
+		if border["start"] == pos:
+			return true
+	var rect = Rect2(pos, Vector2.ONE)
+	for border in selected_borders:
+		if rect.intersects(border["rect"], false):
+			return true
+	return false
+	
 func _on_border_panel_container_gui_input(event: InputEvent, panel_container: PanelContainer):
 	if datas.is_empty() or not editable or not (Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) \
-		or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)):
+	or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)):
+		if exclude_mode and start_drag:
+			commit_exclude_border()
+			printt("8888888888888 exclude end")
 		start_drag = false
-		# TODO 鼠标释放在这里
+		exclude_mode = false
 		return
 		
 	# 是否按下ctrl键、shift键
@@ -1069,15 +1281,18 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 			# 如果按着shift等同于按原先的位置进行单一选区拖动，所以last_selected_pos不变。
 			# 否则要变。
 			if not shift_pressed:
-				last_selected_pos = Vector2i(pos_row, pos_col)
+				last_selected_pos = Vector2(pos_row, pos_col)
 			
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			#if event.is_pressed(): is_pressed一定是true，否则在上面就return了
 			start_drag = true
-			#if event.is_released(): release就不会出现在这里，在上面就return了
-				#start_drag = false
+			start_drag_with_ctrl = ctrl_pressed
+			exclude_mode = ctrl_pressed and pos_is_selected(last_selected_pos) # 反选模式
+			printt("111111111 start drag", "ctrl:", start_drag_with_ctrl)
 		else:
 			start_drag = false # 鼠标右键走这行
+			exclude_mode = false
+			printt("22")
 			
 	# 经过实验得知，执行到这里时，只要左键在按时，start_drag都为true。但是panel_container却不一定是鼠标下方的那个，
 	# 经过实验发现，在鼠标按下且没有释放时，不管怎么移动鼠标，触发鼠标事件（点击和移动事件）的一直是最开始按下触发鼠标事件
@@ -1089,30 +1304,42 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 		pos_row = panel_container.get_parent().get_parent().get_index()
 		pos_col = panel_container.get_index()
 		
-	# 没按ctrl
-	if not ctrl_pressed:
-		# 如果没拖动（比如右键点击），要清空所有边框
-		if not start_drag:
-			clear_borders()
-		var x = last_selected_pos.x if start_drag else pos_row
-		var y = last_selected_pos.y if start_drag else pos_col
-		var start_pos = Vector2i(min(x, pos_row), min(y, pos_col)) # 选区左上角
-		var end_pos =  Vector2i(max(x, pos_row), max(y, pos_col)) # 选区右下角
-		add_border({
-			"start": last_selected_pos,
-			"rect": Rect2i(start_pos, end_pos - start_pos + Vector2i.ONE)
-		})
+	# 如果没拖动（比如右键点击），要清空所有边框
+	if not start_drag:
+		clear_borders()
+		printt("clear")
+		
+	var x = last_selected_pos.x if start_drag else pos_row
+	var y = last_selected_pos.y if start_drag else pos_col
+	var start_pos = Vector2(min(x, pos_row), min(y, pos_col)) # 选区左上角
+	var end_pos =  Vector2(max(x, pos_row), max(y, pos_col)) # 选区右下角
+	var border = {
+		"start": last_selected_pos,
+		"rect": Rect2(start_pos, end_pos - start_pos + Vector2.ONE),
+		"ctrl": start_drag_with_ctrl
+	}
+	
+	# 没按ctrl或按了ctrl时起始点不在选区内
+	if not start_drag_with_ctrl or not exclude_mode:
+		printt("add border", start_pos, end_pos)
+		add_border(border)
 		return
+		
 		
 	# ctrl按下时：
 	# 1. 点到了一个非选区位置，鼠标按下时所有选区边框立刻消失，起始点位置改变，起始点有绿细边框，无背景。保持按下可拖动扩大选区。鼠标释放时，停止扩大选区，各状态维持当前状况。
 	# 2. 点到了某选区中的位置，鼠标按下时在点击位置产生灰色的边框，保持按下可拖动扩大选区，选区背景色较淡，旧选区背景和边框不变。鼠标释放时，新选区变为非选区，旧选区
 	# 剩余的部分边框消失，剩余部分被划分为新的若干矩形区域，若没有剩余部分，则选区变为起始点单元格。若旧起始点仍在选区内，则起始点有绿细边框，无背景；
 	# 若旧起始点不在选区内，则新划分的若干选区的第一个选区的第一格变为起始点，有绿细边框，无背景。若只剩余一个选区，则选区有边框，无背景。
-	if ctrl_pressed:
-		pass# TODO
-		
-	#panel_container.add_theme_stylebox_override("panel", SOLID_BORDER_TYPE["ALL"])=
+	if start_drag_with_ctrl:
+		if exclude_mode:
+			printt("exclude mode 9999999999")
+			add_exclude_border(border)
+		else:
+			printt("777777777777777777777")
+			printt("add border", start_pos, end_pos)
+			add_border(border)
+			
 		
 func _on_popup_menu_text_index_pressed(index):
 	match popup_menu_text.get_item_text(index):
