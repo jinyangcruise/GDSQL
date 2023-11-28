@@ -853,6 +853,7 @@ func commit_exclude_border():
 	for i in selected_borders.size():
 		var border = selected_borders[i]
 		if exclude_rect.encloses(border["rect"]):
+			need_update.push_back(border["rect"])
 			clears.push_back(i)
 			var a_start_pos = (border["rect"] as Rect2).position
 			var a_end_pos = (border["rect"] as Rect2).end
@@ -861,21 +862,277 @@ func commit_exclude_border():
 					var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
 					pc.set_meta("overlapping", pc.get_meta("overlapping") - 1)
 					
-	need_update.append_array(clears)
 	clears.reverse()
 	for i in clears:
 		selected_borders.remove_at(i)
 		
 	# 有交集
 	var empty_rect = Rect2()
+	var to_add = []
+	var to_delete = []
 	for i in selected_borders.size():
 		var border = selected_borders[i]
 		var intersection = exclude_rect.intersection(border["rect"])
 		if intersection == empty_rect:
 			continue
-		#TODO
+		need_update.push_back(border["rect"])
+		to_delete.push_back(i)
+		var border_size = border["rect"].size
+		var border_start = border["rect"].position
+		var border_end = border["rect"].end
+		var inter_size = intersection.size
+		var inter_start = intersection.position
+		var inter_end = intersection.end
+		if inter_start.x == border_start.x:
+			if inter_start.y == border_start.y:
+				if inter_end.x == border_end.x:
+					if inter_end.y == border_end.y:
+						# 全部删除的情况，前面已经处理过了，应该不会走到这里
+						push_error("Invalid situation.")
+						# #####
+						# #####
+						# #####
+					else:
+						# 左边整体删除
+						# ###¯¯⌉
+						# ###  |
+						# ###__⌋
+						to_add.push_back({
+							"start": Vector2(inter_start.x, inter_end.y),
+							"rect": Rect2(inter_start.x, inter_end.y, border_size.x, border_size.y - inter_size.y)
+						})
+				# inter_end.x != border_end.x
+				else:
+					if inter_end.y == border_end.y:
+						# 上边整体删除
+						# #####
+						# #####
+						# |   |
+						# ⌊___⌋
+						to_add.push_back({
+							"start": Vector2(inter_end.x, inter_start.y),
+							"rect": Rect2(inter_end.x, inter_start.y, border_size.x - inter_size.x, border_size.y)
+						})
+					else:
+						# 左上角去掉一块
+						# ###¯¯¯⌉
+						# ###   |
+						# ###   |
+						# |     |
+						# ⌊_____⌋
+						to_add.push_back({
+							"start": Vector2(inter_start.x, inter_end.y),
+							"rect": Rect2(inter_start.x, inter_end.y, inter_size.x, border_size.y - inter_size.y)
+						})
+						to_add.push_back({
+							"start": Vector2(inter_end.x, inter_start.y),
+							"rect": Rect2(inter_end.x, inter_start.y, border_size.x - inter_size.x, border_size.y)
+						})
+			# inter_start.x == border_start.x
+			# inter_start.y != border_start.y
+			else:
+				if inter_end.x == border_end.x:
+					if inter_end.y == border_end.y:
+						# 右边整体删除
+						# ⌈¯¯###
+						# |  ###
+						# ⌊__###
+						to_add.push_back({
+							"start": border_start,
+							"rect": Rect2(border_start, Vector2(border_size.x, border_size.y - inter_size.y))
+						})
+					else:
+						# 中间竖条删除
+						# ⌈¯¯###¯¯⌉
+						# |  ###  |
+						# ⌊__###__⌋
+						to_add.push_back({
+							"start": border_start,
+							"rect": Rect2(border_start, Vector2(border_size.x, inter_start.y - border_start.y))
+						})
+						to_add.push_back({
+							"start": Vector2(inter_start.x, inter_end.y),
+							"rect": Rect2(inter_start.x, inter_end.y, border_size.x, border_end.y - inter_end.y)
+						})
+				else:
+					if inter_end.y == border_end.y:
+						# 右上角删除
+						# ⌈¯¯###
+						# |  ###
+						# ⌊____⌋
+						to_add.push_back({
+							"start": border_start,
+							"rect": Rect2(border_start, Vector2(inter_size.x, border_size.y - inter_size.y))
+						})
+						to_add.push_back({
+							"start": Vector2(inter_end.x, border_start.y),
+							"rect": Rect2(inter_end.x, border_start.y, border_size.x - inter_size.x, border_size.y)
+						})
+					else:
+						# 上边中间一块删除
+						# ⌈¯¯###¯¯⌉
+						# |  ###  |
+						# ⌊_______⌋
+						to_add.push_back({
+							"start": border_start,
+							"rect": Rect2(border_start, Vector2(inter_size.x, inter_start.y - border_start.y))
+						})
+						to_add.push_back({
+							"start": Vector2(inter_start.x, inter_end.y),
+							"rect": Rect2(inter_start.x, inter_end.y, inter_size.x, border_end.y - inter_end.y)
+						})
+						to_add.push_back({
+							"start": Vector2(inter_end.x, border_start.y),
+							"rect": Rect2(inter_end.x, border_start.y, border_size.x - inter_size.x, border_size.y)
+						})
+		# inter_start.x != border_start.x
+		else:
+			if inter_start.y == border_start.y:
+				if inter_end.x == border_end.x:
+					if inter_end.y == border_end.y:
+						# 下面一半删除
+						# ⌈¯¯¯¯¯¯¯⌉
+						# |       |
+						# #########
+						# #########
+						to_add.push_back({
+							"start": border_start,
+							"rect": Rect2(border_start, Vector2(border_size.x - inter_size.x, border_size.y))
+						})
+					else:
+						# 左下角一块删除
+						# ⌈¯¯¯¯¯¯¯⌉
+						# |       |
+						# #####   |
+						# #####___⌋
+						to_add.push_back({
+							"start": border_start,
+							"rect": Rect2(border_start, Vector2(border_size.x - inter_size.x, border_size.y))
+						})
+						to_add.push_back({
+							"start": Vector2(inter_start.x, inter_end.y),
+							"rect": Rect2(inter_start.x, inter_end.y, inter_size.x, border_size.y - inter_size.y)
+						})
+				else:
+					if inter_end.y == border_end.y:
+						# 横着一条删掉
+						# ⌈¯¯¯¯¯¯¯⌉
+						# #########
+						# #########
+						# ⌊_______⌋
+						to_add.push_back({
+							"start": border_start,
+							"rect": Rect2(border_start, Vector2(inter_start.x - border_start.x, border_size.y))
+						})
+						to_add.push_back({
+							"start": Vector2(inter_end.x, border_start.y),
+							"rect": Rect2(inter_end.x, border_start.y, border_end.x - inter_end.x, border_size.y)
+						})
+					else:
+						# 左边中间一块删掉
+						# ⌈¯¯¯¯¯¯¯⌉
+						# #####   |
+						# #####   |
+						# ⌊_______⌋
+						to_add.push_back({
+							"start": border_start,
+							"rect": Rect2(border_start, Vector2(inter_start.x - border_start.x, border_size.y))
+						})
+						to_add.push_back({
+							"start": Vector2(inter_start.x, inter_end.y),
+							"rect": Rect2(inter_start.x, inter_end.y, inter_size.x, border_size.y - inter_size.y)
+						})
+						to_add.push_back({
+							"start": Vector2(inter_end.x, border_start.y),
+							"rect": Rect2(inter_end.x, border_start.y, border_end.x - inter_end.x, border_size.y)
+						})
+						pass
+			# inter_start.x != border_start.x
+			# inter_start.y != border_start.y
+			else:
+				if inter_end.x == border_end.x:
+					if inter_end.y == border_end.y:
+						# 右下角一块删除
+						# ⌈¯¯¯¯¯¯¯⌉
+						# |    ####
+						# ⌊____####
+						to_add.push_back({
+							"start": border_start,
+							"rect": Rect2(border_start, Vector2(border_size.x - inter_size.x, border_size.y))
+						})
+						to_add.push_back({
+							"start": Vector2(inter_start.x, border_start.y),
+							"rect": Rect2(inter_start.x, border_start.y, inter_size.x, border_size.y - inter_size.y)
+						})
+					else:
+						# 下边中间一块删除
+						# ⌈¯¯¯¯¯¯¯⌉
+						# |  #### |
+						# ⌊__####_⌋
+						to_add.push_back({
+							"start": border_start,
+							"rect": Rect2(border_start, Vector2(border_size.x - inter_size.x, border_size.y))
+						})
+						to_add.push_back({
+							"start": Vector2(inter_start.x, border_start.y),
+							"rect": Rect2(inter_start.x, border_start.y, inter_size.x, inter_start.y - border_start.y)
+						})
+						to_add.push_back({
+							"start": Vector2(inter_start.x, inter_end.y),
+							"rect": Rect2(inter_start.x, inter_end.y, inter_size.x, border_end.y - inter_end.y)
+						})
+						pass
+				else:
+					if inter_end.y == border_end.y:
+						# 右边中间一块删除
+						# ⌈¯¯¯¯¯¯¯⌉
+						# |   #####
+						# |   #####
+						# ⌊_______⌋
+						to_add.push_back({
+							"start": border_start,
+							"rect": Rect2(border_start, Vector2(inter_start.x - border_start.x, border_size.y))
+						})
+						to_add.push_back({
+							"start": Vector2(inter_start.x, border_start.y),
+							"rect": Rect2(inter_start.x, border_start.y, inter_size.x, border_size.y - inter_size.y)
+						})
+						to_add.push_back({
+							"start": Vector2(inter_end.x, border_start.y),
+							"rect": Rect2(inter_end.x, border_start.y, border_end.x - inter_end.x, border_size.y)
+						})
+						pass
+					else:
+						# 中间一块删除
+						# ⌈¯¯¯¯¯¯¯⌉
+						# |  ###  |
+						# |  ###  |
+						# ⌊_______⌋
+						to_add.push_back({
+							"start": border_start,
+							"rect": Rect2(border_start, Vector2(inter_start.x - border_start.x, border_size.y))
+						})
+						to_add.push_back({
+							"start": Vector2(inter_start.x, border_start.y),
+							"rect": Rect2(inter_start.x, border_start.y, inter_size.x, inter_start.y - border_start.y)
+						})
+						to_add.push_back({
+							"start": Vector2(inter_start.x, inter_end.y),
+							"rect": Rect2(inter_start.x, inter_end.y, inter_size.x, border_end.y - inter_end.y)
+						})
+						to_add.push_back({
+							"start": Vector2(inter_end.x, border_start.y),
+							"rect": Rect2(inter_end.x, border_start.y, border_end.x - inter_end.x, border_size.y)
+						})
+						
+	to_delete.reverse()
+	for i in to_delete:
+		selected_borders.remove_at(i)
 		
-	printt(selected_borders)
+	selected_borders.append_array(to_add)
+	exclude_border = null
+	Utils.print_variant(selected_borders)
+	# TODO 更新范围内的样式
 	
 	
 #func get_border(type):
