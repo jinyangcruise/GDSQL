@@ -645,6 +645,8 @@ func add_border(border) -> void:
 								if a_border["start"] == last_selected_pos:
 									continue
 								var rect = a_border["rect"] as Rect2
+								if not rect.intersects(selected_borders.back()["rect"]):
+									continue
 								if row == rect.position.x:
 									sb.border_width_top = 2
 								if col == rect.position.y:
@@ -772,6 +774,8 @@ func add_exclude_border(border) -> void:
 						if a_border["start"] == last_selected_pos:
 							continue
 						var rect = a_border["rect"] as Rect2
+						if not rect.intersects(exclude_border["rect"]):
+							continue
 						if row == rect.position.x:
 							sb.border_width_top = 2
 						if col == rect.position.y:
@@ -836,6 +840,8 @@ func commit_exclude_border():
 					if a_border["start"] == last_selected_pos:
 						continue
 					var rect = a_border["rect"] as Rect2
+					if not rect.intersects(exclude_border["rect"]):
+						continue
 					if row == rect.position.x:
 						sb.border_width_top = 2
 					if col == rect.position.y:
@@ -849,11 +855,11 @@ func commit_exclude_border():
 	
 	# 完全处于exclude选框内的要删除
 	var clears = []
-	var need_update = [] # 需要更新的范围
+	#var need_update = [] # 需要更新的范围
 	for i in selected_borders.size():
 		var border = selected_borders[i]
 		if exclude_rect.encloses(border["rect"]):
-			need_update.push_back(border["rect"])
+			#need_update.push_back(border["rect"])
 			clears.push_back(i)
 			var a_start_pos = (border["rect"] as Rect2).position
 			var a_end_pos = (border["rect"] as Rect2).end
@@ -861,6 +867,7 @@ func commit_exclude_border():
 				for col in range(a_start_pos.y, a_end_pos.y):
 					var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
 					pc.set_meta("overlapping", pc.get_meta("overlapping") - 1)
+					pc.add_theme_stylebox_override("panel", DEFAULT_BORDER_STYLE)
 					
 	clears.reverse()
 	for i in clears:
@@ -875,7 +882,7 @@ func commit_exclude_border():
 		var intersection = exclude_rect.intersection(border["rect"])
 		if intersection == empty_rect:
 			continue
-		need_update.push_back(border["rect"])
+		#need_update.push_back(border["rect"])
 		to_delete.push_back(i)
 		var border_size = border["rect"].size
 		var border_start = border["rect"].position
@@ -883,6 +890,13 @@ func commit_exclude_border():
 		var inter_size = intersection.size
 		var inter_start = intersection.position
 		var inter_end = intersection.end
+		# 设置删掉的部分的样式
+		for row in range(inter_start.x, inter_end.x):
+			for col in range(inter_start.y, inter_end.y):
+				var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
+				pc.set_meta("overlapping", 0)
+				pc.add_theme_stylebox_override("panel", DEFAULT_BORDER_STYLE)
+		# 分割空间
 		if inter_start.x == border_start.x:
 			if inter_start.y == border_start.y:
 				if inter_end.x == border_end.x:
@@ -1132,7 +1146,44 @@ func commit_exclude_border():
 	selected_borders.append_array(to_add)
 	exclude_border = null
 	Utils.print_variant(selected_borders)
-	# TODO 更新范围内的样式
+	
+	# 更新范围内的样式
+	for border in selected_borders:
+		var start_pos = (border["rect"] as Rect2).position
+		var end_pos = (border["rect"] as Rect2).end
+		for row in range(start_pos.x, end_pos.x):
+			for col in range(start_pos.y, end_pos.y):
+				var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
+				var sb = pc.get_theme_stylebox("panel") as StyleBoxFlat
+				var overlapping = pc.get_meta("overlapping")
+				pc.set_meta("overlapping", overlapping)
+				if overlapping == 0:
+					sb = DEFAULT_BORDER_STYLE
+					pc.add_theme_stylebox_override("panel", sb)
+				else:
+					sb.bg_color = Color(DEFAULT_BORDER_BG_COLOR, DEFAULT_BORDER_BG_COLOR.a * overlapping * 1.05)
+					if selected_borders.size() <= 1:
+						sb.border_color = DEFAULT_BORDER_BORDER_COLOR
+					else:
+						sb.border_color = Color(DEFAULT_BORDER_BORDER_COLOR, 0.1)
+					# 还原时要看是否在边框，从而设定边框宽度
+					sb.set_border_width_all(0) # 先统一设为0
+					for a_border in selected_borders:
+						if a_border["start"] == last_selected_pos:
+							continue
+						var rect = a_border["rect"] as Rect2
+						if not rect.intersects(border["rect"]):
+							continue
+						if row == rect.position.x:
+							sb.border_width_top = 2
+						if col == rect.position.y:
+							sb.border_width_left = 2
+						if row == rect.end.x - 1:
+							sb.border_width_bottom = 2
+						if col == rect.end.y - 1:
+							sb.border_width_right = 2
+							
+	# TODO 最后一个不能被删除
 	
 	
 #func get_border(type):
