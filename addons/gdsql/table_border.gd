@@ -1,5 +1,5 @@
 @tool
-extends PanelContainer
+extends Control
 
 @onready var dash_border = $MarginContainerForDrag/DashBorder
 @onready var drag_area = $MarginContainer/Panel/MarginContainer/DragArea
@@ -7,9 +7,6 @@ extends PanelContainer
 @onready var margin_container_for_drag = $MarginContainerForDrag
 @onready var panel = $MarginContainer/Panel
 
-enum APPERANCE_FLAG {
-	APPERANCE_
-}
 
 var start_drag = false
 var start_drag_position = Vector2.ZERO

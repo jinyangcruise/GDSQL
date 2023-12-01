@@ -1,0 +1,48 @@
+[gd_scene load_steps=3 format=3 uid="uid://bo2ofaxmvh7qc"]
+
+[ext_resource type="Script" path="res://addons/gdsql/table/cornor_dragger.gd" id="1_db7ec"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_chohr"]
+bg_color = Color(0.8, 0.8, 0.8, 1)
+border_width_left = 4
+border_width_top = 4
+corner_detail = 1
+anti_aliasing = false
+
+[node name="CornorDragger" type="MarginContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_right = -6
+script = ExtResource("1_db7ec")
+
+[node name="Panel" type="Panel" parent="."]
+custom_minimum_size = Vector2(10, 10)
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 8
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_chohr")
+
+[node name="MarginContainer" type="MarginContainer" parent="Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = -5
+theme_override_constants/margin_top = -5
+theme_override_constants/margin_right = -5
+theme_override_constants/margin_bottom = -5
+
+[node name="DragArea" type="Control" parent="Panel/MarginContainer"]
+layout_mode = 2
+mouse_force_pass_scroll_events = false
+mouse_default_cursor_shape = 3
+
+[connection signal="gui_input" from="Panel/MarginContainer/DragArea" to="." method="_on_drag_area_gui_input"]

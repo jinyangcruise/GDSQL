@@ -1,22 +1,14 @@
-[gd_scene load_steps=7 format=3 uid="uid://c878qnlmkmqbq"]
+[gd_scene load_steps=6 format=3 uid="uid://c878qnlmkmqbq"]
 
 [ext_resource type="Script" path="res://addons/gdsql/table_border.gd" id="1_e5j1h"]
 [ext_resource type="Shader" path="res://addons/gdsql/shader/table_border.gdshader" id="1_mqf3e"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ew56t"]
-bg_color = Color(1, 1, 1, 0.560784)
-draw_center = false
-border_width_left = 1
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.8, 0.8, 0.8, 0.6)
+[ext_resource type="PackedScene" uid="uid://bo2ofaxmvh7qc" path="res://addons/gdsql/table/cornor_dragger.tscn" id="3_ibgkb"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_l6bgx"]
 shader = ExtResource("1_mqf3e")
-shader_parameter/size = Vector2(232, 80)
-shader_parameter/dash_length_x = 3.01299
-shader_parameter/dash_length_y = 2.96296
+shader_parameter/size = Vector2(3840, 2160)
+shader_parameter/dash_length_x = 2.99766
+shader_parameter/dash_length_y = 2.99584
 shader_parameter/moving_speed = 0.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pd7qo"]
@@ -31,24 +23,29 @@ expand_margin_right = 2.0
 expand_margin_bottom = 2.0
 anti_aliasing = false
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_chohr"]
-bg_color = Color(0.8, 0.8, 0.8, 1)
-border_width_left = 4
-border_width_top = 4
-corner_detail = 1
-anti_aliasing = false
-
-[node name="TableBorder" type="PanelContainer"]
+[node name="TableBorder" type="Control"]
 z_index = 1
-offset_right = 165.0
-offset_bottom = 47.0
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 300.0
+offset_top = 600.0
+offset_right = 300.0
+offset_bottom = 600.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_ew56t")
 script = ExtResource("1_e5j1h")
 metadata/_edit_vertical_guides_ = [2.0]
 
 [node name="MarginContainerForDrag" type="MarginContainer" parent="."]
-layout_mode = 2
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
 
 [node name="DashBorder" type="Panel" parent="MarginContainerForDrag"]
@@ -58,37 +55,12 @@ layout_mode = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_pd7qo")
 
-[node name="MarginContainer" type="MarginContainer" parent="."]
-layout_mode = 2
-mouse_filter = 2
-theme_override_constants/margin_right = -4
-theme_override_constants/margin_bottom = -4
-
-[node name="Panel" type="Panel" parent="MarginContainer"]
-custom_minimum_size = Vector2(10, 10)
-layout_mode = 2
-size_flags_horizontal = 8
-size_flags_vertical = 8
-mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_chohr")
-
-[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/Panel"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-theme_override_constants/margin_left = -5
-theme_override_constants/margin_top = -5
-theme_override_constants/margin_right = -5
-theme_override_constants/margin_bottom = -5
-
-[node name="DragArea" type="Control" parent="MarginContainer/Panel/MarginContainer"]
-layout_mode = 2
-mouse_force_pass_scroll_events = false
-mouse_default_cursor_shape = 3
+[node name="MarginContainer" parent="." instance=ExtResource("3_ibgkb")]
+layout_mode = 0
+anchors_preset = 0
+anchor_right = 0.0
+anchor_bottom = 0.0
+grow_horizontal = 1
+grow_vertical = 1
 
 [connection signal="resized" from="MarginContainerForDrag/DashBorder" to="." method="_on_dash_border_resized"]
-[connection signal="gui_input" from="MarginContainer/Panel/MarginContainer/DragArea" to="." method="_on_drag_area_gui_input"]

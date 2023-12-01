@@ -102,6 +102,9 @@ var selected_borders = []
 var last_selected_pos = Vector2(0, 0) # 默认选中第一行第一列，不算表格的辅助内部节点
 var exclude_mode = false # 排除模式：ctrl到选区中时再次选择会开启排除模式，将选区变为非选区
 var exclude_border
+var cornor_dragger: Control
+var cornor_drag_start = false
+var dash_border: Control
 var DEFAULT_BORDER_STYLE = StyleBoxFlat.new()
 const DEFAULT_BORDER_BG_COLOR = Color(Color.WHITE, 0.05)
 const DEFAULT_BORDER_BORDER_COLOR = Color(Color.WHITE_SMOKE, 0.75)
@@ -587,6 +590,9 @@ func clear_borders() -> void:
 					pc.add_theme_stylebox_override("panel", DEFAULT_BORDER_STYLE)
 				pc.set_meta("overlapping", 0)
 	selected_borders.clear()
+	if is_instance_valid(cornor_dragger):
+		cornor_dragger.queue_free()
+		cornor_dragger = null
 	
 func clear_border_of_start(start: Vector2) -> void:
 	var i = -1
@@ -601,6 +607,9 @@ func clear_border_of_start(start: Vector2) -> void:
 					var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
 					pc.add_theme_stylebox_override("panel", DEFAULT_BORDER_STYLE)
 					pc.set_meta("overlapping", pc.get_meta("overlapping") - 1)
+					if is_instance_valid(cornor_dragger) and pc.is_ancestor_of(cornor_dragger):
+						cornor_dragger.queue_free()
+						cornor_dragger = null
 			selected_borders.remove_at(i)
 			break
 				
@@ -661,7 +670,7 @@ func add_border(border) -> void:
 			else:
 				printt("jjjjjjjjj")
 				# 如果按了ctrl，上一选区要把边框取消、起始点显示背景
-				if border["ctrl"]:
+				if border.has("ctrl") and border["ctrl"]:
 					printt("3333333 ctrl pressed")
 					var old_start_pos = (selected_borders.back()["rect"] as Rect2).position
 					var old_end_pos = (selected_borders.back()["rect"] as Rect2).end
@@ -746,7 +755,29 @@ func add_border(border) -> void:
 				printt("rrrrrr", sb.draw_center, row, col)
 			
 	selected_borders.push_back(border)
-	Utils.print_variant(selected_borders)
+	if selected_borders.size() == 1:
+		var end = (selected_borders.front()["rect"] as Rect2).end - Vector2.ONE
+		var pc = v_box_container.get_child(end.x).get_child(0).get_child(end.y) as PanelContainer
+		var sb = pc.get_theme_stylebox("panel") as StyleBoxFlat
+		var cd = preload("res://addons/gdsql/table/cornor_dragger.tscn").instantiate() as MarginContainer
+		cd.add_theme_constant_override("margin_right", -sb.expand_margin_right)
+		pc.add_child(cd)
+		cd.cornor_drag_start.connect(func():
+			printt("drag start")
+			var dc = preload("res://addons/gdsql/table/dash_border.tscn").instantiate()
+			var start_pc = v_box_container.get_child(start_pos.x).get_child(0).get_child(start_pos.y) as PanelContainer
+			borders_container.add_child(dc)
+			dc.global_position = start_pc.global_position - Vector2(sb.expand_margin_left, sb.expand_margin_top) + Vector2(sb.border_width_left, sb.border_width_top)
+			dc.size = cd.global_position - start_pc.global_position + cd.size + Vector2(sb.expand_margin_right, sb.expand_margin_bottom) - Vector2(sb.border_width_right, sb.border_width_bottom)
+		)
+		cd.cornor_drag_end.connect(func():
+			printt("drag end")
+		)
+		cornor_dragger = cd
+	else:
+		if is_instance_valid(cornor_dragger):
+			cornor_dragger.queue_free()
+			cornor_dragger = null
 	
 func add_exclude_border(border) -> void:
 	# 先还原（类似add_border中【和上一个选区是同一个起始点，要先还原一下（背景色）再重新画】这段逻辑
@@ -1144,7 +1175,6 @@ func commit_exclude_border():
 		selected_borders.remove_at(i)
 		
 	selected_borders.append_array(to_add)
-	exclude_border = null
 	Utils.print_variant(selected_borders)
 	
 	# 更新范围内的样式
@@ -1183,7 +1213,19 @@ func commit_exclude_border():
 						if col == rect.end.y - 1:
 							sb.border_width_right = 2
 							
-	# TODO 最后一个不能被删除
+	# 最后一个不能被删除，最后一个刚好是exclude_border的起始点
+	if selected_borders.is_empty():
+		var start = exclude_border["start"] as Vector2
+		var border = {"start": start, "rect": Rect2(start.x, start.y, 1, 1)}
+		add_border(border)
+	# 只剩一个，区分一下起始点的样式
+	elif selected_borders.size() == 1:
+		var start = selected_borders.front()["start"] as Vector2
+		var pc = v_box_container.get_child(start.x).get_child(0).get_child(start.y) as PanelContainer
+		var sb = pc.get_theme_stylebox("panel") as StyleBoxFlat
+		sb.draw_center = false
+		
+	exclude_border = null
 	
 	
 #func get_border(type):
@@ -1609,6 +1651,7 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 		panel_container = get_panel_container_under_mouse()
 		if panel_container == null:
 			return
+		scroll_container.ensure_control_visible(panel_container) # 超出scroll_container的边界时，要让scroll_container自己滚动
 		pos_row = panel_container.get_parent().get_parent().get_index()
 		pos_col = panel_container.get_index()
 		
