@@ -3,12 +3,16 @@ extends MarginContainer
 
 signal cornor_drag_start
 signal cornor_drag_end
+signal cornor_drag_moving(diff: Vector2)
 
 var start_drag = false
-var diff = Vector2.ZERO
+#var start_drag_position = Vector2.ZERO
+var init_diff = Vector2.ZERO
 
 @onready var margin_container = $Panel/MarginContainer
 @onready var drag_area = $Panel/MarginContainer/DragArea
+@onready var center = $Panel/Center
+
 
 func _on_drag_area_gui_input(event):
 	if event is InputEventMouseButton:
@@ -20,12 +24,17 @@ func _on_drag_area_gui_input(event):
 		else:
 			if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 				start_drag = true
+				init_diff = get_global_mouse_position() - center.global_position
+				printt("rttttt init_diff", init_diff)
+				#start_drag_position = get_global_mouse_position()
 				cornor_drag_start.emit()
 				
 	elif event is InputEventMouseMotion and start_drag:
-		drag_area.global_position = get_global_mouse_position() + diff
-				
+		var diff = get_global_mouse_position() - center.global_position - init_diff
+		#drag_area.global_position = get_global_mouse_position() + diff
+		cornor_drag_moving.emit(diff)
+		
 func on_stop_drag():
-	margin_container.remove_child(drag_area)
-	margin_container.add_child(drag_area)
+	#margin_container.remove_child(drag_area)
+	#margin_container.add_child(drag_area)
 	cornor_drag_end.emit()

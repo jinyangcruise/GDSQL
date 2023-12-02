@@ -24,6 +24,30 @@ extends Control
 		show_bottom = val
 		var a_material = panel_dash_border.material as ShaderMaterial
 		a_material.set_shader_parameter("show_bottom", show_bottom)
+		
+@export var expand_margin_left: int = 0:
+	set(val):
+		expand_margin_left = val
+		var sb = panel_dash_border.get_theme_stylebox("panel") as StyleBoxFlat
+		sb.expand_margin_left = val
+		
+@export var expand_margin_right: int = 0:
+	set(val):
+		expand_margin_right = val
+		var sb = panel_dash_border.get_theme_stylebox("panel") as StyleBoxFlat
+		sb.expand_margin_right = val
+		
+@export var expand_margin_top: int = 0:
+	set(val):
+		expand_margin_top = val
+		var sb = panel_dash_border.get_theme_stylebox("panel") as StyleBoxFlat
+		sb.expand_margin_top = val
+		
+@export var expand_margin_bottom: int = 0:
+	set(val):
+		expand_margin_bottom = val
+		var sb = panel_dash_border.get_theme_stylebox("panel") as StyleBoxFlat
+		sb.expand_margin_bottom = val
 
 @onready var panel_dash_border = $PanelDashBorder
 
@@ -35,11 +59,11 @@ func _on_panel_dash_border_resized():
 		a_material.set_shader_parameter("size", panel_dash_border.size)
 		
 		var count_x = int(floor(panel_dash_border.size.x / line_width))
-		if count_x % 2 == 1:
+		if count_x % 2 == 0:
 			count_x += 1
 		a_material.set_shader_parameter("dash_length_x", panel_dash_border.size.x / float(count_x))
 		
 		var count_y = int(floor(panel_dash_border.size.y / line_width))
-		if count_y % 2 == 1:
+		if count_y % 2 == 0:
 			count_y += 1
 		a_material.set_shader_parameter("dash_length_y", panel_dash_border.size.y / float(count_y))

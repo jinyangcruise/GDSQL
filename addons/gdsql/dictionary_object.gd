@@ -130,7 +130,7 @@ func _get_by_index(index: int) -> Variant:
 	return _get(__get_index_prop(index))
 	
 	
-## 获取index位置的属性名称
+## 获取index位置的属性名称。对于连接属性，key也必须存在于_data中。
 func __get_index_prop(index) -> String:
 	var i = 0
 	for key in _data:
@@ -144,6 +144,16 @@ func __get_index_prop(index) -> String:
 # 前提是index位置的属性是存在的
 func _set_by_index(index: int, value: Variant) -> bool:
 	return _set(__get_index_prop(index), value)
+	
+# 把index属性设置为同类型变量的默认值
+func _set_default_by_index(index:int) -> bool:
+	var prop = __get_index_prop(index)
+	if _duplicate_property.has(prop):
+		prop = _data[prop]
+		
+	var type = _hint[prop]["type"] if (_hint.has(prop) and _hint[prop].has("type")) \
+		else (TYPE_NIL if _data[prop] == null else typeof(_data[prop]))
+	return _set(prop, DataTypeDef.DEFUALT_VALUES[type])
 	
 ## 设置属性为链接属性，链接属性的值指向到被链接的属性的值。
 ## 被链接属性的名称可以从_hint[链接属性]["link"]获取到。

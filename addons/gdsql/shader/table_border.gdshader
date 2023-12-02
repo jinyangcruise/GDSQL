@@ -22,7 +22,7 @@ void fragment() {
 	uv.y -= id_y;
 	
 	//COLOR.a = 1.0 - step(1.0, mod(id_x + id_y, 2.0));
-	float a = step(1.0, mod(id_x + id_y, 2.0));
+	float a = 1.0 - step(1.0, mod(id_x + id_y, 2.0));
 	if (a > 0.0) {
 		if (!show_left) {
 			a *= float(id_x > 0.0);

@@ -10,6 +10,10 @@ shader_parameter/size = Vector2(3840, 2160)
 shader_parameter/dash_length_x = 2.99766
 shader_parameter/dash_length_y = 2.99584
 shader_parameter/moving_speed = 0.0
+shader_parameter/show_top = true
+shader_parameter/show_bottom = true
+shader_parameter/show_left = true
+shader_parameter/show_right = true
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_pd7qo"]
 draw_center = false
