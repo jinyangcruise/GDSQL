@@ -1400,32 +1400,32 @@ func add_autofill_border(start_pos: Vector2, end_pos: Vector2, mode: String) -> 
 				dc.show_right = col == end_pos.y - 1
 				
 				if col == 0:
-					dc.expand_margin_left = 2 if sb.border_width_left > 0 else 0
+					dc.expand_margin_left = -2 if sb.border_width_left > 0 else 0
 				elif sb.border_width_left > 0:
-					dc.expand_margin_left = 8
+					dc.expand_margin_left = -8
 				else:
-					dc.expand_margin_left = 6 + 4 * int(col > start_pos.y)
+					dc.expand_margin_left = -6 - 4 * int(col > start_pos.y)
 					
 				if col == columns.size() - 1:
-					dc.expand_margin_right = 2 if sb.border_width_right > 0 else 0
+					dc.expand_margin_right = -2 if sb.border_width_right > 0 else 0
 				elif sb.border_width_right > 0:
-					dc.expand_margin_right = 8
+					dc.expand_margin_right = -8
 				else:
-					dc.expand_margin_right = 6 + 4 * int(col < end_pos.y - 1)
+					dc.expand_margin_right = -6 - 4 * int(col < end_pos.y - 1)
 					
 				if row == 0:
-					dc.expand_margin_top = 2 if sb.border_width_top > 0 else 0
+					dc.expand_margin_top = -2 if sb.border_width_top > 0 else 0
 				elif sb.border_width_top > 0:
-					dc.expand_margin_top = 2
+					dc.expand_margin_top = -2
 				else:
-					dc.expand_margin_top = 0 + 2 * int(col > start_pos.y)
+					dc.expand_margin_top = 0# - 2 * int(col > start_pos.y)
 					
 				if row == datas.size() - 1:
-					dc.expand_margin_bottom = -1 if sb.border_width_bottom > 0 else -3
+					dc.expand_margin_bottom = -2 if sb.border_width_bottom > 0 else 0
 				elif sb.border_width_bottom > 0:
-					dc.expand_margin_bottom = -1
+					dc.expand_margin_bottom = -2
 				else:
-					dc.expand_margin_bottom = -3 - 2 * int(row < end_pos.x - 1)# TODO 放大时有问题
+					dc.expand_margin_bottom = 0 - 2 * int(row < end_pos.x - 1)
 				
 	autofill_info = {
 		"start": start_pos,
@@ -1468,8 +1468,95 @@ func commit_autofill_border() -> void:
 					data._set_default_by_index(col)
 					
 		"add":
-			# TODO
-			pass
+			# 寻找字符串中最后一组数字的正则方式
+			var regex = RegEx.new()
+			regex.compile(r"[0-9]+(?=[^0-9]*$)")
+			
+			var add_rect = Rect2()
+			# 起始点不变的情况，只有向右扩展和向下扩展两种情况
+			if autofill_rect.position == selected_rect.position:
+				# 向右扩展
+				if autofill_rect.size.y > selected_rect.size.y:
+					add_rect.position = Vector2(selected_rect.position.x, selected_rect.end.y)
+					add_rect.size = Vector2(selected_rect.size.x, autofill_rect.size.y - selected_rect.size.y)
+					
+					# 原选区只有一列
+					if selected_rect.size.y == 1:
+						# 数字递增。每行属于一个作用域
+						for row in range(add_rect.position.x, add_rect.end.x):
+							## 原选区列类型和值
+							#var ref_data = v_box_container.get_child(selected_rect.position.x).get_meta("data") as DictionaryObject
+							#var value = ref_data._get_by_index(selected_rect.position.y)
+							#var data_type = typeof(value)
+							
+							var row_panel_container = v_box_container.get_child(row)
+							var data = row_panel_container.get_meta("data") as DictionaryObject # data是一行的数据，自然也包括原选区的字段
+							var ref_value = data._get_by_index(add_rect.position.y - 1)
+							var s = ""
+							match typeof(ref_value):
+								TYPE_STRING, TYPE_STRING_NAME:
+									s = ref_value
+								TYPE_OBJECT:
+									if ref_value is Resource and not ref_value.resource_path.contains("::"):
+										s = ref_value.resource_path
+										
+							var m = regex.search(s) if not s.is_empty() else null
+							# 没有数字，那么就把相同类型的字段设置成同一个数据;
+							# 有数字，要递增1
+							var start = -1
+							var end = -1
+							var init_index = -1
+							var init_length = 0
+							if m != null:
+								start = m.get_start()
+								end = m.get_end()
+								init_index = int(m.get_string())
+								init_length = m.get_string().length() # 位数不足时需要补足位数
+								
+							# 数字随着列序号的增加而递增（m存在时）
+							var incre = 0
+							for col in range(add_rect.position.y, add_rect.end.y):
+								# 类型一致才设置
+								if data.get_prop_type_by_index(col) == typeof(ref_value):
+									if m:
+										incre += 1
+										var new_s = s.substr(0, start) + str(init_index + incre).lpad(init_length, "0") + \
+											s.substr(end, s.length())
+										match typeof(ref_value):
+											TYPE_STRING, TYPE_STRING_NAME:
+												data._set_by_index(col, new_s)
+											TYPE_OBJECT:
+												data._set_by_index(col, load(new_s))
+									else:
+										match typeof(ref_value):
+											TYPE_INT, TYPE_FLOAT:
+												incre += 1
+												data._set_by_index(col, ref_value + incre)
+											_:
+												data._set_by_index(col, ref_value) # NOTICE 这里会使多个格子持有同一个对象
+								# 如果类型不一致，就不设置了
+								else:
+									pass # leave empty intentionally
+								#TODO test this branch
+				# 向下扩展
+				else:
+					add_rect.position = Vector2(selected_rect.end.x, selected_rect.position.y)
+					add_rect.size = Vector2(autofill_rect.size.x - selected_rect.size.x, selected_rect.size.y)
+					# TODO
+			# 起始点变的情况：向左扩展或向上扩展
+			else:
+				# 向左扩展
+				if autofill_rect.size.y > selected_rect.size.y:
+					add_rect.position = autofill_rect.position
+					add_rect.size = Vector2(selected_rect.size.x, autofill_rect.size.y - selected_rect.size.y)
+				# 向上扩展
+				else:
+					add_rect.position = autofill_rect.position
+					add_rect.size = Vector2(autofill_rect.size.x - selected_rect.size.x, selected_rect.size.y)
+					
+			printt("*******")
+			Utils.print_variant(add_rect)
+			printt("*******")
 			
 	var diff_rect = autofill_info["rect"]
 	Utils.print_variant(selected_borders)

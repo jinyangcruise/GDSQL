@@ -45,6 +45,15 @@ func _notification(what):
 func get_data() -> Dictionary:
 	return _data
 	
+func get_prop_type(prop: String) -> int:
+	return _hint[prop]["type"] if (_hint.has(prop) and _hint[prop].has("type")) \
+		else (TYPE_NIL if _data[prop] == null else typeof(_data[prop]))
+		
+func get_prop_type_by_index(index: int) -> int:
+	var prop = __get_index_prop(index)
+	return _hint[prop]["type"] if (_hint.has(prop) and _hint[prop].has("type")) \
+		else (TYPE_NIL if _data[prop] == null else typeof(_data[prop]))
+	
 func get_visible_data() -> Dictionary:
 	var ret = {}
 	for key in _data:
