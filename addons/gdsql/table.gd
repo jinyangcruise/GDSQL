@@ -1495,6 +1495,26 @@ func commit_autofill_border() -> void:
 			var regex = RegEx.new()
 			regex.compile(r"[0-9]+(?=[^0-9]*$)")
 			
+			# range_outer: 外层循环
+			# range_inner: 内层循环
+			# outer_is_row: 外层循环是行序号
+			# positive: 向x轴或y轴的正方向扩展
+			var fill = func(range_outer: Array, range_inner: Array, outer_is_row: bool, positive: bool):
+				for i in range_outer:
+					var data: DictionaryObject
+					var ref_value
+					var value_type
+					var s = ""
+					if outer_is_row:
+						data = datas[i] as DictionaryObject
+						#ref_value = data._get_by_index(rect.position.y - 1)TODO
+						
+					for j in range_inner:
+						if not outer_is_row:
+							data = datas[j] as DictionaryObject
+						#var 
+						
+			
 			var add_rect = Rect2()
 			# 起始点不变的情况，只有向右扩展和向下扩展两种情况
 			if autofill_rect.position == selected_rect.position:
@@ -1565,6 +1585,8 @@ func commit_autofill_border() -> void:
 												printt("xxxxxxxx", col, ref_value)
 					# 多列
 					else:
+						
+						
 						pass
 				# 向下扩展
 				else:
@@ -2030,7 +2052,7 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 			printt("exclude mode 9999999999")
 			add_exclude_border(border)
 		else:
-			printt("777777777777777777777")
+			printt("222222")
 			printt("add border", start_pos, end_pos)
 			add_border(border)
 			
