@@ -375,89 +375,8 @@ func add_row(a_data):
 			
 		# 否则，用表格自带的显示控件
 		if not handled:
-			match typeof(data[i]):
-				TYPE_BOOL:
-					handled = true
-					control = check_box_model.duplicate()
-					control.button_pressed = data[i]
-					control.tooltip_text = str(data[i])
-					control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
-					if col_index >= 0 and a_data is DictionaryObject:
-						a_data = a_data as DictionaryObject
-						var callback = func(new_value, control_ref: WeakRef):
-							var ctl = control_ref.get_ref()
-							if ctl:
-								ctl.button_pressed = new_value
-						 # 绕这么一圈用弱引用是怕内存溢出
-						a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
-				TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME:
-					handled = true
-					control = label_model.duplicate()
-					control.text = str(data[i])
-					control.tooltip_text = str(data[i])
-					control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
-					if col_index >= 0 and a_data is DictionaryObject:
-						a_data = a_data as DictionaryObject
-						var callback = func(new_value, control_ref: WeakRef):
-							var ctl = control_ref.get_ref()
-							if ctl:
-								ctl.text = str(new_value)
-						a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
-				TYPE_OBJECT:
-					if data[i] is Resource:
-						handled = true
-						if data[i] is Texture2D:
-							var texture_rect = TextureRect.new()
-							texture_rect.texture = data[i]
-							texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-							texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-							texture_rect.tooltip_text = \
-								"%s\nType: %s\nSize: %s" % [data[i].resource_path, data[i].get_class(), data[i].get_size()]
-							control = texture_rect
-							control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
-							if col_index >= 0 and i < data.size() - 1 and a_data is DictionaryObject:
-								var callback = func(new_value, control_ref: WeakRef):
-									var ctl = control_ref.get_ref()
-									if ctl:
-										ctl.texture = new_value
-								a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
-						else:
-							## 注意：EditorResourcePicker有些慢，如果数据量比较大，会很卡，所以尽可能把常用的类型单独处理，比如上面的Texture2D
-							var editor_resource_picker := EditorResourcePicker.new()
-							#editor_resource_picker.mouse_filter = Control.MOUSE_FILTER_IGNORE
-							#editor_resource_picker.propagate_call("set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
-							editor_resource_picker.base_type = "Resource"
-							editor_resource_picker.edited_resource = data[i]
-							editor_resource_picker.editable = false
-							control = editor_resource_picker
-							control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
-							if col_index >= 0 and i < data.size() - 1 and a_data is DictionaryObject:
-								var callback = func(new_value, control_ref: WeakRef):
-									var ctl = control_ref.get_ref()
-									if ctl:
-										ctl.edited_resource = new_value
-								a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
-						#control = texture_rect_model.duplicate()
-						#control.texture = data[i]
-					elif data[i] is Control:
-						handled = true
-						control = data[i]
-					## TODO 可能需要添加其他有必要预览的类型
-				
-		if not handled:
-			control = label_model.duplicate()
-			control.text = var_to_str(data[i])
-			control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
-			if col_index >= 0 and a_data is DictionaryObject and a_data.has_method("set_update_callback"):
-				a_data = a_data as DictionaryObject
-				var callback = func(new_value, control_ref: WeakRef):
-					var ctl = control_ref.get_ref()
-					if ctl:
-						ctl.text = var_to_str(new_value)
-				a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
+			control = get_control_by_data_type(data[i], a_data, col_index)
 			
-		#control.set_meta("data", data[i])
-		#control.gui_input.connect(_on_label_model_gui_input.bind(control), CONNECT_DEFERRED)
 		# 表格刷新时某些自定义控件可能需要重复使用，要去掉parent
 		var panel_container = PanelContainer.new()
 		panel_container.set_meta("overlapping", 0) # 选区重叠次数
@@ -482,9 +401,114 @@ func add_row(a_data):
 			control.reparent(panel_container)
 		if i == 0 or i == data.size() - 1:
 			panel_container.hide()
-		panel_container.size_flags_stretch_ratio = buttons[i].size.x + 6 # HSplitContainer间隔为8，两边各取一半
+		panel_container.size_flags_stretch_ratio = buttons[i].size.x + 6 # HSplitContainer间隔为12，两边各取一半
 		
 		
+## 表格为各种数据类型提供的显示控件
+func get_control_by_data_type(data, a_data, col_index) -> Control:
+	var control: Control
+	var handled = false
+	match typeof(data):
+		TYPE_BOOL:
+			handled = true
+			control = check_box_model.duplicate()
+			control.button_pressed = data
+			control.tooltip_text = str(data)
+			if col_index >= 0:
+				control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
+			if col_index >= 0 and a_data is DictionaryObject:
+				a_data = a_data as DictionaryObject
+				var callback = func(new_value, control_ref: WeakRef):
+					var ctl = control_ref.get_ref()
+					if ctl:
+						ctl.button_pressed = new_value
+				 # 绕这么一圈用弱引用是怕内存溢出
+				a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
+		TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME:
+			handled = true
+			control = label_model.duplicate()
+			control.text = str(data)
+			control.tooltip_text = control.text
+			if col_index >= 0:
+				control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
+			if col_index >= 0 and a_data is DictionaryObject:
+				a_data = a_data as DictionaryObject
+				var callback = func(new_value, control_ref: WeakRef):
+					var ctl = control_ref.get_ref()
+					if ctl:
+						ctl.text = str(new_value)
+				a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
+		TYPE_OBJECT:
+			if data is Resource:
+				handled = true
+				if data is Texture2D:
+					var texture_rect = TextureRect.new()
+					texture_rect.texture = data
+					texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+					texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+					texture_rect.tooltip_text = \
+						"%s\nType: %s\nSize: %s" % [data.resource_path, data.get_class(), data.get_size()]
+					control = texture_rect
+					if col_index >= 0:
+						control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
+					if col_index >= 0 and a_data is DictionaryObject:
+						var callback = func(new_value, control_ref: WeakRef):
+							var ctl = control_ref.get_ref()
+							if ctl:
+								ctl.texture = new_value
+						a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
+				else:
+					## 注意：EditorResourcePicker有些慢，如果数据量比较大，会很卡，所以尽可能把常用的类型单独处理，比如上面的Texture2D
+					var editor_resource_picker := EditorResourcePicker.new()
+					#editor_resource_picker.mouse_filter = Control.MOUSE_FILTER_IGNORE
+					#editor_resource_picker.propagate_call("set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
+					editor_resource_picker.base_type = "Resource"
+					editor_resource_picker.edited_resource = data
+					editor_resource_picker.editable = false
+					control = editor_resource_picker
+					if col_index >= 0:
+						control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
+					if col_index >= 0 and a_data is DictionaryObject:
+						var callback = func(new_value, control_ref: WeakRef):
+							var ctl = control_ref.get_ref()
+							if ctl:
+								ctl.edited_resource = new_value
+						a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
+			elif data is Control:
+				handled = true
+				control = data
+			## TODO 可能需要添加其他有必要预览的类型
+		
+	if not handled:
+		control = label_model.duplicate()
+		control.text = var_to_str(data)
+		control.tooltip_text = control.text
+		if col_index >= 0:
+			control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
+		if col_index >= 0 and a_data is DictionaryObject:
+			a_data = a_data as DictionaryObject
+			var callback = func(new_value, control_ref: WeakRef):
+				var ctl = control_ref.get_ref()
+				if ctl:
+					# 新值的类型仍旧需要用label进行显示
+					if [TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME].has(typeof(new_value)):
+						ctl.text = str(new_value)
+						ctl.tooltip_text = ctl.text
+					# object的，但是需要用label显示的
+					elif new_value is Object and not (new_value is Resource or new_value is Control):
+						ctl.text = var_to_str(new_value)
+						ctl.tooltip_text = ctl.text
+					# 新值的类型可能需要改变控件类型
+					else:
+						var new_ctl = get_control_by_data_type(new_value, a_data, col_index)
+						ctl.replace_by(new_ctl)
+						ctl.queue_free()
+						
+			a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
+			
+	return control
+	
+	
 func clear_rows():
 	clear_borders()
 	while v_box_container.get_child_count() > 0:
@@ -1462,8 +1486,7 @@ func commit_autofill_border() -> void:
 				
 			# 删除部分的属性设置为该数据类型的默认值
 			for row in range(sub_rect.position.x, sub_rect.end.x):
-				var row_panel_container = v_box_container.get_child(row)
-				var data = row_panel_container.get_meta("data") as DictionaryObject
+				var data = datas[row] as DictionaryObject
 				for col in range(sub_rect.position.y, sub_rect.end.y):
 					data._set_default_by_index(col)
 					
@@ -1489,11 +1512,11 @@ func commit_autofill_border() -> void:
 							#var value = ref_data._get_by_index(selected_rect.position.y)
 							#var data_type = typeof(value)
 							
-							var row_panel_container = v_box_container.get_child(row)
-							var data = row_panel_container.get_meta("data") as DictionaryObject # data是一行的数据，自然也包括原选区的字段
+							var data = datas[row] as DictionaryObject # data是一行的数据，自然也包括原选区的字段
 							var ref_value = data._get_by_index(add_rect.position.y - 1)
+							var value_type = typeof(ref_value)
 							var s = ""
-							match typeof(ref_value):
+							match value_type:
 								TYPE_STRING, TYPE_STRING_NAME:
 									s = ref_value
 								TYPE_OBJECT:
@@ -1513,31 +1536,36 @@ func commit_autofill_border() -> void:
 								init_index = int(m.get_string())
 								init_length = m.get_string().length() # 位数不足时需要补足位数
 								
-							# 数字随着列序号的增加而递增（m存在时）
+							# 数字随着列序号的增加而递增
 							var incre = 0
 							for col in range(add_rect.position.y, add_rect.end.y):
-								# 类型一致才设置
-								if data.get_prop_type_by_index(col) == typeof(ref_value):
+								incre += 1
+								# 类型一致或可以无损转化才设置。如果类型不一致，就不设置了
+								var prop_type = data.get_prop_type_by_index(col)
+								if can_transfer(value_type, prop_type, ref_value):
 									if m:
-										incre += 1
-										var new_s = s.substr(0, start) + str(init_index + incre).lpad(init_length, "0") + \
-											s.substr(end, s.length())
-										match typeof(ref_value):
+										var new_s
+										if s.is_valid_float() and (prop_type == TYPE_INT or prop_type == TYPE_FLOAT):
+											new_s = type_convert(s, prop_type) + incre
+										else:
+											new_s = s.substr(0, start) + str(init_index + incre).lpad(init_length, "0") + \
+												s.substr(end, s.length())
+												
+										match value_type:
 											TYPE_STRING, TYPE_STRING_NAME:
-												data._set_by_index(col, new_s)
+												data._set_by_index(col, type_convert(new_s, prop_type))
 											TYPE_OBJECT:
 												data._set_by_index(col, load(new_s))
 									else:
-										match typeof(ref_value):
+										match value_type:
 											TYPE_INT, TYPE_FLOAT:
-												incre += 1
-												data._set_by_index(col, ref_value + incre)
+												data._set_by_index(col, type_convert(ref_value + incre, prop_type))
 											_:
 												data._set_by_index(col, ref_value) # NOTICE 这里会使多个格子持有同一个对象
-								# 如果类型不一致，就不设置了
-								else:
-									pass # leave empty intentionally
-								#TODO test this branch
+												printt("xxxxxxxx", col, ref_value)
+					# 多列
+					else:
+						pass
 				# 向下扩展
 				else:
 					add_rect.position = Vector2(selected_rect.end.x, selected_rect.position.y)
@@ -1554,15 +1582,29 @@ func commit_autofill_border() -> void:
 					add_rect.position = autofill_rect.position
 					add_rect.size = Vector2(autofill_rect.size.x - selected_rect.size.x, selected_rect.size.y)
 					
-			printt("*******")
-			Utils.print_variant(add_rect)
-			printt("*******")
+			#printt("*******")
+			#Utils.print_variant(add_rect)
+			#printt("*******")
 			
 	var diff_rect = autofill_info["rect"]
-	Utils.print_variant(selected_borders)
-	Utils.print_variant(autofill_info)
+	#Utils.print_variant(selected_borders)
+	#Utils.print_variant(autofill_info)
 	
 	autofill_info = null
+	
+## 判断变量类型from能否无损转化成变量类型to
+func can_transfer(from: int, to: int, from_value: Variant) -> bool:
+	if from == to:
+		return true
+	if (from == TYPE_STRING or from == TYPE_STRING_NAME) and (to == TYPE_INT or to == TYPE_FLOAT):
+		return from_value.is_valid_float()
+	if (from == TYPE_INT or from == TYPE_FLOAT) and (to == TYPE_STRING or to == TYPE_STRING_NAME):
+		return true
+	if from == TYPE_INT and to == TYPE_FLOAT:
+		return true
+	if from == TYPE_FLOAT and to == TYPE_INT:
+		return true
+	return false
 	
 ## 支持批量编辑多个数据
 func inspect_highlight_rows() -> void:
