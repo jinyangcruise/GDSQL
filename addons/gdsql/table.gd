@@ -1491,6 +1491,52 @@ func commit_autofill_border() -> void:
 					data._set_default_by_index(col)
 					
 		"add":
+			var add_rect = Rect2()
+			if autofill_rect.position == selected_rect.position:
+				# 向右扩展
+				if autofill_rect.size.y > selected_rect.size.y:
+					add_rect.position = Vector2(selected_rect.position.x, selected_rect.end.y)
+					add_rect.size = Vector2(selected_rect.size.x, autofill_rect.size.y - selected_rect.size.y)
+					
+					#for i in range(selected_rect.position.x, selected_rect.end.x):
+					var range_outer = range(selected_rect.position.x, selected_rect.end.x)
+					var range_inner = range(selected_rect.position.y, selected_rect.end.y)
+					var outer_is_row = true
+					
+					for i in range_outer:
+						var data: DictionaryObject
+						var ref_value
+						var value_type
+						var s = ""
+						if outer_is_row:
+							data = datas[i] as DictionaryObject
+							#ref_value = data._get_by_index(rect.position.y - 1)TODO
+							
+						for j in range_inner:
+							if not outer_is_row:
+								data = datas[j] as DictionaryObject
+					
+				# 向下扩展
+				else:
+					add_rect.position = Vector2(selected_rect.end.x, selected_rect.position.y)
+					add_rect.size = Vector2(autofill_rect.size.x - selected_rect.size.x, selected_rect.size.y)
+					pass
+			# 起始点变的情况：向左扩展或向上扩展
+			else:
+				# 向左扩展
+				if autofill_rect.size.y > selected_rect.size.y:
+					add_rect.position = autofill_rect.position
+					add_rect.size = Vector2(selected_rect.size.x, autofill_rect.size.y - selected_rect.size.y)
+					pass
+				# 向上扩展
+				else:
+					add_rect.position = autofill_rect.position
+					add_rect.size = Vector2(autofill_rect.size.x - selected_rect.size.x, selected_rect.size.y)
+					pass
+			
+			
+			
+			######################################################
 			# 寻找字符串中最后一组数字的正则方式
 			var regex = RegEx.new()
 			regex.compile(r"[0-9]+(?=[^0-9]*$)")
@@ -1515,7 +1561,7 @@ func commit_autofill_border() -> void:
 						#var 
 						
 			
-			var add_rect = Rect2()
+			#var add_rect = Rect2()
 			# 起始点不变的情况，只有向右扩展和向下扩展两种情况
 			if autofill_rect.position == selected_rect.position:
 				# 向右扩展
