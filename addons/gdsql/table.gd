@@ -786,170 +786,173 @@ func add_border(border) -> void:
 			
 	selected_borders.push_back(border)
 	if selected_borders.size() == 1:
-		var start = (selected_borders.front()["rect"] as Rect2).position
-		var end = (selected_borders.front()["rect"] as Rect2).end - Vector2.ONE
-		var pc = v_box_container.get_child(end.x).get_child(0).get_child(end.y) as PanelContainer
-		var sb = pc.get_theme_stylebox("panel") as StyleBoxFlat
-		var cd = preload("res://addons/gdsql/table/cornor_dragger.tscn").instantiate() as MarginContainer
-		cd.add_theme_constant_override("margin_right", -sb.expand_margin_right)
-		pc.add_child(cd)
-		cd.cornor_drag_start.connect(func():
-			printt("drag start")
-			add_autofill_border(start, end + Vector2.ONE, "start")
-		)
-		cd.cornor_drag_moving.connect(func(diff: Vector2):
-			printt("drag moving")
-			var panel_container = get_panel_container_under_mouse()
-			if panel_container == null:
-				printt("panel is null")
-				return
-			scroll_container.ensure_control_visible(panel_container) # 超出scroll_container的边界时，要让scroll_container自己滚动
-			var pos_row = panel_container.get_parent().get_parent().get_index()
-			var pos_col = panel_container.get_index()
-			# TODO 如果panel_container在上下左右外侧（非内侧、非斜外侧），则稳定多出一块。否则再使用下方的逻辑。
-			if diff.x > 0:
-				if diff.y > 0:
-					if diff.x > diff.y:
-						# 向右多出一块
-						# #####¯¯¯⌉
-						# #####   |
-						# #####___⌋
-						printt("--------------------1", diff)
-						add_autofill_border(start, Vector2(end.x, pos_col) + Vector2.ONE, "add")
-					else:
-						# 向下多出一块
-						# #########
-						# #########
-						# |       |
-						# ⌊_______⌋
-						printt("--------------------2", diff)
-						add_autofill_border(start, Vector2(pos_row, end.y) + Vector2.ONE, "add")
-				else:
-					if diff.x > -diff.y:
-						# 向右多出一块
-						# #####¯¯¯⌉
-						# #####   |
-						# #####___⌋
-						printt("--------------------3", diff)
-						add_autofill_border(start, Vector2(end.x, pos_col) + Vector2.ONE, "add")
-					else:
-						# 向上缩小一块
-						if pos_row > start.x:
-							printt("--------------------4", diff)
-							var rect = panel_container.get_rect() as Rect2
-							rect.size.y /= 2
-							if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
-								add_autofill_border(start, Vector2(pos_row - 1, end.y) + Vector2.ONE, "sub")
-							else:
-								add_autofill_border(start, Vector2(pos_row, end.y) + Vector2.ONE, 
-									"sub" if pos_row != end.x else "start")
-						# 全部缩
-						elif pos_row == start.x:
-							printt("--------------------5", diff)
-							var rect = panel_container.get_rect() as Rect2
-							rect.size.y /= 2
-							if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
-								add_autofill_border(start, end + Vector2.ONE, "sub")
-							else:
-								add_autofill_border(start, Vector2(pos_row, end.y) + Vector2.ONE, 
-									"sub" if pos_row != end.x else "start")
-						# 向上扩展
-						else:
-							printt("--------------------6", diff)
-							add_autofill_border(Vector2(pos_row, start.y), end + Vector2.ONE, "add")
-			else:
-				if diff.y > 0:
-					if -diff.x > diff.y:
-						# 向左缩一块
-						if pos_col > start.y:
-							printt("--------------------7", diff)
-							var rect = panel_container.get_rect() as Rect2
-							rect.size.x /= 2
-							if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
-								add_autofill_border(start, Vector2(end.x, pos_col-1) + Vector2.ONE, "sub")
-							else:
-								add_autofill_border(start, Vector2(end.x, pos_col) + Vector2.ONE, 
-									"sub" if pos_col != end.y else "start")
-						# 全部缩
-						elif pos_col == start.y:
-							printt("--------------------8", diff)
-							var rect = panel_container.get_rect() as Rect2
-							rect.size.x /= 2
-							if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
-								add_autofill_border(start, end + Vector2.ONE, "sub")
-							else:
-								add_autofill_border(start, Vector2(end.x, pos_col) + Vector2.ONE, 
-									"sub" if pos_col != end.y else "start")
-						# 向左扩展
-						else:
-							printt("--------------------9", diff)
-							add_autofill_border(Vector2(start.x, pos_col), end + Vector2.ONE, "add")
-					else:
-						# 向下多出一块
-						# #########
-						# #########
-						# |       |
-						# ⌊_______⌋
-						printt("--------------------16", diff)
-						add_autofill_border(start, Vector2(pos_row, end.y) + Vector2.ONE, "add")
-				else:
-					if -diff.x > -diff.y:
-						# 向左缩一块
-						if pos_col > start.y:
-							printt("--------------------13", diff)
-							var rect = panel_container.get_rect() as Rect2
-							rect.size.x /= 2
-							if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
-								add_autofill_border(start, Vector2(end.x, pos_col-1) + Vector2.ONE, "sub")
-							else:
-								add_autofill_border(start, Vector2(end.x, pos_col) + Vector2.ONE, 
-									"sub" if pos_col != end.y else "start")
-						# 全部缩
-						elif pos_col == start.y:
-							printt("--------------------14", diff)
-							var rect = panel_container.get_rect() as Rect2
-							rect.size.x /= 2
-							if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
-								add_autofill_border(start, end + Vector2.ONE, "sub")
-							else:
-								add_autofill_border(start, Vector2(end.x, pos_col) + Vector2.ONE, 
-									"sub" if pos_col != end.y else "start")
-						# 向左扩展
-						else:
-							printt("--------------------15", diff)
-							add_autofill_border(Vector2(start.x, pos_col), end + Vector2.ONE, "add")
-					else:
-						# 向上缩小一块
-						if pos_row > start.x:
-							printt("--------------------10", diff)
-							var rect = panel_container.get_rect() as Rect2
-							rect.size.y /= 2
-							if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
-								add_autofill_border(start, Vector2(pos_row - 1, end.y) + Vector2.ONE, "sub")
-							else:
-								add_autofill_border(start, Vector2(pos_row, end.y) + Vector2.ONE, 
-									"sub" if pos_row != end.x else "start")
-						# 全部缩
-						elif pos_row == start.x:
-							printt("--------------------11", diff)
-							var rect = panel_container.get_rect() as Rect2
-							rect.size.y /= 2
-							if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
-								add_autofill_border(start, end + Vector2.ONE, "sub")
-							else:
-								add_autofill_border(start, Vector2(pos_row, end.y) + Vector2.ONE, 
-									"sub" if pos_row != end.x else "start")
-						# 向上扩展
-						else:
-							printt("--------------------12", diff)
-							add_autofill_border(Vector2(pos_row, start.y), end + Vector2.ONE, "add")
-		)
-		cd.cornor_drag_end.connect(commit_autofill_border)
-		cornor_dragger = cd
+		add_cornor_dragger()
 	else:
 		if is_instance_valid(cornor_dragger):
 			cornor_dragger.queue_free()
 			cornor_dragger = null
+			
+func add_cornor_dragger():
+	if is_instance_valid(cornor_dragger):
+		cornor_dragger.queue_free()
+	var start = (selected_borders.front()["rect"] as Rect2).position
+	var end = (selected_borders.front()["rect"] as Rect2).end - Vector2.ONE
+	var pc = v_box_container.get_child(end.x).get_child(0).get_child(end.y) as PanelContainer
+	var sb = pc.get_theme_stylebox("panel") as StyleBoxFlat
+	var cd = preload("res://addons/gdsql/table/cornor_dragger.tscn").instantiate() as MarginContainer
+	cd.add_theme_constant_override("margin_right", -sb.expand_margin_right)
+	pc.add_child(cd)
+	cd.cornor_drag_start.connect(add_autofill_border.bind(start, end + Vector2.ONE, "start"))
+	cd.cornor_drag_moving.connect(on_cornor_drag_moving.bind(start, end))
+	cd.cornor_drag_end.connect(commit_autofill_border)
+	cornor_dragger = cd
+	
+func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
+	printt("drag moving")
+	var panel_container = get_panel_container_under_mouse()
+	if panel_container == null:
+		printt("panel is null")
+		return
+	scroll_container.ensure_control_visible(panel_container) # 超出scroll_container的边界时，要让scroll_container自己滚动
+	var pos_row = panel_container.get_parent().get_parent().get_index()
+	var pos_col = panel_container.get_index()
+	# TODO 如果panel_container在上下左右外侧（非内侧、非斜外侧），则稳定多出一块。否则再使用下方的逻辑。
+	if diff.x > 0:
+		if diff.y > 0:
+			if diff.x > diff.y:
+				# 向右多出一块
+				# #####¯¯¯⌉
+				# #####   |
+				# #####___⌋
+				printt("--------------------1", diff)
+				add_autofill_border(start, Vector2(end.x, pos_col) + Vector2.ONE, "add")
+			else:
+				# 向下多出一块
+				# #########
+				# #########
+				# |       |
+				# ⌊_______⌋
+				printt("--------------------2", diff)
+				add_autofill_border(start, Vector2(pos_row, end.y) + Vector2.ONE, "add")
+		else:
+			if diff.x > -diff.y:
+				# 向右多出一块
+				# #####¯¯¯⌉
+				# #####   |
+				# #####___⌋
+				printt("--------------------3", diff)
+				add_autofill_border(start, Vector2(end.x, pos_col) + Vector2.ONE, "add")
+			else:
+				# 向上缩小一块
+				if pos_row > start.x:
+					printt("--------------------4", diff)
+					var rect = panel_container.get_rect() as Rect2
+					rect.size.y /= 2
+					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
+						add_autofill_border(start, Vector2(pos_row - 1, end.y) + Vector2.ONE, "sub")
+					else:
+						add_autofill_border(start, Vector2(pos_row, end.y) + Vector2.ONE, 
+							"sub" if pos_row != end.x else "start")
+				# 全部缩
+				elif pos_row == start.x:
+					printt("--------------------5", diff)
+					var rect = panel_container.get_rect() as Rect2
+					rect.size.y /= 2
+					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
+						add_autofill_border(start, end + Vector2.ONE, "sub")
+					else:
+						add_autofill_border(start, Vector2(pos_row, end.y) + Vector2.ONE, 
+							"sub" if pos_row != end.x else "start")
+				# 向上扩展
+				else:
+					printt("--------------------6", diff)
+					add_autofill_border(Vector2(pos_row, start.y), end + Vector2.ONE, "add")
+	else:
+		if diff.y > 0:
+			if -diff.x > diff.y:
+				# 向左缩一块
+				if pos_col > start.y:
+					printt("--------------------7", diff)
+					var rect = panel_container.get_rect() as Rect2
+					rect.size.x /= 2
+					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
+						add_autofill_border(start, Vector2(end.x, pos_col-1) + Vector2.ONE, "sub")
+					else:
+						add_autofill_border(start, Vector2(end.x, pos_col) + Vector2.ONE, 
+							"sub" if pos_col != end.y else "start")
+				# 全部缩
+				elif pos_col == start.y:
+					printt("--------------------8", diff)
+					var rect = panel_container.get_rect() as Rect2
+					rect.size.x /= 2
+					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
+						add_autofill_border(start, end + Vector2.ONE, "sub")
+					else:
+						add_autofill_border(start, Vector2(end.x, pos_col) + Vector2.ONE, 
+							"sub" if pos_col != end.y else "start")
+				# 向左扩展
+				else:
+					printt("--------------------9", diff)
+					add_autofill_border(Vector2(start.x, pos_col), end + Vector2.ONE, "add")
+			else:
+				# 向下多出一块
+				# #########
+				# #########
+				# |       |
+				# ⌊_______⌋
+				printt("--------------------16", diff)
+				add_autofill_border(start, Vector2(pos_row, end.y) + Vector2.ONE, "add")
+		else:
+			if -diff.x > -diff.y:
+				# 向左缩一块
+				if pos_col > start.y:
+					printt("--------------------13", diff)
+					var rect = panel_container.get_rect() as Rect2
+					rect.size.x /= 2
+					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
+						add_autofill_border(start, Vector2(end.x, pos_col-1) + Vector2.ONE, "sub")
+					else:
+						add_autofill_border(start, Vector2(end.x, pos_col) + Vector2.ONE, 
+							"sub" if pos_col != end.y else "start")
+				# 全部缩
+				elif pos_col == start.y:
+					printt("--------------------14", diff)
+					var rect = panel_container.get_rect() as Rect2
+					rect.size.x /= 2
+					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
+						add_autofill_border(start, end + Vector2.ONE, "sub")
+					else:
+						add_autofill_border(start, Vector2(end.x, pos_col) + Vector2.ONE, 
+							"sub" if pos_col != end.y else "start")
+				# 向左扩展
+				else:
+					printt("--------------------15", diff)
+					add_autofill_border(Vector2(start.x, pos_col), end + Vector2.ONE, "add")
+			else:
+				# 向上缩小一块
+				if pos_row > start.x:
+					printt("--------------------10", diff)
+					var rect = panel_container.get_rect() as Rect2
+					rect.size.y /= 2
+					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
+						add_autofill_border(start, Vector2(pos_row - 1, end.y) + Vector2.ONE, "sub")
+					else:
+						add_autofill_border(start, Vector2(pos_row, end.y) + Vector2.ONE, 
+							"sub" if pos_row != end.x else "start")
+				# 全部缩
+				elif pos_row == start.x:
+					printt("--------------------11", diff)
+					var rect = panel_container.get_rect() as Rect2
+					rect.size.y /= 2
+					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
+						add_autofill_border(start, end + Vector2.ONE, "sub")
+					else:
+						add_autofill_border(start, Vector2(pos_row, end.y) + Vector2.ONE, 
+							"sub" if pos_row != end.x else "start")
+				# 向上扩展
+				else:
+					printt("--------------------12", diff)
+					add_autofill_border(Vector2(pos_row, start.y), end + Vector2.ONE, "add")
 	
 func add_exclude_border(border) -> void:
 	# 先还原（类似add_border中【和上一个选区是同一个起始点，要先还原一下（背景色）再重新画】这段逻辑
@@ -1396,6 +1399,12 @@ func commit_exclude_border():
 		var pc = v_box_container.get_child(start.x).get_child(0).get_child(start.y) as PanelContainer
 		var sb = pc.get_theme_stylebox("panel") as StyleBoxFlat
 		sb.draw_center = false
+		add_cornor_dragger()
+	# 多个区域
+	else:
+		if is_instance_valid(cornor_dragger):
+			cornor_dragger.queue_free()
+			cornor_dragger = null
 		
 	exclude_border = null
 	
