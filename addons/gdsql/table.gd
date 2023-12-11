@@ -248,6 +248,7 @@ func append_data(a_data):
 		add_row(a_data)
 		
 func insert_data(pos: int, a_data):
+	clear_borders()# 可能涉及选框，简单处理，直接清空选框
 	datas.insert(pos, a_data)
 	if is_node_ready():
 		add_row(a_data)
@@ -259,6 +260,7 @@ func insert_data(pos: int, a_data):
 				line_btn.text = str(i+1)
 		
 func remove_data_at(index: int, free_data: bool):
+	clear_borders()# 可能涉及选框，简单处理，直接清空选框
 	if datas[index] is DictionaryObject:
 		var data = datas[index] as DictionaryObject
 		if free_data:
@@ -286,6 +288,7 @@ func remove_data_at(index: int, free_data: bool):
 		
 func move_data(from: int, to: int):
 	if from != to:
+		clear_borders()# 可能涉及选框，简单处理，直接清空选框
 		var data = datas[from]
 		datas.remove_at(from)
 		datas.insert(to, data)
@@ -815,7 +818,28 @@ func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
 	scroll_container.ensure_control_visible(panel_container) # 超出scroll_container的边界时，要让scroll_container自己滚动
 	var pos_row = panel_container.get_parent().get_parent().get_index()
 	var pos_col = panel_container.get_index()
-	# TODO 如果panel_container在上下左右外侧（非内侧、非斜外侧），则稳定多出一块。否则再使用下方的逻辑。
+	
+	# 如果panel_container在上下左右外侧（非内侧、非斜外侧），则稳定多出一块。否则再使用下方的逻辑。
+	if pos_col >= start.y and pos_col <= end.y:
+		# 向上多出一块
+		if pos_row < start.x:
+			add_autofill_border(Vector2(pos_row, start.y), end + Vector2.ONE, "add")
+			return
+		# 向下多出一块
+		if pos_row > end.x:
+			add_autofill_border(start, Vector2(pos_row, end.y) + Vector2.ONE, "add")
+			return
+	if pos_row >= start.x and pos_row <= end.x:
+		# 向左多出一块
+		if pos_col < start.y:
+			add_autofill_border(Vector2(start.x, pos_col), end + Vector2.ONE, "add")
+			return
+		# 向右多出一块
+		if pos_col > end.y:
+			add_autofill_border(start, Vector2(end.x, pos_col) + Vector2.ONE, "add")
+			return
+			
+	# 内侧或斜外侧
 	if diff.x > 0:
 		if diff.y > 0:
 			if diff.x > diff.y:
@@ -881,7 +905,7 @@ func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
 							"sub" if pos_col != end.y else "start")
 				# 全部缩
 				elif pos_col == start.y:
-					printt("--------------------8", diff)
+					printt("--------------------8", diff, end, pos_row, pos_col, start.y)
 					var rect = panel_container.get_rect() as Rect2
 					rect.size.x /= 2
 					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
