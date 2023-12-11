@@ -525,8 +525,7 @@ func realign_rows():
 	for row in v_box_container.get_children():
 		for i in row.get_child(0).get_child_count(true):
 			row.get_child(0).get_child(i, true).size_flags_stretch_ratio = buttons[i].size.x + 6
-	# TODO 选框更新
-		
+			
 func _on_button_pressed() -> void:
 	#realign_rows()
 #	print_tree_pretty()
@@ -604,7 +603,7 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 		(event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT):
 		inspect_highlight_rows()
 		
-func _on_row_mouse_entered(row_panel) -> void:
+func _on_row_mouse_entered(_row_panel) -> void:
 	#printt(row_panel)
 	pass
 	
@@ -1476,7 +1475,6 @@ func commit_autofill_border() -> void:
 		
 	var selected_rect = selected_borders.front()["rect"] as Rect2
 	var autofill_rect = autofill_info["rect"] as Rect2
-	# TODO 更新选框区域
 	match autofill_info["mode"]:
 		"sub":
 			var sub_rect = Rect2()
@@ -1553,10 +1551,10 @@ func commit_autofill_border() -> void:
 						
 				# 最小二乘法填充数据
 				var ls = LeastSquares.new(xdata, ydata)
-				var fill = func(data: DictionaryObject, col: int, x: int):
+				var fill = func(dict_obj: DictionaryObject, col: int, x: int):
 					var y = ls.get_y(x)
-					var prop_type = data.get_prop_type_by_index(col)
-					data._set_by_index(col, type_convert(y, prop_type))
+					var prop_type = dict_obj.get_prop_type_by_index(col)
+					dict_obj._set_by_index(col, type_convert(y, prop_type))
 					
 				if outer_is_row:
 					for col in range(add_rect.position.y, add_rect.end.y):
@@ -1565,6 +1563,7 @@ func commit_autofill_border() -> void:
 					for row in range(add_rect.position.x, add_rect.end.x):
 						fill.call(datas[row], i, row)
 						
+	add_border({"start": autofill_info["start"], "rect": autofill_info["rect"]})
 	autofill_info = null
 	
 # 判断变量类型from能否无损转化成变量类型to
@@ -1942,7 +1941,7 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 	# 触发鼠标事件的panel_container的位置
 	var pos_row = panel_container.get_parent().get_parent().get_index()
 	var pos_col = panel_container.get_index()
-	var old_last_selected_pos = last_selected_pos
+	#var old_last_selected_pos = last_selected_pos
 	
 	if event is InputEventMouseButton:
 		if not start_drag:
