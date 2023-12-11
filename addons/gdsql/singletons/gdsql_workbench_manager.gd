@@ -294,13 +294,13 @@ min_size: Vector2i = Vector2i.ZERO) -> ConfirmationDialog:
 	
 	for arr in datas:
 		var hb = HBoxContainer.new()
-		var has_content = false
+		#var has_content = false
 		for data in arr:
 			if data == null:
 				hb.add_child(Control.new())
 			else:
 				if data is bool:
-					has_content = true
+					#has_content = true
 					var cb = CheckBox.new()
 					cb.button_pressed = data
 					cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -309,7 +309,7 @@ min_size: Vector2i = Vector2i.ZERO) -> ConfirmationDialog:
 					if data is String and data == "":
 						hb.add_child(Control.new())
 					else:
-						has_content = true
+						#has_content = true
 						var label = Label.new()
 						label.text = str(data)
 						label.auto_translate = false
@@ -317,9 +317,31 @@ min_size: Vector2i = Vector2i.ZERO) -> ConfirmationDialog:
 						label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 						hb.add_child(label)
 				elif data is DictionaryObject:
-					has_content = true
+					#has_content = true
+					# 一些控件依赖inspector，为了简化，所有情况都使用inspector。
+					# 比如：EditorPropertyResource，如果不放到一个inspector中的话，reparent的时候（它想折叠资源）会报错，影响体验。
+					var inspector = EditorInspector.new()
+					inspector.queue_redraw()
+					inspector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+					inspector.size_flags_vertical = Control.SIZE_EXPAND_FILL
+					inspector.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+					hb.add_child(inspector)
+					
+					# 允许用户使用垂直方式排列属性（默认横向）
+					var p_container
+					if data.get_meta("align", "horizontal") == "vertical":
+						p_container = VBoxContainer.new()
+					else:
+						p_container = HBoxContainer.new()
+					p_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+					p_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+					hb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+					inspector.add_child(p_container)
+					
 					EditorInterface.inspect_object(data)
-					var properties = data._get_property_list().map(func(v): return v["name"])
+					var properties = data._get_property_list().filter(func(v):
+						return not (v["usage"] & PROPERTY_USAGE_CATEGORY or v["usage"] & PROPERTY_USAGE_GROUP \
+							or v["usage"] & PROPERTY_USAGE_SUBGROUP)).map(func(v): return v["name"])
 					var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
 					for i in properties.size():
 						# 下划线开头的隐藏label。隐藏方法是把控件整个添加到一个能按比例隐藏子控件的控件中
@@ -333,12 +355,12 @@ min_size: Vector2i = Vector2i.ZERO) -> ConfirmationDialog:
 							var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
 							container.invisible_ratio = 0.5
 							container.control = editor_property
-							hb.add_child(container)
+							p_container.add_child(container)
 						else:
-							editor_property.reparent(hb)
+							editor_property.reparent(p_container)
 							
 				elif data is Control:
-					has_content = true
+					#has_content = true
 					if data.get_parent() != null and data.get_parent() != hb:
 						data.reparent(hb)
 					else:
@@ -359,6 +381,171 @@ min_size: Vector2i = Vector2i.ZERO) -> ConfirmationDialog:
 	if last_line_edit != null:
 		dialog.register_text_enter(last_line_edit)
 		
+	return dialog
+	
+## 创建并弹出自定义对话框。
+## 【datas】: 构建自定义对话框的数据，类似graph_node.gd，例如：
+## [
+## 		["please input somthing"],
+## 		[dictObj1],
+## 		[dictObj2],
+## 		[contorl1],
+## ]
+## 注意：datas中的controls（不包括DictionaryObject）需要用户自行释放。
+## 【confirmed_callback_before_close】：点击确定后执行的函数，必须返回一个长度为2的数组，第一个元素是布尔值，
+## true表示保留对话框，false表示关闭对话框。第二个元素用于用户传递一些数据。
+## 【canceled_callback_before_close】：点击取消或关闭按钮后执行的函数，必须返回一个长度为2的数组，
+## 第一个元素是布尔值，true表示保留对话框，false表示关闭对话框。第二个元素用于用户传递一些数据。
+## 【defered_callback】：对话框关闭后执行的函数。可以把对话框关闭后要执行的逻辑（比如释放自定义control等）
+## 放入defered_callback中。需接收2个参数：
+## 参数1：bool，true表示用户点击的是“确定”，false表示用户点击的是“取消”或“关闭”
+## 参数2：请勿指定数据类型，其值等于confirmed_callback_before_close或canceled_callback_before_close返回数组的第二个元素。
+func create_custom_dialog_2(datas: Array[Array],
+confirmed_callback_before_close: Callable = Callable(), 
+canceled_callback_before_close: Callable = Callable(),
+defered_callback: Callable = Callable(),
+min_size: Vector2i = Vector2i.ZERO) -> ConfirmationDialog:
+	var dialog := ConfirmationDialog.new()
+	dialog.dialog_hide_on_ok = false
+	__custom_dialog_datas[dialog] = datas
+	__property_old_parents[dialog] = {}
+	# 确定
+	dialog.confirmed.connect(func():
+		var close = true
+		var ret
+		if confirmed_callback_before_close.is_valid():
+			ret = confirmed_callback_before_close.call()
+			assert(ret is Array and ret.size() == 2 and ret[0] is bool, 
+				"Return value of confirmed_callback_before_close must be a 2-elements-array(first element must be a bool)!")
+			if ret[0] == true:
+				close = false
+				
+		if close:
+			_clear_custom_dialog(dialog)
+			if defered_callback.is_valid():
+				defered_callback.call(true, ret[1] if ret is Array else null)
+	, CONNECT_DEFERRED)
+	# 取消、关闭（关闭也会触发canceled）
+	dialog.canceled.connect(func():
+		var close = true
+		var ret
+		if canceled_callback_before_close.is_valid():
+			ret = canceled_callback_before_close.call()
+			assert(ret is Array and ret.size() == 2 and ret[0] is bool, 
+				"Return value of canceled_callback_before_close must be a 2-elements-array(first element must be a bool)!")
+			if ret == true:
+				close = false
+				
+		if close:
+			_clear_custom_dialog(dialog)
+			if defered_callback.is_valid():
+				defered_callback.call(false, ret[1] if ret is Array else null)
+	, CONNECT_DEFERRED)
+	_add_dialog(dialog)
+	
+	var vbox_container = VBoxContainer.new()
+	vbox_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	dialog.add_child(vbox_container)
+	
+	for arr in datas:
+		var hb = HBoxContainer.new()
+		#var has_content = false
+		for data in arr:
+			if data == null:
+				hb.add_child(Control.new())
+				hb.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+			else:
+				if data is bool:
+					hb.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+					#has_content = true
+					var cb = CheckBox.new()
+					cb.button_pressed = data
+					cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+					hb.add_child(cb)
+				elif data is String or data is int or data is float:
+					hb.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+					if data is String and data == "":
+						hb.add_child(Control.new())
+					else:
+						#has_content = true
+						var label = Label.new()
+						label.text = str(data)
+						label.auto_translate = false
+						label.localize_numeral_system = false
+						label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+						hb.add_child(label)
+				elif data is DictionaryObject:
+					#has_content = true
+					hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
+					# 一些控件依赖inspector，为了简化，所有情况都使用inspector。
+					# 比如：EditorPropertyResource，如果不放到一个inspector中的话，reparent的时候（它想折叠资源）会报错，影响体验。
+					var inspector = EditorInspector.new()
+					inspector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+					inspector.size_flags_vertical = Control.SIZE_EXPAND_FILL
+					hb.add_child(inspector)
+					
+					var v_box = VBoxContainer.new()
+					v_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+					v_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+					inspector.add_child(v_box)
+					
+					EditorInterface.inspect_object(data)
+					# 全部展开（方便用户修改数据）
+					await EditorInterface.get_base_control().get_tree().process_frame
+					for i: MenuButton in EditorInterface.get_inspector().get_parent().\
+						find_children("@MenuButton*", "MenuButton", true, false):
+						if i.tooltip_text == tr("Manage object properties."):
+							i.get_popup().emit_signal("id_pressed", 12) # 12 is for EXPAND_ALL, @see editor\inspector_dock.h
+							break
+							
+					var properties = data._get_property_list().filter(func(v):
+						return not (v["usage"] & PROPERTY_USAGE_CATEGORY or v["usage"] & PROPERTY_USAGE_GROUP \
+							or v["usage"] & PROPERTY_USAGE_SUBGROUP)).map(func(v): return v["name"])
+							
+					var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
+					var v_box_container = EditorInterface.get_inspector().get_child(0, true)
+					for i in v_box_container.get_children(true):
+						var need = false
+						for j in properties.size():
+							var editor_property = editor_properties[j]
+							if i.is_ancestor_of(editor_property):
+								need = true
+								break
+						if need:
+							i.reparent(v_box)
+							__property_old_parents[dialog][i] = weakref(v_box_container)
+						
+					#v_box_container.reparent(inspector)
+					
+					for i in editor_properties:
+						# 只有让检查器显示这个属性，才能修改这个属性。否则修改的是检查器当前显示的属性。
+						connect_focused_propagate(i, data)
+						
+				elif data is Control:
+					hb.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+					#has_content = true
+					if data.get_parent() != null and data.get_parent() != hb:
+						data.reparent(hb)
+					else:
+						hb.add_child(data)
+		#if hb.get_child_count() == 0 or not has_content:
+		#hb.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		#else:
+			#hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		vbox_container.add_child(hb)
+		
+	# 自动聚焦到第一个输入组件上
+	var editable_control = _find_editable_control(vbox_container)
+	if editable_control != null:
+		editable_control.grab_focus()
+		
+	# 注册回车键的输入组件
+	var last_line_edit = _find_last_line_edit(vbox_container)
+	if last_line_edit != null:
+		dialog.register_text_enter(last_line_edit)
+		
+	dialog.popup_centered(min_size)
 	return dialog
 	
 func _find_editable_control(control: Node) -> Control:
