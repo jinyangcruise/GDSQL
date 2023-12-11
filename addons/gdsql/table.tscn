@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://bpawj4a7llynx"]
+[gd_scene load_steps=11 format=3 uid="uid://bpawj4a7llynx"]
 
 [ext_resource type="Script" path="res://addons/gdsql/table.gd" id="1_s1y7s"]
 [ext_resource type="Texture2D" uid="uid://uv864j1h58kn" path="res://addons/gdsql/img/copy.png" id="2_y6tia"]
@@ -11,6 +11,13 @@ keycode = 65
 
 [sub_resource type="Shortcut" id="Shortcut_64kd7"]
 events = [SubResource("InputEventKey_53xxg")]
+
+[sub_resource type="InputEventKey" id="InputEventKey_fjg01"]
+device = -1
+keycode = 4194309
+
+[sub_resource type="Shortcut" id="Shortcut_kysye"]
+events = [SubResource("InputEventKey_fjg01")]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4fjn8"]
 resource_local_to_scene = true
@@ -45,6 +52,15 @@ offset_bottom = 52.0
 shortcut_context = NodePath("../..")
 shortcut = SubResource("Shortcut_64kd7")
 text = "Select All. This button is listening Ctrl+A"
+
+[node name="ButtonEdit" type="Button" parent="Control" node_paths=PackedStringArray("shortcut_context")]
+modulate = Color(1, 1, 1, 0)
+layout_mode = 0
+offset_right = 18.0
+offset_bottom = 15.0
+shortcut_context = NodePath("../..")
+shortcut = SubResource("Shortcut_kysye")
+text = "Edit field. This button is listening Enter."
 
 [node name="Models" type="HBoxContainer" parent="."]
 visible = false
@@ -148,6 +164,7 @@ mouse_filter = 2
 [connection signal="resized" from="." to="." method="_on_resized"]
 [connection signal="focus_exited" from="Control/ButtonSelectAll" to="." method="_on_button_select_all_focus_exited"]
 [connection signal="pressed" from="Control/ButtonSelectAll" to="." method="_on_button_select_all_pressed"]
+[connection signal="button_down" from="Control/ButtonEdit" to="." method="_on_button_edit_button_down"]
 [connection signal="focus_entered" from="VBoxContainer" to="." method="_on_v_box_container_focus_entered"]
 [connection signal="pressed" from="VBoxContainer/ButtonForDebug" to="." method="_on_button_pressed"]
 [connection signal="focus_entered" from="VBoxContainer/ScrollContainer" to="." method="_on_scroll_container_focus_entered"]

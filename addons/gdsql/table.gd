@@ -17,6 +17,7 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 @onready var scroll_container = $VBoxContainer/ScrollContainer
 @onready var popup_menu_text = $PopupMenuText
 @onready var button_select_all = $Control/ButtonSelectAll
+@onready var button_edit = $Control/ButtonEdit
 @onready var borders_container = $BordersContainer
 
 
@@ -586,7 +587,6 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 	var emit_click = func():
 		if event is InputEventMouseButton and \
 			(event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT):
-			highlight_row(row_panel, true, event.button_index == MOUSE_BUTTON_RIGHT)
 			row_clicked.emit(datas.find(source_data), event.button_index, source_data)
 			
 	if not editable:
@@ -594,7 +594,6 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 		return
 
 	if not event is InputEventMouseButton:
-		#emit_click.call()
 		return
 
 	#if not (event as InputEventMouseButton).double_click:
@@ -789,6 +788,7 @@ func add_border(border) -> void:
 	selected_borders.push_back(border)
 	if selected_borders.size() == 1:
 		add_cornor_dragger()
+		button_edit.grab_focus()
 	else:
 		if is_instance_valid(cornor_dragger):
 			cornor_dragger.queue_free()
@@ -1788,22 +1788,26 @@ func inspect_highlight_rows() -> void:
 	
 ## 获取高亮行的关联数据
 func get_data_of_highlight_rows() -> Array:
+	var rows = []
+	for border in selected_borders:
+		var rect = border["rect"] as Rect2
+		for i in range(rect.position.x, rect.end.x):
+			if not rows.has(i):
+				rows.push_back(i)
 	var ret = []
-	for i in v_box_container.get_children():
-		var style_box: StyleBoxFlat = i.get_theme_stylebox("panel")
-		if style_box and style_box.bg_color == HIGHTLIGHT_COLOR:
-			ret.push_back(i.get_meta("data"))
+	for i in rows:
+		ret.push_back(v_box_container.get_child(i).get_meta("data"))
 	return ret
 
-func mark_last_clicked_row(row_panel: PanelContainer, highlight: bool) -> void:
-	last_focused_row = row_panel
-	var style_box = row_panel.get_theme_stylebox("panel") as StyleBoxFlat
-	style_box.bg_color = HIGHTLIGHT_COLOR if highlight else CLICKED_COLOR
-	for i in v_box_container.get_children():
-		if i != row_panel:
-			var style_box_1 = i.get_theme_stylebox("panel") as StyleBoxFlat
-			if style_box_1.bg_color.a < 0.2:
-				style_box_1.bg_color.a = 0.0
+#func mark_last_clicked_row(row_panel: PanelContainer, highlight: bool) -> void:
+	#last_focused_row = row_panel
+	#var style_box = row_panel.get_theme_stylebox("panel") as StyleBoxFlat
+	#style_box.bg_color = HIGHTLIGHT_COLOR if highlight else CLICKED_COLOR
+	#for i in v_box_container.get_children():
+		#if i != row_panel:
+			#var style_box_1 = i.get_theme_stylebox("panel") as StyleBoxFlat
+			#if style_box_1.bg_color.a < 0.2:
+				#style_box_1.bg_color.a = 0.0
 				
 func _on_button_select_all_pressed():
 	for i in v_box_container.get_children():
@@ -1814,12 +1818,16 @@ func _on_button_select_all_pressed():
 		inspect_highlight_rows()
 		# TODO 选框
 		
-## 支持多选高亮\多选编辑\shift连选
 func highlight_row(row_panel: PanelContainer, skip_await: bool = false, mouse_button_right: bool = false) -> void:
 	button_select_all.grab_focus()
-	# 是否按下ctrl键、shift键
-	var ctrl_pressed = Input.is_key_pressed(KEY_CTRL)
-	var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
+	
+	var pos_row = row_panel.get_index()
+	var border = {
+		"start": Vector2(pos_row, 0),
+		"rect": Rect2(pos_row, 0, 1, columns.size())
+	}
+	printt("eeee", border)
+	add_border(border)
 	
 	# 自动滚动到高亮行。
 	# 但是一些刚刚添加的新行，需要await才能ensure_control_visible
@@ -1827,64 +1835,6 @@ func highlight_row(row_panel: PanelContainer, skip_await: bool = false, mouse_bu
 		await get_tree().create_timer(0.01).timeout
 	scroll_container.ensure_control_visible(row_panel)
 	
-	# shift优先级最高，shift按下，不管左右键，统一按选中处理，而且不影响原来已经选中的项目
-	if shift_pressed:
-		# 没有上次选的项目，那本次就单独高亮当前行（不影响之前高亮的）
-		if last_focused_row == null:
-			mark_last_clicked_row(row_panel, true)
-		# 有上次选的项目，那本次批量高亮范围内的所有行
-		else:
-			if last_focused_row == row_panel:
-				(row_panel.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = HIGHTLIGHT_COLOR
-			else:
-				var start = false
-				for i in v_box_container.get_children():
-					if start:
-						(i.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = HIGHTLIGHT_COLOR
-						if i == last_focused_row or i == row_panel:
-							break
-					elif i == last_focused_row or i == row_panel:
-						start = true
-						(i.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = HIGHTLIGHT_COLOR
-		last_focused_row = row_panel
-		return
-	
-	# 本行原先的颜色
-	var style_box = row_panel.get_theme_stylebox("panel") as StyleBoxFlat
-	var old_color = style_box.bg_color
-	
-	# 是否取消高亮
-	if ctrl_pressed and old_color == HIGHTLIGHT_COLOR and not mouse_button_right:
-		mark_last_clicked_row(row_panel, false)
-		return
-	
-	# 高亮本行
-	last_focused_row = row_panel
-	mark_last_clicked_row(row_panel, true)
-	
-	# 是否清空其他高亮行
-	var clear_other_hightlight = true
-	if support_multi_rows_selected:
-		# 如果是右键触发的
-		if mouse_button_right:
-			if ctrl_pressed:
-				clear_other_hightlight = false
-			elif old_color == HIGHTLIGHT_COLOR:
-				clear_other_hightlight = false
-		# 左键触发的或默认（相当于）左键触发的
-		else:
-			if ctrl_pressed:
-				clear_other_hightlight = false
-	else:
-		clear_other_hightlight = true
-		
-	if clear_other_hightlight:
-		for i in v_box_container.get_children():
-			if i != row_panel:
-				var style_box_1 = i.get_theme_stylebox("panel") as StyleBoxFlat
-				style_box_1.bg_color.a = 0.0
-			
-	#data_of_focused_row = row_panel.get_meta("data", null)
 	# 由于一开始等了0.1秒，可能导致检测鼠标按下无效，所以加入检查是否弹出了菜单
 	if show_menu and (Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or popup_menu_text.visible) and \
 		row_panel.get_rect().has_point(v_box_container.get_local_mouse_position()):
@@ -2113,3 +2063,159 @@ func _on_button_select_all_focus_exited():
 		#if obj != null and obj is DictionaryObject and datas.has(obj):
 			#EditorInterface.inspect_object(null)
 
+# TODO 只显示框选的属性
+# TODO 双击编辑
+func _on_button_edit_button_down():
+	if selected_borders.size() > 1:
+		return
+		
+	var one_col = (selected_borders.front()["rect"] as Rect2).size.y == 1
+	one_col = false
+	var rows = get_data_of_highlight_rows()
+	
+	# 多个数据的构造一个MultiNodeEdit。参考Godot源码。
+	# @see editor\multi_node_edit.cpp：MultiNodeEdit::_get_property_list
+	# 这段主要是得出选中的数据的共同属性。
+	var usage = {}
+	var p_list = []
+	var data_list = []
+	var nc = 0
+	for data in rows:
+		if not data is Object:
+			continue
+		
+		var plist = (data as Object).get_property_list()
+		for F in plist:
+			# 下面这段不用写，对gdscript来说没用
+			#if (F.name == "script") {
+				#continue; // Added later manually, since this is intercepted before being set (check Variant Object::get()).
+			#} else if (F.name.begins_with("metadata/")) {
+				#F.name = F.name.replace_first("metadata/", "Metadata/"); // Trick to not get actual metadata edited from MultiNodeEdit.
+			#}
+				
+			if not usage.has(F["name"]):
+				usage[F["name"]] = {"uses": 0, "info": F}
+				data_list.push_back(usage[F["name"]])
+				
+			# Make sure only properties with the same exact PropertyInfo data will appear.
+			if usage[F["name"]]["info"] == F:
+				usage[F["name"]]["uses"] += 1
+				
+		nc += 1
+		
+	for E in data_list:
+		if nc == E["uses"]:
+			p_list.push_back(E["info"])
+			
+	#p_list->push_back(PropertyInfo(Variant::OBJECT, "scripts", PROPERTY_HINT_RESOURCE_TYPE, "Script")); 同样gdscript没用处
+	
+	# 根据共同属性，我们构造一个dict obj。要去掉共同属性中属于共同基类的属性。所以我们要找到这些Object的最小共同基类名称。
+	# @see MultiNodeEdit::get_edited_class_name()
+	var get_common_class_name = func():
+		var a_class_name
+		var check_again = true
+		while check_again:
+			check_again = false
+			
+			# Check that all nodes inherit from class_name.
+			for data in rows:
+				if not data is Object:
+					continue
+					
+				data = data as Object
+				var obj_class_name = data.get_class()
+				if a_class_name == null:
+					a_class_name = obj_class_name # a_class_name初始化为第一个object的类名
+					
+				if obj_class_name == "Object":
+					# All nodes inherit from Object, so no need to continue checking.
+					return obj_class_name
+					
+				if a_class_name == obj_class_name or ClassDB.is_parent_class(obj_class_name, a_class_name):
+					# class_name is the same or a parent of the object's class.
+					continue
+					
+				# class_name is not a parent of the node's class, so check again with the parent class.
+				a_class_name = ClassDB.get_parent_class(a_class_name)
+				check_again = true
+				break
+				
+		return a_class_name
+		
+	var common_class_name = get_common_class_name.call()
+	if common_class_name == null:
+		push_error("Can not find common parent class name")
+		return
+		
+	# 整一个脚本继承该类，得出基类的属性
+	var script = GDScript.new()
+	script.source_code = "extends %s" % common_class_name
+	script.reload()
+	var obj = script.new()
+	var props_of_common_class = obj.get_property_list()
+	if obj.has_method("free") and not obj is RefCounted:
+		obj.free()
+	
+	# 去掉p_list中的基类的属性
+	for i in props_of_common_class:
+		for j in p_list.size():
+			if i == p_list[j]:
+				p_list.remove_at(j)
+				break
+				
+	# 去掉dict obj本身的属性。因为我们要用dict obj来构造一个能被检查器检查的属性。
+	var dummy_dict_obj = DictionaryObject.new({})
+	for i in dummy_dict_obj.get_property_list():
+		for j in p_list.size():
+			if i == p_list[j]:
+				p_list.remove_at(j)
+				break
+				
+	# 剩下的属性用于构造dict obj
+	var impl_data = {}
+	var impl_hint = {}
+	for i in p_list:
+		var prop = i["name"]
+		# 如果所有数据该属性有共同的值，就设置上
+		var common_value = null
+		var inited = false
+		for data in rows:
+			if not data is Object:
+				continue
+			if not inited:
+				common_value = data.get(prop)
+				impl_hint[prop] = {
+					"type": i["type"],
+					"usage": i["usage"],
+					"hint": i["hint"],
+					"hint_string": i["hint_string"],
+				}
+				inited = true
+			elif common_value != data.get(prop):
+				common_value = null
+				break # 在这个属性上，有不同的值，那就不设置了
+				
+		impl_data[prop] = common_value
+		
+	var impl_dict_obj = DictionaryObject.new(impl_data, impl_hint)
+	
+	# 监听值改变的信号，把数据同步到被编辑的对象
+	var on_value_changed_ref = []
+	var on_value_changed = func(prop, new_value, _old_value):
+		var valid = false
+		for data in rows:
+			if not data is Object or not is_instance_valid(data): # 考虑被编辑对象已经不存在了
+				continue
+			data.set(prop, new_value)
+			valid = true
+		if not valid:
+			impl_dict_obj.value_changed.disconnect(on_value_changed_ref[0])
+			EditorInterface.inspect_object(null)
+	on_value_changed_ref.push_back(on_value_changed)
+	impl_dict_obj.value_changed.connect(on_value_changed)
+	impl_dict_obj.set_meta("align", "vertical")
+	var arr: Array[Array] = [
+		[impl_dict_obj],
+	]
+	mgr.create_custom_dialog_2(arr, Callable(), Callable(), Callable(), Vector2i(400, 600))
+	
