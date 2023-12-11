@@ -29,7 +29,7 @@ func _init(xdata: Array, ydata: Array):
 		var curr = LeastSquaresData.new(ydata[i], regex)
 		
 		# 是否需要分组
-		var need_new_group = not pre.is_same_pattern(curr)
+		var need_new_group = not a_xdata.is_empty() and not pre.is_same_pattern(curr)
 			
 		# 需要重新分组时，要干的事情
 		if need_new_group:
@@ -38,6 +38,8 @@ func _init(xdata: Array, ydata: Array):
 				lsg = LeastSquaresGroupNumber.new(a_xdata, a_ydata)
 			elif pre.is_string():
 				lsg = LeastSquaresGroupString.new(a_xdata, a_ydata)
+			elif pre.is_resource():
+				lsg = LeastSquaresGroupResource.new(a_xdata, a_ydata)
 			else:
 				lsg = LeastSquaresGroupOther.new(a_xdata, a_ydata)
 				
@@ -56,6 +58,8 @@ func _init(xdata: Array, ydata: Array):
 			lsg = LeastSquaresGroupNumber.new(a_xdata, a_ydata)
 		elif pre.is_string():
 			lsg = LeastSquaresGroupString.new(a_xdata, a_ydata)
+		elif pre.is_resource():
+			lsg = LeastSquaresGroupResource.new(a_xdata, a_ydata)
 		else:
 			lsg = LeastSquaresGroupOther.new(a_xdata, a_ydata)
 		groups.push_back(lsg)
@@ -118,8 +122,8 @@ class LeastSquaresData:
 				if m != null:
 					data_type = DATA_TYPE.RESOURCE
 					value = (m as RegExMatch).get_string()
-					prefix = v.substr(0, m.get_start())
-					surfix = v.substr(m.get_end(), v.length())
+					prefix = v.resource_path.substr(0, m.get_start())
+					surfix = v.resource_path.substr(m.get_end(), v.resource_path.length())
 					num_length_with_zero = value.length() if value.begins_with("0") else 0
 					return
 					
@@ -208,7 +212,7 @@ class LeastSquaresGroupString extends LeastSquaresGroupNumber:
 	var _min_num_length: int = 0
 	
 	## 请确保ydata中的每个元素都是包含数字的字符串
-	func _init(xdata: Array, ydata: Array[LeastSquaresData]):
+	func _init(xdata: Array, ydata: Array):
 		_prefix = ydata[0].prefix
 		_surfix = ydata[0].surfix
 		
@@ -217,7 +221,7 @@ class LeastSquaresGroupString extends LeastSquaresGroupNumber:
 			#assert(i.is_string(), "All the elements' type of ydata must be same")
 			#assert(not (i.prefix == _prefix and i.surfix == _surfix), 
 				#"All the elements of ydata should begin with [%s]` and end with [%s]" % [_prefix, _surfix])
-			_min_num_length = max(_min_num_length, i.length_with_zero)
+			_min_num_length = max(_min_num_length, i.num_length_with_zero)
 			#tmp_ydata.push_back(type_convert(i.value, TYPE_FLOAT))
 			tmp_ydata.push_back(LeastSquaresData.new(i.value, null))
 			
@@ -246,20 +250,13 @@ class LeastSquaresGroupString extends LeastSquaresGroupNumber:
 class LeastSquaresGroupResource extends LeastSquaresGroupString:
 	var _model: WeakRef # 模板的引用
 	
-	func _init(xdata: Array, ydata: Array[LeastSquaresData]):
+	func _init(xdata: Array, ydata: Array):
 		_model = ydata.front().origin_data_ref
 		super._init(xdata, ydata)
 		
 	func get_y(x: float) -> Resource:
 		var path = super.get_y(x)
-		if _model and _model.get_ref():
-			var r = (_model.get_ref() as Resource).duplicate()
-			r.resource_path = path
-			return r
-		else:
-			var r = Resource.new()
-			r.resource_path = path
-			return r
+		return load(path)
 			
 			
 ## ######################################
@@ -268,16 +265,16 @@ class LeastSquaresGroupResource extends LeastSquaresGroupString:
 class LeastSquaresGroupOther extends LeastSquaresGroupNumber:
 	## 需要返回的值（即ydata最后一个元素，当然，这个值可能在其他位置也出现过）
 	var _return: Variant
-	## 样本中首次出现_return值的位置
-	var _start_index: float
+	# 样本中首次出现_return值的位置
+	#var _start_index: float
 	
-	func _init(xdata: Array, ydata: Array):
+	func _init(_xdata: Array, ydata: Array):
 		_return = ydata.back()
 		_return = _return.value if _return is LeastSquaresData else _return
-		for i in xdata.size():
-			if ydata[i] == _return:
-				_start_index = xdata[i]
-				break
+		#for i in xdata.size():
+			#if ydata[i] == _return:
+				#_start_index = xdata[i]
+				#break
 		
 	func get_y(_x: float) -> Variant:
 		return _return
