@@ -1476,8 +1476,7 @@ func commit_autofill_border() -> void:
 		
 	var selected_rect = selected_borders.front()["rect"] as Rect2
 	var autofill_rect = autofill_info["rect"] as Rect2
-	printt("22222222", autofill_rect.end, selected_rect.end)
-	printt("1111111", range(autofill_rect.end.x, selected_rect.end.x), range(autofill_rect.end.y, selected_rect.end.y))
+	# TODO 更新选框区域
 	match autofill_info["mode"]:
 		"sub":
 			var sub_rect = Rect2()
@@ -1500,188 +1499,87 @@ func commit_autofill_border() -> void:
 					data._set_default_by_index(col)
 					
 		"add":
-			var add_rect = Rect2()
+			var range_outer # 样本区外层循环
+			var range_inner # 样本区内层循环
+			var outer_is_row # 外层循环是否是行循环
+			var add_rect = Rect2() # 扩展区域
 			if autofill_rect.position == selected_rect.position:
 				# 向右扩展
 				if autofill_rect.size.y > selected_rect.size.y:
 					add_rect.position = Vector2(selected_rect.position.x, selected_rect.end.y)
 					add_rect.size = Vector2(selected_rect.size.x, autofill_rect.size.y - selected_rect.size.y)
-					
-					#for i in range(selected_rect.position.x, selected_rect.end.x):
-					var range_outer = range(selected_rect.position.x, selected_rect.end.x)
-					var range_inner = range(selected_rect.position.y, selected_rect.end.y)
-					var outer_is_row = true
-					
-					for i in range_outer:
-						var data: DictionaryObject
-						var ref_value
-						var value_type
-						var s = ""
-						if outer_is_row:
-							data = datas[i] as DictionaryObject
-							#ref_value = data._get_by_index(rect.position.y - 1)TODO
-							
-						for j in range_inner:
-							if not outer_is_row:
-								data = datas[j] as DictionaryObject
-					
+					range_outer = range(selected_rect.position.x, selected_rect.end.x)
+					range_inner = range(selected_rect.position.y, selected_rect.end.y)
+					outer_is_row = true
 				# 向下扩展
 				else:
 					add_rect.position = Vector2(selected_rect.end.x, selected_rect.position.y)
 					add_rect.size = Vector2(autofill_rect.size.x - selected_rect.size.x, selected_rect.size.y)
-					pass
+					range_outer = range(selected_rect.position.y, selected_rect.end.y)
+					range_inner = range(selected_rect.position.x, selected_rect.end.x)
+					outer_is_row = false
 			# 起始点变的情况：向左扩展或向上扩展
 			else:
 				# 向左扩展
 				if autofill_rect.size.y > selected_rect.size.y:
 					add_rect.position = autofill_rect.position
 					add_rect.size = Vector2(selected_rect.size.x, autofill_rect.size.y - selected_rect.size.y)
-					pass
+					range_outer = range(selected_rect.end.x-1, selected_rect.position.x-1, -1)
+					range_inner = range(selected_rect.end.y-1, selected_rect.position.y-1, -1)
+					outer_is_row = true
 				# 向上扩展
 				else:
 					add_rect.position = autofill_rect.position
 					add_rect.size = Vector2(autofill_rect.size.x - selected_rect.size.x, selected_rect.size.y)
-					pass
-			
-			
-			
-			######################################################
-			# 寻找字符串中最后一组数字的正则方式
-			var regex = RegEx.new()
-			regex.compile(r"[0-9]+(?=[^0-9]*$)")
-			
-			# range_outer: 外层循环
-			# range_inner: 内层循环
-			# outer_is_row: 外层循环是行序号
-			# positive: 向x轴或y轴的正方向扩展
-			var fill = func(range_outer: Array, range_inner: Array, outer_is_row: bool, positive: bool):
-				for i in range_outer:
-					var data: DictionaryObject
-					var ref_value
-					var value_type
-					var s = ""
+					range_outer = range(selected_rect.end.y-1, selected_rect.position.y-1, -1)
+					range_inner = range(selected_rect.end.x-1, selected_rect.position.x-1, -1)
+					outer_is_row = false
+					
+			# 根据样本扩展新数据
+			for i in range_outer:
+				var data: DictionaryObject
+				var xdata = [] # 样本的xdata
+				var ydata = [] # 样本的ydata
+				if outer_is_row:
+					data = datas[i] as DictionaryObject
+					
+				for j in range_inner:
+					xdata.push_back(j)
 					if outer_is_row:
-						data = datas[i] as DictionaryObject
-						#ref_value = data._get_by_index(rect.position.y - 1)TODO
-						
-					for j in range_inner:
-						if not outer_is_row:
-							data = datas[j] as DictionaryObject
-						#var 
-						
-			
-			#var add_rect = Rect2()
-			# 起始点不变的情况，只有向右扩展和向下扩展两种情况
-			if autofill_rect.position == selected_rect.position:
-				# 向右扩展
-				if autofill_rect.size.y > selected_rect.size.y:
-					add_rect.position = Vector2(selected_rect.position.x, selected_rect.end.y)
-					add_rect.size = Vector2(selected_rect.size.x, autofill_rect.size.y - selected_rect.size.y)
-					
-					# 原选区只有一列
-					if selected_rect.size.y == 1:
-						# 数字递增。每行属于一个作用域
-						for row in range(add_rect.position.x, add_rect.end.x):
-							## 原选区列类型和值
-							#var ref_data = v_box_container.get_child(selected_rect.position.x).get_meta("data") as DictionaryObject
-							#var value = ref_data._get_by_index(selected_rect.position.y)
-							#var data_type = typeof(value)
-							
-							var data = datas[row] as DictionaryObject # data是一行的数据，自然也包括原选区的字段
-							var ref_value = data._get_by_index(add_rect.position.y - 1)
-							var value_type = typeof(ref_value)
-							var s = ""
-							match value_type:
-								TYPE_STRING, TYPE_STRING_NAME:
-									s = ref_value
-								TYPE_OBJECT:
-									if ref_value is Resource and not ref_value.resource_path.contains("::"):
-										s = ref_value.resource_path
-										
-							var m = regex.search(s) if not s.is_empty() else null
-							# 没有数字，那么就把相同类型的字段设置成同一个数据;
-							# 有数字，要递增1
-							var start = -1
-							var end = -1
-							var init_index = -1
-							var init_length = 0
-							if m != null:
-								start = m.get_start()
-								end = m.get_end()
-								init_index = int(m.get_string())
-								init_length = m.get_string().length() # 位数不足时需要补足位数
-								
-							# 数字随着列序号的增加而递增
-							var incre = 0
-							for col in range(add_rect.position.y, add_rect.end.y):
-								incre += 1
-								# 类型一致或可以无损转化才设置。如果类型不一致，就不设置了
-								var prop_type = data.get_prop_type_by_index(col)
-								if can_transfer(value_type, prop_type, ref_value):
-									if m:
-										var new_s
-										if s.is_valid_float() and (prop_type == TYPE_INT or prop_type == TYPE_FLOAT):
-											new_s = type_convert(s, prop_type) + incre
-										else:
-											new_s = s.substr(0, start) + str(init_index + incre).lpad(init_length, "0") + \
-												s.substr(end, s.length())
-												
-										match value_type:
-											TYPE_STRING, TYPE_STRING_NAME:
-												data._set_by_index(col, type_convert(new_s, prop_type))
-											TYPE_OBJECT:
-												data._set_by_index(col, load(new_s))
-									else:
-										match value_type:
-											TYPE_INT, TYPE_FLOAT:
-												data._set_by_index(col, type_convert(ref_value + incre, prop_type))
-											_:
-												data._set_by_index(col, ref_value) # NOTICE 这里会使多个格子持有同一个对象
-												printt("xxxxxxxx", col, ref_value)
-					# 多列
+						ydata.push_back(data._get_by_index(j))
 					else:
+						data = datas[j] as DictionaryObject
+						ydata.push_back(data._get_by_index(i))
 						
-						
-						pass
-				# 向下扩展
-				else:
-					add_rect.position = Vector2(selected_rect.end.x, selected_rect.position.y)
-					add_rect.size = Vector2(autofill_rect.size.x - selected_rect.size.x, selected_rect.size.y)
-					# TODO
-			# 起始点变的情况：向左扩展或向上扩展
-			else:
-				# 向左扩展
-				if autofill_rect.size.y > selected_rect.size.y:
-					add_rect.position = autofill_rect.position
-					add_rect.size = Vector2(selected_rect.size.x, autofill_rect.size.y - selected_rect.size.y)
-				# 向上扩展
-				else:
-					add_rect.position = autofill_rect.position
-					add_rect.size = Vector2(autofill_rect.size.x - selected_rect.size.x, selected_rect.size.y)
+				# 最小二乘法填充数据
+				var ls = LeastSquares.new(xdata, ydata)
+				var fill = func(data: DictionaryObject, col: int, x: int):
+					var y = ls.get_y(x)
+					var prop_type = data.get_prop_type_by_index(col)
+					data._set_by_index(col, type_convert(y, prop_type))
 					
-			#printt("*******")
-			#Utils.print_variant(add_rect)
-			#printt("*******")
-			
-	var diff_rect = autofill_info["rect"]
-	#Utils.print_variant(selected_borders)
-	#Utils.print_variant(autofill_info)
-	
+				if outer_is_row:
+					for col in range(add_rect.position.y, add_rect.end.y):
+						fill.call(datas[i], col, col)
+				else:
+					for row in range(add_rect.position.x, add_rect.end.x):
+						fill.call(datas[row], i, row)
+						
 	autofill_info = null
 	
-## 判断变量类型from能否无损转化成变量类型to
-func can_transfer(from: int, to: int, from_value: Variant) -> bool:
-	if from == to:
-		return true
-	if (from == TYPE_STRING or from == TYPE_STRING_NAME) and (to == TYPE_INT or to == TYPE_FLOAT):
-		return from_value.is_valid_float()
-	if (from == TYPE_INT or from == TYPE_FLOAT) and (to == TYPE_STRING or to == TYPE_STRING_NAME):
-		return true
-	if from == TYPE_INT and to == TYPE_FLOAT:
-		return true
-	if from == TYPE_FLOAT and to == TYPE_INT:
-		return true
-	return false
+# 判断变量类型from能否无损转化成变量类型to
+#func can_transfer(from: int, to: int, from_value: Variant) -> bool:
+	#if from == to:
+		#return true
+	#if (from == TYPE_STRING or from == TYPE_STRING_NAME) and (to == TYPE_INT or to == TYPE_FLOAT):
+		#return from_value.is_valid_float()
+	#if (from == TYPE_INT or from == TYPE_FLOAT) and (to == TYPE_STRING or to == TYPE_STRING_NAME):
+		#return true
+	#if from == TYPE_INT and to == TYPE_FLOAT:
+		#return true
+	#if from == TYPE_FLOAT and to == TYPE_INT:
+		#return true
+	#return false
 	
 ## 支持批量编辑多个数据
 func inspect_highlight_rows() -> void:

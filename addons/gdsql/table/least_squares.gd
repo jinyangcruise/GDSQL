@@ -11,6 +11,7 @@ var regex: RegEx = RegEx.new()
 enum DATA_TYPE {
 	NUMBER,
 	STRING,
+	RESOURCE,
 	OTHER
 }
 
@@ -28,11 +29,7 @@ func _init(xdata: Array, ydata: Array):
 		var curr = LeastSquaresData.new(ydata[i], regex)
 		
 		# 是否需要分组
-		var need_new_group = not pre.is_same_type(curr) or pre.is_other()
-		
-		# 即便当前是包含数字的字符串，也需要检查是否和前一个字符串的格式是否一致，从而判断是否需要分组
-		if pre.is_same_string_pattern(curr):
-			need_new_group = true
+		var need_new_group = not pre.is_same_pattern(curr)
 			
 		# 需要重新分组时，要干的事情
 		if need_new_group:
@@ -70,21 +67,24 @@ func _init(xdata: Array, ydata: Array):
 ## 比如：xdata = [0, 1], ydata = ['a_1', 'a_002']，调用get_y(0)的结果是'a_001'而不是'a_1'。
 ## 字符串中的数字不会出现负数。
 func get_y(x: float) -> Variant:
+	var last_group
 	for group in group_x_map:
+		last_group = group
 		if x <= group_x_map[group] or is_equal_approx(x, group_x_map[group]):
 			return group.get_y(x)
-	return null
+	return last_group.get_y(x)
 	
 #func get_x(y: float, group: int) -> float:
 	#return groups[group].get_x(y)
 	
 	
 ## ######################################
-## 最小二乘法分组：全数字
+## 最小二乘法数据
 ## ######################################
 class LeastSquaresData:
 	var data_type: int
 	var value: Variant
+	var origin_data_ref: WeakRef
 	var origin_data_type: int
 	var is_scientific: bool
 	var prefix: String
@@ -92,6 +92,8 @@ class LeastSquaresData:
 	var num_length_with_zero: int
 	
 	func _init(v: Variant, regex: RegEx = null):
+		if v is Object:
+			origin_data_ref = weakref(v)
 		origin_data_type = typeof(v)
 		
 		if v is int or v is float or ((v is String or v is StringName) and v.is_valid_float()):
@@ -110,6 +112,17 @@ class LeastSquaresData:
 				num_length_with_zero = value.length() if value.begins_with("0") else 0
 				return
 				
+		if v is Resource:
+			if not v.resource_path.contains("::"):
+				var m = regex.search(v.resource_path)
+				if m != null:
+					data_type = DATA_TYPE.RESOURCE
+					value = (m as RegExMatch).get_string()
+					prefix = v.substr(0, m.get_start())
+					surfix = v.substr(m.get_end(), v.length())
+					num_length_with_zero = value.length() if value.begins_with("0") else 0
+					return
+					
 		data_type = DATA_TYPE.OTHER
 		value = v
 		
@@ -119,15 +132,27 @@ class LeastSquaresData:
 	func is_string() -> bool:
 		return data_type == DATA_TYPE.STRING
 		
+	func is_resource() -> bool:
+		return data_type == DATA_TYPE.RESOURCE
+		
 	func is_other() -> bool:
 		return data_type == DATA_TYPE.OTHER
 		
 	func is_same_type(v: LeastSquaresData) -> bool:
 		return data_type == v.data_type
 		
-	func is_same_string_pattern(v: LeastSquaresData) -> bool:
-		return is_string() and v.is_string() and prefix == v.prefix and surfix == v.surfix
-
+	func is_same_pattern(v: LeastSquaresData) -> bool:
+		if not is_same_type(v):
+			return false
+		if is_other() or v.is_other():
+			return false
+		if is_number() and v.is_number():
+			return true
+		if is_string() and v.is_string() and prefix == v.prefix and surfix == v.surfix:
+			return true
+		return false
+		
+		
 ## ######################################
 ## 最小二乘法分组：全数字
 ## ######################################
@@ -175,9 +200,9 @@ class LeastSquaresGroupNumber:
 ## 最小二乘法分组：同类型包含数字的字符串
 ## ######################################
 class LeastSquaresGroupString extends LeastSquaresGroupNumber:
-	## 前缀（当ydata中的元素为字符串时需要）
+	## 前缀
 	var _prefix: String = ""
-	## 后缀（当ydata中的元素为字符串时需要）
+	## 后缀
 	var _surfix: String = ""
 	## 字符串中的数字的最小长度（样本中以0开头的数字中的最长的长度）
 	var _min_num_length: int = 0
@@ -189,9 +214,9 @@ class LeastSquaresGroupString extends LeastSquaresGroupNumber:
 		
 		var tmp_ydata = []
 		for i in ydata:
-			assert(i.is_string(), "All the elements' type of ydata must be same")
-			assert(not (i.prefix == _prefix and i.surfix == _surfix), 
-				"All the elements of ydata should begin with [%s]` and end with [%s]" % [_prefix, _surfix])
+			#assert(i.is_string(), "All the elements' type of ydata must be same")
+			#assert(not (i.prefix == _prefix and i.surfix == _surfix), 
+				#"All the elements of ydata should begin with [%s]` and end with [%s]" % [_prefix, _surfix])
 			_min_num_length = max(_min_num_length, i.length_with_zero)
 			#tmp_ydata.push_back(type_convert(i.value, TYPE_FLOAT))
 			tmp_ydata.push_back(LeastSquaresData.new(i.value, null))
@@ -215,6 +240,28 @@ class LeastSquaresGroupString extends LeastSquaresGroupNumber:
 		#return super.get_x(m.get_string())
 		
 		
+## ######################################
+## 最小二乘法分组：Resource
+## ######################################
+class LeastSquaresGroupResource extends LeastSquaresGroupString:
+	var _model: WeakRef # 模板的引用
+	
+	func _init(xdata: Array, ydata: Array[LeastSquaresData]):
+		_model = ydata.front().origin_data_ref
+		super._init(xdata, ydata)
+		
+	func get_y(x: float) -> Resource:
+		var path = super.get_y(x)
+		if _model and _model.get_ref():
+			var r = (_model.get_ref() as Resource).duplicate()
+			r.resource_path = path
+			return r
+		else:
+			var r = Resource.new()
+			r.resource_path = path
+			return r
+			
+			
 ## ######################################
 ## 最小二乘法分组：其他类型
 ## ######################################
