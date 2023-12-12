@@ -2067,8 +2067,6 @@ func _on_button_select_all_focus_exited():
 		#if obj != null and obj is DictionaryObject and datas.has(obj):
 			#EditorInterface.inspect_object(null)
 
-# TODO 只显示框选的属性
-# TODO 双击编辑
 func _on_button_edit_button_down():
 	if selected_borders.size() > 1:
 		return

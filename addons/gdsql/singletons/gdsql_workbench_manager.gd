@@ -491,7 +491,7 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 						inspector.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 							
 					var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
-					if properties.size() == 1:
+					if properties.size() == 1 and not editor_properties[0].name.contains("EditorPropertyMultilineText"):
 						editor_properties[0].size_flags_horizontal = Control.SIZE_EXPAND_FILL
 						__property_old_parents[dialog][editor_properties[0]] = weakref(editor_properties[0].get_parent())
 						var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
