@@ -134,7 +134,7 @@ func get_table_columns_by_datapath(data_path, table: String) -> Array:
 					.get("columns", []).map(func(v): v["db_name"] = db; return v)
 	return []
 	
-func _add_dialog(dialog: AcceptDialog):
+func _add_dialog(dialog: Window):
 	var root = EditorInterface.get_base_control().get_tree().get_root()
 	var dialog_root = root.find_child("DialogRoot", false, false)
 	if dialog_root == null:
@@ -194,7 +194,7 @@ func create_accept_dialog(msg) -> void:
 	
 var __property_old_parents = {}
 var __custom_dialog_datas = {}
-func _clear_custom_dialog(dialog: AcceptDialog):
+func _clear_custom_dialog(dialog: Window):
 	if __property_old_parents.has(dialog):
 		for i in __property_old_parents[dialog]:
 			if i:
@@ -400,33 +400,17 @@ min_size: Vector2i = Vector2i.ZERO) -> ConfirmationDialog:
 ## 放入defered_callback中。需接收2个参数：
 ## 参数1：bool，true表示用户点击的是“确定”，false表示用户点击的是“取消”或“关闭”
 ## 参数2：请勿指定数据类型，其值等于confirmed_callback_before_close或canceled_callback_before_close返回数组的第二个元素。
-func create_custom_dialog_2(datas: Array[Array],
-confirmed_callback_before_close: Callable = Callable(), 
+func create_custom_popup_panel(datas: Array[Array],
+position: Vector2,
 canceled_callback_before_close: Callable = Callable(),
 defered_callback: Callable = Callable(),
-min_size: Vector2i = Vector2i.ZERO) -> ConfirmationDialog:
-	var dialog := ConfirmationDialog.new()
-	dialog.dialog_hide_on_ok = false
+min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
+	#var dialog := ConfirmationDialog.new()
+	var dialog := PopupPanel.new()
+	#dialog.dialog_hide_on_ok = false
 	__custom_dialog_datas[dialog] = datas
 	__property_old_parents[dialog] = {}
-	# 确定
-	dialog.confirmed.connect(func():
-		var close = true
-		var ret
-		if confirmed_callback_before_close.is_valid():
-			ret = confirmed_callback_before_close.call()
-			assert(ret is Array and ret.size() == 2 and ret[0] is bool, 
-				"Return value of confirmed_callback_before_close must be a 2-elements-array(first element must be a bool)!")
-			if ret[0] == true:
-				close = false
-				
-		if close:
-			_clear_custom_dialog(dialog)
-			if defered_callback.is_valid():
-				defered_callback.call(true, ret[1] if ret is Array else null)
-	, CONNECT_DEFERRED)
-	# 取消、关闭（关闭也会触发canceled）
-	dialog.canceled.connect(func():
+	dialog.popup_hide.connect(func():
 		var close = true
 		var ret
 		if canceled_callback_before_close.is_valid():
@@ -503,21 +487,30 @@ min_size: Vector2i = Vector2i.ZERO) -> ConfirmationDialog:
 						return not (v["usage"] & PROPERTY_USAGE_CATEGORY or v["usage"] & PROPERTY_USAGE_GROUP \
 							or v["usage"] & PROPERTY_USAGE_SUBGROUP)).map(func(v): return v["name"])
 							
+					if properties.size() < 5:
+						inspector.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+							
 					var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
-					var v_box_container = EditorInterface.get_inspector().get_child(0, true)
-					for i in v_box_container.get_children(true):
-						var need = false
-						for j in properties.size():
-							var editor_property = editor_properties[j]
-							if i.is_ancestor_of(editor_property):
-								need = true
-								break
-						if need:
-							i.reparent(v_box)
-							__property_old_parents[dialog][i] = weakref(v_box_container)
-						
-					#v_box_container.reparent(inspector)
-					
+					if properties.size() == 1:
+						editor_properties[0].size_flags_horizontal = Control.SIZE_EXPAND_FILL
+						__property_old_parents[dialog][editor_properties[0]] = weakref(editor_properties[0].get_parent())
+						var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
+						container.invisible_ratio = 0.5
+						container.control = editor_properties[0]
+						v_box.add_child(container)
+					else:
+						var v_box_container = EditorInterface.get_inspector().get_child(0, true)
+						for i in v_box_container.get_children(true):
+							var need = false
+							for j in properties.size():
+								var editor_property = editor_properties[j]
+								if i.is_ancestor_of(editor_property):
+									need = true
+									break
+							if need:
+								__property_old_parents[dialog][i] = weakref(v_box_container)
+								i.reparent(v_box)
+								
 					for i in editor_properties:
 						# 只有让检查器显示这个属性，才能修改这个属性。否则修改的是检查器当前显示的属性。
 						connect_focused_propagate(i, data)
@@ -541,11 +534,19 @@ min_size: Vector2i = Vector2i.ZERO) -> ConfirmationDialog:
 		editable_control.grab_focus()
 		
 	# 注册回车键的输入组件
-	var last_line_edit = _find_last_line_edit(vbox_container)
-	if last_line_edit != null:
-		dialog.register_text_enter(last_line_edit)
+	#var last_line_edit = _find_last_line_edit(vbox_container)
+	#if last_line_edit != null:
+		#dialog.register_text_enter(last_line_edit)
 		
-	dialog.popup_centered(min_size)
+	dialog.position = position
+	dialog.min_size = min_size
+	dialog.popup()
+	dialog.mouse_passthrough_polygon = PackedVector2Array([
+		Vector2.ZERO,
+		Vector2(dialog.size.x, 0),
+		Vector2(dialog.size.x, dialog.size.y),
+		Vector2(0, dialog.size.y),
+	])
 	return dialog
 	
 func _find_editable_control(control: Node) -> Control:

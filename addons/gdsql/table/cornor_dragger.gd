@@ -25,7 +25,6 @@ func _on_drag_area_gui_input(event):
 			if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 				start_drag = true
 				init_diff = get_global_mouse_position() - center.global_position
-				printt("rttttt init_diff", init_diff)
 				#start_drag_position = get_global_mouse_position()
 				cornor_drag_start.emit()
 				

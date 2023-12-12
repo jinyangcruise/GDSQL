@@ -605,6 +605,9 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 		(event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT):
 		inspect_highlight_rows()
 		
+	if (event as InputEventMouseButton).double_click:
+		_on_button_edit_button_down()
+		
 func _on_row_mouse_entered(_row_panel) -> void:
 	#printt(row_panel)
 	pass
@@ -1606,6 +1609,7 @@ func commit_autofill_border() -> void:
 	
 ## 支持批量编辑多个数据
 func inspect_highlight_rows() -> void:
+	return
 	await get_tree().create_timer(0.05).timeout
 	var rows = get_data_of_highlight_rows()
 	if rows.is_empty():
@@ -1818,7 +1822,7 @@ func _on_button_select_all_pressed():
 		inspect_highlight_rows()
 		# TODO 选框
 		
-func highlight_row(row_panel: PanelContainer, skip_await: bool = false, mouse_button_right: bool = false) -> void:
+func highlight_row(row_panel: PanelContainer, skip_await: bool = false, _mouse_button_right: bool = false) -> void:
 	button_select_all.grab_focus()
 	
 	var pos_row = row_panel.get_index()
@@ -2073,6 +2077,11 @@ func _on_button_edit_button_down():
 	one_col = false
 	var rows = get_data_of_highlight_rows()
 	
+	var selected_cols = []
+	var selected_rect = selected_borders.front()["rect"] as Rect2
+	for i in range(selected_rect.position.y, selected_rect.end.y):
+		selected_cols.push_back((rows.front() as DictionaryObject).__get_index_prop(i))
+		
 	# 多个数据的构造一个MultiNodeEdit。参考Godot源码。
 	# @see editor\multi_node_edit.cpp：MultiNodeEdit::_get_property_list
 	# 这段主要是得出选中的数据的共同属性。
@@ -2171,6 +2180,26 @@ func _on_button_edit_button_down():
 				p_list.remove_at(j)
 				break
 				
+	#for j in p_list.size():
+			
+	# 只保留框选的属性
+	# 属性对应的分组也保留一下
+	var tmp_p_list = []
+	for j in p_list.size():
+		if selected_cols.has(p_list[j]["name"]):
+			tmp_p_list.push_back(p_list[j])
+			continue
+			
+		if p_list[j]["usage"] & PROPERTY_USAGE_CATEGORY \
+		or p_list[j]["usage"] & PROPERTY_USAGE_GROUP \
+		or p_list[j]["usage"] & PROPERTY_USAGE_SUBGROUP:
+			for i: String in selected_cols:
+				if i.begins_with(p_list[j]["name"]):
+					tmp_p_list.push_back(p_list[j])
+					break
+					
+	p_list = tmp_p_list
+	
 	# 剩下的属性用于构造dict obj
 	var impl_data = {}
 	var impl_hint = {}
@@ -2217,5 +2246,9 @@ func _on_button_edit_button_down():
 	var arr: Array[Array] = [
 		[impl_dict_obj],
 	]
-	mgr.create_custom_dialog_2(arr, Callable(), Callable(), Callable(), Vector2i(400, 600))
-	
+	if rows.size() > 1:
+		arr.insert(0, ["Edit %d rows" % rows.size()])
+	var min_width = 300 if selected_cols.size() == 1 else 600
+	var min_height = 0 if selected_cols.size() < 5 else 800
+	var pos = DisplayServer.mouse_get_position() + Vector2i(20, 15)
+	mgr.create_custom_popup_panel(arr, pos, Callable(), Callable(), Vector2i(min_width, min_height))
