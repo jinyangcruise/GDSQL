@@ -92,7 +92,7 @@ var buttons: Array[Button] = []
 var controls: Array = []
 var style_box_empty = StyleBoxEmpty.new()
 # 最后focus的行
-var last_focused_row
+#var last_focused_row
 const HIGHTLIGHT_COLOR = Color(Color.MEDIUM_PURPLE, 0.788)
 const CLICKED_COLOR = Color(Color.LIGHT_BLUE, 0.1)
 #var data_of_focused_row
@@ -143,7 +143,7 @@ func _notification(what):
 		clear_header()
 		clear_rows()
 		datas = []
-		last_focused_row = null
+		#last_focused_row = null
 		for i: Control in autofill_borders:
 			i.queue_free()
 		autofill_borders.clear()
@@ -181,8 +181,8 @@ func reset_header():
 	for i in fake_columns.size():
 		var c: HSplitContainer = header_col_model.duplicate()
 		parent.add_child(c)
-		var split_container_dragger = c.get_child(-1, true)
-		split_container_dragger.gui_input.connect(_on_dragger_gui_input.bind(c), CONNECT_DEFERRED)
+		#var split_container_dragger = c.get_child(-1, true)
+		#split_container_dragger.gui_input.connect(_on_dragger_gui_input.bind(c), CONNECT_DEFERRED)
 		var button = c.get_child(0) as Button
 		var control = c.get_child(1)
 		if i == 0:
@@ -277,8 +277,8 @@ func remove_data_at(index: int, free_data: bool):
 	datas.remove_at(index)
 	if v_box_container.get_child_count() > index:
 		var row = v_box_container.get_child(index)
-		if row == last_focused_row:
-			last_focused_row = null
+		#if row == last_focused_row:
+			#last_focused_row = null
 		row.remove_meta("data")
 		v_box_container.remove_child(row)
 		row.queue_free()
@@ -338,7 +338,6 @@ func add_row(a_data):
 	a_row.set_meta("data", a_data)
 	v_box_container.add_child(a_row)
 	a_row.gui_input.connect(_on_row_gui_input.bind(a_row, a_data), CONNECT_DEFERRED)
-	a_row.mouse_entered.connect(_on_row_mouse_entered.bind(a_row), CONNECT_DEFERRED)
 	var style_box: StyleBoxFlat = a_row.get_theme_stylebox("panel").duplicate()
 	a_row.add_theme_stylebox_override("panel", style_box)
 	
@@ -362,8 +361,45 @@ func add_row(a_data):
 			control.add_theme_stylebox_override("focus", style_box_empty)
 			control.add_theme_font_size_override("font_size", 12)
 			control.pressed.connect(func():
-				# TODO signal
-				printt("aaaaaaaa")
+				# 是否按下ctrl键、shift键
+				var ctrl_pressed = Input.is_key_pressed(KEY_CTRL)
+				var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
+				if shift_pressed:
+					var rect = Rect2()
+					if selected_borders.is_empty():
+						rect.position = Vector2.ZERO
+						rect.end = Vector2(a_row.get_index() + 1, columns.size())
+					else:
+						var last_start = selected_borders.back()["start"] as Vector2
+						var start_pos = Vector2(min(last_start.x, a_row.get_index()), 0) # 选区左上角
+						var end_pos =  Vector2(max(last_start.x, a_row.get_index())+1, columns.size()) # 选区右下角
+						rect.position = start_pos
+						rect.end = end_pos
+					var border = {
+						"start": last_selected_pos,
+						"rect": rect
+					}
+					add_border(border)
+				elif ctrl_pressed:
+					var a_exclude_mode = true # 反选模式
+					for j in columns.size():
+						if not pos_is_selected(Vector2(a_row.get_index(), j)):
+							a_exclude_mode = false
+							break
+					var rect = Rect2(a_row.get_index(), 0, 1, columns.size())
+					var border = {
+						"start": Vector2(a_row.get_index(), 0),
+						"rect": rect,
+						"ctrl": true
+					}
+					if a_exclude_mode:
+						add_exclude_border(border)
+						commit_exclude_border()
+					else:
+						add_border(border)
+				else:
+					clear_borders()
+					row_grab_focus(a_row.get_index())
 			)
 			handled = true
 		
@@ -517,8 +553,8 @@ func clear_rows():
 	clear_borders()
 	while v_box_container.get_child_count() > 0:
 		var r = v_box_container.get_child(0)
-		if r == last_focused_row:
-			last_focused_row = null
+		#if r == last_focused_row:
+			#last_focused_row = null
 		r.remove_meta("data")
 		v_box_container.remove_child(r)
 		r.queue_free()
@@ -547,9 +583,9 @@ func test(container):
 	for child in container.get_children():
 		test(child)
 		
-func _on_dragger_gui_input(_event: InputEvent, _split_container: HSplitContainer):
-	return
-	## 让control不要自动填充
+#func _on_dragger_gui_input(_event: InputEvent, _split_container: HSplitContainer):
+	#return
+	# 让control不要自动填充
 	#if event is InputEventMouseButton:
 		#if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
 			#for control in controls:
@@ -580,7 +616,7 @@ func _on_resized():
 	#, CONNECT_DEFERRED)
 
 
-func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
+func _on_row_gui_input(event: InputEvent, _row_panel, source_data) -> void:
 	if not (event is InputEventMouseButton and event.is_pressed()):
 		return
 		
@@ -602,15 +638,13 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 	emit_click.call()
 	
 	if editable and event is InputEventMouseButton and \
-		(event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT):
+		(event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT) and \
+		not (event as InputEventMouseButton).double_click:
 		inspect_highlight_rows()
 		
 	if (event as InputEventMouseButton).double_click:
 		_on_button_edit_button_down()
 		
-func _on_row_mouse_entered(_row_panel) -> void:
-	#printt(row_panel)
-	pass
 	
 func clear_borders() -> void:
 	for info in selected_borders:
@@ -655,19 +689,16 @@ func get_border_of_start(start: Vector2):
 	return null
 	
 func add_border(border) -> void:
-	printt("begin add border", border)
 	# 起始点
 	last_selected_pos = border["start"]
 	
 	# 唯一选区要更新区域，清了重画
 	if selected_borders.size() == 1 and selected_borders[0]["start"] == last_selected_pos:
 		clear_border_of_start(last_selected_pos)
-		printt("iiiiii")
 	else:
 		if not selected_borders.is_empty():
 			# 和上一个选区是同一个起始点，要先还原一下（背景色）再重新画
 			if selected_borders.back()["start"] == last_selected_pos:
-				printt("ppp")
 				var old_start_pos = (selected_borders.back()["rect"] as Rect2).position
 				var old_end_pos = (selected_borders.back()["rect"] as Rect2).end
 				for row in range(old_start_pos.x, old_end_pos.x):
@@ -702,10 +733,8 @@ func add_border(border) -> void:
 				selected_borders.pop_back()
 			# 非同一起点
 			else:
-				printt("jjjjjjjjj")
 				# 如果按了ctrl，上一选区要把边框取消、起始点显示背景
 				if border.has("ctrl") and border["ctrl"]:
-					printt("3333333 ctrl pressed")
 					var old_start_pos = (selected_borders.back()["rect"] as Rect2).position
 					var old_end_pos = (selected_borders.back()["rect"] as Rect2).end
 					for row in range(old_start_pos.x, old_end_pos.x):
@@ -716,10 +745,8 @@ func add_border(border) -> void:
 							var overlapping = pc.get_meta("overlapping")
 							sb.bg_color.a = DEFAULT_BORDER_BG_COLOR.a * overlapping * 1.05
 							sb.border_color = Color(DEFAULT_BORDER_BORDER_COLOR, 0.1)#sb.bg_color # 相当于把边框取消了
-							printt("uuuuuuu", sb.bg_color.a, overlapping, DEFAULT_BORDER_BG_COLOR.a)
 				# 没按ctrl，全部选区清空
 				else:
-					printt("kk")
 					clear_borders()
 					
 	var start_pos = (border["rect"] as Rect2).position
@@ -756,7 +783,6 @@ func add_border(border) -> void:
 				if not(row == last_selected_pos.x and col == last_selected_pos.y):
 					if sb == null: sb = DEFAULT_BORDER_STYLE.duplicate()
 					sb.draw_center = true
-					printt("vvvv", row, col)
 			# 2. 不唯一
 			else:
 				sb = DEFAULT_BORDER_STYLE.duplicate() as StyleBoxFlat
@@ -786,7 +812,6 @@ func add_border(border) -> void:
 				pc.add_theme_stylebox_override("panel", sb)
 				pc.set_meta("overlapping", overlapping)
 				sb.bg_color.a = DEFAULT_BORDER_BG_COLOR.a * overlapping * 1.05
-				printt("rrrrrr", sb.draw_center, row, col)
 			
 	selected_borders.push_back(border)
 	if selected_borders.size() == 1:
@@ -796,6 +821,8 @@ func add_border(border) -> void:
 		if is_instance_valid(cornor_dragger):
 			cornor_dragger.queue_free()
 			cornor_dragger = null
+			
+	# TODO 如果每个选框的列相同，就可以在检查器中编辑。弄成一个单独的函数进行调用。exclude的时候也需要检查刷新。
 			
 func add_cornor_dragger():
 	if is_instance_valid(cornor_dragger):
@@ -813,10 +840,8 @@ func add_cornor_dragger():
 	cornor_dragger = cd
 	
 func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
-	printt("drag moving")
 	var panel_container = get_panel_container_under_mouse()
 	if panel_container == null:
-		printt("panel is null")
 		return
 	scroll_container.ensure_control_visible(panel_container) # 超出scroll_container的边界时，要让scroll_container自己滚动
 	var pos_row = panel_container.get_parent().get_parent().get_index()
@@ -850,7 +875,6 @@ func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
 				# #####¯¯¯⌉
 				# #####   |
 				# #####___⌋
-				printt("--------------------1", diff)
 				add_autofill_border(start, Vector2(end.x, pos_col) + Vector2.ONE, "add")
 			else:
 				# 向下多出一块
@@ -858,7 +882,6 @@ func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
 				# #########
 				# |       |
 				# ⌊_______⌋
-				printt("--------------------2", diff)
 				add_autofill_border(start, Vector2(pos_row, end.y) + Vector2.ONE, "add")
 		else:
 			if diff.x > -diff.y:
@@ -866,12 +889,10 @@ func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
 				# #####¯¯¯⌉
 				# #####   |
 				# #####___⌋
-				printt("--------------------3", diff)
 				add_autofill_border(start, Vector2(end.x, pos_col) + Vector2.ONE, "add")
 			else:
 				# 向上缩小一块
 				if pos_row > start.x:
-					printt("--------------------4", diff)
 					var rect = panel_container.get_rect() as Rect2
 					rect.size.y /= 2
 					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
@@ -881,7 +902,6 @@ func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
 							"sub" if pos_row != end.x else "start")
 				# 全部缩
 				elif pos_row == start.x:
-					printt("--------------------5", diff)
 					var rect = panel_container.get_rect() as Rect2
 					rect.size.y /= 2
 					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
@@ -891,14 +911,12 @@ func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
 							"sub" if pos_row != end.x else "start")
 				# 向上扩展
 				else:
-					printt("--------------------6", diff)
 					add_autofill_border(Vector2(pos_row, start.y), end + Vector2.ONE, "add")
 	else:
 		if diff.y > 0:
 			if -diff.x > diff.y:
 				# 向左缩一块
 				if pos_col > start.y:
-					printt("--------------------7", diff)
 					var rect = panel_container.get_rect() as Rect2
 					rect.size.x /= 2
 					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
@@ -908,7 +926,6 @@ func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
 							"sub" if pos_col != end.y else "start")
 				# 全部缩
 				elif pos_col == start.y:
-					printt("--------------------8", diff, end, pos_row, pos_col, start.y)
 					var rect = panel_container.get_rect() as Rect2
 					rect.size.x /= 2
 					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
@@ -918,7 +935,6 @@ func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
 							"sub" if pos_col != end.y else "start")
 				# 向左扩展
 				else:
-					printt("--------------------9", diff)
 					add_autofill_border(Vector2(start.x, pos_col), end + Vector2.ONE, "add")
 			else:
 				# 向下多出一块
@@ -926,13 +942,11 @@ func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
 				# #########
 				# |       |
 				# ⌊_______⌋
-				printt("--------------------16", diff)
 				add_autofill_border(start, Vector2(pos_row, end.y) + Vector2.ONE, "add")
 		else:
 			if -diff.x > -diff.y:
 				# 向左缩一块
 				if pos_col > start.y:
-					printt("--------------------13", diff)
 					var rect = panel_container.get_rect() as Rect2
 					rect.size.x /= 2
 					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
@@ -942,7 +956,6 @@ func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
 							"sub" if pos_col != end.y else "start")
 				# 全部缩
 				elif pos_col == start.y:
-					printt("--------------------14", diff)
 					var rect = panel_container.get_rect() as Rect2
 					rect.size.x /= 2
 					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
@@ -952,12 +965,10 @@ func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
 							"sub" if pos_col != end.y else "start")
 				# 向左扩展
 				else:
-					printt("--------------------15", diff)
 					add_autofill_border(Vector2(start.x, pos_col), end + Vector2.ONE, "add")
 			else:
 				# 向上缩小一块
 				if pos_row > start.x:
-					printt("--------------------10", diff)
 					var rect = panel_container.get_rect() as Rect2
 					rect.size.y /= 2
 					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
@@ -967,7 +978,6 @@ func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
 							"sub" if pos_row != end.x else "start")
 				# 全部缩
 				elif pos_row == start.x:
-					printt("--------------------11", diff)
 					var rect = panel_container.get_rect() as Rect2
 					rect.size.y /= 2
 					if rect.has_point(panel_container.get_parent().get_local_mouse_position()):
@@ -977,7 +987,6 @@ func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
 							"sub" if pos_row != end.x else "start")
 				# 向上扩展
 				else:
-					printt("--------------------12", diff)
 					add_autofill_border(Vector2(pos_row, start.y), end + Vector2.ONE, "add")
 	
 func add_exclude_border(border) -> void:
@@ -1292,7 +1301,6 @@ func commit_exclude_border():
 							"start": Vector2(inter_end.x, border_start.y),
 							"rect": Rect2(inter_end.x, border_start.y, border_end.x - inter_end.x, border_size.y)
 						})
-						pass
 			# inter_start.x != border_start.x
 			# inter_start.y != border_start.y
 			else:
@@ -1327,7 +1335,6 @@ func commit_exclude_border():
 							"start": Vector2(inter_start.x, inter_end.y),
 							"rect": Rect2(inter_start.x, inter_end.y, inter_size.x, border_end.y - inter_end.y)
 						})
-						pass
 				else:
 					if inter_end.y == border_end.y:
 						# 右边中间一块删除
@@ -1347,7 +1354,6 @@ func commit_exclude_border():
 							"start": Vector2(inter_end.x, border_start.y),
 							"rect": Rect2(inter_end.x, border_start.y, border_end.x - inter_end.x, border_size.y)
 						})
-						pass
 					else:
 						# 中间一块删除
 						# ⌈¯¯¯¯¯¯¯⌉
@@ -1376,7 +1382,6 @@ func commit_exclude_border():
 		selected_borders.remove_at(i)
 		
 	selected_borders.append_array(to_add)
-	Utils.print_variant(selected_borders)
 	
 	# 更新范围内的样式
 	for border in selected_borders:
@@ -1426,8 +1431,10 @@ func commit_exclude_border():
 		var sb = pc.get_theme_stylebox("panel") as StyleBoxFlat
 		sb.draw_center = false
 		add_cornor_dragger()
+		last_selected_pos = selected_borders.back()["start"]
 	# 多个区域
 	else:
+		last_selected_pos = selected_borders.back()["start"]
 		if is_instance_valid(cornor_dragger):
 			cornor_dragger.queue_free()
 			cornor_dragger = null
@@ -1609,7 +1616,6 @@ func commit_autofill_border() -> void:
 	
 ## 支持批量编辑多个数据
 func inspect_highlight_rows() -> void:
-	return
 	await get_tree().create_timer(0.05).timeout
 	var rows = get_data_of_highlight_rows()
 	if rows.is_empty():
@@ -1814,13 +1820,18 @@ func get_data_of_highlight_rows() -> Array:
 				#style_box_1.bg_color.a = 0.0
 				
 func _on_button_select_all_pressed():
-	for i in v_box_container.get_children():
-		(i.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = HIGHTLIGHT_COLOR
-	if last_focused_row == null:
-		last_focused_row = v_box_container.get_child(0)
+	#for i in v_box_container.get_children():
+		#(i.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = HIGHTLIGHT_COLOR
+	#if last_focused_row == null:
+		#last_focused_row = v_box_container.get_child(0)
 	if editable:
+		clear_borders()
+		var border = {
+			"start": Vector2.ZERO,
+			"rect": Rect2(0, 0, datas.size(), columns.size())
+		}
+		add_border(border)
 		inspect_highlight_rows()
-		# TODO 选框
 		
 func highlight_row(row_panel: PanelContainer, skip_await: bool = false, _mouse_button_right: bool = false) -> void:
 	button_select_all.grab_focus()
@@ -1830,7 +1841,6 @@ func highlight_row(row_panel: PanelContainer, skip_await: bool = false, _mouse_b
 		"start": Vector2(pos_row, 0),
 		"rect": Rect2(pos_row, 0, 1, columns.size())
 	}
-	printt("eeee", border)
 	add_border(border)
 	
 	# 自动滚动到高亮行。
@@ -1907,7 +1917,6 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 	or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)):
 		if exclude_mode and start_drag:
 			commit_exclude_border()
-			printt("8888888888888 exclude end")
 		start_drag = false
 		exclude_mode = false
 		return
@@ -1919,7 +1928,6 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 	# 触发鼠标事件的panel_container的位置
 	var pos_row = panel_container.get_parent().get_parent().get_index()
 	var pos_col = panel_container.get_index()
-	#var old_last_selected_pos = last_selected_pos
 	
 	if event is InputEventMouseButton:
 		if not start_drag:
@@ -1933,11 +1941,9 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 			start_drag = true
 			start_drag_with_ctrl = ctrl_pressed
 			exclude_mode = ctrl_pressed and pos_is_selected(last_selected_pos) # 反选模式
-			printt("111111111 start drag", "ctrl:", start_drag_with_ctrl)
 		else:
 			start_drag = false # 鼠标右键走这行
 			exclude_mode = false
-			printt("22")
 			
 	# 经过实验得知，执行到这里时，只要左键在按时，start_drag都为true。但是panel_container却不一定是鼠标下方的那个，
 	# 经过实验发现，在鼠标按下且没有释放时，不管怎么移动鼠标，触发鼠标事件（点击和移动事件）的一直是最开始按下触发鼠标事件
@@ -1953,7 +1959,6 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 	# 如果没拖动（比如右键点击），要清空所有边框
 	if not start_drag:
 		clear_borders()
-		printt("clear")
 		
 	var x = last_selected_pos.x if start_drag else pos_row
 	var y = last_selected_pos.y if start_drag else pos_col
@@ -1967,7 +1972,6 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 	
 	# 没按ctrl或按了ctrl时起始点不在选区内
 	if not start_drag_with_ctrl or not exclude_mode:
-		printt("add border", start_pos, end_pos)
 		add_border(border)
 		return
 		
@@ -1977,15 +1981,12 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 	# 2. 点到了某选区中的位置，鼠标按下时在点击位置产生灰色的边框，保持按下可拖动扩大选区，选区背景色较淡，旧选区背景和边框不变。鼠标释放时，新选区变为非选区，旧选区
 	# 剩余的部分边框消失，剩余部分被划分为新的若干矩形区域，若没有剩余部分，则选区变为起始点单元格。若旧起始点仍在选区内，则起始点有绿细边框，无背景；
 	# 若旧起始点不在选区内，则新划分的若干选区的第一个选区的第一格变为起始点，有绿细边框，无背景。若只剩余一个选区，则选区有边框，无背景。
-	if start_drag_with_ctrl:
-		if exclude_mode:
-			printt("exclude mode 9999999999")
-			add_exclude_border(border)
-		else:
-			printt("222222")
-			printt("add border", start_pos, end_pos)
-			add_border(border)
-			
+	#if start_drag_with_ctrl:
+	if exclude_mode:
+		add_exclude_border(border)
+	else:
+		add_border(border)
+		
 		
 func _on_popup_menu_text_index_pressed(index):
 	match popup_menu_text.get_item_text(index):
@@ -2071,8 +2072,8 @@ func _on_button_edit_button_down():
 	if selected_borders.size() > 1:
 		return
 		
-	var one_col = (selected_borders.front()["rect"] as Rect2).size.y == 1
-	one_col = false
+	#var one_col = (selected_borders.front()["rect"] as Rect2).size.y == 1
+	#one_col = false
 	var rows = get_data_of_highlight_rows()
 	
 	var selected_cols = []
@@ -2245,7 +2246,7 @@ func _on_button_edit_button_down():
 		[impl_dict_obj],
 	]
 	if rows.size() > 1:
-		arr.insert(0, ["Edit %d rows" % rows.size()])
+		arr.insert(0, ["Edit %d rows%s" % [rows.size(), "" if selected_cols.size() > 1 else "'s " + Array(selected_cols[0].rsplit(" ")).back()]])
 	var min_width = 300 if selected_cols.size() == 1 else 600
 	var min_height = 0 if selected_cols.size() < 5 else 800
 	var pos = DisplayServer.mouse_get_position() + Vector2i(20, 15)
