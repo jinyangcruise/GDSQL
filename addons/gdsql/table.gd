@@ -688,6 +688,17 @@ func get_border_of_start(start: Vector2):
 			return info
 	return null
 	
+func borders_has_same_cols() -> bool:
+	if selected_borders.is_empty():
+		return false
+	var start_col = (selected_borders.front()["rect"] as Rect2).position.y
+	var end_col = (selected_borders.front()["rect"] as Rect2).end.y
+	for border in selected_borders:
+		if not((border["rect"] as Rect2).position.y == start_col\
+		and (border["rect"] as Rect2).end.y == end_col):
+			return false
+	return true
+		
 func add_border(border) -> void:
 	# 起始点
 	last_selected_pos = border["start"]
@@ -825,6 +836,8 @@ func add_border(border) -> void:
 	# TODO 如果每个选框的列相同，就可以在检查器中编辑。弄成一个单独的函数进行调用。exclude的时候也需要检查刷新。
 			
 func add_cornor_dragger():
+	if not editable:
+		return
 	if is_instance_valid(cornor_dragger):
 		cornor_dragger.queue_free()
 	var start = (selected_borders.front()["rect"] as Rect2).position
@@ -1824,13 +1837,13 @@ func _on_button_select_all_pressed():
 		#(i.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = HIGHTLIGHT_COLOR
 	#if last_focused_row == null:
 		#last_focused_row = v_box_container.get_child(0)
+	clear_borders()
+	var border = {
+		"start": Vector2.ZERO,
+		"rect": Rect2(0, 0, datas.size(), columns.size())
+	}
+	add_border(border)
 	if editable:
-		clear_borders()
-		var border = {
-			"start": Vector2.ZERO,
-			"rect": Rect2(0, 0, datas.size(), columns.size())
-		}
-		add_border(border)
 		inspect_highlight_rows()
 		
 func highlight_row(row_panel: PanelContainer, skip_await: bool = false, _mouse_button_right: bool = false) -> void:
@@ -2069,7 +2082,7 @@ func _on_button_select_all_focus_exited():
 			#EditorInterface.inspect_object(null)
 
 func _on_button_edit_button_down():
-	if selected_borders.size() > 1:
+	if not editable or not borders_has_same_cols():
 		return
 		
 	#var one_col = (selected_borders.front()["rect"] as Rect2).size.y == 1
@@ -2179,8 +2192,6 @@ func _on_button_edit_button_down():
 				p_list.remove_at(j)
 				break
 				
-	#for j in p_list.size():
-			
 	# 只保留框选的属性
 	# 属性对应的分组也保留一下
 	var tmp_p_list = []
@@ -2250,4 +2261,6 @@ func _on_button_edit_button_down():
 	var min_width = 300 if selected_cols.size() == 1 else 600
 	var min_height = 0 if selected_cols.size() < 5 else 800
 	var pos = DisplayServer.mouse_get_position() + Vector2i(20, 15)
-	mgr.create_custom_popup_panel(arr, pos, Callable(), Callable(), Vector2i(min_width, min_height))
+	var defered = func(_a, _b):
+		EditorInterface.inspect_object(null)
+	mgr.create_custom_popup_panel(arr, pos, Callable(), defered, Vector2i(min_width, min_height))

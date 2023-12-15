@@ -1,8 +1,10 @@
-[gd_scene load_steps=11 format=3 uid="uid://bpawj4a7llynx"]
+[gd_scene load_steps=13 format=3 uid="uid://bpawj4a7llynx"]
 
 [ext_resource type="Script" path="res://addons/gdsql/table.gd" id="1_s1y7s"]
 [ext_resource type="Texture2D" uid="uid://uv864j1h58kn" path="res://addons/gdsql/img/copy.png" id="2_y6tia"]
 [ext_resource type="Texture2D" uid="uid://dhrujeh8nxhtd" path="res://addons/gdsql/img/trash-can.png" id="3_8c6f0"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_h0skj"]
 
 [sub_resource type="InputEventKey" id="InputEventKey_53xxg"]
 device = -1
@@ -11,6 +13,8 @@ keycode = 65
 
 [sub_resource type="Shortcut" id="Shortcut_64kd7"]
 events = [SubResource("InputEventKey_53xxg")]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_3rgsn"]
 
 [sub_resource type="InputEventKey" id="InputEventKey_fjg01"]
 device = -1
@@ -47,20 +51,19 @@ mouse_filter = 2
 modulate = Color(1, 1, 1, 0)
 layout_mode = 2
 offset_top = 6.0
-offset_right = 3840.0
-offset_bottom = 52.0
+offset_bottom = 6.0
+focus_mode = 1
 shortcut_context = NodePath("../..")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_h0skj")
 shortcut = SubResource("Shortcut_64kd7")
-text = "Select All. This button is listening Ctrl+A"
+flat = true
 
 [node name="ButtonEdit" type="Button" parent="Control" node_paths=PackedStringArray("shortcut_context")]
 modulate = Color(1, 1, 1, 0)
 layout_mode = 0
-offset_right = 18.0
-offset_bottom = 15.0
 shortcut_context = NodePath("../..")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_3rgsn")
 shortcut = SubResource("Shortcut_kysye")
-text = "Edit field. This button is listening Enter."
 
 [node name="Models" type="HBoxContainer" parent="."]
 visible = false
