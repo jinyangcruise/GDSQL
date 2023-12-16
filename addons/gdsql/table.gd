@@ -2194,12 +2194,15 @@ func _on_button_edit_button_down():
 	# NOTICE 每个属性的usage是否一致，如果有不一致的，该属性的usage改成default
 	# 对于表格中的每一行，假定每一行的usage都一样且为默认值。不然的话有些行的某些属性可能是只读的，有些null的属性是可以编辑的，不统一。
 	# 如果每行的同一个属性的usage相同，则相安无事。否则，我们就假定都是可编辑的，然后在最终修改的时候让只读属性不能被修改就行了。
+	var readonly_props = []
 	var p_usage = {}
 	for data in rows:
 		var plist = (data as Object).get_property_list()
 		for F in plist:
 			if not p_usage.has(F["name"]):
 				p_usage[F["name"]] = F["usage"]
+				if F["usage"] & PROPERTY_USAGE_READ_ONLY and not readonly_props.has(F["name"]):
+					readonly_props.push_back(F["name"])
 			elif p_usage[F["name"]] != F["usage"] and p_usage[F["name"]] != PROPERTY_USAGE_DEFAULT:
 				p_usage[F["name"]] = PROPERTY_USAGE_DEFAULT
 				
@@ -2322,8 +2325,11 @@ func _on_button_edit_button_down():
 	# 剩下的属性用于构造dict obj
 	var impl_data = {}
 	var impl_hint = {}
+	var contains_readonly_prop = false
 	for i in p_list:
 		var prop = i["name"]
+		if not contains_readonly_prop and readonly_props.has(prop):
+			contains_readonly_prop = true
 		# 如果所有数据该属性有共同的值，就设置上
 		var common_value = null
 		var inited = false
@@ -2378,6 +2384,8 @@ func _on_button_edit_button_down():
 	]
 	if rows.size() > 1:
 		arr.insert(0, ["Edit %d rows%s" % [rows.size(), "" if selected_cols.size() > 1 else "'s " + Array(selected_cols[0].rsplit(" ")).back()]])
+	if contains_readonly_prop:
+		arr.insert(0, ["NOTICE: Readonly props can not be modified!"])
 	var min_width = 300 if selected_cols.size() == 1 else 600
 	var min_height = 0 if selected_cols.size() < 5 else 800
 	var pos = DisplayServer.mouse_get_position() + Vector2i(20, 15)
