@@ -185,6 +185,54 @@ func reset_header():
 		#split_container_dragger.gui_input.connect(_on_dragger_gui_input.bind(c), CONNECT_DEFERRED)
 		var button = c.get_child(0) as Button
 		var control = c.get_child(1)
+		
+		var select_col = func():
+			# 点击按钮能选中一列
+			button_edit.grab_focus() # 如果不这样，空格键和enter键会激活这个control，而不是编辑按钮
+			# 是否按下ctrl键、shift键
+			var ctrl_pressed = Input.is_key_pressed(KEY_CTRL)
+			var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
+			if shift_pressed:
+				var rect = Rect2()
+				if selected_borders.is_empty():
+					rect.position = Vector2(0, i-1-int(show_frame))
+					rect.end = Vector2(datas.size(), i-int(show_frame))
+				else:
+					var last_start = selected_borders.back()["start"] as Vector2
+					var start_pos = Vector2(0, min(last_start.y, i-1-int(show_frame))) # 选区左上角
+					var end_pos =  Vector2(datas.size(), max(last_start.y, i-1-int(show_frame))+1) # 选区右下角
+					rect.position = start_pos
+					rect.end = end_pos
+				var border = {
+					"start": last_selected_pos,
+					"rect": rect
+				}
+				add_border(border)
+			elif ctrl_pressed:
+				var a_exclude_mode = true # 反选模式
+				for j in datas.size():
+					if not pos_is_selected(Vector2(j, i-1-int(show_frame))):
+						a_exclude_mode = false
+						break
+				var rect = Rect2(0, i-1-int(show_frame), datas.size(), 1)
+				var border = {
+					"start": Vector2(0, i-1-int(show_frame)),
+					"rect": rect,
+					"ctrl": true
+				}
+				if a_exclude_mode:
+					add_exclude_border(border)
+					commit_exclude_border()
+				else:
+					add_border(border)
+			else:
+				clear_borders()
+				var border = {
+					"start": Vector2(0, i-1-int(show_frame)),
+					"rect": Rect2(0, i-1-int(show_frame), datas.size(), 1)
+				}
+				add_border(border)
+			
 		if i == 0:
 			button.hide()
 			control.size_flags_stretch_ratio = 1000000
@@ -198,6 +246,7 @@ func reset_header():
 			c.collapsed = true
 		elif i == fake_columns.size() - 2:
 			button.size_flags_stretch_ratio = 1000000
+			button.pressed.connect(select_col)
 			c.dragger_visibility = HSplitContainer.DRAGGER_HIDDEN_COLLAPSED
 			if not column_tips.is_empty():
 				button.tooltip_text = column_tips[i-1-int(show_frame)]
@@ -209,6 +258,7 @@ func reset_header():
 			button.add_theme_stylebox_override("pressed", style_box_empty)
 			button.add_theme_stylebox_override("focus", style_box_empty)
 		else:
+			button.pressed.connect(select_col)
 			if not column_tips.is_empty():
 				button.tooltip_text = column_tips[i-1-int(show_frame)]
 				
@@ -217,8 +267,6 @@ func reset_header():
 			else:
 				control.size_flags_stretch_ratio = fake_columns.size() - i - 2
 			
-		#if i == fake_columns.size() - 1:
-			#button.hide()
 			
 		button.text = fake_columns[i]
 		parent = control
@@ -361,6 +409,7 @@ func add_row(a_data):
 			control.add_theme_stylebox_override("focus", style_box_empty)
 			control.add_theme_font_size_override("font_size", 12)
 			control.pressed.connect(func():
+				button_edit.grab_focus() # 如果不这样，空格键和enter键会激活这个control，而不是编辑按钮
 				# 是否按下ctrl键、shift键
 				var ctrl_pressed = Input.is_key_pressed(KEY_CTRL)
 				var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
@@ -698,7 +747,18 @@ func borders_has_same_cols() -> bool:
 		and (border["rect"] as Rect2).end.y == end_col):
 			return false
 	return true
-		
+	
+func borders_has_same_rows() -> bool:
+	if selected_borders.is_empty():
+		return false
+	var start_row = (selected_borders.front()["rect"] as Rect2).position.x
+	var end_row = (selected_borders.front()["rect"] as Rect2).end.x
+	for border in selected_borders:
+		if not((border["rect"] as Rect2).position.x == start_row\
+		and (border["rect"] as Rect2).end.x == end_row):
+			return false
+	return true
+	
 func add_border(border) -> void:
 	# 起始点
 	last_selected_pos = border["start"]
@@ -832,8 +892,6 @@ func add_border(border) -> void:
 		if is_instance_valid(cornor_dragger):
 			cornor_dragger.queue_free()
 			cornor_dragger = null
-			
-	# TODO 如果每个选框的列相同，就可以在检查器中编辑。弄成一个单独的函数进行调用。exclude的时候也需要检查刷新。
 			
 func add_cornor_dragger():
 	if not editable:
@@ -1541,7 +1599,8 @@ func commit_autofill_border() -> void:
 			for row in range(sub_rect.position.x, sub_rect.end.x):
 				var data = datas[row] as DictionaryObject
 				for col in range(sub_rect.position.y, sub_rect.end.y):
-					data._set_default_by_index(col)
+					if not (data.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
+						data._set_default_by_index(col)
 					
 		"add":
 			var range_outer # 样本区外层循环
@@ -1601,7 +1660,9 @@ func commit_autofill_border() -> void:
 				var fill = func(dict_obj: DictionaryObject, col: int, x: int):
 					var y = ls.get_y(x)
 					var prop_type = dict_obj.get_prop_type_by_index(col)
-					dict_obj._set_by_index(col, type_convert(y, prop_type))
+					# 只读属性不能被修改
+					if not (dict_obj.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
+						dict_obj._set_by_index(col, type_convert(y, prop_type))
 					
 				if outer_is_row:
 					for col in range(add_rect.position.y, add_rect.end.y):
@@ -1645,6 +1706,18 @@ func inspect_highlight_rows() -> void:
 				break
 		return
 		
+	# NOTICE 每个属性的usage是否一致，如果有不一致的，该属性的usage改成default
+	# 对于表格中的每一行，假定每一行的usage都一样且为默认值。不然的话有些行的某些属性可能是只读的，有些null的属性是可以编辑的，不统一。
+	# 如果每行的同一个属性的usage相同，则相安无事。否则，我们就假定都是可编辑的，然后在最终修改的时候让只读属性不能被修改就行了。
+	var p_usage = {}
+	for data in rows:
+		var plist = (data as Object).get_property_list()
+		for F in plist:
+			if not p_usage.has(F["name"]):
+				p_usage[F["name"]] = F["usage"]
+			elif p_usage[F["name"]] != F["usage"] and p_usage[F["name"]] != PROPERTY_USAGE_DEFAULT:
+				p_usage[F["name"]] = PROPERTY_USAGE_DEFAULT
+		
 	# 多个数据的构造一个MultiNodeEdit。参考Godot源码。
 	# @see editor\multi_node_edit.cpp：MultiNodeEdit::_get_property_list
 	# 这段主要是得出选中的数据的共同属性。
@@ -1664,7 +1737,7 @@ func inspect_highlight_rows() -> void:
 			#} else if (F.name.begins_with("metadata/")) {
 				#F.name = F.name.replace_first("metadata/", "Metadata/"); // Trick to not get actual metadata edited from MultiNodeEdit.
 			#}
-				
+			F["usage"] = p_usage[F["name"]]
 			if not usage.has(F["name"]):
 				usage[F["name"]] = {"uses": 0, "info": F}
 				data_list.push_back(usage[F["name"]])
@@ -1778,7 +1851,19 @@ func inspect_highlight_rows() -> void:
 		for data in rows:
 			if not data is Object or not is_instance_valid(data): # 考虑被编辑对象已经不存在了
 				continue
-			data.set(prop, new_value)
+				
+			# 只读属性不能被修改
+			if data is DictionaryObject:
+				if not (data.get_prop_usage(prop) & PROPERTY_USAGE_READ_ONLY):
+					data.set(prop, new_value)
+			else:
+				var props = data.get_property_list()
+				for i in props:
+					if i["name"] == prop:
+						if not i["usage"] & PROPERTY_USAGE_READ_ONLY:
+							data.set(prop, new_value)
+						break
+						
 			valid = true
 		if not valid:
 			impl_dict_obj.value_changed.disconnect(on_value_changed_ref[0])
@@ -1837,7 +1922,6 @@ func _on_button_select_all_pressed():
 		#(i.get_theme_stylebox("panel") as StyleBoxFlat).bg_color = HIGHTLIGHT_COLOR
 	#if last_focused_row == null:
 		#last_focused_row = v_box_container.get_child(0)
-	clear_borders()
 	var border = {
 		"start": Vector2.ZERO,
 		"rect": Rect2(0, 0, datas.size(), columns.size())
@@ -2082,22 +2166,47 @@ func _on_button_select_all_focus_exited():
 			#EditorInterface.inspect_object(null)
 
 func _on_button_edit_button_down():
-	if not editable or not borders_has_same_cols():
+	if not editable:# or not (borders_has_same_cols() or borders_has_same_rows()):
 		return
 		
-	#var one_col = (selected_borders.front()["rect"] as Rect2).size.y == 1
-	#one_col = false
+	var selected_index
+	if borders_has_same_cols():
+		selected_index = range(selected_borders.front()["rect"].position.y, selected_borders.front()["rect"].end.y)
+	elif borders_has_same_rows():
+		selected_index = []
+		for border in selected_borders:
+			var rect = border["rect"] as Rect2
+			for i in range(rect.position.y, rect.end.y):
+				if not selected_index.has(i):
+					selected_index.push_back(i)
+		selected_index.sort()
+	else:
+		return
+		
 	var rows = get_data_of_highlight_rows()
-	
+	if rows.is_empty():
+		return
+		
 	var selected_cols = []
-	var selected_rect = selected_borders.front()["rect"] as Rect2
-	for i in range(selected_rect.position.y, selected_rect.end.y):
+	for i in selected_index:
 		selected_cols.push_back((rows.front() as DictionaryObject).__get_index_prop(i))
 		
+	# NOTICE 每个属性的usage是否一致，如果有不一致的，该属性的usage改成default
+	# 对于表格中的每一行，假定每一行的usage都一样且为默认值。不然的话有些行的某些属性可能是只读的，有些null的属性是可以编辑的，不统一。
+	# 如果每行的同一个属性的usage相同，则相安无事。否则，我们就假定都是可编辑的，然后在最终修改的时候让只读属性不能被修改就行了。
+	var p_usage = {}
+	for data in rows:
+		var plist = (data as Object).get_property_list()
+		for F in plist:
+			if not p_usage.has(F["name"]):
+				p_usage[F["name"]] = F["usage"]
+			elif p_usage[F["name"]] != F["usage"] and p_usage[F["name"]] != PROPERTY_USAGE_DEFAULT:
+				p_usage[F["name"]] = PROPERTY_USAGE_DEFAULT
+				
 	# 多个数据的构造一个MultiNodeEdit。参考Godot源码。
 	# @see editor\multi_node_edit.cpp：MultiNodeEdit::_get_property_list
 	# 这段主要是得出选中的数据的共同属性。
-	var usage = {}
+	var usage = {} # 每个属性出现的次数
 	var p_list = []
 	var data_list = []
 	var nc = 0
@@ -2113,7 +2222,7 @@ func _on_button_edit_button_down():
 			#} else if (F.name.begins_with("metadata/")) {
 				#F.name = F.name.replace_first("metadata/", "Metadata/"); // Trick to not get actual metadata edited from MultiNodeEdit.
 			#}
-				
+			F["usage"] = p_usage[F["name"]]
 			if not usage.has(F["name"]):
 				usage[F["name"]] = {"uses": 0, "info": F}
 				data_list.push_back(usage[F["name"]])
@@ -2245,7 +2354,18 @@ func _on_button_edit_button_down():
 		for data in rows:
 			if not data is Object or not is_instance_valid(data): # 考虑被编辑对象已经不存在了
 				continue
-			data.set(prop, new_value)
+				
+			# 只读属性不能被修改
+			if data is DictionaryObject:
+				if not (data.get_prop_usage(prop) & PROPERTY_USAGE_READ_ONLY):
+					data.set(prop, new_value)
+			else:
+				var props = data.get_property_list()
+				for i in props:
+					if i["name"] == prop:
+						if not i["usage"] & PROPERTY_USAGE_READ_ONLY:
+							data.set(prop, new_value)
+						break
 			valid = true
 		if not valid:
 			impl_dict_obj.value_changed.disconnect(on_value_changed_ref[0])

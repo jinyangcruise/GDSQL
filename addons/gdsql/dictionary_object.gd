@@ -53,6 +53,16 @@ func get_prop_type_by_index(index: int) -> int:
 	var prop = __get_index_prop(index)
 	return _hint[prop]["type"] if (_hint.has(prop) and _hint[prop].has("type")) \
 		else (TYPE_NIL if _data[prop] == null else typeof(_data[prop]))
+		
+func get_prop_usage(prop: String) -> int:
+	var usage = PROPERTY_USAGE_DEFAULT if not _usage.has(prop) else _usage[prop]
+	if _duplicate_property.has(prop):
+		usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
+	return usage
+	
+func get_prop_usage_by_index(index: int) -> int:
+	var prop = __get_index_prop(index)
+	return get_prop_usage(prop)
 	
 func get_visible_data() -> Dictionary:
 	var ret = {}
