@@ -2385,7 +2385,7 @@ func _on_button_edit_button_down():
 	if rows.size() > 1:
 		arr.insert(0, ["Edit %d rows%s" % [rows.size(), "" if selected_cols.size() > 1 else "'s " + Array(selected_cols[0].rsplit(" ")).back()]])
 	if contains_readonly_prop:
-		arr.insert(0, ["NOTICE: Readonly props can not be modified!"])
+		arr.insert(0, ["NOTICE: Some rows that contain \nreadonly prop can not be modified!"])
 	var min_width = 300 if selected_cols.size() == 1 else 600
 	var min_height = 0 if selected_cols.size() < 5 else 800
 	var pos = DisplayServer.mouse_get_position() + Vector2i(20, 15)
