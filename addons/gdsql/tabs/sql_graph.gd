@@ -1017,6 +1017,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			table.remove_meta("deleted_datas")
 			for i in deleted_datas:
 				#old_datas.insert(i, deleted_datas[i]) # 注意：前提是新建的数据都是放在最后面的，不影响数据回到原来的位置。
+				(deleted_datas[i] as DictionaryObject).revert()
 				table.insert_data(i, deleted_datas[i]) # 注意：前提是新建的数据都是放在最后面的，不影响数据回到原来的位置。
 			#table.datas = old_datas
 			# 删除新建的数据
