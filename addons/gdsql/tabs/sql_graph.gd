@@ -821,7 +821,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 					# 非新增，也就是更新（用户联表查询时，有产生新增数据的可能性，比如修改全为null值的表，所以要考虑这种情况）
 					else:
 						var primary_key = modified_data["PK_key"]
-						var primary_value = modified_data["PK_value_new"]
+						var primary_value = modified_data["PK_value_old"]
 						var update_call = func():
 							var data = {}
 							for key in modified_data["modified"]:
