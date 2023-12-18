@@ -247,6 +247,10 @@ func reset_header():
 		elif i == fake_columns.size() - 2:
 			button.size_flags_stretch_ratio = 1000000
 			button.pressed.connect(select_col)
+			button.mouse_entered.connect(DisplayServer.cursor_set_custom_image.bind(
+				preload("res://addons/gdsql/img/ArrowDown.png"), DisplayServer.CURSOR_ARROW))
+			button.mouse_exited.connect(DisplayServer.cursor_set_custom_image.bind(
+				null, DisplayServer.CURSOR_ARROW))
 			c.dragger_visibility = HSplitContainer.DRAGGER_HIDDEN_COLLAPSED
 			if not column_tips.is_empty():
 				button.tooltip_text = column_tips[i-1-int(show_frame)]
@@ -259,6 +263,10 @@ func reset_header():
 			button.add_theme_stylebox_override("focus", style_box_empty)
 		else:
 			button.pressed.connect(select_col)
+			button.mouse_entered.connect(DisplayServer.cursor_set_custom_image.bind(
+				preload("res://addons/gdsql/img/ArrowDown.png"), DisplayServer.CURSOR_ARROW))
+			button.mouse_exited.connect(DisplayServer.cursor_set_custom_image.bind(
+				null, DisplayServer.CURSOR_ARROW))
 			if not column_tips.is_empty():
 				button.tooltip_text = column_tips[i-1-int(show_frame)]
 				
@@ -409,6 +417,10 @@ func add_row(a_data):
 			control.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			control.add_theme_stylebox_override("focus", style_box_empty)
 			control.add_theme_font_size_override("font_size", 12)
+			control.mouse_entered.connect(DisplayServer.cursor_set_custom_image.bind(
+				preload("res://addons/gdsql/img/ArrowRight.png"), DisplayServer.CURSOR_ARROW))
+			control.mouse_exited.connect(DisplayServer.cursor_set_custom_image.bind(
+				null, DisplayServer.CURSOR_ARROW))
 			control.pressed.connect(func():
 				#button_edit.grab_focus() # 如果不这样，空格键和enter键会激活这个control，而不是编辑按钮
 				# 是否按下ctrl键、shift键
@@ -676,7 +688,7 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 			row_clicked.emit(datas.find(source_data), event.button_index, source_data)
 			
 	row_panel.grab_focus()
-			
+	
 	if not editable:
 		emit_click.call()
 		return
@@ -1949,14 +1961,14 @@ func highlight_row(row_panel: PanelContainer, skip_await: bool = false, _mouse_b
 		await get_tree().create_timer(0.01).timeout
 	scroll_container.ensure_control_visible(row_panel)
 	
-	# 由于一开始等了0.1秒，可能导致检测鼠标按下无效，所以加入检查是否弹出了菜单
+	# 由于一开始等了0.01秒，可能导致检测鼠标按下无效，所以加入检查是否弹出了菜单
 	if show_menu and (Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT) or popup_menu_text.visible) and \
 		row_panel.get_rect().has_point(v_box_container.get_local_mouse_position()):
 		popup_menu_text.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
-		popup_menu_text.set_item_metadata(2, row_panel.get_meta("data"))
-		popup_menu_text.set_item_disabled(2, not support_delete_row)
+		#popup_menu_text.set_item_disabled(2, not support_delete_row)
 		if not popup_menu_text.visible:
 			popup_menu_text.popup()
+			popup_menu_text.set_item_disabled(2, not support_delete_row)
 	else:
 		popup_menu_text.set_item_disabled(2, true)
 		
@@ -1984,11 +1996,12 @@ func _label_gui_input(event: InputEvent, col_index: int):
 		popup_menu_text.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
 		popup_menu_text.set_item_metadata(0, col_index)
 		#popup_menu_text.set_item_metadata(1, col_index)
-		if support_delete_row and popup_menu_text.get_item_metadata(2) != null:
-			popup_menu_text.set_item_disabled(2, false)
-		else:
-			popup_menu_text.set_item_disabled(2, true)
+		#if support_delete_row and popup_menu_text.get_item_metadata(2) != null:
+			#popup_menu_text.set_item_disabled(2, false)
+		#else:
+			#popup_menu_text.set_item_disabled(2, true)
 		popup_menu_text.popup()
+		popup_menu_text.set_item_disabled(2, not support_delete_row)
 		
 # TODO 二分法搜索
 func get_panel_container_under_mouse():
@@ -2013,6 +2026,7 @@ func pos_is_selected(pos: Vector2) -> bool:
 	return false
 	
 func _on_border_panel_container_gui_input(event: InputEvent, panel_container: PanelContainer):
+	_on_v_box_container_mouse_entered() # 更新鼠标指针形状
 	if datas.is_empty() or not editable or not (Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) \
 	or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)):
 		if exclude_mode and start_drag:
@@ -2044,6 +2058,9 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 		else:
 			start_drag = false # 鼠标右键走这行
 			exclude_mode = false
+			# 右键点在选区，只弹右键菜单（别处逻辑）
+			if pos_is_selected(Vector2(pos_row, pos_col)):
+				return
 			
 	# 经过实验得知，执行到这里时，只要左键在按时，start_drag都为true。但是panel_container却不一定是鼠标下方的那个，
 	# 经过实验发现，在鼠标按下且没有释放时，不管怎么移动鼠标，触发鼠标事件（点击和移动事件）的一直是最开始按下触发鼠标事件
@@ -2128,19 +2145,7 @@ func _on_popup_menu_text_index_pressed(index):
 				arr.push_back("\t".join(arr_content))
 			DisplayServer.clipboard_set("\n".join(arr))
 		"Delete":
-			var deleted_datas = {}
-			var j = -1
-			for i in v_box_container.get_children():
-				j += 1
-				var style_box: StyleBoxFlat = i.get_theme_stylebox("panel")
-				if style_box and style_box.bg_color == HIGHTLIGHT_COLOR:
-					deleted_datas[j] = i.get_meta("data")
-			var indexes = deleted_datas.keys()
-			indexes.reverse() # 倒着删除，不然会因为先删了前面的后面的index已经变了
-			for i in indexes:
-				remove_data_at(i, true) # WARNING 有可能把用户自定义控件释放掉，这个规则缺乏明确的告知
-			if not deleted_datas.is_empty():
-				row_deleted.emit(deleted_datas)
+			_on_button_delete_row_pressed()
 			
 	popup_menu_text.set_item_metadata(index, null)
 
@@ -2557,6 +2562,15 @@ func _on_button_delete_row_pressed():
 	delete_row.sort()
 	delete_row.reverse()
 	for i in delete_row:
-		deleted_datas
-		remove_data_at(i, true)
+		remove_data_at(i, true) # WARNING 有可能把用户自定义控件释放掉，这个规则缺乏明确的告知
 	row_deleted.emit(deleted_datas)
+
+
+func _on_v_box_container_mouse_entered():
+	if editable:
+		DisplayServer.cursor_set_custom_image(preload("res://addons/gdsql/img/ToolMove.png"), DisplayServer.CURSOR_ARROW)
+
+
+func _on_v_box_container_mouse_exited():
+	if editable and not v_box_container.get_rect().has_point(scroll_container.get_local_mouse_position()):
+		DisplayServer.cursor_set_custom_image(null, DisplayServer.CURSOR_ARROW)
