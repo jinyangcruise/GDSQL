@@ -188,7 +188,7 @@ func reset_header():
 		
 		var select_col = func():
 			# 点击按钮能选中一列
-			button_edit.grab_focus() # 如果不这样，空格键和enter键会激活这个control，而不是编辑按钮
+			#button_edit.grab_focus() # 如果不这样，空格键和enter键会激活这个control，而不是编辑按钮
 			# 是否按下ctrl键、shift键
 			var ctrl_pressed = Input.is_key_pressed(KEY_CTRL)
 			var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
@@ -305,7 +305,7 @@ func insert_data(pos: int, a_data):
 			v_box_container.move_child(v_box_container.get_child(-1), pos)
 		if show_frame:
 			for i in range(pos, v_box_container.get_child_count(), 1):
-				var line_btn = v_box_container.get_child(i).get_child(0).get_child(1)
+				var line_btn = v_box_container.get_child(i).get_child(0).get_child(1, true).get_child(0)
 				line_btn.text = str(i+1)
 		
 func remove_data_at(index: int, free_data: bool):
@@ -332,7 +332,7 @@ func remove_data_at(index: int, free_data: bool):
 		row.queue_free()
 		if show_frame:
 			for i in range(index, v_box_container.get_child_count(), 1):
-				var line_btn = v_box_container.get_child(i).get_child(0).get_child(1)
+				var line_btn = v_box_container.get_child(i).get_child(0).get_child(1, true).get_child(0)
 				line_btn.text = str(int(line_btn.text)-1)
 		
 func move_data(from: int, to: int):
@@ -344,9 +344,10 @@ func move_data(from: int, to: int):
 		if is_node_ready():
 			var row = v_box_container.get_child(from)
 			v_box_container.move_child(row, to)
-			for i in range(from, to+1, 1):
-				var line_btn = v_box_container.get_child(i).get_child(0).get_child(1)
-				line_btn.text = str(i+1)
+			if show_frame:
+				for i in range(from, to+1, 1):
+					var line_btn = v_box_container.get_child(i).get_child(0).get_child(1, true).get_child(0)
+					line_btn.text = str(i+1)
 #endregion
 		
 func add_row(a_data):
@@ -409,7 +410,7 @@ func add_row(a_data):
 			control.add_theme_stylebox_override("focus", style_box_empty)
 			control.add_theme_font_size_override("font_size", 12)
 			control.pressed.connect(func():
-				button_edit.grab_focus() # 如果不这样，空格键和enter键会激活这个control，而不是编辑按钮
+				#button_edit.grab_focus() # 如果不这样，空格键和enter键会激活这个control，而不是编辑按钮
 				# 是否按下ctrl键、shift键
 				var ctrl_pressed = Input.is_key_pressed(KEY_CTRL)
 				var shift_pressed = Input.is_key_pressed(KEY_SHIFT)
@@ -665,7 +666,7 @@ func _on_resized():
 	#, CONNECT_DEFERRED)
 
 
-func _on_row_gui_input(event: InputEvent, _row_panel, source_data) -> void:
+func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 	if not (event is InputEventMouseButton and event.is_pressed()):
 		return
 		
@@ -673,6 +674,8 @@ func _on_row_gui_input(event: InputEvent, _row_panel, source_data) -> void:
 		if event is InputEventMouseButton and \
 			(event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT):
 			row_clicked.emit(datas.find(source_data), event.button_index, source_data)
+			
+	row_panel.grab_focus()
 			
 	if not editable:
 		emit_click.call()
@@ -887,7 +890,7 @@ func add_border(border) -> void:
 	selected_borders.push_back(border)
 	if selected_borders.size() == 1:
 		add_cornor_dragger()
-		button_edit.grab_focus()
+		#button_edit.grab_focus()
 	else:
 		if is_instance_valid(cornor_dragger):
 			cornor_dragger.queue_free()
@@ -1931,7 +1934,7 @@ func _on_button_select_all_pressed():
 		inspect_highlight_rows()
 		
 func highlight_row(row_panel: PanelContainer, skip_await: bool = false, _mouse_button_right: bool = false) -> void:
-	button_select_all.grab_focus()
+	#button_select_all.grab_focus()
 	
 	var pos_row = row_panel.get_index()
 	var border = {
@@ -2144,15 +2147,19 @@ func _on_popup_menu_text_index_pressed(index):
 
 
 func _on_focus_entered():
-	button_select_all.grab_focus()
+	#button_select_all.grab_focus()
+	printt("11111111 focus entered")
+	pass
 
 
 func _on_v_box_container_focus_entered():
-	button_select_all.grab_focus()
+	#button_select_all.grab_focus()
+	pass
 
 
 func _on_scroll_container_focus_entered():
-	button_select_all.grab_focus()
+	#button_select_all.grab_focus()
+	pass
 
 
 func _on_button_select_all_focus_exited():
@@ -2392,3 +2399,164 @@ func _on_button_edit_button_down():
 	var defered = func(_a, _b):
 		EditorInterface.inspect_object(null)
 	mgr.create_custom_popup_panel(arr, pos, Callable(), defered, Vector2i(min_width, min_height))
+	
+	
+func _on_button_copy_pressed():
+	if selected_borders.is_empty():
+		return
+		
+	if selected_borders.size() > 1:
+		mgr.create_accept_dialog("Can not apply copy to multi-selected areas.")
+		return
+		
+	var rect = selected_borders.front()["rect"] as Rect2
+	var map = {}
+	var i_index = -1
+	for i in range(rect.position.x, rect.end.x):
+		i_index += 1
+		if not map.has(i):
+			map[i] = {}
+		var j_index = -1
+		for j in range(rect.position.y, rect.end.y):
+			j_index += 1
+			if datas[i] is Array:
+				map[i_index][j_index] = datas[i][j]
+			elif datas[i] is Dictionary:
+				map[i_index][j_index] = datas[i][(datas[i] as Dictionary).keys()[j]]
+			elif datas[i] is DictionaryObject:
+				map[i_index][j_index] = (datas[i]as DictionaryObject)._get_by_index(j)
+			else:
+				push_error("Table only support Array, Dictionary or DictionaryObject.")
+				
+	var content = "~~@@GDSQL-TABLE-COPY-CONTENT@@~~" + var_to_str(map)
+	DisplayServer.clipboard_set(content)
+
+func _on_button_paste_pressed():
+	if selected_borders.is_empty():
+		return
+		
+	if not editable:
+		return
+		
+	var content = DisplayServer.clipboard_get()
+	var map = null
+	var prefix = "~~@@GDSQL-TABLE-COPY-CONTENT@@~~"
+	if content.begins_with(prefix):
+		map = str_to_var(content.substr(prefix.length()))
+		if not map is Dictionary:
+			map = null
+			push_warning("Clipboard has content that begins with %s but fail to convert to a Dictionary." % prefix)
+			
+	# 剪贴板中的内容是从别的地方拷贝的
+	if map == null:
+		for border in selected_borders:
+			var rect = border["rect"] as Rect2
+			for i in range(rect.position.x, rect.end.x):
+				var dict_obj = datas[i] as DictionaryObject
+				for j in range(rect.position.y, rect.end.y):
+					if dict_obj.get_prop_usage_by_index(j) & PROPERTY_USAGE_READ_ONLY:
+						var msg = "Skip a readonly cell. row: %d, col: %d" % [i, j]
+						push_warning(msg)
+						mgr.add_log_history.emit("Warn", 0, "Paste", msg)
+					else:
+						dict_obj._set_by_index(j, convert(content, dict_obj.get_prop_type_by_index(j)))
+	else:
+		map = map as Dictionary
+		var map_width = map.size()
+		var map_height = (map[map.keys()[0]] as Dictionary).size()
+		# 单区域粘贴
+		if selected_borders.size() == 1:
+			var rect = selected_borders.front()["rect"] as Rect2
+			var rows = range(rect.position.x, 
+				min(datas.size(), rect.position.x + max(map_width, map_width * int(rect.size.x / map_width))))
+			var cols = range(rect.position.y, 
+				min(columns.size(), rect.position.y + max(map_height, map_height * int(rect.size.y / map_height))))
+			var i_index = -1
+			for i in rows:
+				i_index += 1
+				i_index %= map_width
+				var dict_obj = datas[i] as DictionaryObject
+				var j_index = -1
+				for j in cols:
+					j_index += 1
+					j_index %= map_height
+					if dict_obj.get_prop_usage_by_index(j) & PROPERTY_USAGE_READ_ONLY:
+						var msg = "Skip a readonly cell. row: %d, col: %d" % [i, j]
+						push_warning(msg)
+						mgr.add_log_history.emit("Warn", 0, "Paste", msg)
+					else:
+						dict_obj._set_by_index(j, convert(map[i_index][j_index], dict_obj.get_prop_type_by_index(j)))
+			var border = {
+				"start": selected_borders.front()["start"],
+				"rect": Rect2(rect.position, Vector2(rows.size(), cols.size()))
+			}
+			add_border(border)
+		# 如果是多区域粘贴，每个border的大小都必须是1或者map所包含区域的整数倍
+		else:
+			for border in selected_borders:
+				var rect = border["rect"] as Rect2
+				if not ((rect.size.x == 1 and rect.size.y == 1) \
+				or int(rect.size.x) % map_width == 0 or int(rect.size.y) % map_height == 0):
+					mgr.create_accept_dialog("Cannot paste because the target areas' shape are different with source area.")
+					return
+					
+			var selected_borders_bak = selected_borders.duplicate(true)
+			clear_borders()
+			for a_border in selected_borders_bak:
+				var rect = a_border["rect"] as Rect2
+				var rows = range(rect.position.x, 
+					min(datas.size(), rect.position.x + max(map_width, map_width * int(rect.size.x / map_width))))
+				var cols = range(rect.position.y, 
+					min(columns.size(), rect.position.y + max(map_height, map_height * int(rect.size.y / map_height))))
+				var i_index = -1
+				for i in rows:
+					i_index += 1
+					i_index %= map_width
+					var dict_obj = datas[i] as DictionaryObject
+					var j_index = -1
+					for j in cols:
+						j_index += 1
+						j_index %= map_height
+						if dict_obj.get_prop_usage_by_index(j) & PROPERTY_USAGE_READ_ONLY:
+							var msg = "Skip a readonly cell. row: %d, col: %d" % [i, j]
+							push_warning(msg)
+							mgr.add_log_history.emit("Warn", 0, "Paste", msg)
+						else:
+							dict_obj._set_by_index(j, convert(map[i_index][j_index], dict_obj.get_prop_type_by_index(j)))
+				var border = {
+					"start": a_border["start"],
+					"rect": Rect2(rect.position, Vector2(rows.size(), cols.size())),
+					"ctrl": true
+				}
+				add_border(border)
+
+
+func _on_button_delete_pressed():
+	for border in selected_borders:
+		var rect = border["rect"] as Rect2
+		for row in range(rect.position.x, rect.end.x):
+			var data = datas[row] as DictionaryObject
+			for col in range(rect.position.y, rect.end.y):
+				if not (data.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
+					data._set_default_by_index(col)
+
+
+func _on_button_delete_row_pressed():
+	if selected_borders.is_empty():
+		return
+		
+	var deleted_datas = {}
+	var delete_row = []
+	for border in selected_borders:
+		var rect = border["rect"] as Rect2
+		for row in range(rect.position.x, rect.end.x):
+			if not delete_row.has(row):
+				deleted_datas[row] = datas[row]
+				delete_row.push_back(row)
+				
+	delete_row.sort()
+	delete_row.reverse()
+	for i in delete_row:
+		deleted_datas
+		remove_data_at(i, true)
+	row_deleted.emit(deleted_datas)

@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://bpawj4a7llynx"]
+[gd_scene load_steps=26 format=3 uid="uid://bpawj4a7llynx"]
 
 [ext_resource type="Script" path="res://addons/gdsql/table.gd" id="1_s1y7s"]
 [ext_resource type="Texture2D" uid="uid://uv864j1h58kn" path="res://addons/gdsql/img/copy.png" id="2_y6tia"]
@@ -19,9 +19,55 @@ events = [SubResource("InputEventKey_53xxg")]
 [sub_resource type="InputEventKey" id="InputEventKey_fjg01"]
 device = -1
 keycode = 4194309
+physical_keycode = 4194309
+key_label = 4194309
+
+[sub_resource type="InputEventKey" id="InputEventKey_ynt01"]
+device = -1
+keycode = 32
+unicode = 32
 
 [sub_resource type="Shortcut" id="Shortcut_kysye"]
-events = [SubResource("InputEventKey_fjg01")]
+events = [SubResource("InputEventKey_fjg01"), SubResource("InputEventKey_ynt01")]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_po5qj"]
+
+[sub_resource type="InputEventKey" id="InputEventKey_v1cc8"]
+device = -1
+ctrl_pressed = true
+keycode = 67
+
+[sub_resource type="Shortcut" id="Shortcut_v4isy"]
+events = [SubResource("InputEventKey_v1cc8")]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_kl6kc"]
+
+[sub_resource type="InputEventKey" id="InputEventKey_c7c83"]
+device = -1
+ctrl_pressed = true
+keycode = 86
+
+[sub_resource type="Shortcut" id="Shortcut_e234d"]
+events = [SubResource("InputEventKey_c7c83")]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_cgntk"]
+
+[sub_resource type="InputEventKey" id="InputEventKey_uk852"]
+device = -1
+keycode = 4194312
+
+[sub_resource type="Shortcut" id="Shortcut_o84mu"]
+events = [SubResource("InputEventKey_uk852")]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_qvrc1"]
+
+[sub_resource type="InputEventKey" id="InputEventKey_rqjbg"]
+device = -1
+alt_pressed = true
+keycode = 4194312
+
+[sub_resource type="Shortcut" id="Shortcut_1ht6a"]
+events = [SubResource("InputEventKey_rqjbg")]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4fjn8"]
 resource_local_to_scene = true
@@ -40,7 +86,6 @@ grow_horizontal = 2
 grow_vertical = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-focus_mode = 1
 script = ExtResource("1_s1y7s")
 
 [node name="Control" type="Control" parent="."]
@@ -48,10 +93,7 @@ layout_mode = 2
 mouse_filter = 2
 
 [node name="ButtonSelectAll" type="Button" parent="Control" node_paths=PackedStringArray("shortcut_context")]
-modulate = Color(1, 1, 1, 0)
 layout_mode = 2
-offset_top = 6.0
-offset_bottom = 6.0
 focus_mode = 1
 shortcut_context = NodePath("../..")
 theme_override_styles/normal = SubResource("StyleBoxEmpty_h0skj")
@@ -65,6 +107,34 @@ shortcut_context = NodePath("../..")
 theme_override_styles/normal = SubResource("StyleBoxEmpty_3rgsn")
 shortcut = SubResource("Shortcut_kysye")
 
+[node name="ButtonCopy" type="Button" parent="Control" node_paths=PackedStringArray("shortcut_context")]
+layout_mode = 0
+focus_mode = 1
+shortcut_context = NodePath("../..")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_po5qj")
+shortcut = SubResource("Shortcut_v4isy")
+
+[node name="ButtonPaste" type="Button" parent="Control" node_paths=PackedStringArray("shortcut_context")]
+layout_mode = 0
+focus_mode = 1
+shortcut_context = NodePath("../..")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_kl6kc")
+shortcut = SubResource("Shortcut_e234d")
+
+[node name="ButtonDelete" type="Button" parent="Control" node_paths=PackedStringArray("shortcut_context")]
+layout_mode = 0
+focus_mode = 1
+shortcut_context = NodePath("../..")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_cgntk")
+shortcut = SubResource("Shortcut_o84mu")
+
+[node name="ButtonDeleteRow" type="Button" parent="Control" node_paths=PackedStringArray("shortcut_context")]
+layout_mode = 0
+focus_mode = 1
+shortcut_context = NodePath("../..")
+theme_override_styles/normal = SubResource("StyleBoxEmpty_qvrc1")
+shortcut = SubResource("Shortcut_1ht6a")
+
 [node name="Models" type="HBoxContainer" parent="."]
 visible = false
 layout_mode = 2
@@ -72,6 +142,7 @@ layout_mode = 2
 [node name="RowPanelContainer" type="PanelContainer" parent="Models"]
 layout_mode = 2
 size_flags_horizontal = 3
+focus_mode = 1
 theme_override_styles/panel = SubResource("StyleBoxFlat_4fjn8")
 
 [node name="RowModel" type="HBoxContainer" parent="Models/RowPanelContainer"]
@@ -167,7 +238,11 @@ mouse_filter = 2
 [connection signal="resized" from="." to="." method="_on_resized"]
 [connection signal="focus_exited" from="Control/ButtonSelectAll" to="." method="_on_button_select_all_focus_exited"]
 [connection signal="pressed" from="Control/ButtonSelectAll" to="." method="_on_button_select_all_pressed"]
-[connection signal="button_down" from="Control/ButtonEdit" to="." method="_on_button_edit_button_down"]
+[connection signal="pressed" from="Control/ButtonEdit" to="." method="_on_button_edit_button_down"]
+[connection signal="pressed" from="Control/ButtonCopy" to="." method="_on_button_copy_pressed"]
+[connection signal="pressed" from="Control/ButtonPaste" to="." method="_on_button_paste_pressed"]
+[connection signal="pressed" from="Control/ButtonDelete" to="." method="_on_button_delete_pressed"]
+[connection signal="pressed" from="Control/ButtonDeleteRow" to="." method="_on_button_delete_row_pressed"]
 [connection signal="focus_entered" from="VBoxContainer" to="." method="_on_v_box_container_focus_entered"]
 [connection signal="pressed" from="VBoxContainer/ButtonForDebug" to="." method="_on_button_pressed"]
 [connection signal="focus_entered" from="VBoxContainer/ScrollContainer" to="." method="_on_scroll_container_focus_entered"]
