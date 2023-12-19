@@ -450,37 +450,21 @@ curr_row: Dictionary, all_dependencies: Dictionary):
 	# TODO 优化：如果on条件连接的是主键、唯一键，那么找到一条数据就可以停止了
 	# TODO 优化：某个where条件如果只涉及一张表，那么可以提前对这张表进行筛选
 	if loop_index == loop_tables.size():
-		var ret = curr_row.duplicate() # 当前这条数据
-		# 循环到头了，依次检查每个表是否满足on条件
-		var ok = true
-		var arr_left_join = __left_join.get_chain_left_joins()
-		# 只要有一个条件不满足，这条数据就无效
-		for a_left_join in arr_left_join:
-			var cond = a_left_join.get_condition()
-			var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
-			if not conditionWrapper.cond(cond).check(curr_row):
-				ok = false
-				break
-				
-		# 多次检查依赖项是否存在，不存在需要删除
-		#for i in 10000:
-			#var delete_flag = false
-			#for a_left_join in arr_left_join:
-				#var dependencies: Array = a_left_join.get_dependencies()
-				#for t in dependencies:
-					#if t != __table_alias and !ret.has(t):
-						#ret.erase(t)
-						#delete_flag = true # 删除过就需要重新检查
-						#
-			#if delete_flag == false:
+		result.push_back(curr_row)
+		#var ret = curr_row.duplicate() # 当前这条数据
+		## 循环到头了，依次检查每个表是否满足on条件
+		#var ok = true
+		#var arr_left_join = __left_join.get_chain_left_joins()
+		## 只要有一个条件不满足，这条数据就无效
+		#for a_left_join in arr_left_join:
+			#var cond = a_left_join.get_condition()
+			#var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
+			#if not conditionWrapper.cond(cond).check(curr_row):
+				#ok = false
 				#break
-				
-		# 这条数据可用
-		# 至少要包含两个表（因为ret必定包含主表，还需要再多包含一个别的表，那么长度就大于1了）
-		#if ret.size() > 1:
+				#
+		#if ok:
 			#result.push_back(ret)
-		if ok:
-			result.push_back(ret)
 			
 	else:
 		var table = loop_tables[loop_index]
