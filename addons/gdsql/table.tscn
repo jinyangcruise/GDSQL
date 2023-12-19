@@ -1,4 +1,4 @@
-[gd_scene load_steps=26 format=3 uid="uid://bpawj4a7llynx"]
+[gd_scene load_steps=27 format=3 uid="uid://bpawj4a7llynx"]
 
 [ext_resource type="Script" path="res://addons/gdsql/table.gd" id="1_s1y7s"]
 [ext_resource type="Texture2D" uid="uid://uv864j1h58kn" path="res://addons/gdsql/img/copy.png" id="2_y6tia"]
@@ -27,8 +27,12 @@ device = -1
 keycode = 32
 unicode = 32
 
+[sub_resource type="InputEventKey" id="InputEventKey_cy1w3"]
+device = -1
+keycode = 4194310
+
 [sub_resource type="Shortcut" id="Shortcut_kysye"]
-events = [SubResource("InputEventKey_fjg01"), SubResource("InputEventKey_ynt01")]
+events = [SubResource("InputEventKey_fjg01"), SubResource("InputEventKey_ynt01"), SubResource("InputEventKey_cy1w3")]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_po5qj"]
 
@@ -215,6 +219,7 @@ theme_override_styles/panel = SubResource("StyleBoxEmpty_b7j22")
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+mouse_default_cursor_shape = 6
 theme_override_constants/separation = 0
 
 [node name="PopupMenuText" type="PopupMenu" parent="."]

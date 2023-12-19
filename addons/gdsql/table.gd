@@ -247,10 +247,9 @@ func reset_header():
 		elif i == fake_columns.size() - 2:
 			button.size_flags_stretch_ratio = 1000000
 			button.pressed.connect(select_col)
+			button.mouse_default_cursor_shape = Control.CURSOR_IBEAM
 			button.mouse_entered.connect(DisplayServer.cursor_set_custom_image.bind(
-				preload("res://addons/gdsql/img/ArrowDown.png"), DisplayServer.CURSOR_ARROW, Vector2(12, 12)))
-			button.mouse_exited.connect(DisplayServer.cursor_set_custom_image.bind(
-				null, DisplayServer.CURSOR_ARROW))
+				preload("res://addons/gdsql/img/ArrowDown.png"), DisplayServer.CURSOR_IBEAM, Vector2(12, 12)))
 			c.dragger_visibility = HSplitContainer.DRAGGER_HIDDEN_COLLAPSED
 			if not column_tips.is_empty():
 				button.tooltip_text = column_tips[i-1-int(show_frame)]
@@ -263,10 +262,9 @@ func reset_header():
 			button.add_theme_stylebox_override("focus", style_box_empty)
 		else:
 			button.pressed.connect(select_col)
+			button.mouse_default_cursor_shape = Control.CURSOR_IBEAM
 			button.mouse_entered.connect(DisplayServer.cursor_set_custom_image.bind(
-				preload("res://addons/gdsql/img/ArrowDown.png"), DisplayServer.CURSOR_ARROW, Vector2(12, 12)))
-			button.mouse_exited.connect(DisplayServer.cursor_set_custom_image.bind(
-				null, DisplayServer.CURSOR_ARROW))
+				preload("res://addons/gdsql/img/ArrowDown.png"), DisplayServer.CURSOR_IBEAM, Vector2(12, 12)))
 			if not column_tips.is_empty():
 				button.tooltip_text = column_tips[i-1-int(show_frame)]
 				
@@ -417,10 +415,9 @@ func add_row(a_data):
 			control.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			control.add_theme_stylebox_override("focus", style_box_empty)
 			control.add_theme_font_size_override("font_size", 12)
+			control.mouse_default_cursor_shape = Control.CURSOR_BUSY
 			control.mouse_entered.connect(DisplayServer.cursor_set_custom_image.bind(
-				preload("res://addons/gdsql/img/ArrowRight.png"), DisplayServer.CURSOR_ARROW, Vector2(12, 12)))
-			control.mouse_exited.connect(DisplayServer.cursor_set_custom_image.bind(
-				null, DisplayServer.CURSOR_ARROW))
+				preload("res://addons/gdsql/img/ArrowRight.png"), DisplayServer.CURSOR_BUSY, Vector2(12, 12)))
 			control.pressed.connect(func():
 				#button_edit.grab_focus() # 如果不这样，空格键和enter键会激活这个control，而不是编辑按钮
 				# 是否按下ctrl键、shift键
@@ -2569,9 +2566,9 @@ func _on_button_delete_row_pressed():
 func _on_v_box_container_mouse_entered():
 	if editable:
 		DisplayServer.cursor_set_custom_image(preload("res://addons/gdsql/img/ToolMove.png"), 
-			DisplayServer.CURSOR_ARROW, Vector2(12, 12))
+			DisplayServer.CURSOR_DRAG, Vector2(12, 12))
 
 
 func _on_v_box_container_mouse_exited():
 	if editable and not v_box_container.get_rect().has_point(scroll_container.get_local_mouse_position()):
-		DisplayServer.cursor_set_custom_image(null, DisplayServer.CURSOR_ARROW, Vector2(12, 12))
+		DisplayServer.cursor_set_custom_image(null, DisplayServer.CURSOR_DRAG, Vector2(12, 12))
