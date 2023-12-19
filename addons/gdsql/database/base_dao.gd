@@ -387,15 +387,7 @@ func left_join(db: String, table: String, alias: String, cond: String, password:
 		"duplicate table alias"))
 	if db == "":
 		db = __database
-	var regex = RegEx.new()
-	regex.compile("(\\b[0-9a-zA-Z_]+\\b)\\.[0-9a-zA-Z_\\-]+")
-	var dependencies = [] # 依赖的表
-	var matchs = regex.search_all(cond)
-	for i in matchs:
-		var t = i.get_string(1)
-		if t != alias and !dependencies.has(t):
-			dependencies.push_back(t)
-			
+		
 	var left_join_obj: LeftJoin
 	if __left_join == null:
 		__left_join = LeftJoin.new()
@@ -407,7 +399,6 @@ func left_join(db: String, table: String, alias: String, cond: String, password:
 	left_join_obj.set_table(table)
 	left_join_obj.set_alias(alias)
 	left_join_obj.set_condition(cond)
-	left_join_obj.set_dependencies(dependencies)
 	return self
 	
 func set_left_join(left_join_obj: LeftJoin) -> BaseDao:
@@ -455,7 +446,7 @@ func ___datas_struct_is_key_dict(datas: Array) -> bool:
 	return true
 	
 func ___loop_table_row(result: Array, all_datas: Dictionary, loop_tables: Array, loop_index: int, 
-curr_row: Dictionary, all_dependencies: Array):
+curr_row: Dictionary, all_dependencies: Dictionary):
 	# TODO 优化：如果on条件连接的是主键、唯一键，那么找到一条数据就可以停止了
 	# TODO 优化：某个where条件如果只涉及一张表，那么可以提前对这张表进行筛选
 	if loop_index == loop_tables.size():
@@ -468,7 +459,6 @@ curr_row: Dictionary, all_dependencies: Array):
 			var cond = a_left_join.get_condition()
 			var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
 			if not conditionWrapper.cond(cond).check(curr_row):
-				#ret.erase(a_left_join.get_alias())
 				ok = false
 				break
 				
@@ -498,11 +488,23 @@ curr_row: Dictionary, all_dependencies: Array):
 			for row in all_datas[table]:
 				var acc_row = curr_row.duplicate()
 				acc_row[table] = row
+				
+				# 实际上，虽然数据不全，但联表条件涉及的表必然已经在acc_row里了，所以已经可以检查是否满足阶段性的on条件了
+				var lj = __left_join.get_left_join_by_alias(table)
+				var cond = lj.get_condition()
+				var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
+				if not conditionWrapper.cond(cond).check(acc_row):
+					continue
+					
 				___loop_table_row(result, all_datas, loop_tables, loop_index + 1, acc_row, all_dependencies)
 		# 当前表没有数据依旧要保持循环继续
 		else:
 			# 如果有其他表要依赖当前表，则说明on条件永远无法达成，就不用继续了。否则继续
-			if not all_dependencies.has(table):
+			var need_loop = false
+			for a in all_dependencies:
+				if all_dependencies[a].has(table):
+					need_loop = true
+			if need_loop:
 				var acc_row = curr_row.duplicate()
 				___loop_table_row(result, all_datas, loop_tables, loop_index + 1, acc_row, all_dependencies)
 	
@@ -524,11 +526,12 @@ func ___select(path: String, fill_primary_key: String = ""):
 		var conf1: ImprovedConfigFile = __CONF_MANAGER.get_conf(pt, ps)
 		conf1.fill_primary_key = fill_primary_key
 		all_datas[a_left_join.get_alias()] = conf1.get_all_section_values()
+		# TODO
 		
 	# 提前汇总一下所有需要的依赖表
-	var dependencies = []
+	var dependencies = {}
 	for a_left_join in arr_left_join:
-		dependencies.append_array(a_left_join.get_dependencies())
+		dependencies.merge(a_left_join.get_dependencies())
 		
 	# 不联表的情况
 	if __left_join == null:
