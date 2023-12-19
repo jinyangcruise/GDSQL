@@ -247,9 +247,9 @@ func reset_header():
 		elif i == fake_columns.size() - 2:
 			button.size_flags_stretch_ratio = 1000000
 			button.pressed.connect(select_col)
-			button.mouse_default_cursor_shape = Control.CURSOR_IBEAM
+			button.mouse_default_cursor_shape = Control.CURSOR_HELP
 			button.mouse_entered.connect(DisplayServer.cursor_set_custom_image.bind(
-				preload("res://addons/gdsql/img/ArrowDown.png"), DisplayServer.CURSOR_IBEAM, Vector2(12, 12)))
+				preload("res://addons/gdsql/img/ArrowDown.png"), DisplayServer.CURSOR_HELP, Vector2(12, 12)))
 			c.dragger_visibility = HSplitContainer.DRAGGER_HIDDEN_COLLAPSED
 			if not column_tips.is_empty():
 				button.tooltip_text = column_tips[i-1-int(show_frame)]
@@ -262,9 +262,9 @@ func reset_header():
 			button.add_theme_stylebox_override("focus", style_box_empty)
 		else:
 			button.pressed.connect(select_col)
-			button.mouse_default_cursor_shape = Control.CURSOR_IBEAM
+			button.mouse_default_cursor_shape = Control.CURSOR_HELP
 			button.mouse_entered.connect(DisplayServer.cursor_set_custom_image.bind(
-				preload("res://addons/gdsql/img/ArrowDown.png"), DisplayServer.CURSOR_IBEAM, Vector2(12, 12)))
+				preload("res://addons/gdsql/img/ArrowDown.png"), DisplayServer.CURSOR_HELP, Vector2(12, 12)))
 			if not column_tips.is_empty():
 				button.tooltip_text = column_tips[i-1-int(show_frame)]
 				
@@ -415,9 +415,9 @@ func add_row(a_data):
 			control.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			control.add_theme_stylebox_override("focus", style_box_empty)
 			control.add_theme_font_size_override("font_size", 12)
-			control.mouse_default_cursor_shape = Control.CURSOR_BUSY
+			control.mouse_default_cursor_shape = Control.CURSOR_HELP
 			control.mouse_entered.connect(DisplayServer.cursor_set_custom_image.bind(
-				preload("res://addons/gdsql/img/ArrowRight.png"), DisplayServer.CURSOR_BUSY, Vector2(12, 12)))
+				preload("res://addons/gdsql/img/ArrowRight.png"), DisplayServer.CURSOR_HELP, Vector2(12, 12)))
 			control.pressed.connect(func():
 				#button_edit.grab_focus() # 如果不这样，空格键和enter键会激活这个control，而不是编辑按钮
 				# 是否按下ctrl键、shift键
@@ -478,6 +478,7 @@ func add_row(a_data):
 			
 		# 表格刷新时某些自定义控件可能需要重复使用，要去掉parent
 		var panel_container = PanelContainer.new()
+		panel_container.mouse_default_cursor_shape = Control.CURSOR_FORBIDDEN
 		panel_container.set_meta("overlapping", 0) # 选区重叠次数
 		panel_container.mouse_filter = Control.MOUSE_FILTER_PASS
 		panel_container.add_theme_stylebox_override("panel", DEFAULT_BORDER_STYLE)
@@ -542,6 +543,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 				handled = true
 				if data is Texture2D:
 					var texture_rect = TextureRect.new()
+					texture_rect.mouse_default_cursor_shape = Control.CURSOR_FORBIDDEN
 					texture_rect.texture = data
 					texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 					texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -559,6 +561,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 				else:
 					## 注意：EditorResourcePicker有些慢，如果数据量比较大，会很卡，所以尽可能把常用的类型单独处理，比如上面的Texture2D
 					var editor_resource_picker := EditorResourcePicker.new()
+					editor_resource_picker.mouse_default_cursor_shape = Control.CURSOR_FORBIDDEN
 					#editor_resource_picker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 					#editor_resource_picker.propagate_call("set_mouse_filter", [Control.MOUSE_FILTER_IGNORE])
 					editor_resource_picker.base_type = "Resource"
@@ -2566,9 +2569,14 @@ func _on_button_delete_row_pressed():
 func _on_v_box_container_mouse_entered():
 	if editable:
 		DisplayServer.cursor_set_custom_image(preload("res://addons/gdsql/img/ToolMove.png"), 
-			DisplayServer.CURSOR_DRAG, Vector2(12, 12))
+			DisplayServer.CURSOR_FORBIDDEN, Vector2(12, 12))
 
 
 func _on_v_box_container_mouse_exited():
 	if editable and not v_box_container.get_rect().has_point(scroll_container.get_local_mouse_position()):
-		DisplayServer.cursor_set_custom_image(null, DisplayServer.CURSOR_DRAG, Vector2(12, 12))
+		DisplayServer.cursor_set_custom_image(null, DisplayServer.CURSOR_FORBIDDEN)
+
+
+func _on_mouse_exited():
+	if editable and not v_box_container.get_rect().has_point(scroll_container.get_local_mouse_position()):
+		DisplayServer.cursor_set_custom_image(null, DisplayServer.CURSOR_FORBIDDEN)
