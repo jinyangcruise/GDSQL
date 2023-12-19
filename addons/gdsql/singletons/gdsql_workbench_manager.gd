@@ -488,10 +488,12 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 							or v["usage"] & PROPERTY_USAGE_SUBGROUP)).map(func(v): return v["name"])
 							
 					if properties.size() < 5:
+						inspector.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 						inspector.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 							
 					var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
-					if properties.size() == 1 and not editor_properties[0].name.contains("EditorPropertyMultilineText"):
+					if properties.size() == 1 and not editor_properties[0].name.contains("EditorPropertyMultilineText")\
+					and not editor_properties[0].name.contains("EditorPropertyArray"):
 						editor_properties[0].size_flags_horizontal = Control.SIZE_EXPAND_FILL
 						__property_old_parents[dialog][editor_properties[0]] = weakref(editor_properties[0].get_parent())
 						var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
@@ -499,6 +501,7 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 						container.control = editor_properties[0]
 						v_box.add_child(container)
 					else:
+						min_size.x *= 2
 						var v_box_container = EditorInterface.get_inspector().get_child(0, true)
 						for i in v_box_container.get_children(true):
 							var need = false
@@ -541,12 +544,6 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 	dialog.position = position
 	dialog.min_size = min_size
 	dialog.popup()
-	dialog.mouse_passthrough_polygon = PackedVector2Array([
-		Vector2.ZERO,
-		Vector2(dialog.size.x, 0),
-		Vector2(dialog.size.x, dialog.size.y),
-		Vector2(0, dialog.size.y),
-	])
 	return dialog
 	
 func _find_editable_control(control: Node) -> Control:
