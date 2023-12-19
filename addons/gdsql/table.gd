@@ -248,7 +248,7 @@ func reset_header():
 			button.size_flags_stretch_ratio = 1000000
 			button.pressed.connect(select_col)
 			button.mouse_entered.connect(DisplayServer.cursor_set_custom_image.bind(
-				preload("res://addons/gdsql/img/ArrowDown.png"), DisplayServer.CURSOR_ARROW))
+				preload("res://addons/gdsql/img/ArrowDown.png"), DisplayServer.CURSOR_ARROW, Vector2(12, 12)))
 			button.mouse_exited.connect(DisplayServer.cursor_set_custom_image.bind(
 				null, DisplayServer.CURSOR_ARROW))
 			c.dragger_visibility = HSplitContainer.DRAGGER_HIDDEN_COLLAPSED
@@ -264,7 +264,7 @@ func reset_header():
 		else:
 			button.pressed.connect(select_col)
 			button.mouse_entered.connect(DisplayServer.cursor_set_custom_image.bind(
-				preload("res://addons/gdsql/img/ArrowDown.png"), DisplayServer.CURSOR_ARROW))
+				preload("res://addons/gdsql/img/ArrowDown.png"), DisplayServer.CURSOR_ARROW, Vector2(12, 12)))
 			button.mouse_exited.connect(DisplayServer.cursor_set_custom_image.bind(
 				null, DisplayServer.CURSOR_ARROW))
 			if not column_tips.is_empty():
@@ -418,7 +418,7 @@ func add_row(a_data):
 			control.add_theme_stylebox_override("focus", style_box_empty)
 			control.add_theme_font_size_override("font_size", 12)
 			control.mouse_entered.connect(DisplayServer.cursor_set_custom_image.bind(
-				preload("res://addons/gdsql/img/ArrowRight.png"), DisplayServer.CURSOR_ARROW))
+				preload("res://addons/gdsql/img/ArrowRight.png"), DisplayServer.CURSOR_ARROW, Vector2(12, 12)))
 			control.mouse_exited.connect(DisplayServer.cursor_set_custom_image.bind(
 				null, DisplayServer.CURSOR_ARROW))
 			control.pressed.connect(func():
@@ -2419,8 +2419,8 @@ func _on_button_copy_pressed():
 	var i_index = -1
 	for i in range(rect.position.x, rect.end.x):
 		i_index += 1
-		if not map.has(i):
-			map[i] = {}
+		if not map.has(i_index):
+			map[i_index] = {}
 		var j_index = -1
 		for j in range(rect.position.y, rect.end.y):
 			j_index += 1
@@ -2429,7 +2429,7 @@ func _on_button_copy_pressed():
 			elif datas[i] is Dictionary:
 				map[i_index][j_index] = datas[i][(datas[i] as Dictionary).keys()[j]]
 			elif datas[i] is DictionaryObject:
-				map[i_index][j_index] = (datas[i]as DictionaryObject)._get_by_index(j)
+				map[i_index][j_index] = (datas[i] as DictionaryObject)._get_by_index(j)
 			else:
 				push_error("Table only support Array, Dictionary or DictionaryObject.")
 				
@@ -2568,9 +2568,10 @@ func _on_button_delete_row_pressed():
 
 func _on_v_box_container_mouse_entered():
 	if editable:
-		DisplayServer.cursor_set_custom_image(preload("res://addons/gdsql/img/ToolMove.png"), DisplayServer.CURSOR_ARROW)
+		DisplayServer.cursor_set_custom_image(preload("res://addons/gdsql/img/ToolMove.png"), 
+			DisplayServer.CURSOR_ARROW, Vector2(12, 12))
 
 
 func _on_v_box_container_mouse_exited():
 	if editable and not v_box_container.get_rect().has_point(scroll_container.get_local_mouse_position()):
-		DisplayServer.cursor_set_custom_image(null, DisplayServer.CURSOR_ARROW)
+		DisplayServer.cursor_set_custom_image(null, DisplayServer.CURSOR_ARROW, Vector2(12, 12))
