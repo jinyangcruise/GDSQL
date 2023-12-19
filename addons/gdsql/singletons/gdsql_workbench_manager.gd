@@ -550,7 +550,34 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 	return dialog
 	
 func _find_editable_control(control: Node) -> Control:
-	if control is LineEdit or control is TextEdit:
+	if control is LineEdit:
+		control.select_all_on_focus = true
+		return control
+		
+	if control is TextEdit:
+		control.select_all()
+		return control
+		
+	if control.name.contains("EditorSpinSlider"):
+		control.focus_entered.connect(func():
+			await control.get_tree().create_timer(0.1).timeout
+			var popup = (control.find_parent("@PopupPanel*") as PopupPanel)
+			if popup == null:
+				return
+			var e = InputEventMouseButton.new()
+			e.button_index = MOUSE_BUTTON_LEFT
+			e.button_mask = MOUSE_BUTTON_MASK_LEFT
+			e.pressed = true
+			e.position = control.global_position + control.size/2
+			popup.push_input(e)
+			await control.get_tree().create_timer(0.1).timeout
+			e = InputEventMouseButton.new()
+			e.button_index = MOUSE_BUTTON_LEFT
+			e.button_mask = MOUSE_BUTTON_MASK_LEFT
+			e.pressed = false
+			e.position = control.global_position + control.size/2
+			popup.push_input(e)
+		, CONNECT_ONE_SHOT)
 		return control
 		
 	for i in control.get_children(true):
