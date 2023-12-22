@@ -269,7 +269,7 @@ func get_custom_display_control(property: String) -> Control:
 ## 调用者需要自行释放原来的控件。
 ## 所以一些情况下，需要结合get_custom_display_control来使用。
 func get_custom_display_control_duplicate(property: String) -> Control:
-	if _custom_display_control.has(property) and _custom_display_control[property] != null \
+	if _custom_display_control.has(property) and _custom_display_control[property] \
 		and _custom_display_control[property] is Control:
 		var ret = _custom_display_control[property].duplicate() as Control
 		_custom_display_control[property] = ret

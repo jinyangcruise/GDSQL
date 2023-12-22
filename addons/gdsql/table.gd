@@ -470,7 +470,7 @@ func add_row(a_data):
 		if not handled and col_index >= 0 and a_data is DictionaryObject:
 			a_data = a_data as DictionaryObject
 			control = a_data.get_custom_display_control(a_data.__get_index_prop(col_index))
-			handled = control != null
+			handled = is_instance_valid(control)
 			
 		# 否则，用表格自带的显示控件
 		if not handled:
@@ -894,7 +894,7 @@ func add_border(border) -> void:
 				
 				pass
 				
-			if sb != null:
+			if sb:
 				pc.add_theme_stylebox_override("panel", sb)
 				pc.set_meta("overlapping", overlapping)
 				sb.bg_color.a = DEFAULT_BORDER_BG_COLOR.a * overlapping * 1.05
@@ -1899,9 +1899,9 @@ func inspect_highlight_rows() -> void:
 	# 告诉用户正在编辑多个
 	# @see editor\gui\editor_object_selector.cpp:EditorObjectSelector::update_path()
 	var selector = EditorInterface.get_inspector().get_parent().find_child("@EditorObjectSelector*", true, false)
-	if selector != null:
+	if selector:
 		var label = selector.find_child("@Label*", true, false)
-		if label != null:
+		if label:
 			label.text = tr("%s (%d Selected)") % [common_class_name, rows.size()]
 			
 	# history里的名称没法做到修改。history的MenuButton每次弹出前会重新计算，

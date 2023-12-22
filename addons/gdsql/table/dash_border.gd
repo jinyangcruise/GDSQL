@@ -146,11 +146,11 @@ var top_border
 var bottom_border
 
 func _ready():
-	if left_border and left_border.get_parent() == null:
+	if left_border and not left_border.get_parent():
 		margin_container.add_child(left_border)
-	if right_border and right_border.get_parent() == null:
+	if right_border and not right_border.get_parent():
 		margin_container.add_child(right_border)
-	if top_border and top_border.get_parent() == null:
+	if top_border and not top_border.get_parent():
 		margin_container.add_child(top_border)
-	if bottom_border and bottom_border.get_parent() == null:
+	if bottom_border and not bottom_border.get_parent():
 		margin_container.add_child(bottom_border)

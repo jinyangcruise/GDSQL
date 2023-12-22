@@ -118,7 +118,7 @@ func clear():
 			disconnect_focused_propagate(i)
 			if __property_old_parents[i].get_ref():
 				i.reparent(__property_old_parents[i].get_ref())
-			#if __property_old_parents[i] != null:
+			#if __property_old_parents[i]:
 				#i.reparent(__property_old_parents[i])
 			else:
 				i.queue_free()
@@ -136,7 +136,7 @@ func clear():
 						
 		var children = get_children()
 		for i in children:
-			if i != null and !i.is_queued_for_deletion():
+			if i and !i.is_queued_for_deletion():
 				remove_child(i)
 				i.queue_free()
 				
@@ -239,7 +239,7 @@ func redraw():
 							#has_content = true
 							if data.size_flags_vertical == Control.SIZE_EXPAND_FILL:
 								hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
-						if data.get_parent() != null and data.get_parent() != hb:
+						if data.get_parent() and data.get_parent() != hb:
 							data.reparent(hb)
 						else:
 							hb.add_child(data)
@@ -266,7 +266,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 	
 	# 如果请求刷新某hb里的内容，但是该hb里边的内容正在被编辑，就会造成无法输入。
 	# 所以等失去焦点的时候再重绘或者要刷新的地方和正被编辑的地方无关时再重绘，免得影响连续输入或用户输入后数据并没生效。
-	if focus_owner != null and hb.is_ancestor_of(focus_owner):
+	if focus_owner and hb.is_ancestor_of(focus_owner):
 		push_redraw_slot_control(slot_row_index, slot_col_index)
 		return
 		
@@ -288,7 +288,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 	
 	for ep: EditorProperty in arr:
 		# parent is a cut_control
-		if ep.get_parent() != null and ep.get_parent().has_meta("cut_control"):
+		if ep.get_parent() and ep.get_parent().has_meta("cut_control"):
 			ep.get_parent().control = null
 			
 		disconnect_focused_propagate(ep)
@@ -325,7 +325,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 		else:
 			if data.size_flags_vertical == Control.SIZE_EXPAND_FILL:
 				hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		if data.get_parent() != null and data.get_parent() != hb:
+		if data.get_parent() and data.get_parent() != hb:
 			data.reparent(hb)
 		else:
 			hb.add_child(data)
@@ -371,7 +371,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 				editor_property.reparent(p_container)
 				
 	# 上面的过程中几乎肯定会改变检查器当前编辑的对象，从而影响原来正被编辑的对象的修改，所以需要激活原来的对象编辑
-	if focus_owner != null:
+	if focus_owner:
 		focus_owner.emit_signal("focus_entered") # 可以触发之前绑定的函数：editor_property_focused
 		
 	redraw_slot.emit(slot_row_index, slot_col_index)

@@ -96,7 +96,7 @@ func _notification(what):
 		
 		var root = EditorInterface.get_base_control().get_tree().get_root()
 		var dialog_root = root.find_child("DialogRoot", false, false)
-		if dialog_root != null:
+		if dialog_root:
 			var dummy = Node.new()
 			dialog_root.propagate_call("reparent", [dummy])
 			dummy.remove_child(dialog_root)
@@ -145,7 +145,7 @@ func _add_dialog(dialog: Window):
 	var p = dialog_root
 	while p.get_child_count() > 0:
 		for i: Window in p.get_children():
-			if i != null and not i.is_queued_for_deletion():
+			if i and not i.is_queued_for_deletion():
 				p = p.get_child(0)
 				break
 			else:
@@ -218,7 +218,7 @@ func _clear_custom_dialog(dialog: Window):
 						
 		var children = dialog.get_children()
 		for i in children:
-			if i != null and !i.is_queued_for_deletion():
+			if i and !i.is_queued_for_deletion():
 				dialog.remove_child(i)
 				i.queue_free()
 				
@@ -361,7 +361,7 @@ min_size: Vector2i = Vector2i.ZERO) -> ConfirmationDialog:
 							
 				elif data is Control:
 					#has_content = true
-					if data.get_parent() != null and data.get_parent() != hb:
+					if data.get_parent() and data.get_parent() != hb:
 						data.reparent(hb)
 					else:
 						hb.add_child(data)
@@ -373,12 +373,12 @@ min_size: Vector2i = Vector2i.ZERO) -> ConfirmationDialog:
 		
 	# 自动聚焦到第一个输入组件上
 	var editable_control = _find_editable_control(vbox_container)
-	if editable_control != null:
+	if editable_control:
 		editable_control.grab_focus()
 		
 	# 注册回车键的输入组件
 	var last_line_edit = _find_last_line_edit(vbox_container)
-	if last_line_edit != null:
+	if last_line_edit:
 		dialog.register_text_enter(last_line_edit)
 		
 	return dialog
@@ -521,7 +521,7 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 				elif data is Control:
 					hb.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 					#has_content = true
-					if data.get_parent() != null and data.get_parent() != hb:
+					if data.get_parent() and data.get_parent() != hb:
 						data.reparent(hb)
 					else:
 						hb.add_child(data)
@@ -533,12 +533,12 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 		
 	# 自动聚焦到第一个输入组件上
 	var editable_control = _find_editable_control(vbox_container)
-	if editable_control != null:
+	if editable_control:
 		editable_control.grab_focus()
 		
 	# 注册回车键的输入组件
 	#var last_line_edit = _find_last_line_edit(vbox_container)
-	#if last_line_edit != null:
+	#if last_line_edit:
 		#dialog.register_text_enter(last_line_edit)
 		
 	dialog.position = position
@@ -579,7 +579,7 @@ func _find_editable_control(control: Node) -> Control:
 		
 	for i in control.get_children(true):
 		var c = _find_editable_control(i)
-		if c != null:
+		if c:
 			return c
 	return null
 	
@@ -590,7 +590,7 @@ func _find_last_line_edit(control: Node) -> Control:
 		
 	for i in control.get_children(true):
 		var c = _find_last_line_edit(i)
-		if c != null:
+		if c:
 			ret = c
 	return ret
 	

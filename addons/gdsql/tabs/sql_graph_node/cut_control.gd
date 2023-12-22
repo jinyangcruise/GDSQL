@@ -13,7 +13,7 @@ var control: Control:
 				while container.get_child_count() > 0:
 					container.remove_child(container.get_child(0))
 			else:
-				if control.get_parent() == null:
+				if not control.get_parent():
 					container.add_child(control)
 				else:
 					control.reparent(container)

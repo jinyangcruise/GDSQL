@@ -152,7 +152,7 @@ func _on_button_apply_pressed() -> void:
 func export_cfg(checked):
 	var primary_index = -1
 	var cb = _button_group.get_pressed_button()
-	if cb != null:
+	if cb:
 		primary_index = cb.get_meta("col")
 	var config = ConfigFile.new()
 	for i in _datas.size():
