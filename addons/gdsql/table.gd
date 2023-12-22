@@ -2003,10 +2003,21 @@ func _label_gui_input(event: InputEvent, col_index: int):
 		popup_menu_text.popup()
 		popup_menu_text.set_item_disabled(2, not support_delete_row)
 		
-# TODO 二分法搜索
 func get_panel_container_under_mouse():
 	if not v_box_container.get_rect().has_point(scroll_container.get_local_mouse_position()):
 		return null
+		
+	var control_under_mouse = get_viewport().gui_get_hovered_control()
+	if control_under_mouse:
+		if control_under_mouse is PanelContainer and control_under_mouse.get_parent().get_parent() == v_box_container:
+			return control_under_mouse
+		var parent = control_under_mouse.get_parent()
+		while parent and v_box_container.is_ancestor_of(parent):
+			if parent is PanelContainer and parent.get_parent().get_parent() == v_box_container:
+				return parent
+			parent = parent.get_parent()
+			
+	# 没找到再用这种笨办法
 	for i: PanelContainer in v_box_container.get_children():
 		if i.get_rect().has_point(v_box_container.get_local_mouse_position()):
 			for j: PanelContainer in i.get_child(0).get_children():
