@@ -36,7 +36,7 @@ const DATA_EXTENSION = ".gsql"
 const CONF_EXTENSION = ".cfg"
 
 var __CONF_MANAGER: ConfManagerClass
-var mgr: GDSQLWorkbenchManagerClass
+var mgr#: GDSQLWorkbenchManagerClass
 #endregion
 
 enum ORDER_BY { ASC, DESC }
@@ -49,8 +49,6 @@ func _init():
 		
 	if Engine.has_singleton("GDSQLWorkbenchManager"):
 		mgr = Engine.get_singleton("GDSQLWorkbenchManager")
-	else:
-		mgr = GDSQLWorkbenchManagerClass.new()
 		
 
 func use_db(database: String) -> BaseDao:
@@ -82,7 +80,7 @@ func auto_commit(auto: bool) -> BaseDao:
 	
 func _assert(action: String, success: bool, msg: String) -> bool:
 	if not success:
-		if Engine.is_editor_hint():
+		if mgr and Engine.is_editor_hint():
 			mgr.create_accept_dialog(msg)
 			mgr.add_log_history.emit("Err", Time.get_unix_time_from_system(), action, msg)
 		push_error(msg)
@@ -809,7 +807,8 @@ func ___select(path: String, fill_primary_key: String = ""):
 				# 考虑union的时候，开启__need_post_porcess，并把最终结果放到某个特定的字段下，且仍旧返回按表分类的数据结构
 				# 求值的时候增加一个判断分支，如果数据存在这个特定的字段，则不进行求值，而是直接使用已经求出的值
 				# 直到第一个BaseDao，会返回扁平结构的数据
-				var value = mgr.evaluate_command(null, field["name_4_computing"], variable_names, variable_values)
+				var value = Evaluate.evaluate_command_complex(
+					null, field["name_4_computing"], variable_names, variable_values)
 				row.push_back(value)
 				
 			if __parent_union:
@@ -822,7 +821,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 	
 func __get_table_defination(db_path: String, table_name: String):
 	var columns: Array
-	if Engine.has_singleton("GDSQLWorkbenchManager"):
+	if mgr and Engine.has_singleton("GDSQLWorkbenchManager"):
 		if mgr.databases:
 			columns = mgr.get_table_columns_by_datapath(db_path, table_name)
 		
@@ -984,7 +983,7 @@ func query() -> QueryResult:
 						continue
 						
 					if not col["Default(Expression)"].is_empty():
-						__data[col_name] = mgr.evaluate_command(null, col["Default(Expression)"])
+						__data[col_name] = Evaluate.evaluate_command_complex(null, col["Default(Expression)"])
 						continue
 						
 					if col["NN"]:
