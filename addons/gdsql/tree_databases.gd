@@ -1244,14 +1244,18 @@ func _on_popup_menu_copy_to_of_table_item_index_pressed(index):
 			if item:
 				var db_name = item.get_meta("db_name")
 				var table_name = item.get_meta("table_name")
+				var table_columns = mgr.get_table_columns(db_name, table_name)
+				var column_names = []
+				for i in table_columns:
+					column_names.push_back(i["Column Name"])
 				var cmd = """
 var dao = BaseDao.new()
 var ret = dao.use_db("%s")\\
 	.set_password("")\\
-	.select("*", true)\\
+	.select("%s", true)\\
 	.from("%s")\\
 	.query()
-""" % [databases[db_name]["data_path"], table_name + DATA_EXTENSION]
+""" % [databases[db_name]["data_path"], ",".join(column_names), table_name + DATA_EXTENSION]
 				DisplayServer.clipboard_set(cmd)
 		"Insert Statement":
 			var item := get_selected()
