@@ -19,7 +19,7 @@ signal sys_confirm_alter_schema(id: String)
 signal open_add_table_tab(db_name: String)
 ## 用户确认新建表的信号
 signal user_confirm_add_table(sechema: String, table_name: String, comments: String, 
-	password: String, columns: Array, id: String)
+	password: String, valid_if_not_exist: bool, columns: Array, id: String)
 ## 系统确认新建数据表的信号
 signal sys_confirm_add_table(id: String)
 
@@ -27,7 +27,7 @@ signal sys_confirm_add_table(id: String)
 signal open_alter_table_tab(db_name: String, table_name: String)
 ## 用户确认修改数据表的信号
 signal user_confirm_alter_table(sechema: String, old_table_name: String, new_table_name: String, 
-	comments: String, columns: Array, id: String)
+	comments: String, valid_if_not_exist: bool, columns: Array, id: String)
 ## 系统确认修改数据表的信号
 signal sys_confirm_alter_table(id: String)
 
@@ -66,8 +66,9 @@ var main_panel: Control
 		#"config_path": conf.get_value(db_name, "config_path"),
 		#"tables": {
 			#"table1": {
-				#"comment": ""
-				#"encrypted": "3423df23523fvsdgdfg"
+				#"comment": "",
+				#"encrypted": "3423df23523fvsdgdfg",
+				#"valid_if_not_exist": false,
 				#"columns": [ # 可能为空
 					#{
 						#"AI": false,
@@ -118,7 +119,7 @@ func run_in_plugin(node: Node) -> bool:
 func get_table_columns(db, table: String) -> Array:
 	if databases:
 		if table.ends_with(".gsql"):
-			table = table.replace(".gsql", "")
+			table = table.get_basename()
 		return databases.get(db, {}).get("tables", {}).get(table, {})\
 			.get("columns", [])
 	return []
@@ -126,13 +127,23 @@ func get_table_columns(db, table: String) -> Array:
 func get_table_columns_by_datapath(data_path, table: String) -> Array:
 	if databases:
 		if table.ends_with(".gsql"):
-			table = table.replace(".gsql", "")
+			table = table.get_basename()
 		for db in databases:
 			if databases[db]["data_path"] == data_path or \
 			ProjectSettings.globalize_path(databases[db]["data_path"]) == ProjectSettings.globalize_path(data_path):
 				return databases[db].get("tables", {}).get(table, {})\
 					.get("columns", []).map(func(v): v["db_name"] = db; return v)
 	return []
+	
+func get_table_valid_if_not_exist(data_path, table: String) -> bool:
+	if databases:
+		if table.ends_with(".gsql"):
+			table = table.get_basename()
+		for db in databases:
+			if databases[db]["data_path"] == data_path or \
+			ProjectSettings.globalize_path(databases[db]["data_path"]) == ProjectSettings.globalize_path(data_path):
+				return databases[db].get("tables", {}).get(table, {}).get("valid_if_not_exist", false)
+	return false
 	
 func _add_dialog(dialog: Window):
 	var root = EditorInterface.get_base_control().get_tree().get_root()

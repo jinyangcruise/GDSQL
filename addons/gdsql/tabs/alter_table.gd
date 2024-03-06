@@ -7,6 +7,7 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 @onready var line_edit_schema: LineEdit = $VBoxContainer/HBoxContainer/LineEditSchema
 @onready var line_edit_table_name: LineEdit = $VBoxContainer/HBoxContainer2/LineEditTableName
 @onready var text_edit_comment: TextEdit = $VBoxContainer/HBoxContainer3/TextEditComment
+@onready var check_box_valid_if_not_exist = $VBoxContainer/HBoxContainer4/CheckBoxValidIfNotExist
 @onready var popup_menu = $PopupMenu
 
 var schema: String:
@@ -28,6 +29,12 @@ var comment: String:
 		comment = val
 		if text_edit_comment and is_inside_tree():
 			text_edit_comment.text = val
+			
+var valid_if_not_exist: bool:
+	set(val):
+		valid_if_not_exist = val
+		if check_box_valid_if_not_exist and is_inside_tree():
+			check_box_valid_if_not_exist.button_pressed = val
 			
 var raw_datas: Array = []:
 	set(val):
@@ -88,6 +95,7 @@ func _ready() -> void:
 		table_name = table_name
 	if comment != "":
 		comment = comment
+	valid_if_not_exist = valid_if_not_exist
 	if not raw_datas.is_empty():
 		raw_datas = raw_datas
 		
@@ -130,12 +138,13 @@ func _on_button_apply_pressed() -> void:
 		return mgr.create_accept_dialog("schema and table name must be set!")
 		
 	var comments = text_edit_comment.text
+	var valid = check_box_valid_if_not_exist.button_pressed
 		
 	var column_infos = []
 	for i in table.datas:
 		column_infos.push_back(i._data)
 		
-	mgr.user_confirm_alter_table.emit(schema, old_table_name, curr_table_name, comments, column_infos, name)
+	mgr.user_confirm_alter_table.emit(schema, old_table_name, curr_table_name, comments, valid, column_infos, name)
 
 var selected_row_index = -1
 func _on_table_row_clicked(row_index, mouse_button_index, _data):

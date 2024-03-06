@@ -67,6 +67,20 @@ scroll_smooth = true
 scroll_fit_content_height = true
 caret_blink = true
 
+[node name="HBoxContainer4" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer4"]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+text = "Valid if not exist"
+horizontal_alignment = 2
+
+[node name="CheckBoxValidIfNotExist" type="CheckBox" parent="VBoxContainer/HBoxContainer4"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "(will not trigger file-not-exist-error)"
+
 [node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
 layout_mode = 2
 

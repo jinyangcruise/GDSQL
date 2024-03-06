@@ -28,7 +28,7 @@ var __left_join: LeftJoin ## 【外部请勿使用】第一个联表对象（获
 var __need_post_porcess: bool = true ## 【外部请勿使用】select最终返回数据时处理：是否按照用户所需的字段进行精简
 var __need_head: bool ## 【外部请勿使用】select返回的数据是否包含一行表头（在第一行）
 var __auto_commit: bool = true ## 【外部请勿使用】自动提交标志
-var __root_config: ImprovedConfigFile ## 【外部请勿使用】临时获取数据库定义文件
+static var __root_config: ImprovedConfigFile ## 【外部请勿使用】临时获取数据库定义文件
 var __config: ImprovedConfigFile ## 【外部请勿使用】临时为了获取数据库定义文件
 
 const ROOT_CONFIG_PATH = "res://addons/gdsql/config/config.cfg"
@@ -41,6 +41,10 @@ var mgr#: GDSQLWorkbenchManagerClass
 
 enum ORDER_BY { ASC, DESC }
 
+static func _static_init():
+	__root_config = ImprovedConfigFile.new()
+	__root_config.load(ROOT_CONFIG_PATH)
+	
 func _init():
 	if Engine.has_singleton("ConfManager"):
 		__CONF_MANAGER = Engine.get_singleton("ConfManager")
@@ -87,12 +91,19 @@ func _assert(action: String, success: bool, msg: String) -> bool:
 		return false
 	return true
 	
+func _get_conf(path: String, password: String) -> ImprovedConfigFile:
+	var defination = __get_table_defination(path.get_base_dir(), path.get_file())
+	var valid_if_not_exist = defination["valid_if_not_exist"] if defination else false
+	if valid_if_not_exist:
+		__CONF_MANAGER.mark_valid_if_not_exit(path)
+	return __CONF_MANAGER.get_conf(path, password)
+	
 ## 手动提交（保存到文件）
 func commit() -> void:
 	assert(_assert("commit", __database != "", "database is empty"))
 	assert(_assert("commit", __table != "", "table name is empty"))
 	var path = __database.path_join(__table)
-	var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
+	var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
 	assert(_assert("commit", conf != null, "load conf err!"))
 	__CONF_MANAGER.save_conf_by_origin_password(path)
 	reset()
@@ -181,7 +192,7 @@ func from(table: String, alias: String = "") -> BaseDao:
 	__autoincrement_keys_def = {}
 	var defination = __get_table_defination(__database, __table)
 	if defination != null and !defination.is_empty():
-		for column in defination:
+		for column in defination["columns"]:
 			if column["PK"]:
 				__primary_key_def = column["Column Name"]
 				__primary_key = __primary_key_def
@@ -492,7 +503,7 @@ curr_row: Dictionary, all_dependencies: Dictionary):
 	
 func ___select(path: String, fill_primary_key: String = ""):
 	var ret: Array = []
-	var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
+	var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
 	assert(_assert("___select", conf != null, "failed to get conf:%s" % path))
 	conf.fill_primary_key = fill_primary_key
 	var all_datas: Dictionary = {} # 把其他联表数据放到这个里边
@@ -505,7 +516,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 	for a_left_join in arr_left_join:
 		var pt = a_left_join.get_path()
 		var ps = a_left_join.get_password()
-		var conf1: ImprovedConfigFile = __CONF_MANAGER.get_conf(pt, ps)
+		var conf1: ImprovedConfigFile = _get_conf(pt, ps)
 		conf1.fill_primary_key = fill_primary_key
 		all_datas[a_left_join.get_alias()] = conf1.get_all_section_values()
 		# TODO
@@ -820,38 +831,43 @@ func ___select(path: String, fill_primary_key: String = ""):
 	return ret_post_process
 	
 func __get_table_defination(db_path: String, table_name: String):
+	if not db_path.ends_with("/"):
+		db_path += "/"
 	var columns: Array
+	var valid_if_not_exist = false
 	if mgr and Engine.has_singleton("GDSQLWorkbenchManager"):
 		if mgr.databases:
 			columns = mgr.get_table_columns_by_datapath(db_path, table_name)
+			valid_if_not_exist = mgr.get_table_valid_if_not_exist(db_path, table_name)
 		
 	if columns == null or columns.is_empty():
-		if __root_config == null:
-			__root_config = ImprovedConfigFile.new()
-			__root_config.load(ROOT_CONFIG_PATH)
 		if __config == null:
 			var db_info = __root_config.filter_first_values("data_path", db_path)
 			if db_info.is_empty():
 				db_info = __root_config.filter_first_values("data_path", ProjectSettings.globalize_path(db_path))
 				if db_info.is_empty():
-					return []
+					return null
 				
 			var table_conf_path = db_info.get("config_path") + table_name.get_basename() + CONF_EXTENSION
 			if not FileAccess.file_exists(table_conf_path):
-				return []
+				return null
 				
 			__config = ImprovedConfigFile.new()
 			__config.load(table_conf_path)
 			
 		columns = __config.get_value(table_name.get_basename(), "columns", [])
+		valid_if_not_exist = __config.get_value(table_name.get_basename(), "valid_if_not_exist", false)
 		
-	return columns
+	return {
+		"columns": columns,
+		"valid_if_not_exist": valid_if_not_exist,
+	}
 	
 func __get_table_columns(db_path, table_name, table_alias, all_datas: Dictionary = {}):
 	var columns: Array
 	var defination = __get_table_defination(db_path, table_name)
 	if defination:
-		columns = defination
+		columns = defination["columns"]
 		
 	if columns == null or columns.is_empty():
 		# 推断表头
@@ -872,7 +888,8 @@ func __get_table_columns(db_path, table_name, table_alias, all_datas: Dictionary
 	return columns
 	
 func __get_table_column_defination(db_path, table_name, table_alias, column_name):
-	var columns = __get_table_defination(db_path, table_name)
+	var defination = __get_table_defination(db_path, table_name)
+	var columns = defination["columns"] if defination else null
 	var column
 	if columns != null:
 		for i in columns:
@@ -912,7 +929,7 @@ func query() -> QueryResult:
 			assert(_assert("query:%s" % __cmd, 
 				__primary_key != null and __primary_key != "", "Primary key is empty"))
 			# 检查数据类型是否正确
-			var columns_def = __get_table_defination(__database, __table)
+			var columns_def = __get_table_defination(__database, __table)["columns"]
 			for col in columns_def:
 				var col_name = col["Column Name"]
 				if __data.has(col_name):
@@ -925,7 +942,7 @@ func query() -> QueryResult:
 							[col_name, type_string(col["Data Type"])]))
 						__data[col_name] = v1
 						
-			var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
+			var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
 			assert(_assert("query:%s" % __cmd, conf != null, "load conf err!"))
 			var primary_value = str(__data.get(__primary_key))
 			var insert = true # 是insert模式还是update模式。只有insert_or_update时会涉及
@@ -1034,7 +1051,7 @@ func query() -> QueryResult:
 			assert(_assert("query:%s" % __cmd, !__where.is_empty(), "Condition is empty. This limitition if for safety."))
 			
 			# 检查数据类型是否正确
-			var columns_def = __get_table_defination(__database, __table)
+			var columns_def = __get_table_defination(__database, __table)["columns"]
 			for col in columns_def:
 				var col_name = col["Column Name"]
 				if __data.has(col_name):
@@ -1055,7 +1072,7 @@ func query() -> QueryResult:
 				return result
 			
 			# 更新数据
-			var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
+			var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
 			assert(_assert("query:%s" % __cmd, conf != null, "Load conf err!"))
 			for data in datas:
 				data = data[__table_alias] # 未经过后处理的肯定是用表名分类的结构
@@ -1074,7 +1091,7 @@ func query() -> QueryResult:
 			return result
 			
 		"delete_from":
-			var conf: ImprovedConfigFile = __CONF_MANAGER.get_conf(path, _PASSWORD)
+			var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
 			assert(_assert("query:%s" % __cmd, conf != null, "Load conf err!"))
 			
 			if __where.is_empty():
@@ -1215,7 +1232,4 @@ func reset(force = false):
 	if __config:
 		__config.clear()
 		__config = null
-	if __root_config:
-		__root_config.clear()
-		__root_config = null
 	mgr = null

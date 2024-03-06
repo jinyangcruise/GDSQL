@@ -178,6 +178,7 @@ func add_tab_alter_table(db_name, table_name) -> void:
 	alter_table.table_name = table_name
 	var defination = mgr.databases.get(db_name, {}).get("tables", {}).get(table_name, {}) as Dictionary
 	alter_table.comment = defination.get("comment", "")
+	alter_table.valid_if_not_exist = defination.get("valid_if_not_exist", false)
 	alter_table.raw_datas = defination.get("columns", [])
 	add_child(alter_table)
 	move_child(new_tab_button, get_child_count() - 1)

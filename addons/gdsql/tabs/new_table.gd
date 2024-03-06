@@ -9,6 +9,7 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 @onready var text_edit_comment: TextEdit = $VBoxContainer/HBoxContainer3/TextEditComment
 @onready var line_edit_password = $VBoxContainer/HBoxContainer4/LineEditPassword
 @onready var line_edit_password_again = $VBoxContainer/HBoxContainer5/LineEditPasswordAgain
+@onready var check_box_valid_if_not_exist = $VBoxContainer/HBoxContainer6/CheckBoxValidIfNotExist
 @onready var popup_menu = $PopupMenu
 
 var schema: String:
@@ -41,6 +42,12 @@ var password_again: String:
 		password_again = val
 		if line_edit_password_again and is_inside_tree():
 			line_edit_password_again.text = val
+			
+var valid_if_not_exist: bool:
+	set(val):
+		valid_if_not_exist = val
+		if check_box_valid_if_not_exist and is_inside_tree():
+			check_box_valid_if_not_exist.button_pressed = val
 			
 var raw_datas: Array = []:
 	set(val):
@@ -104,6 +111,7 @@ func _ready() -> void:
 		password = password
 	if password_again != "":
 		password_again = password_again
+	valid_if_not_exist = valid_if_not_exist
 	if not raw_datas.is_empty():
 		raw_datas = raw_datas
 		
@@ -169,11 +177,13 @@ func _on_button_apply_pressed() -> void:
 	if _password != line_edit_password_again.text:
 		return mgr.create_accept_dialog("must input the same password again!")
 		
+	var valid = check_box_valid_if_not_exist.button_pressed
+		
 	var column_infos = []
 	for i in table.datas:
 		column_infos.push_back(i._data)
 		
-	mgr.user_confirm_add_table.emit(schema, curr_table_name, comments, _password, column_infos, name)
+	mgr.user_confirm_add_table.emit(schema, curr_table_name, comments, _password, valid, column_infos, name)
 	#button_apply_pressed.emit(schema, curr_table_name, comments, _password, column_infos, name)
 
 var selected_row_index = -1

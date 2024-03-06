@@ -123,7 +123,7 @@ func add_db_to_config(db_name: String, path: String, id: String) -> void:
 	
 	
 func add_table_to_config(db_name: String, table_name: String, comment: String, 
-	password: String, column_infos: Array, id: String = "") -> void:
+	password: String, valid_if_not_exist: bool, column_infos: Array, id: String = "") -> void:
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "CREATE TABLE `%s`.`%s` (" % [db_name, table_name]
 	var msgs = []
@@ -191,6 +191,7 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 	var table_conf_path = databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
 	config_file.set_value(table_name, "encrypted", "" if password.is_empty() else password.md5_text())
 	config_file.set_value(table_name, "comment", comment)
+	config_file.set_value(table_name, "valid_if_not_exist", valid_if_not_exist)
 	config_file.set_value(table_name, "columns", column_infos)
 	config_file.save(table_conf_path)
 	msgs.push_back("1 file: %s has been saved." % table_conf_path)
@@ -265,7 +266,7 @@ func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String
 	refresh()
 	
 func modify_table_to_config(db_name: String, old_table_name: String, new_table_name, \
-		comments: String, column_infos: Array, id: String) -> void:
+		comments: String, valid_if_not_exist: bool, column_infos: Array, id: String) -> void:
 		
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "ALTER TABLE `%s`.`%s` to `%s`.`%s` (" % [db_name, old_table_name, db_name, new_table_name]
@@ -421,6 +422,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		var table_conf_path = databases[db_name]["config_path"] + new_table_name + CONFIG_EXTENSION
 		config_file.set_value(new_table_name, "encrypted", table_confs[old_table_name]["encrypted"]) # 保留原密码
 		config_file.set_value(new_table_name, "comment", comments)
+		config_file.set_value(new_table_name, "valid_if_not_exist", valid_if_not_exist)
 		config_file.set_value(new_table_name, "columns", column_infos)
 		config_file.save(table_conf_path) # 如果新路径和旧路径一致，就会覆盖掉，也是我们所期待的
 		msgs.push_back("1 file: %s has been saved." % table_conf_path)

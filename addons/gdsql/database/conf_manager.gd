@@ -4,6 +4,14 @@ class_name ConfManagerClass
 
 var _conf_map: Dictionary = {}
 var _passwords: Dictionary = {}
+var _valid_if_not_exist_path = []
+
+## 标记某路径在不存在时，可以当作一个空配置
+func mark_valid_if_not_exit(path: String) -> void:
+	# 使用绝对路径，防止用户对同一个文件使用不同形式的路径导致获得了多个配置实例
+	path = ProjectSettings.globalize_path(path).simplify_path()
+	if not _valid_if_not_exist_path.has(path):
+		_valid_if_not_exist_path.push_back(path)
 
 ## 获取配置：前提是该配置的文件是存在的
 func get_conf(path: String, password: String) -> ImprovedConfigFile:
@@ -14,8 +22,13 @@ func get_conf(path: String, password: String) -> ImprovedConfigFile:
 		return _conf_map.get(path)
 		
 	var conf := ImprovedConfigFile.new()
-	
-	assert(FileAccess.file_exists(path), "file:[%s] not exist" % path)
+	var exist = FileAccess.file_exists(path)
+	if not exist and _valid_if_not_exist_path.has(path):
+		_passwords[path] = password # FIXME unsafe
+		_conf_map[path] = conf
+		return conf
+		
+	assert(exist, "file:[%s] not exist" % path)
 	var err = OK
 	if password.is_empty():
 		err = conf.load(path)
@@ -56,6 +69,7 @@ func save_conf_by_origin_password(path: String):
 	else:
 		conf.save_encrypted_pass(path, _passwords[path])
 		
+## NOTICE unsafe
 func save_conf_by_same_password(path: String, ref_path: String):
 	path = ProjectSettings.globalize_path(path)
 	ref_path = ProjectSettings.globalize_path(ref_path)
