@@ -1,3 +1,4 @@
+@tool
 extends RefCounted
 class_name BaseDao
 
@@ -818,7 +819,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 				# 考虑union的时候，开启__need_post_porcess，并把最终结果放到某个特定的字段下，且仍旧返回按表分类的数据结构
 				# 求值的时候增加一个判断分支，如果数据存在这个特定的字段，则不进行求值，而是直接使用已经求出的值
 				# 直到第一个BaseDao，会返回扁平结构的数据
-				var value = Evaluate.evaluate_command_complex(
+				var value = GDSQLWorkbenchManagerClass.evaluate_command(
 					null, field["name_4_computing"], variable_names, variable_values)
 				row.push_back(value)
 				
@@ -1000,7 +1001,7 @@ func query() -> QueryResult:
 						continue
 						
 					if not col["Default(Expression)"].is_empty():
-						__data[col_name] = Evaluate.evaluate_command_complex(null, col["Default(Expression)"])
+						__data[col_name] = GDSQLWorkbenchManagerClass.evaluate_command(null, col["Default(Expression)"])
 						continue
 						
 					if col["NN"]:

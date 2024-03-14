@@ -85,7 +85,6 @@ func refresh_dest_column():
 		
 func refresh_col_name(index, option, i):
 	_col_names[i] = option.get_item_text(index)
-	Utils.print_variant(_col_names)
 	
 func reset_columns():
 	clear_columns()

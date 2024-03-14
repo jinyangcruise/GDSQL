@@ -629,7 +629,7 @@ func editor_property_focused(data):
 ## command：表达式
 ## variable_names：参数名称列表
 ## variable_values：参数值列表
-func evaluate_command(target: Object, command: String, variable_names = [], variable_values = []):
+static func evaluate_command(target: Object, command: String, variable_names = [], variable_values = []):
 	var expression = Expression.new()
 	var error = expression.parse(command, variable_names)
 	if error != OK:
