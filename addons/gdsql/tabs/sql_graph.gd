@@ -648,7 +648,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		flow_container.add_child(btn_export)
 		
 		var separator = Control.new()
-		separator.custom_minimum_size.y = 60
+		separator.custom_minimum_size.y = 80
 		
 		graph_datas = [
 			[margin_container, null],
