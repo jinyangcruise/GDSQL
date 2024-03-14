@@ -1055,7 +1055,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 					if (col_def["Default(Expression)"] as String).strip_edges().is_empty():
 						new_data[j["prop"]] = DataTypeDef.DEFUALT_VALUES[col_def["Data Type"]]
 					else:
-						new_data[j["prop"]] = GDSQLWorkbenchManagerClass.evaluate_command(null, col_def["Default(Expression)"])
+						new_data[j["prop"]] = GDSQLUtils.evaluate_command(null, col_def["Default(Expression)"])
 						
 						
 			var dict_obj = DictionaryObject.new(new_data, hint, false)

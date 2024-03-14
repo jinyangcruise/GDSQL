@@ -76,7 +76,7 @@ func check(datas: Dictionary):
 					variable_names.push_back(f) # 祈祷字段名称和表名以及用户使用的函数名称不一样吧……
 					variable_values.push_back(datas[key][f])
 			
-		ret = GDSQLWorkbenchManagerClass.evaluate_command(null, _cond, variable_names, variable_values)
+		ret = GDSQLUtils.evaluate_command(null, _cond, variable_names, variable_values)
 		
 	# and / or
 	if _and_wrapper:
