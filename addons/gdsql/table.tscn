@@ -158,10 +158,11 @@ mouse_default_cursor_shape = 8
 theme_override_constants/separation = 12
 
 [node name="LabelModel" type="Label" parent="Models"]
+auto_translate_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
-auto_translate = false
 localize_numeral_system = false
+auto_translate = false
 mouse_filter = 1
 mouse_default_cursor_shape = 8
 text_overrun_behavior = 3
@@ -231,7 +232,6 @@ theme_override_constants/separation = 0
 item_count = 3
 item_0/text = "Copy Field"
 item_0/icon = ExtResource("2_y6tia")
-item_0/id = 0
 item_1/text = "Copy Line"
 item_1/icon = ExtResource("2_y6tia")
 item_1/id = 1
