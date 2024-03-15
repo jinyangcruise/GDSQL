@@ -62,10 +62,12 @@ func use_db(database: String) -> BaseDao:
 	
 func use_user_db() -> BaseDao:
 	__database = "user://"
+	set_password(PasswordDef.USER_DAO_PASS)
 	return self
 	
 func use_conf_db() -> BaseDao:
 	__database = "res://src/config/"
+	set_password(PasswordDef.CONFIG_ENCRYPTED_PASS)
 	return self
 	
 func get_db() -> String:

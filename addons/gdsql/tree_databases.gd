@@ -75,6 +75,9 @@ func refresh_databases():
 			table_conf.load(config_path + file_name)
 			var table_name = file_name.get_basename()
 			databases[db_name]["tables"][table_name] = table_conf.get_section_values(table_name)
+			if databases[db_name]["tables"][table_name].get("valid_if_not_exist", false):
+				__CONF_MANAGER.mark_valid_if_not_exit(
+					(databases[db_name]["data_path"] as String).path_join(table_name) + DATA_EXTENSION)
 			
 	mgr.databases = databases
 	
@@ -483,10 +486,11 @@ func set_password(db_name: String, table_name: String, password: String) -> void
 		
 	var db_absolute_path = ProjectSettings.globalize_path(databases[db_name]["data_path"])
 	var table_data_path = db_absolute_path + table_name + DATA_EXTENSION
-	if not FileAccess.file_exists(table_data_path):
-		msgs.push_back("Failed! Data file [%s] dose not exist!" % table_data_path)
-		mgr.add_log_history.emit("Err", begin_time, action, msgs)
-		return mgr.create_accept_dialog(msgs)
+	var table_data_file_exist = FileAccess.file_exists(table_data_path)
+	#if not FileAccess.file_exists(table_data_path):
+		#msgs.push_back("Failed! Data file [%s] dose not exist!" % table_data_path)
+		#mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		#return mgr.create_accept_dialog(msgs)
 		
 	var config_file = ConfigFile.new()
 	config_file.load(table_conf_path)
@@ -494,9 +498,10 @@ func set_password(db_name: String, table_name: String, password: String) -> void
 	config_file.save(table_conf_path)
 	msgs.push_back("1 file: %s has been saved." % table_conf_path)
 	
-	__CONF_MANAGER.get_conf(table_data_path, "") # load data
-	__CONF_MANAGER.save_conf_by_password(table_data_path, password)
-	msgs.push_back("1 file: %s has been encrypted." % table_data_path)
+	if table_data_file_exist:
+		__CONF_MANAGER.get_conf(table_data_path, "") # load data
+		__CONF_MANAGER.save_conf_by_password(table_data_path, password)
+		msgs.push_back("1 file: %s has been encrypted." % table_data_path)
 	
 	# 清除该表数据的缓存，可以让用户使用该表时必须输入密码，以加深印象
 	__CONF_MANAGER.remove_conf(table_data_path)
@@ -533,10 +538,11 @@ func clear_password(db_name: String, table_name: String) -> void:
 		
 	var db_absolute_path = ProjectSettings.globalize_path(databases[db_name]["data_path"])
 	var table_data_path = db_absolute_path + table_name + DATA_EXTENSION
-	if not FileAccess.file_exists(table_data_path):
-		msgs.push_back("Failed! Data file [%s] dose not exist!" % table_data_path)
-		mgr.add_log_history.emit("Err", begin_time, action, msgs)
-		return mgr.create_accept_dialog(msgs)
+	var table_data_file_exist = FileAccess.file_exists(table_data_path)
+	#if not FileAccess.file_exists(table_data_path):
+		#msgs.push_back("Failed! Data file [%s] dose not exist!" % table_data_path)
+		#mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		#return mgr.create_accept_dialog(msgs)
 		
 	var config_file = ConfigFile.new()
 	config_file.load(table_conf_path)
@@ -545,9 +551,10 @@ func clear_password(db_name: String, table_name: String) -> void:
 	msgs.push_back("1 file: %s has been saved." % table_conf_path)
 	
 	# 注意，这里随便传了一个密码，因为实际操作中用户已经输入过密码了，__CONF_MANAGER后续会从缓存中获取，无需再次输入密码
-	__CONF_MANAGER.get_conf(table_data_path, "") # load data 以防万一上面说的“实际操作。。。”并未发生
-	__CONF_MANAGER.save_conf_by_password(table_data_path, "")
-	msgs.push_back("1 file: %s has been decrypt." % table_data_path)
+	if table_data_file_exist:
+		__CONF_MANAGER.get_conf(table_data_path, "") # load data 以防万一上面说的“实际操作。。。”并未发生
+		__CONF_MANAGER.save_conf_by_password(table_data_path, "")
+		msgs.push_back("1 file: %s has been decrypt." % table_data_path)
 	
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
 	refresh()
@@ -587,10 +594,11 @@ func change_password(db_name: String, table_name: String, password: String) -> v
 		
 	var db_absolute_path = ProjectSettings.globalize_path(databases[db_name]["data_path"])
 	var table_data_path = db_absolute_path + table_name + DATA_EXTENSION
-	if not FileAccess.file_exists(table_data_path):
-		msgs.push_back("Failed! Data file [%s] dose not exist!" % table_data_path)
-		mgr.add_log_history.emit("Err", begin_time, action, msgs)
-		return mgr.create_accept_dialog(msgs)
+	var table_data_file_exist = FileAccess.file_exists(table_data_path)
+	#if not FileAccess.file_exists(table_data_path):
+		#msgs.push_back("Failed! Data file [%s] dose not exist!" % table_data_path)
+		#mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		#return mgr.create_accept_dialog(msgs)
 		
 	var config_file = ConfigFile.new()
 	config_file.load(table_conf_path)
@@ -599,9 +607,10 @@ func change_password(db_name: String, table_name: String, password: String) -> v
 	msgs.push_back("1 file: %s has been saved." % table_conf_path)
 	
 	# 注意，这里随便传了一个密码，因为实际操作中用户已经输入过密码了，__CONF_MANAGER后续会从缓存中获取，无需再次输入密码
-	__CONF_MANAGER.get_conf(table_data_path, "") # load data 以防万一上面说的“实际操作。。。”并未发生
-	__CONF_MANAGER.save_conf_by_password(table_data_path, password)
-	msgs.push_back("1 file: %s has been encrypted." % table_data_path)
+	if table_data_file_exist:
+		__CONF_MANAGER.get_conf(table_data_path, "") # load data 以防万一上面说的“实际操作。。。”并未发生
+		__CONF_MANAGER.save_conf_by_password(table_data_path, password)
+		msgs.push_back("1 file: %s has been encrypted." % table_data_path)
 	
 	# 清除该表数据的缓存，可以让用户使用该表时必须输入密码，以加深印象
 	__CONF_MANAGER.remove_conf(table_data_path)
