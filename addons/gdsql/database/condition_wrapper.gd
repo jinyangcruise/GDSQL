@@ -75,8 +75,9 @@ func check(datas: Dictionary):
 				for f in datas[key]:
 					variable_names.push_back(f) # 祈祷字段名称和表名以及用户使用的函数名称不一样吧……
 					variable_values.push_back(datas[key][f])
-			
+		
 		ret = GDSQLUtils.evaluate_command(null, _cond, variable_names, variable_values)
+		assert(typeof(ret) == TYPE_BOOL, "check failed! cond:%s" % _cond)
 		
 	# and / or
 	if _and_wrapper:

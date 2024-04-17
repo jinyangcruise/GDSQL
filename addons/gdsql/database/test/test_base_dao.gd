@@ -135,7 +135,6 @@ func test_select():
 func test_select2():
 	var dao: BaseDao = BaseDao.new()
 	var ret = dao.use_user_db()\
-		.set_password("")\
 		.select("t.*, t.name,1,2, 'a,b', t.name.substr(0, 3)", true)\
 		.from("t_user_1.gsql", "t")\
 		.order_by("id", BaseDao.ORDER_BY.DESC)\

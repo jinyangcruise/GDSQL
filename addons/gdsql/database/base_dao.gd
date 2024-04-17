@@ -113,20 +113,24 @@ func commit() -> void:
 	
 ## 查询数据子句
 ## something: 查询字段语句，即数据库查询语句select和from之间的语句
-## need_head: 是否需要表头。传true，如果查询到了数据，那么返回数据的第一行会是一个表头表示每列是什么字段。union表该参数无效，等价于false。
-## 注意：若联表查询还要求返回平数据，则query后会在每条数据的每个字段前加上表的别名和小数点。例如：[["t1.a": xx, "t2.m": yy]]
+## need_head: 是否需要表头。传true，如果查询到了数据，那么返回数据的第一行会是一个表头表示每列是什么字段。
+## union表该参数无效，等价于false。
+## 注意：若联表查询还要求返回平数据，则query后会在每条数据的每个字段前加上表的别名和小数点。例如：
+## [["t1.a": xx, "t2.m": yy]].
 ## 这个方法会预处理每个要求的字段和字段的别名（如有），但不会马上在这里处理星号，而是推迟到query的时候才处理。
 func select(someting: String, need_head: bool) -> BaseDao:
 	assert(_assert("select", __cmd == "" or __cmd == "select", "already set command %s" % __cmd))
 	#if __parent_union and need_head:
-		#push_warning("union table cannot have head but the param `need_head` is true, this param will be ignored")
+		#push_warning("union table cannot have head but the param `need_head` is true, 
+		#this param will be ignored")
 	__cmd = "select"
 	__select = []
 	__field_as = {}
 	__need_head = need_head
 	someting = someting.strip_edges()
 	# 拆分select的字段。不能简单用split(",")，因为字段有可能是函数调用，它不支持正则（至少Godot 4.1不支持）
-	# 下面的方案支持类似这样的情况："*,a.uname.contains(),aa.level, t.img, at.icon(1, 2, \"a, b\"), t_user.u, y.call()"
+	# 下面的方案支持类似这样的情况："*,a.uname.contains(),aa.level, t.img, at.icon(1, 2, \"a, b\"), 
+	# t_user.u, y.call()"
 	var regex = RegEx.new()
 	#regex.compile(",\\s*(?![^()]*\\))") # 匹配逗号的位置，括号内的逗号不匹配
 	# 匹配逗号的位置，括号、引号内的逗号都不匹配
@@ -458,7 +462,7 @@ func ___datas_struct_is_key_dict(datas: Array) -> bool:
 	return true
 	
 func ___loop_table_row(result: Array, all_datas: Dictionary, loop_tables: Array, loop_index: int, 
-curr_row: Dictionary, all_dependencies: Dictionary):
+curr_row: Dictionary, all_dependencies: Dictionary) -> bool:
 	# TODO 优化：如果on条件连接的是主键、唯一键，那么找到一条数据就可以停止了
 	# TODO 优化：某个where条件如果只涉及一张表，那么可以提前对这张表进行筛选
 	if loop_index == loop_tables.size():
@@ -489,10 +493,16 @@ curr_row: Dictionary, all_dependencies: Dictionary):
 				var lj = __left_join.get_left_join_by_alias(table)
 				var cond = lj.get_condition()
 				var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
-				if not conditionWrapper.cond(cond).check(acc_row):
+				var check_result = conditionWrapper.cond(cond).check(acc_row)
+				if not _assert("check left join on", 
+				typeof(check_result) == TYPE_BOOL, "check failed! cond:%s" % cond):
+					return false # error occur
+				if not check_result:
 					continue
 					
-				___loop_table_row(result, all_datas, loop_tables, loop_index + 1, acc_row, all_dependencies)
+				if not ___loop_table_row(result, all_datas, loop_tables, 
+				loop_index + 1, acc_row, all_dependencies):
+					return false # error occur
 		# 当前表没有数据依旧要保持循环继续
 		else:
 			# 如果有其他表要依赖当前表，则说明on条件永远无法达成，就不用继续了。否则继续
@@ -502,12 +512,16 @@ curr_row: Dictionary, all_dependencies: Dictionary):
 					need_loop = true
 			if need_loop:
 				var acc_row = curr_row.duplicate()
-				___loop_table_row(result, all_datas, loop_tables, loop_index + 1, acc_row, all_dependencies)
+				if not ___loop_table_row(result, all_datas, loop_tables, 
+				loop_index + 1, acc_row, all_dependencies):
+					return false # error occur
+	return true
 	
 func ___select(path: String, fill_primary_key: String = ""):
 	var ret: Array = []
 	var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
-	assert(_assert("___select", conf != null, "failed to get conf:%s" % path))
+	if not _assert("___select", conf != null, "failed to get conf:%s" % path):
+		return null # error occur
 	conf.fill_primary_key = fill_primary_key
 	var all_datas: Dictionary = {} # 把其他联表数据放到这个里边
 	
@@ -541,7 +555,9 @@ func ___select(path: String, fill_primary_key: String = ""):
 		loop_tables.erase(__table_alias)
 		for row in all_datas[__table_alias]:
 			var row_result = []
-			___loop_table_row(row_result, all_datas, loop_tables, 0, {__table_alias: row}, dependencies)
+			if not ___loop_table_row(row_result, all_datas, loop_tables, 0, 
+			{__table_alias: row}, dependencies):
+				return null # error occur
 			# 这行主表的数据没有联到任何其他表的数据，因此需要一条别的表全为null的数据
 			if row_result.is_empty():
 				ret.push_back({__table_alias: row})
@@ -583,24 +599,28 @@ func ___select(path: String, fill_primary_key: String = ""):
 					__get_table_columns(__database, __table, __table_alias, all_datas)\
 					.map(fill_select_name.bind(alias)))
 			else:
-				assert(_assert("___select", __left_join != null, "table `%s` not found" % alias))
+				if not _assert("___select", __left_join != null, "table `%s` not found" % alias):
+					return null
 				var a_left_join = __left_join.get_left_join_by_alias(alias)
-				assert(_assert("___select", a_left_join != null, "table `%s` not found" % alias))
+				if not _assert("___select", a_left_join != null, "table `%s` not found" % alias):
+					return null
 				real_select.append_array(
 					__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas)\
 						.map(fill_select_name.bind(alias)))
 		else:
 			var m = regex_symbol.search(s)
 			if m != null and m.get_string() == s:
-				assert(_assert("___select", __left_join == null, 
-					"must specify table alias name in select fields if using left join"))
+				if not _assert("___select", __left_join == null, 
+				"must specify table alias name in select fields if using left join"):
+					return null
 				var column = __get_table_column_defination(__database, __table, __table_alias, m.get_string())
 				if column != null and !column.is_empty():
 					real_select.push_back(column)
 				else:
-					assert(_assert("___select", 
-						not all_datas[__table_alias].is_empty() and all_datas[__table_alias][0].has(s),
-						"field:[%s] not exist in table:[%s], db:[%s]" % [s, __table, __database]))
+					if not _assert("___select", 
+					not all_datas[__table_alias].is_empty() and all_datas[__table_alias][0].has(s),
+					"field:[%s] not exist in table:[%s], db:[%s]" % [s, __table, __database]):
+						return null
 					real_select.push_back(gen_dict.call(s, s, true, __table_alias)) # 可能没有定义文件
 			elif s.contains(__table_alias + "."):
 				regex_field.compile(__table_alias + "\\.([a-zA-Z_]+[0-9a-zA-Z_]*)") # 获取字段名称的正则
@@ -616,9 +636,10 @@ func ___select(path: String, fill_primary_key: String = ""):
 							real_select.push_back(gen_dict.call(s, s, false))
 					else:
 						if s == __table_alias + "." + field:
-							assert(_assert("___select", 
-								not all_datas[__table_alias].is_empty() and all_datas[__table_alias][0].has(field),
-								"field:[%s] not exist in table:[%s], db:[%s]" % [field, __table, __database]))
+							if not _assert("___select", 
+							not all_datas[__table_alias].is_empty() and all_datas[__table_alias][0].has(field),
+							"field:[%s] not exist in table:[%s], db:[%s]" % [field, __table, __database]):
+								return null
 							real_select.push_back(gen_dict.call(s, field, true, __table_alias, __database, __table))
 						else:
 							real_select.push_back(gen_dict.call(s, s, false))
@@ -645,10 +666,11 @@ func ___select(path: String, fill_primary_key: String = ""):
 									real_select.push_back(gen_dict.call(s, s, false))
 							else:
 								if s == alias + "." + field:
-									assert(_assert("___select", 
-										not all_datas[alias].is_empty() and all_datas[alias][0].has(field),
-										"field:[%s] not exist in table:[%s], db:[%s]" \
-										% [field, a_left_join.get_table(), a_left_join.get_db()]))
+									if not _assert("___select", 
+									not all_datas[alias].is_empty() and all_datas[alias][0].has(field),
+									"field:[%s] not exist in table:[%s], db:[%s]" \
+									% [field, a_left_join.get_table(), a_left_join.get_db()]):
+										return null
 									real_select.push_back(gen_dict.call(s, field, true, alias, 
 										a_left_join.get_db(), a_left_join.get_table())) # 没定义的文件
 								else:
@@ -676,7 +698,10 @@ func ___select(path: String, fill_primary_key: String = ""):
 	var ret_filter: Array[Dictionary] = []
 	for data in ret:
 		var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
-		if conditionWrapper.cond(cond).check(data):
+		var check_result = conditionWrapper.cond(cond).check(data)
+		if not _assert("check where", typeof(check_result) == TYPE_BOOL, "check failed! cond:%s" % cond):
+			return null
+		if check_result:
 			ret_filter.push_back(data)
 			
 	# 合并union
@@ -692,7 +717,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 	if ret_filter.is_empty():
 		if __need_head and __parent_union == null:
 			return [real_select]
-		return []
+		return null
 		
 	# 特殊标记
 	var __ROW_POST_PROCESS__ = "__ROW_POST_PROCESS_1355--5--__" # 祈祷用户没有用这个字段或表名
@@ -922,6 +947,7 @@ func query() -> QueryResult:
 	match __cmd:
 		"select":
 			var ret = ___select(path)
+			assert(_assert("query:%s" % __cmd, typeof(ret) != TYPE_NIL, "Error occur!"))
 			reset()
 			result._has_head = __need_head
 			result._data = ret

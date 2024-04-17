@@ -15,10 +15,16 @@ static func evaluate_command(target: Object, command: String, variable_names = [
 	var ret = expression.execute(variable_values, target, false)
 	
 	# 对于一些很简单的但Expression又不支持的写法，动态创建脚本
-	if ret == null and target == null and variable_names.is_empty() and variable_values.is_empty():
+	if ret == null and target == null:
 		var script = GDScript.new()
-		script.source_code = "extends Object\nvar value = %s" % command
-		script.reload()
+		var defines = []
+		for i in variable_names.size():
+			defines.push_back("var %s = str_to_var('%s')" % [variable_names[i], var_to_str(variable_values[i]).c_escape()])
+		script.source_code = "extends Object\n%s\nvar value = (%s)\n" % ["\n".join(defines), command]
+		var err = script.reload()
+		if err != OK:
+			push_error("err: %s" % error_string(err))
+			return null
 		var obj = script.new()
 		ret = obj.value
 		obj.free()
