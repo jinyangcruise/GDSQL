@@ -575,7 +575,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 	var regex_field = RegEx.new()
 	var gen_dict = func(s, c, f, t_alias = "", d = "", t = ""):
 		return {"select_name": s, "Column Name": c, "is_field": f, "table_alias": t_alias,
-			"db_path": d, "table_name": t, "Hint": "", "Hint String": ""}
+			"db_path": d, "table_name": t, "hint": PROPERTY_HINT_NONE, "Hint String": ""}
 	var fill_select_name = func(element, alias):
 		element["select_name"] = element["Column Name"] if alias.is_empty() \
 			else (alias + "." + element["Column Name"])
