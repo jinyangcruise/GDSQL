@@ -139,7 +139,8 @@ func select(someting: String, need_head: bool) -> BaseDao:
 	
 	# 别名
 	var regex_2 = RegEx.new()
-	regex_2.compile("[\\s]+as[\\s]+([0-9a-zA-Z_]+)$")
+	#regex_2.compile("[\\s]+as[\\s]+([0-9a-zA-Z_]+)$")
+	regex_2.compile("([\\s]+)(as[\\s]+)?([0-9a-zA-Z_]+)$")
 	
 	if not matches.is_empty():
 		
@@ -153,8 +154,8 @@ func select(someting: String, need_head: bool) -> BaseDao:
 			var m = regex_2.search(field_str)
 			if m:
 				# 实际要求的式子，例子中的t_user.icon(1, 2, \"a, b\")
-				field_str = field_str.substr(0, m.get_start(0))
-				__field_as[field_str] = m.get_string(1) # 别名做个映射，例子中的iii
+				field_str = field_str.substr(0, m.get_start(1))
+				__field_as[field_str] = m.get_string(3) # 别名做个映射，例子中的iii
 			
 			__select.push_back(field_str)
 			
@@ -164,8 +165,8 @@ func select(someting: String, need_head: bool) -> BaseDao:
 			
 			var m = regex_2.search(field_str)
 			if m:
-				field_str = field_str.substr(0, m.get_start(0))
-				__field_as[field_str] = m.get_string(1)
+				field_str = field_str.substr(0, m.get_start(1))
+				__field_as[field_str] = m.get_string(3)
 				
 			__select.push_back(field_str)
 	# 没有逗号分割，*或者某个单独的字段
@@ -173,8 +174,8 @@ func select(someting: String, need_head: bool) -> BaseDao:
 		var m = regex_2.search(someting)
 		if m:
 			# 实际要求的式子，例子中的t_user.icon(1, 2, \"a, b\")
-			someting = someting.substr(0, m.get_start(0))
-			__field_as[someting] = m.get_string(1) # 别名做个映射，例子中的iii
+			someting = someting.substr(0, m.get_start(1))
+			__field_as[someting] = m.get_string(3) # 别名做个映射，例子中的iii
 		__select.push_back(someting)
 		
 	return self
