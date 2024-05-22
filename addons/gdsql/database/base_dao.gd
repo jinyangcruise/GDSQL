@@ -44,7 +44,7 @@ enum ORDER_BY { ASC, DESC }
 
 static func _static_init():
 	__root_config = ImprovedConfigFile.new()
-	__root_config.load(ROOT_CONFIG_PATH)
+	__root_config.load(ROOT_CONFIG_PATH) # FIXME 即时更新？
 	
 func _init():
 	if Engine.has_singleton("ConfManager"):
@@ -55,9 +55,19 @@ func _init():
 	if Engine.has_singleton("GDSQLWorkbenchManager"):
 		mgr = Engine.get_singleton("GDSQLWorkbenchManager")
 		
-
-func use_db(database: String) -> BaseDao:
-	__database = database
+func use_db_name(database_name: String) -> BaseDao:
+	if mgr and mgr.databases:
+		assert(_assert("use_db_name", mgr.databases.has(database_name), 
+			"Not found db:%s." % database_name))
+		__database = mgr.databases[database_name]["data_path"]
+	else:
+		__database = __root_config.get_value(database_name, "data_path", "")
+	assert(_assert("use_db_name", not __database.is_empty(), 
+		"database %s's data_path is empty!" % database_name))
+	return self
+	
+func use_db(database_path: String) -> BaseDao:
+	__database = database_path
 	return self
 	
 func use_user_db() -> BaseDao:
