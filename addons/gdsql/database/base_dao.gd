@@ -56,6 +56,9 @@ func _init():
 		mgr = Engine.get_singleton("GDSQLWorkbenchManager")
 		
 func use_db_name(database_name: String) -> BaseDao:
+	if database_name.is_empty():
+		return self # 可能用户在后面会重新设置
+		
 	if mgr and mgr.databases:
 		assert(_assert("use_db_name", mgr.databases.has(database_name), 
 			"Not found db:%s." % database_name))
@@ -201,7 +204,7 @@ func select_same() -> BaseDao:
 	__need_head = false
 	return self
 	
-## 同时设置表名和别名
+## 同时设置表名和别名。table支持不带后缀和带后缀.gsql
 func from(table: String, alias: String = "") -> BaseDao:
 	assert(_assert("from", __database != null and __database != "", "please set db first!"))
 	__table = table
@@ -422,6 +425,11 @@ func left_join(db: String, table: String, alias: String, cond: String, password:
 	else:
 		left_join_obj = __left_join.create_left_join_to_end()
 	left_join_obj.set_db(db)
+	if password.is_empty():
+		if db == "user://":
+			password = PasswordDef.USER_DAO_PASS
+		elif db == "res://src/config/":
+			password = PasswordDef.CONFIG_ENCRYPTED_PASS
 	left_join_obj.set_password(password)
 	left_join_obj.set_table(table)
 	left_join_obj.set_alias(alias)

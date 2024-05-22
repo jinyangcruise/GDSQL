@@ -17,7 +17,10 @@ static func _assert(success: bool, msg: String) -> bool:
 static func _static_init() -> void:
 	#re_quoted.compile(r"(\".*?\"|'.*?')")
 	# 不支持嵌套，比如select a from (select a from user)
-	re_select.compile(r"(?is)(SELECT|FROM|WHERE|LEFT\s+JOIN|ON)\s+(.*?)(?=\s+FROM|\s+WHERE|\s+LEFT\s+JOIN|\s+ON|$)")
+	#re_select.compile(r"(?is)(SELECT|FROM|WHERE|LEFT\s+JOIN|ON|UNION|ORDER\s+BY|LIMIT)\s+(.*?)(?=\s+SELECT|\s+FROM|\s+WHERE|\s+LEFT\s+JOIN|\s+ON|\s+UNION|\s+ORDER\s+BY|\s+LIMIT|$)")
+	# 与上面的区别是，下面这个支持UNION后跟SELECT，上面的必须在UNION和SELECT中间插入额外的字符比如ALL。
+	# 用下面的可以支持UNION和UNION ALL。用上面的只能是UNION ALL或自定义一个UNION CUSTOM。
+	re_select.compile(r"(?is)(\bSELECT|FROM|WHERE|LEFT\s+JOIN|ON|UNION|ORDER\s+BY|LIMIT)\s+(.*?)(?=\bSELECT|\s+FROM|\s+WHERE|\s+LEFT\s+JOIN|\s+ON|\s+UNION|\s+ORDER\s+BY|\s+LIMIT|$)")
 	re_update.compile(r"(?is)(UPDATE|SET|WHERE)\s+(.*?)(?=\s+SET|\s+WHERE|$)")
 	re_delete.compile(r"(?is)(DELETE\s+FROM|WHERE)\s+(.*?)(?=\s+WHERE|$)")
 	#re_insert_into.compile(r"(?is)(INSERT[\s+IGNORE]*\s+INTO|VALUES|ON\s+DUPLICATE\s+KEY\s+UPDATE)\s+(.*?)(?=\s+VALUES|\s+ON\s+DUPLICATE\s+KEY\s+UPDATE|$)")
@@ -35,19 +38,70 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		var arr = parse_select(sql)
 		assert(_assert(not arr.is_empty(), "Cannot parse your SELECT sql."))
 		assert(_assert(arr.size() >= 2, "SELECT need at least SELECT and FROM."))
-		assert(_assert(arr[1][0].to_upper() == "FROM", "Missing FROM or wrong position of FROM."))
-		var db = (arr[1][1] as String).get_slice(".", 0).strip_edges()
-		var table = (arr[1][1] as String).get_slice(".", 1).strip_edges()
-		var alias = ""
-		table = table.replace("\t", " ")
-		if table.contains(" "):
-			var splits = table.split(" ", false)
-			assert(_assert(splits.size() == 2, "Near [%s]." % table))
-			table = splits[0]
-			alias = splits[1]
+		assert(_assert(not arr[0][1].is_empty(), "Missing fields after SELECT."))
+		assert(_assert(arr[1][0].to_upper() == "FROM", "Missing FROM after SELECT."))
+		
+		var db_table_alias = _get_db_table_alias(arr[1][1])
+		var db = db_table_alias[0]
+		var table = db_table_alias[1]
+		var alias = db_table_alias[2]
+		
 		var dao = BaseDao.new()
+		var first_dao = dao
 		dao.use_db_name(db)
-		# TODO
+		dao.select(arr[0][1], true)
+		dao.from(table, alias)
+		var index = 2
+		while arr.size() > index:
+			var key_words = arr[index][0].to_upper() as String
+			if key_words.contains("LEFT"):
+				assert(_assert(arr.size() > index + 1, "Missing ON of LEFT JOIN."))
+				assert(_assert(arr[index+1][0].to_upper() == "ON", "Missing ON of LEFT JOIN."))
+				var left_join_db_table_alias = _get_db_table_alias(arr[index][1])
+				var left_join_db = left_join_db_table_alias[0]
+				var left_join_table = left_join_db_table_alias[1]
+				var left_join_alias = left_join_db_table_alias[2]
+				var on = arr[index+1][1]
+				dao.left_join(left_join_db, left_join_table, left_join_alias, on, "")
+				index += 2
+			elif key_words.contains("WHERE"):
+				assert(_assert(not arr[index][1].is_empty(), "MISSING condition after WHERE."))
+				dao.where(arr[index][1])
+				index += 1
+			elif key_words.contains("UNION"):
+				# for now only support union all
+				assert(_assert(arr[index][1].to_upper() == "ALL", "ONLY SUPPORT UNION ALL."))
+				assert(_assert(arr.size() > index + 1, "Missing SELECT after UNION."))
+				assert(_assert(arr[index+1][0].to_upper() == "SELECT", "Missing SELECT after UNION."))
+				dao = dao.union_all()
+				index += 1
+			elif key_words.contains("SELECT"):
+				assert(_assert(not arr[index][1].is_empty(), "Missing fields after SELECT."))
+				assert(_assert(arr.size() > index + 1, "Missing FROM after SELECT."))
+				assert(_assert(arr[index+1][0].to_upper() == "FROM", "Missing FROM after SELECT."))
+				var a_db_table_alias = _get_db_table_alias(arr[index+1][1])
+				var a_db = a_db_table_alias[0]
+				var a_table = a_db_table_alias[1]
+				var a_alias = a_db_table_alias[2]
+				dao.use_db_name(a_db)
+				dao.select(arr[index][1], true)
+				dao.from(a_table, a_alias)
+				index += 2
+			elif key_words.contains("ORDER"):
+				assert(_assert(not arr[index][1].is_empty(), "Missing Field after ORDER BY."))
+				dao.order_by_str(arr[index][1])
+				index += 1
+			elif key_words.contains("LIMIT"):
+				assert(_assert(not arr[index][1].is_empty(), "Missing number after LIMIT."))
+				var splits = (arr[index][1] as String).split_floats(".")
+				assert(_assert(splits.size() == 1 or splits.size() == 2, 
+					"Incorrect number after LIMIT. %s" % arr[index][1]))
+				if splits.size() == 1:
+					dao.limit(0, splits[0])
+				else:
+					dao.limit(splits[0], splits[1])
+				index += 1
+		return first_dao
 	elif sql.countn("update", 0, 6) > 0:
 		var arr = parse_update(sql)
 	elif sql.countn("delete", 0, 6) > 0:
@@ -165,4 +219,18 @@ static func restore(s: String, map: Dictionary) -> String:
 		return s
 	for k in map:
 		s = s.replace(k, map[k])
+	if s.ends_with(";"): # 不要分号结尾
+		s = s.substr(0, s.length()-1)
 	return s
+	
+static func _get_db_table_alias(s: String) -> Array:
+	var db = s.get_slice(".", 0).strip_edges()
+	var table = s.get_slice(".", 1).strip_edges()
+	var alias = ""
+	table = table.replace("\t", " ")
+	if table.contains(" "):
+		var splits = table.split(" ", false)
+		assert(_assert(splits.size() == 2, "Wrong table and alias. Near [%s]." % table))
+		table = splits[0]
+		alias = splits[1]
+	return [db, table, alias]
