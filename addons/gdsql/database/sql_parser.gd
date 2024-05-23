@@ -1,3 +1,4 @@
+@tool
 extends RefCounted
 class_name SQLParser
 
@@ -130,7 +131,7 @@ static func parse_to_dao(sql: String) -> BaseDao:
 				var a_alias = a_db_table_alias[2]
 				if not a_db.is_empty():
 					dao.use_db_name(a_db)
-				dao.select(arr[index][1], true)
+				dao.select(arr[index][1], false) # dao of union all
 				dao.from(a_table, a_alias)
 				index += 2
 			elif key_words.contains("ORDER"):
@@ -263,6 +264,7 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		
 		# fields
 		var fields = _get_field_list(arr[2]) if not arr[2].is_empty() else []
+		
 		# values
 		var values = _get_value_list(arr[4], true)
 		var data = {}
@@ -422,7 +424,7 @@ static func _get_db_table(s: String) -> Array[String]:
 	return [splits[0].strip_edges(), splits[1].strip_edges()]
 	
 static func _get_db_table_alias(s: String) -> Array[String]:
-	var db = s.get_slice(".", 0).strip_edges()
+	var db = s.get_slice(".", 0).strip_edges() if s.contains(".") else ""
 	var table = s.get_slice(".", 1).strip_edges()
 	var alias = ""
 	table = table.replace("\t", " ")
