@@ -11,8 +11,8 @@ var __cmd: String = "" ## 【外部请勿使用】命令
 var __select: Array[String] = [] ## 【外部请勿使用】select哪些字段
 var __field_as: Dictionary = {} ## 【外部请勿使用】字段别名
 var __table: String = "" ## 【外部请勿使用】表名（带extension的）
-var __table_alias: String = "" # 【外部请勿使用】别名
-var __data: Dictionary ## 【外部请勿使用】更新数据使用
+var __table_alias: String = "" ## 【外部请勿使用】别名
+var __data ## Dictionary or Array ## 【外部请勿使用】更新数据使用
 var __where: Array = [] ## 【外部请勿使用】筛选数据条件
 var __order_by: Array = [] ## 【外部请勿使用】排序条件
 var __offset: int = -1 ## 【外部请勿使用】select返回数据截取起始位置
@@ -56,9 +56,6 @@ func _init():
 		mgr = Engine.get_singleton("GDSQLWorkbenchManager")
 		
 func use_db_name(database_name: String) -> BaseDao:
-	if database_name.is_empty():
-		return self # 可能用户在后面会重新设置
-		
 	if mgr and mgr.databases:
 		assert(_assert("use_db_name", mgr.databases.has(database_name), 
 			"Not found db:%s." % database_name))
@@ -237,7 +234,8 @@ func set_table_alias(alias: String) -> BaseDao:
 	__table_alias = alias
 	return self
 	
-func values(data: Dictionary) -> BaseDao:
+## data is Array or Dictionary
+func values(data) -> BaseDao:
 	assert(_assert("values", __cmd.begins_with("insert") or __cmd.begins_with("replace"), 
 		"'values' can only be used after 'insert' or 'replace'"))
 	__data = data
@@ -353,10 +351,10 @@ func order_by_str(string: String) -> BaseDao:
 	if not matches.is_empty():
 		var start = 0
 		for i in matches:
-			start = i.get_end()
 			# 知道逗号的起始位置，就可以截取逗号前的位置到上一个逗号的结束位置
 			var a_order = string.substr(start, i.get_start() - start).strip_edges()
 			arr.push_back(a_order)
+			start = i.get_end()
 			
 		# 别忘了还有最后一个逗号到最后
 		if start < string.length():
@@ -961,6 +959,12 @@ func query() -> QueryResult:
 	if __parent_union:
 		return __parent_union.query()
 		
+	if _PASSWORD.is_empty():
+		if __database == "user://":
+			_PASSWORD = PasswordDef.USER_DAO_PASS
+		elif __database == "res://src/config/":
+			_PASSWORD = PasswordDef.CONFIG_ENCRYPTED_PASS
+			
 	var path = __database.path_join(__table)
 	var result = QueryResult.new()
 	match __cmd:
@@ -977,6 +981,14 @@ func query() -> QueryResult:
 				__primary_key != null and __primary_key != "", "Primary key is empty"))
 			# 检查数据类型是否正确
 			var columns_def = __get_table_defination(__database, __table)["columns"]
+			
+			# __data是数组的情况下，需要转成字典格式
+			if __data is Array:
+				var tmp = __data
+				__data = {}
+				for i in tmp.size():
+					__data[columns_def[i]["Column Name"]] = tmp[i]
+					
 			for col in columns_def:
 				var col_name = col["Column Name"]
 				if __data.has(col_name):
