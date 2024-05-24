@@ -240,6 +240,7 @@ static func parse_to_dao(sql: String) -> BaseDao:
 			var update_fields = []
 			for i in set_values:
 				var field_value = _get_field_value(i)
+				# NOTICE 限于on_duplicate_update方法，目前只支持a=values(a)这样的写法
 				assert(_assert(not field_value.is_empty(), "Not support this: [%s]." % i))
 				assert(_assert(field_value[0] == field_value[1], "Not support this: [%s]." % i))
 				update_fields.push_back(field_value[0])
@@ -441,12 +442,12 @@ static func _extract_bracket(s: String) -> String:
 		s = s.substr(1, s.length()-2)
 	return s
 	
-static func _extract_quote(s: String) -> String:
-	if s.begins_with("'") and s.begins_with("'"):
-		s = s.substr(1, s.length()-2)
-	elif s.begins_with('"') and s.begins_with('"'):
-		s = s.substr(1, s.length()-2)
-	return s
+#static func _extract_quote(s: String) -> String:
+	#if s.begins_with("'") and s.begins_with("'"):
+		#s = s.substr(1, s.length()-2)
+	#elif s.begins_with('"') and s.begins_with('"'):
+		#s = s.substr(1, s.length()-2)
+	#return s
 	
 ## 不考虑非常规field名称，比如带引号的
 static func _get_field_list(s: String) -> Array[String]:
@@ -458,7 +459,7 @@ static func _get_field_list(s: String) -> Array[String]:
 	return ret
 	
 ## 获取逗号分隔的值列表。逗号在括号和引号内的不会分隔。
-static func _get_value_list(s: String, remove_outer_quote: bool) -> Array[String]:
+static func _get_value_list(s: String, evaluate: bool) -> Array[String]:
 	s = _extract_bracket(s)
 	var matches = re_split_comma.search_all(s)
 	var ret = [] as Array[String]
@@ -467,21 +468,23 @@ static func _get_value_list(s: String, remove_outer_quote: bool) -> Array[String
 		for i in matches:
 			# 知道逗号的起始位置，就可以截取逗号前的位置到上一个逗号的结束位置
 			var value = s.substr(start, i.get_start() - start).strip_edges()
-			if remove_outer_quote:
-				value = _extract_quote(value)
+			if evaluate:
+				value = _get_var(value)
 			ret.push_back(value)
 			start = i.get_end()
 			
 		# 别忘了还有最后一个逗号到最后
 		if start < s.length():
 			var value = s.substr(start).strip_edges()
-			if remove_outer_quote:
-				value = _extract_quote(value)
+			if evaluate:
+				value = _get_var(value)
 			ret.push_back(value)
 	else:
-		if remove_outer_quote:
-			s = _extract_quote(s)
-		ret.push_back(s)
+		if evaluate:
+			var value = _get_var(s)
+			ret.push_back(value)
+		else:
+			ret.push_back(s)
 	return ret
 	
 ## deal column1 = xxx
@@ -490,7 +493,7 @@ static func _get_set_value(s: String) -> Array[String]:
 	assert(_assert(true if m else false, "Error near: [%s]" % s))
 	var first = s.substr(0, m.get_start()).strip_edges()
 	var second = s.substr(m.get_end()).strip_edges()
-	return [first, _get_var(second)] # TODO
+	return [first, _get_var(second)]
 	
 ## deal column1 = call_('1', \"abc\"), column2 = value2
 static func _get_set_value_list(s: String) -> Dictionary:
@@ -512,6 +515,4 @@ static func _get_field_value(s: String) -> Array[String]:
 	return []
 	
 static func _get_var(s: String) -> String:
-	#if s.begins_with("'") or s.begins_with('"'):
-	# TODO
-	return s
+	return GDSQLUtils.evaluate_command(null, s)
