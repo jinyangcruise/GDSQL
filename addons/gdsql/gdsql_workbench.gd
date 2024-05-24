@@ -5,6 +5,7 @@ const MainPanel = preload("res://addons/gdsql/index.tscn")
 
 var main_panel_instance
 var dictionary_object_inspector_plugin
+var resource_format_loader_xml: ResourceFormatLoaderXML
 
 #region Singleton
 var conf_manager: Node
@@ -30,6 +31,10 @@ func _enter_tree():
 	dictionary_object_inspector_plugin = preload("res://addons/gdsql/dictionary_object_inspector_plugin.gd").new()
 	add_inspector_plugin(dictionary_object_inspector_plugin)
 	
+	# XML resource load
+	resource_format_loader_xml = ResourceFormatLoaderXML.new()
+	ResourceLoader.add_resource_format_loader(resource_format_loader_xml)
+	
 	# 进入界面
 	main_panel_instance = MainPanel.instantiate()
 	Engine.get_singleton("GDSQLWorkbenchManager").main_panel = main_panel_instance
@@ -52,7 +57,9 @@ func _exit_tree():
 	if Engine.has_singleton("GDSQLWorkbenchManager"):
 		Engine.unregister_singleton("GDSQLWorkbenchManager")
 		gdsql_workbench_manager.queue_free()
-
+		
+	ResourceLoader.remove_resource_format_loader(resource_format_loader_xml)
+	
 func _has_main_screen():
 	return true
 

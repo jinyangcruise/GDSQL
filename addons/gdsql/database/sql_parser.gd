@@ -490,11 +490,11 @@ static func _get_set_value(s: String) -> Array[String]:
 	assert(_assert(true if m else false, "Error near: [%s]" % s))
 	var first = s.substr(0, m.get_start()).strip_edges()
 	var second = s.substr(m.get_end()).strip_edges()
-	return [first, _extract_quote(second)]
+	return [first, _get_var(second)] # TODO
 	
 ## deal column1 = call_('1', \"abc\"), column2 = value2
 static func _get_set_value_list(s: String) -> Dictionary:
-	var sets = _get_value_list(s, false)
+	var sets = _get_value_list(s, false) # 先逗号分开
 	var ret = {}
 	for i in sets:
 		var splits = _get_set_value(i)
@@ -510,3 +510,8 @@ static func _get_field_value(s: String) -> Array[String]:
 	if m:
 		return [m.get_string(1), m.get_string(2)]
 	return []
+	
+static func _get_var(s: String) -> String:
+	#if s.begins_with("'") or s.begins_with('"'):
+	# TODO
+	return s
