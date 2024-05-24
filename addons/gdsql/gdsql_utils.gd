@@ -15,7 +15,7 @@ static func evaluate_command(target: Object, command: String, variable_names = [
 	var ret = expression.execute(variable_values, target, false)
 	
 	# 对于一些很简单的但Expression又不支持的写法，动态创建脚本
-	if ret == null and target == null:
+	if typeof(ret) == TYPE_NIL and target == null:
 		var script = GDScript.new()
 		var defines = []
 		for i in variable_names.size():
