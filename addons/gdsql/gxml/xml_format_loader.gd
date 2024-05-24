@@ -109,6 +109,8 @@ func _parse(parser: XMLParser, content: PackedByteArray) -> GXMLItem:
 				pass
 			XMLParser.NODE_CDATA:
 				curr_item.content.push_back(node.get_cdata()) # String
+				# mark that this content is a CDATA
+				curr_item.cdata_indexes.push_back(curr_item.content.size()-1)
 			XMLParser.NODE_UNKNOWN:
 				pass
 				

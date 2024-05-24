@@ -8,12 +8,14 @@ var name: String
 var attrs: Dictionary
 ## 子Item，可能包含GXMLItem、String
 var content: Array
+## CDATA在content中的索引
+var cdata_indexes: Array
 ## 父
 var parent: GXMLItem
 
 func _validate_property(property: Dictionary) -> void:
 	match property.name:
-		"name", "attrs", "content":
+		"name", "attrs", "content", "cdata_indexes":
 			property.usage = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
 			
 func to_dict(flags: GXML.TO_DICT_FLAG) -> Dictionary:
@@ -40,6 +42,7 @@ func to_dict(flags: GXML.TO_DICT_FLAG) -> Dictionary:
 		"name": name,
 		"attrs": attrs,
 		"content": a_content,
+		"cdata_indexes": cdata_indexes,
 	}
 	
 func clean():
@@ -49,6 +52,7 @@ func clean():
 		if i is GXMLItem:
 			i.clean()
 	content.clear()
+	cdata_indexes.clear()
 	
 func _notification(what):
 	if what == NOTIFICATION_PREDELETE:
@@ -58,3 +62,4 @@ func _notification(what):
 			if i is GXMLItem:
 				i.clean()
 		content.clear()
+		cdata_indexes.clear()
