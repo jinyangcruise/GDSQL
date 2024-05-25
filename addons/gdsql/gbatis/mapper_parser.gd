@@ -1,8 +1,35 @@
-extends Resource
+@tool
+extends RefCounted
 ## 一个解析mapper xml的工具。解析规则参考:
 ## @see https://mybatis.org/mybatis-3/sqlmap-xml.html
 ## @see http://mybatis.org/dtd/mybatis-3-mapper.dtd
-class_name GBatisConfigParser
+class_name GBatisMapperParser
+
+@export_enum("NONE", "PARTIAL", "FULL") 
+## 全局自动映射等级。
+## NONE - disables auto-mapping. Only manually mapped properties will be set.
+## PARTIAL - will auto-map results except those that have nested result mappings 
+##           defined inside (joins).
+##           当全局自动映射级别设置为 PARTIAL 时，MyBatis 会对简单类型进行自动映射，
+##           但不会对复杂类型（如嵌套的对象，也就是association和collection）进行自动映射，
+##           除非显式地指定。
+##           例如：虽然A表也有id，Author属性也有id，但是不会把结果集中的id赋值给Auther。
+##           <select id="selectBlog" resultMap="blogResult">
+##               select
+##                 B.id,
+##                 B.title,
+##                 A.username,
+##               from Blog B left outer join Author A on B.author_id = A.id
+##               where B.id = #{id}
+##           </select>
+##           <resultMap id="blogResult" type="Blog">
+##               <association property="author" resultMap="authorResult"/>
+##           </resultMap>
+##           <resultMap id="authorResult" type="Author">
+##             <result property="username" column="author_username"/>
+##           </resultMap>
+## FULL - auto-maps everything.
+var auto_mapping_level: String = "PARTIAL"
 
 const BIND = "__bind__"
 
@@ -19,7 +46,7 @@ static func _static_init() -> void:
 @export var config: GXML:
 	set(val):
 		config = val
-		var validator = GBatisConfigValidator.new()
+		var validator = GBatisMapperValidator.new()
 		validator.validate(config)
 		if not validator.err.is_empty():
 			push_error("\n".join(validator.err))
@@ -30,142 +57,145 @@ static func _static_init() -> void:
 ## https://github.com/godotengine/godot/pull/91006
 func query(method_id: String, param: Dictionary) -> QueryResult:
 	param[BIND] = {}
-	var item = get_item(method_id)
+	var item = _get_item(method_id)
 	assert(item, "not found this method: %s" % method_id)
 	match item.name:
 		"select":
-			return deal_select(item, param, 0)
+			return _deal_select(item, param, 0).query()
 		"update":
-			return deal_update(item, param, 0)
+			return _deal_update(item, param, 0).query()
 		"insert":
-			return deal_insert(item, param, 0)
+			return _deal_insert(item, param, 0).query()
 		"replace":
-			return deal_replace(item, param, 0)
+			return _deal_replace(item, param, 0).query()
 		"delete":
-			return deal_delete(item, param, 0)
+			return _deal_delete(item, param, 0).query()
 		_:
 			assert(false, "method must be one of select, insert, update and delete.")
 			return null
 	
-func get_item(id: String) -> GXMLItem:
+func _get_item(id: String) -> GXMLItem:
 	for i in config.root_item.content:
 		if i is GXMLItem and (i as GXMLItem).attrs.get("id", "") == id:
 			return i
 	return null
 	
-func deal_element(item:GXMLItem, param: Dictionary, depth: int):
+func _deal_element(item:GXMLItem, param: Dictionary, depth: int):
 	if not item:
 		return ""
 	match item.name:
 		"cache-ref":
-			return deal_cache_ref(item, param, depth)
+			return _deal_cache_ref(item, param, depth)
 		"cache":
-			return deal_cache(item, param, depth)
+			return _deal_cache(item, param, depth)
 		"parameterMap":
-			return deal_parameter_map(item, param, depth)
+			return _deal_parameter_map(item, param, depth)
 		"parameter":
-			return deal_parameter(item, param, depth)
+			return _deal_parameter(item, param, depth)
 		"resultMap":
-			return deal_result_map(item, param, depth)
+			return _deal_result_map(item, param, depth)
 		"id":
-			return deal_id(item, param, depth)
+			return _deal_id(item, param, depth)
 		"result":
-			return deal_result(item, param, depth)
+			return _deal_result(item, param, depth)
 		"idArg":
-			return deal_id_arg(item, param, depth)
+			return _deal_id_arg(item, param, depth)
 		"arg":
-			return deal_arg(item, param, depth)
+			return _deal_arg(item, param, depth)
 		"collection":
-			return deal_collection(item, param, depth)
+			return _deal_collection(item, param, depth)
 		"association":
-			return deal_association(item, param, depth)
+			return _deal_association(item, param, depth)
 		"discriminator":
-			return deal_discriminator(item, param, depth)
+			return _deal_discriminator(item, param, depth)
 		"case":
-			return deal_case(item, param, depth)
+			return _deal_case(item, param, depth)
 		"property":
-			return deal_property(item, param, depth)
+			return _deal_property(item, param, depth)
 		"typeAlias":
-			return deal_type_alias(item, param, depth)
+			return _deal_type_alias(item, param, depth)
 		"select":
-			#return deal_select(item, null)
+			#return _deal_select(item, null)
 			pass
 		"insert":
-			#return deal_insert(item, null)
+			#return _deal_insert(item, null)
 			pass
 		"replace":
-			#return deal_replace(item, null)
+			#return _deal_replace(item, null)
 			pass
 		"selectKey":
-			return deal_select_key(item, param, depth)
+			return _deal_select_key(item, param, depth)
 		"update":
-			#return deal_update(item, null)
+			#return _deal_update(item, null)
 			pass
 		"delete":
-			#return deal_delete(item, null)
+			#return _deal_delete(item, null)
 			pass
 		"include":
-			return deal_include(item, param, depth)
+			return _deal_include(item, param, depth)
 		"bind":
-			return deal_bind(item, param, depth)
+			return _deal_bind(item, param, depth)
 		"sql":
-			return deal_sql(item, param, depth)
+			return _deal_sql(item, param, depth)
 		"trim":
-			return deal_trim(item, param, depth)
+			return _deal_trim(item, param, depth)
 		"where":
-			return deal_where(item, param, depth)
+			return _deal_where(item, param, depth)
 		"set":
-			return deal_set(item, param, depth)
+			return _deal_set(item, param, depth)
 		"foreach":
-			return deal_foreach(item, param, depth)
+			return _deal_foreach(item, param, depth)
 		"choose":
-			return deal_choose(item, param, depth)
+			return _deal_choose(item, param, depth)
 		"when":
-			return deal_when(item, param, depth)
+			return _deal_when(item, param, depth)
 		"otherwise":
-			return deal_otherwise(item, param, depth)
+			return _deal_otherwise(item, param, depth)
 		"if":
-			return deal_if(item, param, depth)
+			return _deal_if(item, param, depth)
 		_:
 			return ""
 			
 #<!ELEMENT cache-ref EMPTY>
 #<!ATTLIST cache-ref
 #namespace CDATA #REQUIRED
-#>
-func deal_cache_ref(item:GXMLItem, param: Dictionary, depth: int):
+#> ❌ not support
+@warning_ignore("unused_parameter")
+func _deal_cache_ref(item:GXMLItem, param: Dictionary, depth: int):
 	return ""
 	
 #<!ELEMENT cache (property*)>
 #<!ATTLIST cache
-#type CDATA #IMPLIED
-#eviction CDATA #IMPLIED
-#flushInterval CDATA #IMPLIED
-#size CDATA #IMPLIED
-#readOnly CDATA #IMPLIED
-#blocking CDATA #IMPLIED
+#type CDATA #IMPLIED ------------- ❌ not support
+#eviction CDATA #IMPLIED --------- 缓存回收策略，可以不设置，默认值为 FIFO，表示先进先出
+#                                  策略。其他可能的值包括 LRU（最近最少使用）、
+#                                  SOFT（软引用）❌和 WEAK（弱引用）❌
+#flushInterval CDATA #IMPLIED ---- 缓存刷新间隔，单位为毫秒。如果设置为非零值，MyBatis 
+#                                  会在指定的时间间隔内自动刷新缓存。
+#size CDATA #IMPLIED ------------- 缓存大小，默认值为 1024。如果设置为非零值，MyBatis 
+#                                  会在缓存大小超过指定值时开始回收缓存。
+#                                  它指定的是缓存中可以存储的键值对的最大数量，而不是缓存
+#                                  所占用的内存大小。当缓存中的键值对数量达到或超过这个指
+#                                  定值时，MyBatis 就会根据缓存配置和策略来决定哪些缓存
+#                                  条目应该被淘汰，以保持缓存的大小不超过指定的值。
+#readOnly CDATA #IMPLIED --------- ❌ not support
+#                                  是否只读，默认为 false。只读的缓存会给所有调用者返回
+#                                  同一个实例，因此这些对象不能被修改，这提供了性能优势。
+#blocking CDATA #IMPLIED --------- ❌ not support
 #>
-func deal_cache(item:GXMLItem, param: Dictionary, depth: int):
-	var ret = ""
-	for i in item.content:
-		if i is GXMLItem:
-			assert(i.name == "property", "Invalid element %s in cache." % i.name)
-			ret = combine(ret, deal_element(i, param, depth+1))
-	return ret
-		
+@warning_ignore("unused_parameter")
+func _deal_cache(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCache:
+	return GBatisCache.new(item.attrs)
+	
 #<!ELEMENT parameterMap (parameter+)?>
 #<!ATTLIST parameterMap
 #id CDATA #REQUIRED
 #type CDATA #REQUIRED
 #>
 ## @deprecated ❌ not support
-func deal_parameter_map(item:GXMLItem, param: Dictionary, depth: int):
-	var ret = ""
-	for i in item.content:
-		if i is GXMLItem:
-			assert(i.name == "property", "Invalid element %s in parameterMap." % i.name)
-			ret = combine(ret, deal_element(i, param, depth+1))
-	return ret
+@warning_ignore("unused_parameter")
+func _deal_parameter_map(item:GXMLItem, param: Dictionary, depth: int):
+	return ""
 	
 #<!ELEMENT parameter EMPTY>
 #<!ATTLIST parameter
@@ -178,47 +208,67 @@ func deal_parameter_map(item:GXMLItem, param: Dictionary, depth: int):
 #typeHandler CDATA #IMPLIED
 #>
 ## @deprecated ❌ not support
-func deal_parameter(item:GXMLItem, param: Dictionary, depth: int):
+@warning_ignore("unused_parameter")
+func _deal_parameter(item:GXMLItem, param: Dictionary, depth: int):
 	return ""
 	
 #<!ELEMENT resultMap (constructor?,id*,result*,association*,collection*, discriminator?)>
 #<!ATTLIST resultMap
 #id CDATA #REQUIRED
-#type CDATA #REQUIRED
-#extends CDATA #IMPLIED
-#autoMapping (true|false) #IMPLIED
-#> TODO 
-func deal_result_map(item:GXMLItem, param: Dictionary, depth: int):
-	var ret = ""
+#type CDATA #REQUIRED --------- gdscript variant type or a class name, 
+#                               eg. int, String, SysDept, Dictionary
+#extends CDATA #IMPLIED ------- extends 属性允许一个 resultMap 继承另一个 resultMap 
+#                               的配置。这意味着你可以创建一个基础的 resultMap，然后创建
+#                               其他 resultMap 来继承这个基础配置，从而避免重复定义相同
+#                               的映射规则。另一方面，对被继承的配置还有覆盖能力（如果定义
+#                               了相同的property）。
+#autoMapping (true|false) #IMPLIED -- 是否继承全局自动映射等级。
+#                                     Regardless of the auto-mapping level 
+#                                     configured you can enable or disable the 
+#                                     automapping for an specific ResultMap by 
+#                                     adding the attribute autoMapping to it.
+#
+#                                     default: unset 按全局
+#                                     true: automapp properties when 
+#                                           related columns are selected but not 
+#                                           configured;
+#                                     false: do not automap columns to 
+#                                            properties which are not configured.
+#>
+func _deal_result_map(item:GXMLItem, param: Dictionary, depth: int) -> GBatisResultMap:
+	var ret = GBatisResultMap.new(item.attrs)
 	for i in item.content:
 		if i is GXMLItem:
 			assert(["constructor", "id", "result", "association", "collection", 
 			"discriminator"].has(i.name), "Invalid element %s in resultMap." % i.name)
-			ret = combine(ret, deal_element(i, param, depth+1))
+			ret.push_element(_deal_element(i, param, depth+1))
 	return ret
-			
+	
 #<!ELEMENT id EMPTY>
 #<!ATTLIST id
-#property CDATA #IMPLIED
-#javaType CDATA #IMPLIED
-#column CDATA #IMPLIED
-#jdbcType CDATA #IMPLIED
-#typeHandler CDATA #IMPLIED
-#> TODO
-func deal_id(item:GXMLItem, param: Dictionary, depth: int):
-	return ""
+#property CDATA #REQUIRED -------- changed from #IMPLED to #REQUIRED
+#javaType CDATA #IMPLIED --------- gdscript variant type or a class name, 
+#                                  eg. int, String, SysDept, Dictionary
+#column CDATA #REQUIRED ---------- changed from #IMPLED to #REQUIRED
+#jdbcType CDATA #IMPLIED --------- ❌ not support
+#typeHandler CDATA #IMPLIED ------ ❌ not support
+#>
+@warning_ignore("unused_parameter")
+func _deal_id(item:GXMLItem, param: Dictionary, depth: int) -> GBatisId:
+	return GBatisId.new(item.attrs)
 	
 #<!ELEMENT result EMPTY>
 #<!ATTLIST result
-#property CDATA #IMPLIED
-#javaType CDATA #IMPLIED
-#column CDATA #IMPLIED
-#jdbcType CDATA #IMPLIED
-#typeHandler CDATA #IMPLIED
-#> TODO
-func deal_result(item:GXMLItem, param: Dictionary, depth: int):
-	var ret = ""
-	return ret
+#property CDATA #REQUIRED -------- changed from #IMPLED to #REQUIRED
+#javaType CDATA #IMPLIED --------- gdscript variant type or a class name, 
+#                                  eg. int, String, SysDept, Dictionary
+#column CDATA #REQUIRED ---------- changed from #IMPLED to #REQUIRED
+#jdbcType CDATA #IMPLIED --------- ❌ not support
+#typeHandler CDATA #IMPLIED ------ ❌ not support
+#>
+@warning_ignore("unused_parameter")
+func _deal_result(item:GXMLItem, param: Dictionary, depth: int) -> GBatisResult:
+	return GBatisResult.new(item.attrs)
 	
 #<!ELEMENT idArg EMPTY>
 #<!ATTLIST idArg
@@ -232,7 +282,8 @@ func deal_result(item:GXMLItem, param: Dictionary, depth: int):
 #columnPrefix CDATA #IMPLIED
 #>  
 ## @deprecated ❌ not support
-func deal_id_arg(item:GXMLItem, param: Dictionary, depth: int):
+@warning_ignore("unused_parameter")
+func _deal_id_arg(item:GXMLItem, param: Dictionary, depth: int):
 	return ""
 	
 #<!ELEMENT arg EMPTY>
@@ -247,7 +298,8 @@ func deal_id_arg(item:GXMLItem, param: Dictionary, depth: int):
 #columnPrefix CDATA #IMPLIED
 #> 
 ## @deprecated ❌ not support
-func deal_arg(item:GXMLItem, param: Dictionary, depth: int):
+@warning_ignore("unused_parameter")
+func _deal_arg(item:GXMLItem, param: Dictionary, depth: int):
 	var ret = ""
 	return ret
 	
@@ -255,29 +307,28 @@ func deal_arg(item:GXMLItem, param: Dictionary, depth: int):
 #<!ATTLIST collection
 #property CDATA #REQUIRED
 #column CDATA #IMPLIED
-#javaType CDATA #IMPLIED
+#javaType CDATA #IMPLIED ------------ ❌ not need
 #ofType CDATA #IMPLIED
-#jdbcType CDATA #IMPLIED
+#jdbcType CDATA #IMPLIED ------------ ❌ not support
 #select CDATA #IMPLIED
 #resultMap CDATA #IMPLIED
-#typeHandler CDATA #IMPLIED
-#notNullColumn CDATA #IMPLIED
-#columnPrefix CDATA #IMPLIED
-#resultSet CDATA #IMPLIED
+#typeHandler CDATA #IMPLIED --------- ❌ not support
+#notNullColumn CDATA #IMPLIED ------- ❌ not support
+#columnPrefix CDATA #IMPLIED -------- ❌ not support
+#resultSet CDATA #IMPLIED ----------- ❌ not support
 #foreignColumn CDATA #IMPLIED
 #autoMapping (true|false) #IMPLIED
 #fetchType (lazy|eager) #IMPLIED
-#> TODO
-func deal_collection(item:GXMLItem, param: Dictionary, depth: int):
-	# 不是返回字符串 WARNING
-	var ret = ""
+#>
+func _deal_collection(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCollection:
+	var ret = GBatisCollection.new(item.attrs)
 	for i in item.content:
 		if i is GXMLItem:
 			assert(["constructor", "id", "result", "association", "collection", 
 			"discriminator"].has(i.name), "Invalid element %s in collection." % i.name)
-			ret = combine(ret, deal_element(i, param, depth+1))
+			ret.push_element(_deal_element(i, param, depth+1))
 	return ret
-			
+	
 #<!ELEMENT association (constructor?,id*,result*,association*,collection*, discriminator?)>
 #<!ATTLIST association
 #property CDATA #REQUIRED ----------- property name
@@ -287,7 +338,8 @@ func deal_collection(item:GXMLItem, param: Dictionary, depth: int):
 #                                     correlated with the foreignColumn to identify
 #                                     the parent and the child of a relationship.
 #                                     NOTICE column belongs to parent fetch.
-#javaType CDATA #IMPLIED ------------ gdscript variant type, eg. TYPE_INT
+#javaType CDATA #IMPLIED ------------ gdscript variant type or a class name, 
+#                                     eg. int, String, SysDept, Dictionary
 #jdbcType CDATA #IMPLIED ------------ ❌ not support
 #select CDATA #IMPLIED -------------- auto fetch data by configured <select>'s 
 #                                     id when needed. If this attr is set, then 
@@ -304,7 +356,14 @@ func deal_collection(item:GXMLItem, param: Dictionary, depth: int):
 #                                     columns specified in the column attibute 
 #                                     of the parent type.
 #                                     NOTICE foreignColumn belongs to child fetch.
-#autoMapping (true|false) #IMPLIED -- true: [default] automapp properties when 
+#autoMapping (true|false) #IMPLIED -- 是否继承全局自动映射等级。
+#                                     Regardless of the auto-mapping level 
+#                                     configured you can enable or disable the 
+#                                     automapping for an specific ResultMap by 
+#                                     adding the attribute autoMapping to it.
+#
+#                                     default: unset 按全局
+#                                     true: automapp properties when 
 #                                           related columns are selected but not 
 #                                           configured;
 #                                     false: do not automap columns to 
@@ -312,31 +371,33 @@ func deal_collection(item:GXMLItem, param: Dictionary, depth: int):
 #fetchType (lazy|eager) #IMPLIED ---- lazy: [default] fetch data when this 
 #                                           property is getted;
 #                                     eager: fetch data immediately.
-#> TODO
-func deal_association(item:GXMLItem, param: Dictionary, depth: int):
-	var ret = ""
+#>
+## 一对一关联
+func _deal_association(item:GXMLItem, param: Dictionary, depth: int) -> GBatisAssociation:
+	var ret = GBatisAssociation.new(item.attrs)
 	for i in item.content:
 		if i is GXMLItem:
 			assert(["constructor", "id", "result", "association", "collection", 
 			"discriminator"].has(i.name), "Invalid element %s in association." % i.name)
-			ret = combine(ret, deal_element(i, param, depth+1))
+			ret.push_element(_deal_element(i, param, depth+1))
 	return ret
-			
+	
 #<!ELEMENT discriminator (case+)>
 #<!ATTLIST discriminator
 #column CDATA #REQUIRED
-#javaType CDATA #REQUIRED ------- actually means gdscript type eg. TYPE_INT, TYPE_STRING
-#jdbcType CDATA #IMPLIED -------- not support
-#typeHandler CDATA #IMPLIED ----- not support
+#javaType CDATA #REQUIRED ------------ gdscript variant type or a class name, 
+#                                     eg. int, String, SysDept, Dictionary
+#jdbcType CDATA #IMPLIED -------- ❌ not support
+#typeHandler CDATA #IMPLIED ----- ❌ not support
 #> 
-func deal_discriminator(item:GXMLItem, param: Dictionary, depth: int) -> Dictionary:
+func _deal_discriminator(item:GXMLItem, param: Dictionary, depth: int) -> Dictionary:
 	var column = item.attrs.get("column", "").strip_edges() as String
 	var java_type = item.attrs.get("javaType", "").strip_edges() as String
 	var ret = {}
 	for i in item.content:
 		if i is GXMLItem:
 			assert(i.name == "case", "Invalid element %s in discriminator." % i.name)
-			var case_ret = deal_element(i, param, depth+1)
+			var case_ret = _deal_element(i, param, depth+1)
 			assert(not ret.has(case_ret.keys().front()), 
 				"Duplicate value of child element <case>.")
 			ret.merge(case_ret)
@@ -352,20 +413,26 @@ func deal_discriminator(item:GXMLItem, param: Dictionary, depth: int) -> Diction
 #resultMap CDATA #IMPLIED
 #resultType CDATA #IMPLIED
 #>
-func deal_case(item:GXMLItem, param: Dictionary, depth: int) -> Dictionary:
-	var result_map = item.attrs.get("resultMap", "").strip_edges() as String
+func _deal_case(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCase:
+	var result_map_id = item.attrs.get("resultMap", "").strip_edges() as String
 	var result_type = item.attrs.get("resultType", "").strip_edges() as String
-	assert(result_map.is_empty() or result_type.is_empty(), 
+	assert(result_map_id.is_empty() or result_type.is_empty(), 
 		"In <case>, cannot set resultMap and resultType at the same time.")
+		
 	var value = _get_value(item.attrs.get("value").strip_edges(), param, depth)
-	var ret = result_map + result_type
+	var result_map = GBatisResultMap.new({
+		"id": result_map_id,
+		"type": result_type
+	})
 	for i in item.content:
 		if i is GXMLItem:
 			assert(["constructor", "id", "result", "association", "collection", 
-			"discriminator"].has(i.name), "Invalid element %s in case." % i.name)
-			assert(not ret.is_empty(), "Already set resultMap or resultType in <case>.")
-			ret = deal_element(i, param, depth+1)
-	return {value: ret}
+				"discriminator"].has(i.name), "Invalid element %s in case." % i.name)
+			assert(not (result_map_id+result_type).is_empty(), 
+				"Already set resultMap or resultType in <case>.")
+			result_map.push_element(_deal_element(i, param, depth+1))
+			
+	return GBatisCase.new(value, result_map)
 	
 #<!ELEMENT property EMPTY>
 #<!ATTLIST property
@@ -373,7 +440,8 @@ func deal_case(item:GXMLItem, param: Dictionary, depth: int) -> Dictionary:
 #value CDATA #REQUIRED
 #> 
 ## @deprecated ❌ not support
-func deal_property(item:GXMLItem, param: Dictionary, depth: int):
+@warning_ignore("unused_parameter")
+func _deal_property(item:GXMLItem, param: Dictionary, depth: int):
 	return ""
 	
 #<!ELEMENT typeAlias EMPTY>
@@ -382,29 +450,33 @@ func deal_property(item:GXMLItem, param: Dictionary, depth: int):
 #type CDATA #REQUIRED
 #>
 ## @deprecated ❌ not support
-func deal_type_alias(item:GXMLItem, param: Dictionary, depth: int):
+@warning_ignore("unused_parameter")
+func _deal_type_alias(item:GXMLItem, param: Dictionary, depth: int):
 	return ""
 	
 #<!ELEMENT select (#PCDATA | include | trim | where | set | foreach | choose 
 #| if | bind)*>
 #<!ATTLIST select
 #id CDATA #REQUIRED
-#parameterMap CDATA #IMPLIED ------------------ not support
-#parameterType CDATA #IMPLIED
+#parameterMap CDATA #IMPLIED -------- ❌ not support
+#parameterType CDATA #IMPLIED ------- ❌ not support
 #resultMap CDATA #IMPLIED
 #resultType CDATA #IMPLIED
-#resultSetType (FORWARD_ONLY | SCROLL_INSENSITIVE | SCROLL_SENSITIVE | DEFAULT) #IMPLIED
-#statementType (STATEMENT|PREPARED|CALLABLE) #IMPLIED
+#resultSetType (FORWARD_ONLY | SCROLL_INSENSITIVE | SCROLL_SENSITIVE | DEFAULT) #IMPLIED ❌ not support
+#statementType (STATEMENT|PREPARED|CALLABLE) #IMPLIED ❌ not support
 #fetchSize CDATA #IMPLIED
 #timeout CDATA #IMPLIED
 #flushCache (true|false) #IMPLIED
 #useCache (true|false) #IMPLIED
 #databaseId CDATA #IMPLIED
-#lang CDATA #IMPLIED
-#resultOrdered (true|false) #IMPLIED
-#resultSets CDATA #IMPLIED -------- Identifies the name of the result set where this complex type will be loaded from. eg. resultSets="blogs,authors"
-#> TODO
-func deal_select(item:GXMLItem, param: Dictionary, depth: int) -> QueryResult:
+#lang CDATA #IMPLIED ---------------- ❌ not support
+#resultOrdered (true|false) #IMPLIED  ❌ not support
+#resultSets CDATA #IMPLIED ---------- ❌ not support. Identifies the name of 
+#                                        the result set where this complex type 
+#                                        will be loaded from. 
+#                                        eg. resultSets="blogs,authors"
+#>
+func _deal_select(item:GXMLItem, param: Dictionary, depth: int) -> GBatisSelect:
 	var sql = ""
 	var binded_param = []
 	for i in item.content:
@@ -412,41 +484,45 @@ func deal_select(item:GXMLItem, param: Dictionary, depth: int) -> QueryResult:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 				"if", "bind"].has(i.name), "Invalid element %s in select." % i.name)
 			_record_binded_param(i, binded_param)
-			sql = combine(sql, deal_element(i, param, depth+1))
+			sql = _combine(sql, _deal_element(i, param, depth+1))
 		else:
-			sql = combine_pcdata(sql, i, param, depth+1)
-			
+			sql = _combine_pcdata(sql, i, param, depth+1)
 	_clear_binded_param(depth+1, binded_param, param)
-	var parameter_type = item.attrs.get("parameterType", 0)
-	return null
+	
+	var ret = GBatisSelect.new(item.attrs)
+	ret.set_sql(sql)
+	return ret
 	
 #<!ELEMENT insert (#PCDATA | selectKey | include | trim | where | set | foreach 
 #| choose | if | bind)*>
 #<!ATTLIST insert
 #id CDATA #REQUIRED
-#parameterMap CDATA #IMPLIED
-#parameterType CDATA #IMPLIED
-#timeout CDATA #IMPLIED
+#parameterMap CDATA #IMPLIED ------------------------ ❌ not support
+#parameterType CDATA #IMPLIED ----------------------- ❌ not support
+#timeout CDATA #IMPLIED ----------------------------- ❌ not support
 #flushCache (true|false) #IMPLIED
-#statementType (STATEMENT|PREPARED|CALLABLE) #IMPLIED
-#keyProperty CDATA #IMPLIED
+#statementType (STATEMENT|PREPARED|CALLABLE) #IMPLIED ❌ not support
+#keyProperty CDATA #IMPLIED ------------------------- ❌ not support
 #useGeneratedKeys (true|false) #IMPLIED
-#keyColumn CDATA #IMPLIED
+#keyColumn CDATA #IMPLIED --------------------------- ❌ not support
 #databaseId CDATA #IMPLIED
-#lang CDATA #IMPLIED
-#> TODO
-func deal_insert(item:GXMLItem, param: Dictionary, depth: int):
-	var ret = ""
+#lang CDATA #IMPLIED -------------------------------- ❌ not support
+#> 
+func _deal_insert(item:GXMLItem, param: Dictionary, depth: int) -> GBatisInsert:
+	var sql = ""
 	var binded_param = []
 	for i in item.content:
 		if i is GXMLItem:
 			assert(["selectKey", "include", "trim", "where", "set", "foreach", 
 			"choose", "if", "bind"].has(i.name), "Invalid element %s in insert." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = combine(ret, deal_element(i, param, depth+1))
+			sql = _combine(sql, _deal_element(i, param, depth+1))
 		else:
-			ret = combine_pcdata(ret, i, param, depth)
+			sql = _combine_pcdata(sql, i, param, depth)
 	_clear_binded_param(depth+1, binded_param, param)
+	
+	var ret = GBatisInsert.new(item.attrs)
+	ret.set_sql(sql)
 	return ret
 	
 # NOTICE mybatis原本不支持replace.
@@ -454,31 +530,34 @@ func deal_insert(item:GXMLItem, param: Dictionary, depth: int):
 #| choose | if | bind)*>
 #<!ATTLIST replace
 #id CDATA #REQUIRED
-#parameterMap CDATA #IMPLIED
-#parameterType CDATA #IMPLIED
-#timeout CDATA #IMPLIED
+#parameterMap CDATA #IMPLIED ------------------------ ❌ not support
+#parameterType CDATA #IMPLIED ----------------------- ❌ not support
+#timeout CDATA #IMPLIED ----------------------------- ❌ not support
 #flushCache (true|false) #IMPLIED
-#statementType (STATEMENT|PREPARED|CALLABLE) #IMPLIED
-#keyProperty CDATA #IMPLIED
+#statementType (STATEMENT|PREPARED|CALLABLE) #IMPLIED ❌ not support
+#keyProperty CDATA #IMPLIED ------------------------- ❌ not support
 #useGeneratedKeys (true|false) #IMPLIED
-#keyColumn CDATA #IMPLIED
+#keyColumn CDATA #IMPLIED --------------------------- ❌ not support
 #databaseId CDATA #IMPLIED
-#lang CDATA #IMPLIED
-#> TODO
-func deal_replace(item:GXMLItem, param: Dictionary, depth: int):
-	var ret = ""
+#lang CDATA #IMPLIED -------------------------------- ❌ not support
+#>
+func _deal_replace(item:GXMLItem, param: Dictionary, depth: int) -> GBatisReplace:
+	var sql = ""
 	var binded_param = []
 	for i in item.content:
 		if i is GXMLItem:
 			assert(["selectKey", "include", "trim", "where", "set", "foreach", 
 			"choose", "if", "bind"].has(i.name), "Invalid element %s in replace." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = combine(ret, deal_element(i, param, depth+1))
+			sql = _combine(sql, _deal_element(i, param, depth+1))
 		else:
-			ret = combine_pcdata(ret, i, param, depth)
+			sql = _combine_pcdata(sql, i, param, depth)
 	_clear_binded_param(depth+1, binded_param, param)
+	
+	var ret = GBatisReplace.new(item.attrs)
+	ret.set_sql(sql)
 	return ret
-			
+	
 #<!ELEMENT selectKey (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
 #<!ATTLIST selectKey
 #resultType CDATA #IMPLIED
@@ -487,38 +566,28 @@ func deal_replace(item:GXMLItem, param: Dictionary, depth: int):
 #keyColumn CDATA #IMPLIED
 #order (BEFORE|AFTER) #IMPLIED
 #databaseId CDATA #IMPLIED
-#> TODO 自动填充自增主键
-func deal_select_key(item:GXMLItem, param: Dictionary, depth: int):
-	var ret = ""
-	var binded_param = []
-	for i in item.content:
-		if i is GXMLItem:
-			assert(["include", "trim", "where", "set", "foreach", "choose", 
-			"if", "bind"].has(i.name), "Invalid element %s in selectKey." % i.name)
-			_record_binded_param(i, binded_param)
-			ret = combine(ret, deal_element(i, param, depth+1))
-		else:
-			ret = combine_pcdata(ret, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
-	return ret
-			
+#>  ❌ not support. You can set useGeneratedKeys="true" in <insert> or <replace>
+@warning_ignore("unused_parameter")
+func _deal_select_key(item:GXMLItem, param: Dictionary, depth: int):
+	return ""
+	
 #<!ELEMENT update 
 #(#PCDATA | selectKey | include | trim | where | set | foreach | choose | if | bind)*>
 #<!ATTLIST update
 #id CDATA #REQUIRED
-#parameterMap CDATA #IMPLIED
-#parameterType CDATA #IMPLIED
-#timeout CDATA #IMPLIED
+#parameterMap CDATA #IMPLIED ------------------------ ❌ not support
+#parameterType CDATA #IMPLIED ----------------------- ❌ not support
+#timeout CDATA #IMPLIED ----------------------------- ❌ not support
 #flushCache (true|false) #IMPLIED
-#statementType (STATEMENT|PREPARED|CALLABLE) #IMPLIED
-#keyProperty CDATA #IMPLIED
-#useGeneratedKeys (true|false) #IMPLIED
-#keyColumn CDATA #IMPLIED
+#statementType (STATEMENT|PREPARED|CALLABLE) #IMPLIED ❌ not support
+#keyProperty CDATA #IMPLIED ------------------------- ❌ not support
+#useGeneratedKeys (true|false) #IMPLIED ------------- ❌ not support
+#keyColumn CDATA #IMPLIED --------------------------- ❌ not support
 #databaseId CDATA #IMPLIED
-#lang CDATA #IMPLIED
-#> TODO
-func deal_update(item:GXMLItem, param: Dictionary, depth: int):
-	var ret = ""
+#lang CDATA #IMPLIED -------------------------------- ❌ not support
+#>
+func _deal_update(item:GXMLItem, param: Dictionary, depth: int) -> GBatisUpdate:
+	var sql = ""
 	var binded_param = []
 	for i in item.content:
 		if i is GXMLItem:
@@ -526,12 +595,15 @@ func deal_update(item:GXMLItem, param: Dictionary, depth: int):
 			"choose", "if", "bind"].has(i.name), 
 			"Invalid element %s in the current context." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = combine(ret, deal_element(i, param, depth+1))
+			sql = _combine(sql, _deal_element(i, param, depth+1))
 		else:
-			ret = combine_pcdata(ret, i, param, depth)
+			sql = _combine_pcdata(sql, i, param, depth)
 	_clear_binded_param(depth+1, binded_param, param)
+	
+	var ret = GBatisUpdate.new(item.attrs)
+	ret.set_sql(sql)
 	return ret
-			
+	
 #<!ELEMENT delete (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
 #<!ATTLIST delete
 #id CDATA #REQUIRED
@@ -542,28 +614,31 @@ func deal_update(item:GXMLItem, param: Dictionary, depth: int):
 #statementType (STATEMENT|PREPARED|CALLABLE) #IMPLIED
 #databaseId CDATA #IMPLIED
 #lang CDATA #IMPLIED
-#> TODO
-func deal_delete(item:GXMLItem, param: Dictionary, depth: int):
-	var ret = ""
+#>
+func _deal_delete(item:GXMLItem, param: Dictionary, depth: int) -> GBatisDelete:
+	var sql = ""
 	var binded_param = []
 	for i in item.content:
 		if i is GXMLItem:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 			"if", "bind"].has(i.name), "Invalid element %s in delete." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = combine(ret, deal_element(i, param, depth+1))
+			sql = _combine(sql, _deal_element(i, param, depth+1))
 		else:
-			ret = combine_pcdata(ret, i, param, depth)
+			sql = _combine_pcdata(sql, i, param, depth)
 	_clear_binded_param(depth+1, binded_param, param)
+	
+	var ret = GBatisDelete.new(item.attrs)
+	ret.set_sql(sql)
 	return ret
 	
 #<!ELEMENT include (property+)?>
 #<!ATTLIST include
 #refid CDATA #REQUIRED
 #>
-func deal_include(item:GXMLItem, param: Dictionary, depth: int) -> String:
-	var ref_item = get_item(item.attrs.get("refid").strip_edges())
-	var ret = deal_element(ref_item, param, depth+1)
+func _deal_include(item:GXMLItem, param: Dictionary, depth: int) -> String:
+	var ref_item = _get_item(item.attrs.get("refid").strip_edges())
+	var ret = _deal_element(ref_item, param, depth+1)
 	assert(typeof(ret) == TYPE_STRING or (typeof(ret) == TYPE_ARRAY and ret.size() == 2), 
 		"Error occur.")
 	if ret is Array:
@@ -575,7 +650,7 @@ func deal_include(item:GXMLItem, param: Dictionary, depth: int) -> String:
  #name CDATA #REQUIRED
  #value CDATA #REQUIRED
 #>
-func deal_bind(item:GXMLItem, param: Dictionary, depth: int) -> String:
+func _deal_bind(item:GXMLItem, param: Dictionary, depth: int) -> String:
 	var a_name = item.attrs.get("name").strip_edges() as String
 	assert(not param.has(a_name), 
 		"Please change your bind param name %s which is occupied by method's param." % a_name)
@@ -595,7 +670,7 @@ func deal_bind(item:GXMLItem, param: Dictionary, depth: int) -> String:
 #lang CDATA #IMPLIED -----------X
 #databaseId CDATA #IMPLIED ----------X
 #>
-func deal_sql(item:GXMLItem, param: Dictionary, depth: int) -> String:
+func _deal_sql(item:GXMLItem, param: Dictionary, depth: int) -> String:
 	var ret = ""
 	var binded_param = []
 	for i in item.content:
@@ -603,9 +678,9 @@ func deal_sql(item:GXMLItem, param: Dictionary, depth: int) -> String:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 			"if", "bind"].has(i.name), "Invalid element %s in sql." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = combine(ret, deal_element(i, param, depth+1))
+			ret = _combine(ret, _deal_element(i, param, depth+1))
 		else:
-			ret = combine_pcdata(ret, i, param, depth)
+			ret = _combine_pcdata(ret, i, param, depth)
 	_clear_binded_param(depth+1, binded_param, param)
 	return ret
 	
@@ -616,7 +691,7 @@ func deal_sql(item:GXMLItem, param: Dictionary, depth: int) -> String:
 #suffix CDATA #IMPLIED 表示去掉（覆盖）trim包裹的SQL的指定首部内容
 #suffixOverrides CDATA #IMPLIED 表示去掉（覆盖）trim包裹的SQL的指定尾部内容
 #>
-func deal_trim(item:GXMLItem, param: Dictionary, depth: int) -> String:
+func _deal_trim(item:GXMLItem, param: Dictionary, depth: int) -> String:
 	var ret = ""
 	var binded_param = []
 	for i in item.content:
@@ -624,9 +699,9 @@ func deal_trim(item:GXMLItem, param: Dictionary, depth: int) -> String:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 			"if", "bind"].has(i.name), "Invalid element %s in trim." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = combine(ret, deal_element(i, param, depth+1))
+			ret = _combine(ret, _deal_element(i, param, depth+1))
 		else:
-			ret = combine_pcdata(ret, i, param, depth)
+			ret = _combine_pcdata(ret, i, param, depth)
 			
 	var prefix = item.attrs.get("prefix", "") as String
 	var prefixOverrides = item.attrs.get("prefixOverrides", "") as String
@@ -645,7 +720,7 @@ func deal_trim(item:GXMLItem, param: Dictionary, depth: int) -> String:
 	return ret
 	
 #<!ELEMENT where (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
-func deal_where(item:GXMLItem, param: Dictionary, depth: int) -> String:
+func _deal_where(item:GXMLItem, param: Dictionary, depth: int) -> String:
 	var ret = ""
 	var binded_param = []
 	for i in item.content:
@@ -653,19 +728,19 @@ func deal_where(item:GXMLItem, param: Dictionary, depth: int) -> String:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 			"if", "bind"].has(i.name), "Invalid element %s in where." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = combine(ret, deal_element(i, param, depth+1))
+			ret = _combine(ret, _deal_element(i, param, depth+1))
 		else:
-			ret = combine_pcdata(ret, i, param, depth)
+			ret = _combine_pcdata(ret, i, param, depth)
 	if ret.countn("and", 0, 3) > 0:
 		ret = ret.substr(3)
 	elif ret.countn("or", 0, 2) > 0:
 		ret = ret.substr(2)
-	ret = combine("where", ret)
+	ret = _combine("where", ret)
 	_clear_binded_param(depth+1, binded_param, param)
 	return ret
 	
 #<!ELEMENT set (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
-func deal_set(item:GXMLItem, param: Dictionary, depth: int) -> String:
+func _deal_set(item:GXMLItem, param: Dictionary, depth: int) -> String:
 	var ret = ""
 	var binded_param = []
 	for i in item.content:
@@ -673,12 +748,12 @@ func deal_set(item:GXMLItem, param: Dictionary, depth: int) -> String:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 			"if", "bind"].has(i.name), "Invalid element %s in set." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = combine(ret, deal_element(i, param, depth+1))
+			ret = _combine(ret, _deal_element(i, param, depth+1))
 		else:
-			ret = combine_pcdata(ret, i, param, depth)
+			ret = _combine_pcdata(ret, i, param, depth)
 	if ret.ends_with(","):
 		ret = ret.substr(0, ret.length()-1)
-	ret = combine("set", ret)
+	ret = _combine("set", ret)
 	_clear_binded_param(depth+1, binded_param, param)
 	return ret
 	
@@ -691,7 +766,7 @@ func deal_set(item:GXMLItem, param: Dictionary, depth: int) -> String:
 #close CDATA #IMPLIED 设置循环体的结束内容
 #separator CDATA #IMPLIED 设置每一次循环之间的分隔符
 #>
-func deal_foreach(item:GXMLItem, param: Dictionary, depth: int) -> String:
+func _deal_foreach(item:GXMLItem, param: Dictionary, depth: int) -> String:
 	var ret = ""
 	var binded_param = []
 	var collection = _get_value(item.attrs.get("collection").strip_edges(), param, depth)
@@ -706,7 +781,7 @@ func deal_foreach(item:GXMLItem, param: Dictionary, depth: int) -> String:
 	var e_separator = item.attrs.get("separator", "") as String
 	
 	for i in item.content:
-		ret = combine(ret, e_open)
+		ret = _combine(ret, e_open)
 		var index = -1
 		for e in collection:
 			index += 1
@@ -722,9 +797,9 @@ func deal_foreach(item:GXMLItem, param: Dictionary, depth: int) -> String:
 				assert(["include", "trim", "where", "set", "foreach", "choose", 
 				"if", "bind"].has(i.name), "Invalid element %s in foreach." % i.name)
 				_record_binded_param(i, binded_param)
-				ret = combine(ret, deal_element(i, param, depth+1))
+				ret = _combine(ret, _deal_element(i, param, depth+1))
 			else:
-				ret = combine_pcdata(ret, i, param, depth)
+				ret = _combine_pcdata(ret, i, param, depth)
 				
 			# 去掉临时的bind
 			if not e_item.is_empty():
@@ -733,13 +808,13 @@ func deal_foreach(item:GXMLItem, param: Dictionary, depth: int) -> String:
 				param[BIND][depth+1].erase(e_index)
 				
 			if index < collection.size() - 1:
-				ret = combine(ret, e_separator)
-		ret = combine(ret, e_close)
+				ret = _combine(ret, e_separator)
+		ret = _combine(ret, e_close)
 	_clear_binded_param(depth+1, binded_param, param)
 	return ret
 	
 #<!ELEMENT choose (when* , otherwise?)>
-func deal_choose(item:GXMLItem, param: Dictionary, depth: int) -> String:
+func _deal_choose(item:GXMLItem, param: Dictionary, depth: int) -> String:
 	var ret = ""
 	for i in item.content:
 		# 只能从里边取一个
@@ -750,9 +825,9 @@ func deal_choose(item:GXMLItem, param: Dictionary, depth: int) -> String:
 			"Otherwise element should be the last one element and can at most exist once.")
 			if i.name == "otherwise":
 				otherwise_flag = true
-			var info = deal_element(i, param, depth+1)
+			var info = _deal_element(i, param, depth+1)
 			if info and info[0]:
-				ret = combine(ret, info[1])
+				ret = _combine(ret, info[1])
 				break
 	return ret
 			
@@ -760,7 +835,7 @@ func deal_choose(item:GXMLItem, param: Dictionary, depth: int) -> String:
 #<!ATTLIST when
 #test CDATA #REQUIRED
 #>
-func deal_when(item:GXMLItem, param: Dictionary, depth: int) -> Array:
+func _deal_when(item:GXMLItem, param: Dictionary, depth: int) -> Array:
 	var test = _get_value(item.attrs.get("test"), param, depth)
 	if not test:
 		return [false, ""]
@@ -772,14 +847,14 @@ func deal_when(item:GXMLItem, param: Dictionary, depth: int) -> Array:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 			"if", "bind"].has(i.name), "Invalid element %s in when." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = combine(ret, deal_element(i, param, depth+1))
+			ret = _combine(ret, _deal_element(i, param, depth+1))
 		else:
-			ret = combine_pcdata(ret, i, param, depth)
+			ret = _combine_pcdata(ret, i, param, depth)
 	_clear_binded_param(depth+1, binded_param, param)
 	return [true, ret]
 	
 #<!ELEMENT otherwise (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
-func deal_otherwise(item:GXMLItem, param: Dictionary, depth: int) -> Array:
+func _deal_otherwise(item:GXMLItem, param: Dictionary, depth: int) -> Array:
 	var ret = ""
 	var binded_param = []
 	for i in item.content:
@@ -787,9 +862,9 @@ func deal_otherwise(item:GXMLItem, param: Dictionary, depth: int) -> Array:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 			"if", "bind"].has(i.name), "Invalid element %s in otherwise." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = combine(ret, deal_element(i, param, depth+1))
+			ret = _combine(ret, _deal_element(i, param, depth+1))
 		else:
-			ret = combine_pcdata(ret, i, param, depth)
+			ret = _combine_pcdata(ret, i, param, depth)
 	_clear_binded_param(depth+1, binded_param, param)
 	return ret
 	
@@ -797,7 +872,7 @@ func deal_otherwise(item:GXMLItem, param: Dictionary, depth: int) -> Array:
 #<!ATTLIST if
 #test CDATA #REQUIRED
 #>
-func deal_if(item:GXMLItem, param: Dictionary, depth: int) -> String:
+func _deal_if(item:GXMLItem, param: Dictionary, depth: int) -> String:
 	var test = _get_value(item.attrs.get("test"), param, depth)
 	if not test:
 		return ""
@@ -809,13 +884,13 @@ func deal_if(item:GXMLItem, param: Dictionary, depth: int) -> String:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 			"if", "bind"].has(i.name), "Invalid element %s in if." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = combine(ret, deal_element(i, param, depth+1))
+			ret = _combine(ret, _deal_element(i, param, depth+1))
 		else:
-			ret = combine_pcdata(ret, i, param, depth)
+			ret = _combine_pcdata(ret, i, param, depth)
 	_clear_binded_param(depth+1, binded_param, param)
 	return ret
 	
-func combine(s1: String, s2: String) -> String:
+func _combine(s1: String, s2: String) -> String:
 	s2 = _cast_null(s2).strip_edges()
 	if s1.is_empty():
 		return s2
@@ -824,18 +899,18 @@ func combine(s1: String, s2: String) -> String:
 	return "%s %s" % [s1, s2]
 	
 ## 拼接，但是会将s2中的占位符替换成真实数据. depth表示s2的深度
-func combine_pcdata(s1: String, s2: String, param: Dictionary, depth: int) -> String:
+func _combine_pcdata(s1: String, s2: String, param: Dictionary, depth: int) -> String:
 	s2 = _cast_null(s2).strip_edges()
 	if s2.is_empty():
 		return s1
-	s2 = replace_param(s2, param, depth)
+	s2 = _replace_param(s2, param, depth)
 	return "%s %s" % [s1, s2]
 	
 func _cast_null(value) -> String:
 	return "" if typeof(value) == TYPE_NIL else value
 	
 ## 替换占位符
-func replace_param(s: String, param: Dictionary, depth: int) -> String:
+func _replace_param(s: String, param: Dictionary, depth: int) -> String:
 	# 支持的格式： #{ roleId } ${   rrrr} #   { user . roleId } ${list[0} ${bea.abc[ 33 ]}  ${map[a]}
 	# 一些例子：
 	#aaa 1:[#   { ]	2:[user.roleId ]	3:[]	4:[]
@@ -946,10 +1021,12 @@ func _get_value(value_string: String, param: Dictionary, depth: int):
 	for i in param:
 		if i == BIND:
 			for d in param[BIND]:
-				for n in param[BIND][d]:
-					names.push_back(n)
-					values.push_back(param[BIND][d][n])
+				if depth <= d:
+					for n in param[BIND][d]:
+						names.push_back(n)
+						values.push_back(param[BIND][d][n])
 		else:
 			names.push_back(i)
 			values.push_back(param[i])
 	return GDSQLUtils.evaluate_command(null, value_string, names, values)
+	

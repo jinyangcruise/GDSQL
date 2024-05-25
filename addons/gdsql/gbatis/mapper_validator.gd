@@ -1,6 +1,7 @@
+@tool
 extends RefCounted
 ## 验证一个配置是否正确配置
-class_name GBatisConfigValidator
+class_name GBatisMapperValidator
 
 var err = []
 const VALID_ELEMENTS_1 = ["include", "trim", "where", "set", "foreach", "choose", "if", "bind"]
@@ -148,24 +149,28 @@ func deal_result_map(item: GXMLItem):
 			
 #<!ELEMENT id EMPTY>
 #<!ATTLIST id
-#property CDATA #IMPLIED
+#property CDATA #IMPLIED ------ required
 #javaType CDATA #IMPLIED
-#column CDATA #IMPLIED
+#column CDATA #IMPLIED -------- required
 #jdbcType CDATA #IMPLIED
 #typeHandler CDATA #IMPLIED
 #>
 func deal_id(item: GXMLItem):
+	_assert(not item.attrs.get("property", "").strip_edges().is_empty(), "id is empty of <id>!")
+	_assert(not item.attrs.get("column", "").strip_edges().is_empty(), "type is empty of <id>!")
 	_assert(item.content.is_empty(), "id content should be empty!")
 	
 #<!ELEMENT result EMPTY>
 #<!ATTLIST result
-#property CDATA #IMPLIED
+#property CDATA #IMPLIED ------ required
 #javaType CDATA #IMPLIED
-#column CDATA #IMPLIED
+#column CDATA #IMPLIED -------- required
 #jdbcType CDATA #IMPLIED
 #typeHandler CDATA #IMPLIED
 #>
 func deal_result(item: GXMLItem):
+	_assert(not item.attrs.get("property", "").strip_edges().is_empty(), "id is empty of <result>!")
+	_assert(not item.attrs.get("column", "").strip_edges().is_empty(), "type is empty of <result>!")
 	_assert(item.content.is_empty(), "result content should be empty!")
 	
 #<!ELEMENT idArg EMPTY>
@@ -245,7 +250,7 @@ func deal_association(item:GXMLItem):
 			
 #<!ELEMENT discriminator (case+)>
 #<!ATTLIST discriminator
-#column CDATA #REQUIRED
+#column CDATA #IMPLIED ----------- required
 #javaType CDATA #REQUIRED
 #jdbcType CDATA #IMPLIED
 #typeHandler CDATA #IMPLIED
