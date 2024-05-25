@@ -7,6 +7,8 @@ var _warnings
 var _data
 var _last_insert_id = 0
 var _has_head = true
+## 自增键的值插入后记录一下
+var _generated_keys = {}
 
 func ok() -> bool:
 	return _err is int and _err == OK
@@ -61,3 +63,6 @@ func get_raw() -> Array:
 	
 func get_last_insert_id():
 	return _last_insert_id
+	
+func get_generated_keys() -> Dictionary:
+	return _generated_keys

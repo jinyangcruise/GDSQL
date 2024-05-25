@@ -1048,6 +1048,7 @@ func query() -> QueryResult:
 			for field in autoincrement_keys:
 				if __data.get(field) == null or (__data.get(field) is int and __data.get(field) == 0):
 					__data[field] = autoincrement_keys.get(field) + 1
+					result._generated_keys[field] = __data[field]
 					
 			# insert模式下，对于有表结构定义的数据，每个字段都必须插入，也不能有多余的字段。需在自增之后检查。
 			if insert and not columns_def.is_empty():
