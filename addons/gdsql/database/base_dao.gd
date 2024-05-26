@@ -150,7 +150,7 @@ func select(someting: String, need_head: bool) -> BaseDao:
 	# 别名
 	var regex_2 = RegEx.new()
 	#regex_2.compile("[\\s]+as[\\s]+([0-9a-zA-Z_]+)$")
-	regex_2.compile("([\\s]+)(as[\\s]+)?([0-9a-zA-Z_]+)$")
+	regex_2.compile("([\\s]+)(as[\\s]+)?([0-9a-zA-Z_:]+)$") # 支持 x as position:x 这样的写法
 	
 	if not matches.is_empty():
 		
