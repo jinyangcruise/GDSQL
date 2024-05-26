@@ -104,13 +104,15 @@ func _parse(parser: XMLParser, content: PackedByteArray) -> GXMLItem:
 				curr_item = curr_item.parent
 				pass
 			XMLParser.NODE_TEXT:
-				curr_item.content.push_back(node.data) # String
+				if not node.data.strip_edges().is_empty():
+					curr_item.content.push_back(node.data) # String
 			XMLParser.NODE_COMMENT:
 				pass
 			XMLParser.NODE_CDATA:
-				curr_item.content.push_back(node.get_cdata()) # String
-				# mark that this content is a CDATA
-				curr_item.cdata_indexes.push_back(curr_item.content.size()-1)
+				if not node.get_cdata().strip_edges().is_empty():
+					curr_item.content.push_back(node.get_cdata()) # String
+					# mark that this content is a CDATA
+					curr_item.cdata_indexes.push_back(curr_item.content.size()-1)
 			XMLParser.NODE_UNKNOWN:
 				pass
 				
