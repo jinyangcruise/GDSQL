@@ -28,7 +28,7 @@ class_name GBatisAssociation
 #                                     columns specified in the column attibute 
 #                                     of the parent type.
 #                                     NOTICE foreignColumn belongs to child fetch.
-#autoMapping (true|false) #IMPLIED -- 是否继承全局自动映射等级。
+#autoMapping (unset|true|false) #IMPLIED -- 是否继承全局自动映射等级。
 #                                     Regardless of the auto-mapping level 
 #                                     configured you can enable or disable the 
 #                                     automapping for an specific ResultMap by 
@@ -40,7 +40,12 @@ class_name GBatisAssociation
 #                                           configured;
 #                                     false: do not automap columns to 
 #                                            properties which are not configured.
-#fetchType (lazy|eager) #IMPLIED ---- lazy: [default] fetch data when this 
+#fetchType (lazy|eager) #IMPLIED ---- ❌ not support. INFO _get() will not be
+#                                     called if properties are defined in 
+#                                     Object. So we couldn't find a proper
+#                                     way to achieve this lazy feature.
+#
+#                                     lazy: [default] fetch data when this 
 #                                           property is getted;
 #                                     eager: fetch data immediately.
 #>
@@ -51,9 +56,8 @@ var javaType = ""
 var select = ""
 var resultMap = ""
 var foreignColumn = ""
-var autoMapping = true
-var fetchType = ""
-var result_embeded: Array
+var autoMapping = ""
+var result_embeded: GBatisResultMap
 
 func _init(conf: Dictionary):
 	property = conf.get("property", "").strip_edges()
@@ -62,8 +66,9 @@ func _init(conf: Dictionary):
 	select = conf.get("select", "").strip_edges()
 	resultMap = conf.get("resultMap", "").strip_edges()
 	foreignColumn = conf.get("foreignColumn", "").strip_edges()
-	autoMapping = type_convert(conf.get("autoMapping", true), TYPE_BOOL)
-	fetchType = conf.get("fetchType", "").strip_edges()
+	autoMapping = conf.get("autoMapping", "").strip_edges()
 	
 func push_element(element):
+	if not result_embeded:
+		result_embeded = GBatisResultMap.new({})
 	result_embeded.push_back(element)

@@ -222,7 +222,7 @@ func _deal_parameter(item:GXMLItem, param: Dictionary, depth: int):
 #                               其他 resultMap 来继承这个基础配置，从而避免重复定义相同
 #                               的映射规则。另一方面，对被继承的配置还有覆盖能力（如果定义
 #                               了相同的property）。
-#autoMapping (true|false) #IMPLIED -- 是否继承全局自动映射等级。
+#autoMapping (unset|true|false) #IMPLIED -- 是否继承全局自动映射等级。
 #                                     Regardless of the auto-mapping level 
 #                                     configured you can enable or disable the 
 #                                     automapping for an specific ResultMap by 
@@ -317,8 +317,11 @@ func _deal_arg(item:GXMLItem, param: Dictionary, depth: int):
 #columnPrefix CDATA #IMPLIED -------- ❌ not support
 #resultSet CDATA #IMPLIED ----------- ❌ not support
 #foreignColumn CDATA #IMPLIED
-#autoMapping (true|false) #IMPLIED
-#fetchType (lazy|eager) #IMPLIED
+#autoMapping (unset|true|false) #IMPLIED
+#fetchType (lazy|eager) #IMPLIED ---- ❌ not support. INFO _get() will not be
+#                                        called if properties are defined in 
+#                                        Object. So we couldn't find a proper
+#                                        way to achieve this feature.
 #>
 func _deal_collection(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCollection:
 	var ret = GBatisCollection.new(item.attrs)
@@ -356,7 +359,7 @@ func _deal_collection(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCol
 #                                     columns specified in the column attibute 
 #                                     of the parent type.
 #                                     NOTICE foreignColumn belongs to child fetch.
-#autoMapping (true|false) #IMPLIED -- 是否继承全局自动映射等级。
+#autoMapping (unset|true|false) #IMPLIED -- 是否继承全局自动映射等级。
 #                                     Regardless of the auto-mapping level 
 #                                     configured you can enable or disable the 
 #                                     automapping for an specific ResultMap by 
@@ -368,7 +371,12 @@ func _deal_collection(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCol
 #                                           configured;
 #                                     false: do not automap columns to 
 #                                            properties which are not configured.
-#fetchType (lazy|eager) #IMPLIED ---- lazy: [default] fetch data when this 
+#fetchType (lazy|eager) #IMPLIED ---- ❌ not support. INFO _get() will not be
+#                                     called if properties are defined in 
+#                                     Object. So we couldn't find a proper
+#                                     way to achieve this lazy feature.
+#
+#                                     lazy: [default] fetch data when this 
 #                                           property is getted;
 #                                     eager: fetch data immediately.
 #>
@@ -390,22 +398,17 @@ func _deal_association(item:GXMLItem, param: Dictionary, depth: int) -> GBatisAs
 #jdbcType CDATA #IMPLIED -------- ❌ not support
 #typeHandler CDATA #IMPLIED ----- ❌ not support
 #> 
-func _deal_discriminator(item:GXMLItem, param: Dictionary, depth: int) -> Dictionary:
-	var column = item.attrs.get("column", "").strip_edges() as String
-	var java_type = item.attrs.get("javaType", "").strip_edges() as String
-	var ret = {}
+func _deal_discriminator(item:GXMLItem, param: Dictionary, depth: int) -> GBatisDiscriminator:
+	var ret = GBatisDiscriminator.new(item.attrs)
+	var case_values = []
 	for i in item.content:
 		if i is GXMLItem:
 			assert(i.name == "case", "Invalid element %s in discriminator." % i.name)
-			var case_ret = _deal_element(i, param, depth+1)
-			assert(not ret.has(case_ret.keys().front()), 
+			var case_ret = _deal_case(i, param, depth+1)
+			assert(not case_values.has(case_ret.value), 
 				"Duplicate value of child element <case>.")
-			ret.merge(case_ret)
-	return {
-		"column": column,
-		"type": java_type,
-		"case": ret
-	}
+			ret.push_element(case_ret)
+	return ret
 	
 #<!ELEMENT case (constructor?,id*,result*,association*,collection*, discriminator?)>
 #<!ATTLIST case
@@ -420,19 +423,20 @@ func _deal_case(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCase:
 		"In <case>, cannot set resultMap and resultType at the same time.")
 		
 	var value = _get_value(item.attrs.get("value").strip_edges(), param, depth)
-	var result_map = GBatisResultMap.new({
+	var conf = {
+		"value": value,
 		"id": result_map_id,
 		"type": result_type
-	})
+	}
+	var ret = GBatisCase.new(conf)
 	for i in item.content:
 		if i is GXMLItem:
 			assert(["constructor", "id", "result", "association", "collection", 
 				"discriminator"].has(i.name), "Invalid element %s in case." % i.name)
 			assert(not (result_map_id+result_type).is_empty(), 
 				"Already set resultMap or resultType in <case>.")
-			result_map.push_element(_deal_element(i, param, depth+1))
-			
-	return GBatisCase.new(value, result_map)
+			ret.push_element(_deal_element(i, param, depth+1))
+	return ret
 	
 #<!ELEMENT property EMPTY>
 #<!ATTLIST property
@@ -1000,9 +1004,9 @@ func _replace_param(s: String, param: Dictionary, depth: int) -> String:
 		var value = GDSQLUtils.evaluate_command(null, prop, names, values)
 		
 		if k.begins_with("$"):
-			s.replace(k, str(value))
+			s = s.replace(k, str(value))
 		else:
-			s.replace(k, var_to_str(value))
+			s = s.replace(k, var_to_str(value))
 	return s
 	
 func _record_binded_param(item: GXMLItem, record_arr: Array):

@@ -16,8 +16,8 @@ func _init(conf: Dictionary) -> void:
 	result_map = conf.get("resultMap", "").strip_edges()
 	result_type = conf.get("resultType", "").strip_edges()
 	fetch_size = conf.get("fetchSize", "").strip_edges()
-	flush_cache = type_convert(conf.get("flushCache", "false"), TYPE_BOOL).strip_edges()
-	use_cache = type_convert(conf.get("useCache", "true"), TYPE_BOOL).strip_edges()
+	flush_cache = type_convert(conf.get("flushCache", "false").strip_edges(), TYPE_BOOL)
+	use_cache = type_convert(conf.get("useCache", "true").strip_edges(), TYPE_BOOL)
 	database_id = conf.get("databaseId", "").strip_edges()
 	
 func set_sql(p_sql: String):
@@ -29,6 +29,9 @@ func query():
 	if not database_id.is_empty():
 		dao.use_db_name(database_id)
 	var query_result = dao.query()
+	assert(query_result != null, "Error occur.")
+	assert(query_result.ok(), "Error occur. %s" % query_result.get_err())
 	
-	# resultMap TODO transfer to a new QueryResult
-	return query_result
+	# automapping
+	var qr = QueryResult.new()
+	return qr

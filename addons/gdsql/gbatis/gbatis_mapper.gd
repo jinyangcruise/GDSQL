@@ -1,5 +1,5 @@
 @tool
-extends RefCounted
+extends Resource
 ## 数据访问类
 class_name GBatisMapper
 

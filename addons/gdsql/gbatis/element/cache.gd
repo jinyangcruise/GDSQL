@@ -21,9 +21,9 @@ class_name GBatisCache
 #blocking CDATA #IMPLIED --------- ❌ not support
 #>
 
-var eviction
-var flush_interval
-var size
+var eviction: String
+var flush_interval: int
+var size: int
 
 func _init(conf: Dictionary) -> void:
 	eviction = conf.get("eviction", "FIFO").strip_edges()

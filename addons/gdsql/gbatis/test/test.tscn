@@ -1,0 +1,13 @@
+[gd_scene load_steps=5 format=3 uid="uid://d2v06qnq5bai3"]
+
+[ext_resource type="Script" path="res://addons/gdsql/gbatis/test/test.gd" id="1_fba1o"]
+[ext_resource type="Script" path="res://addons/gdsql/gbatis/test/test_mapper.gd" id="2_0xhp1"]
+[ext_resource type="Resource" path="res://addons/gdsql/gbatis/test/mapper/test_skill_mapper.xml" id="2_7sf3w"]
+
+[sub_resource type="Resource" id="Resource_kixo8"]
+script = ExtResource("2_0xhp1")
+mapper_xml = ExtResource("2_7sf3w")
+
+[node name="Test" type="Node2D"]
+script = ExtResource("1_fba1o")
+skill_mapper = SubResource("Resource_kixo8")

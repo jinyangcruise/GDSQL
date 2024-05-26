@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="test_skill">
+
+	<resultMap type="TestSkillEntity" id="skillResult">
+		<id     property="id"        column="id"         />
+		<result property="skill_name"        column="name"         />
+		<result property="icon"        column="icon"         />
+		<result property="desc"        column="desc"         />
+		<result property="max_level"        column="max_level"         />
+	</resultMap>
+	
+	<select id="select_skill_by_id" resultMap="skillResult">
+		select * from GameConfig.c_skill
+		where id == #{id}
+	</select>
+	
+</mapper> 
