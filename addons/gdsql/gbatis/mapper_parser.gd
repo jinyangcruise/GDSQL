@@ -31,6 +31,15 @@ class_name GBatisMapperParser
 ## FULL - auto-maps everything.
 var auto_mapping_level: String = "PARTIAL"
 
+## 方法请求返回值的信息.
+## - name 是该属性的名称，类型为 String；
+## - class_name 为空 StringName，除非该属性为 TYPE_OBJECT 并继承自某个类；
+## - type 是该属性的类型，类型为 int（见 Variant.Type）；
+## - hint 是应当如何编辑该属性（见 PropertyHint）；
+## - hint_string 取决于 hint（见 PropertyHint）；
+## - usage 是 PropertyUsageFlags 的组合
+@export var method_return_info: Dictionary
+
 const BIND = "__bind__"
 
 static var re_placeholder: RegEx = RegEx.new()
@@ -468,8 +477,8 @@ func _deal_type_alias(item:GXMLItem, param: Dictionary, depth: int):
 #resultType CDATA #IMPLIED
 #resultSetType (FORWARD_ONLY | SCROLL_INSENSITIVE | SCROLL_SENSITIVE | DEFAULT) #IMPLIED ❌ not support
 #statementType (STATEMENT|PREPARED|CALLABLE) #IMPLIED ❌ not support
-#fetchSize CDATA #IMPLIED
-#timeout CDATA #IMPLIED
+#fetchSize CDATA #IMPLIED ----------- ❌ not support
+#timeout CDATA #IMPLIED ------------- ❌ not support
 #flushCache (true|false) #IMPLIED
 #useCache (true|false) #IMPLIED
 #databaseId CDATA #IMPLIED
@@ -495,6 +504,8 @@ func _deal_select(item:GXMLItem, param: Dictionary, depth: int) -> GBatisSelect:
 	
 	var ret = GBatisSelect.new(item.attrs)
 	ret.set_sql(sql)
+	ret.set_auto_mapping_level(auto_mapping_level)
+	ret.set_method_return_info(method_return_info)
 	return ret
 	
 #<!ELEMENT insert (#PCDATA | selectKey | include | trim | where | set | foreach 
@@ -527,6 +538,7 @@ func _deal_insert(item:GXMLItem, param: Dictionary, depth: int) -> GBatisInsert:
 	
 	var ret = GBatisInsert.new(item.attrs)
 	ret.set_sql(sql)
+	ret.set_method_return_info(method_return_info)
 	return ret
 	
 # NOTICE mybatis原本不支持replace.
@@ -560,6 +572,7 @@ func _deal_replace(item:GXMLItem, param: Dictionary, depth: int) -> GBatisReplac
 	
 	var ret = GBatisReplace.new(item.attrs)
 	ret.set_sql(sql)
+	ret.set_method_return_info(method_return_info)
 	return ret
 	
 #<!ELEMENT selectKey (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
@@ -606,6 +619,7 @@ func _deal_update(item:GXMLItem, param: Dictionary, depth: int) -> GBatisUpdate:
 	
 	var ret = GBatisUpdate.new(item.attrs)
 	ret.set_sql(sql)
+	ret.set_method_return_info(method_return_info)
 	return ret
 	
 #<!ELEMENT delete (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
@@ -634,6 +648,7 @@ func _deal_delete(item:GXMLItem, param: Dictionary, depth: int) -> GBatisDelete:
 	
 	var ret = GBatisDelete.new(item.attrs)
 	ret.set_sql(sql)
+	ret.set_method_return_info(method_return_info)
 	return ret
 	
 #<!ELEMENT include (property+)?>

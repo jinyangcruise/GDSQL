@@ -17,9 +17,11 @@ arg5 = null, arg6 = null, arg7 = null, arg8 = null, arg9 = null):
 	assert(mapper_xml != null, "Not set mapper_xml.")
 	var methods = get_method_list()
 	var args = null
+	var ret_info = null
 	for m in methods:
 		if m.name == method:
 			args = m.args
+			ret_info = m["return"]
 			break
 	assert(args != null, "Not found method %s" % method)
 	var params = {}
