@@ -6,7 +6,7 @@ class_name BaseDao
 #region Members
 var _PASSWORD = "" ## 数据表密码
 
-var __database = "user://" ## 【外部请勿使用】数据库路径
+var __database = "" ## 【外部请勿使用】数据库路径
 var __cmd: String = "" ## 【外部请勿使用】命令
 var __select: Array[String] = [] ## 【外部请勿使用】select哪些字段
 var __field_as: Dictionary = {} ## 【外部请勿使用】字段别名
@@ -204,6 +204,8 @@ func select_same() -> BaseDao:
 ## 同时设置表名和别名。table支持不带后缀和带后缀.gsql
 func from(table: String, alias: String = "") -> BaseDao:
 	assert(_assert("from", __database != null and __database != "", "please set db first!"))
+	if not table.ends_with(DATA_EXTENSION):
+		table = table + DATA_EXTENSION
 	__table = table
 	__table_alias = alias
 	__primary_key_def = ""
