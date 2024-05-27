@@ -29,3 +29,23 @@ static func evaluate_command(target: Object, command: String, variable_names = [
 		ret = obj.value
 		obj.free()
 	return ret
+	
+## 执行一个表达式，直接通过script方式
+## target：环境对象。比如command里使用的一些函数、变量是在target里定义的
+## command：表达式
+## variable_names：参数名称列表
+## variable_values：参数值列表
+static func evaluate_command_script(command: String, variable_names = [], variable_values = []):
+	var script = GDScript.new()
+	var defines = []
+	for i in variable_names.size():
+		defines.push_back("var %s = str_to_var('%s')" % [variable_names[i], var_to_str(variable_values[i]).c_escape()])
+	script.source_code = "extends Object\n%s\nvar value = (%s)\n" % ["\n".join(defines), command]
+	var err = script.reload()
+	if err != OK:
+		push_error("err: %s" % error_string(err))
+		return null
+	var obj = script.new()
+	var ret = obj.value
+	obj.free()
+	return ret

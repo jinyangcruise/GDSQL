@@ -166,7 +166,7 @@ func _deal_mapping_to_object(return_type: String, datas: Array):
 	if return_type == "Array":
 		# model_obj用不上了，及时释放
 		_free_obj(model_obj)
-		var ret_datas = []
+		var ret_datas = _gen_array()
 		for data in datas:
 			var obj = _get_obj_or_generate(data)
 			assert(obj != null, "Error occur in _get_obj_or_generate().")
@@ -202,16 +202,19 @@ func _deal_mapping_to_object(return_type: String, datas: Array):
 		return obj
 		
 func _deal_mapping_to_array(return_type: String, datas: Array):
+	var ret_datas = _gen_array()
 	if return_type == "Array":
+		ret_datas.assign(datas)
 		return datas
 	# 没查询到数据，则返回空数组
 	if datas.is_empty():
-		return []
-	return datas[0]
+		return ret_datas
+	ret_datas.assign(datas[0])
+	return ret_datas
 	
 func _deal_mapping_to_dictionary(return_type: String, datas: Array):
 	if return_type == "Array":
-		var ret_datas = []
+		var ret_datas = _gen_array()
 		for data in datas:
 			var a_map = _automapping_dictionary(data)
 			assert(a_map != null, "Error occur in _automapping_dictionary().")
@@ -249,7 +252,7 @@ func _deal_mapping_to_other(return_type: String, datas: Array, head: Array):
 		if datas[0][0] is String and typeof(str_to_var(datas[0][0])) == to_type:
 			use_str_to_val = true
 	if return_type == "Array":
-		var ret_datas = []
+		var ret_datas = _gen_array()
 		for i in datas:
 			if use_origin:
 				ret_datas.push_back(i[0])
@@ -461,3 +464,10 @@ func _free_obj(obj: Object):
 func _is_prop_an_object(property_info: Dictionary):
 	return property_info.type == TYPE_OBJECT and \
 		not DataTypeDef.RESOURCE_TYPE_NAMES.has(property_info.class_name)
+		
+func _gen_array():
+	if method_return_info.hint == PROPERTY_HINT_ARRAY_TYPE:
+		# 不能使用evaluate_command，原因是Expression虽然成功返回但并不是typed array
+		return GDSQLUtils.evaluate_command_script(
+			"[] as Array[%s]" % method_return_info.hint_string)
+	return []
