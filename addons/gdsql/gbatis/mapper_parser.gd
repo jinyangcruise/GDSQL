@@ -32,6 +32,11 @@ class_name GBatisMapperParser
 ## FULL - auto-maps everything. ❌ not support 鉴于实际情况中非常不实用，就不支持了。
 var auto_mapping_level: String = "PARTIAL"
 
+## 如果mapper中的函数没有定义返回值类型，但是，GBatis该如何返回数据。
+## - ALWAYS_ARRAY: 总是返回一个数组
+@export_enum("ALWAYS_ARRAY", "ARRAY_WHEN_NECESSARY")
+var return_type_undefined_behavior: String = "ALWAYS_ARRAY"
+
 ## 方法请求返回值的信息.
 ## - name 是该属性的名称，类型为 String；
 ## - class_name 为空 StringName，除非该属性为 TYPE_OBJECT 并继承自某个类；
@@ -507,6 +512,7 @@ func _deal_select(item:GXMLItem, param: Dictionary, depth: int) -> GBatisSelect:
 	ret.set_sql(sql)
 	ret.set_auto_mapping_level(auto_mapping_level)
 	ret.set_method_return_info(method_return_info)
+	ret.set_return_type_undefined_behavior(return_type_undefined_behavior)
 	return ret
 	
 #<!ELEMENT insert (#PCDATA | selectKey | include | trim | where | set | foreach 

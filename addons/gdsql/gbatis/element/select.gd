@@ -12,6 +12,7 @@ var use_cache = true
 var database_id = ""
 var sql = ""
 var auto_mapping_level = "PARTIAL" # 只有 NONE 或 PARTIAL
+var return_type_undefined_behavior = "ALWAYS_ARRAY" # OR "ARRAY_WHEN_NECESSARY"
 var method_return_info: Dictionary
 
 ## ----------------- 内部使用 ------------------
@@ -50,6 +51,9 @@ func set_auto_mapping_level(type: String):
 func set_method_return_info(info: Dictionary):
 	method_return_info = info
 	
+func set_return_type_undefined_behavior(type: String):
+	return_type_undefined_behavior = type
+	
 func query():
 	# cache TODO
 	var dao = SQLParser.parse_to_dao(sql)
@@ -59,9 +63,9 @@ func query():
 	assert(query_result != null, "Error occur.")
 	assert(query_result.ok(), "Error occur. %s" % query_result.get_err())
 	
-	# 没指定mapping的信息，函数也没指定返回类型或者指定的就是返回QueryResult，那么原样返回
-	if result_map.is_empty() and result_type.is_empty() and \
-	(method_return_info.type == TYPE_NIL or method_return_info.class_name == "QueryResult"):
+	# xml指定了返回QueryResult，或mapper中的函数指定返回QueryResult)，那么原样返回
+	if result_map.is_empty() and \
+	(result_type == "QueryResult" or method_return_info.class_name == "QueryResult"):
 		return query_result
 		
 	# 最终要返回的类型
@@ -70,6 +74,7 @@ func query():
 	var mapping_to_type = "" # = type_string(method_return_info.type) # int, String etc.
 	var mapping_to_object = false
 	
+	# 调用函数需要返回一个Object
 	if not method_return_info.class_name.is_empty():
 		mapping_to_type = method_return_info.class_name
 		# Resouce类型的，和用户自定义的Object不能用一种办法处理，反而应该用other的办法
@@ -79,6 +84,7 @@ func query():
 			return_type = "Object"
 			object_class_name = mapping_to_type
 			mapping_to_object = true
+	# 调用函数需要返回一个数组
 	elif method_return_info.type == TYPE_ARRAY:
 		return_type = "Array"
 		mapping_to_type = "" # 不确定
@@ -88,14 +94,19 @@ func query():
 			not DataTypeDef.DATA_TYPE_COMMON_NAMES.has(mapping_to_type):
 				mapping_to_object = true
 				object_class_name = mapping_to_type
+	# 调用函数需要返回一个字典
 	elif method_return_info.type == TYPE_DICTIONARY:
 		return_type = "Dictionary"
 		mapping_to_type = "Dictionary"
+	# 调用函数需要返回一个某类型的值
 	elif method_return_info.type != TYPE_NIL:
 		return_type = "Other"
 		mapping_to_type = type_string(method_return_info.type)
+	# 调用函数没定义返回值类型
 	else:
-		assert(false, "Inner error 101 occur.") # 前面应该已经返回了
+		# 后面根据resultType和resultMap配置的具体东西来看
+		return_type = "Undefined"
+		mapping_to_type = ""
 		
 	# 看配置的result_type（配置的automapping的类型）
 	# 和函数返回值推断的automapping的类型是否一致
@@ -129,9 +140,13 @@ func query():
 	
 	# xml不配置mapping类型，调用函数只定义要返回数组，但不指定数组元素的数据类型，那么返回raw datas
 	if result_type.is_empty() and result_map.is_empty() and mapping_to_type.is_empty():
-		assert(return_type == "Array", "Inner error 102 occur.")
-		return datas
-		
+		if return_type_undefined_behavior == "ALWAYS_ARRAY":
+			return datas
+		elif datas.size() == 1: # ARRAY_WHEN_NECESSARY
+			return datas[0]
+		else:
+			return datas
+			
 	# 定义了每条数据映射到的数据类型
 	if not result_type.is_empty():
 		# 每条数据映射到对象
@@ -168,6 +183,14 @@ func _deal_mapping_to_object(return_type: String, datas: Array):
 	var list = (model_obj as Object).get_property_list()
 	_prepare_prop_map_object_prop_map(list)
 	
+	if return_type == "Undefined":
+		if return_type_undefined_behavior == "ALWAYS_ARRAY":
+			return_type = "Array"
+		elif datas.size() == 1: # ARRAY_WHEN_NECESSARY
+			return_type = "Object"
+		else:
+			return_type = "Object" if datas.size() == 1 else "Array"
+			
 	if return_type == "Array":
 		# model_obj用不上了，及时释放
 		_free_obj(model_obj)
@@ -208,6 +231,15 @@ func _deal_mapping_to_object(return_type: String, datas: Array):
 		
 func _deal_mapping_to_array(return_type: String, datas: Array):
 	var ret_datas = _gen_array()
+	
+	if return_type == "Undefined":
+		if return_type_undefined_behavior == "ALWAYS_ARRAY":
+			return_type = "Array"
+		elif datas.size() == 1: # ARRAY_WHEN_NECESSARY
+			return_type = ""
+		else:
+			return_type = "" if datas.size() == 1 else "Array"
+		
 	if return_type == "Array":
 		ret_datas.assign(datas)
 		return datas
@@ -218,6 +250,14 @@ func _deal_mapping_to_array(return_type: String, datas: Array):
 	return ret_datas
 	
 func _deal_mapping_to_dictionary(return_type: String, datas: Array):
+	if return_type == "Undefined":
+		if return_type_undefined_behavior == "ALWAYS_ARRAY":
+			return_type = "Array"
+		elif datas.size() == 1: # ARRAY_WHEN_NECESSARY
+			return_type = "Dictionary"
+		else:
+			return_type = "Dictionary" if datas.size() == 1 else "Array"
+			
 	if return_type == "Array":
 		var ret_datas = _gen_array()
 		for data in datas:
@@ -240,8 +280,7 @@ func _deal_mapping_to_other(return_type: String, datas: Array, head: Array):
 	assert(head.size() == 1, 
 		"Result set is supposed to have one column, but %d." % \
 		head.size())
-	assert(datas.size() > 0, "Result set is empty!")
-	
+		
 	var to_type = 0
 	if DataTypeDef.RESOURCE_TYPE_NAMES.has(result_type):
 		to_type = TYPE_OBJECT
@@ -251,11 +290,21 @@ func _deal_mapping_to_other(return_type: String, datas: Array, head: Array):
 	# 需要返回数组
 	var use_origin = false
 	var use_str_to_val = false
-	if typeof(datas[0][0]) == to_type:
-		use_origin = true
-	if not use_origin:
-		if datas[0][0] is String and typeof(str_to_var(datas[0][0])) == to_type:
-			use_str_to_val = true
+	if datas.size() > 0:
+		if typeof(datas[0][0]) == to_type:
+			use_origin = true
+		if not use_origin:
+			if datas[0][0] is String and typeof(str_to_var(datas[0][0])) == to_type:
+				use_str_to_val = true
+			
+	if return_type == "Undefined":
+		if return_type_undefined_behavior == "ALWAYS_ARRAY":
+			return_type = "Array"
+		elif datas.size() == 1: # ARRAY_WHEN_NECESSARY
+			return_type = "OTHER"
+		else:
+			return_type = "OTHER" if datas.size() == 1 else "Array"
+			
 	if return_type == "Array":
 		var ret_datas = _gen_array()
 		for i in datas:
