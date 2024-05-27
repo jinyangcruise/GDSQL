@@ -103,6 +103,15 @@ func query():
 		assert(result_type == mapping_to_type or mapping_to_type.is_empty(), 
 			"resultType `%s` not match your method type `%s`." % \
 			[result_type, mapping_to_type])
+		# xml配置了，但是函数返回值没定义。要确认一下xml配置的是不是Object
+		if mapping_to_type.is_empty():
+			mapping_to_type = result_type
+			# 既不是普通数据类型也不是Resource，就当做Object
+			if not DataTypeDef.DATA_TYPE_COMMON_NAMES.has(mapping_to_type) and \
+			not DataTypeDef.RESOURCE_TYPE_NAMES.has(mapping_to_type):
+				mapping_to_object = true
+				object_class_name = result_type
+				
 	# resultType和resultMap都没配置，就用函数返回值推断的类型
 	elif result_map.is_empty():
 		if method_return_info.type != TYPE_NIL:
@@ -125,10 +134,6 @@ func query():
 		
 	# 定义了每条数据映射到的数据类型
 	if not result_type.is_empty():
-		# 反向补充一下mapping_to_type，因为后面有些地方可能要用
-		if mapping_to_type.is_empty():
-			mapping_to_type = result_type
-			
 		# 每条数据映射到对象
 		if mapping_to_object:
 			return _deal_mapping_to_object(return_type, datas)
