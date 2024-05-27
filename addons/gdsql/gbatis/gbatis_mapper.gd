@@ -33,4 +33,5 @@ arg5 = null, arg6 = null, arg7 = null, arg8 = null, arg9 = null):
 		
 	var mapper_parser = GBatisMapperParser.new()
 	mapper_parser.config = mapper_xml
+	mapper_parser.method_return_info = ret_info
 	return mapper_parser.query(method, params)

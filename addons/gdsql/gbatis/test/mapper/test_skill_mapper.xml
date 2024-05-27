@@ -12,7 +12,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		<result property="max_level"        column="max_level"         />
 	</resultMap>
 	
-	<select id="select_skill_by_id" resultMap="skillResult">
+	<select id="select_skill_by_id" resultType="TestSkillEntity">
 		select * from GameConfig.c_skill
 		where id == #{id}
 	</select>

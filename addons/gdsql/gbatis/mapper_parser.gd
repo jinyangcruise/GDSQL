@@ -5,7 +5,8 @@ extends RefCounted
 ## @see http://mybatis.org/dtd/mybatis-3-mapper.dtd
 class_name GBatisMapperParser
 
-@export_enum("NONE", "PARTIAL", "FULL") 
+#@export_enum("NONE", "PARTIAL", "FULL")
+@export_enum("NONE", "PARTIAL")
 ## 全局自动映射等级。
 ## NONE - disables auto-mapping. Only manually mapped properties will be set.
 ## PARTIAL - will auto-map results except those that have nested result mappings 
@@ -28,7 +29,7 @@ class_name GBatisMapperParser
 ##           <resultMap id="authorResult" type="Author">
 ##             <result property="username" column="author_username"/>
 ##           </resultMap>
-## FULL - auto-maps everything.
+## FULL - auto-maps everything. ❌ not support 鉴于实际情况中非常不实用，就不支持了。
 var auto_mapping_level: String = "PARTIAL"
 
 ## 方法请求返回值的信息.
@@ -64,7 +65,7 @@ static func _static_init() -> void:
 ## https://github.com/godotengine/godot/pull/82808
 ## btw: Ability to print and log script backtraces
 ## https://github.com/godotengine/godot/pull/91006
-func query(method_id: String, param: Dictionary) -> QueryResult:
+func query(method_id: String, param: Dictionary):
 	param[BIND] = {}
 	var item = _get_item(method_id)
 	assert(item, "not found this method: %s" % method_id)
