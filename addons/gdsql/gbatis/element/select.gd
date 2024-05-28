@@ -23,8 +23,8 @@ var object_class_name: String
 var columns: Array # 数据集的列名数组
 var prop_map: Dictionary # 对象的属性列表，用name作为key
 var object_prop_map: Dictionary # 属性列表，该属性是子对象，可能涉及Nested Result Mapping
-var prop_type: Dictionary # column和prop不一定完全相同，比如可能有冒号，比如大小写、下划线、驼峰格式不同
-# prop_type[column] = {
+var prop_info: Dictionary # column和prop不一定完全相同，比如可能有冒号，比如大小写、下划线、驼峰格式不同
+# prop_info[column] = {
 #    "exist": true, # 这列数据是否是obj中的属性
 #    "prop": prop, # 这列数据对应的属性名称
 #    "column_type": TYPE_XX, # 这列数据的数据类型。
@@ -63,7 +63,7 @@ func reset():
 	columns.clear()
 	prop_map.clear()
 	object_prop_map.clear()
-	prop_type.clear()
+	prop_info.clear()
 	pk_index.clear()
 	pk_confirm = [-1]
 	pk_obj.clear()
@@ -379,8 +379,8 @@ func _obj_exist(data: Array) -> bool:
 ## columns: Array # 数据集的列名数组
 ## prop_map: Dictionary # 对象的属性列表，用name作为key
 ## object_prop_map: Dictionary # 属性列表，该属性是子对象，可能涉及Nested Result Mapping
-## prop_type: Dictionary # column和prop不一定完全相同，比如可能有冒号，比如大小写、下划线、驼峰格式不同
-## prop_type[column] = {
+## prop_info: Dictionary # column和prop不一定完全相同，比如可能有冒号，比如大小写、下划线、驼峰格式不同
+## prop_info[column] = {
 ##     # 这列数据是否是obj中的属性
 ##     "exist": true,
 ##     # 这列数据对应的属性名称
@@ -398,14 +398,14 @@ func _obj_exist(data: Array) -> bool:
 func _automapping_obejct(data: Array, obj: Object) -> Object:
 	for j in columns.size():
 		var column = columns[j] as String
-		if prop_type.has(column) and not prop_type[column]["exist"]:
+		if prop_info.has(column) and not prop_info[column]["exist"]:
 			continue
 			
 		var prop = ""
 		var type = TYPE_NIL
 		var prop_is_object = false
-		if prop_type.has(column):
-			prop = prop_type[column]["prop"]
+		if prop_info.has(column):
+			prop = prop_info[column]["prop"]
 			type = prop_map[prop].type
 			prop_is_object = _is_prop_an_object(prop_map[prop])
 		else:
@@ -413,19 +413,19 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 			# 不需要判断大小写，蛇形，驼峰之类的。
 			if column.contains(":"):
 				if not column.get_slice(":", 0) in obj:
-					prop_type[column] = {"exist":false}
+					prop_info[column] = {"exist":false}
 					continue
 					
 			# 根据列名找对应的属性名
 			var column_1 = column.get_slice(":", 0)
 			prop = _get_similar_prop(column_1)
 			if prop.is_empty():
-				prop_type[column] = {"exist":false}
+				prop_info[column] = {"exist":false}
 				continue
 				
 			type = prop_map[prop].type
 			prop_is_object = _is_prop_an_object(prop_map[prop])
-			prop_type[column] = {
+			prop_info[column] = {
 				# 这列数据是否是obj中的属性
 				"exist": true,
 				# 这列数据对应的属性名称
@@ -444,7 +444,7 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 			continue
 			
 		# Nil或二者数据类型相同，直接赋值
-		var column_type = prop_type[column]["column_type"]
+		var column_type = prop_info[column]["column_type"]
 		if type == TYPE_NIL or typeof(data[j]) == column_type:
 			if column.contains(":"):
 				obj.set_indexed(column, data[j]) # 支持":"的属性路径，比如"pos:x"
@@ -458,17 +458,17 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 			# 先测试type_convert是否正确
 			var value = null
 			var value_set = false
-			if prop_type[column]["method"].is_empty():
+			if prop_info[column]["method"].is_empty():
 				if typeof(data[j]) == column_type:
-					prop_type[column]["method"] = "none"
+					prop_info[column]["method"] = "none"
 				elif data[j] is String:
 					value = str_to_var(data[j])
 					value_set = true
 					if typeof(value) == column_type:
-						prop_type[column]["method"] = "str_to_var"
+						prop_info[column]["method"] = "str_to_var"
 					else:
-						prop_type[column]["method"] = "type_convert"
-			match prop_type[column]["method"]:
+						prop_info[column]["method"] = "type_convert"
+			match prop_info[column]["method"]:
 				"none":
 					obj.set_indexed(prop, data[j])
 				"str_to_var":
