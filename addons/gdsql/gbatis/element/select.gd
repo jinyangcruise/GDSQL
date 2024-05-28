@@ -342,7 +342,7 @@ func _prepare_columns_pk_index(head: Array) -> bool:
 		var column = head[j]["field_as"]
 		assert(not columns.has(column), 
 			"Duplicated column name `%s`." % column)
-		if head[j]["PK"] and not pk_index.values().has(column):
+		if head[j]["PK"] and pk_index.find_key(column) == null:
 			pk_index[j] = column
 		columns.push_back(column)
 	return true
