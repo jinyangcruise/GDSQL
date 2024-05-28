@@ -174,7 +174,11 @@ func query():
 			return _deal_mapping_to_dictionary(return_type, datas)
 		# 每条数据映射到其他类型比如int， String 或 [int|String|...]
 		else:
-			return _deal_mapping_to_other(return_type, datas, head)
+			# 是否是1个字段，也不能是0，因为像int, String这样的返回值，应该要返回1个。
+			assert(head.size() == 1, 
+				"Result set is supposed to have one column, but %d." % \
+				head.size())
+			return _deal_mapping_to_other(return_type, datas)
 			
 	# 定义了每条数据映射到resultMap
 	if not result_map.is_empty():
@@ -289,12 +293,7 @@ func _deal_mapping_to_dictionary(return_type: String, datas: Array):
 	assert(map != null, "Error occur in _automapping_dictionary().")
 	return map
 	
-func _deal_mapping_to_other(return_type: String, datas: Array, head: Array):
-	# 是否是1个字段，也不能是0，因为像int, String这样的返回值，应该要返回1个。
-	assert(head.size() == 1, 
-		"Result set is supposed to have one column, but %d." % \
-		head.size())
-		
+func _deal_mapping_to_other(return_type: String, datas: Array):
 	var to_type = 0
 	if DataTypeDef.RESOURCE_TYPE_NAMES.has(result_type):
 		to_type = TYPE_OBJECT
