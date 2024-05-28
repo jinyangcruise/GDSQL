@@ -402,11 +402,11 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 			continue
 			
 		var prop = ""
-		var type = TYPE_NIL
+		var prop_type = TYPE_NIL
 		var prop_is_object = false
 		if prop_info.has(column):
 			prop = prop_info[column]["prop"]
-			type = prop_map[prop].type
+			prop_type = prop_map[prop].type
 			prop_is_object = _is_prop_an_object(prop_map[prop])
 		else:
 			# 如果要写成属性冒号的形式，那第一部分肯定需要写成原本形式才行，
@@ -423,7 +423,7 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 				prop_info[column] = {"exist":false}
 				continue
 				
-			type = prop_map[prop].type
+			prop_type = prop_map[prop].type
 			prop_is_object = _is_prop_an_object(prop_map[prop])
 			prop_info[column] = {
 				# 这列数据是否是obj中的属性
@@ -433,7 +433,7 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 				# 这列数据的数据类型。
 				# NOTICE 带冒号的如果用户拼写错误会导致报错。而我们目前
 				# 没有什么好办法提前检测。
-				"column_type": type if column_1 == column else \
+				"column_type": prop_type if column_1 == column else \
 					typeof(obj.get_indexed(column)),
 				# 填充时用type_convert还是str_to_var转化数据
 				"method": ""
@@ -445,7 +445,7 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 			
 		# Nil或二者数据类型相同，直接赋值
 		var column_type = prop_info[column]["column_type"]
-		if type == TYPE_NIL or typeof(data[j]) == column_type:
+		if prop_type == TYPE_NIL or typeof(data[j]) == column_type:
 			if column.contains(":"):
 				obj.set_indexed(column, data[j]) # 支持":"的属性路径，比如"pos:x"
 			else:
