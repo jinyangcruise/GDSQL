@@ -257,6 +257,7 @@ func _deal_result_map(item:GXMLItem, param: Dictionary, depth: int) -> GBatisRes
 			assert(["constructor", "id", "result", "association", "collection", 
 			"discriminator"].has(i.name), "Invalid element %s in resultMap." % i.name)
 			ret.push_element(_deal_element(i, param, depth+1))
+	ret.set_mapper_parser_ref(weakref(self))
 	return ret
 	
 #<!ELEMENT id EMPTY>
@@ -408,8 +409,8 @@ func _deal_association(item:GXMLItem, param: Dictionary, depth: int) -> GBatisAs
 #<!ELEMENT discriminator (case+)>
 #<!ATTLIST discriminator
 #column CDATA #REQUIRED
-#javaType CDATA #REQUIRED ------------ gdscript variant type or a class name, 
-#                                     eg. int, String, SysDept, Dictionary
+#javaType CDATA #REQUIRED ------- gdscript simple variant type. 
+#                                 eg. int, String, bool
 #jdbcType CDATA #IMPLIED -------- ❌ not support
 #typeHandler CDATA #IMPLIED ----- ❌ not support
 #> 
