@@ -22,7 +22,6 @@ var method_return_info: Dictionary: set = set_method_return_info
 var object_class_name: String
 var columns: Array # 数据集的列名数组
 var prop_map: Dictionary # 对象的属性列表，用name作为key
-var object_prop_map: Dictionary # 属性列表，该属性是子对象，可能涉及Nested Result Mapping
 var prop_info: Dictionary # column和prop不一定完全相同，比如可能有冒号，比如大小写、下划线、驼峰格式不同
 # prop_info[column] = {
 #    "exist": true, # 这列数据是否是obj中的属性
@@ -62,7 +61,6 @@ func reset():
 	object_class_name = ""
 	columns.clear()
 	prop_map.clear()
-	object_prop_map.clear()
 	prop_info.clear()
 	pk_index.clear()
 	pk_confirm = [-1]
@@ -351,13 +349,10 @@ func _prepare_columns_pk_index(head: Array) -> bool:
 	
 ## 准备 prop_map object_prop_map
 ## prop_map: Dictionary # 对象的属性列表，用name作为key
-## object_prop_map: Dictionary # 属性列表，该属性是子对象
 func _prepare_prop_map_object_prop_map(property_list: Array):
 	for i in property_list:
 		prop_map[i.name] = i
-		if not i.class_name.is_empty():
-			object_prop_map[i.name] = i
-			
+		
 ## 每个主键只允许返回一个对应的对象。如果主键不存在，那就每条数据都返回
 ## 一个对象，这也是允许的。
 func _get_obj_or_generate(data: Array) -> Object:
