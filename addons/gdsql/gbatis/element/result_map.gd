@@ -27,8 +27,6 @@ class_name  GBatisResultMap
 var id: String
 var type: String
 var _extends: String
-# NOTICE 有一种情况，auto_mapping会被强制设置为false，就是该resultMap处于<case>中或被
-# <case>所引用时。这时如果需要，可以用extends属性继承一些外部定义的属性。
 var auto_mapping: String
 
 var mapper_parser_ref: WeakRef: set = set_mapper_parser_ref
@@ -215,9 +213,9 @@ func prepare_mapping_to_object(p_head: Array):
 		prop_map[object_class_name][i.name] = i
 		
 ## 每处理一条数据需要调用一下。由于鉴别器discriminator可能存在，需要调用一下。
-func prepare_deal(head: Array, data: Array):
+func prepare_deal(p_head: Array, data: Array):
 	if discriminator != null:
-		discriminator.prepare_deal(head, data)
+		discriminator.prepare_deal(p_head, data)
 		real_auto_mapping = get_deepest_auto_mapping()
 		var case_return_type = discriminator.get_selected_case_return_type()
 		if _is_class_name(case_return_type):
@@ -232,9 +230,9 @@ func prepare_deal(head: Array, data: Array):
 		
 ## 将传入的一条数据进行映射后再返回。
 ## 由于该resultMap可能处于中间环节的处理过程，所以可以接收一个obj。
-func deal(head: Array, data: Array, obj = null):
+func deal(p_head: Array, data: Array, obj = null):
 	if obj == null:
-		prepare_deal(head, data)
+		prepare_deal(p_head, data)
 		
 	#if not real_type.is_empty():
 		## 每条数据映射到对象
@@ -276,9 +274,7 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 		# 优先使用<id>和<result>来找prop
 		if final_column_prop_map.has(column):
 			prop = final_column_prop_map[column]
-			var p_index = -1
 			for p in prop:
-				p_index += 1
 				# 如果对象中没有<id>, <result>配置的这个属性，要报错
 				if p.contains(":"):
 					# 限于技术问题，我们最多检查一层
@@ -414,28 +410,28 @@ func _automapping_dictionary(data: Array) -> Dictionary:
 	
 func _get_similar_prop(column_1: String):
 	var prop = ""
-	#if prop_map.has(column_1):
-		#prop = column_1
-	#elif prop_map.has(column_1.to_lower()):
-		#prop = column_1.to_lower()
-	#elif prop_map.has(column_1.to_upper()):
-		#prop = column_1.to_upper()
-	#else:
-		#var snake = column_1.to_snake_case()
-		#if prop_map.has(snake):
-			#prop = snake
-		#elif prop_map.has(snake.to_upper()):
-			#prop = snake.to_upper()
-		#else:
-			#var camel = column_1.to_camel_case()
-			#if prop_map.has(camel):
-				#prop = camel
-			#elif prop_map.has(camel.to_lower()):
-				#prop = camel.to_lower()
-			#elif prop_map.has(camel.to_upper()):
-				#prop = camel.to_upper()
-			#elif prop_map.has(camel[0].to_upper() + camel.substr(1)):
-				#prop = camel[0].to_upper() + camel.substr(1)
+	if prop_map.has(column_1):
+		prop = column_1
+	elif prop_map.has(column_1.to_lower()):
+		prop = column_1.to_lower()
+	elif prop_map.has(column_1.to_upper()):
+		prop = column_1.to_upper()
+	else:
+		var snake = column_1.to_snake_case()
+		if prop_map.has(snake):
+			prop = snake
+		elif prop_map.has(snake.to_upper()):
+			prop = snake.to_upper()
+		else:
+			var camel = column_1.to_camel_case()
+			if prop_map.has(camel):
+				prop = camel
+			elif prop_map.has(camel.to_lower()):
+				prop = camel.to_lower()
+			elif prop_map.has(camel.to_upper()):
+				prop = camel.to_upper()
+			elif prop_map.has(camel[0].to_upper() + camel.substr(1)):
+				prop = camel[0].to_upper() + camel.substr(1)
 	return prop
 	
 func _free_obj(obj: Object):

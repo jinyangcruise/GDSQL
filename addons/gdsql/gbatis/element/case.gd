@@ -86,8 +86,6 @@ func prepare_deal(head: Array, data: Array):
 			_result_map = GBatisResultMap.new({})
 			_result_map.type = result_type
 			
-	_result_map.auto_mapping = "false"
-	
 func reset():
 	assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
 	# 如果有鉴别器，则返回值不稳定，需要重置
