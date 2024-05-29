@@ -103,7 +103,7 @@ func prepare_mapping_to_object(p_head: Array):
 	prop_map[object_class_name] = {}
 	prop_info[object_class_name] = {}
 	pk_index[object_class_name] = {}
-	pk_confirm[object_class_name] = {}
+	pk_confirm[object_class_name] = -1
 	pk_obj[object_class_name] = {}
 	
 	# 准备columns和pk_index
@@ -184,6 +184,11 @@ func automapping_data(data: Array):
 	object_class_name = ""
 	
 func _automapping_obejct(data: Array, obj: Object) -> Object:
+	# 整体分为三部分：1，先给obj本身的简单字段赋值；2，然后给association定义的obj的对象字段
+	# 赋值，也就是说，obj的某个属性如果也是obj（比如sub obj），看能否把值赋值给sub obj的字段；
+	# 3；最后给collection定义的集合赋值
+	
+	# 第一部分：先给obj本身的字段赋值
 	for j in columns[object_class_name].size():
 		var column = columns[object_class_name][j] as String
 		if prop_info[object_class_name].has(column) and \
@@ -191,7 +196,6 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 			continue
 			
 		var prop = [] # 支持一个列对应多个属性的情况
-		var prop_type = [] # 多个属性
 		var column_type = [] # 当column带冒号时，和prop_type不一样
 		var prop_is_object = []
 		
@@ -210,20 +214,17 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 					# NOTICE 带冒号的如果用户拼写错误会导致报错。而我们目前
 					# 没有什么好办法提前检测。
 					column_type.push_back(typeof(obj.get_indexed(p))) # use p not pp
-					prop_type.push_back(prop_map[object_class_name][pp].type) # TODO FIXME?
 					prop_is_object.push_back(_is_prop_an_object(prop_map[object_class_name][pp])) # FIXME?
 				else:
 					assert(p in obj, 
 						"Invalid set property %s of %s" % [p, object_class_name])
 					column_type.push_back(prop_map[object_class_name][p].type)
-					prop_type.push_back(prop_map[object_class_name][p].type)
 					prop_is_object.push_back(_is_prop_an_object(prop_map[object_class_name][p]))
 					
 		if prop.is_empty():
 			if prop_info[object_class_name].has(column):
 				prop = prop_info[object_class_name][column]["prop"]
 				for p in prop:
-					prop_type.push_back(prop_map[object_class_name][p].type)
 					column_type.push_back(prop_map[object_class_name][p].type)
 					prop_is_object.push_back(_is_prop_an_object(prop_map[object_class_name][p]))
 			else:
@@ -242,6 +243,7 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 						prop_info[object_class_name][column] = {"exist":false}
 						continue
 						
+					prop.push_back(column)
 					column_type.push_back(typeof(obj.get_indexed(column)))
 				else:
 					# 根据列名找对应的属性名
@@ -249,10 +251,9 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 					if a_prop.is_empty():
 						prop_info[object_class_name][column] = {"exist":false}
 						continue
+					prop.push_back(a_prop)
 					column_type = prop_map[object_class_name][a_prop].type
 					
-				prop.push_back(a_prop)
-				prop_type.push_back(prop_map[object_class_name][a_prop].type)
 				prop_is_object.push_back(_is_prop_an_object(prop_map[object_class_name][a_prop]))
 				
 				prop_info[object_class_name][column] = {
@@ -263,24 +264,25 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 					# 这列数据的数据类型。
 					"column_type": column_type,
 					# 填充时用type_convert还是str_to_var转化数据
-					"method": ""
+					"method": prop.map(func(_v): return "")
 				}
 				
 		var prop_index = -1
-		for a_prop in prop:
+		for a_prop: String in prop:
 			prop_index += 1
 			# PARTIAL时，只填充obj的简单属性（非object的属性）
-			if mapper_parser_ref.get_ref().auto_mapping_level == "PARTIAL" and \
-			prop_is_object[prop_index]:
+			if prop_is_object[prop_index] and \
+			mapper_parser_ref.get_ref().auto_mapping_level == "PARTIAL":
 				continue
 				
-			# Nil或二者数据类型相同，直接赋值
-			if prop_type[prop_index] == TYPE_NIL or \
-			typeof(data[j]) == column_type[prop_index]: # TODO FIXME
-				if column.contains(":"):
-					obj.set_indexed(column, data[j]) # 支持":"的属性路径，比如"pos:x"
-				else:
-					obj.set_indexed(prop, data[j])
+			# 现在是根据column名称来给某个属性赋值，如果这个属性代表一个对象，
+			# 是不可能把一个值赋给对象的，除非是赋给对象的某属性（意味着要通过冒号）。
+			if prop_is_object[prop_index] and not a_prop.contains(":"):
+				continue
+				
+			if typeof(data[j]) == column_type[prop_index] or \
+			TYPE_NIL == column_type[prop_index]:
+				obj.set_indexed(a_prop, data[j])
 			else:
 				# NOTICE type_convert并不是万能的，依赖于引擎
 				# 底层数据格式的相互转换。例如：
@@ -289,40 +291,38 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 				# 先测试type_convert是否正确
 				var value = null
 				var value_set = false
-				if prop_info[object_class_name][column]["method"].is_empty():
-					if typeof(data[j]) == column_type:
-						prop_info[object_class_name][column]["method"] = "none"
+				var method_map = prop_info[object_class_name][column]["method"]
+				if method_map[prop_index].is_empty():
+					if typeof(data[j]) == column_type[prop_index]:
+						method_map[prop_index] = "none"
 					elif data[j] is String:
 						value = str_to_var(data[j])
 						value_set = true
-						if typeof(value) == column_type:
-							prop_info[object_class_name][column]["method"] = "str_to_var"
+						if typeof(value) == column_type[prop_index]:
+							method_map[prop_index] = "str_to_var"
 						else:
-							prop_info[object_class_name][column]["method"] = "type_convert"
-				match prop_info[object_class_name][column]["method"]:
+							method_map[prop_index] = "type_convert"
+				match method_map[prop_index]:
 					"none":
-						obj.set_indexed(prop, data[j])
+						obj.set_indexed(a_prop, data[j])
 					"str_to_var":
-						obj.set_indexed(prop, 
+						obj.set_indexed(a_prop, 
 							value if value_set else str_to_var(data[j]))
 					"type_convert":
-						obj.set_indexed(prop, 
-							type_convert(data[j], column_type))
+						obj.set_indexed(a_prop, 
+							type_convert(data[j], column_type[prop_index]))
 					_:
 						assert(false, "Inner error 103.")
 			# 主键
 			if pk_index[object_class_name].has(j):
-				if pk_confirm[object_class_name][0] == -1:
-					pk_confirm[object_class_name][0] = j
+				if pk_confirm[object_class_name] == -1:
+					pk_confirm[object_class_name] = j
 				# 已经找到一个了，怎么又冒出来一个
-				assert(pk_confirm[object_class_name][0] == j, 
+				assert(pk_confirm[object_class_name] == j, 
 					"Multiple primary keys [%s, %s] are mapped to %s." % \
-					[pk_confirm[object_class_name][0], j, object_class_name])
+					[pk_confirm[object_class_name], j, object_class_name])
 				pk_obj[object_class_name][data[j]] = obj
 				
-			#if mapper_parser_ref.get_ref().auto_mapping_level == "FULL":
-				## TODO
-				#pass
 	return obj
 	
 func _automapping_dictionary(data: Array) -> Dictionary:
