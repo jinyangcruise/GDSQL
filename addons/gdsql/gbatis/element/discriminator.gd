@@ -22,10 +22,11 @@ func _init(conf: Dictionary) -> void:
 	java_type = conf.get("javaType").strip_edges()
 	assert(DataTypeDef.DATA_TYPE_COMMON_NAMES.has(java_type), 
 		"Invalid javaType %s in <discriminator>" % java_type)
-	
+		
 func push_element(case: GBatisCase):
 	cases.push_back(case)
 	
+# 每处理一条数据需要调用一下
 func prepare_deal(head: Array, data: Array):
 	if selected_case_index != -2:
 		return
@@ -54,8 +55,46 @@ func get_selected_case_return_type():
 		return (cases[selected_case_index] as GBatisCase).get_return_type()
 	return ""
 	
-func deal(head: Array, data: Array):
+#func get_result_map() -> GBatisResultMap:
+	#assert(selected_case_index != -2, "Call prepare_deal first!")
+	#if selected_case_index > -1:
+		#return (cases[selected_case_index] as GBatisCase).get_result_map()
+	#return null
+	
+func get_result_type() -> String:
 	assert(selected_case_index != -2, "Call prepare_deal first!")
 	if selected_case_index > -1:
-		return (cases[selected_case_index] as GBatisCase).deal(head, data)
-	return null
+		return (cases[selected_case_index] as GBatisCase).get_result_type()
+	return ""
+	
+func get_auto_mapping() -> String:
+	assert(selected_case_index != -2, "Call prepare_deal first!")
+	if selected_case_index > -1:
+		return (cases[selected_case_index] as GBatisCase).get_auto_mapping()
+	return ""
+	
+func get_prop_column() -> Dictionary:
+	assert(selected_case_index != -2, "Call prepare_deal first!")
+	if selected_case_index > -1:
+		return (cases[selected_case_index] as GBatisCase).get_prop_column()
+	return {}
+	
+func get_associations() -> Array:
+	assert(selected_case_index != -2, "Call prepare_deal first!")
+	if selected_case_index > -1:
+		return (cases[selected_case_index] as GBatisCase).get_associations()
+	return []
+	
+func get_collections() -> Array:
+	assert(selected_case_index != -2, "Call prepare_deal first!")
+	if selected_case_index > -1:
+		return (cases[selected_case_index] as GBatisCase).get_collections()
+	return []
+	
+## 处理完一条数据后，要reset
+func reset():
+	assert(selected_case_index != -2, "Call prepare_deal first!")
+	if selected_case_index > -1:
+		return (cases[selected_case_index] as GBatisCase).reset()
+	selected_case_index = -2
+	

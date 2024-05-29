@@ -12,6 +12,10 @@ var value
 var result_map: String
 var result_type: String
 var result_embeded: GBatisResultMap
+var mapper_parser_ref: WeakRef: set = set_mapper_parser_ref
+
+# --------- 内部使用 ----------
+var _result_map: GBatisResultMap # 把case当作一个resultMap来用
 
 func _init(conf: Dictionary) -> void:
 	value = conf.get("value")
@@ -25,20 +29,68 @@ func _init(conf: Dictionary) -> void:
 		not DataTypeDef.RESOURCE_TYPE_NAMES.has(result_type),
 		"Attr resultType %s in <case> should be an Object's class_name" % result_type)
 		
+func set_mapper_parser_ref(mapper_parser):
+	mapper_parser_ref = mapper_parser
+	
+func clean():
+	if result_embeded != null:
+		result_embeded.clean()
+	result_embeded = null
+	mapper_parser_ref = null
+	_result_map = null
 	
 func push_element(element):
 	if not result_embeded:
 		result_embeded = GBatisResultMap.new({})
-	result_embeded.push_back(element)
+	result_embeded.push_element(element)
 	
-func get_return_type() -> String:
+func get_result_type() -> String:
+	assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
 	# 递归找到返回的对象的类名
-	return ""
+	return _result_map.get_deepest_result_type()
 	
-func get_
+func get_auto_mapping() -> String:
+	assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
+	return _result_map.get_deepest_auto_mapping()
 	
+#func get_result_map() -> GBatisResultMap:
+	#assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
+	## 递归找到返回的resultMap
+	#return _result_map.get_deepest_result_map()
+	
+func get_prop_column() -> Dictionary:
+	assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
+	return _result_map.get_deepest_prop_column()
+	
+func get_associations() -> Array:
+	assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
+	return _result_map.get_deepest_associations()
+	
+func get_collections() -> Array:
+	assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
+	return _result_map.get_deepest_collections()
+	
+## 每处理一条数据需要调用一下
 func prepare_deal(head: Array, data: Array):
-	pass
+	if _result_map != null:
+		return
+		
+	_result_map = result_embeded
+	if _result_map == null:
+		if not result_map.is_empty():
+			_result_map = mapper_parser_ref.get_ref()._get_item(result_map)
+			assert(_result_map != null, "Not found <resultMap> of id %s" % result_map)
+			assert(_result_map is GBatisResultMap, "Not found <resultMap> of id %s" % result_map)
+			(_result_map as GBatisResultMap).prepare_deal(head, data)
+		else:
+			_result_map = GBatisResultMap.new({})
+			_result_map.type = result_type
+			
+	_result_map.auto_mapping = "false"
 	
-func deal(head: Array, data: Array):
-	pass
+func reset():
+	assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
+	# 如果有鉴别器，则返回值不稳定，需要重置
+	if _result_map.discriminator != null:
+		_result_map = null
+	

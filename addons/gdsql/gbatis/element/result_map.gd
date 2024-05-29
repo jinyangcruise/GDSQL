@@ -35,8 +35,11 @@ var mapper_parser_ref: WeakRef: set = set_mapper_parser_ref
 
 # ----------- 内部使用 ------------
 var result_embeded: Array # 内嵌的子元素
-var extra_result_embeded: Array # 由discriminator引入的额外子元素
 
+# discriminator可能导致要使用别的简单类型type
+var real_type: String
+# discriminator可能导致autoMapping改变
+var real_auto_mapping: String
 var head: Array
 var mapping_to_object: bool = false
 var object_class_name: String = ""
@@ -44,6 +47,7 @@ var primary_prop = ""
 var primary_column = ""
 var column_prop_map: Dictionary # 子元素<id>和<result>定义的关联，column => [prop]
 								# NOTICE 一个列可以给多个属性赋值。
+								# NOTICE 考虑使用该变量还是get_deepest_column_prop()
 var discriminator: GBatisDiscriminator
 
 # ----------- mapping to object -----------
@@ -60,6 +64,8 @@ func _init(conf: Dictionary) -> void:
 	type = conf.get("type", "").strip_edges()
 	_extends = conf.get("extends", "").strip_edges()
 	auto_mapping = conf.get("autoMapping", "").strip_edges()
+	real_type = type
+	real_auto_mapping = auto_mapping
 	
 func push_element(i):
 	# 只允许存在一个discriminator
@@ -91,6 +97,74 @@ func set_mapper_parser_ref(mapper_parser):
 func clean():
 	pass
 	#TODO
+	
+### 如果存在discriminator，需要返回其对应的resultMap，否则返回自己.
+### 该方法仅在<case>标签中用，别的地方勿用。
+#func get_deepest_result_map() -> GBatisResultMap:
+	#if discriminator != null:
+		#return discriminator.get_result_map()
+	#return self
+	
+## 如果存在discriminator，需要返回其对应的resultType。
+## 该方法发仅在<case>标签中用，别的地方勿用
+func get_deepest_result_type() -> String:
+	var ret = ""
+	if discriminator != null:
+		ret = discriminator.get_result_type()
+	return type if ret.is_empty() else ret
+	
+## 如果存在discriminator，需要合并返回其对应的prop_column。
+## 别的地方勿用.
+func get_deepest_auto_mapping() -> String:
+	var ret = ""
+	if discriminator != null:
+		ret = discriminator.get_auto_mapping()
+	return auto_mapping if ret.is_empty() else ret
+	
+## 如果存在discriminator，需要合并返回其对应的prop_column。
+## 别的地方勿用.
+func get_deepest_prop_column() -> Dictionary:
+	var ret = {}
+	for i in result_embeded:
+		if i is GBatisId or i is GBatisResult:
+			ret[i.property] = i.column
+		elif i is GBatisDiscriminator:
+			ret.merge(discriminator.get_prop_column())
+	return ret
+	
+func get_deepest_column_prop() -> Dictionary:
+	if discriminator == null:
+		return column_prop_map
+		
+	var info = get_deepest_prop_column()
+	var ret = {}
+	for prop in info:
+		if not ret.has(info[prop]):
+			ret[info[prop]] = []
+		ret[info[prop]].push_back(prop)
+	return ret
+	
+## 如果存在discriminator，需要合并返回其包含的association。
+## 别的地方勿用.
+func get_deepest_associations() -> Array:
+	var ret = []
+	for i in result_embeded:
+		if i is GBatisAssociation:
+			ret.push_back(i)
+		elif i is GBatisDiscriminator:
+			ret.append_array(i.get_associations())
+	return ret
+	
+## 如果存在discriminator，需要合并返回其包含的collection。
+## 别的地方勿用.
+func get_deepest_collections() -> Array:
+	var ret = []
+	for i in result_embeded:
+		if i is GBatisAssociation:
+			ret.push_back(i)
+		elif i is GBatisDiscriminator:
+			ret.append_array(i.get_collections())
+	return ret
 	
 ## 初始化，准备映射到对象。
 ## head， 表头
@@ -140,41 +214,37 @@ func prepare_mapping_to_object(p_head: Array):
 	for i in list:
 		prop_map[object_class_name][i.name] = i
 		
-## 将传入的一条数据进行映射后再返回
-func automapping_data(data: Array):
-	# 子元素对结果的影响
-	for i in result_embeded:
-		if i is GBatisId or i is GBatisResult:
-			if i is GBatisId:
-				assert(primary_prop.is_empty(), "Only one <id> can be put under <resultMap>.")
-				primary_prop = i.property
-				primary_column = i.column
-			assert(column_prop_map.find_key(i.property) == null, 
-				"Duplicate attr property %s." % i.property)
-			column_prop_map[i.column] = i.property
-			
-	# 鉴别器对class_name的影响
-	if discriminator:
+## 每处理一条数据需要调用一下。由于鉴别器discriminator可能存在，需要调用一下。
+func prepare_deal(head: Array, data: Array):
+	if discriminator != null:
 		discriminator.prepare_deal(head, data)
+		real_auto_mapping = get_deepest_auto_mapping()
 		var case_return_type = discriminator.get_selected_case_return_type()
 		if _is_class_name(case_return_type):
 			mapping_to_object = true
 			object_class_name = case_return_type
+		else:
+			real_type = case_return_type
 			
 	if object_class_name.is_empty() and _is_class_name(type):
-			mapping_to_object = true
-			object_class_name = type
-			
-				
-	#if not type.is_empty():
+		mapping_to_object = true
+		object_class_name = type
+		
+## 将传入的一条数据进行映射后再返回。
+## 由于该resultMap可能处于中间环节的处理过程，所以可以接收一个obj。
+func deal(head: Array, data: Array, obj = null):
+	if obj == null:
+		prepare_deal(head, data)
+		
+	#if not real_type.is_empty():
 		## 每条数据映射到对象
 		#if mapping_to_object:
 			#return _deal_mapping_to_object(data)
 		## 每条数据映射到数组
-		#elif type == "Array":
+		#elif real_type == "Array":
 			#return _deal_mapping_to_array(data)
 		## 每条数据映射到字典
-		#elif type == "Dictionary":
+		#elif real_type == "Dictionary":
 			#return _deal_mapping_to_dictionary(data)
 		## 每条数据映射到其他类型比如int， String 或 [int|String|...]
 		#else:
@@ -182,13 +252,17 @@ func automapping_data(data: Array):
 			
 	# 重置类名，因为discriminator可能导致每一行的类不同
 	object_class_name = ""
-	
+	real_type = type
+	if discriminator:
+		discriminator.reset()
+		
 func _automapping_obejct(data: Array, obj: Object) -> Object:
 	# 整体分为三部分：1，先给obj本身的简单字段赋值；2，然后给association定义的obj的对象字段
-	# 赋值，也就是说，obj的某个属性如果也是obj（比如sub obj），看能否把值赋值给sub obj的字段；
+	# 赋值，也就是说，obj的某个属性如果也是一个sub obj，看能否把值赋值给sub obj的字段；
 	# 3；最后给collection定义的集合赋值
 	
-	# 第一部分：先给obj本身的字段赋值
+#region 第一部分：先给obj的简单字段赋值
+	var final_column_prop_map = get_deepest_column_prop()
 	for j in columns[object_class_name].size():
 		var column = columns[object_class_name][j] as String
 		if prop_info[object_class_name].has(column) and \
@@ -200,8 +274,8 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 		var prop_is_object = []
 		
 		# 优先使用<id>和<result>来找prop
-		if column_prop_map.has(column):
-			prop = column_prop_map[column]
+		if final_column_prop_map.has(column):
+			prop = final_column_prop_map[column]
 			var p_index = -1
 			for p in prop:
 				p_index += 1
@@ -214,13 +288,18 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 					# NOTICE 带冒号的如果用户拼写错误会导致报错。而我们目前
 					# 没有什么好办法提前检测。
 					column_type.push_back(typeof(obj.get_indexed(p))) # use p not pp
-					prop_is_object.push_back(_is_prop_an_object(prop_map[object_class_name][pp])) # FIXME?
+					prop_is_object.push_back(_is_prop_an_object(prop_map[object_class_name][pp]))
 				else:
 					assert(p in obj, 
 						"Invalid set property %s of %s" % [p, object_class_name])
 					column_type.push_back(prop_map[object_class_name][p].type)
 					prop_is_object.push_back(_is_prop_an_object(prop_map[object_class_name][p]))
 					
+		# NONE - 禁用自动映射。仅对手动映射的属性进行映射。
+		if prop.is_empty() and (real_auto_mapping == "false" or \
+		mapper_parser_ref.get_ref().auto_mapping_level == "NONE"):
+			continue
+			
 		if prop.is_empty():
 			if prop_info[object_class_name].has(column):
 				prop = prop_info[object_class_name][column]["prop"]
@@ -228,12 +307,6 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 					column_type.push_back(prop_map[object_class_name][p].type)
 					prop_is_object.push_back(_is_prop_an_object(prop_map[object_class_name][p]))
 			else:
-				# 没找到的话通过column来推断，但是需要auto_mapping_level为PARTIAL或FULL
-				# 如果auto_mapping == "false"也不去推断
-				if mapper_parser_ref.get_ref().auto_mapping_level == "NONE" or \
-				auto_mapping == "false":
-					continue
-					
 				# 如果要写成属性冒号的形式，那第一部分肯定需要写成原本形式才行，
 				# 不需要判断大小写，蛇形，驼峰之类的。
 				var a_prop = ""
@@ -270,7 +343,7 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 		var prop_index = -1
 		for a_prop: String in prop:
 			prop_index += 1
-			# PARTIAL时，只填充obj的简单属性（非object的属性）
+			# PARTIAL时，只填充obj的简单属性（非object的属性，但Resouce也属于简单属性）
 			if prop_is_object[prop_index] and \
 			mapper_parser_ref.get_ref().auto_mapping_level == "PARTIAL":
 				continue
@@ -322,7 +395,13 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 					"Multiple primary keys [%s, %s] are mapped to %s." % \
 					[pk_confirm[object_class_name], j, object_class_name])
 				pk_obj[object_class_name][data[j]] = obj
-				
+#endregion
+#region 第二部分：association
+	var associations = get_deepest_associations()
+	for association: GBatisAssociation in associations:
+	for j in columns[object_class_name].size():
+		var column = columns[object_class_name][j] as String
+#endregion
 	return obj
 	
 func _automapping_dictionary(data: Array) -> Dictionary:

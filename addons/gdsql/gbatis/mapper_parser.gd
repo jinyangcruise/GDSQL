@@ -8,27 +8,9 @@ class_name GBatisMapperParser
 #@export_enum("NONE", "PARTIAL", "FULL")
 @export_enum("NONE", "PARTIAL")
 ## 全局自动映射等级。
-## NONE - disables auto-mapping. Only manually mapped properties will be set.
-## PARTIAL - will auto-map results except those that have nested result mappings 
-##           defined inside (joins).
-##           当全局自动映射级别设置为 PARTIAL 时，MyBatis 会对简单类型进行自动映射，
-##           但不会对复杂类型（如嵌套的对象，也就是association和collection）进行自动映射，
-##           除非显式地指定。
-##           例如：虽然A表也有id，Author属性也有id，但是不会把结果集中的id赋值给Auther。
-##           <select id="selectBlog" resultMap="blogResult">
-##               select
-##                 B.id,
-##                 B.title,
-##                 A.username,
-##               from Blog B left outer join Author A on B.author_id = A.id
-##               where B.id = #{id}
-##           </select>
-##           <resultMap id="blogResult" type="Blog">
-##               <association property="author" resultMap="authorResult"/>
-##           </resultMap>
-##           <resultMap id="authorResult" type="Author">
-##             <result property="username" column="author_username"/>
-##           </resultMap>
+## NONE - 禁用自动映射。仅对手动映射的属性进行映射。
+## PARTIAL -对除在内部定义了嵌套结果映射（也就是连接的属性）以外的属性进行映射。
+##          也就是对复杂属性以外的属性进行映射。复杂属性是指属性指向了一个对象（非Resource）。
 ## FULL - auto-maps everything. ❌ not support 鉴于实际情况中非常不实用，就不支持了。
 var auto_mapping_level: String = "PARTIAL"
 
@@ -76,6 +58,7 @@ func query(method_id: String, param: Dictionary):
 	assert(item, "not found this method: %s" % method_id)
 	match item.name:
 		"select":
+			# TODO FIXME do some clean
 			return _deal_select(item, param, 0).query()
 		"update":
 			return _deal_update(item, param, 0).query()
@@ -452,6 +435,7 @@ func _deal_case(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCase:
 			assert(not (result_map_id+result_type).is_empty(), 
 				"Already set resultMap or resultType in <case>.")
 			ret.push_element(_deal_element(i, param, depth+1))
+	ret.set_mapper_parser_ref(weakref(self))
 	return ret
 	
 #<!ELEMENT property EMPTY>
