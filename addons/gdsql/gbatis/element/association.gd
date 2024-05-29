@@ -12,6 +12,8 @@ class_name GBatisAssociation
 #                                     NOTICE column belongs to parent fetch.
 #javaType CDATA #IMPLIED ------------ gdscript variant type or a class name, 
 #                                     eg. int, String, SysDept, Dictionary
+#                                     如果obj中的属性property没有定义是什么类型的对象，
+#                                     则需要在此指定一下。
 #jdbcType CDATA #IMPLIED ------------ ❌ not support
 #select CDATA #IMPLIED -------------- auto fetch data by configured <select>'s 
 #                                     id when needed. If this attr is set, then 
