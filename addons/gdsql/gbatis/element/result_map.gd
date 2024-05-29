@@ -399,8 +399,8 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 #region 第二部分：association
 	var associations = get_deepest_associations()
 	for association: GBatisAssociation in associations:
-	for j in columns[object_class_name].size():
-		var column = columns[object_class_name][j] as String
+		for j in columns[object_class_name].size():
+			var column = columns[object_class_name][j] as String
 #endregion
 	return obj
 	
