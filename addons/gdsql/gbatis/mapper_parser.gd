@@ -48,29 +48,42 @@ static func _static_init() -> void:
 		if not validator.err.is_empty():
 			push_error("\n".join(validator.err))
 			
+var element_cache: Dictionary
+
+var _method_id: String
+var _param: Dictionary
+
+func _init(method_id: String, param: Dictionary) -> void:
+	_method_id = method_id
+	_param = param
+	_param[BIND] = {}
+
 ## TODO 等官方支持可变参数数量函数时，可以进行优化
 ## https://github.com/godotengine/godot/pull/82808
 ## btw: Ability to print and log script backtraces
 ## https://github.com/godotengine/godot/pull/91006
-func query(method_id: String, param: Dictionary):
-	param[BIND] = {}
-	var item = _get_item(method_id)
-	assert(item, "not found this method: %s" % method_id)
+func query():
+	var item = _get_item(_method_id)
+	assert(item, "not found this method: %s" % _method_id)
 	match item.name:
 		"select":
 			# TODO FIXME do some clean
-			return _deal_select(item, param, 0).query()
+			return _deal_select(item, 0).query()
 		"update":
-			return _deal_update(item, param, 0).query()
+			return _deal_update(item, 0).query()
 		"insert":
-			return _deal_insert(item, param, 0).query()
+			return _deal_insert(item, 0).query()
 		"replace":
-			return _deal_replace(item, param, 0).query()
+			return _deal_replace(item, 0).query()
 		"delete":
-			return _deal_delete(item, param, 0).query()
+			return _deal_delete(item, 0).query()
 		_:
 			assert(false, "method must be one of select, insert, update and delete.")
 			return null
+			
+func get_element(id: String):
+	assert(element_cache.has(id), "Not found element of id: %s." % id)
+	return element_cache[id]
 	
 func _get_item(id: String) -> GXMLItem:
 	for i in config.root_item.content:
@@ -78,40 +91,40 @@ func _get_item(id: String) -> GXMLItem:
 			return i
 	return null
 	
-func _deal_element(item:GXMLItem, param: Dictionary, depth: int):
+func _deal_element(item:GXMLItem, depth: int):
 	if not item:
 		return ""
 	match item.name:
 		"cache-ref":
-			return _deal_cache_ref(item, param, depth)
+			return _deal_cache_ref(item, depth)
 		"cache":
-			return _deal_cache(item, param, depth)
+			return _deal_cache(item, depth)
 		"parameterMap":
-			return _deal_parameter_map(item, param, depth)
+			return _deal_parameter_map(item, depth)
 		"parameter":
-			return _deal_parameter(item, param, depth)
+			return _deal_parameter(item, depth)
 		"resultMap":
-			return _deal_result_map(item, param, depth)
+			return _deal_result_map(item, depth)
 		"id":
-			return _deal_id(item, param, depth)
+			return _deal_id(item, depth)
 		"result":
-			return _deal_result(item, param, depth)
+			return _deal_result(item, depth)
 		"idArg":
-			return _deal_id_arg(item, param, depth)
+			return _deal_id_arg(item, depth)
 		"arg":
-			return _deal_arg(item, param, depth)
+			return _deal_arg(item, depth)
 		"collection":
-			return _deal_collection(item, param, depth)
+			return _deal_collection(item, depth)
 		"association":
-			return _deal_association(item, param, depth)
+			return _deal_association(item, depth)
 		"discriminator":
-			return _deal_discriminator(item, param, depth)
+			return _deal_discriminator(item, depth)
 		"case":
-			return _deal_case(item, param, depth)
+			return _deal_case(item, depth)
 		"property":
-			return _deal_property(item, param, depth)
+			return _deal_property(item, depth)
 		"typeAlias":
-			return _deal_type_alias(item, param, depth)
+			return _deal_type_alias(item, depth)
 		"select":
 			#return _deal_select(item, null)
 			pass
@@ -122,7 +135,7 @@ func _deal_element(item:GXMLItem, param: Dictionary, depth: int):
 			#return _deal_replace(item, null)
 			pass
 		"selectKey":
-			return _deal_select_key(item, param, depth)
+			return _deal_select_key(item, depth)
 		"update":
 			#return _deal_update(item, null)
 			pass
@@ -130,27 +143,27 @@ func _deal_element(item:GXMLItem, param: Dictionary, depth: int):
 			#return _deal_delete(item, null)
 			pass
 		"include":
-			return _deal_include(item, param, depth)
+			return _deal_include(item, depth)
 		"bind":
-			return _deal_bind(item, param, depth)
+			return _deal_bind(item, depth)
 		"sql":
-			return _deal_sql(item, param, depth)
+			return _deal_sql(item, depth)
 		"trim":
-			return _deal_trim(item, param, depth)
+			return _deal_trim(item, depth)
 		"where":
-			return _deal_where(item, param, depth)
+			return _deal_where(item, depth)
 		"set":
-			return _deal_set(item, param, depth)
+			return _deal_set(item, depth)
 		"foreach":
-			return _deal_foreach(item, param, depth)
+			return _deal_foreach(item, depth)
 		"choose":
-			return _deal_choose(item, param, depth)
+			return _deal_choose(item, depth)
 		"when":
-			return _deal_when(item, param, depth)
+			return _deal_when(item, depth)
 		"otherwise":
-			return _deal_otherwise(item, param, depth)
+			return _deal_otherwise(item, depth)
 		"if":
-			return _deal_if(item, param, depth)
+			return _deal_if(item, depth)
 		_:
 			return ""
 			
@@ -159,7 +172,7 @@ func _deal_element(item:GXMLItem, param: Dictionary, depth: int):
 #namespace CDATA #REQUIRED
 #> ❌ not support
 @warning_ignore("unused_parameter")
-func _deal_cache_ref(item:GXMLItem, param: Dictionary, depth: int):
+func _deal_cache_ref(item:GXMLItem, depth: int):
 	return ""
 	
 #<!ELEMENT cache (property*)>
@@ -182,7 +195,7 @@ func _deal_cache_ref(item:GXMLItem, param: Dictionary, depth: int):
 #blocking CDATA #IMPLIED --------- ❌ not support
 #>
 @warning_ignore("unused_parameter")
-func _deal_cache(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCache:
+func _deal_cache(item:GXMLItem, depth: int) -> GBatisCache:
 	return GBatisCache.new(item.attrs)
 	
 #<!ELEMENT parameterMap (parameter+)?>
@@ -192,7 +205,7 @@ func _deal_cache(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCache:
 #>
 ## @deprecated ❌ not support
 @warning_ignore("unused_parameter")
-func _deal_parameter_map(item:GXMLItem, param: Dictionary, depth: int):
+func _deal_parameter_map(item:GXMLItem, depth: int):
 	return ""
 	
 #<!ELEMENT parameter EMPTY>
@@ -207,7 +220,7 @@ func _deal_parameter_map(item:GXMLItem, param: Dictionary, depth: int):
 #>
 ## @deprecated ❌ not support
 @warning_ignore("unused_parameter")
-func _deal_parameter(item:GXMLItem, param: Dictionary, depth: int):
+func _deal_parameter(item:GXMLItem, depth: int):
 	return ""
 	
 #<!ELEMENT resultMap (constructor?,id*,result*,association*,collection*, discriminator?)>
@@ -233,14 +246,16 @@ func _deal_parameter(item:GXMLItem, param: Dictionary, depth: int):
 #                                     false: do not automap columns to 
 #                                            properties which are not configured.
 #>
-func _deal_result_map(item:GXMLItem, param: Dictionary, depth: int) -> GBatisResultMap:
+func _deal_result_map(item:GXMLItem, depth: int) -> GBatisResultMap:
 	var ret = GBatisResultMap.new(item.attrs)
 	for i in item.content:
 		if i is GXMLItem:
 			assert(["constructor", "id", "result", "association", "collection", 
 			"discriminator"].has(i.name), "Invalid element %s in resultMap." % i.name)
-			ret.push_element(_deal_element(i, param, depth+1))
+			ret.push_element(_deal_element(i, depth+1))
 	ret.set_mapper_parser_ref(weakref(self))
+	assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
+	element_cache[ret.id] = ret
 	return ret
 	
 #<!ELEMENT id EMPTY>
@@ -253,7 +268,7 @@ func _deal_result_map(item:GXMLItem, param: Dictionary, depth: int) -> GBatisRes
 #typeHandler CDATA #IMPLIED ------ ❌ not support
 #>
 @warning_ignore("unused_parameter")
-func _deal_id(item:GXMLItem, param: Dictionary, depth: int) -> GBatisId:
+func _deal_id(item:GXMLItem, depth: int) -> GBatisId:
 	return GBatisId.new(item.attrs)
 	
 #<!ELEMENT result EMPTY>
@@ -266,7 +281,7 @@ func _deal_id(item:GXMLItem, param: Dictionary, depth: int) -> GBatisId:
 #typeHandler CDATA #IMPLIED ------ ❌ not support
 #>
 @warning_ignore("unused_parameter")
-func _deal_result(item:GXMLItem, param: Dictionary, depth: int) -> GBatisResult:
+func _deal_result(item:GXMLItem, depth: int) -> GBatisResult:
 	return GBatisResult.new(item.attrs)
 	
 #<!ELEMENT idArg EMPTY>
@@ -282,7 +297,7 @@ func _deal_result(item:GXMLItem, param: Dictionary, depth: int) -> GBatisResult:
 #>  
 ## @deprecated ❌ not support
 @warning_ignore("unused_parameter")
-func _deal_id_arg(item:GXMLItem, param: Dictionary, depth: int):
+func _deal_id_arg(item:GXMLItem, depth: int):
 	return ""
 	
 #<!ELEMENT arg EMPTY>
@@ -298,7 +313,7 @@ func _deal_id_arg(item:GXMLItem, param: Dictionary, depth: int):
 #> 
 ## @deprecated ❌ not support
 @warning_ignore("unused_parameter")
-func _deal_arg(item:GXMLItem, param: Dictionary, depth: int):
+func _deal_arg(item:GXMLItem, depth: int):
 	var ret = ""
 	return ret
 	
@@ -322,13 +337,13 @@ func _deal_arg(item:GXMLItem, param: Dictionary, depth: int):
 #                                        Object. So we couldn't find a proper
 #                                        way to achieve this feature.
 #>
-func _deal_collection(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCollection:
+func _deal_collection(item:GXMLItem, depth: int) -> GBatisCollection:
 	var ret = GBatisCollection.new(item.attrs)
 	for i in item.content:
 		if i is GXMLItem:
 			assert(["constructor", "id", "result", "association", "collection", 
 			"discriminator"].has(i.name), "Invalid element %s in collection." % i.name)
-			ret.push_element(_deal_element(i, param, depth+1))
+			ret.push_element(_deal_element(i, depth+1))
 	return ret
 	
 #<!ELEMENT association (constructor?,id*,result*,association*,collection*, discriminator?)>
@@ -380,13 +395,14 @@ func _deal_collection(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCol
 #                                     eager: fetch data immediately.
 #>
 ## 一对一关联
-func _deal_association(item:GXMLItem, param: Dictionary, depth: int) -> GBatisAssociation:
+func _deal_association(item:GXMLItem, depth: int) -> GBatisAssociation:
 	var ret = GBatisAssociation.new(item.attrs)
 	for i in item.content:
 		if i is GXMLItem:
 			assert(["constructor", "id", "result", "association", "collection", 
 			"discriminator"].has(i.name), "Invalid element %s in association." % i.name)
-			ret.push_element(_deal_element(i, param, depth+1))
+			ret.push_element(_deal_element(i, depth+1))
+	ret.set_mapper_parser_ref(weakref(self))
 	return ret
 	
 #<!ELEMENT discriminator (case+)>
@@ -397,13 +413,13 @@ func _deal_association(item:GXMLItem, param: Dictionary, depth: int) -> GBatisAs
 #jdbcType CDATA #IMPLIED -------- ❌ not support
 #typeHandler CDATA #IMPLIED ----- ❌ not support
 #> 
-func _deal_discriminator(item:GXMLItem, param: Dictionary, depth: int) -> GBatisDiscriminator:
+func _deal_discriminator(item:GXMLItem, depth: int) -> GBatisDiscriminator:
 	var ret = GBatisDiscriminator.new(item.attrs)
 	var case_values = []
 	for i in item.content:
 		if i is GXMLItem:
 			assert(i.name == "case", "Invalid element %s in discriminator." % i.name)
-			var case_ret = _deal_case(i, param, depth+1)
+			var case_ret = _deal_case(i, depth+1)
 			assert(not case_values.has(case_ret.value), 
 				"Duplicate value of child element <case>.")
 			ret.push_element(case_ret)
@@ -415,13 +431,13 @@ func _deal_discriminator(item:GXMLItem, param: Dictionary, depth: int) -> GBatis
 #resultMap CDATA #IMPLIED
 #resultType CDATA #IMPLIED
 #>
-func _deal_case(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCase:
+func _deal_case(item:GXMLItem, depth: int) -> GBatisCase:
 	var result_map_id = item.attrs.get("resultMap", "").strip_edges() as String
 	var result_type = item.attrs.get("resultType", "").strip_edges() as String
 	assert(result_map_id.is_empty() or result_type.is_empty(), 
 		"In <case>, cannot set resultMap and resultType at the same time.")
 		
-	var value = _get_value(item.attrs.get("value").strip_edges(), param, depth)
+	var value = _get_value(item.attrs.get("value").strip_edges(), depth)
 	var conf = {
 		"value": value,
 		"id": result_map_id,
@@ -434,7 +450,7 @@ func _deal_case(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCase:
 				"discriminator"].has(i.name), "Invalid element %s in case." % i.name)
 			assert(not (result_map_id+result_type).is_empty(), 
 				"Already set resultMap or resultType in <case>.")
-			ret.push_element(_deal_element(i, param, depth+1))
+			ret.push_element(_deal_element(i, depth+1))
 	ret.set_mapper_parser_ref(weakref(self))
 	return ret
 	
@@ -445,7 +461,7 @@ func _deal_case(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCase:
 #> 
 ## @deprecated ❌ not support
 @warning_ignore("unused_parameter")
-func _deal_property(item:GXMLItem, param: Dictionary, depth: int):
+func _deal_property(item:GXMLItem, depth: int):
 	return ""
 	
 #<!ELEMENT typeAlias EMPTY>
@@ -455,7 +471,7 @@ func _deal_property(item:GXMLItem, param: Dictionary, depth: int):
 #>
 ## @deprecated ❌ not support
 @warning_ignore("unused_parameter")
-func _deal_type_alias(item:GXMLItem, param: Dictionary, depth: int):
+func _deal_type_alias(item:GXMLItem, depth: int):
 	return ""
 	
 #<!ELEMENT select (#PCDATA | include | trim | where | set | foreach | choose 
@@ -480,7 +496,7 @@ func _deal_type_alias(item:GXMLItem, param: Dictionary, depth: int):
 #                                        will be loaded from. 
 #                                        eg. resultSets="blogs,authors"
 #>
-func _deal_select(item:GXMLItem, param: Dictionary, depth: int) -> GBatisSelect:
+func _deal_select(item:GXMLItem, depth: int) -> GBatisSelect:
 	var sql = ""
 	var binded_param = []
 	for i in item.content:
@@ -488,16 +504,19 @@ func _deal_select(item:GXMLItem, param: Dictionary, depth: int) -> GBatisSelect:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 				"if", "bind"].has(i.name), "Invalid element %s in select." % i.name)
 			_record_binded_param(i, binded_param)
-			sql = _combine(sql, _deal_element(i, param, depth+1))
+			sql = _combine(sql, _deal_element(i, depth+1))
 		else:
-			sql = _combine_pcdata(sql, i, param, depth+1)
-	_clear_binded_param(depth+1, binded_param, param)
+			sql = _combine_pcdata(sql, i, depth+1)
+	_clear_binded_param(depth+1, binded_param)
 	
 	var ret = GBatisSelect.new(item.attrs)
 	ret.set_sql(sql)
 	ret.set_auto_mapping_level(auto_mapping_level)
 	ret.set_method_return_info(method_return_info)
 	ret.set_return_type_undefined_behavior(return_type_undefined_behavior)
+	ret.set_mapper_parser_ref(weakref(self))
+	assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
+	element_cache[ret.id] = ret
 	return ret
 	
 #<!ELEMENT insert (#PCDATA | selectKey | include | trim | where | set | foreach 
@@ -515,7 +534,7 @@ func _deal_select(item:GXMLItem, param: Dictionary, depth: int) -> GBatisSelect:
 #databaseId CDATA #IMPLIED
 #lang CDATA #IMPLIED -------------------------------- ❌ not support
 #> 
-func _deal_insert(item:GXMLItem, param: Dictionary, depth: int) -> GBatisInsert:
+func _deal_insert(item:GXMLItem, depth: int) -> GBatisInsert:
 	var sql = ""
 	var binded_param = []
 	for i in item.content:
@@ -523,14 +542,16 @@ func _deal_insert(item:GXMLItem, param: Dictionary, depth: int) -> GBatisInsert:
 			assert(["selectKey", "include", "trim", "where", "set", "foreach", 
 			"choose", "if", "bind"].has(i.name), "Invalid element %s in insert." % i.name)
 			_record_binded_param(i, binded_param)
-			sql = _combine(sql, _deal_element(i, param, depth+1))
+			sql = _combine(sql, _deal_element(i, depth+1))
 		else:
-			sql = _combine_pcdata(sql, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
+			sql = _combine_pcdata(sql, i, depth)
+	_clear_binded_param(depth+1, binded_param)
 	
 	var ret = GBatisInsert.new(item.attrs)
 	ret.set_sql(sql)
 	ret.set_method_return_info(method_return_info)
+	assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
+	element_cache[ret.id] = ret
 	return ret
 	
 # NOTICE mybatis原本不支持replace.
@@ -549,7 +570,7 @@ func _deal_insert(item:GXMLItem, param: Dictionary, depth: int) -> GBatisInsert:
 #databaseId CDATA #IMPLIED
 #lang CDATA #IMPLIED -------------------------------- ❌ not support
 #>
-func _deal_replace(item:GXMLItem, param: Dictionary, depth: int) -> GBatisReplace:
+func _deal_replace(item:GXMLItem, depth: int) -> GBatisReplace:
 	var sql = ""
 	var binded_param = []
 	for i in item.content:
@@ -557,14 +578,16 @@ func _deal_replace(item:GXMLItem, param: Dictionary, depth: int) -> GBatisReplac
 			assert(["selectKey", "include", "trim", "where", "set", "foreach", 
 			"choose", "if", "bind"].has(i.name), "Invalid element %s in replace." % i.name)
 			_record_binded_param(i, binded_param)
-			sql = _combine(sql, _deal_element(i, param, depth+1))
+			sql = _combine(sql, _deal_element(i, depth+1))
 		else:
-			sql = _combine_pcdata(sql, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
+			sql = _combine_pcdata(sql, i, depth)
+	_clear_binded_param(depth+1, binded_param)
 	
 	var ret = GBatisReplace.new(item.attrs)
 	ret.set_sql(sql)
 	ret.set_method_return_info(method_return_info)
+	assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
+	element_cache[ret.id] = ret
 	return ret
 	
 #<!ELEMENT selectKey (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
@@ -577,7 +600,7 @@ func _deal_replace(item:GXMLItem, param: Dictionary, depth: int) -> GBatisReplac
 #databaseId CDATA #IMPLIED
 #>  ❌ not support. You can set useGeneratedKeys="true" in <insert> or <replace>
 @warning_ignore("unused_parameter")
-func _deal_select_key(item:GXMLItem, param: Dictionary, depth: int):
+func _deal_select_key(item:GXMLItem, depth: int):
 	return ""
 	
 #<!ELEMENT update 
@@ -595,7 +618,7 @@ func _deal_select_key(item:GXMLItem, param: Dictionary, depth: int):
 #databaseId CDATA #IMPLIED
 #lang CDATA #IMPLIED -------------------------------- ❌ not support
 #>
-func _deal_update(item:GXMLItem, param: Dictionary, depth: int) -> GBatisUpdate:
+func _deal_update(item:GXMLItem, depth: int) -> GBatisUpdate:
 	var sql = ""
 	var binded_param = []
 	for i in item.content:
@@ -604,14 +627,16 @@ func _deal_update(item:GXMLItem, param: Dictionary, depth: int) -> GBatisUpdate:
 			"choose", "if", "bind"].has(i.name), 
 			"Invalid element %s in the current context." % i.name)
 			_record_binded_param(i, binded_param)
-			sql = _combine(sql, _deal_element(i, param, depth+1))
+			sql = _combine(sql, _deal_element(i, depth+1))
 		else:
-			sql = _combine_pcdata(sql, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
+			sql = _combine_pcdata(sql, i, depth)
+	_clear_binded_param(depth+1, binded_param)
 	
 	var ret = GBatisUpdate.new(item.attrs)
 	ret.set_sql(sql)
 	ret.set_method_return_info(method_return_info)
+	assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
+	element_cache[ret.id] = ret
 	return ret
 	
 #<!ELEMENT delete (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
@@ -625,7 +650,7 @@ func _deal_update(item:GXMLItem, param: Dictionary, depth: int) -> GBatisUpdate:
 #databaseId CDATA #IMPLIED
 #lang CDATA #IMPLIED
 #>
-func _deal_delete(item:GXMLItem, param: Dictionary, depth: int) -> GBatisDelete:
+func _deal_delete(item:GXMLItem, depth: int) -> GBatisDelete:
 	var sql = ""
 	var binded_param = []
 	for i in item.content:
@@ -633,23 +658,25 @@ func _deal_delete(item:GXMLItem, param: Dictionary, depth: int) -> GBatisDelete:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 			"if", "bind"].has(i.name), "Invalid element %s in delete." % i.name)
 			_record_binded_param(i, binded_param)
-			sql = _combine(sql, _deal_element(i, param, depth+1))
+			sql = _combine(sql, _deal_element(i, depth+1))
 		else:
-			sql = _combine_pcdata(sql, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
+			sql = _combine_pcdata(sql, i, depth)
+	_clear_binded_param(depth+1, binded_param)
 	
 	var ret = GBatisDelete.new(item.attrs)
 	ret.set_sql(sql)
 	ret.set_method_return_info(method_return_info)
+	assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
+	element_cache[ret.id] = ret
 	return ret
 	
 #<!ELEMENT include (property+)?>
 #<!ATTLIST include
 #refid CDATA #REQUIRED
 #>
-func _deal_include(item:GXMLItem, param: Dictionary, depth: int) -> String:
+func _deal_include(item:GXMLItem, depth: int) -> String:
 	var ref_item = _get_item(item.attrs.get("refid").strip_edges())
-	var ret = _deal_element(ref_item, param, depth+1)
+	var ret = _deal_element(ref_item, depth+1)
 	assert(typeof(ret) == TYPE_STRING or (typeof(ret) == TYPE_ARRAY and ret.size() == 2), 
 		"Error occur.")
 	if ret is Array:
@@ -661,18 +688,18 @@ func _deal_include(item:GXMLItem, param: Dictionary, depth: int) -> String:
  #name CDATA #REQUIRED
  #value CDATA #REQUIRED
 #>
-func _deal_bind(item:GXMLItem, param: Dictionary, depth: int) -> String:
+func _deal_bind(item:GXMLItem, depth: int) -> String:
 	var a_name = item.attrs.get("name").strip_edges() as String
-	assert(not param.has(a_name), 
+	assert(not _param.has(a_name), 
 		"Please change your bind param name %s which is occupied by method's param." % a_name)
-	for d in param[BIND]:
-		assert(not param[BIND][d].has(a_name), "Already bind this parameter: %s." % a_name)
+	for d in _param[BIND]:
+		assert(not _param[BIND][d].has(a_name), "Already bind this parameter: %s." % a_name)
 		
-	if not param[BIND].has(depth):
-		param[BIND][depth] = {}
+	if not _param[BIND].has(depth):
+		_param[BIND][depth] = {}
 		
-	var a_value = _get_value(item.attrs.get("value").strip_edges(), param, depth)
-	param[BIND][depth][a_name] = a_value
+	var a_value = _get_value(item.attrs.get("value").strip_edges(), depth)
+	_param[BIND][depth][a_name] = a_value
 	return ""
 	
 #<!ELEMENT sql (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
@@ -681,7 +708,7 @@ func _deal_bind(item:GXMLItem, param: Dictionary, depth: int) -> String:
 #lang CDATA #IMPLIED -----------X
 #databaseId CDATA #IMPLIED ----------X
 #>
-func _deal_sql(item:GXMLItem, param: Dictionary, depth: int) -> String:
+func _deal_sql(item:GXMLItem, depth: int) -> String:
 	var ret = ""
 	var binded_param = []
 	for i in item.content:
@@ -689,10 +716,12 @@ func _deal_sql(item:GXMLItem, param: Dictionary, depth: int) -> String:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 			"if", "bind"].has(i.name), "Invalid element %s in sql." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = _combine(ret, _deal_element(i, param, depth+1))
+			ret = _combine(ret, _deal_element(i, depth+1))
 		else:
-			ret = _combine_pcdata(ret, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
+			ret = _combine_pcdata(ret, i, depth)
+	_clear_binded_param(depth+1, binded_param)
+	assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
+	element_cache[ret.id] = ret
 	return ret
 	
 #<!ELEMENT trim (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
@@ -702,7 +731,7 @@ func _deal_sql(item:GXMLItem, param: Dictionary, depth: int) -> String:
 #suffix CDATA #IMPLIED 表示去掉（覆盖）trim包裹的SQL的指定首部内容
 #suffixOverrides CDATA #IMPLIED 表示去掉（覆盖）trim包裹的SQL的指定尾部内容
 #>
-func _deal_trim(item:GXMLItem, param: Dictionary, depth: int) -> String:
+func _deal_trim(item:GXMLItem, depth: int) -> String:
 	var ret = ""
 	var binded_param = []
 	for i in item.content:
@@ -710,9 +739,9 @@ func _deal_trim(item:GXMLItem, param: Dictionary, depth: int) -> String:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 			"if", "bind"].has(i.name), "Invalid element %s in trim." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = _combine(ret, _deal_element(i, param, depth+1))
+			ret = _combine(ret, _deal_element(i, depth+1))
 		else:
-			ret = _combine_pcdata(ret, i, param, depth)
+			ret = _combine_pcdata(ret, i, depth)
 			
 	var prefix = item.attrs.get("prefix", "") as String
 	var prefixOverrides = item.attrs.get("prefixOverrides", "") as String
@@ -727,11 +756,11 @@ func _deal_trim(item:GXMLItem, param: Dictionary, depth: int) -> String:
 		ret += suffix
 	if not suffixOverrides.is_empty() and ret.ends_with(suffixOverrides):
 		ret = ret.substr(0, ret.length() - suffixOverrides.length())
-	_clear_binded_param(depth+1, binded_param, param)
+	_clear_binded_param(depth+1, binded_param)
 	return ret
 	
 #<!ELEMENT where (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
-func _deal_where(item:GXMLItem, param: Dictionary, depth: int) -> String:
+func _deal_where(item:GXMLItem, depth: int) -> String:
 	var ret = ""
 	var binded_param = []
 	for i in item.content:
@@ -739,19 +768,19 @@ func _deal_where(item:GXMLItem, param: Dictionary, depth: int) -> String:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 			"if", "bind"].has(i.name), "Invalid element %s in where." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = _combine(ret, _deal_element(i, param, depth+1))
+			ret = _combine(ret, _deal_element(i, depth+1))
 		else:
-			ret = _combine_pcdata(ret, i, param, depth)
+			ret = _combine_pcdata(ret, i, depth)
 	if ret.countn("and", 0, 3) > 0:
 		ret = ret.substr(3)
 	elif ret.countn("or", 0, 2) > 0:
 		ret = ret.substr(2)
 	ret = _combine("where", ret)
-	_clear_binded_param(depth+1, binded_param, param)
+	_clear_binded_param(depth+1, binded_param)
 	return ret
 	
 #<!ELEMENT set (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
-func _deal_set(item:GXMLItem, param: Dictionary, depth: int) -> String:
+func _deal_set(item:GXMLItem, depth: int) -> String:
 	var ret = ""
 	var binded_param = []
 	for i in item.content:
@@ -759,13 +788,13 @@ func _deal_set(item:GXMLItem, param: Dictionary, depth: int) -> String:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 			"if", "bind"].has(i.name), "Invalid element %s in set." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = _combine(ret, _deal_element(i, param, depth+1))
+			ret = _combine(ret, _deal_element(i, depth+1))
 		else:
-			ret = _combine_pcdata(ret, i, param, depth)
+			ret = _combine_pcdata(ret, i, depth)
 	if ret.ends_with(","):
 		ret = ret.substr(0, ret.length()-1)
 	ret = _combine("set", ret)
-	_clear_binded_param(depth+1, binded_param, param)
+	_clear_binded_param(depth+1, binded_param)
 	return ret
 	
 #<!ELEMENT foreach (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
@@ -777,10 +806,10 @@ func _deal_set(item:GXMLItem, param: Dictionary, depth: int) -> String:
 #close CDATA #IMPLIED 设置循环体的结束内容
 #separator CDATA #IMPLIED 设置每一次循环之间的分隔符
 #>
-func _deal_foreach(item:GXMLItem, param: Dictionary, depth: int) -> String:
+func _deal_foreach(item:GXMLItem, depth: int) -> String:
 	var ret = ""
 	var binded_param = []
-	var collection = _get_value(item.attrs.get("collection").strip_edges(), param, depth)
+	var collection = _get_value(item.attrs.get("collection").strip_edges(), depth)
 	assert(collection != null, "Not found collection: %s" % item.attrs.get("collection"))
 	assert(typeof(collection) == TYPE_ARRAY or typeof(collection) == TYPE_DICTIONARY, 
 		"collection must be an Array or a Dictionary.")
@@ -797,35 +826,35 @@ func _deal_foreach(item:GXMLItem, param: Dictionary, depth: int) -> String:
 		for e in collection:
 			index += 1
 			# 模拟bind的行为，相当于临时bind
-			if not param[BIND].has(depth+1):
-				param[BIND][depth+1] = {}
+			if not _param[BIND].has(depth+1):
+				_param[BIND][depth+1] = {}
 			if not e_item.is_empty():
-				param[BIND][depth+1][e_item] = e if is_array else collection[e]
+				_param[BIND][depth+1][e_item] = e if is_array else collection[e]
 			if not e_index.is_empty():
-				param[BIND][depth+1][e_index] = index if is_array else e
+				_param[BIND][depth+1][e_index] = index if is_array else e
 				
 			if i is GXMLItem:
 				assert(["include", "trim", "where", "set", "foreach", "choose", 
 				"if", "bind"].has(i.name), "Invalid element %s in foreach." % i.name)
 				_record_binded_param(i, binded_param)
-				ret = _combine(ret, _deal_element(i, param, depth+1))
+				ret = _combine(ret, _deal_element(i, depth+1))
 			else:
-				ret = _combine_pcdata(ret, i, param, depth)
+				ret = _combine_pcdata(ret, i, depth)
 				
 			# 去掉临时的bind
 			if not e_item.is_empty():
-				param[BIND][depth+1].erase(e_item)
+				_param[BIND][depth+1].erase(e_item)
 			if not e_index.is_empty():
-				param[BIND][depth+1].erase(e_index)
+				_param[BIND][depth+1].erase(e_index)
 				
 			if index < collection.size() - 1:
 				ret = _combine(ret, e_separator)
 		ret = _combine(ret, e_close)
-	_clear_binded_param(depth+1, binded_param, param)
+	_clear_binded_param(depth+1, binded_param)
 	return ret
 	
 #<!ELEMENT choose (when* , otherwise?)>
-func _deal_choose(item:GXMLItem, param: Dictionary, depth: int) -> String:
+func _deal_choose(item:GXMLItem, depth: int) -> String:
 	var ret = ""
 	for i in item.content:
 		# 只能从里边取一个
@@ -836,7 +865,7 @@ func _deal_choose(item:GXMLItem, param: Dictionary, depth: int) -> String:
 			"Otherwise element should be the last one element and can at most exist once.")
 			if i.name == "otherwise":
 				otherwise_flag = true
-			var info = _deal_element(i, param, depth+1)
+			var info = _deal_element(i, depth+1)
 			if info and info[0]:
 				ret = _combine(ret, info[1])
 				break
@@ -846,8 +875,8 @@ func _deal_choose(item:GXMLItem, param: Dictionary, depth: int) -> String:
 #<!ATTLIST when
 #test CDATA #REQUIRED
 #>
-func _deal_when(item:GXMLItem, param: Dictionary, depth: int) -> Array:
-	var test = _get_value(item.attrs.get("test"), param, depth)
+func _deal_when(item:GXMLItem, depth: int) -> Array:
+	var test = _get_value(item.attrs.get("test"), depth)
 	if not test:
 		return [false, ""]
 		
@@ -858,14 +887,14 @@ func _deal_when(item:GXMLItem, param: Dictionary, depth: int) -> Array:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 			"if", "bind"].has(i.name), "Invalid element %s in when." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = _combine(ret, _deal_element(i, param, depth+1))
+			ret = _combine(ret, _deal_element(i, depth+1))
 		else:
-			ret = _combine_pcdata(ret, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
+			ret = _combine_pcdata(ret, i, depth)
+	_clear_binded_param(depth+1, binded_param)
 	return [true, ret]
 	
 #<!ELEMENT otherwise (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
-func _deal_otherwise(item:GXMLItem, param: Dictionary, depth: int) -> Array:
+func _deal_otherwise(item:GXMLItem, depth: int) -> Array:
 	var ret = ""
 	var binded_param = []
 	for i in item.content:
@@ -873,18 +902,18 @@ func _deal_otherwise(item:GXMLItem, param: Dictionary, depth: int) -> Array:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 			"if", "bind"].has(i.name), "Invalid element %s in otherwise." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = _combine(ret, _deal_element(i, param, depth+1))
+			ret = _combine(ret, _deal_element(i, depth+1))
 		else:
-			ret = _combine_pcdata(ret, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
+			ret = _combine_pcdata(ret, i, depth)
+	_clear_binded_param(depth+1, binded_param)
 	return ret
 	
 #<!ELEMENT if (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
 #<!ATTLIST if
 #test CDATA #REQUIRED
 #>
-func _deal_if(item:GXMLItem, param: Dictionary, depth: int) -> String:
-	var test = _get_value(item.attrs.get("test"), param, depth)
+func _deal_if(item:GXMLItem, depth: int) -> String:
+	var test = _get_value(item.attrs.get("test"), depth)
 	if not test:
 		return ""
 		
@@ -895,10 +924,10 @@ func _deal_if(item:GXMLItem, param: Dictionary, depth: int) -> String:
 			assert(["include", "trim", "where", "set", "foreach", "choose", 
 			"if", "bind"].has(i.name), "Invalid element %s in if." % i.name)
 			_record_binded_param(i, binded_param)
-			ret = _combine(ret, _deal_element(i, param, depth+1))
+			ret = _combine(ret, _deal_element(i, depth+1))
 		else:
-			ret = _combine_pcdata(ret, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
+			ret = _combine_pcdata(ret, i, depth)
+	_clear_binded_param(depth+1, binded_param)
 	return ret
 	
 func _combine(s1: String, s2: String) -> String:
@@ -910,18 +939,18 @@ func _combine(s1: String, s2: String) -> String:
 	return "%s %s" % [s1, s2]
 	
 ## 拼接，但是会将s2中的占位符替换成真实数据. depth表示s2的深度
-func _combine_pcdata(s1: String, s2: String, param: Dictionary, depth: int) -> String:
+func _combine_pcdata(s1: String, s2: String, depth: int) -> String:
 	s2 = _cast_null(s2).strip_edges()
 	if s2.is_empty():
 		return s1
-	s2 = _replace_param(s2, param, depth)
+	s2 = _replace_param(s2, depth)
 	return "%s %s" % [s1, s2]
 	
 func _cast_null(value) -> String:
 	return "" if typeof(value) == TYPE_NIL else value
 	
 ## 替换占位符
-func _replace_param(s: String, param: Dictionary, depth: int) -> String:
+func _replace_param(s: String, depth: int) -> String:
 	# 支持的格式： #{ roleId } ${   rrrr} #   { user . roleId } ${list[0} ${bea.abc[ 33 ]}  ${map[a]}
 	# 一些例子：
 	#aaa 1:[#   { ]	2:[user.roleId ]	3:[]	4:[]
@@ -998,16 +1027,16 @@ func _replace_param(s: String, param: Dictionary, depth: int) -> String:
 		# 上面的实现方法比较复杂，有更简单的，如下
 		var names = []
 		var values = []
-		for i in param:
+		for i in _param:
 			if i == BIND:
-				for d in param[BIND]:
+				for d in _param[BIND]:
 					if depth <= d:
-						for n in param[BIND][d]:
+						for n in _param[BIND][d]:
 							names.push_back(n)
-							values.push_back(param[BIND][d][n])
+							values.push_back(_param[BIND][d][n])
 			else:
 				names.push_back(i)
-				values.push_back(param[i])
+				values.push_back(_param[i])
 		var value = GDSQLUtils.evaluate_command(null, prop, names, values)
 		
 		if k.begins_with("$"):
@@ -1020,24 +1049,24 @@ func _record_binded_param(item: GXMLItem, record_arr: Array):
 	if item.name == "bind":
 		record_arr.push_back(item.attrs.get("name").strip_edges())
 		
-func _clear_binded_param(depth: int, record_arr: Array, param: Dictionary):
-	if param[BIND].has(depth):
+func _clear_binded_param(depth: int, record_arr: Array):
+	if _param[BIND].has(depth):
 		for i in record_arr:
-			param[BIND][depth].erase(i)
+			_param[BIND][depth].erase(i)
 	record_arr.clear()
 	
-func _get_value(value_string: String, param: Dictionary, depth: int):
+func _get_value(value_string: String, depth: int):
 	var names = []
 	var values = []
-	for i in param:
+	for i in _param:
 		if i == BIND:
-			for d in param[BIND]:
+			for d in _param[BIND]:
 				if depth <= d:
-					for n in param[BIND][d]:
+					for n in _param[BIND][d]:
 						names.push_back(n)
-						values.push_back(param[BIND][d][n])
+						values.push_back(_param[BIND][d][n])
 		else:
 			names.push_back(i)
-			values.push_back(param[i])
+			values.push_back(_param[i])
 	return GDSQLUtils.evaluate_command(null, value_string, names, values)
 	
