@@ -6,9 +6,8 @@ class_name GBatisAssociation
 #===============================================================================
 #基本属性：
 #property CDATA #REQUIRED ----------- property name
-#javaType CDATA #IMPLIED ------------ gdscript variant type or a class name, 
-#                                     eg. int, String, SysDept, Dictionary
-#                                     如果obj中的属性property没有定义是什么类型的对象，
+#javaType CDATA #IMPLIED ------------ ClassName
+#                                     如果obj中的property属性没有定义是什么类型的对象，
 #                                     则需要在此指定一下。
 #jdbcType CDATA #IMPLIED ------------ ❌ not support
 #typeHandler CDATA #IMPLIED --------- ❌ not support
@@ -35,7 +34,12 @@ class_name GBatisAssociation
 #===============================================================================
 #关联的嵌套结果映射：
 #resultMap CDATA #IMPLIED ----------- configured result map.
-#columnPrefix CDATA #IMPLIED -------- ❌ not support
+#columnPrefix CDATA #IMPLIED -------- 当连接多个表时，你可能会不得不使用列别名来避免在 
+#                                     ResultSet 中产生重复的列名。指定 columnPrefix 
+#                                     列名前缀允许你将带有这些前缀的列映射到一个外部的
+#                                     结果映射中。这在结果集中拥有多个相同类型的子对象时
+#                                     很有用，可以共享同一个resultMap，但是又用前缀做了
+#                                     区分。
 #notNullColumn CDATA #IMPLIED ------- ❌ not support
 #autoMapping (unset|true|false) #IMPLIED -- 是否继承全局自动映射等级。
 #                                     Regardless of the auto-mapping level 
@@ -63,23 +67,68 @@ class_name GBatisAssociation
 
 var property = ""
 var column = ""
-var javaType = ""
+var java_type = ""
 var select = ""
-var resultMap = ""
-var foreignColumn = ""
-var autoMapping = ""
+var result_map = ""
+var column_prefix = ""
+var foreign_column = ""
+var auto_mapping = ""
 var result_embeded: GBatisResultMap
+var mapper_parser_ref: WeakRef: set = set_mapper_parser_ref
+
+# --------- 内部使用 ----------
+var _result_map: GBatisResultMap # 把association当作一个resultMap来用
 
 func _init(conf: Dictionary):
 	property = conf.get("property", "").strip_edges()
 	column = conf.get("column", "").strip_edges()
-	javaType = conf.get("javaType", "").strip_edges()
+	java_type = conf.get("javaType", "").strip_edges()
 	select = conf.get("select", "").strip_edges()
-	resultMap = conf.get("resultMap", "").strip_edges()
-	foreignColumn = conf.get("foreignColumn", "").strip_edges()
-	autoMapping = conf.get("autoMapping", "").strip_edges()
+	result_map = conf.get("resultMap", "").strip_edges()
+	column_prefix = conf.get("columnPrefix", "").strip_edges()
+	foreign_column = conf.get("foreignColumn", "").strip_edges()
+	auto_mapping = conf.get("autoMapping", "").strip_edges()
+	
+	assert(select.is_empty() or result_map.is_empty(),
+		"Cannot set attr select and resultMap at the same time in <association>.")
+	if not select.is_empty():
+		assert(not column.is_empty(), "Must set attr column if set select in <association>.")
+		
+func clean():
+	if result_embeded != null:
+		result_embeded.clean()
+	result_embeded = null
+	mapper_parser_ref = null
+	_result_map = null
+	
+func set_mapper_parser_ref(mapper_parser):
+	mapper_parser_ref = mapper_parser
 	
 func push_element(element):
 	if not result_embeded:
 		result_embeded = GBatisResultMap.new({})
 	result_embeded.push_back(element)
+	
+## 每处理一条数据需要调用一下
+func prepare_deal(head: Array, data: Array):
+	if _result_map != null:
+		return
+		
+	_result_map = result_embeded
+	if _result_map == null:
+		if not result_map.is_empty():
+			_result_map = mapper_parser_ref.get_ref().get_element(result_map)
+			assert(_result_map != null, "Not found <resultMap> of id %s" % result_map)
+			assert(_result_map is GBatisResultMap, "Not found <resultMap> of id %s" % result_map)
+		else:
+			_result_map = GBatisResultMap.new({})
+			_result_map.type = java_type
+		_result_map.prepare_deal(head, data)
+		
+## 每处理一条数据后需要调用一下
+func reset():
+	assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
+	# 如果有鉴别器，则返回值不稳定，需要重置
+	if _result_map.discriminator != null:
+		_result_map.reset()
+		_result_map = null

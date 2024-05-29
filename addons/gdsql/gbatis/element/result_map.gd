@@ -224,6 +224,10 @@ func prepare_deal(p_head: Array, data: Array):
 		else:
 			real_type = case_return_type
 			
+		var associations = get_deepest_associations()
+		for a: GBatisAssociation in associations:
+			a.prepare_deal(p_head, data)
+			
 	if object_class_name.is_empty() and _is_class_name(type):
 		mapping_to_object = true
 		object_class_name = type
@@ -248,11 +252,20 @@ func deal(p_head: Array, data: Array, obj = null):
 		#else:
 			#return _deal_mapping_to_other(data, head)
 			
+	if obj == null:
+		reset()
+		
+## 每处理完一条数据调用一下
+func reset():
 	# 重置类名，因为discriminator可能导致每一行的类不同
 	object_class_name = ""
 	real_type = type
+	real_auto_mapping = auto_mapping
 	if discriminator:
 		discriminator.reset()
+	for i in result_embeded:
+		if i is GBatisAssociation:
+			i.reset()
 		
 func _automapping_obejct(data: Array, obj: Object) -> Object:
 	# 整体分为三部分：1，先给obj本身的简单字段赋值；2，然后给association定义的obj的对象字段
@@ -394,7 +407,16 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 #endregion
 #region 第二部分：association
 	var associations = get_deepest_associations()
-	for association: GBatisAssociation in associations:
+	for ass: GBatisAssociation in associations:
+		if not ass.select.is_empty():
+			# 用关联列去调用一条select语句获取结果
+			var col_index = columns[object_class_name].find(ass.column)
+			assert(col_index != -1, "Cannot found column: %s in Result set." % ass.column)
+			var sub_obj = mapper_parser_ref.get_ref().call_method_in_namespace(
+				ass.select, [data[col_index]])
+			# TODO
+			pass
+			
 		for j in columns[object_class_name].size():
 			var column = columns[object_class_name][j] as String
 #endregion

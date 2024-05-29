@@ -17,6 +17,7 @@ var auto_mapping_level = "PARTIAL": set = set_auto_mapping_level
 # ALWAYS_ARRAY or ARRAY_WHEN_NECESSARY
 var return_type_undefined_behavior = "ALWAYS_ARRAY": set = set_return_type_undefined_behavior
 var method_return_info: Dictionary: set = set_method_return_info
+var mapper_parser_ref: WeakRef: set = set_mapper_parser_ref
 
 ## ----------------- 内部使用 ------------------
 var object_class_name: String
@@ -32,6 +33,7 @@ var prop_info: Dictionary # column和prop不一定完全相同，比如可能有
 var pk_index: Dictionary # 主键的可能索引
 var pk_confirm: Array = [-1] # 主键确认的索引
 var pk_obj: Dictionary # 用主键关联obj
+var _result_map: GBatisResultMap # resultType和resultMap统一到这个变量上
 
 func _init(conf: Dictionary) -> void:
 	id = conf.get("id").strip_edges()
@@ -43,6 +45,12 @@ func _init(conf: Dictionary) -> void:
 	flush_cache = type_convert(conf.get("flushCache", "false").strip_edges(), TYPE_BOOL)
 	use_cache = type_convert(conf.get("useCache", "true").strip_edges(), TYPE_BOOL)
 	database_id = conf.get("databaseId", "").strip_edges()
+	
+func clean():
+	pass
+	
+func set_mapper_parser_ref(mapper_parser):
+	mapper_parser_ref = mapper_parser
 	
 func set_sql(p_sql: String):
 	sql = p_sql
@@ -68,6 +76,7 @@ func reset():
 	
 func query():
 	# cache TODO
+	
 	var dao = SQLParser.parse_to_dao(sql)
 	if not database_id.is_empty():
 		dao.use_db_name(database_id)
@@ -159,6 +168,16 @@ func query():
 		else:
 			return datas
 			
+	# 用一个resultMap来映射数据
+	if not result_map.is_empty():
+		_result_map = mapper_parser_ref.get_ref().get_element(result_map)
+		assert(_result_map != null, "Not found <resultMap> of id %s" % result_map)
+		assert(_result_map is GBatisResultMap, "Not found <resultMap> of id %s" % result_map)
+	else:
+		_result_map = GBatisResultMap.new({})
+		_result_map.type = result_type
+	#_result_map.prepare_deal(head, data) TODO
+	
 	# 定义了每条数据映射到的数据类型
 	if not result_type.is_empty():
 		# 每条数据映射到对象
@@ -230,6 +249,7 @@ func _deal_mapping_to_object(return_type: String, datas: Array):
 			_automapping_obejct(data, obj)
 		return ret_datas
 	elif return_type == "Object":
+		# TODO FIXME 能否返回一个null？最好是这样
 		assert(not datas.is_empty(), 
 			"Cannot mapping to %s because no data." % object_class_name)
 			
