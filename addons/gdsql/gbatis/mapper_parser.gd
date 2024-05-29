@@ -84,6 +84,14 @@ func get_element(id: String):
 	element_cache[id] = element
 	return element
 	
+## 调用namespace中的方法
+func call_method_in_namespace(method: String, args: Array =[]):
+	var ns = config.root_item.attrs.get("namespace", "")
+	var obj = GDSQLUtils.evaluate_command(null, "%s.new()" % ns)
+	assert(obj != null or not obj is Object, 
+		"Cannot initialize object of namespace: %s." % ns)
+	return obj.callv(method, args)
+	
 func _get_item(id: String) -> GXMLItem:
 	for i in config.root_item.content:
 		if i is GXMLItem and (i as GXMLItem).attrs.get("id", "") == id:
