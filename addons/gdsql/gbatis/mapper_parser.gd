@@ -82,8 +82,13 @@ func query():
 			return null
 			
 func get_element(id: String):
-	assert(element_cache.has(id), "Not found element of id: %s." % id)
-	return element_cache[id]
+	if element_cache.has(id):
+		return element_cache[id]
+	var item = _get_item(id)
+	assert(item, "Not found element of id: %s." % id)
+	var element = _deal_element(item, 0) # ALERT 目前调用get_element的地方并不需要替换占位符
+	element_cache[id] = element
+	return element
 	
 func _get_item(id: String) -> GXMLItem:
 	for i in config.root_item.content:
