@@ -13,14 +13,24 @@ func _assert(cond, msg: String):
 	if not cond:
 		err.push_back(msg)
 		
-func validate(item: GXML):
+func validate(item: GXML) -> bool:
 	_assert(item.root_item, "root item is empty!")
 	_assert(item.root_item.name == "mapper", "root item name is not mapper!")
 	_assert(item.root_item.attrs.has("namespace"), "root item does not have namespace!")
+	var ns = item.root_item.attrs.get("namespace", "") as String
+	if not ns.is_empty():
+		var obj = GDSQLUtils.evaluate_command(null, "%s.new()" % ns)
+		_assert(obj != null or not obj is Object, 
+			"Cannot initialize object of namespace: %s." % ns)
+		_assert(obj is GBatisMapper, "Namespace should be a GBatisMapper.")
 	for i in item.root_item.content:
 		if i is GXMLItem:
 			deal_element(i)
-			
+	if not err.is_empty():
+		push_error("\n".join(err))
+	assert(err.is_empty())
+	return true
+	
 func deal_element(item: GXMLItem):
 	match item.name:
 		"cache-ref":

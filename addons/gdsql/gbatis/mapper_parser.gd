@@ -42,12 +42,11 @@ static func _static_init() -> void:
 	
 @export var config: GXML:
 	set(val):
-		config = val
 		var validator = GBatisMapperValidator.new()
-		validator.validate(config)
-		if not validator.err.is_empty():
-			push_error("\n".join(validator.err))
-			
+		var succ = validator.validate(config)
+		if succ:
+			config = val
+		
 var element_cache: Dictionary
 
 ## TODO 等官方支持可变参数数量函数时，可以进行优化
@@ -55,6 +54,7 @@ var element_cache: Dictionary
 ## btw: Ability to print and log script backtraces
 ## https://github.com/godotengine/godot/pull/91006
 func query(method_id: String, param: Dictionary):
+	assert(config != null, "config is empty!")
 	param[BIND] = {}
 	var item = _get_item(method_id)
 	assert(item, "not found this method: %s" % method_id)
@@ -76,6 +76,7 @@ func query(method_id: String, param: Dictionary):
 			
 ## ALERT WARNING 目前只知道可以获取resultMap，其他类型的未经测试
 func get_element(id: String):
+	assert(config != null, "config is empty!")
 	if element_cache.has(id):
 		return element_cache[id]
 	var item = _get_item(id)
@@ -86,10 +87,10 @@ func get_element(id: String):
 	
 ## 调用namespace中的方法
 func call_method_in_namespace(method: String, args: Array =[]):
+	assert(config != null, "config is empty!")
 	var ns = config.root_item.attrs.get("namespace", "")
 	var obj = GDSQLUtils.evaluate_command(null, "%s.new()" % ns)
-	assert(obj != null or not obj is Object, 
-		"Cannot initialize object of namespace: %s." % ns)
+	obj.mapper_xml = config
 	return obj.callv(method, args)
 	
 func _get_item(id: String) -> GXMLItem:
