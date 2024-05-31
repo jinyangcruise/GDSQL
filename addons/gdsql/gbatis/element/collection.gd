@@ -72,6 +72,7 @@ var java_type = ""
 var of_type = ""
 var select = ""
 var result_map = ""
+var column_prefix = ""
 var foreign_column = ""
 var auto_mapping = ""
 var result_embeded: GBatisResultMap
@@ -87,6 +88,7 @@ func _init(conf: Dictionary):
 	of_type = conf.get("ofType", "").strip_edges()
 	select = conf.get("select", "").strip_edges()
 	result_map = conf.get("resultMap", "").strip_edges()
+	column_prefix = conf.get("columnPrefix", "").strip_edges()
 	foreign_column = conf.get("foreignColumn", "").strip_edges()
 	auto_mapping = conf.get("autoMapping", "").strip_edges()
 	
@@ -121,6 +123,7 @@ func prepare_deal(head: Array, data: Array):
 			_result_map.type = java_type
 			
 	if _result_map != null:
+		_result_map.column_prefix = column_prefix
 		_result_map.prepare_deal(head, data)
 		
 ## 每处理一条数据后需要调用一下

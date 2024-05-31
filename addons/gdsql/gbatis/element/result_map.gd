@@ -30,6 +30,7 @@ var _extends: String
 var auto_mapping: String
 
 var mapper_parser_ref: WeakRef: set = set_mapper_parser_ref
+var column_prefix: String = "" # set by association or collection
 
 # ----------- 内部使用 ------------
 var result_embeded: Array # 内嵌的子元素
@@ -39,13 +40,20 @@ var real_type: String
 # discriminator可能导致autoMapping改变
 var real_auto_mapping: String
 var head: Array
+
+# 外部例如<select>设置自动映射到的类型：下面四种
 var mapping_to_object: bool = false
-var object_class_name: String = ""
+var mapping_to_array: bool = false
+var mapping_to_dictionary: bool = false
+
+var object_class_name: String = "" # 当mapping_to_object==true时有用
 var primary_prop = ""
 var primary_column = ""
 var column_prop_map: Dictionary # 子元素<id>和<result>定义的关联，column => [prop]
 								# NOTICE 一个列可以给多个属性赋值。
 								# NOTICE 考虑使用该变量还是get_deepest_column_prop()
+var prop_column_map: Dictionary # 辅助column_prop_map
+var array_type: String = "" # 当mapping_to_array==true时有用
 var discriminator: GBatisDiscriminator
 
 # ----------- mapping to object -----------
@@ -68,24 +76,29 @@ func _init(conf: Dictionary) -> void:
 func push_element(i):
 	# 只允许存在一个discriminator
 	if i is GBatisDiscriminator:
-		assert(discriminator == null, 
-			"At most one <discriminator> can be put under <resultMap>.")
+		if discriminator != null:
+			assert(false, "At most one <discriminator> can be put under <resultMap>.")
 		discriminator = i
 		
 	if i is GBatisId or i is GBatisResult:
+		var column_name = null
+		if column_prefix == "":
+			column_name = i.column
+		else:
+			column_name = column_prefix + i.column
 		if i is GBatisId:
-			assert(primary_prop.is_empty(), 
-				"Only one <id> can be put under <resultMap>.")
+			if primary_prop != "":
+				assert(false, "Only one <id> can be put under <resultMap>.")
 			primary_prop = i.property
-			primary_column = i.column
+			primary_column = column_name
 			
 		for column in column_prop_map:
 			# 多个不同的列对应一个属性，这是错的
-			assert(not column_prop_map[column].has(i.property),
-				"Duplicate attr property %s." % i.property)
-		if not column_prop_map.has(i.column):
-			column_prop_map[i.column] = []
-		column_prop_map[i.column].push_back(i.property)
+			if column_prop_map[column].has(i.property):
+				assert(false, "Duplicate attr property " + i.property)
+		if not column_prop_map.has(column_name):
+			column_prop_map[column_name] = []
+		column_prop_map[column_name].push_back(i.property)
 		
 	result_embeded.push_back(i)
 	
@@ -95,6 +108,39 @@ func set_mapper_parser_ref(mapper_parser):
 func clean():
 	pass
 	#TODO
+	
+## 由于可以extends，所以通过该方法获取子元素
+func get_sub_element():
+	if _extends == "":
+		return result_embeded
+		
+	var props = {}
+	var columns = {}
+	var ret = []
+	for i in range(result_embeded.size()-1, -1, -1):
+		var e = result_embeded[i]
+		if e is GBatisId or e is GBatisResult or e is GBatisAssociation or \
+		e is GBatisCollection:
+			props[e.property] = 0
+		elif e is GBatisDiscriminator:
+			columns[e.column] = 0
+		ret.push_back(e)
+		
+	var extend_result_map = mapper_parser_ref.get_ref().get_element(_extends) as GBatisResultMap
+	var extends_children = extend_result_map.get_sub_element()
+	for i in range(extends_children.size()-1, -1, -1):
+		var e = extends_children[i]
+		if e is GBatisId or e is GBatisResult or e is GBatisAssociation or \
+		e is GBatisCollection:
+			if props.has(e.property):
+				continue
+		elif e is GBatisDiscriminator:
+			if props.has(e.column):
+				continue
+		ret.push_back(e)
+		
+	ret.reverse()
+	return ret
 	
 ### 如果存在discriminator，需要返回其对应的resultMap，否则返回自己.
 ### 该方法仅在<case>标签中用，别的地方勿用。
@@ -109,7 +155,7 @@ func get_deepest_result_type() -> String:
 	var ret = ""
 	if discriminator != null:
 		ret = discriminator.get_result_type()
-	return type if ret.is_empty() else ret
+	return type if ret == "" else ret
 	
 ## 如果存在discriminator，需要合并返回其对应的prop_column。
 ## 别的地方勿用.
@@ -117,15 +163,18 @@ func get_deepest_auto_mapping() -> String:
 	var ret = ""
 	if discriminator != null:
 		ret = discriminator.get_auto_mapping()
-	return auto_mapping if ret.is_empty() else ret
+	return auto_mapping if ret == "" else ret
 	
 ## 如果存在discriminator，需要合并返回其对应的prop_column。
 ## 别的地方勿用.
 func get_deepest_prop_column() -> Dictionary:
 	var ret = {}
-	for i in result_embeded:
+	for i in get_sub_element():
 		if i is GBatisId or i is GBatisResult:
-			ret[i.property] = i.column
+			if column_prefix == "":
+				ret[i.property] = i.column
+			else:
+				ret[i.property] = column_prefix + i.column
 		elif i is GBatisDiscriminator:
 			ret.merge(discriminator.get_prop_column())
 	return ret
@@ -146,7 +195,7 @@ func get_deepest_column_prop() -> Dictionary:
 ## 别的地方勿用.
 func get_deepest_associations() -> Array:
 	var ret = []
-	for i in result_embeded:
+	for i in get_sub_element():
 		if i is GBatisAssociation:
 			ret.push_back(i)
 		elif i is GBatisDiscriminator:
@@ -157,7 +206,7 @@ func get_deepest_associations() -> Array:
 ## 别的地方勿用.
 func get_deepest_collections() -> Array:
 	var ret = []
-	for i in result_embeded:
+	for i in get_sub_element():
 		if i is GBatisCollection:
 			ret.push_back(i)
 		elif i is GBatisDiscriminator:
@@ -166,11 +215,10 @@ func get_deepest_collections() -> Array:
 	
 ## 初始化，准备映射到对象。
 ## head， 表头
-func prepare_mapping_to_object(p_head: Array):
+func prepare_mapping_to_object():
 	if not columns.is_empty():
 		return
 		
-	head = p_head
 	columns = []
 	prop_map = {}
 	prop_info = {}
@@ -183,9 +231,9 @@ func prepare_mapping_to_object(p_head: Array):
 	# pk_index: Dictionary # 主键的可能索引
 	for j in head.size():
 		var column = head[j]["field_as"]
-		assert(not columns.has(column), 
-			"Duplicated column name `%s`." % column)
-		if primary_column.is_empty():
+		if columns.has(column):
+			assert(false, "Duplicated column name " + column)
+		if primary_column == "":
 			if head[j]["PK"] and pk_index.find_key(column) == null:
 				pk_index[j] = column
 		else:
@@ -194,33 +242,35 @@ func prepare_mapping_to_object(p_head: Array):
 		columns.push_back(column)
 		
 	# 检查一下xml配置有没有问题
-	for i in result_embeded:
+	for i in get_sub_element():
 		if i is GBatisId or i is GBatisResult:
-			assert(columns.has(i.column),
-			"Not found column: %s in Result set. Check your xml config." % i.column)
+			var column_name = null
+			if column_prefix == "":
+				column_name = i.column
+			else:
+				column_name = column_prefix + i.column
+			if not columns.has(column_name):
+				assert(false, "Not found column: " + column_name + \
+					" in Result set. Check your xml config.")
 			
 	# obj的属性列表及其类型，缓存到这个变量中
 	var model_obj = GDSQLUtils.evaluate_command(null, 
-		"%s.new()" % object_class_name) as Object
-	assert(is_instance_valid(model_obj), 
-		"Cannot initialize this class %s" % object_class_name)
+		object_class_name + ".new()") as Object
+	if model_obj == null:
+		assert(false, "Cannot initialize this class " + object_class_name)
 		
 	# 准备 prop_map 
 	# prop_map: Dictionary # 对象的属性列表，用name作为key
-	_prepare_prop_map(model_obj)
-	
-	if not model_obj is RefCounted:
-		model_obj.free()
-		
-func _prepare_prop_map(obj: Object):
-	if not prop_map.is_empty():
-		return
-	var list = obj.get_property_list()
+	var list = model_obj.get_property_list()
 	for i in list:
 		prop_map[i.name] = i
 		
+	if not model_obj is RefCounted:
+		model_obj.free()
+		
 ## 每处理一条数据需要调用一下。由于鉴别器discriminator可能存在，需要调用一下。
 func prepare_deal(p_head: Array, data: Array):
+	head = p_head
 	if discriminator != null:
 		discriminator.prepare_deal(p_head, data)
 		real_auto_mapping = get_deepest_auto_mapping()
@@ -239,7 +289,7 @@ func prepare_deal(p_head: Array, data: Array):
 		for c: GBatisCollection in collections:
 			c.prepare_deal(p_head, data)
 			
-	if object_class_name.is_empty() and _is_class_name(type):
+	if object_class_name == "" and _is_class_name(type):
 		mapping_to_object = true
 		object_class_name = type
 		
@@ -247,32 +297,36 @@ func prepare_deal(p_head: Array, data: Array):
 func deal(p_head: Array, data: Array):
 	prepare_deal(p_head, data)
 	
-	#if not real_type.is_empty():
-		## 每条数据映射到对象
-		#if mapping_to_object:
-			#return _deal_mapping_to_object(data)
-		## 每条数据映射到数组
-		#elif real_type == "Array":
-			#return _deal_mapping_to_array(data)
-		## 每条数据映射到字典
-		#elif real_type == "Dictionary":
-			#return _deal_mapping_to_dictionary(data)
-		## 每条数据映射到其他类型比如int， String 或 [int|String|...]
-		#else:
-			#return _deal_mapping_to_other(data, head)
-			
-	reset()
-	#return obj # TODO if mapping to obj
+	# 每条数据映射到对象
+	var ret = null
+	if mapping_to_object:
+		prepare_mapping_to_object()
+		ret = _automapping_obejct(data)
+	# 每条数据映射到数组
+	elif mapping_to_array:
+		ret = _automapping_array(data)
+	# 每条数据映射到字典
+	elif mapping_to_dictionary:
+		ret = _automapping_dictionary(data)
+	# 每条数据映射到其他类型比如int， String 或 [int|String|...]
+	else:
+		ret = _automapping_other(data)
 		
+	reset()
+	return ret
+	
 ## 每处理完一条数据调用一下
 func reset():
+	mapping_to_object = false
+	mapping_to_array = false
+	mapping_to_dictionary = false
 	# 重置类名，因为discriminator可能导致每一行的类不同
 	object_class_name = ""
 	real_type = type
 	real_auto_mapping = auto_mapping
 	if discriminator:
 		discriminator.reset()
-	for i in result_embeded:
+	for i in get_sub_element():
 		if i is GBatisAssociation:
 			i.reset()
 		elif i is GBatisCollection:
@@ -284,13 +338,15 @@ func _automapping_obejct(data: Array) -> Object:
 	# 3；最后给collection定义的集合赋值
 	
 	var obj = _get_obj_or_generate(data)
-	assert(obj != null, "Error occur in _get_obj_or_generate().")
+	if obj == null:
+		assert(false, "Error occur in _get_obj_or_generate().")
 	
 	# 不是新的obj，就不用做简单字段赋值和一对一对象赋值
 	if obj.has_meta("new"):
 		# INFO 第一部分：先给obj的简单字段赋值
 		var succ1 = _automapping_object_simple_property(data, obj)
-		assert(succ1, "Err occur in _automapping_object_simple_property().")
+		if not succ1:
+			assert(false, "Err occur in _automapping_object_simple_property().")
 		
 		# 这里我们已经确定了是否存在主键
 		if pk_confirm[0] != -1:
@@ -298,12 +354,14 @@ func _automapping_obejct(data: Array) -> Object:
 			
 		# INFO 第二部分：association，一对一对象赋值
 		var succ2 = _automapping_associations(data, obj)
-		assert(succ2, "Err occur in _automapping_associations().")
+		if not succ2:
+			assert(false, "Err occur in _automapping_associations().")
 		obj.remove_meta("new")
 		
 	# INFO 第三部分：collection，一对多集合赋值
 	var succ3 = _automapping_collections(data, obj)
-	assert(succ3, "Err occur in _automapping_collections()")
+	if not succ3:
+		assert(false, "Err occur in _automapping_collections()")
 	return obj
 	
 func _automapping_object_simple_property(data: Array, obj: Object) -> bool:
@@ -327,14 +385,16 @@ func _automapping_object_simple_property(data: Array, obj: Object) -> bool:
 				if p.contains(":"):
 					# 限于技术问题，我们最多检查一层
 					var pp = p.get_slice(":", 0)
-					assert(pp in obj, 
+					if not pp in obj:
+						assert(false, 
 						"Invalid set property %s of %s" % [p, object_class_name])
 					# NOTICE 带冒号的如果用户拼写错误会导致报错。而我们目前
 					# 没有什么好办法提前检测。
 					column_type.push_back(typeof(obj.get_indexed(p))) # use p not pp
 					prop_is_object.push_back(_is_prop_an_object(prop_map[pp]))
 				else:
-					assert(p in obj, 
+					if not p in obj:
+						assert(false, 
 						"Invalid set property %s of %s" % [p, object_class_name])
 					column_type.push_back(prop_map[p].type)
 					prop_is_object.push_back(_is_prop_an_object(prop_map[p]))
@@ -365,7 +425,7 @@ func _automapping_object_simple_property(data: Array, obj: Object) -> bool:
 				else:
 					# 根据列名找对应的属性名
 					a_prop = _get_similar_prop(column)
-					if a_prop.is_empty():
+					if a_prop == "":
 						prop_info[column] = {"exist":false}
 						continue
 					prop.push_back(a_prop)
@@ -409,7 +469,7 @@ func _automapping_object_simple_property(data: Array, obj: Object) -> bool:
 				var value = null
 				var value_set = false
 				var method_map = prop_info[column]["method"]
-				if method_map[prop_index].is_empty():
+				if method_map[prop_index] == "":
 					if typeof(data[j]) == column_type[prop_index]:
 						method_map[prop_index] = "none"
 					elif data[j] is String:
@@ -436,7 +496,8 @@ func _automapping_object_simple_property(data: Array, obj: Object) -> bool:
 					pk_confirm[0] = j
 				else:
 					# 已经找到一个了，怎么又冒出来一个
-					assert(pk_confirm[0] == j, 
+					if pk_confirm[0] != j:
+						assert(false, 
 						"Multiple primary keys [%s, %s] are mapped to %s." % \
 						[pk_confirm[0], j, object_class_name])
 	return true
@@ -444,17 +505,21 @@ func _automapping_object_simple_property(data: Array, obj: Object) -> bool:
 func _automapping_associations(data: Array, obj: Object) -> bool:
 	var associations = get_deepest_associations()
 	for ass: GBatisAssociation in associations:
-		assert(ass.property in obj, "Invalid property %s in %s" % \
+		if not ass.property in obj:
+			assert(false, "Invalid property %s in %s" % \
 			[ass.property, object_class_name])
-		assert(_is_prop_an_object(prop_map[ass.property]), 
-			"Property %s in %s should be an Object" % [ass.property, object_class_name])
+		if not _is_prop_an_object(prop_map[ass.property]):
+			assert(false, "Property %s in %s should be an Object" % \
+			[ass.property, object_class_name])
 			
 		var sub_obj = null
 		# 调用另一个<select>
-		if not ass.select.is_empty():
+		if ass.select != "":
 			# 用关联列去调用一条select语句获取结果
 			var col_index = columns.find(ass.column)
-			assert(col_index != -1, "Cannot found column: %s in Result set." % ass.column)
+			if col_index == -1:
+				assert(false, 
+				"Cannot found column: %s in Result set." % ass.column)
 			sub_obj = mapper_parser_ref.get_ref().\
 				call_method_in_namespace(ass.select, [data[col_index]])
 		else:
@@ -463,45 +528,50 @@ func _automapping_associations(data: Array, obj: Object) -> bool:
 		obj.set(ass.property, sub_obj)
 		# 允许sub_obj是null，但是不允许设置失败
 		if sub_obj != null:
-			assert(is_instance_valid(obj.get(ass.property)), 
-				"Set associated property %s failed!" % ass.property)
+			if not is_instance_valid(obj.get(ass.property)):
+				assert(false, "Set associated property %s failed!" % ass.property)
 	return true
 	
 func _automapping_collections(data: Array, obj: Object) -> bool:
 	var collections = get_deepest_collections()
 	for col: GBatisCollection in collections:
-		assert(col.property in obj, "Invalid property %s in %s" % \
+		if not col.property in obj:
+			assert(false, "Invalid property %s in %s" % \
 			[col.property, object_class_name])
-		assert(prop_map[col.property].type == TYPE_ARRAY or \
-			prop_map[col.property].type == TYPE_NIL, # 没定义类型也可以
-			"Property %s in %s should be an Array" % [col.property, object_class_name])
+		if not (prop_map[col.property].type == TYPE_ARRAY or \
+		prop_map[col.property].type == TYPE_NIL):
+			assert(false, "Property %s in %s should be an Array" % \
+			[col.property, object_class_name])
 			
 		var of_type = ""
 		if prop_map[col.property].type == TYPE_NIL:
 			pass # leave empty
 		elif prop_map[col.property].hint == PROPERTY_HINT_ARRAY_TYPE:
 			of_type = prop_map[col.property].hint_string
-			assert(col.of_type == of_type, 
+			if col.of_type != of_type:
+				assert(false, 
 				"of_type in %s.%s not match of_type in <collection>." % \
 				[object_class_name, col.property])
 				
 		# 调用另一个<select>
-		if not col.select.is_empty():
+		if col.select != "":
 			# 用关联列去调用一条select语句获取结果
 			var col_index = columns.find(col.column)
-			assert(col_index != -1, "Cannot found column: %s in Result set." % col.column)
+			if col_index == -1:
+				assert(false, "Cannot found column: %s in Result set." % col.column)
 			var arr = mapper_parser_ref.get_ref().\
 				call_method_in_namespace(col.select, [data[col_index]])
-			assert(arr is Array, "Call %s failed." % col.select)
+			if not arr is Array:
+				assert(false, "Call %s failed." % col.select)
 			
 			var list = _gen_array(of_type)
-			if of_type.is_empty():
+			if of_type == "":
 				list = arr
 			else:
 				list.assign(arr)
 			obj.set(col.property, list)
-			assert(obj.get(col.property) == list, 
-				"Set collected property %s failed!" % col.property)
+			if obj.get(col.property) != list:
+				assert(false, "Set collected property %s failed!" % col.property)
 		else:
 			var list = obj.get(col.property)
 			if list == null:
@@ -514,13 +584,37 @@ func _automapping_collections(data: Array, obj: Object) -> bool:
 				
 	return true
 	
+func _automapping_array(data: Array):
+	if array_type == "":
+		return data
+	var ret_data = _gen_array(array_type)
+	if data.is_same_typed(ret_data):
+		return data
+	ret_data.assign(data)
+	return ret_data
+	
 func _automapping_dictionary(data: Array) -> Dictionary:
 	var map = {}
 	for j in columns.size():
 		var column = columns[j]
-		assert(not map.has(column), "Duplicated column name `%s`." % column)
+		if map.has(column):
+			assert(false, "Duplicated column name `%s`." % column)
 		map[column] = data[j]
 	return map
+	
+func _automapping_other(data: Array):
+	if data.size() != 1:
+		assert(false, "Result set is supposed to have one column, but %d." % data.size())
+	if real_type == "" or \
+	DataTypeDef.DATA_TYPE_COMMON_NAMES[real_type] == typeof(data[0]):
+		return data[0]
+		
+	if data[0] is String:
+		var v = str_to_var(data[0])
+		if typeof(v) == DataTypeDef.DATA_TYPE_COMMON_NAMES[real_type]:
+			return v
+		
+	return type_convert(data[0], DataTypeDef.DATA_TYPE_COMMON_NAMES[real_type])
 	
 func _get_similar_prop(column_1: String):
 	var prop = ""
@@ -557,7 +651,7 @@ func _is_prop_an_object(property_info: Dictionary):
 		not DataTypeDef.RESOURCE_TYPE_NAMES.has(property_info.class_name)
 		
 func _is_class_name(s: String) -> bool:
-	if s.is_empty():
+	if s == "":
 		return false
 	return not DataTypeDef.DATA_TYPE_COMMON_NAMES.has(s) and \
 		not DataTypeDef.RESOURCE_TYPE_NAMES.has(s)
@@ -571,14 +665,14 @@ func _get_obj_or_generate(data: Array) -> Object:
 	if pk_confirm[0] != -1:
 		obj = pk_obj.get(data[pk_confirm[0]], null)
 	if obj == null:
-		obj = GDSQLUtils.evaluate_command(null, "%s.new()" % object_class_name)
+		obj = GDSQLUtils.evaluate_command(null, object_class_name + ".new()")
 		if obj:
 			obj.set_meta("new", true) # 临时存储，使用者使用完毕要删除
 	return obj
 	
-func _gen_array(array_type: String):
-	if array_type.is_empty():
+func _gen_array(p_array_type: String):
+	if p_array_type == "":
 		return []
 	# 不能使用evaluate_command，原因是Expression虽然成功返回但并不是typed array
 	return GDSQLUtils.evaluate_command_script(
-		"[] as Array[%s]" % array_type)
+		"[] as Array[" + p_array_type + "]")

@@ -125,6 +125,7 @@ func prepare_deal(head: Array, data: Array):
 			_result_map.type = java_type
 			
 	if _result_map != null:
+		_result_map.column_prefix = column_prefix
 		_result_map.prepare_deal(head, data)
 		
 ## 每处理一条数据后需要调用一下
