@@ -278,7 +278,7 @@ func _deal_mapping_to_array(return_type: String, datas: Array):
 		
 	if return_type == "Array":
 		ret_datas.assign(datas)
-		return datas
+		return ret_datas
 	# 没查询到数据，则返回空数组
 	if datas.is_empty():
 		return ret_datas
@@ -512,7 +512,7 @@ func _automapping_obejct(data: Array, obj: Object) -> Object:
 	
 func _automapping_dictionary(data: Array) -> Dictionary:
 	var map = {}
-	for j in columns:
+	for j in columns.size():
 		var column = columns[j]
 		assert(not map.has(column), "Duplicated column name `%s`." % column)
 		map[column] = data[j]

@@ -115,7 +115,7 @@ func get_sub_element():
 		return result_embeded
 		
 	var props = {}
-	var columns = {}
+	var a_columns = {}
 	var ret = []
 	for i in range(result_embeded.size()-1, -1, -1):
 		var e = result_embeded[i]
@@ -123,7 +123,7 @@ func get_sub_element():
 		e is GBatisCollection:
 			props[e.property] = 0
 		elif e is GBatisDiscriminator:
-			columns[e.column] = 0
+			a_columns[e.column] = 0
 		ret.push_back(e)
 		
 	var extend_result_map = mapper_parser_ref.get_ref().get_element(_extends) as GBatisResultMap
