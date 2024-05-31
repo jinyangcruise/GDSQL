@@ -328,60 +328,45 @@ func _deal_arg(item:GXMLItem, param: Dictionary, depth: int):
 	
 #<!ELEMENT collection (constructor?,id*,result*,association*,collection*, discriminator?)>
 #<!ATTLIST collection
-#property CDATA #REQUIRED
-#column CDATA #IMPLIED
-#javaType CDATA #IMPLIED ------------ ❌ not need
-#ofType CDATA #IMPLIED
-#jdbcType CDATA #IMPLIED ------------ ❌ not support
-#select CDATA #IMPLIED
-#resultMap CDATA #IMPLIED
-#typeHandler CDATA #IMPLIED --------- ❌ not support
-#notNullColumn CDATA #IMPLIED ------- ❌ not support
-#columnPrefix CDATA #IMPLIED -------- ❌ not support
-#resultSet CDATA #IMPLIED ----------- ❌ not support
-#foreignColumn CDATA #IMPLIED
-#autoMapping (unset|true|false) #IMPLIED
-#fetchType (lazy|eager) #IMPLIED ---- ❌ not support. INFO _get() will not be
-#                                        called if properties are defined in 
-#                                        Object. So we couldn't find a proper
-#                                        way to achieve this feature.
-#>
-func _deal_collection(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCollection:
-	var ret = GBatisCollection.new(item.attrs)
-	for i in item.content:
-		if i is GXMLItem:
-			assert(["constructor", "id", "result", "association", "collection", 
-			"discriminator"].has(i.name), "Invalid element %s in collection." % i.name)
-			ret.push_element(_deal_element(i, param, depth+1))
-	return ret
-	
-#<!ELEMENT association (constructor?,id*,result*,association*,collection*, discriminator?)>
-#<!ATTLIST association
+#===============================================================================
+#基本属性：
 #property CDATA #REQUIRED ----------- property name
+#javaType CDATA #IMPLIED ------------ ClassName
+#                                     如果obj中的property属性没有定义是什么类型的对象，
+#                                     则需要在此指定一下。
+#ofType CDATA #IMPLIED -------------- 集合元素的java类型
+#jdbcType CDATA #IMPLIED ------------ ❌ not support
+#typeHandler CDATA #IMPLIED --------- ❌ not support
+#===============================================================================
+#集合的嵌套 Select 查询：
 #column CDATA #IMPLIED -------------- associate column name. When using multiple 
 #                                     resultset this attribute specifies the 
 #                                     columns (separated by commas) that will be 
 #                                     correlated with the foreignColumn to identify
 #                                     the parent and the child of a relationship.
 #                                     NOTICE column belongs to parent fetch.
-#javaType CDATA #IMPLIED ------------ gdscript variant type or a class name, 
-#                                     eg. int, String, SysDept, Dictionary
-#jdbcType CDATA #IMPLIED ------------ ❌ not support
 #select CDATA #IMPLIED -------------- auto fetch data by configured <select>'s 
 #                                     id when needed. If this attr is set, then 
 #                                     NRM(Nested Result Mapping) which uses 
 #                                     some `JOIN`s will not work.
+#fetchType (lazy|eager) #IMPLIED ---- ❌ not support. INFO _get() will not be
+#                                     called if properties are defined in 
+#                                     Object. So we couldn't find a proper
+#                                     way to achieve this lazy feature.
+#
+#                                     lazy: [default] fetch data when this 
+#                                           property is getted;
+#                                     eager: fetch data immediately.
+#===============================================================================
+#集合的嵌套结果映射：
 #resultMap CDATA #IMPLIED ----------- configured result map.
-#typeHandler CDATA #IMPLIED --------- ❌ not support
+#columnPrefix CDATA #IMPLIED -------- 当连接多个表时，你可能会不得不使用列别名来避免在 
+#                                     ResultSet 中产生重复的列名。指定 columnPrefix 
+#                                     列名前缀允许你将带有这些前缀的列映射到一个外部的
+#                                     结果映射中。这在结果集中拥有多个相同类型的子对象时
+#                                     很有用，可以共享同一个resultMap，但是又用前缀做了
+#                                     区分。
 #notNullColumn CDATA #IMPLIED ------- ❌ not support
-#columnPrefix CDATA #IMPLIED -------- ❌ not support
-#resultSet CDATA #IMPLIED ----------- ❌ not support
-#foreignColumn CDATA #IMPLIED ------- Identifies the name of the columns that 
-#                                     contains the foreign keys which values 
-#                                     will be matched against the values of the 
-#                                     columns specified in the column attibute 
-#                                     of the parent type.
-#                                     NOTICE foreignColumn belongs to child fetch.
 #autoMapping (unset|true|false) #IMPLIED -- 是否继承全局自动映射等级。
 #                                     Regardless of the auto-mapping level 
 #                                     configured you can enable or disable the 
@@ -394,6 +379,48 @@ func _deal_collection(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCol
 #                                           configured;
 #                                     false: do not automap columns to 
 #                                            properties which are not configured.
+#===============================================================================
+#关联的多结果集（ResultSet）：---------- ❌ not support
+#column CDATA #IMPLIED -------------- see above.
+#resultSet CDATA #IMPLIED ----------- ❌ not support
+#foreignColumn CDATA #IMPLIED ------- Identifies the name of the columns that 
+#                                     contains the foreign keys which values 
+#                                     will be matched against the values of the 
+#                                     columns specified in the column attibute 
+#                                     of the parent type.
+#                                     NOTICE foreignColumn belongs to child fetch.
+#>
+func _deal_collection(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCollection:
+	var ret = GBatisCollection.new(item.attrs)
+	for i in item.content:
+		if i is GXMLItem:
+			assert(["constructor", "id", "result", "association", "collection", 
+			"discriminator"].has(i.name), "Invalid element %s in collection." % i.name)
+			ret.push_element(_deal_element(i, param, depth+1))
+	return ret
+	
+#<!ELEMENT association (constructor?,id*,result*,association*,collection*, discriminator?)>
+#<!ATTLIST association
+#===============================================================================
+#基本属性：
+#property CDATA #REQUIRED ----------- property name
+#javaType CDATA #IMPLIED ------------ ClassName
+#                                     如果obj中的property属性没有定义是什么类型的对象，
+#                                     则需要在此指定一下。
+#jdbcType CDATA #IMPLIED ------------ ❌ not support
+#typeHandler CDATA #IMPLIED --------- ❌ not support
+#===============================================================================
+#关联的嵌套 Select 查询：
+#column CDATA #IMPLIED -------------- associate column name. When using multiple 
+#                                     resultset this attribute specifies the 
+#                                     columns (separated by commas) that will be 
+#                                     correlated with the foreignColumn to identify
+#                                     the parent and the child of a relationship.
+#                                     NOTICE column belongs to parent fetch.
+#select CDATA #IMPLIED -------------- auto fetch data by configured <select>'s 
+#                                     id when needed. If this attr is set, then 
+#                                     NRM(Nested Result Mapping) which uses 
+#                                     some `JOIN`s will not work.
 #fetchType (lazy|eager) #IMPLIED ---- ❌ not support. INFO _get() will not be
 #                                     called if properties are defined in 
 #                                     Object. So we couldn't find a proper
@@ -402,6 +429,38 @@ func _deal_collection(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCol
 #                                     lazy: [default] fetch data when this 
 #                                           property is getted;
 #                                     eager: fetch data immediately.
+#===============================================================================
+#关联的嵌套结果映射：
+#resultMap CDATA #IMPLIED ----------- configured result map.
+#columnPrefix CDATA #IMPLIED -------- 当连接多个表时，你可能会不得不使用列别名来避免在 
+#                                     ResultSet 中产生重复的列名。指定 columnPrefix 
+#                                     列名前缀允许你将带有这些前缀的列映射到一个外部的
+#                                     结果映射中。这在结果集中拥有多个相同类型的子对象时
+#                                     很有用，可以共享同一个resultMap，但是又用前缀做了
+#                                     区分。
+#notNullColumn CDATA #IMPLIED ------- ❌ not support
+#autoMapping (unset|true|false) #IMPLIED -- 是否继承全局自动映射等级。
+#                                     Regardless of the auto-mapping level 
+#                                     configured you can enable or disable the 
+#                                     automapping for an specific ResultMap by 
+#                                     adding the attribute autoMapping to it.
+#
+#                                     default: unset 按全局
+#                                     true: automapp properties when 
+#                                           related columns are selected but not 
+#                                           configured;
+#                                     false: do not automap columns to 
+#                                            properties which are not configured.
+#===============================================================================
+#关联的多结果集（ResultSet）：---------- ❌ not support
+#column CDATA #IMPLIED -------------- see above.
+#resultSet CDATA #IMPLIED ----------- ❌ not support
+#foreignColumn CDATA #IMPLIED ------- Identifies the name of the columns that 
+#                                     contains the foreign keys which values 
+#                                     will be matched against the values of the 
+#                                     columns specified in the column attibute 
+#                                     of the parent type.
+#                                     NOTICE foreignColumn belongs to child fetch.
 #>
 ## 一对一关联
 func _deal_association(item:GXMLItem, param: Dictionary, depth: int) -> GBatisAssociation:
@@ -821,8 +880,19 @@ func _deal_foreach(item:GXMLItem, param: Dictionary, depth: int) -> String:
 	assert(typeof(collection) == TYPE_ARRAY or typeof(collection) == TYPE_DICTIONARY, 
 		"collection must be an Array or a Dictionary.")
 	var is_array = typeof(collection) == TYPE_ARRAY
+	
 	var e_item = item.attrs.get("item", "").strip_edges() as String
+	assert(not param.has(e_item), 
+		"Please change your bind param name %s which is occupied by method's param." % e_item)
+	for d in param[BIND]:
+		assert(not param[BIND][d].has(e_item), "Already bind this parameter: %s." % e_item)
+		
 	var e_index = item.attrs.get("index", "").strip_edges() as String
+	assert(not param.has(e_index), 
+		"Please change your bind param name %s which is occupied by method's param." % e_index)
+	for d in param[BIND]:
+		assert(not param[BIND][d].has(e_index), "Already bind this parameter: %s." % e_index)
+		
 	var e_open = item.attrs.get("open", "") as String
 	var e_close = item.attrs.get("close", "") as String
 	var e_separator = item.attrs.get("separator", "") as String
