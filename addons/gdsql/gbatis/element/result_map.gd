@@ -158,7 +158,7 @@ func get_deepest_associations() -> Array:
 func get_deepest_collections() -> Array:
 	var ret = []
 	for i in result_embeded:
-		if i is GBatisAssociation:
+		if i is GBatisCollection:
 			ret.push_back(i)
 		elif i is GBatisDiscriminator:
 			ret.append_array(i.get_collections())
@@ -231,11 +231,13 @@ func prepare_deal(p_head: Array, data: Array):
 		else:
 			real_type = case_return_type
 			
-		# 不需要prepare_deal，因为association调用resultMap的deal的时候，也会自动调用
-		# prepare_deal
-		#var associations = get_deepest_associations()
-		#for a: GBatisAssociation in associations:
-			#a.prepare_deal(p_head, data)
+		var associations = get_deepest_associations()
+		for a: GBatisAssociation in associations:
+			a.prepare_deal(p_head, data)
+			
+		var collections = get_deepest_collections()
+		for c: GBatisCollection in collections:
+			c.prepare_deal(p_head, data)
 			
 	if object_class_name.is_empty() and _is_class_name(type):
 		mapping_to_object = true
@@ -273,22 +275,38 @@ func reset():
 	for i in result_embeded:
 		if i is GBatisAssociation:
 			i.reset()
-		
+		elif i is GBatisCollection:
+			i.reset()
+			
 func _automapping_obejct(data: Array) -> Object:
 	# 整体分为三部分：1，先给obj本身的简单字段赋值；2，然后给association定义的obj的对象字段
 	# 赋值，也就是说，obj的某个属性如果也是一个sub obj，看能否把值赋值给sub obj的字段；
 	# 3；最后给collection定义的集合赋值
 	
-	# 第一部分：先给obj的简单字段赋值
 	var obj = _get_obj_or_generate(data)
+	assert(obj != null, "Error occur in _get_obj_or_generate().")
 	
-	_automapping_object_simple_property(data, obj)
-	
-	# 第二部分：association
-	_automapping_associations(data, obj)
+	# 不是新的obj，就不用做简单字段赋值和一对一对象赋值
+	if obj.has_meta("new"):
+		# INFO 第一部分：先给obj的简单字段赋值
+		var succ1 = _automapping_object_simple_property(data, obj)
+		assert(succ1, "Err occur in _automapping_object_simple_property().")
+		
+		# 这里我们已经确定了是否存在主键
+		if pk_confirm[0] != -1:
+			pk_obj[data[pk_confirm[0]]] = obj
+			
+		# INFO 第二部分：association，一对一对象赋值
+		var succ2 = _automapping_associations(data, obj)
+		assert(succ2, "Err occur in _automapping_associations().")
+		obj.remove_meta("new")
+		
+	# INFO 第三部分：collection，一对多集合赋值
+	var succ3 = _automapping_collections(data, obj)
+	assert(succ3, "Err occur in _automapping_collections()")
 	return obj
 	
-func _automapping_object_simple_property(data: Array, obj: Object):
+func _automapping_object_simple_property(data: Array, obj: Object) -> bool:
 	# 一批<id>,<result>配置的column和[prop]的对应关系
 	var final_column_prop_map = get_deepest_column_prop()
 	for j in columns.size():
@@ -416,15 +434,14 @@ func _automapping_object_simple_property(data: Array, obj: Object):
 			if pk_index.has(j):
 				if pk_confirm[0] == -1:
 					pk_confirm[0] = j
-					# 弥补_get_obj_or_generate在不知道主键的时候没有关联
-					pk_obj[data[j]] = obj
 				else:
 					# 已经找到一个了，怎么又冒出来一个
 					assert(pk_confirm[0] == j, 
 						"Multiple primary keys [%s, %s] are mapped to %s." % \
 						[pk_confirm[0], j, object_class_name])
-						
-func _automapping_associations(data: Array, obj: Object):
+	return true
+	
+func _automapping_associations(data: Array, obj: Object) -> bool:
 	var associations = get_deepest_associations()
 	for ass: GBatisAssociation in associations:
 		assert(ass.property in obj, "Invalid property %s in %s" % \
@@ -433,6 +450,7 @@ func _automapping_associations(data: Array, obj: Object):
 			"Property %s in %s should be an Object" % [ass.property, object_class_name])
 			
 		var sub_obj = null
+		# 调用另一个<select>
 		if not ass.select.is_empty():
 			# 用关联列去调用一条select语句获取结果
 			var col_index = columns.find(ass.column)
@@ -447,10 +465,58 @@ func _automapping_associations(data: Array, obj: Object):
 		if sub_obj != null:
 			assert(is_instance_valid(obj.get(ass.property)), 
 				"Set associated property %s failed!" % ass.property)
+	return true
+	
+func _automapping_collections(data: Array, obj: Object) -> bool:
+	var collections = get_deepest_collections()
+	for col: GBatisCollection in collections:
+		assert(col.property in obj, "Invalid property %s in %s" % \
+			[col.property, object_class_name])
+		assert(prop_map[col.property].type == TYPE_ARRAY or \
+			prop_map[col.property].type == TYPE_NIL, # 没定义类型也可以
+			"Property %s in %s should be an Array" % [col.property, object_class_name])
+			
+		var of_type = ""
+		if prop_map[col.property].type == TYPE_NIL:
+			pass # leave empty
+		elif prop_map[col.property].hint == PROPERTY_HINT_ARRAY_TYPE:
+			of_type = prop_map[col.property].hint_string
+			assert(col.of_type == of_type, 
+				"of_type in %s.%s not match of_type in <collection>." % \
+				[object_class_name, col.property])
 				
+		# 调用另一个<select>
+		if not col.select.is_empty():
+			# 用关联列去调用一条select语句获取结果
+			var col_index = columns.find(col.column)
+			assert(col_index != -1, "Cannot found column: %s in Result set." % col.column)
+			var arr = mapper_parser_ref.get_ref().\
+				call_method_in_namespace(col.select, [data[col_index]])
+			assert(arr is Array, "Call %s failed." % col.select)
+			
+			var list = _gen_array(of_type)
+			if of_type.is_empty():
+				list = arr
+			else:
+				list.assign(arr)
+			obj.set(col.property, list)
+			assert(obj.get(col.property) == list, 
+				"Set collected property %s failed!" % col.property)
+		else:
+			var list = obj.get(col.property)
+			if list == null:
+				list = _gen_array(of_type)
+				obj.set(col.property, list)
+				
+			var element = col._result_map.deal(head, data)
+			if not list.has(element):
+				list.push_back(element)
+				
+	return true
+	
 func _automapping_dictionary(data: Array) -> Dictionary:
 	var map = {}
-	for j in columns:
+	for j in columns.size():
 		var column = columns[j]
 		assert(not map.has(column), "Duplicated column name `%s`." % column)
 		map[column] = data[j]
@@ -508,7 +574,11 @@ func _get_obj_or_generate(data: Array) -> Object:
 		obj = GDSQLUtils.evaluate_command(null, "%s.new()" % object_class_name)
 		if obj:
 			obj.set_meta("new", true) # 临时存储，使用者使用完毕要删除
-			# 这里会把第一个obj的pk_obj关联丢失，因为还不知道主键是哪个，所以在别的地方要补上
-			if pk_confirm[0] != -1:
-				pk_obj[data[pk_confirm[0]]] = obj
 	return obj
+	
+func _gen_array(array_type: String):
+	if array_type.is_empty():
+		return []
+	# 不能使用evaluate_command，原因是Expression虽然成功返回但并不是typed array
+	return GDSQLUtils.evaluate_command_script(
+		"[] as Array[%s]" % array_type)

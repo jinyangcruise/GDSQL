@@ -126,10 +126,9 @@ func prepare_deal(head: Array, data: Array):
 			
 	if _result_map != null:
 		_result_map.prepare_deal(head, data)
-	
+		
 ## 每处理一条数据后需要调用一下
 func reset():
-	assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
 	# 如果有鉴别器，则返回值不稳定，需要重置
 	if _result_map and _result_map.discriminator != null:
 		_result_map.reset()
