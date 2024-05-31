@@ -46,9 +46,7 @@ static func _static_init() -> void:
 		var succ = validator.validate(config)
 		if succ:
 			config = val
-		
-var element_cache: Dictionary
-
+			
 ## TODO 等官方支持可变参数数量函数时，可以进行优化
 ## https://github.com/godotengine/godot/pull/82808
 ## btw: Ability to print and log script backtraces
@@ -77,12 +75,9 @@ func query(method_id: String, param: Dictionary):
 ## ALERT WARNING 目前只知道可以获取resultMap，其他类型的未经测试
 func get_element(id: String):
 	assert(config != null, "config is empty!")
-	if element_cache.has(id):
-		return element_cache[id]
 	var item = _get_item(id)
 	assert(item, "Not found element of id: %s." % id)
 	var element = _deal_element(item, {}, 0) # ALERT 目前调用get_element的地方并不需要替换占位符
-	element_cache[id] = element
 	return element
 	
 ## 调用namespace中的方法
@@ -263,8 +258,8 @@ func _deal_result_map(item:GXMLItem, param: Dictionary, depth: int) -> GBatisRes
 			"discriminator"].has(i.name), "Invalid element %s in resultMap." % i.name)
 			ret.push_element(_deal_element(i, param, depth+1))
 	ret.set_mapper_parser_ref(weakref(self))
-	assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
-	element_cache[ret.id] = ret
+	#assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
+	#element_cache[ret.id] = ret
 	return ret
 	
 #<!ELEMENT id EMPTY>
@@ -581,8 +576,8 @@ func _deal_select(item:GXMLItem, param: Dictionary, depth: int) -> GBatisSelect:
 	ret.set_auto_mapping_level(auto_mapping_level)
 	ret.set_method_return_info(method_return_info)
 	ret.set_return_type_undefined_behavior(return_type_undefined_behavior)
-	assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
-	element_cache[ret.id] = ret
+	#assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
+	#element_cache[ret.id] = ret
 	return ret
 	
 #<!ELEMENT insert (#PCDATA | selectKey | include | trim | where | set | foreach 
@@ -616,8 +611,8 @@ func _deal_insert(item:GXMLItem, param: Dictionary, depth: int) -> GBatisInsert:
 	var ret = GBatisInsert.new(item.attrs)
 	ret.set_sql(sql)
 	ret.set_method_return_info(method_return_info)
-	assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
-	element_cache[ret.id] = ret
+	#assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
+	#element_cache[ret.id] = ret
 	return ret
 	
 # NOTICE mybatis原本不支持replace.
@@ -652,8 +647,8 @@ func _deal_replace(item:GXMLItem, param: Dictionary, depth: int) -> GBatisReplac
 	var ret = GBatisReplace.new(item.attrs)
 	ret.set_sql(sql)
 	ret.set_method_return_info(method_return_info)
-	assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
-	element_cache[ret.id] = ret
+	#assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
+	#element_cache[ret.id] = ret
 	return ret
 	
 #<!ELEMENT selectKey (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
@@ -701,8 +696,8 @@ func _deal_update(item:GXMLItem, param: Dictionary, depth: int) -> GBatisUpdate:
 	var ret = GBatisUpdate.new(item.attrs)
 	ret.set_sql(sql)
 	ret.set_method_return_info(method_return_info)
-	assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
-	element_cache[ret.id] = ret
+	#assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
+	#element_cache[ret.id] = ret
 	return ret
 	
 #<!ELEMENT delete (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
@@ -732,8 +727,8 @@ func _deal_delete(item:GXMLItem, param: Dictionary, depth: int) -> GBatisDelete:
 	var ret = GBatisDelete.new(item.attrs)
 	ret.set_sql(sql)
 	ret.set_method_return_info(method_return_info)
-	assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
-	element_cache[ret.id] = ret
+	#assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
+	#element_cache[ret.id] = ret
 	return ret
 	
 #<!ELEMENT include (property+)?>
@@ -786,8 +781,8 @@ func _deal_sql(item:GXMLItem, param: Dictionary, depth: int) -> String:
 		else:
 			ret = _combine_pcdata(ret, i, param, depth)
 	_clear_binded_param(depth+1, binded_param, param)
-	assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
-	element_cache[ret.id] = ret
+	#assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
+	#element_cache[ret.id] = ret
 	return ret
 	
 #<!ELEMENT trim (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
