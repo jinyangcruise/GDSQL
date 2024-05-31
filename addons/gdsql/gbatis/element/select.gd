@@ -385,6 +385,8 @@ func _get_obj_or_generate(data: Array) -> Object:
 		obj = GDSQLUtils.evaluate_command(null, "%s.new()" % object_class_name)
 		if obj:
 			obj.set_meta("new", true) # 临时存储，使用者使用完毕要删除
+			if pk_confirm[0] != -1:
+				pk_obj[data[pk_confirm[0]]] = obj
 	return obj
 	
 ## 判断data对应的obj是否存在

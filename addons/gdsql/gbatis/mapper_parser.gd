@@ -90,6 +90,7 @@ func call_method_in_namespace(method: String, args: Array =[]):
 	assert(config != null, "config is empty!")
 	var ns = config.root_item.attrs.get("namespace", "")
 	var obj = GDSQLUtils.evaluate_command(null, "%s.new()" % ns)
+	assert(method in obj, "Cannot find method %s in %s" % [method, ns])
 	obj.mapper_xml = config
 	return obj.callv(method, args)
 	

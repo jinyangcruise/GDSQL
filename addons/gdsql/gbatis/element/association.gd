@@ -120,15 +120,17 @@ func prepare_deal(head: Array, data: Array):
 			_result_map = mapper_parser_ref.get_ref().get_element(result_map)
 			assert(_result_map != null, "Not found <resultMap> of id %s" % result_map)
 			assert(_result_map is GBatisResultMap, "Not found <resultMap> of id %s" % result_map)
-		else:
+		elif select.is_empty():
 			_result_map = GBatisResultMap.new({})
 			_result_map.type = java_type
+			
+	if _result_map != null:
 		_result_map.prepare_deal(head, data)
-		
+	
 ## 每处理一条数据后需要调用一下
 func reset():
 	assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
 	# 如果有鉴别器，则返回值不稳定，需要重置
-	if _result_map.discriminator != null:
+	if _result_map and _result_map.discriminator != null:
 		_result_map.reset()
 		_result_map = null
