@@ -28,7 +28,7 @@ var result_map = ""
 ## NOTICE 如果resultType和resultMap都是空的，则按照用户调用的方法的返回值的定义来进行返回
 var result_type = "" # 表示一条数据的映射数据类型。NOTICE 一条数据的。
 #var fetch_size = ""
-var flush_cache = true
+var flush_cache = false
 var use_cache = true
 var database_id = ""
 
@@ -38,18 +38,6 @@ var mapper_parser_ref: WeakRef: set = set_mapper_parser_ref
 
 ## ----------------- 内部使用 ------------------
 var object_class_name: String
-var columns: Array # 数据集的列名数组
-var prop_map: Dictionary # 对象的属性列表，用name作为key
-var prop_info: Dictionary # column和prop不一定完全相同，比如可能有冒号，比如大小写、下划线、驼峰格式不同
-# prop_info[column] = {
-#    "exist": true, # 这列数据是否是obj中的属性
-#    "prop": prop, # 这列数据对应的属性名称
-#    "column_type": TYPE_XX, # 这列数据的数据类型。
-#    "method": "" # 填充时用type_convert还是str_to_var转化数据
-# }
-var pk_index: Dictionary # 主键的可能索引
-var pk_confirm: Array = [-1] # 主键确认的索引
-var pk_obj: Dictionary # 用主键关联obj
 var _result_map: GBatisResultMap # resultType和resultMap统一到这个变量上
 
 func _init(conf: Dictionary) -> void:
@@ -64,26 +52,17 @@ func _init(conf: Dictionary) -> void:
 	database_id = conf.get("databaseId", "").strip_edges()
 	
 func clean():
-	pass
+	method_return_info.clear()
+	mapper_parser_ref = null
 	
 func set_mapper_parser_ref(mapper_parser):
 	mapper_parser_ref = mapper_parser
 	
 func set_sql(p_sql: String):
 	sql = p_sql
-	reset()
 	
 func set_method_return_info(info: Dictionary):
 	method_return_info = info
-	
-func reset():
-	object_class_name = ""
-	columns.clear()
-	prop_map.clear()
-	prop_info.clear()
-	pk_index.clear()
-	pk_confirm = [-1]
-	pk_obj.clear()
 	
 func query():
 	# cache TODO
@@ -159,7 +138,7 @@ func query():
 				var o = GDSQLUtils.evaluate_command_script(result_type + ".new()")
 				if not o:
 					assert(false, "Cannot initialize " + result_type)
-				var is_inherit = GDSQLUtils.evaluate_command_script( 
+				var is_inherit = GDSQLUtils.evaluate_command_script(
 					"o is " + mapping_to_type, ["o"], [o])
 				if not is_inherit:
 					assert(false, result_type + " dose not inherit from " + mapping_to_type)
@@ -219,66 +198,78 @@ func query():
 		else:
 			return_type = "Array"
 			
-	if return_type == "Array":
-		var ret_datas = _gen_array()
-		for data in datas:
-			_result_map.prepare_deal(head, data)
-			var map_to_obj = _result_map.mapping_to_object
-			var map_to_array = _result_map.mapping_to_array
-			var map_to_dictionary = _result_map.mapping_to_dictionary
-			
-			var a_ret = _result_map.deal(head, data)
+	_result_map.check_head(head)
+	
+	var final_ret = null
+	# 为了方便中途跳出来
+	for i in [1]:
+		if return_type == "Array":
+			var ret_datas = _gen_array()
+			for data in datas:
+				_result_map.prepare_deal(data)
+				var map_to_obj = _result_map.mapping_to_object
+				var map_to_array = _result_map.mapping_to_array
+				var map_to_dictionary = _result_map.mapping_to_dictionary
+				
+				var a_ret = _result_map.deal(data)
+				if not a_ret is Array:
+					assert(false, "Err occur in result_map deal().")
+				if (map_to_obj or map_to_array or map_to_dictionary) and a_ret[0] == null:
+					assert(false, "Err occur in result_map deal().")
+					
+				a_ret = a_ret[0]
+				var push = true
+				if a_ret is Object:
+					if a_ret.has_meta("new_for_select"):
+						a_ret.remove_meta("new_for_select")
+					else:
+						push = false
+				if push:
+					ret_datas.push_back(a_ret)
+			final_ret = ret_datas
+			break
+		else:
+			if datas.is_empty():
+				if return_type == "Object":
+					final_ret = null
+				elif return_type == "OneRow":
+					final_ret = []
+				elif return_type == "Dictionary":
+					final_ret = {}
+				elif return_type == "Other":
+					if DataTypeDef.RESOURCE_TYPE_NAMES.has(result_type):
+						final_ret = null
+						break
+					assert(false, "Result set is supposed to have one row, but 0.")
+				break
+				
+			_result_map.prepare_deal(datas[0])
+			if return_type == "Object":
+				if not _result_map.mapping_to_object:
+					assert(false, "resultMap return type not match method return type.")
+			elif return_type == "OneRow":
+				if not _result_map.mapping_to_array:
+					assert(false, "resultMap return type not match method return type.")
+			elif return_type == "Dictionary":
+				if not _result_map.mapping_to_dictionary:
+					assert(false, "resultMap return type not match method return type.")
+			elif return_type == "Other":
+				if not _result_map.mapping_to_other:
+					assert(false, "resultMap return type not match method return type.")
+			else:
+				assert(false, "Inner error 105.") # 没考虑到的情况
+				
+			var a_ret = _result_map.deal(datas[0])
 			if not a_ret is Array:
 				assert(false, "Err occur in result_map deal().")
-			if (map_to_obj or map_to_array or map_to_dictionary) and a_ret[0] == null:
-				assert(false, "Err occur in result_map deal().")
-				
-			a_ret = a_ret[0]
-			var push = true
-			if a_ret is Object:
-				if a_ret.has_meta("new_for_select"):
-					a_ret.remove_meta("new_for_select")
-				else:
-					push = false
-			if push:
-				ret_datas.push_back(a_ret)
-		return ret_datas
-	else:
-		if datas.is_empty():
-			if return_type == "Object":
-				return null
-			if return_type == "OneRow":
-				return []
-			if return_type == "Dictionary":
-				return {}
-			if return_type == "Other":
-				if DataTypeDef.RESOURCE_TYPE_NAMES.has(result_type):
-					return null
-				assert(false, "Result set is supposed to have one row, but 0.")
-				
-		_result_map.prepare_deal(head, datas[0])
-		if return_type == "Object":
-			if not _result_map.mapping_to_object:
-				assert(false, "resultMap return type not match method return type.")
-		elif return_type == "OneRow":
-			if not _result_map.mapping_to_array:
-				assert(false, "resultMap return type not match method return type.")
-		elif return_type == "Dictionary":
-			if not _result_map.mapping_to_dictionary:
-				assert(false, "resultMap return type not match method return type.")
-		elif return_type == "Other":
-			if not _result_map.mapping_to_other:
-				assert(false, "resultMap return type not match method return type.")
-		else:
-			assert(false, "Inner error 105.") # 没考虑到的情况
+			if a_ret is Object and a_ret.has_meta("new_for_select"):
+				a_ret.remove_meta("new_for_select")
+			final_ret = a_ret[0]
+			break
 			
-		var a_ret = _result_map.deal(head, datas[0])
-		if not a_ret is Array:
-			assert(false, "Err occur in result_map deal().")
-		if a_ret is Object and a_ret.has_meta("new_for_select"):
-			a_ret.remove_meta("new_for_select")
-		return a_ret[0]
-		
+	_result_map.clean()
+	return final_ret
+	
 func _gen_array():
 	if method_return_info.hint == PROPERTY_HINT_ARRAY_TYPE:
 		# 不能使用evaluate_command，原因是Expression虽然成功返回但并不是typed array

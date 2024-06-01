@@ -16,6 +16,7 @@ var cases: Array
 
 # --------- 内部使用 -----------
 var selected_case_index: int = -2
+var head: Array
 
 func _init(conf: Dictionary) -> void:
 	column = conf.get("column").strip_edges()
@@ -23,11 +24,21 @@ func _init(conf: Dictionary) -> void:
 	assert(DataTypeDef.DATA_TYPE_COMMON_NAMES.has(java_type), 
 		"Invalid javaType %s in <discriminator>" % java_type)
 		
+func clean():
+	selected_case_index = -2
+	head.clear()
+	for i: GBatisCase in cases:
+		i.clean()
+	cases.clear()
+	
 func push_element(case: GBatisCase):
 	cases.push_back(case)
 	
+func check_head(p_head: Array):
+	head = p_head
+	
 # 每处理一条数据需要调用一下
-func prepare_deal(head: Array, data: Array):
+func prepare_deal(data: Array):
 	if selected_case_index != -2:
 		return
 		
@@ -45,7 +56,8 @@ func prepare_deal(head: Array, data: Array):
 	for i: GBatisCase in cases:
 		index += 1
 		if column_value == type_convert(i.value, type):
-			i.prepare_deal(head, data)
+			i.check_head(head)
+			i.prepare_deal(data)
 			break
 	selected_case_index = index
 	

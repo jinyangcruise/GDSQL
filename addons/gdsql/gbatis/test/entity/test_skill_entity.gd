@@ -6,3 +6,5 @@ var skill_name: String
 var icon: Texture2D
 var desc: String
 var max_level: int
+
+var skill_effect: TestSkillEffectEntity

@@ -78,6 +78,7 @@ var mapper_parser_ref: WeakRef: set = set_mapper_parser_ref
 
 # --------- 内部使用 ----------
 var _result_map: GBatisResultMap # 把association当作一个resultMap来用
+var head: Array
 
 func _init(conf: Dictionary):
 	property = conf.get("property", "").strip_edges()
@@ -95,10 +96,10 @@ func _init(conf: Dictionary):
 		assert(not column.is_empty(), "Must set attr column if set select in <association>.")
 		
 func clean():
-	if result_embeded != null:
-		result_embeded.clean()
 	result_embeded = null
 	mapper_parser_ref = null
+	head.clear()
+	_result_map.clean()
 	_result_map = null
 	
 func set_mapper_parser_ref(mapper_parser):
@@ -110,8 +111,11 @@ func push_element(element):
 		result_embeded.set_mapper_parser_ref(mapper_parser_ref)
 	result_embeded.push_back(element)
 	
+func check_head(p_head: Array):
+	head = p_head
+	
 ## 每处理一条数据需要调用一下
-func prepare_deal(head: Array, data: Array):
+func prepare_deal(data: Array):
 	if _result_map != null:
 		return
 		
@@ -127,7 +131,8 @@ func prepare_deal(head: Array, data: Array):
 			
 	if _result_map != null:
 		_result_map.column_prefix = column_prefix
-		_result_map.prepare_deal(head, data)
+		_result_map.check_head(head)
+		_result_map.prepare_deal(data)
 		
 ## 每处理一条数据后需要调用一下
 func reset():

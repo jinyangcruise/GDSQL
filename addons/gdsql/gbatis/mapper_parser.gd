@@ -58,10 +58,15 @@ func query(method_id: String, param: Dictionary):
 	assert(item, "not found this method: %s" % method_id)
 	match item.name:
 		"select":
-			# TODO FIXME do some clean
-			return _deal_select(item, param, 0).query()
+			var select = _deal_select(item, param, 0)
+			var ret = select.query()
+			select.clean()
+			return ret
 		"update":
-			return _deal_update(item, param, 0).query()
+			var update = _deal_update(item, param, 0)
+			var ret = update.query()
+			#update.clean()
+			return ret
 		"insert":
 			return _deal_insert(item, param, 0).query()
 		"replace":
@@ -258,6 +263,7 @@ func _deal_result_map(item:GXMLItem, param: Dictionary, depth: int) -> GBatisRes
 			assert(["constructor", "id", "result", "association", "collection", 
 			"discriminator"].has(i.name), "Invalid element %s in resultMap." % i.name)
 			ret.push_element(_deal_element(i, param, depth+1))
+	ret.end_push_element()
 	#assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
 	#element_cache[ret.id] = ret
 	return ret
@@ -387,6 +393,7 @@ func _deal_arg(item:GXMLItem, param: Dictionary, depth: int):
 #>
 func _deal_collection(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCollection:
 	var ret = GBatisCollection.new(item.attrs)
+	ret.set_mapper_parser_ref(weakref(self))
 	for i in item.content:
 		if i is GXMLItem:
 			assert(["constructor", "id", "result", "association", "collection", 
@@ -460,6 +467,7 @@ func _deal_collection(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCol
 ## 一对一关联
 func _deal_association(item:GXMLItem, param: Dictionary, depth: int) -> GBatisAssociation:
 	var ret = GBatisAssociation.new(item.attrs)
+	ret.set_mapper_parser_ref(weakref(self))
 	for i in item.content:
 		if i is GXMLItem:
 			assert(["constructor", "id", "result", "association", "collection", 
