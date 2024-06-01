@@ -28,7 +28,7 @@ func get_table() -> String:
 	return __table
 	
 func get_path() -> String:
-	return __database + __table
+	return __database.path_join(__table)
 	
 func set_alias(alias: String):
 	__table_alias = alias
