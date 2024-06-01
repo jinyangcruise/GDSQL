@@ -669,10 +669,6 @@ func _get_similar_prop(column_1: String):
 				prop = camel[0].to_upper() + camel.substr(1)
 	return prop
 	
-func _free_obj(obj: Object):
-	if not obj is RefCounted:
-		obj.free()
-		
 func _is_prop_an_object(property_info: Dictionary):
 	return property_info.type == TYPE_OBJECT and \
 		not DataTypeDef.RESOURCE_TYPE_NAMES.has(property_info.class_name)
