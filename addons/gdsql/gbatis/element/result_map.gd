@@ -52,7 +52,6 @@ var primary_column = ""
 var column_prop_map: Dictionary # 子元素<id>和<result>定义的关联，column => [prop]
 								# NOTICE 一个列可以给多个属性赋值。
 								# NOTICE 考虑使用该变量还是get_deepest_column_prop()
-var prop_column_map: Dictionary # 辅助column_prop_map
 var array_type: String = "" # 当mapping_to_array==true时有用
 var discriminator: GBatisDiscriminator
 
@@ -106,8 +105,19 @@ func set_mapper_parser_ref(mapper_parser):
 	mapper_parser_ref = mapper_parser
 	
 func clean():
-	pass
-	#TODO
+	mapper_parser_ref = null
+	for i in result_embeded:
+		i.clean()
+	result_embeded.clear()
+	head.clear()
+	column_prop_map.clear()
+	discriminator = null
+	columns.clear()
+	prop_map.clear()
+	prop_info.clear()
+	pk_index.clear()
+	pk_confirm.clear()
+	pk_obj.clear()
 	
 ## 由于可以extends，所以通过该方法获取子元素
 func get_sub_element():
