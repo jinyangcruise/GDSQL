@@ -206,7 +206,8 @@ func query():
 	var final_ret = null
 	# 为了方便中途跳出来
 	for i in [1]:
-		if return_type == "Array":
+		# 返回Object时也需要处理多条数据，因为多条数据可能是1条主数据和多条集合数据
+		if return_type == "Array" or return_type == "Object":
 			var ret_datas = _gen_array()
 			for data in datas:
 				_result_map.prepare_deal(data)
@@ -228,14 +229,18 @@ func query():
 					else:
 						push = false
 				if push:
+					if return_type == "Object" and not ret_datas.is_empty():
+						assert(false, "Result set is supposed to be mapped to one object.")
 					ret_datas.push_back(a_ret)
-			final_ret = ret_datas
+					
+			if return_type == "Array":
+				final_ret = ret_datas
+			else:
+				final_ret = null if ret_datas.is_empty() else ret_datas[0]
 			break
 		else:
 			if datas.is_empty():
-				if return_type == "Object":
-					final_ret = null
-				elif return_type == "OneRow":
+				if return_type == "OneRow":
 					final_ret = []
 				elif return_type == "Dictionary":
 					final_ret = {}
@@ -246,11 +251,10 @@ func query():
 					assert(false, "Result set is supposed to have one row, but 0.")
 				break
 				
+			if datas.size() != 1:
+				assert(false, "Result set is supposed to have one row, but " + str(datas.size()))
 			_result_map.prepare_deal(datas[0])
-			if return_type == "Object":
-				if not _result_map.mapping_to_object:
-					assert(false, "resultMap return type not match method return type.")
-			elif return_type == "OneRow":
+			if return_type == "OneRow":
 				if not _result_map.mapping_to_array:
 					assert(false, "resultMap return type not match method return type.")
 			elif return_type == "Dictionary":
@@ -265,8 +269,6 @@ func query():
 			var a_ret = _result_map.deal(datas[0])
 			if not a_ret is Array:
 				assert(false, "Err occur in result_map deal().")
-			if a_ret is Object and a_ret.has_meta("new_for_select"):
-				a_ret.remove_meta("new_for_select")
 			final_ret = a_ret[0]
 			break
 			

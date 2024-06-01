@@ -22,6 +22,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		<association property="skill_effect" resultMap="skillEffectResult2"/>
 	</resultMap>
 
+	<resultMap type="TestSkillEntity" id="skillResult3">
+		<id     property="id"        column="id"         />
+		<result property="skill_name"        column="name"         />
+		<result property="icon"        column="icon"         />
+		<result property="desc"        column="desc"         />
+		<result property="max_level"        column="max_level"         />
+		<collection property="arr_skill_effect" resultMap="skillEffectResult2"/>
+	</resultMap>
+
 	<resultMap type="TestSkillEffectEntity" id="skillEffectResult">
 		<id     property="id"        column="id"         />
 		<result property="sid"        column="sid"         />
@@ -40,6 +49,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 	</select>
 	
 	<select id="select_skill_by_id2" resultMap="skillResult2">
+		select t1.*, t2.id as se_id, t2.sid, t2.eid from GameConfig.c_skill t1
+		left join GameConfig.c_skill_effect t2 on t2.sid == t1.id
+		where t1.id == #{id}
+	</select>	
+
+	<select id="select_skill_by_id3" resultMap="skillResult3">
 		select t1.*, t2.id as se_id, t2.sid, t2.eid from GameConfig.c_skill t1
 		left join GameConfig.c_skill_effect t2 on t2.sid == t1.id
 		where t1.id == #{id}

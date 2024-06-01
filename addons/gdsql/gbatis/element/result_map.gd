@@ -592,7 +592,7 @@ func _automapping_collections(data: Array, obj: Object) -> bool:
 			pass # leave empty
 		elif prop_map[object_class_name][col.property].hint == PROPERTY_HINT_ARRAY_TYPE:
 			of_type = prop_map[object_class_name][col.property].hint_string
-			if col.of_type != of_type:
+			if col.of_type != "" and col.of_type != of_type:
 				assert(false, 
 				"of_type in %s.%s not match of_type in <collection>." % \
 				[object_class_name, col.property])

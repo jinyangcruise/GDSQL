@@ -8,3 +8,4 @@ var desc: String
 var max_level: int
 
 var skill_effect: TestSkillEffectEntity
+var arr_skill_effect: Array[TestSkillEffectEntity]
