@@ -67,6 +67,14 @@ func use_db_name(database_name: String) -> BaseDao:
 	return self
 	
 func use_db(database_path: String) -> BaseDao:
+	if not database_path.contains("/"):
+		if mgr and mgr.databases:
+			if mgr.databases.has(database_path):
+				database_path = mgr.databases[database_path]["data_path"]
+		else:
+			var adb = __root_config.get_value(database_path, "data_path", "")
+			if adb != "":
+				database_path = adb
 	__database = database_path
 	return self
 	
@@ -417,6 +425,18 @@ func left_join(db: String, table: String, alias: String, cond: String, password:
 		"duplicate table alias"))
 	if db == "":
 		db = __database
+	else:
+		if not db.contains("/"):
+			if mgr and mgr.databases:
+				if mgr.databases.has(db):
+					db = mgr.databases[db]["data_path"]
+			else:
+				var adb = __root_config.get_value(db, "data_path", "")
+				if adb != "":
+					db = adb
+					
+	if not table.ends_with(DATA_EXTENSION):
+		table = table + DATA_EXTENSION
 		
 	var left_join_obj: LeftJoin
 	if __left_join == null:
