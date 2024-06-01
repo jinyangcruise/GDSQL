@@ -57,13 +57,14 @@ func _init():
 		
 func use_db_name(database_name: String) -> BaseDao:
 	if mgr and mgr.databases:
-		assert(_assert("use_db_name", mgr.databases.has(database_name), 
-			"Not found db:%s." % database_name))
+		if not mgr.databases.has(database_name):
+			assert(_assert("use_db_name", false, "Not found db:%s." % database_name))
 		__database = mgr.databases[database_name]["data_path"]
 	else:
 		__database = __root_config.get_value(database_name, "data_path", "")
-	assert(_assert("use_db_name", not __database.is_empty(), 
-		"database %s's data_path is empty!" % database_name))
+	if __database.is_empty():
+		assert(_assert("use_db_name", false, 
+			"database %s's data_path is empty!" % database_name))
 	return self
 	
 func use_db(database_path: String) -> BaseDao:
@@ -121,11 +122,14 @@ func _get_conf(path: String, password: String) -> ImprovedConfigFile:
 	
 ## 手动提交（保存到文件）
 func commit() -> void:
-	assert(_assert("commit", __database != "", "database is empty"))
-	assert(_assert("commit", __table != "", "table name is empty"))
+	if __database == "" or __database == null:
+		assert(_assert("commit", false, "database is empty"))
+	if __table == "":
+		assert(_assert("commit", false, "table name is empty"))
 	var path = __database.path_join(__table)
 	var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
-	assert(_assert("commit", conf != null, "load conf err!"))
+	if conf == null:
+		assert(_assert("commit", false, "load conf err!"))
 	__CONF_MANAGER.save_conf_by_origin_password(path)
 	reset()
 	
@@ -137,7 +141,8 @@ func commit() -> void:
 ## [["t1.a": xx, "t2.m": yy]].
 ## 这个方法会预处理每个要求的字段和字段的别名（如有），但不会马上在这里处理星号，而是推迟到query的时候才处理。
 func select(someting: String, need_head: bool) -> BaseDao:
-	assert(_assert("select", __cmd == "" or __cmd == "select", "already set command %s" % __cmd))
+	if not (__cmd == "" or __cmd == "select"):
+		assert(_assert("select", false, "already set command %s" % __cmd))
 	#if __parent_union and need_head:
 		#push_warning("union table cannot have head but the param `need_head` is true, 
 		#this param will be ignored")
@@ -201,8 +206,10 @@ func select(someting: String, need_head: bool) -> BaseDao:
 ## union之后的BaseDao可以进行select_same，表示与父BaseDao查询相同的字段。
 ## 该方法是为了简化用户输入。
 func select_same() -> BaseDao:
-	assert(_assert("select_same", __parent_union != null, "must have parent union!"))
-	assert(_assert("select_same", __cmd == "", "already set command %s" % __cmd))
+	if __parent_union == null:
+		assert(_assert("select_same", false, "must have parent union!"))
+	if __cmd != "":
+		assert(_assert("select_same", false, "already set command %s" % __cmd))
 	__cmd = "select"
 	__select = __parent_union.__select.duplicate()
 	__field_as = __parent_union.__field_as.duplicate()
@@ -211,7 +218,8 @@ func select_same() -> BaseDao:
 	
 ## 同时设置表名和别名。table支持不带后缀和带后缀.gsql
 func from(table: String, alias: String = "") -> BaseDao:
-	assert(_assert("from", __database != null and __database != "", "please set db first!"))
+	if __database == null or __database == "":
+		assert(_assert("from", false, "please set db first!"))
 	if not table.ends_with(DATA_EXTENSION):
 		table = table + DATA_EXTENSION
 	__table = table
@@ -246,56 +254,66 @@ func set_table_alias(alias: String) -> BaseDao:
 	
 ## data is Array or Dictionary
 func values(data) -> BaseDao:
-	assert(_assert("values", __cmd.begins_with("insert") or __cmd.begins_with("replace"), 
+	if not (__cmd.begins_with("insert") or __cmd.begins_with("replace")):
+		assert(_assert("values", false, 
 		"'values' can only be used after 'insert' or 'replace'"))
 	__data = data
 	return self
 	
 func sets(data: Dictionary) -> BaseDao:
-	assert(_assert("sets", __cmd == "update", "'sets' can only be used after 'update'"))
+	if __cmd != "update":
+		assert(_assert("sets", false, "'sets' can only be used after 'update'"))
 	__data = data
 	return self
 	
 func insert_into(table: String) -> BaseDao:
-	assert(_assert("insert_into", __cmd == "", "already set command %s" % __cmd))
+	if __cmd != "":
+		assert(_assert("insert_into", false, "already set command %s" % __cmd))
 	__cmd = "insert_into"
 	set_table(table)
 	return self
 	
 func insert_ignore(table: String) -> BaseDao:
-	assert(_assert("insert_ignore", __cmd == "", "already set command %s" % __cmd))
+	if __cmd != "":
+		assert(_assert("insert_ignore", false, "already set command %s" % __cmd))
 	__cmd = "insert_ignore"
 	set_table(table)
 	return self
 	
 func insert_or_update(table: String) -> BaseDao:
-	assert(_assert("insert_or_update", __cmd == "", "already set command %s" % __cmd))
+	if __cmd != "":
+		assert(_assert("insert_or_update", false, "already set command %s" % __cmd))
 	__cmd = "insert_or_update"
 	set_table(table)
 	return self
 	
 func replace_into(table: String) -> BaseDao:
-	assert(_assert("replace_into", __cmd == "", "already set command %s" % __cmd))
+	if __cmd != "":
+		assert(_assert("replace_into", false, "already set command %s" % __cmd))
 	__cmd = "replace_into"
 	set_table(table)
 	return self
 	
 func update(table: String) -> BaseDao:
-	assert(_assert("update", __cmd == "", "already set command %s" % __cmd))
-	assert(_assert("update", __table_alias == "", "table alias must be empty"))
+	if __cmd != "":
+		assert(_assert("update", false, "already set command %s" % __cmd))
+	if __table_alias != "":
+		assert(_assert("update", false, "table alias must be empty"))
 	__cmd = "update"
 	set_table(table)
 	return self
 	
 func delete_from(table: String) -> BaseDao:
-	assert(_assert("delete_from", __cmd == "", "already set command %s" % __cmd))
+	if __cmd != "":
+		assert(_assert("delete_from", false, "already set command %s" % __cmd))
 	__cmd = "delete_from"
 	set_table(table)
 	return self
 	
 ## 如果多次调用，那么这些条件将是`and`的关系。如需避免多次调用，请使用set_where
 func where(cond: String) -> BaseDao:
-	assert(_assert("where", __cmd == "select" or __cmd == "update" or __cmd == "delete_from", 
+	if not (__cmd == "select" or __cmd == "update" or __cmd == "delete_from"):
+		assert(_assert("where", false, 
 		"'where' can only be used after 'select' or 'update' or 'delete_from'"))
 	cond = cond.strip_edges()
 	if not cond.is_empty():
@@ -303,7 +321,8 @@ func where(cond: String) -> BaseDao:
 	return self
 	
 func set_where(cond: String) -> BaseDao:
-	assert(_assert("where", __cmd == "select" or __cmd == "update" or __cmd == "delete_from", 
+	if not (__cmd == "select" or __cmd == "update" or __cmd == "delete_from"):
+		assert(_assert("where", false, 
 		"'where' can only be used after 'select' or 'update' or 'delete_from'"))
 	cond = cond.strip_edges()
 	__where.clear()
@@ -313,7 +332,8 @@ func set_where(cond: String) -> BaseDao:
 	
 ## 返回一个新的baseDao
 func union_all() -> BaseDao:
-	assert(_assert("union_all", __cmd == "select", "'union_all' can only be used after 'select'"))
+	if __cmd != "select":
+		assert(_assert("union_all", false, "'union_all' can only be used after 'select'"))
 	var bd = BaseDao.new()
 	__union_all = bd
 	bd.__parent_union = self
@@ -325,7 +345,8 @@ func is_union_all() -> bool:
 	
 ## 设置unionall对象，返回的仍旧是自己
 func set_union_all(base_dao: BaseDao) -> BaseDao:
-	assert(_assert("set_union_all", __cmd == "select", "'union_all' can only be used after 'select'"))
+	if __cmd != "select":
+		assert(_assert("set_union_all", false, "'union_all' can only be used after 'select'"))
 	__union_all = base_dao
 	base_dao.__parent_union = self
 	return self
@@ -342,7 +363,8 @@ func has_union_all(base_dao: BaseDao) -> bool:
 	
 ## 注意该方法具有嵌套效果，在union的时候，链条中某个环节的order_by会对后面所有环节进行排序
 func order_by(field: String, order: ORDER_BY) -> BaseDao:
-	assert(_assert("order_by", __cmd == "select", "'order_by' can only be used after 'select'"))
+	if __cmd == "select":
+		assert(_assert("order_by", false, "'order_by' can only be used after 'select'"))
 	field = field.strip_edges()
 	if not field.is_empty():
 		__order_by.push_back([field, order])
@@ -350,7 +372,8 @@ func order_by(field: String, order: ORDER_BY) -> BaseDao:
 	
 ## 注意，若用该方法，就一次性传入字符串。如果多次使用，只有最后一次的有效。
 func order_by_str(string: String) -> BaseDao:
-	assert(_assert("order_by_str", __cmd == "select", "'order_by' can only be used after 'select'"))
+	if __cmd != "select":
+		assert(_assert("order_by_str", false, "'order_by' can only be used after 'select'"))
 	# 清空
 	__order_by = []
 	var regex = RegEx.new()
@@ -385,22 +408,25 @@ func order_by_str(string: String) -> BaseDao:
 	
 ## 注意该方法具有嵌套效果，在union的时候，链条中某个环节的limit会对后面所有环节进行limit
 func limit(a_offset: int, a_limit: int) -> BaseDao:
-	assert(_assert("limit", __cmd == "select", "'limit' can only be used after 'select'"))
-	assert(_assert("limit", a_offset >= 0 and a_limit > 0, 
-		"offset must not less than 0 and limit must larger than 0"))
+	if __cmd != "select":
+		assert(_assert("limit", false, "'limit' can only be used after 'select'"))
+	if a_offset < 0 or a_limit <= 0:
+		assert(_assert("limit", false, "offset must not less than 0 and limit must larger than 0"))
 	__offset = a_offset
 	__limit = a_limit
 	return self
 	
 func on_duplicate_update(fields: Array[String]) -> BaseDao:
-	assert(_assert("on_duplicate_update", __cmd == "update" or __cmd == "insert_or_update", 
+	if not (__cmd == "update" or __cmd == "insert_or_update"):
+		assert(_assert("on_duplicate_update", false, 
 		"'on_duplicate_update' can only be used after 'update'"))
 	__duplicate_update_fields = fields
 	return self
 	
 ## 指定主键（适用于没有定义文件的表。如果表有定义文件，则勿设置其他键为主键。）
 func primary_key(a_key: String, auto_increment: bool = true) -> BaseDao:
-	assert(_assert("primary_key", __primary_key_def.is_empty() or a_key == __primary_key_def, 
+	if not (__primary_key_def.is_empty() or a_key == __primary_key_def):
+		assert(_assert("primary_key", false, 
 		"this table has defination of primary key, do not set a different primary key"))
 	__primary_key = a_key
 	if auto_increment:
@@ -412,17 +438,19 @@ func primary_key(a_key: String, auto_increment: bool = true) -> BaseDao:
 ## 注意2：如果用户命令是insert_or_update，只有在新增数据的情况下才可能（也关系到注意1的情况）自增
 ## 注意3：如果操作的表的定义文件中该字段并非自增字段，不影响本次操作临时把其当成自增字段。
 func add_auto_increment_key(a_key: String) -> BaseDao:
-	assert(_assert("add_auto_increment_key", __cmd.begins_with("insert") or __cmd.begins_with("replace"), 
+	if not (__cmd.begins_with("insert") or __cmd.begins_with("replace")):
+		assert(_assert("add_auto_increment_key", false, 
 		"'add_auto_increment_key' can only be used after 'insert' or 'replace'"))
 	__autoincrement_keys[a_key] = 0
 	return self
 	
 func left_join(db: String, table: String, alias: String, cond: String, password: String) -> BaseDao:
-	assert(_assert("left_join", __cmd.begins_with("select"), "left_join must use after select"))
-	assert(_assert("left_join", __table_alias != "", "main table must have alias name before use 'left join'"))
-	assert(_assert("left_join", 
-		alias != __table_alias and (__left_join == null or not __left_join.chain_has_alias(alias)), 
-		"duplicate table alias"))
+	if not __cmd.begins_with("select"):
+		assert(_assert("left_join", false, "left_join must use after select"))
+	if __table_alias == "":
+		assert(_assert("left_join", false, "main table must have alias name before use 'left join'"))
+	if not (alias != __table_alias and (__left_join == null or not __left_join.chain_has_alias(alias))):
+		assert(_assert("left_join", false, "duplicate table alias"))
 	if db == "":
 		db = __database
 	else:
@@ -937,7 +965,8 @@ func __get_table_columns(db_path, table_name, table_alias, all_datas: Dictionary
 		
 	if columns == null or columns.is_empty():
 		# 推断表头
-		assert(_assert("__get_table_columns", not all_datas.get(table_alias, []).is_empty(), 
+		if all_datas.get(table_alias, []).is_empty():
+			assert(_assert("__get_table_columns", false, 
 			"db: [%s] table [%s] cannot get head: no defination of this table or any data of this table" \
 			% [db_path, table_name]))
 		columns = all_datas[table_alias][0].keys().map(func(v):
@@ -974,10 +1003,13 @@ func __get_table_column_defination(db_path, table_name, table_alias, column_name
 	
 ## 执行。注意：在union的情况下，会自动执行第一个BaseDao的query方法。
 func query() -> QueryResult:
-	assert(_assert("query", !__database.is_empty(), "database is empty"))
-	assert(_assert("query", !__table.is_empty(), "table is empty"))
-	assert(_assert("query", !__cmd.is_empty(), "command is empty"))
-	
+	if __database.is_empty():
+		assert(_assert("query", false, "database is empty"))
+	if __table.is_empty():
+		assert(_assert("query", false, "table is empty"))
+	if __cmd.is_empty():
+		assert(_assert("query", false, "command is empty"))
+		
 	if __parent_union:
 		return __parent_union.query()
 		
@@ -992,15 +1024,17 @@ func query() -> QueryResult:
 	match __cmd:
 		"select":
 			var ret = ___select(path)
-			assert(_assert("query:%s" % __cmd, typeof(ret) != TYPE_NIL, "Error occur!"))
+			if typeof(ret) == TYPE_NIL:
+				assert(_assert("query:%s" % __cmd, false, "Error occur!"))
 			reset()
 			result._has_head = __need_head
 			result._data = ret
 			return result
 		"insert_into", "insert_ignore", "insert_or_update", "replace_into":
-			assert(_assert("query:%s" % __cmd, !__data.is_empty(), "Data is empty"))
-			assert(_assert("query:%s" % __cmd, 
-				__primary_key != null and __primary_key != "", "Primary key is empty"))
+			if __data.is_empty():
+				assert(_assert("query:%s" % __cmd, false, "Data is empty"))
+			if __primary_key == null or __primary_key == "":
+				assert(_assert("query:%s" % __cmd, false, "Primary key is empty"))
 			# 检查数据类型是否正确
 			var columns_def = __get_table_defination(__database, __table)["columns"]
 			
@@ -1018,13 +1052,15 @@ func query() -> QueryResult:
 						var v1 = type_convert(__data[col_name], col["Data Type"])
 						var v2 = type_convert(v1, typeof(__data[col_name]))
 						# 转化过程有损失时，抛出错误
-						assert(_assert("query:%s" % __cmd, v2 == __data[col_name], 
+						if v2 != __data[col_name]:
+							assert(_assert("query:%s" % __cmd, false, 
 							"data type of %s is not %s" % \
 							[col_name, type_string(col["Data Type"])]))
 						__data[col_name] = v1
 						
 			var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
-			assert(_assert("query:%s" % __cmd, conf != null, "load conf err!"))
+			if conf == null:
+				assert(_assert("query:%s" % __cmd, false, "load conf err!"))
 			var primary_value = str(__data.get(__primary_key))
 			var insert = true # 是insert模式还是update模式。只有insert_or_update时会涉及
 			if primary_value == null:
@@ -1129,8 +1165,11 @@ func query() -> QueryResult:
 			return result
 			
 		"update":
-			assert(_assert("query:%s" % __cmd, !__data.is_empty(), "Data is empty"))
-			assert(_assert("query:%s" % __cmd, !__where.is_empty(), "Condition is empty. This limitition if for safety."))
+			if __data.is_empty():
+				assert(_assert("query:%s" % __cmd, false, "Data is empty"))
+			if __where.is_empty():
+				assert(_assert("query:%s" % __cmd, false, 
+				"Condition is empty. This limitition if for safety."))
 			
 			# 检查数据类型是否正确
 			var columns_def = __get_table_defination(__database, __table)["columns"]
@@ -1142,7 +1181,8 @@ func query() -> QueryResult:
 						var v1 = type_convert(new_val, col["Data Type"])
 						var v2 = type_convert(v1, typeof(new_val))
 						# 转化过程有损失时，抛出错误
-						assert(_assert("query:%s" % __cmd, v2 == new_val, 
+						if v2 != new_val:
+							assert(_assert("query:%s" % __cmd, false, 
 							"data type of %s is not %s" % [col_name, type_string(col["Data Type"])]))
 						__data[col_name] = v1
 						
@@ -1155,7 +1195,8 @@ func query() -> QueryResult:
 			
 			# 更新数据
 			var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
-			assert(_assert("query:%s" % __cmd, conf != null, "Load conf err!"))
+			if conf == null:
+				assert(_assert("query:%s" % __cmd, false, "Load conf err!"))
 			for data in datas:
 				data = data[__table_alias] # 未经过后处理的肯定是用表名分类的结构
 				var primary_value = str(data.get(primary))
@@ -1174,7 +1215,8 @@ func query() -> QueryResult:
 			
 		"delete_from":
 			var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
-			assert(_assert("query:%s" % __cmd, conf != null, "Load conf err!"))
+			if conf == null:
+				assert(_assert("query:%s" % __cmd, false, "Load conf err!"))
 			
 			if __where.is_empty():
 				result._affected_rows = conf.get_sections().size()
