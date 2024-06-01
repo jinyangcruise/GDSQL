@@ -106,7 +106,8 @@ func set_mapper_parser_ref(mapper_parser):
 	
 func push_element(element):
 	if not result_embeded:
-		result_embeded = GBatisResultMap.new({})
+		result_embeded = GBatisResultMap.new({"type": java_type})
+		result_embeded.set_mapper_parser_ref(mapper_parser_ref)
 	result_embeded.push_back(element)
 	
 ## 每处理一条数据需要调用一下
@@ -121,8 +122,8 @@ func prepare_deal(head: Array, data: Array):
 			assert(_result_map != null, "Not found <resultMap> of id %s" % result_map)
 			assert(_result_map is GBatisResultMap, "Not found <resultMap> of id %s" % result_map)
 		elif select.is_empty():
-			_result_map = GBatisResultMap.new({})
-			_result_map.type = java_type
+			_result_map = GBatisResultMap.new({"type": java_type})
+			_result_map.set_mapper_parser_ref(mapper_parser_ref)
 			
 	if _result_map != null:
 		_result_map.column_prefix = column_prefix

@@ -265,8 +265,7 @@ func prepare_mapping_to_object():
 					" in Result set. Check your xml config.")
 			
 	# obj的属性列表及其类型，缓存到这个变量中
-	var model_obj = GDSQLUtils.evaluate_command(null, 
-		object_class_name + ".new()") as Object
+	var model_obj = GDSQLUtils.evaluate_command_script(object_class_name + ".new()") as Object
 	if model_obj == null:
 		assert(false, "Cannot initialize this class " + object_class_name)
 		
@@ -285,6 +284,7 @@ func prepare_deal(p_head: Array, data: Array):
 	
 	# need_prepare_deal默认为true，所以至少会执行一次
 	if need_prepare_deal:
+		real_type = type
 		if discriminator == null:
 			need_prepare_deal = false
 		else:
@@ -456,7 +456,7 @@ func _automapping_object_simple_property(data: Array, obj: Object) -> bool:
 						prop_info[column] = {"exist":false}
 						continue
 					prop.push_back(a_prop)
-					column_type = prop_map[a_prop].type
+					column_type.push_back(prop_map[a_prop].type)
 					
 				prop_is_object.push_back(_is_prop_an_object(prop_map[a_prop]))
 				
@@ -688,7 +688,7 @@ func _get_obj_or_generate(data: Array) -> Object:
 	if pk_confirm[0] != -1:
 		obj = pk_obj.get(data[pk_confirm[0]], null)
 	if obj == null:
-		obj = GDSQLUtils.evaluate_command(null, object_class_name + ".new()")
+		obj = GDSQLUtils.evaluate_command_script(object_class_name + ".new()")
 		if obj:
 			obj.set_meta("new", true) # 临时存储
 			obj.set_meta("new_for_select", true) # 临时存储，给外部的select用

@@ -43,7 +43,7 @@ static func _static_init() -> void:
 @export var config: GXML:
 	set(val):
 		var validator = GBatisMapperValidator.new()
-		var succ = validator.validate(config)
+		var succ = validator.validate(val)
 		if succ:
 			config = val
 			
@@ -84,7 +84,7 @@ func get_element(id: String):
 func call_method_in_namespace(method: String, args: Array =[]):
 	assert(config != null, "config is empty!")
 	var ns = config.root_item.attrs.get("namespace", "")
-	var obj = GDSQLUtils.evaluate_command(null, "%s.new()" % ns)
+	var obj = GDSQLUtils.evaluate_command_script(ns + ".new()")
 	assert(method in obj, "Cannot find method %s in %s" % [method, ns])
 	obj.mapper_xml = config
 	return obj.callv(method, args)
@@ -252,12 +252,12 @@ func _deal_parameter(item:GXMLItem, param: Dictionary, depth: int):
 #>
 func _deal_result_map(item:GXMLItem, param: Dictionary, depth: int) -> GBatisResultMap:
 	var ret = GBatisResultMap.new(item.attrs)
+	ret.set_mapper_parser_ref(weakref(self))
 	for i in item.content:
 		if i is GXMLItem:
 			assert(["constructor", "id", "result", "association", "collection", 
 			"discriminator"].has(i.name), "Invalid element %s in resultMap." % i.name)
 			ret.push_element(_deal_element(i, param, depth+1))
-	ret.set_mapper_parser_ref(weakref(self))
 	#assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
 	#element_cache[ret.id] = ret
 	return ret
@@ -506,6 +506,7 @@ func _deal_case(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCase:
 		"type": result_type
 	}
 	var ret = GBatisCase.new(conf)
+	ret.set_mapper_parser_ref(weakref(self))
 	for i in item.content:
 		if i is GXMLItem:
 			assert(["constructor", "id", "result", "association", "collection", 
@@ -513,7 +514,6 @@ func _deal_case(item:GXMLItem, param: Dictionary, depth: int) -> GBatisCase:
 			assert(not (result_map_id+result_type).is_empty(), 
 				"Already set resultMap or resultType in <case>.")
 			ret.push_element(_deal_element(i, param, depth+1))
-	ret.set_mapper_parser_ref(weakref(self))
 	return ret
 	
 #<!ELEMENT property EMPTY>
@@ -572,10 +572,9 @@ func _deal_select(item:GXMLItem, param: Dictionary, depth: int) -> GBatisSelect:
 	_clear_binded_param(depth+1, binded_param, param)
 	
 	var ret = GBatisSelect.new(item.attrs)
+	ret.set_mapper_parser_ref(weakref(self))
 	ret.set_sql(sql)
-	ret.set_auto_mapping_level(auto_mapping_level)
 	ret.set_method_return_info(method_return_info)
-	ret.set_return_type_undefined_behavior(return_type_undefined_behavior)
 	#assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
 	#element_cache[ret.id] = ret
 	return ret

@@ -33,10 +33,6 @@ var use_cache = true
 var database_id = ""
 
 var sql = "": set = set_sql
-# NONE or PARTIAL or FULL
-var auto_mapping_level = "PARTIAL": set = set_auto_mapping_level 
-# ALWAYS_ARRAY or ARRAY_WHEN_NECESSARY
-var return_type_undefined_behavior = "ALWAYS_ARRAY": set = set_return_type_undefined_behavior
 var method_return_info: Dictionary: set = set_method_return_info
 var mapper_parser_ref: WeakRef: set = set_mapper_parser_ref
 
@@ -77,14 +73,8 @@ func set_sql(p_sql: String):
 	sql = p_sql
 	reset()
 	
-func set_auto_mapping_level(type: String):
-	auto_mapping_level = type
-	
 func set_method_return_info(info: Dictionary):
 	method_return_info = info
-	
-func set_return_type_undefined_behavior(type: String):
-	return_type_undefined_behavior = type
 	
 func reset():
 	object_class_name = ""
@@ -153,9 +143,26 @@ func query():
 	# 看配置的result_type（配置的automapping的类型）
 	# 和函数返回值推断的automapping的类型是否一致
 	if not result_type.is_empty():
-		assert(result_type == mapping_to_type or mapping_to_type.is_empty(), 
-			"resultType `%s` not match your method type `%s`." % \
-			[result_type, mapping_to_type])
+		if result_type == mapping_to_type or mapping_to_type == "":
+			pass # leave empty
+		# 不一致的话，要检查继承关系
+		else:
+			if DataTypeDef.DATA_TYPE_COMMON_NAMES.has(result_type):
+				assert(false, "resultType `%s` not match your method type `%s`." % \
+				[result_type, mapping_to_type])
+			elif mapping_to_type == "Object":
+				pass # leave empty
+			elif result_type == "Resource":
+				if not (mapping_to_type == "RefCounted" or mapping_to_type == "Object"):
+					assert(false, "Resouce dose not inherit from " + mapping_to_type)
+			else:
+				var o = GDSQLUtils.evaluate_command_script(result_type + ".new()")
+				if not o:
+					assert(false, "Cannot initialize " + result_type)
+				var is_inherit = GDSQLUtils.evaluate_command_script( 
+					"o is " + mapping_to_type, ["o"], [o])
+				if not is_inherit:
+					assert(false, result_type + " dose not inherit from " + mapping_to_type)
 		# xml配置了，但是函数返回值没定义。要确认一下xml配置的是不是Object
 		if mapping_to_type.is_empty():
 			mapping_to_type = result_type
@@ -177,7 +184,7 @@ func query():
 	# xml不配置mapping类型，调用函数不指定返回数据类型，或不指定数组元素的数据类型，那么返回raw datas
 	if result_type.is_empty() and result_map.is_empty() and mapping_to_type.is_empty():
 		if return_type == "Undefined":
-			if return_type_undefined_behavior == "ALWAYS_ARRAY":
+			if mapper_parser_ref.get_ref().return_type_undefined_behavior == "ALWAYS_ARRAY":
 				return datas
 			elif datas.size() == 1: # ARRAY_WHEN_NECESSARY
 				return datas[0]
@@ -194,11 +201,11 @@ func query():
 		assert(_result_map != null, "Not found <resultMap> of id %s" % result_map)
 		assert(_result_map is GBatisResultMap, "Not found <resultMap> of id %s" % result_map)
 	else:
-		_result_map = GBatisResultMap.new({})
-		_result_map.type = result_type
+		_result_map = GBatisResultMap.new({"type": result_type})
+		_result_map.set_mapper_parser_ref(mapper_parser_ref)
 		
 	if return_type == "Undefined":
-		if return_type_undefined_behavior == "ALWAYS_ARRAY":
+		if mapper_parser_ref.get_ref().return_type_undefined_behavior == "ALWAYS_ARRAY":
 			return_type = "Array"
 		elif datas.size() == 1: # ARRAY_WHEN_NECESSARY
 			if mapping_to_object:
@@ -268,6 +275,8 @@ func query():
 		var a_ret = _result_map.deal(head, datas[0])
 		if not a_ret is Array:
 			assert(false, "Err occur in result_map deal().")
+		if a_ret is Object and a_ret.has_meta("new_for_select"):
+			a_ret.remove_meta("new_for_select")
 		return a_ret[0]
 		
 func _gen_array():

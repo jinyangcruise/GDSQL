@@ -41,7 +41,8 @@ func clean():
 	
 func push_element(element):
 	if not result_embeded:
-		result_embeded = GBatisResultMap.new({})
+		result_embeded = GBatisResultMap.new({"type": result_type})
+		result_embeded.set_mapper_parser_ref(mapper_parser_ref)
 	result_embeded.push_element(element)
 	
 func get_result_type() -> String:
@@ -82,8 +83,9 @@ func prepare_deal(head: Array, data: Array):
 			assert(_result_map != null, "Not found <resultMap> of id %s" % result_map)
 			assert(_result_map is GBatisResultMap, "Not found <resultMap> of id %s" % result_map)
 		else:
-			_result_map = GBatisResultMap.new({})
-			_result_map.type = result_type
+			_result_map = GBatisResultMap.new({"type": result_type})
+			_result_map.set_mapper_parser_ref(mapper_parser_ref)
+			
 	_result_map.prepare_deal(head, data)
 	
 ## 每处理一条数据后需要调用一下

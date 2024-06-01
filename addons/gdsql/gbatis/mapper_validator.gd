@@ -19,7 +19,7 @@ func validate(item: GXML) -> bool:
 	_assert(item.root_item.attrs.has("namespace"), "root item does not have namespace!")
 	var ns = item.root_item.attrs.get("namespace", "") as String
 	if not ns.is_empty():
-		var obj = GDSQLUtils.evaluate_command(null, "%s.new()" % ns)
+		var obj = GDSQLUtils.evaluate_command_script(ns + ".new()")
 		_assert(obj != null or not obj is Object, 
 			"Cannot initialize object of namespace: %s." % ns)
 		_assert(obj is GBatisMapper, "Namespace should be a GBatisMapper.")

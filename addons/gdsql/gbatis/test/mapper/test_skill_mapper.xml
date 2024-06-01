@@ -14,7 +14,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 	
 	<select id="select_skill_by_id" resultType="TestSkillEntity">
 		select * from GameConfig.c_skill
-		where id == #{id} or 1==1
+		where id == #{id}
+	</select>
+
+	<select id="select_skill_list" resultType="TestSkillEntity">
+		select * from GameConfig.c_skill
 	</select>
 	
 </mapper> 
