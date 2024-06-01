@@ -32,6 +32,13 @@ var __auto_commit: bool = true ## 【外部请勿使用】自动提交标志
 static var __root_config: ImprovedConfigFile ## 【外部请勿使用】临时获取数据库定义文件
 var __config: ImprovedConfigFile ## 【外部请勿使用】临时为了获取数据库定义文件
 
+## 匹配逗号的位置，括号、引号内的逗号都不匹配
+static var regex_comma: RegEx = RegEx.new()
+## 匹配field alias
+static var regex_as: RegEx = RegEx.new()
+## sysbol
+static var regex_symbol: RegEx = RegEx.new()
+
 const ROOT_CONFIG_PATH = "res://addons/gdsql/config/config.cfg"
 const DATA_EXTENSION = ".gsql"
 const CONF_EXTENSION = ".cfg"
@@ -45,6 +52,9 @@ enum ORDER_BY { ASC, DESC }
 static func _static_init():
 	__root_config = ImprovedConfigFile.new()
 	__root_config.load(ROOT_CONFIG_PATH) # FIXME 即时更新？
+	regex_comma.compile(",(?=(([^']*'){2})*[^']*$)(?=(([^\"]*\"){2})*[^\"]*$)(?![^()]*\\))")
+	regex_as.compile("([\\s]+)(as[\\s]+)?([0-9a-zA-Z_:]+)$") # 支持 x as position:x 这样的写法
+	regex_symbol.compile("[a-zA-Z_]+[0-9a-zA-Z_]*")
 	
 func _init():
 	if Engine.has_singleton("ConfManager"):
@@ -154,16 +164,16 @@ func select(someting: String, need_head: bool) -> BaseDao:
 	# 拆分select的字段。不能简单用split(",")，因为字段有可能是函数调用，它不支持正则（至少Godot 4.1不支持）
 	# 下面的方案支持类似这样的情况："*,a.uname.contains(),aa.level, t.img, at.icon(1, 2, \"a, b\"), 
 	# t_user.u, y.call()"
-	var regex = RegEx.new()
+	#var regex = RegEx.new()
 	#regex.compile(",\\s*(?![^()]*\\))") # 匹配逗号的位置，括号内的逗号不匹配
 	# 匹配逗号的位置，括号、引号内的逗号都不匹配
-	regex.compile(",(?=(([^']*'){2})*[^']*$)(?=(([^\"]*\"){2})*[^\"]*$)(?![^()]*\\))")
-	var matches = regex.search_all(someting)
+	#regex.compile(",(?=(([^']*'){2})*[^']*$)(?=(([^\"]*\"){2})*[^\"]*$)(?![^()]*\\))")
+	var matches = regex_comma.search_all(someting)
 	
 	# 别名
-	var regex_2 = RegEx.new()
+	#var regex_2 = RegEx.new()
 	#regex_2.compile("[\\s]+as[\\s]+([0-9a-zA-Z_]+)$")
-	regex_2.compile("([\\s]+)(as[\\s]+)?([0-9a-zA-Z_:]+)$") # 支持 x as position:x 这样的写法
+	#regex_2.compile("([\\s]+)(as[\\s]+)?([0-9a-zA-Z_:]+)$") # 支持 x as position:x 这样的写法
 	
 	if not matches.is_empty():
 		
@@ -174,7 +184,7 @@ func select(someting: String, need_head: bool) -> BaseDao:
 			start = i.get_end()
 			
 			# 有可能取了别名，例如t_user.icon(1, 2, \"a, b\") as iii
-			var m = regex_2.search(field_str)
+			var m = regex_as.search(field_str)
 			if m:
 				# 实际要求的式子，例子中的t_user.icon(1, 2, \"a, b\")
 				field_str = field_str.substr(0, m.get_start(1))
@@ -186,7 +196,7 @@ func select(someting: String, need_head: bool) -> BaseDao:
 		if start < someting.length():
 			var field_str = someting.substr(start).strip_edges()
 			
-			var m = regex_2.search(field_str)
+			var m = regex_as.search(field_str)
 			if m:
 				field_str = field_str.substr(0, m.get_start(1))
 				__field_as[field_str] = m.get_string(3)
@@ -194,7 +204,7 @@ func select(someting: String, need_head: bool) -> BaseDao:
 			__select.push_back(field_str)
 	# 没有逗号分割，*或者某个单独的字段
 	else:
-		var m = regex_2.search(someting)
+		var m = regex_as.search(someting)
 		if m:
 			# 实际要求的式子，例子中的t_user.icon(1, 2, \"a, b\")
 			someting = someting.substr(0, m.get_start(1))
@@ -376,10 +386,10 @@ func order_by_str(string: String) -> BaseDao:
 		assert(_assert("order_by_str", false, "'order_by' can only be used after 'select'"))
 	# 清空
 	__order_by = []
-	var regex = RegEx.new()
+	#var regex = RegEx.new()
 	# 匹配逗号的位置，括号、引号内的逗号都不匹配
-	regex.compile(",(?=(([^']*'){2})*[^']*$)(?=(([^\"]*\"){2})*[^\"]*$)(?![^()]*\\))")
-	var matches = regex.search_all(string)
+	#regex.compile(",(?=(([^']*'){2})*[^']*$)(?=(([^\"]*\"){2})*[^\"]*$)(?![^()]*\\))")
+	var matches = regex_comma.search_all(string)
 	var arr = []
 	if not matches.is_empty():
 		var start = 0
@@ -638,8 +648,8 @@ func ___select(path: String, fill_primary_key: String = ""):
 		
 	# 计算表头
 	var real_select = []
-	var regex_symbol = RegEx.new()
-	regex_symbol.compile("[a-zA-Z_]+[0-9a-zA-Z_]*")
+	#var regex_symbol = RegEx.new()
+	#regex_symbol.compile("[a-zA-Z_]+[0-9a-zA-Z_]*")
 	var regex_field = RegEx.new()
 	var gen_dict = func(s, c, f, t_alias = "", d = "", t = ""):
 		return {"select_name": s, "Column Name": c, "is_field": f, "table_alias": t_alias,
