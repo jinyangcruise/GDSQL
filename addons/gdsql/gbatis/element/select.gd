@@ -1,7 +1,28 @@
 @tool
 extends RefCounted
 class_name GBatisSelect
-
+#<!ELEMENT select (#PCDATA | include | trim | where | set | foreach | choose 
+#| if | bind)*>
+#<!ATTLIST select
+#id CDATA #REQUIRED
+#parameterMap CDATA #IMPLIED -------- ❌ not support
+#parameterType CDATA #IMPLIED ------- ❌ not support
+#resultMap CDATA #IMPLIED
+#resultType CDATA #IMPLIED
+#resultSetType (FORWARD_ONLY | SCROLL_INSENSITIVE | SCROLL_SENSITIVE | DEFAULT) #IMPLIED ❌ not support
+#statementType (STATEMENT|PREPARED|CALLABLE) #IMPLIED ❌ not support
+#fetchSize CDATA #IMPLIED ----------- ❌ not support
+#timeout CDATA #IMPLIED ------------- ❌ not support
+#flushCache (true|false) #IMPLIED
+#useCache (true|false) #IMPLIED
+#databaseId CDATA #IMPLIED
+#lang CDATA #IMPLIED ---------------- ❌ not support
+#resultOrdered (true|false) #IMPLIED  ❌ not support
+#resultSets CDATA #IMPLIED ---------- ❌ not support. Identifies the name of 
+#                                        the result set where this complex type 
+#                                        will be loaded from. 
+#                                        eg. resultSets="blogs,authors"
+#>
 var id = ""
 var result_map = ""
 ## NOTICE 如果resultType和resultMap都是空的，则按照用户调用的方法的返回值的定义来进行返回
@@ -159,14 +180,19 @@ func query():
 	var succ = _prepare_columns_pk_index(head)
 	assert(succ, "Error occur in _prepare_columns_pk_index().")
 	
-	# xml不配置mapping类型，调用函数只定义要返回数组，但不指定数组元素的数据类型，那么返回raw datas
+	# xml不配置mapping类型，调用函数不指定返回数据类型，或不指定数组元素的数据类型，那么返回raw datas
 	if result_type.is_empty() and result_map.is_empty() and mapping_to_type.is_empty():
-		if return_type_undefined_behavior == "ALWAYS_ARRAY":
+		if return_type == "Undefined":
+			if return_type_undefined_behavior == "ALWAYS_ARRAY":
+				return datas
+			elif datas.size() == 1: # ARRAY_WHEN_NECESSARY
+				return datas[0]
+			else:
+				return datas
+		elif return_type == "Array":
 			return datas
-		elif datas.size() == 1: # ARRAY_WHEN_NECESSARY
-			return datas[0]
 		else:
-			return datas
+			assert(false, "Inner error 104.") # 没考虑到的情况
 			
 	# 用一个resultMap来映射数据
 	if not result_map.is_empty():
@@ -176,7 +202,70 @@ func query():
 	else:
 		_result_map = GBatisResultMap.new({})
 		_result_map.type = result_type
-	#_result_map.prepare_deal(head, data) TODO
+		
+	if return_type == "Undefined":
+		if return_type_undefined_behavior == "ALWAYS_ARRAY":
+			return_type = "Array"
+		elif datas.size() == 1: # ARRAY_WHEN_NECESSARY
+			if mapping_to_object:
+				return_type = "Object"
+			elif result_type == "Array":
+				return_type = "OneRow"
+			elif result_type == "Dictionary":
+				return_type = "Dictionary"
+			else:
+				return_type = "Other"
+		else:
+			return_type = "Array"
+			
+	if return_type == "Array":
+		var ret_datas = _gen_array()
+		for data in datas:
+			_result_map.prepare_deal(head, data)
+			var map_to_obj = _result_map.mapping_to_object
+			var map_to_array = _result_map.mapping_to_array
+			var map_to_dictionary = _result_map.mapping_to_dictionary
+			
+			var a_ret = _result_map.deal(head, data)
+			if not a_ret is Array:
+				assert(false, "Err occur in result_map deal().")
+			if (map_to_obj or map_to_array or map_to_dictionary) and a_ret[0] == null:
+				assert(false, "Err occur in result_map deal().")
+				
+			a_ret = a_ret[0]
+			var push = true
+			if a_ret is Object:
+				if a_ret.has_meta("new_for_select"):
+					a_ret.remove_meta("new_for_select")
+				else:
+					push = false
+			ret_datas.push_back(a_ret)
+		return ret_datas
+	else:
+		if datas.is_empty():
+			return null
+		_result_map.prepare_deal(head, datas[0])
+		if return_type == "Object":
+			if not _result_map.mapping_to_object:
+				assert(false, "resultMap return type not match method return type.")
+		elif return_type == "OneRow":
+			if not _result_map.mapping_to_array:
+				assert(false, "resultMap return type not match method return type.")
+		elif return_type == "Dictionary":
+			if not _result_map.mapping_to_dictionary:
+				assert(false, "resultMap return type not match method return type.")
+		elif return_type == "Other":
+			if not _result_map.mapping_to_other:
+				assert(false, "resultMap return type not match method return type.")
+		else:
+			assert(false, "Inner error 105.") # 没考虑到的情况
+			
+		var a_ret = _result_map.deal(head, datas[0])
+		if not a_ret is Array:
+			assert(false, "Err occur in result_map deal().")
+		return a_ret[0]
+		
+		
 	
 	# 定义了每条数据映射到的数据类型
 	if not result_type.is_empty():
@@ -556,5 +645,5 @@ func _gen_array():
 	if method_return_info.hint == PROPERTY_HINT_ARRAY_TYPE:
 		# 不能使用evaluate_command，原因是Expression虽然成功返回但并不是typed array
 		return GDSQLUtils.evaluate_command_script(
-			"[] as Array[%s]" % method_return_info.hint_string)
+			"[] as Array[" + method_return_info.hint_string + "]")
 	return []

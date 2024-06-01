@@ -45,6 +45,7 @@ var need_prepare_deal: bool = true
 var mapping_to_object: bool = false
 var mapping_to_array: bool = false
 var mapping_to_dictionary: bool = false
+var mapping_to_other: bool = false
 
 var object_class_name: String = "" # 当mapping_to_object==true时有用
 var primary_prop = ""
@@ -304,6 +305,8 @@ func prepare_deal(p_head: Array, data: Array):
 			mapping_to_array = true
 		elif real_type == "Dictionary":
 			mapping_to_dictionary = true
+		else:
+			mapping_to_other = true
 			
 	# assocoiation和collection由于存在内部的resultMap，所以由它们自己决定是否prepare_deal
 	var associations = get_deepest_associations()
@@ -315,9 +318,7 @@ func prepare_deal(p_head: Array, data: Array):
 		c.prepare_deal(p_head, data)
 		
 ## 将传入的一条数据进行映射后再返回。
-func deal(p_head: Array, data: Array):
-	prepare_deal(p_head, data)
-	
+func deal(p_head: Array, data: Array) -> Array:
 	# 每条数据映射到对象
 	var ret = null
 	if mapping_to_object:
@@ -330,11 +331,13 @@ func deal(p_head: Array, data: Array):
 	elif mapping_to_dictionary:
 		ret = _automapping_dictionary(data)
 	# 每条数据映射到其他类型比如int， String 或 [int|String|...]
-	else:
+	elif mapping_to_other:
 		ret = _automapping_other(data)
+	else:
+		assert(false, "Inner err in result_map. 101.")
 		
 	reset()
-	return ret
+	return [ret]
 	
 ## 每处理完一条数据调用一下
 func reset():
@@ -342,6 +345,7 @@ func reset():
 		mapping_to_object = false
 		mapping_to_array = false
 		mapping_to_dictionary = false
+		mapping_to_other = false
 		# 重置类名，因为discriminator可能导致每一行的类不同
 		object_class_name = ""
 		array_type = ""
@@ -690,7 +694,8 @@ func _get_obj_or_generate(data: Array) -> Object:
 	if obj == null:
 		obj = GDSQLUtils.evaluate_command(null, object_class_name + ".new()")
 		if obj:
-			obj.set_meta("new", true) # 临时存储，使用者使用完毕要删除
+			obj.set_meta("new", true) # 临时存储
+			obj.set_meta("new_for_select", true) # 临时存储，给外部的select用
 	return obj
 	
 func _gen_array(p_array_type: String):
