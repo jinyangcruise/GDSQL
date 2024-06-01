@@ -62,7 +62,7 @@ func use_db_name(database_name: String) -> BaseDao:
 		__database = mgr.databases[database_name]["data_path"]
 	else:
 		__database = __root_config.get_value(database_name, "data_path", "")
-	if __database.is_empty():
+	if __database == "":
 		assert(_assert("use_db_name", false, 
 			"database %s's data_path is empty!" % database_name))
 	return self
@@ -316,7 +316,7 @@ func where(cond: String) -> BaseDao:
 		assert(_assert("where", false, 
 		"'where' can only be used after 'select' or 'update' or 'delete_from'"))
 	cond = cond.strip_edges()
-	if not cond.is_empty():
+	if cond != "":
 		__where.push_back(cond)
 	return self
 	
@@ -326,7 +326,7 @@ func set_where(cond: String) -> BaseDao:
 		"'where' can only be used after 'select' or 'update' or 'delete_from'"))
 	cond = cond.strip_edges()
 	__where.clear()
-	if not cond.is_empty():
+	if cond != "":
 		__where.push_back(cond)
 	return self
 	
@@ -366,7 +366,7 @@ func order_by(field: String, order: ORDER_BY) -> BaseDao:
 	if __cmd == "select":
 		assert(_assert("order_by", false, "'order_by' can only be used after 'select'"))
 	field = field.strip_edges()
-	if not field.is_empty():
+	if field != "":
 		__order_by.push_back([field, order])
 	return self
 	
@@ -425,7 +425,7 @@ func on_duplicate_update(fields: Array[String]) -> BaseDao:
 	
 ## 指定主键（适用于没有定义文件的表。如果表有定义文件，则勿设置其他键为主键。）
 func primary_key(a_key: String, auto_increment: bool = true) -> BaseDao:
-	if not (__primary_key_def.is_empty() or a_key == __primary_key_def):
+	if not (__primary_key_def == "" or a_key == __primary_key_def):
 		assert(_assert("primary_key", false, 
 		"this table has defination of primary key, do not set a different primary key"))
 	__primary_key = a_key
@@ -473,7 +473,7 @@ func left_join(db: String, table: String, alias: String, cond: String, password:
 	else:
 		left_join_obj = __left_join.create_left_join_to_end()
 	left_join_obj.set_db(db)
-	if password.is_empty():
+	if password == "":
 		if db == "user://":
 			password = PasswordDef.USER_DAO_PASS
 		elif db == "res://src/config/":
@@ -561,8 +561,8 @@ curr_row: Dictionary, all_dependencies: Dictionary) -> bool:
 				var cond = lj.get_condition()
 				var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
 				var check_result = conditionWrapper.cond(cond).check(acc_row)
-				if not _assert("check left join on", 
-				typeof(check_result) == TYPE_BOOL, "check failed! cond:%s" % cond):
+				if typeof(check_result) != TYPE_BOOL:
+					_assert("check left join on", false, "check failed! cond:%s" % cond)
 					return false # error occur
 				if not check_result:
 					continue
@@ -587,7 +587,8 @@ curr_row: Dictionary, all_dependencies: Dictionary) -> bool:
 func ___select(path: String, fill_primary_key: String = ""):
 	var ret: Array = []
 	var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
-	if not _assert("___select", conf != null, "failed to get conf:%s" % path):
+	if conf == null:
+		_assert("___select", false, "failed to get conf:%s" % path)
 		return null # error occur
 	conf.fill_primary_key = fill_primary_key
 	var all_datas: Dictionary = {} # 把其他联表数据放到这个里边
@@ -644,7 +645,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 		return {"select_name": s, "Column Name": c, "is_field": f, "table_alias": t_alias,
 			"db_path": d, "table_name": t, "hint": PROPERTY_HINT_NONE, "Hint String": ""}
 	var fill_select_name = func(element, alias):
-		element["select_name"] = element["Column Name"] if alias.is_empty() \
+		element["select_name"] = element["Column Name"] if alias == "" \
 			else (alias + "." + element["Column Name"])
 		return element
 	for s in __select:
@@ -666,10 +667,12 @@ func ___select(path: String, fill_primary_key: String = ""):
 					__get_table_columns(__database, __table, __table_alias, all_datas)\
 					.map(fill_select_name.bind(alias)))
 			else:
-				if not _assert("___select", __left_join != null, "table `%s` not found" % alias):
+				if __left_join == null:
+					_assert("___select", false, "table `%s` not found" % alias)
 					return null
 				var a_left_join = __left_join.get_left_join_by_alias(alias)
-				if not _assert("___select", a_left_join != null, "table `%s` not found" % alias):
+				if a_left_join == null:
+					_assert("___select", false, "table `%s` not found" % alias)
 					return null
 				real_select.append_array(
 					__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas)\
@@ -677,16 +680,17 @@ func ___select(path: String, fill_primary_key: String = ""):
 		else:
 			var m = regex_symbol.search(s)
 			if m != null and m.get_string() == s:
-				if not _assert("___select", __left_join == null, 
-				"must specify table alias name in select fields if using left join"):
+				if __left_join != null:
+					_assert("___select", false, 
+					"must specify table alias name in select fields if using left join")
 					return null
 				var column = __get_table_column_defination(__database, __table, __table_alias, m.get_string())
 				if column != null and !column.is_empty():
 					real_select.push_back(column)
 				else:
-					if not _assert("___select", 
-					not all_datas[__table_alias].is_empty() and all_datas[__table_alias][0].has(s),
-					"field:[%s] not exist in table:[%s], db:[%s]" % [s, __table, __database]):
+					if all_datas[__table_alias].is_empty() or not all_datas[__table_alias][0].has(s):
+						_assert("___select", false,
+						"field:[%s] not exist in table:[%s], db:[%s]" % [s, __table, __database])
 						return null
 					real_select.push_back(gen_dict.call(s, s, true, __table_alias)) # 可能没有定义文件
 			elif s.contains(__table_alias + "."):
@@ -703,9 +707,9 @@ func ___select(path: String, fill_primary_key: String = ""):
 							real_select.push_back(gen_dict.call(s, s, false))
 					else:
 						if s == __table_alias + "." + field:
-							if not _assert("___select", 
-							not all_datas[__table_alias].is_empty() and all_datas[__table_alias][0].has(field),
-							"field:[%s] not exist in table:[%s], db:[%s]" % [field, __table, __database]):
+							if all_datas[__table_alias].is_empty() or not all_datas[__table_alias][0].has(field):
+								_assert("___select", false,
+								"field:[%s] not exist in table:[%s], db:[%s]" % [field, __table, __database])
 								return null
 							real_select.push_back(gen_dict.call(s, field, true, __table_alias, __database, __table))
 						else:
@@ -733,10 +737,10 @@ func ___select(path: String, fill_primary_key: String = ""):
 									real_select.push_back(gen_dict.call(s, s, false))
 							else:
 								if s == alias + "." + field:
-									if not _assert("___select", 
-									not all_datas[alias].is_empty() and all_datas[alias][0].has(field),
-									"field:[%s] not exist in table:[%s], db:[%s]" \
-									% [field, a_left_join.get_table(), a_left_join.get_db()]):
+									if all_datas[alias].is_empty() or not all_datas[alias][0].has(field):
+										_assert("___select", false,
+										"field:[%s] not exist in table:[%s], db:[%s]" \
+										% [field, a_left_join.get_table(), a_left_join.get_db()])
 										return null
 									real_select.push_back(gen_dict.call(s, field, true, alias, 
 										a_left_join.get_db(), a_left_join.get_table())) # 没定义的文件
@@ -766,7 +770,8 @@ func ___select(path: String, fill_primary_key: String = ""):
 	for data in ret:
 		var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
 		var check_result = conditionWrapper.cond(cond).check(data)
-		if not _assert("check where", typeof(check_result) == TYPE_BOOL, "check failed! cond:%s" % cond):
+		if typeof(check_result) != TYPE_BOOL:
+			_assert("check where", false, "check failed! cond:%s" % cond)
 			return null
 		if check_result:
 			ret_filter.push_back(data)
@@ -1003,17 +1008,17 @@ func __get_table_column_defination(db_path, table_name, table_alias, column_name
 	
 ## 执行。注意：在union的情况下，会自动执行第一个BaseDao的query方法。
 func query() -> QueryResult:
-	if __database.is_empty():
+	if __database == "":
 		assert(_assert("query", false, "database is empty"))
-	if __table.is_empty():
+	if __table == "":
 		assert(_assert("query", false, "table is empty"))
-	if __cmd.is_empty():
+	if __cmd == "":
 		assert(_assert("query", false, "command is empty"))
 		
 	if __parent_union:
 		return __parent_union.query()
 		
-	if _PASSWORD.is_empty():
+	if _PASSWORD == "":
 		if __database == "user://":
 			_PASSWORD = PasswordDef.USER_DAO_PASS
 		elif __database == "res://src/config/":
@@ -1117,7 +1122,7 @@ func query() -> QueryResult:
 					if __data.has(col_name):
 						continue
 						
-					if not col["Default(Expression)"].is_empty():
+					if col["Default(Expression)"] != "":
 						__data[col_name] = GDSQLUtils.evaluate_command(null, col["Default(Expression)"])
 						continue
 						
@@ -1252,7 +1257,7 @@ func _get_cond(need_where: bool, new_line = false) -> String:
 			cond += " and "
 		cond += "(" + i + ")"
 	
-	if cond.is_empty():
+	if cond == "":
 		return cond
 		
 	if not need_where:
@@ -1301,7 +1306,7 @@ func get_query_cmd() -> String:
 			return "select %s from %s%s%s%s%s%s%s" % [
 				", ".join(__select.map(func(v): return (v + " as " + __field_as[v]) if __field_as.has(v) else v)), 
 				a_table,
-				"" if __table_alias.is_empty() else " " + __table_alias,
+				"" if __table_alias == "" else " " + __table_alias,
 				"" if __left_join == null else "\n" + "\n".join(__left_join.get_query_cmds()),
 				_get_cond(true, false) if __left_join == null else _get_cond(true, true),
 				"" if __union_all == null else "\nunion all " + __union_all.get_query_cmd(),
