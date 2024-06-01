@@ -54,7 +54,10 @@ func _init(conf: Dictionary) -> void:
 func clean():
 	method_return_info.clear()
 	mapper_parser_ref = null
-	
+	if _result_map:
+		_result_map.clean()
+		_result_map = null
+		
 func set_mapper_parser_ref(mapper_parser):
 	mapper_parser_ref = mapper_parser
 	
@@ -268,6 +271,7 @@ func query():
 			break
 			
 	_result_map.clean()
+	_result_map = null
 	return final_ret
 	
 func _gen_array():

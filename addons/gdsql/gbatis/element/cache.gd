@@ -29,3 +29,6 @@ func _init(conf: Dictionary) -> void:
 	eviction = conf.get("eviction", "FIFO").strip_edges()
 	flush_interval = type_convert(conf.get("flushInterval", "0").strip_edges(), TYPE_INT)
 	size = type_convert(conf.get("size", "1024").strip_edges(), TYPE_INT)
+	
+func clean():
+	pass

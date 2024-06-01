@@ -34,11 +34,14 @@ func set_mapper_parser_ref(mapper_parser):
 	mapper_parser_ref = mapper_parser
 	
 func clean():
-	result_embeded = null
 	mapper_parser_ref = null
 	head.clear()
-	_result_map.clean()
-	_result_map = null
+	if _result_map:
+		_result_map.clean()
+		_result_map = null
+	elif result_embeded:
+		result_embeded.clean()
+		result_embeded = null
 	
 func push_element(element):
 	if not result_embeded:
