@@ -40,8 +40,8 @@ var real_type: String
 # discriminator可能导致autoMapping改变
 var real_auto_mapping: String
 var head: Array
-
-# 外部例如<select>设置自动映射到的类型：下面四种
+# 在有discriminator的情况下，每条数据都需要prepare_deal；否则只需要做一次。
+var need_prepare_deal: bool = true
 var mapping_to_object: bool = false
 var mapping_to_array: bool = false
 var mapping_to_dictionary: bool = false
@@ -281,27 +281,38 @@ func prepare_mapping_to_object():
 ## 每处理一条数据需要调用一下。由于鉴别器discriminator可能存在，需要调用一下。
 func prepare_deal(p_head: Array, data: Array):
 	head = p_head
-	if discriminator != null:
-		discriminator.prepare_deal(p_head, data)
-		real_auto_mapping = get_deepest_auto_mapping()
-		var case_return_type = discriminator.get_selected_case_return_type()
-		if _is_class_name(case_return_type):
-			mapping_to_object = true
-			object_class_name = case_return_type
+	
+	# need_prepare_deal默认为true，所以至少会执行一次
+	if need_prepare_deal:
+		if discriminator == null:
+			need_prepare_deal = false
 		else:
-			real_type = case_return_type
+			need_prepare_deal = true
+			discriminator.prepare_deal(p_head, data)
+			real_auto_mapping = get_deepest_auto_mapping()
+			var case_return_type = discriminator.get_result_type()
+			if case_return_type != "":
+				real_type = case_return_type
+				
+		if _is_class_name(real_type):
+			mapping_to_object = true
+			object_class_name = real_type
+		elif real_type.begins_with("Array[") and real_type.ends_with("]"):
+			mapping_to_array = true
+			array_type = real_type.replace("Array[", "").replace("]", "").strip_edges()
+		elif real_type == "Array":
+			mapping_to_array = true
+		elif real_type == "Dictionary":
+			mapping_to_dictionary = true
 			
-		var associations = get_deepest_associations()
-		for a: GBatisAssociation in associations:
-			a.prepare_deal(p_head, data)
-			
-		var collections = get_deepest_collections()
-		for c: GBatisCollection in collections:
-			c.prepare_deal(p_head, data)
-			
-	if object_class_name == "" and _is_class_name(type):
-		mapping_to_object = true
-		object_class_name = type
+	# assocoiation和collection由于存在内部的resultMap，所以由它们自己决定是否prepare_deal
+	var associations = get_deepest_associations()
+	for a: GBatisAssociation in associations:
+		a.prepare_deal(p_head, data)
+		
+	var collections = get_deepest_collections()
+	for c: GBatisCollection in collections:
+		c.prepare_deal(p_head, data)
 		
 ## 将传入的一条数据进行映射后再返回。
 func deal(p_head: Array, data: Array):
@@ -327,13 +338,15 @@ func deal(p_head: Array, data: Array):
 	
 ## 每处理完一条数据调用一下
 func reset():
-	mapping_to_object = false
-	mapping_to_array = false
-	mapping_to_dictionary = false
-	# 重置类名，因为discriminator可能导致每一行的类不同
-	object_class_name = ""
-	real_type = type
-	real_auto_mapping = auto_mapping
+	if need_prepare_deal:
+		mapping_to_object = false
+		mapping_to_array = false
+		mapping_to_dictionary = false
+		# 重置类名，因为discriminator可能导致每一行的类不同
+		object_class_name = ""
+		array_type = ""
+		real_type = type
+		real_auto_mapping = auto_mapping
 	if discriminator:
 		discriminator.reset()
 	for i in get_sub_element():

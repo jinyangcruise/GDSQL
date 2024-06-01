@@ -49,11 +49,11 @@ func prepare_deal(head: Array, data: Array):
 			break
 	selected_case_index = index
 	
-func get_selected_case_return_type():
-	assert(selected_case_index != -2, "Call prepare_deal first!")
-	if selected_case_index > -1:
-		return (cases[selected_case_index] as GBatisCase).get_return_type()
-	return ""
+#func get_selected_case_return_type():
+	#assert(selected_case_index != -2, "Call prepare_deal first!")
+	#if selected_case_index > -1:
+		#return (cases[selected_case_index] as GBatisCase).get_return_type()
+	#return ""
 	
 #func get_result_map() -> GBatisResultMap:
 	#assert(selected_case_index != -2, "Call prepare_deal first!")
