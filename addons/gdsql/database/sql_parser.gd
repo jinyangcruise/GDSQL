@@ -527,7 +527,7 @@ static func _get_value_list(s: String, evaluate: bool) -> Array[String]:
 	return ret
 	
 ## deal column1 = xxx
-static func _get_set_value(s: String) -> Array[String]:
+static func _get_set_value(s: String) -> Array:
 	var m = re_split_equal.search(s)
 	if not m:
 		assert(_assert(false, "Error near: [%s]" % s))
@@ -555,5 +555,5 @@ static func _get_field_value(s: String) -> Array[String]:
 		return [m.get_string(1), m.get_string(2)]
 	return []
 	
-static func _get_var(s: String) -> String:
+static func _get_var(s: String):
 	return GDSQLUtils.evaluate_command(null, s)
