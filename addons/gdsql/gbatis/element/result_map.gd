@@ -564,10 +564,13 @@ func _automapping_associations(data: Array, obj: Object) -> bool:
 			sub_obj = mapper_parser_ref.get_ref().\
 				call_method_in_namespace(ass.select, [data[col_index]])
 		else:
+			#ass._result_map.check_head(head) 已经在主resultMap check_head时统一做了
+			#ass._result_map.prepare_deal(data)
 			var a_ret = ass._result_map.deal(data)
 			if not a_ret is Array:
 				assert(false, "Err occur in association's resultMap deal().")
 			sub_obj = a_ret[0]
+			sub_obj.remove_meta("new_for_select")
 			
 		obj.set(ass.property, sub_obj)
 		# 允许sub_obj是null，但是不允许设置失败
@@ -607,7 +610,7 @@ func _automapping_collections(data: Array, obj: Object) -> bool:
 				call_method_in_namespace(col.select, [data[col_index]])
 			if not arr is Array:
 				assert(false, "Call %s failed." % col.select)
-			
+				
 			var list = _gen_array(of_type)
 			if of_type == "":
 				list = arr
@@ -624,9 +627,11 @@ func _automapping_collections(data: Array, obj: Object) -> bool:
 				
 			var a_ret = col._result_map.deal(data)
 			if not a_ret is Array:
-				assert(false, "Err occur in association's resultMap deal().")
+				assert(false, "Err occur in collection's resultMap deal().")
 			var element = a_ret[0]
 			if not list.has(element):
+				if element is Object:
+					element.remove_meta("new_for_select")
 				list.push_back(element)
 				
 	return true
