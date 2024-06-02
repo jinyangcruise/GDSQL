@@ -304,7 +304,7 @@ func query():
 			
 	_result_map.clean()
 	_result_map = null
-	if query_result == "":
+	if query_status == "":
 		query_status = "ok"
 	return final_ret
 	
