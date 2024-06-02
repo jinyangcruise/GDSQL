@@ -75,6 +75,7 @@ func use_db_name(database_name: String) -> BaseDao:
 	if __database == "":
 		assert(_assert("use_db_name", false, 
 			"database %s's data_path is empty!" % database_name))
+	_set_primary_and_autoincre()
 	return self
 	
 func use_db(database_path: String) -> BaseDao:
@@ -87,6 +88,7 @@ func use_db(database_path: String) -> BaseDao:
 			if adb != "":
 				database_path = adb
 	__database = database_path
+	_set_primary_and_autoincre()
 	return self
 	
 func use_user_db() -> BaseDao:
@@ -228,24 +230,28 @@ func select_same() -> BaseDao:
 	
 ## 同时设置表名和别名。table支持不带后缀和带后缀.gsql
 func from(table: String, alias: String = "") -> BaseDao:
-	if __database == null or __database == "":
-		assert(_assert("from", false, "please set db first!"))
+	#if __database == null or __database == "":
+		#assert(_assert("from", false, "please set db first!"))
 	if not table.ends_with(DATA_EXTENSION):
 		table = table + DATA_EXTENSION
 	__table = table
 	__table_alias = alias
-	__primary_key_def = ""
-	__autoincrement_keys_def = {}
-	var defination = __get_table_defination(__database, __table)
-	if defination != null and !defination.is_empty():
-		for column in defination["columns"]:
-			if column["PK"]:
-				__primary_key_def = column["Column Name"]
-				__primary_key = __primary_key_def
-			if column["AI"]:
-				__autoincrement_keys_def[column["Column Name"]] = 0
+	_set_primary_and_autoincre()
 	return self
 	
+func _set_primary_and_autoincre():
+	if __database != "" and __table != "":
+		__primary_key_def = ""
+		__autoincrement_keys_def = {}
+		var defination = __get_table_defination(__database, __table)
+		if defination != null and !defination.is_empty():
+			for column in defination["columns"]:
+				if column["PK"]:
+					__primary_key_def = column["Column Name"]
+					__primary_key = __primary_key_def
+				if column["AI"]:
+					__autoincrement_keys_def[column["Column Name"]] = 0
+					
 ## 单独设置表名
 func set_table(table: String) -> BaseDao:
 	from(table, __table_alias)
