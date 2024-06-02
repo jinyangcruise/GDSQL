@@ -28,6 +28,11 @@ var return_type_undefined_behavior: String = "ALWAYS_ARRAY"
 ## - usage 是 PropertyUsageFlags 的组合
 @export var method_return_info: Dictionary
 
+
+## 数据缓存。用方法名-参数，序列化后作为key，用返回值序列化作为value。
+static var _cache_manager: Dictionary
+
+## NOTICE which is also used in GBatisCache
 const BIND = "__bind__"
 
 static var re_placeholder: RegEx = RegEx.new()
@@ -46,7 +51,12 @@ static func _static_init() -> void:
 		var succ = validator.validate(val)
 		if succ:
 			config = val
-			
+			if not _cache_manager.has(config.resource_path):
+				for i in config.root_item.content:
+					if i is GXMLItem and i.name == "cache":
+						_cache_manager[config.resource_path] = GBatisCache.new(i.attrs)
+						break
+					
 ## TODO 等官方支持可变参数数量函数时，可以进行优化
 ## https://github.com/godotengine/godot/pull/82808
 ## btw: Ability to print and log script backtraces
@@ -58,23 +68,38 @@ func query(method_id: String, param: Dictionary):
 	assert(item, "not found this method: %s" % method_id)
 	match item.name:
 		"select":
-			var select = _deal_select(item, param, 0)
-			var ret = select.query()
-			select.clean()
+			var element = _deal_select(item, param, 0)
+			var cache : GBatisCache = null
+			if _cache_manager.has(config.resource_path):
+				cache = _cache_manager[config.resource_path]
+				if element.flush_cache == "true":
+					cache.clear_cache()
+					
+			var ret = null
+			if cache and element.use_cache == "true":
+				var cache_ret = cache.get_cache(method_id, param)
+				if cache_ret[0]:
+					ret = cache_ret[1]
+				else:
+					ret = element.query()
+					if element.query_status == "ok":
+						cache.set_cache_by_key(cache_ret[2], ret)
+			else:
+				ret = element.query()
+			element.clean()
 			return ret
-		"update":
-			var update = _deal_update(item, param, 0)
-			var ret = update.query()
-			#update.clean()
+		"update", "insert", "replace", "delete":
+			var element = _deal_element(item, param, 0)
+			
+			if element.flush_cache == "true" and _cache_manager.has(config.resource_path):
+				var cache = _cache_manager[config.resource_path] as GBatisCache
+				cache.clear_cache()
+				
+			var ret = element.query()
+			element.clean()
 			return ret
-		"insert":
-			return _deal_insert(item, param, 0).query()
-		"replace":
-			return _deal_replace(item, param, 0).query()
-		"delete":
-			return _deal_delete(item, param, 0).query()
 		_:
-			assert(false, "method must be one of select, insert, update and delete.")
+			assert(false, "method must be one of select, insert, replace, update and delete.")
 			return null
 			
 ## ALERT WARNING 目前只知道可以获取resultMap，其他类型的未经测试
@@ -135,22 +160,17 @@ func _deal_element(item:GXMLItem, param: Dictionary, depth: int):
 		"typeAlias":
 			return _deal_type_alias(item, param, depth)
 		"select":
-			#return _deal_select(item, null)
-			pass
+			return _deal_select(item, param, depth)
 		"insert":
-			#return _deal_insert(item, null)
-			pass
+			return _deal_insert(item, param, depth)
 		"replace":
-			#return _deal_replace(item, null)
-			pass
+			return _deal_replace(item, param, depth)
 		"selectKey":
 			return _deal_select_key(item, param, depth)
 		"update":
-			#return _deal_update(item, null)
-			pass
+			return _deal_update(item, param, depth)
 		"delete":
-			#return _deal_delete(item, null)
-			pass
+			return _deal_delete(item, param, depth)
 		"include":
 			return _deal_include(item, param, depth)
 		"bind":

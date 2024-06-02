@@ -28,10 +28,12 @@ var result_map = ""
 ## NOTICE 如果resultType和resultMap都是空的，则按照用户调用的方法的返回值的定义来进行返回
 var result_type = "" # 表示一条数据的映射数据类型。NOTICE 一条数据的。
 #var fetch_size = ""
-var flush_cache = false
-var use_cache = true
+var flush_cache = "false"
+var use_cache = "true"
 var database_id = ""
 
+## 外部获取到query的结果后，要用该变量来确认过程是否正常运行
+var query_status: String = ""
 var sql = "": set = set_sql
 var method_return_info: Dictionary: set = set_method_return_info
 var mapper_parser_ref: WeakRef: set = set_mapper_parser_ref
@@ -47,8 +49,8 @@ func _init(conf: Dictionary) -> void:
 	assert(result_map.is_empty() or result_type.is_empty(), 
 		"Cannot set resultMap and resultType at the same time of <select>.")
 	#fetch_size = conf.get("fetchSize", "").strip_edges()
-	flush_cache = type_convert(conf.get("flushCache", "false").strip_edges(), TYPE_BOOL)
-	use_cache = type_convert(conf.get("useCache", "true").strip_edges(), TYPE_BOOL)
+	flush_cache = conf.get("flushCache", "false").strip_edges()
+	use_cache = conf.get("useCache", "true").strip_edges()
 	database_id = conf.get("databaseId", "").strip_edges()
 	
 func clean():
@@ -67,19 +69,24 @@ func set_sql(p_sql: String):
 func set_method_return_info(info: Dictionary):
 	method_return_info = info
 	
+# INFO 缓存的逻辑在mapper_parser.gd
 func query():
-	# cache TODO
-	
+	query_status = ""
 	var dao = SQLParser.parse_to_dao(sql)
 	if not database_id.is_empty():
 		dao.use_db_name(database_id)
 	var query_result = dao.query()
-	assert(query_result != null, "Error occur.")
-	assert(query_result.ok(), "Error occur. %s" % query_result.get_err())
-	
+	if query_result == null:
+		query_status = "err"
+		assert(false, "Error occur in base_dao.query().")
+	if not query_result.ok():
+		query_status = "err"
+		assert(false, "Error occur. %s" % query_result.get_err())
+		
 	# xml指定了返回QueryResult，或mapper中的函数指定返回QueryResult)，那么原样返回
 	if result_map.is_empty() and \
 	(result_type == "QueryResult" or method_return_info.class_name == "QueryResult"):
+		query_status = "ok"
 		return query_result
 		
 	# 最终要返回的类型
@@ -130,20 +137,24 @@ func query():
 		# 不一致的话，要检查继承关系
 		else:
 			if DataTypeDef.DATA_TYPE_COMMON_NAMES.has(result_type):
+				query_status = "err"
 				assert(false, "resultType `%s` not match your method type `%s`." % \
 				[result_type, mapping_to_type])
 			elif mapping_to_type == "Object":
 				pass # leave empty
 			elif result_type == "Resource":
 				if not (mapping_to_type == "RefCounted" or mapping_to_type == "Object"):
+					query_status = "err"
 					assert(false, "Resouce dose not inherit from " + mapping_to_type)
 			else:
 				var o = GDSQLUtils.evaluate_command_script(result_type + ".new()")
 				if not o:
+					query_status = "err"
 					assert(false, "Cannot initialize " + result_type)
 				var is_inherit = GDSQLUtils.evaluate_command_script(
 					"o is " + mapping_to_type, ["o"], [o])
 				if not is_inherit:
+					query_status = "err"
 					assert(false, result_type + " dose not inherit from " + mapping_to_type)
 		# xml配置了，但是函数返回值没定义。要确认一下xml配置的是不是Object
 		if mapping_to_type.is_empty():
@@ -167,21 +178,30 @@ func query():
 	if result_type.is_empty() and result_map.is_empty() and mapping_to_type.is_empty():
 		if return_type == "Undefined":
 			if mapper_parser_ref.get_ref().return_type_undefined_behavior == "ALWAYS_ARRAY":
+				query_status = "ok"
 				return datas
 			elif datas.size() == 1: # ARRAY_WHEN_NECESSARY
+				query_status = "ok"
 				return datas[0]
 			else:
+				query_status = "ok"
 				return datas
 		elif return_type == "Array":
+			query_status = "ok"
 			return datas
 		else:
+			query_status = "err"
 			assert(false, "Inner error 104.") # 没考虑到的情况
 			
 	# 用一个resultMap来映射数据
 	if not result_map.is_empty():
 		_result_map = mapper_parser_ref.get_ref().get_element(result_map)
-		assert(_result_map != null, "Not found <resultMap> of id %s" % result_map)
-		assert(_result_map is GBatisResultMap, "Not found <resultMap> of id %s" % result_map)
+		if _result_map == null:
+			query_status = "err"
+			assert(false, "Not found <resultMap> of id %s" % result_map)
+		if not _result_map is GBatisResultMap:
+			query_status = "err"
+			assert(false, "Not found <resultMap> of id %s" % result_map)
 	else:
 		_result_map = GBatisResultMap.new({"type": result_type})
 		_result_map.set_mapper_parser_ref(mapper_parser_ref)
@@ -217,8 +237,10 @@ func query():
 				
 				var a_ret = _result_map.deal(data)
 				if not a_ret is Array:
+					query_status = "err"
 					assert(false, "Err occur in result_map deal().")
 				if (map_to_obj or map_to_array or map_to_dictionary) and a_ret[0] == null:
+					query_status = "err"
 					assert(false, "Err occur in result_map deal().")
 					
 				a_ret = a_ret[0]
@@ -230,6 +252,7 @@ func query():
 						push = false
 				if push:
 					if return_type == "Object" and not ret_datas.is_empty():
+						query_status = "err"
 						assert(false, "Result set is supposed to be mapped to one object.")
 					ret_datas.push_back(a_ret)
 					
@@ -248,32 +271,41 @@ func query():
 					if DataTypeDef.RESOURCE_TYPE_NAMES.has(result_type):
 						final_ret = null
 						break
+					query_status = "err"
 					assert(false, "Result set is supposed to have one row, but 0.")
 				break
 				
 			if datas.size() != 1:
+				query_status = "err"
 				assert(false, "Result set is supposed to have one row, but " + str(datas.size()))
 			_result_map.prepare_deal(datas[0])
 			if return_type == "OneRow":
 				if not _result_map.mapping_to_array:
+					query_status = "err"
 					assert(false, "resultMap return type not match method return type.")
 			elif return_type == "Dictionary":
 				if not _result_map.mapping_to_dictionary:
+					query_status = "err"
 					assert(false, "resultMap return type not match method return type.")
 			elif return_type == "Other":
 				if not _result_map.mapping_to_other:
+					query_status = "err"
 					assert(false, "resultMap return type not match method return type.")
 			else:
+				query_status = "err"
 				assert(false, "Inner error 105.") # 没考虑到的情况
 				
 			var a_ret = _result_map.deal(datas[0])
 			if not a_ret is Array:
+				query_status = "err"
 				assert(false, "Err occur in result_map deal().")
 			final_ret = a_ret[0]
 			break
 			
 	_result_map.clean()
 	_result_map = null
+	if query_result == "":
+		query_status = "ok"
 	return final_ret
 	
 func _gen_array():
