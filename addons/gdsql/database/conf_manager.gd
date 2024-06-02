@@ -9,14 +9,14 @@ var _valid_if_not_exist_path = []
 ## 标记某路径在不存在时，可以当作一个空配置
 func mark_valid_if_not_exit(path: String) -> void:
 	# 使用绝对路径，防止用户对同一个文件使用不同形式的路径导致获得了多个配置实例
-	path = ProjectSettings.globalize_path(path).simplify_path()
+	path = GDSQLUtils.globalize_path(path)
 	if not _valid_if_not_exist_path.has(path):
 		_valid_if_not_exist_path.push_back(path)
 
 ## 获取配置：前提是该配置的文件是存在的
 func get_conf(path: String, password: String) -> ImprovedConfigFile:
 	# 使用绝对路径，防止用户对同一个文件使用不同形式的路径导致获得了多个配置实例
-	path = ProjectSettings.globalize_path(path).simplify_path()
+	path = GDSQLUtils.globalize_path(path)
 	
 	if _conf_map.has(path):
 		return _conf_map.get(path)
@@ -45,7 +45,7 @@ func get_conf(path: String, password: String) -> ImprovedConfigFile:
 	
 ## 创建并获取配置：前提是该配置的文件不存在
 func create_conf(path: String, password: String) -> ImprovedConfigFile:
-	path = ProjectSettings.globalize_path(path)
+	path = GDSQLUtils.globalize_path(path)
 	assert(not FileAccess.file_exists(path), "file:[%s] already exist" % path)
 	var conf := ImprovedConfigFile.new()
 	_passwords[path] = password
@@ -53,15 +53,15 @@ func create_conf(path: String, password: String) -> ImprovedConfigFile:
 	return conf
 
 func has_conf(path: String) -> bool:
-	path = ProjectSettings.globalize_path(path)
+	path = GDSQLUtils.globalize_path(path)
 	return _conf_map.has(path)
 	
 func remove_conf(path: String):
-	path = ProjectSettings.globalize_path(path)
+	path = GDSQLUtils.globalize_path(path)
 	_conf_map.erase(path)
 	
 func save_conf_by_origin_password(path: String):
-	path = ProjectSettings.globalize_path(path)
+	path = GDSQLUtils.globalize_path(path)
 	assert(has_conf(path), "this conf %s is not under control" % path)
 	var conf = get_conf(path, "")
 	if _passwords[path] == "":
@@ -71,8 +71,8 @@ func save_conf_by_origin_password(path: String):
 		
 ## NOTICE unsafe
 func save_conf_by_same_password(path: String, ref_path: String):
-	path = ProjectSettings.globalize_path(path)
-	ref_path = ProjectSettings.globalize_path(ref_path)
+	path = GDSQLUtils.globalize_path(path)
+	ref_path = GDSQLUtils.globalize_path(ref_path)
 	assert(has_conf(path), "this conf %s is not under control" % path)
 	assert(has_conf(ref_path), "this conf %s is not under control" % ref_path)
 	var conf = get_conf(path, "")
@@ -83,7 +83,7 @@ func save_conf_by_same_password(path: String, ref_path: String):
 		conf.save_encrypted_pass(path, _passwords[ref_path])
 		
 func save_conf_by_password(path: String, password: String):
-	path = ProjectSettings.globalize_path(path)
+	path = GDSQLUtils.globalize_path(path)
 	assert(has_conf(path), "this conf %s is not under control" % path)
 	var conf = get_conf(path, "")
 	_passwords[path] = password

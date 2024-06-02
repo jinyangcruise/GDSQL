@@ -192,7 +192,7 @@ func add_tab_table_inspector(db_name, table_name) -> void:
 	var defination = mgr.databases.get(db_name, {}).get("tables", {}).get(table_name, {}) as Dictionary
 	table_inspector.comment = defination.get("comment", "")
 	var data_file_path = mgr.databases[db_name]["data_path"] + table_name + DATA_EXTENSION
-	var absolute_path = ProjectSettings.globalize_path(data_file_path)
+	var absolute_path = GDSQLUtils.globalize_path(data_file_path)
 	table_inspector.data_file_path = data_file_path if data_file_path == absolute_path \
 		else "%s (%s)" % [data_file_path, absolute_path]
 	var data_file = FileAccess.open(absolute_path, FileAccess.READ)

@@ -35,6 +35,7 @@ func _on_button_apply_pressed() -> void:
 		mgr.create_accept_dialog("name and path must be set!")
 		return
 		
+	path = GDSQLUtils.globalize_path(path)
 	mgr.user_confirm_add_schema.emit(db_name, path, name)
 	#queue_free() 已改为让TabContainer接收到成功添加的信号后删除该页签
 

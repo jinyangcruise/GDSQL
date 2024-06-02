@@ -953,7 +953,7 @@ func __get_table_defination(db_path: String, table_name: String):
 		if __config == null:
 			var db_info = __root_config.filter_first_values("data_path", db_path)
 			if db_info.is_empty():
-				db_info = __root_config.filter_first_values("data_path", ProjectSettings.globalize_path(db_path))
+				db_info = __root_config.filter_first_values("data_path", GDSQLUtils.globalize_path(db_path))
 				if db_info.is_empty():
 					return null
 				

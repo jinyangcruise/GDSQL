@@ -130,7 +130,7 @@ func get_table_columns_by_datapath(data_path, table: String) -> Array:
 			table = table.get_basename()
 		for db in databases:
 			if databases[db]["data_path"] == data_path or \
-			ProjectSettings.globalize_path(databases[db]["data_path"]) == ProjectSettings.globalize_path(data_path):
+			GDSQLUtils.globalize_path(databases[db]["data_path"]) == GDSQLUtils.globalize_path(data_path):
 				return databases[db].get("tables", {}).get(table, {})\
 					.get("columns", []).map(func(v): v["db_name"] = db; return v)
 	return []
@@ -141,7 +141,7 @@ func get_table_valid_if_not_exist(data_path, table: String) -> bool:
 			table = table.get_basename()
 		for db in databases:
 			if databases[db]["data_path"] == data_path or \
-			ProjectSettings.globalize_path(databases[db]["data_path"]) == ProjectSettings.globalize_path(data_path):
+			GDSQLUtils.globalize_path(databases[db]["data_path"]) == GDSQLUtils.globalize_path(data_path):
 				return databases[db].get("tables", {}).get(table, {}).get("valid_if_not_exist", false)
 	return false
 	

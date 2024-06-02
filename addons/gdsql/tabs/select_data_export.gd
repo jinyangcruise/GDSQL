@@ -145,7 +145,7 @@ func _on_button_apply_pressed() -> void:
 		mgr.add_log_history.emit("OK", begin_time, "Export table data of Select", 
 			"1 file: %s was exported!" % line_edit_file_path.text)
 		if check_box_open_folder_when_finished.button_pressed:
-			OS.shell_show_in_file_manager(ProjectSettings.globalize_path(line_edit_file_path.text), true)
+			OS.shell_show_in_file_manager(GDSQLUtils.globalize_path(line_edit_file_path.text), true)
 	else:
 		mgr.add_log_history.emit("Err", begin_time, "Export table data of Select", "Err occur, code: %s." % err)
 	

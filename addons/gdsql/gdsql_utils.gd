@@ -49,3 +49,16 @@ static func evaluate_command_script(command: String, variable_names = [], variab
 	var ret = obj.value
 	obj.free()
 	return ret
+	
+## 由于在导出的游戏中，ProjectSettings.globalize_path()函数不能正确处理"res://"(@see 
+## Godot Doc)，所以在这里统一处理。如果是res:开头，或实际指向程序内资源，则返回一个res:开头
+## 的目录
+static func globalize_path(path: String) -> String:
+	if path.begins_with("res://"):
+		return path.simplify_path()
+	if OS.has_feature("editor"):
+		var res_path = ProjectSettings.globalize_path("res://")
+		if path.begins_with(res_path):
+			return ("res://" + path.substr(res_path.length())).simplify_path()
+		return ProjectSettings.globalize_path(path).simplify_path()
+	return path
