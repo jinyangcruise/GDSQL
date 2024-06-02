@@ -68,5 +68,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		select * from GameConfig.c_skill_effect
 		where sid == #{id}
 	</select>
+
+ 	
+ 	<update id="update_skill" databaseId="GameConfig">
+ 		update c_skill
+ 		<set>
+ 			<if test="id != null and id != 0">id = #{id},</if>
+ 			<if test="skill_name != null and skill_name != ''">name = #{skill_name},</if>
+ 			<if test="icon != null">icon = #{icon},</if>
+ 			<if test="desc != null and desc != ''">desc = #{desc},</if>
+ 			<if test="max_level != null and max_level != 0">max_level = #{max_level},</if>
+ 		</set>
+ 		where id == #{id}
+	</update>
 	
 </mapper> 

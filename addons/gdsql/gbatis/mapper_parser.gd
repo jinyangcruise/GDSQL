@@ -1035,7 +1035,7 @@ func _combine(s1: String, s2: String) -> String:
 		return s2
 	if s2.is_empty():
 		return s1
-	return "%s %s" % [s1, s2]
+	return s1 + " " + s2
 	
 ## 拼接，但是会将s2中的占位符替换成真实数据. depth表示s2的深度
 func _combine_pcdata(s1: String, s2: String, param: Dictionary, depth: int) -> String:
@@ -1043,7 +1043,7 @@ func _combine_pcdata(s1: String, s2: String, param: Dictionary, depth: int) -> S
 	if s2.is_empty():
 		return s1
 	s2 = _replace_param(s2, param, depth)
-	return "%s %s" % [s1, s2]
+	return s1 + " " + s2
 	
 func _cast_null(value) -> String:
 	return "" if typeof(value) == TYPE_NIL else value
@@ -1126,6 +1126,7 @@ func _replace_param(s: String, param: Dictionary, depth: int) -> String:
 		# 上面的实现方法比较复杂，有更简单的，如下
 		var names = []
 		var values = []
+		var obj_maybe = null
 		for i in param:
 			if i == BIND:
 				for d in param[BIND]:
@@ -1134,10 +1135,17 @@ func _replace_param(s: String, param: Dictionary, depth: int) -> String:
 							names.push_back(n)
 							values.push_back(param[BIND][d][n])
 			else:
-				names.push_back(i)
-				values.push_back(param[i])
-		var value = GDSQLUtils.evaluate_command(null, prop, names, values)
-		
+				if param.size() == 2 and param[i] is Object:
+					obj_maybe = param[i]
+				else:
+					names.push_back(i)
+					values.push_back(param[i])
+		var value = null
+		if obj_maybe:
+			value = GDSQLUtils.evaluate_command(obj_maybe, prop, names, values)
+		else:
+			value = GDSQLUtils.evaluate_command(null, prop, names, values)
+			
 		if k.begins_with("$"):
 			s = s.replace(k, str(value))
 		else:
@@ -1157,6 +1165,7 @@ func _clear_binded_param(depth: int, record_arr: Array, param: Dictionary):
 func _get_value(value_string: String, param: Dictionary, depth: int):
 	var names = []
 	var values = []
+	var obj_maybe = null
 	for i in param:
 		if i == BIND:
 			for d in param[BIND]:
@@ -1165,6 +1174,12 @@ func _get_value(value_string: String, param: Dictionary, depth: int):
 						names.push_back(n)
 						values.push_back(param[BIND][d][n])
 		else:
-			names.push_back(i)
-			values.push_back(param[i])
+			if param.size() == 2 and param[i] is Object:
+				obj_maybe = param[i]
+			else:
+				names.push_back(i)
+				values.push_back(param[i])
+				
+	if obj_maybe:
+		return GDSQLUtils.evaluate_command(obj_maybe, value_string, names, values)
 	return GDSQLUtils.evaluate_command(null, value_string, names, values)

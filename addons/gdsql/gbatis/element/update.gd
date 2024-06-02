@@ -13,11 +13,35 @@ func _init(conf: Dictionary) -> void:
 	flush_cache = conf.get("flushCache", "true").strip_edges()
 	database_id = conf.get("databaseId", "").strip_edges()
 	
+func clean():
+	method_return_info.clear()
+	
 func set_sql(p_sql: String):
 	sql = p_sql
 	
 func set_method_return_info(info: Dictionary):
 	method_return_info = info
 	
-func query() -> QueryResult:
-	return null
+# INFO 缓存的逻辑在mapper_parser.gd
+func query():
+	var dao = SQLParser.parse_to_dao(sql)
+	if not database_id.is_empty():
+		dao.use_db_name(database_id)
+	var query_result = dao.query()
+	if query_result == null:
+		assert(false, "Error occur in base_dao.query().")
+	if not query_result.ok():
+		assert(false, "Error occur. %s" % query_result.get_err())
+		
+	if method_return_info.type == TYPE_NIL:
+		return
+		
+	if method_return_info.type == TYPE_INT:
+		return query_result.get_affected_rows()
+		
+	if method_return_info.class_name == "QueryResult":
+		return query_result
+		
+	assert(false, "Method of <update> cannot return %s." % \
+		DataTypeDef.DATA_TYPE_NAMES[method_return_info.type])
+		
