@@ -63,6 +63,8 @@ func set_param_obj_or_dict(param):
 # INFO 缓存的逻辑在mapper_parser.gd
 func query():
 	var dao = SQLParser.parse_to_dao(sql)
+	assert(dao != null, "Parse to dao failed: " + sql)
+	assert(dao.get_cmd().begins_with("insert"), "BaseDao's cmd is not insert.")
 	if not database_id.is_empty():
 		dao.use_db_name(database_id)
 	var query_result = dao.query()

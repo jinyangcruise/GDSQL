@@ -73,6 +73,8 @@ func set_method_return_info(info: Dictionary):
 func query():
 	query_status = ""
 	var dao = SQLParser.parse_to_dao(sql)
+	assert(dao != null, "Parse to dao failed: " + sql)
+	assert(dao.get_cmd() == "select", "BaseDao's cmd is not select.")
 	if not database_id.is_empty():
 		dao.use_db_name(database_id)
 	var query_result = dao.query()
