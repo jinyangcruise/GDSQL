@@ -29,8 +29,10 @@ var __left_join: LeftJoin ## 【外部请勿使用】第一个联表对象（获
 var __need_post_porcess: bool = true ## 【外部请勿使用】select最终返回数据时处理：是否按照用户所需的字段进行精简
 var __need_head: bool ## 【外部请勿使用】select返回的数据是否包含一行表头（在第一行）
 var __auto_commit: bool = true ## 【外部请勿使用】自动提交标志
-static var __root_config: ImprovedConfigFile ## 【外部请勿使用】临时获取数据库定义文件
-var __config: ImprovedConfigFile ## 【外部请勿使用】临时为了获取数据库定义文件
+var __root_config: ImprovedConfigFile: ## 【外部请勿使用】临时获取数据库定义文件
+	get:
+		return __CONF_MANAGER.get_conf(ROOT_CONFIG_PATH, "")
+var __table_conf_path: Dictionary = {} ## 【外部请勿使用】临时为了获取数据库定义文件
 
 ## 匹配逗号的位置，括号、引号内的逗号都不匹配
 static var regex_comma: RegEx = RegEx.new()
@@ -50,8 +52,6 @@ var mgr#: GDSQLWorkbenchManagerClass
 enum ORDER_BY { ASC, DESC }
 
 static func _static_init():
-	__root_config = ImprovedConfigFile.new()
-	__root_config.load(ROOT_CONFIG_PATH) # FIXME 即时更新？
 	regex_comma.compile(",(?=(([^']*'){2})*[^']*$)(?=(([^\"]*\"){2})*[^\"]*$)(?![^()]*\\))")
 	regex_as.compile("([\\s]+)(as[\\s]+)?([0-9a-zA-Z_:]+)$") # 支持 x as position:x 这样的写法
 	regex_symbol.compile("[a-zA-Z_]+[0-9a-zA-Z_]*")
@@ -956,7 +956,8 @@ func __get_table_defination(db_path: String, table_name: String):
 			valid_if_not_exist = mgr.get_table_valid_if_not_exist(db_path, table_name)
 		
 	if columns == null or columns.is_empty():
-		if __config == null:
+		var table_name_base = table_name.get_basename()
+		if not __table_conf_path.has(table_name_base):
 			var db_info = __root_config.filter_first_values("data_path", db_path)
 			if db_info.is_empty():
 				db_info = __root_config.filter_first_values("data_path", GDSQLUtils.globalize_path(db_path))
@@ -967,11 +968,11 @@ func __get_table_defination(db_path: String, table_name: String):
 			if not FileAccess.file_exists(table_conf_path):
 				return null
 				
-			__config = ImprovedConfigFile.new()
-			__config.load(table_conf_path)
+			__table_conf_path[table_name_base] = table_conf_path
 			
-		columns = __config.get_value(table_name.get_basename(), "columns", [])
-		valid_if_not_exist = __config.get_value(table_name.get_basename(), "valid_if_not_exist", false)
+		var table_config = __CONF_MANAGER.get_conf(__table_conf_path[table_name_base], "")
+		columns = table_config.get_value(table_name_base, "columns", [])
+		valid_if_not_exist = table_config.get_value(table_name.get_basename(), "valid_if_not_exist", false)
 		
 	return {
 		"columns": columns,
@@ -1373,8 +1374,5 @@ func reset(force = false):
 	if __left_join:
 		__left_join.clear_chain()
 		__left_join = null
-	__CONF_MANAGER = null
-	if __config:
-		__config.clear()
-		__config = null
+	__table_conf_path.clear()
 	mgr = null
