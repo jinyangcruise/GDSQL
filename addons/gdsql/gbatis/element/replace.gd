@@ -74,8 +74,8 @@ func query():
 		
 	if use_generated_keys == "true" and param_obj_or_dict:
 		var generated_keys = query_result.get_generated_keys()
-		var key_properties = key_property.split(",") as PackedStringArray
-		var key_columns = key_column.split(",") as PackedStringArray
+		var key_properties = [] if key_property == "" else key_property.split(",") as PackedStringArray
+		var key_columns = [] if key_column == "" else key_column.split(",") as PackedStringArray
 		
 		for p in key_properties:
 			if param_obj_or_dict is Object:
