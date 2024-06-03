@@ -1209,6 +1209,19 @@ func query() -> QueryResult:
 							"data type of %s is not %s" % [col_name, type_string(col["Data Type"])]))
 						__data[col_name] = v1
 						
+			# 不能有多余的字段
+			var invalid_key = []
+			for key in __data:
+				var find = false
+				for col in columns_def:
+					if key == col["Column Name"]:
+						find = true
+						break
+				if not find:
+					invalid_key.push_back(key)
+			if not invalid_key.is_empty():
+				assert(_assert("query:%s" % __cmd, false, "Invalid field(s): %s." % ",".join(invalid_key)))
+				
 			# 筛选出要更新的数据
 			var primary = "__PRIMARY_1355--5--__" # 让数据库把主键存到这个键里，祈祷用户没有用到这个字段
 			__need_post_porcess = false # update一定是单表，用内部返回模式返回数据
