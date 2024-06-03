@@ -11,7 +11,7 @@ func _ready() -> void:
 	#printt("123456".md5_text())
 
 	#var a = 2
-	#var b = convert(a, TYPE_STRING)
+	#var b = type_convert(a, TYPE_STRING)
 	#print(b)
 	printt("".md5_text())
 

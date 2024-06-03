@@ -841,7 +841,7 @@ func add_border(border) -> void:
 		for col in range(start_pos.y, end_pos.y):
 			var pc = v_box_container.get_child(row).get_child(0).get_child(col) as PanelContainer
 			var overlapping = pc.get_meta("overlapping") + 1
-			var sb
+			var sb = null
 			
 			# 边框设置。
 			# 1. 该选区是唯一的选区
@@ -1772,7 +1772,7 @@ func inspect_highlight_rows() -> void:
 	# 根据共同属性，我们构造一个dict obj。要去掉共同属性中属于共同基类的属性。所以我们要找到这些Object的最小共同基类名称。
 	# @see MultiNodeEdit::get_edited_class_name()
 	var get_common_class_name = func():
-		var a_class_name
+		var a_class_name = null
 		var check_again = true
 		while check_again:
 			check_again = false
@@ -2268,7 +2268,7 @@ func _on_button_edit_button_down():
 	# 根据共同属性，我们构造一个dict obj。要去掉共同属性中属于共同基类的属性。所以我们要找到这些Object的最小共同基类名称。
 	# @see MultiNodeEdit::get_edited_class_name()
 	var get_common_class_name = func():
-		var a_class_name
+		var a_class_name = null
 		var check_again = true
 		while check_again:
 			check_again = false
@@ -2475,7 +2475,7 @@ func _on_button_paste_pressed():
 						push_warning(msg)
 						mgr.add_log_history.emit("Warn", 0, "Paste", msg)
 					else:
-						dict_obj._set_by_index(j, convert(content, dict_obj.get_prop_type_by_index(j)))
+						dict_obj._set_by_index(j, type_convert(content, dict_obj.get_prop_type_by_index(j)))
 	else:
 		map = map as Dictionary
 		var map_width = map.size()
@@ -2501,7 +2501,7 @@ func _on_button_paste_pressed():
 						push_warning(msg)
 						mgr.add_log_history.emit("Warn", 0, "Paste", msg)
 					else:
-						dict_obj._set_by_index(j, convert(map[i_index][j_index], dict_obj.get_prop_type_by_index(j)))
+						dict_obj._set_by_index(j, type_convert(map[i_index][j_index], dict_obj.get_prop_type_by_index(j)))
 			var border = {
 				"start": selected_borders.front()["start"],
 				"rect": Rect2(rect.position, Vector2(rows.size(), cols.size()))
@@ -2538,7 +2538,7 @@ func _on_button_paste_pressed():
 							push_warning(msg)
 							mgr.add_log_history.emit("Warn", 0, "Paste", msg)
 						else:
-							dict_obj._set_by_index(j, convert(map[i_index][j_index], dict_obj.get_prop_type_by_index(j)))
+							dict_obj._set_by_index(j, type_convert(map[i_index][j_index], dict_obj.get_prop_type_by_index(j)))
 				var border = {
 					"start": a_border["start"],
 					"rect": Rect2(rect.position, Vector2(rows.size(), cols.size())),
