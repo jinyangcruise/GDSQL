@@ -34,7 +34,7 @@ static func _static_init() -> void:
 	#re_insert_into.compile(r"(?is)(INSERT[\s+IGNORE]*\s+INTO)\s+([^\s(]+)\s+(VALUES)\s*(\([^)]*\))")
 	#re_insert_into.compile(r"(?is)(INSERT[\s+IGNORE]*\s+INTO)\s+([^\s(]+)\s+(VALUES)\s*(\([^)]*\))(\s*ON DUPLICATE KEY UPDATE\s*(.*))?$")
 	#re_insert.compile(r"(?is)(INSERT[\s+IGNORE]*\s+INTO)\s+([^\s(]+)\s+(VALUES)\s*(\([^)]*\))(\s*ON DUPLICATE KEY UPDATE)?(\s*.*)?")
-	re_insert.compile(r"(?is)(INSERT(?:\s+IGNORE)?\s+INTO)\s+([^\s(]+(\s*\([^)]*\))?)\s+(VALUES)\s*(\([^)]*\))(\s*ON DUPLICATE KEY UPDATE)?(\s*.*)?")
+	#re_insert.compile(r"(?is)(INSERT(?:\s+IGNORE)?\s+INTO)\s+([^\s(]+(\s*\([^)]*\))?)\s+(VALUES)\s*(\([^)]*\))(\s*ON DUPLICATE KEY UPDATE)?(\s*.*)?")
 	# 这个正则表达式是用来匹配SQL语句中的`INSERT`语句的，包括一些变体如`INSERT INTO`, `INSERT IGNORE INTO`, 以及可能包含的`VALUES`子句、`ON DUPLICATE KEY UPDATE`子句等部分。下面是对这个正则表达式的逐步解析：
 	#- `(?is)`: 正则表达式的标志位，其中`i`表示忽略大小写（case-insensitive），`s`表示点`.`可以匹配包括换行符在内的任意字符（dotall模式）。
 	#- `(INSERT(?:\s+IGNORE)?\s+INTO)`: 匹配以`INSERT`开始，后面可能跟零个或1个`IGNORE`关键字（每个`IGNORE`前后可能有任意数量的空白字符），之后是至少一个空白字符和`INTO`关键字。这部分整体用来匹配`INSERT INTO`或`INSERT IGNORE INTO`这样的开头。
@@ -67,9 +67,9 @@ static func _static_init() -> void:
 	#- `(\s*ON DUPLICATE KEY UPDATE)?`: 这是一个可选的捕获组，匹配`ON DUPLICATE KEY UPDATE`子句，前后可以有任意数量的空白字符。
 	#- `(\s*.*)?`: 最后一个可选的捕获组，匹配`ON DUPLICATE KEY UPDATE`子句后面可能跟随的任何内容，这部分主要用于捕获该子句后面的更新设置，如果有。
 	#综上所述，这个正则表达式用于详细解析并捕获SQL `INSERT`语句的不同部分，包括是否包含`IGNORE`关键字、表名、列名、值列表、以及是否包含`ON DUPLICATE KEY UPDATE`子句及其具体内容，适用于分析和处理各种格式的插入语句。
-	re_insert.compile(r"(?is)(INSERT(?:\s+IGNORE)?\s+INTO)\s+((?:\s*\b[^\s.]+\b\s*\.\s*)*\s*\b[^\s.]+\b\s*)((?:\s*\([^)]*\))?)\s+(VALUES)\s*(\([^)]*\))(\s*ON DUPLICATE KEY UPDATE)?(\s*.*)?")
+	re_insert.compile(r"(?is)(INSERT(?:\s+IGNORE)?\s+INTO)\s+((?:\s*\b[^\s.]+\b\s*\.\s*)*\s*\b[^\s.]+\b\s*)((?:\s*\([^)]*\))?)\s*(VALUES)\s*(\([^)]*\))(\s*ON DUPLICATE KEY UPDATE)?(\s*.*)?")
 	#re_replace.compile(r"(?is)(REPLACE\s+INTO)\s+([^\s(]+(\s*\([^)]*\))?)\s+(VALUES)\s*(\([^)]*\))")
-	re_replace.compile(r"(?is)(REPLACE\s+INTO)\s+((?:\s*\b[^\s.]+\b\s*\.\s*)*\s*\b[^\s.]+\b\s*)((?:\s*\([^)]*\))?)\s+(VALUES)\s*(\([^)]*\))")
+	re_replace.compile(r"(?is)(REPLACE\s+INTO)\s+((?:\s*\b[^\s.]+\b\s*\.\s*)*\s*\b[^\s.]+\b\s*)((?:\s*\([^)]*\))?)\s*(VALUES)\s*(\([^)]*\))")
 	
 static func parse_to_dao(sql: String) -> BaseDao:
 	sql = sql.strip_edges()
