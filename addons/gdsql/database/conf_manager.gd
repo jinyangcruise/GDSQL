@@ -3,6 +3,7 @@ class_name ConfManagerClass
 # 项目设置里自动加载了该类，名称为ConfManager
 
 var _conf_map: Dictionary = {}
+var _conf_modified_time: Dictionary = {} # 用于检测外部工具对配置的更新
 var _passwords: Dictionary = {}
 var _valid_if_not_exist_path = []
 
@@ -41,6 +42,8 @@ func get_conf(path: String, password: String) -> ImprovedConfigFile:
 	
 	_passwords[path] = password
 	_conf_map[path] = conf
+	if OS.has_feature("editor"):
+		_conf_modified_time[path] = FileAccess.get_modified_time(path)
 	return conf
 	
 ## 创建并获取配置：前提是该配置的文件不存在
@@ -59,7 +62,9 @@ func has_conf(path: String) -> bool:
 func remove_conf(path: String):
 	path = GDSQLUtils.globalize_path(path)
 	_conf_map.erase(path)
-	
+	if OS.has_feature("editor"):
+		_conf_modified_time.erase(path)
+		
 func save_conf_by_origin_password(path: String):
 	path = GDSQLUtils.globalize_path(path)
 	assert(has_conf(path), "this conf %s is not under control" % path)
@@ -68,6 +73,8 @@ func save_conf_by_origin_password(path: String):
 		conf.save(path)
 	else:
 		conf.save_encrypted_pass(path, _passwords[path])
+	if OS.has_feature("editor"):
+		_conf_modified_time[path] = FileAccess.get_modified_time(path)
 		
 ## NOTICE unsafe
 func save_conf_by_same_password(path: String, ref_path: String):
@@ -81,6 +88,8 @@ func save_conf_by_same_password(path: String, ref_path: String):
 		conf.save(path)
 	else:
 		conf.save_encrypted_pass(path, _passwords[ref_path])
+	if OS.has_feature("editor"):
+		_conf_modified_time[path] = FileAccess.get_modified_time(path)
 		
 func save_conf_by_password(path: String, password: String):
 	path = GDSQLUtils.globalize_path(path)
@@ -91,3 +100,5 @@ func save_conf_by_password(path: String, password: String):
 		conf.save(path)
 	else:
 		conf.save_encrypted_pass(path, _passwords[path])
+	if OS.has_feature("editor"):
+		_conf_modified_time[path] = FileAccess.get_modified_time(path)
