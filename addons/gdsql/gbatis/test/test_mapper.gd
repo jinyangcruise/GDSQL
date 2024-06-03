@@ -21,3 +21,12 @@ func update_skill(test_skill_entity: TestSkillEntity) -> int:
 	
 func insert_skill(test_skill_entity: TestSkillEntity) -> int:
 	return query("insert_skill", test_skill_entity)
+	
+func insert_skill2(test_skill_entity: TestSkillEntity) -> int:
+	return query("insert_skill2", test_skill_entity)
+	
+func insert_skill3(map: Dictionary) -> int:
+	return query("insert_skill3", map)
+	
+func insert_skill4(map: Dictionary):
+	return query("insert_skill4", map)

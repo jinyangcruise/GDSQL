@@ -27,26 +27,55 @@ func _ready() -> void:
 	#var list = skill_mapper.select_skill_list()
 	#var dao = SQLParser.parse_to_dao("select * from GameConfig.c_skill
 		#where id == 1")
+		
+	# test update
 	#var entity = TestSkillEntity.new()
-	#entity.id = 63
-	#entity.skill_name = "2131测试名字"
-	#entity.desc = "423测试描述。。。。。。。。。。。。。。"
+	#entity.id = 65
+	#entity.skill_name = "rjweor"
+	#entity.desc = "32423"
+	#entity.icon = load("res://src/new_game/img/ok.png")
 	#var u = skill_mapper.update_skill(entity)
 	#printt(u)
 	
-	#var s = "insert into c_skill( name, desc )values( ___Rep1___, ___Rep0___ )"
-	#var regex = RegEx.new()
-	#regex.compile(r"(?is)(INSERT(?:\s+IGNORE)?\s+INTO)\s+([^\s(]+(\s*\([^)]*\))?)\s*(VALUES)\s*(\([^)]*\))(\s*ON DUPLICATE KEY UPDATE)?(\s*.*)?")
-	#var m = regex.search(s)
-	var ss = "1"
-	var sss = str_to_var(ss)
-	printt(sss)
-	var entity2 = TestSkillEntity.new()
-	#entity2.id = 6
-	entity2.skill_name = "新的技能xxx"
-	entity2.desc = "flkjfasl加入了认为"
-	entity2.icon = load("res://addons/anthonyec.camera_preview/GuiResizerTopLeft.svg")
-	var v = skill_mapper.insert_skill(entity2)
-	printt(v, entity2.id)
+	# test insert
+	#var entity2 = TestSkillEntity.new()
+	##entity2.id = 6
+	#entity2.skill_name = "新的技能xxx"
+	#entity2.desc = "flkjfasl加入了认为"
+	#entity2.icon = load("res://addons/anthonyec.camera_preview/GuiResizerTopLeft.svg")
+	#var v = skill_mapper.insert_skill(entity2)
+	#printt(v, entity2.id)
+	
+	# test insert 2
+	#var entity3 = TestSkillEntity.new()
+	#entity3.id = 66
+	#entity3.skill_name = "skill66"
+	#entity3.icon = load("res://addons/gdsql/img/plusfile.png")
+	#var v3 = skill_mapper.insert_skill2(entity3)
+	#printt(v3)
+	
+	# test insert 3 by Dictionary
+	#var map = {
+		#"id": 66,
+		#"skill_name": "66_skill",
+		#"icon": load("res://src/hero/img/ap.png"),
+		#"desc": "a desc",
+		#"max_level": 99,
+		#"xxx": 9923,
+		#"xxxww": 555,
+	#}
+	#var v4 = skill_mapper.insert_skill3(map)
+	#printt(v4)
+	
+	# test insert 4
+	#var map = {
+		#"id": 67,
+		#"skill_name": "67_skill",
+		#"icon": load("res://src/hero/img/mp.png"),
+		#"desc": "a desc xxx",
+		#"max_level": 2,
+	#}
+	#var v5 = skill_mapper.insert_skill4(map)
+	#printt(v5)
 	pass
 
