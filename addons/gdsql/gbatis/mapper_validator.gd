@@ -65,6 +65,8 @@ func deal_element(item: GXMLItem):
 			deal_select(item)
 		"insert":
 			deal_insert(item)
+		"replace":
+			deal_replace(item)
 		"selectKey":
 			deal_select_key(item)
 		"update":
@@ -353,6 +355,29 @@ func deal_insert(item:GXMLItem):
 		if i is GXMLItem:
 			if not VALID_ELEMENTS_3.has(i.name):
 				assert(false, "not support %s in insert" % i.name)
+			deal_element(i)
+			
+#<!ELEMENT replace (#PCDATA | selectKey | include | trim | where | set | foreach 
+#| choose | if | bind)*>
+#<!ATTLIST replace
+#id CDATA #REQUIRED
+#parameterMap CDATA #IMPLIED
+#parameterType CDATA #IMPLIED
+#timeout CDATA #IMPLIED
+#flushCache (true|false) #IMPLIED
+#statementType (STATEMENT|PREPARED|CALLABLE) #IMPLIED
+#keyProperty CDATA #IMPLIED
+#useGeneratedKeys (true|false) #IMPLIED
+#keyColumn CDATA #IMPLIED
+#databaseId CDATA #IMPLIED
+#lang CDATA #IMPLIED
+#>
+func deal_replace(item:GXMLItem):
+	assert(not item.attrs.get("id", "").strip_edges().is_empty(), "id is empty of insert!")
+	for i in item.content:
+		if i is GXMLItem:
+			if not VALID_ELEMENTS_3.has(i.name):
+				assert(false, "not support %s in replace" % i.name)
 			deal_element(i)
 			
 #<!ELEMENT selectKey (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
