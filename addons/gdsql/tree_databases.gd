@@ -1055,12 +1055,12 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 		"Show in File Manager":
 			var item := get_selected()
 			if item:
-				var path = GDSQLUtils.globalize_path(item.get_meta("data_path"))
+				var path = ProjectSettings.globalize_path(item.get_meta("data_path"))
 				OS.shell_show_in_file_manager(path, true)
 		"Open in External Program":
 			var item := get_selected()
 			if item:
-				var path = GDSQLUtils.globalize_path(item.get_meta("data_path"))
+				var path = ProjectSettings.globalize_path(item.get_meta("data_path"))
 				OS.shell_open(path)
 		"Refresh All":
 			refresh()
