@@ -168,5 +168,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				<if test="max_level != 0">#{max_level},</if> 
 			</trim>
  		)
-	</insert>
+	</insert>	 	
+
+ 	<replace id="replace_skill" useGeneratedKeys="true" databaseId="GameConfig">
+ 		replace into c_skill values(
+			<trim suffixOverrides=",">
+	 			<if test="id != 0">#{id},</if>
+ 				<if test="skill_name != ''">#{skill_name},</if>
+ 				<if test="icon != null">#{icon},</if>
+ 				<if test="desc != ''">#{desc},</if>
+				<if test="max_level != 0">#{max_level},</if> 
+			</trim>
+ 		)
+	</replace>
 </mapper> 

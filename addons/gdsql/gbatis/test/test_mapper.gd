@@ -30,3 +30,6 @@ func insert_skill3(map: Dictionary) -> int:
 	
 func insert_skill4(map: Dictionary):
 	return query("insert_skill4", map)
+	
+func replace_skill(test_skill_entity: TestSkillEntity) -> int:
+	return query("replace_skill", test_skill_entity)
