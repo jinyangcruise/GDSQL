@@ -616,9 +616,18 @@ func _deal_select(item:GXMLItem, param: Dictionary, depth: int) -> GBatisSelect:
 #timeout CDATA #IMPLIED ----------------------------- ❌ not support
 #flushCache (true|false) #IMPLIED
 #statementType (STATEMENT|PREPARED|CALLABLE) #IMPLIED ❌ not support
-#keyProperty CDATA #IMPLIED ------------------------- ❌ not support
 #useGeneratedKeys (true|false) #IMPLIED
-#keyColumn CDATA #IMPLIED --------------------------- ❌ not support
+#keyProperty CDATA #IMPLIED ------------------------- 由数据库内部生成的主键对应的对象
+#                                                     的属性或字典的键，多个用逗号分割，
+#                                                     配合useGeneratedKeys使用，如
+#                                                     果useGeneratedKeys为true，但
+#                                                     是未配置该特性，则默认属性和列名
+#                                                     完全相同时，才进行设置。
+#keyColumn CDATA #IMPLIED --------------------------- keyProperty对应的列名。如果
+#                                                     property和column名称一样，可
+#                                                     以省略该特性；否则请按照和
+#                                                     keyProperty相同的顺序填写相应
+#                                                     的列名。
 #databaseId CDATA #IMPLIED
 #lang CDATA #IMPLIED -------------------------------- ❌ not support
 #> 
@@ -638,11 +647,17 @@ func _deal_insert(item:GXMLItem, param: Dictionary, depth: int) -> GBatisInsert:
 	var ret = GBatisInsert.new(item.attrs)
 	ret.set_sql(sql)
 	ret.set_method_return_info(method_return_info)
+	if ret.use_generated_keys == "true" and param.size() == 2:
+		for i in param:
+			if i != BIND:
+				if param[i] is Object or param[i] is Dictionary:
+					ret.set_param_obj_or_dict(param[i])
+				break
 	#assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
 	#element_cache[ret.id] = ret
 	return ret
 	
-# NOTICE mybatis原本不支持replace.
+# NOTICE GBatis新增特性。mybatis原本不支持replace.
 #<!ELEMENT replace (#PCDATA | selectKey | include | trim | where | set | foreach 
 #| choose | if | bind)*>
 #<!ATTLIST replace
@@ -652,12 +667,21 @@ func _deal_insert(item:GXMLItem, param: Dictionary, depth: int) -> GBatisInsert:
 #timeout CDATA #IMPLIED ----------------------------- ❌ not support
 #flushCache (true|false) #IMPLIED
 #statementType (STATEMENT|PREPARED|CALLABLE) #IMPLIED ❌ not support
-#keyProperty CDATA #IMPLIED ------------------------- ❌ not support
 #useGeneratedKeys (true|false) #IMPLIED
-#keyColumn CDATA #IMPLIED --------------------------- ❌ not support
+#keyProperty CDATA #IMPLIED ------------------------- 由数据库内部生成的主键对应的对象
+#                                                     的属性或字典的键，多个用逗号分割，
+#                                                     配合useGeneratedKeys使用，如
+#                                                     果useGeneratedKeys为true，但
+#                                                     是未配置该特性，则默认属性和列名
+#                                                     完全相同时，才进行设置。
+#keyColumn CDATA #IMPLIED --------------------------- keyProperty对应的列名。如果
+#                                                     property和column名称一样，可
+#                                                     以省略该特性；否则请按照和
+#                                                     keyProperty相同的顺序填写相应
+#                                                     的列名。
 #databaseId CDATA #IMPLIED
 #lang CDATA #IMPLIED -------------------------------- ❌ not support
-#>
+#> 
 func _deal_replace(item:GXMLItem, param: Dictionary, depth: int) -> GBatisReplace:
 	var sql = ""
 	var binded_param = []
@@ -674,6 +698,12 @@ func _deal_replace(item:GXMLItem, param: Dictionary, depth: int) -> GBatisReplac
 	var ret = GBatisReplace.new(item.attrs)
 	ret.set_sql(sql)
 	ret.set_method_return_info(method_return_info)
+	if ret.use_generated_keys == "true" and param.size() == 2:
+		for i in param:
+			if i != BIND:
+				if param[i] is Object or param[i] is Dictionary:
+					ret.set_param_obj_or_dict(param[i])
+				break
 	#assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
 	#element_cache[ret.id] = ret
 	return ret
@@ -1135,8 +1165,13 @@ func _replace_param(s: String, param: Dictionary, depth: int) -> String:
 							names.push_back(n)
 							values.push_back(param[BIND][d][n])
 			else:
-				if param.size() == 2 and param[i] is Object:
-					obj_maybe = param[i]
+				if param.size() == 2:
+					if param[i] is Object:
+						obj_maybe = param[i]
+					elif param[i] is Dictionary:
+						for key in param[i]:
+							names.push_back(key)
+							values.push_back(param[i][key])
 				else:
 					names.push_back(i)
 					values.push_back(param[i])
@@ -1174,8 +1209,13 @@ func _get_value(value_string: String, param: Dictionary, depth: int):
 						names.push_back(n)
 						values.push_back(param[BIND][d][n])
 		else:
-			if param.size() == 2 and param[i] is Object:
-				obj_maybe = param[i]
+			if param.size() == 2:
+				if param[i] is Object:
+					obj_maybe = param[i]
+				elif param[i] is Dictionary:
+					for key in param[i]:
+						names.push_back(key)
+						values.push_back(param[i][key])
 			else:
 				names.push_back(i)
 				values.push_back(param[i])
