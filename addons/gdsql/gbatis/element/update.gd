@@ -1,12 +1,26 @@
 @tool
 extends RefCounted
 class_name GBatisUpdate
-
+#<!ELEMENT update 
+#(#PCDATA | selectKey | include | trim | where | set | foreach | choose | if | bind)*>
+#<!ATTLIST update
+#id CDATA #REQUIRED
+#parameterMap CDATA #IMPLIED ------------------------ ❌ not support
+#parameterType CDATA #IMPLIED ----------------------- ❌ not support
+#timeout CDATA #IMPLIED ----------------------------- ❌ not support
+#flushCache (true|false) #IMPLIED
+#statementType (STATEMENT|PREPARED|CALLABLE) #IMPLIED ❌ not support
+#keyProperty CDATA #IMPLIED ------------------------- ❌ not support
+#useGeneratedKeys (true|false) #IMPLIED ------------- ❌ not support
+#keyColumn CDATA #IMPLIED --------------------------- ❌ not support
+#databaseId CDATA #IMPLIED
+#lang CDATA #IMPLIED -------------------------------- ❌ not support
+#>
 var id = ""
 var flush_cache = "true"
 var database_id = ""
 var sql = ""
-var method_return_info: Dictionary
+var method_return_info: Dictionary: set = set_method_return_info
 
 func _init(conf: Dictionary) -> void:
 	id = conf.get("id").strip_edges()

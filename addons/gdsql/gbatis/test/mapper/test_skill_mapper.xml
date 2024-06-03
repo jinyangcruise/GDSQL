@@ -10,7 +10,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		<result property="icon"        column="icon"         />
 		<result property="desc"        column="desc"         />
 		<result property="max_level"        column="max_level"         />
-		<association property="skill_effect" column="id" select="select_skill_effect_by_skill_id"/>
+		<collection property="arr_skill_effect" column="id" select="select_skill_effect_by_skill_id"/>
 	</resultMap>
 
 	<resultMap type="TestSkillEntity" id="skillResult2">
@@ -81,5 +81,24 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
  		</set>
  		where id == #{id}
 	</update>
-	
+	 	
+ 	<insert id="insert_skill" useGeneratedKeys="true" databaseId="GameConfig">
+ 		insert into c_skill(
+			<trim suffixOverrides=",">
+	 			<if test="id != 0">id,</if>
+ 				<if test="skill_name != ''">name,</if>
+ 				<if test="icon != null">icon,</if>
+ 				<if test="desc != ''">desc,</if>
+				<if test="max_level != 0">max_level,</if> 			
+			</trim>
+ 		)values(
+			<trim suffixOverrides=",">
+	 			<if test="id != 0">#{id},</if>
+ 				<if test="skill_name != ''">#{skill_name},</if>
+ 				<if test="icon != null">#{icon},</if>
+ 				<if test="desc != ''">#{desc},</if>
+				<if test="max_level != 0">#{max_level},</if> 
+			</trim>
+ 		)
+	</insert>
 </mapper> 

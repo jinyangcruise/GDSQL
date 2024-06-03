@@ -13,8 +13,11 @@ func select_skill_by_id3(id: int) -> TestSkillEntity:
 func select_skill_list() -> Array[Object]:
 	return query("select_skill_list")
 	
-func select_skill_effect_by_skill_id(id: int) -> TestSkillEffectEntity:
+func select_skill_effect_by_skill_id(id: int) -> Array[TestSkillEffectEntity]:
 	return query("select_skill_effect_by_skill_id", id)
 	
 func update_skill(test_skill_entity: TestSkillEntity) -> int:
 	return query("update_skill", test_skill_entity)
+	
+func insert_skill(test_skill_entity: TestSkillEntity) -> int:
+	return query("insert_skill", test_skill_entity)

@@ -6,7 +6,7 @@ var id = ""
 var flush_cache = "true"
 var database_id = ""
 var sql = ""
-var method_return_info: Dictionary
+var method_return_info: Dictionary: set = set_method_return_info
 
 func _init(conf: Dictionary) -> void:
 	id = conf.get("id").strip_edges()

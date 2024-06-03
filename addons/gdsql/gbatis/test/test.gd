@@ -27,10 +27,26 @@ func _ready() -> void:
 	#var list = skill_mapper.select_skill_list()
 	#var dao = SQLParser.parse_to_dao("select * from GameConfig.c_skill
 		#where id == 1")
-	var entity = TestSkillEntity.new()
-	entity.id = 63
-	entity.skill_name = "测试名字"
-	entity.desc = "测试描述。。。。。。。。。。。。。。"
-	var u = skill_mapper.update_skill(entity)
-	printt(u)
+	#var entity = TestSkillEntity.new()
+	#entity.id = 63
+	#entity.skill_name = "2131测试名字"
+	#entity.desc = "423测试描述。。。。。。。。。。。。。。"
+	#var u = skill_mapper.update_skill(entity)
+	#printt(u)
+	
+	#var s = "insert into c_skill( name, desc )values( ___Rep1___, ___Rep0___ )"
+	#var regex = RegEx.new()
+	#regex.compile(r"(?is)(INSERT(?:\s+IGNORE)?\s+INTO)\s+([^\s(]+(\s*\([^)]*\))?)\s*(VALUES)\s*(\([^)]*\))(\s*ON DUPLICATE KEY UPDATE)?(\s*.*)?")
+	#var m = regex.search(s)
+	var ss = "1"
+	var sss = str_to_var(ss)
+	printt(sss)
+	var entity2 = TestSkillEntity.new()
+	#entity2.id = 6
+	entity2.skill_name = "新的技能xxx"
+	entity2.desc = "flkjfasl加入了认为"
+	entity2.icon = load("res://addons/anthonyec.camera_preview/GuiResizerTopLeft.svg")
+	var v = skill_mapper.insert_skill(entity2)
+	printt(v, entity2.id)
 	pass
+

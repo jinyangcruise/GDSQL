@@ -67,9 +67,11 @@ static func _static_init() -> void:
 	#- `(\s*ON DUPLICATE KEY UPDATE)?`: 这是一个可选的捕获组，匹配`ON DUPLICATE KEY UPDATE`子句，前后可以有任意数量的空白字符。
 	#- `(\s*.*)?`: 最后一个可选的捕获组，匹配`ON DUPLICATE KEY UPDATE`子句后面可能跟随的任何内容，这部分主要用于捕获该子句后面的更新设置，如果有。
 	#综上所述，这个正则表达式用于详细解析并捕获SQL `INSERT`语句的不同部分，包括是否包含`IGNORE`关键字、表名、列名、值列表、以及是否包含`ON DUPLICATE KEY UPDATE`子句及其具体内容，适用于分析和处理各种格式的插入语句。
-	re_insert.compile(r"(?is)(INSERT(?:\s+IGNORE)?\s+INTO)\s+((?:\s*\b[^\s.]+\b\s*\.\s*)*\s*\b[^\s.]+\b\s*)((?:\s*\([^)]*\))?)\s*(VALUES)\s*(\([^)]*\))(\s*ON DUPLICATE KEY UPDATE)?(\s*.*)?")
+	#re_insert.compile(r"(?is)(INSERT(?:\s+IGNORE)?\s+INTO)\s+((?:\s*\b[^\s.]+\b\s*\.\s*)*\s*\b[^\s.]+\b\s*)((?:\s*\([^)]*\))?)\s*(VALUES)\s*(\([^)]*\))(\s*ON DUPLICATE KEY UPDATE)?(\s*.*)?")
+	re_insert.compile(r"(?is)(INSERT(?:\s+IGNORE)?\s+INTO)\s+((?:\s*\b[^\s.]+\b\s*\.\s*)*\s*\b[^\s.]+\b\s*)((?:\s*\([^)]*\))?)\s*(VALUES)\s*(\((?:[^()]|\([^()]*\))*\))(\s*ON DUPLICATE KEY UPDATE)?(\s*.*)?")
 	#re_replace.compile(r"(?is)(REPLACE\s+INTO)\s+([^\s(]+(\s*\([^)]*\))?)\s+(VALUES)\s*(\([^)]*\))")
-	re_replace.compile(r"(?is)(REPLACE\s+INTO)\s+((?:\s*\b[^\s.]+\b\s*\.\s*)*\s*\b[^\s.]+\b\s*)((?:\s*\([^)]*\))?)\s*(VALUES)\s*(\([^)]*\))")
+	#re_replace.compile(r"(?is)(REPLACE\s+INTO)\s+((?:\s*\b[^\s.]+\b\s*\.\s*)*\s*\b[^\s.]+\b\s*)((?:\s*\([^)]*\))?)\s*(VALUES)\s*(\([^)]*\))")
+	re_replace.compile(r"(?is)(REPLACE\s+INTO)\s+((?:\s*\b[^\s.]+\b\s*\.\s*)*\s*\b[^\s.]+\b\s*)((?:\s*\([^)]*\))?)\s*(VALUES)\s*(\((?:[^()]|\([^()]*\))*\))")
 	
 static func parse_to_dao(sql: String) -> BaseDao:
 	sql = sql.strip_edges()
@@ -498,10 +500,10 @@ static func _get_field_list(s: String) -> Array[String]:
 	return ret
 	
 ## 获取逗号分隔的值列表。逗号在括号和引号内的不会分隔。
-static func _get_value_list(s: String, evaluate: bool) -> Array[String]:
+static func _get_value_list(s: String, evaluate: bool) -> Array:
 	s = _extract_bracket(s)
 	var matches = re_split_comma.search_all(s)
-	var ret = [] as Array[String]
+	var ret = []
 	if not matches.is_empty():
 		var start = 0
 		for i in matches:
@@ -556,4 +558,7 @@ static func _get_field_value(s: String) -> Array[String]:
 	return []
 	
 static func _get_var(s: String):
-	return GDSQLUtils.evaluate_command(null, s)
+	var try = str_to_var(s)
+	if typeof(try) == TYPE_NIL:
+		return GDSQLUtils.evaluate_command(null, s)
+	return try
