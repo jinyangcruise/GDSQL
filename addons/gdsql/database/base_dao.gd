@@ -1141,6 +1141,7 @@ func query() -> QueryResult:
 						
 					if col["Default(Expression)"] != "":
 						__data[col_name] = GDSQLUtils.evaluate_command(null, col["Default(Expression)"])
+						result._generated_keys[col_name] = __data[col_name]
 						continue
 						
 					if col["NN"]:
