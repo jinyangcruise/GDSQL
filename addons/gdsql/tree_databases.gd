@@ -32,8 +32,13 @@ var databases: Dictionary
 
 var database_items: Array[TreeItem] = []
 var _default_database_path: String = ""
-var _config_file: ImprovedConfigFile
+var _config_file: ImprovedConfigFile:
+	get:
+		return __CONF_MANAGER.get_conf(ROOT_CONFIG, "")
 var __CONF_MANAGER: ConfManagerClass # 管理表数据
+
+var disk_changed: ConfirmationDialog
+var disk_changed_list: Tree
 
 const CONFIG_ROOT = "res://addons/gdsql/config/"
 const ROOT_CONFIG = "res://addons/gdsql/config/config.cfg"
@@ -47,19 +52,46 @@ enum ITEM_BUTTON_INDEX {
 	ENCRYPT = 3,
 }
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_FOCUS_IN or what == NOTIFICATION_VISIBILITY_CHANGED:
+		if not is_visible_in_tree():
+			return
+		# 提示用户配置被外部工具修改了
+		disk_changed_list.clear()
+		disk_changed_list.columns = 2
+		var r = disk_changed_list.create_item()
+		disk_changed_list.hide_root = true
+		for path: String in __CONF_MANAGER._conf_modified_time:
+			if not FileAccess.file_exists(path):
+				var ti = disk_changed_list.create_item(r)
+				ti.set_meta("path", path)
+				ti.set_icon(0, get_theme_icon("FileDead", "EditorIcons"))
+				ti.set_text(0, path.get_file())
+				ti.set_text(1, path)
+				ti.add_button(1, get_theme_icon("Clear", "EditorIcons"), 0, 
+					false, tr("Clear cache"))
+			elif FileAccess.get_modified_time(path) != __CONF_MANAGER._conf_modified_time[path]:
+				var ti = disk_changed_list.create_item(r)
+				ti.set_meta("path", path)
+				ti.set_icon(0, get_theme_icon("Edit", "EditorIcons"))
+				ti.set_text(0, path.get_file())
+				ti.set_text(1, path)
+				ti.add_button(1, get_theme_icon("Reload", "EditorIcons"), 1, 
+					false, tr("Clear cache"))
+				ti.add_button(1, get_theme_icon("ExternalLink", "EditorIcons"), 2, 
+					false, tr("Open in External Program"))
+				ti.add_button(1, get_theme_icon("FileDialog", "EditorIcons"), 3, 
+					false, tr("Show in File Manager"))
+		if disk_changed_list.get_root().get_child_count() > 0:
+			disk_changed.popup_centered_ratio(0.3)
+			
 func _clear():
 	clear()
 	database_items.clear()
 	popup_menu_create_table_like_tables.clear()
 	popup_menu_create_table_like_table_item.clear()
 	
-func load_config():
-	_config_file = ImprovedConfigFile.new()
-	_config_file.load(ROOT_CONFIG)
-	
 func refresh_databases():
-	_config_file.clear()
-	_config_file.load(ROOT_CONFIG)
 	databases = {}
 	for db_name in _config_file.get_sections():
 		var config_path = _config_file.get_value(db_name, "config_path")
@@ -173,7 +205,7 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var db_absolute_path = GDSQLUtils.globalize_path(databases[db_name]["data_path"])
+	var db_absolute_path = ProjectSettings.globalize_path(databases[db_name]["data_path"])
 	var table_data_path = db_absolute_path + table_name + DATA_EXTENSION
 	if not DirAccess.dir_exists_absolute(db_absolute_path):
 		var err = DirAccess.make_dir_recursive_absolute(db_absolute_path)
@@ -201,8 +233,10 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 	
 	# 这里不通过__CONF_MANAGER，可以让用户使用该表时输入一次密码加深记忆，防止用户加入了很多数据后才发现密码错误
 	var data_file = ConfigFile.new()
-	data_file.save(table_data_path) if password.is_empty() \
-		else data_file.save_encrypted_pass(table_data_path, password)
+	if password == "":
+		data_file.save(table_data_path)
+	else:
+		data_file.save_encrypted_pass(table_data_path, password)
 	msgs.push_back("1 file: %s has been saved." % table_data_path)
 	
 	if id != "":
@@ -432,8 +466,8 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		
 		if old_table_data_path != new_table_data_path:
 			var old_table_conf_path = databases[db_name]["config_path"] + old_table_name + CONFIG_EXTENSION
-			var old_table_conf_path_abs = GDSQLUtils.globalize_path(old_table_conf_path)
-			var old_table_data_path_abs = GDSQLUtils.globalize_path(old_table_data_path)
+			var old_table_conf_path_abs = ProjectSettings.globalize_path(old_table_conf_path)
+			var old_table_data_path_abs = ProjectSettings.globalize_path(old_table_data_path)
 			if FileAccess.file_exists(old_table_conf_path_abs):
 				OS.move_to_trash(old_table_conf_path_abs) # 删配置
 				msgs.push_back("1 file: %s has been moved to trash." % old_table_conf_path_abs)
@@ -484,7 +518,7 @@ func set_password(db_name: String, table_name: String, password: String) -> void
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var db_absolute_path = GDSQLUtils.globalize_path(databases[db_name]["data_path"])
+	var db_absolute_path = ProjectSettings.globalize_path(databases[db_name]["data_path"])
 	var table_data_path = db_absolute_path + table_name + DATA_EXTENSION
 	var table_data_file_exist = FileAccess.file_exists(table_data_path)
 	#if not FileAccess.file_exists(table_data_path):
@@ -536,7 +570,7 @@ func clear_password(db_name: String, table_name: String) -> void:
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var db_absolute_path = GDSQLUtils.globalize_path(databases[db_name]["data_path"])
+	var db_absolute_path = ProjectSettings.globalize_path(databases[db_name]["data_path"])
 	var table_data_path = db_absolute_path + table_name + DATA_EXTENSION
 	var table_data_file_exist = FileAccess.file_exists(table_data_path)
 	#if not FileAccess.file_exists(table_data_path):
@@ -592,7 +626,7 @@ func change_password(db_name: String, table_name: String, password: String) -> v
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var db_absolute_path = GDSQLUtils.globalize_path(databases[db_name]["data_path"])
+	var db_absolute_path = ProjectSettings.globalize_path(databases[db_name]["data_path"])
 	var table_data_path = db_absolute_path + table_name + DATA_EXTENSION
 	var table_data_file_exist = FileAccess.file_exists(table_data_path)
 	#if not FileAccess.file_exists(table_data_path):
@@ -655,22 +689,24 @@ func drop_table_from_config(db_name: String, table_name: String) -> void:
 		
 	# remove config file
 	var table_conf_path = databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
-	var conf_path = GDSQLUtils.globalize_path(table_conf_path)
+	var conf_path = ProjectSettings.globalize_path(table_conf_path)
 	if FileAccess.file_exists(table_conf_path):
 		OS.move_to_trash(conf_path)
 		msgs.push_back("1 file: %s has been moved to trash." % conf_path)
 	else:
 		msgs.push_back("1 file: %s intended to move to trash but not found." % conf_path)
-		
+	__CONF_MANAGER.remove_conf(table_conf_path)
+	
 	# remove data file
-	var db_absolute_path = GDSQLUtils.globalize_path(databases[db_name]["data_path"])
+	var db_absolute_path = ProjectSettings.globalize_path(databases[db_name]["data_path"])
 	var data_path = db_absolute_path + table_name + DATA_EXTENSION
 	if FileAccess.file_exists(data_path):
 		OS.move_to_trash(data_path)
 		msgs.push_back("1 file: %s has been moved to trash." % data_path)
 	else:
 		msgs.push_back("1 file: %s intended to move to trash but not found." % data_path)
-		
+	__CONF_MANAGER.remove_conf(data_path)
+	
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
 	
 	refresh()
@@ -691,7 +727,7 @@ func truncate_table_from_config(db_name: String, table_name: String) -> void:
 		return mgr.create_accept_dialog(content)
 		
 	# clear data file
-	var db_absolute_path = GDSQLUtils.globalize_path(databases[db_name]["data_path"])
+	var db_absolute_path = ProjectSettings.globalize_path(databases[db_name]["data_path"])
 	var data_path = db_absolute_path + table_name + DATA_EXTENSION
 	if FileAccess.file_exists(data_path):
 		OS.move_to_trash(data_path) # users can get their old data file in trash can
@@ -732,7 +768,6 @@ func _ready():
 	if not mgr.request_create_table.is_connected(add_table_to_config):
 		mgr.request_create_table.connect(add_table_to_config, CONNECT_DEFERRED)
 		
-	load_config()
 	popup_menu_database.set_item_submenu(2, "PopupMenuCopyTo")
 	popup_menu_database.set_item_submenu(3, "PopupMenuSendTo")
 	popup_menu_tables.set_item_submenu(1, "PopupMenuCreateTableLike")
@@ -744,12 +779,46 @@ func _ready():
 	popup_menu_column.set_item_submenu(3, "PopupMenuSendTo")
 	refresh()
 	
+	# 配置变化检测
+	disk_changed = ConfirmationDialog.new()
+	var vbc = VBoxContainer.new()
+	disk_changed.add_child(vbc)
+	
+	var dl = Label.new()
+	dl.text = tr("The following files are newer on disk.\nWhat action should be taken?")
+	vbc.add_child(dl)
+	
+	disk_changed_list = Tree.new()
+	vbc.add_child(disk_changed_list)
+	disk_changed_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	disk_changed_list.button_clicked.connect(_on_disk_changed_list_button_clicked)
+	disk_changed.confirmed.connect(_reload_modified_scenes)
+	disk_changed.ok_button_text = tr("Reload")
+	add_child(disk_changed)
+	
+func _on_disk_changed_list_button_clicked(item: TreeItem, _column: int, id: int, _mouse_button_index: int):
+	match id:
+		0, 1:
+			__CONF_MANAGER.remove_conf(item.get_meta("path"))
+			refresh()
+		2:
+			var path = ProjectSettings.globalize_path(item.get_meta("path"))
+			OS.shell_open(path)
+		3:
+			var path = ProjectSettings.globalize_path(item.get_meta("path"))
+			OS.shell_show_in_file_manager(path, true)
+			
+func _reload_modified_scenes():
+	for i in disk_changed_list.get_root().get_child_count():
+		var path = disk_changed_list.get_root().get_child(i).get_meta("path")
+		__CONF_MANAGER.remove_conf(path)
+	refresh()
+	
 func _exit_tree():
 	if mgr == null or not mgr.run_in_plugin(self):
 		return
 		
 	_clear()
-	_config_file = null
 	__CONF_MANAGER = null
 	if mgr.user_confirm_add_schema.is_connected(add_db_to_config):
 		mgr.user_confirm_add_schema.disconnect(add_db_to_config)
@@ -929,7 +998,7 @@ func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_inde
 				deal_password_before_table_cmd(item, "", exe_select)
 			# Show in File Manager
 			ITEM_BUTTON_INDEX.FOLDER:
-				var path = GDSQLUtils.globalize_path(item.get_meta("data_path"))
+				var path = ProjectSettings.globalize_path(item.get_meta("data_path"))
 				OS.shell_show_in_file_manager(path, true)
 			ITEM_BUTTON_INDEX.COLUMN_PROPERTY:
 				pass
