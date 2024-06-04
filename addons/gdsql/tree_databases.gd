@@ -54,7 +54,7 @@ enum ITEM_BUTTON_INDEX {
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_IN or what == NOTIFICATION_VISIBILITY_CHANGED:
-		if not is_visible_in_tree():
+		if not is_visible_in_tree() or not disk_changed_list:
 			return
 		# 提示用户配置被外部工具修改了
 		disk_changed_list.clear()
