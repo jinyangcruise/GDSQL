@@ -6,6 +6,8 @@ const MainPanel = preload("res://addons/gdsql/index.tscn")
 var main_panel_instance
 var dictionary_object_inspector_plugin
 var resource_format_loader_xml: ResourceFormatLoaderXML
+var xml_inspector_plugin
+var xml_editor_window
 
 #region Singleton
 var conf_manager: Node
@@ -28,12 +30,18 @@ func _enter_tree():
 	
 	# 特别需求，让检查器能够查看DictionaryObject
 	# EditorInspectorPlugin is a resource, so we use `new()` instead of `instance()`.
-	dictionary_object_inspector_plugin = preload("res://addons/gdsql/dictionary_object_inspector_plugin.gd").new()
+	dictionary_object_inspector_plugin = preload("res://addons/gdsql/inspector_plugin/dictionary_object_inspector_plugin.gd").new()
 	add_inspector_plugin(dictionary_object_inspector_plugin)
 	
 	# XML resource load
 	resource_format_loader_xml = ResourceFormatLoaderXML.new()
 	ResourceLoader.add_resource_format_loader(resource_format_loader_xml)
+	
+	xml_editor_window = preload("res://addons/gdsql/gxml/editor/xml_editor_window.tscn").instantiate()
+	EditorInterface.get_base_control().add_child(xml_editor_window)
+	xml_inspector_plugin = preload("res://addons/gdsql/inspector_plugin/xml_inspector_plugin.gd").new()
+	xml_inspector_plugin.xml_editor_window = xml_editor_window
+	add_inspector_plugin(xml_inspector_plugin)
 	
 	# 进入界面
 	main_panel_instance = MainPanel.instantiate()
@@ -46,11 +54,16 @@ func _enter_tree():
 	
 
 func _exit_tree():
+	ResourceLoader.remove_resource_format_loader(resource_format_loader_xml)
 	if main_panel_instance:
 		main_panel_instance.queue_free()
+	if xml_editor_window:
+		xml_editor_window.queue_free()
 	Engine.get_singleton("GDSQLWorkbenchManager").main_panel = null
 	if dictionary_object_inspector_plugin:
 		remove_inspector_plugin(dictionary_object_inspector_plugin)
+	if xml_inspector_plugin:
+		remove_inspector_plugin(xml_inspector_plugin)
 	if Engine.has_singleton("ConfManager"):
 		Engine.unregister_singleton("ConfManager")
 		conf_manager.queue_free()
@@ -58,7 +71,6 @@ func _exit_tree():
 		Engine.unregister_singleton("GDSQLWorkbenchManager")
 		gdsql_workbench_manager.queue_free()
 		
-	ResourceLoader.remove_resource_format_loader(resource_format_loader_xml)
 	
 func _has_main_screen():
 	return true

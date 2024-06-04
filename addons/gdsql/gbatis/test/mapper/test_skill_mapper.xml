@@ -3,7 +3,7 @@
 PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="TestSkillMapper">
-	<cache/>
+	<cache size="10"/>
 	<resultMap type="TestSkillEntity" id="skillResult">
 		<id     property="id"        column="id"         />
 		<result property="skill_name"        column="name"         />
@@ -44,7 +44,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 	</resultMap>
 	
 	<select id="select_skill_by_id" resultMap="skillResult">
-		select * from GameConfig.c_skill
+		select id, name, t.icon, desc, t .  max_level from GameConfig.c_skill t
 		where id == #{id}
 	</select>
 	
@@ -52,7 +52,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		select t1.*, t2.id as se_id, t2.sid, t2.eid from GameConfig.c_skill t1
 		left join GameConfig.c_skill_effect t2 on t2.sid == t1.id
 		where t1.id == #{id}
-	</select>	
+	</select>
 
 	<select id="select_skill_by_id3" resultMap="skillResult3">
 		select t1.*, t2.id as se_id, t2.sid, t2.eid from GameConfig.c_skill t1

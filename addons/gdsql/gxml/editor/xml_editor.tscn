@@ -1,0 +1,121 @@
+[gd_scene load_steps=2 format=3 uid="uid://cb0umrs5k37ku"]
+
+[ext_resource type="Script" path="res://addons/gdsql/gxml/editor/xml_editor.gd" id="1_8wa0a"]
+
+[node name="XMLEditor" type="VBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 6
+script = ExtResource("1_8wa0a")
+
+[node name="TextEditor" type="CodeEdit" parent="."]
+layout_mode = 2
+size_flags_vertical = 3
+minimap_draw = true
+caret_blink = true
+highlight_all_occurrences = true
+highlight_current_line = true
+draw_tabs = true
+structured_text_bidi_override = 5
+symbol_lookup_on_click = true
+line_folding = true
+gutters_draw_bookmarks = true
+gutters_draw_line_numbers = true
+gutters_draw_fold_gutter = true
+code_completion_enabled = true
+code_completion_prefixes = Array[String]([".", ",", "(", "=", "$", "@", "\"", "'"])
+indent_automatic = true
+auto_brace_completion_enabled = true
+
+[node name="StatusBar" type="HBoxContainer" parent="."]
+custom_minimum_size = Vector2(0, 36)
+layout_mode = 2
+
+[node name="ToggleScriptsButton" type="Button" parent="StatusBar"]
+visible = false
+layout_mode = 2
+size_flags_vertical = 5
+flat = true
+
+[node name="Scroll" type="ScrollContainer" parent="StatusBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Error" type="Label" parent="StatusBar/Scroll"]
+layout_mode = 2
+size_flags_vertical = 5
+mouse_filter = 0
+
+[node name="ErrorButton" type="Button" parent="StatusBar"]
+visible = false
+layout_mode = 2
+mouse_default_cursor_shape = 2
+text = "Errors"
+flat = true
+
+[node name="WarningButton" type="Button" parent="StatusBar"]
+visible = false
+layout_mode = 2
+mouse_default_cursor_shape = 2
+text = "Warnings"
+flat = true
+
+[node name="VSeparator" type="VSeparator" parent="StatusBar"]
+layout_mode = 2
+
+[node name="ZoomButton" type="MenuButton" parent="StatusBar"]
+layout_mode = 2
+tooltip_text = "Zoom factor"
+text = "100 %"
+item_count = 7
+popup/item_0/text = "25 %"
+popup/item_1/text = "50 %"
+popup/item_1/id = 1
+popup/item_2/text = "75 %"
+popup/item_2/id = 2
+popup/item_3/text = "100 %"
+popup/item_3/id = 3
+popup/item_4/text = "150 %"
+popup/item_4/id = 4
+popup/item_5/text = "200 %"
+popup/item_5/id = 5
+popup/item_6/text = "300 %"
+popup/item_6/id = 6
+
+[node name="VSeparator2" type="VSeparator" parent="StatusBar"]
+layout_mode = 2
+
+[node name="LineAndColTxt" type="Label" parent="StatusBar"]
+layout_mode = 2
+tooltip_text = "Line and column numbers."
+mouse_filter = 0
+text = "   1 :   1"
+
+[node name="VSeparator3" type="VSeparator" parent="StatusBar"]
+layout_mode = 2
+
+[node name="IndentationTxt" type="Label" parent="StatusBar"]
+layout_mode = 2
+tooltip_text = "Indentation"
+mouse_filter = 0
+text = "Tabs"
+
+[node name="Idle" type="Timer" parent="."]
+one_shot = true
+
+[node name="CodeCompleteTimer" type="Timer" parent="."]
+one_shot = true
+
+[connection signal="caret_changed" from="TextEditor" to="." method="_line_col_changed"]
+[connection signal="code_completion_requested" from="TextEditor" to="." method="_complete_request"]
+[connection signal="gui_input" from="TextEditor" to="." method="_text_editor_gui_input"]
+[connection signal="text_changed" from="TextEditor" to="." method="_text_changed"]
+[connection signal="pressed" from="StatusBar/ToggleScriptsButton" to="." method="_toggle_scripts_pressed"]
+[connection signal="gui_input" from="StatusBar/Scroll/Error" to="." method="_error_pressed"]
+[connection signal="pressed" from="StatusBar/ErrorButton" to="." method="_error_button_pressed"]
+[connection signal="pressed" from="StatusBar/WarningButton" to="." method="_warning_button_pressed"]
+[connection signal="timeout" from="Idle" to="." method="_text_changed_idle_timeout"]
+[connection signal="timeout" from="CodeCompleteTimer" to="." method="_code_complete_timer_timeout"]

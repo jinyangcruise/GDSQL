@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3 uid="uid://bjixntsmmcrkp"]
+
+[ext_resource type="PackedScene" uid="uid://bb237nhc1oy7t" path="res://addons/gdsql/gxml/editor/xml_editor_panel.tscn" id="1_n6m6o"]
+[ext_resource type="Script" path="res://addons/gdsql/gxml/editor/xml_editor_window.gd" id="1_ywr26"]
+
+[node name="XMLEditorWindow" type="Window"]
+title = "XML Editor"
+visible = false
+script = ExtResource("1_ywr26")
+
+[node name="XMLEditorPanel" parent="." instance=ExtResource("1_n6m6o")]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[connection signal="close_requested" from="." to="." method="_on_close_requested"]

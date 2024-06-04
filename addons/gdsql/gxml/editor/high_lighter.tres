@@ -1,0 +1,36 @@
+[gd_resource type="CodeHighlighter" format=3 uid="uid://cdyhjqho0q2om"]
+
+[resource]
+resource_local_to_scene = true
+number_color = Color(0.631373, 1, 0.878431, 1)
+symbol_color = Color(0.590513, 0.645829, 0.739866, 1)
+function_color = Color(0.4, 0.898039, 1, 1)
+member_variable_color = Color(0.737255, 0.878431, 1, 1)
+keyword_colors = {
+"association": Color(0.794175, 0.36575, 0.416084, 1),
+"bind": Color(0.794175, 0.36575, 0.416084, 1),
+"cache": Color(0.794175, 0.36575, 0.416084, 1),
+"case": Color(0.794175, 0.36575, 0.416084, 1),
+"choose": Color(0.794175, 0.36575, 0.416084, 1),
+"collection": Color(0.794175, 0.36575, 0.416084, 1),
+"delete": Color(0.794175, 0.36575, 0.416084, 1),
+"discriminator": Color(0.794175, 0.36575, 0.416084, 1),
+"foreach": Color(0.794175, 0.36575, 0.416084, 1),
+"id": Color(0.794175, 0.36575, 0.416084, 1),
+"if": Color(0.794175, 0.36575, 0.416084, 1),
+"include": Color(0.794175, 0.36575, 0.416084, 1),
+"insert": Color(0.794175, 0.36575, 0.416084, 1),
+"mapper": Color(0, 1, 0.79949, 1),
+"otherwise": Color(0.794175, 0.36575, 0.416084, 1),
+"property": Color(0.794175, 0.36575, 0.416084, 1),
+"replace": Color(0.794175, 0.36575, 0.416084, 1),
+"result": Color(0.794175, 0.36575, 0.416084, 1),
+"resultMap": Color(0.794175, 0.36575, 0.416084, 1),
+"select": Color(0.794175, 0.36575, 0.416084, 1),
+"set": Color(0.794175, 0.36575, 0.416084, 1),
+"sql": Color(0.794175, 0.36575, 0.416084, 1),
+"trim": Color(0.794175, 0.36575, 0.416084, 1),
+"update": Color(0.794175, 0.36575, 0.416084, 1),
+"when": Color(0.794175, 0.36575, 0.416084, 1),
+"where": Color(0.794175, 0.36575, 0.416084, 1)
+}
