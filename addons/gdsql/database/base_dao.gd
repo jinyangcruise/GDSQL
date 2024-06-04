@@ -199,7 +199,8 @@ func select(someting: String, need_head: bool) -> BaseDao:
 			var field_str = someting.substr(start).strip_edges()
 			
 			var m = regex_as.search(field_str)
-			if m:
+			# t. name 也会匹配上，所以还需要检查前面那个符号是不是“.”
+			if m and field_str[m.get_start(1)-1] != ".":
 				field_str = field_str.substr(0, m.get_start(1))
 				__field_as[field_str] = m.get_string(3)
 				
@@ -709,20 +710,21 @@ func ___select(path: String, fill_primary_key: String = ""):
 						"field:[%s] not exist in table:[%s], db:[%s]" % [s, __table, __database])
 						return null
 					real_select.push_back(gen_dict.call(s, s, true, __table_alias)) # 可能没有定义文件
-			elif s.contains(__table_alias + "."):
-				regex_field.compile(__table_alias + "\\.([a-zA-Z_]+[0-9a-zA-Z_]*)") # 获取字段名称的正则
+			#elif s.contains(__table_alias + "."):
+			elif s.get_slice_count(".") == 2 and s.get_slice(".", 0).strip_edges() == __table_alias:
+				regex_field.compile(__table_alias + "(\\s*)\\.(\\s*)([a-zA-Z_]+[0-9a-zA-Z_]*)") # 获取字段名称的正则
 				m = regex_field.search(s)
 				if m:
-					var field = m.get_string(1)
+					var field = m.get_string(3)
 					var column = __get_table_column_defination(__database, __table, __table_alias, field)
 					if column != null and !column.is_empty():
-						if s == __table_alias + "." + field:
+						if s == __table_alias + m.get_string(1) + "." + m.get_string(2) + field:
 							column["select_name"] = s
 							real_select.push_back(column)
 						else:
 							real_select.push_back(gen_dict.call(s, s, false))
 					else:
-						if s == __table_alias + "." + field:
+						if s == __table_alias + m.get_string(1) + "." + m.get_string(2) + field:
 							if all_datas[__table_alias].is_empty() or not all_datas[__table_alias][0].has(field):
 								_assert("___select", false,
 								"field:[%s] not exist in table:[%s], db:[%s]" % [field, __table, __database])
@@ -737,22 +739,23 @@ func ___select(path: String, fill_primary_key: String = ""):
 				var find = false
 				for a_left_join in arr_left_join:
 					var alias = a_left_join.get_alias()
-					if s.contains(alias + "."):
+					#if s.contains(alias + "."):
+					if s.get_slice_count(".") == 2 and s.get_slice(".", 0).strip_edges() == alias:
 						find = true
-						regex_field.compile(alias + "\\.([a-zA-Z_]+[0-9a-zA-Z]*)") # 获取字段名称的正则
+						regex_field.compile(alias + "(\\s*)\\.(\\s*)([a-zA-Z_]+[0-9a-zA-Z_]*)") # 获取字段名称的正则
 						m = regex_field.search(s)
 						if m:
-							var field = m.get_string(1)
+							var field = m.get_string(3)
 							var column = __get_table_column_defination(
 								a_left_join.get_db(), a_left_join.get_table(), alias, field)
 							if column != null and !column.is_empty():
-								if s == alias + "." + field:
+								if s == alias + m.get_string(1) + "." + m.get_string(2) + field:
 									column["select_name"] = s
 									real_select.push_back(column)
 								else:
 									real_select.push_back(gen_dict.call(s, s, false))
 							else:
-								if s == alias + "." + field:
+								if s == alias + m.get_string(1) + "." + m.get_string(2) + field:
 									if all_datas[alias].is_empty() or not all_datas[alias][0].has(field):
 										_assert("___select", false,
 										"field:[%s] not exist in table:[%s], db:[%s]" \
@@ -766,7 +769,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 						
 				if not find:
 					real_select.push_back(gen_dict.call(s, s, false))
-		
+					
 	for f in real_select:
 		if not f.has("select_name"):
 			f["select_name"] = f["Column Name"]
@@ -892,7 +895,10 @@ func ___select(path: String, fill_primary_key: String = ""):
 		# 注意：这里不兼容t.name.a.b.substr(10)这种太多级的写法。会被改成t["name"].a["b"].substr(10)
 		for i in real_select.size():
 			# t.name.substr(10) 被替换为：t["name"].substr(10)
-			real_select[i]["name_4_computing"] = ConditionWrapper.modify_dot_to_get(real_select[i]["select_name"])
+			if real_select[i]["is_field"] or real_select[i]["select_name"].contains("."):
+				real_select[i]["name_4_computing"] = real_select[i]["select_name"]
+			else:
+				real_select[i]["name_4_computing"] = ConditionWrapper.modify_dot_to_get(real_select[i]["select_name"])
 				
 		# 求值
 		var is_single_table = ret_filter[0].size() == 1 or \
@@ -934,15 +940,27 @@ func ___select(path: String, fill_primary_key: String = ""):
 				# 考虑union的时候，开启__need_post_porcess，并把最终结果放到某个特定的字段下，且仍旧返回按表分类的数据结构
 				# 求值的时候增加一个判断分支，如果数据存在这个特定的字段，则不进行求值，而是直接使用已经求出的值
 				# 直到第一个BaseDao，会返回扁平结构的数据
-				var value = GDSQLUtils.evaluate_command(null, field["name_4_computing"], variable_names, variable_values)
-				row.push_back(value)
-				
+				var dealed = false
+				if field.is_field and data.has(field.table_alias):
+					if data[field.table_alias].has(field.name_4_computing):
+						row.push_back(data[field.table_alias][field.name_4_computing])
+						dealed = true
+					#elif field.name_4_computing == field.table_alias + "." + field["Column Name"]:
+					elif field.name_4_computing.get_slice_count(".") == 2 and \
+					field.name_4_computing.get_slice(".", 0).strip_edges() == field.table_alias and \
+					field.name_4_computing.get_slice(".", 1).strip_edges() == field["Column Name"]:
+						row.push_back(data[field.table_alias][field["Column Name"]])
+						dealed = true
+				if not dealed:
+					var value = GDSQLUtils.evaluate_command(null, field["name_4_computing"], variable_names, variable_values)
+					row.push_back(value)
+					
 			if __parent_union:
 				data[__ROW_POST_PROCESS__] = row
 				ret_post_process.push_back(data)
 			else:
 				ret_post_process.push_back(row)
-			
+				
 	return ret_post_process
 	
 func __get_table_defination(db_path: String, table_name: String):
@@ -1313,7 +1331,7 @@ func _get_order_by(need_order_by: bool, new_line = false) -> String:
 		if new_line:
 			return "\n" + s
 		return s
-	
+		
 	if new_line:
 		return "\norder by " + s
 	return " order by " + s
