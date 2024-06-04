@@ -180,5 +180,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				<if test="max_level != 0">#{max_level},</if> 
 			</trim>
  		)
-	</replace>
+	</replace>	
+
+	<delete id="delete_skill_by_id">
+ 		delete from GameConfig.c_skill where id == #{id}
+ 	</delete>
+ 	
+ 	<delete id="delete_skill_by_ids">
+ 		delete from  GameConfig.c_skill where id in 
+ 		<foreach collection="ids" item="id" open="[" separator="," close="]">
+ 			#{id}
+		</foreach> 
+ 	</delete>
 </mapper> 

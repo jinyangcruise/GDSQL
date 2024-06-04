@@ -805,7 +805,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 	if ret_filter.is_empty():
 		if __need_head and __parent_union == null:
 			return [real_select]
-		return null
+		return []
 		
 	# 特殊标记
 	var __ROW_POST_PROCESS__ = "__ROW_POST_PROCESS_1355--5--__" # 祈祷用户没有用这个字段或表名

@@ -111,6 +111,6 @@ func query():
 	if method_return_info.class_name == "QueryResult":
 		return query_result
 		
-	assert(false, "Method of <update> cannot return %s." % \
+	assert(false, "Method of <insert> cannot return %s." % \
 		DataTypeDef.DATA_TYPE_NAMES[method_return_info.type])
 		

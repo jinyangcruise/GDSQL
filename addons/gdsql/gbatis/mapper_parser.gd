@@ -1172,6 +1172,9 @@ func _replace_param(s: String, param: Dictionary, depth: int) -> String:
 						for key in param[i]:
 							names.push_back(key)
 							values.push_back(param[i][key])
+					else:
+						names.push_back(i)
+						values.push_back(param[i])
 				else:
 					names.push_back(i)
 					values.push_back(param[i])
@@ -1216,6 +1219,9 @@ func _get_value(value_string: String, param: Dictionary, depth: int):
 					for key in param[i]:
 						names.push_back(key)
 						values.push_back(param[i][key])
+				else:
+					names.push_back(i)
+					values.push_back(param[i])
 			else:
 				names.push_back(i)
 				values.push_back(param[i])

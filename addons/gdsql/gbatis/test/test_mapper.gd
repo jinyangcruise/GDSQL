@@ -33,3 +33,9 @@ func insert_skill4(map: Dictionary):
 	
 func replace_skill(test_skill_entity: TestSkillEntity) -> int:
 	return query("replace_skill", test_skill_entity)
+	
+func delete_skill_by_id(id: int) -> int:
+	return query("delete_skill_by_id", id)
+	
+func delete_skill_by_ids(ids: Array) -> int:
+	return query("delete_skill_by_ids", ids)

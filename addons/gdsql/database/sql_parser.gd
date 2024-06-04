@@ -203,6 +203,10 @@ static func parse_to_dao(sql: String) -> BaseDao:
 			assert(_assert(false, "Cannot parse your DELETE sql."))
 		if arr.size() > 2:
 			assert(_assert(false, "Cannot parse your DELETE sql."))
+		if not (arr[0][0].countn("delete") == 1 and arr[0][0].countn("from") == 1):
+			assert(_assert(false, "Cannot parse your DELETE sql."))
+		if arr.size() == 2 and not arr[1][0].strip_edges().to_upper() == "WHERE":
+			assert(_assert(false, "Cannot parse your DELETE sql."))
 		var db_table = _get_db_table(arr[0][1])
 		if not db_table:
 			return null
@@ -433,7 +437,10 @@ static func restore(s: String, map: Dictionary) -> String:
 		s = s.replace(k, map[k])
 	return s
 	
+## 检查有没有多余的分号
 static func _check_semicolon(ret: Array) -> Array:
+	if ret.is_empty():
+		return ret
 	for i in ret.size()-1:
 		if ret[i] is Array:
 			for j in ret[i].size():

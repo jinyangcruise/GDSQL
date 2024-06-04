@@ -79,12 +79,22 @@ func _ready() -> void:
 	#printt(v5)
 	
 	# test replace 
-	var entity4 = TestSkillEntity.new()
-	entity4.id = 64
-	entity4.skill_name = "thisskill64"
-	entity4.icon = load("res://src/hero/img/hp.png")
-	entity4.max_level = 5
-	var v6 = skill_mapper.replace_skill(entity4)
-	printt(v6)
+	#var entity4 = TestSkillEntity.new()
+	#entity4.id = 64
+	#entity4.skill_name = "thisskill64"
+	#entity4.icon = load("res://src/hero/img/hp.png")
+	#entity4.max_level = 5
+	#var v6 = skill_mapper.replace_skill(entity4)
+	#printt(v6)
+	
+	# test delete 1
+	#var v7 = skill_mapper.delete_skill_by_id(67)
+	#printt(v7)
+	#var v8 = skill_mapper.select_skill_by_id(67)
+	#printt(v8)
+	
+	# test delete 2
+	#var v9 = skill_mapper.delete_skill_by_ids([63, 65])
+	#printt(v9)
 	pass
 
