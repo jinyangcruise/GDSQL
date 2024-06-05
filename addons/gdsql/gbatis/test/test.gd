@@ -6,8 +6,16 @@ var d = []
 func _ready() -> void:
 	#await get_tree().create_timer(0.5).timeout
 	# test select 1
-	var a = skill_mapper.select_skill_by_id(1)
-	#pass
+	#var a = skill_mapper.select_skill_by_id(1)
+	var tree = Tree.new()
+	var root = tree.create_item()
+	var obj1 = tree.create_item(root)
+	var obj2 = tree.create_item(root)
+	var obj3 = tree.create_item(root)
+	var history = [obj1, obj2, obj3]
+	history.erase(obj3)
+	printt(history.has(obj3))
+	pass
 	
 	#var t1 = Time.get_ticks_msec()
 	#for i in 1000:

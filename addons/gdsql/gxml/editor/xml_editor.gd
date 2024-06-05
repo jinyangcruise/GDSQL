@@ -69,6 +69,7 @@ func _ready() -> void:
 	text_editor.structured_text_bidi_override = TextServer.STRUCTURED_TEXT_GDSCRIPT
 	text_editor.code_completion_prefixes = [".", ",", "(", "=", "$", "@", "\"", "\'"]
 	text_editor.text = content
+	content = ""
 	indentation_txt.text = tr("Tabs", "Indentation")
 	add_theme_constant_override("separation", int(4 * EDSCALE))
 	

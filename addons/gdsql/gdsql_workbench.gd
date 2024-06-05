@@ -33,14 +33,17 @@ func _enter_tree():
 	dictionary_object_inspector_plugin = preload("res://addons/gdsql/inspector_plugin/dictionary_object_inspector_plugin.gd").new()
 	add_inspector_plugin(dictionary_object_inspector_plugin)
 	
-	# XML resource load
-	resource_format_loader_xml = ResourceFormatLoaderXML.new()
-	ResourceLoader.add_resource_format_loader(resource_format_loader_xml)
+	# XML resource load NOTICE gdscript写的不需要手动调用
+	#resource_format_loader_xml = ResourceFormatLoaderXML.new()
+	#ResourceLoader.add_resource_format_loader(resource_format_loader_xml)
 	
+	# XML Editor 编辑器。由于ResourceFormatLoaderXML增加了@tool，导致引擎自带的编辑器
+	# 无法打开xml文件了，所以自己做了一个
 	xml_editor_window = preload("res://addons/gdsql/gxml/editor/xml_editor_window.tscn").instantiate()
 	EditorInterface.get_base_control().add_child(xml_editor_window)
 	xml_inspector_plugin = preload("res://addons/gdsql/inspector_plugin/xml_inspector_plugin.gd").new()
 	xml_inspector_plugin.xml_editor_window = xml_editor_window
+	add_tool_menu_item("XML Editor", xml_editor_window.open_file.bind(""))
 	add_inspector_plugin(xml_inspector_plugin)
 	
 	# 进入界面
@@ -54,11 +57,12 @@ func _enter_tree():
 	
 
 func _exit_tree():
-	ResourceLoader.remove_resource_format_loader(resource_format_loader_xml)
+	#ResourceLoader.remove_resource_format_loader(resource_format_loader_xml)
 	if main_panel_instance:
 		main_panel_instance.queue_free()
 	if xml_editor_window:
 		xml_editor_window.queue_free()
+	remove_tool_menu_item("XML Editor")
 	Engine.get_singleton("GDSQLWorkbenchManager").main_panel = null
 	if dictionary_object_inspector_plugin:
 		remove_inspector_plugin(dictionary_object_inspector_plugin)

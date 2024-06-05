@@ -6,6 +6,10 @@ class_name GXMLItem
 var name: String
 ## 属性列表
 var attrs: Dictionary
+## 所处的原文中的行号
+var line: int
+## 节点结束所处的行号
+var end_line: int
 ## 子Item，可能包含GXMLItem、String
 var content: Array
 ## CDATA在content中的索引

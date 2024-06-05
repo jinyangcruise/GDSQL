@@ -42,7 +42,10 @@ func _parse_file(file_path: String):
 	# 所以换成了get_file_as_bytes()可避免get_node_offset()与实际位置不匹配的问题。
 	var content = FileAccess.get_file_as_bytes(file_path)
 	var parser = XMLParser.new()
-	parser.open(file_path)
+	var err = parser.open(file_path)
+	if err != OK:
+		printerr("XMLParser err: " + error_string(err))
+		return null
 	return _parse(parser, content)
 	
 func _parse_string(xml_string: String):
@@ -64,6 +67,7 @@ func _parse(parser: XMLParser, content: PackedByteArray) -> GXMLItem:
 		node.type = parser.get_node_type()
 		node.name = parser.get_node_name() if node.is_element_like() else ""
 		node.start = parser.get_node_offset()
+		node.line = parser.get_current_line()
 		node.is_empty = parser.is_empty()
 		if node.is_element():
 			for i in parser.get_attribute_count():
@@ -91,16 +95,19 @@ func _parse(parser: XMLParser, content: PackedByteArray) -> GXMLItem:
 					root_item = GXMLItem.new()
 					root_item.name = node.name
 					root_item.attrs = node.attrs
+					root_item.line = node.line
 					curr_item = root_item
 				else:
 					var element = GXMLItem.new()
 					element.name = node.name
 					element.attrs = node.attrs
+					element.line = node.line
 					element.parent = curr_item
 					curr_item.content.push_back(element) # GXMLItem
 					if not node.is_empty:# TODO FIXME
 						curr_item = element
 			XMLParser.NODE_ELEMENT_END:
+				curr_item.end_line = node.line
 				curr_item = curr_item.parent
 				pass
 			XMLParser.NODE_TEXT:

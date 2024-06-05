@@ -10,6 +10,8 @@ var name: String
 var start: int
 ## 节点结束位置
 var end: int
+## 所处的原文件的行号
+var line: int
 ## 属性列表
 var attrs: Dictionary
 ## 内容
