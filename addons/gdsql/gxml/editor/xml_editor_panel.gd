@@ -4,14 +4,17 @@ extends PanelContainer
 # 在4.3 beta1中，问题似乎得到修改。所以后续更新版本后进行验证。
 
 @onready var file_menu: PopupMenu = $VBoxContainer/MenuBar/File
+@onready var search_menu: PopupMenu = $VBoxContainer/MenuBar/Search
 @onready var filter_file: LineEdit = $VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer/FilterFile
 @onready var file_tree: Tree = $VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer/FileTree
 @onready var filter_name: LineEdit = $VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer2/FilterName
 @onready var item_tree: Tree = $VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer2/ItemTree
-@onready var xml_editor_container: Control = $VBoxContainer/HSplitContainer/XMLEditorContainer
+@onready var xml_editor_container: Control = $VBoxContainer/HSplitContainer/VBoxContainer/XMLEditorContainer
+@onready var find_replace_bar: HBoxContainer = $VBoxContainer/HSplitContainer/VBoxContainer/FindReplaceBar
 @onready var curr_file: LineEdit = $VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer2/HBoxContainer/CurrFile
 @onready var sort_button: TextureButton = $VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer2/HBoxContainer/SortButton
 @onready var rmb_menu: PopupMenu = $RMBMenu
+@onready var left_window: VSplitContainer = $VBoxContainer/HSplitContainer/VSplitContainer
 
 var editor_file_new_dialog = EditorFileDialog.new()
 var editor_file_open_dialog = EditorFileDialog.new()
@@ -47,12 +50,29 @@ enum RMB_MENU_OPTION {
 	SOFT_RELOAD_TOOL_SCRIPT = 7,
 }
 
+enum SEARCH_MENU_OPTION {
+	FIND = 0,
+	FIND_NEXT = 1,
+	FIND_PREVIOUS = 2,
+	REPLACE = 3,
+	FIND_IN_FILES = 5,
+	REPLACE_IN_FILES = 6,
+	CONTEXTUAL_HELP = 8,
+}
+
 const SHORTCUT_NEW = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_new.tres")
 const SHORTCUT_OPEN = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_open.tres")
 const SHORTCUT_SAVE = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_save.tres")
 const SHORTCUT_SAVEAS = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_saveas.tres")
 const SHORTCUT_SAVEALL = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_saveall.tres")
 const SHORTCUT_CLOSE = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_close.tres")
+const SHORTCUT_CONTEXTUALHELP = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_contextualhelp.tres")
+const SHORTCUT_FIND = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_find.tres")
+const SHORTCUT_FINDINFILES = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_findinfiles.tres")
+const SHORTCUT_FINDNEXT = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_findnext.tres")
+const SHORTCUT_FINDPREVIOUS = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_findprevious.tres")
+const SHORTCUT_REPLACE = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_replace.tres")
+const SHORTCUT_REPLACEINFILES = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_replaceinfiles.tres")
 
 const NEW_MAPPER_CONTENT = """
 <?xml version="1.0" encoding="UTF-8" ?>
@@ -64,6 +84,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 	
 </mapper> 
 """
+
+
 
 func _ready() -> void:
 	file_tree.create_item()
@@ -81,9 +103,19 @@ func _ready() -> void:
 	file_menu.set_item_shortcut(FILE_MANU_OPTION.SAVE_ALL, SHORTCUT_SAVEALL)
 	file_menu.set_item_shortcut(FILE_MANU_OPTION.CLOSE, SHORTCUT_CLOSE)
 	
+	search_menu.set_item_shortcut(SEARCH_MENU_OPTION.FIND, SHORTCUT_FIND)
+	search_menu.set_item_shortcut(SEARCH_MENU_OPTION.FIND_NEXT, SHORTCUT_FINDNEXT)
+	search_menu.set_item_shortcut(SEARCH_MENU_OPTION.FIND_PREVIOUS, SHORTCUT_FINDPREVIOUS)
+	search_menu.set_item_shortcut(SEARCH_MENU_OPTION.REPLACE, SHORTCUT_REPLACE)
+	search_menu.set_item_shortcut(SEARCH_MENU_OPTION.FIND_IN_FILES, SHORTCUT_FINDINFILES)
+	search_menu.set_item_shortcut(SEARCH_MENU_OPTION.REPLACE_IN_FILES, SHORTCUT_REPLACEINFILES)
+	search_menu.set_item_shortcut(SEARCH_MENU_OPTION.CONTEXTUAL_HELP, SHORTCUT_CONTEXTUALHELP)
+	
 	rmb_menu.set_item_shortcut(RMB_MENU_OPTION.SAVE, SHORTCUT_SAVE)
 	rmb_menu.set_item_shortcut(RMB_MENU_OPTION.SAVE_AS, SHORTCUT_SAVEAS)
 	rmb_menu.set_item_shortcut(RMB_MENU_OPTION.CLOSE, SHORTCUT_CLOSE)
+	
+	
 	
 	config = ConfigFile.new()
 	config.load(config_path)
@@ -184,6 +216,7 @@ func open_file(path: String):
 	xml_editor.content = content
 	xml_editor_container.add_child(xml_editor)
 	xml_editor.text_changed.connect(_on_text_changed)
+	xml_editor.toggle_scripts_pressed.connect(toggle_left_window)
 	
 	file_tree_item.set_meta("path", path)
 	file_tree_item.set_meta("editor", xml_editor)
@@ -193,6 +226,11 @@ func open_file(path: String):
 	remove_from_recent_history(path)
 	add_to_unclosed_files(path)
 	
+func toggle_left_window():
+	left_window.visible = not left_window.visible
+	for item: TreeItem in history:
+		item.get_meta("editor").scripts_panel_toggled = not left_window.visible
+		
 func refresh_xml_item_tree():
 	item_tree.clear()
 	var root = item_tree.create_item()
@@ -417,6 +455,8 @@ func _reload_script_editor(item: TreeItem):
 	var xml_editor = preload("res://addons/gdsql/gxml/editor/xml_editor.tscn").instantiate()
 	xml_editor.content = content
 	xml_editor.text_changed.connect(_on_text_changed)
+	xml_editor.toggle_scripts_pressed.connect(toggle_left_window)
+	xml_editor.scripts_panel_toggled = not left_window.visible
 	var scroll_value = (old_editor.text_editor as CodeEdit).get_v_scroll_bar().value
 	item.remove_meta("editor")
 	item.set_meta("editor", xml_editor)
@@ -445,11 +485,19 @@ func _close_tab(p_save: bool):
 	editor.queue_free()
 	add_to_recent_history(path)
 	remove_from_unclosed_files(path)
+	_update_find_replace_bar()
 	
 func _discard(_action: String):
 	_close_tab(false)
 	confirm_save_dialog.hide()
 	
+func _update_find_replace_bar():
+	if history.is_empty():
+		find_replace_bar.text_editor = null
+		find_replace_bar.hide()
+	else:
+		history.back().get_meta("editor").set_find_replace_bar(find_replace_bar)
+		
 func _on_file_tree_item_selected() -> void:
 	var item = file_tree.get_selected()
 	if not item:
@@ -458,11 +506,14 @@ func _on_file_tree_item_selected() -> void:
 	history.push_back(item)
 	var xml_editor = item.get_meta("editor")
 	curr_file.text = item.get_text(0)
-	for i in xml_editor_container.get_children():
+	for i: Node in xml_editor_container.get_children():
 		if i == xml_editor:
 			i.show()
+			i.set_process(true)
+			_update_find_replace_bar()
 		else:
 			i.hide()
+			i.set_process(false)
 	refresh_xml_item_tree()
 	
 func _on_file_tree_gui_input(event: InputEvent) -> void:
@@ -518,3 +569,26 @@ func _on_item_tree_item_selected() -> void:
 	var editor = history.back().get_meta("editor")
 	(editor.text_editor as CodeEdit).set_caret_line(line)
 	(editor.text_editor as CodeEdit).center_viewport_to_caret(0)
+
+
+func _on_search_index_pressed(index: int) -> void:
+	match index:
+		SEARCH_MENU_OPTION.FIND:
+			if not history.is_empty():
+				find_replace_bar.popup_search()
+		SEARCH_MENU_OPTION.FIND_NEXT:
+			if not history.is_empty():
+				find_replace_bar.search_next()
+		SEARCH_MENU_OPTION.FIND_PREVIOUS:
+			if not history.is_empty():
+				find_replace_bar.search_prev()
+		SEARCH_MENU_OPTION.REPLACE:
+			if not history.is_empty():
+				find_replace_bar.popup_replace()
+		SEARCH_MENU_OPTION.FIND_IN_FILES:
+			pass
+			# TODO script_text_editor.cpp 1500
+		SEARCH_MENU_OPTION.REPLACE_IN_FILES:
+			pass
+		SEARCH_MENU_OPTION.CONTEXTUAL_HELP:
+			pass
