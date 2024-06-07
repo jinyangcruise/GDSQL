@@ -5,11 +5,17 @@ extends Window
 
 var inited = false
 
+func _ready() -> void:
+	transient = false
+	
 func _on_close_requested() -> void:
 	hide()
 
 func open_file(path: String):
+	transient = false
 	if visible:
+		if mode != MODE_WINDOWED:
+			mode = MODE_WINDOWED
 		grab_focus() # TODO FIXME WAIT_FOR_UPDATE which is useless in 4.3.dev6
 	else:
 		if inited:

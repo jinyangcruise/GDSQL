@@ -131,13 +131,11 @@ func _text_editor_gui_input(p_event: InputEvent) -> void:
 			for i in selected.length():
 				if selected[i] in ["<", ">", "="]:
 					col_from += 1
-					printt("from +=1", col_from)
 				else:
 					break
 			for i in range(selected.length()-1, -1, -1):
 				if selected[i] in ["<", ">", "="]:
 					col_to -= 1
-					printt("to -=1", col_to)
 				else:
 					break
 			

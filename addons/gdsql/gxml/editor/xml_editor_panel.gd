@@ -3,8 +3,8 @@ extends PanelContainer
 # TODO FIXME WAIT_FOR_UPDATE 4.3.dev6存在一个问题，window重新打开后，打字区域丢失光标或者是没有闪烁，
 # 在4.3 beta1中，问题似乎得到修改。所以后续更新版本后进行验证。
 
-@onready var file_menu: PopupMenu = $VBoxContainer/MenuBar/File
-@onready var search_menu: PopupMenu = $VBoxContainer/MenuBar/Search
+@onready var file_menu: PopupMenu = $VBoxContainer/HBoxContainer/MenuBar/File
+@onready var search_menu: PopupMenu = $VBoxContainer/HBoxContainer/MenuBar/Search
 @onready var filter_file: LineEdit = $VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer/FilterFile
 @onready var file_tree: Tree = $VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer/FileTree
 @onready var filter_name: LineEdit = $VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer2/FilterName
@@ -15,6 +15,7 @@ extends PanelContainer
 @onready var sort_button: TextureButton = $VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer2/HBoxContainer/SortButton
 @onready var rmb_menu: PopupMenu = $RMBMenu
 @onready var left_window: VSplitContainer = $VBoxContainer/HSplitContainer/VSplitContainer
+@onready var pin_to_top_button: Button = $VBoxContainer/HBoxContainer/HBoxContainer/PinToTopButton
 
 var editor_file_new_dialog = EditorFileDialog.new()
 var editor_file_open_dialog = EditorFileDialog.new()
@@ -115,8 +116,6 @@ func _ready() -> void:
 	rmb_menu.set_item_shortcut(RMB_MENU_OPTION.SAVE_AS, SHORTCUT_SAVEAS)
 	rmb_menu.set_item_shortcut(RMB_MENU_OPTION.CLOSE, SHORTCUT_CLOSE)
 	
-	
-	
 	config = ConfigFile.new()
 	config.load(config_path)
 	
@@ -129,6 +128,7 @@ func _ready() -> void:
 	filter_name.right_icon = get_theme_icon("Search", "EditorIcons")
 	sort_button.texture_normal = get_theme_icon("Sort", "EditorIcons")
 	sort_button.texture_pressed = get_theme_icon("YSort", "EditorIcons")
+	pin_to_top_button.icon = get_theme_icon("Pin", "EditorIcons")
 	
 	_init_file_new_dialog()
 	_init_file_open_dialog()
@@ -592,3 +592,8 @@ func _on_search_index_pressed(index: int) -> void:
 			pass
 		SEARCH_MENU_OPTION.CONTEXTUAL_HELP:
 			pass
+
+
+func _on_pin_to_top_button_toggled(toggled_on: bool) -> void:
+	(get_parent() as Window).transient = false
+	(get_parent() as Window).always_on_top = toggled_on
