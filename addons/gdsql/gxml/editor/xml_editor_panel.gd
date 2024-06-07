@@ -16,6 +16,7 @@ extends PanelContainer
 @onready var rmb_menu: PopupMenu = $RMBMenu
 @onready var left_window: VSplitContainer = $VBoxContainer/HSplitContainer/VSplitContainer
 @onready var pin_to_top_button: Button = $VBoxContainer/HBoxContainer/HBoxContainer/PinToTopButton
+@onready var debug_menu: PopupMenu = $VBoxContainer/HBoxContainer/MenuBar/Debug
 
 var editor_file_new_dialog = EditorFileDialog.new()
 var editor_file_open_dialog = EditorFileDialog.new()
@@ -49,6 +50,7 @@ enum RMB_MENU_OPTION {
 	CLOSE_ALL = 4,
 	CLOSE_OTHER_TABS = 5,
 	SOFT_RELOAD_TOOL_SCRIPT = 7,
+	SHOW_IN_FILE_SYSTEM = 9,
 }
 
 enum SEARCH_MENU_OPTION {
@@ -116,6 +118,8 @@ func _ready() -> void:
 	rmb_menu.set_item_shortcut(RMB_MENU_OPTION.SAVE_AS, SHORTCUT_SAVEAS)
 	rmb_menu.set_item_shortcut(RMB_MENU_OPTION.CLOSE, SHORTCUT_CLOSE)
 	
+	_deal_popup_menu_hide_behind_window_bug()
+	
 	config = ConfigFile.new()
 	config.load(config_path)
 	
@@ -134,6 +138,9 @@ func _ready() -> void:
 	_init_file_open_dialog()
 	_init_confirm_save_dialog()
 	_init_file_not_exist_dialog()
+	_init_file_saveas_dialog()
+	
+	bind_file_system_events()
 	
 	var unclosed_files = config.get_value("history", "unclosed", [])
 	config.set_value("history", "unclosed", [])
@@ -191,11 +198,25 @@ func add_to_unclosed_files(path: String):
 	config.save(config_path)
 	refresh_sub_menu()
 	
-func open_file(path: String):
+func modify_item_name(item: TreeItem):
+	var path = item.get_meta("path")
 	var arr_name = {}
 	for i: TreeItem in file_tree.get_root().get_children():
 		arr_name[i.get_text(0)] = i
-		if i.get_meta("path") == path or ProjectSettings.globalize_path(path) == path:
+		
+	var file_tree_item = file_tree.create_item(file_tree.get_root())
+	var a_name = path.get_file()
+	if arr_name.has(a_name):
+		arr_name[a_name].set_text(0, arr_name[a_name].get_meta("path"))
+		a_name = path
+	item.set_text(0, a_name)
+	
+func open_file(path: String):
+	path = GDSQLUtils.globalize_path(path)
+	var arr_name = {}
+	for i: TreeItem in file_tree.get_root().get_children():
+		arr_name[i.get_text(0)] = i
+		if i.get_meta("path") == path:
 			i.select(0)
 			return
 			
@@ -239,6 +260,7 @@ func refresh_xml_item_tree():
 	var item = history.back() as TreeItem
 	var gxml = ResourceLoader.load(item.get_meta("path"), "", ResourceLoader.CACHE_MODE_IGNORE)
 	if not gxml or not gxml.root_item:
+		print_rich("[color=yellow]This file %s is not a xml.[/color]" % item.get_meta("path"))
 		return
 	for i in gxml.root_item.content:
 		parse_gxml_item(i, root, item_tree)
@@ -267,6 +289,7 @@ func _on_text_changed():
 		curr_file.text = item.get_text(0)
 		
 func _on_file_menu_id_pressed(id: int) -> void:
+	_recover_on_top()
 	match id:
 		FILE_MANU_OPTION.NEW:
 			editor_file_new_dialog.popup_centered_ratio(0.5)
@@ -286,6 +309,7 @@ func _on_file_menu_id_pressed(id: int) -> void:
 			await _close_other_tabs()
 			
 func _on_rmb_menu_index_pressed(index: int) -> void:
+	_recover_on_top()
 	var item = rmb_menu.get_meta("item")
 	rmb_menu.remove_meta("item")
 	match index:
@@ -301,8 +325,14 @@ func _on_rmb_menu_index_pressed(index: int) -> void:
 			await _close_other_tabs()
 		RMB_MENU_OPTION.SOFT_RELOAD_TOOL_SCRIPT:
 			_reload_script_editor(item)
-			
+		RMB_MENU_OPTION.SHOW_IN_FILE_SYSTEM:
+			if item.get_meta("path").begins_with("res://"):
+				EditorInterface.get_file_system_dock().navigate_to_path(item.get_meta("path"))
+			else:
+				OS.shell_show_in_file_manager(item.get_meta("path"), true)
+				
 func _on_sub_menu_index_pressed(index: int) -> void:
+	_recover_on_top()
 	if index == sub_menu.get_child_count() - 1:
 		for i in index:
 			sub_menu.remove_item(i)
@@ -396,11 +426,21 @@ func _init_file_new_dialog():
 		file.store_string(NEW_MAPPER_CONTENT)
 		file.flush()
 		file = null
+		# scan后窗口可能被最小化了，保持置顶
+		var old_always_on_top = pin_to_top_button.button_pressed
+		if not old_always_on_top:
+			_on_pin_to_top_button_toggled(true)
 		EditorInterface.get_resource_filesystem().scan()
 		open_file(path)
+		if not old_always_on_top:
+			await get_tree().create_timer(1).timeout
+			_on_pin_to_top_button_toggled(false)
 	, CONNECT_DEFERRED)
 	add_child(editor_file_new_dialog)
 	editor_file_new_dialog.hide()
+	# fix bug of godot
+	editor_file_new_dialog.visibility_changed.connect(
+		_on_dialog_visibility_changed.bind(editor_file_new_dialog))
 	
 func _init_file_open_dialog():
 	editor_file_open_dialog.filters = PackedStringArray(["*.xml"])
@@ -411,6 +451,9 @@ func _init_file_open_dialog():
 	, CONNECT_DEFERRED)
 	add_child(editor_file_open_dialog)
 	editor_file_open_dialog.hide()
+	# fix bug of godot
+	editor_file_open_dialog.visibility_changed.connect(
+		_on_dialog_visibility_changed.bind(editor_file_open_dialog))
 	
 func _init_file_saveas_dialog():
 	editor_file_saveas_dialog.filters = PackedStringArray(["*.xml"])
@@ -427,10 +470,16 @@ func _init_file_saveas_dialog():
 		file.flush()
 		file = null
 		EditorInterface.get_resource_filesystem().scan()
-		open_file(path)
+		# scan后窗口可能被最小化了，所以用窗口的方法，能重新激活
+		while EditorInterface.get_resource_filesystem().is_scanning():
+			await get_tree().process_frame
+		get_window().open_file(path)
 	, CONNECT_DEFERRED)
 	add_child(editor_file_saveas_dialog)
 	editor_file_saveas_dialog.hide()
+	# fix bug of godot
+	editor_file_saveas_dialog.visibility_changed.connect(
+		_on_dialog_visibility_changed.bind(editor_file_saveas_dialog))
 	
 func _init_confirm_save_dialog():
 	confirm_save_dialog.ok_button_text = tr("Save")
@@ -443,11 +492,17 @@ func _init_confirm_save_dialog():
 	)
 	add_child(confirm_save_dialog)
 	confirm_save_dialog.hide()
+	# fix bug of godot
+	confirm_save_dialog.visibility_changed.connect(
+		_on_dialog_visibility_changed.bind(confirm_save_dialog))
 	
 func _init_file_not_exist_dialog():
-	file_not_exist_dialog.dialog_text = tr("file_not_exist_dialog.")
+	file_not_exist_dialog.dialog_text = tr("File does not exist.")
 	add_child(file_not_exist_dialog)
 	file_not_exist_dialog.hide()
+	# fix bug of godot
+	file_not_exist_dialog.visibility_changed.connect(
+		_on_dialog_visibility_changed.bind(file_not_exist_dialog))
 	
 func _reload_script_editor(item: TreeItem):
 	var old_editor = item.get_meta("editor") as Node
@@ -535,6 +590,7 @@ func _on_file_tree_gui_input(event: InputEvent) -> void:
 			rmb_menu.set_meta("item", item)
 			
 func _on_debug_index_pressed(index: int) -> void:
+	_recover_on_top()
 	if history.is_empty():
 		return
 	var item = history.back() as TreeItem
@@ -595,5 +651,80 @@ func _on_search_index_pressed(index: int) -> void:
 
 
 func _on_pin_to_top_button_toggled(toggled_on: bool) -> void:
-	(get_parent() as Window).transient = false
-	(get_parent() as Window).always_on_top = toggled_on
+	get_window().transient = false
+	get_window().always_on_top = toggled_on
+
+func bind_file_system_events():
+	var dock = EditorInterface.get_file_system_dock()
+	dock.file_removed.connect(_on_file_removed)
+	dock.files_moved.connect(_on_file_moved)
+	dock.folder_removed.connect(_on_folder_removed)
+	dock.folder_moved.connect(_on_folder_moved)
+	
+func unbind_file_system_events():
+	var dock = EditorInterface.get_file_system_dock()
+	dock.file_removed.disconnect(_on_file_removed)
+	dock.files_moved.disconnect(_on_file_moved)
+	dock.folder_removed.disconnect(_on_folder_removed)
+	dock.folder_moved.disconnect(_on_folder_moved)
+	
+func _on_file_removed(path: String):
+	for item in history:
+		if item.get_meta("path") == path:
+			closing_item = item
+			_close_tab(false)
+			break
+			
+func _on_file_moved(old_file: String, new_file: String):
+	for item in history:
+		if item.get_meta("path") == old_file:
+			item.set_meta("path", new_file)
+			modify_item_name(item)
+			break
+			
+func _on_folder_removed(folder: String):
+	for item in history:
+		if item.get_meta("path").begins_with(folder):
+			closing_item = item
+			_close_tab(false)
+			break
+			
+func _on_folder_moved(old_folder: String, new_folder: String):
+	for item in history:
+		if item.get_meta("path").begins_with(old_folder):
+			item.set_meta("path", item.get_meta("path").replace(old_folder, new_folder))
+			modify_item_name(item)
+			
+# INFO 由于godot的bug，导致always on top的主窗口的popupmenu被挡住了。所以临时取消置顶。
+# 但该方法仍旧不能彻底解决问题，当popupmenu的选项激活了另一个窗口时，主窗口的always on top仍不生效。
+func _deal_popup_menu_hide_behind_window_bug():
+	file_menu.about_to_popup.connect(_on_popup_menu_about_to_popup)
+	debug_menu.about_to_popup.connect(_on_popup_menu_about_to_popup)
+	search_menu.about_to_popup.connect(_on_popup_menu_about_to_popup)
+	rmb_menu.about_to_popup.connect(_on_popup_menu_about_to_popup)
+	
+	file_menu.visibility_changed.connect(_on_popup_menu_visibility_changed.bind(file_menu))
+	debug_menu.visibility_changed.connect(_on_popup_menu_visibility_changed.bind(debug_menu))
+	search_menu.visibility_changed.connect(_on_popup_menu_visibility_changed.bind(search_menu))
+	rmb_menu.visibility_changed.connect(_on_popup_menu_visibility_changed.bind(rmb_menu))
+	
+func _on_popup_menu_about_to_popup():
+	if pin_to_top_button.button_pressed:
+		_on_pin_to_top_button_toggled(false)
+		pin_to_top_button.set_meta("need_recover", true)
+		
+func _on_popup_menu_visibility_changed(menu: PopupMenu):
+	if not menu.visible:
+		_recover_on_top()
+		
+func _recover_on_top():
+	if pin_to_top_button.has_meta("need_recover"):
+		_on_pin_to_top_button_toggled(true)
+		pin_to_top_button.remove_meta("need_recover")
+		
+func _on_dialog_visibility_changed(dialog: AcceptDialog):
+	if dialog.visible == false:
+		# INFO dialog关闭的时候，要重置一下window的置顶信息，否则置顶失败
+		if pin_to_top_button.button_pressed:
+			_on_pin_to_top_button_toggled(false)
+			_on_pin_to_top_button_toggled(true)
