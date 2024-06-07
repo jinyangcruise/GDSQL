@@ -110,11 +110,47 @@ func _text_editor_gui_input(p_event: InputEvent) -> void:
 				accept_event()
 				return
 				
+		# 双击选词，不要选尖括号和等号，除非只包含尖括号和等号
+		if mb.is_pressed() and mb.button_index == MOUSE_BUTTON_LEFT and mb.double_click:
+			# 鼠标释放的时候再处理
+			while Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+				await get_tree().process_frame
+			if text_editor.get_caret_count() != 1:
+				return
+			var selected = text_editor.get_selected_text(0)
+			if selected == "":
+				return
+			if not (selected.contains("<") or selected.contains(">") or selected.contains("=")):
+				return
+			if selected.replace("<", "").replace(">", "").replace("=", "") == "":
+				return
+			var line = text_editor.get_selection_from_line(0)
+			var col_from = text_editor.get_selection_from_column(0)
+			var col_to = text_editor.get_selection_to_column(0)
+			
+			for i in selected.length():
+				if selected[i] in ["<", ">", "="]:
+					col_from += 1
+					printt("from +=1", col_from)
+				else:
+					break
+			for i in range(selected.length()-1, -1, -1):
+				if selected[i] in ["<", ">", "="]:
+					col_to -= 1
+					printt("to -=1", col_to)
+				else:
+					break
+			
+			text_editor.deselect(0)
+			text_editor.select(line, col_from, line, col_to, 0)
+			text_editor.set_caret_column(col_to)
+			return
+			
 	if p_event is InputEventMagnifyGesture:
 		var magnify_gesture = p_event as InputEventMagnifyGesture
 		_zoom_to(zoom_factor * pow(magnify_gesture.get_factor(), 0.25))
 		accept_event()
-		return;
+		return
 		
 	#if p_event is InputEventShortcut:
 		#var k = p_event as InputEventShortcut
@@ -304,6 +340,8 @@ func _ready() -> void:
 	
 	text_editor.structured_text_bidi_override = TextServer.STRUCTURED_TEXT_GDSCRIPT
 	text_editor.code_completion_prefixes = [".", ",", "(", "=", "$", "@", "\"", "\'"]
+	text_editor.delimiter_strings = ["''", '""', "<>"]
+	text_editor.delimiter_comments = ["<!--"]
 	text_editor.text = content
 	content = ""
 	indentation_txt.text = tr("Tabs", "Indentation")
