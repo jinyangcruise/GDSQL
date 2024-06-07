@@ -204,7 +204,6 @@ func modify_item_name(item: TreeItem):
 	for i: TreeItem in file_tree.get_root().get_children():
 		arr_name[i.get_text(0)] = i
 		
-	var file_tree_item = file_tree.create_item(file_tree.get_root())
 	var a_name = path.get_file()
 	if arr_name.has(a_name):
 		arr_name[a_name].set_text(0, arr_name[a_name].get_meta("path"))
