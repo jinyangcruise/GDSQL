@@ -207,8 +207,8 @@ func _deal_cache_ref(item:GXMLItem, param: Dictionary, depth: int):
 #<!ELEMENT cache (property*)>
 #<!ATTLIST cache
 #type CDATA #IMPLIED ------------- ❌ not support
-#eviction CDATA #IMPLIED --------- 缓存回收策略，可以不设置，默认值为 FIFO，表示先进先出
-#                                  策略。其他可能的值包括 LRU（最近最少使用）、
+#eviction CDATA #IMPLIED --------- 缓存回收策略，可以不设置，默认值为 LRU（最近最少使用）
+#                                  策略。其他可能的值包括 FIFO（先进先出）、
 #                                  SOFT（软引用）❌和 WEAK（弱引用）❌
 #flushInterval CDATA #IMPLIED ---- 缓存刷新间隔，单位为毫秒。如果设置为非零值，MyBatis 
 #                                  会在指定的时间间隔内自动刷新缓存。
@@ -845,8 +845,8 @@ func _deal_sql(item:GXMLItem, param: Dictionary, depth: int) -> String:
 #<!ELEMENT trim (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
 #<!ATTLIST trim
 #prefix CDATA #IMPLIED 表示在trim包裹的SQL语句前面添加的指定内容。
-#prefixOverrides CDATA #IMPLIED 表示在trim包裹的SQL末尾添加指定内容
-#suffix CDATA #IMPLIED 表示去掉（覆盖）trim包裹的SQL的指定首部内容
+#suffix CDATA #IMPLIED 表示在trim包裹的SQL末尾添加指定内容
+#prefixOverrides CDATA #IMPLIED 表示去掉（覆盖）trim包裹的SQL的指定首部内容
 #suffixOverrides CDATA #IMPLIED 表示去掉（覆盖）trim包裹的SQL的指定尾部内容
 #>
 func _deal_trim(item:GXMLItem, param: Dictionary, depth: int) -> String:

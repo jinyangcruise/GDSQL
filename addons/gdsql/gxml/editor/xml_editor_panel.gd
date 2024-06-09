@@ -23,6 +23,7 @@ var editor_file_open_dialog = EditorFileDialog.new()
 var editor_file_saveas_dialog = EditorFileDialog.new()
 var confirm_save_dialog = ConfirmationDialog.new()
 var file_not_exist_dialog = AcceptDialog.new()
+var search_help_dialog = preload("res://addons/gdsql/gxml/editor/search_herlp.tscn").instantiate()
 
 var history = []
 var closing_item: TreeItem # 正在关闭的tab
@@ -139,6 +140,7 @@ func _ready() -> void:
 	_init_confirm_save_dialog()
 	_init_file_not_exist_dialog()
 	_init_file_saveas_dialog()
+	_init_search_help_dialog()
 	
 	bind_file_system_events()
 	
@@ -502,7 +504,13 @@ func _init_file_not_exist_dialog():
 	# fix bug of godot
 	file_not_exist_dialog.visibility_changed.connect(
 		_on_dialog_visibility_changed.bind(file_not_exist_dialog))
-	
+		
+func _init_search_help_dialog():
+	add_child(search_help_dialog)
+	search_help_dialog.hide()
+	search_help_dialog.visibility_changed.connect(
+		_on_dialog_visibility_changed.bind(search_help_dialog))
+		
 func _reload_script_editor(item: TreeItem):
 	var old_editor = item.get_meta("editor") as Node
 	var content = old_editor.text_editor.text
@@ -646,7 +654,7 @@ func _on_search_index_pressed(index: int) -> void:
 		SEARCH_MENU_OPTION.REPLACE_IN_FILES:
 			pass
 		SEARCH_MENU_OPTION.CONTEXTUAL_HELP:
-			pass
+			search_help_dialog.popup_centered_ratio(0.5)
 
 
 func _on_pin_to_top_button_toggled(toggled_on: bool) -> void:
