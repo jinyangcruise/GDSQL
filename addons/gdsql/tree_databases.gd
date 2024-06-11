@@ -1135,8 +1135,14 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 			refresh()
 			
 func deal_password_before_table_cmd_2(db_name: String, table_name: String, try_password: String, pass_callback: Callable):
+	table_name = table_name.get_basename()
+	var find_db = false
+	var find_table = false
+	var possible = []
 	for db_item in root.get_children():
 		if db_item.get_meta("db_name") == db_name or db_item.get_meta("data_path") == db_name:
+			find_db = true
+			possible.clear()
 			for collection in db_item.get_children():
 				if collection.get_meta("type") == "Tables":
 					for table_item in collection.get_children():
@@ -1144,8 +1150,27 @@ func deal_password_before_table_cmd_2(db_name: String, table_name: String, try_p
 							table_item.get_meta("data_path").get_file() == table_name:
 							deal_password_before_table_cmd(table_item, try_password, pass_callback)
 							return
-	mgr.create_accept_dialog("%s.%s not exist!" % [db_name, table_name])
-	
+						elif table_item.get_meta("table_name").similarity(table_name) >= 0.60:
+							possible.push_back(table_item.get_meta("table_name"))
+						elif table_item.get_meta("data_path").get_file().similarity(table_name) >= 0.60:
+							possible.push_back(table_item.get_meta("data_path"))
+							
+		elif db_item.get_meta("db_name").similarity(db_name) >= 0.60:
+			possible.push_back(db_item.get_meta("db_name"))
+		elif db_item.get_meta("data_path").similarity(db_name) >= 0.60:
+			possible.push_back(db_item.get_meta("data_path"))
+			
+	if not find_db:
+		if possible.is_empty():
+			mgr.create_accept_dialog("Not find database `%s`!" % db_name)
+		else:
+			mgr.create_accept_dialog("Not find database `%s`! Maybe:\n%s?" % [db_name, "\n,".join(possible)])
+	elif not find_table:
+		if possible.is_empty():
+			mgr.create_accept_dialog("Not find table `%s`!" % table_name)
+		else:
+			mgr.create_accept_dialog("Not find table `%s`! Maybe:\n%s?" % [table_name, "\n,".join(possible)])
+			
 func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, pass_callback: Callable):
 	var db_name = table_item.get_meta("db_name")
 	var table_name = table_item.get_meta("table_name")

@@ -13,7 +13,22 @@ signal change_tab_title(page: Control, title: String)
 @onready var button_rollback: Button = $VBoxContainer/HFlowContainer/ButtonRollback
 @onready var button_auto_commit: Button = $VBoxContainer/HFlowContainer/ButtonAutoCommit
 
-var SQLGraphNode= preload("res://addons/gdsql/tabs/sql_graph_node/graph_node.tscn")
+var SQLGraphNode = preload("res://addons/gdsql/tabs/sql_graph_node/graph_node.tscn")
+
+const SB_PANEL = preload("res://addons/gdsql/tabs/sql_graph_node/sb_panel.stylebox")
+const SB_PANEL_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_node/sb_panel_selected.stylebox")
+const SB_SELECT_TITLEBAR = preload("res://addons/gdsql/tabs/sql_graph_node/sb_select_titlebar.stylebox")
+const SB_SELECT_TITLEBAR_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_node/sb_select_titlebar_selected.stylebox")
+const SB_DELETE_TITLEBAR = preload("res://addons/gdsql/tabs/sql_graph_node/sb_delete_titlebar.stylebox")
+const SB_DELETE_TITLEBAR_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_node/sb_delete_titlebar_selected.stylebox")
+const SB_INSERT_TITLEBAR = preload("res://addons/gdsql/tabs/sql_graph_node/sb_insert_titlebar.stylebox")
+const SB_INSERT_TITLEBAR_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_node/sb_insert_titlebar_selected.stylebox")
+const SB_LEFT_JOIN_TITLEBAR = preload("res://addons/gdsql/tabs/sql_graph_node/sb_left_join_titlebar.stylebox")
+const SB_LEFT_JOIN_TITLEBAR_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_node/sb_left_join_titlebar_selected.stylebox")
+const SB_UPDATE_TITLEBAR = preload("res://addons/gdsql/tabs/sql_graph_node/sb_update_titlebar.stylebox")
+const SB_UPDATE_TITLEBAR_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_node/sb_update_titlebar_selected.stylebox")
+const SB_RESULT_TITLEBAR = preload("res://addons/gdsql/tabs/sql_graph_node/sb_result_titlebar.stylebox")
+const SB_RESULT_TITLEBAR_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_node/sb_result_titlebar_selected.stylebox")
 
 var graph_edit: GraphEdit:
 	get:
@@ -201,6 +216,17 @@ func _on_button_add_node_delete_pressed():
 		
 	mark_modified()
 	
+func _on_button_add_node_sql_pressed():
+	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
+	unselect_all_node()
+	
+	var graph_node = gen_sql_node()
+	graph_edit.add_child(graph_node)
+	graph_node.position_offset = \
+		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+		
+	mark_modified()
+	
 func add_select_node(schema = "", table = "", fields = "*", where = "", order_by = "", offset = 0, 
 limit = 100, alias = "", password = "", asize = null, pos_offset = null, aname = "", query = true):
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
@@ -355,6 +381,10 @@ func gen_select_node() -> GraphNode:
 	]
 	graph_node.datas = datas
 	graph_node.title = "Select"
+	graph_node.add_theme_stylebox_override("panel", SB_PANEL)
+	graph_node.add_theme_stylebox_override("panel_selected", SB_PANEL_SELECTED)
+	graph_node.add_theme_stylebox_override("titlebar", SB_SELECT_TITLEBAR)
+	graph_node.add_theme_stylebox_override("titlebar_selected", SB_SELECT_TITLEBAR_SELECTED)
 	graph_node.ready.connect(func():
 		graph_node.set_slot_type_left(0, 0) # Union All's type is 0
 		graph_node.set_slot_type_left(1, 1) # Left Join's type is 1
@@ -477,6 +507,10 @@ func gen_left_join_node() -> GraphNode:
 	]
 	graph_node.datas = datas
 	graph_node.title = "Left Join"
+	graph_node.add_theme_stylebox_override("panel", SB_PANEL)
+	graph_node.add_theme_stylebox_override("panel_selected", SB_PANEL_SELECTED)
+	graph_node.add_theme_stylebox_override("titlebar", SB_LEFT_JOIN_TITLEBAR)
+	graph_node.add_theme_stylebox_override("titlebar_selected", SB_LEFT_JOIN_TITLEBAR_SELECTED)
 	graph_node.ready.connect(func():
 		graph_node.set_slot_type_left(0, 1) # Next Left Join's type is 1
 		graph_node.set_slot_type_right(0, 1) # Result's type is 1
@@ -657,6 +691,10 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		]
 		
 		graph_node.title = "Result"
+		graph_node.add_theme_stylebox_override("panel", SB_PANEL)
+		graph_node.add_theme_stylebox_override("panel_selected", SB_PANEL_SELECTED)
+		graph_node.add_theme_stylebox_override("titlebar", SB_RESULT_TITLEBAR)
+		graph_node.add_theme_stylebox_override("titlebar_selected", SB_RESULT_TITLEBAR_SELECTED)
 		graph_node.ready.connect(func():
 			graph_node.set_slot_type_left(0, 1) # Result's type is 1
 			graph_node.size = Vector2(500, 600)
@@ -1230,6 +1268,10 @@ func gen_insert_node() -> GraphNode:
 	]
 	graph_node.datas = datas
 	graph_node.title = "Insert"
+	graph_node.add_theme_stylebox_override("panel", SB_PANEL)
+	graph_node.add_theme_stylebox_override("panel_selected", SB_PANEL_SELECTED)
+	graph_node.add_theme_stylebox_override("titlebar", SB_INSERT_TITLEBAR)
+	graph_node.add_theme_stylebox_override("titlebar_selected", SB_INSERT_TITLEBAR_SELECTED)
 	graph_node.ready.connect(func():
 		graph_node.size.x = 650
 		graph_node.selected = true
@@ -1373,6 +1415,10 @@ func gen_update_node() -> GraphNode:
 	]
 	graph_node.datas = datas
 	graph_node.title = "Update"
+	graph_node.add_theme_stylebox_override("panel", SB_PANEL)
+	graph_node.add_theme_stylebox_override("panel_selected", SB_PANEL_SELECTED)
+	graph_node.add_theme_stylebox_override("titlebar", SB_UPDATE_TITLEBAR)
+	graph_node.add_theme_stylebox_override("titlebar_selected", SB_UPDATE_TITLEBAR_SELECTED)
 	graph_node.ready.connect(func():
 		graph_node.size.x = 650
 		graph_node.selected = true
@@ -1490,11 +1536,103 @@ func gen_delete_node() -> GraphNode:
 	]
 	graph_node.datas = datas
 	graph_node.title = "Delete"
+	graph_node.add_theme_stylebox_override("panel", SB_PANEL)
+	graph_node.add_theme_stylebox_override("panel_selected", SB_PANEL_SELECTED)
+	graph_node.add_theme_stylebox_override("titlebar", SB_DELETE_TITLEBAR)
+	graph_node.add_theme_stylebox_override("titlebar_selected", SB_DELETE_TITLEBAR_SELECTED)
 	graph_node.ready.connect(func():
 		graph_node.size.x = 650
 		graph_node.selected = true
 	)
 	graph_node.set_meta("type", "Delete")
+	graph_node.set_meta("node", true)
+	graph_node.delete_request.connect(func():
+		node_close(graph_node)
+	)
+	graph_node.node_enable_status.connect(func(enabled):
+		btn_query.disabled = !enabled
+	)
+	
+	return graph_node
+	
+func add_sql_node(sql = "", asize = null, pos_offset = null, aname = "", query = true):
+	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
+	unselect_all_node()
+	
+	var graph_node = gen_sql_node()
+	if aname != "":
+		graph_node.name = aname
+	graph_edit.add_child(graph_node)
+	
+	if sql != "":
+		var code_editor = graph_node.datas[1][2] as CodeEdit
+		code_editor.text = sql
+		
+	# 等待页面就绪
+	if not graph_edit.get_rect().has_area():
+		await graph_edit.resized
+		
+	if pos_offset == null:
+		graph_node.position_offset = \
+			(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+	else:
+		graph_node.position_offset = pos_offset
+		
+	if asize != null:
+		graph_node.set_deferred("size", asize)
+		
+	var btn_query: Button = graph_node.datas[3][2]
+	if query:
+		btn_query.emit_signal("pressed")
+		
+func gen_sql_node() -> GraphNode:
+	var code_editor = CodeEdit.new()
+	code_editor.caret_blink = true
+	code_editor.highlight_all_occurrences = true
+	code_editor.highlight_current_line = true
+	code_editor.scroll_fit_content_height = true
+	code_editor.gutters_draw_line_numbers = true
+	code_editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	code_editor.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	code_editor.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	
+	var graph_node = SQLGraphNode.instantiate()
+	graph_node.node_enable_status.connect(mark_modified)
+	
+	var separator = Control.new()
+	separator.custom_minimum_size.y = 10
+	var separator2 = Control.new()
+	separator2.custom_minimum_size.y = 10
+	
+	var btn_query = Button.new()
+	btn_query.text = "apply"
+	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_query.pressed.connect(on_sql_node_query.bind(graph_node, true))
+	btn_query.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	btn_query.disabled = true
+	code_editor.text_changed.connect(func():
+		btn_query.disabled = code_editor.text == ""
+	)
+	
+	var datas: Array[Array] = [
+		[null, "Result"],
+		[null, null, code_editor],
+		[null, null, separator],
+		[null, null, btn_query],
+		[null, null, separator2]
+	]
+	graph_node.datas = datas
+	graph_node.title = "SQL"
+	graph_node.add_theme_stylebox_override("panel", SB_PANEL)
+	graph_node.add_theme_stylebox_override("panel_selected", SB_PANEL_SELECTED)
+	graph_node.add_theme_stylebox_override("titlebar", SB_UPDATE_TITLEBAR)
+	graph_node.add_theme_stylebox_override("titlebar_selected", SB_UPDATE_TITLEBAR_SELECTED)
+	graph_node.ready.connect(func():
+		graph_node.set_slot_type_right(0, 0) # Result's type is 0
+		graph_node.size.x = 650
+		graph_node.selected = true
+	)
+	graph_node.set_meta("type", "SQL")
 	graph_node.set_meta("node", true)
 	graph_node.delete_request.connect(func():
 		node_close(graph_node)
@@ -1550,6 +1688,9 @@ func get_nodes_params():
 				data["_alias"] = table_dict_obj._get("_alias")
 				data["Fields"] = {} if fields_dict_obj == null else fields_dict_obj.get_data()
 				data["Where"] = where_dict_obj._get("Where")
+			"SQL":
+				var code_editor = graph_node.datas[1][2] as CodeEdit
+				data["sql"] = code_editor.text
 			_:
 				continue
 				
@@ -1596,7 +1737,9 @@ func load_graph_file(path):
 			"Delete":
 				await add_delete_node(params["Schema"], params["_password"], params["Table"],
 					params["Where"], asize, position_offset, node_name)
-					
+			"SQL":
+				await add_sql_node(params["sql"], asize, position_offset, node_name, false)
+				
 	# make connections
 	for info in connections:
 		_on_graph_edit_connection_request(info["from_node"], info["from_port"], 
@@ -1730,7 +1873,7 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 		)
 		
 	mark_modified()
-		
+	
 # Insert 执行
 # node: 被点击的insert节点
 func on_insert_node_query(node: GraphNode):
@@ -1815,6 +1958,85 @@ func on_delete_node_query(node: GraphNode):
 			mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) affected" % (ret.get_affected_rows()))
 		)
 	)
+	
+# 自定义SQL执行
+# node: 被点击的sql节点
+func on_sql_node_query(node: GraphNode, log_history: bool):
+	unselect_all_node()
+	var from_to_map = {}
+	var to_from_map = {}
+	# 先做个映射
+	for info in graph_edit.get_connection_list():
+		var from_name = info["from_node"]
+		var to_name = info["to_node"]
+		var arr_tos_of_from = from_to_map.get(from_name, []) as Array
+		var arr_froms_of_to = to_from_map.get(to_name, []) as Array
+		arr_tos_of_from.push_back(to_name)
+		arr_froms_of_to.push_back(from_name)
+		from_to_map[from_name] = arr_tos_of_from
+		to_from_map[to_name] = arr_froms_of_to
+		
+	# 找到源头（可能有多个源头，因为一个节点可能输入到多个节点上）
+	var arr_source_node: Array = []
+	_get_final_source(node.name, from_to_map, arr_source_node, "SQL")
+	
+	# 每个源头都要query
+	for node_name in arr_source_node:
+		var source_node = graph_edit.get_node(str(node_name)) as GraphNode # 一个sql node
+		var sql = (node.datas[1][2] as CodeEdit).text
+		var dao = SQLParser.parse_to_dao(sql)
+		mgr.request_user_enter_password.emit(dao.get_db(), dao.get_table(), dao.get_password(), func():
+			var begin_time = Time.get_unix_time_from_system()
+			var action = dao.get_query_cmd()
+			var query_ret = dao.query()
+			if query_ret == null:
+				mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
+				return
+				
+			var ret: QueryResult = null
+			if log_history:
+				if dao.get_cmd().begins_with("select"):
+					ret = query_ret
+					mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) returned" % (query_ret.get_data().size())) # 去掉表头
+				else:
+					var gen_dict = func(s):
+						return {"select_name": s, "Column Name": s, "field_as": s, "is_field": false, 
+							"table_alias": "", "db_path": "", "table_name": "", 
+							"hint": PROPERTY_HINT_NONE, "Hint String": ""}
+					ret = QueryResult.new()
+					ret._has_head = true
+					ret._data = [
+						["err", "affected_rows", "warnings", "last_insert_id", 
+						"generated_keys"].map(gen_dict),
+						[
+							query_ret.get_err(),
+							query_ret.get_affected_rows(),
+							query_ret.get_warnings(),
+							query_ret.get_last_insert_id(),
+							query_ret.get_generated_keys()
+						]
+					]
+					mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) affected" % (query_ret.get_affected_rows()))
+					
+			var update_result = false
+			if from_to_map.has(source_node.name):
+				for to in from_to_map[source_node.name]:
+					var to_node = graph_edit.get_node(str(to))
+					if to_node.get_meta("type") == "Result":
+						if to_node.enabled:
+							gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds(), to_node)
+							update_result = true
+						else:
+							_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
+							
+			if not update_result:
+				var table_node = gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds())
+				graph_edit.add_child(table_node)
+				table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
+				_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
+		)
+		
+	mark_modified()
 	
 func _get_final_source(from, map: Dictionary, result: Array, node_type: String):
 	var node = graph_edit.get_node(str(from))

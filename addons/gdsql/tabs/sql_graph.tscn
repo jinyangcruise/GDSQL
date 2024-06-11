@@ -110,8 +110,8 @@ visible = false
 layout_mode = 2
 tooltip_text = "Toggle whether execution of SQL script should continue after failed statements"
 theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
-theme_override_styles/pressed = SubResource("StyleBoxFlat_0ukqh")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_03x0p")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_0ukqh")
 toggle_mode = true
 icon = ExtResource("6_g6q5o")
 icon_alignment = 1
@@ -146,8 +146,8 @@ layout_mode = 2
 tooltip_text = "Toggle autocommit mode. When enabled, each statement will be committed immediately.
 NOTE: all query tabs in the same connection share the same transaction. To have independent transactions, you must open a new Godot."
 theme_override_colors/icon_pressed_color = Color(1, 1, 1, 1)
-theme_override_styles/pressed = SubResource("StyleBoxFlat_0ukqh")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_03x0p")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_0ukqh")
 toggle_mode = true
 button_pressed = true
 icon = ExtResource("9_itstw")
@@ -188,9 +188,18 @@ layout_mode = 2
 text = "DELETE"
 icon = ExtResource("10_8cnpe")
 
+[node name="VSeparator7" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+
+[node name="ButtonAddNodeSQL" type="Button" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+text = "SQL"
+icon = ExtResource("10_8cnpe")
+
 [node name="GraphEdit" type="GraphEdit" parent="VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
+scroll_offset = Vector2(0, -59)
 right_disconnects = true
 minimap_enabled = false
 
@@ -203,6 +212,7 @@ minimap_enabled = false
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNodeInsert" to="." method="_on_button_add_node_insert_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNodeUpdate" to="." method="_on_button_add_node_update_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNodeDelete" to="." method="_on_button_add_node_delete_pressed"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNodeSQL" to="." method="_on_button_add_node_sql_pressed"]
 [connection signal="connection_drag_started" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_connection_drag_started"]
 [connection signal="connection_from_empty" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_connection_from_empty"]
 [connection signal="connection_request" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_connection_request"]
