@@ -28,6 +28,7 @@ var search_help_dialog = preload("res://addons/gdsql/gxml/editor/search_herlp.ts
 var history = []
 var closing_item: TreeItem # 正在关闭的tab
 var sub_menu: PopupMenu
+var zoom_factor: float = 1.0
 
 const config_path = "user://xml_editor.cfg"
 var config: ConfigFile
@@ -239,6 +240,8 @@ func open_file(path: String):
 	xml_editor_container.add_child(xml_editor)
 	xml_editor.text_changed.connect(_on_text_changed)
 	xml_editor.toggle_scripts_pressed.connect(toggle_left_window)
+	xml_editor.zoomed.connect(_update_zoom)
+	xml_editor.call_deferred("set_zoom_factor", zoom_factor)
 	
 	file_tree_item.set_meta("path", path)
 	file_tree_item.set_meta("editor", xml_editor)
@@ -362,8 +365,10 @@ func _save_file(item: TreeItem):
 	var file = FileAccess.open(path, FileAccess.WRITE)
 	file.store_string(content)
 	file.flush()
+	file = null
 	item.set_text(0, item.get_text(0).replace("(*)", ""))
 	curr_file.text = item.get_text(0)
+	refresh_xml_item_tree()
 	var res = load(item.get_meta("path"))
 	if EditorInterface.get_inspector().get_edited_object() == res:
 		res.notify_property_list_changed()
@@ -510,7 +515,14 @@ func _init_search_help_dialog():
 	search_help_dialog.hide()
 	search_help_dialog.visibility_changed.connect(
 		_on_dialog_visibility_changed.bind(search_help_dialog))
-		
+	search_help_dialog.search_help_insert.connect(_on_search_help_insert)
+	
+func _on_search_help_insert(content: String):
+	if history.is_empty():
+		return
+	var editor = history.back().get_meta("editor").text_editor as CodeEdit
+	editor.insert_text_at_caret(content, 0)
+	
 func _reload_script_editor(item: TreeItem):
 	var old_editor = item.get_meta("editor") as Node
 	var content = old_editor.text_editor.text
@@ -518,6 +530,8 @@ func _reload_script_editor(item: TreeItem):
 	xml_editor.content = content
 	xml_editor.text_changed.connect(_on_text_changed)
 	xml_editor.toggle_scripts_pressed.connect(toggle_left_window)
+	xml_editor.zoomed.connect(_update_zoom)
+	xml_editor.call_deferred("set_zoom_factor", zoom_factor)
 	xml_editor.scripts_panel_toggled = not left_window.visible
 	var scroll_value = (old_editor.text_editor as CodeEdit).get_v_scroll_bar().value
 	item.remove_meta("editor")
@@ -529,6 +543,12 @@ func _reload_script_editor(item: TreeItem):
 	await get_tree().create_timer(0.1).timeout
 	(xml_editor.text_editor as CodeEdit).get_v_scroll_bar().value = scroll_value
 	
+func _update_zoom(p_zoom_factor: float):
+	zoom_factor = p_zoom_factor
+	for i in history:
+		var editor = i.get_meta("editor")
+		editor.set_zoom_factor(p_zoom_factor)
+		
 func _close_tab(p_save: bool):
 	var item = closing_item
 	var path = item.get_meta("path")
@@ -654,9 +674,11 @@ func _on_search_index_pressed(index: int) -> void:
 		SEARCH_MENU_OPTION.REPLACE_IN_FILES:
 			pass
 		SEARCH_MENU_OPTION.CONTEXTUAL_HELP:
-			search_help_dialog.popup_centered_ratio(0.5)
-
-
+			var search = ""
+			if not history.is_empty():
+				search = (history.back().get_meta("editor").text_editor as CodeEdit).get_selected_text(0)
+			search_help_dialog.popup_search(search)
+			
 func _on_pin_to_top_button_toggled(toggled_on: bool) -> void:
 	get_window().transient = false
 	get_window().always_on_top = toggled_on

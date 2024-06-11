@@ -8,7 +8,8 @@ const rule = {
 			"namespace": {
 				"required": true,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			}
 		},
 		"deprecated": true
@@ -19,32 +20,38 @@ const rule = {
 			"type": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"eviction": {
 				"required": false,
 				"support": true,
-				"desc": "缓存回收策略，可以不设置，默认值为 LRU（最近最少使用）\n策略。其他可能的值包括 FIFO（先进先出）、\nSOFT（软引用）❌和 WEAK（弱引用）❌"
+				"desc": "缓存回收策略，可以不设置，默认值为 LRU（最近最少使用）\n策略。其他可能的值包括 FIFO（先进先出）、\nSOFT（软引用）❌和 WEAK（弱引用）❌",
+				"default": "LRU"
 			},
 			"flushInterval": {
 				"required": false,
 				"support": true,
-				"desc": "缓存刷新间隔,单位为毫秒。如果设置为非零值,MyBatis会在指定的时间间隔内自动刷新缓存。"
+				"desc": "缓存刷新间隔,单位为毫秒。如果设置为非零值,MyBatis会在指定的时间间隔内自动刷新缓存。",
+				"default": "0"
 			},
 			"size": {
 				"required": false,
 				"support": true,
-				"desc": "缓存大小,默认值为 1024。如果设置为非零值,MyBatis会在缓存大小超过指定值时开始回收缓存。"
+				"desc": "缓存大小,默认值为 1024。如果设置为非零值,MyBatis会在缓存大小超过指定值时开始回收缓存。",
+				"default": "1024"
 			},
 			"readOnly": {
 				"required": false,
 				"support": false,
-				"desc": "是否只读,默认为 false。只读的缓存会给所有调用者返回同一个实例,因此这些对象不能被修改,这提供了性能优势。"
+				"desc": "是否只读,默认为 false。只读的缓存会给所有调用者返回同一个实例,因此这些对象不能被修改,这提供了性能优势。",
+				"default": "false"
 			},
 			"blocking": {
 				"required": false,
 				"support": false,
-				"desc": "是否阻塞,默认为 false。"
+				"desc": "是否阻塞,默认为 false。",
+				"default": "false"
 			}
 		},
 		"deprecated": false
@@ -55,12 +62,14 @@ const rule = {
 			"id": {
 				"required": true,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"type": {
 				"required": true,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			}
 		},
 		"deprecated": true
@@ -71,37 +80,44 @@ const rule = {
 			"property": {
 				"required": true,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"javaType": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"jdbcType": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"mode": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"resultMap": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"scale": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"typeHandler": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			}
 		},
 		"deprecated": true
@@ -112,14 +128,16 @@ const rule = {
 			"id": {
 				"required": true,
 				"support": true,
-				"desc": "唯一性标识"
+				"desc": "唯一性标识",
+				"default": ""
 			},
 			"type": {
 				"required": true,
 				"support": true,
 				"desc": """gdscript variant type or a class name,
 eg. int, String, SysDept, Dictionary
-				"""
+				""",
+				"default": ""
 			},
 			"extends": {
 				"required": false,
@@ -129,7 +147,8 @@ eg. int, String, SysDept, Dictionary
 其他 resultMap 来继承这个基础配置，从而避免重复定义相同
 的映射规则。另一方面，对被继承的配置还有覆盖能力（如果定义
 了相同的property）。
-				"""
+				""",
+				"default": ""
 			},
 			"autoMapping": {
 				"required": false,
@@ -146,7 +165,8 @@ true: automapp properties when
 	  configured;
 false: do not automap columns to 
 	   properties which are not configured.
-				"""
+				""",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -157,29 +177,34 @@ false: do not automap columns to
 			"property": {
 				"required": true,
 				"support": true,
-				"desc": "Object's property name"
+				"desc": "Object's property name",
+				"default": ""
 			},
 			"javaType": {
 				"required": false,
 				"support": true,
 				"desc": """gdscript variant type or a class name, 
 eg. int, String, SysDept, Dictionary
-				"""
+				""",
+				"default": ""
 			},
 			"column": {
 				"required": true,
 				"support": true,
-				"desc": "Column name of ResultSet."
+				"desc": "Column name of ResultSet.",
+				"default": ""
 			},
 			"jdbcType": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"typeHandler": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -190,29 +215,34 @@ eg. int, String, SysDept, Dictionary
 			"property": {
 				"required": true,
 				"support": true,
-				"desc": "Object's property name"
+				"desc": "Object's property name",
+				"default": ""
 			},
 			"javaType": {
 				"required": false,
 				"support": true,
 				"desc": """gdscript variant type or a class name, 
 eg. int, String, SysDept, Dictionary
-				"""
+				""",
+				"default": ""
 			},
 			"column": {
 				"required": true,
 				"support": true,
-				"desc": "Column name of ResultSet."
+				"desc": "Column name of ResultSet.",
+				"default": ""
 			},
 			"jdbcType": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"typeHandler": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -223,42 +253,50 @@ eg. int, String, SysDept, Dictionary
 			"javaType": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"column": {
 				"required": true,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"jdbcType": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"typeHandler": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"select": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"resultMap": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"name": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"columnPrefix": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			}
 		},
 		"deprecated": true
@@ -269,42 +307,50 @@ eg. int, String, SysDept, Dictionary
 			"javaType": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"column": {
 				"required": true,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"jdbcType": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"typeHandler": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"select": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"resultMap": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"name": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"columnPrefix": {
 				"required": false,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			}
 		},
 		"deprecated": true
@@ -315,30 +361,35 @@ eg. int, String, SysDept, Dictionary
 			"property": {
 				"required": true,
 				"support": true,
-				"desc": "Object's property name"
+				"desc": "Object's property name",
+				"default": ""
 			},
 			"javaType": {
 				"required": false,
 				"support": true,
-				"desc": """ClassName
+				"desc": """ClassName,
 如果obj中的property属性没有定义是什么类型的对象，
 则需要在此指定一下。
-				"""
+				""",
+				"default": ""
 			},
 			"ofType": {
 				"required": false,
 				"support": true,
-				"desc": "集合元素的GdScript类型"
+				"desc": "集合元素的GdScript类型",
+				"default": ""
 			},
 			"jdbcType": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"typeHandler": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"column": {
 				"required": false,
@@ -350,7 +401,8 @@ columns (separated by commas) that will be
 correlated with the foreignColumn to identify
 the parent and the child of a relationship.
 NOTICE column belongs to parent fetch.
-				"""
+				""",
+				"default": ""
 			},
 			"select": {
 				"required": false,
@@ -360,7 +412,8 @@ auto fetch data by configured <select>'s
 id when needed. If this attr is set, then 
 NRM(Nested Result Mapping) which uses 
 some `JOIN`s will not work.
-				"""
+				""",
+				"default": ""
 			},
 			"fetchType": {
 				"required": false,
@@ -374,14 +427,16 @@ way to achieve this lazy feature.
 lazy: [default] fetch data when this 
 	  property is getted;
 eager: fetch data immediately.
-				"""
+				""",
+				"default": ""
 			},
 			"resultMap": {
 				"required": false,
 				"support": true,
 				"desc": """集合的嵌套结果映射：
 configured result map.
-				"""
+				""",
+				"default": ""
 			},
 			"columnPrefix": {
 				"required": false,
@@ -393,12 +448,14 @@ ResultSet 中产生重复的列名。指定 columnPrefix
 结果映射中。这在结果集中拥有多个相同类型的子对象时
 很有用，可以共享同一个resultMap，但是又用前缀做了
 区分。
-				"""
+				""",
+				"default": ""
 			},
 			"notNullColumn": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"autoMapping": {
 				"required": false,
@@ -416,7 +473,8 @@ true: automapp properties when
 	  configured;
 false: do not automap columns to 
 	   properties which are not configured.
-				"""
+				""",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -427,25 +485,29 @@ false: do not automap columns to
 			"property": {
 				"required": true,
 				"support": true,
-				"desc": "property name"
+				"desc": "property name",
+				"default": ""
 			},
 			"javaType": {
 				"required": false,
 				"support": true,
-				"desc": """ClassName
+				"desc": """ClassName,
 如果obj中的property属性没有定义是什么类型的对象，
 则需要在此指定一下。
-				"""
+				""",
+				"default": ""
 			},
 			"jdbcType": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"typeHandler": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"column": {
 				"required": false,
@@ -457,7 +519,8 @@ columns (separated by commas) that will be
 correlated with the foreignColumn to identify
 the parent and the child of a relationship.
 NOTICE column belongs to parent fetch.
-				"""
+				""",
+				"default": ""
 			},
 			"select": {
 				"required": false,
@@ -467,7 +530,8 @@ auto fetch data by configured <select>'s
 id when needed. If this attr is set, then 
 NRM(Nested Result Mapping) which uses 
 some `JOIN`s will not work.
-				"""
+				""",
+				"default": ""
 			},
 			"fetchType": {
 				"required": false,
@@ -481,14 +545,16 @@ way to achieve this lazy feature.
 lazy: [default] fetch data when this 
 	  property is getted;
 eager: fetch data immediately.
-				"""
+				""",
+				"default": "lazy"
 			},
 			"resultMap": {
 				"required": false,
 				"support": true,
 				"desc": """关联的嵌套结果映射：
 configured result map.
-				"""
+				""",
+				"default": ""
 			},
 			"columnPrefix": {
 				"required": false,
@@ -500,12 +566,14 @@ ResultSet 中产生重复的列名。指定 columnPrefix
 结果映射中。这在结果集中拥有多个相同类型的子对象时
 很有用，可以共享同一个resultMap，但是又用前缀做了
 区分。
-				"""
+				""",
+				"default": ""
 			},
 			"notNullColumn": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"autoMapping": {
 				"required": false,
@@ -523,7 +591,8 @@ true: automapp properties when
 	  configured;
 false: do not automap columns to 
 	   properties which are not configured.
-				"""
+				""",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -534,24 +603,28 @@ false: do not automap columns to
 			"column": {
 				"required": true,
 				"support": true,
-				"desc": "Column name of ResultSet."
+				"desc": "Column name of ResultSet.",
+				"default": ""
 			},
 			"javaType": {
 				"required": true,
 				"support": true,
 				"desc": """gdscript simple variant type. 
 eg. int, String, bool
-				"""
+				""",
+				"default": ""
 			},
 			"jdbcType": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"typeHandler": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -562,17 +635,20 @@ eg. int, String, bool
 			"value": {
 				"required": true,
 				"support": true,
-				"desc": "Value of parent discriminator's column."
+				"desc": "Value of parent discriminator's column.",
+				"default": ""
 			},
 			"resultMap": {
 				"required": false,
 				"support": true,
-				"desc": "Configured resultMap id."
+				"desc": "Configured resultMap id.",
+				"default": ""
 			},
 			"resultType": {
 				"required": false,
 				"support": true,
-				"desc": "Class name of Object."
+				"desc": "Class name of Object.",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -583,12 +659,14 @@ eg. int, String, bool
 			"name": {
 				"required": true,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"value": {
 				"required": true,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			}
 		},
 		"deprecated": true
@@ -599,12 +677,14 @@ eg. int, String, bool
 			"alias": {
 				"required": true,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"type": {
 				"required": true,
 				"support": true,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			}
 		},
 		"deprecated": true
@@ -615,72 +695,86 @@ eg. int, String, bool
 			"id": {
 				"required": true,
 				"support": true,
-				"desc": "唯一性id"
+				"desc": "唯一性id",
+				"default": ""
 			},
 			"parameterMap": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"parameterType": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"resultMap": {
 				"required": false,
 				"support": true,
-				"desc": "Configured resultMap id."
+				"desc": "Configured resultMap id.",
+				"default": ""
 			},
 			"resultType": {
 				"required": false,
 				"support": true,
-				"desc": "Class name."
+				"desc": "Class name.",
+				"default": ""
 			},
 			"resultSetType": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"statementType": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"fetchSize": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"timeout": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"flushCache": {
 				"required": false,
 				"support": true,
-				"desc": "Clear cache before select."
+				"desc": "Clear cache before select.",
+				"default": "false"
 			},
 			"useCache": {
 				"required": false,
 				"support": true,
-				"desc": "Use cached data."
+				"desc": "Use cached data.",
+				"default": "true"
 			},
 			"databaseId": {
 				"required": false,
 				"support": true,
-				"desc": "Use database name."
+				"desc": "Use database name.",
+				"default": ""
 			},
 			"lang": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"resultOrdered": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": "false"
 			},
 			"resultSets": {
 				"required": false,
@@ -689,7 +783,8 @@ eg. int, String, bool
 the result set where this complex type 
 will be loaded from. 
 eg. resultSets="blogs,authors"
-				"""
+				""",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -700,37 +795,44 @@ eg. resultSets="blogs,authors"
 			"id": {
 				"required": true,
 				"support": true,
-				"desc": "唯一性id"
+				"desc": "唯一性id",
+				"default": ""
 			},
 			"parameterMap": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"parameterType": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"timeout": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"flushCache": {
 				"required": false,
 				"support": true,
-				"desc": "Clear cache. default: true"
+				"desc": "Clear cache. default: true",
+				"default": "true"
 			},
 			"statementType": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"useGeneratedKeys": {
 				"required": false,
 				"support": true,
-				"desc": "将自动生成字段值填充到Obj中，比如自增键、填充了默认值的字段。"
+				"desc": "将自动生成字段值填充到Obj中，比如自增键、填充了默认值的字段。",
+				"default": "false"
 			},
 			"keyProperty": {
 				"required": false,
@@ -741,7 +843,8 @@ eg. resultSets="blogs,authors"
 果useGeneratedKeys为true，但
 是未配置该特性，则默认属性和列名
 完全相同时，才进行设置。
-				"""
+				""",
+				"default": ""
 			},
 			"keyColumn": {
 				"required": false,
@@ -751,17 +854,20 @@ property和column名称一样，可
 以省略该特性；否则请按照和
 keyProperty相同的顺序填写相应
 的列名。
-				"""
+				""",
+				"default": ""
 			},
 			"databaseId": {
 				"required": false,
 				"support": true,
-				"desc": "Use database name."
+				"desc": "Use database name.",
+				"default": ""
 			},
 			"lang": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -772,37 +878,44 @@ keyProperty相同的顺序填写相应
 			"id": {
 				"required": true,
 				"support": true,
-				"desc": "唯一性id"
+				"desc": "唯一性id",
+				"default": ""
 			},
 			"parameterMap": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"parameterType": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"timeout": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"flushCache": {
 				"required": false,
 				"support": true,
-				"desc": "Clear cache. default: true"
+				"desc": "Clear cache. default: true",
+				"default": "true"
 			},
 			"statementType": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"useGeneratedKeys": {
 				"required": false,
 				"support": true,
-				"desc": "将自动生成字段值填充到Obj中，比如自增键、填充了默认值的字段。"
+				"desc": "将自动生成字段值填充到Obj中，比如自增键、填充了默认值的字段。",
+				"default": "false"
 			},
 			"keyProperty": {
 				"required": false,
@@ -813,7 +926,8 @@ keyProperty相同的顺序填写相应
 果useGeneratedKeys为true，但
 是未配置该特性，则默认属性和列名
 完全相同时，才进行设置。
-				"""
+				""",
+				"default": ""
 			},
 			"keyColumn": {
 				"required": false,
@@ -823,17 +937,20 @@ property和column名称一样，可
 以省略该特性；否则请按照和
 keyProperty相同的顺序填写相应
 的列名。
-				"""
+				""",
+				"default": ""
 			},
 			"databaseId": {
 				"required": false,
 				"support": true,
-				"desc": "Use database name."
+				"desc": "Use database name.",
+				"default": ""
 			},
 			"lang": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -844,42 +961,50 @@ keyProperty相同的顺序填写相应
 			"id": {
 				"required": true,
 				"support": true,
-				"desc": "唯一性id"
+				"desc": "唯一性id",
+				"default": ""
 			},
 			"parameterMap": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"parameterType": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"timeout": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"flushCache": {
 				"required": false,
 				"support": true,
-				"desc": "Clear cache. Default: true"
+				"desc": "Clear cache. Default: true",
+				"default": "true"
 			},
 			"statementType": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"databaseId": {
 				"required": false,
 				"support": true,
-				"desc": "Use database name."
+				"desc": "Use database name.",
+				"default": ""
 			},
 			"lang": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -890,42 +1015,50 @@ keyProperty相同的顺序填写相应
 			"id": {
 				"required": true,
 				"support": true,
-				"desc": "唯一性id"
+				"desc": "唯一性id",
+				"default": ""
 			},
 			"parameterMap": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"parameterType": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"timeout": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"flushCache": {
 				"required": false,
 				"support": true,
-				"desc": "Clear cache. Default: true"
+				"desc": "Clear cache. Default: true",
+				"default": "true"
 			},
 			"statementType": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"databaseId": {
 				"required": false,
 				"support": true,
-				"desc": "Use database name."
+				"desc": "Use database name.",
+				"default": ""
 			},
 			"lang": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -942,7 +1075,8 @@ keyProperty相同的顺序填写相应
 			"refid": {
 				"required": true,
 				"support": true,
-				"desc": "引用的sql的id"
+				"desc": "引用的sql的id",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -953,12 +1087,14 @@ keyProperty相同的顺序填写相应
 			"name": {
 				"required": true,
 				"support": true,
-				"desc": "绑定的变量名称"
+				"desc": "绑定的变量名称",
+				"default": ""
 			},
 			"value": {
 				"required": true,
 				"support": true,
-				"desc": "绑定的变量值"
+				"desc": "绑定的变量值",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -969,17 +1105,20 @@ keyProperty相同的顺序填写相应
 			"id": {
 				"required": true,
 				"support": true,
-				"desc": "唯一性id"
+				"desc": "唯一性id",
+				"default": ""
 			},
 			"lang": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			},
 			"databaseId": {
 				"required": false,
 				"support": false,
-				"desc": ""
+				"desc": "",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -990,22 +1129,26 @@ keyProperty相同的顺序填写相应
 			"prefix": {
 				"required": false,
 				"support": true,
-				"desc": "在trim包裹的SQL语句前面添加的指定内容。"
+				"desc": "在trim包裹的SQL语句前面添加的指定内容。",
+				"default": ""
 			},
 			"suffix": {
 				"required": false,
 				"support": true,
-				"desc": "表示在trim包裹的SQL末尾添加指定内容"
+				"desc": "表示在trim包裹的SQL末尾添加指定内容",
+				"default": ""
 			},
 			"prefixOverrides": {
 				"required": false,
 				"support": true,
-				"desc": "去掉（覆盖）trim包裹的SQL的指定首部内容"
+				"desc": "去掉（覆盖）trim包裹的SQL的指定首部内容",
+				"default": ""
 			},
 			"suffixOverrides": {
 				"required": false,
 				"support": true,
-				"desc": "去掉（覆盖）trim包裹的SQL的指定尾部内容"
+				"desc": "去掉（覆盖）trim包裹的SQL的指定尾部内容",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -1026,32 +1169,38 @@ keyProperty相同的顺序填写相应
 			"collection": {
 				"required": true,
 				"support": true,
-				"desc": "要遍历的集合或数组的变量名称"
+				"desc": "要遍历的集合或数组的变量名称",
+				"default": ""
 			},
 			"item": {
 				"required": false,
 				"support": true,
-				"desc": "设置每次迭代变量的名称"
+				"desc": "设置每次迭代变量的名称",
+				"default": ""
 			},
 			"index": {
 				"required": false,
 				"support": true,
-				"desc": "若遍历的是list，index代表下标；若遍历的是map，index代表键"
+				"desc": "若遍历的是list，index代表下标；若遍历的是map，index代表键",
+				"default": ""
 			},
 			"open": {
 				"required": false,
 				"support": true,
-				"desc": "设置循环体的开始内容"
+				"desc": "设置循环体的开始内容",
+				"default": ""
 			},
 			"close": {
 				"required": false,
 				"support": true,
-				"desc": "设置循环体的结束内容"
+				"desc": "设置循环体的结束内容",
+				"default": ""
 			},
 			"separator": {
 				"required": false,
 				"support": true,
-				"desc": "设置每一次循环之间的分隔符"
+				"desc": "设置每一次循环之间的分隔符",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -1067,7 +1216,8 @@ keyProperty相同的顺序填写相应
 			"test": {
 				"required": true,
 				"support": true,
-				"desc": "检查条件"
+				"desc": "检查条件",
+				"default": ""
 			}
 		},
 		"deprecated": false
@@ -1083,7 +1233,8 @@ keyProperty相同的顺序填写相应
 			"test": {
 				"required": true,
 				"support": true,
-				"desc": "检查条件"
+				"desc": "检查条件",
+				"default": ""
 			}
 		},
 		"deprecated": false

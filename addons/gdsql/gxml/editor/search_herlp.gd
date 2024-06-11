@@ -1,6 +1,8 @@
 @tool
 extends ConfirmationDialog
 
+signal search_help_insert(content: String)
+
 @onready var search_box: LineEdit = $vbox/hbox/search_box
 @onready var case_sensitive_button: Button = $vbox/hbox/case_sensitive_button
 @onready var filter_combo: OptionButton = $vbox/hbox/filter_combo
@@ -25,10 +27,10 @@ func _ready() -> void:
 	results_tree.set_column_clip_content(0, true)
 	results_tree.set_column_title(1, tr("Description"))
 	results_tree.set_column_clip_content(1, true)
-	results_tree.set_column_custom_minimum_width(1, 350 * EDSCALE)
+	results_tree.set_column_custom_minimum_width(1, int(350 * EDSCALE))
 	results_tree.set_column_title(2, tr("Member Type"))
 	results_tree.set_column_expand(2, false)
-	results_tree.set_column_custom_minimum_width(2, 150 * EDSCALE)
+	results_tree.set_column_custom_minimum_width(2, int(150 * EDSCALE))
 	results_tree.set_column_clip_content(2, true)
 	results_tree.custom_minimum_size.y = 100 * EDSCALE
 	results_tree.item_selected.connect(
@@ -37,6 +39,7 @@ func _ready() -> void:
 	var root = results_tree.create_item()
 	for item_name in GBatisMapperRule.rule:
 		var item = results_tree.create_item(root)
+		item.set_meta("is_base", true)
 		item.set_icon(0, get_theme_icon("Object", "EditorIcons"))
 		item.set_text(0, item_name)
 		item.set_icon(2, get_theme_icon("Object", "EditorIcons"))
@@ -49,6 +52,8 @@ func _ready() -> void:
 		var props_info = GBatisMapperRule.rule[item_name]["attr_list"]
 		for prop in props_info:
 			var p_item = results_tree.create_item(item)
+			p_item.set_meta("is_attr", true)
+			p_item.set_meta("parent", item_name)
 			p_item.set_icon(0, get_theme_icon("MemberProperty", "EditorIcons"))
 			p_item.set_text(0, prop)
 			if not props_info[prop].support:
@@ -68,6 +73,8 @@ func _ready() -> void:
 		var sub_elements = GBatisMapperRule.rule[item_name]["valid_child"]
 		for element in sub_elements:
 			var e_item = results_tree.create_item(item)
+			e_item.set_meta("is_child", true)
+			e_item.set_meta("parent", item_name)
 			e_item.set_icon(0, get_theme_icon("Object", "EditorIcons"))
 			e_item.set_text(0, element)
 			e_item.set_icon(2, get_theme_icon("Object", "EditorIcons"))
@@ -75,6 +82,13 @@ func _ready() -> void:
 			
 	_on_hide_deprecated_toggled(hide_deprecated.button_pressed)
 		
+		
+func popup_search(search: String = ""):
+	if search != "":
+		search_box.text = search
+		search_box.text_changed.emit(search)
+		search_box.select_all()
+	popup_centered_ratio(0.5)
 		
 func EDITOR_GET(n: String):
 	return EditorInterface.get_editor_settings().get_setting(n)
@@ -136,12 +150,12 @@ func _search_box_gui_input(event: InputEvent) -> void:
 			search_box.grab_focus()
 			
 			
-func _search_box_text_changed(new_text: String) -> void:
+func _search_box_text_changed(_new_text: String) -> void:
 	_update_results()
 
 
 func _update_results() -> void:
-	var hide_deprecated = hide_deprecated.button_pressed
+	var a_hide_deprecated = hide_deprecated.button_pressed
 	var search_str = search_box.text.to_lower()
 	
 	for item in results_tree.get_root().get_children():
@@ -155,7 +169,9 @@ func _update_results() -> void:
 			
 		if not item.visible:
 			for c_item in item.get_children():
-				if c_item.get_text(0).to_lower().contains(search_str):
+				if a_hide_deprecated and c_item.get_meta("deprecated", false) == true:
+					c_item.visible = false
+				elif c_item.get_text(0).to_lower().contains(search_str):
 					item.visible = true
 					c_item.visible = true
 				else:
@@ -177,15 +193,72 @@ func _update_results() -> void:
 	if results_tree.get_selected():
 		results_tree.scroll_to_item(results_tree.get_selected(), true)
 		
-func _filter_combo_item_selected(index: int) -> void:
+func _filter_combo_item_selected(_index: int) -> void:
 	pass # Replace with function body.
 
 
 func _confirmed() -> void:
-	pass # Replace with function body.
-
-
-func _on_hide_deprecated_toggled(toggled_on: bool) -> void:
+	var selected = null
+	var arr_base = {}
+	var arr_attr = [] # stand alone
+	var arr_child = [] # stand alone
+	while true:
+		selected = results_tree.get_next_selected(selected)
+		if not selected:
+			break
+		if selected.get_meta("is_base", false):
+			var curr_base = selected.get_text(0)
+			arr_base[curr_base] = {"attrs": [], "children": []}
+			for i in GBatisMapperRule.rule[curr_base].attr_list:
+				if GBatisMapperRule.rule[curr_base].attr_list[i].required:
+					arr_base[curr_base].attrs.push_back(i)
+		elif selected.get_meta("is_attr", false):
+			if arr_base.has(selected.get_meta("parent")):
+				if not arr_base[selected.get_meta("parent")].attrs.\
+				has(selected.get_text(0)):
+					arr_base[selected.get_meta("parent")].attrs.\
+						push_back(selected.get_text(0))
+			else:
+				arr_attr.push_back(
+					[selected.get_text(0), selected.get_parent().get_text(0)])
+		elif selected.get_meta("is_child", false):
+			if arr_base.has(selected.get_meta("parent")):
+				arr_base[selected.get_meta("parent")].children.\
+					push_back(selected.get_text(0))
+			else:
+				arr_child.push_back(selected.get_text(0))
+				
+	var s = []
+	for i in arr_base:
+		if not s.is_empty():
+			s.push_back("\n\t")
+		s.push_back("<%s" % i)
+		for j in arr_base[i].attrs:
+			s.push_back(' %s="%s"' % [j, 
+				GBatisMapperRule.rule[i].attr_list[j].default])
+		s.push_back(">")
+		for j in arr_base[i].children:
+			var c = j.replace("*", "").replace("?", "").replace("+", "")
+			s.push_back('\n\t\t<%s/>' % c)
+		s.push_back("\n\t</%s>" % i)
+		
+	var s1 = []
+	for i in arr_attr:
+		s1.push_back('%s="%s"' % [i[0], 
+			GBatisMapperRule.rule[i[1]].attr_list[i[0]].default])
+	s.push_back(" ".join(s1))
+	
+	var s2 = []
+	for i in arr_child:
+		s2.push_back('<%s/>' % i)
+	s.push_back("\n\t\t".join(s2))
+	
+	var insert = "".join(s)
+	if insert != "":
+		search_help_insert.emit(insert)
+	hide()
+	
+func _on_hide_deprecated_toggled(_toggled_on: bool) -> void:
 	_update_results()
 
 
