@@ -43,6 +43,9 @@ signal request_user_enter_password(db_name: String, table_name: String, try_pass
 ## 打开临时数据导出页签的信号
 signal open_select_data_export_tab(columns: Array, datas: Array)
 
+## 打开生成Mapper页签的信号
+signal open_mapper_graph_tab(info: Dictionary)
+
 ## 请求新建某表
 signal request_create_table(db_name: String, table_name: String, comment: String, password: String, column_infos: Array)
 ## 请求删除某表
@@ -323,7 +326,7 @@ min_size: Vector2i = Vector2i.ZERO) -> ConfirmationDialog:
 						#has_content = true
 						var label = Label.new()
 						label.text = str(data)
-						label.auto_translate = false
+						label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 						label.localize_numeral_system = false
 						label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 						hb.add_child(label)
@@ -466,7 +469,7 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 						#has_content = true
 						var label = Label.new()
 						label.text = str(data)
-						label.auto_translate = false
+						label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 						label.localize_numeral_system = false
 						label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 						hb.add_child(label)

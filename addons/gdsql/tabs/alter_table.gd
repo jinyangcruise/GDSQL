@@ -115,7 +115,7 @@ func _on_button_new_column_pressed() -> void:
 func _gen_row() -> DictionaryObject:
 	var label_data_type := Label.new()
 	label_data_type.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	label_data_type.auto_translate = false
+	label_data_type.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	label_data_type.localize_numeral_system = false
 	
 	var label_hint = label_data_type.duplicate()

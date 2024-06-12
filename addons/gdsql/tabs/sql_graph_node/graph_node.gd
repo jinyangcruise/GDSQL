@@ -186,7 +186,7 @@ func redraw():
 							var label = Label.new()
 							label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if left == 1 else HORIZONTAL_ALIGNMENT_RIGHT
 							label.text = str(data)
-							label.auto_translate = false
+							label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 							label.localize_numeral_system = false
 							label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 							hb.add_child(label)
@@ -317,7 +317,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 			var label = Label.new()
 			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if slot_row_index == 0 else HORIZONTAL_ALIGNMENT_RIGHT
 			label.text = str(data)
-			label.auto_translate = false
+			label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 			label.localize_numeral_system = false
 			label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			hb.add_child(label)
