@@ -536,7 +536,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 			handled = true
 			control = label_model.duplicate()
 			control.text = str(data)
-			control.tooltip_text = control.text
+			control.tooltip_text = split_for_tooltip(control.text)
 			if col_index >= 0:
 				control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
 			if col_index >= 0 and a_data is DictionaryObject:
@@ -592,7 +592,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 	if not handled:
 		control = label_model.duplicate()
 		control.text = var_to_str(data)
-		control.tooltip_text = control.text
+		control.tooltip_text = split_for_tooltip(control.text)
 		if col_index >= 0:
 			control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
 		if col_index >= 0 and a_data is DictionaryObject:
@@ -603,11 +603,11 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 					# 新值的类型仍旧需要用label进行显示
 					if [TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME].has(typeof(new_value)):
 						ctl.text = str(new_value)
-						ctl.tooltip_text = ctl.text
+						ctl.tooltip_text = split_for_tooltip(ctl.text)
 					# object的，但是需要用label显示的
 					elif new_value is Object and not (new_value is Resource or new_value is Control):
 						ctl.text = var_to_str(new_value)
-						ctl.tooltip_text = ctl.text
+						ctl.tooltip_text = split_for_tooltip(ctl.text)
 					# 新值的类型可能需要改变控件类型
 					else:
 						var new_ctl = get_control_by_data_type(new_value, a_data, col_index)
@@ -618,6 +618,19 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 			
 	return control
 	
+func split_for_tooltip(tooltip: String) -> String:
+	const l = 30
+	var total_l = tooltip.length()
+	if total_l <= l:
+		return tooltip
+	var arr = []
+	var start = 0
+	while true:
+		arr.push_back(tooltip.substr(start, l))
+		if start + l >= total_l:
+			break
+		start += l
+	return "\n".join(arr)
 	
 func clear_rows():
 	clear_borders()
