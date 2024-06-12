@@ -113,6 +113,26 @@ func refresh_databases():
 			
 	mgr.databases = databases
 	
+func _get_drag_data(at_position: Vector2) -> Variant:
+	var item = get_item_at_position(at_position)
+	if not item or item.get_meta("type", "") != "table":
+		return
+	var texture_rect = TextureRect.new()
+	texture_rect.texture = preload("res://addons/gdsql/img/table.png")
+	texture_rect.size = Vector2(36, 36)
+	set_drag_preview(texture_rect)
+	return make_drag_data(item)
+	
+func make_drag_data(item: TreeItem):
+	var db_name = item.get_meta("db_name")
+	var table_name = item.get_meta("table_name")
+	var map = {
+		"__table_item": true,
+		"db_name": db_name,
+		"table_name": table_name,
+		"columns": databases[db_name]["tables"][table_name]["columns"],
+	}
+	return map
 	
 func add_db_to_config(db_name: String, path: String, id: String) -> void:
 	var begin_time = Time.get_unix_time_from_system()
@@ -1131,6 +1151,10 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 			if item:
 				var path = ProjectSettings.globalize_path(item.get_meta("data_path"))
 				OS.shell_open(path)
+		"Generate Mapper...":
+			var item := get_selected()
+			if item:
+				mgr.open_mapper_graph_tab.emit(make_drag_data(item))
 		"Refresh All":
 			refresh()
 			

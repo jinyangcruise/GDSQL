@@ -32,9 +32,9 @@ const SB_RESULT_TITLEBAR_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_n
 const SB_SQL_TITLEBAR = preload("res://addons/gdsql/tabs/sql_graph_node/sb_sql_titlebar.stylebox")
 const SB_SQL_TITLEBAR_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_node/sb_sql_titlebar_selected.stylebox")
 
-const SHORTCUT_COPY = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_copy.tres")
-const SHORTCUT_PASTE = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_paste.tres")
 var copied_nodes: Dictionary
+
+const SHORTCUT_UNDO = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_undo.tres")
 
 var graph_edit: GraphEdit:
 	get:
@@ -45,6 +45,14 @@ func _ready() -> void:
 	button_rollback.disabled = button_auto_commit.button_pressed
 	
 	
+func _shortcut_input(event: InputEvent) -> void:
+	if not visible:
+		return
+	# 避免用户误操作把别的操作撤销掉
+	if event.is_pressed() and SHORTCUT_UNDO.matches_event(event):
+		printt("Not support undo.")
+		get_viewport().set_input_as_handled()
+		
 func _on_button_auto_commit_toggled(button_pressed: bool) -> void:
 	button_commit.disabled = button_pressed
 	button_rollback.disabled = button_pressed
@@ -1672,23 +1680,25 @@ func extract_table_data_call(v, columns):
 		return arr
 	return v
 	
-func _shortcut_input(event: InputEvent) -> void:
-	if SHORTCUT_COPY.matches_event(event):
-		var selected_nodes_params = get_nodes_params(true)
-		if selected_nodes_params.is_empty():
-			return
-		copied_nodes = {
-			"data": selected_nodes_params,
-			"connections": get_connections_only_selected(),
-		}
-		get_viewport().set_input_as_handled()
-	elif SHORTCUT_PASTE.matches_event(event):
-		if copied_nodes.is_empty():
-			return
-		_load_nodes(copied_nodes.data, copied_nodes.connections, Vector2(40, 40), true, true)
-		for i in copied_nodes.data:
-			copied_nodes.data[i].position_offset += Vector2(40, 40)
-		get_viewport().set_input_as_handled()
+#func _shortcut_input(event: InputEvent) -> void:
+	#if not visible:
+		#return
+	#if SHORTCUT_COPY.matches_event(event):
+		#var selected_nodes_params = get_nodes_params(true)
+		#if selected_nodes_params.is_empty():
+			#return
+		#copied_nodes = {
+			#"data": selected_nodes_params,
+			#"connections": get_connections_only_selected(),
+		#}
+		#get_viewport().set_input_as_handled()
+	#elif SHORTCUT_PASTE.matches_event(event):
+		#if copied_nodes.is_empty():
+			#return
+		#_load_nodes(copied_nodes.data, copied_nodes.connections, Vector2(40, 40), true, true)
+		#for i in copied_nodes.data:
+			#copied_nodes.data[i].position_offset += Vector2(40, 40)
+		#get_viewport().set_input_as_handled()
 		
 func get_connections_only_selected():
 	var ret = []
@@ -1758,7 +1768,7 @@ func get_nodes_params(only_selected = false):
 		}
 		
 	return all_data
-		
+	
 func load_graph_file(path):
 	var config = ImprovedConfigFile.new()
 	config.load(path)
@@ -2237,5 +2247,33 @@ func _on_graph_edit_delete_nodes_request(nodes):
 func mark_modified(_whatever = null):
 	if get_meta("is_file", false):
 		change_tab_title.emit(self, get_meta("file_name") + "*")
-
-
+		
+func _on_graph_edit_copy_nodes_request(p_copied_data = null) -> void:
+	var selected_nodes_params = get_nodes_params(true)
+	if selected_nodes_params.is_empty():
+		return
+	if p_copied_data == null:
+		copied_nodes = {
+			"data": selected_nodes_params,
+			"connections": get_connections_only_selected(),
+		}
+	else:
+		p_copied_data["data"] = selected_nodes_params
+		p_copied_data["connections"] = get_connections_only_selected()
+		
+func _on_graph_edit_paste_nodes_request(p_copied_data = null) -> void:
+	if p_copied_data == null:
+		if copied_nodes.is_empty():
+			return
+		_load_nodes(copied_nodes.data, copied_nodes.connections, Vector2(40, 40), true, true)
+		for i in copied_nodes.data:
+			copied_nodes.data[i].position_offset += Vector2(40, 40)
+	else:
+		_load_nodes(p_copied_data.data, p_copied_data.connections, Vector2(40, 40), true, true)
+		for i in p_copied_data.data:
+			p_copied_data.data[i].position_offset += Vector2(40, 40)
+			
+func _on_graph_edit_duplicate_nodes_request() -> void:
+	var tmp_data = {}
+	_on_graph_edit_copy_nodes_request(tmp_data)
+	_on_graph_edit_paste_nodes_request(tmp_data)

@@ -216,5 +216,8 @@ minimap_enabled = false
 [connection signal="connection_drag_started" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_connection_drag_started"]
 [connection signal="connection_from_empty" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_connection_from_empty"]
 [connection signal="connection_request" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_connection_request"]
+[connection signal="copy_nodes_request" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_copy_nodes_request"]
 [connection signal="delete_nodes_request" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_delete_nodes_request"]
 [connection signal="disconnection_request" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_disconnection_request"]
+[connection signal="duplicate_nodes_request" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_duplicate_nodes_request"]
+[connection signal="paste_nodes_request" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_paste_nodes_request"]
