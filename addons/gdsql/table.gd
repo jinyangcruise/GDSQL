@@ -20,8 +20,16 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 @onready var button_edit = $Control/ButtonEdit
 @onready var borders_container = $BordersContainer
 
-
-
+@onready var v_scroll_height: int:
+	get:
+		return scroll_container.scroll_vertical
+	set(val):
+		while true:
+			scroll_container.set_deferred("scroll_vertical", val)
+			await get_tree().process_frame
+			if scroll_container.scroll_vertical == val:
+				break
+				
 ## 表格是否可编辑（datas中的元素必须是DictionaryObject才有效）
 @export var editable: bool = false
 

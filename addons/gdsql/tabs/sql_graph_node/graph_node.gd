@@ -9,6 +9,8 @@ signal redraw_slot(row, col)
 
 var check_button_enable: CheckButton
 
+const SHORTCUT_QUERY = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_query.tres")
+
 ## datas的元素是一个长度至少为2的数组，第一个元素是左侧输入port代表的数据，第二个元素是右侧输出port代表的数据。
 ## 当前两个元素都为null时，这行将不显示port，而显示从第三个元素所代表的控件。
 ## 元素是DictionaryObject时才会出现port，其他类型都不出现port，如果类型是字符串/数字，则会显示该字符串/数字，否则为空。
@@ -427,3 +429,14 @@ func editor_property_focused(data):
 func _on_resize_request(new_minsize):
 	size = new_minsize
 	
+
+
+func _input(event: InputEvent) -> void:
+	if not selected or datas.is_empty() or not event is InputEventKey:
+		return
+	if event.is_pressed() and SHORTCUT_QUERY.matches_event(event):
+		for arr in datas:
+			for i in arr:
+				if i is Button and (i as Button).text.to_lower() in ["apply", "query"]:
+					(i as Button).pressed.emit()
+					return

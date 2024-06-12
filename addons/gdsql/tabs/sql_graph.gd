@@ -29,6 +29,12 @@ const SB_UPDATE_TITLEBAR = preload("res://addons/gdsql/tabs/sql_graph_node/sb_up
 const SB_UPDATE_TITLEBAR_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_node/sb_update_titlebar_selected.stylebox")
 const SB_RESULT_TITLEBAR = preload("res://addons/gdsql/tabs/sql_graph_node/sb_result_titlebar.stylebox")
 const SB_RESULT_TITLEBAR_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_node/sb_result_titlebar_selected.stylebox")
+const SB_SQL_TITLEBAR = preload("res://addons/gdsql/tabs/sql_graph_node/sb_sql_titlebar.stylebox")
+const SB_SQL_TITLEBAR_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_node/sb_sql_titlebar_selected.stylebox")
+
+const SHORTCUT_COPY = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_copy.tres")
+const SHORTCUT_PASTE = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_paste.tres")
+var copied_nodes: Dictionary
 
 var graph_edit: GraphEdit:
 	get:
@@ -280,6 +286,8 @@ limit = 100, alias = "", password = "", asize = null, pos_offset = null, aname =
 		
 	if query:
 		btn_query.emit_signal("pressed")
+		
+	return graph_node
 	
 func gen_select_node() -> GraphNode:
 	var databases = mgr.databases.keys()
@@ -445,6 +453,8 @@ cond = "", asize = null, pos_offset = null, aname = ""):
 		table_dict_obj._set("_alias", alias)
 	if cond != cond_dict_obj._get("On"):
 		cond_dict_obj._set("On", cond)
+		
+	return graph_node
 	
 func gen_left_join_node() -> GraphNode:
 	var databases = mgr.databases.keys()
@@ -532,11 +542,11 @@ func gen_left_join_node() -> GraphNode:
 	
 	return graph_node
 	
-func add_table_node(columns: Array, table_datas: Array, is_union_all: bool, join_conds: Array, asize = null, pos_offset = null, aname = ""):
+func add_table_node(columns: Array, table_datas: Array, is_union_all: bool, join_conds: Array, v_scroll_h: int, asize = null, pos_offset = null, aname = ""):
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
 	
-	var graph_node = gen_table_node(columns, table_datas, is_union_all, join_conds)
+	var graph_node = gen_table_node(columns, table_datas, is_union_all, join_conds, v_scroll_h)
 	if aname != "":
 		graph_node.name = aname
 	graph_edit.add_child(graph_node)
@@ -554,9 +564,11 @@ func add_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 	if asize != null:
 		graph_node.set_deferred("size", asize)
 		
+	return graph_node
+	
 	
 ## 生成一个【表格】节点
-func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join_conds: Array, old_graph_node: GraphNode = null) -> GraphNode:
+func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join_conds: Array, v_scroll_h: int = 0, old_graph_node: GraphNode = null) -> GraphNode:
 #region 每列的属性名称要重新定义
 	var single_table_query = join_conds.is_empty() # 是否为单表查询
 	var hint = {} # 每列的hint
@@ -1137,6 +1149,9 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		
 	graph_node.datas = graph_datas
 	
+	if v_scroll_h > 0:
+		table.set_deferred("v_scroll_height", v_scroll_h)
+		
 	return graph_node
 	
 ## 检查是否存在某主键的Callable
@@ -1196,6 +1211,8 @@ asize = null, pos_offset = null, aname = ""):
 	if table != table_dict_obj._get("Table"):
 		table_dict_obj._set("Table", table)
 		
+	return graph_node
+	
 	
 func gen_insert_node() -> GraphNode:
 	var databases = mgr.databases.keys()
@@ -1335,6 +1352,7 @@ asize = null, pos_offset = null, aname = ""):
 	if where != where_dict_obj._get("Where"):
 		where_dict_obj._set("Where", where)
 		
+	return graph_node
 	
 func gen_update_node() -> GraphNode:
 	var databases = mgr.databases.keys()
@@ -1470,6 +1488,7 @@ asize = null, pos_offset = null, aname = ""):
 	if where != where_dict_obj._get("Where"):
 		where_dict_obj._set("Where", where)
 		
+	return graph_node
 	
 func gen_delete_node() -> GraphNode:
 	var databases = mgr.databases.keys()
@@ -1585,6 +1604,8 @@ func add_sql_node(sql = "", asize = null, pos_offset = null, aname = "", query =
 	if query:
 		btn_query.emit_signal("pressed")
 		
+	return graph_node
+	
 func gen_sql_node() -> GraphNode:
 	var code_editor = CodeEdit.new()
 	code_editor.caret_blink = true
@@ -1625,8 +1646,8 @@ func gen_sql_node() -> GraphNode:
 	graph_node.title = "SQL"
 	graph_node.add_theme_stylebox_override("panel", SB_PANEL)
 	graph_node.add_theme_stylebox_override("panel_selected", SB_PANEL_SELECTED)
-	graph_node.add_theme_stylebox_override("titlebar", SB_UPDATE_TITLEBAR)
-	graph_node.add_theme_stylebox_override("titlebar_selected", SB_UPDATE_TITLEBAR_SELECTED)
+	graph_node.add_theme_stylebox_override("titlebar", SB_SQL_TITLEBAR)
+	graph_node.add_theme_stylebox_override("titlebar_selected", SB_SQL_TITLEBAR_SELECTED)
 	graph_node.ready.connect(func():
 		graph_node.set_slot_type_right(0, 0) # Result's type is 0
 		graph_node.size.x = 650
@@ -1651,9 +1672,42 @@ func extract_table_data_call(v, columns):
 		return arr
 	return v
 	
-func get_nodes_params():
+func _shortcut_input(event: InputEvent) -> void:
+	if SHORTCUT_COPY.matches_event(event):
+		var selected_nodes_params = get_nodes_params(true)
+		if selected_nodes_params.is_empty():
+			return
+		copied_nodes = {
+			"data": selected_nodes_params,
+			"connections": get_connections_only_selected(),
+		}
+		get_viewport().set_input_as_handled()
+	elif SHORTCUT_PASTE.matches_event(event):
+		if copied_nodes.is_empty():
+			return
+		_load_nodes(copied_nodes.data, copied_nodes.connections, Vector2(40, 40), true, true)
+		for i in copied_nodes.data:
+			copied_nodes.data[i].position_offset += Vector2(40, 40)
+		get_viewport().set_input_as_handled()
+		
+func get_connections_only_selected():
+	var ret = []
+	var conns = graph_edit.get_connection_list()
+	for c in conns:
+		if graph_edit.get_node(str(c.from_node)).selected and\
+		graph_edit.get_node(str(c.to_node)).selected:
+			c.from_node = (c.from_node as String).validate_node_name()
+			c.to_node = (c.to_node as String).validate_node_name()
+			ret.push_back(c)
+	return ret
+	
+func get_nodes_params(only_selected = false):
 	var all_data = {}
 	for graph_node in graph_edit.get_children():
+		if not graph_node is GraphNode:
+			continue
+		if only_selected and not graph_node.selected:
+			continue
 		var type = graph_node.get_meta("type", "")
 		var data = {}
 		match type:
@@ -1668,6 +1722,7 @@ func get_nodes_params():
 				data["join_conds"] = graph_node.get_meta("join_conds")
 				data["columns"] = table.get_meta("columns")
 				data["table_datas"] = table.datas.map(extract_table_data_call.bind(data["columns"]))
+				data["v_scroll_height"] = table.v_scroll_height
 			"Insert":
 				var schema_dict_obj: DictionaryObject = graph_node.datas[0][2]
 				var table_dict_obj: DictionaryObject = graph_node.datas[1][2]
@@ -1711,50 +1766,66 @@ func load_graph_file(path):
 	var connections = config.get_value("data", "connections", [])
 	
 	# genarate nodes
-	for node_name in nodes:
-		var type = nodes[node_name]["type"]
-		var params = nodes[node_name]["params"]
-		var asize = nodes[node_name]["size"]
-		var position_offset = nodes[node_name]["position_offset"]
-		match type:
-			"Select":
-				await add_select_node(params["Schema"], params["Table"], params["Fields"], 
-					params["Where"], params["Order By"], params["Offset"], 
-					params["Limit"], params["_alias"], params["_password"],
-					asize, position_offset, node_name, false)
-			"Left Join":
-				await add_left_join_node(params["Schema"], params["_password"], params["Table"],
-					params["_alias"], params["On"], asize, position_offset, node_name)
-			"Result":
-				await add_table_node(params["columns"], params["table_datas"], params["is_union_all"],
-					params["join_conds"], asize, position_offset, node_name)
-			"Insert":
-				await add_insert_node(params["Schema"], params["_password"], params["Table"],
-					params["Fields"], asize, position_offset, node_name)
-			"Update":
-				await add_update_node(params["Schema"], params["_password"], params["Table"],
-					params["Fields"], params["Where"], asize, position_offset, node_name)
-			"Delete":
-				await add_delete_node(params["Schema"], params["_password"], params["Table"],
-					params["Where"], asize, position_offset, node_name)
-			"SQL":
-				await add_sql_node(params["sql"], asize, position_offset, node_name, false)
-				
-	# make connections
-	for info in connections:
-		_on_graph_edit_connection_request(info["from_node"], info["from_port"], 
-			info["to_node"], info["to_port"])
-			
-	# enable会影响connection对象间的数据关联，最好最后设置
-	for node_name in nodes:
-		var node = graph_edit.get_node(node_name) as GraphNode
-		node.enabled = nodes[node_name]["enabled"]
-		
+	_load_nodes(nodes, connections, Vector2.ZERO, false)
+	
 	set_meta("type", "sql_graph")
 	set_meta("is_file", true)
 	set_meta("file_path", path)
 	set_meta("file_name", path.get_file())
 	
+## genarate nodes
+func _load_nodes(nodes: Dictionary, connections: Array, pos_offset: Vector2, auto_name: bool, select_all = false):
+	var node_name_map = {} # 旧name => 新name
+	for node_name in nodes:
+		var type = nodes[node_name]["type"]
+		var params = nodes[node_name]["params"]
+		var asize = nodes[node_name]["size"]
+		var position_offset = nodes[node_name]["position_offset"] + pos_offset
+		var a_name = "" if auto_name else node_name
+		var node = null
+		match type:
+			"Select":
+				node = await add_select_node(params["Schema"], params["Table"], params["Fields"], 
+					params["Where"], params["Order By"], params["Offset"], 
+					params["Limit"], params["_alias"], params["_password"],
+					asize, position_offset, a_name, false)
+			"Left Join":
+				node = await add_left_join_node(params["Schema"], params["_password"], params["Table"],
+					params["_alias"], params["On"], asize, position_offset, a_name)
+			"Result":
+				node = await add_table_node(params["columns"], params["table_datas"], params["is_union_all"],
+					params["join_conds"], params.get("v_scroll_height", 0), asize, position_offset, a_name)
+			"Insert":
+				node = await add_insert_node(params["Schema"], params["_password"], params["Table"],
+					params["Fields"], asize, position_offset, a_name)
+			"Update":
+				node = await add_update_node(params["Schema"], params["_password"], params["Table"],
+					params["Fields"], params["Where"], asize, position_offset, a_name)
+			"Delete":
+				node = await add_delete_node(params["Schema"], params["_password"], params["Table"],
+					params["Where"], asize, position_offset, a_name)
+			"SQL":
+				node = await add_sql_node(params["sql"], asize, position_offset, a_name, false)
+				
+		node_name_map[node_name] = node.name
+		
+	# make connections
+	for info in connections:
+		var from = node_name_map[info["from_node"]]
+		var to = node_name_map[info["to_node"]]
+		_on_graph_edit_connection_request(
+			from, info["from_port"], to, info["to_port"])
+			
+	# enable会影响connection对象间的数据关联，最好最后设置
+	for node_name in nodes:
+		var a_node_name = node_name_map[node_name]
+		var node = graph_edit.get_node(str(a_node_name)) as GraphNode
+		node.enabled = nodes[node_name]["enabled"]
+		
+	if select_all:
+		for i in node_name_map:
+			graph_edit.get_node(str(node_name_map[i])).selected = true
+			
 func make_useful_of_select_node(graph_node: GraphNode):
 	var to_nodes = get_to_nodes(graph_node, "Select")
 	for node in to_nodes:
@@ -1860,7 +1931,7 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 					var to_node = graph_edit.get_node(str(to))
 					if to_node.get_meta("type") == "Result":
 						if to_node.enabled:
-							gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds(), to_node)
+							gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds(), 0, to_node)
 							update_result = true
 						else:
 							_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
@@ -2026,7 +2097,7 @@ func on_sql_node_query(node: GraphNode, log_history: bool):
 					var to_node = graph_edit.get_node(str(to))
 					if to_node.get_meta("type") == "Result":
 						if to_node.enabled:
-							gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds(), to_node)
+							gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds(), 0, to_node)
 							update_result = true
 						else:
 							_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
