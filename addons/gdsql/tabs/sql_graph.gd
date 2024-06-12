@@ -1088,7 +1088,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 					new_data[j["prop"]] = "" # for group
 				else:
 					var col_def = columns.filter(func(v):
-						return v["is_field"] and v["Column Name"] == j["col_name"]
+						return v["Column Name"] == j["col_name"]
 					).front()
 					if (col_def["Default(Expression)"] as String).strip_edges().is_empty():
 						new_data[j["prop"]] = DataTypeDef.DEFUALT_VALUES[col_def["Data Type"]]
@@ -2000,9 +2000,11 @@ func on_sql_node_query(node: GraphNode, log_history: bool):
 					mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) returned" % (query_ret.get_data().size())) # 去掉表头
 				else:
 					var gen_dict = func(s):
-						return {"select_name": s, "Column Name": s, "field_as": s, "is_field": false, 
-							"table_alias": "", "db_path": "", "table_name": "", 
-							"hint": PROPERTY_HINT_NONE, "Hint String": ""}
+						return {"select_name": s, "Column Name": s, "field_as": s, 
+							"is_field": false, "table_alias": "", "db_path": "", 
+							"table_name": "", "hint": PROPERTY_HINT_NONE, 
+							"Hint String": "", "Data Type": TYPE_NIL,
+							"Default(Expression)": ""}
 					ret = QueryResult.new()
 					ret._has_head = true
 					ret._data = [
