@@ -436,6 +436,8 @@ func _on_resize_request(new_minsize):
 
 
 func _input(event: InputEvent) -> void:
+	if not is_visible_in_tree():
+		return
 	if not selected or datas.is_empty() or not event is InputEventKey:
 		return
 	if event.is_pressed() and SHORTCUT_QUERY.matches_event(event):
@@ -443,4 +445,23 @@ func _input(event: InputEvent) -> void:
 			for i in arr:
 				if i is Button and (i as Button).text.to_lower() in ["apply", "query"]:
 					(i as Button).pressed.emit()
+					get_viewport().set_input_as_handled()
 					return
+					
+	if not event is InputEventKey:
+		return
+	var k = event as InputEventKey
+	if not k.is_pressed():
+		return
+	if k.keycode == KEY_UP:
+		position_offset.y -= 1
+		get_viewport().set_input_as_handled()
+	elif k.keycode == KEY_DOWN:
+		position_offset.y += 1
+		get_viewport().set_input_as_handled()
+	elif k.keycode == KEY_LEFT:
+		position_offset.x -= 1
+		get_viewport().set_input_as_handled()
+	elif k.keycode == KEY_RIGHT:
+		position_offset.x += 1
+		get_viewport().set_input_as_handled()

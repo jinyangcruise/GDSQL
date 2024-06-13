@@ -46,7 +46,7 @@ func _ready() -> void:
 	
 	
 func _shortcut_input(event: InputEvent) -> void:
-	if not visible:
+	if not is_visible_in_tree():
 		return
 	# 避免用户误操作把别的操作撤销掉
 	if event.is_pressed() and SHORTCUT_UNDO.matches_event(event):

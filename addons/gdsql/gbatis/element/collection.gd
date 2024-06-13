@@ -79,7 +79,7 @@ var result_embeded: GBatisResultMap
 var mapper_parser_ref: WeakRef: set = set_mapper_parser_ref
 
 # --------- 内部使用 ----------
-var _result_map: GBatisResultMap # 把association当作一个resultMap来用
+var _result_map: GBatisResultMap # 把collection当作一个resultMap来用
 var head: Array
 
 func _init(conf: Dictionary):
@@ -102,7 +102,7 @@ func clean():
 	elif result_embeded:
 		result_embeded.clean()
 		result_embeded = null
-	
+		
 func set_mapper_parser_ref(mapper_parser):
 	mapper_parser_ref = mapper_parser
 	

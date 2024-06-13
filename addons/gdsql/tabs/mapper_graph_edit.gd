@@ -11,6 +11,8 @@ const SB_PANEL_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_node/sb_pan
 const SB_SELECT_TITLEBAR = preload("res://addons/gdsql/tabs/sql_graph_node/sb_select_titlebar.stylebox")
 const SB_SELECT_TITLEBAR_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_node/sb_select_titlebar_selected.stylebox")
 
+const TEXT_ENUM = preload("res://addons/gdsql/custom_control/text_enum.tscn")
+
 var copied_nodes: Dictionary
 
 const SHORTCUT_UNDO = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_undo.tres")
@@ -56,6 +58,12 @@ const VALID_PORT_COLOR = {
 	TYPE_PACKED_COLOR_ARRAY: Color.YELLOW,
 }
 
+enum LINK_TYPE {
+	NONE,
+	ASSOCIATION,
+	COLLECTION_ARRAY,
+}
+
 func _exit_tree():
 	for node in get_children():
 		if node is GraphNode:
@@ -66,17 +74,17 @@ func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
 	return data is Dictionary and data.get("__table_item", false)
 	
 func _drop_data(at_position: Vector2, data: Variant) -> void:
-	add_item(data, {}, null, at_position / zoom + scroll_offset / zoom)
+	add_item(data, {}, {}, null, at_position / zoom + scroll_offset / zoom)
 	
 func _shortcut_input(event: InputEvent) -> void:
-	if not visible:
+	if not is_visible_in_tree():
 		return
 	# 避免用户误操作把别的操作撤销掉
 	if event.is_pressed() and SHORTCUT_UNDO.matches_event(event):
 		printt("Not support undo.")
 		get_viewport().set_input_as_handled()
 		
-func add_item(data: Dictionary, props: Dictionary, asize = null, pos_offset = null, aname = ""):
+func add_item(data: Dictionary, props: Dictionary, extra: Dictionary = {}, asize = null, pos_offset = null, aname = ""):
 	grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
 	
@@ -84,6 +92,7 @@ func add_item(data: Dictionary, props: Dictionary, asize = null, pos_offset = nu
 	
 	var graph_node = SQLGraphNode.instantiate() as GraphNode
 	graph_node.set_meta("data", data)
+	graph_node.set_meta("extra", extra)
 	
 	if aname != "":
 		graph_node = aname
@@ -92,10 +101,36 @@ func add_item(data: Dictionary, props: Dictionary, asize = null, pos_offset = nu
 	if not get_rect().has_area():
 		await resized
 		
-	if asize != null:
-		graph_node.set_deferred("size", asize)
-		
 	var datas: Array[Array] = []
+	
+	if not extra.is_empty():
+		var type = extra.get("link_type", LINK_TYPE.NONE)
+		if type != LINK_TYPE.NONE:
+			graph_node.set_meta("extra_enabled", true)
+			var prop_type = extra.get("link_prop_type", "") # gdscript type or class name
+			var prop_name = extra.get("link_prop", "")
+			
+			var ob_link_type = OptionButton.new()
+			ob_link_type.add_item("ASSOCIATION", LINK_TYPE.ASSOCIATION)
+			ob_link_type.add_item("COLLECTION_ARRAY", LINK_TYPE.COLLECTION_ARRAY)
+			ob_link_type.selected = 0 if type == LINK_TYPE.ASSOCIATION else 1
+			ob_link_type.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			
+			var text_enum_suggestion = TEXT_ENUM.instantiate()
+			text_enum_suggestion.ready.connect(func():
+				text_enum_suggestion.setup(DataTypeDef.DATA_TYPE_COMMON_NAMES.keys(), true)
+				text_enum_suggestion.value = prop_type
+				text_enum_suggestion.update_property()
+			)
+			text_enum_suggestion.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			
+			var le_prop_name = LineEdit.new()
+			le_prop_name.text = prop_name
+			le_prop_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			le_prop_name.placeholder_text = "Property name"
+			
+			datas.push_back([null, null, ob_link_type, text_enum_suggestion, le_prop_name])
+			
 	for i: Dictionary in data.columns:
 		var label_col_name = Label.new()
 		label_col_name.text = i.get("Column Name")
@@ -123,16 +158,13 @@ func add_item(data: Dictionary, props: Dictionary, asize = null, pos_offset = nu
 	graph_node.add_theme_stylebox_override("titlebar", SB_SELECT_TITLEBAR)
 	graph_node.add_theme_stylebox_override("titlebar_selected", SB_SELECT_TITLEBAR_SELECTED)
 	graph_node.ready.connect(func():
-		var index = -1
-		for i: Dictionary in data.columns:
-			index += 1
-			var data_type = i.get("Data Type")
-			if data_type in VALID_PORT_COLOR:
-				graph_node.set_slot_type_left(index, 0)
-				graph_node.set_slot_type_right(index, 0)
-				graph_node.set_slot_color_left(index, VALID_PORT_COLOR[data_type])
-				graph_node.set_slot_color_right(index, VALID_PORT_COLOR[data_type])
-		graph_node.size.x = 650
+		update_slot_status(graph_node)
+		
+		if asize == null:
+			graph_node.size.x = 650
+		else:
+			graph_node.set_deferred("size", asize)
+			
 		graph_node.selected = true
 		
 		if pos_offset == null:
@@ -147,22 +179,42 @@ func add_item(data: Dictionary, props: Dictionary, asize = null, pos_offset = nu
 	add_child(graph_node)
 	return graph_node
 	
+func update_slot_status(graph_node: GraphNode):
+	var index = 0 if graph_node.get_meta("extra_enabled", false) else -1
+	if index == 0:
+		graph_node.set_slot_enabled_left(index, false)
+		
+	var data = graph_node.get_meta("data")
+	for i: Dictionary in data.columns:
+		index += 1
+		var data_type = i.get("Data Type")
+		if data_type in VALID_PORT_COLOR:
+			graph_node.set_slot_type_left(index, 0)
+			graph_node.set_slot_type_right(index, 0)
+			graph_node.set_slot_color_left(index, VALID_PORT_COLOR[data_type])
+			graph_node.set_slot_color_right(index, VALID_PORT_COLOR[data_type])
+			
 ## genarate nodes
 func _load_nodes(nodes: Dictionary, connections: Array, pos_offset: Vector2, auto_name: bool, select_all = false):
 	var node_name_map = {} # 旧name => 新name
+	var node_sizes = {}
 	for node_name in nodes:
 		var data = nodes[node_name]["data"]
 		var props = nodes[node_name]["props"]
+		var extra = nodes[node_name]["extra"]
 		var asize = nodes[node_name]["size"]
 		var position_offset = nodes[node_name]["position_offset"] + pos_offset
 		var a_name = "" if auto_name else node_name
-		var node = await add_item(data, props, asize, position_offset, a_name)
+		var node = await add_item(data, props, extra, asize, position_offset, a_name)
 		node_name_map[node_name] = node.name
+		node_sizes[node.name] = asize
 		
 	# make connections
+	var tos = {}
 	for info in connections:
 		var from = node_name_map[info["from_node"]]
 		var to = node_name_map[info["to_node"]]
+		tos[str(to)] = 1
 		_on_graph_edit_connection_request(from, info["from_port"], to, info["to_port"])
 		
 	# enable会影响connection对象间的数据关联，最好最后设置
@@ -171,6 +223,12 @@ func _load_nodes(nodes: Dictionary, connections: Array, pos_offset: Vector2, aut
 		var node = get_node(str(a_node_name)) as GraphNode
 		node.enabled = nodes[node_name]["enabled"]
 		
+	# 孤立的node，不要显示额外控件
+	for i in node_name_map:
+		var n = str(node_name_map[i])
+		if not tos.has(n):
+			hide_extra_control(get_node(n), node_sizes[n])
+			
 	if select_all:
 		for i in node_name_map:
 			get_node(str(node_name_map[i])).selected = true
@@ -184,15 +242,23 @@ func get_nodes_params(only_selected = false):
 			continue
 			
 		var props = {}
+		var extra = {}
 		for arr: Array in graph_node.datas:
 			if arr.size() == 2:
 				props[arr[0].text] = arr[1].text
-			else:
+			elif arr.size() == 4:
 				props[arr[2].text] = arr[3].text
+			elif arr.size() == 5:
+				extra["link_type"] = (arr[2] as OptionButton).get_selected_id()
+				extra["link_prop_type"] = arr[3].value
+				extra["link_prop"] = (arr[4] as LineEdit).text.strip_edges()
+			else:
+				assert(false, "Inner error check this in mapper_graph_edit.gd")
 				
 		all_data[graph_node.name.validate_node_name()] = { # validate一下，不然会存在@符号，再次设置name的时候会被替换为下划线
 			"data": graph_node.get_meta("data"),
 			"props": props,
+			"extra": extra,
 			"size": graph_node.size,
 			"position_offset": graph_node.position_offset,
 			"enabled": graph_node.enabled,
@@ -236,20 +302,6 @@ func node_close(node: GraphNode):
 			
 	node.queue_free()
 	
-func split_for_tooltip(tooltip: String) -> String:
-	const l = 30
-	var total_l = tooltip.length()
-	if total_l <= l:
-		return tooltip
-	var arr = []
-	var start = 0
-	while true:
-		arr.push_back(tooltip.substr(start, l))
-		if start + l >= total_l:
-			break
-		start += l
-	return "\n".join(arr)
-	
 func _on_delete_nodes_request(nodes: Array[StringName]) -> void:
 	var titles = nodes.map(func(v): return get_node(str(v)).title)
 	mgr.create_confirmation_dialog("Are you sure to delete selected nodes `%s`?" % ", ".join(titles),
@@ -265,12 +317,73 @@ func _on_connection_request(from_node: StringName, from_port: int, to_node: Stri
 	if from_node == to_node:
 		return
 	connect_node(from_node, from_port, to_node, to_port)
+	
+	# to的一方，增加选项，让用户选择和输入关联属性和属性类型
+	var graph_node = get_node(str(to_node)) as GraphNode
+	if graph_node.has_meta("extra_controls"):
+		var extra_controls = graph_node.get_meta("extra_controls")
+		graph_node.remove_meta("extra_controls")
+		var datas = graph_node.datas as Array
+		datas.push_front(extra_controls)
+		graph_node.datas = datas
+	else:
+		var type = LINK_TYPE.ASSOCIATION
+		var prop_type = "Nil"
+		var prop_name = ""
+		
+		var ob_link_type = OptionButton.new()
+		ob_link_type.add_item("ASSOCIATION", LINK_TYPE.ASSOCIATION)
+		ob_link_type.add_item("COLLECTION_ARRAY", LINK_TYPE.COLLECTION_ARRAY)
+		ob_link_type.selected = 0 if type == LINK_TYPE.ASSOCIATION else 1
+		ob_link_type.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		ob_link_type.fit_to_longest_item = false
+		
+		var text_enum_suggestion = TEXT_ENUM.instantiate()
+		text_enum_suggestion.ready.connect(func():
+			text_enum_suggestion.setup(DataTypeDef.DATA_TYPE_COMMON_NAMES.keys(), true)
+			text_enum_suggestion.value = prop_type
+			text_enum_suggestion.update_property()
+		)
+		text_enum_suggestion.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		text_enum_suggestion.custom_minimum_size.x = 150
+		
+		var le_prop_name = LineEdit.new()
+		le_prop_name.text = prop_name
+		le_prop_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		le_prop_name.placeholder_text = "Property name"
+		
+		var datas = graph_node.datas as Array
+		datas.push_front([null, null, ob_link_type, text_enum_suggestion, le_prop_name])
+		graph_node.datas = datas
+		
+	graph_node.set_meta("extra_enabled", true)
+	graph_node.size.x += 200
+	update_slot_status(graph_node)
+	
 	mark_modified()
 	
 func _on_disconnection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
 	disconnect_node(from_node, from_port, to_node, to_port)
+	
+	# 隐藏选项
+	hide_extra_control(get_node(str(to_node)))
+	
 	mark_modified()
 	
+func hide_extra_control(graph_node: GraphNode, asize = null):
+	if graph_node.get_meta("extra_enabled", false):
+		var datas = (graph_node.datas as Array).duplicate()
+		var extra_controls = datas.pop_front()
+		graph_node.datas = datas
+		graph_node.set_meta("extra_controls", extra_controls)
+		graph_node.set_meta("extra_enabled", false)
+		# shrink
+		if asize:
+			graph_node.set_deferred("size", Vector2(asize.x-200, 0))
+		else:
+			graph_node.set_deferred("size", Vector2(graph_node.size.x-200, 0))
+		update_slot_status(graph_node)
+		
 func _on_copy_nodes_request(p_copied_data = null) -> void:
 	var selected_nodes_params = get_nodes_params(true)
 	if selected_nodes_params.is_empty():
