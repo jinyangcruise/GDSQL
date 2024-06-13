@@ -18,9 +18,13 @@ const SHORTCUT_QUERY = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_
 ## 元素是DictionaryObject时，若属性名称为下划线开头的，将隐藏属性名称，只保留属性值的设置界面。
 ## 左侧元素和右侧元素可以相同。
 ## 元素是Control时，添加到对应的行上。
+## ALERT 外部请勿直接在datas上使用pop_front(), pop_back()等改变数组本身的操作，
+## 请先使用duplciate浅拷贝一份数据，然后调用本类中的clear()，最后重新对datas进行赋值！
+## 否则会产生自定义控件被释放的问题。
 var datas: Array[Array]:
 	set(val):
 		#if datas != val:
+		clear()
 		datas = val
 		redraw()
 		
@@ -135,7 +139,7 @@ func clear():
 					if data is Control:
 						if data.get_parent_control():
 							data.get_parent_control().remove_child(data)
-						
+							
 		var children = get_children()
 		for i in children:
 			if i and !i.is_queued_for_deletion():
