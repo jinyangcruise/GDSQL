@@ -34,6 +34,7 @@ const SB_SQL_TITLEBAR_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_node
 
 var copied_nodes: Dictionary
 
+const SHORTCUT_SELECTALL = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_selectall.tres")
 const SHORTCUT_UNDO = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_undo.tres")
 
 var graph_edit: GraphEdit:
@@ -49,10 +50,14 @@ func _shortcut_input(event: InputEvent) -> void:
 	if not is_visible_in_tree():
 		return
 	# 避免用户误操作把别的操作撤销掉
-	if event.is_pressed() and SHORTCUT_UNDO.matches_event(event):
-		printt("Not support undo.")
-		get_viewport().set_input_as_handled()
-		
+	if event.is_pressed():
+		if SHORTCUT_UNDO.matches_event(event):
+			printt("Not support undo.")
+			get_viewport().set_input_as_handled()
+		elif SHORTCUT_SELECTALL.matches_event(event):
+			select_all_node()
+			get_viewport().set_input_as_handled()
+			
 func _on_button_auto_commit_toggled(button_pressed: bool) -> void:
 	button_commit.disabled = button_pressed
 	button_rollback.disabled = button_pressed
@@ -2139,6 +2144,11 @@ func _get_final_source(from, map: Dictionary, result: Array, node_type: String):
 		result.push_back(from)
 		return 1
 	
+func select_all_node():
+	for i in graph_edit.get_children():
+		if i is GraphNode:
+			i.selected = true
+			
 func unselect_all_node():
 	for i in graph_edit.get_children():
 		if i.has_meta("node"):
@@ -2235,7 +2245,9 @@ func _exit_tree():
 
 func _on_graph_edit_delete_nodes_request(nodes):
 	var titles = nodes.map(func(v): return graph_edit.get_node(str(v)).title)
-	mgr.create_confirmation_dialog("Are you sure to delete selected nodes `%s`?" % ", ".join(titles),
+	mgr.create_confirmation_dialog(
+		split_for_long_content(
+			"Are you sure to delete selected nodes `%s`?" % ", ".join(titles)),
 		func():
 			for i in nodes:
 				var node = graph_edit.get_node(str(i))
@@ -2243,6 +2255,20 @@ func _on_graph_edit_delete_nodes_request(nodes):
 				node.queue_free()
 			mark_modified()
 	)
+	
+func split_for_long_content(content: String) -> String:
+	const l = 70
+	var total_l = content.length()
+	if total_l <= l:
+		return content
+	var arr = []
+	var start = 0
+	while true:
+		arr.push_back(content.substr(start, l))
+		if start + l >= total_l:
+			break
+		start += l
+	return "\n".join(arr)
 	
 func mark_modified(_whatever = null):
 	if get_meta("is_file", false):

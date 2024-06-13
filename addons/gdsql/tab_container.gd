@@ -4,6 +4,7 @@ extends TabContainer
 var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
 var SQLGraph = preload("res://addons/gdsql/tabs/sql_graph.tscn")
+var MAPPER_GRAPH = preload("res://addons/gdsql/tabs/mapper_graph.tscn")
 
 @onready var new_tab_button: Control = $"➕"
 
@@ -240,12 +241,41 @@ func add_tab_select_data_export(columns: Array, datas: Array) -> void:
 	select_data_export.load_data(columns, datas)
 	
 func add_tab_mapper_graph(info: Dictionary):
-	var mapper_graph = preload("res://addons/gdsql/tabs/mapper_graph.tscn").instantiate()
-	add_child(mapper_graph)
+	var mapper_file = MAPPER_GRAPH.instantiate()
+	mapper_file.request_open_file.connect(add_tab_mapper_graph_file)
+	mapper_file.change_tab_title.connect(func(page, title):
+		var idx = get_tab_idx_from_control(page)
+		if idx >= 0:
+			set_tab_title(idx, title)
+	)
+	add_child(mapper_file)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
-	set_tab_title(current_tab, "Generate Mapper")
-	mapper_graph.load_data(info)
+	set_tab_title(current_tab, "Mapper File %d" % _tab_index)
+	_tab_index += 1
+	mapper_file.load_data(info)
+	
+func add_tab_mapper_graph_file(path: String):
+	# 是否已经打开过了，就直接激活
+	for i in get_tab_count():
+		var page = get_tab_control(i)
+		if page.get_meta("type") == "mapper_graph" and page.get_meta("file_path", "") == path:
+			current_tab = i
+			return
+			
+	var mapper_file = MAPPER_GRAPH.instantiate()
+	mapper_file.request_open_file.connect(add_tab_mapper_graph_file)
+	mapper_file.change_tab_title.connect(func(page, title):
+		var idx = get_tab_idx_from_control(page)
+		if idx >= 0:
+			set_tab_title(idx, title)
+	)
+	add_child(mapper_file)
+	move_child(new_tab_button, get_child_count() - 1)
+	current_tab = get_child_count() - 2
+	set_tab_title(current_tab, path.get_file())
+	_tab_index += 1
+	mapper_file.load_mapper_file(path)
 	
 func _on_tab_button_pressed(tab: int) -> void:
 	if tab != current_tab:

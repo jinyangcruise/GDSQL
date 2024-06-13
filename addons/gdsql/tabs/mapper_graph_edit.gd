@@ -15,6 +15,7 @@ const TEXT_ENUM = preload("res://addons/gdsql/custom_control/text_enum.tscn")
 
 var copied_nodes: Dictionary
 
+const SHORTCUT_SELECTALL = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_selectall.tres")
 const SHORTCUT_UNDO = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_undo.tres")
 
 const VALID_PORT_COLOR = {
@@ -80,11 +81,16 @@ func _shortcut_input(event: InputEvent) -> void:
 	if not is_visible_in_tree():
 		return
 	# 避免用户误操作把别的操作撤销掉
-	if event.is_pressed() and SHORTCUT_UNDO.matches_event(event):
-		printt("Not support undo.")
-		get_viewport().set_input_as_handled()
-		
-func add_item(data: Dictionary, props: Dictionary, extra: Dictionary = {}, asize = null, pos_offset = null, aname = ""):
+	if event.is_pressed():
+		if SHORTCUT_UNDO.matches_event(event):
+			printt("Not support undo.")
+			get_viewport().set_input_as_handled()
+		elif SHORTCUT_SELECTALL.matches_event(event):
+			select_all_node()
+			get_viewport().set_input_as_handled()
+			
+func add_item(data: Dictionary, props: Dictionary, extra: Dictionary = {}, 
+asize = null, pos_offset = null, aname = ""):
 	grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
 	
@@ -95,7 +101,7 @@ func add_item(data: Dictionary, props: Dictionary, extra: Dictionary = {}, asize
 	graph_node.set_meta("extra", extra)
 	
 	if aname != "":
-		graph_node = aname
+		graph_node.title = aname
 		
 	# 等待页面就绪
 	if not get_rect().has_area():
@@ -195,7 +201,8 @@ func update_slot_status(graph_node: GraphNode):
 			graph_node.set_slot_color_right(index, VALID_PORT_COLOR[data_type])
 			
 ## genarate nodes
-func _load_nodes(nodes: Dictionary, connections: Array, pos_offset: Vector2, auto_name: bool, select_all = false):
+func _load_nodes(nodes: Dictionary, connections: Array, pos_offset: Vector2, 
+auto_name: bool, select_all = false):
 	var node_name_map = {} # 旧name => 新name
 	var node_sizes = {}
 	for node_name in nodes:
@@ -203,7 +210,7 @@ func _load_nodes(nodes: Dictionary, connections: Array, pos_offset: Vector2, aut
 		var props = nodes[node_name]["props"]
 		var extra = nodes[node_name]["extra"]
 		var asize = nodes[node_name]["size"]
-		var position_offset = nodes[node_name]["position_offset"] + pos_offset
+		var position_offset = nodes[node_name]["position_offset"] + pos_offset * nodes.size()
 		var a_name = "" if auto_name else node_name
 		var node = await add_item(data, props, extra, asize, position_offset, a_name)
 		node_name_map[node_name] = node.name
@@ -255,7 +262,8 @@ func get_nodes_params(only_selected = false):
 			else:
 				assert(false, "Inner error check this in mapper_graph_edit.gd")
 				
-		all_data[graph_node.name.validate_node_name()] = { # validate一下，不然会存在@符号，再次设置name的时候会被替换为下划线
+		# validate一下，不然会存在@符号，再次设置name的时候会被替换为下划线
+		all_data[graph_node.name.validate_node_name()] = { 
 			"data": graph_node.get_meta("data"),
 			"props": props,
 			"extra": extra,
@@ -277,14 +285,20 @@ func get_connections_only_selected():
 			ret.push_back(c)
 	return ret
 	
-func _on_graph_edit_connection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
+func _on_graph_edit_connection_request(from_node: StringName, from_port: int, 
+to_node: StringName, to_port: int) -> void:
 	connect_node(from_node, from_port, to_node, to_port)
 	mark_modified()
 	
 func mark_modified(_whatever = null):
-	if get_meta("is_file", false):
-		change_tab_title.emit(self, get_meta("file_name") + "*")
+	if owner.get_meta("is_file", false):
+		owner.change_tab_title.emit(owner, owner.get_meta("file_name") + "*")
 		
+func select_all_node():
+	for i in get_children():
+		if i is GraphNode:
+			i.selected = true
+			
 func unselect_all_node():
 	for i in get_children():
 		if i is GraphNode:
@@ -295,16 +309,20 @@ func node_close(node: GraphNode):
 	for info in get_connection_list():
 		# 表示node是被输入的节点
 		if node.name == info["to_node"]:
-			disconnect_node(info["from_node"], info["from_port"], info["to_node"], info["to_port"])
+			disconnect_node(info["from_node"], info["from_port"], 
+				info["to_node"], info["to_port"])
 		# 表示node是输入节点
 		elif node.name == info["from_node"]:
-			disconnect_node(info["from_node"], info["from_port"], info["to_node"], info["to_port"])
+			disconnect_node(info["from_node"], info["from_port"], 
+				info["to_node"], info["to_port"])
 			
 	node.queue_free()
 	
 func _on_delete_nodes_request(nodes: Array[StringName]) -> void:
 	var titles = nodes.map(func(v): return get_node(str(v)).title)
-	mgr.create_confirmation_dialog("Are you sure to delete selected nodes `%s`?" % ", ".join(titles),
+	mgr.create_confirmation_dialog(
+		split_for_long_content(
+			"Are you sure to delete selected nodes `%s`?" % ", ".join(titles)),
 		func():
 			for i in nodes:
 				var node = get_node(str(i))
@@ -313,13 +331,38 @@ func _on_delete_nodes_request(nodes: Array[StringName]) -> void:
 			mark_modified()
 	)
 	
-func _on_connection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
+func split_for_long_content(content: String) -> String:
+	const l = 70
+	var total_l = content.length()
+	if total_l <= l:
+		return content
+	var arr = []
+	var start = 0
+	while true:
+		arr.push_back(content.substr(start, l))
+		if start + l >= total_l:
+			break
+		start += l
+	return "\n".join(arr)
+	
+func _on_connection_request(from_node: StringName, from_port: int, 
+to_node: StringName, to_port: int) -> void:
 	if from_node == to_node:
 		return
+		
+	# 只允许连一个节点，把前面的先去掉
+	var alreay = false
+	var graph_node = get_node(str(to_node)) as GraphNode
+	for i in get_connection_list():
+		if i.to_node == to_node:
+			alreay = true
+			_on_disconnection_request(i.from_node, i.from_port, i.to_node, 
+				i.to_port, graph_node.size)
+			break
+			
 	connect_node(from_node, from_port, to_node, to_port)
 	
 	# to的一方，增加选项，让用户选择和输入关联属性和属性类型
-	var graph_node = get_node(str(to_node)) as GraphNode
 	if graph_node.has_meta("extra_controls"):
 		var extra_controls = graph_node.get_meta("extra_controls")
 		graph_node.remove_meta("extra_controls")
@@ -357,16 +400,18 @@ func _on_connection_request(from_node: StringName, from_port: int, to_node: Stri
 		graph_node.datas = datas
 		
 	graph_node.set_meta("extra_enabled", true)
-	graph_node.size.x += 200
+	#if not alreay:
+		#graph_node.set_deferred("size", Vector2(graph_node.size.x + 200, graph_node.size.y))
 	update_slot_status(graph_node)
 	
 	mark_modified()
 	
-func _on_disconnection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
+func _on_disconnection_request(from_node: StringName, from_port: int, 
+to_node: StringName, to_port: int, asize = null) -> void:
 	disconnect_node(from_node, from_port, to_node, to_port)
 	
 	# 隐藏选项
-	hide_extra_control(get_node(str(to_node)))
+	hide_extra_control(get_node(str(to_node)), asize)
 	
 	mark_modified()
 	
@@ -379,9 +424,9 @@ func hide_extra_control(graph_node: GraphNode, asize = null):
 		graph_node.set_meta("extra_enabled", false)
 		# shrink
 		if asize:
-			graph_node.set_deferred("size", Vector2(asize.x-200, 0))
-		else:
-			graph_node.set_deferred("size", Vector2(graph_node.size.x-200, 0))
+			graph_node.set_deferred("size", Vector2(asize.x, 0))
+		#else:
+			#graph_node.set_deferred("size", Vector2(graph_node.size.x-200, 0))
 		update_slot_status(graph_node)
 		
 func _on_copy_nodes_request(p_copied_data = null) -> void:
@@ -401,13 +446,15 @@ func _on_paste_nodes_request(p_copied_data = null) -> void:
 	if p_copied_data == null:
 		if copied_nodes.is_empty():
 			return
-		_load_nodes(copied_nodes.data, copied_nodes.connections, Vector2(40, 40), true, true)
+		_load_nodes(copied_nodes.data, copied_nodes.connections, Vector2(40, 40), 
+			true, true)
 		for i in copied_nodes.data:
-			copied_nodes.data[i].position_offset += Vector2(40, 40)
+			copied_nodes.data[i].position_offset += Vector2(40, 40) * copied_nodes.data.size()
 	else:
-		_load_nodes(p_copied_data.data, p_copied_data.connections, Vector2(40, 40), true, true)
+		_load_nodes(p_copied_data.data, p_copied_data.connections, Vector2(40, 40), 
+			true, true)
 		for i in p_copied_data.data:
-			p_copied_data.data[i].position_offset += Vector2(40, 40)
+			p_copied_data.data[i].position_offset += Vector2(40, 40) * p_copied_data.data.size()
 			
 func _on_duplicate_nodes_request() -> void:
 	var tmp_data = {}

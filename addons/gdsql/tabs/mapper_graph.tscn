@@ -1,7 +1,30 @@
-[gd_scene load_steps=3 format=3 uid="uid://dryqmdnjvj0rt"]
+[gd_scene load_steps=13 format=3 uid="uid://dryqmdnjvj0rt"]
 
 [ext_resource type="Script" path="res://addons/gdsql/tabs/mapper_graph.gd" id="1_skh3h"]
 [ext_resource type="Script" path="res://addons/gdsql/tabs/mapper_graph_edit.gd" id="2_455wi"]
+[ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="2_ommw4"]
+[ext_resource type="Texture2D" uid="uid://lu2m6lhnamxh" path="res://addons/gdsql/img/floppy-disk.png" id="3_blmae"]
+[ext_resource type="Texture2D" uid="uid://devul8doq53rt" path="res://addons/gdsql/img/plus.png" id="4_ump4m"]
+[ext_resource type="Texture2D" uid="uid://bj6qe4a23bjvc" path="res://addons/gdsql/img/bolt-lightning-edit.png" id="5_xasyh"]
+[ext_resource type="Texture2D" uid="uid://fud4boba7d2j" path="res://addons/gdsql/img/bolt-lightning.png" id="6_ip2ph"]
+[ext_resource type="Texture2D" uid="uid://84nocbkfddni" path="res://addons/gdsql/img/Search.png" id="7_lmah8"]
+
+[sub_resource type="InputEventKey" id="InputEventKey_kjho4"]
+device = -1
+ctrl_pressed = true
+keycode = 83
+
+[sub_resource type="Shortcut" id="Shortcut_8uhqv"]
+events = [SubResource("InputEventKey_kjho4")]
+
+[sub_resource type="InputEventKey" id="InputEventKey_lywi6"]
+device = -1
+shift_pressed = true
+ctrl_pressed = true
+keycode = 83
+
+[sub_resource type="Shortcut" id="Shortcut_n7cwt"]
+events = [SubResource("InputEventKey_lywi6")]
 
 [node name="MapperGraph" type="VSplitContainer"]
 anchors_preset = 15
@@ -10,7 +33,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_skh3h")
-metadata/type = "sql_graph"
+metadata/type = "mapper_graph"
 metadata/is_file = false
 metadata/file_name = ""
 metadata/file_path = ""
@@ -22,13 +45,89 @@ size_flags_vertical = 3
 [node name="HFlowContainer" type="HFlowContainer" parent="VBoxContainer"]
 layout_mode = 2
 
+[node name="ButtonOpen" type="Button" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+icon = ExtResource("2_ommw4")
+
+[node name="ButtonSave" type="Button" parent="VBoxContainer/HFlowContainer" node_paths=PackedStringArray("shortcut_context")]
+layout_mode = 2
+tooltip_text = "Save"
+shortcut_context = NodePath("../../..")
+shortcut = SubResource("Shortcut_8uhqv")
+icon = ExtResource("3_blmae")
+
+[node name="ButtonSaveAs" type="Button" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+tooltip_text = "Save As..."
+shortcut = SubResource("Shortcut_n7cwt")
+icon = ExtResource("3_blmae")
+
+[node name="VSeparator" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+
+[node name="ButtonAddNode" type="Button" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+tooltip_text = "This button does not work. Please drag a table from left tree into this panel."
+icon = ExtResource("4_ump4m")
+
+[node name="VSeparator2" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+
+[node name="LineEditSavePath" type="LineEdit" parent="VBoxContainer/HFlowContainer"]
+custom_minimum_size = Vector2(650, 0)
+layout_mode = 2
+placeholder_text = "Generate file saving path"
+caret_blink = true
+
+[node name="OptionButtonChooseFile" type="OptionButton" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+tooltip_text = "Pick a path from Resource, UserData or FileSystem."
+selected = 0
+allow_reselect = true
+item_count = 3
+popup/item_0/text = "Resource"
+popup/item_1/text = "UserData"
+popup/item_1/id = 1
+popup/item_2/text = "FileSystem"
+popup/item_2/id = 2
+
+[node name="VSeparator3" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+
+[node name="ButtonRunSelected" type="Button" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+tooltip_text = "Generate mapper by selected nodes."
+icon = ExtResource("5_xasyh")
+
+[node name="ButtonRun" type="Button" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+tooltip_text = "Generate mapper by all the nodes."
+icon = ExtResource("6_ip2ph")
+
+[node name="VSeparator4" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+
+[node name="ButtonPreview" type="Button" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+tooltip_text = "Preview all nodes if none selected, otherwise preview the selected nodes."
+icon = ExtResource("7_lmah8")
+
 [node name="GraphEdit" type="GraphEdit" parent="VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
+scroll_offset = Vector2(0, -21)
 right_disconnects = true
 minimap_enabled = false
 script = ExtResource("2_455wi")
 
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonOpen" to="." method="_on_button_open_pressed"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSave" to="." method="_on_button_save_pressed"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSaveAs" to="." method="_on_button_save_as_pressed"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNode" to="." method="_on_button_add_node_pressed"]
+[connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonChooseFile" to="." method="_on_option_button_choose_file_item_selected"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRunSelected" to="." method="_on_button_run_selected_pressed"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRun" to="." method="_on_button_run_pressed"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonPreview" to="." method="_on_button_preview_pressed"]
 [connection signal="connection_request" from="VBoxContainer/GraphEdit" to="VBoxContainer/GraphEdit" method="_on_connection_request"]
 [connection signal="copy_nodes_request" from="VBoxContainer/GraphEdit" to="VBoxContainer/GraphEdit" method="_on_copy_nodes_request"]
 [connection signal="delete_nodes_request" from="VBoxContainer/GraphEdit" to="VBoxContainer/GraphEdit" method="_on_delete_nodes_request"]
