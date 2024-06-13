@@ -1,0 +1,57 @@
+[gd_scene load_steps=3 format=3 uid="uid://3imb6uxofehr"]
+
+[ext_resource type="Script" path="res://addons/gdsql/custom_control/text_enum.gd" id="1_7pw25"]
+[ext_resource type="Script" path="res://addons/pinocchio_framework/core/param/property_param.gd" id="2_x6d16"]
+
+[node name="TextEnum" type="HBoxContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_horizontal = 3
+script = ExtResource("1_7pw25")
+
+[node name="PropertyParam" type="Node" parent="."]
+script = ExtResource("2_x6d16")
+property_name = ""
+value = null
+
+[node name="default_layout" type="HBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="OptionButton" type="OptionButton" parent="default_layout"]
+auto_translate_mode = 2
+layout_mode = 2
+size_flags_horizontal = 3
+flat = true
+clip_text = true
+
+[node name="edit_button" type="Button" parent="default_layout"]
+visible = false
+layout_mode = 2
+flat = true
+
+[node name="edit_custom_layout" type="HBoxContainer" parent="."]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="custom_value_edit" type="LineEdit" parent="edit_custom_layout"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="accept_button" type="Button" parent="edit_custom_layout"]
+layout_mode = 2
+flat = true
+
+[node name="cancel_button" type="Button" parent="edit_custom_layout"]
+layout_mode = 2
+flat = true
+
+[connection signal="item_selected" from="default_layout/OptionButton" to="." method="_option_selected"]
+[connection signal="pressed" from="default_layout/edit_button" to="." method="_edit_custom_value"]
+[connection signal="text_submitted" from="edit_custom_layout/custom_value_edit" to="." method="_custom_value_submitted"]
+[connection signal="pressed" from="edit_custom_layout/accept_button" to="." method="_custom_value_accepted"]
+[connection signal="pressed" from="edit_custom_layout/cancel_button" to="." method="_custom_value_canceled"]
