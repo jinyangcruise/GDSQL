@@ -557,12 +557,21 @@ func _automapping_associations(data: Array, obj: Object) -> bool:
 		# 调用另一个<select>
 		if ass.select != "":
 			# 用关联列去调用一条select语句获取结果
-			var col_index = columns.find(ass.column)
-			if col_index == -1:
-				assert(false, 
-				"Cannot found column: %s in Result set." % ass.column)
+			var link_cols = ass.column.split(",")
+			var args = []
+			for i in link_cols.size():
+				link_cols[i] = link_cols[i].strip_edges()
+				if link_cols[i].begins_with(ass.column_prefix):
+					push_warning("Do you mean to add column_prefix to column twice?")
+				link_cols[i] = ass.column_prefix + link_cols[i]
+				var col_index = columns.find(link_cols[i])
+				if col_index == -1:
+					assert(false, 
+					"Cannot found column: %s in Result set." % link_cols[i])
+				args.push_back(data[col_index])
+			assert(args.size() == link_cols.size(), "Err occur.")
 			sub_obj = mapper_parser_ref.get_ref().\
-				call_method_in_namespace(ass.select, [data[col_index]])
+				call_method_in_namespace(ass.select, args)
 		else:
 			#ass._result_map.check_head(head) 已经在主resultMap check_head时统一做了
 			#ass._result_map.prepare_deal(data)
@@ -603,11 +612,21 @@ func _automapping_collections(data: Array, obj: Object) -> bool:
 		# 调用另一个<select>
 		if col.select != "":
 			# 用关联列去调用一条select语句获取结果
-			var col_index = columns.find(col.column)
-			if col_index == -1:
-				assert(false, "Cannot found column: %s in Result set." % col.column)
+			var link_cols = col.column.split(",")
+			var args = []
+			for i in link_cols.size():
+				link_cols[i] = link_cols[i].strip_edges()
+				if link_cols[i].begins_with(col.column_prefix):
+					push_warning("Do you mean to add column_prefix to column twice?")
+				link_cols[i] = col.column_prefix + link_cols[i]
+				var col_index = columns.find(link_cols[i])
+				if col_index == -1:
+					assert(false, 
+					"Cannot found column: %s in Result set." % link_cols[i])
+				args.push_back(data[col_index])
+			assert(args.size() == link_cols.size(), "Err occur.")
 			var arr = mapper_parser_ref.get_ref().\
-				call_method_in_namespace(col.select, [data[col_index]])
+				call_method_in_namespace(col.select, args)
 			if not arr is Array:
 				assert(false, "Call %s failed." % col.select)
 				
