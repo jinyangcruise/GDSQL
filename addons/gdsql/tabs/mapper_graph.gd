@@ -236,9 +236,12 @@ func _generate_xml(nodes: Array) -> String:
 		<cache eviction="LRU" flushInterval="0" size="50" />
 		"""]
 		var arr_method = []
+		var arr_columns = {}
 		var arr_left_join = []
 		var prefix_index = 0
-		var main_result_map_id = null
+		var leading_result_map_id = null
+		var leading_db_name = null
+		var leading_table_name = null
 		
 		# 递归找到与起始节点关联的诸多节点
 		var linked_nodes = []
@@ -254,16 +257,21 @@ func _generate_xml(nodes: Array) -> String:
 			var result_map_id = table_name_camel
 			if node_link_prop.has(node.name):
 				result_map_id = node_link_prop[node.name].to_camel_case()
-			if main_result_map_id == null:
-				main_result_map_id = result_map_id
+			if leading_result_map_id == null:
+				leading_result_map_id = result_map_id
+				leading_db_name = db_name
+				leading_table_name = table_name
 				
 			var arr_col = []
+			var arr_col_name = []
 			for col in columns:
 				var prefix = '<id    ' if col.PK else '<result'
 				arr_col.push_back('%s property="%s"    column="%s"    />' % \
 					[prefix, col["Column Name"].to_snake_case(), col["Column Name"]]
 				)
-				
+				arr_col_name.push_back(col["Column Name"])
+			arr_columns[node_name] = arr_col_name
+			
 			if node_pair.has(node.name):
 				for to_node_name in node_pair[node.name]:
 					var info = node_pair[node.name][to_node_name]
@@ -335,8 +343,13 @@ func _generate_xml(nodes: Array) -> String:
 			
 		# <sql>
 		var vo = ""
-		xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>' % \
-			[main_result_map_id, vo])
+		if arr_left_join.is_empty():
+			vo = "select %s from %s.%s" % [", ".join(arr_columns[lead_node_name]), 
+				leading_db_name, leading_table_name]
+		else:
+			pass # TODO
+		xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n' % \
+			[leading_result_map_id, vo])
 			
 			
 	return ""
