@@ -67,7 +67,7 @@ func _on_button_open_pressed() -> void:
 	var editor_file_dialog = EditorFileDialog.new()
 	editor_file_dialog.access = EditorFileDialog.ACCESS_FILESYSTEM
 	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
-	editor_file_dialog.add_filter("*.gdsqlgraph", "GDSQL GRAPH File")
+	editor_file_dialog.add_filter("*.gdsqlgraph", "GDSQL Graph File")
 	editor_file_dialog.file_selected.connect(func(path: String):
 		request_open_file.emit(path)
 	)

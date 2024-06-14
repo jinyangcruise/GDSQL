@@ -73,13 +73,16 @@ icon = ExtResource("4_ump4m")
 [node name="VSeparator2" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
 layout_mode = 2
 
-[node name="LineEditSavePath" type="LineEdit" parent="VBoxContainer/HFlowContainer"]
-custom_minimum_size = Vector2(650, 0)
+[node name="LineEditSaveXMLPath" type="LineEdit" parent="VBoxContainer/HFlowContainer"]
+custom_minimum_size = Vector2(325, 0)
 layout_mode = 2
-placeholder_text = "Generate file saving path"
+tooltip_text = "Generated XML content will be written to this file. Leave this empty if you don't want to generate XML file."
+placeholder_text = "Generate xml file path"
+clear_button_enabled = true
+select_all_on_focus = true
 caret_blink = true
 
-[node name="OptionButtonChooseFile" type="OptionButton" parent="VBoxContainer/HFlowContainer"]
+[node name="OptionButtonChooseXMLFile" type="OptionButton" parent="VBoxContainer/HFlowContainer"]
 layout_mode = 2
 tooltip_text = "Pick a path from Resource, UserData or FileSystem."
 selected = 0
@@ -92,6 +95,44 @@ popup/item_2/text = "FileSystem"
 popup/item_2/id = 2
 
 [node name="VSeparator3" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+
+[node name="LineEditSaveGDPath" type="LineEdit" parent="VBoxContainer/HFlowContainer"]
+custom_minimum_size = Vector2(325, 0)
+layout_mode = 2
+tooltip_text = "Generated gdscript content will be written to this file. Leave this empty if you don't want to generate gdscript file."
+placeholder_text = "Generate gd file path"
+clear_button_enabled = true
+select_all_on_focus = true
+caret_blink = true
+
+[node name="OptionButtonChooseGDFile" type="OptionButton" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+tooltip_text = "Pick a path from Resource, UserData or FileSystem."
+selected = 0
+allow_reselect = true
+item_count = 3
+popup/item_0/text = "Resource"
+popup/item_1/text = "UserData"
+popup/item_1/id = 1
+popup/item_2/text = "FileSystem"
+popup/item_2/id = 2
+
+[node name="VSeparator5" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+
+[node name="OptionButtonLink" type="OptionButton" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+tooltip_text = "Determine the way how to interlink a property to an association or a collection.
+Nesting Select: association and collection use a stand alone select to fetch data.
+Nesting ResultMap: association and collection use 'left join' to fetch data."
+selected = 0
+item_count = 2
+popup/item_0/text = "Nesting Select"
+popup/item_1/text = "Nesting ResultMap"
+popup/item_1/id = 1
+
+[node name="VSeparator6" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
 layout_mode = 2
 
 [node name="ButtonRunSelected" type="Button" parent="VBoxContainer/HFlowContainer"]
@@ -115,7 +156,7 @@ icon = ExtResource("7_lmah8")
 [node name="GraphEdit" type="GraphEdit" parent="VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
-scroll_offset = Vector2(0, -21)
+scroll_offset = Vector2(0, -59)
 right_disconnects = true
 minimap_enabled = false
 script = ExtResource("2_455wi")
@@ -124,7 +165,8 @@ script = ExtResource("2_455wi")
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSave" to="." method="_on_button_save_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSaveAs" to="." method="_on_button_save_as_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNode" to="." method="_on_button_add_node_pressed"]
-[connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonChooseFile" to="." method="_on_option_button_choose_file_item_selected"]
+[connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonChooseXMLFile" to="." method="_on_option_button_choose_xml_file_item_selected"]
+[connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonChooseGDFile" to="." method="_on_option_button_choose_gd_file_item_selected"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRunSelected" to="." method="_on_button_run_selected_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRun" to="." method="_on_button_run_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonPreview" to="." method="_on_button_preview_pressed"]

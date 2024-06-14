@@ -75,12 +75,14 @@ theme_override_constants/autohide = 0
 layout_mode = 2
 size_flags_vertical = 3
 size_flags_stretch_ratio = 4.0
+current_tab = 0
 drag_to_rearrange_enabled = true
 script = ExtResource("3_2dwia")
 
 [node name="➕" type="Control" parent="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer"]
 layout_mode = 2
 metadata/type = "new_tab_button"
+metadata/_tab_index = 0
 
 [node name="Control" type="MarginContainer" parent="VBoxContainer/HSplitContainer/VSplitContainer"]
 layout_mode = 2

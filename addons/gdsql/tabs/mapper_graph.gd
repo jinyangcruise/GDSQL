@@ -5,8 +5,11 @@ extends VSplitContainer
 @onready var button_save: Button = $VBoxContainer/HFlowContainer/ButtonSave
 @onready var button_save_as: Button = $VBoxContainer/HFlowContainer/ButtonSaveAs
 @onready var button_add_node: Button = $VBoxContainer/HFlowContainer/ButtonAddNode
-@onready var line_edit_save_path: LineEdit = $VBoxContainer/HFlowContainer/LineEditSavePath
-@onready var option_button_choose_file: OptionButton = $VBoxContainer/HFlowContainer/OptionButtonChooseFile
+@onready var line_edit_save_xml_path: LineEdit = $VBoxContainer/HFlowContainer/LineEditSaveXMLPath
+@onready var option_button_choose_xml_file: OptionButton = $VBoxContainer/HFlowContainer/OptionButtonChooseXMLFile
+@onready var line_edit_save_gd_path: LineEdit = $VBoxContainer/HFlowContainer/LineEditSaveGDPath
+@onready var option_button_choose_gd_file: OptionButton = $VBoxContainer/HFlowContainer/OptionButtonChooseGDFile
+@onready var option_button_link: OptionButton = $VBoxContainer/HFlowContainer/OptionButtonLink
 @onready var button_run_selected: Button = $VBoxContainer/HFlowContainer/ButtonRunSelected
 @onready var button_run: Button = $VBoxContainer/HFlowContainer/ButtonRun
 @onready var button_preview: Button = $VBoxContainer/HFlowContainer/ButtonPreview
@@ -21,6 +24,11 @@ signal change_tab_title(page: Control, title: String)
 
 const EXTENSION = "*.gdmappergraph"
 
+enum LINK_WAY {
+	NESTING_SELECT,
+	NESTING_RESULT_MAP,
+}
+
 func _ready() -> void:
 	pass
 	
@@ -29,6 +37,11 @@ func load_mapper_file(path):
 	config.load(path)
 	var nodes = config.get_value("data", "nodes", {})
 	var connections = config.get_value("data", "connections", [])
+	var xml_path = config.get_value("data", "xml_path", "")
+	var gd_path = config.get_value("data", "gd_path", "")
+	
+	line_edit_save_xml_path.text = xml_path
+	line_edit_save_gd_path.text = gd_path
 	
 	# genarate nodes
 	graph_edit._load_nodes(nodes, connections, Vector2.ZERO, false, false)
@@ -45,7 +58,7 @@ func _on_button_open_pressed() -> void:
 	var editor_file_dialog = EditorFileDialog.new()
 	editor_file_dialog.access = EditorFileDialog.ACCESS_FILESYSTEM
 	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
-	editor_file_dialog.add_filter(EXTENSION, "GDSQL MAPPER GRAPH File")
+	editor_file_dialog.add_filter(EXTENSION, "GDSQL Mapper Project File")
 	editor_file_dialog.file_selected.connect(func(path: String):
 		request_open_file.emit(path)
 	)
@@ -65,6 +78,8 @@ func _on_button_save_pressed() -> void:
 			v["to_node"] = v["to_node"].validate_node_name()
 			return v
 		))
+		config.set_value("data", "xml_path", line_edit_save_xml_path.text.strip_edges())
+		config.set_value("data", "gd_path", line_edit_save_gd_path.text.strip_edges())
 		
 		# 防止报错导致丢失文件中的旧数据
 		if config.get_value("data", "nodes", null) == null or \
@@ -90,6 +105,8 @@ func _on_button_save_as_pressed() -> void:
 			v["to_node"] = v["to_node"].validate_node_name()
 			return v
 		))
+		config.set_value("data", "xml_path", line_edit_save_xml_path.text.strip_edges())
+		config.set_value("data", "gd_path", line_edit_save_gd_path.text.strip_edges())
 		
 		# 防止报错导致丢失文件中的旧数据
 		if config.get_value("data", "nodes", null) == null or \
@@ -113,13 +130,27 @@ func _on_button_save_as_pressed() -> void:
 func _on_button_add_node_pressed() -> void:
 	mgr.create_accept_dialog(button_add_node.tooltip_text)
 	
-func _on_option_button_choose_file_item_selected(access: int) -> void:
+func _on_option_button_choose_xml_file_item_selected(access: int) -> void:
 	var editor_file_dialog = EditorFileDialog.new()
-	editor_file_dialog.filters = PackedStringArray([EXTENSION])
+	editor_file_dialog.filters = PackedStringArray(["*.xml; XML File"])
 	editor_file_dialog.access = access
 	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_SAVE_FILE
 	editor_file_dialog.file_selected.connect(func(path: String):
-		line_edit_save_path.text = path
+		line_edit_save_xml_path.text = path
+	, CONNECT_DEFERRED)
+	add_child(editor_file_dialog)
+	editor_file_dialog.popup_centered_ratio(0.5)
+	editor_file_dialog.close_requested.connect(func():
+		editor_file_dialog.queue_free()
+	, CONNECT_DEFERRED)
+	
+func _on_option_button_choose_gd_file_item_selected(access: int) -> void:
+	var editor_file_dialog = EditorFileDialog.new()
+	editor_file_dialog.filters = PackedStringArray(["*.gd; GDScript File"])
+	editor_file_dialog.access = access
+	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_SAVE_FILE
+	editor_file_dialog.file_selected.connect(func(path: String):
+		line_edit_save_gd_path.text = path
 	, CONNECT_DEFERRED)
 	add_child(editor_file_dialog)
 	editor_file_dialog.popup_centered_ratio(0.5)
@@ -128,7 +159,7 @@ func _on_option_button_choose_file_item_selected(access: int) -> void:
 	, CONNECT_DEFERRED)
 	
 func _on_button_run_selected_pressed() -> void:
-	pass # Replace with function body.
+	var arr_node = []
 
 
 func _on_button_run_pressed() -> void:
@@ -137,3 +168,181 @@ func _on_button_run_pressed() -> void:
 
 func _on_button_preview_pressed() -> void:
 	pass # Replace with function body.
+
+
+func _generate_xml(nodes: Array) -> String:
+	var nodes_map = {}
+	var node_pair = {}
+	var node_link_prop = {}
+	var table_counts = {}
+	
+	for i in nodes:
+		if i.enabled:
+			nodes_map[i.name] = i
+			
+	for i in graph_edit.get_connection_list():
+		if nodes_map.has(i.from_node) and nodes_map.has(i.to_node):
+			var from_node = nodes_map[i.from_node]
+			var from_columns = from_node.get_meta("data").columns
+			var from_port_offset = -1 if from_node.get_meta("extra_enabled", false) else 0
+			var from_col = from_columns[i.from_port + from_port_offset]["Column Name"]
+			var from_data = from_node.get_meta("data")
+			
+			var to_node = nodes_map[i.to_node]
+			var to_columns = to_node.get_meta("data").columns
+			assert(to_node.get_meta("extra_enabled", false), 
+				"This node is supposed to has meta extra_enabled's true.")
+			var to_port_offset = -1
+			var to_col = to_columns[i.to_port + to_port_offset]["Column Name"]
+			var to_data = to_node.get_meta("data")
+			
+			for j in [from_data, to_data]:
+				if not table_counts.has(j.db_name):
+					table_counts[j.db_name] = {}
+				if not table_counts[j.db_name].has(j.table_name):
+					table_counts[j.db_name][j.table_name] = 0
+				table_counts[j.db_name][j.table_name] += 1
+				
+			if not node_pair.has(i.from_node):
+				node_pair[i.from_node] = {}
+			if not node_pair[i.from_node].has(i.to_node):
+				var to_node_extra = graph_edit.get_node_extra(to_node)
+				node_link_prop[i.to_node] = to_node_extra.link_prop
+				node_pair[i.from_node][i.to_node] = {
+					"db_name": to_data.db_name,
+					"table_name": to_data.table_name,
+					"link_type": to_node_extra.link_type,
+					"link_prop_type": to_node_extra.link_prop_type,
+					"link_prop": to_node_extra.link_prop,
+					"link_col": []
+				}
+				
+			node_pair[i.from_node][i.to_node].link_col.push_back([from_col, to_col])
+			
+	var leading_nodes = nodes_map.keys()
+	for from_node_name in node_pair:
+		for to_node_name in node_pair[from_node_name]:
+			leading_nodes.erase(to_node_name)
+			
+	const prefixes = "abcdefghijklmnopqrstuvwxyz"
+	
+	# 每一个起始节点，有一套生成的xml、entity、mapper
+	for lead_node_name in leading_nodes:
+		var xml_arr = ["""<?xml version="1.0" encoding="UTF-8" ?>
+	<!DOCTYPE mapper
+	PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+	<mapper namespace="TestSkillMapper">
+		<cache eviction="LRU" flushInterval="0" size="50" />
+		"""]
+		var arr_method = []
+		var arr_left_join = []
+		var prefix_index = 0
+		var main_result_map_id = null
+		
+		# 递归找到与起始节点关联的诸多节点
+		var linked_nodes = []
+		get_linked_nodes(node_pair, lead_node_name, linked_nodes)
+		
+		for node_name in linked_nodes:
+			var node = nodes_map[node_name]
+			var data = node.get_meta("data") as Dictionary
+			var db_name = data.db_name as String
+			var table_name = data.table_name as String
+			var table_name_camel = table_name.to_camel_case()
+			var columns = data.columns as Dictionary
+			var result_map_id = table_name_camel
+			if node_link_prop.has(node.name):
+				result_map_id = node_link_prop[node.name].to_camel_case()
+			if main_result_map_id == null:
+				main_result_map_id = result_map_id
+				
+			var arr_col = []
+			for col in columns:
+				var prefix = '<id    ' if col.PK else '<result'
+				arr_col.push_back('%s property="%s"    column="%s"    />' % \
+					[prefix, col["Column Name"].to_snake_case(), col["Column Name"]]
+				)
+				
+			if node_pair.has(node.name):
+				for to_node_name in node_pair[node.name]:
+					var info = node_pair[node.name][to_node_name]
+					var left_join = {
+						"db_name": info.db_name,
+						"table_name": info.table_name,
+						"column_prefix": ""
+					}
+					arr_left_join.push_back(left_join)
+					
+					var s = null
+					var prefix = "<association" if info.link_type == \
+						graph_edit.LINK_TYPE.ASSOCIATION else "<collection"
+					var column_prefix = "" \
+						if table_counts[info.db_name][info.table_name] == 1 \
+						else ("_" + prefixes[prefix_index] + "_")
+						
+					if column_prefix != "":
+						left_join.column_prefix = column_prefix
+						prefix_index += 1
+						column_prefix = ' columnPrefix="' + column_prefix + '"'
+					var a_result_map_id = info.link_prop.to_camel_case() + "Result"
+					
+					if option_button_link.selected == LINK_WAY.NESTING_SELECT:
+						var by = info.link_col.map(func(v): return v[1])
+						by.sort()
+						var method = 'select_%s_by_%s' % \
+							[info.link_prop, "_".join(by)]
+						var method_info = {
+							"id": method,
+							"result_map": a_result_map_id,
+							"arg_names": by,
+							"namespace": info.db_name + "." + info.table_name
+						}
+						
+						# 为了避免因为各种原因导致method相同但实际上不能共用method的情况，
+						# 需要给method名称加后缀。
+						var new_index = 1
+						var need_add_surfix = false
+						for i in arr_method:
+							if i.id.begins_with(method_info.method):
+								var a_index = Array(i.id.split("_")).back().to_int()
+								new_index = max(a_index, new_index) + 1
+							if i.id == method_info.method:
+								if i.result_map != method_info.result_map or \
+								i.arg_names != method_info.arg_names or \
+								i.namespace != method_info.namespace:
+									need_add_surfix = true
+									
+						if need_add_surfix:
+							method_info.id = method_info.id + "_" + new_index
+							
+						s = '%s property="%s" column="%s"%s select="%s"    />' % \
+							[prefix, info.link_prop, ",".join(by), column_prefix, 
+							method_info.id]
+							
+						if not arr_method.has(method_info):
+							arr_method.push_back(method_info)
+					else:
+						s = '%s property="%s"%s resultMap="%s"    />' % \
+							[prefix, info.link_prop, column_prefix, a_result_map_id]
+							
+					arr_col.push_back(s)
+					
+			xml_arr.push_back(
+				'\n\t<resultMap id="%sResult" type="%sEntity">\n\t\t%s\n\t</resultMap>\n' % \
+					[result_map_id, result_map_id, "\n\t\t".join(arr_col)]
+			)
+			
+		# <sql>
+		var vo = ""
+		xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>' % \
+			[main_result_map_id, vo])
+			
+			
+	return ""
+	
+func get_linked_nodes(node_pair: Dictionary, head_name, result: Array):
+	result.push_back(head_name)
+	if node_pair.has(head_name):
+		for to_node_name in node_pair[head_name]:
+			get_linked_nodes(node_pair, to_node_name, result)

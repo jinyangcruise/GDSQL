@@ -89,6 +89,12 @@ func _shortcut_input(event: InputEvent) -> void:
 			select_all_node()
 			get_viewport().set_input_as_handled()
 			
+#{
+	#"__table_item": true,
+	#"db_name": db_name,
+	#"table_name": table_name,
+	#"columns": databases[db_name]["tables"][table_name]["columns"],
+#}
 func add_item(data: Dictionary, props: Dictionary, extra: Dictionary = {}, 
 asize = null, pos_offset = null, aname = ""):
 	grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
@@ -129,11 +135,14 @@ asize = null, pos_offset = null, aname = ""):
 				text_enum_suggestion.update_property()
 			)
 			text_enum_suggestion.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			
+			text_enum_suggestion.tooltip_text = \
+				"Type of association property or the element of collection."
+				
 			var le_prop_name = LineEdit.new()
 			le_prop_name.text = prop_name
 			le_prop_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			le_prop_name.placeholder_text = "Property name"
+			
 			
 			datas.push_back([null, null, ob_link_type, text_enum_suggestion, le_prop_name])
 			
@@ -274,6 +283,16 @@ func get_nodes_params(only_selected = false):
 		
 	return all_data
 	
+func get_node_extra(node: GraphNode) -> Dictionary:
+	var extra = {}
+	for arr: Array in node.datas:
+		if arr.size() == 5:
+			extra["link_type"] = (arr[2] as OptionButton).get_selected_id()
+			extra["link_prop_type"] = arr[3].value
+			extra["link_prop"] = (arr[4] as LineEdit).text.strip_edges()
+			break
+	return extra
+	
 func get_connections_only_selected():
 	var ret = []
 	var conns = get_connection_list()
@@ -350,16 +369,16 @@ to_node: StringName, to_port: int) -> void:
 	if from_node == to_node:
 		return
 		
-	# 只允许连一个节点，把前面的先去掉
-	var alreay = false
+	# 两个节点之间可以连多条线，但是不允许多个节点连出到同一个节点。
+	# 对to节点来说，只允许from一个节点，所以把前面的先去掉
+	#var alreay = false
 	var graph_node = get_node(str(to_node)) as GraphNode
 	for i in get_connection_list():
-		if i.to_node == to_node:
-			alreay = true
+		if i.to_node == to_node and i.from_node != from_node:
+			#alreay = true
 			_on_disconnection_request(i.from_node, i.from_port, i.to_node, 
 				i.to_port, graph_node.size)
-			break
-			
+				
 	connect_node(from_node, from_port, to_node, to_port)
 	
 	# to的一方，增加选项，让用户选择和输入关联属性和属性类型
@@ -369,7 +388,9 @@ to_node: StringName, to_port: int) -> void:
 		var datas = graph_node.datas as Array
 		datas.push_front(extra_controls)
 		graph_node.datas = datas
-	else:
+		graph_node.set_meta("extra_enabled", true)
+		update_slot_status(graph_node)
+	elif not graph_node.get_meta("extra_enabled", false):
 		var type = LINK_TYPE.ASSOCIATION
 		var prop_type = "Nil"
 		var prop_name = ""
@@ -398,11 +419,11 @@ to_node: StringName, to_port: int) -> void:
 		var datas = graph_node.datas as Array
 		datas.push_front([null, null, ob_link_type, text_enum_suggestion, le_prop_name])
 		graph_node.datas = datas
+		graph_node.set_meta("extra_enabled", true)
+		update_slot_status(graph_node)
 		
-	graph_node.set_meta("extra_enabled", true)
 	#if not alreay:
 		#graph_node.set_deferred("size", Vector2(graph_node.size.x + 200, graph_node.size.y))
-	update_slot_status(graph_node)
 	
 	mark_modified()
 	
@@ -410,9 +431,13 @@ func _on_disconnection_request(from_node: StringName, from_port: int,
 to_node: StringName, to_port: int, asize = null) -> void:
 	disconnect_node(from_node, from_port, to_node, to_port)
 	
-	# 隐藏选项
-	hide_extra_control(get_node(str(to_node)), asize)
-	
+	# 如果没有连入的线，则隐藏选项
+	var tos = {}
+	for info in get_connection_list():
+		tos[info.to_node] = 1
+	if not tos.has(to_node):
+		hide_extra_control(get_node(str(to_node)), asize)
+		
 	mark_modified()
 	
 func hide_extra_control(graph_node: GraphNode, asize = null):
@@ -425,8 +450,8 @@ func hide_extra_control(graph_node: GraphNode, asize = null):
 		# shrink
 		if asize:
 			graph_node.set_deferred("size", Vector2(asize.x, 0))
-		#else:
-			#graph_node.set_deferred("size", Vector2(graph_node.size.x-200, 0))
+		else:
+			graph_node.set_deferred("size", Vector2(graph_node.size.x, 0))
 		update_slot_status(graph_node)
 		
 func _on_copy_nodes_request(p_copied_data = null) -> void:

@@ -174,8 +174,8 @@ text = "Field Seperator"
 [node name="OptionButtonFieldSeperator" type="OptionButton" parent="VBoxContainer/MarginContainerCSVOptions/PanelContainer2/VBoxContainer/GridContainer"]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
-item_count = 4
 selected = 3
+item_count = 4
 popup/item_0/text = "|"
 popup/item_0/id = 1
 popup/item_1/text = ";"
@@ -193,10 +193,9 @@ text = "Line Seperator"
 [node name="OptionButtonLineSeperator" type="OptionButton" parent="VBoxContainer/MarginContainerCSVOptions/PanelContainer2/VBoxContainer/GridContainer"]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
-item_count = 3
 selected = 2
+item_count = 3
 popup/item_0/text = "Mac (CR)"
-popup/item_0/id = 0
 popup/item_1/text = "Windows (CR+LF)"
 popup/item_1/id = 1
 popup/item_2/text = "Unix (LF)"
