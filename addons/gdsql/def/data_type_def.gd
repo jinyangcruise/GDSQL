@@ -211,6 +211,48 @@ static var DEFUALT_VALUES = [
 	null
 ]
 
+static var DEFUALT_VALUES_EXP = [
+	'null',
+	'bool()',
+	'int()',
+	'float()',
+	'String()',
+	'Vector2()',
+	'Vector2i()',
+	'Rect2()',
+	'Rect2i()',
+	'Vector3()',
+	'Vector3i()',
+	'Transform2D()',
+	'Vector4()',
+	'Vector4i()',
+	'Plane()',
+	'Quaternion()',
+	'AABB()',
+	'Basis()',
+	'Transform3D()',
+	'Projection()',
+	'Color()',
+	'StringName()',
+	'NodePath()',
+	'RID()',
+	'null',# Object
+	'Callable()',
+	'Signal()',
+	'Dictionary()',
+	'Array()',
+	'PackedByteArray()',
+	'PackedInt32Array()',
+	'PackedInt64Array()',
+	'PackedFloat32Array()',
+	'PackedFloat64Array()',
+	'PackedStringArray()',
+	'PackedVector2Array()',
+	'PackedVector3Array()',
+	'PackedColorArray()',
+	'null'
+]
+
 static var PROPERTY_HINTS = [
 	PROPERTY_HINT_NONE,
 	PROPERTY_HINT_RANGE,

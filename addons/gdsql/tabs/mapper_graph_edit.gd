@@ -143,7 +143,6 @@ asize = null, pos_offset = null, aname = ""):
 			le_prop_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			le_prop_name.placeholder_text = "Property name"
 			
-			
 			datas.push_back([null, null, ob_link_type, text_enum_suggestion, le_prop_name])
 			
 	for i: Dictionary in data.columns:
@@ -292,6 +291,15 @@ func get_node_extra(node: GraphNode) -> Dictionary:
 			extra["link_prop"] = (arr[4] as LineEdit).text.strip_edges()
 			break
 	return extra
+	
+func get_node_props(node: GraphNode) -> Dictionary:
+	var props = {}
+	for arr: Array in node.datas:
+		if arr.size() == 2:
+			props[arr[0].text] = arr[1].text
+		elif arr.size() == 4:
+			props[arr[2].text] = arr[3].text
+	return props
 	
 func get_connections_only_selected():
 	var ret = []

@@ -160,17 +160,32 @@ func _on_option_button_choose_gd_file_item_selected(access: int) -> void:
 	
 func _on_button_run_selected_pressed() -> void:
 	var arr_node = []
-
-
+	for i in graph_edit.get_children():
+		if i is GraphNode and i.selected:
+			arr_node.push_back(i)
+	_generate(arr_node)
+	
 func _on_button_run_pressed() -> void:
-	pass # Replace with function body.
-
-
+	var arr_node = []
+	for i in graph_edit.get_children():
+		if i is GraphNode:
+			arr_node.push_back(i)
+	_generate(arr_node)
+	
 func _on_button_preview_pressed() -> void:
-	pass # Replace with function body.
-
-
-func _generate_xml(nodes: Array) -> String:
+	var selected_node = []
+	var all_node = []
+	for i in graph_edit.get_children():
+		if i is GraphNode:
+			if i.selected:
+				selected_node.push_back(i)
+			all_node.push_back(i)
+	if selected_node.is_empty():
+		_generate(all_node)
+	else:
+		_generate(selected_node)
+		
+func _generate(nodes: Array) -> String:
 	var nodes_map = {}
 	var node_pair = {}
 	var node_link_prop = {}
@@ -185,7 +200,7 @@ func _generate_xml(nodes: Array) -> String:
 			var from_columns = from_node.get_meta("data").columns
 			var from_port_offset = -1 if from_node.get_meta("extra_enabled", false) else 0
 			var from_col = from_columns[i.from_port + from_port_offset]["Column Name"]
-			var from_data = from_node.get_meta("data")
+			#var from_data = from_node.get_meta("data")
 			
 			var to_node = nodes_map[i.to_node]
 			var to_columns = to_node.get_meta("data").columns
@@ -195,19 +210,6 @@ func _generate_xml(nodes: Array) -> String:
 			var to_col = to_columns[i.to_port + to_port_offset]["Column Name"]
 			var to_data = to_node.get_meta("data")
 			
-			#for j in [from_data, to_data]:
-				#if not table_counts.has(j.db_name):
-					#table_counts[j.db_name] = {}
-				#if not table_counts[j.db_name].has(j.table_name):
-					#table_counts[j.db_name][j.table_name] = 0
-				#table_counts[j.db_name][j.table_name] += 1
-				#
-			#for cs in [from_columns, to_columns]:
-				#for j in cs:
-					#if not column_counts.has(j["Column Name"]):
-						#column_counts[j["Column Name"]] = 0
-					#column_counts[j["Column Name"]] += 1
-					
 			if not node_pair.has(i.from_node):
 				node_pair[i.from_node] = {}
 			if not node_pair[i.from_node].has(i.to_node):
@@ -229,17 +231,18 @@ func _generate_xml(nodes: Array) -> String:
 		for to_node_name in node_pair[from_node_name]:
 			leading_nodes.erase(to_node_name)
 			
-	const prefixes = "abcdefghijklmnopqrstuvwxyz"
+	const prefixes = "tabcdefghijklmnopqrsuvwxyz" # t is most common
 	
 	# 每一个起始节点，有一套生成的xml、entity、mapper
 	for lead_node_name in leading_nodes:
 		var xml_arr = ["""<?xml version="1.0" encoding="UTF-8" ?>
-	<!DOCTYPE mapper
-	PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-	<mapper namespace="TestSkillMapper">
-		<cache eviction="LRU" flushInterval="0" size="50" />
-		"""]
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="TestSkillMapper">
+	
+	<cache eviction="LRU" flushInterval="0" size="50" />
+	"""]
 		var arr_method = []
 		var arr_columns = {}
 		var left_joins = {}
@@ -263,10 +266,12 @@ func _generate_xml(nodes: Array) -> String:
 		get_linked_nodes(node_pair, lead_node_name, linked_nodes)
 		
 		for node_name in linked_nodes:
+			prefix_index += 1
+			table_alias[node_name] = valid_prefixes.keys()[prefix_index]
 			var data = nodes_map[node_name].get_meta("data") as Dictionary
 			var db_name = data.db_name as String
 			var table_name = data.table_name as String
-			var columns = data.columns as Dictionary
+			var columns = data.columns as Array
 			
 			if not table_counts.has(data.db_name):
 				table_counts[data.db_name] = {}
@@ -283,14 +288,13 @@ func _generate_xml(nodes: Array) -> String:
 					valid_prefixes.erase(i3)
 					
 		for node_name in linked_nodes:
-			prefix_index += 1
-			table_alias[node_name] = valid_prefixes.keys()[prefix_index]
 			var node = nodes_map[node_name]
 			var data = node.get_meta("data") as Dictionary
+			var aprops = graph_edit.get_node_props(node) as Dictionary
 			var db_name = data.db_name as String
 			var table_name = data.table_name as String
 			var table_name_camel = table_name.to_camel_case()
-			var columns = data.columns as Dictionary
+			var columns = data.columns as Array
 			var result_map_id = table_name_camel
 			if node_link_prop.has(node.name):
 				result_map_id = node_link_prop[node.name].to_camel_case()
@@ -304,7 +308,7 @@ func _generate_xml(nodes: Array) -> String:
 			for col in columns:
 				var prefix = '<id    ' if col.PK else '<result'
 				arr_col.push_back('%s property="%s"    column="%s"    />' % \
-					[prefix, col["Column Name"].to_snake_case(), col["Column Name"]]
+					[prefix, aprops[col["Column Name"]], col["Column Name"]]
 				)
 				arr_col_name.push_back(col["Column Name"])
 			arr_columns[node_name] = arr_col_name
@@ -328,12 +332,14 @@ func _generate_xml(nodes: Array) -> String:
 						var by = info.link_col.map(func(v): return v[1])
 						by.sort()
 						var method = 'select_%s_by_%s' % \
-							[info.link_prop, "_".join(by)]
+							[info.link_prop.to_snake_case(), "_".join(by)]
 						var method_info = {
 							"id": method,
 							"result_map": a_result_map_id,
 							"arg_names": by,
-							"namespace": info.db_name + "." + info.table_name
+							"db_name": info.db_name,
+							"namespace": info.db_name + "." + info.table_name,
+							"node_name": to_node_name,
 						}
 						
 						# 为了避免因为各种原因导致method相同但实际上不能共用method的情况，
@@ -367,28 +373,44 @@ func _generate_xml(nodes: Array) -> String:
 					arr_col.push_back(s)
 					
 			xml_arr.push_back(
-				'\n\t<resultMap id="%sResult" type="%sEntity">\n\t\t%s\n\t</resultMap>\n' % \
+				'\n\t<resultMap id="%sResult" type="%sEntity">\n\t\t%s\n\t</resultMap>\n\t' % \
 					[result_map_id, result_map_id, "\n\t\t".join(arr_col)]
 			)
 			
 		# <sql>
+		var vo_ids = {} # namespace => vo_id
+		var select_use_db = false # <select>标签是否使用databaseId属性
 		if left_joins.is_empty():
-			var vo = "select %s from %s.%s" % [", ".join(arr_columns[lead_node_name]), 
-				leading_db_name, leading_table_name]
-			xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n' % \
+			select_use_db = true
+			vo_ids[leading_db_name + "." + leading_table_name] = leading_result_map_id
+			var vo = "select %s from %s" % [", ".join(arr_columns[lead_node_name]), 
+				leading_table_name]
+			xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n\t' % \
 				[leading_result_map_id, split_for_long_content(vo)])
 		# nesting select 不使用left join，直接select主表即可，但是有多个sql
 		elif option_button_link.selected == LINK_WAY.NESTING_SELECT:
+			select_use_db = true
 			for node_name in linked_nodes:
 				var data = nodes_map[node_name].get_meta("data") as Dictionary
 				var db_name = data.db_name as String
 				var table_name = data.table_name as String
-				var vo = "select %s from %s.%s" % [", ".join(arr_columns[node_name]), 
-					db_name, table_name]
-				xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n' % \
-					["TODO", split_for_long_content(vo)]) # TODO
+				var ns = db_name + "." + table_name
+				var id = table_name.to_camel_case()
+				if not vo_ids.has(ns):
+					var count = 1
+					for i in vo_ids:
+						if vo_ids[i].begins_with(id):
+							count += 1
+					if count != 1:
+						id += "_" + count
+					vo_ids[db_name + "." + table_name] = id
+					var vo = "select %s from %s" % [", ".join(arr_columns[node_name]), 
+						table_name]
+					xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n\t' % \
+						[id, split_for_long_content(vo)])
 		# nesting resultMap 需要使用left join，把所有表形成一条sql
 		else:
+			vo_ids[leading_db_name + "." + leading_table_name] = leading_result_map_id
 			var vo = ""
 			var all_column_name = []
 			for node_n in arr_columns:
@@ -416,8 +438,8 @@ func _generate_xml(nodes: Array) -> String:
 							if t == node_name:
 								db_name = node_pair[f][t].db_name
 								table_name = node_pair[f][t].table_name
-								var alias0 = table_alias[f]
-								var alias1 = table_alias[t]
+								var alias0 = table_alias[f].substr(0, 2)
+								var alias1 = table_alias[t].substr(0, 2)
 								for k in node_pair[f][t].link_col:
 									cond.push_back('%s.%s == %s.%s' % [
 										alias0, k[0], alias1, k[1]
@@ -426,10 +448,103 @@ func _generate_xml(nodes: Array) -> String:
 					vo += "\n\t\tleft join %s.%s %s on %s" % [
 						db_name, table_name, t_alias, " and ".join(cond)
 					]
-			xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n' % \
+			xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n\t' % \
 			[leading_result_map_id, vo])
 			
+		# <select> leading table: one and list
+		var props = graph_edit.get_node_props(nodes_map[lead_node_name])
+		for method_surfix in ["", "_list"]:
+			var leading_method = 'select_%s%s' % [
+				leading_table_name.to_snake_case(), method_surfix]
+			xml_arr.push_back('\n\t<select id="%s" resultMap="%s"%s>' % \
+				[leading_method, leading_table_name.to_camel_case() + "Result",
+				(' databaseId="%s"' % leading_db_name) if select_use_db else ""])
+			xml_arr.push_back('\n\t\t<include refid="%sVo"/>' % leading_result_map_id)
+			xml_arr.push_back('\n\t\t<where>')
+			for i in nodes_map[lead_node_name].get_meta("data").columns:
+				var test = null
+				var content = null
+				test = '%s != %s' % [
+					props[i["Column Name"]], DataTypeDef.DEFUALT_VALUES_EXP[i["Data Type"]]]
+				content = '%s == #{%s}' % [i["Column Name"], props[i["Column Name"]]]
+				if not left_joins.is_empty() and \
+				option_button_link.selected != LINK_WAY.NESTING_SELECT:
+					content = table_alias[lead_node_name].substr(0, 2) + "." + content
+				xml_arr.push_back('\n\t\t\t<if test="%s">' % test)
+				xml_arr.push_back('\n\t\t\t\tand %s' % content)
+				xml_arr.push_back('\n\t\t\t</if>')
+			xml_arr.push_back('\n\t\t</where>')
+			xml_arr.push_back('\n\t</select>\n\t')
 			
+		for m in arr_method:
+			var aprops = graph_edit.get_node_props(nodes_map[m.node_name])
+			var cond = []
+			for arg in m.arg_names:
+				cond.push_back('%s == #{%s}' % [arg, arg.to_snake_case()])
+			xml_arr.push_back('\n\t<select id="%s" resultMap="%s"%s>' % \
+				[m.id, m.result_map, 
+				(' databaseId="%s"' % m.db_name) if select_use_db else ""])
+			xml_arr.push_back('\n\t\t<include refid="%sVo"/>' % vo_ids[m.namespace])
+			xml_arr.push_back('\n\t\twhere %s' % " and ".join(cond))
+			xml_arr.push_back('\n\t</select>\n\t')
+		if arr_method.is_empty():
+			xml_arr.push_back('\n')
+			
+		# <update> leading table
+		xml_arr.push_back('\n\t<update id="update_%s" databaseId="%s">' % \
+			[leading_table_name.to_snake_case(), leading_db_name])
+		xml_arr.push_back('\n\t\tupdate %s' % leading_table_name)
+		xml_arr.push_back('\n\t\t<set>')
+		for i in nodes_map[lead_node_name].get_meta("data").columns:
+			var test = '%s != %s' % [props[i["Column Name"]], 
+				DataTypeDef.DEFUALT_VALUES_EXP[i["Data Type"]]]
+			var content = '%s = #{%s},' % [i["Column Name"], props[i["Column Name"]]]
+			xml_arr.push_back('\n\t\t\t<if test="%s">%s</if>' % [test, content])
+		xml_arr.push_back('\n\t\t</set>')
+		xml_arr.push_back('\n\t</update>\n\t')
+		
+		# <insert> leading table
+		xml_arr.push_back('\n\t<insert id="insert_%s" databaseId="%s">' % \
+			[leading_table_name.to_snake_case(), leading_db_name])
+		xml_arr.push_back('\n\t\tinsert into %s(' % leading_table_name)
+		xml_arr.push_back('\n\t\t\t<trim suffixOverrides=",">')
+		for i in nodes_map[lead_node_name].get_meta("data").columns:
+			var test = '%s != %s' % [props[i["Column Name"]], 
+				DataTypeDef.DEFUALT_VALUES_EXP[i["Data Type"]]]
+			xml_arr.push_back(
+				'\n\t\t\t\t<if test="%s">%s,</if>' % [test, i["Column Name"]])
+		xml_arr.push_back('\n\t\t\t</trim>')
+		xml_arr.push_back('\n\t\t)values(')
+		xml_arr.push_back('\n\t\t\t<trim suffixOverrides=",">')
+		for i in nodes_map[lead_node_name].get_meta("data").columns:
+			var test = '%s != %s' % [props[i["Column Name"]], 
+				DataTypeDef.DEFUALT_VALUES_EXP[i["Data Type"]]]
+			xml_arr.push_back(
+				'\n\t\t\t\t<if test="%s">#{%s},</if>' % [test, props[i["Column Name"]]])
+		xml_arr.push_back('\n\t\t\t</trim>')
+		xml_arr.push_back('\n\t</insert>\n\t')
+		
+		# <delete> leading table
+		var pk_col = []
+		var pk_prop = []
+		for i in nodes_map[lead_node_name].get_meta("data").columns:
+			if i.PK:
+				pk_col.push_back(i["Column Name"])
+				pk_prop.push_back(props[i["Column Name"]])
+		var pk_prop_snake = pk_prop.map(func(v): return v.to_snake_case())
+		xml_arr.push_back('\n\t<delete id="delete_%s_by_%s" databaseId="%s">' % \
+			[leading_table_name.to_snake_case(), "_".join(pk_prop_snake), 
+			leading_db_name])
+		var cond = []
+		for i in pk_col.size():
+			cond.push_back('%s == #{%s}' % [pk_col[i], pk_prop[i]])
+		xml_arr.push_back('\n\t\tdelete from %s where %s' % [
+			leading_table_name, " and ".join(cond)])
+		xml_arr.push_back('\n\t</delete>\n\t')
+		
+		# end
+		xml_arr.push_back('\n</mapper>')
+		printt(''.join(xml_arr))
 	return ""
 	
 func get_linked_nodes(node_pair: Dictionary, head_name, result: Array):
