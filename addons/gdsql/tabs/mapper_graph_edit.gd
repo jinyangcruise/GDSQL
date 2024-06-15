@@ -197,6 +197,7 @@ func update_slot_status(graph_node: GraphNode):
 	var index = 0 if graph_node.get_meta("extra_enabled", false) else -1
 	if index == 0:
 		graph_node.set_slot_enabled_left(index, false)
+		graph_node.set_slot_enabled_right(index, false)
 		
 	var data = graph_node.get_meta("data")
 	for i: Dictionary in data.columns:
@@ -393,7 +394,7 @@ to_node: StringName, to_port: int) -> void:
 	if graph_node.has_meta("extra_controls"):
 		var extra_controls = graph_node.get_meta("extra_controls")
 		graph_node.remove_meta("extra_controls")
-		var datas = graph_node.datas as Array
+		var datas = (graph_node.datas as Array).duplicate()
 		datas.push_front(extra_controls)
 		graph_node.datas = datas
 		graph_node.set_meta("extra_enabled", true)
@@ -424,7 +425,7 @@ to_node: StringName, to_port: int) -> void:
 		le_prop_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		le_prop_name.placeholder_text = "Property name"
 		
-		var datas = graph_node.datas as Array
+		var datas = (graph_node.datas as Array).duplicate()
 		datas.push_front([null, null, ob_link_type, text_enum_suggestion, le_prop_name])
 		graph_node.datas = datas
 		graph_node.set_meta("extra_enabled", true)
