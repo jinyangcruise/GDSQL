@@ -174,7 +174,6 @@ func _generate_xml(nodes: Array) -> String:
 	var nodes_map = {}
 	var node_pair = {}
 	var node_link_prop = {}
-	var table_counts = {}
 	
 	for i in nodes:
 		if i.enabled:
@@ -196,13 +195,19 @@ func _generate_xml(nodes: Array) -> String:
 			var to_col = to_columns[i.to_port + to_port_offset]["Column Name"]
 			var to_data = to_node.get_meta("data")
 			
-			for j in [from_data, to_data]:
-				if not table_counts.has(j.db_name):
-					table_counts[j.db_name] = {}
-				if not table_counts[j.db_name].has(j.table_name):
-					table_counts[j.db_name][j.table_name] = 0
-				table_counts[j.db_name][j.table_name] += 1
-				
+			#for j in [from_data, to_data]:
+				#if not table_counts.has(j.db_name):
+					#table_counts[j.db_name] = {}
+				#if not table_counts[j.db_name].has(j.table_name):
+					#table_counts[j.db_name][j.table_name] = 0
+				#table_counts[j.db_name][j.table_name] += 1
+				#
+			#for cs in [from_columns, to_columns]:
+				#for j in cs:
+					#if not column_counts.has(j["Column Name"]):
+						#column_counts[j["Column Name"]] = 0
+					#column_counts[j["Column Name"]] += 1
+					
 			if not node_pair.has(i.from_node):
 				node_pair[i.from_node] = {}
 			if not node_pair[i.from_node].has(i.to_node):
@@ -237,17 +242,49 @@ func _generate_xml(nodes: Array) -> String:
 		"""]
 		var arr_method = []
 		var arr_columns = {}
-		var arr_left_join = []
-		var prefix_index = 0
+		var left_joins = {}
+		var valid_prefixes = {} # a0_, a1_, ..., z8_, z9_, aa_, ab_, ..., zy_, zz_
+		for i in prefixes:
+			for j in 10:
+				valid_prefixes[i + str(j) + "_"] = 1
+		for i in prefixes:
+			for j in prefixes:
+				valid_prefixes[i + j + "_"] = 1
+		var prefix_index = -1
+		var table_alias = {}
 		var leading_result_map_id = null
 		var leading_db_name = null
 		var leading_table_name = null
+		var table_counts = {}
+		var column_counts = {} # 同名列
 		
 		# 递归找到与起始节点关联的诸多节点
 		var linked_nodes = []
 		get_linked_nodes(node_pair, lead_node_name, linked_nodes)
 		
 		for node_name in linked_nodes:
+			var data = nodes_map[node_name].get_meta("data") as Dictionary
+			var db_name = data.db_name as String
+			var table_name = data.table_name as String
+			var columns = data.columns as Dictionary
+			
+			if not table_counts.has(data.db_name):
+				table_counts[data.db_name] = {}
+			if not table_counts[data.db_name].has(data.table_name):
+				table_counts[data.db_name][data.table_name] = 0
+			table_counts[data.db_name][data.table_name] += 1
+			
+			for j in columns:
+				if not column_counts.has(j["Column Name"]):
+					column_counts[j["Column Name"]] = 0
+				column_counts[j["Column Name"]] += 1
+				var i3 = j["Column Name"].substr(0, 3)
+				if valid_prefixes.has(i3):
+					valid_prefixes.erase(i3)
+					
+		for node_name in linked_nodes:
+			prefix_index += 1
+			table_alias[node_name] = valid_prefixes.keys()[prefix_index]
 			var node = nodes_map[node_name]
 			var data = node.get_meta("data") as Dictionary
 			var db_name = data.db_name as String
@@ -272,27 +309,19 @@ func _generate_xml(nodes: Array) -> String:
 				arr_col_name.push_back(col["Column Name"])
 			arr_columns[node_name] = arr_col_name
 			
-			if node_pair.has(node.name):
+			if node_pair.has(node_name):
+				left_joins[node_name] = []
 				for to_node_name in node_pair[node.name]:
 					var info = node_pair[node.name][to_node_name]
-					var left_join = {
+					left_joins[node_name].push_back({
+						"table_alias": table_alias[to_node_name],
 						"db_name": info.db_name,
-						"table_name": info.table_name,
-						"column_prefix": ""
-					}
-					arr_left_join.push_back(left_join)
+						"table_name": info.table_name
+					})
 					
 					var s = null
 					var prefix = "<association" if info.link_type == \
 						graph_edit.LINK_TYPE.ASSOCIATION else "<collection"
-					var column_prefix = "" \
-						if table_counts[info.db_name][info.table_name] == 1 \
-						else ("_" + prefixes[prefix_index] + "_")
-						
-					if column_prefix != "":
-						left_join.column_prefix = column_prefix
-						prefix_index += 1
-						column_prefix = ' columnPrefix="' + column_prefix + '"'
 					var a_result_map_id = info.link_prop.to_camel_case() + "Result"
 					
 					if option_button_link.selected == LINK_WAY.NESTING_SELECT:
@@ -324,15 +353,16 @@ func _generate_xml(nodes: Array) -> String:
 						if need_add_surfix:
 							method_info.id = method_info.id + "_" + new_index
 							
-						s = '%s property="%s" column="%s"%s select="%s"    />' % \
-							[prefix, info.link_prop, ",".join(by), column_prefix, 
+						s = '%s property="%s" column="%s" columnPrefix="%s" select="%s"    />' % \
+							[prefix, info.link_prop, ",".join(by), table_alias[node_name], 
 							method_info.id]
 							
 						if not arr_method.has(method_info):
 							arr_method.push_back(method_info)
 					else:
-						s = '%s property="%s"%s resultMap="%s"    />' % \
-							[prefix, info.link_prop, column_prefix, a_result_map_id]
+						s = '%s property="%s" columnPrefix="%s" resultMap="%s"    />' % \
+							[prefix, info.link_prop, table_alias[node_name], 
+							a_result_map_id]
 							
 					arr_col.push_back(s)
 					
@@ -342,13 +372,61 @@ func _generate_xml(nodes: Array) -> String:
 			)
 			
 		# <sql>
-		var vo = ""
-		if arr_left_join.is_empty():
-			vo = "select %s from %s.%s" % [", ".join(arr_columns[lead_node_name]), 
+		if left_joins.is_empty():
+			var vo = "select %s from %s.%s" % [", ".join(arr_columns[lead_node_name]), 
 				leading_db_name, leading_table_name]
+			xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n' % \
+				[leading_result_map_id, split_for_long_content(vo)])
+		# nesting select 不使用left join，直接select主表即可，但是有多个sql
+		elif option_button_link.selected == LINK_WAY.NESTING_SELECT:
+			for node_name in linked_nodes:
+				var data = nodes_map[node_name].get_meta("data") as Dictionary
+				var db_name = data.db_name as String
+				var table_name = data.table_name as String
+				var vo = "select %s from %s.%s" % [", ".join(arr_columns[node_name]), 
+					db_name, table_name]
+				xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n' % \
+					["TODO", split_for_long_content(vo)]) # TODO
+		# nesting resultMap 需要使用left join，把所有表形成一条sql
 		else:
-			pass # TODO
-		xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n' % \
+			var vo = ""
+			var all_column_name = []
+			for node_n in arr_columns:
+				for c in arr_columns[node_n]:
+					all_column_name.push_back(
+						table_alias[node_n].substr(0, 2) + "." + c + \
+						" as " + table_alias[node_n] + c
+					)
+			var leading = true
+			for node_name in linked_nodes:
+				var t_alias = table_alias[node_name].substr(0, 2)
+				# first is leading node
+				if leading:
+					leading = false
+					vo = "select %s \n\t\tfrom %s.%s %s" % [
+						split_for_long_content(", ".join(all_column_name)),
+						leading_db_name, leading_table_name, t_alias
+					]
+				else:
+					var db_name = null
+					var table_name = null
+					var cond = []
+					for f in node_pair:
+						for t in node_pair[f]:
+							if t == node_name:
+								db_name = node_pair[f][t].db_name
+								table_name = node_pair[f][t].table_name
+								var alias0 = table_alias[f]
+								var alias1 = table_alias[t]
+								for k in node_pair[f][t].link_col:
+									cond.push_back('%s.%s == %s.%s' % [
+										alias0, k[0], alias1, k[1]
+									])
+								break
+					vo += "\n\t\tleft join %s.%s %s on %s" % [
+						db_name, table_name, t_alias, " and ".join(cond)
+					]
+			xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n' % \
 			[leading_result_map_id, vo])
 			
 			
@@ -359,3 +437,32 @@ func get_linked_nodes(node_pair: Dictionary, head_name, result: Array):
 	if node_pair.has(head_name):
 		for to_node_name in node_pair[head_name]:
 			get_linked_nodes(node_pair, to_node_name, result)
+			
+## ALERT 基于全英文内容，且不包含引号。一个单词不会被切分开。
+func split_for_long_content(content: String, delimiter = "\n") -> String:
+	const l = 75
+	var total_l = content.length()
+	if total_l <= l:
+		return content
+	var arr = []
+	var start = 0
+	while true:
+		if start + l >= total_l:
+			arr.push_back(content.substr(start, l))
+		# 不要把单词分开，找到下一个空格
+		else:
+			if content[start + l] == " ":
+				arr.push_back(content.substr(start, l))
+			else:
+				var ll = content.find(" ", start + l)
+				if ll == -1:
+					arr.push_back(content.substr(start))
+					break
+				else:
+					arr.push_back(content.substr(start, ll - start))
+					start = ll
+					continue
+		if start + l >= total_l:
+			break
+		start += l
+	return delimiter.join(arr)
