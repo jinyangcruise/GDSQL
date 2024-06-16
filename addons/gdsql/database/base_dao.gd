@@ -41,6 +41,8 @@ static var regex_as: RegEx = RegEx.new()
 ## sysbol
 static var regex_symbol: RegEx = RegEx.new()
 
+var regex_field_map: Dictionary
+
 const ROOT_CONFIG_PATH = "res://addons/gdsql/config/config.cfg"
 const DATA_EXTENSION = ".gsql"
 const CONF_EXTENSION = ".cfg"
@@ -545,11 +547,12 @@ func ___datas_struct_is_key_dict(datas: Array) -> bool:
 			return false
 	return true
 	
-func ___loop_table_row(result: Array, all_datas: Dictionary, loop_tables: Array, loop_index: int, 
-curr_row: Dictionary, all_dependencies: Dictionary) -> bool:
+func ___loop_table_row(result: Array, all_datas: Dictionary, loop_tables: Array, 
+loop_index: int, curr_row: Dictionary, all_dependencies: Dictionary, head: Array) -> bool:
 	# TODO 优化：如果on条件连接的是主键、唯一键，那么找到一条数据就可以停止了
 	# TODO 优化：某个where条件如果只涉及一张表，那么可以提前对这张表进行筛选
 	if loop_index == loop_tables.size():
+		# 最终满足所有条件，把数据塞到result中
 		result.push_back(curr_row)
 		#var ret = curr_row.duplicate() # 当前这条数据
 		## 循环到头了，依次检查每个表是否满足on条件
@@ -573,7 +576,8 @@ curr_row: Dictionary, all_dependencies: Dictionary) -> bool:
 				var acc_row = curr_row.duplicate()
 				acc_row[table] = row
 				
-				# 实际上，虽然数据不全，但联表条件涉及的表必然已经在acc_row里了，所以已经可以检查是否满足阶段性的on条件了
+				# 实际上，虽然数据不全，但联表条件涉及的表必然已经在acc_row里了，
+				# 所以已经可以检查是否满足阶段性的on条件了
 				var lj = __left_join.get_left_join_by_alias(table)
 				var cond = lj.get_condition()
 				var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
@@ -585,20 +589,28 @@ curr_row: Dictionary, all_dependencies: Dictionary) -> bool:
 					continue
 					
 				if not ___loop_table_row(result, all_datas, loop_tables, 
-				loop_index + 1, acc_row, all_dependencies):
+				loop_index + 1, acc_row, all_dependencies, head):
 					return false # error occur
 		# 当前表没有数据依旧要保持循环继续
 		else:
-			# 如果有其他表要依赖当前表，则说明on条件永远无法达成，就不用继续了。否则继续
-			var need_loop = false
+			# 如果有其他表要依赖当前表，则说明on条件永远无法达成，就不用继续了。
+			# 否则可能on条件是类似1==1这样的，那么还需要继续
 			for a in all_dependencies:
 				if all_dependencies[a].has(table):
-					need_loop = true
-			if need_loop:
-				var acc_row = curr_row.duplicate()
-				if not ___loop_table_row(result, all_datas, loop_tables, 
-				loop_index + 1, acc_row, all_dependencies):
-					return false # error occur
+					return true
+					
+			# 填充当前表的全null数据
+			var acc_row = curr_row.duplicate()
+			var a_row = {}
+			for i in head:
+				if i.table_alias == table and i.is_field and \
+				not a_row.has(i["Column Name"]):
+					a_row[i["Column Name"]] = null
+			acc_row[table] = a_row
+			
+			if not ___loop_table_row(result, all_datas, loop_tables, 
+			loop_index + 1, acc_row, all_dependencies, head):
+				return false # error occur
 	return true
 	
 func ___select(path: String, fill_primary_key: String = ""):
@@ -623,6 +635,11 @@ func ___select(path: String, fill_primary_key: String = ""):
 		all_datas[a_left_join.get_alias()] = conf1.get_all_section_values()
 		# TODO
 		
+	# 计算表头
+	var real_select = __get_head(all_datas, arr_left_join)
+	if real_select == null:
+		_assert("___select", false, "failed to get ResultSet's head.")
+		
 	# 提前汇总一下所有需要的依赖表
 	var dependencies = {}
 	for a_left_join in arr_left_join:
@@ -641,11 +658,20 @@ func ___select(path: String, fill_primary_key: String = ""):
 		for row in all_datas[__table_alias]:
 			var row_result = []
 			if not ___loop_table_row(row_result, all_datas, loop_tables, 0, 
-			{__table_alias: row}, dependencies):
+			{__table_alias: row}, dependencies, real_select):
 				return null # error occur
 			# 这行主表的数据没有联到任何其他表的数据，因此需要一条别的表全为null的数据
 			if row_result.is_empty():
-				ret.push_back({__table_alias: row})
+				var one_row = {__table_alias: row}
+				for a_left_join in arr_left_join:
+					var a_row = {}
+					var a_alias = a_left_join.get_alias()
+					for i in real_select:
+						if i.table_alias == a_alias and i.is_field and \
+						not a_row.has(i["Column Name"]):
+							a_row[i["Column Name"]] = null
+					one_row[a_left_join.get_alias()] = a_row
+				ret.push_back(one_row)
 			else:
 				ret.append_array(row_result)
 				
@@ -653,132 +679,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 	if ret.is_empty() and (__parent_union != null or not __need_head):
 		return ret
 		
-	# 计算表头
-	var real_select = []
-	#var regex_symbol = RegEx.new()
-	#regex_symbol.compile("[a-zA-Z_]+[0-9a-zA-Z_]*")
-	var regex_field = RegEx.new()
-	var gen_dict = func(s, c, f, t_alias = "", d = "", t = ""):
-		return {"select_name": s, "Column Name": c, "is_field": f, "table_alias": t_alias,
-			"db_path": d, "table_name": t, "hint": PROPERTY_HINT_NONE, "Hint String": ""}
-	var fill_select_name = func(element, alias):
-		element["select_name"] = element["Column Name"] if alias == "" \
-			else (alias + "." + element["Column Name"])
-		return element
-	for s in __select:
-		if s == "*":
-			for alias in all_datas:
-				if alias == __table_alias:
-					real_select.append_array(
-						__get_table_columns(__database, __table, __table_alias, all_datas)\
-						.map(fill_select_name.bind(alias)))
-				else:
-					var a_left_join = __left_join.get_left_join_by_alias(alias)
-					real_select.append_array(
-						__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas)\
-						.map(fill_select_name.bind(alias)))
-		elif s.ends_with(".*"):
-			var alias = s.substr(0, s.length() - 2)
-			if alias == __table_alias:
-				real_select.append_array(
-					__get_table_columns(__database, __table, __table_alias, all_datas)\
-					.map(fill_select_name.bind(alias)))
-			else:
-				if __left_join == null:
-					_assert("___select", false, "table `%s` not found" % alias)
-					return null
-				var a_left_join = __left_join.get_left_join_by_alias(alias)
-				if a_left_join == null:
-					_assert("___select", false, "table `%s` not found" % alias)
-					return null
-				real_select.append_array(
-					__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas)\
-						.map(fill_select_name.bind(alias)))
-		else:
-			var m = regex_symbol.search(s)
-			if m != null and m.get_string() == s:
-				if __left_join != null:
-					_assert("___select", false, 
-					"must specify table alias name in select fields if using left join")
-					return null
-				var column = __get_table_column_defination(__database, __table, __table_alias, m.get_string())
-				if column != null and !column.is_empty():
-					real_select.push_back(column)
-				else:
-					if all_datas[__table_alias].is_empty() or not all_datas[__table_alias][0].has(s):
-						_assert("___select", false,
-						"field:[%s] not exist in table:[%s], db:[%s]" % [s, __table, __database])
-						return null
-					real_select.push_back(gen_dict.call(s, s, true, __table_alias)) # 可能没有定义文件
-			#elif s.contains(__table_alias + "."):
-			elif s.get_slice_count(".") == 2 and s.get_slice(".", 0).strip_edges() == __table_alias:
-				regex_field.compile(__table_alias + "(\\s*)\\.(\\s*)([a-zA-Z_]+[0-9a-zA-Z_]*)") # 获取字段名称的正则
-				m = regex_field.search(s)
-				if m:
-					var field = m.get_string(3)
-					var column = __get_table_column_defination(__database, __table, __table_alias, field)
-					if column != null and !column.is_empty():
-						if s == __table_alias + m.get_string(1) + "." + m.get_string(2) + field:
-							column["select_name"] = s
-							real_select.push_back(column)
-						else:
-							real_select.push_back(gen_dict.call(s, s, false))
-					else:
-						if s == __table_alias + m.get_string(1) + "." + m.get_string(2) + field:
-							if all_datas[__table_alias].is_empty() or not all_datas[__table_alias][0].has(field):
-								_assert("___select", false,
-								"field:[%s] not exist in table:[%s], db:[%s]" % [field, __table, __database])
-								return null
-							real_select.push_back(gen_dict.call(s, field, true, __table_alias, __database, __table))
-						else:
-							real_select.push_back(gen_dict.call(s, s, false))
-				else:
-					# 不能100%确定有错误，所以不报错了
-					real_select.push_back(gen_dict.call(s, s, false))
-			else:
-				var find = false
-				for a_left_join in arr_left_join:
-					var alias = a_left_join.get_alias()
-					#if s.contains(alias + "."):
-					if s.get_slice_count(".") == 2 and s.get_slice(".", 0).strip_edges() == alias:
-						find = true
-						regex_field.compile(alias + "(\\s*)\\.(\\s*)([a-zA-Z_]+[0-9a-zA-Z_]*)") # 获取字段名称的正则
-						m = regex_field.search(s)
-						if m:
-							var field = m.get_string(3)
-							var column = __get_table_column_defination(
-								a_left_join.get_db(), a_left_join.get_table(), alias, field)
-							if column != null and !column.is_empty():
-								if s == alias + m.get_string(1) + "." + m.get_string(2) + field:
-									column["select_name"] = s
-									real_select.push_back(column)
-								else:
-									real_select.push_back(gen_dict.call(s, s, false))
-							else:
-								if s == alias + m.get_string(1) + "." + m.get_string(2) + field:
-									if all_datas[alias].is_empty() or not all_datas[alias][0].has(field):
-										_assert("___select", false,
-										"field:[%s] not exist in table:[%s], db:[%s]" \
-										% [field, a_left_join.get_table(), a_left_join.get_db()])
-										return null
-									real_select.push_back(gen_dict.call(s, field, true, alias, 
-										a_left_join.get_db(), a_left_join.get_table())) # 没定义的文件
-								else:
-									real_select.push_back(gen_dict.call(s, s, false))
-						break
-						
-				if not find:
-					real_select.push_back(gen_dict.call(s, s, false))
-					
-	for f in real_select:
-		if not f.has("select_name"):
-			f["select_name"] = f["Column Name"]
-			
-		if __field_as.has(f["select_name"]):
-			f["field_as"] = __field_as[f["select_name"]]
-		else:
-			f["field_as"] = f["Column Name"]
-			
+	# 空数据要表头
 	if ret.is_empty():
 		return [real_select]
 		
@@ -962,6 +863,137 @@ func ___select(path: String, fill_primary_key: String = ""):
 				ret_post_process.push_back(row)
 				
 	return ret_post_process
+	
+## 获取字段名称的正则
+func _get_regex_field(table_alias: String) -> RegEx:
+	if regex_field_map.has(table_alias):
+		return regex_field_map[table_alias]
+	var regex_field = RegEx.new()
+	regex_field.compile(table_alias + "(\\s*)\\.(\\s*)([a-zA-Z_]+[0-9a-zA-Z_]*)")
+	regex_field_map[table_alias] = regex_field
+	return regex_field
+	
+func __get_head(all_datas: Dictionary, arr_left_join: Array):
+	var real_select = []
+	var gen_dict = func(s, c, f, t_alias = "", d = "", t = ""):
+		return {"select_name": s, "Column Name": c, "is_field": f, "table_alias": t_alias,
+			"db_path": d, "table_name": t, "hint": PROPERTY_HINT_NONE, "Hint String": ""}
+	var fill_select_name = func(element, alias):
+		element["select_name"] = element["Column Name"] if alias == "" \
+			else (alias + "." + element["Column Name"])
+		return element
+	for s in __select:
+		if s == "*":
+			for alias in all_datas:
+				if alias == __table_alias:
+					real_select.append_array(
+						__get_table_columns(__database, __table, __table_alias, all_datas)\
+						.map(fill_select_name.bind(alias)))
+				else:
+					var a_left_join = __left_join.get_left_join_by_alias(alias)
+					real_select.append_array(
+						__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas)\
+						.map(fill_select_name.bind(alias)))
+		elif s.ends_with(".*"):
+			var alias = s.substr(0, s.length() - 2)
+			if alias == __table_alias:
+				real_select.append_array(
+					__get_table_columns(__database, __table, __table_alias, all_datas)\
+					.map(fill_select_name.bind(alias)))
+			else:
+				if __left_join == null:
+					_assert("___select", false, "table `%s` not found" % alias)
+					return null
+				var a_left_join = __left_join.get_left_join_by_alias(alias)
+				if a_left_join == null:
+					_assert("___select", false, "table `%s` not found" % alias)
+					return null
+				real_select.append_array(
+					__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas)\
+						.map(fill_select_name.bind(alias)))
+		else:
+			var m = regex_symbol.search(s)
+			if m != null and m.get_string() == s:
+				if __left_join != null:
+					_assert("___select", false, 
+					"must specify table alias name in select fields if using left join")
+					return null
+				var column = __get_table_column_defination(__database, __table, __table_alias, m.get_string())
+				if column != null and !column.is_empty():
+					real_select.push_back(column)
+				else:
+					if all_datas[__table_alias].is_empty() or not all_datas[__table_alias][0].has(s):
+						_assert("___select", false,
+						"field:[%s] not exist in table:[%s], db:[%s]" % [s, __table, __database])
+						return null
+					real_select.push_back(gen_dict.call(s, s, true, __table_alias)) # 可能没有定义文件
+			#elif s.contains(__table_alias + "."):
+			elif s.get_slice_count(".") == 2 and s.get_slice(".", 0).strip_edges() == __table_alias:
+				m = _get_regex_field(__table_alias).search(s)
+				if m:
+					var field = m.get_string(3)
+					var column = __get_table_column_defination(__database, __table, __table_alias, field)
+					if column != null and !column.is_empty():
+						if s == __table_alias + m.get_string(1) + "." + m.get_string(2) + field:
+							column["select_name"] = s
+							real_select.push_back(column)
+						else:
+							real_select.push_back(gen_dict.call(s, s, false))
+					else:
+						if s == __table_alias + m.get_string(1) + "." + m.get_string(2) + field:
+							if all_datas[__table_alias].is_empty() or not all_datas[__table_alias][0].has(field):
+								_assert("___select", false,
+								"field:[%s] not exist in table:[%s], db:[%s]" % [field, __table, __database])
+								return null
+							real_select.push_back(gen_dict.call(s, field, true, __table_alias, __database, __table))
+						else:
+							real_select.push_back(gen_dict.call(s, s, false))
+				else:
+					# 不能100%确定有错误，所以不报错了
+					real_select.push_back(gen_dict.call(s, s, false))
+			else:
+				var find = false
+				for a_left_join in arr_left_join:
+					var alias = a_left_join.get_alias()
+					#if s.contains(alias + "."):
+					if s.get_slice_count(".") == 2 and s.get_slice(".", 0).strip_edges() == alias:
+						find = true
+						m = _get_regex_field(alias).search(s)
+						if m:
+							var field = m.get_string(3)
+							var column = __get_table_column_defination(
+								a_left_join.get_db(), a_left_join.get_table(), alias, field)
+							if column != null and !column.is_empty():
+								if s == alias + m.get_string(1) + "." + m.get_string(2) + field:
+									column["select_name"] = s
+									real_select.push_back(column)
+								else:
+									real_select.push_back(gen_dict.call(s, s, false))
+							else:
+								if s == alias + m.get_string(1) + "." + m.get_string(2) + field:
+									if all_datas[alias].is_empty() or not all_datas[alias][0].has(field):
+										_assert("___select", false,
+										"field:[%s] not exist in table:[%s], db:[%s]" \
+										% [field, a_left_join.get_table(), a_left_join.get_db()])
+										return null
+									real_select.push_back(gen_dict.call(s, field, true, alias, 
+										a_left_join.get_db(), a_left_join.get_table())) # 没定义的文件
+								else:
+									real_select.push_back(gen_dict.call(s, s, false))
+						break
+						
+				if not find:
+					real_select.push_back(gen_dict.call(s, s, false))
+					
+	for f in real_select:
+		if not f.has("select_name"):
+			f["select_name"] = f["Column Name"]
+			
+		if __field_as.has(f["select_name"]):
+			f["field_as"] = __field_as[f["select_name"]]
+		else:
+			f["field_as"] = f["Column Name"]
+	return real_select
 	
 func __get_table_defination(db_path: String, table_name: String):
 	if not db_path.ends_with("/"):

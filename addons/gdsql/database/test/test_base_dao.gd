@@ -13,7 +13,17 @@ func _ready() -> void:
 	#var a = 2
 	#var b = type_convert(a, TYPE_STRING)
 	#print(b)
-	printt("".md5_text())
+	
+	var dao = SQLParser.parse_to_dao("""
+	select t0.id as t0_id, t0.name as t0_name, t0.icon as t0_icon, 
+	t0.desc as t0_desc, t0.max_level as t0_max_level,
+	t1.id as t1_id, t1.sid as t1_sid, t1.eid as t1_eid
+	from 
+	GameConfig.c_skill t0
+	left join GameConfig.c_skill_element t1 on t1.sid == t0.id
+	""")
+	var qr = dao.query()
+	Utils.print_variant(qr.get_data())
 
 	
 func test_pass():
