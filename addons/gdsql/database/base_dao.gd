@@ -686,16 +686,20 @@ func ___select(path: String, fill_primary_key: String = ""):
 	# where条件
 	var cond = _get_cond(false)
 		
-	var ret_filter: Array[Dictionary] = []
-	for data in ret:
-		var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
-		var check_result = conditionWrapper.cond(cond).check(data)
-		if typeof(check_result) != TYPE_BOOL:
-			_assert("check where", false, "check failed! cond:%s" % cond)
-			return null
-		if check_result:
-			ret_filter.push_back(data)
-			
+	var ret_filter = null
+	if cond == "":
+		ret_filter = ret
+	else:
+		ret_filter = []
+		for data in ret:
+			var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
+			var check_result = conditionWrapper.cond(cond).check(data)
+			if typeof(check_result) != TYPE_BOOL:
+				_assert("check where", false, "check failed! cond:%s" % cond)
+				return null
+			if check_result:
+				ret_filter.push_back(data)
+				
 	# 合并union
 	if __union_all:
 #		__union_all.__need_post_porcess = false # 改为需要后处理
