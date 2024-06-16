@@ -404,6 +404,45 @@ func _automapping_obejct(data: Array) -> Object:
 func _automapping_object_simple_property(data: Array, obj: Object) -> bool:
 	# 一批<id>,<result>配置的column和[prop]的对应关系
 	var final_column_prop_map = get_deepest_column_prop()
+	# 优先使用<id>和<result>来找prop，并记录，后续防止重复设置
+	var dealed_props = []
+	for column in final_column_prop_map:
+		pass# TODO FIXME
+		#var prop = final_column_prop_map[column]
+		#var col_index = columns.find(column)
+		#if col_index == -1:
+			#assert(false, "Not found column %s in ResultSet's head" % column)
+		#for p in prop:
+			## 如果对象中没有<id>, <result>配置的这个属性，要报错
+			#if p.contains(":"):
+				## 限于技术问题，我们最多检查一层
+				#var pp = p.get_slice(":", 0)
+				#if not pp in obj:
+					#assert(false, 
+					#"Invalid set property %s of %s" % [p, object_class_name])
+				## NOTICE 带冒号的如果用户拼写错误会导致报错。而我们目前
+				## 没有什么好办法提前检测。
+				#column_type.push_back(typeof(obj.get_indexed(p))) # use p not pp
+				#prop_is_object.push_back(
+					#_is_prop_an_object(prop_map[object_class_name][pp]))
+			#else:
+				#if not p in obj:
+					#assert(false, 
+					#"Invalid set property %s of %s" % [p, object_class_name])
+				#column_type.push_back(prop_map[object_class_name][p].type)
+				#prop_is_object.push_back(
+					#_is_prop_an_object(prop_map[object_class_name][p]))
+					#
+		#prop_info[object_class_name][column] = {
+			## 这列数据是否是obj中的属性
+			#"exist": true,
+			## 这列数据对应的属性名称
+			#"prop": prop,
+			## 这列数据的数据类型。
+			#"column_type": column_type,
+			## 填充时用type_convert还是str_to_var转化数据
+			#"method": prop.map(func(_v): return "")
+		#}
 	for j in columns.size():
 		var column = columns[j] as String
 		if prop_info[object_class_name].has(column) and \
@@ -437,7 +476,17 @@ func _automapping_object_simple_property(data: Array, obj: Object) -> bool:
 					column_type.push_back(prop_map[object_class_name][p].type)
 					prop_is_object.push_back(
 						_is_prop_an_object(prop_map[object_class_name][p]))
-					
+						
+			prop_info[object_class_name][column] = {
+				# 这列数据是否是obj中的属性
+				"exist": true,
+				# 这列数据对应的属性名称
+				"prop": prop,
+				# 这列数据的数据类型。
+				"column_type": column_type,
+				# 填充时用type_convert还是str_to_var转化数据
+				"method": prop.map(func(_v): return "")
+			}
 		# NONE - 禁用自动映射。仅对手动映射的属性进行映射。
 		if prop.is_empty() and (real_auto_mapping == "false" or \
 		mapper_parser_ref.get_ref().auto_mapping_level == "NONE"):
@@ -473,7 +522,7 @@ func _automapping_object_simple_property(data: Array, obj: Object) -> bool:
 					
 				prop_is_object.push_back(
 					_is_prop_an_object(prop_map[object_class_name][a_prop]))
-				
+					
 				prop_info[object_class_name][column] = {
 					# 这列数据是否是obj中的属性
 					"exist": true,
@@ -542,6 +591,76 @@ func _automapping_object_simple_property(data: Array, obj: Object) -> bool:
 						"Multiple primary keys [%s, %s] are mapped to %s." % \
 						[pk_confirm[0], j, object_class_name])
 	return true
+	
+func _obj_set_indexed(obj: Object, column: String, prop: String, val: Variant):
+	if not prop_info[object_class_name].has(column):
+		prop_info[object_class_name][column] = {
+			"exist": true, # 这列数据是否是obj中的属性
+			"prop": [], # 这列数据对应的属性名称，支持多属性
+			"prop_type": [], # 这列数据的数据类型，支持多属性
+			"method": [] # 填充时用type_convert还是str_to_var转化数据，支持多属性
+		}
+		
+	if not prop_info[object_class_name][column].prop.has(prop):
+		prop_info[object_class_name][column].prop.push_back(prop)
+		prop_info[object_class_name][column].prop_type.push_back(-1)
+		prop_info[object_class_name][column].method.push_back("")
+		
+	var prop_index = prop_info[object_class_name][column].prop.find(prop)
+	var prop_type = prop_info[object_class_name][column].column_type[prop_index]
+	if prop_type == -1:
+		if prop_map[object_class_name].has(prop):
+			prop_type = prop_map[object_class_name][prop].type
+		else:
+			prop_type = typeof(obj.get_indexed(prop))
+		prop_info[object_class_name][column].column_type[prop_index] = prop_type
+		
+	# TODO FIXME
+	if prop_info[object_class_name][column].method == "":
+		var method = ""
+		if typeof(val) == prop_type:
+			method = "none"
+		elif val is String:
+			var value = str_to_var(val)
+			var value_set = true
+			if typeof(value) == prop_type:
+				method = "str_to_var"
+			else:
+				method = "type_convert"
+		prop_info[object_class_name][column].method[prop_index] = method
+	if typeof(val) == prop_type or \
+		TYPE_NIL == prop_type:
+			obj.set_indexed(prop, val)
+	else:
+		# NOTICE type_convert并不是万能的，依赖于引擎
+		# 底层数据格式的相互转换。例如：
+		# type_convert("Vector2(1, 1)", Vector2) 并不会得到
+		# Vector2(1, 1)，而是得到Vector2(0, 0)。
+		# 先测试type_convert是否正确
+		var value = null
+		var value_set = false
+		var method_map = prop_info[object_class_name][column]["method"]
+		if method_map[prop_index] == "":
+			if typeof(val) == prop_type:
+				method_map[prop_index] = "none"
+			elif val is String:
+				value = str_to_var(val)
+				value_set = true
+				if typeof(value) == prop_type:
+					method_map[prop_index] = "str_to_var"
+				else:
+					method_map[prop_index] = "type_convert"
+		match method_map[prop_index]:
+			"none":
+				obj.set_indexed(prop, val)
+			"str_to_var":
+				obj.set_indexed(prop, 
+					value if value_set else str_to_var(val))
+			"type_convert":
+				obj.set_indexed(prop, 
+					type_convert(val, prop_type))
+			_:
+				assert(false, "Inner error 103.")
 	
 func _automapping_associations(data: Array, obj: Object) -> bool:
 	var associations = get_deepest_associations()
