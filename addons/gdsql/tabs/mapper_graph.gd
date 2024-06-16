@@ -391,7 +391,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 					arr_col.push_back(s)
 					
 			xml_arr.push_back(
-				'\n\t<resultMap id="%sResult" type="%sEntity">\n\t\t%s\n\t</resultMap>\n\t' % \
+'\n\t<resultMap id="%sResult" type="%sEntity" autoMapping="false">\n\t\t%s\n\t</resultMap>\n\t' % \
 					[result_map_id, result_map_id, "\n\t\t".join(arr_col)]
 			)
 			

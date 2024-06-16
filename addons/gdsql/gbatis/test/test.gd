@@ -6,7 +6,8 @@ var d = []
 func _ready() -> void:
 	#await get_tree().create_timer(0.5).timeout
 	# test select 1
-	#var a = skill_mapper.select_skill_by_id(1)
+	var a = skill_mapper.select_skill_by_id(66)
+	pass
 	#var tree = Tree.new()
 	#var root = tree.create_item()
 	#var obj1 = tree.create_item(root)
@@ -34,8 +35,8 @@ func _ready() -> void:
 	#printt(t2-t1)
 	
 	# test select 2
-	var b = skill_mapper.select_skill_by_id2(66)
-	pass
+	#var b = skill_mapper.select_skill_by_id2(66)
+	#pass
 	#b = skill_mapper.select_skill_by_id2(1)
 	#b = skill_mapper.select_skill_by_id2(1)
 	

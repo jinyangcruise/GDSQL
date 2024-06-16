@@ -4,16 +4,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="TestSkillMapper">
 	<cache size="10" />
-	<resultMap type="TestSkillEntity" id="skillResult">
+	<resultMap type="TestSkillEntity" id="skillResult" autoMapping="false">
 		<id     property="id"        column="id"         />
 		<result property="skill_name"        column="name"         />
 		<result property="icon"        column="icon"         />
 		<result property="desc"        column="desc"         />
 		<result property="max_level"        column="max_level"         />
-		<collection property="arr_skill_effect" column="id" select="select_skill_effect_by_skill_id"/>
+		<association property="skill_effect" column="id" select="select_skill_effect_by_skill_id"/>
+		
 	</resultMap>
 
-	<resultMap type="TestSkillEntity" id="skillResult2">
+	<resultMap type="TestSkillEntity" id="skillResult2" autoMapping="false">
 		<id     property="id"        column="id"         />
 		<result property="skill_name"        column="name"         />
 		<result property="icon"        column="icon"         />
@@ -22,7 +23,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		<association property="skill_effect" resultMap="skillEffectResult2"/>
 	</resultMap>
 
-	<resultMap type="TestSkillEntity" id="skillResult3">
+	<resultMap type="TestSkillEntity" id="skillResult3" autoMapping="false">
 		<id     property="id"        column="id"         />
 		<result property="skill_name"        column="name"         />
 		<result property="icon"        column="icon"         />
@@ -31,13 +32,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		<collection property="arr_skill_effect" resultMap="skillEffectResult2"/>
 	</resultMap>
 	
-	<resultMap type="TestSkillEffectEntity" id="skillEffectResult">
+	<resultMap type="TestSkillEffectEntity" id="skillEffectResult" autoMapping="false">
 		<id     property="id"        column="id"         />
 		<result property="sid"        column="sid"         />
 		<result property="eid"        column="eid"         />
 	</resultMap>
 
-	<resultMap type="TestSkillEffectEntity" id="skillEffectResult2">
+	<resultMap type="TestSkillEffectEntity" id="skillEffectResult2" autoMapping="false">
 		<id     property="id"        column="se_id"         />
 		<result property="sid"        column="sid"         />
 		<result property="eid"        column="eid"         />

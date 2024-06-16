@@ -23,6 +23,9 @@ class_name  GBatisResultMap
 #                                           configured;
 #                                     false: do not automap columns to 
 #                                            properties which are not configured.
+#                                            NOTICE if all configured columns'
+#                                            values are null, then the Object
+#                                            is null.
 #>
 var id: String
 var type: String
@@ -322,12 +325,16 @@ func prepare_deal(data: Array):
 	# assocoiation和collection由于存在内部的resultMap，所以由它们自己决定是否prepare_deal
 	var associations = get_deepest_associations()
 	for a: GBatisAssociation in associations:
-		a.prepare_deal(data)
-		
+		# select == ""的，是用left join，共用数据集的，所以要提前prepare。
+		if a.select == "":
+			a.prepare_deal(data)
+			
 	var collections = get_deepest_collections()
 	for c: GBatisCollection in collections:
-		c.prepare_deal(data)
-		
+		# select == ""的，是用left join，共用数据集的，所以要提前prepare。
+		if c.select == "":
+			c.prepare_deal(data)
+			
 ## 将传入的一条数据进行映射后再返回。
 func deal(data: Array) -> Array:
 	# 每条数据映射到对象
@@ -374,17 +381,33 @@ func _automapping_obejct(data: Array) -> Object:
 	# 赋值，也就是说，obj的某个属性如果也是一个sub obj，看能否把值赋值给sub obj的字段；
 	# 3；最后给collection定义的集合赋值
 	
+	# 都是null，要返回null
+	var all_null = true
+	for i in data:
+		if typeof(i) != TYPE_NIL:
+			all_null = false
+			break
+	if all_null:
+		return null
+		
 	var obj = _get_obj_or_generate(data)
 	if obj == null:
 		assert(false, "Error occur in _get_obj_or_generate().")
-	
+		
 	# 不是新的obj，就不用做简单字段赋值和一对一对象赋值
 	if obj.has_meta("new"):
 		# INFO 第一部分：先给obj的简单字段赋值
 		var succ1 = _automapping_object_simple_property(data, obj)
-		if not succ1:
-			assert(false, "Err occur in _automapping_object_simple_property().")
 		
+		# -1 means all columns are null so the obj should be null
+		if succ1 == -1:
+			_free_obj(obj)
+			return null
+			
+		if not succ1:
+			_free_obj(obj)
+			assert(false, "Err occur in _automapping_object_simple_property().")
+			
 		# 这里我们已经确定了是否存在主键
 		if pk_confirm[0] != -1:
 			pk_obj[data[pk_confirm[0]]] = obj
@@ -392,205 +415,118 @@ func _automapping_obejct(data: Array) -> Object:
 		# INFO 第二部分：association，一对一对象赋值
 		var succ2 = _automapping_associations(data, obj)
 		if not succ2:
+			_free_obj(obj)
 			assert(false, "Err occur in _automapping_associations().")
 		obj.remove_meta("new")
 		
 	# INFO 第三部分：collection，一对多集合赋值
 	var succ3 = _automapping_collections(data, obj)
 	if not succ3:
+		_free_obj(obj)
 		assert(false, "Err occur in _automapping_collections()")
 	return obj
 	
-func _automapping_object_simple_property(data: Array, obj: Object) -> bool:
+func _free_obj(obj: Object):
+	if not obj is RefCounted:
+		obj.free()
+		
+## 返回值null表示有错误发生。-1表示返回null对象，1表示正常返回obj
+func _automapping_object_simple_property(data: Array, obj: Object) -> int:
 	# 一批<id>,<result>配置的column和[prop]的对应关系
 	var final_column_prop_map = get_deepest_column_prop()
 	# 优先使用<id>和<result>来找prop，并记录，后续防止重复设置
 	var dealed_props = []
+	var dealed_column_indexes = []
+	var all_null = true
 	for column in final_column_prop_map:
-		pass# TODO FIXME
-		#var prop = final_column_prop_map[column]
-		#var col_index = columns.find(column)
-		#if col_index == -1:
-			#assert(false, "Not found column %s in ResultSet's head" % column)
-		#for p in prop:
-			## 如果对象中没有<id>, <result>配置的这个属性，要报错
-			#if p.contains(":"):
-				## 限于技术问题，我们最多检查一层
-				#var pp = p.get_slice(":", 0)
-				#if not pp in obj:
-					#assert(false, 
-					#"Invalid set property %s of %s" % [p, object_class_name])
-				## NOTICE 带冒号的如果用户拼写错误会导致报错。而我们目前
-				## 没有什么好办法提前检测。
-				#column_type.push_back(typeof(obj.get_indexed(p))) # use p not pp
-				#prop_is_object.push_back(
-					#_is_prop_an_object(prop_map[object_class_name][pp]))
-			#else:
-				#if not p in obj:
-					#assert(false, 
-					#"Invalid set property %s of %s" % [p, object_class_name])
-				#column_type.push_back(prop_map[object_class_name][p].type)
-				#prop_is_object.push_back(
-					#_is_prop_an_object(prop_map[object_class_name][p]))
-					#
-		#prop_info[object_class_name][column] = {
-			## 这列数据是否是obj中的属性
-			#"exist": true,
-			## 这列数据对应的属性名称
-			#"prop": prop,
-			## 这列数据的数据类型。
-			#"column_type": column_type,
-			## 填充时用type_convert还是str_to_var转化数据
-			#"method": prop.map(func(_v): return "")
-		#}
+		var prop = final_column_prop_map[column]
+		var col_index = columns.find(column)
+		if col_index == -1:
+			assert(false, "Not found column %s in ResultSet's head" % column)
+		if column == primary_column:
+			pk_confirm[0] = col_index
+		dealed_column_indexes.push_back(col_index)
+		for p in prop:
+			_obj_set_indexed(obj, column, p, data[col_index])
+			dealed_props.push_back(p)
+			if all_null and typeof(data[col_index]) != TYPE_NIL:
+				all_null = false
+				
+	# NONE - 禁用自动映射。仅对手动映射的属性进行映射。
+	if real_auto_mapping == "false" or \
+	mapper_parser_ref.get_ref().auto_mapping_level == "NONE":
+		return -1 if all_null else 1
+		
 	for j in columns.size():
+		if dealed_column_indexes.has(j):
+			continue
+			
 		var column = columns[j] as String
 		if prop_info[object_class_name].has(column) and \
 		not prop_info[object_class_name][column]["exist"]:
 			continue
 			
-		var prop = [] # 支持一个列对应多个属性的情况
-		var column_type = [] # 当column带冒号时，和prop_type不一样
-		var prop_is_object = []
-		
-		# 优先使用<id>和<result>来找prop
-		if final_column_prop_map.has(column):
-			prop = final_column_prop_map[column]
-			for p in prop:
-				# 如果对象中没有<id>, <result>配置的这个属性，要报错
-				if p.contains(":"):
-					# 限于技术问题，我们最多检查一层
-					var pp = p.get_slice(":", 0)
-					if not pp in obj:
-						assert(false, 
-						"Invalid set property %s of %s" % [p, object_class_name])
-					# NOTICE 带冒号的如果用户拼写错误会导致报错。而我们目前
-					# 没有什么好办法提前检测。
-					column_type.push_back(typeof(obj.get_indexed(p))) # use p not pp
-					prop_is_object.push_back(
-						_is_prop_an_object(prop_map[object_class_name][pp]))
-				else:
-					if not p in obj:
-						assert(false, 
-						"Invalid set property %s of %s" % [p, object_class_name])
-					column_type.push_back(prop_map[object_class_name][p].type)
-					prop_is_object.push_back(
-						_is_prop_an_object(prop_map[object_class_name][p]))
-						
+		var prop: String
+		var prop_type: int = -1
+		var prop_is_object: bool = false
+		if prop_info[object_class_name].has(column):
+			# 这里的column本来就是用户没有手动映射的，所以只允许有1个猜测的属性
+			if prop_info[object_class_name][column].prop.size() > 1:
+				assert(false, "Inner error 104.")
+			prop = prop_info[object_class_name][column].prop[0]
+			prop_type = prop_info[object_class_name][column].prop_type[0]
+			prop_is_object = prop_info[object_class_name][column].prop_is_object[0]
+		else:
+			# 如果要写成属性冒号的形式，那第一部分肯定需要写成原本形式才行，
+			# 不需要判断大小写，蛇形，驼峰之类的。
+			if column.contains(":"):
+				prop = column.get_slice(":", 0)
+				if not prop in obj:
+					prop_info[object_class_name][column] = {"exist":false}
+					continue
+					
+				prop = column
+				if dealed_props.has(prop):
+					prop_info[object_class_name][column] = {"exist":false}
+					continue
+					
+				prop_type = typeof(obj.get_indexed(column))
+			else:
+				# 根据列名找对应的属性名
+				prop = _get_similar_prop(column)
+				if prop == "" or dealed_props.has(prop):
+					prop_info[object_class_name][column] = {"exist":false}
+					continue
+					
+				prop_type = prop_map[object_class_name][prop].type
+				
+			prop_is_object = _is_prop_an_object(prop_map[object_class_name][prop])
 			prop_info[object_class_name][column] = {
-				# 这列数据是否是obj中的属性
-				"exist": true,
-				# 这列数据对应的属性名称
-				"prop": prop,
-				# 这列数据的数据类型。
-				"column_type": column_type,
-				# 填充时用type_convert还是str_to_var转化数据
-				"method": prop.map(func(_v): return "")
+				"exist": true, # 这列数据是否是obj中的属性
+				"prop": [prop], # 这列数据对应的属性名称
+				"prop_type": [prop_type], # 这列数据的数据类型。
+				"prop_is_object": [prop_is_object],
+				"method": [""] # 填充时用type_convert还是str_to_var转化数据
 			}
-		# NONE - 禁用自动映射。仅对手动映射的属性进行映射。
-		if prop.is_empty() and (real_auto_mapping == "false" or \
-		mapper_parser_ref.get_ref().auto_mapping_level == "NONE"):
+			
+		# 现在是根据column名称来给某个属性赋值，如果这个属性代表一个对象，
+		# 是不可能把一个值赋给对象的，除非是赋给对象的某属性（意味着要通过冒号）。
+		if prop_is_object and not prop.contains(":"):
 			continue
 			
-		if prop.is_empty():
-			if prop_info[object_class_name].has(column):
-				prop = prop_info[object_class_name][column]["prop"]
-				for p in prop:
-					column_type.push_back(prop_map[object_class_name][p].type)
-					prop_is_object.push_back(
-						_is_prop_an_object(prop_map[object_class_name][p]))
+		_obj_set_indexed(obj, column, prop, data[j])
+		
+		# 主键
+		if pk_index.has(j):
+			if pk_confirm[0] == -1:
+				pk_confirm[0] = j
 			else:
-				# 如果要写成属性冒号的形式，那第一部分肯定需要写成原本形式才行，
-				# 不需要判断大小写，蛇形，驼峰之类的。
-				var a_prop = ""
-				if column.contains(":"):
-					a_prop = column.get_slice(":", 0)
-					if not a_prop in obj:
-						prop_info[object_class_name][column] = {"exist":false}
-						continue
-						
-					prop.push_back(column)
-					column_type.push_back(typeof(obj.get_indexed(column)))
-				else:
-					# 根据列名找对应的属性名
-					a_prop = _get_similar_prop(column)
-					if a_prop == "":
-						prop_info[object_class_name][column] = {"exist":false}
-						continue
-					prop.push_back(a_prop)
-					column_type.push_back(prop_map[object_class_name][a_prop].type)
-					
-				prop_is_object.push_back(
-					_is_prop_an_object(prop_map[object_class_name][a_prop]))
-					
-				prop_info[object_class_name][column] = {
-					# 这列数据是否是obj中的属性
-					"exist": true,
-					# 这列数据对应的属性名称
-					"prop": prop,
-					# 这列数据的数据类型。
-					"column_type": column_type,
-					# 填充时用type_convert还是str_to_var转化数据
-					"method": prop.map(func(_v): return "")
-				}
-				
-		var prop_index = -1
-		for a_prop: String in prop:
-			prop_index += 1
-			# PARTIAL时，只填充obj的简单属性（非object的属性，但Resouce也属于简单属性）
-			if prop_is_object[prop_index] and \
-			mapper_parser_ref.get_ref().auto_mapping_level == "PARTIAL":
-				continue
-				
-			# 现在是根据column名称来给某个属性赋值，如果这个属性代表一个对象，
-			# 是不可能把一个值赋给对象的，除非是赋给对象的某属性（意味着要通过冒号）。
-			if prop_is_object[prop_index] and not a_prop.contains(":"):
-				continue
-				
-			if typeof(data[j]) == column_type[prop_index] or \
-			TYPE_NIL == column_type[prop_index]:
-				obj.set_indexed(a_prop, data[j])
-			else:
-				# NOTICE type_convert并不是万能的，依赖于引擎
-				# 底层数据格式的相互转换。例如：
-				# type_convert("Vector2(1, 1)", Vector2) 并不会得到
-				# Vector2(1, 1)，而是得到Vector2(0, 0)。
-				# 先测试type_convert是否正确
-				var value = null
-				var value_set = false
-				var method_map = prop_info[object_class_name][column]["method"]
-				if method_map[prop_index] == "":
-					if typeof(data[j]) == column_type[prop_index]:
-						method_map[prop_index] = "none"
-					elif data[j] is String:
-						value = str_to_var(data[j])
-						value_set = true
-						if typeof(value) == column_type[prop_index]:
-							method_map[prop_index] = "str_to_var"
-						else:
-							method_map[prop_index] = "type_convert"
-				match method_map[prop_index]:
-					"none":
-						obj.set_indexed(a_prop, data[j])
-					"str_to_var":
-						obj.set_indexed(a_prop, 
-							value if value_set else str_to_var(data[j]))
-					"type_convert":
-						obj.set_indexed(a_prop, 
-							type_convert(data[j], column_type[prop_index]))
-					_:
-						assert(false, "Inner error 103.")
-			# 主键
-			if pk_index.has(j):
-				if pk_confirm[0] == -1:
-					pk_confirm[0] = j
-				else:
-					# 已经找到一个了，怎么又冒出来一个
-					if pk_confirm[0] != j:
-						assert(false, 
-						"Multiple primary keys [%s, %s] are mapped to %s." % \
-						[pk_confirm[0], j, object_class_name])
-	return true
+				# 已经找到一个了，怎么又冒出来一个
+				if pk_confirm[0] != j:
+					assert(false, 
+					"Multiple primary keys [%s, %s] are mapped to %s." % \
+					[pk_confirm[0], j, object_class_name])
+	return 1
 	
 func _obj_set_indexed(obj: Object, column: String, prop: String, val: Variant):
 	if not prop_info[object_class_name].has(column):
@@ -598,6 +534,7 @@ func _obj_set_indexed(obj: Object, column: String, prop: String, val: Variant):
 			"exist": true, # 这列数据是否是obj中的属性
 			"prop": [], # 这列数据对应的属性名称，支持多属性
 			"prop_type": [], # 这列数据的数据类型，支持多属性
+			"prop_is_object": [false], # true or false is not important here
 			"method": [] # 填充时用type_convert还是str_to_var转化数据，支持多属性
 		}
 		
@@ -607,61 +544,45 @@ func _obj_set_indexed(obj: Object, column: String, prop: String, val: Variant):
 		prop_info[object_class_name][column].method.push_back("")
 		
 	var prop_index = prop_info[object_class_name][column].prop.find(prop)
-	var prop_type = prop_info[object_class_name][column].column_type[prop_index]
+	var prop_type = prop_info[object_class_name][column].prop_type[prop_index]
 	if prop_type == -1:
 		if prop_map[object_class_name].has(prop):
 			prop_type = prop_map[object_class_name][prop].type
 		else:
 			prop_type = typeof(obj.get_indexed(prop))
-		prop_info[object_class_name][column].column_type[prop_index] = prop_type
+		prop_info[object_class_name][column].prop_type[prop_index] = prop_type
 		
-	# TODO FIXME
-	if prop_info[object_class_name][column].method == "":
-		var method = ""
-		if typeof(val) == prop_type:
-			method = "none"
-		elif val is String:
-			var value = str_to_var(val)
-			var value_set = true
-			if typeof(value) == prop_type:
-				method = "str_to_var"
-			else:
-				method = "type_convert"
-		prop_info[object_class_name][column].method[prop_index] = method
-	if typeof(val) == prop_type or \
-		TYPE_NIL == prop_type:
-			obj.set_indexed(prop, val)
-	else:
+	var value = null
+	var value_set = false
+	var method = prop_info[object_class_name][column].method[prop_index]
+	if method == "":
 		# NOTICE type_convert并不是万能的，依赖于引擎
 		# 底层数据格式的相互转换。例如：
 		# type_convert("Vector2(1, 1)", Vector2) 并不会得到
 		# Vector2(1, 1)，而是得到Vector2(0, 0)。
-		# 先测试type_convert是否正确
-		var value = null
-		var value_set = false
-		var method_map = prop_info[object_class_name][column]["method"]
-		if method_map[prop_index] == "":
-			if typeof(val) == prop_type:
-				method_map[prop_index] = "none"
-			elif val is String:
-				value = str_to_var(val)
+		if typeof(val) == prop_type or prop_type == TYPE_NIL:
+			method = "none"
+		elif val is String:
+			value = str_to_var(val)
+			if typeof(value) == prop_type:
 				value_set = true
-				if typeof(value) == prop_type:
-					method_map[prop_index] = "str_to_var"
-				else:
-					method_map[prop_index] = "type_convert"
-		match method_map[prop_index]:
-			"none":
-				obj.set_indexed(prop, val)
-			"str_to_var":
-				obj.set_indexed(prop, 
-					value if value_set else str_to_var(val))
-			"type_convert":
-				obj.set_indexed(prop, 
-					type_convert(val, prop_type))
-			_:
-				assert(false, "Inner error 103.")
-	
+				method = "str_to_var"
+			else:
+				method = "type_convert"
+		else:
+			method = "type_convert"
+		prop_info[object_class_name][column].method[prop_index] = method
+		
+	match method:
+		"none":
+			obj.set_indexed(prop, val)
+		"str_to_var":
+			obj.set_indexed(prop, value if value_set else str_to_var(val))
+		"type_convert":
+			obj.set_indexed(prop, type_convert(val, prop_type))
+		_:
+			assert(false, "Inner error 103.")
+			
 func _automapping_associations(data: Array, obj: Object) -> bool:
 	var associations = get_deepest_associations()
 	for ass: GBatisAssociation in associations:
@@ -698,8 +619,9 @@ func _automapping_associations(data: Array, obj: Object) -> bool:
 			if not a_ret is Array:
 				assert(false, "Err occur in association's resultMap deal().")
 			sub_obj = a_ret[0]
-			sub_obj.remove_meta("new_for_select")
-			
+			if sub_obj != null:
+				sub_obj.remove_meta("new_for_select")
+				
 		obj.set(ass.property, sub_obj)
 		# 允许sub_obj是null，但是不允许设置失败
 		if sub_obj != null:
@@ -767,7 +689,7 @@ func _automapping_collections(data: Array, obj: Object) -> bool:
 			if not a_ret is Array:
 				assert(false, "Err occur in collection's resultMap deal().")
 			var element = a_ret[0]
-			if not list.has(element):
+			if typeof(element) != TYPE_NIL and not list.has(element):
 				if element is Object:
 					element.remove_meta("new_for_select")
 				list.push_back(element)
