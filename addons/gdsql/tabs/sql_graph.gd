@@ -36,6 +36,7 @@ var copied_nodes: Dictionary
 
 const SHORTCUT_SELECTALL = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_selectall.tres")
 const SHORTCUT_UNDO = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_undo.tres")
+const SHORTCUT_QUERY = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_query.tres")
 
 var graph_edit: GraphEdit:
 	get:
@@ -723,13 +724,13 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		graph_node.ready.connect(func():
 			graph_node.set_slot_type_left(0, 1) # Result's type is 1
 			graph_node.size = Vector2(500, 600)
-			graph_node.selected = true
+			#graph_node.selected = true
 		)
 		graph_node.set_meta("type", "Result")
 		graph_node.set_meta("node", true)
 		graph_node.delete_request.connect(node_close.bind(graph_node)) # 关闭事件
 	else:
-		graph_node.selected = true
+		#graph_node.selected = true
 		graph_datas = graph_node.datas
 		table = graph_datas[0][0].get_child(0) # [0][0]是margin_container
 		table.set_meta("columns", columns)
@@ -1911,7 +1912,7 @@ func get_from_nodes(node: GraphNode, type: String = "") -> Array[GraphNode]:
 # Select 执行
 # node: 被点击的select节点
 func on_select_node_query(node: GraphNode, log_history: bool):
-	unselect_all_node()
+	#unselect_all_node()
 	var from_to_map = {}
 	var to_from_map = {}
 	# 先做个映射
@@ -2056,7 +2057,7 @@ func on_delete_node_query(node: GraphNode):
 # 自定义SQL执行
 # node: 被点击的sql节点
 func on_sql_node_query(node: GraphNode, log_history: bool):
-	unselect_all_node()
+	#unselect_all_node()
 	var from_to_map = {}
 	var to_from_map = {}
 	# 先做个映射
@@ -2168,10 +2169,14 @@ func select_all_node():
 			
 func unselect_all_node():
 	for i in graph_edit.get_children():
-		if i.has_meta("node"):
+		if i is GraphNode:
 			i.selected = false
-
-		
+			
+func get_selected_nodes():
+	return graph_edit.get_children().filter(func(v):
+		return v is GraphNode and v.selected
+	)
+	
 func handle_input_node(input_node: GraphNode, connected_node_name, from_port, to_port, release_position, xenophobic):
 	graph_edit.add_child(input_node)
 	input_node.set_meta("type", input_node.title)
@@ -2183,7 +2188,6 @@ func handle_input_node(input_node: GraphNode, connected_node_name, from_port, to
 	input_node.enabled = true # 触发同一端口的其余输入端口失效
 	mark_modified()
 	
-
 func _on_graph_edit_connection_from_empty(to_node: StringName, to_port: int, release_position: Vector2) -> void:
 	# 该信号给出的release_position和实际的position_offset不是一个概念，需要做转化
 	# WARNING 暂不清楚引擎开发团队是否会修改这个东西，需要注意
@@ -2195,8 +2199,7 @@ func _on_graph_edit_connection_from_empty(to_node: StringName, to_port: int, rel
 			set_input(to_port, release_position, node)
 		"Left Join":
 			set_input(to_port, release_position, node)
-
-
+			
 func _on_graph_edit_connection_request(from_node: StringName, from_port: int, to_node: StringName, to_port: int) -> void:
 	graph_edit.connect_node(from_node, from_port, to_node, to_port)
 	mark_modified()
@@ -2213,8 +2216,7 @@ func _on_graph_edit_connection_request(from_node: StringName, from_port: int, to
 				"Select", "Left Join":
 					f_node.node_enabled.connect(node_enabled.bind(f_node)) # 互斥激活事件
 	f_node.enabled = true # 可以激活互斥并且促使数据关联
-
-
+	
 func _on_graph_edit_connection_drag_started(_from_node: StringName, _from_port: int, _is_output: bool) -> void:
 	unselect_all_node()
 	
@@ -2258,8 +2260,7 @@ func _exit_tree():
 			node_close(node)
 			
 	mgr = null
-
-
+	
 func _on_graph_edit_delete_nodes_request(nodes):
 	var titles = nodes.map(func(v): return graph_edit.get_node(str(v)).title)
 	mgr.create_confirmation_dialog(
@@ -2320,3 +2321,48 @@ func _on_graph_edit_duplicate_nodes_request() -> void:
 	var tmp_data = {}
 	_on_graph_edit_copy_nodes_request(tmp_data)
 	_on_graph_edit_paste_nodes_request(tmp_data)
+	
+func _input(event: InputEvent) -> void:
+	if not is_visible_in_tree():
+		return
+		
+	var selected_nodes = get_selected_nodes()
+	if selected_nodes.is_empty():
+		return
+		
+	if event.is_pressed() and SHORTCUT_QUERY.matches_event(event):
+		for node in selected_nodes:
+			for arr in node.datas:
+				for i in arr:
+					if i is Button and (i as Button).text.to_lower() in ["apply", "query"]:
+						(i as Button).pressed.emit()
+		get_viewport().set_input_as_handled()
+		return
+		
+	if not event is InputEventKey:
+		return
+		
+	var k = event as InputEventKey
+	if not k.is_pressed():
+		return
+		
+	if is_ancestor_of(get_viewport().gui_get_focus_owner()):
+		return
+		
+	var distance = graph_edit.snapping_distance if graph_edit.snapping_enabled else 1
+	if k.keycode == KEY_UP:
+		for node in selected_nodes:
+			node.position_offset.y -= distance
+		get_viewport().set_input_as_handled()
+	elif k.keycode == KEY_DOWN:
+		for node in selected_nodes:
+			node.position_offset.y += distance
+		get_viewport().set_input_as_handled()
+	elif k.keycode == KEY_LEFT:
+		for node in selected_nodes:
+			node.position_offset.x -= distance
+		get_viewport().set_input_as_handled()
+	elif k.keycode == KEY_RIGHT:
+		for node in selected_nodes:
+			node.position_offset.x += distance
+		get_viewport().set_input_as_handled()

@@ -17,6 +17,7 @@ var copied_nodes: Dictionary
 
 const SHORTCUT_SELECTALL = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_selectall.tres")
 const SHORTCUT_UNDO = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_undo.tres")
+const SHORTCUT_QUERY = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_query.tres")
 
 const VALID_PORT_COLOR = {
 	TYPE_NIL: Color.ALICE_BLUE,
@@ -332,6 +333,11 @@ func unselect_all_node():
 		if i is GraphNode:
 			i.selected = false
 			
+func get_selected_nodes():
+	return get_children().filter(func(v):
+		return v is GraphNode and v.selected
+	)
+	
 ## 关闭一个节点的时候，把没有关闭按钮的输入节点一起关闭
 func node_close(node: GraphNode):
 	for info in get_connection_list():
@@ -494,3 +500,48 @@ func _on_duplicate_nodes_request() -> void:
 	var tmp_data = {}
 	_on_copy_nodes_request(tmp_data)
 	_on_paste_nodes_request(tmp_data)
+	
+func _input(event: InputEvent) -> void:
+	if not is_visible_in_tree():
+		return
+		
+	var selected_nodes = get_selected_nodes()
+	if selected_nodes.is_empty():
+		return
+		
+	if event.is_pressed() and SHORTCUT_QUERY.matches_event(event):
+		for node in selected_nodes:
+			for arr in node.datas:
+				for i in arr:
+					if i is Button and (i as Button).text.to_lower() in ["apply", "query"]:
+						(i as Button).pressed.emit()
+		get_viewport().set_input_as_handled()
+		return
+		
+	if not event is InputEventKey:
+		return
+		
+	var k = event as InputEventKey
+	if not k.is_pressed():
+		return
+		
+	if is_ancestor_of(get_viewport().gui_get_focus_owner()):
+		return
+		
+	var distance = snapping_distance if snapping_enabled else 1
+	if k.keycode == KEY_UP:
+		for node in selected_nodes:
+			node.position_offset.y -= distance
+		get_viewport().set_input_as_handled()
+	elif k.keycode == KEY_DOWN:
+		for node in selected_nodes:
+			node.position_offset.y += distance
+		get_viewport().set_input_as_handled()
+	elif k.keycode == KEY_LEFT:
+		for node in selected_nodes:
+			node.position_offset.x -= distance
+		get_viewport().set_input_as_handled()
+	elif k.keycode == KEY_RIGHT:
+		for node in selected_nodes:
+			node.position_offset.x += distance
+		get_viewport().set_input_as_handled()

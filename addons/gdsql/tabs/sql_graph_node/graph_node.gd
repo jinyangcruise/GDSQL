@@ -9,7 +9,6 @@ signal redraw_slot(row, col)
 
 var check_button_enable: CheckButton
 
-const SHORTCUT_QUERY = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_query.tres")
 
 ## datas的元素是一个长度至少为2的数组，第一个元素是左侧输入port代表的数据，第二个元素是右侧输出port代表的数据。
 ## 当前两个元素都为null时，这行将不显示port，而显示从第三个元素所代表的控件。
@@ -119,6 +118,7 @@ func _flush_redraw_queue():
 	_mutex.unlock()
 
 func clear():
+	disconnect_focused_selected_propagate(self)
 	for i in __property_old_parents:
 		if i:
 			disconnect_focused_propagate(i)
@@ -254,8 +254,8 @@ func redraw():
 			#else:
 				#hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			add_child(hb)
-		
-		
+	connect_focused_selected_propagate(self)
+	
 ## 把要刷新的控件推送到队列中
 func push_redraw_slot_control(slot_row_index, slot_col_index):
 	_mutex.lock()
@@ -412,6 +412,28 @@ func get_prop_value(prop):
 func _on_check_button_enable_toggled(button_pressed: bool) -> void:
 	enabled = button_pressed
 	
+func _bind_data_control_focus_entered():
+	if get_parent():
+		for i in get_parent().get_children():
+			if i is GraphNode and i != self:
+				i.selected = false
+	selected = true
+	
+func connect_focused_selected_propagate(control: Control):
+	if control.mouse_filter != Control.MOUSE_FILTER_IGNORE:
+		if not control.is_connected("focus_entered", _bind_data_control_focus_entered):
+			control.focus_entered.connect(_bind_data_control_focus_entered)
+	for child in control.get_children(true):
+		if child is Control:
+			connect_focused_selected_propagate(child)
+			
+func disconnect_focused_selected_propagate(control: Control):
+	if control.is_connected("focus_entered", _bind_data_control_focus_entered):
+		control.focus_entered.disconnect(_bind_data_control_focus_entered)
+	for child in control.get_children(true):
+		if child is Control:
+			disconnect_focused_propagate(child)
+			
 func connect_focused_propagate(control: Control, data):
 	for child in control.get_children(true):
 		if child is Control:
@@ -419,7 +441,7 @@ func connect_focused_propagate(control: Control, data):
 			if child.mouse_filter != Control.MOUSE_FILTER_IGNORE and child.has_signal("focus_entered"):
 				if not (child as Control).is_connected("focus_entered", editor_property_focused):
 					child.focus_entered.connect(editor_property_focused.bind(data))
-			
+					
 func disconnect_focused_propagate(control):
 	for child in control.get_children(true):
 		if child is Control:
@@ -433,37 +455,3 @@ func editor_property_focused(data):
 func _on_resize_request(new_minsize):
 	size = new_minsize
 	
-
-
-func _input(event: InputEvent) -> void:
-	if not is_visible_in_tree():
-		return
-	if not selected or datas.is_empty() or not event is InputEventKey:
-		return
-	if event.is_pressed() and SHORTCUT_QUERY.matches_event(event):
-		for arr in datas:
-			for i in arr:
-				if i is Button and (i as Button).text.to_lower() in ["apply", "query"]:
-					(i as Button).pressed.emit()
-					get_viewport().set_input_as_handled()
-					return
-					
-	if not event is InputEventKey:
-		return
-	var k = event as InputEventKey
-	if not k.is_pressed():
-		return
-	if is_ancestor_of(get_viewport().gui_get_focus_owner()):
-		return
-	if k.keycode == KEY_UP:
-		position_offset.y -= 1
-		get_viewport().set_input_as_handled()
-	elif k.keycode == KEY_DOWN:
-		position_offset.y += 1
-		get_viewport().set_input_as_handled()
-	elif k.keycode == KEY_LEFT:
-		position_offset.x -= 1
-		get_viewport().set_input_as_handled()
-	elif k.keycode == KEY_RIGHT:
-		position_offset.x += 1
-		get_viewport().set_input_as_handled()
