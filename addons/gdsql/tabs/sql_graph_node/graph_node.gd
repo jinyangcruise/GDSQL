@@ -40,6 +40,7 @@ var enabled: bool:
 var __property_old_parents = {}
 var _redraw_queue = {}
 var _mutex: Mutex
+var max_btn: TextureButton
 
 func _ready() -> void:
 	# enable button
@@ -51,8 +52,9 @@ func _ready() -> void:
 	get_titlebar_hbox().add_child(check_button_enable)
 	
 	# maximize button
-	var max_btn = TextureButton.new()
+	max_btn = TextureButton.new()
 	max_btn.toggle_mode = true
+	max_btn.tooltip_text = tr("Double Click") + tr("Titlebar")
 	max_btn.stretch_mode = TextureButton.STRETCH_KEEP_CENTERED
 	max_btn.texture_normal = preload("res://addons/gdsql/img/maximize.png")
 	max_btn.toggled.connect(func(toggled_on: bool):
@@ -61,17 +63,20 @@ func _ready() -> void:
 			var graph_edit = get_parent_control()
 			if not graph_edit is GraphEdit:
 				return
+			if graph_edit.zoom != 1.0:
+				get_parent().zoom = 1.0
+				await get_tree().create_timer(0.1).timeout
 			graph_edit = graph_edit as GraphEdit
 			# 移动到节点左上角和窗口左上角对齐
 			# edit中心点的偏移
 			var center_offset = (graph_edit.get_rect().get_center() - \
-				get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+				size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 			# edit左上角的偏移
 			var left_top_cornor_offset = center_offset - graph_edit.size/2
 			# node和edit左上角的偏移量
 			var diff = position_offset - size/2 - left_top_cornor_offset \
 				# graphnode的size的bug补偿
-				+ Vector2(0, 60) \
+				+ Vector2(0, 80) \
 				# top边框
 				- Vector2(0, 5) \
 				- Vector2.ONE * 8 # 留一个边框
@@ -79,7 +84,18 @@ func _ready() -> void:
 			graph_edit.scroll_offset += diff
 			size = graph_edit.size - Vector2(16, 20)
 		else:
+			var graph_edit = get_parent_control()
+			if not graph_edit is GraphEdit:
+				return
 			size = max_btn.get_meta("old_size")
+			# 认为目前和左上角是对齐的。（zoom=1时，zoom=1是大概率的）
+			# 移动到中心
+			# edit中心点的偏移
+			var center_offset = (graph_edit.get_rect().get_center() - \
+				size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+			# node和edit中心点的偏移
+			var diff = position_offset - center_offset
+			graph_edit.scroll_offset += diff
 	)
 	get_titlebar_hbox().add_child(max_btn)
 	
@@ -158,6 +174,7 @@ func _notification(what):
 			datas = []
 			
 		mgr = null
+		max_btn = null
 		
 func redraw():
 	clear()
@@ -451,7 +468,14 @@ func disconnect_focused_propagate(control):
 	
 func editor_property_focused(data):
 	EditorInterface.inspect_object(data)
-
+	
 func _on_resize_request(new_minsize):
 	size = new_minsize
 	
+func _gui_input(event: InputEvent) -> void:
+	if not event is InputEventMouseButton:
+		return
+	if event.is_pressed() and event.double_click and \
+	get_titlebar_hbox().get_rect().has_point(get_local_mouse_position()):
+		max_btn.button_pressed = not max_btn.button_pressed
+		get_viewport().set_input_as_handled()
