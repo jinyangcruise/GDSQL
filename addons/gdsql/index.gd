@@ -13,10 +13,10 @@ func _ready() -> void:
 		return
 		
 	if not mgr.add_log_history.is_connected(add_a_log):
-		mgr.add_log_history.connect(add_a_log, CONNECT_DEFERRED)
+		mgr.add_log_history.connect(add_a_log)
 		
 	log_table.ratios = [22.0, 30.0, 8.0, 1.5, 0.4, 1.0] as Array[float]
-	log_table.columns = ["Status", "#", "Time", "Action", "Message", "Duration"] as Array[String]
+	log_table.columns = ["Status", "#", "Time", "Action", "Message", "Duration / Cost"] as Array[String]
 	
 func _exit_tree():
 	if mgr == null or not mgr.run_in_plugin(self):
@@ -30,7 +30,9 @@ func _exit_tree():
 func _on_button_refresh_pressed() -> void:
 	tree_databases.refresh()
 	
-func add_a_log(status: String, begin_timestamp: float, action: String, message) -> void:
+func add_a_log(status: String, begin_timestamp: float, action: String, message, cost: float = 0) -> void:
+	var now = Time.get_unix_time_from_system()
+	printt("yyyy now", now)
 	if message is Array:
 		message = " ".join(message)
 	var new_log = [
@@ -38,12 +40,12 @@ func add_a_log(status: String, begin_timestamp: float, action: String, message) 
 		log_table.datas.size() + 1,
 		Time.get_datetime_string_from_system(false, true) if is_zero_approx(begin_timestamp) else (
 			Time.get_datetime_string_from_unix_time(
-				Time.get_unix_time_from_system() + Time.get_time_zone_from_system().get("bias", 0) * 60, true
+				now + Time.get_time_zone_from_system().get("bias", 0) * 60, true
 			)
 		),
 		action,
 		message,
-		"%.3f sec" % (0.0 if is_zero_approx(begin_timestamp) else (Time.get_unix_time_from_system() - begin_timestamp))
+		"%.3f / %.3f sec" % [(0.0 if is_zero_approx(begin_timestamp) else (now - begin_timestamp)), cost]
 	]
 	log_table.append_data(new_log)
 	log_table.scroll_to_bottom()

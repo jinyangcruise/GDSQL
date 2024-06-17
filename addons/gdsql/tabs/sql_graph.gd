@@ -1006,13 +1006,14 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 								
 							# log and UI
 							mgr.add_log_history.emit("OK", begin_time, i.get_query_cmd(), 
-								"%d row(s) affected" % ret.get_affected_rows())
+								"%d row(s) affected" % ret.get_affected_rows(), ret.get_cost_time())
 							(table_2.datas[index][4] as ProgressBar).value = 100
 							(table_2.datas[index][4] as ProgressBar).modulate = Color.GREEN
 							(table_2.datas[index][3] as CheckBox).button_pressed = false
 							(table_2.datas[index][3] as CheckBox).disabled = true
 						else:
-							mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), ret.get_err())
+							mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), 
+								ret.get_err(), ret.get_cost_time())
 							(table_2.datas[index][4] as ProgressBar).modulate = Color.RED
 					else:
 						mgr.add_log_history.emit("Err", begin_time, i.get_query_cmd(), "something wrong")
@@ -1938,8 +1939,9 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 				return
 				
 			if log_history:
-				mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) returned" % (ret.get_data().size())) # 去掉表头
-			
+				mgr.add_log_history.emit("OK", begin_time, action, 
+					"%d row(s) returned" % (ret.get_data().size()), ret.get_cost_time()) # 去掉表头
+					
 			var update_result = false
 			if from_to_map.has(source_node.name):
 				for to in from_to_map[source_node.name]:
@@ -1985,10 +1987,11 @@ func on_insert_node_query(node: GraphNode):
 				return
 				
 			if not ret.ok():
-				mgr.add_log_history.emit("Err", begin_time, action, ret.get_err())
+				mgr.add_log_history.emit("Err", begin_time, action, ret.get_err(), ret.get_cost_time())
 				return
 				
-			mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) affected" % (ret.get_affected_rows()))
+			mgr.add_log_history.emit("OK", begin_time, action, 
+				"%d row(s) affected" % (ret.get_affected_rows()), ret.get_cost_time())
 		)
 	)
 	
@@ -2017,10 +2020,11 @@ func on_update_node_query(node: GraphNode):
 				return
 				
 			if not ret.ok():
-				mgr.add_log_history.emit("Err", begin_time, action, ret.get_err())
+				mgr.add_log_history.emit("Err", begin_time, action, ret.get_err(), ret.get_cost_time())
 				return
 				
-			mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) affected" % (ret.get_affected_rows()))
+			mgr.add_log_history.emit("OK", begin_time, action, 
+				"%d row(s) affected" % (ret.get_affected_rows()), ret.get_cost_time())
 		)
 	)
 	
@@ -2038,10 +2042,11 @@ func on_delete_node_query(node: GraphNode):
 				return
 				
 			if not ret.ok():
-				mgr.add_log_history.emit("Err", begin_time, action, ret.get_err())
+				mgr.add_log_history.emit("Err", begin_time, action, ret.get_err(), ret.get_cost_time())
 				return
 				
-			mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) affected" % (ret.get_affected_rows()))
+			mgr.add_log_history.emit("OK", begin_time, action, 
+				"%d row(s) affected" % (ret.get_affected_rows()), ret.get_cost_time())
 		)
 	)
 	
@@ -2072,8 +2077,8 @@ func on_sql_node_query(node: GraphNode, log_history: bool):
 		var sql = (node.datas[1][2] as CodeEdit).text
 		var dao = SQLParser.parse_to_dao(sql)
 		mgr.request_user_enter_password.emit(dao.get_db(), dao.get_table(), dao.get_password(), func():
-			var begin_time = Time.get_unix_time_from_system()
 			var action = dao.get_query_cmd()
+			var begin_time = Time.get_unix_time_from_system()
 			var query_ret = dao.query()
 			if query_ret == null:
 				mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
@@ -2083,7 +2088,9 @@ func on_sql_node_query(node: GraphNode, log_history: bool):
 			if log_history:
 				if dao.get_cmd().begins_with("select"):
 					ret = query_ret
-					mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) returned" % (query_ret.get_data().size())) # 去掉表头
+					mgr.add_log_history.emit("OK", begin_time, action, 
+						"%d row(s) returned" % (query_ret.get_data().size()), 
+						ret.get_cost_time()) # 去掉表头
 				else:
 					var gen_dict = func(s):
 						return {"select_name": s, "Column Name": s, "field_as": s, 
@@ -2095,16 +2102,19 @@ func on_sql_node_query(node: GraphNode, log_history: bool):
 					ret._has_head = true
 					ret._data = [
 						["err", "affected_rows", "warnings", "last_insert_id", 
-						"generated_keys"].map(gen_dict),
+						"generated_keys", "cost_time"].map(gen_dict),
 						[
 							query_ret.get_err(),
 							query_ret.get_affected_rows(),
 							query_ret.get_warnings(),
 							query_ret.get_last_insert_id(),
-							query_ret.get_generated_keys()
+							query_ret.get_generated_keys(),
+							query_ret.get_cost_time(),
 						]
 					]
-					mgr.add_log_history.emit("OK", begin_time, action, "%d row(s) affected" % (query_ret.get_affected_rows()))
+					mgr.add_log_history.emit("OK", begin_time, action, 
+						"%d row(s) affected" % (query_ret.get_affected_rows()), 
+						query_ret.get_cost_time())
 					
 			var update_result = false
 			if from_to_map.has(source_node.name):

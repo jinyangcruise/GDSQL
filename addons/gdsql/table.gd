@@ -77,12 +77,12 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 ## 如果要增量添加元素，请使用table.append_data(data)，避免重新对datas进行赋值，在数据量大时效率很低。
 @export var datas: Array = []:
 	set(val):
+		var begintime = Time.get_unix_time_from_system()
 		datas = val
 		if is_node_ready():
 			clear_rows()
 			for data in datas:
 				add_row(data)
-				
 			if editable:
 				# 默认选中第一个
 				#make_table_border(v_box_container.get_child(0))
@@ -2006,7 +2006,7 @@ func row_grab_focus(row: int):
 				if i.tooltip_text == tr("Manage object properties."):
 					i.get_popup().emit_signal("id_pressed", 12) # 12 is for EXPAND_ALL, @see editor\inspector_dock.h
 					break
-			
+					
 func scroll_to_bottom():
 	var v_scroll_bar = scroll_container.get_v_scroll_bar() as VScrollBar
 	await get_tree().create_timer(0.1).timeout
