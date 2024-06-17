@@ -267,7 +267,7 @@ func get_nodes_params(only_selected = false):
 				props[arr[2].text] = arr[3].text
 			elif arr.size() == 5:
 				extra["link_type"] = (arr[2] as OptionButton).get_selected_id()
-				extra["link_prop_type"] = arr[3].value
+				extra["link_prop_type"] = arr[3].get_selected_text()
 				extra["link_prop"] = (arr[4] as LineEdit).text.strip_edges()
 			else:
 				assert(false, "Inner error check this in mapper_graph_edit.gd")
@@ -289,7 +289,7 @@ func get_node_extra(node: GraphNode) -> Dictionary:
 	for arr: Array in node.datas:
 		if arr.size() == 5:
 			extra["link_type"] = (arr[2] as OptionButton).get_selected_id()
-			extra["link_prop_type"] = arr[3].value
+			extra["link_prop_type"] = arr[3].get_selected_text()
 			extra["link_prop"] = (arr[4] as LineEdit).text.strip_edges()
 			break
 	return extra

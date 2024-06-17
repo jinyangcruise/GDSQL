@@ -235,6 +235,11 @@ func _generate(nodes: Array) -> String:
 			
 	const prefixes = "tabcdefghijklmnopqrsuvwxyz" # t is most common
 	
+	# gdscript of entity
+	var entity_map = {} # db.entity_name => [content]
+	# gdscrip of mapper
+	var mapper_map = {} # db.mapper_name => [content]
+	
 	# 每一个起始节点，有一套生成的xml、entity、mapper
 	for lead_node_name in leading_nodes:
 		var xml_arr = ["""<?xml version="1.0" encoding="UTF-8" ?>
@@ -306,6 +311,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				
 			var arr_col = []
 			var arr_col_name = []
+			var arr_prop_type = []
 			var a_col_prefix = ""
 			# lead tabel 可能需要column加前缀。其他的不用，因为association和collection
 			# 支持在columnPrefix属性设定一个前缀。
@@ -323,10 +329,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				arr_col.push_back(('%s %-' + str(prop_max_length) + 's    %-' + \
 					str(col_max_length) + 's/>') % [
 						prefix, 
-						'property="%s"' % aprops[col["Column Name"]], 
-						'column="%s"' % (a_col_prefix + col["Column Name"])]
+						'property="%s"' % aprops[a_col_name], 
+						'column="%s"' % (a_col_prefix + a_col_name)]
 				)
-				arr_col_name.push_back(col["Column Name"])
+				arr_col_name.push_back(a_col_name)
+				arr_prop_type.push_back([aprops[a_col_name], type_string(col["Data Type"]), -1])
 			arr_columns[node_name] = arr_col_name
 			
 			if node_pair.has(node_name):
@@ -347,6 +354,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 					if option_button_link.selected == LINK_WAY.NESTING_SELECT:
 						var by = info.link_col.map(func(v): return v[1])
 						by.sort()
+						var arg_types = []
+						for i in by:
+							for j in columns:
+								if j["Column Name"] == i:
+									arg_types.push_back(j["Data Type"])
+									break
 						var parent_by = info.link_col.map(func(v): return v[0])
 						parent_by.sort()
 						var method = 'select_%s_by_%s' % \
@@ -355,6 +368,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							"id": method,
 							"result_map": a_result_map_id,
 							"arg_names": by,
+							"arg_types": arg_types,
 							"db_name": info.db_name,
 							"namespace": info.db_name + "." + info.table_name,
 							"node_name": to_node_name,
@@ -389,12 +403,30 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							a_result_map_id]
 							
 					arr_col.push_back(s)
+					arr_prop_type.push_back(
+						[info.link_prop, info.link_prop_type, info.link_type])
 					
 			xml_arr.push_back(
 '\n\t<resultMap id="%sResult" type="%sEntity" autoMapping="false">\n\t\t%s\n\t</resultMap>\n\t' % \
 					[result_map_id, result_map_id, "\n\t\t".join(arr_col)]
 			)
 			
+			# entity
+			if not entity_map.has(db_name + "." + result_map_id):
+				var arr = ['extends RefCounted\nclass_name %s\n'] # leave class_name not set
+				for i in arr_prop_type:
+					if i[2] == graph_edit.LINK_TYPE.COLLECTION_ARRAY:
+						if i[1] == TYPE_NIL:
+							arr.push_back('\nvar %s: Array' % i[0])
+						else:
+							arr.push_back('\nvar %s: Array[%s]' % [i[0], i[1]])
+					else:
+						if i[1] == "Nil":
+							arr.push_back('\nvar %s' % i[0])
+						else:
+							arr.push_back('\nvar %s: %s' % [i[0], i[1]])
+				entity_map[db_name + "." + result_map_id] = arr
+				
 		# <sql>
 		var vo_ids = {} # namespace => vo_id
 		var select_use_db = false # <select>标签是否使用databaseId属性
@@ -469,33 +501,91 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n\t' % \
 			[leading_result_map_id, vo])
 			
-		# <select> leading table: one and list
+		# 
+		var arr_mapper = null
+		if not mapper_map.has(leading_db_name + "." + leading_result_map_id):
+			arr_mapper = ['extends GBatisMapper\nclass_name %s\n'] # leave class_name not set
+			
+		# prepare somthing
 		var props = graph_edit.get_node_props(nodes_map[lead_node_name])
-		for method_surfix in ["", "_list"]:
+		var pk_col = []
+		var pk_prop = []
+		var pk_type = []
+		for i in nodes_map[lead_node_name].get_meta("data").columns:
+			if i.PK:
+				pk_col.push_back(i["Column Name"])
+				pk_prop.push_back(props[i["Column Name"]])
+				pk_type.push_back(i["Data Type"])
+		var pk_prop_snake = pk_prop.map(func(v): return v.to_snake_case())
+		
+		# <select> leading table: one by primary, one by entity and list by entity
+		for method_surfix in ["_by_%s", "", "_list"]:
 			var leading_method = 'select_%s%s' % [
 				leading_table_name.to_snake_case(), method_surfix]
+				
+			if method_surfix == "_by_%s":
+				leading_method = leading_method % ("_".join(pk_prop_snake))
+				
+			if arr_mapper:
+				if method_surfix == "_by_%s":
+					var args = []
+					for i in pk_prop_snake.size():
+						args.push_back('%s: %s' % [pk_prop_snake[i], type_string(pk_type[i])])
+					arr_mapper.push_back('\nfunc %s(%s) -> ' % [
+						leading_method, ", ".join(args)
+					])
+					arr_mapper.push_back('%s) -> %s') # leave class_name not set
+					arr_mapper.push_back('\n\treturn query("%s", %s)\n\t' % [
+						leading_method, ", ".join(pk_prop_snake)
+					])
+				else:
+					arr_mapper.push_back('\nfunc %s(%s: ' % [
+						leading_method, leading_result_map_id
+					])
+					if method_surfix == "":
+						arr_mapper.push_back('%s) -> %s') # leave class_name not set
+					else:
+						arr_mapper.push_back('%s) -> Array[%s]') # leave class_name not set
+					arr_mapper.push_back('\n\treturn query("%s", %s)\n\t' % [
+						leading_method, leading_result_map_id
+					])
+					
 			xml_arr.push_back('\n\t<select id="%s" resultMap="%s"%s>' % \
 				[leading_method, leading_table_name.to_camel_case() + "Result",
 				(' databaseId="%s"' % leading_db_name) if select_use_db else ""])
 			xml_arr.push_back('\n\t\t<include refid="%sVo"/>' % leading_result_map_id)
-			xml_arr.push_back('\n\t\t<where>')
-			for i in nodes_map[lead_node_name].get_meta("data").columns:
-				var test = null
-				var content = null
-				test = '%s != %s' % [
-					props[i["Column Name"]], default_val(i["Data Type"])]
-				content = '%s == #{%s}' % [i["Column Name"], props[i["Column Name"]]]
-				if not left_joins.is_empty() and \
-				option_button_link.selected != LINK_WAY.NESTING_SELECT:
-					content = table_alias[lead_node_name].substr(0, 2) + "." + content
-				xml_arr.push_back('\n\t\t\t<if test="%s">and %s</if>' % [test, content])
-			xml_arr.push_back('\n\t\t</where>')
+			
+			if method_surfix == "_by_%s":
+				var args = []
+				for i in pk_col.size():
+					var content = '%s == #{%s}' % [pk_col[i], pk_prop_snake[i]]
+					if not left_joins.is_empty() and \
+					option_button_link.selected != LINK_WAY.NESTING_SELECT:
+						content = table_alias[lead_node_name].substr(0, 2) + "." + content
+					args.push_back(content)
+				xml_arr.push_back('\n\t\twhere %s' % ', '.join(args))
+			else:
+				xml_arr.push_back('\n\t\t<where>')
+				for i in nodes_map[lead_node_name].get_meta("data").columns:
+					var test = null
+					var content = null
+					test = '%s != %s' % [
+						props[i["Column Name"]], default_val(i["Data Type"])]
+					content = '%s == #{%s}' % [i["Column Name"], props[i["Column Name"]]]
+					if not left_joins.is_empty() and \
+					option_button_link.selected != LINK_WAY.NESTING_SELECT:
+						content = table_alias[lead_node_name].substr(0, 2) + "." + content
+					xml_arr.push_back('\n\t\t\t<if test="%s">and %s</if>' % [test, content])
+				xml_arr.push_back('\n\t\t</where>')
 			xml_arr.push_back('\n\t</select>\n\t')
 			
 		for m in arr_method:
 			var acond = []
 			for arg in m.arg_names:
 				acond.push_back('%s == #{%s}' % [arg, arg.to_snake_case()])
+				
+			# TODO mapper_arr
+				
 			xml_arr.push_back('\n\t<select id="%s" resultMap="%s"%s>' % \
 				[m.id, m.result_map, 
 				(' databaseId="%s"' % m.db_name) if select_use_db else ""])
@@ -538,13 +628,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		xml_arr.push_back('\n\t</insert>\n\t')
 		
 		# <delete> leading table
-		var pk_col = []
-		var pk_prop = []
-		for i in nodes_map[lead_node_name].get_meta("data").columns:
-			if i.PK:
-				pk_col.push_back(i["Column Name"])
-				pk_prop.push_back(props[i["Column Name"]])
-		var pk_prop_snake = pk_prop.map(func(v): return v.to_snake_case())
 		xml_arr.push_back('\n\t<delete id="delete_%s_by_%s" databaseId="%s">' % \
 			[leading_table_name.to_snake_case(), "_".join(pk_prop_snake), 
 			leading_db_name])

@@ -36,7 +36,13 @@ func _ready() -> void:
 		accept_button.icon = get_theme_icon("ImportCheck", "EditorIcons")
 	if not cancel_button.icon:
 		cancel_button.icon = get_theme_icon("ImportFail", "EditorIcons")
-		
+	update_property()
+	
+func get_selected_text() -> String:
+	if option_button.get_selected_id() >= 1000:
+		return value
+	return option_button.get_item_text(option_button.get_selected_id())
+	
 func update_property():
 	var current_value = value
 	var default_option = options.find(current_value)
@@ -66,8 +72,8 @@ func update_property():
 		
 func _option_selected(p_which: int) -> void:
 	value = option_button.get_item_text(p_which).strip_edges()
-	value_changed.emit(value)
 	update_property()
+	value_changed.emit()
 
 
 func _edit_custom_value() -> void:
@@ -80,8 +86,8 @@ func _custom_value_submitted(p_value: String) -> void:
 	value = p_value.strip_edges()
 	edit_custom_layout.hide()
 	default_layout.show()
-	value_changed.emit(value)
 	update_property()
+	value_changed.emit()
 
 func _custom_value_accepted() -> void:
 	value = custom_value_edit.get_text().strip_edges()
