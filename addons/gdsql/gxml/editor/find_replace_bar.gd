@@ -85,6 +85,7 @@ func _search(p_flags: int, p_from_line: int, p_from_col: int):
 		if !preserve_cursor and !is_selection_only():
 			text_editor.unfold_line(pos.y)
 			text_editor.select(pos.y, pos.x, pos.y, pos.x + text.length())
+			text_editor.set_caret_line(pos.y, true, true, 0, 0) # needed in gdscript
 			text_editor.center_viewport_to_caret(0)
 			
 			line_col_changed_for_result = true
@@ -102,7 +103,7 @@ func _search(p_flags: int, p_from_line: int, p_from_col: int):
 		result_col = -1
 		text_editor.set_search_text("")
 		text_editor.set_search_flags(p_flags)
-	
+		
 	_update_matches_display()
 	return pos.x != -1
 	
