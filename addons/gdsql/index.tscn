@@ -110,7 +110,6 @@ text = "Clear"
 layout_mode = 2
 show_menu = true
 support_delete_row = true
-label_max_lines_visible = -1
 
 [connection signal="pressed" from="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer/HBoxContainer/ButtonRefresh" to="." method="_on_button_refresh_pressed"]
 [connection signal="tab_button_pressed" from="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" to="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" method="_on_tab_button_pressed"]
