@@ -8,8 +8,9 @@ var _PASSWORD = "" ## 数据表密码
 
 var __database = "" ## 【外部请勿使用】数据库路径
 var __cmd: String = "" ## 【外部请勿使用】命令
+var __select_str = "" ## 【外部请勿使用】select字符串
 var __select: Array[String] = [] ## 【外部请勿使用】select哪些字段
-var __field_as: Dictionary = {} ## 【外部请勿使用】字段别名
+var __field_as_index: Dictionary = {} ## 【外部请勿使用】字段别名的位置索引
 var __table: String = "" ## 【外部请勿使用】表名（带extension的）
 var __table_alias: String = "" ## 【外部请勿使用】别名
 var __data ## Dictionary or Array ## 【外部请勿使用】更新数据使用
@@ -154,17 +155,18 @@ func commit() -> void:
 ## 注意：若联表查询还要求返回平数据，则query后会在每条数据的每个字段前加上表的别名和小数点。例如：
 ## [["t1.a": xx, "t2.m": yy]].
 ## 这个方法会预处理每个要求的字段和字段的别名（如有），但不会马上在这里处理星号，而是推迟到query的时候才处理。
-func select(someting: String, need_head: bool) -> BaseDao:
+func select(something: String, need_head: bool) -> BaseDao:
 	if not (__cmd == "" or __cmd == "select"):
 		assert(_assert("select", false, "already set command %s" % __cmd))
 	#if __parent_union and need_head:
 		#push_warning("union table cannot have head but the param `need_head` is true, 
 		#this param will be ignored")
 	__cmd = "select"
-	__select = []
-	__field_as = {}
+	__select_str = something
+	__select.clear()
+	__field_as_index.clear()
 	__need_head = need_head
-	someting = someting.strip_edges()
+	something = something.strip_edges()
 	# 拆分select的字段。不能简单用split(",")，因为字段有可能是函数调用，它不支持正则（至少Godot 4.1不支持）
 	# 下面的方案支持类似这样的情况："*,a.uname.contains(),aa.level, t.img, at.icon(1, 2, \"a, b\"), 
 	# t_user.u, y.call()"
@@ -172,7 +174,7 @@ func select(someting: String, need_head: bool) -> BaseDao:
 	#regex.compile(",\\s*(?![^()]*\\))") # 匹配逗号的位置，括号内的逗号不匹配
 	# 匹配逗号的位置，括号、引号内的逗号都不匹配
 	#regex.compile(",(?=(([^']*'){2})*[^']*$)(?=(([^\"]*\"){2})*[^\"]*$)(?![^()]*\\))")
-	var matches = regex_comma.search_all(someting)
+	var matches = regex_comma.search_all(something)
 	
 	# 别名
 	#var regex_2 = RegEx.new()
@@ -184,7 +186,8 @@ func select(someting: String, need_head: bool) -> BaseDao:
 		var start = 0
 		for i in matches:
 			# 知道逗号的起始位置，就可以截取逗号前的位置到上一个逗号的结束位置
-			var field_str = someting.substr(start, i.get_start() - start).strip_edges()
+			var field_str = something.substr(start, i.get_start() - start).strip_edges()
+			var field_as = ""
 			start = i.get_end()
 			
 			# 有可能取了别名，例如t_user.icon(1, 2, \"a, b\") as iii
@@ -192,30 +195,34 @@ func select(someting: String, need_head: bool) -> BaseDao:
 			if m:
 				# 实际要求的式子，例子中的t_user.icon(1, 2, \"a, b\")
 				field_str = field_str.substr(0, m.get_start(1))
-				__field_as[field_str] = m.get_string(3) # 别名做个映射，例子中的iii
-			
+				field_as = m.get_string(3)
+				
+			__field_as_index[__select.size()] = field_as
 			__select.push_back(field_str)
 			
 		# 别忘了还有最后一个逗号到最后
-		if start < someting.length():
-			var field_str = someting.substr(start).strip_edges()
+		if start < something.length():
+			var field_str = something.substr(start).strip_edges()
+			var field_as = ""
 			
 			var m = regex_as.search(field_str)
 			# t. name 也会匹配上，所以还需要检查前面那个符号是不是“.”
 			if m and field_str[m.get_start(1)-1] != ".":
 				field_str = field_str.substr(0, m.get_start(1))
-				__field_as[field_str] = m.get_string(3)
+				field_as = m.get_string(3)
 				
+			__field_as_index[__select.size()] = field_as
 			__select.push_back(field_str)
 	# 没有逗号分割，*或者某个单独的字段
 	else:
-		var m = regex_as.search(someting)
+		var field_as = ""
+		var m = regex_as.search(something)
 		if m:
 			# 实际要求的式子，例子中的t_user.icon(1, 2, \"a, b\")
-			someting = someting.substr(0, m.get_start(1))
-			__field_as[someting] = m.get_string(3) # 别名做个映射，例子中的iii
-		__select.push_back(someting)
-		
+			something = something.substr(0, m.get_start(1))
+			
+		__field_as_index[__select.size()] = field_as
+		__select.push_back(something)
 	return self
 	
 ## union之后的BaseDao可以进行select_same，表示与父BaseDao查询相同的字段。
@@ -226,8 +233,9 @@ func select_same() -> BaseDao:
 	if __cmd != "":
 		assert(_assert("select_same", false, "already set command %s" % __cmd))
 	__cmd = "select"
+	__select_str = __parent_union.__select_str
 	__select = __parent_union.__select.duplicate()
-	__field_as = __parent_union.__field_as.duplicate()
+	__field_as_index = __parent_union.__field_as_index.duplicate()
 	__need_head = false
 	return self
 	
@@ -394,7 +402,7 @@ func order_by_str(string: String) -> BaseDao:
 	if __cmd != "select":
 		assert(_assert("order_by_str", false, "'order_by' can only be used after 'select'"))
 	# 清空
-	__order_by = []
+	__order_by.clear()
 	#var regex = RegEx.new()
 	# 匹配逗号的位置，括号、引号内的逗号都不匹配
 	#regex.compile(",(?=(([^']*'){2})*[^']*$)(?=(([^\"]*\"){2})*[^\"]*$)(?![^()]*\\))")
@@ -886,7 +894,12 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 		element["select_name"] = element["Column Name"] if alias == "" \
 			else (alias + "." + element["Column Name"])
 		return element
+		
+	var asterisk_index_count = {} # *出现的位置和代表的字段数量
+	var index = -1
 	for s in __select:
+		index += 1
+		var pre_size = real_select.size()
 		if s == "*":
 			for alias in all_datas:
 				if alias == __table_alias:
@@ -898,6 +911,7 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 					real_select.append_array(
 						__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas)\
 						.map(fill_select_name.bind(alias)))
+			asterisk_index_count[index] = real_select.size() - pre_size
 		elif s.ends_with(".*"):
 			var alias = s.substr(0, s.length() - 2)
 			if alias == __table_alias:
@@ -915,6 +929,7 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 				real_select.append_array(
 					__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas)\
 						.map(fill_select_name.bind(alias)))
+			asterisk_index_count[index] = real_select.size() - pre_size
 		else:
 			var m = regex_symbol.search(s)
 			if m != null and m.get_string() == s:
@@ -989,14 +1004,30 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 				if not find:
 					real_select.push_back(gen_dict.call(s, s, false))
 					
+	var field_as_index = {}
+	# field as 出现的位置
+	for i in __field_as_index:
+		var offset = 0
+		# *出现的位置和代表的字段数量
+		for j in asterisk_index_count:
+			if j < i:
+				if asterisk_index_count[j] > 0:
+					offset += asterisk_index_count[j] - 1 # -1是因为星号是被替换掉了
+			else:
+				break
+		field_as_index[i + offset] = __field_as_index[i]
+		
+	index = -1
 	for f in real_select:
+		index += 1
 		if not f.has("select_name"):
 			f["select_name"] = f["Column Name"]
 			
-		if __field_as.has(f["select_name"]):
-			f["field_as"] = __field_as[f["select_name"]]
+		if field_as_index.get(index, "") != "":
+			f["field_as"] = field_as_index[index]
 		else:
 			f["field_as"] = f["Column Name"]
+			
 	return real_select
 	
 func __get_table_defination(db_path: String, table_name: String):
@@ -1404,7 +1435,7 @@ func get_query_cmd() -> String:
 	match __cmd:
 		"select":
 			return "select %s from %s%s%s%s%s%s%s" % [
-				", ".join(__select.map(func(v): return (v + " as " + __field_as[v]) if __field_as.has(v) else v)), 
+				__select_str, 
 				a_table,
 				"" if __table_alias == "" else " " + __table_alias,
 				"" if __left_join == null else "\n" + "\n".join(__left_join.get_query_cmds()),
@@ -1438,20 +1469,22 @@ func get_query_cmd() -> String:
 func reset(force = false):
 	if force == false and Engine.is_editor_hint():
 		return
-	__select = []
+	__select_str = ""
+	__select.clear()
+	__field_as_index.clear()
 	__table = ""
 	__cmd = ""
 	__table_alias = ""
-	__data = {}
-	__where = []
-	__order_by = []
+	__data.clear()
+	__where.clear()
+	__order_by.clear()
 	__offset = -1
 	__limit = -1
-	__duplicate_update_fields = []
+	__duplicate_update_fields.clear()
 	__primary_key = ""
 	__primary_key_def = ""
-	__autoincrement_keys = {}
-	__autoincrement_keys_def = {}
+	__autoincrement_keys.clear()
+	__autoincrement_keys_def.clear()
 	__union_all = null
 	__parent_union = null
 	if __left_join:
