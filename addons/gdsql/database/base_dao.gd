@@ -1475,7 +1475,8 @@ func reset(force = false):
 	__table = ""
 	__cmd = ""
 	__table_alias = ""
-	__data.clear()
+	if __data:
+		__data.clear()
 	__where.clear()
 	__order_by.clear()
 	__offset = -1
