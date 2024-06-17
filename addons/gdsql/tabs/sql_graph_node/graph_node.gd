@@ -453,6 +453,8 @@ func _input(event: InputEvent) -> void:
 	var k = event as InputEventKey
 	if not k.is_pressed():
 		return
+	if is_ancestor_of(get_viewport().gui_get_focus_owner()):
+		return
 	if k.keycode == KEY_UP:
 		position_offset.y -= 1
 		get_viewport().set_input_as_handled()
