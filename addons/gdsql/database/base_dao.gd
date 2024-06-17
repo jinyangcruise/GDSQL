@@ -1079,6 +1079,7 @@ func __get_table_column_defination(db_path, table_name, table_alias, column_name
 	
 ## 执行。注意：在union的情况下，会自动执行第一个BaseDao的query方法。
 func query() -> QueryResult:
+	var begin_time = Time.get_unix_time_from_system()
 	if __database == "":
 		assert(_assert("query", false, "database is empty"))
 	if __table == "":
@@ -1105,6 +1106,7 @@ func query() -> QueryResult:
 			reset()
 			result._has_head = __need_head
 			result._data = ret
+			result._cost_time = Time.get_unix_time_from_system() - begin_time
 			return result
 		"insert_into", "insert_ignore", "insert_or_update", "replace_into":
 			if __data.is_empty():
@@ -1146,11 +1148,13 @@ func query() -> QueryResult:
 				else:
 					result._err = "key 'PRIMARY' is missing for %s" % __cmd
 					push_error(result.get_err())
+					result._cost_time = Time.get_unix_time_from_system() - begin_time
 					return result
 			else:
 				if conf.has_section(primary_value):
 					if __cmd == "insert_ignore":
 						# 数据存在，不用插入
+						result._cost_time = Time.get_unix_time_from_system() - begin_time
 						return result
 					elif __cmd == "insert_or_update":
 						# 数据存在，只更新部分字段，所以把旧数据的其他字段塞到新数据里
@@ -1167,6 +1171,7 @@ func query() -> QueryResult:
 					else:
 						result._err = "Duplicate entry '%s' for key 'PRIMARY'" % primary_value
 						push_error(result.get_err())
+						result._cost_time = Time.get_unix_time_from_system() - begin_time
 						return result
 						
 			# 自增:找到当前最大的
@@ -1202,6 +1207,7 @@ func query() -> QueryResult:
 						result._affected_rows = 0
 						result._err = "field '%s' needs to be set" % col_name
 						push_error(result.get_err())
+						result._cost_time = Time.get_unix_time_from_system() - begin_time
 						return result
 					else:
 						__data[col_name] = type_convert("", col["Data Type"])
@@ -1210,6 +1216,7 @@ func query() -> QueryResult:
 							result._err = \
 							"field '%s' is implicitly cast to null which is not support by ConfigFile." % col_name
 							push_error(result.get_err())
+							result._cost_time = Time.get_unix_time_from_system() - begin_time
 							return result
 						
 				if __data.size() != columns_def.size():
@@ -1217,6 +1224,7 @@ func query() -> QueryResult:
 					result._err = "invalid field(s): %s" % ",".join(
 						__data.keys().filter(func(v): return not col_names.find(v)))
 					push_error(result.get_err())
+					result._cost_time = Time.get_unix_time_from_system() - begin_time
 					return result
 					
 			# 检查唯一性：只关注新插入的数据是否与旧数据重复
@@ -1230,6 +1238,7 @@ func query() -> QueryResult:
 						result._err = "Duplicate field value '%s' for key '%s'" % \
 							[var_to_str(__data[col_name]), col_name]
 						push_error(result.get_err())
+						result._cost_time = Time.get_unix_time_from_system() - begin_time
 						return result
 						
 			# 插入
@@ -1239,6 +1248,7 @@ func query() -> QueryResult:
 			result._affected_rows += 1
 			result._last_insert_id = __data.get(__primary_key)
 			reset()
+			result._cost_time = Time.get_unix_time_from_system() - begin_time
 			return result
 			
 		"update":
@@ -1281,6 +1291,7 @@ func query() -> QueryResult:
 			__need_post_porcess = false # update一定是单表，用内部返回模式返回数据
 			var datas = ___select(path, primary)
 			if datas.is_empty():
+				result._cost_time = Time.get_unix_time_from_system() - begin_time
 				return result
 			
 			# 更新数据
@@ -1301,6 +1312,7 @@ func query() -> QueryResult:
 			if __auto_commit and result._affected_rows > 0:
 				__CONF_MANAGER.save_conf_by_origin_password(path)
 			reset()
+			result._cost_time = Time.get_unix_time_from_system() - begin_time
 			return result
 			
 		"delete_from":
@@ -1317,6 +1329,7 @@ func query() -> QueryResult:
 				__need_post_porcess = false # update一定是单表，用内部返回模式返回数据
 				var datas = ___select(path, primary)
 				if datas.is_empty():
+					result._cost_time = Time.get_unix_time_from_system() - begin_time
 					return result
 					
 				# 删除数据
@@ -1330,8 +1343,10 @@ func query() -> QueryResult:
 				__CONF_MANAGER.save_conf_by_origin_password(path)
 				
 			reset()
+			result._cost_time = Time.get_unix_time_from_system() - begin_time
 			return result
 			
+	result._cost_time = Time.get_unix_time_from_system() - begin_time
 	return result
 	
 	
