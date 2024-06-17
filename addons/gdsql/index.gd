@@ -32,7 +32,6 @@ func _on_button_refresh_pressed() -> void:
 	
 func add_a_log(status: String, begin_timestamp: float, action: String, message, cost: float = 0) -> void:
 	var now = Time.get_unix_time_from_system()
-	printt("yyyy now", now)
 	if message is Array:
 		message = " ".join(message)
 	var new_log = [
