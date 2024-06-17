@@ -1597,6 +1597,9 @@ func add_sql_node(sql = "", asize = null, pos_offset = null, aname = "", query =
 		graph_node.name = aname
 	graph_edit.add_child(graph_node)
 	
+	if asize != null:
+		graph_node.size = asize
+		
 	if sql != "":
 		var code_editor = graph_node.datas[1][2] as CodeEdit
 		code_editor.text = sql
