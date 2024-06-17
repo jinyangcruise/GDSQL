@@ -77,7 +77,6 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 ## 如果要增量添加元素，请使用table.append_data(data)，避免重新对datas进行赋值，在数据量大时效率很低。
 @export var datas: Array = []:
 	set(val):
-		var begintime = Time.get_unix_time_from_system()
 		datas = val
 		if is_node_ready():
 			clear_rows()
@@ -190,7 +189,7 @@ func reset_header():
 		var c: HSplitContainer = header_col_model.duplicate()
 		parent.add_child(c)
 		#var split_container_dragger = c.get_child(-1, true)
-		#split_container_dragger.gui_input.connect(_on_dragger_gui_input.bind(c), CONNECT_DEFERRED)
+		#split_container_dragger.gui_input.connect(_on_dragger_gui_input.bind(c))
 		var button = c.get_child(0) as Button
 		var control = c.get_child(1)
 		
@@ -288,7 +287,7 @@ func reset_header():
 		if i < fake_columns.size() - 1:
 			controls.push_back(control)
 		
-		c.dragged.connect(_on_header_col_model_dragged.bind(c), CONNECT_DEFERRED)
+		c.dragged.connect(_on_header_col_model_dragged.bind(c))
 		
 	# 把最后一个空control删掉，免得占空间
 	parent.queue_free()
@@ -400,7 +399,7 @@ func add_row(a_data):
 	var a_row = row_panel_container.duplicate()
 	a_row.set_meta("data", a_data)
 	v_box_container.add_child(a_row)
-	a_row.gui_input.connect(_on_row_gui_input.bind(a_row, a_data), CONNECT_DEFERRED)
+	a_row.gui_input.connect(_on_row_gui_input.bind(a_row, a_data))
 	var style_box: StyleBoxFlat = a_row.get_theme_stylebox("panel").duplicate()
 	a_row.add_theme_stylebox_override("panel", style_box)
 	
@@ -490,7 +489,7 @@ func add_row(a_data):
 		panel_container.set_meta("overlapping", 0) # 选区重叠次数
 		panel_container.mouse_filter = Control.MOUSE_FILTER_PASS
 		panel_container.add_theme_stylebox_override("panel", DEFAULT_BORDER_STYLE)
-		panel_container.gui_input.connect(_on_border_panel_container_gui_input.bind(panel_container), CONNECT_DEFERRED)
+		panel_container.gui_input.connect(_on_border_panel_container_gui_input.bind(panel_container))
 		if col_index >= 0:# 行号的button不用填充
 			control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			panel_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -523,7 +522,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 			control.button_pressed = data
 			control.tooltip_text = str(data)
 			if col_index >= 0:
-				control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
+				control.gui_input.connect(_label_gui_input.bind(col_index))
 			if col_index >= 0 and a_data is DictionaryObject:
 				a_data = a_data as DictionaryObject
 				var callback = func(new_value, control_ref: WeakRef):
@@ -538,7 +537,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 			control.text = str(data)
 			control.tooltip_text = split_for_tooltip(control.text)
 			if col_index >= 0:
-				control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
+				control.gui_input.connect(_label_gui_input.bind(col_index))
 			if col_index >= 0 and a_data is DictionaryObject:
 				a_data = a_data as DictionaryObject
 				var callback = func(new_value, control_ref: WeakRef):
@@ -559,7 +558,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 						"%s\nType: %s\nSize: %s" % [data.resource_path, data.get_class(), data.get_size()]
 					control = texture_rect
 					if col_index >= 0:
-						control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
+						control.gui_input.connect(_label_gui_input.bind(col_index))
 					if col_index >= 0 and a_data is DictionaryObject:
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
@@ -577,7 +576,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 					editor_resource_picker.editable = false
 					control = editor_resource_picker
 					if col_index >= 0:
-						control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
+						control.gui_input.connect(_label_gui_input.bind(col_index))
 					if col_index >= 0 and a_data is DictionaryObject:
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
@@ -594,7 +593,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 		control.text = var_to_str(data)
 		control.tooltip_text = split_for_tooltip(control.text)
 		if col_index >= 0:
-			control.gui_input.connect(_label_gui_input.bind(col_index), CONNECT_DEFERRED)
+			control.gui_input.connect(_label_gui_input.bind(col_index))
 		if col_index >= 0 and a_data is DictionaryObject:
 			a_data = a_data as DictionaryObject
 			var callback = func(new_value, control_ref: WeakRef):
@@ -691,12 +690,12 @@ func _on_resized():
 	#editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_FILE
 	#editor_file_dialog.file_selected.connect(func(path: String):
 		#node.texture_normal = load(path)
-	#, CONNECT_DEFERRED)
+	#)
 	#add_child(editor_file_dialog)
 	#editor_file_dialog.popup_centered_ratio(0.5)
 	#editor_file_dialog.close_requested.connect(func():
 		#editor_file_dialog.queue_free()
-	#, CONNECT_DEFERRED)
+	#)
 
 
 func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:

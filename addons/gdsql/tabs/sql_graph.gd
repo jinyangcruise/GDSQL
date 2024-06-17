@@ -2085,37 +2085,30 @@ func on_sql_node_query(node: GraphNode, log_history: bool):
 				return
 				
 			var ret: QueryResult = null
-			if log_history:
-				if dao.get_cmd().begins_with("select"):
-					ret = query_ret
-					mgr.add_log_history.emit("OK", begin_time, action, 
-						"%d row(s) returned" % (query_ret.get_data().size()), 
-						ret.get_cost_time()) # 去掉表头
-				else:
-					var gen_dict = func(s):
-						return {"select_name": s, "Column Name": s, "field_as": s, 
-							"is_field": false, "table_alias": "", "db_path": "", 
-							"table_name": "", "hint": PROPERTY_HINT_NONE, 
-							"Hint String": "", "Data Type": TYPE_NIL,
-							"Default(Expression)": ""}
-					ret = QueryResult.new()
-					ret._has_head = true
-					ret._data = [
-						["err", "affected_rows", "warnings", "last_insert_id", 
-						"generated_keys", "cost_time"].map(gen_dict),
-						[
-							query_ret.get_err(),
-							query_ret.get_affected_rows(),
-							query_ret.get_warnings(),
-							query_ret.get_last_insert_id(),
-							query_ret.get_generated_keys(),
-							query_ret.get_cost_time(),
-						]
+			if dao.get_cmd().begins_with("select"):
+				ret = query_ret
+			else:
+				var gen_dict = func(s):
+					return {"select_name": s, "Column Name": s, "field_as": s, 
+						"is_field": false, "table_alias": "", "db_path": "", 
+						"table_name": "", "hint": PROPERTY_HINT_NONE, 
+						"Hint String": "", "Data Type": TYPE_NIL,
+						"Default(Expression)": ""}
+				ret = QueryResult.new()
+				ret._has_head = true
+				ret._data = [
+					["err", "affected_rows", "warnings", "last_insert_id", 
+					"generated_keys", "cost_time"].map(gen_dict),
+					[
+						query_ret.get_err(),
+						query_ret.get_affected_rows(),
+						query_ret.get_warnings(),
+						query_ret.get_last_insert_id(),
+						query_ret.get_generated_keys(),
+						query_ret.get_cost_time(),
 					]
-					mgr.add_log_history.emit("OK", begin_time, action, 
-						"%d row(s) affected" % (query_ret.get_affected_rows()), 
-						query_ret.get_cost_time())
-					
+				]
+				
 			var update_result = false
 			if from_to_map.has(source_node.name):
 				for to in from_to_map[source_node.name]:
@@ -2132,6 +2125,17 @@ func on_sql_node_query(node: GraphNode, log_history: bool):
 				graph_edit.add_child(table_node)
 				table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 				_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
+				
+			if log_history:
+				if dao.get_cmd().begins_with("select"):
+					mgr.add_log_history.emit("OK", begin_time, action, 
+						"%d row(s) returned" % (query_ret.get_data().size()), 
+						ret.get_cost_time()) # 去掉表头
+				else:
+					mgr.add_log_history.emit("OK", begin_time, action, 
+						"%d row(s) affected" % (query_ret.get_affected_rows()), 
+						query_ret.get_cost_time())
+						
 		)
 		
 	mark_modified()
