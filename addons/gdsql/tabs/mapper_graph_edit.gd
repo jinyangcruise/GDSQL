@@ -134,7 +134,8 @@ asize = null, pos_offset = null, aname = ""):
 			association_class_name.placeholder_text = "Class name"
 			association_class_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			association_class_name.custom_minimum_size.x = 150
-			association_class_name.tooltip_text = "Class name of the property"
+			association_class_name.tooltip_text = (
+				"Class name of the property.\n'Entity' is not needed.")
 			association_class_name.text = extra.get("association_class_name", "")
 			
 			var text_enum_suggestion = TEXT_ENUM.instantiate()
@@ -457,7 +458,8 @@ to_node: StringName, to_port: int) -> void:
 		association_class_name.placeholder_text = "Class name"
 		association_class_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		association_class_name.custom_minimum_size.x = 150
-		association_class_name.tooltip_text = "Class name of the property"
+		association_class_name.tooltip_text = (
+			"Class name of the property.\n'Entity' is not needed.")
 		
 		var text_enum_suggestion = TEXT_ENUM.instantiate()
 		text_enum_suggestion.ready.connect(func():

@@ -39,9 +39,11 @@ func load_mapper_file(path):
 	var connections = config.get_value("data", "connections", [])
 	var xml_path = config.get_value("data", "xml_path", "")
 	var gd_path = config.get_value("data", "gd_path", "")
+	var link_type = config.get_value("data", "link_type", 0)
 	
 	line_edit_save_xml_path.text = xml_path
 	line_edit_save_gd_path.text = gd_path
+	option_button_link.selected = link_type
 	
 	# genarate nodes
 	graph_edit._load_nodes(nodes, connections, Vector2.ZERO, false, false)
@@ -80,6 +82,7 @@ func _on_button_save_pressed() -> void:
 		))
 		config.set_value("data", "xml_path", line_edit_save_xml_path.text.strip_edges())
 		config.set_value("data", "gd_path", line_edit_save_gd_path.text.strip_edges())
+		config.set_value("data", "link_type", option_button_link.selected)
 		
 		# 防止报错导致丢失文件中的旧数据
 		if config.get_value("data", "nodes", null) == null or \
@@ -107,6 +110,7 @@ func _on_button_save_as_pressed() -> void:
 		))
 		config.set_value("data", "xml_path", line_edit_save_xml_path.text.strip_edges())
 		config.set_value("data", "gd_path", line_edit_save_gd_path.text.strip_edges())
+		config.set_value("data", "link_type", option_button_link.selected)
 		
 		# 防止报错导致丢失文件中的旧数据
 		if config.get_value("data", "nodes", null) == null or \
@@ -238,6 +242,8 @@ func _generate(nodes: Array) -> String:
 	
 	# gdscript of entity
 	var entity_map = {} # db.entity_name => [content]
+	# xml of mapper
+	var xml_map = {} # db.mapper_name => [content]
 	# gdscrip of mapper
 	var mapper_map = {} # db.mapper_name => [content]
 	
@@ -247,7 +253,7 @@ func _generate(nodes: Array) -> String:
 <!DOCTYPE mapper
 PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="TestSkillMapper">
+<mapper namespace="%sMapper">
 	
 	<cache eviction="LRU" flushInterval="0" size="50" />
 	"""]
@@ -421,7 +427,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				result_map_added.push_back(result_map_id)
 				
 			# entity
-			if not entity_map.has(db_name + "." + result_map_id):
+			var en_ns = '%s.%sEntity' % [db_name, result_map_id.capitalize().replace(" ", "")]
+			if not entity_map.has(en_ns):
 				var arr = ['extends RefCounted\nclass_name %sEntity\n' % \
 					result_map_id.capitalize().replace(" ", "")]
 				for i in arr_prop_type:
@@ -439,7 +446,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							arr.push_back('\nvar %s: %s' % [i[0], i[1]])
 						else:
 							arr.push_back('\nvar %s: %sEntity' % [i[0], i[1]])
-				entity_map[db_name + "." + result_map_id] = arr
+				entity_map[en_ns] = arr
 				
 		# <sql>
 		var vo_ids = {} # namespace => vo_id
@@ -516,7 +523,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			[leading_result_map_id, vo])
 			
 		# mapper_arr
-		var mp_id = leading_db_name + "." + leading_result_map_id
+		var mp_id = '%s.%sMapper' % [leading_db_name, leading_class_n]
 		if mapper_map.has(mp_id):
 			var count = 1
 			for i in mapper_map:
@@ -704,8 +711,21 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		
 		# end
 		xml_arr.push_back('\n</mapper>')
-		printt(''.join(xml_arr))
+		xml_arr[0] = xml_arr[0] % leading_class_n # replace namespace
+		var xml_ns = '%s.%sMapper' % [leading_db_name, leading_class_n]
+		if xml_map.has(xml_ns):
+			var a_index = 1
+			for n: String in xml_map:
+				if n.begins_with(xml_ns):
+					a_index += 1
+			if a_index > 1:
+				xml_ns = '%s.%s%sMapper' % [leading_db_name, leading_class_n, a_index]
+		xml_map[xml_ns] = xml_arr
 		
+	for i in xml_map:
+		printt("\nxml:", i, '\n')
+		printt(''.join(xml_map[i]))
+	print()
 	for i in mapper_map:
 		printt("\nmapper:", i, '\n')
 		printt(''.join(mapper_map[i]))
