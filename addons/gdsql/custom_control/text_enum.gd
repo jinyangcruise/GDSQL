@@ -39,9 +39,9 @@ func _ready() -> void:
 	update_property()
 	
 func get_selected_text() -> String:
-	if option_button.get_selected_id() >= 1000:
+	if option_button.get_selected_id() > option_button.item_count:
 		return value
-	return option_button.get_item_text(option_button.get_selected_id())
+	return option_button.get_item_text(option_button.selected)
 	
 func update_property():
 	var current_value = value
