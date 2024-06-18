@@ -216,14 +216,15 @@ func _generate(nodes: Array) -> String:
 				node_pair[i.from_node] = {}
 			if not node_pair[i.from_node].has(i.to_node):
 				var to_node_extra = graph_edit.get_node_extra(to_node)
-				node_link_prop[i.to_node] = to_node_extra.link_prop
+				node_link_prop[i.to_node] = to_node_extra.link_prop_type
 				node_pair[i.from_node][i.to_node] = {
 					"db_name": to_data.db_name,
 					"table_name": to_data.table_name,
 					"link_type": to_node_extra.link_type,
 					"link_prop_type": to_node_extra.link_prop_type,
 					"link_prop": to_node_extra.link_prop,
-					"link_col": []
+					"link_col": [],
+					"to_columns": to_columns,
 				}
 				
 			node_pair[i.from_node][i.to_node].link_col.push_back([from_col, to_col])
@@ -252,7 +253,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 	"""]
 		var arr_method = []
 		var arr_columns = {}
-		var left_joins = {}
+		var has_asso_collec = false
 		var valid_prefixes = {} # a0_, a1_, ..., z8_, z9_, aa_, ab_, ..., zy_, zz_
 		for i in prefixes:
 			for j in 10:
@@ -263,8 +264,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		var prefix_index = -1
 		var table_alias = {}
 		var leading_result_map_id = null
+		var leading_class_n = null
+		var leading_entity_n = null
 		var leading_db_name = null
 		var leading_table_name = null
+		var leading_table_name_snake = null
 		var table_counts = {}
 		var column_counts = {} # 同名列
 		
@@ -293,6 +297,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				if valid_prefixes.has(i3):
 					valid_prefixes.erase(i3)
 					
+		var result_map_added = []
 		for node_name in linked_nodes:
 			var node = nodes_map[node_name]
 			var data = node.get_meta("data") as Dictionary
@@ -306,8 +311,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				result_map_id = node_link_prop[node.name].to_camel_case()
 			if leading_result_map_id == null:
 				leading_result_map_id = result_map_id
+				leading_class_n = result_map_id.capitalize().replace(" ", "")
+				leading_entity_n = leading_class_n + "Entity"
 				leading_db_name = db_name
 				leading_table_name = table_name
+				leading_table_name_snake = table_name.to_snake_case()
 				
 			var arr_col = []
 			var arr_col_name = []
@@ -320,7 +328,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				option_button_link.selected != LINK_WAY.NESTING_SELECT:
 					a_col_prefix = table_alias[node_name]
 			var prop_max_length = get_max_prop_name_length(aprops) + 'property=""'.length()
-			var col_max_length = get_max_col_name_length(columns) + 'column=""'.length() + a_col_prefix.length() + 4
+			var col_max_length = get_max_col_name_length(columns) + 'column=""'.length() + \
+				a_col_prefix.length() + 4
 			for col in columns:
 				var prefix = '<id    ' if col.PK else '<result'
 				if linked_nodes.size() > 1:
@@ -337,33 +346,27 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			arr_columns[node_name] = arr_col_name
 			
 			if node_pair.has(node_name):
-				left_joins[node_name] = []
+				has_asso_collec = true
 				for to_node_name in node_pair[node.name]:
 					var info = node_pair[node.name][to_node_name]
-					left_joins[node_name].push_back({
-						"table_alias": table_alias[to_node_name],
-						"db_name": info.db_name,
-						"table_name": info.table_name
-					})
-					
 					var s = null
 					var prefix = "<association" if info.link_type == \
 						graph_edit.LINK_TYPE.ASSOCIATION else "<collection "
-					var a_result_map_id = info.link_prop.to_camel_case() + "Result"
+					var a_result_map_id = info.link_prop_type.to_camel_case() + "Result"
 					
 					if option_button_link.selected == LINK_WAY.NESTING_SELECT:
 						var by = info.link_col.map(func(v): return v[1])
 						by.sort()
 						var arg_types = []
 						for i in by:
-							for j in columns:
+							for j in info.to_columns:
 								if j["Column Name"] == i:
 									arg_types.push_back(j["Data Type"])
 									break
 						var parent_by = info.link_col.map(func(v): return v[0])
 						parent_by.sort()
 						var method = 'select_%s_by_%s' % \
-							[info.link_prop.to_snake_case(), "_".join(by)]
+							[info.link_prop_type.to_snake_case(), "_".join(by)]
 						var method_info = {
 							"id": method,
 							"result_map": a_result_map_id,
@@ -372,17 +375,20 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							"db_name": info.db_name,
 							"namespace": info.db_name + "." + info.table_name,
 							"node_name": to_node_name,
+							"info": info,
 						}
 						
 						# 为了避免因为各种原因导致method相同但实际上不能共用method的情况，
 						# 需要给method名称加后缀。
 						var new_index = 1
 						var need_add_surfix = false
+						var has_same = false
 						for i in arr_method:
 							if i.id.begins_with(method_info.id):
 								var a_index = Array(i.id.split("_")).back().to_int()
 								new_index = max(a_index, new_index) + 1
 							if i.id == method_info.id:
+								has_same = true
 								if i.result_map != method_info.result_map or \
 								i.arg_names != method_info.arg_names or \
 								i.namespace != method_info.namespace:
@@ -395,7 +401,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							[prefix, info.link_prop, ",".join(parent_by), 
 							method_info.id]
 							
-						if not arr_method.has(method_info):
+						if not has_same:
 							arr_method.push_back(method_info)
 					else:
 						s = '%s property="%s" columnPrefix="%s" resultMap="%s"    />' % \
@@ -406,31 +412,39 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 					arr_prop_type.push_back(
 						[info.link_prop, info.link_prop_type, info.link_type])
 					
-			xml_arr.push_back(
-'\n\t<resultMap id="%sResult" type="%sEntity" autoMapping="false">\n\t\t%s\n\t</resultMap>\n\t' % \
-					[result_map_id, result_map_id, "\n\t\t".join(arr_col)]
-			)
-			
+			if not result_map_added.has(result_map_id):
+				xml_arr.push_back('\n\t<resultMap id="%sResult" type="%sEntity"' % [
+					result_map_id, result_map_id.capitalize().replace(" ", "")
+				])
+				xml_arr.push_back(' autoMapping="false">\n\t\t%s\n\t</resultMap>\n\t' % \
+						"\n\t\t".join(arr_col))
+				result_map_added.push_back(result_map_id)
+				
 			# entity
 			if not entity_map.has(db_name + "." + result_map_id):
-				var arr = ['extends RefCounted\nclass_name %s\n'] # leave class_name not set
+				var arr = ['extends RefCounted\nclass_name %sEntity\n' % \
+					result_map_id.capitalize().replace(" ", "")]
 				for i in arr_prop_type:
 					if i[2] == graph_edit.LINK_TYPE.COLLECTION_ARRAY:
-						if i[1] == TYPE_NIL:
+						if i[1] == "Nil":
 							arr.push_back('\nvar %s: Array' % i[0])
-						else:
+						elif DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
 							arr.push_back('\nvar %s: Array[%s]' % [i[0], i[1]])
+						else:
+							arr.push_back('\nvar %s: Array[%sEntity]' % [i[0], i[1]])
 					else:
 						if i[1] == "Nil":
 							arr.push_back('\nvar %s' % i[0])
-						else:
+						elif DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
 							arr.push_back('\nvar %s: %s' % [i[0], i[1]])
+						else:
+							arr.push_back('\nvar %s: %sEntity' % [i[0], i[1]])
 				entity_map[db_name + "." + result_map_id] = arr
 				
 		# <sql>
 		var vo_ids = {} # namespace => vo_id
 		var select_use_db = false # <select>标签是否使用databaseId属性
-		if left_joins.is_empty():
+		if not has_asso_collec:
 			select_use_db = true
 			vo_ids[leading_db_name + "." + leading_table_name] = leading_result_map_id
 			var vo = "select %s from %s" % [", ".join(arr_columns[lead_node_name]), 
@@ -501,11 +515,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n\t' % \
 			[leading_result_map_id, vo])
 			
-		# 
-		var arr_mapper = null
-		if not mapper_map.has(leading_db_name + "." + leading_result_map_id):
-			arr_mapper = ['extends GBatisMapper\nclass_name %s\n'] # leave class_name not set
-			
+		# mapper_arr
+		var mp_id = leading_db_name + "." + leading_result_map_id
+		if mapper_map.has(mp_id):
+			var count = 1
+			for i in mapper_map:
+				if i.begins_with(mp_id):
+					count += 1
+			if count != 1:
+				mp_id += "_" + count
+		var mapper_arr = ['extends GBatisMapper\nclass_name %sMapper\n' % leading_class_n]
+		mapper_map[mp_id] = mapper_arr
+		
 		# prepare somthing
 		var props = graph_edit.get_node_props(nodes_map[lead_node_name])
 		var pk_col = []
@@ -520,36 +541,34 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		
 		# <select> leading table: one by primary, one by entity and list by entity
 		for method_surfix in ["_by_%s", "", "_list"]:
-			var leading_method = 'select_%s%s' % [
-				leading_table_name.to_snake_case(), method_surfix]
+			var leading_method = 'select_%s%s' % [leading_table_name_snake, method_surfix]
 				
 			if method_surfix == "_by_%s":
 				leading_method = leading_method % ("_".join(pk_prop_snake))
 				
-			if arr_mapper:
-				if method_surfix == "_by_%s":
-					var args = []
-					for i in pk_prop_snake.size():
-						args.push_back('%s: %s' % [pk_prop_snake[i], type_string(pk_type[i])])
-					arr_mapper.push_back('\nfunc %s(%s) -> ' % [
-						leading_method, ", ".join(args)
-					])
-					arr_mapper.push_back('%s) -> %s') # leave class_name not set
-					arr_mapper.push_back('\n\treturn query("%s", %s)\n\t' % [
-						leading_method, ", ".join(pk_prop_snake)
-					])
+			# mapper_arr
+			if method_surfix == "_by_%s":
+				var args = []
+				for i in pk_prop_snake.size():
+					args.push_back('%s: %s' % [pk_prop_snake[i], type_string(pk_type[i])])
+				mapper_arr.push_back('\nfunc %s(%s) -> %s:' % [
+					leading_method, ", ".join(args), leading_entity_n
+				])
+				mapper_arr.push_back('\n\treturn query("%s", %s)\n\t' % [
+					leading_method, ", ".join(pk_prop_snake)
+				])
+			else:
+				mapper_arr.push_back('\nfunc %s(%s: %s) -> ' % [
+					leading_method, leading_result_map_id, leading_entity_n
+				])
+				if method_surfix == "":
+					mapper_arr.push_back('%s:' % leading_entity_n)
 				else:
-					arr_mapper.push_back('\nfunc %s(%s: ' % [
-						leading_method, leading_result_map_id
-					])
-					if method_surfix == "":
-						arr_mapper.push_back('%s) -> %s') # leave class_name not set
-					else:
-						arr_mapper.push_back('%s) -> Array[%s]') # leave class_name not set
-					arr_mapper.push_back('\n\treturn query("%s", %s)\n\t' % [
-						leading_method, leading_result_map_id
-					])
-					
+					mapper_arr.push_back('Array[%s]:' % leading_entity_n)
+				mapper_arr.push_back('\n\treturn query("%s", %s)\n\t' % [
+					leading_method, leading_result_map_id
+				])
+				
 			xml_arr.push_back('\n\t<select id="%s" resultMap="%s"%s>' % \
 				[leading_method, leading_table_name.to_camel_case() + "Result",
 				(' databaseId="%s"' % leading_db_name) if select_use_db else ""])
@@ -559,7 +578,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				var args = []
 				for i in pk_col.size():
 					var content = '%s == #{%s}' % [pk_col[i], pk_prop_snake[i]]
-					if not left_joins.is_empty() and \
+					if has_asso_collec and \
 					option_button_link.selected != LINK_WAY.NESTING_SELECT:
 						content = table_alias[lead_node_name].substr(0, 2) + "." + content
 					args.push_back(content)
@@ -572,7 +591,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 					test = '%s != %s' % [
 						props[i["Column Name"]], default_val(i["Data Type"])]
 					content = '%s == #{%s}' % [i["Column Name"], props[i["Column Name"]]]
-					if not left_joins.is_empty() and \
+					if has_asso_collec and \
 					option_button_link.selected != LINK_WAY.NESTING_SELECT:
 						content = table_alias[lead_node_name].substr(0, 2) + "." + content
 					xml_arr.push_back('\n\t\t\t<if test="%s">and %s</if>' % [test, content])
@@ -580,11 +599,29 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			xml_arr.push_back('\n\t</select>\n\t')
 			
 		for m in arr_method:
+			# mapper_arr
+			var arg_names = []
+			var args = []
+			for i in m.arg_names.size():
+				arg_names.push_back(m.arg_names[i].to_snake_case())
+				args.push_back('%s: %s' % [
+					arg_names.back(), type_string(m.arg_types[i])])
+			var return_type = null
+			if m.info.link_type == graph_edit.LINK_TYPE.ASSOCIATION:
+				return_type = m.info.link_prop_type.capitalize().replace(" ", "")
+			else:
+				return_type = 'Array[%s]' % m.info.link_prop_type
+			mapper_arr.push_back('\nfunc %s(%s) -> %s:' % [
+				m.id, ", ".join(args), return_type
+			])
+			mapper_arr.push_back('\n\treturn query("%s", %s)\n\t' % [
+				m.id, ", ".join(arg_names)
+			])
+			
+			# xml_arr
 			var acond = []
 			for arg in m.arg_names:
 				acond.push_back('%s == #{%s}' % [arg, arg.to_snake_case()])
-				
-			# TODO mapper_arr
 				
 			xml_arr.push_back('\n\t<select id="%s" resultMap="%s"%s>' % \
 				[m.id, m.result_map, 
@@ -593,9 +630,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			xml_arr.push_back('\n\t\twhere %s' % " and ".join(acond))
 			xml_arr.push_back('\n\t</select>\n\t')
 			
+		# update mapper
+		mapper_arr.push_back('\nfunc update_%s(%s: %s) -> int:' % [
+			leading_table_name_snake, leading_result_map_id, leading_entity_n
+		])
+		mapper_arr.push_back('\n\treturn query("update_%s", %s)\n\t' % [
+			leading_table_name_snake, leading_result_map_id
+		])
+		
 		# <update> leading table
 		xml_arr.push_back('\n\t<update id="update_%s" databaseId="%s">' % \
-			[leading_table_name.to_snake_case(), leading_db_name])
+			[leading_table_name_snake, leading_db_name])
 		xml_arr.push_back('\n\t\tupdate %s' % leading_table_name)
 		xml_arr.push_back('\n\t\t<set>')
 		for i in nodes_map[lead_node_name].get_meta("data").columns:
@@ -606,9 +651,17 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		xml_arr.push_back('\n\t\t</set>')
 		xml_arr.push_back('\n\t</update>\n\t')
 		
+		# insert mapper
+		mapper_arr.push_back('\nfunc insert_%s(%s: %s) -> int:' % [
+			leading_table_name_snake, leading_result_map_id, leading_entity_n
+		])
+		mapper_arr.push_back('\n\treturn query("insert_%s", %s)\n\t' % [
+			leading_table_name_snake, leading_result_map_id
+		])
+		
 		# <insert> leading table
 		xml_arr.push_back('\n\t<insert id="insert_%s" databaseId="%s">' % \
-			[leading_table_name.to_snake_case(), leading_db_name])
+			[leading_table_name_snake, leading_db_name])
 		xml_arr.push_back('\n\t\tinsert into %s(' % leading_table_name)
 		xml_arr.push_back('\n\t\t\t<trim suffixOverrides=",">')
 		for i in nodes_map[lead_node_name].get_meta("data").columns:
@@ -627,9 +680,20 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		xml_arr.push_back('\n\t\t\t</trim>')
 		xml_arr.push_back('\n\t</insert>\n\t')
 		
+		# delete mapper
+		var a_args = []
+		for i in pk_prop_snake.size():
+			a_args.push_back('%s: %s' % [pk_prop_snake[i], type_string(pk_type[i])])
+		mapper_arr.push_back('\nfunc delete_%s_by_%s(%s) -> int:' % [
+			leading_table_name_snake, "_".join(pk_prop_snake), ", ".join(a_args)
+		])
+		mapper_arr.push_back('\n\treturn query("delete_%s", %s)\n\t' % [
+			leading_table_name_snake, "_".join(pk_prop_snake)
+		])
+		
 		# <delete> leading table
 		xml_arr.push_back('\n\t<delete id="delete_%s_by_%s" databaseId="%s">' % \
-			[leading_table_name.to_snake_case(), "_".join(pk_prop_snake), 
+			[leading_table_name_snake, "_".join(pk_prop_snake), 
 			leading_db_name])
 		var cond = []
 		for i in pk_col.size():
@@ -641,6 +705,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		# end
 		xml_arr.push_back('\n</mapper>')
 		printt(''.join(xml_arr))
+		
+	for i in mapper_map:
+		printt("\nmapper:", i, '\n')
+		printt(''.join(mapper_map[i]))
+	print()
+	for i in entity_map:
+		printt("\nentity:", i, '\n')
+		printt(''.join(entity_map[i]))
 	return ""
 	
 #func get_linked_nodes(node_pair: Dictionary, head_name, result: Array):

@@ -128,6 +128,14 @@ asize = null, pos_offset = null, aname = ""):
 			ob_link_type.add_item("COLLECTION_ARRAY", LINK_TYPE.COLLECTION_ARRAY)
 			ob_link_type.selected = 0 if type == LINK_TYPE.ASSOCIATION else 1
 			ob_link_type.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		
+			var association_class_name = LineEdit.new()
+			association_class_name.caret_blink = true
+			association_class_name.placeholder_text = "Class name"
+			association_class_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			association_class_name.custom_minimum_size.x = 150
+			association_class_name.tooltip_text = "Class name of the property"
+			association_class_name.text = extra.get("association_class_name", "")
 			
 			var text_enum_suggestion = TEXT_ENUM.instantiate()
 			text_enum_suggestion.ready.connect(func():
@@ -136,15 +144,35 @@ asize = null, pos_offset = null, aname = ""):
 				text_enum_suggestion.update_property()
 			)
 			text_enum_suggestion.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			text_enum_suggestion.tooltip_text = \
-				"Type of association property or the element of collection."
-				
+			text_enum_suggestion.custom_minimum_size.x = 150
+			text_enum_suggestion.tooltip_text = "Type of the element of collection."
+			text_enum_suggestion.visible = false
+			
+			ob_link_type.item_selected.connect(func(index):
+				if index == 0:
+					association_class_name.show()
+					text_enum_suggestion.hide()
+				else:
+					association_class_name.hide()
+					text_enum_suggestion.show()
+			)
+			
 			var le_prop_name = LineEdit.new()
 			le_prop_name.text = prop_name
 			le_prop_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			le_prop_name.placeholder_text = "Property name"
+			le_prop_name.tooltip_text = "Property Name"
 			
-			datas.push_back([null, null, ob_link_type, text_enum_suggestion, le_prop_name])
+			association_class_name.text_changed.connect(func(new_text: String):
+				if new_text.countn(le_prop_name.text) > 0 or \
+				le_prop_name.text.countn(new_text) > 0 or \
+				new_text.to_snake_case().begins_with(le_prop_name.text) or \
+				le_prop_name.text.begins_with(new_text.to_snake_case()):
+					le_prop_name.text = new_text.to_snake_case()
+			)
+			
+			datas.push_back([null, null, ob_link_type, association_class_name, 
+				text_enum_suggestion, le_prop_name])
 			
 	for i: Dictionary in data.columns:
 		var label_col_name = Label.new()
@@ -265,10 +293,14 @@ func get_nodes_params(only_selected = false):
 				props[arr[0].text] = arr[1].text
 			elif arr.size() == 4:
 				props[arr[2].text] = arr[3].text
-			elif arr.size() == 5:
+			elif arr.size() == 6:
 				extra["link_type"] = (arr[2] as OptionButton).get_selected_id()
-				extra["link_prop_type"] = arr[3].get_selected_text()
-				extra["link_prop"] = (arr[4] as LineEdit).text.strip_edges()
+				if extra["link_type"] == LINK_TYPE.ASSOCIATION:
+					extra["link_prop_type"] = (arr[3] as LineEdit).text
+				else:
+					extra["link_prop_type"] = arr[4].get_selected_text()
+				extra["link_prop"] = (arr[5] as LineEdit).text.strip_edges()
+				extra["association_class_name"] = (arr[3] as LineEdit).text
 			else:
 				assert(false, "Inner error check this in mapper_graph_edit.gd")
 				
@@ -287,10 +319,13 @@ func get_nodes_params(only_selected = false):
 func get_node_extra(node: GraphNode) -> Dictionary:
 	var extra = {}
 	for arr: Array in node.datas:
-		if arr.size() == 5:
+		if arr.size() == 6:
 			extra["link_type"] = (arr[2] as OptionButton).get_selected_id()
-			extra["link_prop_type"] = arr[3].get_selected_text()
-			extra["link_prop"] = (arr[4] as LineEdit).text.strip_edges()
+			if extra["link_type"] == LINK_TYPE.ASSOCIATION:
+				extra["link_prop_type"] = (arr[3] as LineEdit).text
+			else:
+				extra["link_prop_type"] = arr[4].get_selected_text()
+			extra["link_prop"] = (arr[5] as LineEdit).text.strip_edges()
 			break
 	return extra
 	
@@ -417,6 +452,13 @@ to_node: StringName, to_port: int) -> void:
 		ob_link_type.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		ob_link_type.fit_to_longest_item = false
 		
+		var association_class_name = LineEdit.new()
+		association_class_name.caret_blink = true
+		association_class_name.placeholder_text = "Class name"
+		association_class_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		association_class_name.custom_minimum_size.x = 150
+		association_class_name.tooltip_text = "Class name of the property"
+		
 		var text_enum_suggestion = TEXT_ENUM.instantiate()
 		text_enum_suggestion.ready.connect(func():
 			text_enum_suggestion.setup(DataTypeDef.DATA_TYPE_COMMON_NAMES.keys(), true)
@@ -425,14 +467,35 @@ to_node: StringName, to_port: int) -> void:
 		)
 		text_enum_suggestion.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		text_enum_suggestion.custom_minimum_size.x = 150
+		text_enum_suggestion.tooltip_text = "Type of the element of collection."
+		text_enum_suggestion.visible = false
+		
+		ob_link_type.item_selected.connect(func(index):
+			if index == 0:
+				association_class_name.show()
+				text_enum_suggestion.hide()
+			else:
+				association_class_name.hide()
+				text_enum_suggestion.show()
+		)
 		
 		var le_prop_name = LineEdit.new()
 		le_prop_name.text = prop_name
 		le_prop_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		le_prop_name.placeholder_text = "Property name"
+		le_prop_name.tooltip_text = "Property Name"
+		
+		association_class_name.text_changed.connect(func(new_text: String):
+			if new_text.countn(le_prop_name.text) > 0 or \
+			le_prop_name.text.countn(new_text) > 0 or \
+			new_text.to_snake_case().begins_with(le_prop_name.text) or \
+			le_prop_name.text.begins_with(new_text.to_snake_case()):
+				le_prop_name.text = new_text.to_snake_case()
+		)
 		
 		var datas = (graph_node.datas as Array).duplicate()
-		datas.push_front([null, null, ob_link_type, text_enum_suggestion, le_prop_name])
+		datas.push_front([null, null, ob_link_type, association_class_name, 
+			text_enum_suggestion, le_prop_name])
 		graph_node.datas = datas
 		graph_node.set_meta("extra_enabled", true)
 		update_slot_status(graph_node)
