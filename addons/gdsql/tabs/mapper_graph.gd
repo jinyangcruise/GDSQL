@@ -911,6 +911,7 @@ func popup_diff_dialog(arr_content: Array):
 		table.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
 	)
 	var arr_editor = []
+	var arr_v_scroll_bar = []
 	var columns = []
 	var data = []
 	for i in arr_content:
@@ -928,6 +929,12 @@ func popup_diff_dialog(arr_content: Array):
 		editor.ready.connect(func():
 			editor.toggle_scripts_button.hide()
 			var code_edit = editor.text_editor as CodeEdit
+			arr_v_scroll_bar.push_back(code_edit.get_v_scroll_bar())
+			code_edit.get_v_scroll_bar().value_changed.connect(func(v):
+				for a_bar: VScrollBar in arr_v_scroll_bar:
+					if a_bar != code_edit.get_v_scroll_bar():
+						a_bar.value = v
+			)
 			code_edit.gutters_draw_line_numbers = true
 			code_edit.draw_tabs = true
 			code_edit.highlight_all_occurrences = true
@@ -948,10 +955,14 @@ func popup_diff_dialog(arr_content: Array):
 				if a_editor != editor:
 					a_editor.set_zoom_factor(factor)
 		)
+		
 	table.columns = columns
 	table.datas = [data]
+	table.support_select_border = false
 	var arr = [[table]] as Array[Array]
 	var defer = func(_confirmed, _dummy):
+		arr_editor.clear()
+		arr_v_scroll_bar.clear()
 		table.queue_free()
 	mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.9)
 	
