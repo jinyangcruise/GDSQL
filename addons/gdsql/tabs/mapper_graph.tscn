@@ -75,6 +75,7 @@ layout_mode = 2
 [node name="LineEditSavePath" type="LineEdit" parent="VBoxContainer/HFlowContainer"]
 custom_minimum_size = Vector2(325, 0)
 layout_mode = 2
+size_flags_horizontal = 3
 tooltip_text = "Generated XML content will be written to this file. Leave this empty if you don't want to generate XML file."
 placeholder_text = "Save path (dir)"
 clear_button_enabled = true
@@ -133,6 +134,7 @@ script = ExtResource("2_455wi")
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSaveAs" to="." method="_on_button_save_as_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNode" to="." method="_on_button_add_node_pressed"]
 [connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonChoosePath" to="." method="_on_option_button_choose_path_item_selected"]
+[connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonLink" to="." method="_on_option_button_link_item_selected"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRunSelected" to="." method="_on_button_run_selected_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRun" to="." method="_on_button_run_pressed"]
 [connection signal="connection_request" from="VBoxContainer/GraphEdit" to="VBoxContainer/GraphEdit" method="_on_connection_request"]

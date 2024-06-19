@@ -131,10 +131,11 @@ func _on_option_button_choose_path_item_selected(access: int, extra_line_edit = 
 	var editor_file_dialog = EditorFileDialog.new()
 	editor_file_dialog.access = access
 	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_DIR
-	editor_file_dialog.file_selected.connect(func(path: String):
+	editor_file_dialog.dir_selected.connect(func(path: String):
 		line_edit_save_path.text = path
 		if extra_line_edit:
 			extra_line_edit.text = path
+		change_tab_title.emit(self, get_meta("file_name") + "*")
 	, CONNECT_DEFERRED)
 	add_child(editor_file_dialog)
 	editor_file_dialog.popup_centered_ratio(0.5)
@@ -701,7 +702,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	line_edit_path.placeholder_text = "Save path"
 	line_edit_path.caret_blink = true
 	line_edit_path.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	#line_edit_path.text = lineedit
+	line_edit_path.text = line_edit_save_path.text
 	hbox.add_child(line_edit_path)
 	
 	var option_button_choose = OptionButton.new()
@@ -778,6 +779,22 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 				0: # Preview
 					popup_preview_dialog(item)
 				1: # Save As...
+					#TODO
+					#func _on_option_button_choose_path_item_selected(access: int, extra_line_edit = null) -> void:
+						#var editor_file_dialog = EditorFileDialog.new()
+						#editor_file_dialog.access = access
+						#editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_DIR
+						#editor_file_dialog.dir_selected.connect(func(path: String):
+							#line_edit_save_path.text = path
+							#if extra_line_edit:
+								#extra_line_edit.text = path
+							#change_tab_title.emit(self, get_meta("file_name") + "*")
+						#, CONNECT_DEFERRED)
+						#add_child(editor_file_dialog)
+						#editor_file_dialog.popup_centered_ratio(0.5)
+						#editor_file_dialog.close_requested.connect(func():
+							#editor_file_dialog.queue_free()
+						#, CONNECT_DEFERRED)
 					pass
 				2: # Copy to clipboard
 					DisplayServer.clipboard_set(item.get_metadata(0))
@@ -935,6 +952,12 @@ func popup_diff_dialog(arr_content: Array):
 					if a_bar != code_edit.get_v_scroll_bar():
 						a_bar.value = v
 			)
+			editor.text_editor.caret_changed.connect(func():
+				for a_editor in arr_editor:
+					if a_editor != editor:
+						(a_editor.text_editor as CodeEdit).get_v_scroll_bar().value = \
+							(editor.text_editor as CodeEdit).get_v_scroll_bar().value
+			)
 			code_edit.gutters_draw_line_numbers = true
 			code_edit.draw_tabs = true
 			code_edit.highlight_all_occurrences = true
@@ -1029,3 +1052,7 @@ func split_for_long_content(content: String, delimiter = "\n") -> String:
 			break
 		start += l
 	return delimiter.join(arr)
+
+
+func _on_option_button_link_item_selected(_index: int) -> void:
+	change_tab_title.emit(self, get_meta("file_name") + "*")
