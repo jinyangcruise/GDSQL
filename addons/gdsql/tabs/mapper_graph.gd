@@ -902,27 +902,23 @@ func popup_preview_dialog(item: TreeItem):
 func popup_diff_dialog(arr_content: Array):
 	if arr_content.is_empty():
 		return
-	var hbox = HBoxContainer.new()
-	hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	hbox.ready.connect(func():
-		hbox.get_parent_control().size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		hbox.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
+		
+	var table = preload("res://addons/gdsql/table.tscn").instantiate()
+	table.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	table.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	table.ready.connect(func():
+		table.get_parent_control().size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		table.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
 	)
 	var arr_editor = []
-	#var vbox = preload("res://addons/gdsql/table.tscn").instantiate()
+	var columns = []
+	var data = []
 	for i in arr_content:
+		columns.push_back(i.file)
 		var vbox = VBoxContainer.new()
-		
-		hbox.add_child(vbox)
+		data.push_back(vbox)
 		vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		
-		var label = Label.new()
-		vbox.add_child(label)
-		label.text = i.file
-		label.clip_text = true
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		
 		var editor = preload("res://addons/gdsql/gxml/editor/xml_editor.tscn").instantiate()
 		vbox.add_child(editor)
@@ -930,6 +926,7 @@ func popup_diff_dialog(arr_content: Array):
 		editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		editor.ready.connect(func():
+			editor.toggle_scripts_button.hide()
 			var code_edit = editor.text_editor as CodeEdit
 			code_edit.gutters_draw_line_numbers = true
 			code_edit.draw_tabs = true
@@ -951,9 +948,11 @@ func popup_diff_dialog(arr_content: Array):
 				if a_editor != editor:
 					a_editor.set_zoom_factor(factor)
 		)
-	var arr = [[hbox]] as Array[Array]
+	table.columns = columns
+	table.datas = [data]
+	var arr = [[table]] as Array[Array]
 	var defer = func(_confirmed, _dummy):
-		hbox.queue_free()
+		table.queue_free()
 	mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.9)
 	
 #func get_linked_nodes(node_pair: Dictionary, head_name, result: Array):
