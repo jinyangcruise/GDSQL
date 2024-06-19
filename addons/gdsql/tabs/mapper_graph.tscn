@@ -73,16 +73,16 @@ icon = ExtResource("4_ump4m")
 [node name="VSeparator2" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
 layout_mode = 2
 
-[node name="LineEditSaveXMLPath" type="LineEdit" parent="VBoxContainer/HFlowContainer"]
+[node name="LineEditSavePath" type="LineEdit" parent="VBoxContainer/HFlowContainer"]
 custom_minimum_size = Vector2(325, 0)
 layout_mode = 2
 tooltip_text = "Generated XML content will be written to this file. Leave this empty if you don't want to generate XML file."
-placeholder_text = "Generate xml file path"
+placeholder_text = "Save path (dir)"
 clear_button_enabled = true
 select_all_on_focus = true
 caret_blink = true
 
-[node name="OptionButtonChooseXMLFile" type="OptionButton" parent="VBoxContainer/HFlowContainer"]
+[node name="OptionButtonChoosePath" type="OptionButton" parent="VBoxContainer/HFlowContainer"]
 layout_mode = 2
 tooltip_text = "Pick a path from Resource, UserData or FileSystem."
 selected = 0
@@ -95,30 +95,6 @@ popup/item_2/text = "FileSystem"
 popup/item_2/id = 2
 
 [node name="VSeparator3" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
-layout_mode = 2
-
-[node name="LineEditSaveGDPath" type="LineEdit" parent="VBoxContainer/HFlowContainer"]
-custom_minimum_size = Vector2(325, 0)
-layout_mode = 2
-tooltip_text = "Generated gdscript content will be written to this file. Leave this empty if you don't want to generate gdscript file."
-placeholder_text = "Generate gd file path"
-clear_button_enabled = true
-select_all_on_focus = true
-caret_blink = true
-
-[node name="OptionButtonChooseGDFile" type="OptionButton" parent="VBoxContainer/HFlowContainer"]
-layout_mode = 2
-tooltip_text = "Pick a path from Resource, UserData or FileSystem."
-selected = 0
-allow_reselect = true
-item_count = 3
-popup/item_0/text = "Resource"
-popup/item_1/text = "UserData"
-popup/item_1/id = 1
-popup/item_2/text = "FileSystem"
-popup/item_2/id = 2
-
-[node name="VSeparator5" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
 layout_mode = 2
 
 [node name="OptionButtonLink" type="OptionButton" parent="VBoxContainer/HFlowContainer"]
@@ -165,8 +141,7 @@ script = ExtResource("2_455wi")
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSave" to="." method="_on_button_save_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSaveAs" to="." method="_on_button_save_as_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNode" to="." method="_on_button_add_node_pressed"]
-[connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonChooseXMLFile" to="." method="_on_option_button_choose_xml_file_item_selected"]
-[connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonChooseGDFile" to="." method="_on_option_button_choose_gd_file_item_selected"]
+[connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonChoosePath" to="." method="_on_option_button_choose_path_item_selected"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRunSelected" to="." method="_on_button_run_selected_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRun" to="." method="_on_button_run_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonPreview" to="." method="_on_button_preview_pressed"]

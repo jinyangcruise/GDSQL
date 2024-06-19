@@ -5,10 +5,8 @@ extends VSplitContainer
 @onready var button_save: Button = $VBoxContainer/HFlowContainer/ButtonSave
 @onready var button_save_as: Button = $VBoxContainer/HFlowContainer/ButtonSaveAs
 @onready var button_add_node: Button = $VBoxContainer/HFlowContainer/ButtonAddNode
-@onready var line_edit_save_xml_path: LineEdit = $VBoxContainer/HFlowContainer/LineEditSaveXMLPath
-@onready var option_button_choose_xml_file: OptionButton = $VBoxContainer/HFlowContainer/OptionButtonChooseXMLFile
-@onready var line_edit_save_gd_path: LineEdit = $VBoxContainer/HFlowContainer/LineEditSaveGDPath
-@onready var option_button_choose_gd_file: OptionButton = $VBoxContainer/HFlowContainer/OptionButtonChooseGDFile
+@onready var line_edit_save_path: LineEdit = $VBoxContainer/HFlowContainer/LineEditSavePath
+@onready var option_button_choose_path: OptionButton = $VBoxContainer/HFlowContainer/OptionButtonChooseXMLFile
 @onready var option_button_link: OptionButton = $VBoxContainer/HFlowContainer/OptionButtonLink
 @onready var button_run_selected: Button = $VBoxContainer/HFlowContainer/ButtonRunSelected
 @onready var button_run: Button = $VBoxContainer/HFlowContainer/ButtonRun
@@ -37,12 +35,10 @@ func load_mapper_file(path):
 	config.load(path)
 	var nodes = config.get_value("data", "nodes", {})
 	var connections = config.get_value("data", "connections", [])
-	var xml_path = config.get_value("data", "xml_path", "")
-	var gd_path = config.get_value("data", "gd_path", "")
+	var save_path = config.get_value("data", "path", "")
 	var link_type = config.get_value("data", "link_type", 0)
 	
-	line_edit_save_xml_path.text = xml_path
-	line_edit_save_gd_path.text = gd_path
+	line_edit_save_path.text = save_path
 	option_button_link.selected = link_type
 	
 	# genarate nodes
@@ -80,8 +76,7 @@ func _on_button_save_pressed() -> void:
 			v["to_node"] = v["to_node"].validate_node_name()
 			return v
 		))
-		config.set_value("data", "xml_path", line_edit_save_xml_path.text.strip_edges())
-		config.set_value("data", "gd_path", line_edit_save_gd_path.text.strip_edges())
+		config.set_value("data", "path", line_edit_save_path.text.strip_edges())
 		config.set_value("data", "link_type", option_button_link.selected)
 		
 		# 防止报错导致丢失文件中的旧数据
@@ -108,8 +103,7 @@ func _on_button_save_as_pressed() -> void:
 			v["to_node"] = v["to_node"].validate_node_name()
 			return v
 		))
-		config.set_value("data", "xml_path", line_edit_save_xml_path.text.strip_edges())
-		config.set_value("data", "gd_path", line_edit_save_gd_path.text.strip_edges())
+		config.set_value("data", "path", line_edit_save_path.text.strip_edges())
 		config.set_value("data", "link_type", option_button_link.selected)
 		
 		# 防止报错导致丢失文件中的旧数据
@@ -134,27 +128,14 @@ func _on_button_save_as_pressed() -> void:
 func _on_button_add_node_pressed() -> void:
 	mgr.create_accept_dialog(button_add_node.tooltip_text)
 	
-func _on_option_button_choose_xml_file_item_selected(access: int) -> void:
+func _on_option_button_choose_path_item_selected(access: int, extra_line_edit = null) -> void:
 	var editor_file_dialog = EditorFileDialog.new()
-	editor_file_dialog.filters = PackedStringArray(["*.xml; XML File"])
 	editor_file_dialog.access = access
-	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_SAVE_FILE
+	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_DIR
 	editor_file_dialog.file_selected.connect(func(path: String):
-		line_edit_save_xml_path.text = path
-	, CONNECT_DEFERRED)
-	add_child(editor_file_dialog)
-	editor_file_dialog.popup_centered_ratio(0.5)
-	editor_file_dialog.close_requested.connect(func():
-		editor_file_dialog.queue_free()
-	, CONNECT_DEFERRED)
-	
-func _on_option_button_choose_gd_file_item_selected(access: int) -> void:
-	var editor_file_dialog = EditorFileDialog.new()
-	editor_file_dialog.filters = PackedStringArray(["*.gd; GDScript File"])
-	editor_file_dialog.access = access
-	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_SAVE_FILE
-	editor_file_dialog.file_selected.connect(func(path: String):
-		line_edit_save_gd_path.text = path
+		line_edit_save_path.text = path
+		if extra_line_edit:
+			extra_line_edit.text = path
 	, CONNECT_DEFERRED)
 	add_child(editor_file_dialog)
 	editor_file_dialog.popup_centered_ratio(0.5)
@@ -189,7 +170,7 @@ func _on_button_preview_pressed() -> void:
 	else:
 		_generate(selected_node)
 		
-func _generate(nodes: Array) -> String:
+func _generate(nodes: Array):
 	var nodes_map = {}
 	var node_pair = {}
 	var node_link_prop = {}
@@ -722,18 +703,167 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				xml_ns = '%s.%s%sMapper' % [leading_db_name, leading_class_n, a_index]
 		xml_map[xml_ns] = xml_arr
 		
-	for i in xml_map:
-		printt("\nxml:", i, '\n')
-		printt(''.join(xml_map[i]))
-	print()
-	for i in mapper_map:
-		printt("\nmapper:", i, '\n')
-		printt(''.join(mapper_map[i]))
-	print()
-	for i in entity_map:
-		printt("\nentity:", i, '\n')
-		printt(''.join(entity_map[i]))
-	return ""
+	# popup confirm dialog
+	popup_generate_dialog(xml_map, mapper_map, entity_map)
+	
+var _generate_dialog
+func popup_generate_dialog(xml_map, mapper_map, entity_map):
+	var hbox = HBoxContainer.new()
+	hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	var line_edit_path = LineEdit.new()
+	line_edit_path.placeholder_text = "Save path"
+	line_edit_path.caret_blink = true
+	line_edit_path.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	#line_edit_path.text = lineedit
+	hbox.add_child(line_edit_path)
+	
+	var option_button_choose = OptionButton.new()
+	option_button_choose.add_item("Resource")
+	option_button_choose.add_item("UserData")
+	option_button_choose.add_item("FileSystem")
+	option_button_choose.tooltip_text = "Pick a path from Resource, UserData or FileSystem."
+	option_button_choose.allow_reselect = true
+	option_button_choose.selected = 0
+	option_button_choose.item_selected.connect(
+		_on_option_button_choose_path_item_selected.bind(line_edit_path))
+	hbox.add_child(option_button_choose)
+	
+	var btn_save_all = Button.new()
+	btn_save_all.icon = get_theme_icon("Save", "EditorIcons")
+	btn_save_all.text = "Save All"
+	btn_save_all.pressed.connect(func():
+		if line_edit_path.text == "":
+			mgr.create_accept_dialog("Save path is empty!")
+			return
+		# TODO
+	)
+	hbox.add_child(btn_save_all)
+	
+	var tree = Tree.new()
+	tree.columns = 3
+	tree.hide_root = true
+	tree.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tree.set_column_expand(0, false)
+	var root = tree.create_item()
+	var check_all_item = tree.create_item(root)
+	check_all_item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
+	check_all_item.set_checked(0, true)
+	check_all_item.set_editable(0, true)
+	for map in [xml_map, mapper_map, entity_map]:
+		for i: String in map:
+			var item = tree.create_item(root)
+			item.set_metadata(0, ''.join(map[i]))
+			item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
+			item.set_checked(0, true)
+			item.set_editable(0, true)
+			item.set_text(1, i)
+			item.set_text(2, i.get_slice(".", 1) + (".xml" if map == xml_map else ".gd"))
+			item.add_button(2, get_theme_icon("Edit", "EditorIcons"), 0, false, "Edit")
+			item.add_button(2, get_theme_icon("Save", "EditorIcons"), 1, false, "Save AS...")
+			item.add_button(2, get_theme_icon("ActionCopy", "EditorIcons"), 2, false, "Copy")
+			
+	# TODO FIXME
+	tree.item_selected.connect(func():
+		var selected_item = tree.get_selected()
+		if tree.get_selected() == check_all_item:
+			for i: TreeItem in root.get_children():
+				i.set_checked(0, check_all_item.is_checked(0))
+		elif selected_item:
+			if selected_item.is_checked(0):
+				var all_checked = true
+				for i: TreeItem in root.get_children():
+					if i == check_all_item:
+						continue
+					if not i.is_checked(0):
+						all_checked = false
+						break
+				check_all_item.set_checked(0, all_checked)
+			else:
+				check_all_item.set_checked(0, false)
+	)
+	tree.button_clicked.connect(
+		func(item: TreeItem, _column: int, id: int, _mouse_button_index: int):
+			match id:
+				0: # Preview
+					popup_preview_dialog(item)
+				1: # Save As...
+					pass
+				2: # Copy to clipboard
+					DisplayServer.clipboard_set(item.get_metadata(0))
+	)
+	tree.ready.connect(func():
+		tree.custom_minimum_size.y = tree.get_window().size.y
+	)
+	var arr = [[hbox], [tree]] as Array[Array]
+	var defer = func(_a, _b):
+		_generate_dialog = null
+		hbox.queue_free()
+		tree.queue_free()
+	_generate_dialog = mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.3)
+	
+#func calculate_tree_height(node: TreeItem) -> int:
+	## 如果节点是折叠的，则只计算当前节点的高度
+	#if node.collapsed or node.get_child_count() == 0:
+		#return 43 if node.get_parent() else 18
+	## 如果节点是展开的，则递归计算所有子节点的高度
+	#else:
+		#var h = 0
+		#for child in node.get_children():
+			#h += calculate_tree_height(child)
+		#return (43 if node.get_parent() else 18) + h
+		
+func popup_saveas_dialog(access: int, item: TreeItem):
+	var editor_file_dialog = EditorFileDialog.new()
+	editor_file_dialog.access = access
+	if item.get_text(2).ends_with(".xml"):
+		editor_file_dialog.add_filter("*.xml", "XML File")
+	else:
+		editor_file_dialog.add_filter("*.gd", "GDScript File")
+	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_DIR
+	editor_file_dialog.file_selected.connect(func(path: String):
+		var content = item.get_metadata(0)
+		var file = FileAccess.open(path, FileAccess.WRITE)
+		file.store_string(content)
+		file.flush()
+		file = null
+		EditorInterface.get_resource_filesystem().scan()
+		if _generate_dialog:
+			# scan后窗口可能被最小化了，所以用窗口的方法，能重新激活
+			while EditorInterface.get_resource_filesystem().is_scanning():
+				await get_tree().process_frame
+			_generate_dialog.transient = false
+			if _generate_dialog.mode != Window.MODE_WINDOWED:
+				_generate_dialog.mode = Window.MODE_WINDOWED
+			_generate_dialog.grab_focus() # TODO FIXME WAIT_FOR_UPDATE which is useless in 4.3.dev6
+	, CONNECT_DEFERRED)
+	add_child(editor_file_dialog)
+	editor_file_dialog.popup_centered_ratio(0.5)
+	editor_file_dialog.close_requested.connect(func():
+		editor_file_dialog.queue_free()
+	, CONNECT_DEFERRED)
+	
+func popup_preview_dialog(item: TreeItem):
+	var code_edit = CodeEdit.new()
+	code_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	code_edit.text = item.get_metadata(1)
+	
+	var reset_content = func():
+		item.set_metadata(0, code_edit.text)
+		if not item.get_text(0).ends_with("(*)"):
+			item.set_text(0, item.get_text(0) + "(*)")
+			
+	code_edit.text_changed.connect(reset_content)
+	code_edit.text_set.connect(reset_content)
+	
+	var arr = [[code_edit]]
+	var defer = func(_confirmed, _dummy):
+		code_edit.text_changed.disconnect(reset_content)
+		code_edit.text_set.disconnect(reset_content)
+		code_edit.queue_free()
+		
+	mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.8)
 	
 #func get_linked_nodes(node_pair: Dictionary, head_name, result: Array):
 	#result.push_back(head_name)
