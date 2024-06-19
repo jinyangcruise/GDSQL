@@ -511,6 +511,7 @@ func set_text_edit(p_text_editor):
 		return
 		
 	if base_text_editor:
+		text_editor.set_search_text("")
 		base_text_editor.remove_find_replace_bar()
 		base_text_editor = null
 		text_editor.disconnect("text_changed", _editor_text_changed)
