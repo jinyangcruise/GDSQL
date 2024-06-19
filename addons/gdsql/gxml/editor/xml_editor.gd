@@ -2,14 +2,14 @@
 extends VBoxContainer
 
 @onready var text_editor: CodeEdit = $TextEditor
-@onready var status_bar: HBoxContainer = $StatusBar
-@onready var toggle_scripts_button: Button = $StatusBar/ToggleScriptsButton
-@onready var error_button: Button = $StatusBar/ErrorButton
-@onready var warning_button: Button = $StatusBar/WarningButton
-@onready var zoom_button: MenuButton = $StatusBar/ZoomButton
-@onready var line_and_col_txt: Label = $StatusBar/LineAndColTxt
-@onready var indentation_txt: Label = $StatusBar/IndentationTxt
-@onready var error: Label = $StatusBar/Scroll/Error
+@onready var status_bar: HBoxContainer = $ScrollContainer/StatusBar
+@onready var toggle_scripts_button: Button = $ScrollContainer/StatusBar/ToggleScriptsButton
+@onready var error_button: Button = $ScrollContainer/StatusBar/ErrorButton
+@onready var warning_button: Button = $ScrollContainer/StatusBar/WarningButton
+@onready var zoom_button: MenuButton = $ScrollContainer/StatusBar/ZoomButton
+@onready var line_and_col_txt: Label = $ScrollContainer/StatusBar/LineAndColTxt
+@onready var indentation_txt: Label = $ScrollContainer/StatusBar/IndentationTxt
+@onready var error: Label = $ScrollContainer/StatusBar/Scroll/Error
 @onready var idle: Timer = $Idle
 @onready var code_complete_timer: Timer = $CodeCompleteTimer
 
@@ -326,7 +326,7 @@ func set_zoom_factor(p_zoom_factor: float):
 	
 func _ready() -> void:
 	EDSCALE = get_display_scale()
-	status_bar.custom_minimum_size.y = 24 * EDSCALE
+	#status_bar.custom_minimum_size.y = 24 * EDSCALE
 	
 	var zoom_menu = zoom_button.get_popup()
 	zoom_menu.clear(true)
