@@ -1036,8 +1036,10 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			# 对话框关闭时要执行的方法
 			var defered = func(_confirmed, _dummy):
 				update_btn_disable_status.call("", 0, 0) # 刷新按钮状态。参数随便传。
+				table_2.queue_free()
+				check_all_btn.queue_free()
 				
-			var dialog = mgr.create_custom_dialog(arr, confirmed, Callable(), defered, Vector2i(1000, 600))
+			var dialog = mgr.create_custom_dialog(arr, confirmed, Callable(), defered, 0.5)
 			dialog_ref.push_back(dialog)
 			dialog.ok_button_text = "execute"
 			var btn_close_refresh = dialog.add_button("close and refresh", true, "close_and_refresh")
