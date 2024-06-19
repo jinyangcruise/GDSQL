@@ -397,6 +397,8 @@ func add_row(a_data):
 		return
 		
 	var a_row = row_panel_container.duplicate()
+	a_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	a_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	a_row.set_meta("data", a_data)
 	v_box_container.add_child(a_row)
 	a_row.gui_input.connect(_on_row_gui_input.bind(a_row, a_data))
