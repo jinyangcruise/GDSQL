@@ -261,7 +261,7 @@ func create_custom_dialog(datas: Array[Array],
 confirmed_callback_before_close: Callable = Callable(), 
 canceled_callback_before_close: Callable = Callable(),
 defered_callback: Callable = Callable(),
-min_size: Vector2i = Vector2i.ZERO) -> ConfirmationDialog:
+ratio: float = 0.0) -> ConfirmationDialog:
 	var dialog := ConfirmationDialog.new()
 	dialog.dialog_hide_on_ok = false
 	__custom_dialog_datas[dialog] = datas
@@ -299,8 +299,11 @@ min_size: Vector2i = Vector2i.ZERO) -> ConfirmationDialog:
 				defered_callback.call(false, ret[1] if ret is Array else null)
 	, CONNECT_DEFERRED)
 	_add_dialog(dialog)
-	dialog.popup_centered(min_size)
-	
+	if ratio == 0:
+		dialog.popup_centered()
+	else:
+		dialog.popup_centered_ratio(ratio)
+		
 	var vbox_container = VBoxContainer.new()
 	vbox_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
