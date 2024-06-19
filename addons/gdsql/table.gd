@@ -42,6 +42,9 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 ## 是否支持多行选择（高亮）
 @export var support_multi_rows_selected: bool = false
 
+## 是否支持显示选择框
+@export var support_select_border: bool = true
+
 ## 是否显示外纵向框架1\2\3\4...
 @export var show_frame: bool = false
 
@@ -419,7 +422,8 @@ func add_row(a_data):
 			control.text = str(v_box_container.get_child_count())
 			control.ready.connect(func():
 				await get_tree().process_frame
-				control.custom_minimum_size.x = buttons[1].size.x
+				if buttons[1] and control:
+					control.custom_minimum_size.x = buttons[1].size.x
 			, CONNECT_ONE_SHOT)
 			control.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 			control.add_theme_stylebox_override("focus", style_box_empty)
@@ -797,6 +801,9 @@ func borders_has_same_rows() -> bool:
 	return true
 	
 func add_border(border) -> void:
+	if not support_select_border:
+		return
+		
 	# 起始点
 	last_selected_pos = border["start"]
 	
