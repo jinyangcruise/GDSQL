@@ -6,11 +6,10 @@ extends VSplitContainer
 @onready var button_save_as: Button = $VBoxContainer/HFlowContainer/ButtonSaveAs
 @onready var button_add_node: Button = $VBoxContainer/HFlowContainer/ButtonAddNode
 @onready var line_edit_save_path: LineEdit = $VBoxContainer/HFlowContainer/LineEditSavePath
-@onready var option_button_choose_path: OptionButton = $VBoxContainer/HFlowContainer/OptionButtonChooseXMLFile
+@onready var option_button_choose_path: OptionButton = $VBoxContainer/HFlowContainer/OptionButtonChoosePath
 @onready var option_button_link: OptionButton = $VBoxContainer/HFlowContainer/OptionButtonLink
 @onready var button_run_selected: Button = $VBoxContainer/HFlowContainer/ButtonRunSelected
 @onready var button_run: Button = $VBoxContainer/HFlowContainer/ButtonRun
-@onready var button_preview: Button = $VBoxContainer/HFlowContainer/ButtonPreview
 
 var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
@@ -157,19 +156,6 @@ func _on_button_run_pressed() -> void:
 			arr_node.push_back(i)
 	_generate(arr_node)
 	
-func _on_button_preview_pressed() -> void:
-	var selected_node = []
-	var all_node = []
-	for i in graph_edit.get_children():
-		if i is GraphNode:
-			if i.selected:
-				selected_node.push_back(i)
-			all_node.push_back(i)
-	if selected_node.is_empty():
-		_generate(all_node)
-	else:
-		_generate(selected_node)
-		
 func _generate(nodes: Array):
 	var nodes_map = {}
 	var node_pair = {}
@@ -382,7 +368,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 									need_add_surfix = true
 									
 						if need_add_surfix:
-							method_info.id = method_info.id + "_" + new_index
+							method_info.id = method_info.id + "_" + str(new_index)
 							
 						s = '%s property="%s" column="%s" select="%s"    />' % \
 							[prefix, info.link_prop, ",".join(parent_by), 
@@ -454,7 +440,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 						if vo_ids[i].begins_with(id):
 							count += 1
 					if count != 1:
-						id += "_" + count
+						id += "_" + str(count)
 					vo_ids[db_name + "." + table_name] = id
 					var vo = "select %s from %s" % [", ".join(arr_columns[node_name]), 
 						table_name]
@@ -511,7 +497,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				if i.begins_with(mp_id):
 					count += 1
 			if count != 1:
-				mp_id += "_" + count
+				mp_id = '%s.%s%sMapper' % [leading_db_name, leading_class_n, count]
 		var mapper_arr = ['extends GBatisMapper\nclass_name %sMapper\n' % leading_class_n]
 		mapper_map[mp_id] = mapper_arr
 		
@@ -746,26 +732,29 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	tree.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tree.set_column_expand(0, false)
+	
 	var root = tree.create_item()
 	var check_all_item = tree.create_item(root)
+	check_all_item.set_text(1, "Select All")
 	check_all_item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
-	check_all_item.set_checked(0, true)
 	check_all_item.set_editable(0, true)
+	
 	for map in [xml_map, mapper_map, entity_map]:
 		for i: String in map:
 			var item = tree.create_item(root)
-			item.set_metadata(0, ''.join(map[i]))
+			item.set_metadata(0, ''.join(map[i]) + '\n')
+			item.set_meta("origin", item.get_metadata(0))
 			item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
 			item.set_checked(0, true)
 			item.set_editable(0, true)
 			item.set_text(1, i)
 			item.set_text(2, i.get_slice(".", 1) + (".xml" if map == xml_map else ".gd"))
+			item.add_button(2, CompressedTexture2D.new(), 3, true, "Revert")
 			item.add_button(2, get_theme_icon("Edit", "EditorIcons"), 0, false, "Edit")
-			item.add_button(2, get_theme_icon("Save", "EditorIcons"), 1, false, "Save AS...")
+			item.add_button(2, get_theme_icon("Save", "EditorIcons"), 1, false, "Save As...")
 			item.add_button(2, get_theme_icon("ActionCopy", "EditorIcons"), 2, false, "Copy")
 			
-	# TODO FIXME
-	tree.item_selected.connect(func():
+	tree.item_edited.connect(func():
 		var selected_item = tree.get_selected()
 		if tree.get_selected() == check_all_item:
 			for i: TreeItem in root.get_children():
@@ -792,9 +781,18 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 					pass
 				2: # Copy to clipboard
 					DisplayServer.clipboard_set(item.get_metadata(0))
+				3: # Revert
+					item.set_metadata(0, item.get_meta("origin"))
+					item.set_button(2, 0, CompressedTexture2D.new())
+					item.set_button_disabled(2, 0, true)
+					item.set_button_tooltip_text(2, 0, "")
+					if item.get_text(2).ends_with("(*)"):
+						item.set_text(2, item.get_text(2).substr(
+							0, item.get_text(2).length()-3))
 	)
 	tree.ready.connect(func():
-		tree.custom_minimum_size.y = tree.get_window().size.y
+		check_all_item.set_checked(0, true)
+		tree.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
 	)
 	var arr = [[hbox], [tree]] as Array[Array]
 	var defer = func(_a, _b):
@@ -802,6 +800,19 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 		hbox.queue_free()
 		tree.queue_free()
 	_generate_dialog = mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.3)
+	_generate_dialog.add_button("Compare", true, "Compare")
+	
+	_generate_dialog.custom_action.connect(func(_action):
+		var arr_content = []
+		for i: TreeItem in root.get_children():
+			if i.is_checked(0):
+				if i.get_text(2) != "":
+					arr_content.push_back({
+						"file": i.get_text(2),
+						"content": i.get_metadata(0),
+					})
+		popup_diff_dialog(arr_content)
+	)
 	
 #func calculate_tree_height(node: TreeItem) -> int:
 	## 如果节点是折叠的，则只计算当前节点的高度
@@ -845,25 +856,105 @@ func popup_saveas_dialog(access: int, item: TreeItem):
 	, CONNECT_DEFERRED)
 	
 func popup_preview_dialog(item: TreeItem):
-	var code_edit = CodeEdit.new()
-	code_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	code_edit.text = item.get_metadata(1)
-	
+	var editor = preload("res://addons/gdsql/gxml/editor/xml_editor.tscn").instantiate()
 	var reset_content = func():
-		item.set_metadata(0, code_edit.text)
-		if not item.get_text(0).ends_with("(*)"):
-			item.set_text(0, item.get_text(0) + "(*)")
-			
-	code_edit.text_changed.connect(reset_content)
-	code_edit.text_set.connect(reset_content)
+		item.set_metadata(0, editor.text_editor.text)
+		if item.get_meta("origin") == editor.text_editor.text:
+			item.set_button(2, 0, CompressedTexture2D.new())
+			item.set_button_disabled(2, 0, true)
+			item.set_button_tooltip_text(2, 0, "")
+			if item.get_text(2).ends_with("(*)"):
+				item.set_text(2, item.get_text(2).substr(0, item.get_text(2).length()-3))
+		elif not item.get_text(2).ends_with("(*)"):
+			item.set_button(2, 0, get_theme_icon("RotateLeft", "EditorIcons"))
+			item.set_button_disabled(2, 0, false)
+			item.set_button_tooltip_text(2, 0, "Revert")
+			item.set_text(2, item.get_text(2) + "(*)")
+	editor.ready.connect(func():
+		editor.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
+		editor.toggle_scripts_button.hide()
+		var code_edit = editor.text_editor as CodeEdit
+		code_edit.gutters_draw_line_numbers = true
+		code_edit.draw_tabs = true
+		code_edit.highlight_all_occurrences = true
+		code_edit.highlight_current_line = true
+		code_edit.minimap_draw = true
+		code_edit.caret_blink = true
+		code_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		code_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		code_edit.text = item.get_metadata(0)
+		code_edit.text_changed.connect(reset_content)
+		code_edit.text_set.connect(reset_content)
+		code_edit.selecting_enabled = false
+		await get_tree().process_frame
+		code_edit.selecting_enabled = true
+	)
 	
-	var arr = [[code_edit]]
+	var arr = [[editor]] as Array[Array]
 	var defer = func(_confirmed, _dummy):
-		code_edit.text_changed.disconnect(reset_content)
-		code_edit.text_set.disconnect(reset_content)
-		code_edit.queue_free()
+		editor.text_editor.text_changed.disconnect(reset_content)
+		editor.text_editor.text_set.disconnect(reset_content)
+		editor.queue_free()
 		
-	mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.8)
+	var dialog = mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.6)
+	dialog.get_cancel_button().hide()
+	
+func popup_diff_dialog(arr_content: Array):
+	if arr_content.is_empty():
+		return
+	var hbox = HBoxContainer.new()
+	hbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	hbox.ready.connect(func():
+		hbox.get_parent_control().size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hbox.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
+	)
+	var arr_editor = []
+	#var vbox = preload("res://addons/gdsql/table.tscn").instantiate()
+	for i in arr_content:
+		var vbox = VBoxContainer.new()
+		
+		hbox.add_child(vbox)
+		vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		
+		var label = Label.new()
+		vbox.add_child(label)
+		label.text = i.file
+		label.clip_text = true
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		
+		var editor = preload("res://addons/gdsql/gxml/editor/xml_editor.tscn").instantiate()
+		vbox.add_child(editor)
+		arr_editor.push_back(editor)
+		editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		editor.ready.connect(func():
+			var code_edit = editor.text_editor as CodeEdit
+			code_edit.gutters_draw_line_numbers = true
+			code_edit.draw_tabs = true
+			code_edit.highlight_all_occurrences = true
+			code_edit.highlight_current_line = true
+			code_edit.minimap_draw = true
+			code_edit.caret_blink = true
+			code_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			code_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			code_edit.text = i.content
+			code_edit.editable = false
+			code_edit.selecting_enabled = false
+			await get_tree().process_frame
+			code_edit.selecting_enabled = true
+		)
+	for editor in arr_editor:
+		editor.zoomed.connect(func(factor):
+			for a_editor in arr_editor:
+				if a_editor != editor:
+					a_editor.set_zoom_factor(factor)
+		)
+	var arr = [[hbox]] as Array[Array]
+	var defer = func(_confirmed, _dummy):
+		hbox.queue_free()
+	mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.9)
 	
 #func get_linked_nodes(node_pair: Dictionary, head_name, result: Array):
 	#result.push_back(head_name)

@@ -290,7 +290,7 @@ ratio: float = 0.0) -> ConfirmationDialog:
 			ret = canceled_callback_before_close.call()
 			assert(ret is Array and ret.size() == 2 and ret[0] is bool, 
 				"Return value of canceled_callback_before_close must be a 2-elements-array(first element must be a bool)!")
-			if ret == true:
+			if ret[0] == true:
 				close = false
 				
 		if close:
@@ -305,6 +305,7 @@ ratio: float = 0.0) -> ConfirmationDialog:
 		dialog.popup_centered_ratio(ratio)
 		
 	var vbox_container = VBoxContainer.new()
+	#vbox_container.set_anchors_preset(Control.PRESET_FULL_RECT)
 	vbox_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	dialog.add_child(vbox_container)
@@ -434,7 +435,7 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 			ret = canceled_callback_before_close.call()
 			assert(ret is Array and ret.size() == 2 and ret[0] is bool, 
 				"Return value of canceled_callback_before_close must be a 2-elements-array(first element must be a bool)!")
-			if ret == true:
+			if ret[0] == true:
 				close = false
 				
 		if close:

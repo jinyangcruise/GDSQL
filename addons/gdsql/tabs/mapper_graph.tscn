@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://dryqmdnjvj0rt"]
+[gd_scene load_steps=12 format=3 uid="uid://dryqmdnjvj0rt"]
 
 [ext_resource type="Script" path="res://addons/gdsql/tabs/mapper_graph.gd" id="1_skh3h"]
 [ext_resource type="Script" path="res://addons/gdsql/tabs/mapper_graph_edit.gd" id="2_455wi"]
@@ -7,7 +7,6 @@
 [ext_resource type="Texture2D" uid="uid://devul8doq53rt" path="res://addons/gdsql/img/plus.png" id="4_ump4m"]
 [ext_resource type="Texture2D" uid="uid://bj6qe4a23bjvc" path="res://addons/gdsql/img/bolt-lightning-edit.png" id="5_xasyh"]
 [ext_resource type="Texture2D" uid="uid://fud4boba7d2j" path="res://addons/gdsql/img/bolt-lightning.png" id="6_ip2ph"]
-[ext_resource type="Texture2D" uid="uid://84nocbkfddni" path="res://addons/gdsql/img/Search.png" id="7_lmah8"]
 
 [sub_resource type="InputEventKey" id="InputEventKey_kjho4"]
 device = -1
@@ -121,14 +120,6 @@ layout_mode = 2
 tooltip_text = "Generate mapper by all the nodes."
 icon = ExtResource("6_ip2ph")
 
-[node name="VSeparator4" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
-layout_mode = 2
-
-[node name="ButtonPreview" type="Button" parent="VBoxContainer/HFlowContainer"]
-layout_mode = 2
-tooltip_text = "Preview all nodes if none selected, otherwise preview the selected nodes."
-icon = ExtResource("7_lmah8")
-
 [node name="GraphEdit" type="GraphEdit" parent="VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
@@ -144,7 +135,6 @@ script = ExtResource("2_455wi")
 [connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonChoosePath" to="." method="_on_option_button_choose_path_item_selected"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRunSelected" to="." method="_on_button_run_selected_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRun" to="." method="_on_button_run_pressed"]
-[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonPreview" to="." method="_on_button_preview_pressed"]
 [connection signal="connection_request" from="VBoxContainer/GraphEdit" to="VBoxContainer/GraphEdit" method="_on_connection_request"]
 [connection signal="copy_nodes_request" from="VBoxContainer/GraphEdit" to="VBoxContainer/GraphEdit" method="_on_copy_nodes_request"]
 [connection signal="delete_nodes_request" from="VBoxContainer/GraphEdit" to="VBoxContainer/GraphEdit" method="_on_delete_nodes_request"]
