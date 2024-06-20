@@ -271,7 +271,7 @@ ratio: float = 0.0) -> ConfirmationDialog:
 		var close = true
 		var ret
 		if confirmed_callback_before_close.is_valid():
-			ret = confirmed_callback_before_close.call()
+			ret = await confirmed_callback_before_close.call()
 			assert(ret is Array and ret.size() == 2 and ret[0] is bool, 
 				"Return value of confirmed_callback_before_close must be a 2-elements-array(first element must be a bool)!")
 			if ret[0] == true:
@@ -287,7 +287,7 @@ ratio: float = 0.0) -> ConfirmationDialog:
 		var close = true
 		var ret
 		if canceled_callback_before_close.is_valid():
-			ret = canceled_callback_before_close.call()
+			ret = await canceled_callback_before_close.call()
 			assert(ret is Array and ret.size() == 2 and ret[0] is bool, 
 				"Return value of canceled_callback_before_close must be a 2-elements-array(first element must be a bool)!")
 			if ret[0] == true:
@@ -432,7 +432,7 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 		var close = true
 		var ret
 		if canceled_callback_before_close.is_valid():
-			ret = canceled_callback_before_close.call()
+			ret = await canceled_callback_before_close.call()
 			assert(ret is Array and ret.size() == 2 and ret[0] is bool, 
 				"Return value of canceled_callback_before_close must be a 2-elements-array(first element must be a bool)!")
 			if ret[0] == true:
@@ -564,6 +564,61 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 	dialog.popup()
 	return dialog
 	
+## 弹出用户提供的对话框或window
+## 【confirmed_callback_before_close】：点击确定后执行的函数，必须返回一个长度为2的数组，第一个元素是布尔值，
+## true表示保留对话框，false表示关闭对话框。第二个元素用于用户传递一些数据。
+## 【canceled_callback_before_close】：点击取消或关闭按钮后执行的函数，必须返回一个长度为2的数组，
+## 第一个元素是布尔值，true表示保留对话框，false表示关闭对话框。第二个元素用于用户传递一些数据。
+## 【defered_callback】：对话框关闭后执行的函数。可以把对话框关闭后要执行的逻辑（比如释放自定义control等）
+## 放入defered_callback中。需接收2个参数：
+## 参数1：bool，true表示用户点击的是“确定”，false表示用户点击的是“取消”或“关闭”
+## 参数2：请勿指定数据类型，其值等于confirmed_callback_before_close或canceled_callback_before_close返回数组的第二个元素。
+func popup_user_dialog(dialog: Window, 
+confirmed_callback_before_close: Callable = Callable(), 
+canceled_callback_before_close: Callable = Callable(),
+defered_callback: Callable = Callable(),
+ratio: float = 0.0):
+	__property_old_parents[dialog] = {}
+	# 确定
+	if dialog.has_signal("confirmed"):
+		dialog.confirmed.connect(func():
+			var close = true
+			var ret
+			if confirmed_callback_before_close.is_valid():
+				ret = await confirmed_callback_before_close.call()
+				assert(ret is Array and ret.size() == 2 and ret[0] is bool, 
+					"Return value of confirmed_callback_before_close must be a 2-elements-array(first element must be a bool)!")
+				if ret[0] == true:
+					close = false
+					
+			if close:
+				_clear_custom_dialog(dialog)
+				if defered_callback.is_valid():
+					defered_callback.call(true, ret[1] if ret is Array else null)
+		, CONNECT_DEFERRED)
+	# 取消、关闭（关闭也会触发canceled）
+	if dialog.has_signal("canceled"):
+		dialog.canceled.connect(func():
+			var close = true
+			var ret
+			if canceled_callback_before_close.is_valid():
+				ret = await canceled_callback_before_close.call()
+				assert(ret is Array and ret.size() == 2 and ret[0] is bool, 
+					"Return value of canceled_callback_before_close must be a 2-elements-array(first element must be a bool)!")
+				if ret[0] == true:
+					close = false
+					
+			if close:
+				_clear_custom_dialog(dialog)
+				if defered_callback.is_valid():
+					defered_callback.call(false, ret[1] if ret is Array else null)
+		, CONNECT_DEFERRED)
+	_add_dialog(dialog)
+	if ratio == 0:
+		dialog.popup_centered()
+	else:
+		dialog.popup_centered_ratio(ratio)
+		
 func _find_editable_control(control: Node) -> Control:
 	if control is LineEdit:
 		control.select_all_on_focus = true
