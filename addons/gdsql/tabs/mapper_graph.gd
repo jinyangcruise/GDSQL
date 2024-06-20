@@ -34,12 +34,19 @@ func load_mapper_file(path):
 	config.load(path)
 	var nodes = config.get_value("data", "nodes", {})
 	var connections = config.get_value("data", "connections", [])
-	var save_path = config.get_value("data", "path", "")
+	var save_path = config.get_value("data", "path", "") as String
 	var link_type = config.get_value("data", "link_type", 0)
 	
 	line_edit_save_path.text = save_path
 	option_button_link.selected = link_type
-	
+	if save_path != "":
+		if save_path.begins_with("res://"):
+			option_button_choose_path.selected = 0
+		elif save_path.begins_with("user://"):
+			option_button_choose_path.selected = 1
+		else:
+			option_button_choose_path.selected = 2
+			
 	# genarate nodes
 	graph_edit._load_nodes(nodes, connections, Vector2.ZERO, false, false)
 	
@@ -711,7 +718,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	option_button_choose.add_item("FileSystem")
 	option_button_choose.tooltip_text = "Pick a path from Resource, UserData or FileSystem."
 	option_button_choose.allow_reselect = true
-	option_button_choose.selected = 0
+	option_button_choose.selected = option_button_choose_path.selected
 	option_button_choose.item_selected.connect(
 		_on_option_button_choose_path_item_selected.bind(line_edit_path))
 	hbox.add_child(option_button_choose)
@@ -719,12 +726,6 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	var btn_save_all = Button.new()
 	btn_save_all.icon = get_theme_icon("Save", "EditorIcons")
 	btn_save_all.text = "Save All"
-	btn_save_all.pressed.connect(func():
-		if line_edit_path.text == "":
-			mgr.create_accept_dialog("Save path is empty!")
-			return
-		# TODO
-	)
 	hbox.add_child(btn_save_all)
 	
 	var tree = Tree.new()
@@ -739,6 +740,26 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	check_all_item.set_text(1, "Select All")
 	check_all_item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
 	check_all_item.set_editable(0, true)
+	
+	btn_save_all.pressed.connect(func():
+		if line_edit_path.text == "":
+			mgr.create_accept_dialog("Save path is empty!")
+			return
+		for i: TreeItem in root.get_children():
+			if i.get_text(2) != "":
+				var content = i.get_metadata(0)
+				var path = line_edit_path.text.path_join(i.get_text(2).replace("(*)", ""))
+				var file = FileAccess.open(path, FileAccess.WRITE)
+				file.store_string(content)
+				file.flush()
+				file = null
+		var old_icon = btn_save_all.icon
+		btn_save_all.icon = get_theme_icon("ImportCheck", "EditorIcons")
+		btn_save_all.disabled = true
+		await get_tree().create_timer(2).timeout
+		btn_save_all.icon = old_icon
+		btn_save_all.disabled = false
+	)
 	
 	for map in [xml_map, mapper_map, entity_map]:
 		for i: String in map:
@@ -776,26 +797,11 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	tree.button_clicked.connect(
 		func(item: TreeItem, _column: int, id: int, _mouse_button_index: int):
 			match id:
-				0: # Preview
-					popup_preview_dialog(item)
+				0: # Edit
+					popup_edit_dialog(item)
 				1: # Save As...
-					#TODO
-					#func _on_option_button_choose_path_item_selected(access: int, extra_line_edit = null) -> void:
-						#var editor_file_dialog = EditorFileDialog.new()
-						#editor_file_dialog.access = access
-						#editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_DIR
-						#editor_file_dialog.dir_selected.connect(func(path: String):
-							#line_edit_save_path.text = path
-							#if extra_line_edit:
-								#extra_line_edit.text = path
-							#change_tab_title.emit(self, get_meta("file_name") + "*")
-						#, CONNECT_DEFERRED)
-						#add_child(editor_file_dialog)
-						#editor_file_dialog.popup_centered_ratio(0.5)
-						#editor_file_dialog.close_requested.connect(func():
-							#editor_file_dialog.queue_free()
-						#, CONNECT_DEFERRED)
-					pass
+					popup_saveas_dialog(option_button_choose.selected, item, 
+						line_edit_path.text)
 				2: # Copy to clipboard
 					DisplayServer.clipboard_set(item.get_metadata(0))
 				3: # Revert
@@ -827,66 +833,74 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 					arr_content.push_back({
 						"file": i.get_text(2),
 						"content": i.get_metadata(0),
+						"item": i,
 					})
 		popup_diff_dialog(arr_content)
 	)
 	
-#func calculate_tree_height(node: TreeItem) -> int:
-	## 如果节点是折叠的，则只计算当前节点的高度
-	#if node.collapsed or node.get_child_count() == 0:
-		#return 43 if node.get_parent() else 18
-	## 如果节点是展开的，则递归计算所有子节点的高度
-	#else:
-		#var h = 0
-		#for child in node.get_children():
-			#h += calculate_tree_height(child)
-		#return (43 if node.get_parent() else 18) + h
-		
-func popup_saveas_dialog(access: int, item: TreeItem):
+func comfirm_save(path: String = "", item: TreeItem = null, editor_file_dialog = null):
+	if path == "":
+		path = editor_file_dialog.current_path
+	var content = item.get_metadata(0)
+	var file = FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(content)
+	file.flush()
+	file = null
+	var old_btn = item.get_button(2, 2)
+	item.set_button(2, 2, get_theme_icon("ImportCheck", "EditorIcons"))
+	item.set_button_disabled(2, 2, true)
+	EditorInterface.get_resource_filesystem().scan()
+	if _generate_dialog:
+		# scan后窗口可能被最小化了，所以用窗口的方法，能重新激活
+		while EditorInterface.get_resource_filesystem().is_scanning():
+			await get_tree().process_frame
+		_generate_dialog.transient = false
+		if _generate_dialog.mode != Window.MODE_WINDOWED:
+			_generate_dialog.mode = Window.MODE_WINDOWED
+		_generate_dialog.grab_focus() # TODO FIXME WAIT_FOR_UPDATE which is useless in 4.3.dev6
+	await get_tree().create_timer(2).timeout
+	item.set_button(2, 2, old_btn)
+	item.set_button_disabled(2, 2, false)
+	return [false, false]
+	
+func popup_saveas_dialog(access: int, item: TreeItem, dir: String):
 	var editor_file_dialog = EditorFileDialog.new()
+	editor_file_dialog.disable_overwrite_warning = true
 	editor_file_dialog.access = access
-	if item.get_text(2).ends_with(".xml"):
+	if item.get_text(2).ends_with(".xml") or item.get_text(2).ends_with(".xml(*)"):
 		editor_file_dialog.add_filter("*.xml", "XML File")
 	else:
 		editor_file_dialog.add_filter("*.gd", "GDScript File")
-	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_DIR
-	editor_file_dialog.file_selected.connect(func(path: String):
-		var content = item.get_metadata(0)
-		var file = FileAccess.open(path, FileAccess.WRITE)
-		file.store_string(content)
-		file.flush()
-		file = null
-		EditorInterface.get_resource_filesystem().scan()
-		if _generate_dialog:
-			# scan后窗口可能被最小化了，所以用窗口的方法，能重新激活
-			while EditorInterface.get_resource_filesystem().is_scanning():
-				await get_tree().process_frame
-			_generate_dialog.transient = false
-			if _generate_dialog.mode != Window.MODE_WINDOWED:
-				_generate_dialog.mode = Window.MODE_WINDOWED
-			_generate_dialog.grab_focus() # TODO FIXME WAIT_FOR_UPDATE which is useless in 4.3.dev6
-	, CONNECT_DEFERRED)
-	add_child(editor_file_dialog)
-	editor_file_dialog.popup_centered_ratio(0.5)
-	editor_file_dialog.close_requested.connect(func():
-		editor_file_dialog.queue_free()
-	, CONNECT_DEFERRED)
+	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_SAVE_FILE
+	editor_file_dialog.ready.connect(func():
+		if dir != "":
+			editor_file_dialog.current_dir = dir
+		editor_file_dialog.current_file = item.get_text(2).replace("(*)", "")
+	)
 	
-func popup_preview_dialog(item: TreeItem):
+	editor_file_dialog.file_selected.connect(
+		self.comfirm_save.bind(item, editor_file_dialog), CONNECT_DEFERRED)
+		
+	var defer = func(_confirmed, _dummy):
+		editor_file_dialog.queue_free()
+	mgr.popup_user_dialog(editor_file_dialog, Callable(), Callable(), defer, 0.5)
+	
+func reset_content(item: TreeItem, editor):
+	item.set_metadata(0, editor.text_editor.text)
+	if item.get_meta("origin") == editor.text_editor.text:
+		item.set_button(2, 0, CompressedTexture2D.new())
+		item.set_button_disabled(2, 0, true)
+		item.set_button_tooltip_text(2, 0, "")
+		if item.get_text(2).ends_with("(*)"):
+			item.set_text(2, item.get_text(2).substr(0, item.get_text(2).length()-3))
+	elif not item.get_text(2).ends_with("(*)"):
+		item.set_button(2, 0, get_theme_icon("RotateLeft", "EditorIcons"))
+		item.set_button_disabled(2, 0, false)
+		item.set_button_tooltip_text(2, 0, "Revert")
+		item.set_text(2, item.get_text(2) + "(*)")
+		
+func popup_edit_dialog(item: TreeItem):
 	var editor = preload("res://addons/gdsql/gxml/editor/xml_editor.tscn").instantiate()
-	var reset_content = func():
-		item.set_metadata(0, editor.text_editor.text)
-		if item.get_meta("origin") == editor.text_editor.text:
-			item.set_button(2, 0, CompressedTexture2D.new())
-			item.set_button_disabled(2, 0, true)
-			item.set_button_tooltip_text(2, 0, "")
-			if item.get_text(2).ends_with("(*)"):
-				item.set_text(2, item.get_text(2).substr(0, item.get_text(2).length()-3))
-		elif not item.get_text(2).ends_with("(*)"):
-			item.set_button(2, 0, get_theme_icon("RotateLeft", "EditorIcons"))
-			item.set_button_disabled(2, 0, false)
-			item.set_button_tooltip_text(2, 0, "Revert")
-			item.set_text(2, item.get_text(2) + "(*)")
 	editor.ready.connect(func():
 		editor.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
 		editor.toggle_scripts_button.hide()
@@ -900,8 +914,8 @@ func popup_preview_dialog(item: TreeItem):
 		code_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		code_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		code_edit.text = item.get_metadata(0)
-		code_edit.text_changed.connect(reset_content)
-		code_edit.text_set.connect(reset_content)
+		code_edit.text_changed.connect(reset_content.bind(item, editor))
+		code_edit.text_set.connect(reset_content.bind(item, editor))
 		code_edit.selecting_enabled = false
 		await get_tree().process_frame
 		code_edit.selecting_enabled = true
@@ -909,8 +923,8 @@ func popup_preview_dialog(item: TreeItem):
 	
 	var arr = [[editor]] as Array[Array]
 	var defer = func(_confirmed, _dummy):
-		editor.text_editor.text_changed.disconnect(reset_content)
-		editor.text_editor.text_set.disconnect(reset_content)
+		editor.text_editor.text_changed.disconnect(self.reset_content)
+		editor.text_editor.text_set.disconnect(self.reset_content)
 		editor.queue_free()
 		
 	var dialog = mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.6)
@@ -967,8 +981,9 @@ func popup_diff_dialog(arr_content: Array):
 			code_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			code_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			code_edit.text = i.content
-			code_edit.editable = false
 			code_edit.selecting_enabled = false
+			code_edit.text_changed.connect(reset_content.bind(i.item, editor))
+			code_edit.text_set.connect(reset_content.bind(i.item, editor))
 			await get_tree().process_frame
 			code_edit.selecting_enabled = true
 		)
@@ -984,6 +999,9 @@ func popup_diff_dialog(arr_content: Array):
 	table.support_select_border = false
 	var arr = [[table]] as Array[Array]
 	var defer = func(_confirmed, _dummy):
+		for editor in arr_editor:
+			editor.text_editor.text_changed.disconnect(self.reset_content)
+			editor.text_editor.text_set.disconnect(self.reset_content)
 		arr_editor.clear()
 		arr_v_scroll_bar.clear()
 		table.queue_free()
