@@ -465,7 +465,7 @@ func disconnect_focused_propagate(control):
 			disconnect_focused_propagate(child)
 			if (child as Control).is_connected("focus_entered", editor_property_focused):
 				child.focus_entered.disconnect(editor_property_focused)
-	
+				
 func editor_property_focused(data):
 	EditorInterface.inspect_object(data)
 	
