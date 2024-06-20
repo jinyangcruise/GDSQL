@@ -526,6 +526,8 @@ func set_text_edit(p_text_editor):
 	base_text_editor = p_text_editor
 	text_editor = base_text_editor.text_editor
 	text_editor.connect("text_changed", _editor_text_changed)
+	# TODO FIXME there is a bug somewhere
+	# @see https://github.com/godotengine/godot/pull/93056
 	_update_results_count()
 	_update_matches_display()
 	
