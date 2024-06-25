@@ -48,6 +48,9 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 ## 是否显示外纵向框架1\2\3\4...
 @export var show_frame: bool = false
 
+## 行的高度是否进行扩展并填充
+@export var row_expend_and_fill: bool = false
+
 ## 每列的名称。注意：如果要正确显示tooltip，需要先设置column_tips，再设置columns
 @export var columns: Array:
 	set(val):
@@ -401,7 +404,8 @@ func add_row(a_data):
 		
 	var a_row = row_panel_container.duplicate()
 	a_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	a_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	if row_expend_and_fill:
+		a_row.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	a_row.set_meta("data", a_data)
 	v_box_container.add_child(a_row)
 	a_row.gui_input.connect(_on_row_gui_input.bind(a_row, a_data))

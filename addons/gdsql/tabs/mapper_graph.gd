@@ -937,6 +937,7 @@ func popup_diff_dialog(arr_content: Array):
 	var table = preload("res://addons/gdsql/table.tscn").instantiate()
 	table.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	table.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	table.row_expend_and_fill = true
 	table.ready.connect(func():
 		table.get_parent_control().size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		table.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
