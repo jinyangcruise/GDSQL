@@ -818,12 +818,34 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 		tree.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
 	)
 	var arr = [[hbox], [tree]] as Array[Array]
+	
+	var confirm = func():
+		if line_edit_path.text == "":
+			mgr.create_accept_dialog("Save path is empty!")
+			return [true, null]
+		var save_at_least_one = false
+		for i: TreeItem in root.get_children():
+			if i.get_text(2) != "" and i.is_checked(0):
+				var content = i.get_metadata(0)
+				var path = line_edit_path.text.path_join(i.get_text(2).replace("(*)", ""))
+				var file = FileAccess.open(path, FileAccess.WRITE)
+				file.store_string(content)
+				file.flush()
+				file = null
+				save_at_least_one = true
+		if save_at_least_one:
+			return [false, null]
+		else:
+			mgr.create_accept_dialog("None selected.")
+			return [true, null]
+			
 	var defer = func(_a, _b):
 		_generate_dialog = null
 		hbox.queue_free()
 		tree.queue_free()
-	_generate_dialog = mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.3)
+	_generate_dialog = mgr.create_custom_dialog(arr, confirm, Callable(), defer, 0.3)
 	_generate_dialog.add_button("Compare", true, "Compare")
+	_generate_dialog.get_ok_button().text = "Save"
 	
 	_generate_dialog.custom_action.connect(func(_action):
 		var arr_content = []
