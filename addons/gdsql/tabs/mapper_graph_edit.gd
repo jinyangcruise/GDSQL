@@ -94,6 +94,7 @@ func _shortcut_input(event: InputEvent) -> void:
 	#"__table_item": true,
 	#"db_name": db_name,
 	#"table_name": table_name,
+	#"comment": "",
 	#"columns": databases[db_name]["tables"][table_name]["columns"],
 #}
 func add_item(data: Dictionary, props: Dictionary, extra: Dictionary = {}, 

@@ -199,6 +199,7 @@ func _generate(nodes: Array):
 				node_pair[i.from_node][i.to_node] = {
 					"db_name": to_data.db_name,
 					"table_name": to_data.table_name,
+					"comment": to_data.comment,
 					"link_type": to_node_extra.link_type,
 					"link_prop_type": to_node_extra.link_prop_type,
 					"link_prop": to_node_extra.link_prop,
@@ -286,6 +287,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			var db_name = data.db_name as String
 			var table_name = data.table_name as String
 			var table_name_camel = table_name.to_camel_case()
+			var table_comment = data.comment
 			var columns = data.columns as Array
 			var result_map_id = table_name_camel
 			if node_link_prop.has(node.name):
@@ -323,7 +325,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 						'column="%s"' % (a_col_prefix + a_col_name)]
 				)
 				arr_col_name.push_back(a_col_name)
-				arr_prop_type.push_back([aprops[a_col_name], type_string(col["Data Type"]), -1])
+				arr_prop_type.push_back([aprops[a_col_name], type_string(col["Data Type"]), -1, col["Comment"]])
 			arr_columns[node_name] = arr_col_name
 			
 			if node_pair.has(node_name):
@@ -391,8 +393,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							
 					arr_col.push_back(s)
 					arr_prop_type.push_back(
-						[info.link_prop, info.link_prop_type, info.link_type])
-					
+						[info.link_prop, info.link_prop_type, info.link_type, info.comment])
+						
 			if not result_map_added.has(result_map_id):
 				xml_arr.push_back('\n\t<resultMap id="%sResult" type="%sEntity"' % [
 					result_map_id, result_map_id.capitalize().replace(" ", "")
@@ -406,22 +408,52 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			if not entity_map.has(en_ns):
 				var arr = ['extends RefCounted\nclass_name %sEntity\n' % \
 					result_map_id.capitalize().replace(" ", "")]
+				var arr_getset = []
+				if table_comment != "":
+					arr.push_front('## %s\n' % table_comment)
 				for i in arr_prop_type:
+					var i_0_snake = i[0].to_snake_case()
 					if i[2] == graph_edit.LINK_TYPE.COLLECTION_ARRAY:
+						arr.push_back('\n## Array[%s]' % i[3])
 						if i[1] == "Nil":
-							arr.push_back('\nvar %s: Array' % i[0])
+							arr.push_back('\nvar %s: Array\n' % i[0])
+							arr_getset.push_back('\nfunc get_%s() -> Array:' % i_0_snake)
+							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
+							arr_getset.push_back('\nfunc set_%s(p_%s: Array):' % [i_0_snake, i_0_snake])
+							arr_getset.push_back('\n\t%s = p_%s\n\t' % [i[0], i_0_snake])
 						elif DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
-							arr.push_back('\nvar %s: Array[%s]' % [i[0], i[1]])
+							arr.push_back('\nvar %s: Array[%s]\n' % [i[0], i[1]])
+							arr_getset.push_back('\nfunc get_%s() -> Array[%s]:' % [i_0_snake, i[1]])
+							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
+							arr_getset.push_back('\nfunc set_%s(p_%s: Array[%s]):' % [i_0_snake, i_0_snake, i[1]])
+							arr_getset.push_back('\n\t%s = p_%s\n\t' % [i[0], i_0_snake])
 						else:
-							arr.push_back('\nvar %s: Array[%sEntity]' % [i[0], i[1]])
+							arr.push_back('\nvar %s: Array[%sEntity]\n' % [i[0], i[1]])
+							arr_getset.push_back('\nfunc get_%s() -> Array[%sEntity]:' % [i_0_snake, i[1]])
+							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
+							arr_getset.push_back('\nfunc set_%s(p_%s: Array[%sEntity]):' % [i_0_snake, i_0_snake, i[1]])
+							arr_getset.push_back('\n\t%s = p_%s\n\t' % [i[0], i_0_snake])
 					else:
+						arr.push_back('\n## %s' % i[3])
 						if i[1] == "Nil":
-							arr.push_back('\nvar %s' % i[0])
+							arr.push_back('\nvar %s\n' % i[0])
+							arr_getset.push_back('\nfunc get_%s():' % i_0_snake)
+							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
+							arr_getset.push_back('\nfunc set_%s(p_%s):' % [i_0_snake, i_0_snake])
+							arr_getset.push_back('\n\t%s = p_%s\n\t' % [i[0], i_0_snake])
 						elif DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
-							arr.push_back('\nvar %s: %s' % [i[0], i[1]])
+							arr.push_back('\nvar %s: %s\n' % [i[0], i[1]])
+							arr_getset.push_back('\nfunc get_%s() -> %s:' % [i_0_snake, i[1]])
+							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
+							arr_getset.push_back('\nfunc set_%s(p_%s: %s):' % [i_0_snake, i_0_snake, i[1]])
+							arr_getset.push_back('\n\t%s = p_%s\n\t' % [i[0], i_0_snake])
 						else:
-							arr.push_back('\nvar %s: %sEntity' % [i[0], i[1]])
-				entity_map[en_ns] = arr
+							arr.push_back('\nvar %s: %sEntity\n' % [i[0], i[1]])
+							arr_getset.push_back('\nfunc get_%s() -> %sEntity:' % [i_0_snake, i[1]])
+							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
+							arr_getset.push_back('\nfunc set_%s(p_%s: %sEntity):' % [i_0_snake, i_0_snake, i[1]])
+							arr_getset.push_back('\n\t%s = p_%s\n\t' % [i[0], i_0_snake])
+				entity_map[en_ns] = arr + arr_getset
 				
 		# <sql>
 		var vo_ids = {} # namespace => vo_id
@@ -590,9 +622,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 					arg_names.back(), type_string(m.arg_types[i])])
 			var return_type = null
 			if m.info.link_type == graph_edit.LINK_TYPE.ASSOCIATION:
-				return_type = m.info.link_prop_type.capitalize().replace(" ", "")
+				return_type = m.info.link_prop_type.capitalize().replace(" ", "") + "Entity"
 			else:
-				return_type = 'Array[%s]' % m.info.link_prop_type
+				return_type = 'Array[%sEntity]' % m.info.link_prop_type
 			mapper_arr.push_back('\nfunc %s(%s) -> %s:' % [
 				m.id, ", ".join(args), return_type
 			])
@@ -756,6 +788,15 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 		var old_icon = btn_save_all.icon
 		btn_save_all.icon = get_theme_icon("ImportCheck", "EditorIcons")
 		btn_save_all.disabled = true
+		EditorInterface.get_resource_filesystem().scan()
+		if _generate_dialog:
+			# scan后窗口可能被最小化了，所以用窗口的方法，能重新激活
+			while EditorInterface.get_resource_filesystem().is_scanning():
+				await get_tree().process_frame
+			_generate_dialog.transient = false
+			if _generate_dialog.mode != Window.MODE_WINDOWED:
+				_generate_dialog.mode = Window.MODE_WINDOWED
+			_generate_dialog.grab_focus() # TODO FIXME WAIT_FOR_UPDATE which is useless in 4.3.dev6
 		await get_tree().create_timer(2).timeout
 		btn_save_all.icon = old_icon
 		btn_save_all.disabled = false
@@ -834,6 +875,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 				file = null
 				save_at_least_one = true
 		if save_at_least_one:
+			EditorInterface.get_resource_filesystem().scan()
 			return [false, null]
 		else:
 			mgr.create_accept_dialog("None selected.")

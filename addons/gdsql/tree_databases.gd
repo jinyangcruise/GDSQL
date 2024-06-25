@@ -130,6 +130,7 @@ func make_drag_data(item: TreeItem):
 		"__table_item": true,
 		"db_name": db_name,
 		"table_name": table_name,
+		"comment": databases[db_name]["tables"][table_name]["comment"],
 		"columns": databases[db_name]["tables"][table_name]["columns"],
 	}
 	return map
