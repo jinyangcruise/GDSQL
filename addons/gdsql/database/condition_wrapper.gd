@@ -62,9 +62,10 @@ func check(datas: Dictionary):
 		var variable_values = []
 		
 		var is_single_table = datas.size() == 1 # 该行数据只有一个表的意思
-		for key in datas:
-			variable_names.push_back(key)
-			variable_values.push_back(datas[key])
+		for key: String in datas:
+			if key != "" and key.is_valid_identifier():
+				variable_names.push_back(key)
+				variable_values.push_back(datas[key])
 			_cond = ConditionWrapper.modify_dot_to_get(_cond)
 			
 			# 还要考虑field不是用的t.xxx而是直接用的xxx的结构该怎么办
@@ -72,10 +73,11 @@ func check(datas: Dictionary):
 			# 单表查询，我们除了按dictionary传给variable_names，也按每个字段传给variable_names
 			# 但是还是有缺点，就是字段名称和表别名重名了（概率小），另一个就是字段名称使用了Godot函数名称，导致函数名称被替换了（用户需要注意）
 			if is_single_table:
-				for f in datas[key]:
-					variable_names.push_back(f) # 祈祷字段名称和表名以及用户使用的函数名称不一样吧……
-					variable_values.push_back(datas[key][f])
-		
+				for f: String in datas[key]:
+					if f != "" and f.is_valid_identifier():
+						variable_names.push_back(f) # 祈祷字段名称和表名以及用户使用的函数名称不一样吧……
+						variable_values.push_back(datas[key][f])
+						
 		ret = GDSQLUtils.evaluate_command(null, _cond, variable_names, variable_values)
 		assert(typeof(ret) == TYPE_BOOL, "check failed! cond:%s" % _cond)
 		
