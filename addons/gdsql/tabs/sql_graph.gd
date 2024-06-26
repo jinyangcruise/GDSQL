@@ -1097,12 +1097,33 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		
 		table.row_deleted.connect(func(datas):
 			var deleted_datas = table.get_meta("deleted_datas", {}) as Dictionary
+			
+			# 找到最小行号
+			var min_index = 9999999999
+			for i in datas:
+				min_index = min(datas[i].get_meta("index"), min_index)
+				
+			# 最小行号前面有几个被删除了
+			var offset = 0
+			for i in deleted_datas:
+				if deleted_datas[i].get_meta("index") < min_index:
+					offset += 1
+					
 			for i in datas:
 				var data = datas[i]
 				if data.has_meta("new"):
 					return
-				deleted_datas[i] = data
-			table.set_meta("deleted_datas", deleted_datas)
+				deleted_datas[i + offset] = data
+				
+			# 提取字典的键到数组中
+			var keys = deleted_datas.keys()
+			keys.sort()
+			var sorted_dict = {}
+			for key in keys:
+				sorted_dict[key] = deleted_datas[key]
+				
+			# 排序后存入
+			table.set_meta("deleted_datas", sorted_dict)
 			btn_apply.disabled = false
 			btn_revert.disabled = false
 		)
@@ -1132,6 +1153,10 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 							
 				var dict_obj = DictionaryObject.new(new_data, hint, false)
 				dict_obj.set_meta("new", true)
+				if table.datas.is_empty():
+					dict_obj.set_meta("index", 0)
+				else:
+					dict_obj.set_meta("index", table.datas.back().get_meta("index") + 1)
 				dict_obj.value_changed.connect(update_btn_disable_status)
 				table.append_data(dict_obj)
 				table.row_grab_focus(table.datas.size() - 1)
@@ -1162,6 +1187,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 						
 			var dict_obj = DictionaryObject.new(data, new_hint, false)
 			dict_obj.value_changed.connect(update_btn_disable_status)
+			dict_obj.set_meta("index", new_table_datas.size()) # 为了revert删除的数据时判断前后位置
 			new_table_datas.push_back(dict_obj)
 		table.datas = new_table_datas
 		table.support_delete_row = true
