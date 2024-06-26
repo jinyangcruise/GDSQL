@@ -1,4 +1,5 @@
 ## 最小二乘法
+@tool
 extends RefCounted
 class_name LeastSquares
 
@@ -6,21 +7,28 @@ var groups: Array[LeastSquaresGroupNumber] = []
 var group_x_map = {}
 
 ## 寻找字符串中最后一组数字的正则方式
-var regex: RegEx = RegEx.new()
+static var regex: RegEx = RegEx.new()
 
 enum DATA_TYPE {
 	NUMBER,
 	STRING,
+	VECTOR2,
+	VECTOR2I,
+	VECTOR3,
+	VECTOR3I,
+	VECTOR4,
+	VECTOR4I,
 	RESOURCE,
 	OTHER
 }
 
+static func _static_init() -> void:
+	regex.compile(r"[0-9]+(?=[^0-9]*$)")
+	
 func _init(xdata: Array, ydata: Array):
 	assert(xdata.size() == ydata.size(), "xdata's size is not equal to ydata's size")
 	var a_xdata = []
 	var a_ydata = []
-	
-	regex.compile(r"[0-9]+(?=[^0-9]*$)")
 	
 	var first_element = ydata.front()
 	var pre = LeastSquaresData.new(first_element, regex)
@@ -33,16 +41,7 @@ func _init(xdata: Array, ydata: Array):
 			
 		# 需要重新分组时，要干的事情
 		if need_new_group:
-			var lsg: LeastSquaresGroupNumber
-			if pre.is_number():
-				lsg = LeastSquaresGroupNumber.new(a_xdata, a_ydata)
-			elif pre.is_string():
-				lsg = LeastSquaresGroupString.new(a_xdata, a_ydata)
-			elif pre.is_resource():
-				lsg = LeastSquaresGroupResource.new(a_xdata, a_ydata)
-			else:
-				lsg = LeastSquaresGroupOther.new(a_xdata, a_ydata)
-				
+			var lsg: LeastSquaresGroupNumber = make_lsg(pre, a_xdata, a_ydata)
 			groups.push_back(lsg)
 			group_x_map[groups.back()] = i - 1
 			a_xdata.clear()
@@ -53,17 +52,33 @@ func _init(xdata: Array, ydata: Array):
 		pre = curr
 		
 	if not a_xdata.is_empty():
-		var lsg: LeastSquaresGroupNumber
-		if pre.is_number():
-			lsg = LeastSquaresGroupNumber.new(a_xdata, a_ydata)
-		elif pre.is_string():
-			lsg = LeastSquaresGroupString.new(a_xdata, a_ydata)
-		elif pre.is_resource():
-			lsg = LeastSquaresGroupResource.new(a_xdata, a_ydata)
-		else:
-			lsg = LeastSquaresGroupOther.new(a_xdata, a_ydata)
+		var lsg: LeastSquaresGroupNumber = make_lsg(pre, a_xdata, a_ydata)
 		groups.push_back(lsg)
 		group_x_map[groups.back()] = xdata.size() - 1
+		
+func make_lsg(pre, a_xdata, a_ydata) -> LeastSquaresGroupNumber:
+	var lsg: LeastSquaresGroupNumber
+	if pre.is_number():
+		lsg = LeastSquaresGroupNumber.new(a_xdata, a_ydata)
+	elif pre.is_string():
+		lsg = LeastSquaresGroupString.new(a_xdata, a_ydata)
+	elif pre.is_vector2():
+		lsg = LeastSquaresGroupVector2.new(a_xdata, a_ydata)
+	elif pre.is_vector2i():
+		lsg = LeastSquaresGroupVector2I.new(a_xdata, a_ydata)
+	elif pre.is_vector3():
+		lsg = LeastSquaresGroupVector3.new(a_xdata, a_ydata)
+	elif pre.is_vector3i():
+		lsg = LeastSquaresGroupVector3I.new(a_xdata, a_ydata)
+	elif pre.is_vector4():
+		lsg = LeastSquaresGroupVector4.new(a_xdata, a_ydata)
+	elif pre.is_vector4i():
+		lsg = LeastSquaresGroupVector4I.new(a_xdata, a_ydata)
+	elif pre.is_resource():
+		lsg = LeastSquaresGroupResource.new(a_xdata, a_ydata)
+	else:
+		lsg = LeastSquaresGroupOther.new(a_xdata, a_ydata)
+	return lsg
 	
 ## NOTICE 如果字符串样本中存在数字以0开头，则涉及最小长度补全，否则不涉及。最小长度是样本中以0开头的数字中的最长的长度。
 ## 最小长度是样本中最大数字的长度。
@@ -116,6 +131,36 @@ class LeastSquaresData:
 				num_length_with_zero = value.length() if value.begins_with("0") else 0
 				return
 				
+		if v is Vector2:
+			data_type = DATA_TYPE.VECTOR2
+			value = v
+			return
+			
+		if v is Vector2i:
+			data_type = DATA_TYPE.VECTOR2I
+			value = v
+			return
+			
+		if v is Vector3:
+			data_type = DATA_TYPE.VECTOR3
+			value = v
+			return
+			
+		if v is Vector3i:
+			data_type = DATA_TYPE.VECTOR3I
+			value = v
+			return
+			
+		if v is Vector4:
+			data_type = DATA_TYPE.VECTOR4
+			value = v
+			return
+			
+		if v is Vector4i:
+			data_type = DATA_TYPE.VECTOR4I
+			value = v
+			return
+			
 		if v is Resource:
 			if not v.resource_path.contains("::"):
 				var m = regex.search(v.resource_path)
@@ -136,6 +181,24 @@ class LeastSquaresData:
 	func is_string() -> bool:
 		return data_type == DATA_TYPE.STRING
 		
+	func is_vector2() -> bool:
+		return data_type == DATA_TYPE.VECTOR2
+		
+	func is_vector2i() -> bool:
+		return data_type == DATA_TYPE.VECTOR2I
+		
+	func is_vector3() -> bool:
+		return data_type == DATA_TYPE.VECTOR3
+		
+	func is_vector3i() -> bool:
+		return data_type == DATA_TYPE.VECTOR3I
+		
+	func is_vector4() -> bool:
+		return data_type == DATA_TYPE.VECTOR4
+		
+	func is_vector4i() -> bool:
+		return data_type == DATA_TYPE.VECTOR4I
+		
 	func is_resource() -> bool:
 		return data_type == DATA_TYPE.RESOURCE
 		
@@ -153,6 +216,18 @@ class LeastSquaresData:
 		if is_number() and v.is_number():
 			return true
 		if is_string() and v.is_string() and prefix == v.prefix and surfix == v.surfix:
+			return true
+		if is_vector2() and v.is_vector2():
+			return true
+		if is_vector2i() and v.is_vector2i():
+			return true
+		if is_vector3() and v.is_vector3():
+			return true
+		if is_vector3i() and v.is_vector3i():
+			return true
+		if is_vector4() and v.is_vector4():
+			return true
+		if is_vector4i() and v.is_vector4i():
 			return true
 		return false
 		
@@ -242,6 +317,77 @@ class LeastSquaresGroupString extends LeastSquaresGroupNumber:
 		#var m = _regex.search(y)
 		#assert(m != null, "Y must contains a number")
 		#return super.get_x(m.get_string())
+		
+		
+## ######################################
+## 最小二乘法分组：Vector2
+## ######################################
+class LeastSquaresGroupVector2 extends LeastSquaresGroupNumber:
+	var _x_lsgn: LeastSquaresGroupNumber
+	var _y_lsgn: LeastSquaresGroupNumber
+	
+	func _init(xdata: Array, ydata: Array):
+		var _x = ydata.map(func(v): return LeastSquaresData.new(v.value.x, null))
+		var _y = ydata.map(func(v): return LeastSquaresData.new(v.value.y, null))
+		_x_lsgn = LeastSquaresGroupNumber.new(xdata, _x)
+		_y_lsgn = LeastSquaresGroupNumber.new(xdata, _y)
+		
+	func get_y(x: float) -> Variant:
+		return Vector2(_x_lsgn.get_y(x), _y_lsgn.get_y(x))
+		
+		
+## ######################################
+## 最小二乘法分组：Vector2i
+## ######################################
+class LeastSquaresGroupVector2I extends LeastSquaresGroupVector2:
+	func get_y(x: float) -> Variant:
+		return Vector2i(int(_x_lsgn.get_y(x)), int(_y_lsgn.get_y(x)))
+		
+		
+## ######################################
+## 最小二乘法分组：Vector3
+## ######################################
+class LeastSquaresGroupVector3 extends LeastSquaresGroupVector2:
+	var _z_lsgn: LeastSquaresGroupNumber
+	
+	func _init(xdata: Array, ydata: Array):
+		super._init(xdata, ydata)
+		var _z = ydata.map(func(v): return LeastSquaresData.new(v.value.z, null))
+		_z_lsgn = LeastSquaresGroupNumber.new(xdata, _z)
+		
+	func get_y(x: float) -> Variant:
+		return Vector3(_x_lsgn.get_y(x), _y_lsgn.get_y(x), _z_lsgn.get_y(x))
+		
+		
+## ######################################
+## 最小二乘法分组：Vector3i
+## ######################################
+class LeastSquaresGroupVector3I extends LeastSquaresGroupVector3:
+	func get_y(x: float) -> Variant:
+		return Vector3i(int(_x_lsgn.get_y(x)), int(_y_lsgn.get_y(x)), int(_z_lsgn.get_y(x)))
+		
+		
+## ######################################
+## 最小二乘法分组：Vector4
+## ######################################
+class LeastSquaresGroupVector4 extends LeastSquaresGroupVector3:
+	var _w_lsgn: LeastSquaresGroupNumber
+	
+	func _init(xdata: Array, ydata: Array):
+		super._init(xdata, ydata)
+		var _w = ydata.map(func(v): return LeastSquaresData.new(v.value.w, null))
+		_w_lsgn = LeastSquaresGroupNumber.new(xdata, _w)
+		
+	func get_y(x: float) -> Variant:
+		return Vector4(_x_lsgn.get_y(x), _y_lsgn.get_y(x), _z_lsgn.get_y(x), _w_lsgn.get_y(x))
+		
+		
+## ######################################
+## 最小二乘法分组：Vector4i
+## ######################################
+class LeastSquaresGroupVector4I extends LeastSquaresGroupVector4:
+	func get_y(x: float) -> Variant:
+		return Vector4i(int(_x_lsgn.get_y(x)), int(_y_lsgn.get_y(x)), int(_z_lsgn.get_y(x)), int(_w_lsgn.get_y(x)))
 		
 		
 ## ######################################
