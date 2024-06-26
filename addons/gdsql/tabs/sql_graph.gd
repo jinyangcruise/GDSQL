@@ -1417,6 +1417,8 @@ func gen_update_node() -> GraphNode:
 	# 关联该节点的BaseDao
 	var base_dao = BaseDao.new()
 	base_dao.update("")
+	base_dao.set_evalueate_mode(true)
+	
 	var graph_node = SQLGraphNode.instantiate()
 	graph_node.set_meta("base_dao", base_dao)
 	graph_node.node_enable_status.connect(mark_modified)

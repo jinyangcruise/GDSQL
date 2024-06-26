@@ -190,6 +190,7 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		if sets.is_empty():
 			assert(_assert(false, "Error near: [%s]" % arr[1][1]))
 		dao.sets(sets)
+		dao.set_evalueate_mode(true)
 		
 		if arr.size() > 2:
 			if arr[2][0].to_upper() != "WHERE":
@@ -264,7 +265,6 @@ static func parse_to_dao(sql: String) -> BaseDao:
 				assert(_assert(false, "Fields count and Values count not match."))
 			for i in fields.size():
 				data[fields[i]] = values[i]
-		dao.values(values)
 		if data.is_empty():
 			dao.values(values)
 		else:
@@ -315,7 +315,6 @@ static func parse_to_dao(sql: String) -> BaseDao:
 				assert(_assert(false, "Fields count and Values count not match."))
 			for i in fields.size():
 				data[fields[i]] = values[i]
-		dao.values(values)
 		if data.is_empty():
 			dao.values(values)
 		else:
@@ -542,7 +541,8 @@ static func _get_set_value(s: String) -> Array:
 		assert(_assert(false, "Error near: [%s]" % s))
 	var first = s.substr(0, m.get_start()).strip_edges()
 	var second = s.substr(m.get_end()).strip_edges()
-	return [first, _get_var(second)]
+	#return [first, _get_var(second)] # 由于数据不全（有些数据在数据库），不能在这里evaluate。
+	return [first, second]
 	
 ## deal column1 = call_('1', \"abc\"), column2 = value2
 static func _get_set_value_list(s: String) -> Dictionary:
@@ -567,5 +567,7 @@ static func _get_field_value(s: String) -> Array[String]:
 static func _get_var(s: String):
 	var try = str_to_var(s)
 	if typeof(try) == TYPE_NIL:
-		return GDSQLUtils.evaluate_command(null, s)
+		try = GDSQLUtils.evaluate_command(null, s)
+	if typeof(try) == TYPE_NIL:
+		return s
 	return try

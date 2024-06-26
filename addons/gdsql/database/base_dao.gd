@@ -34,6 +34,7 @@ var __root_config: ImprovedConfigFile: ## 【外部请勿使用】临时获取�
 	get:
 		return __CONF_MANAGER.get_conf(ROOT_CONFIG_PATH, "")
 var __table_conf_path: Dictionary = {} ## 【外部请勿使用】临时为了获取数据库定义文件
+var __enable_evaluate: bool = false ## 【外部请勿使用】当update或insert、replace时，是否对值进行evaluate操作
 
 ## 匹配逗号的位置，括号、引号内的逗号都不匹配
 static var regex_comma: RegEx = RegEx.new()
@@ -147,6 +148,10 @@ func commit() -> void:
 		assert(_assert("commit", false, "load conf err!"))
 	__CONF_MANAGER.save_conf_by_origin_password(path)
 	reset()
+	
+## 开启求值操作。仅在update操作时有效。仅在值为字符串时进行取值
+func set_evalueate_mode(enable: bool):
+	__enable_evaluate = enable
 	
 ## 查询数据子句
 ## something: 查询字段语句，即数据库查询语句select和from之间的语句
@@ -1288,22 +1293,23 @@ func query() -> QueryResult:
 			if __where.is_empty():
 				assert(_assert("query:%s" % __cmd, false, 
 				"Condition is empty. This limitition if for safety."))
-			
-			# 检查数据类型是否正确
+				
 			var columns_def = __get_table_defination(__database, __table)["columns"]
-			for col in columns_def:
-				var col_name = col["Column Name"]
-				if __data.has(col_name):
-					var new_val = __data[col_name]
-					if typeof(new_val) != col["Data Type"]:
-						var v1 = type_convert(new_val, col["Data Type"])
-						var v2 = type_convert(v1, typeof(new_val))
-						# 转化过程有损失时，抛出错误
-						if v2 != new_val:
-							assert(_assert("query:%s" % __cmd, false, 
-							"data type of %s is not %s" % [col_name, type_string(col["Data Type"])]))
-						__data[col_name] = v1
-						
+			# 检查数据类型是否正确. __enable_evaluate为true时，需要计算之后才能判断
+			if not __enable_evaluate:
+				for col in columns_def:
+					var col_name = col["Column Name"]
+					if __data.has(col_name):
+						var new_val = __data[col_name]
+						if typeof(new_val) != col["Data Type"]:
+							var v1 = type_convert(new_val, col["Data Type"])
+							var v2 = type_convert(v1, typeof(new_val))
+							# 转化过程有损失时，抛出错误
+							if v2 != new_val:
+								assert(_assert("query:%s" % __cmd, false, 
+								"data type of %s is not %s" % [col_name, type_string(col["Data Type"])]))
+							__data[col_name] = v1
+							
 			# 不能有多余的字段
 			var invalid_key = []
 			for key in __data:
@@ -1324,18 +1330,62 @@ func query() -> QueryResult:
 			if datas.is_empty():
 				result._cost_time = Time.get_unix_time_from_system() - begin_time
 				return result
-			
+				
 			# 更新数据
 			var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
 			if conf == null:
 				assert(_assert("query:%s" % __cmd, false, "Load conf err!"))
 			for data in datas:
 				data = data[__table_alias] # 未经过后处理的肯定是用表名分类的结构
+				var a_names = []
+				var a_values = []
+				for i: String in data:
+					if i.is_valid_identifier():
+						a_names.push_back(i)
+						a_values.push_back(data[i])
+						
+				# 计算值。例如id = id + 1
+				var a_data = __data
+				if __enable_evaluate:
+					# NOTICE 该过程会改变__data
+					a_data = _evaluate_data(a_names, a_values, columns_def)
+					if not a_data is Dictionary:
+						result._affected_rows = 0
+						result._err = "Error occur."
+						push_error(result.get_err())
+						result._cost_time = Time.get_unix_time_from_system() - begin_time
+						__CONF_MANAGER.remove_conf(path) # discard possible changes
+						return result
+						
 				var primary_value = str(data.get(primary))
 				var affected = false
-				for field in __data:
-					if conf.get_value(primary_value, field) != __data.get(field):
-						conf.set_value(primary_value, field, __data.get(field))
+				# update主键，可能要替换主键
+				if a_data.has(__primary_key):
+					var value = a_data.get(__primary_key)
+					if primary_value != str(value):
+						# 判断主键是否被占用了
+						if conf.has_section(str(value)):
+							result._affected_rows = 0
+							result._err = "Duplicate entry '%s' for key 'PRIMARY'" % value
+							push_error(result.get_err())
+							result._cost_time = Time.get_unix_time_from_system() - begin_time
+							__CONF_MANAGER.remove_conf(path) # discard possible changes
+							return result
+							
+						conf.erase_section(primary_value)
+						data[__primary_key] = value # 先只替换主键及主键值
+						primary_value = str(value)
+						data.erase(primary)
+						conf.set_values(primary_value, data)
+						affected = true
+						
+				for field in a_data:
+					# 主键前面处理过了，这里跳过
+					if field == __primary_key:
+						continue
+					var value = a_data.get(field)
+					if conf.get_value(primary_value, field) != value:
+						conf.set_value(primary_value, field, value)
 						affected = true
 				if affected:
 					result._affected_rows += 1
@@ -1380,6 +1430,34 @@ func query() -> QueryResult:
 	result._cost_time = Time.get_unix_time_from_system() - begin_time
 	return result
 	
+func _evaluate_data(p_names: Array, p_values: Array, columns_def: Array) -> Dictionary:
+	var a_data = __data.duplicate()
+	for col in columns_def:
+		var col_name = col["Column Name"]
+		if a_data.has(col_name):
+			var new_val = a_data[col_name]
+			var try = new_val
+			if new_val is String:
+				try = str_to_var(new_val)
+				if typeof(try) == TYPE_NIL:
+					try = GDSQLUtils.evaluate_command(null, new_val, p_names, p_values)
+					if typeof(try) == TYPE_NIL:
+						if col["Data Type"] == TYPE_STRING:
+							continue
+						else:
+							try = new_val
+							
+			if typeof(try) != col["Data Type"]:
+				var v1 = type_convert(try, col["Data Type"])
+				var v2 = type_convert(v1, typeof(try))
+				# 转化过程有损失时，抛出错误
+				if v2 != try:
+					assert(_assert("query:%s" % __cmd, false, 
+						"data type of %s is not %s" % [col_name, type_string(col["Data Type"])]))
+				a_data[col_name] = v1
+			else:
+				a_data[col_name] = try
+	return a_data
 	
 func _get_cond(need_where: bool, new_line = false) -> String:
 	var cond = ""
