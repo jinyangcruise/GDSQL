@@ -1109,27 +1109,32 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		
 		var btn_new = Button.new()
 		btn_new.text = "new"
+		btn_new.tooltip_text = "Press 'Ctrl' to add 10 new row."
 		btn_new.pressed.connect(func():
-			# 构造一个默认新数据
-			var new_data = {}
-			for j in new_column_prop_name:
-				if j["type"] is String and j["type"] == "group":
-					new_data[j["prop"]] = "" # for group
-				else:
-					var col_def = columns.filter(func(v):
-						return v["Column Name"] == j["col_name"]
-					).front()
-					if (col_def["Default(Expression)"] as String).strip_edges().is_empty():
-						new_data[j["prop"]] = DataTypeDef.DEFUALT_VALUES[col_def["Data Type"]]
+			var num = 1
+			if Input.is_key_pressed(KEY_CTRL):
+				num = 10
+			for i in num:
+				# 构造一个默认新数据
+				var new_data = {}
+				for j in new_column_prop_name:
+					if j["type"] is String and j["type"] == "group":
+						new_data[j["prop"]] = "" # for group
 					else:
-						new_data[j["prop"]] = GDSQLUtils.evaluate_command(null, col_def["Default(Expression)"])
-						
-						
-			var dict_obj = DictionaryObject.new(new_data, hint, false)
-			dict_obj.set_meta("new", true)
-			dict_obj.value_changed.connect(update_btn_disable_status)
-			table.append_data(dict_obj)
-			table.row_grab_focus(table.datas.size() - 1)
+						var col_def = columns.filter(func(v):
+							return v["Column Name"] == j["col_name"]
+						).front()
+						if (col_def["Default(Expression)"] as String).strip_edges().is_empty():
+							new_data[j["prop"]] = DataTypeDef.DEFUALT_VALUES[col_def["Data Type"]]
+						else:
+							new_data[j["prop"]] = GDSQLUtils.evaluate_command(null, col_def["Default(Expression)"])
+							
+							
+				var dict_obj = DictionaryObject.new(new_data, hint, false)
+				dict_obj.set_meta("new", true)
+				dict_obj.value_changed.connect(update_btn_disable_status)
+				table.append_data(dict_obj)
+				table.row_grab_focus(table.datas.size() - 1)
 		)
 		
 		var flow_container = graph_datas[1][2]
