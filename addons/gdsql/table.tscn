@@ -189,9 +189,11 @@ size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
 [node name="Button" type="Button" parent="HSplitContainer/HeaderColModel"]
+custom_minimum_size = Vector2(50, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/focus = SubResource("StyleBoxEmpty_a63dc")
+clip_text = true
 
 [node name="Control" type="HBoxContainer" parent="HSplitContainer/HeaderColModel"]
 layout_mode = 2

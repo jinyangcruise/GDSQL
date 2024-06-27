@@ -669,15 +669,36 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 			
 	return control
 	
-func split_for_tooltip(tooltip: String) -> String:
-	const l = 45
-	var total_l = tooltip.length()
+func split_for_tooltip(content: String) -> String:
+	const l = 40
+	var total_l = content.length()
 	if total_l <= l:
-		return tooltip
+		return content
 	var arr = []
 	var start = 0
 	while true:
-		arr.push_back(tooltip.substr(start, l))
+		if start >= total_l:
+			break
+		if start + l >= total_l:
+			arr.push_back(content.substr(start, l))
+		# 不要把单词分开，找到下一个空格
+		else:
+			if (0x4e00 <= content.unicode_at(start+l) and content.unicode_at(start+l) <= 0x9fff) or \
+			content[start + l] in [" ", "\t", ",", ".", "?", "!", ":", ";", "/", "~", "，", "。", "？", "！", "：", "；"]:
+				arr.push_back(content.substr(start, l))
+			else:
+				var ll = -1
+				for i in [" ", "\t", ",", ".", "?", "!", ":", ";", "/", "~", "，", "。", "？", "！", "：", "；"]:
+					ll = content.find(i, start + l)
+					if ll != -1:
+						break
+				if ll == -1:
+					arr.push_back(content.substr(start))
+					break
+				else:
+					arr.push_back(content.substr(start, ll - start + 1))
+					start = ll + 1
+					continue
 		if start + l >= total_l:
 			break
 		start += l
