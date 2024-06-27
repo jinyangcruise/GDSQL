@@ -638,7 +638,22 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 				if ctl:
 					# 新值的类型仍旧需要用label进行显示
 					if [TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME].has(typeof(new_value)):
-						ctl.text = str(new_value)
+						var p_name = ""
+						if a_data is DictionaryObject:
+							p_name = a_data.__get_index_prop(col_index).to_snake_case() # NOTICE 真实的属性名称可能包含空格
+						if a_data is DictionaryObject and a_data.get_meta(p_name + "_enum_hint_string_dict", "") != "":
+							var hint_string = a_data.get_meta(p_name + "_enum_hint_string_dict") as String
+							var arr_text_value = Array(hint_string.split(",")).map(func(v): return v.split(":"))
+							var find = false
+							for i in arr_text_value:
+								if int(i[1]) == new_value:
+									ctl.text = str(i[0])
+									find = true
+									break
+							if not find:
+								ctl.text = ""
+						else:
+							ctl.text = str(new_value)
 						ctl.tooltip_text = split_for_tooltip(ctl.text)
 					# object的，但是需要用label显示的
 					elif new_value is Object and not (new_value is Resource or new_value is Control):
@@ -655,7 +670,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 	return control
 	
 func split_for_tooltip(tooltip: String) -> String:
-	const l = 30
+	const l = 45
 	var total_l = tooltip.length()
 	if total_l <= l:
 		return tooltip

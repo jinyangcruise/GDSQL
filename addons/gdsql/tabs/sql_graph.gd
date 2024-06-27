@@ -1189,6 +1189,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			var dict_obj = DictionaryObject.new(data, new_hint, false)
 			dict_obj.value_changed.connect(update_btn_disable_status)
 			dict_obj.set_meta("index", new_table_datas.size()) # 为了revert删除的数据时判断前后位置
+			dict_obj._get_property_list() # NOTICE trigger ENUM text possibly
 			new_table_datas.push_back(dict_obj)
 		table.datas = new_table_datas
 		table.support_delete_row = true
