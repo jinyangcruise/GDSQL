@@ -1157,6 +1157,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 					dict_obj.set_meta("index", 0)
 				else:
 					dict_obj.set_meta("index", table.datas.back().get_meta("index") + 1)
+				dict_obj._get_property_list() # NOTICE trigger ENUM text possibly
 				dict_obj.value_changed.connect(update_btn_disable_status)
 				table.append_data(dict_obj)
 				table.row_grab_focus(table.datas.size() - 1)

@@ -544,7 +544,22 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 		TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME:
 			handled = true
 			control = label_model.duplicate()
-			control.text = str(data)
+			var p_name = ""
+			if a_data is DictionaryObject:
+				p_name = a_data.__get_index_prop(col_index).to_snake_case() # NOTICE 真实的属性名称可能包含空格
+			if a_data is DictionaryObject and a_data.get_meta(p_name + "_enum_hint_string_dict", "") != "":
+				var hint_string = a_data.get_meta(p_name + "_enum_hint_string_dict") as String
+				var arr_text_value = Array(hint_string.split(",")).map(func(v): return v.split(":"))
+				var find = false
+				for i in arr_text_value:
+					if int(i[1]) == data:
+						control.text = str(i[0])
+						find = true
+						break
+				if not find:
+					control.text = ""
+			else:
+				control.text = str(data)
 			control.tooltip_text = split_for_tooltip(control.text)
 			if col_index >= 0:
 				control.gui_input.connect(_label_gui_input.bind(col_index))
@@ -553,7 +568,19 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 				var callback = func(new_value, control_ref: WeakRef):
 					var ctl = control_ref.get_ref()
 					if ctl:
-						ctl.text = str(new_value)
+						if a_data is DictionaryObject and a_data.get_meta(p_name + "_enum_hint_string_dict", "") != "":
+							var hint_string = a_data.get_meta(p_name + "_enum_hint_string_dict") as String
+							var arr_text_value = Array(hint_string.split(",")).map(func(v): return v.split(":"))
+							var find = false
+							for i in arr_text_value:
+								if int(i[1]) == new_value:
+									ctl.text = str(i[0])
+									find = true
+									break
+							if not find:
+								ctl.text = ""
+						else:
+							ctl.text = str(new_value)
 				a_data.set_update_callback(a_data.__get_index_prop(col_index), callback.bind(weakref(control)))
 		TYPE_OBJECT:
 			if data is Resource:
@@ -1711,7 +1738,7 @@ func commit_autofill_border() -> void:
 					# 只读属性不能被修改
 					if not (dict_obj.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
 						dict_obj._set_by_index(col, type_convert(y, prop_type))
-					
+						
 				if outer_is_row:
 					for col in range(add_rect.position.y, add_rect.end.y):
 						fill.call(datas[i], col, col)

@@ -13,10 +13,16 @@ var _read_only: bool
 ## 连接属性
 var _duplicate_property: Array
 
+var __CONF_MANAGER: ConfManagerClass
+
 ## data： 一个key-value形成的字典数据。或一个长度为2的数组，第一个元素是key的一维数组，第二个元素是value的一维数组
 ## hint： 一个key-dictionary字典数据。key为data中的key，dictionary为包含"hint"和"hint_string"，"link"，"usage"，"type"键的数据。@see PropertyHint 
 ## 是否只读
 func _init(data, hint: Dictionary = {}, read_only: bool = false) -> void:
+	if Engine.has_singleton("ConfManager"):
+		__CONF_MANAGER = Engine.get_singleton("ConfManager")
+	else:
+		__CONF_MANAGER = ConfManager
 	_hint = hint
 	_read_only = read_only
 	if data is Dictionary:
@@ -34,6 +40,7 @@ func _init(data, hint: Dictionary = {}, read_only: bool = false) -> void:
 			
 func _notification(what):
 	if what == NOTIFICATION_PREDELETE:
+		__CONF_MANAGER = null
 		_origin = {}
 		_data = {}
 		_hint = {}
@@ -187,7 +194,7 @@ func mark_link_prop(prop: String, src_prop: String) -> void:
 func _is_hidden_prop(prop: String) -> bool:
 	return _usage.has(prop) and (_usage[prop] & PROPERTY_USAGE_CATEGORY or _usage[prop] & PROPERTY_USAGE_GROUP \
 		or _usage[prop] & PROPERTY_USAGE_SUBGROUP)
-	
+		
 func _get_property_list() -> Array[Dictionary]:
 	var properties: Array[Dictionary] = []
 	for key in _data:
@@ -208,15 +215,31 @@ func _get_property_list() -> Array[Dictionary]:
 		
 		# 可能需要从数据库提供字典值
 		if info["hint"] == PROPERTY_HINT_ENUM or info["hint"] == PROPERTY_HINT_ENUM_SUGGESTION:
-			var arr = (info["hint_string"] as String).rsplit(":", true, 1)
-			if arr.size() == 2 and (arr[0] as String).is_absolute_path():
-				var conf = ImprovedConfigFile.new()
-				var err = conf.load(arr[0])
-				if err == OK:
-					info["hint_string"] = ",".join(conf.get_all_section_value(arr[1]))
-				else:
-					push_error("Can not load file [%s]" % arr[0])
-		
+			# 字符串的enum没有办法进行更多提示
+			if info.type == TYPE_STRING:
+				var arr = (info["hint_string"] as String).rsplit(":", true, 1)
+				if arr.size() == 2 and (arr[0] as String).is_absolute_path():
+					var conf = __CONF_MANAGER.get_conf(arr[0], "")
+					if conf:
+						info["hint_string"] = ",".join(conf.get_all_section_value(arr[1]))
+					else:
+						push_error("Can not load file [%s]" % arr[0])
+			elif info.type == TYPE_INT:
+				var arr = (info["hint_string"] as String).rsplit(":", true, 2)
+				if arr.size() == 3 and (arr[0] as String).is_absolute_path():
+					var meta_key = info.name.to_snake_case() + "_enum_hint_string_dict"
+					if has_meta(meta_key):
+						info["hint_string"] = get_meta(meta_key)
+					else:
+						var conf = __CONF_MANAGER.get_conf(arr[0], "")
+						if conf:
+							info["hint_string"] = ",".join(
+								conf.get_all_section_values([arr[1], arr[2]]).map(func(v):
+									return str(v[arr[2]]) + ":" + str(v[arr[1]])))
+							set_meta(meta_key, info.hint_string)
+						else:
+							push_error("Can not load file [%s]" % arr[0])
+							
 		properties.append(info)
 		
 	return properties
