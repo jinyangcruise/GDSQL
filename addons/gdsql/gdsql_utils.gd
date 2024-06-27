@@ -15,19 +15,23 @@ static func evaluate_command(target: Object, command: String, variable_names = [
 	var ret = expression.execute(variable_values, target, false)
 	
 	# 对于一些很简单的但Expression又不支持的写法，动态创建脚本
-	if typeof(ret) == TYPE_NIL and target == null:
+	if typeof(ret) == TYPE_NIL:# and target == null:
+		var target_class_name = "Object"
+		if target and target.get_script() and target.get_script().get_global_name() != "":
+			target_class_name = target.get_script().get_global_name()
 		var script = GDScript.new()
 		var defines = []
 		for i in variable_names.size():
 			defines.push_back("var %s = str_to_var('%s')" % [variable_names[i], var_to_str(variable_values[i]).c_escape()])
-		script.source_code = "extends Object\n%s\nvar value = (%s)\n" % ["\n".join(defines), command]
+		script.source_code = "extends %s\n%s\nvar value = (%s)\n" % [target_class_name, "\n".join(defines), command]
 		var err = script.reload()
 		if err != OK:
 			push_error("err: %s" % error_string(err))
 			return null
 		var obj = script.new()
 		ret = obj.value
-		obj.free()
+		if not obj is RefCounted:
+			obj.free()
 	return ret
 	
 ## 执行一个表达式，直接通过script方式
