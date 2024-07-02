@@ -33,6 +33,12 @@ var preserve_cursor = false
 var needs_to_count_results = true
 var line_col_changed_for_result = false
 
+enum SearchMode {
+	SEARCH_CURRENT,
+	SEARCH_NEXT,
+	SEARCH_PREV,
+}
+
 func _notification(p_what: int):
 	match p_what:
 		NOTIFICATION_READY:
@@ -243,7 +249,7 @@ func _replace_all() -> void:
 	results_count_to_current = -1
 	needs_to_count_results = true
 	
-func _get_search_from(r_line_and_col: Array, p_is_searching_next: bool = false):
+func _get_search_from(r_line_and_col: Array, p_search_mode: SearchMode):
 	var r_line = r_line_and_col[0]
 	var r_col = r_line_and_col[1]
 	if !text_editor.has_selection(0) or is_selection_only():
@@ -252,13 +258,13 @@ func _get_search_from(r_line_and_col: Array, p_is_searching_next: bool = false):
 		r_line_and_col[0] = r_line
 		r_line_and_col[1] = r_col
 		
-		if !p_is_searching_next and r_line == result_line and r_col >= result_col \
+		if p_search_mode == SearchMode.SEARCH_PREV and r_line == result_line and r_col >= result_col \
 		and r_col <= result_col + get_search_text().length():
 			r_col = result_col
 			r_line_and_col[1] = r_col
 		return
 		
-	if p_is_searching_next:
+	if p_search_mode == SearchMode.SEARCH_NEXT:
 		r_line = text_editor.get_selection_to_line()
 		r_col = text_editor.get_selection_to_column()
 	else:
@@ -268,7 +274,14 @@ func _get_search_from(r_line_and_col: Array, p_is_searching_next: bool = false):
 	r_line_and_col[1] = r_col
 	
 func _update_results_count():
-	if !needs_to_count_results and (result_line != -1) and results_count_to_current > 0:
+	var caret_line_and_column = [0, 0]
+	_get_search_from(caret_line_and_column, SearchMode.SEARCH_CURRENT);
+	var caret_line = caret_line_and_column[0]
+	var caret_column = caret_line_and_column[1]
+	var match_selected = caret_line == result_line and caret_column == result_col \
+		and !is_selection_only() and text_editor.has_selection(0)
+		
+	if match_selected and !needs_to_count_results and result_line != -1 and results_count_to_current > 0:
 		results_count_to_current += -1 if (flags & TextEdit.SEARCH_BACKWARDS) else 1
 		
 		if results_count_to_current > results_count:
@@ -281,8 +294,9 @@ func _update_results_count():
 	if searched == "":
 		return
 		
-	needs_to_count_results = false
+	needs_to_count_results = !match_selected
 	results_count = 0
+	results_count_to_current = 0
 	
 	for i in text_editor.get_line_count():
 		var line_text = text_editor.get_line(i)
@@ -307,14 +321,21 @@ func _update_results_count():
 					continue
 					
 			results_count += 1
-			if i == result_line:
-				if col_pos == result_col:
-					results_count_to_current = results_count
-				elif col_pos < result_col and col_pos + searched.length() > result_col:
-					col_pos = result_col
-					results_count_to_current = results_count
-					
+			if i <= result_line and col_pos <= result_col:
+				results_count_to_current = results_count
+			if i == result_line and col_pos < result_col and col_pos + searched.length() > result_col:
+				# Searching forwards and backwards with repeating text can lead to different matches.
+				col_pos = result_col
+				
 			col_pos += searched.length()
+	if !match_selected:
+		# Current result should refer to the match before the caret, if the caret is not on a match.
+		if caret_line != result_line or caret_column != result_col:
+			results_count_to_current -= 1
+		if results_count_to_current == 0 and (caret_line > result_line or \
+		(caret_line == result_line and caret_column > result_col)):
+			# Caret is after all matches.
+			results_count_to_current = results_count;
 			
 func _update_matches_display():
 	if search_text.get_text() == "" or results_count == -1:
@@ -345,7 +366,7 @@ func _update_matches_display():
 func search_current():
 	_update_flags(false)
 	var line_and_col = [0, 0]
-	_get_search_from(line_and_col)
+	_get_search_from(line_and_col, SearchMode.SEARCH_CURRENT)
 	return _search(flags, line_and_col[0], line_and_col[1])
 	
 func search_prev() -> bool:
@@ -357,10 +378,13 @@ func search_prev() -> bool:
 		
 	var text = get_search_text()
 	
+	if (flags & TextEdit.SEARCH_BACKWARDS) == 0:
+		needs_to_count_results = true
+		
 	_update_flags(true)
 	
 	var line_and_col = [0, 0]
-	_get_search_from(line_and_col)
+	_get_search_from(line_and_col, SearchMode.SEARCH_PREV)
 	var line = line_and_col[0]
 	var col = line_and_col[1]
 	
@@ -381,10 +405,13 @@ func search_next() -> bool:
 	if !is_visible():
 		popup_search(true)
 		
+	if flags & TextEdit.SEARCH_BACKWARDS:
+		needs_to_count_results = true
+		
 	_update_flags(false)
 	
 	var line_and_col = [0, 0]
-	_get_search_from(line_and_col, true)
+	_get_search_from(line_and_col, SearchMode.SEARCH_NEXT)
 	var line = line_and_col[0]
 	var col = line_and_col[1]
 	
@@ -526,10 +553,8 @@ func set_text_edit(p_text_editor):
 	base_text_editor = p_text_editor
 	text_editor = base_text_editor.text_editor
 	text_editor.connect("text_changed", _editor_text_changed)
-	# TODO FIXME there is a bug somewhere
-	# @see https://github.com/godotengine/godot/pull/93056
-	_update_results_count()
-	_update_matches_display()
+	
+	_editor_text_changed()
 	
 func _ready() -> void:
 	EDSCALE = get_display_scale()
