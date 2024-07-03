@@ -15,7 +15,8 @@ var __table: String = "" ## 【外部请勿使用】表名（带extension的）
 var __table_alias: String = "" ## 【外部请勿使用】别名
 var __data ## Dictionary or Array ## 【外部请勿使用】更新数据使用
 var __where: Array = [] ## 【外部请勿使用】筛选数据条件
-var __order_by: Array = [] ## 【外部请勿使用】排序条件
+var __group_by: Array = [] ## 【外部请勿使用】数据分组依据，支持列别名
+var __order_by: Array = [] ## 【外部请勿使用】排序条件，支持列别名
 var __offset: int = -1 ## 【外部请勿使用】select返回数据截取起始位置
 var __limit: int = -1 ## 【外部请勿使用】select返回数据截取长度
 var __duplicate_update_fields: Array = [] ## 【外部请勿使用】主键重复时更新哪些字段
@@ -342,8 +343,12 @@ func delete_from(table: String) -> BaseDao:
 	set_table(table)
 	return self
 	
-## 如果多次调用，那么这些条件将是`and`的关系。如需避免多次调用，请使用set_where
+## 如果多次调用，那么这些条件将是`and`的关系。如需避免多次调用，请使用set_where。
+## 如果是union的，那么where作用于最终数据集上，也就是第一个BaseDao上。
 func where(cond: String) -> BaseDao:
+	if __parent_union:
+		__parent_union.where(cond)
+		return self
 	if not (__cmd == "select" or __cmd == "update" or __cmd == "delete_from"):
 		assert(_assert("where", false, 
 		"'where' can only be used after 'select' or 'update' or 'delete_from'"))
@@ -353,6 +358,9 @@ func where(cond: String) -> BaseDao:
 	return self
 	
 func set_where(cond: String) -> BaseDao:
+	if __parent_union:
+		__parent_union.set_where(cond)
+		return self
 	if not (__cmd == "select" or __cmd == "update" or __cmd == "delete_from"):
 		assert(_assert("where", false, 
 		"'where' can only be used after 'select' or 'update' or 'delete_from'"))
@@ -393,9 +401,39 @@ func remove_union_all(base_dao: BaseDao) -> bool:
 func has_union_all(base_dao: BaseDao) -> bool:
 	return __union_all == base_dao
 	
+## 聚合分组。支持多个字段，用逗号分隔。字段名称必须是fetch出来的数据所包含的列名或列别名。
+## 如果是union的，那么group by作用于最终数据集上。
+func group_by(something: String) -> BaseDao:
+	if __parent_union:
+		__parent_union.group_by(something)
+		return self
+	if __cmd != "select":
+		assert(_assert("order_by", false, "'order_by' can only be used after 'select'"))
+	something = something.strip_edges()
+	if something == "":
+		return self
+	#__group_by = Array(fields.split(",")) NOTICE 过于粗糙，改为下面的逻辑
+	var matches = regex_comma.search_all(something)
+	if not matches.is_empty():
+		var start = 0
+		for i in matches:
+			var field_str = something.substr(start, i.get_start() - start).strip_edges()
+			__group_by.push_back(field_str)
+			
+		if start < something.length():
+			var field_str = something.substr(start).strip_edges()
+			__group_by.push_back(field_str)
+	else:
+		__group_by.push_back(something)
+	return self
+	
 ## 注意该方法具有嵌套效果，在union的时候，链条中某个环节的order_by会对后面所有环节进行排序
+## 如果是union的，那么order by作用于最终数据集上。
 func order_by(field: String, order: ORDER_BY) -> BaseDao:
-	if __cmd == "select":
+	if __parent_union:
+		__parent_union.order_by(field, order)
+		return self
+	if __cmd != "select":
 		assert(_assert("order_by", false, "'order_by' can only be used after 'select'"))
 	field = field.strip_edges()
 	if field != "":
@@ -404,6 +442,9 @@ func order_by(field: String, order: ORDER_BY) -> BaseDao:
 	
 ## 注意，若用该方法，就一次性传入字符串。如果多次使用，只有最后一次的有效。
 func order_by_str(string: String) -> BaseDao:
+	if __parent_union:
+		__parent_union.order_by_str(string)
+		return self
 	if __cmd != "select":
 		assert(_assert("order_by_str", false, "'order_by' can only be used after 'select'"))
 	# 清空
@@ -429,10 +470,14 @@ func order_by_str(string: String) -> BaseDao:
 		arr.push_back(string)
 		
 	for a_order in arr:
-		if a_order.ends_with("asc") or a_order.ends_with("ASC"):
-			__order_by.push_back([a_order.substr(0, a_order.length() - 3).strip_edges(), ORDER_BY.ASC])
-		elif a_order.ends_with("desc") or a_order.ends_with("DESC"):
-			__order_by.push_back([a_order.substr(0, a_order.length() - 4).strip_edges(), ORDER_BY.DESC])
+		if a_order.ends_with(" asc") or a_order.ends_with(" ASC") or \
+		a_order.ends_with("\tasc") or a_order.ends_with("\tASC") or \
+		a_order.ends_with("\nasc") or a_order.ends_with("\nASC"):
+			__order_by.push_back([a_order.substr(0, a_order.length() - 4).strip_edges(), ORDER_BY.ASC])
+		elif a_order.ends_with(" desc") or a_order.ends_with(" DESC") or \
+		a_order.ends_with("\tdesc") or a_order.ends_with("\tDESC") or \
+		a_order.ends_with("\ndesc") or a_order.ends_with("\nDESC"):
+			__order_by.push_back([a_order.substr(0, a_order.length() - 5).strip_edges(), ORDER_BY.DESC])
 		else:
 			__order_by.push_back([a_order, ORDER_BY.ASC])
 			
@@ -698,7 +743,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 		
 	# where条件
 	var cond = _get_cond(false)
-		
+	
 	var ret_filter = null
 	if cond == "":
 		ret_filter = ret
@@ -728,66 +773,81 @@ func ___select(path: String, fill_primary_key: String = ""):
 			return [real_select]
 		return []
 		
-	# 特殊标记
-	var __ROW_POST_PROCESS__ = "__ROW_POST_PROCESS_1355--5--__" # 祈祷用户没有用这个字段或表名
-	
-	# 排序
-	if not __order_by.is_empty():
-		var compare := func(a, b):
-			for a_order_by in __order_by:
-				var s = a_order_by[0].split(".")
-				var t1 = s[0] if s.size() > 1 else ""
-				var t2 = t1 # t1、t2分开是因为在union时，可能不同表有不同的别名
-				var f = s[1] if s.size() > 1 else s[0]
-				var d1 = a
-				var d2 = b
-				# 用户没有用t.xxx，而是用的xxx，这种情况，单表时，可以帮助用户识别表名
-				if t1 == "" and a is Dictionary \
-					and (a.size() == 1 or (a.size() == 2 and a.has(__ROW_POST_PROCESS__))):
-					var ts: Array = a.keys()
-					ts.erase(__ROW_POST_PROCESS__)
-					t1 = ts[0]
-				if t2 == "" and b is Dictionary \
-					and (b.size() == 1 or (b.size() == 2 and b.has(__ROW_POST_PROCESS__))):
-					var ts: Array = b.keys()
-					ts.erase(__ROW_POST_PROCESS__)
-					t2 = ts[0]
-				if t1 != "" or (a is Dictionary and a.has("")):
-					d1 = a.get(t1)
-				if t2 != "" or (b is Dictionary and b.has("")):
-					d2 = b.get(t2)
-				if d1.get(f) == d2.get(f):
-					continue
-				else:
-					if a_order_by[1] == ORDER_BY.ASC:
-						return d1.get(f) < d2.get(f) # TODO 用evaluate的方式
-					else:
-						return d1.get(f) > d2.get(f)
-						
-			return true
-			
-		ret_filter.sort_custom(compare)
-		
-	# limit
-	if __offset >= 0 and __limit > 0:
-		ret_filter = ret_filter.slice(__offset, __limit)
-		
 	# 不用后处理，那么就返回所有字段，这基本就是update的时候内部调用select才使用。用户不应该到这里。所以不加表头了。
 	if not __need_post_porcess:
 		return ret_filter
 		
+	# 特殊标记
+	const __ROW_POST_PROCESS__ = "__ROW_POST_PROCESS_1355--5--__" # 祈祷用户没有用这个字段或表名
+	var is_single_table = ret_filter[0].size() == 1 or \
+		(ret_filter[0].size() == 2 and ret_filter[0].has(__ROW_POST_PROCESS__)) # 每行数据是否只有一个表
+		
+	# group by 分组，支持列别名
+	var grouped_ret = []
+	if __group_by.is_empty() or __parent_union: # 让父BaseDao统一处理
+		grouped_ret = ret_filter
+	else:
+		var group_key = []
+		for i in __group_by:
+			var find = false
+			for j in real_select:
+				if (j.select_name == i or j.field_as == i) and j.is_field:
+					find = true
+					group_key.push_back([j.table_alias, j["Column Name"]])
+					break
+			if not find:
+				group_key.push_back(i)
+				
+		var grouped_map = {}
+		for data in ret_filter:
+			var grouped_value = []
+			for j in group_key:
+				if j is Array:
+					grouped_value.push_back(data[j[0]][j[1]])
+				else: # j is String
+					var variable_names = []
+					var variable_values = []
+					# 把求式子可能需要的变量名称和变量值都放到数组里
+					for key in data:
+						variable_names.push_back(key)
+						variable_values.push_back(data[key])
+						if is_single_table:
+							for f in data[key]:
+								variable_names.push_back(f) # 祈祷字段名称和表名以及用户使用的函数名称不一样吧……
+								variable_values.push_back(data[key][f])
+								
+					var value = GDSQLUtils.evaluate_command(null, j, variable_names, variable_values)
+					grouped_value.push_back(value)
+					
+			var map = grouped_map
+			var find = false
+			for i in grouped_value:
+				if map.has(i):
+					find = true
+					map = map.get(i)
+				else:
+					find = false
+					break
+			if not find:
+				grouped_ret.push_back(data)
+				map = grouped_map
+				for i in grouped_value:
+					if not map.has(i):
+						map[i] = {}
+					map = map[i]# TODO aggregate function
+					
 	# 最终返回的数据：如果有parent_union，则仍旧返回按表分类的结构的数据，
 	# 并多了一个字段（__ROW_POST_PROCESS__），是后处理数据的一行结果。
 	# 如果没有parent_union，则返回扁平数组结构的数据。
 	var ret_post_process: Array = []
 	# 下面按照用户需要的字段及其顺序，返回相应的数据
 	# 为了提升效率，简化一些常用查询。单表查询并查全字段
-	if __left_join == null and __select.size() == 1 \
-		and (__select[0] == "*" or __select[0] == __table_alias + ".*"):
+	if __left_join == null and __select.size() == 1 and \
+	(__select[0] == "*" or __select[0] == __table_alias + ".*"):
 		if __need_head and __parent_union == null:
 			ret_post_process.push_back(real_select)
 			
-		for d in ret_filter:
+		for d in grouped_ret:
 			if d.has(__ROW_POST_PROCESS__):
 				if __parent_union:
 					ret_post_process.push_back(d)
@@ -819,10 +879,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 				real_select[i]["name_4_computing"] = ConditionWrapper.modify_dot_to_get(real_select[i]["select_name"])
 				
 		# 求值
-		var is_single_table = ret_filter[0].size() == 1 or \
-			(ret_filter[0].size() == 2 and ret_filter[0].has(__ROW_POST_PROCESS__)) # 每行数据是否只有一个表
-			
-		for data in ret_filter:
+		for data in grouped_ret:
 			if data.has(__ROW_POST_PROCESS__):
 				if __parent_union:
 					ret_post_process.push_back(data)
@@ -845,7 +902,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 					for f in data[key]:
 						variable_names.push_back(f) # 祈祷字段名称和表名以及用户使用的函数名称不一样吧……
 						variable_values.push_back(data[key][f])
-				
+						
 			# 每行就是一个数组，按照用户select的顺序排列的，用户自己取。原来的想法是row是一个字典，
 			# 但是存在一个值是由多个表里的数据或者并不是某个表里的数据计算出来的，不太好处理，放弃了。
 			# 另外存在一个问题，就是星号怎么办。一个星号就代表了这个表所有的字段，用户很难知道返回的数据每个元素都对应哪个字段
@@ -879,6 +936,47 @@ func ___select(path: String, fill_primary_key: String = ""):
 			else:
 				ret_post_process.push_back(row)
 				
+	# 排序，支持列别名 TODO FIXME 数据还是不是dict结构的？
+	if not __order_by.is_empty():
+		var compare := func(a, b):
+			for a_order_by in __order_by:
+				var s = a_order_by[0].split(".")
+				var t1 = s[0] if s.size() > 1 else ""
+				var t2 = t1 # t1、t2分开是因为在union时，可能不同表有不同的别名
+				var f = s[1] if s.size() > 1 else s[0]
+				var d1 = a
+				var d2 = b
+				# 用户没有用t.xxx，而是用的xxx，这种情况，单表时，可以帮助用户识别表名
+				if t1 == "" and a is Dictionary and \
+				(a.size() == 1 or (a.size() == 2 and a.has(__ROW_POST_PROCESS__))):
+					var ts: Array = a.keys()
+					ts.erase(__ROW_POST_PROCESS__)
+					t1 = ts[0]
+				if t2 == "" and b is Dictionary and \
+				(b.size() == 1 or (b.size() == 2 and b.has(__ROW_POST_PROCESS__))):
+					var ts: Array = b.keys()
+					ts.erase(__ROW_POST_PROCESS__)
+					t2 = ts[0]
+				if t1 != "" or (a is Dictionary and a.has("")):
+					d1 = a.get(t1)
+				if t2 != "" or (b is Dictionary and b.has("")):
+					d2 = b.get(t2)
+				if d1.get(f) == d2.get(f):
+					continue
+				else:
+					if a_order_by[1] == ORDER_BY.ASC:
+						return d1.get(f) < d2.get(f) # TODO 用evaluate的方式
+					else:
+						return d1.get(f) > d2.get(f)
+						
+			return true
+			
+		ret_post_process.sort_custom(compare)
+		
+	# limit
+	if __offset >= 0 and __limit > 0:
+		ret_post_process = ret_post_process.slice(__offset, __limit)
+		
 	return ret_post_process
 	
 ## 获取字段名称的正则
