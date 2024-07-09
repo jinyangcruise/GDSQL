@@ -10,7 +10,6 @@ var __database = "" ## 【外部请勿使用】数据库路径
 var __cmd: String = "" ## 【外部请勿使用】命令
 var __select_str = "" ## 【外部请勿使用】select字符串
 var __select: Array[String] = [] ## 【外部请勿使用】select哪些字段
-var __has_aggregate_functions: bool = false ## 【外部请勿使用】select是否使用了聚合函数
 var __field_as_index: Dictionary = {} ## 【外部请勿使用】字段别名的位置索引
 var __table: String = "" ## 【外部请勿使用】表名（带extension的）
 var __table_alias: String = "" ## 【外部请勿使用】别名
@@ -230,15 +229,7 @@ func select(something: String, need_head: bool) -> BaseDao:
 			
 		__field_as_index[__select.size()] = field_as
 		__select.push_back(something)
-	_check_aggregate_functions()
 	return self
-	
-func _check_aggregate_functions():
-	for i in __select:
-		if AggregateFunctions.possible_has_func(i):
-			__has_aggregate_functions = true
-			return
-	__has_aggregate_functions = false
 	
 ## union之后的BaseDao可以进行select_same，表示与父BaseDao查询相同的字段。
 ## 该方法是为了简化用户输入。
@@ -250,7 +241,6 @@ func select_same() -> BaseDao:
 	__cmd = "select"
 	__select_str = __parent_union.__select_str
 	__select = __parent_union.__select.duplicate()
-	__has_aggregate_functions = __parent_union.__has_aggregate_functions
 	__field_as_index = __parent_union.__field_as_index.duplicate()
 	__need_head = false
 	return self
@@ -771,9 +761,97 @@ func ___select(path: String, fill_primary_key: String = ""):
 	# 特殊标记
 	var is_single_table = not ret_filter.is_empty() and ret_filter[0].size() == 1
 	
-	# 最终返回的数据：如果有parent_union，则仍旧返回按表分类的结构的数据，
-	# 并多了一个字段（__ROW_POST_PROCESS__），是后处理数据的一行结果。
-	# 如果没有parent_union，则返回扁平数组结构的数据。
+	# group by 预分组，让每行每列对应某个聚合对象
+	var pre_group_can_remain = {} # 第几行数据（不包括表头） => 可以保留
+	var pre_group = {} # 第几行数据 => {col => agg_func_obj}
+	var pre_group_last_row = {} # map => 最后一行数据的序号。为了找到每个聚合的最后一条数据
+	var last_group_row_index = {}
+	var total_agg_func_obj = {} # col => agg_func_obj。在没有group by但是用了聚合函数的时候有用
+	if __group_by.is_empty():
+		for i in real_select.size():
+			if AggregateFunctions.possible_has_func(real_select[i].select_name):
+				total_agg_func_obj[i] = AggregateFunctions.get_instance(i)
+		for i in __order_by.size():
+			if AggregateFunctions.possible_has_func(__order_by[i][0]):
+				var index = real_select.size() + i
+				total_agg_func_obj[index] = AggregateFunctions.get_instance(index)
+	else:
+		var group_key = []
+		for i: String in __group_by:
+			var find = false
+			for j in real_select:
+				if (j.select_name == i or j.field_as == i) and j.is_field:
+					find = true
+					group_key.push_back([j.table_alias, j["Column Name"]])
+					break
+			if not find:
+				if i.is_valid_int():
+					if int(i) >= 1 and int(i) <= real_select.size():
+						find = true
+						group_key.push_back([real_select[int(i)-1].table_alias, real_select[int(i)-1]["Column Name"]])
+						continue
+					else:
+						_assert("in group statement", false, "Unknow column '%s' in 'group statement'" % i)
+						return null
+				group_key.push_back(i)
+				
+		var grouped_map = {}
+		var data_index = -1
+		for data in ret_filter:
+			data_index += 1
+			var grouped_value = []
+			for j in group_key:
+				if j is Array:
+					grouped_value.push_back(data[j[0]][j[1]])
+				else: # j is String
+					var variable_names = []
+					var variable_values = []
+					# 把求式子可能需要的变量名称和变量值都放到数组里
+					var m_data = ret_filter[data_index] # map形式的data
+					for key in m_data:
+						variable_names.push_back(key)
+						variable_values.push_back(m_data[key])
+						if is_single_table:
+							for f in m_data[key]:
+								variable_names.push_back(f) # 祈祷字段名称和表名以及用户使用的函数名称不一样吧……
+								variable_values.push_back(m_data[key][f])
+								
+					var value = GDSQLUtils.evaluate_command(null, j, variable_names, variable_values)
+					grouped_value.push_back(value)
+					
+			var map = grouped_map
+			var find = false
+			for i in grouped_value:
+				if map.has(i):
+					find = true
+					map = map.get(i)
+				else:
+					find = false
+					break
+			if find:
+				pre_group[data_index] = map
+			else:
+				pre_group_can_remain[data_index] = true
+				map = grouped_map
+				for i in grouped_value:
+					if not map.has(i):
+						map[i] = {}
+					map = map[i]
+				for i in real_select.size():
+					if AggregateFunctions.possible_has_func(real_select[i].select_name):
+						map[i] = AggregateFunctions.get_instance(str(data_index) + "#" + str(i))
+				for i in __order_by.size():
+					if AggregateFunctions.possible_has_func(__order_by[i][0]):
+						var index = real_select.size() + i
+						map[index] = AggregateFunctions.get_instance(str(data_index) + "#" + str(index))
+				pre_group[data_index] = map
+			pre_group_last_row[map] = data_index
+			
+	# 找到了某一行数据是最后一个聚合函数作用的数据了
+	for i in pre_group_last_row:
+		last_group_row_index[pre_group_last_row[i]] = true
+	pre_group_last_row.clear() # 没用了
+	
 	var ret_post_process: Array = []
 	# 表头
 	if __need_head and __parent_union == null:
@@ -800,7 +878,9 @@ func ___select(path: String, fill_primary_key: String = ""):
 				real_select[i]["name_4_computing"] = ConditionWrapper.modify_dot_to_get(real_select[i]["select_name"])
 				
 		# 求值
+		var data_index = -1
 		for data in ret_filter:
+			data_index += 1
 			var variable_names = []
 			var variable_values = []
 			# 把求式子可能需要的变量名称和变量值都放到数组里
@@ -824,7 +904,9 @@ func ___select(path: String, fill_primary_key: String = ""):
 			# （这个考虑的结果最终决定了在上面的代码中增加了表头处理）
 			var row = []
 			# 按字段顺序挨个处理
+			var index = -1
 			for field in real_select:
+				index += 1
 				# 如果field不是一个字段，比如是一个单纯的数字、字符串，在union的时候，会有问题，后续表会用首表的字段
 				# 考虑union的时候，开启__need_post_porcess，并把最终结果放到某个特定的字段下，且仍旧返回按表分类的数据结构
 				# 求值的时候增加一个判断分支，如果数据存在这个特定的字段，则不进行求值，而是直接使用已经求出的值
@@ -841,82 +923,65 @@ func ___select(path: String, fill_primary_key: String = ""):
 						row.push_back(data[field.table_alias][field["Column Name"]])
 						dealed = true
 				if not dealed:
-					var value = GDSQLUtils.evaluate_command(null, field["name_4_computing"], variable_names, variable_values)
+					# 聚合函数对象
+					var agg_func_obj = null
+					if total_agg_func_obj.has(index):
+						agg_func_obj = total_agg_func_obj.get(index) as AggregateFunctions
+						if agg_func_obj._is_real_aggregate_func and data_index == ret_filter.size() - 1:
+							AggregateFunctions.prepare_done(agg_func_obj.id)
+							# TODO
+					elif pre_group.has(data_index) and pre_group[data_index].has(index):
+						agg_func_obj = pre_group[data_index][index]
+					if agg_func_obj:
+						AggregateFunctions.recount(agg_func_obj.id) # 每条数据前需要recount
+						
+					var value = GDSQLUtils.evaluate_command(agg_func_obj, 
+						field["name_4_computing"], variable_names, variable_values)
 					row.push_back(value)
 					
 			# 把order by要用的value也装进来
-			for a_order_by in __order_by:
-				var value = GDSQLUtils.evaluate_command(null, a_order_by[0], variable_names, variable_values)
+			for i in __order_by.size():
+				var col_index = real_select.size() + i
+				# 聚合函数对象
+				var agg_func_obj = null
+				if total_agg_func_obj.has(col_index):
+					agg_func_obj = total_agg_func_obj.get(col_index)
+					if agg_func_obj._is_real_aggregate_func and data_index == ret_filter.size() - 1:
+						AggregateFunctions.prepare_done(agg_func_obj.id)
+						# TODO
+				elif pre_group.has(data_index) and pre_group[data_index].has(col_index):
+					agg_func_obj = pre_group[data_index][col_index]
+				if agg_func_obj:
+					AggregateFunctions.recount(agg_func_obj.id) # 每条数据前需要recount
+					
+				var value = GDSQLUtils.evaluate_command(agg_func_obj, 
+					__order_by[i][0], variable_names, variable_values)
 				row.push_back(value)
 			ret_post_process.push_back(row)
 			
-	# aggregate_functions TODO
-	# 把aggregate转化成真实数据
-	
 	# group by 分组，支持列别名
 	var grouped_ret = null
 	if __group_by.is_empty():
 		grouped_ret = ret_post_process
+		
+		# TODO 检查某个数据是否是聚合函数，然后先prepare_done，再进行数值替换
 	else:
 		grouped_ret = []
-		var group_key = []
-		for i in __group_by:
-			var find = false
-			var index = -1
-			for j in real_select:
-				index += 1
-				if (j.select_name == i or j.field_as == i) and j.is_field:
-					find = true
-					group_key.push_back(index)
-					break
-			if not find:
-				group_key.push_back(i)
-				
-		var grouped_map = {}
 		var data_index = -1
+		var head_offset = 0
 		for data in ret_post_process:
 			data_index += 1
 			if data_index == 0 and data is int: # 表头
 				grouped_ret.push_back(data)
+				head_offset = -1
 				continue
 				
-			var grouped_value = []
-			for j in group_key:
-				if j is int:
-					grouped_value.push_back(data[j])
-				else: # j is String
-					var variable_names = []
-					var variable_values = []
-					# 把求式子可能需要的变量名称和变量值都放到数组里
-					var m_data = ret_filter[data_index] # map形式的data
-					for key in m_data:
-						variable_names.push_back(key)
-						variable_values.push_back(m_data[key])
-						if is_single_table:
-							for f in m_data[key]:
-								variable_names.push_back(f) # 祈祷字段名称和表名以及用户使用的函数名称不一样吧……
-								variable_values.push_back(m_data[key][f])
-								
-					var value = GDSQLUtils.evaluate_command(null, j, variable_names, variable_values)
-					grouped_value.push_back(value)
-					
-			var map = grouped_map
-			var find = false
-			for i in grouped_value:
-				if map.has(i):
-					find = true
-					map = map.get(i)
-				else:
-					find = false
-					break
-			if not find:
+			if pre_group_can_remain.has(data_index + head_offset):
 				grouped_ret.push_back(data)
-				map = grouped_map
-				for i in grouped_value:
-					if not map.has(i):
-						map[i] = {}
-					map = map[i]# TODO aggregate function
-					
+				# TODO 聚合函数处理
+				
+	AggregateFunctions.clear_instances()
+	
 	# order by, limit 都需要在主BaseDao上执行，所以非主BaseDao的就可以直接返回了
 	if __parent_union:
 		return grouped_ret
