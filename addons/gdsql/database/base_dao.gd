@@ -10,6 +10,7 @@ var __database = "" ## 【外部请勿使用】数据库路径
 var __cmd: String = "" ## 【外部请勿使用】命令
 var __select_str = "" ## 【外部请勿使用】select字符串
 var __select: Array[String] = [] ## 【外部请勿使用】select哪些字段
+var __has_aggregate_functions: bool = false ## 【外部请勿使用】select是否使用了聚合函数
 var __field_as_index: Dictionary = {} ## 【外部请勿使用】字段别名的位置索引
 var __table: String = "" ## 【外部请勿使用】表名（带extension的）
 var __table_alias: String = "" ## 【外部请勿使用】别名
@@ -229,7 +230,15 @@ func select(something: String, need_head: bool) -> BaseDao:
 			
 		__field_as_index[__select.size()] = field_as
 		__select.push_back(something)
+	_check_aggregate_functions()
 	return self
+	
+func _check_aggregate_functions():
+	for i in __select:
+		if AggregateFunctions.possible_has_func(i):
+			__has_aggregate_functions = true
+			return
+	__has_aggregate_functions = false
 	
 ## union之后的BaseDao可以进行select_same，表示与父BaseDao查询相同的字段。
 ## 该方法是为了简化用户输入。
@@ -241,6 +250,7 @@ func select_same() -> BaseDao:
 	__cmd = "select"
 	__select_str = __parent_union.__select_str
 	__select = __parent_union.__select.duplicate()
+	__has_aggregate_functions = __parent_union.__has_aggregate_functions
 	__field_as_index = __parent_union.__field_as_index.duplicate()
 	__need_head = false
 	return self
@@ -754,128 +764,31 @@ func ___select(path: String, fill_primary_key: String = ""):
 			if check_result:
 				ret_filter.push_back(data)
 				
-	# 特殊标记
-	const __ROW_POST_PROCESS__ = "__ROW_POST_PROCESS_1355--5--__" # 祈祷用户没有用这个字段或表名
-	var is_single_table = ret_filter[0].size() == 1 or \
-		(ret_filter[0].size() == 2 and ret_filter[0].has(__ROW_POST_PROCESS__)) # 每行数据是否只有一个表
-		
-	# group by 分组，支持列别名
-	var grouped_ret = null
-	if __group_by.is_empty():
-		grouped_ret = ret_filter
-	else:
-		grouped_ret = []
-		var group_key = []
-		for i: String in __group_by:
-			var find = false
-			for j in real_select:
-				if (j.select_name == i or j.field_as == i) and j.is_field:
-					find = true
-					group_key.push_back([j.table_alias, j["Column Name"]])
-					break
-			if not find:
-				if i.is_valid_int():
-					if int(i) >= 1 and int(i) <= real_select.size():
-						find = true
-						group_key.push_back([real_select[int(i)-1].table_alias, real_select[int(i)-1]["Column Name"]])
-						continue
-					else:
-						_assert("in group statement", false, "Unknow column '%s' in 'group statement'" % i)
-						return null
-				group_key.push_back(i)
-				
-		var grouped_map = {}
-		var data_index = -1
-		for data in ret_filter:
-			data_index += 1
-			var grouped_value = []
-			for j in group_key:
-				if j is Array:
-					grouped_value.push_back(data[j[0]][j[1]])
-				else: # j is String
-					var variable_names = []
-					var variable_values = []
-					# 把求式子可能需要的变量名称和变量值都放到数组里
-					var m_data = ret_filter[data_index] # map形式的data
-					for key in m_data:
-						variable_names.push_back(key)
-						variable_values.push_back(m_data[key])
-						if is_single_table:
-							for f in m_data[key]:
-								variable_names.push_back(f) # 祈祷字段名称和表名以及用户使用的函数名称不一样吧……
-								variable_values.push_back(m_data[key][f])
-								
-					var value = GDSQLUtils.evaluate_command(null, j, variable_names, variable_values)
-					grouped_value.push_back(value)
-					
-			var map = grouped_map
-			var find = false
-			for i in grouped_value:
-				if map.has(i):
-					find = true
-					map = map.get(i)
-				else:
-					find = false
-					break
-			if not find:
-				grouped_ret.push_back(data)
-				map = grouped_map
-				for i in grouped_value:
-					if not map.has(i):
-						map[i] = {}
-					map = map[i]
-					
-	# 合并union
-	if __union_all:
-#		__union_all.__need_post_porcess = false # 改为需要后处理
-#		__union_all.__need_head = false
-		var union_datas = __union_all.___select(__union_all.__database.path_join(__union_all.__table))
-		grouped_ret.append_array(union_datas)
-		# 防止内存占用
-		__union_all.reset()
-		
-	# 筛了、合并查询了发现是空
-	if grouped_ret.is_empty():
-		if __need_head and __parent_union == null:
-			return [real_select]
-		return []
-		
 	# 不用后处理，那么就返回所有字段，这基本就是update的时候内部调用select才使用。用户不应该到这里。所以不加表头了。
 	if not __need_post_porcess:
-		return grouped_ret
+		return ret_filter
 		
+	# 特殊标记
+	var is_single_table = not ret_filter.is_empty() and ret_filter[0].size() == 1
+	
 	# 最终返回的数据：如果有parent_union，则仍旧返回按表分类的结构的数据，
 	# 并多了一个字段（__ROW_POST_PROCESS__），是后处理数据的一行结果。
 	# 如果没有parent_union，则返回扁平数组结构的数据。
 	var ret_post_process: Array = []
+	# 表头
+	if __need_head and __parent_union == null:
+		ret_post_process.push_back(0) # NOTICE 先用0替代
+		
 	# 下面按照用户需要的字段及其顺序，返回相应的数据
 	# 为了提升效率，简化一些常用查询。单表查询并查全字段
 	if __left_join == null and __select.size() == 1 and \
 	(__select[0] == "*" or __select[0] == __table_alias + ".*"):
-		if __need_head and __parent_union == null:
-			ret_post_process.push_back(real_select)
-			
-		for d in grouped_ret:
-			if d.has(__ROW_POST_PROCESS__):
-				if __parent_union:
-					ret_post_process.push_back(d)
-				else:
-					ret_post_process.push_back(d[__ROW_POST_PROCESS__])
-				continue
-				
+		for d in ret_filter:
 			var row = []
 			for f in real_select:
 				row.push_back(d[__table_alias][f["Column Name"]])
-			if __parent_union:
-				d[__ROW_POST_PROCESS__] = row
-				ret_post_process.push_back(d)
-			else:
-				ret_post_process.push_back(row)
+			ret_post_process.push_back(row)
 	else:
-		# 表头
-		if __need_head and __parent_union == null:
-			ret_post_process.push_back(real_select)
-			
 		# 数据格式是统一按表分类的，把字段中点号取值处理成方括号取值
 		# 匹配t.name.substr(10)这种字符串。不匹配的会原样输出，不会被替换
 		# 注意：这里不兼容t.name.a.b.substr(10)这种太多级的写法。会被改成t["name"].a["b"].substr(10)
@@ -887,14 +800,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 				real_select[i]["name_4_computing"] = ConditionWrapper.modify_dot_to_get(real_select[i]["select_name"])
 				
 		# 求值
-		for data in grouped_ret:
-			if data.has(__ROW_POST_PROCESS__):
-				if __parent_union:
-					ret_post_process.push_back(data)
-				else:
-					ret_post_process.push_back(data[__ROW_POST_PROCESS__])
-				continue
-				
+		for data in ret_filter:
 			var variable_names = []
 			var variable_values = []
 			# 把求式子可能需要的变量名称和变量值都放到数组里
@@ -938,32 +844,108 @@ func ___select(path: String, fill_primary_key: String = ""):
 					var value = GDSQLUtils.evaluate_command(null, field["name_4_computing"], variable_names, variable_values)
 					row.push_back(value)
 					
-			if __parent_union:
-				data[__ROW_POST_PROCESS__] = row
-				ret_post_process.push_back(data)
-			else:
-				# 把order by要用的value也装进来
-				for a_order_by in __order_by:
-					var value = GDSQLUtils.evaluate_command(null, a_order_by[0], variable_names, variable_values)
-					row.push_back(value)
-				ret_post_process.push_back(row)
-				
+			# 把order by要用的value也装进来
+			for a_order_by in __order_by:
+				var value = GDSQLUtils.evaluate_command(null, a_order_by[0], variable_names, variable_values)
+				row.push_back(value)
+			ret_post_process.push_back(row)
+			
 	# aggregate_functions TODO
 	# 把aggregate转化成真实数据
 	
+	# group by 分组，支持列别名
+	var grouped_ret = null
+	if __group_by.is_empty():
+		grouped_ret = ret_post_process
+	else:
+		grouped_ret = []
+		var group_key = []
+		for i in __group_by:
+			var find = false
+			var index = -1
+			for j in real_select:
+				index += 1
+				if (j.select_name == i or j.field_as == i) and j.is_field:
+					find = true
+					group_key.push_back(index)
+					break
+			if not find:
+				group_key.push_back(i)
+				
+		var grouped_map = {}
+		var data_index = -1
+		for data in ret_post_process:
+			data_index += 1
+			if data_index == 0 and data is int: # 表头
+				grouped_ret.push_back(data)
+				continue
+				
+			var grouped_value = []
+			for j in group_key:
+				if j is int:
+					grouped_value.push_back(data[j])
+				else: # j is String
+					var variable_names = []
+					var variable_values = []
+					# 把求式子可能需要的变量名称和变量值都放到数组里
+					var m_data = ret_filter[data_index] # map形式的data
+					for key in m_data:
+						variable_names.push_back(key)
+						variable_values.push_back(m_data[key])
+						if is_single_table:
+							for f in m_data[key]:
+								variable_names.push_back(f) # 祈祷字段名称和表名以及用户使用的函数名称不一样吧……
+								variable_values.push_back(m_data[key][f])
+								
+					var value = GDSQLUtils.evaluate_command(null, j, variable_names, variable_values)
+					grouped_value.push_back(value)
+					
+			var map = grouped_map
+			var find = false
+			for i in grouped_value:
+				if map.has(i):
+					find = true
+					map = map.get(i)
+				else:
+					find = false
+					break
+			if not find:
+				grouped_ret.push_back(data)
+				map = grouped_map
+				for i in grouped_value:
+					if not map.has(i):
+						map[i] = {}
+					map = map[i]# TODO aggregate function
+					
 	# order by, limit 都需要在主BaseDao上执行，所以非主BaseDao的就可以直接返回了
 	if __parent_union:
-		return ret_post_process
+		return grouped_ret
+		
+	# 合并union
+	if __union_all:
+#		__union_all.__need_post_porcess = false # 改为需要后处理
+#		__union_all.__need_head = false
+		var union_datas = __union_all.___select(__union_all.__database.path_join(__union_all.__table))
+		grouped_ret.append_array(union_datas)
+		# 防止内存占用
+		__union_all.reset()
+		
+	# 空数据（包含一个表头）
+	if grouped_ret.size() == 1:
+		grouped_ret[0] = real_select
+		return grouped_ret
 		
 	# 排序，支持列别名
 	if not __order_by.is_empty():
 		var compare := func(a, b):
+			if a is int: # 表头
+				return true
 			var index = -1
 			var cmp_names = ["v1", "v2"]
 			for a_order_by in __order_by:
-				var cmp = "1 if v1 == v2 else (2 if v1 %s v2 else 3)" % \
-					("<=" if a_order_by[1] == ORDER_BY.ASC else ">=")
 				index += 1
+				var cmp = "1 if v1 == v2 else (2 if v1 " + \
+					("<=" if a_order_by[1] == ORDER_BY.ASC else ">=") + " v2 else 3)"
 				var order_value_index = real_select.size() + index
 				var v1 = a[order_value_index]
 				var v2 = b[order_value_index]
@@ -978,13 +960,26 @@ func ___select(path: String, fill_primary_key: String = ""):
 					return false
 			return true
 			
-		ret_post_process.sort_custom(compare)
+		grouped_ret.sort_custom(compare)
 		
 	# limit
 	if __offset >= 0 and __limit > 0:
-		ret_post_process = ret_post_process.slice(__offset, __limit)
-		
-	return ret_post_process
+		if __offset == 0:
+			grouped_ret = grouped_ret.slice(__offset, __limit + 1)
+		else:
+			grouped_ret = [0] + grouped_ret.slice(__offset + 1, __limit + 1)
+			
+	# 去掉多余的_order_by的数据
+	if not __order_by.is_empty():
+		var remove_num = __order_by.size()
+		for i in grouped_ret:
+			if i is Array:
+				for j in remove_num:
+					i.pop_back()
+					
+	# 替换表头
+	grouped_ret[0] = real_select
+	return grouped_ret
 	
 ## 获取字段名称的正则
 func _get_regex_field(table_alias: String) -> RegEx:
