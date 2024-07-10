@@ -602,7 +602,8 @@ func ___datas_struct_is_key_dict(datas: Array) -> bool:
 	return true
 	
 func ___loop_table_row(result: Array, all_datas: Dictionary, loop_tables: Array, 
-loop_index: int, curr_row: Dictionary, all_dependencies: Dictionary, head: Array) -> bool:
+loop_index: int, curr_row: Dictionary, all_dependencies: Dictionary, head: Array, 
+table_definations: Dictionary) -> bool:
 	# TODO 优化：如果on条件连接的是主键、唯一键，那么找到一条数据就可以停止了
 	# TODO 优化：某个where条件如果只涉及一张表，那么可以提前对这张表进行筛选
 	if loop_index == loop_tables.size():
@@ -643,7 +644,7 @@ loop_index: int, curr_row: Dictionary, all_dependencies: Dictionary, head: Array
 					continue
 					
 				if not ___loop_table_row(result, all_datas, loop_tables, 
-				loop_index + 1, acc_row, all_dependencies, head):
+				loop_index + 1, acc_row, all_dependencies, head, table_definations):
 					return false # error occur
 		# 当前表没有数据依旧要保持循环继续
 		else:
@@ -656,14 +657,12 @@ loop_index: int, curr_row: Dictionary, all_dependencies: Dictionary, head: Array
 			# 填充当前表的全null数据
 			var acc_row = curr_row.duplicate()
 			var a_row = {}
-			for i in head:
-				if i.table_alias == table and i.is_field and \
-				not a_row.has(i["Column Name"]):
-					a_row[i["Column Name"]] = null
+			for i in table_definations[table]:
+				a_row[i["Column Name"]] = null
 			acc_row[table] = a_row
 			
 			if not ___loop_table_row(result, all_datas, loop_tables, 
-			loop_index + 1, acc_row, all_dependencies, head):
+			loop_index + 1, acc_row, all_dependencies, head, table_definations):
 				return false # error occur
 	return true
 	
@@ -679,6 +678,10 @@ func ___select(path: String, fill_primary_key: String = ""):
 	# 取主表所有数据
 	all_datas[__table_alias] = conf.get_all_section_values()
 	
+	# 表结构定义
+	var all_table_defination = {}
+	all_table_defination[__table_alias] = __get_table_defination(__database, __table)["columns"]
+	
 	# 取联表所有数据
 	var arr_left_join = __left_join.get_chain_left_joins() if __left_join != null else []
 	for a_left_join in arr_left_join:
@@ -687,8 +690,9 @@ func ___select(path: String, fill_primary_key: String = ""):
 		var conf1: ImprovedConfigFile = _get_conf(pt, ps)
 		conf1.fill_primary_key = fill_primary_key
 		all_datas[a_left_join.get_alias()] = conf1.get_all_section_values()
-		# TODO
-		
+		all_table_defination[a_left_join.get_alias()] = __get_table_defination(
+			a_left_join.get_db(), a_left_join.get_table())["columns"]
+			
 	# 计算表头
 	var real_select = __get_head(all_datas, arr_left_join)
 	if real_select == null:
@@ -712,7 +716,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 		for row in all_datas[__table_alias]:
 			var row_result = []
 			if not ___loop_table_row(row_result, all_datas, loop_tables, 0, 
-			{__table_alias: row}, dependencies, real_select):
+			{__table_alias: row}, dependencies, real_select, all_table_defination):
 				return null # error occur
 			# 这行主表的数据没有联到任何其他表的数据，因此需要一条别的表全为null的数据
 			if row_result.is_empty():
@@ -720,22 +724,20 @@ func ___select(path: String, fill_primary_key: String = ""):
 				for a_left_join in arr_left_join:
 					var a_row = {}
 					var a_alias = a_left_join.get_alias()
-					for i in real_select:
-						if i.table_alias == a_alias and i.is_field and \
-						not a_row.has(i["Column Name"]):
-							a_row[i["Column Name"]] = null
+					for i in all_table_defination[a_alias]:
+						a_row[i["Column Name"]] = null
 					one_row[a_left_join.get_alias()] = a_row
 				ret.push_back(one_row)
 			else:
 				ret.append_array(row_result)
 				
-	# 空数据并且不需要返回表头
-	if ret.is_empty() and (__parent_union != null or not __need_head):
-		return ret
-		
-	# 空数据要表头
-	if ret.is_empty():
-		return [real_select]
+	## 空数据并且不需要返回表头
+	#if ret.is_empty() and (__parent_union != null or not __need_head):
+		#return ret
+		#
+	## 空数据要表头
+	#if ret.is_empty():
+		#return [real_select]
 		
 	# where条件
 	var cond = _get_cond(false)
@@ -831,7 +833,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 			if find:
 				pre_group[data_index] = map
 			else:
-				pre_group_can_remain[data_index] = true
+				pre_group_can_remain[data_index] = true # TODO 怎么关联第一个数据和最后一条数据
 				map = grouped_map
 				for i in grouped_value:
 					if not map.has(i):
@@ -929,9 +931,10 @@ func ___select(path: String, fill_primary_key: String = ""):
 						agg_func_obj = total_agg_func_obj.get(index) as AggregateFunctions
 						if agg_func_obj._is_real_aggregate_func and data_index == ret_filter.size() - 1:
 							AggregateFunctions.prepare_done(agg_func_obj.id)
-							# TODO
 					elif pre_group.has(data_index) and pre_group[data_index].has(index):
-						agg_func_obj = pre_group[data_index][index]
+						agg_func_obj = pre_group[data_index][index] as AggregateFunctions
+						if last_group_row_index.has(data_index):
+							AggregateFunctions.prepare_done(agg_func_obj.id)
 					if agg_func_obj:
 						AggregateFunctions.recount(agg_func_obj.id) # 每条数据前需要recount
 						
@@ -948,9 +951,10 @@ func ___select(path: String, fill_primary_key: String = ""):
 					agg_func_obj = total_agg_func_obj.get(col_index)
 					if agg_func_obj._is_real_aggregate_func and data_index == ret_filter.size() - 1:
 						AggregateFunctions.prepare_done(agg_func_obj.id)
-						# TODO
 				elif pre_group.has(data_index) and pre_group[data_index].has(col_index):
-					agg_func_obj = pre_group[data_index][col_index]
+					agg_func_obj = pre_group[data_index][col_index] as AggregateFunctions
+					if last_group_row_index.has(data_index):
+						AggregateFunctions.prepare_done(agg_func_obj.id)
 				if agg_func_obj:
 					AggregateFunctions.recount(agg_func_obj.id) # 每条数据前需要recount
 					
@@ -963,8 +967,49 @@ func ___select(path: String, fill_primary_key: String = ""):
 	var grouped_ret = null
 	if __group_by.is_empty():
 		grouped_ret = ret_post_process
-		
-		# TODO 检查某个数据是否是聚合函数，然后先prepare_done，再进行数值替换
+		# 用户可能用了聚合函数，那么可能需要增加一条数据
+		if not total_agg_func_obj.is_empty():
+			# 如果只有表头，可能需要构造一条数据。为什么是可能，因为total_agg_func_obj在加入
+			# obj时，判断方式是possible_has_func，所以实际需要计算两次，第二次的时候看是否
+			# 真的某一个值是AggregateFunctions对象
+			if grouped_ret[0] is int and grouped_ret.size() == 1:
+				# 把求式子可能需要的变量名称和变量值都放到数组里
+				var variable_names = []
+				var variable_values = []
+				for key in all_table_defination:
+					variable_names.push_back(key)
+					var data = {}
+					# TODO FIXME 如果被套了ifnull， ifn，就不适合用default value
+					for col in all_table_defination[key]:
+						data[col["Column Name"]] = DataTypeDef.DEFUALT_VALUES[col["Data Type"]]
+					variable_values.push_back(data)
+					if all_table_defination.size() == 1: # single table
+						for f in data:
+							variable_names.push_back(f) # 祈祷字段名称和表名以及用户使用的函数名称不一样吧……
+							variable_values.push_back(data[f])
+				# 一条数据
+				var row = []
+				for i in real_select.size():
+					var agg_func_obj = null
+					if total_agg_func_obj.has(i):
+						agg_func_obj = total_agg_func_obj[i] as AggregateFunctions
+						AggregateFunctions.enable_empty_data_mode(agg_func_obj.id)
+						var value = GDSQLUtils.evaluate_command(agg_func_obj, 
+						real_select[i].name_4_computing, variable_names, variable_values)
+						# 如果该字段确实用了聚合函数，那么value应该是一个聚合对象，就重算一次。
+						# 为什么要这样？因为聚合函数可能对null值和空结果集做出反应，使其不为null。
+						if value is AggregateFunctions:
+							AggregateFunctions.prepare_done(agg_func_obj.id)
+							value = GDSQLUtils.evaluate_command(agg_func_obj, 
+								real_select[i].name_4_computing, variable_names, variable_values)
+						# 没使用聚合函数，那结果应该是null
+						else:
+							value = null
+						row.push_back(value)
+					else:
+						row.push_back(null)
+				# NOTICE 这里就不添加order by的值了，因为就一条数据，不需要排序
+				grouped_ret.push_back(row)
 	else:
 		grouped_ret = []
 		var data_index = -1
@@ -978,7 +1023,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 				
 			if pre_group_can_remain.has(data_index + head_offset):
 				grouped_ret.push_back(data)
-				# TODO 聚合函数处理
+				# TODO 聚合函数处理 怎么把最后一条数据计算出来的聚合数据替换掉第一条数据的
 				
 	AggregateFunctions.clear_instances()
 	
@@ -1001,7 +1046,9 @@ func ___select(path: String, fill_primary_key: String = ""):
 		return grouped_ret
 		
 	# 排序，支持列别名
-	if not __order_by.is_empty():
+	if not __order_by.is_empty() and not grouped_ret.is_empty() and (
+		(grouped_ret[0] is int and grouped_ret.size() > 2) or \
+		(grouped_ret[0] is Array and grouped_ret.size() > 1)):
 		var compare := func(a, b):
 			if a is int: # 表头
 				return true
@@ -1038,7 +1085,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 	if not __order_by.is_empty():
 		var remove_num = __order_by.size()
 		for i in grouped_ret:
-			if i is Array:
+			if i is Array and i.size() > real_select.size():
 				for j in remove_num:
 					i.pop_back()
 					
@@ -1209,7 +1256,7 @@ func __get_table_defination(db_path: String, table_name: String):
 		if mgr.databases:
 			columns = mgr.get_table_columns_by_datapath(db_path, table_name)
 			valid_if_not_exist = mgr.get_table_valid_if_not_exist(db_path, table_name)
-		
+			
 	if columns == null or columns.is_empty():
 		var table_name_base = table_name.get_basename()
 		if not __table_conf_path.has(table_name_base):
