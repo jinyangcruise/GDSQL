@@ -25,7 +25,7 @@ static func _static_init() -> void:
 	#re_select.compile(r"(?is)(SELECT|FROM|WHERE|LEFT\s+JOIN|ON|UNION|ORDER\s+BY|LIMIT)\s+(.*?)(?=\s+SELECT|\s+FROM|\s+WHERE|\s+LEFT\s+JOIN|\s+ON|\s+UNION|\s+ORDER\s+BY|\s+LIMIT|$)")
 	# 与上面的区别是，下面这个支持UNION后跟SELECT，上面的必须在UNION和SELECT中间插入额外的字符比如ALL。
 	# 用下面的可以支持UNION和UNION ALL。用上面的只能是UNION ALL或自定义一个UNION CUSTOM。
-	re_select.compile(r"(?is)(\bSELECT|FROM|WHERE|LEFT\s+JOIN|ON|UNION|ORDER\s+BY|LIMIT)\s+(.*?)(?=\bSELECT|\s+FROM|\s+WHERE|\s+LEFT\s+JOIN|\s+ON|\s+UNION|\s+ORDER\s+BY|\s+LIMIT|$)")
+	re_select.compile(r"(?is)(\bSELECT|FROM|WHERE|LEFT\s+JOIN|ON|GROUP\s+BY|UNION|ORDER\s+BY|LIMIT)\s+(.*?)(?=\bSELECT|\s+FROM|\s+WHERE|\s+LEFT\s+JOIN|\s+ON|\s+GROUP\s+BY|\s+UNION|\s+ORDER\s+BY|\s+LIMIT|$)")
 	re_update.compile(r"(?is)(UPDATE|SET|WHERE)\s+(.*?)(?=\s+SET|\s+WHERE|$)")
 	re_delete.compile(r"(?is)(DELETE\s+FROM|WHERE)\s+(.*?)(?=\s+WHERE|$)")
 	#re_insert_into.compile(r"(?is)(INSERT[\s+IGNORE]*\s+INTO|VALUES|ON\s+DUPLICATE\s+KEY\s+UPDATE)\s+(.*?)(?=\s+VALUES|\s+ON\s+DUPLICATE\s+KEY\s+UPDATE|$)")
@@ -118,8 +118,13 @@ static func parse_to_dao(sql: String) -> BaseDao:
 				index += 2
 			elif key_words.contains("WHERE"):
 				if arr[index][1] == "":
-					assert(_assert(false, "MISSING condition after WHERE."))
+					assert(_assert(false, "Missing condition after WHERE."))
 				dao.where(arr[index][1])
+				index += 1
+			elif key_words.contains("GROUP"):
+				if arr[index][1] == "":
+					assert(_assert(false, "Missing Field after GROUP BY."))
+				dao.group_by(arr[index][1])
 				index += 1
 			elif key_words.contains("UNION"):
 				# for now only support union all

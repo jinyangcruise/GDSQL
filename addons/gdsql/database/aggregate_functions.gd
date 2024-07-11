@@ -14,11 +14,14 @@ extends RefCounted
 class_name AggregateFunctions
 
 var id
-var _preparing = true
-var _count = 0
-var _methods = {} # count => method
-var _params = {} # count => param
+var _preparing = true ## 准备模式。计算最后一条数据前，需要把它设置成false
+var _count = 0 ## 空间序号。比如max(a) + min(b)，计算前者时的_count是0，计算后者时的_count是1
+var _methods = {} ## count => method
+var _params = {} ## count => param
 var _is_real_aggregate_func = false
+var _empty_data_mode = false ## 无数据模式
+var _used = false ## 该对象的真实聚合函数被至少使用过一次
+var _return_null = false ## 真实返回值是否为null。true表示null参与了运算
 
 const FUNCTIONS = ["count", "maxn", "minn", "sum", "avg", "first", "last", 
 "grid_checkbox", "ifn", "ifnull"]
@@ -26,17 +29,21 @@ const FUNCTIONS = ["count", "maxn", "minn", "sum", "avg", "first", "last",
 static var _instances = {}
 
 ## 重置调用次数
-static func recount(id):
-	get_instance(id)._count = 0
+static func recount(p_id):
+	get_instance(p_id)._count = 0
 	
-static func prepare_done(id):
-	get_instance(id)._preparing = false
+static func prepare_done(p_id):
+	get_instance(p_id)._preparing = false
 	
-static func get_instance(id) -> AggregateFunctions:
-	if not _instances.has(id):
-		_instances[id] = AggregateFunctions.new()
-		_instances[id].id = id
-	return _instances[id]
+static func enable_empty_data_mode(p_id):
+	var obj = get_instance(p_id)
+	obj._empty_data_mode = true
+	
+static func get_instance(p_id) -> AggregateFunctions:
+	if not _instances.has(p_id):
+		_instances[p_id] = AggregateFunctions.new()
+		_instances[p_id].id = p_id
+	return _instances[p_id]
 	
 static func clear_instances():
 	_instances.clear()
@@ -56,20 +63,26 @@ func _register(method: String, param):
 	assert(_methods[_count] == method, "Method not match!")
 	_count += 1
 	_is_real_aggregate_func = true
+	_used = true
 	return self
 	
 func count(param):
-	_register("count", param)
+	if not _empty_data_mode:
+		_register("count", param)
 	if _preparing:
-		return self
-	return _methods[0].size()
+		return 0 # 为了运算不报错 比如 select count(1) + 1 from t_user
+	if _params.is_empty():
+		return 0
+	return _params[0].size()
 	
 func maxn(param):
-	_register("maxn", param)
+	if not _empty_data_mode:
+		_register("maxn", param)
 	if _preparing:
-		return self
+		return -9223372036854775808
 	if not _params.has(_count):
-		return null
+		_return_null = true
+		return -9223372036854775808 # real null
 	var ret = _params[_count][0]
 	for i in _params[_count]:
 		if i > ret:
@@ -78,11 +91,13 @@ func maxn(param):
 	return ret
 	
 func minn(param):
-	_register("minn", param)
+	if not _empty_data_mode:
+		_register("minn", param)
 	if _preparing:
-		return self
+		return 9223372036854775807
 	if not _params.has(_count):
-		return null
+		_return_null = true
+		return 9223372036854775807
 	var ret = _params[_count][0]
 	for i in _params[_count]:
 		if i < ret:
@@ -91,11 +106,13 @@ func minn(param):
 	return ret
 	
 func sum(param):
-	_register("sum", param)
+	if not _empty_data_mode:
+		_register("sum", param)
 	if _preparing:
-		return self
+		return -9223372036854775808
 	if not _params.has(_count):
-		return null
+		_return_null = true
+		return -9223372036854775808
 	var ret = _params[_count][0]
 	for i in _params[_count]:
 		ret += i
@@ -103,11 +120,13 @@ func sum(param):
 	return ret
 	
 func avg(param):
-	_register("avg", param)
+	if not _empty_data_mode:
+		_register("avg", param)
 	if _preparing:
-		return self
+		return -9223372036854775808
 	if not _params.has(_count):
-		return null
+		_return_null = true
+		return -9223372036854775808
 	var ret = _params[_count][0]
 	for i in _params[_count]:
 		ret += i
@@ -115,21 +134,25 @@ func avg(param):
 	return ret / float(_params[_count].size())
 	
 func first(param):
-	_register("first", param)
+	if not _empty_data_mode:
+		_register("first", param)
 	if _preparing:
-		return self
+		return DataTypeDef.DEFUALT_VALUES[typeof(param)]
 	if not _params.has(_count):
-		return null
+		_return_null = true
+		return DataTypeDef.DEFUALT_VALUES[typeof(param)]
 	var ret = _params[_count][0]
 	_count += 1
 	return ret
 	
 func last(param):
-	_register("last", param)
+	if not _empty_data_mode:
+		_register("last", param)
 	if _preparing:
-		return self
+		return DataTypeDef.DEFUALT_VALUES[typeof(param)]
 	if not _params.has(_count):
-		return null
+		_return_null = true
+		return DataTypeDef.DEFUALT_VALUES[typeof(param)]
 	var ret = _params[_count].back()
 	_count += 1
 	return ret
@@ -138,11 +161,13 @@ func last(param):
 ## columns: 列数
 ## rows: 行数
 func grid_checkbox(param, columns: int, rows: int):
-	_register("grid_checkbox", param)
+	if not _empty_data_mode:
+		_register("grid_checkbox", param)
 	if _preparing:
-		return self
+		return self # 用户也不会拿这个去做运算，所以返回self
 	if not _params.has(_count):
-		return null
+		_return_null = true
+		return null # 用户也不会拿这个去做运算，所以返回self
 	var grid_c = GridContainer.new()
 	grid_c.columns = columns
 	var is_vector2 = _params[_count][0] is Vector2
@@ -161,16 +186,16 @@ func grid_checkbox(param, columns: int, rows: int):
 		cb.button_pressed = true
 	return grid_c
 	
-# NOTICE 非聚合函数，不register
+# NOTICE 非聚合函数，不register TODO FIXME?
 func ifn(condition, value_if_true, value_if_false):
-	if condition is AggregateFunctions or value_if_true is AggregateFunctions or value_if_false is AggregateFunctions:
-		assert(_preparing, "Inner error 330.")
-		return self # self中必定包含了condition、value_if_true、value_if_false，如果它们是AggregateFunctions的话
+	#if condition is AggregateFunctions or value_if_true is AggregateFunctions or value_if_false is AggregateFunctions:
+		#assert(_preparing, "Inner error 330.")
+		#return self # self中必定包含了condition、value_if_true、value_if_false，如果它们是AggregateFunctions的话
 	return value_if_true if condition else value_if_false
 	
-# NOTICE 非聚合函数，不register
+# NOTICE 非聚合函数，不register TODO FIXME 无法计算？需要记录额外数据
 func ifnull(value, value_if_null):
+	# TODO 想办法把_return_null = true的情况再设置为false
 	if value is AggregateFunctions or value_if_null is AggregateFunctions:
-		assert(_preparing, "Inner error 331.")
 		return self
 	return value_if_null if typeof(value) == TYPE_NIL else value
