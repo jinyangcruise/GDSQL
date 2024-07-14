@@ -3062,12 +3062,39 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				return true
 
 
-			var valid
-			r_ret[0] = base[0].get(idx[0], valid) # TODO base.get(idx, &valid)
-			if (!valid) :
-				r_error_str[0] = tr("Invalid index of type %s for base type %s") % [type_string(typeof(idx)), type_string(typeof(base))]
-				return true
-
+			#var valid
+			#r_ret[0] = base[0].get(idx[0], valid) # base.get(idx, &valid)
+			#if (!valid) :
+				#r_error_str[0] = tr("Invalid index of type %s for base type %s") % [type_string(typeof(idx)), type_string(typeof(base))]
+				#return true
+			if base[0] is Array or base[0] is Dictionary or base[0] is PackedByteArray or \
+			base[0] is PackedColorArray or base[0] is PackedFloat32Array or \
+			base[0] is PackedFloat64Array or base[0] is PackedInt32Array or \
+			base[0] is PackedInt64Array or base[0] is PackedStringArray or \
+			base[0] is PackedVector2Array or base[0] is PackedVector3Array:
+				r_ret[0] = base[0][idx[0]]
+			elif base[0] is Object:
+				if idx[0] is String or idx[0] is StringName:
+					if idx[0] in (base[0] as Object):
+						r_ret[0] = (base[0] as Object).get(idx[0])
+					else:
+						r_error_str[0] = "Invalid access to property or key '" + idx[0] + "' on a base object of type '" + _get_var_type(base[0]) + "'."
+						return true
+				else:
+					r_error_str[0] = 'Only "String" or "StringName" can be used as index for type "%s", but received "%s"' % [_get_var_type(base[0]), type_string(typeof(idx[0]))]
+					return true
+			else:
+				var ex = Expression.new()
+				var err = ex.parse("a[%s]" % var_to_str(idx[0]), ["a"])
+				if err != OK:
+					r_error_str[0] = ex.get_error_text()
+					return true
+				var v = ex.execute([base[0]], null, false)
+				if ex.has_execute_failed():
+					r_error_str[0] = ex.get_error_text()
+					return true
+				r_ret[0] = v
+				
 
 			#break
 		ExpressionENode.Type.TYPE_NAMED_INDEX:
@@ -3470,7 +3497,17 @@ func has_execute_failed() -> bool:
 func get_error_text() -> String:
 	return error_str
 
-
+func _get_var_type(obj: Object) -> String:
+	if str(obj) == '<Freed Object>':
+		return 'previously freed'
+	if str(obj) == '<null>':
+		return 'null instance'
+	if not obj:
+		return 'null instance'
+	var basestr = obj.get_class()
+	if obj.get_script() and obj.get_script().get_global_name() != "":
+		basestr += '(' + obj.get_script().get_global_name() + ')'
+	return basestr
 
 class ExpressionInput extends RefCounted:
 	var type: int = TYPE_NIL
