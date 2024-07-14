@@ -1712,7 +1712,7 @@ func alloc_node(type: String) -> ExpressionENode:
 
 func GET_CHAR():
 	if str_ofs >= expression.length():
-		return 0
+		return ''
 	var ret = expression[str_ofs]
 	str_ofs += 1
 	return ret
@@ -1736,7 +1736,7 @@ func is_binary_digit(c: String) -> bool:
 func is_unicode_identifier_continue(c: String) -> bool:
 	return BSEARCH_CHAR_RANGE(xid_continue, c)
 	
-func BSEARCH_CHAR_RANGE(m_array, c):
+func BSEARCH_CHAR_RANGE(m_array, c: String):
 	var low = 0
 	@warning_ignore("integer_division")
 	var high = len(m_array) / len(m_array[0]) - 1
@@ -1744,9 +1744,9 @@ func BSEARCH_CHAR_RANGE(m_array, c):
 	while (low <= high):
 		@warning_ignore("integer_division")
 		middle = (low + high) / 2
-		if (c < String.chr(m_array[middle][0])):
+		if (c.unicode_at(0) < m_array[middle][0]):
 			high = middle - 1
-		elif (c > String.chr(m_array[middle][1])):
+		elif (c.unicode_at(0) > m_array[middle][1]):
 			low = middle + 1                 
 		else:
 			return true                                   
@@ -1774,7 +1774,7 @@ func _get_token(r_token: ExpressionToken) -> Error:
 		var cchar = GET_CHAR()
 
 		match cchar:
-			0:
+			'':
 				r_token.type = TokenType.TK_EOF
 				return OK
 
@@ -1933,7 +1933,7 @@ func _get_token(r_token: ExpressionToken) -> Error:
 				while (true) :
 					var ch = GET_CHAR()
 
-					if (ch is int and ch == 0) :
+					if (ch == '') :
 						_set_error("Unterminated String")
 						r_token.type = TokenType.TK_ERROR
 						return ERR_PARSE_ERROR
@@ -1944,7 +1944,7 @@ func _get_token(r_token: ExpressionToken) -> Error:
 						# escaped characters...
 
 						var next = GET_CHAR()
-						if (next is int and next == 0) :
+						if (next == '') :
 							_set_error("Unterminated String")
 							r_token.type = TokenType.TK_ERROR
 							return ERR_PARSE_ERROR
@@ -1974,7 +1974,7 @@ func _get_token(r_token: ExpressionToken) -> Error:
 								for j in hex_len :
 									var c = GET_CHAR()
 
-									if (c is int and c == 0) :
+									if (c == '') :
 										_set_error("Unterminated String")
 										r_token.type = TokenType.TK_ERROR
 										return ERR_PARSE_ERROR
@@ -1986,12 +1986,12 @@ func _get_token(r_token: ExpressionToken) -> Error:
 						
 									var v
 									if (is_digit(c)) :
-										v = c - '0'
+										v = c.unicode_at(0) - '0'.unicode_at(0);
 									elif (c >= 'a' && c <= 'f') :
-										v = c - 'a'
+										v = c.unicode_at(0) - 'a'.unicode_at(0)
 										v += 10
 									elif (c >= 'A' && c <= 'F') :
-										v = c - 'A'
+										v = c.unicode_at(0) - 'A'.unicode_at(0)
 										v += 10
 									else:
 										push_error("Bug parsing hex constant.")
@@ -2055,8 +2055,8 @@ func _get_token(r_token: ExpressionToken) -> Error:
 
 				#break
 			_: # default:
-				if (cchar <= String.chr(32)) :
-					break
+				if (cchar.unicode_at(0) <= 32) :
+					continue # break
 	
 
 				var next_char = "" if (str_ofs >= expression.length()) else expression[str_ofs]
@@ -2147,8 +2147,6 @@ func _get_token(r_token: ExpressionToken) -> Error:
 			
 						num += c
 						c = GET_CHAR()
-						if c is int and c == 0:
-							break
 						is_first_char = false
 		
 
@@ -2302,7 +2300,7 @@ func _parse_expression() -> ExpressionENode:
 					elif (tk.type == TokenType.TK_CURLY_BRACKET_CLOSE) :
 						str_ofs = cofs
 					else:
-						_set_error("Expected ',' or ''")
+						_set_error("Expected ',' or '}'")
 		
 	
 
@@ -2418,7 +2416,7 @@ func _parse_expression() -> ExpressionENode:
 						expr = index
 		
 	
-					#break
+				#break
 			TokenType.TK_INPUT:
 				var input = alloc_node('InputNode')
 				input.index = tk.value
@@ -2859,8 +2857,8 @@ func _parse_expression() -> ExpressionENode:
 				op.op = expression_nodes[i].op
 				op.nodes[0] = expression_nodes[i + 1].node
 				op.nodes[1] = null
-				expression_nodes.write[i].is_op = false
-				expression_nodes.write[i].node = op
+				expression_nodes[i].is_op = false
+				expression_nodes[i].node = op
 				expression_nodes.remove_at(i + 1)
 
 
@@ -2972,7 +2970,60 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 
 
 			var valid = true
-			#evaluate(op.op, a[0], b[0], r_ret, valid)# TODO 
+			#evaluate(op.op, a[0], b[0], r_ret, valid)# TODO
+			match op.op:
+				OP_EQUAL: # = 0 相等运算符（==）。
+					r_ret[0] = a[0] == b[0]
+				OP_NOT_EQUAL: # = 1 不等运算符（!=）。
+					r_ret[0] = a[0] != b[0]
+				OP_LESS: # = 2 小于运算符（<）。
+					r_ret[0] = a[0] < b[0]
+				OP_LESS_EQUAL: # = 3 小于等于运算符（<=）。
+					r_ret[0] = a[0] <= b[0]
+				OP_GREATER: # = 4 大于运算符（>）。
+					r_ret[0] = a[0] > b[0]
+				OP_GREATER_EQUAL: # = 5 大于等于运算符（>=）。
+					r_ret[0] = a[0] >= b[0]
+				OP_ADD: # = 6 加法运算符（+）。
+					r_ret[0] = a[0] + b[0]
+				OP_SUBTRACT: # = 7 减法运算符（-）。
+					r_ret[0] = a[0] - b[0]
+				OP_MULTIPLY: # = 8 乘法运算符（*）。
+					r_ret[0] = a[0] * b[0]
+				OP_DIVIDE: # = 9 除法运算符（/）。
+					r_ret[0] = a[0] / b[0]
+				OP_NEGATE: # = 10 一元减号运算符（-）。
+					r_ret[0] = -a[0] # TODO
+				OP_POSITIVE: # = 11 一元加号运算符（+）。
+					r_ret[0] = a[0] # TODO
+				OP_MODULE: # = 12 余数/取模运算符（%）。
+					r_ret[0] = a[0] % b[0]
+				OP_POWER: # = 13 幂运算符（**）。
+					r_ret[0] = a[0] ** b[0]
+				OP_SHIFT_LEFT: # = 14 左移运算符（<<）。
+					r_ret[0] = a[0] << b[0]
+				OP_SHIFT_RIGHT: # = 15 右移运算符（>>）。
+					r_ret[0] = a[0] >> b[0]
+				OP_BIT_AND: # = 16 按位与运算符（&）。
+					r_ret[0] = a[0] & b[0]
+				OP_BIT_OR: # = 17 按位或运算符（|）。
+					r_ret[0] = a[0] | b[0]
+				OP_BIT_XOR: # = 18 按位异或运算符（^）。
+					r_ret[0] = a[0] ^ b[0]
+				OP_BIT_NEGATE: # = 19 按位非运算符（~）。
+					r_ret[0] = ~a[0] # TODO
+				OP_AND: # = 20 逻辑与运算符（and 或 &&）。
+					r_ret[0] = a[0] and b[0]
+				OP_OR: # = 21 逻辑或运算符（or 或 ||）。
+					r_ret[0] = a[0] or b[0]
+				OP_XOR: # = 22 逻辑异或运算符（未在 GDScript 中实现）。
+					pass
+				OP_NOT: # = 23 逻辑非运算符（not 或 !）。
+					r_ret[0] = not a[0] # TODO
+				OP_IN: # = 24 逻辑 IN 运算符（in）。
+					r_ret[0] = a[0] in b[0]
+				_:
+					pass
 			if (!valid) :
 				r_error_str[0] = tr("Invalid operands to operator %s, %s and %s.") % [get_operator_name(op.op), type_string(typeof(a)), type_string(typeof(b))]
 				return true
@@ -3328,8 +3379,8 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				if (ret) :
 					return true
 	
-				arr.write[i] = value[0]
-				#argp.write[i] = arr[i] # argp.write[i] = &arr[i]
+				arr[i] = value[0]
+				#argp[i] = arr[i] # argp.write[i] = &arr[i]
 
 
 			#Callable.CallError ce
