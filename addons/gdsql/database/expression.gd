@@ -10,7 +10,7 @@ var str_ofs = 0
 var expression_dirty = false
 
 enum TokenType {
-	TK_CURLY_BRACKET_OPEN,
+	TK_CURLY_BRACKET_OPEN, # 0
 	TK_CURLY_BRACKET_CLOSE,
 	TK_BRACKET_OPEN,
 	TK_BRACKET_CLOSE,
@@ -20,7 +20,7 @@ enum TokenType {
 	TK_BUILTIN_FUNC,
 	TK_SELF,
 	TK_CONSTANT,
-	TK_BASIC_TYPE,
+	TK_BASIC_TYPE, # 10
 	TK_COLON,
 	TK_COMMA,
 	TK_PERIOD,
@@ -30,7 +30,7 @@ enum TokenType {
 	TK_OP_LESS,
 	TK_OP_LESS_EQUAL,
 	TK_OP_GREATER,
-	TK_OP_GREATER_EQUAL,
+	TK_OP_GREATER_EQUAL, # 20
 	TK_OP_AND,
 	TK_OP_OR,
 	TK_OP_NOT,
@@ -40,7 +40,7 @@ enum TokenType {
 	TK_OP_DIV,
 	TK_OP_MOD,
 	TK_OP_POW,
-	TK_OP_SHIFT_LEFT,
+	TK_OP_SHIFT_LEFT, # 30
 	TK_OP_SHIFT_RIGHT,
 	TK_OP_BIT_AND,
 	TK_OP_BIT_OR,
@@ -49,7 +49,7 @@ enum TokenType {
 	TK_INPUT,
 	TK_EOF,
 	TK_ERROR,
-	TK_MAX
+	TK_MAX # 39
 }
 
 var token_name: Array = [
@@ -1737,6 +1737,8 @@ func is_unicode_identifier_continue(c: String) -> bool:
 	return BSEARCH_CHAR_RANGE(xid_continue, c)
 	
 func BSEARCH_CHAR_RANGE(m_array, c: String):
+	if c == '':
+		return false
 	var low = 0
 	@warning_ignore("integer_division")
 	var high = len(m_array) / len(m_array[0]) - 1
@@ -2523,6 +2525,13 @@ func _parse_expression() -> ExpressionENode:
 				expr = bifunc
 
 				#break
+			TokenType.TK_OP_ADD: # NOTICE not in C++
+				var e = ExpressionExpressionNode.new()
+				e.is_op = true
+				e.op = OP_POSITIVE
+				expression_nodes.push_back(e)
+				continue
+				#break
 			TokenType.TK_OP_SUB:
 				var e = ExpressionExpressionNode.new()
 				e.is_op = true
@@ -2534,6 +2543,13 @@ func _parse_expression() -> ExpressionENode:
 				var e = ExpressionExpressionNode.new()
 				e.is_op = true
 				e.op = OP_NOT
+				expression_nodes.push_back(e)
+				continue
+				#break
+			TokenType.TK_OP_BIT_INVERT: # NOTICE not in C++
+				var e = ExpressionExpressionNode.new()
+				e.is_op = true
+				e.op = OP_BIT_NEGATE
 				expression_nodes.push_back(e)
 				continue
 				#break
@@ -2771,7 +2787,7 @@ func _parse_expression() -> ExpressionENode:
 					priority = 1
 					unary = true
 					#break
-				OP_NEGATE:
+				OP_POSITIVE, OP_NEGATE: # NOTICE OP_POSITIVE not in C++
 					priority = 2
 					unary = true
 					#break
