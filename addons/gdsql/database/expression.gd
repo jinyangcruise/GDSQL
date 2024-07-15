@@ -1706,6 +1706,8 @@ func alloc_node(type: String) -> ExpressionENode:
 			node = ExpressionBuiltinFuncNode.new()
 		"BuiltinFuncCallableNode":
 			node = ExpressionBuiltinFuncCallableNode.new()
+		"ClassNode":
+			node = ExpressionClassNode.new()
 		_:
 			assert(false, "Inner error 1100.")
 	node.next = nodes
@@ -2214,7 +2216,7 @@ func _get_token(r_token: ExpressionToken) -> Error:
 						r_token.type = TokenType.TK_SELF
 					else:
 						for i in TYPE_MAX:
-							if (id == type_string(i)) :
+							if (id == type_string(i) and id != 'Object') : # Object moves to CLASS_TYPE
 								r_token.type = TokenType.TK_BASIC_TYPE
 								r_token.value = i
 								return OK
@@ -2232,7 +2234,6 @@ func _get_token(r_token: ExpressionToken) -> Error:
 								r_token.type = TokenType.TK_BUILTIN_FUNC
 								r_token.value = id
 								return OK
-			
 
 						r_token.type = TokenType.TK_IDENTIFIER
 						r_token.value = id
@@ -2424,6 +2425,10 @@ func _parse_expression() -> ExpressionENode:
 						var callable = alloc_node('BuiltinFuncCallableNode')
 						callable._func = identifier
 						expr = callable
+					elif _is_class(identifier):
+						var clazz = alloc_node('ClassNode')
+						clazz._class = identifier
+						expr = clazz
 					else:
 						var index = alloc_node('NamedIndexNode')
 						var self_node = alloc_node('SelfNode')
@@ -3430,6 +3435,22 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 
 
 			#break
+		ExpressionENode.Type.TYPE_CLASS:
+			var clazz = p_node as ExpressionClassNode
+			
+			var script = GDScript.new()
+			script.source_code = "extends Object\nvar value = " + clazz._class
+			var err = script.reload()
+			if err != OK:
+				r_error_str[0] = "Identifier \"" + clazz._class + "\" not declared in the current scope."
+				return true
+				
+			var obj = script.new()
+			r_ret[0] = obj.value
+			obj.free()
+
+
+			#break
 		ExpressionENode.Type.TYPE_CALL:
 			var _call = p_node as ExpressionCallNode
 
@@ -3538,6 +3559,26 @@ func _get_var_type(obj: Object) -> String:
 	if obj.get_script() and obj.get_script().get_global_name() != "":
 		basestr += '(' + obj.get_script().get_global_name() + ')'
 	return basestr
+	
+func _is_class(p_name: String) -> bool:
+	# Native class
+	if ClassDB.class_exists(p_name):
+		return true
+		
+	# User custom class
+	for i in ProjectSettings.get_global_class_list():
+		if i.class == p_name:
+			return true
+			
+	# Autoload. ALERT make sure to add 'project.godot' file when export game
+	var project_config = ConfigFile.new()
+	project_config.load("res://project.godot")
+	if project_config.has_section("autoload"):
+		for i in project_config.get_section_keys("autoload"):
+			if i == p_name:
+				return true
+				
+	return false
 
 class ExpressionInput extends RefCounted:
 	var type: int = TYPE_NIL
@@ -3560,6 +3601,7 @@ class ExpressionENode extends RefCounted:
 		TYPE_CONSTRUCTOR,
 		TYPE_BUILTIN_FUNC,
 		TYPE_BUILTIN_FUNC_CALLABLE, # 函数本身
+		TYPE_CLASS, # 类名
 		TYPE_CALL,
 	}
 
@@ -3664,3 +3706,10 @@ class ExpressionBuiltinFuncCallableNode extends ExpressionENode:
 	var _func: StringName
 	func _init() -> void:
 		type = ExpressionENode.Type.TYPE_BUILTIN_FUNC_CALLABLE
+
+
+class ExpressionClassNode extends ExpressionENode:
+	@warning_ignore("unused_private_class_variable")
+	var _class: StringName
+	func _init() -> void:
+		type = ExpressionENode.Type.TYPE_CLASS
