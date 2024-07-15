@@ -3106,11 +3106,21 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				return true
 
 
-			var valid
-			r_ret[0] = base[0].get_named(index.name, valid) # TODO
-			if (!valid) :
-				r_error_str[0] = tr("Invalid named index '%s' for base type %s") % [str(index.name), type_string(base.get_type())]
+			#var valid
+			#r_ret[0] = base[0].get_named(index.name, valid)
+			#if (!valid) :
+				#r_error_str[0] = tr("Invalid named index '%s' for base type %s") % [str(index.name), type_string(base.get_type())]
+				#return true
+			var ex = Expression.new()
+			var err = ex.parse("a.%s" % index.name, ["a"])
+			if err != OK:
+				r_error_str[0] = ex.get_error_text()
 				return true
+			var v = ex.execute([base[0]], null, false)
+			if ex.has_execute_failed():
+				r_error_str[0] = ex.get_error_text()
+				return true
+			r_ret[0] = v
 
 
 			#break
