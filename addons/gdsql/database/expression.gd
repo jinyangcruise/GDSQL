@@ -2515,10 +2515,10 @@ func _parse_expression() -> ExpressionENode:
 		
 	
 
-				if (!is_utility_function_vararg(bifunc.func)) :
-					var expected_args = get_utility_function_argument_count(bifunc.func)
+				if (!is_utility_function_vararg(bifunc._func)) :
+					var expected_args = get_utility_function_argument_count(bifunc._func)
 					if (expected_args != bifunc.arguments.size()) :
-						_set_error("Builtin func '" + str(bifunc.func) + "' expects " + str(expected_args) + " arguments.")
+						_set_error("Builtin func '" + str(bifunc._func) + "' expects " + str(expected_args) + " arguments.")
 		
 	
 
@@ -3403,7 +3403,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				#argp[i] = arr[i] # argp.write[i] = &arr[i];
 
 
-			r_ret[0] = utility_function_table[bifunc._func][0].callv(arr)
+			r_ret[0] = utility_function_table[bifunc._func][2].callv(arr)
 			#if (ce.error != Callable.CallError.CALL_OK) :
 				#r_error_str[0] = "Builtin call failed: " + get_call_error_text(bifunc._func, (const Variant **)argp.ptr(), argp.size(), ce)
 				#return true
