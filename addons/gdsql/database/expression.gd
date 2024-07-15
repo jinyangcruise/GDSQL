@@ -1704,6 +1704,8 @@ func alloc_node(type: String) -> ExpressionENode:
 			node = ExpressionDictionaryNode.new()
 		"BuiltinFuncNode":
 			node = ExpressionBuiltinFuncNode.new()
+		"BuiltinFuncCallableNode":
+			node = ExpressionBuiltinFuncCallableNode.new()
 		_:
 			assert(false, "Inner error 1100.")
 	node.next = nodes
@@ -1712,6 +1714,7 @@ func alloc_node(type: String) -> ExpressionENode:
 
 func GET_CHAR():
 	if str_ofs >= expression.length():
+		str_ofs += 1 # 外部有些地方 -=1， 在遇到EOF的时候会导致回退
 		return ''
 	var ret = expression[str_ofs]
 	str_ofs += 1
@@ -2219,9 +2222,16 @@ func _get_token(r_token: ExpressionToken) -> Error:
 			
 
 						if (has_utility_function(id)) :
-							r_token.type = TokenType.TK_BUILTIN_FUNC
-							r_token.value = id
-							return OK
+							# fix not support parse('abs')
+							var next_token = ExpressionToken.new()
+							var cofs = str_ofs
+							_get_token(next_token)
+							str_ofs = cofs
+							# 如果要进行内置函数调用，才把它当作内置函数，否则当成identifier
+							if next_token.type == TokenType.TK_PARENTHESIS_OPEN:
+								r_token.type = TokenType.TK_BUILTIN_FUNC
+								r_token.value = id
+								return OK
 			
 
 						r_token.type = TokenType.TK_IDENTIFIER
@@ -2410,6 +2420,10 @@ func _parse_expression() -> ExpressionENode:
 						var input = alloc_node('InputNode')
 						input.index = input_index
 						expr = input
+					elif (has_utility_function(identifier)):
+						var callable = alloc_node('BuiltinFuncCallableNode')
+						callable._func = identifier
+						expr = callable
 					else:
 						var index = alloc_node('NamedIndexNode')
 						var self_node = alloc_node('SelfNode')
@@ -3410,6 +3424,12 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 
 
 			#break
+		ExpressionENode.Type.TYPE_BUILTIN_FUNC_CALLABLE:
+			var bifunccall = p_node as ExpressionBuiltinFuncCallableNode
+			r_ret[0] = utility_function_table[bifunccall._func][2]
+
+
+			#break
 		ExpressionENode.Type.TYPE_CALL:
 			var _call = p_node as ExpressionCallNode
 
@@ -3539,7 +3559,8 @@ class ExpressionENode extends RefCounted:
 		TYPE_DICTIONARY,
 		TYPE_CONSTRUCTOR,
 		TYPE_BUILTIN_FUNC,
-		TYPE_CALL
+		TYPE_BUILTIN_FUNC_CALLABLE, # 函数本身
+		TYPE_CALL,
 	}
 
 	var next: ExpressionENode
@@ -3637,3 +3658,9 @@ class ExpressionBuiltinFuncNode extends ExpressionENode:
 	func _init() -> void:
 		type = ExpressionENode.Type.TYPE_BUILTIN_FUNC
 	
+
+class ExpressionBuiltinFuncCallableNode extends ExpressionENode:
+	@warning_ignore("unused_private_class_variable")
+	var _func: StringName
+	func _init() -> void:
+		type = ExpressionENode.Type.TYPE_BUILTIN_FUNC_CALLABLE
