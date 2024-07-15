@@ -3438,9 +3438,9 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 
 			#Callable.CallError ce
 			if (p_const_calls_only) : # p_const_calls_only makes no difference here
-				r_ret[0] = base[0].call(_call.method, arr)
+				r_ret[0] = Callable.create(base[0], _call.method).callv(arr)
 			else:
-				r_ret[0] = base[0].call(_call.method, arr)
+				r_ret[0] = Callable.create(base[0], _call.method).callv(arr)
 
 
 			#if (ce.error != Callable.CallError.CALL_OK) :
