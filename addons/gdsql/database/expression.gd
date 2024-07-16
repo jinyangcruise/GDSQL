@@ -2732,9 +2732,61 @@ func _get_token(r_token: ExpressionToken) -> Error:
 					while (is_unicode_identifier_continue(cchar)) :
 						id += (cchar)
 						cchar = GET_CHAR()
+						
+					str_ofs -= 1 # go back one
+					
+					## 1. 如果id是global enum名称，不用特殊处理，就是一个identifier；
+					## 2. 如果id是global enum名称的一部分，需要检查一下后续是否跟着剩下的部分，
+					## 如果组合起来是一个global enum的完整名称，就组合为一个identifier。
+					## 所以这里只处理（2）所阐述的情况。
+					## NOTICE 不论（1）还是（2），都有可能是base的一个属性、enum、函数等，
+					## 但是目前还未确定base，要执行的时候才能确认。
+					#var id_ = id + "."
+					#var cofs_bak = str_ofs
+					#var cofs_after_period = 0
+					#var find_enum = false
+					#var next_token1 = ExpressionToken.new()
+					#for enum_name: String in GLOBAL_ENUM_AND_FLAG:
+						#if enum_name.begins_with(id_):
+							## 已经确认后面是一个period token的情况下，可以跳过get period token
+							#if cofs_after_period > 0:
+								#_get_token(next_token1)
+								#if next_token1.type == TokenType.TK_IDENTIFIER and \
+								#enum_name == id_ + next_token1.value:
+									## also keep str_ofs' current value
+									#id = id_ + next_token1.value
+									#find_enum = true
+									#break
+								#else:
+									#str_ofs = cofs_after_period
+									## continue check next enum name
+							## 该分支只会在第一次执行
+							#else:
+								#_get_token(next_token1)
+								#if next_token1.type == TokenType.TK_PERIOD:
+									#cofs_after_period = str_ofs
+									#_get_token(next_token1)
+									#if next_token1.type == TokenType.TK_IDENTIFIER and \
+									#enum_name == id_ + next_token1.value:
+										## also keep str_ofs' current value
+										#id = id_ + next_token1.value
+										#find_enum = true
+										#break
+									#else:
+										#str_ofs = cofs_after_period
+										## continue next enum name
+								## TODO put this to NAMED_INDEX
+								##if next_token1.type == TokenType.TK_EOF:
+									##_set_error('Global Enum "' + id + '" cannot be used on its own.')
+									##r_token.type = TokenType.TK_ERROR
+									##return ERR_PARSE_ERROR
+								## 不是.号，那么不符合要求，直接退出循环
+								#else:
+									#break
+					#if not find_enum:
+						#str_ofs = cofs_bak
 		
 
-					str_ofs -= 1 # go back one
 
 					if (id == "in") :
 						r_token.type = TokenType.TK_OP_IN
@@ -3517,7 +3569,7 @@ func _compile_expression() -> bool:
 	expression_dirty = false
 	return false
 
-# TODO r_ret, r_error_str IS reference FIXME
+
 func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const_calls_only: bool, r_error_str: Array) -> bool:
 	match (p_node.type) :
 		ExpressionENode.Type.TYPE_INPUT:
@@ -3534,6 +3586,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 
 			#break
 		ExpressionENode.Type.TYPE_SELF:
+			# TODO 在特定的情况下返回 GLOBAL_ENUM_AND_FLAG
 			if (!p_instance) :
 				r_error_str[0] = tr("self can't be used because instance is null (not passed)")
 				return true
@@ -3559,7 +3612,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 
 
 			var valid = true
-			#evaluate(op.op, a[0], b[0], r_ret, valid)# TODO
+			#evaluate(op.op, a[0], b[0], r_ret, valid)
 			match op.op:
 				OP_EQUAL: # = 0 相等运算符（==）。
 					r_ret[0] = a[0] == b[0]
@@ -3582,9 +3635,9 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				OP_DIVIDE: # = 9 除法运算符（/）。
 					r_ret[0] = a[0] / b[0]
 				OP_NEGATE: # = 10 一元减号运算符（-）。
-					r_ret[0] = -a[0] # TODO
+					r_ret[0] = -a[0]
 				OP_POSITIVE: # = 11 一元加号运算符（+）。
-					r_ret[0] = a[0] # TODO
+					r_ret[0] = a[0]
 				OP_MODULE: # = 12 余数/取模运算符（%）。
 					r_ret[0] = a[0] % b[0]
 				OP_POWER: # = 13 幂运算符（**）。
@@ -3600,7 +3653,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				OP_BIT_XOR: # = 18 按位异或运算符（^）。
 					r_ret[0] = a[0] ^ b[0]
 				OP_BIT_NEGATE: # = 19 按位非运算符（~）。
-					r_ret[0] = ~a[0] # TODO
+					r_ret[0] = ~a[0]
 				OP_AND: # = 20 逻辑与运算符（and 或 &&）。
 					r_ret[0] = a[0] and b[0]
 				OP_OR: # = 21 逻辑或运算符（or 或 ||）。
@@ -3608,7 +3661,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				OP_XOR: # = 22 逻辑异或运算符（未在 GDScript 中实现）。
 					pass
 				OP_NOT: # = 23 逻辑非运算符（not 或 !）。
-					r_ret[0] = not a[0] # TODO
+					r_ret[0] = not a[0]
 				OP_IN: # = 24 逻辑 IN 运算符（in）。
 					r_ret[0] = a[0] in b[0]
 				_:
@@ -3674,6 +3727,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 			var index = p_node as ExpressionNamedIndexNode
 
 			var base = [null]
+			# TODO check if has base, which influence global enum
 			var ret = _execute(p_inputs, p_instance, index.base, base, p_const_calls_only, r_error_str)
 			if (ret) :
 				return true
@@ -4148,7 +4202,7 @@ class ExpressionInput extends RefCounted:
 	var type: int = TYPE_NIL
 	var name: String
 	
-class ExpressionToken:
+class ExpressionToken extends RefCounted:
 	var type: TokenType
 	var value
 	
