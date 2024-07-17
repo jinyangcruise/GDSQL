@@ -2778,7 +2778,7 @@ func _get_token(r_token: ExpressionToken) -> Error:
 									if next_token1.type == TokenType.TK_IDENTIFIER and \
 									enum_name == id_ + next_token1.value:
 										# also keep str_ofs' current value
-										#id = id_ + next_token1.value
+										id = id_ + next_token1.value
 										find_enum = true
 										break
 									else:
@@ -2789,11 +2789,8 @@ func _get_token(r_token: ExpressionToken) -> Error:
 									break
 					if find_enum:
 						r_token.may_be_global_enum = true
-						
-					# restore the str_ofs because we just want to modify
-					# token's may_be_global_enum for possible global-enum use
-					# when base is null in Named-Indexing situation.
-					str_ofs = cofs_bak
+					else:
+						str_ofs = cofs_bak
 		
 
 
@@ -3753,21 +3750,38 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 			#if (!valid) :
 				#r_error_str[0] = tr("Invalid named index '%s' for base type %s") % [str(index.name), type_string(base.get_type())]
 				#return true
-			var ex_key = "a." + named_index[0]
-			var ex = EXPRESSION_CACHE.get_value(ex_key)
-			if not ex:
-				ex = Expression.new()
-				var err = ex.parse(ex_key, ["a"])
-				if err != OK:
+			if base[0] is Object:
+				if named_index[0] is String or named_index[0] is StringName:
+					if named_index[0] in (base[0] as Object):
+						r_ret[0] = (base[0] as Object).get(named_index[0])
+					else:
+						r_error_str[0] = "Invalid access to property or key '" + named_index[0] + "' on a base object of type '" + _get_var_type(base[0]) + "'."
+						return true
+				else:
+					r_error_str[0] = 'Only "String" or "StringName" can be used as index for type "%s", but received "%s"' % [_get_var_type(base[0]), type_string(typeof(named_index[0]))]
+					return true
+			elif base[0] is Dictionary:
+				if base[0].has(named_index[0]):
+					r_ret[0] = base[0].get(named_index[0])
+				else:
+					r_error_str[0] = "Invalid access to property or key '" + named_index[0] + "' on a base object of type '" + _get_var_type(base[0]) + "'."
+					return true
+			else:
+				var ex_key = "a." + named_index[0]
+				var ex = EXPRESSION_CACHE.get_value(ex_key)
+				if not ex:
+					ex = Expression.new()
+					var err = ex.parse(ex_key, ["a"])
+					if err != OK:
+						r_error_str[0] = ex.get_error_text()
+						return true
+					EXPRESSION_CACHE.put_value(ex_key, ex)
+					
+				var v = ex.execute([base[0], named_index[0]], null, false)
+				if ex.has_execute_failed():
 					r_error_str[0] = ex.get_error_text()
 					return true
-				EXPRESSION_CACHE.put_value(ex_key, ex)
-				
-			var v = ex.execute([base[0], named_index[0]], null, false)
-			if ex.has_execute_failed():
-				r_error_str[0] = ex.get_error_text()
-				return true
-			r_ret[0] = v
+				r_ret[0] = v
 
 
 			#break
@@ -4142,22 +4156,22 @@ func parse(p_expression, p_input_names = []) -> Error:
 	str_ofs = 0
 	input_names = p_input_names
 
-	for i in p_input_names:
-		if not (i is String or i is StringName):
-			_set_error("input_names must contain only String or StringName")
-			return ERR_INVALID_PARAMETER
-		if _is_global_enum_or_flag(i):
-			_set_error("input_names contains a global enum: " + i)
-			return ERR_INVALID_PARAMETER
-		if _is_class(i):
-			_set_error("input_names contains a Class name: " + i)
-			return ERR_INVALID_PARAMETER
-		if has_utility_function(i):
-			_set_error("input_names contains a builtin function: " + i)
-			return ERR_INVALID_PARAMETER
-		if ["in", "null", "true", "false", "PI", "TAU", "INF", "NAN", "not", "or", "and"].has(i):
-			_set_error("input_names contains a keyword: " + i)
-			return ERR_INVALID_PARAMETER
+	#for i in p_input_names:
+		#if not (i is String or i is StringName):
+			#_set_error("input_names must contain only String or StringName")
+			#return ERR_INVALID_PARAMETER
+		#if _is_global_enum_or_flag(i):
+			#_set_error("input_names contains a global enum: " + i)
+			#return ERR_INVALID_PARAMETER
+		#if _is_class(i):
+			#_set_error("input_names contains a Class name: " + i)
+			#return ERR_INVALID_PARAMETER
+		#if has_utility_function(i):
+			#_set_error("input_names contains a builtin function: " + i)
+			#return ERR_INVALID_PARAMETER
+		#if ["in", "null", "true", "false", "PI", "TAU", "INF", "NAN", "not", "or", "and"].has(i):
+			#_set_error("input_names contains a keyword: " + i)
+			#return ERR_INVALID_PARAMETER
 			
 	expression = p_expression
 	root = _parse_expression()
