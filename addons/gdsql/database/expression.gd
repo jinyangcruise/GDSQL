@@ -2735,56 +2735,58 @@ func _get_token(r_token: ExpressionToken) -> Error:
 						
 					str_ofs -= 1 # go back one
 					
-					## 1. 如果id是global enum名称，不用特殊处理，就是一个identifier；
-					## 2. 如果id是global enum名称的一部分，需要检查一下后续是否跟着剩下的部分，
-					## 如果组合起来是一个global enum的完整名称，就组合为一个identifier。
-					## 所以这里只处理（2）所阐述的情况。
-					## NOTICE 不论（1）还是（2），都有可能是base的一个属性、enum、函数等，
-					## 但是目前还未确定base，要执行的时候才能确认。
-					#var id_ = id + "."
-					#var cofs_bak = str_ofs
-					#var cofs_after_period = 0
-					#var find_enum = false
-					#var next_token1 = ExpressionToken.new()
-					#for enum_name: String in GLOBAL_ENUM_AND_FLAG:
-						#if enum_name.begins_with(id_):
-							## 已经确认后面是一个period token的情况下，可以跳过get period token
-							#if cofs_after_period > 0:
-								#_get_token(next_token1)
-								#if next_token1.type == TokenType.TK_IDENTIFIER and \
-								#enum_name == id_ + next_token1.value:
-									## also keep str_ofs' current value
-									#id = id_ + next_token1.value
-									#find_enum = true
-									#break
-								#else:
-									#str_ofs = cofs_after_period
-									## continue check next enum name
-							## 该分支只会在第一次执行
-							#else:
-								#_get_token(next_token1)
-								#if next_token1.type == TokenType.TK_PERIOD:
-									#cofs_after_period = str_ofs
-									#_get_token(next_token1)
-									#if next_token1.type == TokenType.TK_IDENTIFIER and \
-									#enum_name == id_ + next_token1.value:
-										## also keep str_ofs' current value
+					# 1. 如果id是global enum名称，不用特殊处理，就是一个identifier；
+					# 2. 如果id是global enum名称的一部分，需要检查一下后续是否跟着剩下的部分，
+					# 如果组合起来是一个global enum的完整名称，那么就标记该token可能是一个
+					# global enum。
+					# NOTICE 不论（1）还是（2），都有可能是base的一个属性、enum、函数等，
+					# 但是目前还未确定base，要执行的时候才能确认。所以只能标记为可能是。
+					if GLOBAL_ENUM_AND_FLAG.has(id):
+						r_token.may_be_global_enum = true
+					var id_ = id + "."
+					var cofs_bak = str_ofs
+					var cofs_after_period = 0
+					var find_enum = false
+					var next_token1 = ExpressionToken.new()
+					for enum_name: String in GLOBAL_ENUM_AND_FLAG:
+						if enum_name.begins_with(id_):
+							# 已经确认后面是一个period token的情况下，可以跳过get period token
+							if cofs_after_period > 0:
+								_get_token(next_token1)
+								if next_token1.type == TokenType.TK_IDENTIFIER and \
+								enum_name == id_ + next_token1.value:
+									# also keep str_ofs' current value
+									id = id_ + next_token1.value
+									find_enum = true
+									break
+								else:
+									str_ofs = cofs_after_period
+									# continue check next enum name
+							# 该分支只会在第一次执行
+							else:
+								_get_token(next_token1)
+								if next_token1.type == TokenType.TK_PERIOD:
+									cofs_after_period = str_ofs
+									_get_token(next_token1)
+									if next_token1.type == TokenType.TK_IDENTIFIER and \
+									enum_name == id_ + next_token1.value:
+										# also keep str_ofs' current value
 										#id = id_ + next_token1.value
-										#find_enum = true
-										#break
-									#else:
-										#str_ofs = cofs_after_period
-										## continue next enum name
-								## TODO put this to NAMED_INDEX
-								##if next_token1.type == TokenType.TK_EOF:
-									##_set_error('Global Enum "' + id + '" cannot be used on its own.')
-									##r_token.type = TokenType.TK_ERROR
-									##return ERR_PARSE_ERROR
-								## 不是.号，那么不符合要求，直接退出循环
-								#else:
-									#break
-					#if not find_enum:
-						#str_ofs = cofs_bak
+										find_enum = true
+										break
+									else:
+										str_ofs = cofs_after_period
+										# continue next enum name
+								# 不是.号，那么不符合要求，直接退出循环
+								else:
+									break
+					if find_enum:
+						r_token.may_be_global_enum = true
+						
+					# restore the str_ofs because we just want to modify
+					# token's may_be_global_enum for possible global-enum use
+					# when base is null in Named-Indexing situation.
+					str_ofs = cofs_bak
 		
 
 
@@ -3030,7 +3032,6 @@ func _parse_expression() -> ExpressionENode:
 						var callable = alloc_node('BuiltinFuncCallableNode')
 						callable._func = identifier
 						expr = callable
-					# TODO global enum
 					elif _is_class(identifier):
 						var clazz = alloc_node('ClassNode')
 						clazz._class = identifier
@@ -3038,6 +3039,8 @@ func _parse_expression() -> ExpressionENode:
 					else:
 						var index = alloc_node('NamedIndexNode')
 						var self_node = alloc_node('SelfNode')
+						if tk.may_be_global_enum:
+							self_node.possible_global_enum = true # means self may be GDScript's @GlobalSCope Enum
 						index.base = self_node
 						index.name = identifier
 						expr = index
@@ -3586,12 +3589,15 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 
 			#break
 		ExpressionENode.Type.TYPE_SELF:
-			# TODO 在特定的情况下返回 GLOBAL_ENUM_AND_FLAG
 			if (!p_instance) :
-				r_error_str[0] = tr("self can't be used because instance is null (not passed)")
-				return true
-
-			r_ret[0] = p_instance
+				var sn = p_node as ExpressionSelfNode
+				if sn.possible_global_enum:
+					r_ret[0] = GLOBAL_ENUM_AND_FLAG
+				else:
+					r_error_str[0] = tr("self can't be used because instance is null (not passed)")
+					return true
+			else:
+				r_ret[0] = p_instance
 			#break
 		ExpressionENode.Type.TYPE_OPERATOR:
 			var op = p_node as ExpressionOperatorNode
@@ -3727,7 +3733,6 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 			var index = p_node as ExpressionNamedIndexNode
 
 			var base = [null]
-			# TODO check if has base, which influence global enum
 			var ret = _execute(p_inputs, p_instance, index.base, base, p_const_calls_only, r_error_str)
 			if (ret) :
 				return true
@@ -4205,6 +4210,7 @@ class ExpressionInput extends RefCounted:
 class ExpressionToken extends RefCounted:
 	var type: TokenType
 	var value
+	var may_be_global_enum = false
 	
 class ExpressionENode extends RefCounted:
 	enum Type {
@@ -4255,6 +4261,7 @@ class ExpressionOperatorNode extends ExpressionENode:
 
 
 class ExpressionSelfNode extends ExpressionENode:
+	var possible_global_enum = false
 	func _init() -> void:
 		type = ExpressionENode.Type.TYPE_SELF
 	
