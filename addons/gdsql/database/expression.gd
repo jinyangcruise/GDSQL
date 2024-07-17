@@ -139,6 +139,9 @@ const READING_DEC = 4
 const READING_EXP = 5
 const READING_DONE = 6
 
+## 引擎自带Expression的缓存
+static var EXPRESSION_CACHE: ExpressionLRULink
+
 const xid_start = [
 	 [ 0x41, 0x5a ],
 	 [ 0x5f, 0x5f ],
@@ -1672,6 +1675,9 @@ const utility_function_table = {
 ## NOTICE 复制 @GlobalScope 文档内容到一个文件（例如：22.txt）中，然后执行下面的命令：
 ## file="22.txt"; head -`grep -n 属性说明 22.txt | awk -F ':' '{print $1}'` 22.txt | tail -n +`grep -nE '^枚举$' 22.txt | awk -F ':' '{print $1}'` | grep -E '^enum|^flags|^● ' | sed "s/:/': {/g;" | sed "s/enum /\t}\n\t'/g" | sed "s/flags /\t}\n\t'/g" | sed "s/● /\t\t'/g" | sed "s/ = /': /g" | sed "s/$/,/g" | sed 's/{,/{/g' | tail -n +2 | awk 'BEGIN{print "const GLOBAL_ENUM_AND_FLAG = {"}{print $0}END{print "\t}\n}"}' 
 const GLOBAL_ENUM_AND_FLAG = {
+	'BBB': {
+		'BBB': 60
+	},
 	'Side': {
 		'SIDE_LEFT': 0,
 		'SIDE_TOP': 1,
@@ -2222,6 +2228,10 @@ const GLOBAL_ENUM_AND_FLAG = {
 	}
 }
 
+static func _static_init() -> void:
+	EXPRESSION_CACHE = ExpressionLRULink.new()
+	EXPRESSION_CACHE.capacity = 1024
+
 func get_operator_name(p_op):
 	return _op_names[p_op]
 	
@@ -2380,7 +2390,7 @@ func _get_token(r_token: ExpressionToken) -> Error:
 						return ERR_PARSE_ERROR
 		
 					index *= 10
-					index += int(expression[str_ofs]) # index += expression[str_ofs] - '0';
+					index += expression[str_ofs].unicode_at(0) - '0'.unicode_at(0)
 					str_ofs += 1
 
 					if not is_digit(expression[str_ofs]):
@@ -2546,7 +2556,7 @@ func _get_token(r_token: ExpressionToken) -> Error:
 						
 									var v
 									if (is_digit(c)) :
-										v = c.unicode_at(0) - '0'.unicode_at(0);
+										v = c.unicode_at(0) - '0'.unicode_at(0)
 									elif (c >= 'a' && c <= 'f') :
 										v = c.unicode_at(0) - 'a'.unicode_at(0)
 										v += 10
@@ -2974,7 +2984,7 @@ func _parse_expression() -> ExpressionENode:
 
 				#break
 			TokenType.TK_IDENTIFIER:
-				var identifier = tk.value
+				var identifier = _identifier_to_input_if_match(tk.value) # fix未判定identifier是input名称的问题
 
 				var cofs = str_ofs
 				_get_token(tk)
@@ -3016,18 +3026,9 @@ func _parse_expression() -> ExpressionENode:
 					# named indexing
 					str_ofs = cofs
 
-					var input_index = -1
-					for i in input_names.size():
-						if (input_names[i] == identifier) :
-							input_index = i
-							break
-			
-		
 
-					if (input_index != -1) :
-						var input = alloc_node('InputNode')
-						input.index = input_index
-						expr = input
+					if (identifier is ExpressionInputNode) :
+						expr = identifier
 					elif (has_utility_function(identifier)):
 						var callable = alloc_node('BuiltinFuncCallableNode')
 						callable._func = identifier
@@ -3229,7 +3230,7 @@ func _parse_expression() -> ExpressionENode:
 						return null
 		
 
-					var identifier = tk.value
+					var identifier = _identifier_to_input_if_match(tk.value) # fix未判定identifier是input名称的问题 
 
 					var cofs = str_ofs
 					_get_token(tk)
@@ -3716,12 +3717,17 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 					r_error_str[0] = 'Only "String" or "StringName" can be used as index for type "%s", but received "%s"' % [_get_var_type(base[0]), type_string(typeof(idx[0]))]
 					return true
 			else:
-				var ex = Expression.new()
-				var err = ex.parse("a[%s]" % var_to_str(idx[0]), ["a"])
-				if err != OK:
-					r_error_str[0] = ex.get_error_text()
-					return true
-				var v = ex.execute([base[0]], null, false)
+				var idxstr = var_to_str(idx[0])
+				var ex_key = "a[" + idxstr + "]"
+				var ex = EXPRESSION_CACHE.get_value(ex_key)
+				if not ex:
+					ex = Expression.new()
+					var err = ex.parse(ex_key, ["a"])
+					if err != OK:
+						r_error_str[0] = ex.get_error_text()
+						return true
+					EXPRESSION_CACHE.put_value(ex_key, ex)
+				var v = ex.execute([base[0], idxstr], null, false)
 				if ex.has_execute_failed():
 					r_error_str[0] = ex.get_error_text()
 					return true
@@ -3738,17 +3744,29 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				return true
 
 
+			# fix index.name is an input node
+			var named_index = [index.name]
+			if named_index[0] is ExpressionENode:
+				ret = _execute(p_inputs, p_instance, index.name, named_index, p_const_calls_only, r_error_str)
+				if ret:
+					return true
+					
 			#var valid
 			#r_ret[0] = base[0].get_named(index.name, valid)
 			#if (!valid) :
 				#r_error_str[0] = tr("Invalid named index '%s' for base type %s") % [str(index.name), type_string(base.get_type())]
 				#return true
-			var ex = Expression.new()
-			var err = ex.parse("a.%s" % index.name, ["a"])
-			if err != OK:
-				r_error_str[0] = ex.get_error_text()
-				return true
-			var v = ex.execute([base[0]], null, false)
+			var ex_key = "a." + named_index[0]
+			var ex = EXPRESSION_CACHE.get_value(ex_key)
+			if not ex:
+				ex = Expression.new()
+				var err = ex.parse(ex_key, ["a"])
+				if err != OK:
+					r_error_str[0] = ex.get_error_text()
+					return true
+				EXPRESSION_CACHE.put_value(ex_key, ex)
+				
+			var v = ex.execute([base[0], named_index[0]], null, false)
 			if ex.has_execute_failed():
 				r_error_str[0] = ex.get_error_text()
 				return true
@@ -4090,11 +4108,19 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				#argp[i] = arr[i] # argp.write[i] = &arr[i]
 
 
+			# fix _call.method is from input
+			var method = [_call.method]
+			if method[0] is ExpressionENode:
+				ret = _execute(p_inputs, p_instance, _call.method, method, p_const_calls_only, r_error_str)
+
+				if (ret):
+					return true
+					
 			#Callable.CallError ce
 			if (p_const_calls_only) : # p_const_calls_only makes no difference here
-				r_ret[0] = Callable.create(base[0], _call.method).callv(arr)
+				r_ret[0] = Callable.create(base[0], method[0]).callv(arr)
 			else:
-				r_ret[0] = Callable.create(base[0], _call.method).callv(arr)
+				r_ret[0] = Callable.create(base[0], method[0]).callv(arr)
 
 
 			#if (ce.error != Callable.CallError.CALL_OK) :
@@ -4119,6 +4145,23 @@ func parse(p_expression, p_input_names = []) -> Error:
 	str_ofs = 0
 	input_names = p_input_names
 
+	for i in p_input_names:
+		if not (i is String or i is StringName):
+			_set_error("input_names must contain only String or StringName")
+			return ERR_INVALID_PARAMETER
+		if _is_global_enum_or_flag(i):
+			_set_error("input_names contains a global enum: " + i)
+			return ERR_INVALID_PARAMETER
+		if _is_class(i):
+			_set_error("input_names contains a Class name: " + i)
+			return ERR_INVALID_PARAMETER
+		if has_utility_function(i):
+			_set_error("input_names contains a builtin function: " + i)
+			return ERR_INVALID_PARAMETER
+		if ["in", "null", "true", "false", "PI", "TAU", "INF", "NAN", "not", "or", "and"].has(i):
+			_set_error("input_names contains a keyword: " + i)
+			return ERR_INVALID_PARAMETER
+			
 	expression = p_expression
 	root = _parse_expression()
 
@@ -4183,7 +4226,10 @@ func _is_global_enum_or_flag(p_name: String) -> bool:
 			
 	return false
 	
-func _is_class(p_name: String) -> bool:
+func _is_class(p_name) -> bool:
+	if not (p_name is String or p_name is StringName):
+		return false
+		
 	# Native class
 	if ClassDB.class_exists(p_name):
 		return true
@@ -4202,6 +4248,19 @@ func _is_class(p_name: String) -> bool:
 				return true
 				
 	return false
+
+func _identifier_to_input_if_match(identifier):
+	var input_index = -1
+	for i in input_names.size():
+		if (input_names[i] == identifier) :
+			input_index = i
+			break
+			
+	if (input_index != -1) :
+		var input = alloc_node('InputNode')
+		input.index = input_index
+		identifier = input
+	return identifier
 
 class ExpressionInput extends RefCounted:
 	var type: int = TYPE_NIL
@@ -4296,7 +4355,7 @@ class ExpressionConstructorNode extends ExpressionENode:
 
 class ExpressionCallNode extends ExpressionENode:
 	var base = null
-	var method: StringName
+	var method
 	var arguments: Array
 
 	func _init() -> void:
@@ -4338,3 +4397,106 @@ class ExpressionClassNode extends ExpressionENode:
 	var _class: StringName
 	func _init() -> void:
 		type = ExpressionENode.Type.TYPE_CLASS
+
+class ExpressionCacheNode extends RefCounted:
+	var key: String
+	var value: Variant
+	var prev: ExpressionCacheNode
+	var next: ExpressionCacheNode
+	
+class ExpressionLRULink extends RefCounted:
+	var cache: Dictionary
+	var capacity: int
+	var head: ExpressionCacheNode = ExpressionCacheNode.new()
+	var tail: ExpressionCacheNode = ExpressionCacheNode.new()
+	
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_PREDELETE:
+			if head:
+				head.next = null
+				head = null
+			if tail:
+				tail.prev = null
+				tail = null
+				
+	func _init() -> void:
+		head.next = tail
+		tail.prev = head
+		
+	func has_key(key: String) -> bool:
+		return cache.has(key)
+		
+	func get_value(key: String):
+		if not cache.has(key):
+			return null
+		var node = cache[key] as ExpressionCacheNode
+		move_to_tail(node)
+		return node.value
+		
+	func put_value(key: String, value: Variant):
+		if cache.has(key):
+			var node = cache[key] as ExpressionCacheNode
+			node.value = value
+			move_to_tail(node)
+		else:
+			var node = ExpressionCacheNode.new()
+			node.key = key
+			node.value = value
+			
+			# 添加节点到链表尾部  
+			add_to_tail(node)
+			
+			# 将新节点添加到哈希表中  
+			cache[key] = node
+			
+			# 如果超出容量，删除最久未使用的节点  
+			if cache.size() > capacity:
+				var removed_node = remove_head()
+				cache.erase(removed_node.key)
+				
+	func add_to_tail(node: ExpressionCacheNode):
+		var prev_node = tail.prev
+		prev_node.next = node
+		node.prev = prev_node
+		node.next = tail
+		tail.prev = node
+		
+	func remove_node(node: ExpressionCacheNode):
+		var prev_node = node.prev
+		var next_node = node.next
+		prev_node.next = next_node
+		next_node.prev = prev_node
+		
+	func move_to_tail(node: ExpressionCacheNode):
+		remove_node(node)
+		add_to_tail(node)
+		
+	func remove_head():
+		var head_next = head.next
+		remove_node(head_next)
+		return head_next
+		
+	func clear():
+		# 清空双向链表
+		var current = head.next
+		while current != tail:
+			var next_node = current.next
+			# 从哈希表中移除当前节点的键  
+			cache.erase(current.key)
+			# 断开当前节点的连接  
+			current.prev = null
+			current.next = null
+			# 移动到下一个节点  
+			current = next_node
+			
+		# 双向链表重置为只有一个头节点和尾节点  
+		head.next = tail
+		tail.prev = head
+		
+	func clean():
+		clear()
+		head.next = null
+		tail.prev = null
+		head = null
+		tail = null
+		
