@@ -1675,9 +1675,6 @@ const utility_function_table = {
 ## NOTICE 复制 @GlobalScope 文档内容到一个文件（例如：22.txt）中，然后执行下面的命令：
 ## file="22.txt"; head -`grep -n 属性说明 22.txt | awk -F ':' '{print $1}'` 22.txt | tail -n +`grep -nE '^枚举$' 22.txt | awk -F ':' '{print $1}'` | grep -E '^enum|^flags|^● ' | sed "s/:/': {/g;" | sed "s/enum /\t}\n\t'/g" | sed "s/flags /\t}\n\t'/g" | sed "s/● /\t\t'/g" | sed "s/ = /': /g" | sed "s/$/,/g" | sed 's/{,/{/g' | tail -n +2 | awk 'BEGIN{print "const GLOBAL_ENUM_AND_FLAG = {"}{print $0}END{print "\t}\n}"}' 
 const GLOBAL_ENUM_AND_FLAG = {
-	'BBB': {
-		'BBB': 60
-	},
 	'Side': {
 		'SIDE_LEFT': 0,
 		'SIDE_TOP': 1,
@@ -2384,7 +2381,7 @@ func _get_token(r_token: ExpressionToken) -> Error:
 				r_token.type = TokenType.TK_INPUT
 				var index = 0
 				while true:
-					if (!is_digit(expression[str_ofs])) :
+					if (str_ofs >= expression.length() or !is_digit(expression[str_ofs])) :
 						_set_error("Expected number after '$'")
 						r_token.type = TokenType.TK_ERROR
 						return ERR_PARSE_ERROR
@@ -2393,7 +2390,7 @@ func _get_token(r_token: ExpressionToken) -> Error:
 					index += expression[str_ofs].unicode_at(0) - '0'.unicode_at(0)
 					str_ofs += 1
 
-					if not is_digit(expression[str_ofs]):
+					if str_ofs >= expression.length() or not is_digit(expression[str_ofs]):
 						break
 
 				r_token.value = index
