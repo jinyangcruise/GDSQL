@@ -655,12 +655,6 @@ table_definations: Dictionary) -> bool:
 					return true
 					
 			# 填充当前表的全null数据
-			# FIXME 设置成null其实会引发一些问题，比如fetch的字段涉及运算时，
-			# 例如 a + 1， 当a为null时，null + 1引发语法问题。这个问题目前无解。
-			# 一是无法用正则100%覆盖实际使用情况；二是gdscript（主要是我们用gdscript的
-			# evaluate和reload script）不支持操作符重载。如果支持操作符重载，还可以想办法
-			# 构造一个代替null的类，重载各种操作符来进行运算。
-			# 这也导致AggregateFunctions在数据集为空或字段为null时可能遇到问题。
 			var acc_row = curr_row.duplicate()
 			var a_row = {}
 			for i in table_definations[table]:
@@ -724,13 +718,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 			if not ___loop_table_row(row_result, all_datas, loop_tables, 0, 
 			{__table_alias: row}, dependencies, real_select, all_table_defination):
 				return null # error occur
-			# 这行主表的数据没有联到任何其他表的数据，因此需要一条别的表全为null的数据
-			# FIXME 设置成null其实会引发一些问题，比如fetch的字段涉及运算时，
-			# 例如 a + 1， 当a为null时，null + 1引发语法问题。这个问题目前无解。
-			# 一是无法用正则100%覆盖实际使用情况；二是gdscript（主要是我们用gdscript的
-			# evaluate和reload script）不支持操作符重载。如果支持操作符重载，还可以想办法
-			# 构造一个代替null的类，重载各种操作符来进行运算。
-			# 这也导致AggregateFunctions在数据集为空或字段为null时可能遇到问题。
+			
 			if row_result.is_empty():
 				var one_row = {__table_alias: row}
 				for a_left_join in arr_left_join:
@@ -948,9 +936,10 @@ func ___select(path: String, fill_primary_key: String = ""):
 				if not dealed:
 					# 聚合函数对象
 					var agg_func_obj = null
+					# 未使用group by但是使用了聚合函数时，在最后一行数据的时候设置聚合对象的状态为准备就绪
 					if total_agg_func_obj.has(index):
 						agg_func_obj = total_agg_func_obj.get(index) as AggregateFunctions
-						if agg_func_obj._is_real_aggregate_func and data_index == ret_filter.size() - 1:
+						if data_index == ret_filter.size() - 1:
 							AggregateFunctions.prepare_done(agg_func_obj.id)
 					elif pre_group.has(data_index) and pre_group[data_index].has(index):
 						agg_func_obj = pre_group[data_index][index] as AggregateFunctions
@@ -965,9 +954,11 @@ func ___select(path: String, fill_primary_key: String = ""):
 					
 					# 记录该列聚合结果。_used为true表示真的被使用了。
 					if agg_func_obj and agg_func_obj._used and not agg_func_obj._preparing:
-						confirmed_value_with_agg_func[data_index] = {}
+						if not confirmed_value_with_agg_func.has(data_index):
+							confirmed_value_with_agg_func[data_index] = {}
 						confirmed_value_with_agg_func[data_index][index] = value
-						agg_func_obj_final_col_value[agg_func_obj] = {}
+						if not agg_func_obj_final_col_value.has(agg_func_obj):
+							agg_func_obj_final_col_value[agg_func_obj] = {}
 						agg_func_obj_final_col_value[agg_func_obj][index] = value
 						
 			# 把order by要用的value也装进来
@@ -975,9 +966,10 @@ func ___select(path: String, fill_primary_key: String = ""):
 				var col_index = real_select.size() + i
 				# 聚合函数对象
 				var agg_func_obj = null
+				# 未使用group by但是使用了聚合函数时，在最后一行数据的时候设置聚合对象的状态为准备就绪
 				if total_agg_func_obj.has(col_index):
 					agg_func_obj = total_agg_func_obj.get(col_index)
-					if agg_func_obj._is_real_aggregate_func and data_index == ret_filter.size() - 1:
+					if data_index == ret_filter.size() - 1:
 						AggregateFunctions.prepare_done(agg_func_obj.id)
 				elif pre_group.has(data_index) and pre_group[data_index].has(col_index):
 					agg_func_obj = pre_group[data_index][col_index] as AggregateFunctions
@@ -992,9 +984,11 @@ func ___select(path: String, fill_primary_key: String = ""):
 				
 				# 记录该列聚合结果。_used为true表示真的被使用了。
 				if agg_func_obj and agg_func_obj._used and not agg_func_obj._preparing:
-					confirmed_value_with_agg_func[data_index] = {}
+					if not confirmed_value_with_agg_func.has(data_index):
+						confirmed_value_with_agg_func[data_index] = {}
 					confirmed_value_with_agg_func[data_index][index] = value
-					agg_func_obj_final_col_value[agg_func_obj] = {}
+					if not agg_func_obj_final_col_value.has(agg_func_obj):
+						agg_func_obj_final_col_value[agg_func_obj] = {}
 					agg_func_obj_final_col_value[agg_func_obj][index] = value
 					
 			ret_post_process.push_back(row)
@@ -1042,45 +1036,15 @@ func ___select(path: String, fill_primary_key: String = ""):
 				var has_real_agg_func = false
 				# 把求式子可能需要的变量名称和变量值都放到数组里
 				var variable_names = []
-				var variable_values_for_if = [] # 为了ifnull或ifn构造的带null值的
-				var variable_values_for_other = [] # 为了其他情况能进行运算的带default value的
+				var variable_values = []
 				for key: String in all_table_defination:
 					if key.is_valid_identifier():
 						variable_names.push_back(key)
-					var data_for_if = {}
-					var data_for_other = {}
-					# FIXME 在数据集为空的这种情况下，ifnull和ifn的功能是受限的。
-					# 另请参加本文的其他FIXME。
-					# NOTICE 可以和不可以使用ifnull和ifn的情况（不完全）：
-					# ifnull和ifn直接包裹一个字段，可以嵌套聚合函数，但不能包裹运算表达式例如a+b。
-					# 也就是说，可以ifnull(a)，可以ifnull(max(a))，但不能ifnull(a+1)
-					for col in all_table_defination[key]:
-						# FIXME 设置成null将造成运算表达式语法错误，比如select a+1，a为null时
-						# 但是目前无解。另请参加本文的其他FIXME。
-						# 我们这里只能尽量使最常见的用法保持正确度，在疑似用ifnull和ifn的时候，
-						# 字段用null值。在其他情况，字段用支持运算的default value值。
-						# 那么在联表查询的时候，主表有数据，联表没数据的时候，为什么联表数据
-						# 就直接全被设置为null呢，怎么不分情况，让它们可以参与运算呢？
-						# 因为这种情况null参与运算没有意义，在传统数据库中的运算结果也理应为null，
-						# 但是我们确实没办法在gdscript中实现null参与运算。而在该处，能够在
-						# 部分情况下用default value是因为我们只是为了给最终的结果集添加一条
-						# 聚合结果，AggregateFunctions.enable_empty_data_mode会忽略
-						# 参与运算的字段实际值，也就是说只要把数据的类型传对了就行，数据的值
-						# 是多少其实无所谓，只要不让语法报错就行。聚合函数最终值只会返回null
-						# 或0，这取决于聚合函数是什么，比如，目前只有count函数会返回0，其他
-						# 函数不管传入什么值，在empty_data_mode模式下，都返回null。
-						data_for_if[col["Column Name"]] = null
-						data_for_other[col["Column Name"]] = DataTypeDef.DEFUALT_VALUES[col["Data Type"]]
-					if key.is_valid_identifier():
-						variable_values_for_if.push_back(data_for_if)
-						variable_values_for_other.push_back(data_for_other)
+						variable_values.push_back(null)
 					if all_table_defination.size() == 1: # single table
-						for f in data_for_if:
-							variable_names.push_back(f) # 祈祷字段名称和表名以及用户使用的函数名称不一样吧……
-							variable_values_for_if.push_back(data_for_if[f])
-						for f in variable_values_for_other:
-							variable_names.push_back(f) # 祈祷字段名称和表名以及用户使用的函数名称不一样吧……
-							variable_values_for_other.push_back(data_for_other[f])
+						for col in all_table_defination[key]:
+							variable_names.push_back(col["Column Name"]) # 祈祷字段名称和表名以及用户使用的函数名称不一样吧……
+							variable_values.push_back(null)
 							
 				# 一条新数据，即聚合结果
 				var row = []
@@ -1090,13 +1054,6 @@ func ___select(path: String, fill_primary_key: String = ""):
 						agg_func_obj = total_agg_func_obj[i] as AggregateFunctions
 						AggregateFunctions.enable_empty_data_mode(agg_func_obj.id)
 						AggregateFunctions.prepare_done(agg_func_obj.id)
-						var variable_values
-						if real_select[i].name_4_computing.contains("ifnull") or \
-						real_select[i].name_4_computing.contains("ifn"):
-							variable_values = variable_values_for_if
-						else:
-							variable_values = variable_values_for_other
-							
 						var value = GDSQLUtils.evalute_command_with_agg(agg_func_obj, 
 							real_select[i].name_4_computing, variable_names, variable_values)
 						# 如果只使用ifnull或ifn，是不算的，不能额外返回一条聚合数据
@@ -1135,12 +1092,8 @@ func ___select(path: String, fill_primary_key: String = ""):
 				# 聚合函数的结果覆盖掉第一条数据
 				for i in data.size():
 					if pre_group.has(real_index) and pre_group[real_index].has(i) and \
-					pre_group[real_index][i]._used and pre_group[real_index][i]._is_real_aggregate_func:
-						# _return_null为true表示null参与了运算，那么运算结果都为null
-						if pre_group[real_index][i]._return_null:
-							data[i] = null
-						else:
-							data[i] = agg_func_obj_final_col_value[pre_group[real_index][i]][i]
+					pre_group[real_index][i]._used:
+						data[i] = agg_func_obj_final_col_value[pre_group[real_index][i]][i]
 				grouped_ret.push_back(data)
 				
 	AggregateFunctions.clear_instances()
@@ -1198,9 +1151,11 @@ func ___select(path: String, fill_primary_key: String = ""):
 	# limit
 	if __offset >= 0 and __limit > 0:
 		if __offset == 0:
-			grouped_ret = grouped_ret.slice(__offset, __limit + 1)
-		else:
+			grouped_ret = grouped_ret.slice(__offset, __limit + int(has_head))
+		elif has_head:
 			grouped_ret = [head] + grouped_ret.slice(__offset + 1, __limit + 1)
+		else:
+			grouped_ret = grouped_ret.slice(__offset + int(has_head), __limit + int(has_head))
 			
 	# 去掉多余的_order_by的数据
 	if not __order_by.is_empty():

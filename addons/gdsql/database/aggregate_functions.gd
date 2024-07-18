@@ -70,7 +70,7 @@ func count(param):
 	if not _empty_data_mode:
 		_register("count", param)
 	if _preparing:
-		return 0 # 为了运算不报错 比如 select count(1) + 1 from t_user
+		return self # 为了运算不报错 比如 select count(1) + 1 from t_user
 	if _params.is_empty():
 		return 0
 	return _params[0].size()
@@ -79,10 +79,10 @@ func maxn(param):
 	if not _empty_data_mode:
 		_register("maxn", param)
 	if _preparing:
-		return -9223372036854775808
+		return self
 	if not _params.has(_count):
 		_return_null = true
-		return -9223372036854775808 # real null
+		return null
 	var ret = _params[_count][0]
 	for i in _params[_count]:
 		if i > ret:
@@ -94,10 +94,10 @@ func minn(param):
 	if not _empty_data_mode:
 		_register("minn", param)
 	if _preparing:
-		return 9223372036854775807
+		return self
 	if not _params.has(_count):
 		_return_null = true
-		return 9223372036854775807
+		return null
 	var ret = _params[_count][0]
 	for i in _params[_count]:
 		if i < ret:
@@ -109,10 +109,10 @@ func sum(param):
 	if not _empty_data_mode:
 		_register("sum", param)
 	if _preparing:
-		return -9223372036854775808
+		return self
 	if not _params.has(_count):
 		_return_null = true
-		return -9223372036854775808
+		return null
 	var ret = _params[_count][0]
 	for i in _params[_count]:
 		ret += i
@@ -123,10 +123,10 @@ func avg(param):
 	if not _empty_data_mode:
 		_register("avg", param)
 	if _preparing:
-		return -9223372036854775808
+		return self
 	if not _params.has(_count):
 		_return_null = true
-		return -9223372036854775808
+		return null
 	var ret = _params[_count][0]
 	for i in _params[_count]:
 		ret += i
@@ -137,10 +137,10 @@ func first(param):
 	if not _empty_data_mode:
 		_register("first", param)
 	if _preparing:
-		return DataTypeDef.DEFUALT_VALUES[typeof(param)]
+		return self
 	if not _params.has(_count):
 		_return_null = true
-		return DataTypeDef.DEFUALT_VALUES[typeof(param)]
+		return null
 	var ret = _params[_count][0]
 	_count += 1
 	return ret
@@ -149,10 +149,10 @@ func last(param):
 	if not _empty_data_mode:
 		_register("last", param)
 	if _preparing:
-		return DataTypeDef.DEFUALT_VALUES[typeof(param)]
+		return self
 	if not _params.has(_count):
 		_return_null = true
-		return DataTypeDef.DEFUALT_VALUES[typeof(param)]
+		return null
 	var ret = _params[_count].back()
 	_count += 1
 	return ret
@@ -186,16 +186,15 @@ func grid_checkbox(param, columns: int, rows: int):
 		cb.button_pressed = true
 	return grid_c
 	
-# NOTICE 非聚合函数，不register TODO FIXME?
+# NOTICE 非聚合函数，不register
 func ifn(condition, value_if_true, value_if_false):
-	#if condition is AggregateFunctions or value_if_true is AggregateFunctions or value_if_false is AggregateFunctions:
+	if condition is AggregateFunctions or value_if_true is AggregateFunctions or value_if_false is AggregateFunctions:
 		#assert(_preparing, "Inner error 330.")
-		#return self # self中必定包含了condition、value_if_true、value_if_false，如果它们是AggregateFunctions的话
+		return self # self中必定包含了condition、value_if_true、value_if_false，如果它们是AggregateFunctions的话
 	return value_if_true if condition else value_if_false
 	
-# NOTICE 非聚合函数，不register TODO FIXME 无法计算？需要记录额外数据
+# NOTICE 非聚合函数，不register
 func ifnull(value, value_if_null):
-	# TODO 想办法把_return_null = true的情况再设置为false
 	if value is AggregateFunctions or value_if_null is AggregateFunctions:
 		return self
 	return value_if_null if typeof(value) == TYPE_NIL else value
