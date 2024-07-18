@@ -2,6 +2,11 @@
 extends RefCounted
 class_name GDSQLExpression
 
+## SQL模式。
+## true：开启SQL模式，那么涉及到null的运算始终返回null，AggregateFunctions对象可以参与运算。
+## false：gdscript常规语法
+var sql_mode: bool = false
+
 var inputs: Array
 var output_type: int = TYPE_NIL
 var expression: String
@@ -3601,6 +3606,10 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 			var ret = _execute(p_inputs, p_instance, op.nodes[0], a, p_const_calls_only, r_error_str)
 			if (ret) :
 				return true
+				
+			if sql_mode and (a[0] == null or a[0] is AggregateFunctions):
+				r_ret[0] = a[0]
+				return false
 
 
 			var b = [null]
@@ -3609,6 +3618,10 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				ret = _execute(p_inputs, p_instance, op.nodes[1], b, p_const_calls_only, r_error_str)
 				if (ret) :
 					return true
+					
+			if sql_mode and (b[0] == null or b[0] is AggregateFunctions):
+				r_ret[0] = b[0]
+				return false
 	
 
 
@@ -3680,6 +3693,10 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 			var ret = _execute(p_inputs, p_instance, index.base, base, p_const_calls_only, r_error_str)
 			if (ret) :
 				return true
+				
+			if sql_mode and (base[0] == null or base[0] is AggregateFunctions):
+				r_ret[0] = base[0]
+				return false
 
 
 			var idx = [null]
@@ -3687,6 +3704,10 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 			ret = _execute(p_inputs, p_instance, index.index, idx, p_const_calls_only, r_error_str)
 			if (ret) :
 				return true
+				
+			if sql_mode and (idx[0] == null or idx[0] is AggregateFunctions):
+				r_ret[0] = idx[0]
+				return false
 
 
 			#var valid
@@ -3736,6 +3757,10 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 			var ret = _execute(p_inputs, p_instance, index.base, base, p_const_calls_only, r_error_str)
 			if (ret) :
 				return true
+				
+			if sql_mode and (base[0] == null or base[0] is AggregateFunctions):
+				r_ret[0] = base[0]
+				return false
 
 
 			# fix index.name is an input node
@@ -3744,7 +3769,11 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				ret = _execute(p_inputs, p_instance, index.name, named_index, p_const_calls_only, r_error_str)
 				if ret:
 					return true
-					
+				
+			if sql_mode and (named_index[0] == null or named_index[0] is AggregateFunctions):
+				r_ret[0] = named_index[0]
+				return false
+				
 			#var valid
 			#r_ret[0] = base[0].get_named(index.name, valid)
 			#if (!valid) :
@@ -3841,6 +3870,10 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				if (ret) :
 					return true
 	
+				if sql_mode and (value[0] == null or value[0] is AggregateFunctions):
+					r_ret[0] = value[0]
+					return false
+				
 				arr[i] = value[0]
 				#argp[i] = arr[i] # argp.write[i] = &arr[i];
 
@@ -4060,6 +4093,10 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				if (ret) :
 					return true
 	
+				if sql_mode and (value[0] == null or value[0] is AggregateFunctions):
+					r_ret[0] = value[0]
+					return false
+					
 				arr[i] = value[0]
 				#argp[i] = arr[i] # argp.write[i] = &arr[i];
 
@@ -4098,6 +4135,11 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 
 			var base = [null]
 			var ret = _execute(p_inputs, p_instance, _call.base, base, p_const_calls_only, r_error_str)
+			
+			# base[0] is AggregateFunctions is ok
+			if sql_mode and base[0] == null:
+				r_ret[0] = null
+				return false
 
 			if (ret) :
 				return true
@@ -4114,6 +4156,10 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 
 				if (ret) :
 					return true
+	
+				if sql_mode and (value[0] == null or value[0] is AggregateFunctions):
+					r_ret[0] = value[0]
+					return false
 	
 				arr[i] = value[0]
 				#argp[i] = arr[i] # argp.write[i] = &arr[i]
