@@ -4173,8 +4173,9 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 					return true
 	
 				if sql_mode and (value[0] == null or value[0] is AggregateFunctions):
-					r_ret[0] = value[0]
-					return false
+					if not base[0] is AggregateFunctions:
+						r_ret[0] = value[0]
+						return false
 	
 				arr[i] = value[0]
 				#argp[i] = arr[i] # argp.write[i] = &arr[i]
