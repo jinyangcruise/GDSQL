@@ -40,11 +40,16 @@ static func evaluate_command(target: Object, command: String, variable_names = [
 ## variable_names：参数名称列表
 ## variable_values：参数值列表
 static func evalute_command_with_agg(target: AggregateFunctions, command: String, variable_names = [], variable_values = []):
-	var expression = GDSQLExpression.new()
-	var error = expression.parse(command, variable_names)
-	if error != OK:
-		push_error(expression.get_error_text())
-		return null
+	var ex_key = command + str(variable_names)
+	var expression = GDSQLExpression.EXPRESSION_CACHE.get_value(ex_key) # ALERT UNSAFE
+	if not expression:
+		expression = GDSQLExpression.new()
+		expression.sql_mode = true
+		var error = expression.parse(command, variable_names)
+		if error != OK:
+			push_error(expression.get_error_text())
+			return null
+		GDSQLExpression.EXPRESSION_CACHE.put_value(ex_key, expression)
 	var ret = expression.execute(variable_values, target, false)
 	
 	## 对于一些很简单的但Expression又不支持的写法，动态创建脚本
