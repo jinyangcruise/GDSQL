@@ -212,7 +212,7 @@ func select(something: String, need_head: bool) -> BaseDao:
 			var field_as = ""
 			
 			var m = regex_as.search(field_str)
-			# t. name 也会匹配上，所以还需要检查前面那个符号是不是“.”
+			# t. name 或别的运算符也会匹配上，所以还需要检查前面那个符号是不是运算符
 			if m and not field_str[m.get_start(1)-1] in ".+-*/&^%<>|!~":
 				field_str = field_str.substr(0, m.get_start(1))
 				field_as = m.get_string(3)
@@ -223,9 +223,9 @@ func select(something: String, need_head: bool) -> BaseDao:
 	else:
 		var field_as = ""
 		var m = regex_as.search(something)
-		if m:
-			# 实际要求的式子，例子中的t_user.icon(1, 2, \"a, b\")
+		if m and not something[m.get_start(1)-1] in ".+-*/&^%<>|!~":
 			something = something.substr(0, m.get_start(1))
+			field_as = m.get_string(3)
 			
 		__field_as_index[__select.size()] = field_as
 		__select.push_back(something)
