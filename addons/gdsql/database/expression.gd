@@ -2241,7 +2241,7 @@ func _set_error(p_err):
 	if error_set:
 		return
 		
-	error_str = p_err
+	error_str = p_err + ' in ' + expression
 	error_set = true
 	
 func alloc_node(type: String) -> ExpressionENode:
@@ -2999,10 +2999,25 @@ func _parse_expression() -> ExpressionENode:
 						_get_token(tk)
 						if (tk.type == TokenType.TK_PARENTHESIS_CLOSE) :
 							break
-			
-						str_ofs = cofs2 # revert
+							
+						# count(*) 特殊处理，相当于count('*')
+						var subexpr
+						if sql_mode and identifier == "count" and tk.type == TokenType.TK_OP_MUL:
+							var cofs3 = str_ofs
+							_get_token(tk)
+							if tk.type == TokenType.TK_PARENTHESIS_CLOSE:
+								var constant = alloc_node('ConstantNode')
+								constant.value = '*'
+								subexpr = constant
+								str_ofs = cofs3
+							else:
+								_set_error("Expected ')'")
+								return null
+						else:
+							str_ofs = cofs2 # revert
 						# parse an expression
-						var subexpr = _parse_expression()
+						if !subexpr:
+							subexpr = _parse_expression()
 						if (!subexpr) :
 							return null
 			
@@ -4135,14 +4150,14 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 
 			var base = [null]
 			var ret = _execute(p_inputs, p_instance, _call.base, base, p_const_calls_only, r_error_str)
-			
+
+			if (ret) :
+				return true
+				
 			# base[0] is AggregateFunctions is ok
 			if sql_mode and base[0] == null:
 				r_ret[0] = null
 				return false
-
-			if (ret) :
-				return true
 
 
 			var arr = []
