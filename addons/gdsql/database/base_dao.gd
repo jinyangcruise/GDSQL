@@ -346,9 +346,6 @@ func delete_from(table: String) -> BaseDao:
 ## 如果多次调用，那么这些条件将是`and`的关系。如需避免多次调用，请使用set_where。
 ## 如果是union的，那么where作用于最终数据集上，也就是第一个BaseDao上。
 func where(cond: String) -> BaseDao:
-	if __parent_union:
-		__parent_union.where(cond)
-		return self
 	if not (__cmd == "select" or __cmd == "update" or __cmd == "delete_from"):
 		assert(_assert("where", false, 
 		"'where' can only be used after 'select' or 'update' or 'delete_from'"))
@@ -697,7 +694,24 @@ func ___select(path: String, fill_primary_key: String = ""):
 	var real_select = __get_head(all_datas, arr_left_join)
 	if real_select == null:
 		_assert("___select", false, "failed to get ResultSet's head.")
+		return null
 		
+	# 检查一下是否有order_by所要的数据
+	for a_order_by in __order_by:
+		if a_order_by[0] is int:
+			if a_order_by[0] > real_select.size() or a_order_by[0] <= 0:
+				_assert("___select", false, "Unknown column '%s' in 'order clause'" % a_order_by[0])
+				return null
+		else:
+			var find = false
+			for i in real_select:
+				if i.select_name == a_order_by[0] or i.field_as == a_order_by[0]:
+					find = true
+					break
+			if not find:
+				_assert("___select", false, "Unknown column '%s' in 'order clause'" % a_order_by[0])
+				return null
+				
 	# 提前汇总一下所有需要的依赖表
 	var dependencies = {}
 	for a_left_join in arr_left_join:
@@ -774,10 +788,10 @@ func ___select(path: String, fill_primary_key: String = ""):
 		for i in real_select.size():
 			if AggregateFunctions.possible_has_func(real_select[i].select_name):
 				total_agg_func_obj[i] = AggregateFunctions.get_instance(i)
-		for i in __order_by.size():
-			if AggregateFunctions.possible_has_func(__order_by[i][0]):
-				var index = real_select.size() + i
-				total_agg_func_obj[index] = AggregateFunctions.get_instance(index)
+		#for i in __order_by.size():
+			#if AggregateFunctions.possible_has_func(__order_by[i][0]):
+				#var index = real_select.size() + i
+				#total_agg_func_obj[index] = AggregateFunctions.get_instance(index)
 	else:
 		var group_key = []
 		for i: String in __group_by:
@@ -963,34 +977,26 @@ func ___select(path: String, fill_primary_key: String = ""):
 						
 			# 把order by要用的value也装进来
 			for i in __order_by.size():
-				var col_index = real_select.size() + i
-				# 聚合函数对象
-				var agg_func_obj = null
-				# 未使用group by但是使用了聚合函数时，在最后一行数据的时候设置聚合对象的状态为准备就绪
-				if total_agg_func_obj.has(col_index):
-					agg_func_obj = total_agg_func_obj.get(col_index)
-					if data_index == ret_filter.size() - 1:
-						AggregateFunctions.prepare_done(agg_func_obj.id)
-				elif pre_group.has(data_index) and pre_group[data_index].has(col_index):
-					agg_func_obj = pre_group[data_index][col_index] as AggregateFunctions
-					if last_group_row_index.has(data_index):
-						AggregateFunctions.prepare_done(agg_func_obj.id)
-				if agg_func_obj:
-					AggregateFunctions.recount(agg_func_obj.id) # 每条数据前需要recount
-					
-				var value = GDSQLUtils.evalute_command_with_agg(agg_func_obj, 
-					__order_by[i][0], variable_names, variable_values)
+				var col_index
+				if __order_by[i][0] is int:
+					col_index = __order_by[i][0] - 1
+				else:
+					var a_index = -1
+					for j in real_select:
+						a_index += 1
+						if j.select_name == __order_by[i][0] or j.field_as == __order_by[i][0]:
+							col_index = a_index
+							break
+							
+				var value = row[col_index]
 				row.push_back(value)
 				
-				# 记录该列聚合结果。_used为true表示真的被使用了。
-				if agg_func_obj and agg_func_obj._used and not agg_func_obj._preparing:
-					if not confirmed_value_with_agg_func.has(data_index):
-						confirmed_value_with_agg_func[data_index] = {}
-					confirmed_value_with_agg_func[data_index][index] = value
-					if not agg_func_obj_final_col_value.has(agg_func_obj):
-						agg_func_obj_final_col_value[agg_func_obj] = {}
-					agg_func_obj_final_col_value[agg_func_obj][index] = value
-					
+				# 关联一下这列的最终值
+				if confirmed_value_with_agg_func.has(data_index) and \
+				confirmed_value_with_agg_func[data_index].has(col_index):
+					confirmed_value_with_agg_func[data_index][real_select.size() + i] = \
+						confirmed_value_with_agg_func[data_index][col_index]
+						
 			ret_post_process.push_back(row)
 			
 	# group by 分组，支持列别名
@@ -1019,6 +1025,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 							row.push_back(confirmed_value_with_agg_func[i])
 						else:
 							row.push_back(first_row[i])
+							
 				# 原数据有head的时候记得加上
 				if has_head:
 					grouped_ret = [ret_post_process[0], row]
@@ -1027,7 +1034,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 			# 聚合结果字典为空，而且数据集不为空，那说明没有使用真实聚合函数，不做处理
 			elif (has_head and ret_post_process.size() > 1) or (not has_head and ret_post_process.size() > 0):
 				grouped_ret = ret_post_process
-			# 否则，还是要继续检查，因为数据集为空不能说明是否用了聚合函数
+			# 数据集为空，还是要继续检查，因为数据集为空不能说明是否用了聚合函数
 			else:
 				# 检查一下确实是空数据集
 				assert((has_head and ret_post_process.size() == 1) or \
@@ -1065,7 +1072,23 @@ func ___select(path: String, fill_primary_key: String = ""):
 						row.push_back(value)
 					else:
 						row.push_back(null)
-				# NOTICE row就不添加order by的值了，因为就一条数据，不需要排序
+						
+				# 把order by要用的value也装进来
+				for i in __order_by.size():
+					var col_index
+					if __order_by[i][0] is int:
+						col_index = __order_by[i][0] - 1
+					else:
+						var a_index = -1
+						for j in real_select:
+							a_index += 1
+							if j.select_name == __order_by[i][0] or j.field_as == __order_by[i][0]:
+								col_index = a_index
+								break
+								
+					var value = row[col_index]
+					row.push_back(value)
+					
 				# 确实用了聚合函数
 				if has_real_agg_func:
 					# 原数据有head的时候记得加上
@@ -1106,7 +1129,12 @@ func ___select(path: String, fill_primary_key: String = ""):
 	if __union_all:
 #		__union_all.__need_post_porcess = false # 改为需要后处理
 #		__union_all.__need_head = false
+		# 为了让union表数据包含order by的列，需要先设置一下
+		__union_all.__order_by = __order_by.duplicate()
 		var union_datas = __union_all.___select(__union_all.__database.path_join(__union_all.__table))
+		if union_datas == null:
+			_assert("___select", false, "Error occur!")
+			return null
 		grouped_ret.append_array(union_datas)
 		# 防止内存占用
 		__union_all.reset()
@@ -1135,15 +1163,25 @@ func ___select(path: String, fill_primary_key: String = ""):
 					continue
 				else:
 					if a_order_by[1] == ORDER_BY.ASC:
+						if v1 == null and v2 != null:
+							return true
+						if v2 == null and v1 != null:
+							return false
+						if v1 == null and v2 == null:
+							return false
 						if v1 < v2:
 							return true
-						else:
-							return false
+						return false
 					else:
+						if v1 == null and v2 != null:
+							return false
+						if v2 == null and v1 != null:
+							return true
+						if v1 == null and v2 == null:
+							return false
 						if v1 > v2:
 							return true
-						else:
-							return false
+						return false
 			return false
 			
 		grouped_ret.sort_custom(compare)
@@ -1163,8 +1201,10 @@ func ___select(path: String, fill_primary_key: String = ""):
 		for i in grouped_ret:
 			if i is Array and i.size() > real_select.size():
 				for j in remove_num:
-					i.pop_back()
-					
+					if i.size() > real_select.size():
+						i.pop_back()
+					else:
+						break
 	## 替换表头
 	#grouped_ret[0] = real_select
 	return grouped_ret
