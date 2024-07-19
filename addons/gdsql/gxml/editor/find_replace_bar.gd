@@ -561,8 +561,10 @@ func _ready() -> void:
 	search_text.custom_minimum_size.x = 100 * EDSCALE
 	replace_text.custom_minimum_size.x = 100 * EDSCALE
 	#find_prev.custom_minimum_size.y = search_text.size.y
-	find_prev.icon = get_theme_icon("MoveUp", "EditorIcons")
-	find_next.icon = get_theme_icon("MoveDown", "EditorIcons")
+	if not find_prev.icon:
+		find_prev.icon = get_theme_icon("MoveUp", "EditorIcons")
+	if not find_next.icon:
+		find_next.icon = get_theme_icon("MoveDown", "EditorIcons")
 	hide_button.set_texture_normal(get_theme_icon("Close", "EditorIcons"))
 	hide_button.set_texture_hover(get_theme_icon("Close", "EditorIcons"))
 	hide_button.set_texture_pressed(get_theme_icon("Close", "EditorIcons"))
