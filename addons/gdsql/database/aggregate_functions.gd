@@ -76,101 +76,102 @@ func count(param):
 	return _params[0].size()
 	
 func maxn(param):
+	var curr_count = _count
 	if not _empty_data_mode:
 		_register("maxn", param)
 	if _preparing:
 		return self
-	if not _params.has(_count):
+	if not _params.has(curr_count):
 		_return_null = true
 		return null
-	var ret = _params[_count][0]
-	for i in _params[_count]:
+	var ret = _params[curr_count][0]
+	for i in _params[curr_count]:
 		if i > ret:
 			ret = i
-	_count += 1
 	return ret
 	
 func minn(param):
+	var curr_count = _count
 	if not _empty_data_mode:
 		_register("minn", param)
 	if _preparing:
 		return self
-	if not _params.has(_count):
+	if not _params.has(curr_count):
 		_return_null = true
 		return null
-	var ret = _params[_count][0]
-	for i in _params[_count]:
+	var ret = _params[curr_count][0]
+	for i in _params[curr_count]:
 		if i < ret:
 			ret = i
-	_count += 1
 	return ret
 	
 func sum(param):
+	var curr_count = _count
 	if not _empty_data_mode:
 		_register("sum", param)
 	if _preparing:
 		return self
-	if not _params.has(_count):
+	if not _params.has(curr_count):
 		_return_null = true
 		return null
-	var ret = _params[_count][0]
-	for i in _params[_count]:
+	var ret = _params[curr_count][0]
+	for i in _params[curr_count]:
 		ret += i
-	_count += 1
 	return ret
 	
 func avg(param):
+	var curr_count = _count
 	if not _empty_data_mode:
 		_register("avg", param)
 	if _preparing:
 		return self
-	if not _params.has(_count):
+	if not _params.has(curr_count):
 		_return_null = true
 		return null
-	var ret = _params[_count][0]
-	for i in _params[_count]:
+	var ret = _params[curr_count][0]
+	for i in _params[curr_count]:
 		ret += i
-	_count += 1
-	return ret / float(_params[_count].size())
+	return ret / float(_params[curr_count].size())
 	
 func first(param):
+	var curr_count = _count
 	if not _empty_data_mode:
 		_register("first", param)
 	if _preparing:
 		return self
-	if not _params.has(_count):
+	if not _params.has(curr_count):
 		_return_null = true
 		return null
-	var ret = _params[_count][0]
-	_count += 1
+	var ret = _params[curr_count][0]
 	return ret
 	
 func last(param):
+	var curr_count = _count
 	if not _empty_data_mode:
 		_register("last", param)
 	if _preparing:
 		return self
-	if not _params.has(_count):
+	if not _params.has(curr_count):
 		_return_null = true
 		return null
-	var ret = _params[_count].back()
-	_count += 1
+	var ret = _params[curr_count].back()
 	return ret
 	
 ## 元素必须是一个vector2或vector2i，x代表行序号，y代表列序号
 ## columns: 列数
 ## rows: 行数
 func grid_checkbox(param, columns: int, rows: int):
+	var curr_count = _count
 	if not _empty_data_mode:
 		_register("grid_checkbox", param)
 	if _preparing:
 		return self # 用户也不会拿这个去做运算，所以返回self
-	if not _params.has(_count):
+	if not _params.has(curr_count):
 		_return_null = true
 		return null # 用户也不会拿这个去做运算，所以返回self
 	var grid_c = GridContainer.new()
 	grid_c.columns = columns
-	var is_vector2 = _params[_count][0] is Vector2
+	var is_vector2 = _params[curr_count][0] is Vector2
 	for i in rows:
 		for j in columns:
 			var cb = CheckBox.new()
@@ -180,7 +181,7 @@ func grid_checkbox(param, columns: int, rows: int):
 			else:
 				cb.set_meta("pos", Vector2i(i, j))
 			grid_c.add_child(cb)
-	for i in _params[_count]:
+	for i in _params[curr_count]:
 		var idx = i.x * rows + i.y
 		var cb = grid_c.get_child(idx) as CheckBox
 		cb.button_pressed = true
