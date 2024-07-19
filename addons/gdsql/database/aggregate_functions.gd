@@ -62,11 +62,11 @@ func _register(method: String, param):
 	_params[_count].push_back(param)
 	assert(_methods[_count] == method, "Method not match!")
 	_count += 1
-	_is_real_aggregate_func = true
-	_used = true
 	return self
 	
 func count(param):
+	_used = true
+	_is_real_aggregate_func = true
 	if not _empty_data_mode:
 		_register("count", param)
 	if _preparing:
@@ -76,6 +76,8 @@ func count(param):
 	return _params[0].size()
 	
 func maxn(param):
+	_used = true
+	_is_real_aggregate_func = true
 	var curr_count = _count
 	if not _empty_data_mode:
 		_register("maxn", param)
@@ -91,6 +93,8 @@ func maxn(param):
 	return ret
 	
 func minn(param):
+	_used = true
+	_is_real_aggregate_func = true
 	var curr_count = _count
 	if not _empty_data_mode:
 		_register("minn", param)
@@ -106,6 +110,8 @@ func minn(param):
 	return ret
 	
 func sum(param):
+	_used = true
+	_is_real_aggregate_func = true
 	var curr_count = _count
 	if not _empty_data_mode:
 		_register("sum", param)
@@ -120,6 +126,8 @@ func sum(param):
 	return ret
 	
 func avg(param):
+	_used = true
+	_is_real_aggregate_func = true
 	var curr_count = _count
 	if not _empty_data_mode:
 		_register("avg", param)
@@ -134,6 +142,8 @@ func avg(param):
 	return ret / float(_params[curr_count].size())
 	
 func first(param):
+	_used = true
+	_is_real_aggregate_func = true
 	var curr_count = _count
 	if not _empty_data_mode:
 		_register("first", param)
@@ -146,6 +156,8 @@ func first(param):
 	return ret
 	
 func last(param):
+	_used = true
+	_is_real_aggregate_func = true
 	var curr_count = _count
 	if not _empty_data_mode:
 		_register("last", param)
@@ -161,6 +173,8 @@ func last(param):
 ## columns: 列数
 ## rows: 行数
 func grid_checkbox(param, columns: int, rows: int):
+	_used = true
+	_is_real_aggregate_func = true
 	var curr_count = _count
 	if not _empty_data_mode:
 		_register("grid_checkbox", param)
