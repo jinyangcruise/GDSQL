@@ -462,16 +462,25 @@ func order_by_str(string: String) -> BaseDao:
 	else:
 		arr.push_back(string)
 		
-	for a_order in arr:
-		if a_order.ends_with(" asc") or a_order.ends_with(" ASC") or \
-		a_order.ends_with("\tasc") or a_order.ends_with("\tASC") or \
-		a_order.ends_with("\nasc") or a_order.ends_with("\nASC"):
-			__order_by.push_back([a_order.substr(0, a_order.length() - 4).strip_edges(), ORDER_BY.ASC])
-		elif a_order.ends_with(" desc") or a_order.ends_with(" DESC") or \
-		a_order.ends_with("\tdesc") or a_order.ends_with("\tDESC") or \
-		a_order.ends_with("\ndesc") or a_order.ends_with("\nDESC"):
-			__order_by.push_back([a_order.substr(0, a_order.length() - 5).strip_edges(), ORDER_BY.DESC])
-		else:
+	for a_order: String in arr:
+		a_order = a_order.strip_edges()
+		var l = a_order.length()
+		var find = false
+		if l > 4 and (a_order.contains(" ") or \
+		a_order.contains("\t") or a_order.contains("\n")):
+			if l > 5:
+				if a_order.countn(" desc", l - 5) > 0 or \
+				a_order.countn("\tdesc", l - 5) > 0 or \
+				a_order.countn("\ndesc", l - 5) > 0:
+					__order_by.push_back([a_order.substr(0, l - 5).strip_edges(), ORDER_BY.DESC])
+					find = true
+			if not find:
+				if a_order.countn(" asc", l - 4) > 0 or \
+				a_order.countn("\tasc", l - 4) > 0 or \
+				a_order.countn("\nasc", l - 4) > 0:
+					__order_by.push_back([a_order.substr(0, l - 4).strip_edges(), ORDER_BY.ASC])
+					find = true
+		if not find:
 			__order_by.push_back([a_order, ORDER_BY.ASC])
 			
 	return self
@@ -878,6 +887,22 @@ func ___select(path: String, fill_primary_key: String = ""):
 		has_head = true
 		ret_post_process.push_back(head)
 		
+	# order by 对应的列的序号
+	var for_order = [] 
+	for i in __order_by.size():
+		var col_index
+		if __order_by[i][0] is int:
+			col_index = __order_by[i][0] - 1
+		else:
+			var a_index = -1
+			for j in real_select:
+				a_index += 1
+				if j.select_name == __order_by[i][0] or j.field_as == __order_by[i][0]:
+					col_index = a_index
+					break
+					
+		for_order.push_back(col_index)
+		
 	# 确认的使用了聚合对象来完成计算的结果
 	var agg_func_obj_final_col_value = {} # obj => value
 	var confirmed_value_with_agg_func = {} # 第row行数据 => {第col个数 => 计算结果}
@@ -889,6 +914,8 @@ func ___select(path: String, fill_primary_key: String = ""):
 			var row = []
 			for f in real_select:
 				row.push_back(d[__table_alias][f["Column Name"]])
+			for i in for_order:
+				row.push_back(row[i])
 			ret_post_process.push_back(row)
 	else:
 		# 数据格式是统一按表分类的，把字段中点号取值处理成方括号取值
@@ -976,26 +1003,16 @@ func ___select(path: String, fill_primary_key: String = ""):
 						agg_func_obj_final_col_value[agg_func_obj][index] = value
 						
 			# 把order by要用的value也装进来
-			for i in __order_by.size():
-				var col_index
-				if __order_by[i][0] is int:
-					col_index = __order_by[i][0] - 1
-				else:
-					var a_index = -1
-					for j in real_select:
-						a_index += 1
-						if j.select_name == __order_by[i][0] or j.field_as == __order_by[i][0]:
-							col_index = a_index
-							break
-							
-				var value = row[col_index]
-				row.push_back(value)
+			var a_index = real_select.size() - 1
+			for i in for_order:
+				a_index += 1
+				row.push_back(row[i])
 				
 				# 关联一下这列的最终值
 				if confirmed_value_with_agg_func.has(data_index) and \
-				confirmed_value_with_agg_func[data_index].has(col_index):
-					confirmed_value_with_agg_func[data_index][real_select.size() + i] = \
-						confirmed_value_with_agg_func[data_index][col_index]
+				confirmed_value_with_agg_func[data_index].has(i):
+					confirmed_value_with_agg_func[data_index][a_index] = \
+						confirmed_value_with_agg_func[data_index][i]
 						
 			ret_post_process.push_back(row)
 			
