@@ -389,25 +389,26 @@ static func parse_replace(sql: String) -> Array:
 		ret = _check_semicolon(ret)
 		return ret
 	return []
-
+	
 static func extract_outer_quotes(text):
 	var stack = []  # 用于跟踪当前处理的引号层级
 	var result = []  # 存储提取的引号内容
 	var current_string = ""  # 临时存储正在构建的引号内字符串
-	var quote_types = {"\"": "\"", "\'": "\'"}
+	var quote_types = {'"': '"', "'": "'", '(': ')', '[': ']', '{': '}'}
+	var quote_types_values = quote_types.values()
 	var in_quote = false  # 标记当前是否在引号内
 	
 	for a_char in text:
-		if a_char in quote_types.values():
+		if a_char in quote_types or a_char in quote_types_values:
 			if not in_quote:  # 如果不在引号内，遇到引号则开始记录
 				stack.append(a_char)  # 记录引号类型
 				in_quote = true
 			else:  # 已在引号内，遇到相同类型的引号结束记录
-				if stack[stack.size() - 1] == a_char:
+				if quote_types[stack.back()] == a_char:
 					var q = stack.pop_back()  # 移除栈顶的引号类型
-					result.append("%s%s%s" % [q, current_string, q])  # 保存内容
+					result.append("%s%s%s" % [q, current_string, quote_types[q]])  # 保存内容
 					current_string = ""  # 重置临时字符串
-					in_quote = false
+					in_quote = not stack.is_empty()
 				else:
 					# 遇到不同类型的引号，视为普通字符
 					current_string += a_char
