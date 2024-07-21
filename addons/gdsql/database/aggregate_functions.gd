@@ -24,9 +24,13 @@ var _used = false ## 该对象的真实聚合函数被至少使用过一次
 var _return_null = false ## 真实返回值是否为null。true表示null参与了运算
 
 const FUNCTIONS = ["count", "maxn", "minn", "sum", "avg", "first", "last", 
-"grid_checkbox", "ifn", "ifnull"]
+"distinct_group_concat", "group_concat", "grid_checkbox", "ifn", "ifnull"]
 
 static var _instances = {}
+static var regex_comma: RegEx = RegEx.new()
+
+static func _static_init() -> void:
+	regex_comma.compile(",(?=(([^']*'){2})*[^']*$)(?=(([^\"]*\"){2})*[^\"]*$)(?![^()]*\\))")
 
 ## 重置调用次数
 static func recount(p_id):
@@ -168,6 +172,196 @@ func last(param):
 		return null
 	var ret = _params[curr_count].back()
 	return ret
+	
+## same as: group_concat(distinct id, "+", id order by id separator ':')
+func distinct_group_concat(param, separator = ',', order = ''):
+	_used = true
+	_is_real_aggregate_func = true
+	var curr_count = _count
+	if not _empty_data_mode:
+		_register("distinct_group_concat", param)
+	if _preparing:
+		return self
+	if not _params.has(curr_count):
+		_return_null = true
+		return null
+		
+	var list = []
+	if order == '' or _params.size() <= 1:
+		for i in _params:
+			if not i in list:
+				list.push_back(i)
+		return separator.join(list)
+		
+	var matches = regex_comma.search_all(order)
+	var arr = []
+	if not matches.is_empty():
+		var start = 0
+		for i in matches:
+			# 知道逗号的起始位置，就可以截取逗号前的位置到上一个逗号的结束位置
+			var a_order = order.substr(start, i.get_start() - start).strip_edges()
+			arr.push_back(a_order)
+			start = i.get_end()
+			
+		# 别忘了还有最后一个逗号到最后
+		if start < order.length():
+			var a_order = order.substr(start).strip_edges()
+			arr.push_back(a_order)
+	else:
+		arr.push_back(order)
+		
+	var order_by = []
+	for a_order: String in arr:
+		a_order = a_order.strip_edges()
+		var l = a_order.length()
+		var find = false
+		if l > 4 and (a_order.contains(" ") or \
+		a_order.contains("\t") or a_order.contains("\n")):
+			if l > 5:
+				if a_order.countn(" desc", l - 5) > 0 or \
+				a_order.countn("\tdesc", l - 5) > 0 or \
+				a_order.countn("\ndesc", l - 5) > 0:
+					order_by.push_back([a_order.substr(0, l - 5).strip_edges(), 1])
+					find = true
+			if not find:
+				if a_order.countn(" asc", l - 4) > 0 or \
+				a_order.countn("\tasc", l - 4) > 0 or \
+				a_order.countn("\nasc", l - 4) > 0:
+					order_by.push_back([a_order.substr(0, l - 4).strip_edges(), 0])
+					find = true
+		if not find:
+			order_by.push_back([a_order, 0])
+			
+	var compare := func(a, b):
+		for a_order_by in order_by:
+			var order_value_index = int(a_order_by[0])
+			var v1 = a[order_value_index]
+			var v2 = b[order_value_index]
+			if v1 == v2:
+				continue
+			else:
+				if a_order_by[1] == 0:
+					if v1 == null and v2 != null:
+						return true
+					if v2 == null and v1 != null:
+						return false
+					if v1 == null and v2 == null:
+						return false
+					if v1 < v2:
+						return true
+					return false
+				else:
+					if v1 == null and v2 != null:
+						return false
+					if v2 == null and v1 != null:
+						return true
+					if v1 == null and v2 == null:
+						return false
+					if v1 > v2:
+						return true
+					return false
+		return false
+		
+	for i in _params:
+		if not i in list:
+			list.push_back(i)
+	list.sort_custom(compare)
+	return separator.join(list)
+	
+## support: group_concat(id)
+## support: group_concat(id separator ':') => group_concat(id, ':')
+## support: group_concat(id order by id) => group_concat(id, ',', 'id')
+## support: group_concat(id order by id desc separator ':') => group_concat(id, ':', 'id desc')
+## support: group_concat(id, "+", uid order by sid asc separator ':') => 
+##          group_concat(id + "+" + uid, ':', 'id desc')
+## support: group_concat(distinct id, "+", uid order by sid asc separator ':') => 
+##          distinct_group_concat(id + "+" + uid, ':', 'id asc')
+func group_concat(param, separator = ',', order = ''):
+	_used = true
+	_is_real_aggregate_func = true
+	var curr_count = _count
+	if not _empty_data_mode:
+		_register("group_concat", param)
+	if _preparing:
+		return self
+	if not _params.has(curr_count):
+		_return_null = true
+		return null
+		
+	if order == '' or _params.size() <= 1:
+		return separator.join(_params)
+		
+	var matches = regex_comma.search_all(order)
+	var arr = []
+	if not matches.is_empty():
+		var start = 0
+		for i in matches:
+			# 知道逗号的起始位置，就可以截取逗号前的位置到上一个逗号的结束位置
+			var a_order = order.substr(start, i.get_start() - start).strip_edges()
+			arr.push_back(a_order)
+			start = i.get_end()
+			
+		# 别忘了还有最后一个逗号到最后
+		if start < order.length():
+			var a_order = order.substr(start).strip_edges()
+			arr.push_back(a_order)
+	else:
+		arr.push_back(order)
+		
+	var order_by = []
+	for a_order: String in arr:
+		a_order = a_order.strip_edges()
+		var l = a_order.length()
+		var find = false
+		if l > 4 and (a_order.contains(" ") or \
+		a_order.contains("\t") or a_order.contains("\n")):
+			if l > 5:
+				if a_order.countn(" desc", l - 5) > 0 or \
+				a_order.countn("\tdesc", l - 5) > 0 or \
+				a_order.countn("\ndesc", l - 5) > 0:
+					order_by.push_back([a_order.substr(0, l - 5).strip_edges(), 1])
+					find = true
+			if not find:
+				if a_order.countn(" asc", l - 4) > 0 or \
+				a_order.countn("\tasc", l - 4) > 0 or \
+				a_order.countn("\nasc", l - 4) > 0:
+					order_by.push_back([a_order.substr(0, l - 4).strip_edges(), 0])
+					find = true
+		if not find:
+			order_by.push_back([a_order, 0])
+			
+	var compare := func(a, b):
+		for a_order_by in order_by:
+			var order_value_index = int(a_order_by[0])
+			var v1 = a[order_value_index]
+			var v2 = b[order_value_index]
+			if v1 == v2:
+				continue
+			else:
+				if a_order_by[1] == 0:
+					if v1 == null and v2 != null:
+						return true
+					if v2 == null and v1 != null:
+						return false
+					if v1 == null and v2 == null:
+						return false
+					if v1 < v2:
+						return true
+					return false
+				else:
+					if v1 == null and v2 != null:
+						return false
+					if v2 == null and v1 != null:
+						return true
+					if v1 == null and v2 == null:
+						return false
+					if v1 > v2:
+						return true
+					return false
+		return false
+		
+	_params.sort_custom(compare)
+	return separator.join(_params)
 	
 ## 元素必须是一个vector2或vector2i，x代表行序号，y代表列序号
 ## columns: 列数
