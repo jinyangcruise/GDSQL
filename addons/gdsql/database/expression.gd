@@ -1628,10 +1628,10 @@ const utility_function_table = {
 	'wrap': [3, ' FUNCBINDVR3(wrap, sarray("value", "min", "max"), Variant::UTILITY_FUNC_TYPE_MATH);', wrap],
 	'wrapi': [3, ' FUNCBINDR(wrapi, sarray("value", "min", "max"), Variant::UTILITY_FUNC_TYPE_MATH);',wrapi],
 	'wrapf': [3, ' FUNCBINDR(wrapf, sarray("value", "min", "max"), Variant::UTILITY_FUNC_TYPE_MATH);', wrapf],
-	'max': [0, ' FUNCBINDVARARG(max, sarray(), Variant::UTILITY_FUNC_TYPE_MATH);', max],
+	'max': [-1, ' FUNCBINDVARARG(max, sarray(), Variant::UTILITY_FUNC_TYPE_MATH);', max],
 	'maxi': [2, ' FUNCBINDR(maxi, sarray("a", "b"), Variant::UTILITY_FUNC_TYPE_MATH);', maxi],
 	'maxf': [2, ' FUNCBINDR(maxf, sarray("a", "b"), Variant::UTILITY_FUNC_TYPE_MATH);', maxf],
-	'min': [0, ' FUNCBINDVARARG(min, sarray(), Variant::UTILITY_FUNC_TYPE_MATH);', min],
+	'min': [-1, ' FUNCBINDVARARG(min, sarray(), Variant::UTILITY_FUNC_TYPE_MATH);', min],
 	'mini': [2, ' FUNCBINDR(mini, sarray("a", "b"), Variant::UTILITY_FUNC_TYPE_MATH);', mini],
 	'minf': [2, ' FUNCBINDR(minf, sarray("a", "b"), Variant::UTILITY_FUNC_TYPE_MATH);', minf],
 	'clamp': [3, ' FUNCBINDVR3(clamp, sarray("value", "min", "max"), Variant::UTILITY_FUNC_TYPE_MATH);', clamp],
@@ -1650,18 +1650,18 @@ const utility_function_table = {
 	'weakref': [1, ' FUNCBINDVR(weakref, sarray("obj"), Variant::UTILITY_FUNC_TYPE_GENERAL);', weakref],
 	'typeof': [1, ' FUNCBINDR(_typeof, sarray("variable"), Variant::UTILITY_FUNC_TYPE_GENERAL);', typeof],
 	'type_convert': [2, ' FUNCBINDR(type_convert, sarray("variant", "type"), Variant::UTILITY_FUNC_TYPE_GENERAL);', type_convert],
-	'str': [1, ' FUNCBINDVARARGS(str, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', str],
+	'str': [-1, ' FUNCBINDVARARGS(str, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', str],
 	'error_string': [1, ' FUNCBINDR(error_string, sarray("error"), Variant::UTILITY_FUNC_TYPE_GENERAL);', error_string],
 	'type_string': [1, ' FUNCBINDR(type_string, sarray("type"), Variant::UTILITY_FUNC_TYPE_GENERAL);', type_string],
-	'print': [1, ' FUNCBINDVARARGV(print, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', print],
-	'print_rich': [1, ' FUNCBINDVARARGV(print_rich, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', print_rich],
-	'printerr': [1, ' FUNCBINDVARARGV(printerr, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', printerr],
-	'printt': [1, ' FUNCBINDVARARGV(printt, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', printt],
-	'prints': [1, ' FUNCBINDVARARGV(prints, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', prints],
-	'printraw': [1, ' FUNCBINDVARARGV(printraw, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', printraw],
-	'print_verbose': [1, ' FUNCBINDVARARGV(print_verbose, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', print_verbose],
-	'push_error': [1, ' FUNCBINDVARARGV(push_error, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', push_error],
-	'push_warning': [1, ' FUNCBINDVARARGV(push_warning, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', push_warning],
+	'print': [-1, ' FUNCBINDVARARGV(print, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', print],
+	'print_rich': [-1, ' FUNCBINDVARARGV(print_rich, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', print_rich],
+	'printerr': [-1, ' FUNCBINDVARARGV(printerr, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', printerr],
+	'printt': [-1, ' FUNCBINDVARARGV(printt, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', printt],
+	'prints': [-1, ' FUNCBINDVARARGV(prints, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', prints],
+	'printraw': [-1, ' FUNCBINDVARARGV(printraw, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', printraw],
+	'print_verbose': [-1, ' FUNCBINDVARARGV(print_verbose, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', print_verbose],
+	'push_error': [-1, ' FUNCBINDVARARGV(push_error, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', push_error],
+	'push_warning': [-1, ' FUNCBINDVARARGV(push_warning, sarray(), Variant::UTILITY_FUNC_TYPE_GENERAL);', push_warning],
 	'var_to_str': [1, ' FUNCBINDR(var_to_str, sarray("variable"), Variant::UTILITY_FUNC_TYPE_GENERAL);', var_to_str],
 	'str_to_var': [1, ' FUNCBINDR(str_to_var, sarray("string"), Variant::UTILITY_FUNC_TYPE_GENERAL);', str_to_var],
 	'var_to_bytes': [1, ' FUNCBINDR(var_to_bytes, sarray("variable"), Variant::UTILITY_FUNC_TYPE_GENERAL);', var_to_bytes],
@@ -2291,22 +2291,22 @@ func ERR_FAIL_V(m_retval):
 	push_error("Method/function failed. Returning: %s" % m_retval)
 	return m_retval
 
-func is_digit(c: String) -> bool:
+static func is_digit(c: String) -> bool:
 	return c >= '0' and c <= '9'
 	
-func is_hex_digit(c: String):
+static func is_hex_digit(c: String):
 	return (is_digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))
 
-func is_unicode_identifier_start(c: String) -> bool:
+static func is_unicode_identifier_start(c: String) -> bool:
 	return BSEARCH_CHAR_RANGE(xid_start, c)
 	
-func is_binary_digit(c: String) -> bool:
+static func is_binary_digit(c: String) -> bool:
 	return (c == '0' || c == '1')
 	
-func is_unicode_identifier_continue(c: String) -> bool:
+static func is_unicode_identifier_continue(c: String) -> bool:
 	return BSEARCH_CHAR_RANGE(xid_continue, c)
 	
-func BSEARCH_CHAR_RANGE(m_array, c: String):
+static func BSEARCH_CHAR_RANGE(m_array, c: String):
 	if c == '':
 		return false
 	var low = 0
@@ -2989,12 +2989,31 @@ func _parse_expression() -> ExpressionENode:
 				_get_token(tk)
 				if (tk.type == TokenType.TK_PARENTHESIS_OPEN) :
 					# function call
-					var func_call = alloc_node('CallNode')
+					var func_call = alloc_node('CallNode') as ExpressionCallNode
 					func_call.method = identifier
 					var self_node = alloc_node('SelfNode')
 					func_call.base = self_node
 
+					var arguments_ref = func_call.arguments
+					# group_concat 特殊处理. eg: group_concat(distinct id, "+", id order by id separator ':')
+					if sql_mode and identifier == "group_concat":
+						# group_concat具有多列（不仅仅是多行）拼接的功能，所以要用str包装一下
+						var builtin = alloc_node('BuiltinFuncNode') as ExpressionBuiltinFuncNode
+						builtin._func = 'str'
+						arguments_ref = builtin.arguments
+						func_call.arguments.push_back(builtin)
+						
+						var separator = alloc_node('ConstantNode') as ExpressionConstantNode
+						separator.value = ','
+						func_call.arguments.push_back(separator)
+						
+						var order_by = alloc_node('ConstantNode') as ExpressionConstantNode
+						order_by.value = ''
+						func_call.arguments.push_back(order_by)
+						
+					var index = -1
 					while (true) :
+						index += 1
 						var cofs2 = str_ofs
 						_get_token(tk)
 						if (tk.type == TokenType.TK_PARENTHESIS_CLOSE) :
@@ -3006,15 +3025,22 @@ func _parse_expression() -> ExpressionENode:
 							var cofs3 = str_ofs
 							_get_token(tk)
 							if tk.type == TokenType.TK_PARENTHESIS_CLOSE:
-								var constant = alloc_node('ConstantNode')
+								var constant = alloc_node('ConstantNode') as ExpressionConstantNode
 								constant.value = '*'
 								subexpr = constant
 								str_ofs = cofs3
 							else:
 								_set_error("Expected ')'")
 								return null
+						elif sql_mode and identifier == "group_concat":
+							if index == 0 and tk.type == TokenType.TK_IDENTIFIER and tk.value == "distinct":
+								func_call.method = "distinct_group_concat"
+								# keep str_ofs also: str_ofs = str_ofs
+							else:
+								str_ofs = cofs2
 						else:
 							str_ofs = cofs2 # revert
+							
 						# parse an expression
 						if !subexpr:
 							subexpr = _parse_expression()
@@ -3022,7 +3048,7 @@ func _parse_expression() -> ExpressionENode:
 							return null
 			
 
-						func_call.arguments.push_back(subexpr)
+						arguments_ref.push_back(subexpr)
 
 						cofs2 = str_ofs
 						_get_token(tk)
@@ -3030,6 +3056,70 @@ func _parse_expression() -> ExpressionENode:
 							pass # all good
 						elif (tk.type == TokenType.TK_PARENTHESIS_CLOSE) :
 							str_ofs = cofs2
+						elif sql_mode and identifier == "group_concat" and tk.type == TokenType.TK_IDENTIFIER:
+							match tk.value.to_lower():
+								"order":
+									_get_token(tk)
+									if not (tk.type == TokenType.TK_IDENTIFIER and tk.value.to_lower() == "by"):
+										_set_error("Expectd 'by' after order")
+										return null
+										
+									var order_str_begin = str_ofs
+									var order_str_end = str_ofs
+									var quote_types = {
+										TokenType.TK_CURLY_BRACKET_OPEN: TokenType.TK_CURLY_BRACKET_CLOSE,
+										TokenType.TK_BRACKET_OPEN: TokenType.TK_BRACKET_CLOSE,
+										TokenType.TK_PARENTHESIS_OPEN: TokenType.TK_PARENTHESIS_CLOSE,
+									}
+									var stack = []
+									var in_quote = false
+									while (true) :
+										var cofs3 = str_ofs
+										_get_token(tk)
+										if tk.type == TokenType.TK_EOF:
+											break
+											
+										if not in_quote and tk.type == TokenType.TK_PARENTHESIS_CLOSE:
+											str_ofs = cofs3
+											break
+											
+										if tk.type in quote_types:
+											if not in_quote: # 如果不在引号内，遇到引号则开始记录
+												stack.push_back(tk.type)
+												in_quote = true
+											else:  # 已在引号内，遇到相同类型的引号结束记录
+												if quote_types[stack.back()] == tk.type:
+													stack.pop_back()  # 移除栈顶的引号类型
+													in_quote = not stack.is_empty()
+												else:
+													# 遇到不同类型的引号，视为普通字符
+													order_str_end = str_ofs
+										else:  # 非引号字符
+											if in_quote:
+												order_str_end = str_ofs
+											elif tk.type == TokenType.TK_IDENTIFIER and \
+											tk.value.to_lower() == "separator":
+												str_ofs = cofs3
+												break
+												
+									# 如果栈不为空，说明有开始引号没有匹配的结束引号
+									if stack.size() > 0:
+										var expected = ''
+										match stack.back():
+											TokenType.TK_CURLY_BRACKET_OPEN: expected = '}'
+											TokenType.TK_BRACKET_OPEN: expected = ']'
+											TokenType.TK_PARENTHESIS_OPEN: expected = ')'
+										_set_error("Expected '%s'" % expected)
+										return null
+										
+									# set order by's text
+									(func_call.arguments[2] as ExpressionConstantNode).value = \
+										expression.substr(order_str_begin, order_str_end - order_str_begin)
+								"separator":
+									pass # TODO FIXME
+								_:
+									_set_error("Unexpectd '%s' in group_concat" % tk.value)
+									return null
 						else:
 							_set_error("Expected ',' or ')'")
 			
@@ -3160,7 +3250,7 @@ func _parse_expression() -> ExpressionENode:
 
 				if (!is_utility_function_vararg(bifunc._func)) :
 					var expected_args = get_utility_function_argument_count(bifunc._func)
-					if (expected_args != bifunc.arguments.size()) :
+					if (expected_args != -1 and expected_args != bifunc.arguments.size()) :
 						_set_error("Builtin func '" + str(bifunc._func) + "' expects " + str(expected_args) + " arguments.")
 		
 	
