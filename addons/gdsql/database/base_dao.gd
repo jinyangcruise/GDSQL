@@ -918,16 +918,15 @@ func ___select(path: String, fill_primary_key: String = ""):
 				row.push_back(row[i])
 			ret_post_process.push_back(row)
 	else:
-		# 数据格式是统一按表分类的，把字段中点号取值处理成方括号取值
-		# 匹配t.name.substr(10)这种字符串。不匹配的会原样输出，不会被替换
-		# 注意：这里不兼容t.name.a.b.substr(10)这种太多级的写法。会被改成t["name"].a["b"].substr(10)
-		for i in real_select.size():
-			# t.name.substr(10) 被替换为：t["name"].substr(10)
-			if real_select[i]["is_field"] or real_select[i]["select_name"].contains("."):
-				real_select[i]["name_4_computing"] = real_select[i]["select_name"]
-			else:
-				real_select[i]["name_4_computing"] = ConditionWrapper.modify_dot_to_get(real_select[i]["select_name"])
-				
+		## 数据格式是统一按表分类的，把字段中点号取值处理成方括号取值
+		## 匹配t.name.substr(10)这种字符串。不匹配的会原样输出，不会被替换
+		## 注意：这里不兼容t.name.a.b.substr(10)这种太多级的写法。会被改成t["name"].a["b"].substr(10)
+		#for f in real_select.size():
+			## t.name.substr(10) 被替换为：t["name"].substr(10)
+			#if real_select[i]["is_field"] or real_select[i]["select_name"].contains("."):
+				#real_select[i]["name_4_computing"] = real_select[i]["select_name"]
+			#else:
+				#real_select[i]["name_4_computing"] = ConditionWrapper.modify_dot_to_get(real_select[i]["select_name"])
 		# 求值
 		var data_index = -1
 		for data in ret_filter:
@@ -1378,6 +1377,7 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 		else:
 			f["field_as"] = f["Column Name"]
 			
+		f["name_4_computing"] = f["select_name"]
 	return real_select
 	
 func __get_table_defination(db_path: String, table_name: String):
