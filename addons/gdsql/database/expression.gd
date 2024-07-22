@@ -20,7 +20,7 @@ enum TokenType {
 	TK_BRACKET_OPEN,
 	TK_BRACKET_CLOSE,
 	TK_PARENTHESIS_OPEN,
-	TK_PARENTHESIS_CLOSE,
+	TK_PARENTHESIS_CLOSE, # 5
 	TK_IDENTIFIER,
 	TK_BUILTIN_FUNC,
 	TK_SELF,
@@ -143,6 +143,10 @@ const READING_BIN = 3
 const READING_DEC = 4
 const READING_EXP = 5
 const READING_DONE = 6
+
+## 通过控制该值，可以让parse提前结束
+const MAX_INT = 9223372036854775807
+var max_str_ofs = MAX_INT
 
 ## 引擎自带Expression的缓存
 static var EXPRESSION_CACHE: ExpressionLRULink
@@ -2280,7 +2284,7 @@ func alloc_node(type: String) -> ExpressionENode:
 	return node
 
 func GET_CHAR():
-	if str_ofs >= expression.length():
+	if str_ofs >= max_str_ofs or str_ofs >= expression.length():
 		str_ofs += 1 # 外部有些地方 -=1， 在遇到EOF的时候会导致回退
 		return ''
 	var ret = expression[str_ofs]
@@ -2997,11 +3001,11 @@ func _parse_expression() -> ExpressionENode:
 					var arguments_ref = func_call.arguments
 					# group_concat 特殊处理. eg: group_concat(distinct id, "+", id order by id separator ':')
 					if sql_mode and identifier == "group_concat":
-						# group_concat具有多列（不仅仅是多行）拼接的功能，所以要用str包装一下
-						var builtin = alloc_node('BuiltinFuncNode') as ExpressionBuiltinFuncNode
-						builtin._func = 'str'
-						arguments_ref = builtin.arguments
-						func_call.arguments.push_back(builtin)
+						# group_concat具有多列（不仅仅是多行）拼接的功能，所以要用Array包装一下
+						var cons = alloc_node('ConstructorNode') as ExpressionConstructorNode
+						cons.data_type = TYPE_ARRAY
+						arguments_ref = cons.arguments
+						func_call.arguments.push_back(cons)
 						
 						var separator = alloc_node('ConstantNode') as ExpressionConstantNode
 						separator.value = ','
@@ -3033,7 +3037,7 @@ func _parse_expression() -> ExpressionENode:
 								_set_error("Expected ')'")
 								return null
 						elif sql_mode and identifier == "group_concat":
-							if index == 0 and tk.type == TokenType.TK_IDENTIFIER and tk.value == "distinct":
+							if index == 0 and tk.type == TokenType.TK_IDENTIFIER and tk.value.to_lower() == "distinct":
 								func_call.method = "distinct_group_concat"
 								# keep str_ofs also: str_ofs = str_ofs
 							else:
@@ -3059,6 +3063,11 @@ func _parse_expression() -> ExpressionENode:
 						elif sql_mode and identifier == "group_concat" and tk.type == TokenType.TK_IDENTIFIER:
 							match tk.value.to_lower():
 								"order":
+									if func_call.has_meta('order'):
+										_set_error("Duplicate 'order' in group_concat")
+										return null
+										
+									func_call.set_meta('order', true)
 									_get_token(tk)
 									if not (tk.type == TokenType.TK_IDENTIFIER and tk.value.to_lower() == "by"):
 										_set_error("Expectd 'by' after order")
@@ -3067,6 +3076,7 @@ func _parse_expression() -> ExpressionENode:
 									var order_str_begin = str_ofs
 									var order_str_end = str_ofs
 									var quote_types = {
+										# _get_token会处理引号，所以这里不写引号
 										TokenType.TK_CURLY_BRACKET_OPEN: TokenType.TK_CURLY_BRACKET_CLOSE,
 										TokenType.TK_BRACKET_OPEN: TokenType.TK_BRACKET_CLOSE,
 										TokenType.TK_PARENTHESIS_OPEN: TokenType.TK_PARENTHESIS_CLOSE,
@@ -3099,11 +3109,30 @@ func _parse_expression() -> ExpressionENode:
 												order_str_end = str_ofs
 											elif tk.type == TokenType.TK_IDENTIFIER and \
 											tk.value.to_lower() == "separator":
-												str_ofs = cofs3
-												break
+												if func_call.has_meta('separator'):
+													_set_error("Duplicate 'separator' in group_concat")
+													return null
+													
+												func_call.set_meta('separator', true)
+												_get_token(tk)
+												if not tk.type == TokenType.TK_CONSTANT:
+													_set_error("Expected constant after 'separator' in group_concat")
+													return null
+													
+												# set order by's text
+												(func_call.arguments[1] as ExpressionConstantNode).value = tk.value
+												var cofs4 = str_ofs
+												_get_token(tk)
+												if tk.type == TokenType.TK_PARENTHESIS_CLOSE:
+													str_ofs = cofs4
+												else:
+													_set_error("Expected ')' in group_concat")
+													return null
+											else:
+												order_str_end = str_ofs
 												
 									# 如果栈不为空，说明有开始引号没有匹配的结束引号
-									if stack.size() > 0:
+									if not stack.is_empty():
 										var expected = ''
 										match stack.back():
 											TokenType.TK_CURLY_BRACKET_OPEN: expected = '}'
@@ -3112,11 +3141,32 @@ func _parse_expression() -> ExpressionENode:
 										_set_error("Expected '%s'" % expected)
 										return null
 										
-									# set order by's text
-									(func_call.arguments[2] as ExpressionConstantNode).value = \
-										expression.substr(order_str_begin, order_str_end - order_str_begin)
+									# set order by's text TODO FIXME by可能是一个表达式
+									#max_str_ofs = order_str_end
+									#by = _parse_expression()
+									#max_str_ofs = MAX_INT
+									var by = expression.substr(order_str_begin, order_str_end - order_str_begin).strip_edges()
+									(func_call.arguments[2] as ExpressionConstantNode).value = by
 								"separator":
-									pass # TODO FIXME
+									if func_call.has_meta('separator'):
+										_set_error("Duplicate 'separator' in group_concat")
+										return null
+										
+									func_call.set_meta('separator', true)
+									_get_token(tk)
+									if not tk.type == TokenType.TK_CONSTANT:
+										_set_error("Expected constant after 'separator' in group_concat")
+										return null
+										
+									# set order by's text
+									(func_call.arguments[1] as ExpressionConstantNode).value = tk.value
+									var cofs4 = str_ofs
+									_get_token(tk)
+									if tk.type == TokenType.TK_PARENTHESIS_CLOSE:
+										str_ofs = cofs4
+									else:
+										_set_error("Expected ')' in group_concat")
+										return null
 								_:
 									_set_error("Unexpectd '%s' in group_concat" % tk.value)
 									return null
@@ -3995,58 +4045,78 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 					match arr.size():
 						0: r_ret[0] = bool()
 						1: r_ret[0] = bool(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_INT:
 					match arr.size():
 						0: r_ret[0] = int()
 						1: r_ret[0] = int(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_FLOAT:
 					match arr.size():
 						0: r_ret[0] = float()
 						1: r_ret[0] = float(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_STRING:
 					match arr.size():
 						0: r_ret[0] = String()
 						1: r_ret[0] = String(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_VECTOR2:
 					match arr.size():
 						0: r_ret[0] = Vector2()
 						1: r_ret[0] = Vector2(arr[0])
 						2: r_ret[0] = Vector2(arr[0], arr[1])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_VECTOR2I:
 					match arr.size():
 						0: r_ret[0] = Vector2i()
 						1: r_ret[0] = Vector2i(arr[0])
 						2: r_ret[0] = Vector2i(arr[0], arr[1])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_VECTOR3:
 					match arr.size():
 						0: r_ret[0] = Vector3()
 						1: r_ret[0] = Vector3(arr[0])
 						3: r_ret[0] = Vector3(arr[0], arr[1], arr[2])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_VECTOR3I:
 					match arr.size():
 						0: r_ret[0] = Vector3i()
 						1: r_ret[0] = Vector3i(arr[0])
 						3: r_ret[0] = Vector3i(arr[0], arr[1], arr[2])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_VECTOR4:
 					match arr.size():
 						0: r_ret[0] = Vector4()
 						1: r_ret[0] = Vector4(arr[0])
 						4: r_ret[0] = Vector4(arr[0], arr[1], arr[2], arr[3])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_VECTOR4I:
 					match arr.size():
 						0: r_ret[0] = Vector4i()
 						1: r_ret[0] = Vector4i(arr[0])
 						4: r_ret[0] = Vector4i(arr[0], arr[1], arr[2], arr[3])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_PLANE:
 					match arr.size():
 						0: r_ret[0] = Plane()
@@ -4054,40 +4124,52 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 						2: r_ret[0] = Plane(arr[0], arr[1])
 						3: r_ret[0] = Plane(arr[0], arr[1], arr[2])
 						4: r_ret[0] = Plane(arr[0], arr[1], arr[2], arr[3])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_QUATERNION:
 					match arr.size():
 						0: r_ret[0] = Quaternion()
 						1: r_ret[0] = Quaternion(arr[0])
 						2: r_ret[0] = Quaternion(arr[0], arr[1])
 						4: r_ret[0] = Quaternion(arr[0], arr[1], arr[2], arr[3])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_AABB:
 					match arr.size():
 						0: r_ret[0] = AABB()
 						1: r_ret[0] = AABB(arr[0])
 						2: r_ret[0] = AABB(arr[0], arr[1])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_BASIS:
 					match arr.size():
 						0: r_ret[0] = Basis()
 						1: r_ret[0] = Basis(arr[0])
 						2: r_ret[0] = Basis(arr[0], arr[1])
 						3: r_ret[0] = Basis(arr[0], arr[1], arr[2])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_TRANSFORM3D:
 					match arr.size():
 						0: r_ret[0] = Transform3D()
 						1: r_ret[0] = Transform3D(arr[0])
 						2: r_ret[0] = Transform3D(arr[0], arr[1])
 						4: r_ret[0] = Transform3D(arr[0], arr[1], arr[2], arr[3])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_PROJECTION:
 					match arr.size():
 						0: r_ret[0] = Projection()
 						1: r_ret[0] = Projection(arr[0])
 						4: r_ret[0] = Projection(arr[0], arr[1], arr[2], arr[3])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_COLOR:
 					match arr.size():
 						0: r_ret[0] = Color()
@@ -4095,92 +4177,121 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 						2: r_ret[0] = Color(arr[0], arr[1])
 						3: r_ret[0] = Color(arr[0], arr[1], arr[2])
 						4: r_ret[0] = Color(arr[0], arr[1], arr[2], arr[3])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_STRING_NAME:
 					match arr.size():
 						0: r_ret[0] = StringName()
 						1: r_ret[0] = StringName(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_NODE_PATH:
 					match arr.size():
 						0: r_ret[0] = NodePath()
 						1: r_ret[0] = NodePath(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_RID:
 					match arr.size():
 						0: r_ret[0] = RID()
 						1: r_ret[0] = RID(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_CALLABLE:
 					match arr.size():
 						0: r_ret[0] = Callable()
 						1: r_ret[0] = Callable(arr[0])
 						2: r_ret[0] = Callable(arr[0], arr[1])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_SIGNAL:
 					match arr.size():
 						0: r_ret[0] = Signal()
 						1: r_ret[0] = Signal(arr[0])
 						2: r_ret[0] = Signal(arr[0], arr[1])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_DICTIONARY:
 					match arr.size():
 						0: r_ret[0] = Dictionary()
 						1: r_ret[0] = Dictionary(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_ARRAY:
-					match arr.size():
-						0: r_ret[0] = Array()
-						1: r_ret[0] = Array(arr[0])
-						4: r_ret[0] = Array(arr[0], arr[1], arr[2], arr[3])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+					r_ret[0] = Array(arr)
 				TYPE_PACKED_BYTE_ARRAY:
 					match arr.size():
 						0: r_ret[0] = PackedByteArray()
 						1: r_ret[0] = PackedByteArray(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_PACKED_INT32_ARRAY:
 					match arr.size():
 						0: r_ret[0] = PackedInt32Array()
 						1: r_ret[0] = PackedInt32Array(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_PACKED_INT64_ARRAY:
 					match arr.size():
 						0: r_ret[0] = PackedInt64Array()
 						1: r_ret[0] = PackedInt64Array(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_PACKED_FLOAT32_ARRAY:
 					match arr.size():
 						0: r_ret[0] = PackedFloat32Array()
 						1: r_ret[0] = PackedFloat32Array(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_PACKED_FLOAT64_ARRAY:
 					match arr.size():
 						0: r_ret[0] = PackedFloat64Array()
 						1: r_ret[0] = PackedFloat64Array(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_PACKED_STRING_ARRAY:
 					match arr.size():
 						0: r_ret[0] = PackedStringArray()
 						1: r_ret[0] = PackedStringArray(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_PACKED_VECTOR2_ARRAY:
 					match arr.size():
 						0: r_ret[0] = PackedVector2Array()
 						1: r_ret[0] = PackedVector2Array(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_PACKED_VECTOR3_ARRAY:
 					match arr.size():
 						0: r_ret[0] = PackedVector3Array()
 						1: r_ret[0] = PackedVector3Array(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				TYPE_PACKED_COLOR_ARRAY:
 					match arr.size():
 						0: r_ret[0] = PackedColorArray()
 						1: r_ret[0] = PackedColorArray(arr[0])
-						_: r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
 				_:
 					r_error_str[0] = "Inner error 3280."
+					return true
 
 
 			#break
@@ -4252,7 +4363,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 
 			var arr = []
 			#var argp = []
-			arr.resize(_call.arguments.size())
+			#arr.resize(_call.arguments.size())
 			#argp.resize(_call.arguments.size())
 
 			for i in _call.arguments.size():
@@ -4267,7 +4378,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 						r_ret[0] = value[0]
 						return false
 	
-				arr[i] = value[0]
+				arr.push_back(value[0])
 				#argp[i] = arr[i] # argp.write[i] = &arr[i]
 
 
@@ -4279,6 +4390,23 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				if (ret):
 					return true
 					
+			# support group_concat
+			if sql_mode and method[0].contains('group_concat') and base[0] is AggregateFunctions:
+				var index = -1
+				var param = []
+				for i in _call.arguments[0].arguments:
+					index += 1
+					if i is ExpressionExpressionNode:
+						param.push_back(arr[index])
+					elif i is ExpressionConstantNode:
+						param.push_back(i.value)
+					elif i is ExpressionInputNode:
+						param.push_back(input_names[i.index])
+					else:
+						r_error_str[0] = "Not support this: '%s' in group_concat" % i
+						return true
+				arr.push_back(param)
+				
 			#Callable.CallError ce
 			if (p_const_calls_only) : # p_const_calls_only makes no difference here
 				r_ret[0] = Callable.create(base[0], method[0]).callv(arr)

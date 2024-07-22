@@ -174,7 +174,7 @@ func last(param):
 	return ret
 	
 ## same as: group_concat(distinct id, "+", id order by id separator ':')
-func distinct_group_concat(param, separator = ',', order = ''):
+func distinct_group_concat(param, separator = ',', order = '', param_0_names = []):
 	_used = true
 	_is_real_aggregate_func = true
 	var curr_count = _count
@@ -187,11 +187,11 @@ func distinct_group_concat(param, separator = ',', order = ''):
 		return null
 		
 	var list = []
-	if order == '' or _params.size() <= 1:
-		for i in _params:
+	if order == '' or _params[curr_count].size() <= 1:
+		for i in _params[curr_count]:
 			if not i in list:
 				list.push_back(i)
-		return separator.join(list)
+		return separator.join(list.map(func(v): return ''.join(v)))
 		
 	var matches = regex_comma.search_all(order)
 	var arr = []
@@ -232,11 +232,23 @@ func distinct_group_concat(param, separator = ',', order = ''):
 		if not find:
 			order_by.push_back([a_order, 0])
 			
+	for a_order_by in order_by:
+		var i
+		if a_order_by[0].is_valid_int():
+			i = int(a_order_by[0]) # user will begin from 1
+		else:
+			i = param_0_names.find(a_order_by[0]) + 1 # add 1 to be same as the branch above
+			
+		if i <= 0 or i > param.size():
+			push_error("Unknown column '%s' in 'order clause'" % a_order_by[0])
+			return null
+			
+		a_order_by[0] = i - 1
+		
 	var compare := func(a, b):
 		for a_order_by in order_by:
-			var order_value_index = int(a_order_by[0])
-			var v1 = a[order_value_index]
-			var v2 = b[order_value_index]
+			var v1 = a[a_order_by[0]]
+			var v2 = b[a_order_by[0]]
 			if v1 == v2:
 				continue
 			else:
@@ -262,11 +274,11 @@ func distinct_group_concat(param, separator = ',', order = ''):
 					return false
 		return false
 		
-	for i in _params:
+	for i in _params[curr_count]:
 		if not i in list:
 			list.push_back(i)
 	list.sort_custom(compare)
-	return separator.join(list)
+	return separator.join(list.map(func(v): return ''.join(v)))
 	
 ## support: group_concat(id)
 ## support: group_concat(id separator ':') => group_concat(id, ':')
@@ -276,7 +288,7 @@ func distinct_group_concat(param, separator = ',', order = ''):
 ##          group_concat(id + "+" + uid, ':', 'id desc')
 ## support: group_concat(distinct id, "+", uid order by sid asc separator ':') => 
 ##          distinct_group_concat(id + "+" + uid, ':', 'id asc')
-func group_concat(param, separator = ',', order = ''):
+func group_concat(param, separator = ',', order = '', param_0_names = []):
 	_used = true
 	_is_real_aggregate_func = true
 	var curr_count = _count
@@ -288,8 +300,8 @@ func group_concat(param, separator = ',', order = ''):
 		_return_null = true
 		return null
 		
-	if order == '' or _params.size() <= 1:
-		return separator.join(_params)
+	if order == '' or _params[curr_count].size() <= 1:
+		return separator.join(_params[curr_count].map(func(v): return ''.join(v)))
 		
 	var matches = regex_comma.search_all(order)
 	var arr = []
@@ -330,11 +342,22 @@ func group_concat(param, separator = ',', order = ''):
 		if not find:
 			order_by.push_back([a_order, 0])
 			
+	for a_order_by in order_by:
+		if a_order_by[0].is_valid_int():
+			a_order_by[0] = int(a_order_by[0]) # user will begin from 1
+		else:
+			a_order_by[0] = param_0_names.find(a_order_by[0]) + 1 # add 1 to be same as the branch above
+			
+		if a_order_by[0] <= 0 or a_order_by[0] > param.size():
+			push_error("Unknown column '%s' in 'order clause'" % a_order_by[0])
+			return null
+			
+		a_order_by[0] -= 1
+		
 	var compare := func(a, b):
 		for a_order_by in order_by:
-			var order_value_index = int(a_order_by[0])
-			var v1 = a[order_value_index]
-			var v2 = b[order_value_index]
+			var v1 = a[a_order_by[0]]
+			var v2 = b[a_order_by[0]]
 			if v1 == v2:
 				continue
 			else:
@@ -360,8 +383,8 @@ func group_concat(param, separator = ',', order = ''):
 					return false
 		return false
 		
-	_params.sort_custom(compare)
-	return separator.join(_params)
+	_params[curr_count].sort_custom(compare)
+	return separator.join(_params[curr_count].map(func(v): return ''.join(v)))
 	
 ## 元素必须是一个vector2或vector2i，x代表行序号，y代表列序号
 ## columns: 列数
