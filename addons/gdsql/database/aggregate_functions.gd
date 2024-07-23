@@ -187,54 +187,60 @@ func distinct_group_concat(param, separator = ',', order = '', param_0_names = [
 		return null
 		
 	var list = []
-	if order == '' or _params[curr_count].size() <= 1:
-		for i in _params[curr_count]:
-			if not i in list:
-				list.push_back(i)
-		return separator.join(list.map(func(v): return ''.join(v)))
-		
-	var matches = regex_comma.search_all(order)
-	var arr = []
-	if not matches.is_empty():
-		var start = 0
-		for i in matches:
-			# 知道逗号的起始位置，就可以截取逗号前的位置到上一个逗号的结束位置
-			var a_order = order.substr(start, i.get_start() - start).strip_edges()
-			arr.push_back(a_order)
-			start = i.get_end()
-			
-		# 别忘了还有最后一个逗号到最后
-		if start < order.length():
-			var a_order = order.substr(start).strip_edges()
-			arr.push_back(a_order)
-	else:
-		arr.push_back(order)
-		
 	var order_by = []
-	for a_order: String in arr:
-		a_order = a_order.strip_edges()
-		var l = a_order.length()
-		var find = false
-		if l > 4 and (a_order.contains(" ") or \
-		a_order.contains("\t") or a_order.contains("\n")):
-			if l > 5:
-				if a_order.countn(" desc", l - 5) > 0 or \
-				a_order.countn("\tdesc", l - 5) > 0 or \
-				a_order.countn("\ndesc", l - 5) > 0:
-					order_by.push_back([a_order.substr(0, l - 5).strip_edges(), 1])
-					find = true
-			if not find:
-				if a_order.countn(" asc", l - 4) > 0 or \
-				a_order.countn("\tasc", l - 4) > 0 or \
-				a_order.countn("\nasc", l - 4) > 0:
-					order_by.push_back([a_order.substr(0, l - 4).strip_edges(), 0])
-					find = true
-		if not find:
-			order_by.push_back([a_order, 0])
+	if order is String:
+		if order == '' or _params[curr_count].size() <= 1:
+			for i in _params[curr_count]:
+				if not i in list:
+					list.push_back(i)
+			return separator.join(list.map(func(v): return ''.join(v)))
 			
+		var matches = regex_comma.search_all(order)
+		var arr = []
+		if not matches.is_empty():
+			var start = 0
+			for i in matches:
+				# 知道逗号的起始位置，就可以截取逗号前的位置到上一个逗号的结束位置
+				var a_order = order.substr(start, i.get_start() - start).strip_edges()
+				arr.push_back(a_order)
+				start = i.get_end()
+				
+			# 别忘了还有最后一个逗号到最后
+			if start < order.length():
+				var a_order = order.substr(start).strip_edges()
+				arr.push_back(a_order)
+		else:
+			arr.push_back(order)
+		
+		for a_order: String in arr:
+			a_order = a_order.strip_edges()
+			var l = a_order.length()
+			var find = false
+			if l > 4 and (a_order.contains(" ") or \
+			a_order.contains("\t") or a_order.contains("\n")):
+				if l > 5:
+					if a_order.countn(" desc", l - 5) > 0 or \
+					a_order.countn("\tdesc", l - 5) > 0 or \
+					a_order.countn("\ndesc", l - 5) > 0:
+						order_by.push_back([a_order.substr(0, l - 5).strip_edges(), 1])
+						find = true
+				if not find:
+					if a_order.countn(" asc", l - 4) > 0 or \
+					a_order.countn("\tasc", l - 4) > 0 or \
+					a_order.countn("\nasc", l - 4) > 0:
+						order_by.push_back([a_order.substr(0, l - 4).strip_edges(), 0])
+						find = true
+			if not find:
+				order_by.push_back([a_order, 0])
+	else:
+		assert(order is int, "Inner error aggregate_functions 236")
+		order_by.push_back([order, 0])
+		
 	for a_order_by in order_by:
 		var i
-		if a_order_by[0].is_valid_int():
+		if a_order_by[0] is int:
+			i = a_order_by[0]
+		elif a_order_by[0].is_valid_int():
 			i = int(a_order_by[0]) # user will begin from 1
 		else:
 			i = param_0_names.find(a_order_by[0]) + 1 # add 1 to be same as the branch above
@@ -300,59 +306,66 @@ func group_concat(param, separator = ',', order = '', param_0_names = []):
 		_return_null = true
 		return null
 		
-	if order == '' or _params[curr_count].size() <= 1:
-		return separator.join(_params[curr_count].map(func(v): return ''.join(v)))
-		
-	var matches = regex_comma.search_all(order)
-	var arr = []
-	if not matches.is_empty():
-		var start = 0
-		for i in matches:
-			# 知道逗号的起始位置，就可以截取逗号前的位置到上一个逗号的结束位置
-			var a_order = order.substr(start, i.get_start() - start).strip_edges()
-			arr.push_back(a_order)
-			start = i.get_end()
-			
-		# 别忘了还有最后一个逗号到最后
-		if start < order.length():
-			var a_order = order.substr(start).strip_edges()
-			arr.push_back(a_order)
-	else:
-		arr.push_back(order)
-		
 	var order_by = []
-	for a_order: String in arr:
-		a_order = a_order.strip_edges()
-		var l = a_order.length()
-		var find = false
-		if l > 4 and (a_order.contains(" ") or \
-		a_order.contains("\t") or a_order.contains("\n")):
-			if l > 5:
-				if a_order.countn(" desc", l - 5) > 0 or \
-				a_order.countn("\tdesc", l - 5) > 0 or \
-				a_order.countn("\ndesc", l - 5) > 0:
-					order_by.push_back([a_order.substr(0, l - 5).strip_edges(), 1])
-					find = true
-			if not find:
-				if a_order.countn(" asc", l - 4) > 0 or \
-				a_order.countn("\tasc", l - 4) > 0 or \
-				a_order.countn("\nasc", l - 4) > 0:
-					order_by.push_back([a_order.substr(0, l - 4).strip_edges(), 0])
-					find = true
-		if not find:
-			order_by.push_back([a_order, 0])
+	if order is String:
+		if order == '' or _params[curr_count].size() <= 1:
+			return separator.join(_params[curr_count].map(func(v): return ''.join(v)))
 			
-	for a_order_by in order_by:
-		if a_order_by[0].is_valid_int():
-			a_order_by[0] = int(a_order_by[0]) # user will begin from 1
+		var matches = regex_comma.search_all(order)
+		var arr = []
+		if not matches.is_empty():
+			var start = 0
+			for i in matches:
+				# 知道逗号的起始位置，就可以截取逗号前的位置到上一个逗号的结束位置
+				var a_order = order.substr(start, i.get_start() - start).strip_edges()
+				arr.push_back(a_order)
+				start = i.get_end()
+				
+			# 别忘了还有最后一个逗号到最后
+			if start < order.length():
+				var a_order = order.substr(start).strip_edges()
+				arr.push_back(a_order)
 		else:
-			a_order_by[0] = param_0_names.find(a_order_by[0]) + 1 # add 1 to be same as the branch above
+			arr.push_back(order)
 			
-		if a_order_by[0] <= 0 or a_order_by[0] > param.size():
+		for a_order: String in arr:
+			a_order = a_order.strip_edges()
+			var l = a_order.length()
+			var find = false
+			if l > 4 and (a_order.contains(" ") or \
+			a_order.contains("\t") or a_order.contains("\n")):
+				if l > 5:
+					if a_order.countn(" desc", l - 5) > 0 or \
+					a_order.countn("\tdesc", l - 5) > 0 or \
+					a_order.countn("\ndesc", l - 5) > 0:
+						order_by.push_back([a_order.substr(0, l - 5).strip_edges(), 1])
+						find = true
+				if not find:
+					if a_order.countn(" asc", l - 4) > 0 or \
+					a_order.countn("\tasc", l - 4) > 0 or \
+					a_order.countn("\nasc", l - 4) > 0:
+						order_by.push_back([a_order.substr(0, l - 4).strip_edges(), 0])
+						find = true
+			if not find:
+				order_by.push_back([a_order, 0])
+	else:
+		assert(order is int, "Inner error aggregate_functions 236")
+		order_by.push_back([order, 0])
+		
+	for a_order_by in order_by:
+		var i
+		if a_order_by[0] is int:
+			i = a_order_by[0]
+		elif a_order_by[0].is_valid_int():
+			i = int(a_order_by[0]) # user will begin from 1
+		else:
+			i = param_0_names.find(a_order_by[0]) + 1 # add 1 to be same as the branch above
+			
+		if i <= 0 or i > param.size():
 			push_error("Unknown column '%s' in 'order clause'" % a_order_by[0])
 			return null
 			
-		a_order_by[0] -= 1
+		a_order_by[0] = i - 1
 		
 	var compare := func(a, b):
 		for a_order_by in order_by:
