@@ -40,7 +40,7 @@ enum TokenType {
 	TK_OP_OR,
 	TK_OP_NOT,
 	TK_OP_ADD,
-	TK_OP_SUB,
+	TK_OP_SUB, # 25
 	TK_OP_MUL,
 	TK_OP_DIV,
 	TK_OP_MOD,
@@ -2278,7 +2278,7 @@ func alloc_node(type: String) -> ExpressionENode:
 		"ClassNode":
 			node = ExpressionClassNode.new()
 		_:
-			assert(false, "Inner error 1100.")
+			assert(false, "Inner error expression.gd 2281.")
 	node.next = nodes
 	nodes = node
 	return node
@@ -2516,105 +2516,105 @@ func _get_token(r_token: ExpressionToken) -> Error:
 					elif (ch == cchar) :
 						#  cchar contain a corresponding quote symbol
 						break
-					elif (ch == '\\') :
-						# escaped characters...
-
-						var next = GET_CHAR()
-						if (next == '') :
-							_set_error("Unterminated String")
-							r_token.type = TokenType.TK_ERROR
-							return ERR_PARSE_ERROR
-			
-						var res = 0
-
-						match next :
-							'b':
-								res = 8
-								#break
-							't':
-								res = 9
-								#break
-							'n':
-								res = 10
-								#break
-							'f':
-								res = 12
-								#break
-							'r':
-								res = 13
-								#break
-							#'U':
-							'U', 'u':
-								#  Hexadecimal sequence.
-								var hex_len = 6 if (next == 'U') else 4
-								for j in hex_len :
-									var c = GET_CHAR()
-
-									if (c == '') :
-										_set_error("Unterminated String")
-										r_token.type = TokenType.TK_ERROR
-										return ERR_PARSE_ERROR
-						
-									if (!is_hex_digit(c)) :
-										_set_error("Malformed hex constant in string")
-										r_token.type = TokenType.TK_ERROR
-										return ERR_PARSE_ERROR
-						
-									var v
-									if (is_digit(c)) :
-										v = c.unicode_at(0) - '0'.unicode_at(0)
-									elif (c >= 'a' && c <= 'f') :
-										v = c.unicode_at(0) - 'a'.unicode_at(0)
-										v += 10
-									elif (c >= 'A' && c <= 'F') :
-										v = c.unicode_at(0) - 'A'.unicode_at(0)
-										v += 10
-									else:
-										push_error("Bug parsing hex constant.")
-										v = 0
-						
-
-									res <<= 4
-									res |= v
-					
-
-				 				#break
-							_:
-								res = next
-				 				#break
-			
-
-						#  Parse UTF-16 pair.
-						if ((res & 0xfffffc00) == 0xd800) :
-							if (prev == 0) :
-								prev = res
-								continue
-							else:
-								_set_error("Invalid UTF-16 sequence in string, unpaired lead surrogate")
-								r_token.type = TokenType.TK_ERROR
-								return ERR_PARSE_ERROR
-				
-						elif ((res & 0xfffffc00) == 0xdc00) :
-							if (prev == 0) :
-								_set_error("Invalid UTF-16 sequence in string, unpaired trail surrogate")
-								r_token.type = TokenType.TK_ERROR
-								return ERR_PARSE_ERROR
-						else:
-								res = (prev << 10) + res - ((0xd800 << 10) + 0xdc00 - 0x10000)
-								prev = 0
-				
-			
-						if (prev != 0) :
-							_set_error("Invalid UTF-16 sequence in string, unpaired lead surrogate")
-							r_token.type = TokenType.TK_ERROR
-							return ERR_PARSE_ERROR
-			
-						_str += res
+					#elif (ch == '\\') :
+						## escaped characters...
+#
+						#var next = GET_CHAR()
+						#if (next == '') :
+							#_set_error("Unterminated String")
+							#r_token.type = TokenType.TK_ERROR
+							#return ERR_PARSE_ERROR
+			#
+						#var res = 0
+#
+						#match next :
+							#'b':
+								#res = 8
+								##break
+							#'t':
+								#res = 9
+								##break
+							#'n':
+								#res = 10
+								##break
+							#'f':
+								#res = 12
+								##break
+							#'r':
+								#res = 13
+								##break
+							##'U':
+							#'U', 'u':
+								##  Hexadecimal sequence.
+								#var hex_len = 6 if (next == 'U') else 4
+								#for j in hex_len :
+									#var c = GET_CHAR()
+#
+									#if (c == '') :
+										#_set_error("Unterminated String")
+										#r_token.type = TokenType.TK_ERROR
+										#return ERR_PARSE_ERROR
+						#
+									#if (!is_hex_digit(c)) :
+										#_set_error("Malformed hex constant in string")
+										#r_token.type = TokenType.TK_ERROR
+										#return ERR_PARSE_ERROR
+						#
+									#var v
+									#if (is_digit(c)) :
+										#v = c.unicode_at(0) - '0'.unicode_at(0)
+									#elif (c >= 'a' && c <= 'f') :
+										#v = c.unicode_at(0) - 'a'.unicode_at(0)
+										#v += 10
+									#elif (c >= 'A' && c <= 'F') :
+										#v = c.unicode_at(0) - 'A'.unicode_at(0)
+										#v += 10
+									#else:
+										#push_error("Bug parsing hex constant.")
+										#v = 0
+						#
+#
+									#res <<= 4
+									#res |= v
+					#
+#
+				 				##break
+							#_:
+								#res = next
+				 				##break
+			#
+#
+						##  Parse UTF-16 pair.
+						#if ((res & 0xfffffc00) == 0xd800) :
+							#if (prev == 0) :
+								#prev = res
+								#continue
+							#else:
+								#_set_error("Invalid UTF-16 sequence in string, unpaired lead surrogate")
+								#r_token.type = TokenType.TK_ERROR
+								#return ERR_PARSE_ERROR
+				#
+						#elif ((res & 0xfffffc00) == 0xdc00) :
+							#if (prev == 0) :
+								#_set_error("Invalid UTF-16 sequence in string, unpaired trail surrogate")
+								#r_token.type = TokenType.TK_ERROR
+								#return ERR_PARSE_ERROR
+						#else:
+								#res = (prev << 10) + res - ((0xd800 << 10) + 0xdc00 - 0x10000)
+								#prev = 0
+				#
+			#
+						#if (prev != 0) :
+							#_set_error("Invalid UTF-16 sequence in string, unpaired lead surrogate")
+							#r_token.type = TokenType.TK_ERROR
+							#return ERR_PARSE_ERROR
+			#
+						#_str += res
 					else:
-						if (prev != 0) :
-							_set_error("Invalid UTF-16 sequence in string, unpaired lead surrogate")
-							r_token.type = TokenType.TK_ERROR
-							return ERR_PARSE_ERROR
+						#if (prev != 0) :
+							#_set_error("Invalid UTF-16 sequence in string, unpaired lead surrogate")
+							#r_token.type = TokenType.TK_ERROR
+							#return ERR_PARSE_ERROR
 			
 						_str += ch
 		
@@ -3141,12 +3141,24 @@ func _parse_expression() -> ExpressionENode:
 										_set_error("Expected '%s'" % expected)
 										return null
 										
-									# set order by's text TODO FIXME by可能是一个表达式
-									#max_str_ofs = order_str_end
-									#by = _parse_expression()
-									#max_str_ofs = MAX_INT
-									var by = expression.substr(order_str_begin, order_str_end - order_str_begin).strip_edges()
-									(func_call.arguments[2] as ExpressionConstantNode).value = by
+									# set order by which might be an expression
+									assert(str_ofs == order_str_end, "Inner error expression.gd 3145")
+									var cofs5 = str_ofs
+									str_ofs = order_str_begin
+									max_str_ofs = order_str_end
+									var by = _parse_expression()
+									if str_ofs != order_str_end:
+										assert(str_ofs < order_str_end, "Inner error expression.gd 3151")
+										var builtin = alloc_node('BuiltinFuncNode') as ExpressionBuiltinFuncNode
+										var constan = alloc_node('ConstantNode') as ExpressionConstantNode
+										constan.value = expression.substr(str_ofs, order_str_end - str_ofs)
+										builtin._func = 'str'
+										builtin.arguments = [by, constan]
+										by = builtin
+									str_ofs = cofs5
+									max_str_ofs = MAX_INT
+									#var by = expression.substr(order_str_begin, order_str_end - order_str_begin).strip_edges()
+									func_call.arguments[2] = by
 								"separator":
 									if func_call.has_meta('separator'):
 										_set_error("Duplicate 'separator' in group_concat")
@@ -4290,7 +4302,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
 							return true
 				_:
-					r_error_str[0] = "Inner error 3280."
+					r_error_str[0] = "Inner error expression.gd 4305"
 					return true
 
 
