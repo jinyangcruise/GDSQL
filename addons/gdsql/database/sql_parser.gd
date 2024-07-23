@@ -390,32 +390,51 @@ static func parse_replace(sql: String) -> Array:
 		return ret
 	return []
 	
-static func extract_outer_quotes(text):
+static func extract_outer_quotes(text: String):
 	var stack = []  # 用于跟踪当前处理的引号层级
 	var result = []  # 存储提取的引号内容
-	var current_string = ""  # 临时存储正在构建的引号内字符串
 	var quote_types = {'"': '"', "'": "'", '(': ')', '[': ']', '{': '}'}
 	var quote_types_values = quote_types.values()
 	var in_quote = false  # 标记当前是否在引号内
+	var real_quote = ["'", '"']
+	var in_real_quote = [] # 标记当前是否在'或"里
 	
-	for a_char in text:
+	var str_ofs = -1
+	var quote_start = []
+	while str_ofs < text.length() - 1:
+		str_ofs += 1
+		var a_char = text[str_ofs]
+		# 转义了的引号是普通字符
+		if a_char == '\\' and str_ofs + 1 < text.length() and text[str_ofs + 1] in real_quote:
+			str_ofs += 1
+			continue
+			
 		if a_char in quote_types or a_char in quote_types_values:
-			if not in_quote:  # 如果不在引号内，遇到引号则开始记录
+			if not in_quote and a_char in quote_types:  # 如果不在引号内，遇到引号则开始记录
 				stack.append(a_char)  # 记录引号类型
+				quote_start.append(str_ofs) # 记录引号开始位置
 				in_quote = true
-			else:  # 已在引号内，遇到相同类型的引号结束记录
+				if a_char == '"' or a_char == "'":
+					in_real_quote.append(true)
+			elif in_quote:  # 已在引号内，遇到相同类型的引号结束记录
 				if quote_types[stack.back()] == a_char:
 					var q = stack.pop_back()  # 移除栈顶的引号类型
-					result.append("%s%s%s" % [q, current_string, quote_types[q]])  # 保存内容
-					current_string = ""  # 重置临时字符串
+					if q == '"' or q == "'":
+						in_real_quote.pop_back()
+					if stack.is_empty():
+						result.append(text.substr(quote_start[stack.size()], str_ofs - quote_start[stack.size()] + 1))  # 保存内容
+					quote_start.pop_back()
 					in_quote = not stack.is_empty()
 				else:
-					# 遇到不同类型的引号，视为普通字符
-					current_string += a_char
-		else:  # 非引号字符
-			if in_quote:
-				current_string += a_char
-				
+					# 遇到新引号（不在'或"内）
+					if in_real_quote.is_empty():
+						if a_char in quote_types:
+							stack.push_back(a_char)
+							quote_start.push_back(str_ofs)
+						elif a_char in quote_types_values:
+							push_error("Error: Unmatched quote found in the text: %s" % text)
+			else:
+				push_error("Error: Unmatched quote found in the text: %s" % text)
 	# 如果栈不为空，说明有开始引号没有匹配的结束引号
 	if stack.size() > 0:
 		push_error("Error: Unmatched quote found in the text: %s" % text)

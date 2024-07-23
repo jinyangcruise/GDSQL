@@ -2247,6 +2247,7 @@ func _set_error(p_err):
 		
 	error_str = p_err + ' in ' + expression
 	error_set = true
+	assert(false, error_str)
 	
 func alloc_node(type: String) -> ExpressionENode:
 	var node
@@ -3081,6 +3082,7 @@ func _parse_expression() -> ExpressionENode:
 										TokenType.TK_BRACKET_OPEN: TokenType.TK_BRACKET_CLOSE,
 										TokenType.TK_PARENTHESIS_OPEN: TokenType.TK_PARENTHESIS_CLOSE,
 									}
+									var quote_types_values = quote_types.values()
 									var stack = []
 									var in_quote = false
 									while (true) :
@@ -3093,17 +3095,36 @@ func _parse_expression() -> ExpressionENode:
 											str_ofs = cofs3
 											break
 											
-										if tk.type in quote_types:
-											if not in_quote: # 如果不在引号内，遇到引号则开始记录
+										if tk.type in quote_types or tk.type in quote_types_values:
+											if not in_quote and tk.type in quote_types: # 如果不在引号内，遇到引号则开始记录
 												stack.push_back(tk.type)
 												in_quote = true
-											else:  # 已在引号内，遇到相同类型的引号结束记录
+											elif in_quote:  # 已在引号内，遇到相同类型的引号结束记录
 												if quote_types[stack.back()] == tk.type:
 													stack.pop_back()  # 移除栈顶的引号类型
 													in_quote = not stack.is_empty()
 												else:
 													# 遇到不同类型的引号，视为普通字符
-													order_str_end = str_ofs
+													if tk.type in quote_types:
+														stack.push_back(tk.type)
+													elif tk.type in quote_types_values:
+														var which = ''
+														match tk.type:
+															TokenType.TK_CURLY_BRACKET_CLOSE: which = '}'
+															TokenType.TK_BRACKET_CLOSE: which = ']'
+															TokenType.TK_PARENTHESIS_CLOSE: which = ')'
+														_set_error("Unmatched '%s' in group_concat" % which)
+														return null
+													else:
+														order_str_end = str_ofs
+											else:
+												var which = ''
+												match tk.type:
+													TokenType.TK_CURLY_BRACKET_CLOSE: which = '}'
+													TokenType.TK_BRACKET_CLOSE: which = ']'
+													TokenType.TK_PARENTHESIS_CLOSE: which = ')'
+												_set_error("Unmatched '%s' in group_concat" % which)
+												return null
 										else:  # 非引号字符
 											if in_quote:
 												order_str_end = str_ofs
@@ -3142,22 +3163,23 @@ func _parse_expression() -> ExpressionENode:
 										return null
 										
 									# set order by which might be an expression
-									var cofs5 = str_ofs
-									str_ofs = order_str_begin
-									max_str_ofs = order_str_end
-									var by = _parse_expression() # 会更改str_ofs
-									if str_ofs != order_str_end:
-										assert(str_ofs < order_str_end, "Inner error expression.gd 3151")
-										var builtin = alloc_node('BuiltinFuncNode') as ExpressionBuiltinFuncNode
-										var constan = alloc_node('ConstantNode') as ExpressionConstantNode
-										constan.value = expression.substr(str_ofs, order_str_end - str_ofs)
-										builtin._func = 'str'
-										builtin.arguments = [by, constan]
-										by = builtin
-									str_ofs = cofs5
-									max_str_ofs = MAX_INT
-									#var by = expression.substr(order_str_begin, order_str_end - order_str_begin).strip_edges()
-									func_call.arguments[2] = by
+									#var cofs5 = str_ofs
+									#str_ofs = order_str_begin
+									#max_str_ofs = order_str_end
+									#var by = _parse_expression() # 会更改str_ofs
+									#if str_ofs != order_str_end:
+										#assert(str_ofs < order_str_end, "Inner error expression.gd 3151")
+										#var builtin = alloc_node('BuiltinFuncNode') as ExpressionBuiltinFuncNode
+										#var constan = alloc_node('ConstantNode') as ExpressionConstantNode
+										#constan.value = expression.substr(str_ofs, order_str_end - str_ofs)
+										#builtin._func = 'str'
+										#builtin.arguments = [by, constan]
+										#by = builtin
+									#str_ofs = cofs5
+									#max_str_ofs = MAX_INT
+									#func_call.arguments[2] = by
+									var by = expression.substr(order_str_begin, order_str_end - order_str_begin).strip_edges()
+									func_call.arguments[2].value = by
 								"separator":
 									if func_call.has_meta('separator'):
 										_set_error("Duplicate 'separator' in group_concat")
@@ -3395,14 +3417,14 @@ func _parse_expression() -> ExpressionENode:
 						return null
 		
 
-					var identifier = _identifier_to_input_if_match(tk.value) # fix未判定identifier是input名称的问题 
+					var identifier = tk.value
 
 					var cofs = str_ofs
 					_get_token(tk)
 					if (tk.type == TokenType.TK_PARENTHESIS_OPEN) :
 						# function call
 						var func_call = alloc_node('CallNode')
-						func_call.method = identifier
+						func_call.method = _identifier_to_input_if_match(identifier) # fix未判定identifier是input名称的问题 
 						func_call.base = expr
 
 						while (true) :
@@ -3438,7 +3460,10 @@ func _parse_expression() -> ExpressionENode:
 
 						var index = alloc_node('NamedIndexNode')
 						index.base = expr
-						index.name = identifier
+						index.name = identifier # 这里不支持identifier是一个input
+						if sql_mode:
+							if expr is ExpressionInputNode:
+								index.base_name = input_names[expr.index]
 						expr = index
 		
 
@@ -3929,12 +3954,13 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				return false
 
 
-			# fix index.name is an input node
 			var named_index = [index.name]
-			if named_index[0] is ExpressionENode:
-				ret = _execute(p_inputs, p_instance, index.name, named_index, p_const_calls_only, r_error_str)
-				if ret:
-					return true
+			## fix index.name is an input node
+			#if named_index[0] is ExpressionENode:
+				#ret = _execute(p_inputs, p_instance, index.name, named_index, p_const_calls_only, r_error_str)
+				#if ret:
+					#return true
+				#named_index[0] = input_names[named_index[0]]
 				
 			if sql_mode and (named_index[0] == null or named_index[0] is AggregateFunctions):
 				r_ret[0] = named_index[0]
@@ -4413,6 +4439,17 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 						param.push_back(i.value)
 					elif i is ExpressionInputNode:
 						param.push_back(input_names[i.index])
+					elif i is ExpressionNamedIndexNode:
+						if i.name is ExpressionInputNode:
+							param.push_back(i.base_name + '.' + input_names[i.name.index])
+						else:
+							param.push_back(i.base_name + '.' + i.name) # 点号左右可能有空白字符，但是不常见，这里不处理，让aggregate_function里尽量处理一下
+					elif i is ExpressionCallNode:
+						param.push_back(1) # ALERT not support actually
+					elif i is ExpressionBuiltinFuncNode:
+						param.push_back(1) # ALERT not support actually
+					elif i is ExpressionConstructorNode:
+						param.push_back(1) # ALERT not support actually
 					else:
 						r_error_str[0] = "Not support this: '%s' in group_concat" % i
 						return true
@@ -4640,6 +4677,7 @@ class ExpressionIndexNode extends ExpressionENode:
 class ExpressionNamedIndexNode extends ExpressionENode:
 	var base = null
 	var name
+	var base_name # for sql_mode
 
 	func _init() -> void:
 		type = ExpressionENode.Type.TYPE_NAMED_INDEX

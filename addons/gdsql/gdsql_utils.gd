@@ -50,7 +50,7 @@ static func evalute_command_with_agg(target: AggregateFunctions, command: String
 			push_error(expression.get_error_text())
 			return null
 		GDSQLExpression.EXPRESSION_CACHE.put_value(ex_key, expression)
-	var ret = expression.execute(variable_values, target, false)
+	var ret = expression.execute(variable_values, target, true)
 	
 	## 对于一些很简单的但Expression又不支持的写法，动态创建脚本
 	#if typeof(ret) == TYPE_NIL:
@@ -109,3 +109,90 @@ static func globalize_path(path: String) -> String:
 			return ("res://" + path.substr(res_path.length())).simplify_path()
 		return ProjectSettings.globalize_path(path).simplify_path()
 	return path
+	
+## 找字符串中某个符号的位置。处于引号、括号内的符号不会计算在内。
+## 返回数组的子元素是一个长度为2的数组，分别为开始位置和结束位置。
+## 不支持符号是单引号或双引号或斜杠\。支持\s：looking_for = '\\s'
+static func search_symbol(text: String, looking_for: String = ',', allow_empty: bool = true) -> Array:
+	if looking_for == '\\s':
+		if not (text.contains(" ") or text.contains("\t") or text.contains("\n")):
+			return []
+	elif not text.contains(looking_for):
+		return []
+		
+	var stack = []  # 用于跟踪当前处理的引号层级
+	var quote_types = {'"': '"', "'": "'", '(': ')', '[': ']', '{': '}'}
+	var quote_types_values = quote_types.values()
+	var in_quote = false  # 标记当前是否在引号内
+	var real_quote = ["'", '"']
+	var in_real_quote = [] # 标记当前是否在'或"里
+	
+	var str_ofs = -1
+	var quote_start = []
+	var ret = []
+	while str_ofs < text.length() - 1:
+		str_ofs += 1
+		var a_char = text[str_ofs]
+		# 转义了的引号是普通字符
+		if a_char == '\\' and str_ofs + 1 < text.length() and text[str_ofs + 1] in real_quote:
+			str_ofs += 1
+			continue
+			
+		if a_char in quote_types or a_char in quote_types_values:
+			if not in_quote and a_char in quote_types:  # 如果不在引号内，遇到引号则开始记录
+				stack.append(a_char)  # 记录引号类型
+				quote_start.append(str_ofs) # 记录引号开始位置
+				in_quote = true
+				if a_char == '"' or a_char == "'":
+					in_real_quote.append(true)
+			elif in_quote:  # 已在引号内，遇到相同类型的引号结束记录
+				if quote_types[stack.back()] == a_char:
+					var q = stack.pop_back()  # 移除栈顶的引号类型
+					if q == '"' or q == "'":
+						in_real_quote.pop_back()
+					quote_start.pop_back()
+					in_quote = not stack.is_empty()
+				else:
+					# 遇到新引号（不在'或"内）
+					if in_real_quote.is_empty():
+						if a_char in quote_types:
+							stack.push_back(a_char)
+							quote_start.push_back(str_ofs)
+						elif a_char in quote_types_values:
+							push_error("Error: Unmatched quote found in the text: %s" % text)
+			else:
+				push_error("Error: Unmatched quote found in the text: %s" % text)
+		else:
+			if not in_quote:
+				if looking_for == '\\s':
+					for i in [' ', '\n', '\t']:
+						if text.count(i, str_ofs - i.length() + 1, str_ofs + 1) > 0:
+							ret.push_back([str_ofs - i.length() + 1, str_ofs + 1])
+							break
+				elif text.count(looking_for, str_ofs - looking_for.length() + 1, str_ofs + 1) > 0:
+					ret.push_back([str_ofs - looking_for.length() + 1, str_ofs + 1])
+				
+	# 如果栈不为空，说明有开始引号没有匹配的结束引号
+	if stack.size() > 0:
+		push_error("Error: Unmatched quote found in the text: %s" % text)
+		
+	if not allow_empty and ret.size() > 1:
+		var remove = []
+		var ofs = -1
+		while ofs < ret.size() - 1:
+			ofs += 1
+			if ret.size() > ofs + 1:
+				if ret[ofs][1] == ret[ofs + 1][0]:
+					remove.push_back(ofs + 1)
+					var j = ofs
+					while j >= 0:
+						if ret[j][1] == ret[ofs + 1][0]:
+							ret[j][1] = ret[ofs + 1][1]
+							j -= 1
+						else:
+							break
+		if not remove.is_empty():
+			remove.reverse()
+			for i in remove:
+				ret.remove_at(i)
+	return ret
