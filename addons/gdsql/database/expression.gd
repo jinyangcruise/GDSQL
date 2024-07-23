@@ -3142,11 +3142,10 @@ func _parse_expression() -> ExpressionENode:
 										return null
 										
 									# set order by which might be an expression
-									assert(str_ofs == order_str_end, "Inner error expression.gd 3145")
 									var cofs5 = str_ofs
 									str_ofs = order_str_begin
 									max_str_ofs = order_str_end
-									var by = _parse_expression()
+									var by = _parse_expression() # 会更改str_ofs
 									if str_ofs != order_str_end:
 										assert(str_ofs < order_str_end, "Inner error expression.gd 3151")
 										var builtin = alloc_node('BuiltinFuncNode') as ExpressionBuiltinFuncNode
