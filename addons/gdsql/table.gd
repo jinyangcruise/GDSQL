@@ -150,9 +150,10 @@ func _notification(what):
 		if obj != null and obj is DictionaryObject and datas.has(obj):
 			EditorInterface.inspect_object(null)
 			
-		popup_menu_text.set_item_metadata(0, null)
-		popup_menu_text.set_item_metadata(1, null)
-		popup_menu_text.set_item_metadata(2, null)
+		if popup_menu_text:
+			popup_menu_text.set_item_metadata(0, null)
+			popup_menu_text.set_item_metadata(1, null)
+			popup_menu_text.set_item_metadata(2, null)
 		clear_header()
 		clear_rows()
 		datas = []

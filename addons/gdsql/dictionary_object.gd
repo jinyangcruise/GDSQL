@@ -136,7 +136,7 @@ func _set(property: StringName, value: Variant, force: bool = false) -> bool:
 		property = _data[property]
 	if _data.has(property):
 		var old_value = _data[property]
-		if value == old_value and not force:
+		if typeof(value) == typeof(old_value) and value == old_value and not force:
 			return true
 		if not _origin.has(property):
 			_origin[property] = old_value
@@ -314,7 +314,7 @@ func get_modified_value() -> Dictionary:
 	var ret = {}
 	if _origin:
 		for key in _origin:
-			if _origin[key] != _data[key]:
+			if typeof(_origin[key]) != typeof(_data[key]) or _origin[key] != _data[key]:
 				ret[key] = {"new": _data[key], "old": _origin[key]}
 	return ret
 
@@ -322,7 +322,7 @@ func get_modified_new_value() -> Dictionary:
 	var ret = {}
 	if _origin:
 		for key in _origin:
-			if _origin[key] != _data[key]:
+			if typeof(_origin[key]) != typeof(_data[key]) or _origin[key] != _data[key]:
 				ret[key] = _data[key]
 	return ret
 	

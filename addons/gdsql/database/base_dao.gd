@@ -916,7 +916,10 @@ func ___select(path: String, fill_primary_key: String = ""):
 		for d in ret_filter:
 			var row = []
 			for f in real_select:
-				row.push_back(d[__table_alias][f["Column Name"]])
+				if d[__table_alias].has(f["Column Name"]):
+					row.push_back(d[__table_alias][f["Column Name"]])
+				else:
+					row.push_back(null)
 			for i in for_order:
 				row.push_back(row[i])
 			ret_post_process.push_back(row)

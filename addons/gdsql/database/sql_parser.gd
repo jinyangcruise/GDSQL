@@ -357,18 +357,18 @@ static func parse_delete(sql: String) -> Array:
 	return ret
 	
 static func parse_insert(sql: String) -> Array:
-	var prepare = prepare_sql(sql)
-	var rm = prepare[1]
-	var m = re_insert.search(prepare[0])
+	#var prepare = prepare_sql(sql)
+	#var rm = prepare[1]
+	var m = re_insert.search(sql)
 	if m:
 		var ret = [
 			m.get_string(1).strip_edges(), # insert into
-			restore(m.get_string(2).strip_edges(), rm), # db.table
+			m.get_string(2).strip_edges(), # db.table
 			m.get_string(3).strip_edges(), # (x,y,z)
 			m.get_string(4).strip_edges(), # values
-			restore(m.get_string(5).strip_edges(), rm), # (1,2,3)
+			m.get_string(5).strip_edges(), # (1,2,3)
 			m.get_string(6).strip_edges(), # on duplicate key update
-			restore(m.get_string(7).strip_edges(), rm), # xxx
+			m.get_string(7).strip_edges(), # xxx
 		]
 		ret = _check_semicolon(ret)
 		return ret

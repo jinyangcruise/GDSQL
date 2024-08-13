@@ -371,9 +371,27 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 	var old_table_data_path = db_path + old_table_name + DATA_EXTENSION
 	var new_table_data_path = db_path + new_table_name + DATA_EXTENSION
 	if not FileAccess.file_exists(old_table_data_path):
-		msgs.push_back("Failed! File [%s] not exist!" % old_table_data_path)
-		mgr.add_log_history.emit("Err", begin_time, action, msgs)
-		return mgr.create_accept_dialog(msgs)
+		var config_file = ConfigFile.new()
+		var table_conf_path = databases[db_name]["config_path"] + new_table_name + CONFIG_EXTENSION
+		config_file.set_value(new_table_name, "encrypted", table_confs[old_table_name]["encrypted"]) # 保留原密码
+		config_file.set_value(new_table_name, "comment", comments)
+		config_file.set_value(new_table_name, "valid_if_not_exist", valid_if_not_exist)
+		config_file.set_value(new_table_name, "columns", column_infos)
+		config_file.save(table_conf_path) # 如果新路径和旧路径一致，就会覆盖掉，也是我们所期待的
+		msgs.push_back("1 file: %s has been saved." % table_conf_path)
+		
+		if old_table_data_path != new_table_data_path:
+			var old_table_conf_path = databases[db_name]["config_path"] + old_table_name + CONFIG_EXTENSION
+			var old_table_conf_path_abs = ProjectSettings.globalize_path(old_table_conf_path)
+			if FileAccess.file_exists(old_table_conf_path_abs):
+				OS.move_to_trash(old_table_conf_path_abs) # 删配置
+				msgs.push_back("1 file: %s has been moved to trash." % old_table_conf_path_abs)
+				
+		mgr.sys_confirm_alter_table.emit(id)
+		mgr.add_log_history.emit("OK", begin_time, action, msgs)
+		
+		refresh()
+		return
 		
 	if new_table_data_path != old_table_data_path and FileAccess.file_exists(new_table_data_path):
 		msgs.push_back("Failed! File [%s] already exist!" % new_table_data_path)
