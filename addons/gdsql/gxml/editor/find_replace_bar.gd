@@ -570,6 +570,10 @@ func _ready() -> void:
 	hide_button.set_texture_pressed(get_theme_icon("Close", "EditorIcons"))
 	hide_button.set_custom_minimum_size(hide_button.get_texture_normal().get_size())
 	
+func _exit_tree() -> void:
+	find_prev.icon = null
+	find_next.icon = null
+	
 func EDITOR_GET(n: String):
 	return EditorInterface.get_editor_settings().get_setting(n)
 	
