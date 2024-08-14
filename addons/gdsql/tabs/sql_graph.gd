@@ -2386,6 +2386,10 @@ func _input(event: InputEvent) -> void:
 	if is_ancestor_of(get_viewport().gui_get_focus_owner()):
 		return
 		
+	var focus_owner = get_viewport().gui_get_focus_owner()
+	if focus_owner is TextEdit or focus_owner is LineEdit:
+		return
+		
 	var distance = graph_edit.snapping_distance if graph_edit.snapping_enabled else 1
 	if k.keycode == KEY_UP:
 		for node in selected_nodes:
