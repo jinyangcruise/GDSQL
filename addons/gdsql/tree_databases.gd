@@ -487,6 +487,8 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 				var default_value = null
 				if not (c["Default(Expression)"] as String).strip_edges().is_empty():
 					default_value = GDSQLUtils.evaluate_command(null, c["Default(Expression)"])
+				if default_value == null:
+					default_value = DataTypeDef.DEFUALT_VALUES[c["Data Type"]]
 				new_table_data_file.set_value(primary_value, col_name, i.get(col_name, default_value))
 				
 		__CONF_MANAGER.save_conf_by_same_password(new_table_data_path, old_table_data_path)
