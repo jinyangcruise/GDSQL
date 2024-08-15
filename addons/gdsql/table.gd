@@ -624,6 +624,23 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 			elif data is Control:
 				handled = true
 				control = data
+			elif data is DictionaryObject:
+				handled = true
+				var grid = GridContainer.new()
+				control = grid
+				grid.columns = 2
+				#grid.add_theme_constant_override('h_separation', 1)
+				grid.add_theme_constant_override('v_separation', 1)
+				data = []
+				var a_index = -1
+				for info in data._get_property_list():
+					if data._is_hidden_prop(info["name"]):
+						continue
+					a_index += 1
+					var label = Label.new()
+					label.text = info["name"]
+					grid.add_child(label)
+					grid.add_child(get_control_by_data_type(data.get(info["name"]), data, a_index))
 			## TODO 可能需要添加其他有必要预览的类型
 		
 	if not handled:

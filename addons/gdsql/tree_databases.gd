@@ -1229,7 +1229,9 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 			pass_callback.call()
 			return
 			
-	var msg = "This table is encrypted. Please input password of this table."
+	var msg = "This table: %s.%s is encrypted. Please input password of this table." % [
+		db_name, table_name
+	]
 	if try_password != "":
 		if valid_pass_md5 == try_password.md5_text():
 			# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
@@ -1256,7 +1258,9 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 			if validation is bool and validation == true:
 				# 更新锁的图标为打开的样式
 				var texture = preload("res://addons/gdsql/img/unlock.png")
-				var tooltip = "This table is encrypted and you have entered the right password."
+				var tooltip = "This table: %s.%s is encrypted and you have entered the right password." % [
+					db_name, table_name
+				]
 				var index = table_item.get_button_by_id(0, ITEM_BUTTON_INDEX.ENCRYPT)
 				table_item.set_button(0, index, texture)
 				table_item.set_button_tooltip_text(0, index, tooltip)

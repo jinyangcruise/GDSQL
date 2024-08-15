@@ -1738,7 +1738,7 @@ func gen_link_node() -> GraphNode:
 		{"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
 		"_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
 	var table_dict_obj = DictionaryObject.new(
-		{"Table": ""}, 
+		{"Table": "", "Right Columns": 3}, 
 		{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}})
 	var link_prop_dict_obj = DictionaryObject.new(
 		{"Left": "", "Right": ""},
@@ -1760,8 +1760,7 @@ func gen_link_node() -> GraphNode:
 				data.set_meta("link_db", mgr.databases[new_val]["data_path"])
 				var tables = mgr.databases[new_val]["tables"].keys()
 				table_dict_obj.reset_hint(
-					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, 
-					"_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
+					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)},})
 				table_dict_obj._set("Table", "", true) # 强制设置（可以避免值没变化导致没有发出信号）
 			"_password":
 				data.set_meta("link_password", new_val)
@@ -1806,6 +1805,14 @@ func gen_link_node() -> GraphNode:
 		{"Table2": ""}, 
 		{"Table2": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""},}
 	)
+	var left_link_prop_dict_obj = DictionaryObject.new(
+		{"LinkColumnName": ""},
+		{"LinkColumnName": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}},
+	)
+	var right_link_prop_dict_obj = DictionaryObject.new(
+		{"LinkColumnName": ""},
+		{"LinkColumnName": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}},
+	)
 	var left_column_dict_obj = DictionaryObject.new(
 		{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY},}
 	) # dummy obj
@@ -1848,17 +1855,27 @@ func gen_link_node() -> GraphNode:
 				if new_val != "" and mgr.databases[left_schema_dict_obj._get("Schema1")]["tables"].has(new_val):
 					var adata = {}
 					var hints = {}
+					var pk = ""
 					for col in mgr.databases[left_schema_dict_obj._get("Schema1")]["tables"][new_val]["columns"]:
+						if col["PK"]:
+							pk = col["Column Name"]
 						adata[col["Column Name"]] = true
 						hints[col["Column Name"]] = {"hint": PROPERTY_HINT_NONE, "hint_string": "", "type": TYPE_BOOL}
+					left_link_prop_dict_obj.reset_hint({"LinkColumnName": {"hint": PROPERTY_HINT_ENUM, 
+						"hint_string": ",".join(adata.keys())}})
+					left_link_prop_dict_obj._set("LinkColumnName", pk)
 					left_column_dict_obj = DictionaryObject.new(adata, hints)
 				else:
+					left_link_prop_dict_obj.reset_hint({"LinkColumnName": {"hint": PROPERTY_HINT_ENUM, 
+						"hint_string": ""}})
 					left_column_dict_obj = DictionaryObject.new(
 						{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY},}
 					) # dummy obj
 				left_column_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
-				graph_node.datas[7][2] = left_column_dict_obj
+				graph_node.datas[7][2] = left_link_prop_dict_obj
 				graph_node.push_redraw_slot_control(7, 2)
+				graph_node.datas[8][2] = left_column_dict_obj
+				graph_node.push_redraw_slot_control(8, 2)
 	)
 	right_table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		graph_node.push_redraw_slot_control(6, 3)
@@ -1868,18 +1885,34 @@ func gen_link_node() -> GraphNode:
 				if new_val != "" and mgr.databases[right_schema_dict_obj._get("Schema2")]["tables"].has(new_val):
 					var adata = {}
 					var hints = {}
+					var pk = ""
 					for col in mgr.databases[right_schema_dict_obj._get("Schema2")]["tables"][new_val]["columns"]:
+						if col["PK"]:
+							pk = col["Column Name"]
 						adata[col["Column Name"]] = true
 						hints[col["Column Name"]] = {"hint": PROPERTY_HINT_NONE, "hint_string": "", "type": TYPE_BOOL}
+					right_link_prop_dict_obj.reset_hint({"LinkColumnName": {"hint": PROPERTY_HINT_ENUM, 
+						"hint_string": ",".join(adata.keys())}})
+					right_link_prop_dict_obj._set("LinkColumnName", pk)
 					right_column_dict_obj = DictionaryObject.new(adata, hints)
 				else:
+					right_link_prop_dict_obj.reset_hint({"LinkColumnName": {"hint": PROPERTY_HINT_ENUM, 
+						"hint_string": ""}})
 					right_column_dict_obj = DictionaryObject.new(
 						{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY},}
 					) # dummy obj
 				right_column_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
-				graph_node.datas[7][3] = right_column_dict_obj
+				graph_node.datas[7][3] = right_link_prop_dict_obj
 				graph_node.push_redraw_slot_control(7, 3)
+				graph_node.datas[8][3] = right_column_dict_obj
+				graph_node.push_redraw_slot_control(8, 3)
 	)
+	var left_where_dict_obj = DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_NONE}})
+	var left_order_dict_obj = DictionaryObject.new({"Order By": ""}, {"Order By": {"hint": PROPERTY_HINT_NONE}})
+	var left_limit_dict_obj = DictionaryObject.new({"Offset": 0, "Limit": 1000})
+	var right_where_dict_obj = DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_NONE}})
+	var right_order_dict_obj = DictionaryObject.new({"Order By": ""}, {"Order By": {"hint": PROPERTY_HINT_NONE}})
+	var right_limit_dict_obj = DictionaryObject.new({"Offset": 0, "Limit": 1000})
 	
 	#var line_edit = LineEdit.new()
 	#line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1888,7 +1921,213 @@ func gen_link_node() -> GraphNode:
 	btn_query.text = "query"
 	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_query.pressed.connect(func():
+		# 拉取已经存在的关联数据
+		mgr.request_user_enter_password.emit(
+		data.get_meta("link_db", ""),
+		data.get_meta("link_table", ""),
+		data.get_meta("link_password", ""), 
+		func():
+			var begin_time = Time.get_unix_time_from_system()
+			var link_datas_dao = BaseDao.new()
+			var link_query_ret = (
+				link_datas_dao
+				.use_db(data.get_meta("link_db", ""))
+				.set_password(data.get_meta("link_password", ""))
+				.select("%s, list(%s)" % [
+					link_prop_dict_obj._get("Left"), link_prop_dict_obj._get("Right")], true)
+				.from(data.get_meta("link_table", ""))
+				.group_by(link_prop_dict_obj._get("Left"))
+				.query()
+			)
+			var action = link_datas_dao.get_query_cmd()
+			if link_query_ret == null:
+				mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
+				return
+			else:
+				mgr.add_log_history.emit("OK", begin_time, action, 
+					"%d row(s) returned" % (link_query_ret.get_data().size()), 
+					link_query_ret.get_cost_time()) # 去掉表头
+				
+			var link_datas = link_query_ret.get_data()
+			var link_map = {}
+			for adata in link_datas:
+				link_map[adata[0]] = adata[1]
+				
+			# 拉取左表的数据
+			mgr.request_user_enter_password.emit(
+			data.get_meta("left_db", ""),
+			data.get_meta("left_table", ""),
+			data.get_meta("left_password", ""), 
+			func():
+				begin_time = Time.get_unix_time_from_system()
+				var left_datas_dao = BaseDao.new()
+				var left_select = (graph_node.datas[8][2] as DictionaryObject).get_data().keys().map(func(v):
+					return v if (graph_node.datas[8][2] as DictionaryObject).get_data()[v] else ""
+				).filter(func(v): return not v.is_empty())
+				var left_query_ret = (
+					left_datas_dao
+					.use_db(data.get_meta("left_db", ""))
+					.set_password(data.get_meta("left_password", ""))
+					.select("*", true)
+					.from(data.get_meta("left_table", ""))
+					.set_where(left_where_dict_obj._get("Where"))
+					.order_by_str(left_order_dict_obj._get("Order By"))
+					.limit(left_limit_dict_obj._get("Offset"), left_limit_dict_obj._get("Limit"))
+					.query()
+				)
+				action = left_datas_dao.get_query_cmd()
+				if left_query_ret == null:
+					mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
+					return
+				else:
+					mgr.add_log_history.emit("OK", begin_time, action, 
+						"%d row(s) returned" % (left_query_ret.get_data().size()), 
+						left_query_ret.get_cost_time()) # 去掉表头
+					
+				# 拉取右表的数据
+				mgr.request_user_enter_password.emit(
+				data.get_meta("right_db", ""),
+				data.get_meta("right_table", ""),
+				data.get_meta("right_password", ""), 
+				func():
+					begin_time = Time.get_unix_time_from_system()
+					var right_datas_dao = BaseDao.new()
+					var right_select = (graph_node.datas[8][3] as DictionaryObject).get_data().keys().map(func(v):
+						return v if (graph_node.datas[8][3] as DictionaryObject).get_data()[v] else ""
+					).filter(func(v): return not v.is_empty())
+					var right_query_ret = (
+						right_datas_dao
+						.use_db(data.get_meta("right_db", ""))
+						.set_password(data.get_meta("right_password", ""))
+						.select("*", true)
+						.from(data.get_meta("right_table", ""))
+						.set_where(right_where_dict_obj._get("Where"))
+						.order_by_str(right_order_dict_obj._get("Order By"))
+						.limit(right_limit_dict_obj._get("Offset"), right_limit_dict_obj._get("Limit"))
+						.query()
+					)
+					action = right_datas_dao.get_query_cmd()
+					if right_query_ret == null:
+						mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
+						return
+					else:
+						mgr.add_log_history.emit("OK", begin_time, action, 
+							"%d row(s) returned" % (right_query_ret.get_data().size()), 
+							right_query_ret.get_cost_time()) # 去掉表头
+							
+					# 构造表格数据
+					var tdatas = []
+					var left_columns = left_query_ret.get_head()
+					var left_datas = left_query_ret.get_data()
+					var left_key_index = left_columns.find(left_link_prop_dict_obj._get("LinkColumnName"))
+					var right_columns = right_query_ret.get_head()
+					var right_datas = right_query_ret.get_data()
+					var right_key_index = right_columns.find(right_link_prop_dict_obj._get("LinkColumnName"))
+					const detail_panel_scene = preload("res://addons/gdsql/detail_panel.tscn")
+					for row: Array in left_datas:
+						# 包含左数据、右数据和按钮
+						var a_row = []
+						
+						# 左数据
+						var left_data = {}
+						for i in row.size():
+							if left_columns[i]["Column Name"] in left_select:
+								left_data[left_columns[i]["Column Name"]] = row[i]
+						var left_panel = detail_panel_scene.instantiate()
+						left_panel.show_check_box = false
+						left_panel.ready.connect(func():
+							left_panel.set_datas(left_data)
+						)
+						a_row.push_back(left_panel)
+						
+						# 右数据
+						var grid = GridContainer.new()
+						grid.columns = table_dict_obj._get("Right Columns")
+						a_row.push_back(grid)
+						
+						for right_row: Array in right_datas:
+							var right_data = {}
+							for i in right_row.size():
+								if right_columns[i]["Column Name"] in right_select:
+									right_data[right_columns[i]["Column Name"]] = right_row[i]
+							var right_panel = detail_panel_scene.instantiate()
+							right_panel.show_check_box = true
+							# TODO FIXME
+							right_panel.checked = link_map.has(row[left_key_index]) and \
+								right_row[right_key_index] in link_map[row[left_key_index]]
+							right_panel.ready.connect(func():
+								right_panel.set_datas(right_data)
+							)
+							grid.add_child(right_panel)
+							
+						# 按钮
+						var vbox = VBoxContainer.new()
+						a_row.push_back(vbox)
+						
+						var btn_check_all = Button.new()
+						vbox.add_child(btn_check_all)
+						btn_check_all.text = tr("Select All")
+						
+						var btn_cancel_all = Button.new()
+						vbox.add_child(btn_cancel_all)
+						btn_cancel_all.text = tr("Deselect All")
+						
+						var btn_apply = Button.new()
+						vbox.add_child(btn_apply)
+						btn_apply.text = tr("Apply")
+						
+						tdatas.push_back(a_row)
+						
+					# 生成table node然后连接
+					var from_to_map = {}
+					var to_from_map = {}
+					# 先做个映射
+					for info in graph_edit.get_connection_list():
+						var from_name = info["from_node"]
+						var to_name = info["to_node"]
+						var arr_tos_of_from = from_to_map.get(from_name, []) as Array
+						var arr_froms_of_to = to_from_map.get(to_name, []) as Array
+						arr_tos_of_from.push_back(to_name)
+						arr_froms_of_to.push_back(from_name)
+						from_to_map[from_name] = arr_tos_of_from
+						to_from_map[to_name] = arr_froms_of_to
+						
+					# 找到源头（可能有多个源头，因为一个节点可能输入到多个节点上）
+					var arr_source_node: Array = []
+					_get_final_source(graph_node.name, from_to_map, arr_source_node, "Link")
+					
+					# 每个源头都要query
+					var gen_dict = func(s):
+						return {"select_name": s, "Column Name": s, "is_field": false, "table_alias": "",
+							"db_path": "", "table_name": "", "hint": PROPERTY_HINT_NONE, "Hint String": "",
+							"field_as": s, "name_4_computing": s}
+					var head = [gen_dict.call("Left"), gen_dict.call("Right"), gen_dict.call("Action")]
+					for node_name in arr_source_node:
+						var source_node = graph_edit.get_node(str(node_name)) as GraphNode # 一个link node
+						var update_result = false
+						if from_to_map.has(source_node.name):
+							for to in from_to_map[source_node.name]:
+								var to_node = graph_edit.get_node(str(to))
+								if to_node.get_meta("type") == "Result":
+									if to_node.enabled:
+										gen_table_node(head, tdatas, true, [], 0, to_node)
+										update_result = true
+									else:
+										_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
+									
+						if not update_result:
+							var table_node = gen_table_node(head, tdatas, true, [])
+							graph_edit.add_child(table_node)
+							table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
+							_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
+							
+					mark_modified()
+				)
+			)
+		)
+		
 		pass
+		# debug:
 		#if not line_edit.text.is_empty():
 			#var c = graph_node.find_child(line_edit.text, true, false)
 			#if c:
@@ -1914,7 +2153,11 @@ func gen_link_node() -> GraphNode:
 		[null, null, hseparator],
 		[null, null, left_schema_dict_obj, right_schema_dict_obj],
 		[null, null, left_table_dict_obj, right_table_dict_obj],
+		[null, null, left_link_prop_dict_obj, right_link_prop_dict_obj],
 		[null, null, left_column_dict_obj, right_column_dict_obj],
+		[null, null, left_where_dict_obj, right_where_dict_obj],
+		[null, null, left_order_dict_obj, right_order_dict_obj],
+		[null, null, left_limit_dict_obj, right_limit_dict_obj],
 		[null, null, separator],
 		[null, null, btn_query],
 		#[null, null, line_edit],
