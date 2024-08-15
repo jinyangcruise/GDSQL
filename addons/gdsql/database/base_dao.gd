@@ -442,6 +442,9 @@ func order_by_str(string: String) -> BaseDao:
 		return self
 	if __cmd != "select":
 		assert(_assert("order_by_str", false, "'order_by' can only be used after 'select'"))
+	if string.strip_edges() == '':
+		__order_by.clear()
+		return self
 	# 清空
 	__order_by.clear()
 	#var regex = RegEx.new()
