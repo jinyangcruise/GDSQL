@@ -196,9 +196,18 @@ layout_mode = 2
 text = "SQL"
 icon = ExtResource("10_8cnpe")
 
+[node name="VSeparator8" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+
+[node name="ButtonAddNodeLink" type="Button" parent="VBoxContainer/HFlowContainer"]
+layout_mode = 2
+text = "LINK"
+icon = ExtResource("10_8cnpe")
+
 [node name="GraphEdit" type="GraphEdit" parent="VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
+scroll_offset = Vector2(0, -46)
 right_disconnects = true
 minimap_enabled = false
 
@@ -212,6 +221,7 @@ minimap_enabled = false
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNodeUpdate" to="." method="_on_button_add_node_update_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNodeDelete" to="." method="_on_button_add_node_delete_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNodeSQL" to="." method="_on_button_add_node_sql_pressed"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNodeLink" to="." method="_on_button_add_node_link_pressed"]
 [connection signal="connection_drag_started" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_connection_drag_started"]
 [connection signal="connection_from_empty" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_connection_from_empty"]
 [connection signal="connection_request" from="VBoxContainer/GraphEdit" to="." method="_on_graph_edit_connection_request"]

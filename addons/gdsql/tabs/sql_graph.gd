@@ -247,6 +247,17 @@ func _on_button_add_node_sql_pressed():
 		
 	mark_modified()
 	
+func _on_button_add_node_link_pressed():
+	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
+	unselect_all_node()
+	
+	var graph_node = gen_link_node()
+	graph_edit.add_child(graph_node)
+	graph_node.position_offset = \
+		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+		
+	mark_modified()
+	
 func add_select_node(schema = "", table = "", fields = "*", where = "", order_by = "", offset = 0, 
 limit = 100, alias = "", password = "", asize = null, pos_offset = null, aname = "", query = true):
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
@@ -1705,7 +1716,7 @@ func gen_sql_node() -> GraphNode:
 	graph_node.add_theme_stylebox_override("titlebar_selected", SB_SQL_TITLEBAR_SELECTED)
 	graph_node.ready.connect(func():
 		graph_node.set_slot_type_right(0, 0) # Result's type is 0
-		graph_node.size.x = 650
+		graph_node.size.x = 900
 		graph_node.selected = true
 	)
 	graph_node.set_meta("type", "SQL")
@@ -1715,6 +1726,223 @@ func gen_sql_node() -> GraphNode:
 	)
 	graph_node.node_enable_status.connect(func(enabled):
 		btn_query.disabled = !enabled
+	)
+	
+	return graph_node
+	
+func gen_link_node() -> GraphNode:
+	var databases = mgr.databases.keys()
+	
+	var schema_dict_obj = DictionaryObject.new(
+		{"Schema": "", "_password": ""}, 
+		{"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
+		"_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
+	var table_dict_obj = DictionaryObject.new(
+		{"Table": ""}, 
+		{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}})
+	var link_prop_dict_obj = DictionaryObject.new(
+		{"Left": "", "Right": ""},
+		{"Left": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""},
+		"Right": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}})
+		
+	# 关联该节点的BaseDao
+	var data = DictionaryObject.new({"a": 1})
+	
+	var graph_node = SQLGraphNode.instantiate()
+	#graph_node.set_meta("base_dao", base_dao)
+	graph_node.node_enable_status.connect(mark_modified)
+	
+	# 根据选择的数据库来更新表名备选项
+	schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.push_redraw_slot_control(1, 2) # 如果不是通过点击的控件修改的dict obj，就需要重绘一下。这里偷个懒，直接重绘。
+		match prop:
+			"Schema":
+				data.set_meta("link_db", mgr.databases[new_val]["data_path"])
+				var tables = mgr.databases[new_val]["tables"].keys()
+				table_dict_obj.reset_hint(
+					{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}, 
+					"_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
+				table_dict_obj._set("Table", "", true) # 强制设置（可以避免值没变化导致没有发出信号）
+			"_password":
+				data.set_meta("link_password", new_val)
+	)
+	table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.push_redraw_slot_control(2, 2)
+		match prop:
+			"Table":
+				data.set_meta("link_table", new_val)
+				var hints = []
+				if new_val != "" and mgr.databases[schema_dict_obj._get("Schema")]["tables"].has(new_val):
+					for col in mgr.databases[schema_dict_obj._get("Schema")]["tables"][new_val]["columns"]:
+						hints.push_back(col["Column Name"])
+				hints = ",".join(hints)
+				link_prop_dict_obj.reset_hint({
+					"Left": {"hint": PROPERTY_HINT_ENUM, "hint_string": hints},
+					"Right": {"hint": PROPERTY_HINT_ENUM, "hint_string": hints}
+				})
+				link_prop_dict_obj._set("Left", "", true)
+				link_prop_dict_obj._set("Right", "", true)
+				graph_node.push_redraw_slot_control(3, 2)
+	)
+	var left_schema_dict_obj = DictionaryObject.new(
+		{"Schema1": "", "_password1": ""}, 
+		{
+			"Schema1": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
+			"_password1": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"},
+		}
+	)
+	var right_schema_dict_obj = DictionaryObject.new(
+		{"Schema2": "", "_password2": ""}, 
+		{
+			"Schema2": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
+			"_password2": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"},
+		}
+	)
+	var left_table_dict_obj = DictionaryObject.new(
+		{"Table1": ""}, 
+		{"Table1": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""},}
+	)
+	var right_table_dict_obj = DictionaryObject.new(
+		{"Table2": ""}, 
+		{"Table2": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""},}
+	)
+	var left_column_dict_obj = DictionaryObject.new(
+		{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY},}
+	) # dummy obj
+	left_column_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
+	var right_column_dict_obj = DictionaryObject.new(
+		{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY},}
+	) # dummy obj
+	right_column_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
+	left_schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.push_redraw_slot_control(5, 2) # 如果不是通过点击的控件修改的dict obj，就需要重绘一下。这里偷个懒，直接重绘。
+		match prop:
+			"Schema1":
+				data.set_meta("left_db", mgr.databases[new_val]["data_path"])
+				var tables = mgr.databases[new_val]["tables"].keys()
+				var hint = left_table_dict_obj._hint
+				hint["Table1"] = {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}
+				left_table_dict_obj.reset_hint(hint)
+				left_table_dict_obj._set("Table1", "", true) # 强制设置（可以避免值没变化导致没有发出信号）
+			"_password1":
+				data.set_meta("left_password", new_val)
+	)
+	right_schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.push_redraw_slot_control(5, 3) # 如果不是通过点击的控件修改的dict obj，就需要重绘一下。这里偷个懒，直接重绘。
+		match prop:
+			"Schema2":
+				data.set_meta("right_db", mgr.databases[new_val]["data_path"])
+				var tables = mgr.databases[new_val]["tables"].keys()
+				var hint = right_table_dict_obj._hint
+				hint["Table2"] = {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(tables)}
+				right_table_dict_obj.reset_hint(hint)
+				right_table_dict_obj._set("Table2", "", true) # 强制设置（可以避免值没变化导致没有发出信号）
+			"_password2":
+				data.set_meta("right_password", new_val)
+	)
+	left_table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.push_redraw_slot_control(6, 2)
+		match prop:
+			"Table1":
+				data.set_meta("left_table", new_val)
+				if new_val != "" and mgr.databases[left_schema_dict_obj._get("Schema1")]["tables"].has(new_val):
+					var adata = {}
+					var hints = {}
+					for col in mgr.databases[left_schema_dict_obj._get("Schema1")]["tables"][new_val]["columns"]:
+						adata[col["Column Name"]] = true
+						hints[col["Column Name"]] = {"hint": PROPERTY_HINT_NONE, "hint_string": "", "type": TYPE_BOOL}
+					left_column_dict_obj = DictionaryObject.new(adata, hints)
+				else:
+					left_column_dict_obj = DictionaryObject.new(
+						{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY},}
+					) # dummy obj
+				left_column_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
+				graph_node.datas[7][2] = left_column_dict_obj
+				graph_node.push_redraw_slot_control(7, 2)
+	)
+	right_table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.push_redraw_slot_control(6, 3)
+		match prop:
+			"Table2":
+				data.set_meta("right_table", new_val)
+				if new_val != "" and mgr.databases[right_schema_dict_obj._get("Schema2")]["tables"].has(new_val):
+					var adata = {}
+					var hints = {}
+					for col in mgr.databases[right_schema_dict_obj._get("Schema2")]["tables"][new_val]["columns"]:
+						adata[col["Column Name"]] = true
+						hints[col["Column Name"]] = {"hint": PROPERTY_HINT_NONE, "hint_string": "", "type": TYPE_BOOL}
+					right_column_dict_obj = DictionaryObject.new(adata, hints)
+				else:
+					right_column_dict_obj = DictionaryObject.new(
+						{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY},}
+					) # dummy obj
+				right_column_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
+				graph_node.datas[7][3] = right_column_dict_obj
+				graph_node.push_redraw_slot_control(7, 3)
+	)
+	
+	#var line_edit = LineEdit.new()
+	#line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	var btn_query = Button.new()
+	btn_query.text = "query"
+	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_query.pressed.connect(func():
+		pass
+		#if not line_edit.text.is_empty():
+			#var c = graph_node.find_child(line_edit.text, true, false)
+			#if c:
+				#EditorInterface.inspect_object(c)
+		#else:
+			#graph_node.print_tree_pretty()
+	)
+	btn_query.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	
+	var hseparator = HSeparator.new()
+	hseparator.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+	var separator = Control.new()
+	separator.custom_minimum_size.y = 10
+	var separator2 = Control.new()
+	separator2.custom_minimum_size.y = 10
+	
+	var datas: Array[Array] = [
+		[null, "Result"],
+		[null, null, schema_dict_obj],
+		[null, null, table_dict_obj],
+		[null, null, link_prop_dict_obj],
+		[null, null, hseparator],
+		[null, null, left_schema_dict_obj, right_schema_dict_obj],
+		[null, null, left_table_dict_obj, right_table_dict_obj],
+		[null, null, left_column_dict_obj, right_column_dict_obj],
+		[null, null, separator],
+		[null, null, btn_query],
+		#[null, null, line_edit],
+		[null, null, separator2]
+	]
+	graph_node.datas = datas
+	graph_node.title = "Link"
+	graph_node.add_theme_stylebox_override("panel", SB_PANEL)
+	graph_node.add_theme_stylebox_override("panel_selected", SB_PANEL_SELECTED)
+	graph_node.add_theme_stylebox_override("titlebar", SB_SELECT_TITLEBAR)
+	graph_node.add_theme_stylebox_override("titlebar_selected", SB_SELECT_TITLEBAR_SELECTED)
+	graph_node.ready.connect(func():
+		graph_node.set_slot_type_right(0, 0) # Result's type is 0
+		graph_node.size.x = 1100
+		graph_node.selected = true
+	)
+	graph_node.set_meta("type", "Link")
+	graph_node.set_meta("node", true)
+	graph_node.delete_request.connect(func():
+		make_useless_of_select_node(graph_node)
+		node_close(graph_node)
+	)
+	graph_node.node_enable_status.connect(func(enabled):
+		btn_query.disabled = !enabled
+		if enabled:
+			make_useful_of_select_node(graph_node)
+		else:
+			make_useless_of_select_node(graph_node)
 	)
 	
 	return graph_node
