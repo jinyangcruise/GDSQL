@@ -15,7 +15,7 @@ var control: Control:
 			else:
 				if not control.get_parent():
 					container.add_child(control)
-				else:
+				elif control.get_parent() != container:
 					control.reparent(container)
 				control.position = Vector2.ZERO
 				custom_minimum_size.y = control.size.y

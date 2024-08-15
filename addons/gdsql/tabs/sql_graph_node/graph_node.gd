@@ -186,6 +186,7 @@ func redraw():
 		for arr in datas:
 			index += 1
 			var hb = HBoxContainer.new()
+			add_child(hb)
 			#var has_content = false
 			#hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			var left = 0
@@ -201,7 +202,9 @@ func redraw():
 						
 					if data is String or data is int or data is float:
 						if data is String and data == "":
-							hb.add_child(Control.new())
+							var c = Control.new()
+							c.set_meta("col_index", left - 1)
+							hb.add_child(c)
 						else:
 							#has_content = true
 							var label = Label.new()
@@ -210,6 +213,7 @@ func redraw():
 							label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 							label.localize_numeral_system = false
 							label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+							label.set_meta("col_index", left - 1)
 							hb.add_child(label)
 					elif data is DictionaryObject:
 						#has_content = true
@@ -220,6 +224,7 @@ func redraw():
 						inspector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 						inspector.size_flags_vertical = Control.SIZE_EXPAND_FILL
 						inspector.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+						inspector.set_meta("col_index", left - 1)
 						hb.add_child(inspector)
 						
 						# 允许用户使用垂直方式排列属性（默认横向）
@@ -243,14 +248,15 @@ func redraw():
 							connect_focused_propagate(editor_property, data)
 							__property_old_parents[editor_property] = weakref(editor_property.get_parent())
 							editor_property.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-							editor_property.size_flags_vertical = Control.SIZE_EXPAND_FILL
+							#editor_property.size_flags_vertical = Control.SIZE_EXPAND_FILL
 							editor_property.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
 							if (properties[i] as String).begins_with("_"):
 								var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
+								container.name += str(randi() % 100)
+								p_container.add_child(container)
 								container.invisible_ratio = 0.5
 								container.control = editor_property
 								container.set_meta("cut_control", true)
-								p_container.add_child(container)
 							else:
 								editor_property.reparent(p_container)
 								
@@ -262,6 +268,7 @@ func redraw():
 							#has_content = true
 							if data.size_flags_vertical == Control.SIZE_EXPAND_FILL:
 								hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
+						data.set_meta("col_index", left - 1)
 						if data.get_parent() and data.get_parent() != hb:
 							data.reparent(hb)
 						else:
@@ -270,7 +277,6 @@ func redraw():
 				#hb.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 			#else:
 				#hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
-			add_child(hb)
 	connect_focused_selected_propagate(self)
 	
 ## 把要刷新的控件推送到队列中
@@ -305,35 +311,52 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 		else:
 			set_slot_enabled_right(slot_row_index, true)
 			
-	# 释放旧的EditorProperty
-	var arr = []
-	search_editor_property(hb, arr)
-	
-	for ep: EditorProperty in arr:
-		# parent is a cut_control
-		if ep.get_parent() and ep.get_parent().has_meta("cut_control"):
-			ep.get_parent().control = null
 			
-		disconnect_focused_propagate(ep)
-		if __property_old_parents[ep].get_ref():
-			if ep.get_parent():
-				ep.reparent(__property_old_parents[ep].get_ref())
-			else:
-				__property_old_parents[ep].get_ref().add_child(ep)
-			__property_old_parents.erase(ep)
+	var to_remain = []
+	var to_remove = []
+	for c in hb.get_children():
+		if c.get_meta("col_index") == slot_col_index:
+			to_remove.push_back(c)
 		else:
-			__property_old_parents.erase(ep)
-			ep.queue_free()
+			to_remain.push_back(c)
 			
-	while hb.get_child_count() > 0:
-		var c = hb.get_child(0)
+	for c in to_remove:
 		hb.remove_child(c)
-		c.queue_free()
 		
+		# 释放旧的EditorProperty
+		var arr = []
+		search_editor_property(c, arr)
+		
+		for ep: EditorProperty in arr:
+			# parent is a cut_control
+			if ep.get_parent() and ep.get_parent().get_parent() and \
+			ep.get_parent().get_parent().has_meta("cut_control"):
+				ep.get_parent().get_parent().control = null
+				
+			disconnect_focused_propagate(ep)
+			if __property_old_parents[ep].get_ref():
+				if ep.get_parent():
+					ep.reparent(__property_old_parents[ep].get_ref())
+				else:
+					__property_old_parents[ep].get_ref().add_child(ep)
+				__property_old_parents.erase(ep)
+			else:
+				__property_old_parents.erase(ep)
+				ep.queue_free()
+				
+		if not c.is_queued_for_deletion():
+			c.queue_free()
+			
+	for c in to_remain:
+		if c.get_meta("col_index") > slot_col_index:
+			hb.remove_child(c) # 按照顺序，待会儿要重新添加在后面
+			
 	# 添加新的
 	if data is String or data is int or data is float:
 		if data is String and data == "":
-			hb.add_child(Control.new())
+			var c = Control.new()
+			c.set_meta("col_index", slot_col_index)
+			hb.add_child(c)
 		else:
 			var label = Label.new()
 			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if slot_row_index == 0 else HORIZONTAL_ALIGNMENT_RIGHT
@@ -341,6 +364,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 			label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 			label.localize_numeral_system = false
 			label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			label.set_meta("col_index", slot_col_index)
 			hb.add_child(label)
 	elif data is Control:
 		if data.get_class() == "Control" and data.get_child_count() == 0:
@@ -348,6 +372,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 		else:
 			if data.size_flags_vertical == Control.SIZE_EXPAND_FILL:
 				hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		data.set_meta("col_index", slot_col_index)
 		if data.get_parent() and data.get_parent() != hb:
 			data.reparent(hb)
 		else:
@@ -358,6 +383,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 		inspector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		inspector.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		inspector.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		inspector.set_meta("col_index", slot_col_index)
 		hb.add_child(inspector)
 		
 		# 允许用户使用垂直方式排列属性（默认横向）
@@ -382,17 +408,22 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 			connect_focused_propagate(editor_property, data)
 			__property_old_parents[editor_property] = weakref(editor_property.get_parent())
 			editor_property.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			editor_property.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			#editor_property.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			editor_property.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
 			if (properties[i] as String).begins_with("_"):
 				var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
+				container.name += str(randi() % 100)
+				p_container.add_child(container)
 				container.invisible_ratio = 0.5
 				container.control = editor_property
 				container.set_meta("cut_control", true)
-				p_container.add_child(container)
 			else:
 				editor_property.reparent(p_container)
 				
+	for c in to_remain:
+		if c.get_meta("col_index") > slot_col_index:
+			hb.add_child(c)
+			
 	# 上面的过程中几乎肯定会改变检查器当前编辑的对象，从而影响原来正被编辑的对象的修改，所以需要激活原来的对象编辑
 	if focus_owner:
 		focus_owner.emit_signal("focus_entered") # 可以触发之前绑定的函数：editor_property_focused
