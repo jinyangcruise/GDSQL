@@ -426,11 +426,29 @@ func grid_checkbox(param, columns: int, rows: int):
 		_return_null = true
 		return null # 用户也不会拿这个去做运算，所以返回self
 	var grid_c = GridContainer.new()
+	grid_c.add_theme_constant_override("h_separation", 1)
+	grid_c.add_theme_constant_override("v_separation", 1)
 	grid_c.columns = columns
 	var is_vector2 = _params[curr_count][0] is Vector2
+	var sb = StyleBoxFlat.new()
+	sb.set_border_width_all(1)
+	sb.border_color = Color.WHITE
+	sb.set_content_margin_all(0)
+	sb.draw_center = false
+	var sb_center = sb.duplicate(true)
+	sb_center.draw_center = true
+	sb_center.border_color = Color.GREEN
 	for i in rows:
 		for j in columns:
 			var cb = CheckBox.new()
+			if i == floor(columns/2) and j == floor(rows/2):
+				cb.add_theme_stylebox_override("normal", sb_center)
+				cb.add_theme_stylebox_override("pressed", sb_center)
+				cb.add_theme_stylebox_override("hover", sb_center)
+			else:
+				cb.add_theme_stylebox_override("normal", sb)
+				cb.add_theme_stylebox_override("pressed", sb)
+				cb.add_theme_stylebox_override("hover", sb)
 			cb.button_pressed = false
 			if is_vector2:
 				cb.set_meta("pos", Vector2(i, j))
