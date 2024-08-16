@@ -1,17 +1,9 @@
 [gd_scene load_steps=4 format=3 uid="uid://ni7b822f0spd"]
 
+[ext_resource type="StyleBox" uid="uid://b5swwg43wpjo8" path="res://addons/gdsql/detail_panel_normal.stylebox" id="1_1ofal"]
 [ext_resource type="Script" path="res://addons/gdsql/detail_panel.gd" id="1_we6vo"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_kvca5"]
-content_margin_left = 5.0
-content_margin_top = 5.0
-content_margin_right = 5.0
-content_margin_bottom = 5.0
-bg_color = Color(0.129412, 0.14902, 0.180392, 1)
-
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4xr45"]
-content_margin_left = 50.0
-content_margin_top = 5.0
 bg_color = Color(0.6, 0.6, 0.6, 0)
 
 [node name="DetailPanel" type="PanelContainer"]
@@ -22,7 +14,7 @@ grow_horizontal = 2
 grow_vertical = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_styles/panel = SubResource("StyleBoxFlat_kvca5")
+theme_override_styles/panel = ExtResource("1_1ofal")
 script = ExtResource("1_we6vo")
 
 [node name="TextureRect" type="TextureRect" parent="."]
@@ -37,10 +29,15 @@ theme_override_constants/h_separation = 0
 theme_override_constants/v_separation = 0
 columns = 2
 
-[node name="CheckBox" type="CheckBox" parent="."]
+[node name="CheckBoxContainer" type="MarginContainer" parent="."]
+layout_mode = 2
+size_flags_vertical = 8
+theme_override_constants/margin_top = 50
+
+[node name="CheckBox" type="CheckBox" parent="CheckBoxContainer"]
 layout_mode = 2
 size_flags_horizontal = 8
-size_flags_vertical = 8
+size_flags_vertical = 4
 theme_override_styles/focus = SubResource("StyleBoxFlat_4xr45")
 theme_override_styles/hover = SubResource("StyleBoxFlat_4xr45")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_4xr45")
@@ -71,3 +68,7 @@ stretch_mode = 5
 layout_mode = 2
 mouse_filter = 2
 mouse_default_cursor_shape = 8
+
+[connection signal="resized" from="." to="." method="_on_resized"]
+[connection signal="gui_input" from="CheckBoxContainer" to="." method="_on_check_box_container_gui_input"]
+[connection signal="toggled" from="CheckBoxContainer/CheckBox" to="." method="_on_check_box_toggled"]

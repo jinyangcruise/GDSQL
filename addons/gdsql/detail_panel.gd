@@ -3,15 +3,25 @@ extends PanelContainer
 
 @onready var texture_rect: TextureRect = $TextureRect
 @onready var grid_container: GridContainer = $GridContainer
-@onready var check_box: CheckBox = $CheckBox
+@onready var check_box_container: MarginContainer = $CheckBoxContainer
+@onready var check_box: CheckBox = $CheckBoxContainer/CheckBox
+
+
 
 @onready var label_model: Label = $Models/LabelModel
 @onready var texture_rect_model: TextureRect = $Models/TextureRectModel
 @onready var check_box_model: CheckBox = $Models/CheckBoxModel
 
+const DETAIL_PANEL_CHECKED = preload("res://addons/gdsql/detail_panel_checked.stylebox")
+const DETAIL_PANEL_NORMAL = preload("res://addons/gdsql/detail_panel_normal.stylebox")
+
 var checked: bool:
 	set(val):
 		checked = val
+		if checked:
+			add_theme_stylebox_override("panel", DETAIL_PANEL_CHECKED)
+		else:
+			add_theme_stylebox_override("panel", DETAIL_PANEL_NORMAL)
 		if check_box:
 			check_box.button_pressed = val
 			
@@ -122,3 +132,13 @@ func split_for_tooltip(content: String) -> String:
 			break
 		start += l
 	return "\n".join(arr)
+
+
+func _on_check_box_toggled(toggled_on: bool) -> void:
+	checked = toggled_on
+
+
+func _on_check_box_container_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		if event.is_pressed() and event.button_index == MOUSE_BUTTON_LEFT:
+			checked = !checked
