@@ -197,11 +197,16 @@ clip_text = true
 [node name="Control" type="HBoxContainer" parent="HSplitContainer/HeaderColModel"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 6
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
 layout_mode = 2
 size_flags_vertical = 3
 focus_mode = 1
+
+[node name="LineEditForDebug" type="LineEdit" parent="VBoxContainer"]
+visible = false
+layout_mode = 2
 
 [node name="ButtonForDebug" type="Button" parent="VBoxContainer"]
 visible = false
@@ -212,8 +217,15 @@ text = "xxxxx
 [node name="Header" type="MarginContainer" parent="VBoxContainer"]
 custom_minimum_size = Vector2(0, 31)
 layout_mode = 2
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_right = -18
 
-[node name="ScrollContainer" type="ScrollContainer" parent="VBoxContainer"]
+[node name="ScrollContainerContainer" type="MarginContainer" parent="VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_right = -4
+
+[node name="ScrollContainer" type="ScrollContainer" parent="VBoxContainer/ScrollContainerContainer"]
 layout_mode = 2
 size_flags_vertical = 3
 focus_mode = 1
@@ -221,12 +233,12 @@ mouse_filter = 0
 mouse_force_pass_scroll_events = false
 theme_override_styles/panel = SubResource("StyleBoxEmpty_b7j22")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/ScrollContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/ScrollContainerContainer/ScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 mouse_default_cursor_shape = 8
-theme_override_constants/separation = 0
+theme_override_constants/separation = 2
 
 [node name="PopupMenuText" type="PopupMenu" parent="."]
 item_count = 3
@@ -256,7 +268,7 @@ mouse_filter = 2
 [connection signal="pressed" from="Control/ButtonDeleteRow" to="." method="_on_button_delete_row_pressed"]
 [connection signal="focus_entered" from="VBoxContainer" to="." method="_on_v_box_container_focus_entered"]
 [connection signal="pressed" from="VBoxContainer/ButtonForDebug" to="." method="_on_button_pressed"]
-[connection signal="focus_entered" from="VBoxContainer/ScrollContainer" to="." method="_on_scroll_container_focus_entered"]
-[connection signal="mouse_entered" from="VBoxContainer/ScrollContainer/VBoxContainer" to="." method="_on_v_box_container_mouse_entered"]
-[connection signal="mouse_exited" from="VBoxContainer/ScrollContainer/VBoxContainer" to="." method="_on_v_box_container_mouse_exited"]
+[connection signal="focus_entered" from="VBoxContainer/ScrollContainerContainer/ScrollContainer" to="." method="_on_scroll_container_focus_entered"]
+[connection signal="mouse_entered" from="VBoxContainer/ScrollContainerContainer/ScrollContainer/VBoxContainer" to="." method="_on_v_box_container_mouse_entered"]
+[connection signal="mouse_exited" from="VBoxContainer/ScrollContainerContainer/ScrollContainer/VBoxContainer" to="." method="_on_v_box_container_mouse_exited"]
 [connection signal="index_pressed" from="PopupMenuText" to="." method="_on_popup_menu_text_index_pressed"]

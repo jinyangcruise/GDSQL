@@ -8,17 +8,19 @@ var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManage
 
 @onready var header: MarginContainer = $VBoxContainer/Header
 @onready var header_col_model: Control = $HSplitContainer/HeaderColModel
-@onready var v_box_container: VBoxContainer = $VBoxContainer/ScrollContainer/VBoxContainer
 @onready var row_panel_container: PanelContainer = $Models/RowPanelContainer
 @onready var row_model = $Models/RowPanelContainer/RowModel
 @onready var label_model: Label = $Models/LabelModel
 @onready var texture_rect_model: TextureRect = $Models/TextureRectModel
 @onready var check_box_model: CheckBox = $Models/CheckBoxModel
-@onready var scroll_container = $VBoxContainer/ScrollContainer
+@onready var scroll_container_container: MarginContainer = $VBoxContainer/ScrollContainerContainer
+@onready var scroll_container: ScrollContainer = $VBoxContainer/ScrollContainerContainer/ScrollContainer
+@onready var v_box_container: VBoxContainer = $VBoxContainer/ScrollContainerContainer/ScrollContainer/VBoxContainer
 @onready var popup_menu_text = $PopupMenuText
 @onready var button_select_all = $Control/ButtonSelectAll
 @onready var button_edit = $Control/ButtonEdit
 @onready var borders_container = $BordersContainer
+@onready var line_edit_for_debug: LineEdit = $VBoxContainer/LineEditForDebug
 
 @onready var v_scroll_height: int:
 	get:
@@ -134,6 +136,8 @@ func _ready() -> void:
 	label_max_lines_visible = label_max_lines_visible
 	var v_scroll_bar = scroll_container.get_v_scroll_bar() as VScrollBar
 	v_scroll_bar.visibility_changed.connect(func():
+		if scroll_container_container:
+			scroll_container_container.add_theme_constant_override("margin_right", -int(v_scroll_bar.visible) * 18) # scroll bar别占位置
 		if not buttons.is_empty():
 			(buttons.back() as Button).custom_minimum_size.x = int(v_scroll_bar.visible) * v_scroll_bar.size.x
 			await get_tree().process_frame
@@ -249,17 +253,17 @@ func reset_header():
 			
 		if i == 0:
 			button.hide()
-			control.size_flags_stretch_ratio = 1000000
+			control.size_flags_stretch_ratio = 10000000
 			c.dragger_visibility = HSplitContainer.DRAGGER_HIDDEN_COLLAPSED
 		elif i == 1 and show_frame:
 			button.icon = preload("res://addons/gdsql/img/2D.png") # 全选
 			button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 			button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			button.pressed.connect(_on_button_select_all_pressed)
-			control.size_flags_stretch_ratio = 10000
+			control.size_flags_stretch_ratio = 10000000
 			c.collapsed = true
 		elif i == fake_columns.size() - 2:
-			button.size_flags_stretch_ratio = 1000000
+			button.size_flags_stretch_ratio = 10000000
 			button.pressed.connect(select_col)
 			button.mouse_default_cursor_shape = Control.CURSOR_HELP
 			button.mouse_entered.connect(DisplayServer.cursor_set_custom_image.bind(
@@ -289,6 +293,7 @@ func reset_header():
 			
 			
 		button.text = fake_columns[i]
+		button.name = ("Button_" + button.text).validate_node_name()
 		parent = control
 		buttons.push_back(button)
 		if i < fake_columns.size() - 1:
@@ -740,6 +745,12 @@ func realign_rows():
 			row.get_child(0).get_child(i, true).size_flags_stretch_ratio = buttons[i].size.x + 6
 			
 func _on_button_pressed() -> void:
+	if not line_edit_for_debug.text.is_empty():
+		var c = find_child(line_edit_for_debug.text, true, false)
+		if c:
+			EditorInterface.inspect_object(c)
+	else:
+		print_tree_pretty()
 	#realign_rows()
 #	print_tree_pretty()
 #	for button in buttons:
@@ -748,7 +759,7 @@ func _on_button_pressed() -> void:
 #		printt(button.size_flags_horizontal, button.size.x, splitCol, splitCol.size_flags_horizontal, splitCol.size.x)
 	test(header)
 	printt("---------------------------")
-	test($VBoxContainer/ScrollContainer/VBoxContainer)
+	test(v_box_container)
 	
 func test(container):
 	if container.get_child_count() == 0:
