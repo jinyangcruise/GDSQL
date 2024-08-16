@@ -2016,13 +2016,20 @@ func gen_link_node() -> GraphNode:
 							right_query_ret.get_cost_time()) # 去掉表头
 							
 					# 构造表格数据
+					var find_col_index = func(columns: Array, col_name: String):
+						for i in columns.size():
+							if columns[i]["Column Name"] == col_name:
+								return i
+						return -1
 					var tdatas = []
 					var left_columns = left_query_ret.get_head()
 					var left_datas = left_query_ret.get_data()
-					var left_key_index = left_columns.find(left_link_prop_dict_obj._get("LinkColumnName"))
+					var left_key_index = find_col_index.call(left_columns, left_link_prop_dict_obj._get("LinkColumnName"))
+					assert(left_key_index != -1, "Error of left_key_index.")
 					var right_columns = right_query_ret.get_head()
 					var right_datas = right_query_ret.get_data()
-					var right_key_index = right_columns.find(right_link_prop_dict_obj._get("LinkColumnName"))
+					var right_key_index = find_col_index.call(right_columns, right_link_prop_dict_obj._get("LinkColumnName"))
+					assert(right_key_index != -1, "Error of right_key_index.")
 					const detail_panel_scene = preload("res://addons/gdsql/detail_panel.tscn")
 					for row: Array in left_datas:
 						# 包含左数据、右数据和按钮
@@ -2052,7 +2059,6 @@ func gen_link_node() -> GraphNode:
 									right_data[right_columns[i]["Column Name"]] = right_row[i]
 							var right_panel = detail_panel_scene.instantiate()
 							right_panel.show_check_box = true
-							# TODO FIXME
 							right_panel.checked = link_map.has(row[left_key_index]) and \
 								right_row[right_key_index] in link_map[row[left_key_index]]
 							right_panel.ready.connect(func():
