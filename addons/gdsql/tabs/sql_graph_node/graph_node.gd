@@ -76,7 +76,7 @@ func _ready() -> void:
 			# node和edit左上角的偏移量
 			var diff = position_offset - size/2 - left_top_cornor_offset \
 				# graphnode的size的bug补偿
-				+ Vector2(0, 80) \
+				+ Vector2(0, 64) \
 				# top边框
 				- Vector2(0, 5) \
 				- Vector2.ONE * 8 # 留一个边框
