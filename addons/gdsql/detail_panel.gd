@@ -41,15 +41,21 @@ func set_datas(data: Dictionary):
 		grid_container.remove_child(c)
 		c.queue_free()
 		
+	var arr_tool_tip = []
 	for i in data:
 		if data[i] is Texture2D and texture_rect.texture == null:
 			texture_rect.texture = data[i]
 		else:
-			var l = label_model.duplicate()
-			l.text = str(i)
-			grid_container.add_child(l)
-			grid_container.add_child(get_control_by_data_type(data[i]))
-			
+			#var l = label_model.duplicate()
+			#l.text = str(i)
+			#grid_container.add_child(l)
+			var control = get_control_by_data_type(data[i])
+			grid_container.add_child(control)
+			if control.tooltip_text != '':
+				arr_tool_tip.push_back(str(i) + ": " + control.tooltip_text)
+				
+	check_box_container.tooltip_text = '\n'.join(arr_tool_tip)
+	
 func get_control_by_data_type(data) -> Control:
 	var control: Control
 	var handled = false

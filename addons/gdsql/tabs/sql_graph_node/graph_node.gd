@@ -240,8 +240,10 @@ func redraw():
 						
 						EditorInterface.inspect_object(data)
 						var properties = data._get_property_list().map(func(v): return v["name"])
+						EditorInterface.get_inspector().print_tree_pretty()
 						var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
 						for i in properties.size():
+							printt("56656", properties[i]) # TODO FIXME 如果某个属性是group，catogroy，sub_group，那么i和editor_property就对不上了
 							# 下划线开头的隐藏label。隐藏方法是把控件整个添加到一个能按比例隐藏子控件的控件中
 							var editor_property = editor_properties[i]
 							# 只有让检查器显示这个属性，才能修改这个属性。否则修改的是检查器当前显示的属性。

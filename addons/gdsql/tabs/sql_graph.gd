@@ -1913,7 +1913,18 @@ func gen_link_node() -> GraphNode:
 	var right_where_dict_obj = DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_NONE}})
 	var right_order_dict_obj = DictionaryObject.new({"Order By": ""}, {"Order By": {"hint": PROPERTY_HINT_NONE}})
 	var right_limit_dict_obj = DictionaryObject.new({"Offset": 0, "Limit": 1000})
-	
+	var left_other_options = DictionaryObject.new({
+		"Other Options": "", "show_column_name": false, "font_size": 14, "replace": {},
+		},
+		#{"Other Options": {"hint": PROPERTY_HINT_NONE, "usage": PROPERTY_USAGE_GROUP}},
+	)
+	left_other_options.set_meta("align", "vertical")
+	var right_other_options = DictionaryObject.new({
+		"Other Options": "", "show_column_name": false, "font_size": 14, "replace": {},
+		},
+		{"Other Options": {"hint": PROPERTY_HINT_NONE, "usage": PROPERTY_USAGE_GROUP}},
+	)
+	right_other_options.set_meta("align", "vertical")
 	#var line_edit = LineEdit.new()
 	#line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	
@@ -2164,6 +2175,7 @@ func gen_link_node() -> GraphNode:
 		[null, null, left_where_dict_obj, right_where_dict_obj],
 		[null, null, left_order_dict_obj, right_order_dict_obj],
 		[null, null, left_limit_dict_obj, right_limit_dict_obj],
+		[null, null, left_other_options, right_other_options],
 		[null, null, separator],
 		[null, null, btn_query],
 		#[null, null, line_edit],

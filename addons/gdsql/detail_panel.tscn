@@ -27,7 +27,6 @@ stretch_mode = 3
 layout_mode = 2
 theme_override_constants/h_separation = 0
 theme_override_constants/v_separation = 0
-columns = 2
 
 [node name="CheckBoxContainer" type="MarginContainer" parent="."]
 layout_mode = 2
@@ -49,13 +48,14 @@ layout_mode = 2
 
 [node name="LabelModel" type="Label" parent="Models"]
 auto_translate_mode = 2
+custom_minimum_size = Vector2(50, 50)
 layout_mode = 2
 size_flags_horizontal = 3
 localize_numeral_system = false
 mouse_filter = 1
 mouse_default_cursor_shape = 8
-text_overrun_behavior = 3
-max_lines_visible = 1
+theme_override_font_sizes/font_size = 12
+autowrap_mode = 1
 
 [node name="TextureRectModel" type="TextureRect" parent="Models"]
 layout_mode = 2
