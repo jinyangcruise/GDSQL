@@ -19,6 +19,8 @@ var control: Control:
 					control.reparent(container)
 				control.position = Vector2.ZERO
 				custom_minimum_size.y = control.size.y
+				# 修复control从隐藏状态转为可见状态时，size发生变化引起的整体size变化的情况
+				control.visibility_changed.connect(_on_control_visibibity_changed)
 				#custom_minimum_size = control.size 会导致显示问题
 
 @onready var container: Control = $Container
@@ -40,3 +42,8 @@ func _on_resized() -> void:
 			#printt(2222222222, size_flags_horizontal)
 			
 		#printt("aqaaaaa", self, size, container.size, container.position, control.position)
+
+func _on_control_visibibity_changed():
+	if control:
+		await get_tree().process_frame
+		custom_minimum_size.y = control.size.y
