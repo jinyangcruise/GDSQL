@@ -9,5 +9,8 @@ offset_bottom = 54.0
 localize_numeral_system = false
 resizable = true
 script = ExtResource("1_s2sbd")
+debug_mode = true
 
+[connection signal="resize_end" from="." to="." method="_on_resize_end"]
 [connection signal="resize_request" from="." to="." method="_on_resize_request"]
+[connection signal="visibility_changed" from="." to="." method="_on_visibility_changed"]

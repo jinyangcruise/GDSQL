@@ -9,6 +9,10 @@ signal redraw_slot(row, col)
 
 var check_button_enable: CheckButton
 
+@export var debug_mode = false
+var line_edit_debug: LineEdit
+var button_debug: Button
+var window_size: Vector2
 
 ## datas的元素是一个长度至少为2的数组，第一个元素是左侧输入port代表的数据，第二个元素是右侧输出port代表的数据。
 ## 当前两个元素都为null时，这行将不显示port，而显示从第三个元素所代表的控件。
@@ -41,8 +45,25 @@ var __property_old_parents = {}
 var _redraw_queue = {}
 var _mutex: Mutex
 var max_btn: TextureButton
+var _inspector_search: LineEdit
 
 func _ready() -> void:
+	var tween = create_tween()
+	tween.set_loops(-1)
+	tween.tween_callback(_on_timer_timeout).set_delay(0.1)
+	
+	if debug_mode:
+		var hbox = HBoxContainer.new()
+		hbox.name = 'hbox_for_debug'
+		add_child(hbox, true, Node.INTERNAL_MODE_BACK)
+		line_edit_debug = LineEdit.new()
+		line_edit_debug.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hbox.add_child(line_edit_debug)
+		button_debug = Button.new()
+		hbox.add_child(button_debug)
+		button_debug.text = "debug"
+		button_debug.pressed.connect(_on_button_debug_pressed)
+		
 	# enable button
 	check_button_enable = CheckButton.new()
 	check_button_enable.text = "enable"
@@ -96,6 +117,7 @@ func _ready() -> void:
 			# node和edit中心点的偏移
 			var diff = position_offset - center_offset
 			graph_edit.scroll_offset += diff
+		window_size = size
 	)
 	get_titlebar_hbox().add_child(max_btn)
 	
@@ -158,7 +180,7 @@ func clear():
 							
 		var children = get_children()
 		for i in children:
-			if i and !i.is_queued_for_deletion():
+			if i and !i.is_queued_for_deletion() and not (i == line_edit_debug or i == button_debug):
 				remove_child(i)
 				i.queue_free()
 				
@@ -177,6 +199,7 @@ func _notification(what):
 		max_btn = null
 		
 func redraw():
+	var inspect_change = false # 是否检查了某个obj
 	clear()
 	if datas and !datas.is_empty() and is_inside_tree():
 		#var graph_node = GraphNode.new()
@@ -238,30 +261,105 @@ func redraw():
 						hb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 						inspector.add_child(p_container)
 						
+						# 去掉筛选属性里的文字，否则有些属性不会被渲染出来
+						if not _inspector_search:
+							var editor_inspector = EditorInterface.get_inspector()
+							var inspector_dock = editor_inspector.get_parent()
+							var line_edits = inspector_dock.find_children("@LineEdit*", "LineEdit", true, false)
+							for l: LineEdit in line_edits:
+								if l.placeholder_text == tr("Filter Properties"):
+									_inspector_search = l
+									break
+						assert(_inspector_search != null, "Cannot find inspector search!")
+						var old_search_content = _inspector_search.text
+						_inspector_search.text = ""
+						
 						EditorInterface.inspect_object(data)
+						inspect_change = true
 						var properties = data._get_property_list().map(func(v): return v["name"])
-						EditorInterface.get_inspector().print_tree_pretty()
+						#EditorInterface.get_inspector().print_tree_pretty()
 						var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
-						for i in properties.size():
-							printt("56656", properties[i]) # TODO FIXME 如果某个属性是group，catogroy，sub_group，那么i和editor_property就对不上了
-							# 下划线开头的隐藏label。隐藏方法是把控件整个添加到一个能按比例隐藏子控件的控件中
-							var editor_property = editor_properties[i]
+						var v_box_container = EditorInterface.get_inspector().get_child(0, true)
+						for i in v_box_container.get_children(true):
+							var need = false
+							for editor_property in editor_properties:
+								if editor_property is not EditorProperty:
+									continue
+									
+								var prop_name = (editor_property as EditorProperty).get_edited_property()
+								if prop_name not in properties:
+									continue
+									
+								if i.is_ancestor_of(editor_property):
+									need = true
+									break
+									
+							if need:
+								if p_container is VBoxContainer:
+									__property_old_parents[i] = weakref(v_box_container)
+									i.reparent(p_container, false)
+								else:
+									for j in i.get_children(true):
+										__property_old_parents[j] = weakref(i)
+										j.reparent(p_container, false)
+								i.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+								
+						for editor_property in editor_properties:
+							if editor_property is not EditorProperty:
+								continue
+								
+							var prop_name = (editor_property as EditorProperty).get_edited_property()
+							if prop_name not in properties:
+								continue
+								
+							# 1.可以让检查器中的修改反映到GraphNode中
+							# 2.间接实现了EditorPropertyArray、EditorPropertyDictionary等元素操作比如交换位置、增删改等
+							# NOTICE 如果在lambda中直接使用editor_property时，会在redraw的时候报错，因为editor_property被替换成新的控件了
+							# (Lambda capture at index %d was freed. Passed "null" instead.)
+							# 所以用ep_ref包一下。。过于hack了也是。。
+							var ep_ref = [editor_property]
+							data.value_changed.connect(func(_p, new, old):
+								if ep_ref[0] and is_instance_valid(ep_ref[0]) and new != old:
+									ep_ref[0].update_property()
+							)
+							
 							# 只有让检查器显示这个属性，才能修改这个属性。否则修改的是检查器当前显示的属性。
 							connect_focused_propagate(editor_property, data)
-							__property_old_parents[editor_property] = weakref(editor_property.get_parent())
 							editor_property.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-							#editor_property.size_flags_vertical = Control.SIZE_EXPAND_FILL
 							editor_property.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
-							if (properties[i] as String).begins_with("_"):
+							if editor_property.name.contains("EditorPropertyArray") or \
+							editor_property.name.contains("EditorPropertyDictionary"):
+								# 没展开的时候去掉背景色
+								var btn = editor_property.find_child("@Button*", false, false)
+								if btn:
+									(btn as Button).pressed.connect(func():
+										# 2说明没有展开，3说明展开了
+										if editor_property.get_child_count(true) == 2:
+											editor_property.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
+									)
+							elif editor_property.name.contains("EditorPropertyResource"):
+								# 没展开的时候去掉背景色
+								var btn = editor_property.find_child("@Button*", true, false)
+								if btn:
+									(btn as Button).pressed.connect(func():
+										# 没找到子EditorInspector，说明没展开
+										if not editor_property.find_child("@EditorInspector*", false, false):
+											editor_property.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
+									)
+									
+							# 下划线开头的隐藏label。隐藏方法是把控件整个添加到一个能按比例隐藏子控件的控件中
+							if prop_name.begins_with("_") and not editor_property.name.contains("EditorPropertyMultilineText")\
+							and not editor_property.name.contains("EditorPropertyArray"):
+								__property_old_parents[editor_property] = weakref(editor_property.get_parent())
 								var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
 								container.name += str(randi() % 100)
-								p_container.add_child(container)
 								container.invisible_ratio = 0.5
-								container.control = editor_property
 								container.set_meta("cut_control", true)
-							else:
-								editor_property.reparent(p_container)
+								editor_property.add_sibling(container)
+								container.control = editor_property
 								
+						# 恢复原来的筛选属性
+						_inspector_search.text = old_search_content
 					elif data is Control:
 						if data.get_class() == "Control" and data.get_child_count() == 0:
 							#has_content = false
@@ -281,6 +379,16 @@ func redraw():
 				#hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	connect_focused_selected_propagate(self)
 	
+	# 检视一下null，否则会停留在检查某个dictionary_object，导致修改最后一条属性的时候可能会产生显示上的不统一
+	if inspect_change:
+		EditorInterface.inspect_object(null)
+		
+func editor_property_update_property(_p, new, old, editor_property):
+	printt("42342342", editor_property, _p, new, old)
+	if editor_property and is_instance_valid(editor_property) and new != old:
+		printt("xxxxxxxxx")
+		editor_property.update_property()
+		
 ## 把要刷新的控件推送到队列中
 func push_redraw_slot_control(slot_row_index, slot_col_index):
 	_mutex.lock()
@@ -399,29 +507,72 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 		hb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		inspector.add_child(p_container)
 		
+		# 去掉筛选属性里的文字，否则有些属性不会被渲染出来
+		if not _inspector_search:
+			var editor_inspector = EditorInterface.get_inspector()
+			var inspector_dock = editor_inspector.get_parent()
+			var line_edits = inspector_dock.find_children("@LineEdit*", "LineEdit", true, false)
+			for l: LineEdit in line_edits:
+				if l.placeholder_text == tr("Filter Properties"):
+					_inspector_search = l
+					break
+		assert(_inspector_search != null, "Cannot find inspector search!")
+		var old_search_content = _inspector_search.text
+		_inspector_search.text = ""
+		
 		EditorInterface.inspect_object(data)
 		var properties = data._get_property_list().map(func(v): return v["name"])
+		var editor_sections = EditorInterface.get_inspector().find_children("@EditorInspectorSection*", "", true, false)
 		var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
-		for i in properties.size():
+		for editor_property in editor_properties:
+			if editor_property is not EditorProperty:
+				continue
+				
+			var prop_name = (editor_property as EditorProperty).get_edited_property()
+			if prop_name not in properties:
+				continue
+				
 			# 下划线开头的隐藏label。隐藏方法是把控件整个添加到一个能按比例隐藏子控件的控件中
-			var editor_property: EditorProperty = editor_properties[i]
-			
 			# 只有让检查器显示这个属性，才能修改这个属性。否则修改的是检查器当前显示的属性。
 			connect_focused_propagate(editor_property, data)
 			__property_old_parents[editor_property] = weakref(editor_property.get_parent())
 			editor_property.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			#editor_property.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			editor_property.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
-			if (properties[i] as String).begins_with("_"):
-				var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
-				container.name += str(randi() % 100)
-				p_container.add_child(container)
-				container.invisible_ratio = 0.5
-				container.control = editor_property
-				container.set_meta("cut_control", true)
+			
+			# 是否在一个section中
+			var section: Control
+			for sec: Control in editor_sections:
+				if sec.is_ancestor_of(editor_property):
+					section = sec
+					break
+			if section:
+				if not inspector.is_ancestor_of(section):
+					__property_old_parents[section] = weakref(section.get_parent())
+					section.reparent(p_container)
+					
+				# 下划线开头的隐藏label。隐藏方法是把控件整个添加到一个能按比例隐藏子控件的控件中
+				if prop_name.begins_with("_"):
+					__property_old_parents[editor_property] = weakref(editor_property.get_parent())
+					var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
+					container.name += str(randi() % 100)
+					editor_property.add_sibling(container)
+					container.invisible_ratio = 0.5
+					container.control = editor_property
+					container.set_meta("cut_control", true)
 			else:
-				editor_property.reparent(p_container)
-				
+				if prop_name.begins_with("_"):
+					var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
+					container.name += str(randi() % 100)
+					p_container.add_child(container)
+					container.invisible_ratio = 0.5
+					container.control = editor_property
+					container.set_meta("cut_control", true)
+				else:
+					editor_property.reparent(p_container)
+					
+		# 恢复原来的筛选属性
+		_inspector_search.text = old_search_content
 	for c in to_remain:
 		if c.get_meta("col_index") > slot_col_index:
 			hb.add_child(c)
@@ -502,8 +653,14 @@ func disconnect_focused_propagate(control):
 func editor_property_focused(data):
 	EditorInterface.inspect_object(data)
 	
+
+func _on_resize_end(new_size: Vector2) -> void:
+	size = new_size
+	window_size = size
+	
 func _on_resize_request(new_minsize):
 	size = new_minsize
+	window_size = size
 	
 func _gui_input(event: InputEvent) -> void:
 	if not event is InputEventMouseButton:
@@ -512,3 +669,28 @@ func _gui_input(event: InputEvent) -> void:
 	get_titlebar_hbox().get_rect().has_point(get_local_mouse_position()):
 		max_btn.button_pressed = not max_btn.button_pressed
 		get_viewport().set_input_as_handled()
+
+
+func _on_button_debug_pressed() -> void:
+	if not line_edit_debug.text.is_empty():
+		var c = find_child(line_edit_debug.text, true, false)
+		if c:
+			EditorInterface.inspect_object(c)
+	else:
+		print_tree_pretty()
+
+
+func _on_timer_timeout() -> void:
+	if window_size == Vector2.ZERO:
+		window_size = size
+	if size != window_size:
+		size = window_size
+
+## 修复切换到别的地方再回来的时候大小发生了变化的问题
+var _size_before_invisible: Vector2 = Vector2.ZERO
+func _on_visibility_changed() -> void:
+	if is_visible_in_tree():
+		if _size_before_invisible != Vector2.ZERO:
+			size = _size_before_invisible
+	else:
+		_size_before_invisible = size
