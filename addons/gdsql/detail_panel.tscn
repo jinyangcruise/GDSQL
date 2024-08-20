@@ -25,13 +25,11 @@ stretch_mode = 3
 
 [node name="GridContainer" type="GridContainer" parent="."]
 layout_mode = 2
-theme_override_constants/h_separation = 0
-theme_override_constants/v_separation = 0
+columns = 2
 
 [node name="CheckBoxContainer" type="MarginContainer" parent="."]
 layout_mode = 2
 size_flags_vertical = 8
-theme_override_constants/margin_top = 50
 
 [node name="CheckBox" type="CheckBox" parent="CheckBoxContainer"]
 layout_mode = 2
@@ -54,7 +52,7 @@ size_flags_horizontal = 3
 localize_numeral_system = false
 mouse_filter = 1
 mouse_default_cursor_shape = 8
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 14
 autowrap_mode = 1
 
 [node name="TextureRectModel" type="TextureRect" parent="Models"]
@@ -69,6 +67,5 @@ layout_mode = 2
 mouse_filter = 2
 mouse_default_cursor_shape = 8
 
-[connection signal="resized" from="." to="." method="_on_resized"]
 [connection signal="gui_input" from="CheckBoxContainer" to="." method="_on_check_box_container_gui_input"]
 [connection signal="toggled" from="CheckBoxContainer/CheckBox" to="." method="_on_check_box_toggled"]

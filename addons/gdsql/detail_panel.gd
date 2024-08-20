@@ -31,11 +31,72 @@ var show_check_box: bool = true:
 		if check_box:
 			check_box.visible = show_check_box
 			
+var show_column_name: bool = true:
+	set(val):
+		show_column_name = val
+		if grid_container:
+			if show_column_name:
+				grid_container.columns = 2
+				for i in grid_container.get_children():
+					i.show()
+			else:
+				grid_container.columns = 1
+				var index = -1
+				for i in grid_container.get_children():
+					index += 1
+					i.visible = index % 2 == 1
+					
+var show_column_value: bool = true:
+	set(val):
+		show_column_value = val
+		if grid_container:
+			grid_container.visible = show_column_value
+			
+var font_size: int = 14:
+	set(val):
+		font_size = val
+		if grid_container:
+			propagate_call_set_font_size(grid_container)
+			
+var processor: String = "":
+	set(val):
+		var changed = processor != val
+		processor = val
+		if grid_container and changed:
+			set_datas(_data)
+			
+var _data: Dictionary
+
+func propagate_call_set_font_size(node: Node):
+	if node is Control:
+		node.add_theme_font_size_override("font_size", font_size)
+	for i in node.get_children():
+		propagate_call_set_font_size(i)
+		
 func _ready() -> void:
 	checked = checked
 	show_check_box = show_check_box
+	show_column_name = show_column_name
+	show_column_value = show_column_value
+	font_size = font_size
+	processor = processor
 	
 func set_datas(data: Dictionary):
+	# processor
+	var processor_obj
+	if processor != "":
+		var script = GDScript.new()
+		script.source_code = "extends Object\n%s" % processor
+		var err = script.reload()
+		if err != OK:
+			push_error("processor wrong! err: %s" % error_string(err))
+			printt(processor)
+			return null
+			
+		processor_obj = script.new()
+		assert(processor_obj.has_method("process"), "processor must contain a method: process")
+		
+	_data = data
 	while grid_container.get_child_count() > 0:
 		var c = grid_container.get_child(0)
 		grid_container.remove_child(c)
@@ -46,15 +107,21 @@ func set_datas(data: Dictionary):
 		if data[i] is Texture2D and texture_rect.texture == null:
 			texture_rect.texture = data[i]
 		else:
-			#var l = label_model.duplicate()
-			#l.text = str(i)
-			#grid_container.add_child(l)
-			var control = get_control_by_data_type(data[i])
+			var l = label_model.duplicate()
+			l.text = str(i)
+			grid_container.add_child(l)
+			var value = processor_obj.process(l.text, data[i]) if processor_obj else data[i]
+			var control = get_control_by_data_type(value)
 			grid_container.add_child(control)
 			if control.tooltip_text != '':
 				arr_tool_tip.push_back(str(i) + ": " + control.tooltip_text)
 				
+	if processor_obj:
+		processor_obj.free()
 	check_box_container.tooltip_text = '\n'.join(arr_tool_tip)
+	show_column_name = show_column_name
+	show_column_value = show_column_value
+	font_size = font_size
 	
 func get_control_by_data_type(data) -> Control:
 	var control: Control

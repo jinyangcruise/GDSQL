@@ -4,8 +4,8 @@
 
 [node name="GraphNode" type="GraphNode"]
 auto_translate_mode = 2
-offset_right = 36.0
-offset_bottom = 54.0
+offset_right = 170.0
+offset_bottom = 63.0
 localize_numeral_system = false
 resizable = true
 script = ExtResource("1_s2sbd")

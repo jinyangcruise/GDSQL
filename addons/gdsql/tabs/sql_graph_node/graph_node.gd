@@ -368,6 +368,20 @@ func redraw():
 								editor_property.add_sibling(container)
 								container.control = editor_property
 								
+							# 自定义显示控件
+							var ctl = data.get_custom_display_control(prop_name)
+							if ctl:
+								for i in editor_property.get_children(true):
+									i.hide()
+								if editor_property.get_child(0, true) is BoxContainer:
+									var box = editor_property.get_child(0, true)
+									box.show()
+									for i in box.get_children(true):
+										i.hide()
+									box.add_child(ctl)
+								else:
+									editor_property.add_child(ctl)
+									
 						# 恢复原来的筛选属性
 						_inspector_search.text = old_search_content
 					elif data is Control:

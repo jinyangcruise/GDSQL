@@ -1914,19 +1914,60 @@ func gen_link_node() -> GraphNode:
 	var right_order_dict_obj = DictionaryObject.new({"Order By": ""}, {"Order By": {"hint": PROPERTY_HINT_NONE}})
 	var right_limit_dict_obj = DictionaryObject.new({"Offset": 0, "Limit": 1000})
 	var left_other_options = DictionaryObject.new({
-		"Other Options": "", "show_column_name": false, "font_size": 14, "replace": {},
-		},
-		#{"Other Options": {"hint": PROPERTY_HINT_NONE, "usage": PROPERTY_USAGE_GROUP}},
+		"Other Options": "", "show_column_name": false, "show_column_value": true, "font_size": 14, "processor": ""},
+		{"Other Options": {"hint": PROPERTY_HINT_NONE, "usage": PROPERTY_USAGE_GROUP},
+		"processor": {"hint": PROPERTY_HINT_MULTILINE_TEXT}},
 	)
+	var engine_text_edit = EditorInterface.get_script_editor().find_child("@CodeEdit@*", true, false) as CodeEdit
+	var left_code_edit = CodeEdit.new()
+	left_code_edit.text = "func process(column_name: String, value):\n\treturn value"
+	left_code_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	left_code_edit.custom_minimum_size.y = 300
+	left_code_edit.line_folding = true
+	left_code_edit.gutters_draw_line_numbers = true
+	left_code_edit.gutters_draw_fold_gutter = true
+	left_code_edit.indent_automatic = true
+	left_code_edit.auto_brace_completion_enabled = true
+	left_code_edit.auto_brace_completion_highlight_matching = true
+	left_code_edit.caret_blink = true
+	left_code_edit.draw_tabs = true
+	if engine_text_edit:
+		left_code_edit.syntax_highlighter = engine_text_edit.syntax_highlighter
+	left_code_edit.text_changed.connect(func():
+		left_other_options._set("processor", left_code_edit.text)
+	)
+	left_other_options.set_custom_display_control("processor", left_code_edit, func(new_val):
+		if left_code_edit.text != new_val:
+			left_code_edit.text = new_val
+	, false)
 	left_other_options.set_meta("align", "vertical")
 	var right_other_options = DictionaryObject.new({
-		"Other Options": "", "show_column_name": false, "font_size": 14, "replace": {},
-		},
-		{"Other Options": {"hint": PROPERTY_HINT_NONE, "usage": PROPERTY_USAGE_GROUP}},
+		"Other Options": "", "show_column_name": false, "show_column_value": true, "font_size": 14, "processor": ""},
+		{"Other Options": {"hint": PROPERTY_HINT_NONE, "usage": PROPERTY_USAGE_GROUP},
+		"processor": {"hint": PROPERTY_HINT_MULTILINE_TEXT}},
 	)
+	var right_code_edit = CodeEdit.new()
+	right_code_edit.text = "func process(column_name: String, value):\n\treturn value"
+	right_code_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	right_code_edit.custom_minimum_size.y = 300
+	right_code_edit.line_folding = true
+	right_code_edit.gutters_draw_line_numbers = true
+	right_code_edit.gutters_draw_fold_gutter = true
+	right_code_edit.indent_automatic = true
+	right_code_edit.auto_brace_completion_enabled = true
+	right_code_edit.auto_brace_completion_highlight_matching = true
+	right_code_edit.caret_blink = true
+	right_code_edit.draw_tabs = true
+	if engine_text_edit:
+		right_code_edit.syntax_highlighter = engine_text_edit.syntax_highlighter
+	right_code_edit.text_changed.connect(func():
+		right_other_options._set("processor", right_code_edit.text)
+	)
+	right_other_options.set_custom_display_control("processor", right_code_edit, func(new_val):
+		if right_code_edit.text != new_val:
+			right_code_edit.text = new_val
+	, false)
 	right_other_options.set_meta("align", "vertical")
-	#var line_edit = LineEdit.new()
-	#line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	
 	var btn_query = Button.new()
 	btn_query.text = "query"
@@ -2054,6 +2095,10 @@ func gen_link_node() -> GraphNode:
 						var left_panel = detail_panel_scene.instantiate()
 						left_panel.show_check_box = false
 						left_panel.ready.connect(func():
+							left_panel.show_column_name = left_other_options._get("show_column_name")
+							left_panel.show_column_value = left_other_options._get("show_column_value")
+							left_panel.font_size = left_other_options._get("font_size")
+							left_panel.processor = left_other_options._get("processor")
 							left_panel.set_datas(left_data)
 						)
 						a_row.push_back(left_panel)
@@ -2073,6 +2118,10 @@ func gen_link_node() -> GraphNode:
 							right_panel.checked = link_map.has(row[left_key_index]) and \
 								right_row[right_key_index] in link_map[row[left_key_index]]
 							right_panel.ready.connect(func():
+								right_panel.show_column_name = right_other_options._get("show_column_name")
+								right_panel.show_column_value = right_other_options._get("show_column_value")
+								right_panel.font_size = right_other_options._get("font_size")
+								right_panel.processor = right_other_options._get("processor")
 								right_panel.set_datas(right_data)
 							)
 							grid.add_child(right_panel)
