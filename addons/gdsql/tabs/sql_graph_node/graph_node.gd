@@ -360,7 +360,7 @@ func redraw():
 							# 下划线开头的隐藏label。隐藏方法是把控件整个添加到一个能按比例隐藏子控件的控件中
 							if prop_name.begins_with("_") and not editor_property.name.contains("EditorPropertyMultilineText")\
 							and not editor_property.name.contains("EditorPropertyArray"):
-								__property_old_parents[editor_property] = weakref(editor_property.get_parent())
+								#__property_old_parents[editor_property] = weakref(editor_property.get_parent())
 								var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
 								container.name += str(randi() % 100)
 								container.invisible_ratio = 0.5
@@ -625,7 +625,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 			# 下划线开头的隐藏label。隐藏方法是把控件整个添加到一个能按比例隐藏子控件的控件中
 			if prop_name.begins_with("_") and not editor_property.name.contains("EditorPropertyMultilineText")\
 			and not editor_property.name.contains("EditorPropertyArray"):
-				__property_old_parents[editor_property] = weakref(editor_property.get_parent())
+				#__property_old_parents[editor_property] = weakref(editor_property.get_parent())
 				var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
 				container.name += str(randi() % 100)
 				container.invisible_ratio = 0.5
