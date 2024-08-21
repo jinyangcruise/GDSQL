@@ -79,11 +79,22 @@ func get_visible_data() -> Dictionary:
 	return ret
 	
 func reset_data(data, hint = null):
-	_data = data
 	_usage = {}
 	_duplicate_property = []
+	if data is Dictionary:
+		_data = data
+	elif data is Array and data.size() == 2 and data[0] is Array and data[1] is Array:
+		_data = {}
+		for i in data[0].size():
+			_data[data[0][i]] = data[1][i]
 	if hint != null:
 		_hint = hint
+		for key in hint:
+			if hint[key].has("link"):
+				_data[key] = hint[key]["link"]
+				_duplicate_property.push_back(key)
+			if hint[key].has("usage"):
+				_usage[key] = hint[key]["usage"]
 	notify_property_list_changed()
 	
 ## 提交：将目前修改过的值全部标记为非修改状态

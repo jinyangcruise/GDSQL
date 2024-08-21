@@ -44,6 +44,6 @@ func _on_resized() -> void:
 		#printt("aqaaaaa", self, size, container.size, container.position, control.position)
 
 func _on_control_visibibity_changed():
-	if control:
+	if control and is_inside_tree():
 		await get_tree().process_frame
 		custom_minimum_size.y = control.size.y

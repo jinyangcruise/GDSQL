@@ -32,7 +32,7 @@ const SB_RESULT_TITLEBAR_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_n
 const SB_SQL_TITLEBAR = preload("res://addons/gdsql/tabs/sql_graph_node/sb_sql_titlebar.stylebox")
 const SB_SQL_TITLEBAR_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_node/sb_sql_titlebar_selected.stylebox")
 
-var copied_nodes: Dictionary
+static var copied_nodes: Dictionary
 
 const SHORTCUT_SELECTALL = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_selectall.tres")
 const SHORTCUT_UNDO = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_undo.tres")
@@ -161,7 +161,6 @@ func node_close(node: GraphNode):
 	if node.has_meta("left_join"):
 		(node.get_meta("left_join") as LeftJoin).clear_chain()
 		node.remove_meta("left_join")
-		
 	node.queue_free()
 	
 ## 如果node是排外的输入节点，激活该节点的时候，把同一个输入端口的其他节点关闭
@@ -1284,7 +1283,9 @@ func gen_insert_node() -> GraphNode:
 		"_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
 	var table_dict_obj = DictionaryObject.new(
 		{"Table": ""}, {"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}})
-	var fields_dict_obj = null
+	var fields_dict_obj = DictionaryObject.new(
+		{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY}})
+	fields_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
 	
 	# 关联该节点的BaseDao
 	var base_dao = BaseDao.new()
@@ -1317,11 +1318,9 @@ func gen_insert_node() -> GraphNode:
 					for col in mgr.databases[schema_dict_obj._get("Schema")]["tables"][new_val]["columns"]:
 						data[col["Column Name"]] = DataTypeDef.DEFUALT_VALUES[col["Data Type"]]
 						hints[col["Column Name"]] = {"hint": col["Hint"], "hint_string": col["Hint String"], "type": col["Data Type"]}
-					fields_dict_obj = DictionaryObject.new(data, hints)
-					fields_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
+					fields_dict_obj.reset_data(data, hints)
 				else:
-					fields_dict_obj = null
-				graph_node.datas[2][2] = fields_dict_obj
+					fields_dict_obj.reset_data({"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY}})
 				graph_node.push_redraw_slot_control(2, 2)
 	)
 	
@@ -1424,7 +1423,8 @@ func gen_update_node() -> GraphNode:
 		"_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
 	var table_dict_obj = DictionaryObject.new(
 		{"Table": ""}, {"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}})
-	var fields_dict_obj = null
+	var fields_dict_obj = DictionaryObject.new(
+		{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY}})
 	var where_dict_obj = DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
 	
 	# 关联该节点的BaseDao
@@ -1460,11 +1460,10 @@ func gen_update_node() -> GraphNode:
 					for col in mgr.databases[schema_dict_obj._get("Schema")]["tables"][new_val]["columns"]:
 						data[col["Column Name"]] = DataTypeDef.DEFUALT_VALUES[col["Data Type"]]
 						hints[col["Column Name"]] = {"hint": col["Hint"], "hint_string": col["Hint String"], "type": col["Data Type"]}
-					fields_dict_obj = DictionaryObject.new(data, hints)
+					fields_dict_obj.reset_data(data, hints)
 					fields_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
 				else:
-					fields_dict_obj = null
-				graph_node.datas[2][2] = fields_dict_obj
+					fields_dict_obj.reset_data({"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY}})
 				graph_node.push_redraw_slot_control(2, 2)
 	)
 	where_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
@@ -1730,6 +1729,151 @@ func gen_sql_node() -> GraphNode:
 	
 	return graph_node
 	
+func add_link_node(link_db = "", link_password = "", link_table = "", right_columns = 3,
+link_left_col = "", link_right_col = "", left_db = "", left_password = "", left_table = "",
+left_link_col = "", left_cols_shown = {}, left_where = "", left_order_by = "", left_offset = 0, left_limit = 1000,
+left_show_column_name = false, left_show_column_value = true, left_font_size = 14, left_processor = "",
+right_db = "", right_password = "", right_table = "", 
+right_link_col = "", right_cols_shown = {}, right_where = "", right_order_by = "", right_offset = 0, right_limit = 1000,
+right_show_column_name = false, right_show_column_value = true, right_font_size = 14, right_processor = "",
+asize = null, pos_offset = null, aname = "", query = true):
+	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
+	unselect_all_node()
+	
+	var graph_node = gen_link_node()
+	if aname != "":
+		graph_node.name = aname
+	graph_edit.add_child(graph_node)
+	
+	if asize != null:
+		graph_node.size = asize
+		
+	#0 [null, "Result"],
+	#1 [null, null, schema_dict_obj],
+	#2 [null, null, table_dict_obj],
+	#3 [null, null, link_prop_dict_obj],
+	#4 [null, null, hseparator],
+	#5 [null, null, left_schema_dict_obj, right_schema_dict_obj],
+	#6 [null, null, left_table_dict_obj, right_table_dict_obj],
+	#7 [null, null, left_link_prop_dict_obj, right_link_prop_dict_obj],
+	#8 [null, null, left_column_dict_obj, right_column_dict_obj],
+	#9 [null, null, left_where_dict_obj, right_where_dict_obj],
+	#10 [null, null, left_order_dict_obj, right_order_dict_obj],
+	#11 [null, null, left_limit_dict_obj, right_limit_dict_obj],
+	#12 [null, null, left_other_options, right_other_options],
+	#13 [null, null, separator],
+	#14 [null, null, btn_query],
+	#15 [null, null, separator2]
+	var schema_dict_obj: DictionaryObject = graph_node.datas[1][2]
+	var table_dict_obj: DictionaryObject = graph_node.datas[2][2]
+	var link_prop_dict_obj: DictionaryObject = graph_node.datas[3][2]
+	var left_schema_dict_obj: DictionaryObject = graph_node.datas[5][2]
+	var right_schema_dict_obj: DictionaryObject = graph_node.datas[5][3]
+	var left_table_dict_obj: DictionaryObject = graph_node.datas[6][2]
+	var right_table_dict_obj: DictionaryObject = graph_node.datas[6][3]
+	var left_link_prop_dict_obj: DictionaryObject = graph_node.datas[7][2]
+	var right_link_prop_dict_obj: DictionaryObject = graph_node.datas[7][3]
+	var left_column_dict_obj: DictionaryObject = graph_node.datas[8][2]
+	var right_column_dict_obj: DictionaryObject = graph_node.datas[8][3]
+	var left_where_dict_obj: DictionaryObject = graph_node.datas[9][2]
+	var right_where_dict_obj: DictionaryObject = graph_node.datas[9][3]
+	var left_order_dict_obj: DictionaryObject = graph_node.datas[10][2]
+	var right_order_dict_obj: DictionaryObject = graph_node.datas[10][3]
+	var left_limit_dict_obj: DictionaryObject = graph_node.datas[11][2]
+	var right_limit_dict_obj: DictionaryObject = graph_node.datas[11][3]
+	var left_other_options: DictionaryObject = graph_node.datas[12][2]
+	var right_other_options: DictionaryObject = graph_node.datas[12][3]
+	
+	if link_db != schema_dict_obj._get("Schema"):
+		schema_dict_obj._set("Schema", link_db)
+	if link_password != schema_dict_obj._get("_password"):
+		schema_dict_obj._set("_password", link_password)
+	if link_table != table_dict_obj._get("Table"):
+		table_dict_obj._set("Table", link_table)
+	if right_columns != table_dict_obj._get("Right Columns"):
+		table_dict_obj._set("Right Columns", right_columns)
+	if link_left_col != link_prop_dict_obj._get("Left"):
+		link_prop_dict_obj._set("Left", link_left_col)
+	if link_right_col != link_prop_dict_obj._get("Right"):
+		link_prop_dict_obj._set("Right", link_right_col)
+		
+	if left_db != left_schema_dict_obj._get("Schema1"):
+		left_schema_dict_obj._set("Schema1", left_db)
+	if left_password != left_schema_dict_obj._get("_password1"):
+		left_schema_dict_obj._set("_password1", left_password)
+	if left_table != left_table_dict_obj._get("Table1"):
+		left_table_dict_obj._set("Table1", left_table)
+	if left_link_col != left_link_prop_dict_obj._get("LinkColumnName"):
+		left_link_prop_dict_obj._set("LinkColumnName", left_link_col)
+	for info in left_column_dict_obj._get_property_list():
+		var shown = left_cols_shown.get(info.name, false)
+		if shown != left_column_dict_obj._get(info.name):
+			left_column_dict_obj._set(info.name, shown)
+	if left_where != left_where_dict_obj._get("Where"):
+		left_where_dict_obj._set("Where", left_where)
+	if left_order_by != left_order_dict_obj._get("Order By"):
+		left_order_dict_obj._set("Order By", left_order_by)
+	if left_offset != left_limit_dict_obj._get("Offset"):
+		left_limit_dict_obj._set("Offset", left_offset)
+	if left_limit != left_limit_dict_obj._get("Limit"):
+		left_limit_dict_obj._set("Limit", left_limit)
+	if left_show_column_name != left_other_options._get("show_column_name"):
+		left_other_options._set("show_column_name", left_show_column_name)
+	if left_show_column_value != left_other_options._get("show_column_value"):
+		left_other_options._set("show_column_value", left_show_column_value)
+	if left_font_size != left_other_options._get("font_size"):
+		left_other_options._set("font_size", left_font_size)
+	if left_processor != left_other_options._get("processor"):
+		left_other_options._set("processor", left_processor)
+		
+	if right_db != right_schema_dict_obj._get("Schema2"):
+		right_schema_dict_obj._set("Schema2", right_db)
+	if right_password != right_schema_dict_obj._get("_password2"):
+		right_schema_dict_obj._set("_password2", right_password)
+	if right_table != right_table_dict_obj._get("Table2"):
+		right_table_dict_obj._set("Table2", right_table)
+	if right_link_col != right_link_prop_dict_obj._get("LinkColumnName"):
+		right_link_prop_dict_obj._set("LinkColumnName", right_link_col)
+	for info in right_column_dict_obj._get_property_list():
+		var shown = right_cols_shown.get(info.name, false)
+		if shown != right_column_dict_obj._get(info.name):
+			right_column_dict_obj._set(info.name, shown)
+	if right_where != right_where_dict_obj._get("Where"):
+		right_where_dict_obj._set("Where", right_where)
+	if right_order_by != right_order_dict_obj._get("Order By"):
+		right_order_dict_obj._set("Order By", right_order_by)
+	if right_offset != right_limit_dict_obj._get("Offset"):
+		right_limit_dict_obj._set("Offset", right_offset)
+	if right_limit != right_limit_dict_obj._get("Limit"):
+		right_limit_dict_obj._set("Limit", right_limit)
+	if right_show_column_name != right_other_options._get("show_column_name"):
+		right_other_options._set("show_column_name", right_show_column_name)
+	if right_show_column_value != right_other_options._get("show_column_value"):
+		right_other_options._set("show_column_value", right_show_column_value)
+	if right_font_size != right_other_options._get("font_size"):
+		right_other_options._set("font_size", right_font_size)
+	if right_processor != right_other_options._get("processor"):
+		right_other_options._set("processor", right_processor)
+		
+	# 等待页面就绪
+	if not graph_edit.get_rect().has_area():
+		await graph_edit.resized
+		
+	if pos_offset == null:
+		graph_node.position_offset = \
+			(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
+	else:
+		graph_node.position_offset = pos_offset
+		
+	if asize != null:
+		graph_node.set_deferred("size", asize)
+		
+	var btn_query: Button = graph_node.datas[14][2]
+	if query:
+		btn_query.emit_signal("pressed")
+		
+	return graph_node
+	
 func gen_link_node() -> GraphNode:
 	var databases = mgr.databases.keys()
 	
@@ -1814,11 +1958,11 @@ func gen_link_node() -> GraphNode:
 		{"LinkColumnName": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}},
 	)
 	var left_column_dict_obj = DictionaryObject.new(
-		{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY},}
+		{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY}}
 	) # dummy obj
 	left_column_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
 	var right_column_dict_obj = DictionaryObject.new(
-		{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY},}
+		{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY}}
 	) # dummy obj
 	right_column_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
 	left_schema_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
@@ -1864,17 +2008,13 @@ func gen_link_node() -> GraphNode:
 					left_link_prop_dict_obj.reset_hint({"LinkColumnName": {"hint": PROPERTY_HINT_ENUM, 
 						"hint_string": ",".join(adata.keys())}})
 					left_link_prop_dict_obj._set("LinkColumnName", pk)
-					left_column_dict_obj = DictionaryObject.new(adata, hints)
+					left_column_dict_obj.reset_data(adata, hints)
 				else:
 					left_link_prop_dict_obj.reset_hint({"LinkColumnName": {"hint": PROPERTY_HINT_ENUM, 
 						"hint_string": ""}})
-					left_column_dict_obj = DictionaryObject.new(
-						{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY},}
-					) # dummy obj
-				left_column_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
-				graph_node.datas[7][2] = left_link_prop_dict_obj
+					left_column_dict_obj.reset_data(
+						{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY}})
 				graph_node.push_redraw_slot_control(7, 2)
-				graph_node.datas[8][2] = left_column_dict_obj
 				graph_node.push_redraw_slot_control(8, 2)
 	)
 	right_table_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
@@ -1894,17 +2034,13 @@ func gen_link_node() -> GraphNode:
 					right_link_prop_dict_obj.reset_hint({"LinkColumnName": {"hint": PROPERTY_HINT_ENUM, 
 						"hint_string": ",".join(adata.keys())}})
 					right_link_prop_dict_obj._set("LinkColumnName", pk)
-					right_column_dict_obj = DictionaryObject.new(adata, hints)
+					right_column_dict_obj.reset_data(adata, hints)
 				else:
 					right_link_prop_dict_obj.reset_hint({"LinkColumnName": {"hint": PROPERTY_HINT_ENUM, 
 						"hint_string": ""}})
-					right_column_dict_obj = DictionaryObject.new(
-						{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY},}
-					) # dummy obj
-				right_column_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
-				graph_node.datas[7][3] = right_link_prop_dict_obj
+					right_column_dict_obj.reset_data(
+						{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY}})
 				graph_node.push_redraw_slot_control(7, 3)
-				graph_node.datas[8][3] = right_column_dict_obj
 				graph_node.push_redraw_slot_control(8, 3)
 	)
 	var left_where_dict_obj = DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_NONE}})
@@ -2011,7 +2147,7 @@ func gen_link_node() -> GraphNode:
 			data.get_meta("left_table", ""),
 			data.get_meta("left_password", ""), 
 			func():
-				begin_time = Time.get_unix_time_from_system()
+				var begin_time_2 = Time.get_unix_time_from_system()
 				var left_datas_dao = BaseDao.new()
 				var left_select = (graph_node.datas[8][2] as DictionaryObject).get_data().keys().map(func(v):
 					return v if (graph_node.datas[8][2] as DictionaryObject).get_data()[v] else ""
@@ -2027,12 +2163,12 @@ func gen_link_node() -> GraphNode:
 					.limit(left_limit_dict_obj._get("Offset"), left_limit_dict_obj._get("Limit"))
 					.query()
 				)
-				action = left_datas_dao.get_query_cmd()
+				var action2 = left_datas_dao.get_query_cmd()
 				if left_query_ret == null:
-					mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
+					mgr.add_log_history.emit("Err", begin_time_2, action2, "something wrong")
 					return
 				else:
-					mgr.add_log_history.emit("OK", begin_time, action, 
+					mgr.add_log_history.emit("OK", begin_time_2, action2, 
 						"%d row(s) returned" % (left_query_ret.get_data().size()), 
 						left_query_ret.get_cost_time()) # 去掉表头
 					
@@ -2042,7 +2178,7 @@ func gen_link_node() -> GraphNode:
 				data.get_meta("right_table", ""),
 				data.get_meta("right_password", ""), 
 				func():
-					begin_time = Time.get_unix_time_from_system()
+					var begin_time_3 = Time.get_unix_time_from_system()
 					var right_datas_dao = BaseDao.new()
 					var right_select = (graph_node.datas[8][3] as DictionaryObject).get_data().keys().map(func(v):
 						return v if (graph_node.datas[8][3] as DictionaryObject).get_data()[v] else ""
@@ -2058,12 +2194,12 @@ func gen_link_node() -> GraphNode:
 						.limit(right_limit_dict_obj._get("Offset"), right_limit_dict_obj._get("Limit"))
 						.query()
 					)
-					action = right_datas_dao.get_query_cmd()
+					var action3 = right_datas_dao.get_query_cmd()
 					if right_query_ret == null:
-						mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
+						mgr.add_log_history.emit("Err", begin_time_3, action3, "something wrong")
 						return
 					else:
-						mgr.add_log_history.emit("OK", begin_time, action, 
+						mgr.add_log_history.emit("OK", begin_time_3, action3, 
 							"%d row(s) returned" % (right_query_ret.get_data().size()), 
 							right_query_ret.get_cost_time()) # 去掉表头
 							
@@ -2082,7 +2218,7 @@ func gen_link_node() -> GraphNode:
 					var right_datas = right_query_ret.get_data()
 					var right_key_index = find_col_index.call(right_columns, right_link_prop_dict_obj._get("LinkColumnName"))
 					assert(right_key_index != -1, "Error of right_key_index.")
-					const detail_panel_scene = preload("res://addons/gdsql/detail_panel.tscn")
+					var detail_panel_scene# = preload("res://addons/gdsql/detail_panel.tscn")
 					for row: Array in left_datas:
 						# 包含左数据、右数据和按钮
 						var a_row = []
@@ -2191,15 +2327,6 @@ func gen_link_node() -> GraphNode:
 				)
 			)
 		)
-		
-		pass
-		# debug:
-		#if not line_edit.text.is_empty():
-			#var c = graph_node.find_child(line_edit.text, true, false)
-			#if c:
-				#EditorInterface.inspect_object(c)
-		#else:
-			#graph_node.print_tree_pretty()
 	)
 	btn_query.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	
@@ -2227,7 +2354,6 @@ func gen_link_node() -> GraphNode:
 		[null, null, left_other_options, right_other_options],
 		[null, null, separator],
 		[null, null, btn_query],
-		#[null, null, line_edit],
 		[null, null, separator2]
 	]
 	graph_node.datas = datas
@@ -2341,13 +2467,68 @@ func get_nodes_params(only_selected = false):
 			"SQL":
 				var code_editor = graph_node.datas[1][2] as CodeEdit
 				data["sql"] = code_editor.text
+			"Link":
+				var schema_dict_obj: DictionaryObject = graph_node.datas[1][2]
+				var table_dict_obj: DictionaryObject = graph_node.datas[2][2]
+				var link_prop_dict_obj: DictionaryObject = graph_node.datas[3][2]
+				var left_schema_dict_obj: DictionaryObject = graph_node.datas[5][2]
+				var right_schema_dict_obj: DictionaryObject = graph_node.datas[5][3]
+				var left_table_dict_obj: DictionaryObject = graph_node.datas[6][2]
+				var right_table_dict_obj: DictionaryObject = graph_node.datas[6][3]
+				var left_link_prop_dict_obj: DictionaryObject = graph_node.datas[7][2]
+				var right_link_prop_dict_obj: DictionaryObject = graph_node.datas[7][3]
+				var left_column_dict_obj: DictionaryObject = graph_node.datas[8][2]
+				var right_column_dict_obj: DictionaryObject = graph_node.datas[8][3]
+				var left_where_dict_obj: DictionaryObject = graph_node.datas[9][2]
+				var right_where_dict_obj: DictionaryObject = graph_node.datas[9][3]
+				var left_order_dict_obj: DictionaryObject = graph_node.datas[10][2]
+				var right_order_dict_obj: DictionaryObject = graph_node.datas[10][3]
+				var left_limit_dict_obj: DictionaryObject = graph_node.datas[11][2]
+				var right_limit_dict_obj: DictionaryObject = graph_node.datas[11][3]
+				var left_other_options: DictionaryObject = graph_node.datas[12][2]
+				var right_other_options: DictionaryObject = graph_node.datas[12][3]
+				
+				data["link_db"] = schema_dict_obj._get("Schema")
+				data["link_password"] = schema_dict_obj._get("_password")
+				data["link_table"] = table_dict_obj._get("Table")
+				data["right_columns"] = table_dict_obj._get("Right Columns")
+				data["link_left_col"] = link_prop_dict_obj._get("Left")
+				data["link_right_col"] = link_prop_dict_obj._get("Right")
+				
+				data["left_db"] = left_schema_dict_obj._get("Schema1")
+				data["left_password"] = left_schema_dict_obj._get("_password1")
+				data["left_table"] = left_table_dict_obj._get("Table1")
+				data["left_link_col"] = left_link_prop_dict_obj._get("LinkColumnName")
+				data["left_cols_shown"] = left_column_dict_obj.get_data().duplicate()
+				data["left_where"] = left_where_dict_obj._get("Where")
+				data["left_order_by"] = left_order_dict_obj._get("Order By")
+				data["left_offset"] = left_limit_dict_obj._get("Offset")
+				data["left_limit"] = left_limit_dict_obj._get("Limit")
+				data["left_show_column_name"] = left_other_options._get("show_column_name")
+				data["left_show_column_value"] = left_other_options._get("show_column_value")
+				data["left_font_size"] = left_other_options._get("font_size")
+				data["left_processor"] = left_other_options._get("processor")
+				
+				data["right_db"] = right_schema_dict_obj._get("Schema2")
+				data["right_password"] = right_schema_dict_obj._get("_password2")
+				data["right_table"] = right_table_dict_obj._get("Table2")
+				data["right_link_col"] = right_link_prop_dict_obj._get("LinkColumnName")
+				data["right_cols_shown"] = right_column_dict_obj.get_data().duplicate()
+				data["right_where"] = right_where_dict_obj._get("Where")
+				data["right_order_by"] = right_order_dict_obj._get("Order By")
+				data["right_offset"] = right_limit_dict_obj._get("Offset")
+				data["right_limit"] = right_limit_dict_obj._get("Limit")
+				data["right_show_column_name"] = right_other_options._get("show_column_name")
+				data["right_show_column_value"] = right_other_options._get("show_column_value")
+				data["right_font_size"] = right_other_options._get("font_size")
+				data["right_processor"] = right_other_options._get("processor")
 			_:
 				continue
 				
 		all_data[graph_node.name.validate_node_name()] = { # validate一下，不然会存在@符号，再次设置name的时候会被替换为下划线
 			"type": type,
 			"params": data,
-			"size": graph_node.size,
+			"size": graph_node.size if graph_node.window_size == Vector2.ZERO else graph_node.size.min(graph_node.window_size),
 			"position_offset": graph_node.position_offset,
 			"enabled": graph_node.enabled,
 		}
@@ -2401,7 +2582,19 @@ func _load_nodes(nodes: Dictionary, connections: Array, pos_offset: Vector2, aut
 					params["Where"], asize, position_offset, a_name)
 			"SQL":
 				node = await add_sql_node(params["sql"], asize, position_offset, a_name, false)
-				
+			"Link":
+				node = await add_link_node(params["link_db"], params["link_password"], params["link_table"],
+					params["right_columns"], params["link_left_col"], params["link_right_col"],
+					params["left_db"], params["left_password"], params["left_table"], params["left_link_col"],
+					params["left_cols_shown"], params["left_where"], params["left_order_by"], params["left_offset"],
+					params["left_limit"], params["left_show_column_name"], params["left_show_column_value"],
+					params["left_font_size"], params["left_processor"],
+					params["right_db"], params["right_password"], params["right_table"], params["right_link_col"],
+					params["right_cols_shown"], params["right_where"], params["right_order_by"], params["right_offset"],
+					params["right_limit"], params["right_show_column_name"], params["right_show_column_value"],
+					params["right_font_size"], params["right_processor"],
+					asize, position_offset, a_name, false)
+					
 		node_name_map[node_name] = node.name
 		
 	# make connections
@@ -2845,7 +3038,6 @@ func _on_graph_edit_delete_nodes_request(nodes):
 			for i in nodes:
 				var node = graph_edit.get_node(str(i))
 				node_close(node)
-				node.queue_free()
 			mark_modified()
 	)
 	
