@@ -13,17 +13,20 @@ extends PanelContainer
 @onready var check_box_model: CheckBox = $Models/CheckBoxModel
 
 const DETAIL_PANEL_CHECKED = preload("res://addons/gdsql/detail_panel_checked.stylebox")
-const DETAIL_PANEL_NORMAL = preload("res://addons/gdsql/detail_panel_normal.stylebox")
+const DETAIL_PANEL_UNCHECKED = preload("res://addons/gdsql/detail_panel_unchecked.stylebox")
+const DETAIL_PANEL_NORMAL_CHECKED = preload("res://addons/gdsql/detail_panel_normal_checked.stylebox")
+const DETAIL_PANEL_NORMAL_UNCHECKED = preload("res://addons/gdsql/detail_panel_normal_unchecked.stylebox")
 
-var checked: bool:
+var status: String:
 	set(val):
-		checked = val
-		if checked:
-			add_theme_stylebox_override("panel", DETAIL_PANEL_CHECKED)
-		else:
-			add_theme_stylebox_override("panel", DETAIL_PANEL_NORMAL)
+		status = val
+		if status == "normal_checked":
+			add_theme_stylebox_override("panel", DETAIL_PANEL_NORMAL_CHECKED)
+		elif status == "normal_unchecked":
+			add_theme_stylebox_override("panel", DETAIL_PANEL_NORMAL_UNCHECKED)
+			
 		if check_box:
-			check_box.button_pressed = val
+			check_box.button_pressed = (status == "checked" or status == "normal_checked")
 			
 var show_check_box: bool = true:
 	set(val):
@@ -74,7 +77,7 @@ func propagate_call_set_font_size(node: Node):
 		propagate_call_set_font_size(i)
 		
 func _ready() -> void:
-	checked = checked
+	status = status
 	show_check_box = show_check_box
 	show_column_name = show_column_name
 	show_column_value = show_column_value
@@ -208,10 +211,31 @@ func split_for_tooltip(content: String) -> String:
 
 
 func _on_check_box_toggled(toggled_on: bool) -> void:
-	checked = toggled_on
+	match status:
+		"normal_checked":
+			add_theme_stylebox_override("panel", DETAIL_PANEL_NORMAL_CHECKED if toggled_on else DETAIL_PANEL_UNCHECKED)
+		"normal_unchecked":
+			add_theme_stylebox_override("panel", DETAIL_PANEL_CHECKED if toggled_on else DETAIL_PANEL_NORMAL_UNCHECKED)
 
 
 func _on_check_box_container_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.is_pressed() and event.button_index == MOUSE_BUTTON_LEFT:
-			checked = !checked
+			check_box.button_pressed = !check_box.button_pressed
+
+func commit():
+	if get_theme_stylebox("panel") == DETAIL_PANEL_CHECKED:
+		status = "normal_checked"
+	elif get_theme_stylebox("panel") == DETAIL_PANEL_UNCHECKED:
+		status = "normal_unchecked"
+
+func get_change_status():
+	var sb = get_theme_stylebox("panel")
+	if sb == DETAIL_PANEL_NORMAL_CHECKED or sb == DETAIL_PANEL_NORMAL_UNCHECKED:
+		return ""
+	if sb == DETAIL_PANEL_CHECKED:
+		return "add"
+	if sb == DETAIL_PANEL_UNCHECKED:
+		return "delete"
+	push_error(false, "Inner error 240 in detail_panel.gd")
+	return ""

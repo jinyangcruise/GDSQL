@@ -1,6 +1,6 @@
 [gd_scene load_steps=4 format=3 uid="uid://ni7b822f0spd"]
 
-[ext_resource type="StyleBox" uid="uid://b5swwg43wpjo8" path="res://addons/gdsql/detail_panel_normal.stylebox" id="1_1ofal"]
+[ext_resource type="StyleBox" uid="uid://6h64kifovxwo" path="res://addons/gdsql/detail_panel_normal_unchecked.stylebox" id="1_51gtp"]
 [ext_resource type="Script" path="res://addons/gdsql/detail_panel.gd" id="1_we6vo"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4xr45"]
@@ -14,7 +14,7 @@ grow_horizontal = 2
 grow_vertical = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-theme_override_styles/panel = ExtResource("1_1ofal")
+theme_override_styles/panel = ExtResource("1_51gtp")
 script = ExtResource("1_we6vo")
 
 [node name="TextureRect" type="TextureRect" parent="."]
