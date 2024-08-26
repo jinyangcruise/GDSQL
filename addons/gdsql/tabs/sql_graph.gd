@@ -2218,7 +2218,7 @@ func gen_link_node() -> GraphNode:
 					var right_datas = right_query_ret.get_data()
 					var right_key_index = find_col_index.call(right_columns, right_link_prop_dict_obj._get("LinkColumnName"))
 					assert(right_key_index != -1, "Error of right_key_index.")
-					var detail_panel_scene# = preload("res://addons/gdsql/detail_panel.tscn")
+					var detail_panel_scene = preload("res://addons/gdsql/detail_panel.tscn")
 					for row: Array in left_datas:
 						# 包含左数据、右数据和按钮
 						var a_row = []
