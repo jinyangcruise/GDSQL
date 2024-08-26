@@ -1893,6 +1893,7 @@ func gen_link_node() -> GraphNode:
 	var data = DictionaryObject.new({"a": 1})
 	
 	var graph_node = SQLGraphNode.instantiate()
+	graph_node.set_meta("data", data)
 	#graph_node.set_meta("base_dao", base_dao)
 	graph_node.node_enable_status.connect(mark_modified)
 	
@@ -2108,226 +2109,7 @@ func gen_link_node() -> GraphNode:
 	var btn_query = Button.new()
 	btn_query.text = "query"
 	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_query.pressed.connect(func():
-		# 拉取已经存在的关联数据
-		mgr.request_user_enter_password.emit(
-		data.get_meta("link_db", ""),
-		data.get_meta("link_table", ""),
-		data.get_meta("link_password", ""), 
-		func():
-			var begin_time = Time.get_unix_time_from_system()
-			var link_datas_dao = BaseDao.new()
-			var link_query_ret = (
-				link_datas_dao
-				.use_db(data.get_meta("link_db", ""))
-				.set_password(data.get_meta("link_password", ""))
-				.select("%s, list(%s)" % [
-					link_prop_dict_obj._get("Left"), link_prop_dict_obj._get("Right")], true)
-				.from(data.get_meta("link_table", ""))
-				.group_by(link_prop_dict_obj._get("Left"))
-				.query()
-			)
-			var action = link_datas_dao.get_query_cmd()
-			if link_query_ret == null:
-				mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
-				return
-			else:
-				mgr.add_log_history.emit("OK", begin_time, action, 
-					"%d row(s) returned" % (link_query_ret.get_data().size()), 
-					link_query_ret.get_cost_time()) # 去掉表头
-				
-			var link_datas = link_query_ret.get_data()
-			var link_map = {}
-			for adata in link_datas:
-				link_map[adata[0]] = adata[1]
-				
-			# 拉取左表的数据
-			mgr.request_user_enter_password.emit(
-			data.get_meta("left_db", ""),
-			data.get_meta("left_table", ""),
-			data.get_meta("left_password", ""), 
-			func():
-				var begin_time_2 = Time.get_unix_time_from_system()
-				var left_datas_dao = BaseDao.new()
-				var left_select = (graph_node.datas[8][2] as DictionaryObject).get_data().keys().map(func(v):
-					return v if (graph_node.datas[8][2] as DictionaryObject).get_data()[v] else ""
-				).filter(func(v): return not v.is_empty())
-				var left_query_ret = (
-					left_datas_dao
-					.use_db(data.get_meta("left_db", ""))
-					.set_password(data.get_meta("left_password", ""))
-					.select("*", true)
-					.from(data.get_meta("left_table", ""))
-					.set_where(left_where_dict_obj._get("Where"))
-					.order_by_str(left_order_dict_obj._get("Order By"))
-					.limit(left_limit_dict_obj._get("Offset"), left_limit_dict_obj._get("Limit"))
-					.query()
-				)
-				var action2 = left_datas_dao.get_query_cmd()
-				if left_query_ret == null:
-					mgr.add_log_history.emit("Err", begin_time_2, action2, "something wrong")
-					return
-				else:
-					mgr.add_log_history.emit("OK", begin_time_2, action2, 
-						"%d row(s) returned" % (left_query_ret.get_data().size()), 
-						left_query_ret.get_cost_time()) # 去掉表头
-					
-				# 拉取右表的数据
-				mgr.request_user_enter_password.emit(
-				data.get_meta("right_db", ""),
-				data.get_meta("right_table", ""),
-				data.get_meta("right_password", ""), 
-				func():
-					var begin_time_3 = Time.get_unix_time_from_system()
-					var right_datas_dao = BaseDao.new()
-					var right_select = (graph_node.datas[8][3] as DictionaryObject).get_data().keys().map(func(v):
-						return v if (graph_node.datas[8][3] as DictionaryObject).get_data()[v] else ""
-					).filter(func(v): return not v.is_empty())
-					var right_query_ret = (
-						right_datas_dao
-						.use_db(data.get_meta("right_db", ""))
-						.set_password(data.get_meta("right_password", ""))
-						.select("*", true)
-						.from(data.get_meta("right_table", ""))
-						.set_where(right_where_dict_obj._get("Where"))
-						.order_by_str(right_order_dict_obj._get("Order By"))
-						.limit(right_limit_dict_obj._get("Offset"), right_limit_dict_obj._get("Limit"))
-						.query()
-					)
-					var action3 = right_datas_dao.get_query_cmd()
-					if right_query_ret == null:
-						mgr.add_log_history.emit("Err", begin_time_3, action3, "something wrong")
-						return
-					else:
-						mgr.add_log_history.emit("OK", begin_time_3, action3, 
-							"%d row(s) returned" % (right_query_ret.get_data().size()), 
-							right_query_ret.get_cost_time()) # 去掉表头
-							
-					# 构造表格数据
-					var find_col_index = func(columns: Array, col_name: String):
-						for i in columns.size():
-							if columns[i]["Column Name"] == col_name:
-								return i
-						return -1
-					var tdatas = []
-					var left_columns = left_query_ret.get_head()
-					var left_datas = left_query_ret.get_data()
-					var left_key_index = find_col_index.call(left_columns, left_link_prop_dict_obj._get("LinkColumnName"))
-					assert(left_key_index != -1, "Error of left_key_index.")
-					var right_columns = right_query_ret.get_head()
-					var right_datas = right_query_ret.get_data()
-					var right_key_index = find_col_index.call(right_columns, right_link_prop_dict_obj._get("LinkColumnName"))
-					assert(right_key_index != -1, "Error of right_key_index.")
-					var detail_panel_scene = preload("res://addons/gdsql/detail_panel.tscn")
-					for row: Array in left_datas:
-						# 包含左数据、右数据和按钮
-						var a_row = []
-						
-						# 左数据
-						var left_data = {}
-						for i in row.size():
-							if left_columns[i]["Column Name"] in left_select:
-								left_data[left_columns[i]["Column Name"]] = row[i]
-						var left_panel = detail_panel_scene.instantiate()
-						left_panel.show_check_box = false
-						left_panel.ready.connect(func():
-							left_panel.show_column_name = left_other_options._get("show_column_name")
-							left_panel.show_column_value = left_other_options._get("show_column_value")
-							left_panel.font_size = left_other_options._get("font_size")
-							left_panel.processor = left_other_options._get("processor")
-							left_panel.set_datas(left_data)
-						)
-						a_row.push_back(left_panel)
-						
-						# 右数据
-						var grid = GridContainer.new()
-						grid.columns = table_dict_obj._get("Right Columns")
-						a_row.push_back(grid)
-						
-						for right_row: Array in right_datas:
-							var right_data = {}
-							for i in right_row.size():
-								if right_columns[i]["Column Name"] in right_select:
-									right_data[right_columns[i]["Column Name"]] = right_row[i]
-							var right_panel = detail_panel_scene.instantiate()
-							right_panel.show_check_box = true
-							right_panel.checked = link_map.has(row[left_key_index]) and \
-								right_row[right_key_index] in link_map[row[left_key_index]]
-							right_panel.ready.connect(func():
-								right_panel.show_column_name = right_other_options._get("show_column_name")
-								right_panel.show_column_value = right_other_options._get("show_column_value")
-								right_panel.font_size = right_other_options._get("font_size")
-								right_panel.processor = right_other_options._get("processor")
-								right_panel.set_datas(right_data)
-							)
-							grid.add_child(right_panel)
-							
-						# 按钮
-						var vbox = VBoxContainer.new()
-						a_row.push_back(vbox)
-						
-						var btn_check_all = Button.new()
-						vbox.add_child(btn_check_all)
-						btn_check_all.text = tr("Select All")
-						
-						var btn_cancel_all = Button.new()
-						vbox.add_child(btn_cancel_all)
-						btn_cancel_all.text = tr("Deselect All")
-						
-						var btn_apply = Button.new()
-						vbox.add_child(btn_apply)
-						btn_apply.text = tr("Apply")
-						
-						tdatas.push_back(a_row)
-						
-					# 生成table node然后连接
-					var from_to_map = {}
-					var to_from_map = {}
-					# 先做个映射
-					for info in graph_edit.get_connection_list():
-						var from_name = info["from_node"]
-						var to_name = info["to_node"]
-						var arr_tos_of_from = from_to_map.get(from_name, []) as Array
-						var arr_froms_of_to = to_from_map.get(to_name, []) as Array
-						arr_tos_of_from.push_back(to_name)
-						arr_froms_of_to.push_back(from_name)
-						from_to_map[from_name] = arr_tos_of_from
-						to_from_map[to_name] = arr_froms_of_to
-						
-					# 找到源头（可能有多个源头，因为一个节点可能输入到多个节点上）
-					var arr_source_node: Array = []
-					_get_final_source(graph_node.name, from_to_map, arr_source_node, "Link")
-					
-					# 每个源头都要query
-					var gen_dict = func(s):
-						return {"select_name": s, "Column Name": s, "is_field": false, "table_alias": "",
-							"db_path": "", "table_name": "", "hint": PROPERTY_HINT_NONE, "Hint String": "",
-							"field_as": s, "name_4_computing": s}
-					var head = [gen_dict.call("Left"), gen_dict.call("Right"), gen_dict.call("Action")]
-					for node_name in arr_source_node:
-						var source_node = graph_edit.get_node(str(node_name)) as GraphNode # 一个link node
-						var update_result = false
-						if from_to_map.has(source_node.name):
-							for to in from_to_map[source_node.name]:
-								var to_node = graph_edit.get_node(str(to))
-								if to_node.get_meta("type") == "Result":
-									if to_node.enabled:
-										gen_table_node(head, tdatas, true, [], 0, to_node)
-										update_result = true
-									else:
-										_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
-									
-						if not update_result:
-							var table_node = gen_table_node(head, tdatas, true, [])
-							graph_edit.add_child(table_node)
-							table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
-							_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
-							
-					mark_modified()
-				)
-			)
-		)
-	)
+	btn_query.pressed.connect(on_link_node_query.bind(graph_node))
 	btn_query.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	
 	var hseparator = HSeparator.new()
@@ -2383,6 +2165,7 @@ func gen_link_node() -> GraphNode:
 	
 	return graph_node
 	
+## TODO FIXME NODE类型的怎么保存？
 func extract_table_data_call(v, columns):
 	if v is DictionaryObject:
 		var arr = []
@@ -2911,6 +2694,393 @@ func on_sql_node_query(node: GraphNode, log_history: bool):
 		)
 		
 	mark_modified()
+	
+func on_link_node_query(node: GraphNode):
+	# 拉取已经存在的关联数据
+	var data = node.get_meta("data")
+	#var schema_dict_obj: DictionaryObject = node.datas[1][2]
+	var table_dict_obj: DictionaryObject = node.datas[2][2]
+	var link_prop_dict_obj: DictionaryObject = node.datas[3][2]
+	#var left_schema_dict_obj: DictionaryObject = node.datas[5][2]
+	#var right_schema_dict_obj: DictionaryObject = node.datas[5][3]
+	#var left_table_dict_obj: DictionaryObject = node.datas[6][2]
+	#var right_table_dict_obj: DictionaryObject = node.datas[6][3]
+	var left_link_prop_dict_obj: DictionaryObject = node.datas[7][2]
+	var right_link_prop_dict_obj: DictionaryObject = node.datas[7][3]
+	var left_column_dict_obj: DictionaryObject = node.datas[8][2]
+	var right_column_dict_obj: DictionaryObject = node.datas[8][3]
+	var left_where_dict_obj: DictionaryObject = node.datas[9][2]
+	var right_where_dict_obj: DictionaryObject = node.datas[9][3]
+	var left_order_dict_obj: DictionaryObject = node.datas[10][2]
+	var right_order_dict_obj: DictionaryObject = node.datas[10][3]
+	var left_limit_dict_obj: DictionaryObject = node.datas[11][2]
+	var right_limit_dict_obj: DictionaryObject = node.datas[11][3]
+	var left_other_options: DictionaryObject = node.datas[12][2]
+	var right_other_options: DictionaryObject = node.datas[12][3]
+	
+	mgr.request_user_enter_password.emit(
+	data.get_meta("link_db", ""),
+	data.get_meta("link_table", ""),
+	data.get_meta("link_password", ""), 
+	func():
+		var begin_time = Time.get_unix_time_from_system()
+		var link_datas_dao = BaseDao.new()
+		var link_query_ret = (
+			link_datas_dao
+			.use_db(data.get_meta("link_db", ""))
+			.set_password(data.get_meta("link_password", ""))
+			.select("%s, list(%s)" % [
+				link_prop_dict_obj._get("Left"), link_prop_dict_obj._get("Right")], true)
+			.from(data.get_meta("link_table", ""))
+			.group_by(link_prop_dict_obj._get("Left"))
+			.query()
+		)
+		var action = link_datas_dao.get_query_cmd()
+		if link_query_ret == null:
+			mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
+			return
+		else:
+			mgr.add_log_history.emit("OK", begin_time, action, 
+				"%d row(s) returned" % (link_query_ret.get_data().size()), 
+				link_query_ret.get_cost_time()) # 去掉表头
+			
+		var link_datas = link_query_ret.get_data()
+		var link_map = {}
+		for adata in link_datas:
+			link_map[adata[0]] = adata[1]
+			
+		# 拉取左表的数据
+		mgr.request_user_enter_password.emit(
+		data.get_meta("left_db", ""),
+		data.get_meta("left_table", ""),
+		data.get_meta("left_password", ""), 
+		func():
+			var begin_time_2 = Time.get_unix_time_from_system()
+			var left_datas_dao = BaseDao.new()
+			var left_select = left_column_dict_obj.get_data().keys().map(func(v):
+				return v if left_column_dict_obj.get_data()[v] else ""
+			).filter(func(v): return not v.is_empty())
+			var left_query_ret = (
+				left_datas_dao
+				.use_db(data.get_meta("left_db", ""))
+				.set_password(data.get_meta("left_password", ""))
+				.select("*", true)
+				.from(data.get_meta("left_table", ""))
+				.set_where(left_where_dict_obj._get("Where"))
+				.order_by_str(left_order_dict_obj._get("Order By"))
+				.limit(left_limit_dict_obj._get("Offset"), left_limit_dict_obj._get("Limit"))
+				.query()
+			)
+			var action2 = left_datas_dao.get_query_cmd()
+			if left_query_ret == null:
+				mgr.add_log_history.emit("Err", begin_time_2, action2, "something wrong")
+				return
+			else:
+				mgr.add_log_history.emit("OK", begin_time_2, action2, 
+					"%d row(s) returned" % (left_query_ret.get_data().size()), 
+					left_query_ret.get_cost_time()) # 去掉表头
+				
+			# 拉取右表的数据
+			mgr.request_user_enter_password.emit(
+			data.get_meta("right_db", ""),
+			data.get_meta("right_table", ""),
+			data.get_meta("right_password", ""), 
+			func():
+				var begin_time_3 = Time.get_unix_time_from_system()
+				var right_datas_dao = BaseDao.new()
+				var right_select = right_column_dict_obj.get_data().keys().map(func(v):
+					return v if right_column_dict_obj.get_data()[v] else ""
+				).filter(func(v): return not v.is_empty())
+				var right_query_ret = (
+					right_datas_dao
+					.use_db(data.get_meta("right_db", ""))
+					.set_password(data.get_meta("right_password", ""))
+					.select("*", true)
+					.from(data.get_meta("right_table", ""))
+					.set_where(right_where_dict_obj._get("Where"))
+					.order_by_str(right_order_dict_obj._get("Order By"))
+					.limit(right_limit_dict_obj._get("Offset"), right_limit_dict_obj._get("Limit"))
+					.query()
+				)
+				var action3 = right_datas_dao.get_query_cmd()
+				if right_query_ret == null:
+					mgr.add_log_history.emit("Err", begin_time_3, action3, "something wrong")
+					return
+				else:
+					mgr.add_log_history.emit("OK", begin_time_3, action3, 
+						"%d row(s) returned" % (right_query_ret.get_data().size()), 
+						right_query_ret.get_cost_time()) # 去掉表头
+						
+				# 构造表格数据
+				var find_col_index = func(columns: Array, col_name: String):
+					for i in columns.size():
+						if columns[i]["Column Name"] == col_name:
+							return i
+					return -1
+				var tdatas = []
+				var left_columns = left_query_ret.get_head()
+				var left_datas = left_query_ret.get_data()
+				var left_key_index = find_col_index.call(left_columns, left_link_prop_dict_obj._get("LinkColumnName"))
+				assert(left_key_index != -1, "Error of left_key_index.")
+				var right_columns = right_query_ret.get_head()
+				var right_datas = right_query_ret.get_data()
+				var right_key_index = find_col_index.call(right_columns, right_link_prop_dict_obj._get("LinkColumnName"))
+				assert(right_key_index != -1, "Error of right_key_index.")
+				var detail_panel_scene = preload("res://addons/gdsql/detail_panel.tscn")
+				for row: Array in left_datas:
+					# 包含左数据、右数据和按钮
+					var a_row = []
+					
+					# 左数据
+					var left_data = {}
+					var left_id = null
+					for i in row.size():
+						if left_columns[i]["Column Name"] == left_link_prop_dict_obj._get("LinkColumnName"):
+							left_id = row[i]
+						if left_columns[i]["Column Name"] in left_select:
+							left_data[left_columns[i]["Column Name"]] = row[i]
+					var left_panel = detail_panel_scene.instantiate()
+					left_panel.show_check_box = false
+					left_panel.ready.connect(func():
+						left_panel.show_column_name = left_other_options._get("show_column_name")
+						left_panel.show_column_value = left_other_options._get("show_column_value")
+						left_panel.font_size = left_other_options._get("font_size")
+						left_panel.processor = left_other_options._get("processor")
+						left_panel.set_datas(left_data)
+					)
+					a_row.push_back(left_panel)
+					
+					# 右数据
+					var grid = GridContainer.new()
+					grid.columns = table_dict_obj._get("Right Columns")
+					a_row.push_back(grid)
+					
+					for right_row: Array in right_datas:
+						var right_data = {}
+						var right_id = null
+						for i in right_row.size():
+							if right_columns[i]["Column Name"] == right_link_prop_dict_obj._get("LinkColumnName"):
+								right_id = right_row[i]
+							if right_columns[i]["Column Name"] in right_select:
+								right_data[right_columns[i]["Column Name"]] = right_row[i]
+						var right_panel = detail_panel_scene.instantiate()
+						assert(left_id != null and right_id != null, "Cannot find left_id or right_id.")
+						right_panel.set_meta("left_id", left_id)
+						right_panel.set_meta("right_id", right_id)
+						right_panel.show_check_box = true
+						right_panel.status = "normal_checked" if link_map.has(row[left_key_index]) and \
+							right_row[right_key_index] in link_map[row[left_key_index]] else "normal_unchecked"
+						right_panel.ready.connect(func():
+							right_panel.show_column_name = right_other_options._get("show_column_name")
+							right_panel.show_column_value = right_other_options._get("show_column_value")
+							right_panel.font_size = right_other_options._get("font_size")
+							right_panel.processor = right_other_options._get("processor")
+							right_panel.set_datas(right_data)
+						)
+						grid.add_child(right_panel)
+						
+					# 按钮
+					var vbox = VBoxContainer.new()
+					a_row.push_back(vbox)
+					
+					var btn_check_all = Button.new()
+					vbox.add_child(btn_check_all)
+					btn_check_all.text = tr("Select All")
+					
+					var btn_cancel_all = Button.new()
+					vbox.add_child(btn_cancel_all)
+					btn_cancel_all.text = tr("Deselect All")
+					
+					var btn_revert = Button.new()
+					vbox.add_child(btn_revert)
+					btn_revert.text = tr("Revert")
+					
+					var btn_apply = Button.new()
+					vbox.add_child(btn_apply)
+					btn_apply.text = tr("Apply")
+					btn_apply.pressed.connect(func():
+						var daos: Array[BaseDao] = []
+						for detail_panel in grid.get_children():
+							var change_status = detail_panel.get_change_status()
+							if change_status == "add":
+								var dao = BaseDao.new()
+								dao.auto_commit(false)
+								(
+									dao.use_db(data.get_meta("link_db", ""))
+									.set_password(data.get_meta("link_password", ""))
+									.insert_into(data.get_meta("link_table", ""))
+									.values({
+										link_prop_dict_obj._get("Left"): detail_panel.get_meta("left_id"),
+										link_prop_dict_obj._get("Right"): detail_panel.get_meta("right_id"),
+									})
+								)
+								daos.push_back(dao)
+							elif change_status == "delete":
+								var wrap_value = func(v):
+									if v is String:
+										return "'" + v.c_escape() + "'"
+									return v
+								var dao = BaseDao.new()
+								dao.auto_commit(false)
+								(
+									dao.use_db(data.get_meta("link_db", ""))
+									.set_password(data.get_meta("link_password", ""))
+									.delete_from(data.get_meta("link_table", ""))
+									.where("%s == %s and %s == %s" % [
+										link_prop_dict_obj._get("Left"), wrap_value.call(detail_panel.get_meta("left_id")),
+										link_prop_dict_obj._get("Right"), wrap_value.call(detail_panel.get_meta("right_id")),
+									])
+								)
+								daos.push_back(dao)
+						# 弹对话框
+						var arr: Array[Array] = [["Please confirm:"]]
+						var table_2 = preload("res://addons/gdsql/table.tscn").instantiate()
+						table_2.ratios = [15.0, 0.2, 2.0, 10.0, 8.0] as Array[float]
+						table_2.columns = ["#", "action", "status"]
+						var datas = []
+						var k = 0
+						for i: BaseDao in daos:
+							var data_row = [k+1, i.get_query_cmd()]
+							var pb = ProgressBar.new()
+							data_row.push_back(pb)
+							datas.push_back(data_row)
+							k += 1
+						table_2.datas = datas
+						table_2.show_menu = false
+						table_2.support_delete_row = false
+						table_2.ready.connect(func():
+							table_2.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
+						, CONNECT_ONE_SHOT)
+						arr.push_back([table_2])
+						
+						# 执行成功的项目标绿进度100%；执行失败的项目标红。
+						var dialog_ref: Array[ConfirmationDialog] = []
+						var confirmed = func():
+							if dialog_ref[0].ok_button_text == "close":
+								return [false, false] # 不涉及defered函数，所以第二个参数传的没什么意义
+								
+							# 该按钮名称是回滚，则抛弃修改
+							if dialog_ref[0].ok_button_text == "Revert":
+								daos[0].discard()
+								on_link_node_query(node)
+								mgr._clear_custom_dialog(dialog_ref[0])
+								return [false, false] # 不涉及defered函数，所以第二个参数传的没什么意义
+								
+							# sql query
+							var failed = false
+							var index = -1
+							for i: BaseDao in daos:
+								index += 1
+								if (table_2.datas[index][2] as ProgressBar).value == 100:
+									continue
+								var begin_time_4 = Time.get_unix_time_from_system()
+								var ret = i.query()
+								if ret != null:
+									if ret.ok():
+										# log and UI
+										mgr.add_log_history.emit("OK", begin_time_4, i.get_query_cmd(), 
+											"%d row(s) affected" % ret.get_affected_rows(), ret.get_cost_time())
+										(table_2.datas[index][2] as ProgressBar).value = 100
+										(table_2.datas[index][2] as ProgressBar).modulate = Color.GREEN
+									else:
+										mgr.add_log_history.emit("Err", begin_time_4, i.get_query_cmd(), 
+											ret.get_err(), ret.get_cost_time())
+										(table_2.datas[index][2] as ProgressBar).modulate = Color.RED
+										failed = true
+										break
+								else:
+									mgr.add_log_history.emit("Err", begin_time_4, i.get_query_cmd(), "something wrong")
+									(table_2.datas[index][2] as ProgressBar).modulate = Color.RED
+									
+							# 失败
+							if failed:
+								dialog_ref[0].ok_button_text = "Revert"
+							else:
+								daos[0].commit()
+								dialog_ref[0].ok_button_text = "close"
+								
+							# true：让该页面不关闭
+							return [true, false] # 不涉及defered函数，所以第二个参数传的没什么意义
+							
+						# 对话框关闭时要执行的方法
+						var defered = func(_confirmed, _dummy):
+							table_2.queue_free()
+							
+						var dialog = mgr.create_custom_dialog(arr, confirmed, Callable(), defered, 0.5)
+						dialog_ref.push_back(dialog)
+						dialog.ok_button_text = "execute"
+						var btn_close_refresh = dialog.add_button("close and refresh", true, "close_and_refresh")
+						btn_close_refresh.tooltip_text = "Refresh the table. Modifications that not have been applied will be discarded."
+						btn_close_refresh.disabled = get_from_nodes(node, "Link").filter(func(v):
+							return v.enabled
+						).is_empty() # 如果这个表格没有关联Link节点，就无法刷新
+						if btn_close_refresh.disabled:
+							btn_close_refresh.tooltip_text += "\n[Tip]This button is disabled because this Result-node is "\
+								+ "not connected to a Link-node or the Link-node is not enabled."
+						dialog.custom_action.connect(func(custom_action):
+							if custom_action == "close_and_refresh":
+								var onclose = func ():
+									on_link_node_query(node)
+									mgr._clear_custom_dialog(dialog)
+									
+								if btn_apply.disabled:
+									onclose.call()
+								else:
+									mgr.create_confirmation_dialog("You have some modifications that have not been executed.\n"\
+										+ "If you refresh, these modifications will be discarded. \nAre you sure to refresh the table?"
+										, onclose)
+						)
+					)
+					
+					tdatas.push_back(a_row)
+					
+				# 生成table node然后连接
+				var from_to_map = {}
+				var to_from_map = {}
+				# 先做个映射
+				for info in graph_edit.get_connection_list():
+					var from_name = info["from_node"]
+					var to_name = info["to_node"]
+					var arr_tos_of_from = from_to_map.get(from_name, []) as Array
+					var arr_froms_of_to = to_from_map.get(to_name, []) as Array
+					arr_tos_of_from.push_back(to_name)
+					arr_froms_of_to.push_back(from_name)
+					from_to_map[from_name] = arr_tos_of_from
+					to_from_map[to_name] = arr_froms_of_to
+					
+				# 找到源头（可能有多个源头，因为一个节点可能输入到多个节点上）
+				var arr_source_node: Array = []
+				_get_final_source(node.name, from_to_map, arr_source_node, "Link")
+				
+				# 每个源头都要query
+				var gen_dict = func(s):
+					return {"select_name": s, "Column Name": s, "is_field": false, "table_alias": "",
+						"db_path": "", "table_name": "", "hint": PROPERTY_HINT_NONE, "Hint String": "",
+						"field_as": s, "name_4_computing": s}
+				var head = [gen_dict.call("Left"), gen_dict.call("Right"), gen_dict.call("Action")]
+				for node_name in arr_source_node:
+					var source_node = graph_edit.get_node(str(node_name)) as GraphNode # 一个link node
+					var update_result = false
+					if from_to_map.has(source_node.name):
+						for to in from_to_map[source_node.name]:
+							var to_node = graph_edit.get_node(str(to))
+							if to_node.get_meta("type") == "Result":
+								if to_node.enabled:
+									gen_table_node(head, tdatas, true, [], 0, to_node)
+									update_result = true
+								else:
+									_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
+								
+					if not update_result:
+						var table_node = gen_table_node(head, tdatas, true, [])
+						graph_edit.add_child(table_node)
+						table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
+						_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
+						
+				mark_modified()
+			)
+		)
+	)
 	
 func _get_final_source(from, map: Dictionary, result: Array, node_type: String):
 	var node = graph_edit.get_node(str(from))
