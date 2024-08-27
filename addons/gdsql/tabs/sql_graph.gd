@@ -2883,14 +2883,26 @@ func on_link_node_query(node: GraphNode):
 					var btn_check_all = Button.new()
 					vbox.add_child(btn_check_all)
 					btn_check_all.text = tr("Select All")
+					btn_check_all.pressed.connect(func():
+						for detail_panel in grid.get_children():
+							detail_panel.check_box.button_pressed = true
+					)
 					
 					var btn_cancel_all = Button.new()
 					vbox.add_child(btn_cancel_all)
 					btn_cancel_all.text = tr("Deselect All")
+					btn_cancel_all.pressed.connect(func():
+						for detail_panel in grid.get_children():
+							detail_panel.check_box.button_pressed = false
+					)
 					
 					var btn_revert = Button.new()
 					vbox.add_child(btn_revert)
 					btn_revert.text = tr("Revert")
+					btn_revert.pressed.connect(func():
+						for detail_panel in grid.get_children():
+							detail_panel.revert()
+					)
 					
 					var btn_apply = Button.new()
 					vbox.add_child(btn_apply)
@@ -2995,7 +3007,9 @@ func on_link_node_query(node: GraphNode):
 							else:
 								daos[0].commit()
 								dialog_ref[0].ok_button_text = "close"
-								
+								for detail_panel in grid.get_children():
+									detail_panel.commit()
+									
 							# true：让该页面不关闭
 							return [true, false] # 不涉及defered函数，所以第二个参数传的没什么意义
 							
