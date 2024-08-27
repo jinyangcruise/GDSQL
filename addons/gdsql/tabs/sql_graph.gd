@@ -2055,7 +2055,6 @@ func gen_link_node() -> GraphNode:
 		{"Other Options": {"hint": PROPERTY_HINT_NONE, "usage": PROPERTY_USAGE_GROUP},
 		"processor": {"hint": PROPERTY_HINT_MULTILINE_TEXT}},
 	)
-	var engine_text_edit = EditorInterface.get_script_editor().find_child("@CodeEdit@*", true, false) as CodeEdit
 	var left_code_edit = CodeEdit.new()
 	left_code_edit.text = "func process(column_name: String, value):\n\treturn value"
 	left_code_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -2068,8 +2067,7 @@ func gen_link_node() -> GraphNode:
 	left_code_edit.auto_brace_completion_highlight_matching = true
 	left_code_edit.caret_blink = true
 	left_code_edit.draw_tabs = true
-	if engine_text_edit:
-		left_code_edit.syntax_highlighter = engine_text_edit.syntax_highlighter
+	left_code_edit.syntax_highlighter = GDScriptSyntaxHighlighter.new()
 	left_code_edit.text_changed.connect(func():
 		left_other_options._set("processor", left_code_edit.text)
 	)
@@ -2095,8 +2093,7 @@ func gen_link_node() -> GraphNode:
 	right_code_edit.auto_brace_completion_highlight_matching = true
 	right_code_edit.caret_blink = true
 	right_code_edit.draw_tabs = true
-	if engine_text_edit:
-		right_code_edit.syntax_highlighter = engine_text_edit.syntax_highlighter
+	right_code_edit.syntax_highlighter = GDScriptSyntaxHighlighter.new()
 	right_code_edit.text_changed.connect(func():
 		right_other_options._set("processor", right_code_edit.text)
 	)
