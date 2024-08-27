@@ -226,8 +226,17 @@ func _on_check_box_container_gui_input(event: InputEvent) -> void:
 func commit():
 	if get_theme_stylebox("panel") == DETAIL_PANEL_CHECKED:
 		status = "normal_checked"
+		check_box.button_pressed = true
 	elif get_theme_stylebox("panel") == DETAIL_PANEL_UNCHECKED:
 		status = "normal_unchecked"
+		check_box.button_pressed = false
+
+func revert():
+	match status:
+		"normal_checked":
+			check_box.button_pressed = true
+		"normal_unchecked":
+			check_box.button_pressed = false
 
 func get_change_status():
 	var sb = get_theme_stylebox("panel")
