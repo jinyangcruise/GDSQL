@@ -925,7 +925,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			# 弹对话框让用户选择更新哪些数据
 			var arr: Array[Array] = [["Please confirm:"]]
 			var table_2 = preload("res://addons/gdsql/table.tscn").instantiate()
-			table_2.ratios = [15.0, 0.2, 2.0, 10.0, 8.0] as Array[float]
+			table_2.ratios = [15.0, 0.4, 2.0, 4.0, 8.0] as Array[float]
 			table_2.columns = ["#", "action", "extra info", "do", "status"]
 			table_2.column_tips = ["", "", "If necessary.", "Only execute checked actions.", "Execute status."]
 			var check_all_btn = CheckBox.new()
