@@ -1228,9 +1228,9 @@ func ___select(path: String, fill_primary_key: String = ""):
 		if __offset == 0:
 			grouped_ret = grouped_ret.slice(__offset, __limit + int(has_head))
 		elif has_head:
-			grouped_ret = [head] + grouped_ret.slice(__offset + 1, __limit + 1)
+			grouped_ret = [head] + grouped_ret.slice(__offset + 1, __offset + __limit + 1)
 		else:
-			grouped_ret = grouped_ret.slice(__offset + int(has_head), __limit + int(has_head))
+			grouped_ret = grouped_ret.slice(__offset + int(has_head), __offset + __limit + int(has_head))
 			
 	# 去掉多余的_order_by的数据
 	if not __order_by.is_empty():
