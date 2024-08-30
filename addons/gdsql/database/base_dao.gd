@@ -425,6 +425,7 @@ func group_by(something: String) -> BaseDao:
 		var start = 0
 		for i in matches:
 			var field_str = something.substr(start, i[0] - start).strip_edges()
+			start = i[1]
 			__group_by.push_back(field_str)
 			
 		if start < something.length():
