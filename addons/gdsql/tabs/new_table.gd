@@ -97,9 +97,9 @@ static func update_callback(new_value, property, dict_obj_ref: WeakRef, readable
 		label.text = readable_map[new_value]
 
 func _ready() -> void:
-	table.ratios = [4.0, 4.0, 3.0, 2.0, 20.0, 19.0, 18.0, 17.0, 1.0, 1.0] as Array[float]
-	table.column_tips = ["字段名称", "数据类型", "检查器属性提示", "提示字符串", "是否为主键", "是否非空", "是否唯一", "是否自增", "默认值（支持表达式）", "备注"] as Array[String]
-	table.columns = ["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Default(Expression)", "Comment"]
+	table.ratios = [10.0, 8.0, 3.0, 4.0, 17.0, 14.0, 11.0, 9.0, 6.0, 1.0, 1.0] as Array[float]
+	table.column_tips = ["字段名称", "数据类型", "检查器属性提示", "提示字符串", "是否为主键", "是否非空", "是否唯一", "是否自增", "是否索引", "默认值（支持表达式）", "备注"] as Array[String]
+	table.columns = ["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Index", "Default(Expression)", "Comment"]
 	
 	if schema != "":
 		schema = schema
@@ -125,7 +125,7 @@ func _ready() -> void:
 	if raw_datas.is_empty():
 		var row := DictionaryObject.new([
 			table.columns, 
-			["id", TYPE_INT, PROPERTY_HINT_NONE , "", true, true, false, true, "", ""]
+			["id", TYPE_INT, PROPERTY_HINT_NONE , "", true, true, false, true, false, "", ""]
 		], _hint_string)
 		row.set_custom_display_control("Data Type", label_data_type, 
 			update_callback.bind("Data Type", weakref(row), DataTypeDef.DATA_TYPE_NAMES), true)
@@ -157,7 +157,7 @@ func _gen_row() -> DictionaryObject:
 	
 	var row := DictionaryObject.new([
 		table.columns, 
-		["new_table_col", TYPE_INT, PROPERTY_HINT_NONE, "", false, false, false, false, "", ""]
+		["new_table_col", TYPE_INT, PROPERTY_HINT_NONE, "", false, false, false, false, false, "", ""]
 	], _hint_string)
 	row.set_custom_display_control("Data Type", label_data_type, 
 		update_callback.bind("Data Type", weakref(row), DataTypeDef.DATA_TYPE_NAMES), true)

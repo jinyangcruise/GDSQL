@@ -170,7 +170,11 @@ func add_tab_new_table(db_name, like_db_name = "", like_table_name = "") -> void
 		var defination = mgr.databases.get(like_db_name, {}).get("tables", {}).get(like_table_name, {}) as Dictionary
 		new_table.table_name = like_table_name
 		new_table.comment = defination.get("comment", "")
-		new_table.raw_datas = defination.get("columns", [])
+		var datas = defination.get("columns", [])
+		for i in datas:
+			if not i.has("Index"):
+				i.Index = false
+		new_table.raw_datas = datas
 	add_child(new_table)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
@@ -184,7 +188,11 @@ func add_tab_alter_table(db_name, table_name) -> void:
 	var defination = mgr.databases.get(db_name, {}).get("tables", {}).get(table_name, {}) as Dictionary
 	alter_table.comment = defination.get("comment", "")
 	alter_table.valid_if_not_exist = defination.get("valid_if_not_exist", false)
-	alter_table.raw_datas = defination.get("columns", [])
+	var datas = defination.get("columns", [])
+	for i in datas:
+		if not i.has("Index"):
+			i.Index = false
+	alter_table.raw_datas = datas
 	add_child(alter_table)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
@@ -210,7 +218,11 @@ func add_tab_table_inspector(db_name, table_name) -> void:
 	table_inspector.update_total_data_count = update_total_data_count
 	update_total_data_count.call()
 	table_inspector.comment = defination.get("comment", "")
-	table_inspector.raw_datas = defination.get("columns", [])
+	var datas = defination.get("columns", [])
+	for i in datas:
+		if not i.has("Index"):
+			i.Index = false
+	table_inspector.raw_datas = datas
 	add_child(table_inspector)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2

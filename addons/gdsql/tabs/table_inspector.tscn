@@ -109,12 +109,12 @@ text = "Total Data Count"
 horizontal_alignment = 2
 
 [node name="LineEditTotalDataCount" type="LineEdit" parent="VBoxContainer/HBoxContainer6"]
+visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 editable = false
 
 [node name="ButtonEnterPassword" type="Button" parent="VBoxContainer/HBoxContainer6"]
-visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Enter password to show this data"
@@ -130,9 +130,9 @@ expand_icon = true
 
 [node name="Table" parent="VBoxContainer" instance=ExtResource("2_bur0t")]
 layout_mode = 2
-columns = ["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Default(Expression)", "Comment"]
-column_tips = Array[String](["字段名称", "数据类型", "检查器属性提示", "提示字符串", "是否为主键", "是否非空", "是否唯一", "是否自增", "默认值（支持表达式）", "备注"])
-ratios = Array[float]([4.0, 4.0, 3.0, 2.0, 20.0, 19.0, 18.0, 17.0, 1.0, 1.0])
+columns = ["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Index", "Default(Expression)", "Comment"]
+column_tips = Array[String](["字段名称", "数据类型", "检查器属性提示", "提示字符串", "是否为主键", "是否非空", "是否唯一", "是否自增", "是否索引", "默认值（支持表达式）", "备注"])
+ratios = Array[float]([10.0, 8.0, 3.0, 4.0, 17.0, 14.0, 11.0, 9.0, 6.0, 1.0, 1.0])
 
 [node name="HFlowContainer" type="HFlowContainer" parent="VBoxContainer"]
 layout_mode = 2

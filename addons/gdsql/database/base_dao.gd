@@ -133,12 +133,16 @@ func _assert(action: String, success: bool, msg: String) -> bool:
 		return false
 	return true
 	
-func _get_conf(path: String, password: String) -> ImprovedConfigFile:
+func _get_conf(path: String, password: String, indexed_names = []) -> ImprovedConfigFile:
 	var defination = __get_table_defination(path.get_base_dir(), path.get_file())
 	var valid_if_not_exist = defination["valid_if_not_exist"] if defination else false
 	if valid_if_not_exist:
 		__CONF_MANAGER.mark_valid_if_not_exit(path)
-	return __CONF_MANAGER.get_conf(path, password)
+	var conf = __CONF_MANAGER.get_conf(path, password)
+	if conf:
+		if not indexed_names.is_empty():
+			conf.set_indexed_props(indexed_names)
+	return conf
 	
 ## 手动提交（保存到文件）
 func commit() -> void:
@@ -629,8 +633,6 @@ func ___datas_struct_is_key_dict(datas: Array) -> bool:
 func ___loop_table_row(result: Array, all_datas: Dictionary, loop_tables: Array, 
 loop_index: int, curr_row: Dictionary, all_dependencies: Dictionary, head: Array, 
 table_definations: Dictionary) -> bool:
-	# TODO 优化：如果on条件连接的是主键、唯一键，那么找到一条数据就可以停止了
-	# TODO 优化：某个where条件如果只涉及一张表，那么可以提前对这张表进行筛选
 	if loop_index == loop_tables.size():
 		# 最终满足所有条件，把数据塞到result中
 		result.push_back(curr_row)
@@ -691,32 +693,202 @@ table_definations: Dictionary) -> bool:
 				return false # error occur
 	return true
 	
-func ___select(path: String, fill_primary_key: String = ""):
-	var ret: Array = []
-	var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
+func check_circular_dependency(dependencies: Dictionary):
+	var visited = {} # visited字典用来跟踪哪些节点已经被访问过
+	var rec_stack = {} # rec_stack字典用来记录递归调用栈中的节点
+	# 遍历所有节点，检查每个节点是否存在循环依赖
+	for node in dependencies.keys():
+		# 如果节点未被访问，则检查该节点是否是循环依赖的一部分
+		if not visited.has(node):
+			if is_circular_util(node, dependencies, visited, rec_stack):
+				return true
+	# 如果所有节点都被检查过且没有发现循环依赖，则返回false
+	return false
+	
+func is_circular_util(node, dependencies, visited, rec_stack):
+	# 标记当前节点为已访问
+	visited[node] = true
+	rec_stack[node] = true
+	# 如果当前节点有依赖的节点，遍历这些依赖节点
+	if dependencies.has(node):
+		for neighbour in dependencies[node]:
+			# 如果依赖节点未被访问，则递归检查该依赖节点
+			if not visited.has(neighbour):
+				if is_circular_util(neighbour, dependencies, visited, rec_stack):
+					return true
+			# 如果依赖节点已经在递归栈中，说明存在循环依赖
+			elif rec_stack.has(neighbour):
+				return true
+	# 当前节点检查完毕，从递归栈中移除
+	rec_stack.erase(node)
+	return false
+	
+func _get_init_datas(table_alias: String, path: String, password: String, fill_primary_key: String,
+cond: String, all_table_defination: Dictionary, all_datas: Dictionary, curr_dependency: Dictionary = {}):
+	if all_datas.has(table_alias):
+		return
+		
+	var indexed_names = all_table_defination[table_alias].filter(func(v): return v.Index).map(func(v):
+		return v["Column Name"]
+	)
+	var conf: ImprovedConfigFile = _get_conf(path, password, indexed_names) # 使用索引
 	if conf == null:
 		_assert("___select", false, "failed to get conf:%s" % path)
 		return null # error occur
 	conf.fill_primary_key = fill_primary_key
-	var all_datas: Dictionary = {} # 把其他联表数据放到这个里边
 	
-	# 取主表所有数据
-	all_datas[__table_alias] = conf.get_all_section_values()
-	
+	# 为了优化联表导致笛卡尔乘积带来的低效，先获取一下where条件，根据where条件提前筛一批数据
+	if cond != '':
+		var input_names = []
+		for t in all_table_defination:
+			if t != '':
+				input_names.push_back(t)
+		if input_names.size() <= 1:
+			for c in all_table_defination[table_alias]:
+				input_names.push_back(c["Column Name"])
+				
+		# 查找和主键或索引有关的操作
+		var col_names = []
+		var pk_name = ""
+		var indexed_name = []
+		for i in all_table_defination[table_alias]:
+			if i.PK:
+				pk_name = i["Column Name"]
+			if i.PK or i.Index:
+				indexed_name.push_back(i["Column Name"])
+			col_names.push_back(i["Column Name"])
+		var expression = GDSQLExpression.new()
+		expression.sql_mode = true
+		expression.parse(cond, input_names)
+		# 主键或索引有关的操作， 例如一下cond：
+		# "id == 1"
+		# "1 == id"
+		# "id in [1, 2, 3]"
+		# "id in {'id': 1, 'name': 9}"
+		# "t.id == 22 and 33 == id"
+		# "id != 1 and id == 1"
+		# "not id == 1"
+		# "1 == 1 and not id == 1"
+		# 分别返回：
+		# { "==": 1 }
+		# { "r==": 1 }
+		# { "in": [1, 2, 3] }
+		# { "in": { "id": 1, "name": 9 } }
+		# { "and": { "left": { "==": 22 }, "right": { "r==": 33 } } }
+		# { "and": { "left": { "!=": 1 }, "right": { "==": 1 } } }
+		# { "not": { "left": { "==": 1 } } }
+		# { "and": { "left": {  }, "right": { "not": { "left": { "==": 1 } } } } }
+		var const_collection = []
+		for a_name in indexed_name:
+			var operations = {}
+			expression.search_input_name_equal(expression.root, table_alias, a_name, operations)
+			# 简化数据，收集可能的主键值或索引值
+			# 常数的值比如1，2，3
+			var a_collection = []
+			var continu = _filter_pk_value(operations, a_collection, true)
+			if not continu:
+				const_collection.clear()
+				break
+				
+			# 联表的主键值
+			if table_alias != __table_alias: # 联表才查这个，主表不查
+				var join_collection = []
+				continu = _filter_pk_value(operations, join_collection, false)
+				# false表示遇到不筛选的情况了
+				if not continu:
+					a_collection.clear()
+					const_collection.clear()
+					
+				if not join_collection.is_empty():
+					# 请求哪些表的数据，并检查在请求数据前的循环依赖状态
+					var request = []
+					for info in join_collection:
+						# {
+						#    "base": "", # table alias
+						#    "name": "", # column name
+						#    "index": "", # (base或name).在input_names的位置
+						# }
+						if not request.has(info.base):
+							request.push_back(info.base)
+					curr_dependency[table_alias] = request
+					# 已经存在循环依赖了，那么这个表只能取全部数据了，就把const_collection清空，例如
+					# {
+					#     "A": ["B"] # A依赖B
+					#     "B": ["C"] # B依赖C
+					#     "C": ["A"] # C依赖A
+					# }
+					if check_circular_dependency(curr_dependency):
+						const_collection.clear()
+					else:
+						for t in request:
+							if not all_datas.has(t):
+								var arr_left_join = __left_join.get_chain_left_joins() if __left_join != null else []
+								var pt # path
+								var ps # password
+								for a_left_join in arr_left_join:
+									if a_left_join.get_alias() == t:
+										pt = a_left_join.get_path()
+										ps = a_left_join.get_password()
+										_get_init_datas(t, pt, ps, fill_primary_key, 
+											a_left_join.get_condition(), all_table_defination, 
+											all_datas, curr_dependency)
+										break
+						# 把依赖的主键值加入const_collection
+						for info in join_collection:
+							for data in all_datas[info.base]:
+								a_collection.push_back(data[info.name])
+					# 清除依赖
+					curr_dependency.erase(table_alias)
+					
+			if a_name == pk_name:
+				const_collection.append_array(a_collection)
+			else:
+				for indexed_value in a_collection:
+					const_collection.append_array(conf.get_sections_by_indexed_key(a_name, indexed_value))
+					
+		if not const_collection.is_empty():
+			all_datas[table_alias] = []
+			if const_collection.size() == 1:
+				if conf.has_section(str(const_collection[0])):
+					all_datas[table_alias].push_back(conf.get_section_values(str(const_collection[0]), col_names))
+			else:
+				var uniq_collection = []
+				for i in const_collection:
+					if not str(i) in uniq_collection:
+						uniq_collection.push_back(str(i))
+				uniq_collection.sort()
+				if not uniq_collection.is_empty():
+					for pk_value in uniq_collection:
+						if conf.has_section(pk_value):
+							all_datas[table_alias].push_back(conf.get_section_values(pk_value, col_names))
+							
+	# 主表没数据时，取主表所有数据
+	if not all_datas.has(table_alias):
+		all_datas[table_alias] = conf.get_all_section_values()
+		
+func ___select(path: String, fill_primary_key: String = ""):
+	var ret: Array = []
 	# 表结构定义
 	var all_table_defination = {}
 	all_table_defination[__table_alias] = __get_table_defination(__database, __table)["columns"]
-	
-	# 取联表所有数据
 	var arr_left_join = __left_join.get_chain_left_joins() if __left_join != null else []
+	for a_left_join in arr_left_join:
+		all_table_defination[a_left_join.get_alias()] = __get_table_defination(
+			a_left_join.get_db(), a_left_join.get_table())["columns"]
+	var all_datas: Dictionary = {} # 把所有表的数据放到这个里边
+	
+	# 为了优化联表导致笛卡尔乘积带来的低效，先获取一下where条件，根据where条件提前筛一批数据
+	var cond = _get_cond(false)
+	# 主表数据
+	_get_init_datas(__table_alias, path, _PASSWORD, fill_primary_key, cond, 
+		all_table_defination, all_datas)
+		
+	# 取联表所有数据
 	for a_left_join in arr_left_join:
 		var pt = a_left_join.get_path()
 		var ps = a_left_join.get_password()
-		var conf1: ImprovedConfigFile = _get_conf(pt, ps)
-		conf1.fill_primary_key = fill_primary_key
-		all_datas[a_left_join.get_alias()] = conf1.get_all_section_values()
-		all_table_defination[a_left_join.get_alias()] = __get_table_defination(
-			a_left_join.get_db(), a_left_join.get_table())["columns"]
+		_get_init_datas(a_left_join.get_alias(), pt, ps, fill_primary_key,
+			a_left_join.get_condition(), all_table_defination, all_datas)
 			
 	# 计算表头
 	var real_select = __get_head(all_datas, arr_left_join)
@@ -781,16 +953,13 @@ func ___select(path: String, fill_primary_key: String = ""):
 	#if ret.is_empty():
 		#return [real_select]
 		
-	# where条件
-	var cond = _get_cond(false)
-	
 	var ret_filter = null
 	if cond == "":
 		ret_filter = ret
 	else:
 		ret_filter = []
+		var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
 		for data in ret:
-			var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
 			var check_result = conditionWrapper.cond(cond).check(data)
 			if typeof(check_result) != TYPE_BOOL:
 				_assert("check where", false, "check failed! cond:%s" % cond)
@@ -1247,6 +1416,56 @@ func ___select(path: String, fill_primary_key: String = ""):
 	#grouped_ret[0] = real_select
 	return grouped_ret
 	
+## 简化主表数据的逻辑是：
+## 1. 包含not的，一律不做筛选；
+## 2. 包含!=的，一律不做筛选；
+## 3. 如果遇到null（属于复杂情况），一律不做筛选
+## 4. 遇到==、r==，记录操作数
+## 5. 遇到in，记录操作数（数组）或记录操作数的键（字典）
+## constant_mode: 常数模式还是其他表字段模式
+func _filter_pk_value(dict: Dictionary, collection: Array, constant_mode: bool):
+	if dict.is_empty():
+		return true
+	if dict.has("not") or dict.has("!=") or dict.values().has(null):
+		collection.clear()
+		return false # false表示终止递归
+	for op in ["==", "r=="]:
+		if dict.has(op):
+			if constant_mode:
+				# NOTICE 这里因为我们判断的是主键值，所以一般是int或String
+				if dict[op] is int or dict[op] is String:
+					collection.push_back(dict[op])
+			else:
+				# NOTICE 这里判断的是主键值是否是另一个表的字段
+				if dict[op] is Dictionary and dict[op].keys() == ["base", "name", "index"]:
+					collection.push_back(dict[op])
+			return true # 只可能包含一种操作符
+	if dict.has("in"):
+		if dict.in is Array:
+			if constant_mode:
+				collection.append_array(dict.in)
+			else:
+				pass # do nothing
+		elif dict.in is Dictionary:
+			if constant_mode:
+				if not dict.in.keys() == ["base", "name", "index"]:
+					collection.append_array(dict.in.keys())
+			else:
+				if dict.in.keys() == ["base", "name", "index"]:
+					collection.push_back(dict.in)
+		return true
+	for key in ["left", "right"]:
+		if dict.has(key):
+			var continu = _filter_pk_value(dict[key], collection, constant_mode)
+			if not continu:
+				return false
+	for key in ["and", "or"]:
+		if dict.has(key):
+			var continu = _filter_pk_value(dict[key], collection, constant_mode)
+			if not continu:
+				return false
+	return true
+	
 ## 获取字段名称的正则
 func _get_regex_field(table_alias: String) -> RegEx:
 	if regex_field_map.has(table_alias):
@@ -1275,19 +1494,19 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 			for alias in all_datas:
 				if alias == __table_alias:
 					real_select.append_array(
-						__get_table_columns(__database, __table, __table_alias, all_datas)\
+						__get_table_columns(__database, __table, __table_alias)#, all_datas)\
 						.map(fill_select_name.bind(alias)))
 				else:
 					var a_left_join = __left_join.get_left_join_by_alias(alias)
 					real_select.append_array(
-						__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas)\
+						__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias)#, all_datas)\
 						.map(fill_select_name.bind(alias)))
 			asterisk_index_count[index] = real_select.size() - pre_size
 		elif s.ends_with(".*"):
 			var alias = s.substr(0, s.length() - 2)
 			if alias == __table_alias:
 				real_select.append_array(
-					__get_table_columns(__database, __table, __table_alias, all_datas)\
+					__get_table_columns(__database, __table, __table_alias)#, all_datas)\
 					.map(fill_select_name.bind(alias)))
 			else:
 				if __left_join == null:
@@ -1298,7 +1517,7 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 					_assert("___select", false, "table `%s` not found" % alias)
 					return null
 				real_select.append_array(
-					__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias, all_datas)\
+					__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias)#, all_datas)\
 						.map(fill_select_name.bind(alias)))
 			asterisk_index_count[index] = real_select.size() - pre_size
 		else:
@@ -1436,20 +1655,20 @@ func __get_table_defination(db_path: String, table_name: String):
 		"valid_if_not_exist": valid_if_not_exist,
 	}
 	
-func __get_table_columns(db_path, table_name, table_alias, all_datas: Dictionary = {}):
+func __get_table_columns(db_path, table_name, table_alias):#, all_datas: Dictionary = {}):
 	var columns: Array
 	var defination = __get_table_defination(db_path, table_name)
 	if defination:
 		columns = defination["columns"]
 		
-	if columns == null or columns.is_empty():
-		# 推断表头
-		if all_datas.get(table_alias, []).is_empty():
-			assert(_assert("__get_table_columns", false, 
-			"db: [%s] table [%s] cannot get head: no defination of this table or any data of this table" \
-			% [db_path, table_name]))
-		columns = all_datas[table_alias][0].keys().map(func(v):
-			return {"select_name": v, "Column Name": v, "is_field": true, "table_alias": table_alias})
+	#if columns == null or columns.is_empty():
+		## 推断表头
+		#if all_datas.get(table_alias, []).is_empty():
+			#assert(_assert("__get_table_columns", false, 
+			#"db: [%s] table [%s] cannot get head: no defination of this table or any data of this table" \
+			#% [db_path, table_name]))
+		#columns = all_datas[table_alias][0].keys().map(func(v):
+			#return {"select_name": v, "Column Name": v, "is_field": true, "table_alias": table_alias})
 		
 	if columns != null:
 		columns = columns.duplicate(true)
@@ -1571,7 +1790,7 @@ func query() -> QueryResult:
 								__data[field] = old_data.get(field)
 					elif __cmd == "replace_into":
 						# 数据存在，删除旧数据，插入新数据
-						conf.erase_section(primary_value)
+						conf._erase_section(primary_value)
 						result._affected_rows += 1
 					else:
 						result._err = "Duplicate entry '%s' for key 'PRIMARY'" % primary_value
@@ -1750,7 +1969,7 @@ func query() -> QueryResult:
 							__CONF_MANAGER.remove_conf(path) # discard possible changes
 							return result
 							
-						conf.erase_section(primary_value)
+						conf._erase_section(primary_value)
 						data[__primary_key] = value # 先只替换主键及主键值
 						primary_value = str(value)
 						data.erase(primary)
@@ -1763,7 +1982,7 @@ func query() -> QueryResult:
 						continue
 					var value = a_data.get(field)
 					if conf.get_value(primary_value, field) != value:
-						conf.set_value(primary_value, field, value)
+						conf._set_value(primary_value, field, value)
 						affected = true
 				if affected:
 					result._affected_rows += 1
@@ -1783,7 +2002,7 @@ func query() -> QueryResult:
 				
 			if __where.is_empty():
 				result._affected_rows = conf.get_sections().size()
-				conf.clear()
+				conf._clear()
 			else:
 				# 筛选出要删除的数据
 				var primary = "__PRIMARY_1355--5--__" # 让数据库把主键存到这个键里，祈祷用户没有用到这个字段
@@ -1804,7 +2023,7 @@ func query() -> QueryResult:
 				for data in datas:
 					data = data[__table_alias] # 未经过后处理的肯定是用表名分类的结构
 					var section = str(data.get(primary))
-					conf.erase_section(section)
+					conf._erase_section(section)
 					result._affected_rows += 1
 					
 			if __auto_commit and result._affected_rows > 0:
@@ -1849,11 +2068,12 @@ func _evaluate_data(p_names: Array, p_values: Array, columns_def: Array) -> Dict
 	return a_data
 	
 func _get_cond(need_where: bool, new_line = false) -> String:
-	var cond = ""
-	for i in __where:
-		if cond != "":
-			cond += " and "
-		cond += "(" + i + ")"
+	#var cond = ""
+	#for i in __where:
+		#if cond != "":
+			#cond += " and "
+		#cond += "(" + i + ")"
+	var cond = " and ".join(__where)
 	
 	if cond == "":
 		return cond

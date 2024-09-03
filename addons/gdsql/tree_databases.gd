@@ -185,12 +185,13 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 	var msgs = []
 	var primarys = [] # 不代表支持多主键，只是为了反映用户本身的输入
 	for i in column_infos:
-		action += "\n    `%s` %s%s%s%s%s%s," % [ 
+		action += "\n    `%s` %s%s%s%s%s%s%s," % [ 
 			i["Column Name"],
 			type_string(i["Data Type"]),
 			" NOT NULL" if i["NN"] else "",
 			" AUTO_INCREMENT" if i["AI"] else "",
 			" UNIQUE" if i["UQ"] else "",
+			" INDEX" if i.Index else "",
 			(" DEFAULT %s" % i["Default(Expression)"]) if i["Default(Expression)"] != "" else "",
 			" COMMENT '%s'" % (i["Comment"] as String).c_escape() if i["Comment"] != "" else ""
 		]
@@ -331,12 +332,13 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 	var msgs = []
 	var primarys = [] # 不代表支持多主键，只是为了反映用户本身的输入
 	for i in column_infos:
-		action += "\n    `%s` %s%s%s%s%s%s," % [ 
+		action += "\n    `%s` %s%s%s%s%s%s%s," % [ 
 			i["Column Name"],
 			type_string(i["Data Type"]),
 			" NOT NULL" if i["NN"] else "",
 			" AUTO_INCREMENT" if i["AI"] else "",
 			" UNIQUE" if i["UQ"] else "",
+			" INDEX" if i["Index"] else "",
 			(" DEFAULT %s" % i["Default(Expression)"]) if i["Default(Expression)"] != "" else "",
 			" COMMENT '%s'" % (i["Comment"] as String).c_escape() if i["Comment"] != "" else ""
 		]
@@ -478,7 +480,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 			
 		var new_table_data_file = old_table_data_file if old_table_data_path == new_table_data_path \
 			else __CONF_MANAGER.create_conf(new_table_data_path, "")
-		new_table_data_file.clear()
+		new_table_data_file._clear()
 		
 		for i: Dictionary in old_values:
 			var primary_value = str(i[primarys[0]])
@@ -495,7 +497,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		msgs.push_back("1 file: %s has been saved." % new_table_data_path)
 		if new_table_data_path != old_table_data_path:
 			__CONF_MANAGER.remove_conf(old_table_data_path)
-		
+			
 		var config_file = ConfigFile.new()
 		var table_conf_path = databases[db_name]["config_path"] + new_table_name + CONFIG_EXTENSION
 		config_file.set_value(new_table_name, "encrypted", table_confs[old_table_name]["encrypted"]) # 保留原密码
@@ -504,6 +506,11 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		config_file.set_value(new_table_name, "columns", column_infos)
 		config_file.save(table_conf_path) # 如果新路径和旧路径一致，就会覆盖掉，也是我们所期待的
 		msgs.push_back("1 file: %s has been saved." % table_conf_path)
+		
+		# 设置缓存
+		new_table_data_file.set_indexed_props(column_infos.filter(func(v): return v.Index).map(func(v):
+			return v["Column Name"]
+		))
 		
 		if old_table_data_path != new_table_data_path:
 			var old_table_conf_path = databases[db_name]["config_path"] + old_table_name + CONFIG_EXTENSION
@@ -515,7 +522,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 			if FileAccess.file_exists(old_table_data_path_abs):
 				OS.move_to_trash(old_table_data_path_abs) # 删数据
 				msgs.push_back("1 file: %s has been moved to trash." % old_table_data_path_abs)
-			
+				
 		mgr.sys_confirm_alter_table.emit(id)
 		mgr.add_log_history.emit("OK", begin_time, action, msgs)
 		
@@ -777,7 +784,7 @@ func truncate_table_from_config(db_name: String, table_name: String) -> void:
 		msgs.push_back("1 file: %s intended to move to trash but not found." % data_path)
 		
 	# create empty file
-	__CONF_MANAGER.get_conf(data_path, "").clear()
+	__CONF_MANAGER.get_conf(data_path, "")._clear()
 	__CONF_MANAGER.save_conf_by_origin_password(data_path)
 	msgs.push_back("1 file: %s has been overwritten to an empty file." % data_path)
 	
@@ -1018,11 +1025,13 @@ func add_table(db: TreeItem, table_name: String):
 		var properties = ["AI", "NN", "UQ", "PK"]
 		var tooltips = ["Auto Increment", "Not NULL", "Uniq", "Primary Key"]
 		for i in properties.size():
-			if col[properties[i]]:
+			if col.get(properties[i], false):
 				col_item.add_button(0, load("res://addons/gdsql/img/word_%s.png" \
 				% (properties[i] as String).to_lower()), ITEM_BUTTON_INDEX.COLUMN_PROPERTY
 				, true, tooltips[i])
-				
+		if col.get("Index", false):
+			col_item.add_button(0, load("res://addons/gdsql/img/word_in.png"), 
+				ITEM_BUTTON_INDEX.COLUMN_PROPERTY, true, "Indexed")
 				
 func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_index: int) -> void:
 	if column == 0:

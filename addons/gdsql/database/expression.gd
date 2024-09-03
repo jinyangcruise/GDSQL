@@ -1565,6 +1565,7 @@ const xid_continue = [
 ]
 
 const utility_function_table = {
+	# under @GlobalScope
 	'sin': [1, 'FUNCBINDR(sin, sarray("angle_rad"), Variant::UTILITY_FUNC_TYPE_MATH);', sin],
 	'cos': [1, ' FUNCBINDR(cos, sarray("angle_rad"), Variant::UTILITY_FUNC_TYPE_MATH);', cos],
 	'tan': [1, ' FUNCBINDR(tan, sarray("angle_rad"), Variant::UTILITY_FUNC_TYPE_MATH);', tan],
@@ -1679,6 +1680,19 @@ const utility_function_table = {
 	'rid_allocate_id': [0, ' FUNCBINDR(rid_allocate_id, Vector<String>(), Variant::UTILITY_FUNC_TYPE_GENERAL);', rid_allocate_id],
 	'rid_from_int64': [1, ' FUNCBINDR(rid_from_int64, sarray("base"), Variant::UTILITY_FUNC_TYPE_GENERAL);', rid_from_int64],
 	'is_same': [2, ' FUNCBINDR(is_same, sarray("a", "b"), Variant::UTILITY_FUNC_TYPE_GENERAL);', is_same],
+	# under @GDScript
+	'type_exists': [1, 'REGISTER_FUNC(type_exists, true, Variant::BOOL, ARG("type", Variant::STRING_NAME));', type_exists],
+	'char': [1, 'REGISTER_FUNC(_char, true, Variant::STRING, ARG("char", Variant::INT));', char],
+	'range': [-1, 'REGISTER_VARARG_FUNC(range, false, Variant::ARRAY);', range],
+	'load': [1, 'REGISTER_CLASS_FUNC(load, false, "Resource", ARG("path", Variant::STRING));', load],
+	'inst_to_dict': [1, 'REGISTER_FUNC(inst_to_dict, false, Variant::DICTIONARY, ARG("instance", Variant::OBJECT));', inst_to_dict],
+	'dict_to_inst': [1, 'REGISTER_FUNC(dict_to_inst, false, Variant::OBJECT, ARG("dictionary", Variant::DICTIONARY));', dict_to_inst],
+	'Color8': [4, 'REGISTER_FUNC_DEF(Color8, true, 255, Variant::COLOR, ARG("r8", Variant::INT), ARG("g8", Variant::INT), ARG("b8", Variant::INT), ARG("a8", Variant::INT));', Color8],
+	'print_debug': [-1, 'REGISTER_VARARG_FUNC(print_debug, false, Variant::NIL);', print_debug],
+	'print_stack': [0, 'REGISTER_FUNC_NO_ARGS(print_stack, false, Variant::NIL);', print_stack],
+	'get_stack': [0, 'REGISTER_FUNC_NO_ARGS(get_stack, false, Variant::ARRAY);', get_stack],
+	'len': [1, 'REGISTER_FUNC(len, true, Variant::INT, VARARG("var"));', len],
+	'is_instance_of': [2, 'REGISTER_FUNC(is_instance_of, true, Variant::BOOL, VARARG("value"), VARARG("type"));', is_instance_of],
 }
 
 ## NOTICE 复制 @GlobalScope 文档内容到一个文件（例如：22.txt）中，然后执行下面的命令：
@@ -3464,6 +3478,8 @@ func _parse_expression() -> ExpressionENode:
 						if sql_mode:
 							if expr is ExpressionInputNode:
 								index.base_name = input_names[expr.index]
+							elif expr is ExpressionNamedIndexNode:
+								index.base_name = expr.name
 						expr = index
 		
 
@@ -3733,7 +3749,284 @@ func _parse_expression() -> ExpressionENode:
 
 	return expression_nodes[0].node
 
-
+func search_input_name_equal(node, input_name: String, sub_name: String, tree: Dictionary):
+	if node == null or node is not ExpressionOperatorNode:
+		return
+	var input_index = input_names.find(input_name)
+	var sub_index = input_names.find(sub_name)
+	const op_names = {
+		OP_EQUAL: '==',
+		OP_NOT_EQUAL: '!=',
+		OP_LESS: '<',
+		OP_LESS_EQUAL: '<=',
+		OP_GREATER: '>',
+		OP_GREATER_EQUAL: '>=',
+		OP_ADD: '+',
+		OP_SUBTRACT: '-',
+		OP_MULTIPLY: '*',
+		OP_DIVIDE: '/',
+		OP_NEGATE: '-',
+		OP_POSITIVE: '+',
+		OP_MODULE: '%',
+		OP_POWER: '**',
+		OP_SHIFT_LEFT: '<<',
+		OP_SHIFT_RIGHT: '>>',
+		OP_BIT_AND: '&',
+		OP_BIT_OR: '|',
+		OP_BIT_XOR: '^',
+		OP_BIT_NEGATE: '~',
+		OP_AND: 'and',
+		OP_OR: 'or',
+		OP_XOR: 'xor',
+		OP_NOT: 'not',
+		OP_IN: 'in',
+	}
+	var parse_node = func(p_node):
+		if p_node is ExpressionNamedIndexNode:
+			return {
+				'base': input_names[p_node.base.index],
+				'name': p_node.name,
+				'index': '%s:%s' % [input_names[p_node.base.index], p_node.base.index]
+			}
+		if p_node is ExpressionInputNode:
+			if input_names[p_node.index] == sub_name:
+				return {
+					'base': input_name,
+					'name': sub_name,
+					'index': '%s:%s' % [sub_name, p_node.index],
+				}
+			else:
+				return {
+					'base': '',
+					'name': input_names[p_node.index],
+					'index': '%s:%s' % [input_names[p_node.index], p_node.index],
+				}
+		if all_constant_node(p_node):
+			var ret = [null]
+			var err = []
+			_execute([], null, p_node, ret, false, err)
+			if err.is_empty():
+				return ret[0]
+		return p_node
+		
+	if node.op == OP_AND or node.op == OP_OR:
+		tree[op_names[node.op]] = {"left": {}, "right": {}}
+		search_input_name_equal(node.nodes[0], input_name, sub_name, tree[op_names[node.op]].left)
+		search_input_name_equal(node.nodes[1], input_name, sub_name, tree[op_names[node.op]].right)
+	elif node.op == OP_NOT:
+		tree[op_names[node.op]] = {"left": {}}
+		search_input_name_equal(node.nodes[0], input_name, sub_name, tree[op_names[node.op]].left)
+	else:
+		var dealed = false
+		if not dealed and node.nodes[0] is ExpressionInputNode:
+			if node.nodes[0].index == input_index or node.nodes[0].index == sub_index:
+				tree[op_names[node.op]] = parse_node.call(node.nodes[1])
+				dealed = true
+		if not dealed and node.nodes[1] is ExpressionInputNode:
+			if node.nodes[1].index == input_index or node.nodes[1].index == sub_index:
+				tree['r' + op_names[node.op]] = parse_node.call(node.nodes[0])
+				dealed = true
+		if not dealed and node.nodes[0] is ExpressionNamedIndexNode:
+			if node.nodes[0].base.index == input_index and node.nodes[0].name == sub_name:
+				tree[op_names[node.op]] = parse_node.call(node.nodes[1])
+				dealed = true
+			if not dealed and node.nodes[1] is ExpressionNamedIndexNode:
+				if node.nodes[1].base.index == input_index and node.nodes[1].name == sub_name:
+					# 'r'表示操作数是反着的，比如：t.id > 1，符号是'>'，而1 > t.id，符号是'r>'
+					tree['r' + op_names[node.op]] = parse_node.call(node.nodes[0])
+					dealed = true
+		if not dealed and node.nodes[1] is ExpressionNamedIndexNode:
+			if node.nodes[1].base.index == input_index and node.nodes[1].name == sub_name:
+				tree['r' + op_names[node.op]] = parse_node.call(node.nodes[0])
+				dealed = true
+			if not dealed and node.nodes[0] is ExpressionNamedIndexNode:
+				if node.nodes[0].base.index == input_index and node.nodes[0].name == sub_name:
+					tree['r' + op_names[node.op]] = parse_node.call(node.nodes[1])
+					dealed = true
+		if not dealed:
+			# 检查这个分支和要查的字段有没有关系，如果有关系，设置为null，没有关系，就把这个操作忽略
+			if contains_input_name(node.nodes[0], input_name, sub_name) or \
+			contains_input_name(node.nodes[1], input_name, sub_name):
+				tree['r' + op_names[node.op]] = null
+				
+func contains_input_name(p_node, input_name: String, sub_name: String) -> bool:
+	match (p_node.type) :
+		ExpressionENode.Type.TYPE_INPUT:
+			var input_index = input_names.find(input_name)
+			var sub_index = input_names.find(sub_name)
+			var _in = p_node as ExpressionInputNode
+			return _in.index == input_index or _in.index == sub_index
+		ExpressionENode.Type.TYPE_CONSTANT:
+			return false
+		ExpressionENode.Type.TYPE_SELF:
+			return false
+		ExpressionENode.Type.TYPE_OPERATOR:
+			var op = p_node as ExpressionOperatorNode
+			var ret = contains_input_name(op.nodes[0], input_name, sub_name)
+			if (ret) :
+				return true
+				
+			if (op.nodes[1]) :
+				ret = contains_input_name(op.nodes[1], input_name, sub_name)
+				if (ret) :
+					return true
+			return false
+		ExpressionENode.Type.TYPE_INDEX:
+			var index = p_node as ExpressionIndexNode
+			var ret = contains_input_name(index.base, input_name, sub_name)
+			if (ret) :
+				return true
+				
+			ret = contains_input_name(index.index, input_name, sub_name)
+			if (ret) :
+				return true
+			return false
+		ExpressionENode.Type.TYPE_NAMED_INDEX:
+			var index = p_node as ExpressionNamedIndexNode
+			if index.base is String:
+				if index.base == input_name and index.name == sub_name:
+					return true
+			else:
+				var ret = contains_input_name(index.base, input_name, sub_name)
+				if ret and index.name == sub_name:
+					return true
+			return false
+		ExpressionENode.Type.TYPE_ARRAY:
+			var array = p_node as ExpressionArrayNode
+			for i in array.array:
+				var ret = contains_input_name(i, input_name, sub_name)
+				if (ret) :
+					return true
+			return false
+		ExpressionENode.Type.TYPE_DICTIONARY:
+			var dictionary = p_node as ExpressionDictionaryNode
+			for i in dictionary.dict:
+				var ret = contains_input_name(i, input_name, sub_name)
+				if (ret) :
+					return true
+			return false
+		ExpressionENode.Type.TYPE_CONSTRUCTOR:
+			var constructor = p_node as ExpressionConstructorNode
+			for i in constructor.arguments:
+				var ret = contains_input_name(i, input_name, sub_name)
+				if (ret) :
+					return true
+			return false
+		ExpressionENode.Type.TYPE_BUILTIN_FUNC:
+			var bifunc = p_node as ExpressionBuiltinFuncNode
+			for i in bifunc.arguments:
+				var ret = contains_input_name(i, input_name, sub_name)
+				if (ret) :
+					return true
+			return false
+		ExpressionENode.Type.TYPE_BUILTIN_FUNC_CALLABLE:
+			return false
+		ExpressionENode.Type.TYPE_CLASS:
+			return false
+		ExpressionENode.Type.TYPE_CALL:
+			var _call = p_node as ExpressionCallNode
+			var ret = contains_input_name(_call.base, input_name, sub_name)
+			if (ret) :
+				return true
+				
+			for i in _call.arguments:
+				ret = contains_input_name(i, input_name, sub_name)
+				if (ret) :
+					return true
+					
+			if _call.method is ExpressionENode:
+				ret = contains_input_name(_call.method, input_name, sub_name)
+				if (ret):
+					return true
+					
+			return false
+	return false
+	
+func all_constant_node(p_node):
+	match (p_node.type) :
+		ExpressionENode.Type.TYPE_INPUT:
+			return false
+		ExpressionENode.Type.TYPE_CONSTANT:
+			return {
+				"value": p_node.value
+			}
+		ExpressionENode.Type.TYPE_SELF:
+			return false
+		ExpressionENode.Type.TYPE_OPERATOR:
+			var op = p_node as ExpressionOperatorNode
+			var ret = all_constant_node(op.nodes[0])
+			if not ret:
+				return false
+				
+			if (op.nodes[1]) :
+				ret = all_constant_node(op.nodes[1])
+				if (not ret) :
+					return false
+			return true
+		ExpressionENode.Type.TYPE_INDEX:
+			var index = p_node as ExpressionIndexNode
+			var ret = all_constant_node(index.base)
+			if (not ret) :
+				return false
+				
+			ret = all_constant_node(index.index)
+			if (not ret) :
+				return false
+			return true
+		ExpressionENode.Type.TYPE_NAMED_INDEX:
+			return false
+		ExpressionENode.Type.TYPE_ARRAY:
+			var array = p_node as ExpressionArrayNode
+			for i in array.array:
+				var ret = all_constant_node(i)
+				if (not ret) :
+					return false
+			return true
+		ExpressionENode.Type.TYPE_DICTIONARY:
+			var dictionary = p_node as ExpressionDictionaryNode
+			for i in dictionary.dict:
+				var ret = all_constant_node(i)
+				if (not ret) :
+					return false
+			return true
+		ExpressionENode.Type.TYPE_CONSTRUCTOR:
+			var constructor = p_node as ExpressionConstructorNode
+			for i in constructor.arguments:
+				var ret = all_constant_node(i)
+				if (not ret) :
+					return false
+			return true
+		ExpressionENode.Type.TYPE_BUILTIN_FUNC:
+			var bifunc = p_node as ExpressionBuiltinFuncNode
+			for i in bifunc.arguments:
+				var ret = all_constant_node(i)
+				if (not ret) :
+					return false
+			return true
+		ExpressionENode.Type.TYPE_BUILTIN_FUNC_CALLABLE:
+			return true
+		ExpressionENode.Type.TYPE_CLASS:
+			return true
+		ExpressionENode.Type.TYPE_CALL:
+			var _call = p_node as ExpressionCallNode
+			var ret = all_constant_node(_call.base)
+			if (not ret) :
+				return false
+				
+			for i in _call.arguments:
+				ret = all_constant_node(i)
+				if (not ret) :
+					return false
+					
+			if _call.method is ExpressionENode:
+				ret = all_constant_node(_call.method)
+				if (not ret):
+					return false
+					
+			return true
+	assert(false, "Inner error 4063 in expression.gd") # 没考虑到的情况？
+	return false
+	
 func _compile_expression() -> bool:
 	if (!expression_dirty) :
 		return error_set
@@ -3810,9 +4103,9 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				if (ret) :
 					return true
 					
-			if sql_mode and (b[0] == null or b[0] is AggregateFunctions):
-				r_ret[0] = b[0]
-				return false
+				if sql_mode and (b[0] == null or b[0] is AggregateFunctions):
+					r_ret[0] = b[0]
+					return false
 	
 
 

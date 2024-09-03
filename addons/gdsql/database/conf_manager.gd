@@ -102,3 +102,9 @@ func save_conf_by_password(path: String, password: String):
 		conf.save_encrypted_pass(path, _passwords[path])
 	if OS.has_feature("editor"):
 		_conf_modified_time[path] = FileAccess.get_modified_time(path)
+		
+func set_conf_indexed_props(path: String, indexed_names: Array):
+	path = GDSQLUtils.globalize_path(path)
+	assert(has_conf(path), "this conf %s is not under control" % path)
+	var conf = get_conf(path, "")
+	conf.set_indexed_props(indexed_names)
