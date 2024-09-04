@@ -969,6 +969,7 @@ func popup_edit_dialog(item: TreeItem):
 		editor.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
 		editor.toggle_scripts_button.hide()
 		var code_edit = editor.text_editor as CodeEdit
+		code_edit.syntax_highlighter = GDScriptSyntaxHighlighter.new()
 		code_edit.gutters_draw_line_numbers = true
 		code_edit.draw_tabs = true
 		code_edit.highlight_all_occurrences = true
@@ -1025,6 +1026,7 @@ func popup_diff_dialog(arr_content: Array):
 		editor.ready.connect(func():
 			editor.toggle_scripts_button.hide()
 			var code_edit = editor.text_editor as CodeEdit
+			code_edit.syntax_highlighter = GDScriptSyntaxHighlighter.new()
 			arr_v_scroll_bar.push_back(code_edit.get_v_scroll_bar())
 			code_edit.get_v_scroll_bar().value_changed.connect(func(v):
 				for a_bar: VScrollBar in arr_v_scroll_bar:
