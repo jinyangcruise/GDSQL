@@ -288,7 +288,7 @@ func _on_button_add_node_link_pressed():
 		
 	mark_modified()
 	
-func add_select_node(schema = "", table = "", fields = "*", where = "", order_by = "", offset = 0, 
+func add_select_node(schema = "", table = "", fields = "*", where = "", group_by = "", order_by = "", offset = 0, 
 limit = 100, alias = "", password = "", asize = null, pos_offset = null, aname = "", query = true):
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
@@ -315,10 +315,11 @@ limit = 100, alias = "", password = "", asize = null, pos_offset = null, aname =
 	var table_dict_obj: DictionaryObject = graph_node.datas[3][2]
 	var fields_dict_obj: DictionaryObject = graph_node.datas[4][2]
 	var where_dict_obj: DictionaryObject = graph_node.datas[5][2]
-	var order_dict_obj: DictionaryObject = graph_node.datas[6][2]
-	var limit_dict_obj: DictionaryObject = graph_node.datas[7][2]
-	#var separetor: Control = graph_node.datas[8][2]
-	var btn_query: Button = graph_node.datas[9][2]
+	var groupby_dict_obj: DictionaryObject = graph_node.datas[6][2]
+	var order_dict_obj: DictionaryObject = graph_node.datas[7][2]
+	var limit_dict_obj: DictionaryObject = graph_node.datas[8][2]
+	#var separetor: Control = graph_node.datas[9][2]
+	var btn_query: Button = graph_node.datas[10][2]
 	
 	if schema != schema_dict_obj._get("Schema"):
 		schema_dict_obj._set("Schema", schema)
@@ -332,6 +333,8 @@ limit = 100, alias = "", password = "", asize = null, pos_offset = null, aname =
 		fields_dict_obj._set("Fields", fields)
 	if where != where_dict_obj._get("Where"):
 		where_dict_obj._set("Where", where)
+	if group_by != groupby_dict_obj._get("Group By"):
+		groupby_dict_obj._set("Group By", group_by)
 	if order_by != order_dict_obj._get("Order By"):
 		order_dict_obj._set("Order By", order_by)
 	if limit != limit_dict_obj._get("Offset"):
@@ -357,7 +360,8 @@ func gen_select_node() -> GraphNode:
 		"_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
 	var fields_dict_obj = DictionaryObject.new({"Fields": "*"}, {"Fields": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
 	var where_dict_obj = DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
-	var order_dict_obj = DictionaryObject.new({"Order By": ""}, {"Order By": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
+	var groupby_dict_obj = DictionaryObject.new({"Group By": ""})
+	var order_dict_obj = DictionaryObject.new({"Order By": ""})
 	var limit_dict_obj = DictionaryObject.new({"Offset": 0, "Limit": 100})
 	
 	# 关联该节点的BaseDao
@@ -403,14 +407,20 @@ func gen_select_node() -> GraphNode:
 			"Where":
 				base_dao.set_where(new_val)
 	)
-	order_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+	groupby_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		graph_node.push_redraw_slot_control(6, 2)
+		match prop:
+			"Group By":
+				base_dao.group_by_str(new_val)
+	)
+	order_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
+		graph_node.push_redraw_slot_control(7, 2)
 		match prop:
 			"Order By":
 				base_dao.order_by_str(new_val)
 	)
 	limit_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
-		graph_node.push_redraw_slot_control(7, 2)
+		graph_node.push_redraw_slot_control(8, 2)
 		match prop:
 			"Offset":
 				base_dao.limit(new_val, limit_dict_obj._get("Limit"))
@@ -436,6 +446,7 @@ func gen_select_node() -> GraphNode:
 		[null, null, table_dict_obj],
 		[null, null, fields_dict_obj],
 		[null, null, where_dict_obj],
+		[null, null, groupby_dict_obj],
 		[null, null, order_dict_obj],
 		[null, null, limit_dict_obj],
 		[null, null, separator],
@@ -2373,7 +2384,7 @@ func _load_nodes(nodes: Dictionary, connections: Array, pos_offset: Vector2, aut
 		match type:
 			"Select":
 				node = await add_select_node(params["Schema"], params["Table"], params["Fields"], 
-					params["Where"], params["Order By"], params["Offset"], 
+					params["Where"], params["Group By"], params["Order By"], params["Offset"], 
 					params["Limit"], params["_alias"], params["_password"],
 					asize, position_offset, a_name, false)
 			"Left Join":
@@ -3163,7 +3174,8 @@ func handle_input_node(input_node: GraphNode, connected_node_name, from_port, to
 	input_node.set_meta("node", true)
 	input_node.position_offset = release_position # (release_position + graph_edit.scroll_offset) / graph_edit.zoom
 	if xenophobic:
-		input_node.node_enabled.connect(node_enabled.bind(input_node)) # 互斥激活事件
+		if not input_node.node_enabled.is_connected(node_enabled):
+			input_node.node_enabled.connect(node_enabled.bind(input_node)) # 互斥激活事件
 	graph_edit.connect_node(input_node.name, from_port, connected_node_name, to_port)
 	input_node.enabled = true # 触发同一端口的其余输入端口失效
 	mark_modified()
@@ -3190,11 +3202,13 @@ func _on_graph_edit_connection_request(from_node: StringName, from_port: int, to
 		"Select":
 			match t_node.get_meta("type"):
 				"Select":
-					f_node.node_enabled.connect(node_enabled.bind(f_node)) # 互斥激活事件
+					if not f_node.node_enabled.is_connected(node_enabled):
+						f_node.node_enabled.connect(node_enabled.bind(f_node)) # 互斥激活事件
 		"Left Join":
 			match t_node.get_meta("type"):
 				"Select", "Left Join":
-					f_node.node_enabled.connect(node_enabled.bind(f_node)) # 互斥激活事件
+					if not f_node.node_enabled.is_connected(node_enabled):
+						f_node.node_enabled.connect(node_enabled.bind(f_node)) # 互斥激活事件
 	f_node.enabled = true # 可以激活互斥并且促使数据关联
 	
 func _on_graph_edit_connection_drag_started(_from_node: StringName, _from_port: int, _is_output: bool) -> void:
