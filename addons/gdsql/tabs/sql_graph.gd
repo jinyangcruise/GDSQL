@@ -154,6 +154,37 @@ func node_close(node: GraphNode):
 		elif node.name == info["from_node"]:
 			graph_edit.disconnect_node(info["from_node"], info["from_port"], info["to_node"], info["to_port"])
 			
+		# 删除BaseDao和LeftJoin数据关联
+		var f_node = graph_edit.get_node(str(info.from_node))
+		var t_node = graph_edit.get_node(str(info.to_node))
+		# select 连 select（即union all）
+		match f_node.get_meta("type"):
+			"Select":
+				match t_node.get_meta("type"):
+					"Select":
+						(t_node.get_meta("base_dao") as BaseDao).remove_union_all(f_node.get_meta("base_dao") as BaseDao)
+					"Result":
+						# 如果有修改数据的按钮，需要屏蔽
+						var graph_datas = t_node.datas
+						if graph_datas.size() > 1:
+							#┖╴@HBoxContainer                  get_child(-2)
+								#┖╴@HFlowContainer             get_child(0)
+									#┠╴@Button
+									#┠╴@Button
+									#┖╴@Button
+							var flow_container = t_node.get_child(-2).get_child(0)
+							for i in flow_container.get_children():
+								i.disabled = true
+							var table = graph_datas[0][0].get_child(0)
+							for i in table.datas:
+								(i as DictionaryObject).reset_read_only(true)
+			"Left Join":
+				match t_node.get_meta("type"):
+					"Select":
+						(t_node.get_meta("base_dao") as BaseDao).remove_left_join(f_node.get_meta("left_join") as LeftJoin)
+					"Left Join":
+						(t_node.get_meta("left_join") as LeftJoin).remove_left_join((f_node.get_meta("left_join") as LeftJoin))
+						
 	# 清空一些数据代理
 	if node.has_meta("base_dao"):
 		(node.get_meta("base_dao") as BaseDao).reset(true)
