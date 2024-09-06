@@ -437,4 +437,3 @@ func _warning_button_pressed() -> void:
 
 func _text_changed_idle_timeout() -> void:
 	pass # Replace with function body.
-
