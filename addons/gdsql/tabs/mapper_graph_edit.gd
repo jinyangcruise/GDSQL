@@ -142,8 +142,8 @@ asize = null, pos_offset = null, aname = ""):
 			var text_enum_suggestion = TEXT_ENUM.instantiate()
 			text_enum_suggestion.ready.connect(func():
 				text_enum_suggestion.setup(DataTypeDef.DATA_TYPE_COMMON_NAMES.keys(), true)
-				text_enum_suggestion.value = prop_type
-				text_enum_suggestion.update_property()
+				text_enum_suggestion._custom_value_submitted(prop_type)
+				ob_link_type.item_selected.emit(0 if type == LINK_TYPE.ASSOCIATION else 1)
 			)
 			text_enum_suggestion.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			text_enum_suggestion.custom_minimum_size.x = 150
