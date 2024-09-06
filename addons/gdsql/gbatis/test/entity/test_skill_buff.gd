@@ -1,5 +1,5 @@
 extends RefCounted
-class_name TestSkillEffectEntity
+class_name TestSkillBuffEntity
 
 var id: int
 var sid: int

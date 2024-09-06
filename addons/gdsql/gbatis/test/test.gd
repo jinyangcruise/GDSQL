@@ -114,4 +114,3 @@ func _ready() -> void:
 	#var v9 = skill_mapper.delete_skill_by_ids([63, 65])
 	#printt(v9)
 	pass
-

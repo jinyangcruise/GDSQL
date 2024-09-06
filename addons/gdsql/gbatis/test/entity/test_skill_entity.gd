@@ -7,5 +7,5 @@ var icon: Texture2D
 var desc: String
 var max_level: int
 
-var skill_effect: TestSkillEffectEntity
-var arr_skill_effect: Array[TestSkillEffectEntity]
+var skill_buff: TestSkillBuffEntity
+var arr_skill_buff: Array[TestSkillBuffEntity]

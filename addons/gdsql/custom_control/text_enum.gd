@@ -30,12 +30,6 @@ func setup(p_options: Array, p_loose_mode: bool):
 		edit_button.show()
 		
 func _ready() -> void:
-	if not edit_button.icon:
-		edit_button.icon = get_theme_icon("Edit", "EditorIcons")
-	if not accept_button.icon:
-		accept_button.icon = get_theme_icon("ImportCheck", "EditorIcons")
-	if not cancel_button.icon:
-		cancel_button.icon = get_theme_icon("ImportFail", "EditorIcons")
 	update_property()
 	
 func get_selected_text() -> String:
@@ -49,7 +43,8 @@ func update_property():
 	
 	# The list can change in the loose mode.
 	if loose_mode:
-		custom_value_edit.set_text(current_value)
+		#custom_value_edit.set_text(current_value)
+		custom_value_edit.text = current_value
 		option_button.clear()
 		
 		# Manually entered value.
