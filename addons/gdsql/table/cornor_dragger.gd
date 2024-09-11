@@ -4,6 +4,7 @@ extends MarginContainer
 signal cornor_drag_start
 signal cornor_drag_end
 signal cornor_drag_moving(diff: Vector2)
+signal cornor_double_clicked
 
 var start_drag = false
 #var start_drag_position = Vector2.ZERO
@@ -23,11 +24,14 @@ func _on_drag_area_gui_input(event):
 				return
 		else:
 			if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
-				start_drag = true
-				init_diff = get_global_mouse_position() - center.global_position
-				#start_drag_position = get_global_mouse_position()
-				cornor_drag_start.emit()
-				
+				if event.double_click:
+					cornor_double_clicked.emit()
+				else:
+					start_drag = true
+					init_diff = get_global_mouse_position() - center.global_position
+					#start_drag_position = get_global_mouse_position()
+					cornor_drag_start.emit()
+					
 	elif event is InputEventMouseMotion and start_drag:
 		var diff = get_global_mouse_position() - center.global_position - init_diff
 		#drag_area.global_position = get_global_mouse_position() + diff

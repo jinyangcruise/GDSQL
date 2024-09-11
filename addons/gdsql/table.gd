@@ -1048,6 +1048,7 @@ func add_cornor_dragger():
 	cd.cornor_drag_start.connect(add_autofill_border.bind(start, end + Vector2.ONE, "start"))
 	cd.cornor_drag_moving.connect(on_cornor_drag_moving.bind(start, end))
 	cd.cornor_drag_end.connect(commit_autofill_border)
+	cd.cornor_double_clicked.connect(commit_vertical_autofill_border)
 	cornor_dragger = cd
 	
 func on_cornor_drag_moving(diff: Vector2, start: Vector2, end: Vector2):
@@ -1813,6 +1814,43 @@ func commit_autofill_border() -> void:
 						
 	add_border({"start": autofill_info["start"], "rect": autofill_info["rect"]})
 	autofill_info = null
+	
+## 双击自动向下填充
+func commit_vertical_autofill_border() -> void:
+	for i: Control in autofill_borders:
+		i.queue_free()
+	autofill_borders.clear()
+	
+	var selected_rect = selected_borders.front()["rect"] as Rect2
+	# 下方没有格子，返回
+	if selected_rect.end.x == datas.size():
+		return
+		
+	# 选中的每一列
+	for col in range(selected_rect.position.y, selected_rect.end.y):
+		var xdata = [] # 样本的xdata
+		var ydata = [] # 样本的ydata
+		
+		for j in range(selected_rect.position.x, selected_rect.end.x):
+			xdata.push_back(j)
+			ydata.push_back((datas[j] as DictionaryObject)._get_by_index(col))
+			
+		# 最小二乘法填充数据
+		var ls = LeastSquares.new(xdata, ydata)
+		for row in range(selected_rect.end.x, datas.size()):
+			var y = ls.get_y(row)
+			var dict_obj = datas[row] as DictionaryObject
+			var prop_type = dict_obj.get_prop_type_by_index(col)
+			# 只读属性不能被修改
+			if not (dict_obj.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
+				dict_obj._set_by_index(col, type_convert(y, prop_type))
+				
+	var rect = Rect2(selected_rect)
+	rect.end = Vector2(datas.size(), selected_rect.end.y)
+	add_border({
+		"start": selected_rect.position,
+		"rect": rect,
+	})
 	
 # 判断变量类型from能否无损转化成变量类型to
 #func can_transfer(from: int, to: int, from_value: Variant) -> bool:
