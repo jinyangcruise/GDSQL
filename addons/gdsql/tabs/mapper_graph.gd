@@ -538,7 +538,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 					count += 1
 			if count != 1:
 				mp_id = '%s.%s%sMapper' % [leading_db_name, leading_class_n, count]
-		var mapper_arr = ['extends GBatisMapper\nclass_name %sMapper\n' % leading_class_n]
+		var mapper_arr = ['@tool\nextends GBatisMapper\nclass_name %sMapper\n' % leading_class_n]
 		mapper_map[mp_id] = mapper_arr
 		
 		# prepare somthing
