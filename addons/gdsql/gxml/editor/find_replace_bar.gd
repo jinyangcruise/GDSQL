@@ -1,4 +1,10 @@
 @tool
+## modified from C++ code_edit.cpp's FindReplaceBar
+## 移植记录：
+## 1. Fix find result current match count 17c8e8b2b44af68e5e6ee2ab24970bb0bd1f0a7f
+## 已检查的版本：
+## 1. Merge pull request #63744 from KoBeWi/shader_spaghetti Refactor toggling script list 
+## 3bc84c298841e2633444535ea0b817cda5d15c73
 extends HBoxContainer
 
 @onready var search_text: LineEdit = $vbc_lineedit/search_text

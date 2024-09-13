@@ -1,7 +1,5 @@
 @tool
 extends PanelContainer
-# TODO FIXME WAIT_FOR_UPDATE 4.3.dev6存在一个问题，window重新打开后，打字区域丢失光标或者是没有闪烁，
-# 在4.3 beta1中，问题似乎得到修改。所以后续更新版本后进行验证。
 
 @onready var file_menu: PopupMenu = $VBoxContainer/HBoxContainer/MenuBar/File
 @onready var search_menu: PopupMenu = $VBoxContainer/HBoxContainer/MenuBar/Search
@@ -568,14 +566,16 @@ func _close_tab(p_save: bool):
 	add_to_recent_history(path)
 	remove_from_unclosed_files(path)
 	_update_find_replace_bar()
-	
+	if history.is_empty():
+		refresh_xml_item_tree()
+		
 func _discard(_action: String):
 	_close_tab(false)
 	confirm_save_dialog.hide()
 	
 func _update_find_replace_bar():
 	if history.is_empty():
-		find_replace_bar.text_editor = null
+		find_replace_bar.set_text_edit(null)
 		find_replace_bar.hide()
 	else:
 		history.back().get_meta("editor").set_find_replace_bar(find_replace_bar)
