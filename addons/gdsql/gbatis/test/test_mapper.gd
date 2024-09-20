@@ -1,3 +1,4 @@
+@tool
 extends GBatisMapper
 class_name TestSkillMapper
 
