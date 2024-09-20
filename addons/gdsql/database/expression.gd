@@ -4129,32 +4129,248 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				OP_SUBTRACT: # = 7 减法运算符（-）。
 					r_ret[0] = a[0] - b[0]
 				OP_MULTIPLY: # = 8 乘法运算符（*）。
+					if a[0] is String:
+						if (a[0] as String).is_valid_int():
+							a[0] = (a[0] as String).to_int()
+						elif (a[0] as String).is_valid_float():
+							a[0] = (a[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_MULTIPLY") % a[0]
+							return true
+					if b[0] is String:
+						if (b[0] as String).is_valid_int():
+							b[0] = (b[0] as String).to_int()
+						elif (b[0] as String).is_valid_float():
+							b[0] = (b[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_MULTIPLY") % b[0]
+							return true
 					r_ret[0] = a[0] * b[0]
 				OP_DIVIDE: # = 9 除法运算符（/）。
+					if a[0] is String:
+						if (a[0] as String).is_valid_int():
+							a[0] = (a[0] as String).to_int()
+						elif (a[0] as String).is_valid_float():
+							a[0] = (a[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_DIVIDE") % a[0]
+							return true
+					if b[0] is String:
+						if (b[0] as String).is_valid_int():
+							b[0] = (b[0] as String).to_int()
+						elif (b[0] as String).is_valid_float():
+							b[0] = (b[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_DIVIDE") % b[0]
+							return true
 					r_ret[0] = a[0] / b[0]
 				OP_NEGATE: # = 10 一元减号运算符（-）。
+					if a[0] is String:
+						if (a[0] as String).is_valid_int():
+							a[0] = (a[0] as String).to_int()
+						elif (a[0] as String).is_valid_float():
+							a[0] = (a[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_NEGATE") % a[0]
+							return true
 					r_ret[0] = -a[0]
 				OP_POSITIVE: # = 11 一元加号运算符（+）。
+					if a[0] is String:
+						if (a[0] as String).is_valid_int():
+							a[0] = (a[0] as String).to_int()
+						elif (a[0] as String).is_valid_float():
+							a[0] = (a[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_POSITIVE") % a[0]
+							return true
 					r_ret[0] = a[0]
 				OP_MODULE: # = 12 余数/取模运算符（%）。
+					if a[0] is String:
+						if (a[0] as String).is_valid_int():
+							a[0] = (a[0] as String).to_int()
+						elif (a[0] as String).is_valid_float():
+							a[0] = (a[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_MODULE") % a[0]
+							return true
+					if b[0] is String:
+						if (b[0] as String).is_valid_int():
+							b[0] = (b[0] as String).to_int()
+						elif (b[0] as String).is_valid_float():
+							b[0] = (b[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_MODULE") % b[0]
+							return true
 					r_ret[0] = a[0] % b[0]
 				OP_POWER: # = 13 幂运算符（**）。
+					if a[0] is String:
+						if (a[0] as String).is_valid_int():
+							a[0] = (a[0] as String).to_int()
+						elif (a[0] as String).is_valid_float():
+							a[0] = (a[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_POWER") % a[0]
+							return true
+					if b[0] is String:
+						if (b[0] as String).is_valid_int():
+							b[0] = (b[0] as String).to_int()
+						elif (b[0] as String).is_valid_float():
+							b[0] = (b[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_POWER") % b[0]
+							return true
 					r_ret[0] = a[0] ** b[0]
 				OP_SHIFT_LEFT: # = 14 左移运算符（<<）。
+					if a[0] is String:
+						if (a[0] as String).is_valid_int():
+							a[0] = (a[0] as String).to_int()
+						elif (a[0] as String).is_valid_float():
+							a[0] = (a[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_SHIFT_LEFT") % a[0]
+							return true
+					if b[0] is String:
+						if (b[0] as String).is_valid_int():
+							b[0] = (b[0] as String).to_int()
+						elif (b[0] as String).is_valid_float():
+							b[0] = (b[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_SHIFT_LEFT") % b[0]
+							return true
 					r_ret[0] = a[0] << b[0]
 				OP_SHIFT_RIGHT: # = 15 右移运算符（>>）。
+					if a[0] is String:
+						if (a[0] as String).is_valid_int():
+							a[0] = (a[0] as String).to_int()
+						elif (a[0] as String).is_valid_float():
+							a[0] = (a[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_SHIFT_RIGHT") % a[0]
+							return true
+					if b[0] is String:
+						if (b[0] as String).is_valid_int():
+							b[0] = (b[0] as String).to_int()
+						elif (b[0] as String).is_valid_float():
+							b[0] = (b[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_SHIFT_RIGHT") % b[0]
+							return true
 					r_ret[0] = a[0] >> b[0]
 				OP_BIT_AND: # = 16 按位与运算符（&）。
+					if a[0] is String:
+						if (a[0] as String).is_valid_int():
+							a[0] = (a[0] as String).to_int()
+						elif (a[0] as String).is_valid_float():
+							a[0] = (a[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_BIT_AND") % a[0]
+							return true
+					if b[0] is String:
+						if (b[0] as String).is_valid_int():
+							b[0] = (b[0] as String).to_int()
+						elif (b[0] as String).is_valid_float():
+							b[0] = (b[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_BIT_AND") % b[0]
+							return true
 					r_ret[0] = a[0] & b[0]
 				OP_BIT_OR: # = 17 按位或运算符（|）。
+					if a[0] is String:
+						if (a[0] as String).is_valid_int():
+							a[0] = (a[0] as String).to_int()
+						elif (a[0] as String).is_valid_float():
+							a[0] = (a[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_BIT_OR") % a[0]
+							return true
+					if b[0] is String:
+						if (b[0] as String).is_valid_int():
+							b[0] = (b[0] as String).to_int()
+						elif (b[0] as String).is_valid_float():
+							b[0] = (b[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_BIT_OR") % b[0]
+							return true
 					r_ret[0] = a[0] | b[0]
 				OP_BIT_XOR: # = 18 按位异或运算符（^）。
+					if a[0] is String:
+						if (a[0] as String).is_valid_int():
+							a[0] = (a[0] as String).to_int()
+						elif (a[0] as String).is_valid_float():
+							a[0] = (a[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_BIT_XOR") % a[0]
+							return true
+					if b[0] is String:
+						if (b[0] as String).is_valid_int():
+							b[0] = (b[0] as String).to_int()
+						elif (b[0] as String).is_valid_float():
+							b[0] = (b[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_BIT_XOR") % b[0]
+							return true
 					r_ret[0] = a[0] ^ b[0]
 				OP_BIT_NEGATE: # = 19 按位非运算符（~）。
+					if a[0] is String:
+						if (a[0] as String).is_valid_int():
+							a[0] = (a[0] as String).to_int()
+						elif (a[0] as String).is_valid_float():
+							a[0] = (a[0] as String).to_float()
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_BIT_NEGATE") % a[0]
+							return true
 					r_ret[0] = ~a[0]
 				OP_AND: # = 20 逻辑与运算符（and 或 &&）。
+					if a[0] is String:
+						if (a[0] as String).is_valid_int():
+							a[0] = (a[0] as String).to_int()
+						elif (a[0] as String).is_valid_float():
+							a[0] = (a[0] as String).to_float()
+						elif a[0] == "true":
+							a[0] = true
+						elif a[0] == "false":
+							a[0] == false
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_AND") % a[0]
+							return true
+					if b[0] is String:
+						if (b[0] as String).is_valid_int():
+							b[0] = (b[0] as String).to_int()
+						elif (b[0] as String).is_valid_float():
+							b[0] = (b[0] as String).to_float()
+						elif b[0] == "true":
+							b[0] = true
+						elif b[0] == "false":
+							b[0] == false
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_AND") % b[0]
+							return true
 					r_ret[0] = a[0] and b[0]
 				OP_OR: # = 21 逻辑或运算符（or 或 ||）。
+					if a[0] is String:
+						if (a[0] as String).is_valid_int():
+							a[0] = (a[0] as String).to_int()
+						elif (a[0] as String).is_valid_float():
+							a[0] = (a[0] as String).to_float()
+						elif a[0] == "true":
+							a[0] = true
+						elif a[0] == "false":
+							a[0] == false
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_AND") % a[0]
+							return true
+					if b[0] is String:
+						if (b[0] as String).is_valid_int():
+							b[0] = (b[0] as String).to_int()
+						elif (b[0] as String).is_valid_float():
+							b[0] = (b[0] as String).to_float()
+						elif b[0] == "true":
+							b[0] = true
+						elif b[0] == "false":
+							b[0] == false
+						else:
+							r_error_str[0] = tr("Invalid String: '%s' in OP_AND") % b[0]
+							return true
 					r_ret[0] = a[0] or b[0]
 				OP_XOR: # = 22 逻辑异或运算符（未在 GDScript 中实现）。
 					pass

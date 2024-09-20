@@ -2055,7 +2055,7 @@ func _evaluate_data(p_names: Array, p_values: Array, columns_def: Array) -> Dict
 			if new_val is String:
 				try = str_to_var(new_val)
 				if typeof(try) == TYPE_NIL:
-					try = GDSQLUtils.evaluate_command(null, new_val, p_names, p_values)
+					try = GDSQLUtils.evaluate_command_with_sql_expression(null, new_val, p_names, p_values)
 					if typeof(try) == TYPE_NIL:
 						if col["Data Type"] == TYPE_STRING:
 							continue
