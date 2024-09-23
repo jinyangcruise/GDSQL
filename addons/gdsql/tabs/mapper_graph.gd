@@ -442,7 +442,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							arr_getset.push_back('\nfunc set_%s(p_%s):' % [i_0_snake, i_0_snake])
 							arr_getset.push_back('\n\t%s = p_%s\n\t' % [i[0], i_0_snake])
 						elif DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
-							arr.push_back('\nvar %s: %s\n' % [i[0], i[1]])
+							#arr.push_back('\nvar %s: %s\n' % [i[0], i[1]])
+							# 不在属性上指定数据类型了，不然update、insert不知道有没有给属性设定值。
+							# 但是保留在get、set函数上进行设置数据类型
+							arr.push_back('\nvar %s # %s\n' % [i[0], i[1]])
 							arr_getset.push_back('\nfunc get_%s() -> %s:' % [i_0_snake, i[1]])
 							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
 							arr_getset.push_back('\nfunc set_%s(p_%s: %s):' % [i_0_snake, i_0_snake, i[1]])
@@ -602,8 +605,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				for i in nodes_map[lead_node_name].get_meta("data").columns:
 					var test = null
 					var content = null
-					test = '%s != %s' % [
-						props[i["Column Name"]], default_val(i["Data Type"])]
+					#test = '%s != %s' % [
+						#props[i["Column Name"]], default_val(i["Data Type"])]
+					test = '%s != null' % props[i["Column Name"]]
 					content = '%s == #{%s}' % [i["Column Name"], props[i["Column Name"]]]
 					if has_asso_collec and \
 					option_button_link.selected != LINK_WAY.NESTING_SELECT:
@@ -658,8 +662,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		xml_arr.push_back('\n\t\tupdate %s' % leading_table_name)
 		xml_arr.push_back('\n\t\t<set>')
 		for i in nodes_map[lead_node_name].get_meta("data").columns:
-			var test = '%s != %s' % [props[i["Column Name"]], 
-				default_val(i["Data Type"])]
+			#var test = '%s != %s' % [props[i["Column Name"]], 
+				#default_val(i["Data Type"])]
+			var test = '%s != null' % props[i["Column Name"]]
 			var content = '%s = #{%s},' % [i["Column Name"], props[i["Column Name"]]]
 			xml_arr.push_back('\n\t\t\t<if test="%s">%s</if>' % [test, content])
 		xml_arr.push_back('\n\t\t</set>')
@@ -679,16 +684,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		xml_arr.push_back('\n\t\tinsert into %s(' % leading_table_name)
 		xml_arr.push_back('\n\t\t\t<trim suffixOverrides=",">')
 		for i in nodes_map[lead_node_name].get_meta("data").columns:
-			var test = '%s != %s' % [props[i["Column Name"]], 
-				default_val(i["Data Type"])]
+			#var test = '%s != %s' % [props[i["Column Name"]], 
+				#default_val(i["Data Type"])]
+			var test = '%s != null' % props[i["Column Name"]]
 			xml_arr.push_back(
 				'\n\t\t\t\t<if test="%s">%s,</if>' % [test, i["Column Name"]])
 		xml_arr.push_back('\n\t\t\t</trim>')
 		xml_arr.push_back('\n\t\t)values(')
 		xml_arr.push_back('\n\t\t\t<trim suffixOverrides=",">')
 		for i in nodes_map[lead_node_name].get_meta("data").columns:
-			var test = '%s != %s' % [props[i["Column Name"]], 
-				default_val(i["Data Type"])]
+			#var test = '%s != %s' % [props[i["Column Name"]], 
+				#default_val(i["Data Type"])]
+			var test = '%s != null' % props[i["Column Name"]]
 			xml_arr.push_back(
 				'\n\t\t\t\t<if test="%s">#{%s},</if>' % [test, props[i["Column Name"]]])
 		xml_arr.push_back('\n\t\t\t</trim>')
@@ -876,7 +883,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 				save_at_least_one = true
 		if save_at_least_one:
 			EditorInterface.get_resource_filesystem().scan()
-			return [false, null]
+			return [true, null]
 		else:
 			mgr.create_accept_dialog("None selected.")
 			return [true, null]
