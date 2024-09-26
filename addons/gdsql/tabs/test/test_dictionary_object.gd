@@ -26,6 +26,6 @@ func _ready() -> void:
 	var list = row.get_property_list()
 	for i in list:
 		#if i.has("flags") and i["flags"] and i["flags"] & METHOD_FLAG_EDITOR:
-		if i["usage"] & PROPERTY_USAGE_EDITOR:
+		if i["usage"] & PROPERTY_USAGE_EDITOR or i["usage"] == PROPERTY_USAGE_NONE:
 			printt(i["name"], i["usage"], i["usage"] & PROPERTY_USAGE_EDITOR)
 #https://github.com/godotengine/godot/blob/013e8e3afb982d4b230f0039b6dc248b48794ab9/editor/editor_inspector.cpp#L2970
