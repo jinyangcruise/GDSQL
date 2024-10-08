@@ -9,6 +9,7 @@ var file_tree: Tree
 var file_item_list: ItemList
 
 func _ready() -> void:
+	set_translation_domain("godot.editor")
 	transient = false
 	bind_file_system_dock_popup_menu()
 	

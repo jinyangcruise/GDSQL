@@ -48,6 +48,7 @@ var max_btn: TextureButton
 var _inspector_search: LineEdit
 
 func _ready() -> void:
+	set_translation_domain("godot.editor")
 	var tween = create_tween()
 	tween.set_loops(-1)
 	tween.tween_callback(_on_timer_timeout).set_delay(0.1)

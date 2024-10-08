@@ -127,6 +127,7 @@ const DEFAULT_BORDER_BG_COLOR = Color(Color.WHITE, 0.05)
 const DEFAULT_BORDER_BORDER_COLOR = Color(Color.WHITE_SMOKE, 0.75)
 
 func _ready() -> void:
+	set_translation_domain("godot.editor")
 	DEFAULT_BORDER_STYLE.draw_center = false
 	DEFAULT_BORDER_STYLE.bg_color = DEFAULT_BORDER_BG_COLOR
 	DEFAULT_BORDER_STYLE.border_color = DEFAULT_BORDER_BORDER_COLOR

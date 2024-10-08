@@ -582,6 +582,7 @@ func set_text_edit(p_text_editor):
 	_editor_text_changed()
 	
 func _ready() -> void:
+	set_translation_domain("godot.editor")
 	EDSCALE = get_display_scale()
 	search_text.custom_minimum_size.x = 100 * EDSCALE
 	replace_text.custom_minimum_size.x = 100 * EDSCALE

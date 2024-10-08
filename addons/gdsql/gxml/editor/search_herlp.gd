@@ -13,6 +13,7 @@ signal search_help_insert(content: String)
 var EDSCALE: float
 
 func _ready() -> void:
+	set_translation_domain("godot.editor")
 	EDSCALE = get_display_scale()
 	
 	search_box.custom_minimum_size.x = 200 * EDSCALE

@@ -26,6 +26,7 @@ func _enter_tree():
 	# 注册配置单例，让插件范围内的代码能使用GDSQLWorkbenchManager（需通过类型转换为GDSQLWorkbenchManageClass来实现编辑器代码提示）
 	if not Engine.has_singleton("GDSQLWorkbenchManager"):
 		gdsql_workbench_manager = preload("res://addons/gdsql/singletons/gdsql_workbench_manager.gd").new()
+		gdsql_workbench_manager.set_translation_domain("godot.editor")
 		Engine.register_singleton("GDSQLWorkbenchManager", gdsql_workbench_manager)
 	
 	# 特别需求，让检查器能够查看DictionaryObject

@@ -43,6 +43,7 @@ var graph_edit: GraphEdit:
 		return _graph_edit
 		
 func _ready() -> void:
+	set_translation_domain("godot.editor")
 	button_commit.disabled = button_auto_commit.button_pressed
 	button_rollback.disabled = button_auto_commit.button_pressed
 	

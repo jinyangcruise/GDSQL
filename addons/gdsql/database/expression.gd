@@ -2252,6 +2252,10 @@ static func _static_init() -> void:
 	EXPRESSION_CACHE = ExpressionLRULink.new()
 	EXPRESSION_CACHE.capacity = 1024
 
+func _init() -> void:
+	if Engine.is_editor_hint():
+		set_translation_domain("godot.editor")
+		
 func get_operator_name(p_op):
 	return _op_names[p_op]
 	

@@ -325,6 +325,7 @@ func set_zoom_factor(p_zoom_factor: float):
 	text_editor.add_theme_font_size_override("font_size", new_font_size)
 	
 func _ready() -> void:
+	set_translation_domain("godot.editor")
 	EDSCALE = get_display_scale()
 	#status_bar.custom_minimum_size.y = 24 * EDSCALE
 	

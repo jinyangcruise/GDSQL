@@ -793,6 +793,7 @@ func truncate_table_from_config(db_name: String, table_name: String) -> void:
 	refresh()
 
 func _ready():
+	set_translation_domain("godot.editor")
 	if mgr == null or not mgr.run_in_plugin(self):
 		return
 		

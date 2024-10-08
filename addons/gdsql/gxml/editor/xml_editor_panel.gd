@@ -91,6 +91,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
 
 func _ready() -> void:
+	set_translation_domain("godot.editor")
 	file_tree.create_item()
 	file_tree.hide_root = true
 	
