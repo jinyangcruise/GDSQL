@@ -297,7 +297,9 @@ func _on_tab_button_pressed(tab: int) -> void:
 	if Time.get_unix_time_from_system() - _tab_activate_time < 0.5:
 		return
 		
-	remove_child(get_tab_control(tab))
+	var page = get_tab_control(tab)
+	remove_child(page)
+	page.queue_free()
 	# TODO 有内容的时候要提示保存或者二次确认
 	
 func close_content_window(content_id: String):
