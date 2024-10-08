@@ -2,11 +2,13 @@
 ## modified from C++ code_edit.cpp's FindReplaceBar
 ## 移植记录：
 ## 1. Fix find result current match count 17c8e8b2b44af68e5e6ee2ab24970bb0bd1f0a7f
+## 2. b72d8a3: Cancel code completion and code hint in multiple places
 ## 已检查的版本：
 ## 1. Merge pull request #63744 from KoBeWi/shader_spaghetti Refactor toggling script list 
 ## 3bc84c298841e2633444535ea0b817cda5d15c73
 extends HBoxContainer
 
+@onready var toggle_replace_button: Button = $toggle_replace_button
 @onready var search_text: LineEdit = $vbc_lineedit/search_text
 @onready var hbc_button_search: HBoxContainer = $vbc_button/hbc_button_search
 @onready var hbc_button_replace: HBoxContainer = $vbc_button/hbc_button_replace
@@ -99,6 +101,8 @@ func _search(p_flags: int, p_from_line: int, p_from_col: int):
 			text_editor.select(pos.y, pos.x, pos.y, pos.x + text.length())
 			text_editor.set_caret_line(pos.y, true, true, 0, 0) # needed in gdscript
 			text_editor.center_viewport_to_caret(0)
+			text_editor.set_code_hint("")
+			text_editor.cancel_code_completion()
 			
 			line_col_changed_for_result = true
 			
@@ -432,6 +436,14 @@ func _hide_bar(p_force_focus: bool = false) -> void:
 	result_col = -1
 	hide()
 	
+func _update_toggle_replace_button(p_replace_visible: bool):
+	var tooltip = tr("Hide Replace") if p_replace_visible else tr("Show Replace")
+	#var shortcut = ED_GET_SHORTCUT("script_text_editor/find" if p_replace_visible else "script_text_editor/replace").to_string()
+	var shortcut = "Ctrl+F" if p_replace_visible else "Ctrl+R"
+	toggle_replace_button.tooltip_text = "%s (%s)" % [tooltip, shortcut]
+	var rtl_compliant_arrow = ("GuiTreeArrowLeft") if is_layout_rtl() else ("GuiTreeArrowRight")
+	toggle_replace_button.icon = get_editor_theme_icon("GuiTreeArrowDown" if p_replace_visible else rtl_compliant_arrow)
+	
 func _show_search(p_with_replace: bool, p_show_only: bool):
 	show()
 	if p_show_only:
@@ -470,6 +482,7 @@ func popup_search(p_show_only: bool = false):
 	hbc_button_replace.hide()
 	hbc_option_replace.hide()
 	selection_only.set_pressed(false)
+	_update_toggle_replace_button(false)
 	_show_search(false, p_show_only)
 	
 func popup_replace():
@@ -477,6 +490,7 @@ func popup_replace():
 		replace_text.show()
 		hbc_button_replace.show()
 		hbc_option_replace.show()
+		_update_toggle_replace_button(true)
 		
 	selection_only.set_pressed(text_editor.has_selection(0) and \
 		text_editor.get_selection_from_line(0) < text_editor.get_selection_to_line(0))
@@ -521,6 +535,11 @@ func _replace_text_submitted(_new_text: String) -> void:
 		_replace()
 		search_next()
 		
+func _toggle_replace_pressed() -> void:
+	var replace_visible = replace_text.is_visible_in_tree()
+	@warning_ignore("standalone_ternary")
+	popup_search(true) if replace_visible else popup_replace()
+	
 func get_search_text() -> String:
 	return search_text.get_text()
 	
@@ -575,6 +594,7 @@ func _ready() -> void:
 	hide_button.set_texture_hover(get_theme_icon("Close", "EditorIcons"))
 	hide_button.set_texture_pressed(get_theme_icon("Close", "EditorIcons"))
 	hide_button.set_custom_minimum_size(hide_button.get_texture_normal().get_size())
+	_update_toggle_replace_button(replace_text.is_visible_in_tree())
 	
 func _exit_tree() -> void:
 	find_prev.icon = null
@@ -582,6 +602,12 @@ func _exit_tree() -> void:
 	
 func EDITOR_GET(n: String):
 	return EditorInterface.get_editor_settings().get_setting(n)
+	
+func ED_GET_SHORTCUT(n: String):
+	return EditorInterface.get_editor_settings().get_setting(n)
+	
+func get_editor_theme_icon(p_name):
+	return get_theme_icon(p_name, "EditorIcons")
 	
 func get_display_scale():
 	var setting = EDITOR_GET("interface/editor/display_scale")
