@@ -1806,7 +1806,7 @@ func query() -> QueryResult:
 						return result
 						
 			# 自增:找到当前最大的
-			var datas: Array[Dictionary] = conf.get_all_section_values()
+			var datas: Array[Dictionary] = conf.get_all_section_values() # TODO 优化，是否需要？不过大部分情况下是需要的
 			var autoincrement_keys = __autoincrement_keys.duplicate()
 			autoincrement_keys.merge(__autoincrement_keys_def) # 合并字典，不要重复计算
 			for field in autoincrement_keys:

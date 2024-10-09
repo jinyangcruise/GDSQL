@@ -14,7 +14,7 @@ func get_section_values(section: String, keys: Array = []) -> Dictionary:
 	if keys.is_empty():
 		keys = get_section_keys(section)
 	for key in keys:
-		ret[key] = get_value(section, key)
+		ret[key] = _get_value(section, key)
 		
 	# 外部有可能需要主键，把主键返回
 	if fill_primary_key != "":
@@ -34,7 +34,7 @@ func get_all_section_values(keys: Array = []) -> Array[Dictionary]:
 func get_all_section_value(key: String) -> Array:
 	var ret = []
 	for section in get_sections():
-		ret.push_back(get_value(section, key))
+		ret.push_back(_get_value(section, key))
 	return ret
 	
 ## 返回筛选后的数据。筛选规则是，prop==value的数据。num规定了返回多少个匹配的数据。0表示不限制
@@ -42,7 +42,7 @@ func filter_values(prop: String, value: Variant, num: int = 0) -> Array[Dictiona
 	var ret: Array[Dictionary] = []
 	var _num = 0
 	for section in get_sections():
-		if get_value(section, prop) == value:
+		if _get_value(section, prop) == value:
 			ret.push_back(get_section_values(section))
 			_num += 1
 			if num > 0 and _num >= num:
@@ -52,7 +52,7 @@ func filter_values(prop: String, value: Variant, num: int = 0) -> Array[Dictiona
 ## 返回筛选后的第1个数据。筛选规则是，prop==value的数据。num规定了返回多少个匹配的数据。0表示不限制
 func filter_first_values(prop: String, value: Variant) -> Dictionary:
 	for section in get_sections():
-		if get_value(section, prop) == value:
+		if _get_value(section, prop) == value:
 			return get_section_values(section)
 	return {}
 	
@@ -66,7 +66,7 @@ func set_indexed_props(props: Array):
 	for p in props:
 		indexed_datas[p] = {}
 		for section in sections:
-			var p_value = get_value(section, p)
+			var p_value = _get_value(section, p)
 			if not indexed_datas[p].has(p_value):
 				indexed_datas[p][p_value] = []
 			indexed_datas[p][p_value].push_back(section)
@@ -75,10 +75,15 @@ func _erase_section(section: String):
 	# 删除索引里的该数据
 	if has_section(section):
 		for p in indexed_datas:
-			var p_value = get_value(section, p)
+			var p_value = _get_value(section, p)
 			indexed_datas[p][p_value].erase(section)
 			
 	erase_section(section)
+	
+func _get_value(seciton: String, key: String, default = null):
+	if has_section_key(seciton, key):
+		return get_value(seciton, key, default)
+	return default
 	
 func _set_value(section: String, key: String, value: Variant):
 	# 修改索引里的该数据
@@ -86,7 +91,7 @@ func _set_value(section: String, key: String, value: Variant):
 		# 如果key是索引列
 		if key in indexed_datas:
 			if has_section_key(section, key):
-				var old_value = get_value(section, key)
+				var old_value = _get_value(section, key)
 				if old_value != value:
 					indexed_datas[key][old_value].erase(section)
 					indexed_datas[key][value].push_back(section)
@@ -116,7 +121,7 @@ func get_all_section_values_by_indexed_key(indexed_name: String) -> Array[Dictio
 				keys = get_section_keys(section)
 			var a_data = {}
 			for k in keys:
-				a_data[k] = get_value(section, k)
+				a_data[k] = _get_value(section, k)
 			ret.push_back(a_data)
 	return ret
 	
