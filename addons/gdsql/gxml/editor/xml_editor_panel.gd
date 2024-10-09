@@ -638,14 +638,20 @@ func _on_filter_file_text_changed(new_text: String) -> void:
 		if new_text == "":
 			item.visible = true
 		else:
-			item.visible = item.get_text(0).contains(new_text)
+			new_text = new_text.replace("_", "").to_lower()
+			item.visible = item.get_text(0).replace("_", "").to_lower().contains(new_text)
 			
 func _on_filter_name_text_changed(new_text: String) -> void:
 	for item: TreeItem in item_tree.get_root().get_children():
 		if new_text == "":
 			item.visible = true
 		else:
-			item.visible = item.get_text(0).contains(new_text)
+			new_text = new_text.replace("_", "").to_lower()
+			if item.get_text(0).replace("_", "").to_lower().contains(new_text) or \
+			item.get_text(1).replace("_", "").to_lower().contains(new_text):
+				item.visible = true
+			else:
+				item.visible = false
 			
 func _on_item_tree_item_selected() -> void:
 	var item = item_tree.get_selected()
