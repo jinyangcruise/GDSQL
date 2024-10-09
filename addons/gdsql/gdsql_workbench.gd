@@ -76,6 +76,7 @@ func _exit_tree():
 		Engine.unregister_singleton("GDSQLWorkbenchManager")
 		gdsql_workbench_manager.queue_free()
 		
+	remove_autoload_singleton("ConfManager")
 	
 func _has_main_screen():
 	return true

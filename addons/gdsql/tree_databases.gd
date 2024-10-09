@@ -36,6 +36,7 @@ var _config_file: ImprovedConfigFile:
 	get:
 		return __CONF_MANAGER.get_conf(ROOT_CONFIG, "")
 var __CONF_MANAGER: ConfManagerClass # 管理表数据
+var _password_correct: Array # 保存输入正确密码的表. [datapath]
 
 var disk_changed: ConfirmationDialog
 var disk_changed_list: Tree
@@ -497,6 +498,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		msgs.push_back("1 file: %s has been saved." % new_table_data_path)
 		if new_table_data_path != old_table_data_path:
 			__CONF_MANAGER.remove_conf(old_table_data_path)
+			_password_correct.erase(old_table_data_path)
 			
 		var config_file = ConfigFile.new()
 		var table_conf_path = databases[db_name]["config_path"] + new_table_name + CONFIG_EXTENSION
@@ -587,6 +589,7 @@ func set_password(db_name: String, table_name: String, password: String) -> void
 	
 	# 清除该表数据的缓存，可以让用户使用该表时必须输入密码，以加深印象
 	__CONF_MANAGER.remove_conf(table_data_path)
+	_password_correct.erase(table_data_path)
 	
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
 	refresh()
@@ -696,6 +699,7 @@ func change_password(db_name: String, table_name: String, password: String) -> v
 	
 	# 清除该表数据的缓存，可以让用户使用该表时必须输入密码，以加深印象
 	__CONF_MANAGER.remove_conf(table_data_path)
+	_password_correct.erase(table_data_path)
 	
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
 	refresh()
@@ -754,6 +758,7 @@ func drop_table_from_config(db_name: String, table_name: String) -> void:
 	else:
 		msgs.push_back("1 file: %s intended to move to trash but not found." % data_path)
 	__CONF_MANAGER.remove_conf(data_path)
+	_password_correct.erase(data_path)
 	
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
 	
@@ -849,6 +854,7 @@ func _on_disk_changed_list_button_clicked(item: TreeItem, _column: int, id: int,
 	match id:
 		0, 1:
 			__CONF_MANAGER.remove_conf(item.get_meta("path"))
+			_password_correct.erase(item.get_meta("path"))
 			refresh()
 		2:
 			var path = ProjectSettings.globalize_path(item.get_meta("path"))
@@ -861,6 +867,7 @@ func _reload_modified_scenes():
 	for i in disk_changed_list.get_root().get_child_count():
 		var path = disk_changed_list.get_root().get_child(i).get_meta("path")
 		__CONF_MANAGER.remove_conf(path)
+		_password_correct.erase(path)
 	refresh()
 	
 func _exit_tree():
@@ -993,7 +1000,7 @@ func add_table(db: TreeItem, table_name: String):
 	if databases[db_name]["tables"][table_name]["encrypted"] != "":
 		var texture
 		var tooltip
-		if __CONF_MANAGER.has_conf(data_path):
+		if __CONF_MANAGER.has_conf(data_path) and _password_correct.has(data_path):
 			texture = preload("res://addons/gdsql/img/unlock.png")
 			tooltip = "This table is encrypted and you have entered the right password."
 		else:
@@ -1234,7 +1241,7 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 		{"Password": {"hint": PROPERTY_HINT_PASSWORD}})
 	# 加密的表首次操作时需要输入密码
 	var valid_pass_md5 = databases[db_name]["tables"][table_name]["encrypted"]
-	if valid_pass_md5 == "" or __CONF_MANAGER.has_conf(table_path):
+	if valid_pass_md5 == "" or (__CONF_MANAGER.has_conf(table_path) and _password_correct.has(table_path)):
 		if pass_callback.is_valid():
 			pass_callback.call()
 			return
@@ -1246,6 +1253,7 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 		if valid_pass_md5 == try_password.md5_text():
 			# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
 			__CONF_MANAGER.get_conf(table_path, password_dict_obj._get("Password"))
+			_password_correct.push_back(table_path)
 			pass_callback.call()
 			return
 			
@@ -1259,6 +1267,7 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 		if valid_pass_md5 == (password_dict_obj._get("Password") as String).md5_text():
 			# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
 			__CONF_MANAGER.get_conf(table_path, password_dict_obj._get("Password"))
+			_password_correct.push_back(table_path)
 			return [false, true] # false表示让对话框关闭，true表示密码正确
 		mgr.create_accept_dialog("Password is not correct!")
 		return [true, false] # true表示让对话框存在，false表示密码错误
