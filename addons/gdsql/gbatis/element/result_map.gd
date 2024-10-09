@@ -601,8 +601,9 @@ func _automapping_associations(data: Array, obj: Object) -> bool:
 			var args = []
 			for i in link_cols.size():
 				link_cols[i] = link_cols[i].strip_edges()
-				if link_cols[i].begins_with(ass.column_prefix):
-					push_warning("Do you mean to add column_prefix to column twice?")
+				if ass.column_prefix != "" and link_cols[i].begins_with(ass.column_prefix):
+					push_warning("Do you mean to add column_prefix:[%s] to column:[%s] twice?" % \
+						[ass.column_prefix, link_cols[i]])
 				link_cols[i] = ass.column_prefix + link_cols[i]
 				var col_index = columns.find(link_cols[i])
 				if col_index == -1:
@@ -657,8 +658,9 @@ func _automapping_collections(data: Array, obj: Object) -> bool:
 			var args = []
 			for i in link_cols.size():
 				link_cols[i] = link_cols[i].strip_edges()
-				if link_cols[i].begins_with(col.column_prefix):
-					push_warning("Do you mean to add column_prefix to column twice?")
+				if col.column_prefix != "" and link_cols[i].begins_with(col.column_prefix):
+					push_warning("Do you mean to add column_prefix:[%s] to column:[%s] twice??" % \
+						[col.column_prefix, link_cols[i]])
 				link_cols[i] = col.column_prefix + link_cols[i]
 				var col_index = columns.find(link_cols[i])
 				if col_index == -1:
