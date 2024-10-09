@@ -78,7 +78,7 @@ func open_file(path: String):
 	if visible:
 		if mode != MODE_WINDOWED:
 			mode = MODE_WINDOWED
-		grab_focus() # TODO FIXME WAIT_FOR_UPDATE which is useless in 4.3.dev6
+		grab_focus()
 	else:
 		if inited:
 			popup_centered()
