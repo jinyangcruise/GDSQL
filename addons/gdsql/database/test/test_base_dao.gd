@@ -23,7 +23,7 @@ func _ready() -> void:
 	left join GameConfig.c_skill_element t1 on t1.sid == t0.id
 	""")
 	var qr = dao.query()
-	Utils.print_variant(qr.get_data())
+	print(qr.get_data())
 
 	
 func test_pass():
