@@ -85,9 +85,15 @@ func _set_value(section: String, key: String, value: Variant):
 	if has_section(section):
 		# 如果key是索引列
 		if key in indexed_datas:
-			var old_value = get_value(section, key)
-			if old_value != value:
-				indexed_datas[key][old_value].erase(section)
+			if has_section_key(section, key):
+				var old_value = get_value(section, key)
+				if old_value != value:
+					indexed_datas[key][old_value].erase(section)
+					indexed_datas[key][value].push_back(section)
+			# 表里还没插入该字段
+			else:
+				if not indexed_datas[key].has(value):
+					indexed_datas[key][value] = []
 				indexed_datas[key][value].push_back(section)
 	else:
 		if value != null:
