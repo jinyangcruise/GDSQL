@@ -35,6 +35,17 @@ func get_data() -> Array:
 		return (_data as Array).slice(1)
 	return []
 	
+## 获取query后的数据的第一条数据
+func get_first_row(col_index = null):
+	assert(col_index == null or col_index is int, "Invalid col_index type: %s" % typeof(col_index))
+	var ret = get_data()
+	if ret.is_empty():
+		return null
+	if col_index == null:
+		return ret[0]
+	assert(ret[0].size() > col_index, "Invalid col_index: %s" % col_index)
+	return ret[0][col_index]
+	
 ## 获取query后的数据的表头
 func get_head() -> Array:
 	if not _has_head:
