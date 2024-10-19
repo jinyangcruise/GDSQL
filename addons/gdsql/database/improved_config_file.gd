@@ -103,6 +103,8 @@ func _set_value(section: String, key: String, value: Variant):
 	else:
 		if value != null:
 			if key in indexed_datas:
+				if not indexed_datas[key].has(value):
+					indexed_datas[key][value] = []
 				indexed_datas[key][value].push_back(section)
 				
 	set_value(section, key, value)
