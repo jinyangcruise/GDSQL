@@ -776,7 +776,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		graph_node.add_theme_stylebox_override("titlebar_selected", SB_RESULT_TITLEBAR_SELECTED)
 		graph_node.ready.connect(func():
 			graph_node.set_slot_type_left(0, 1) # Result's type is 1
-			graph_node.size = Vector2(500, 600)
+			graph_node.size = Vector2(max(500, columns.size() * 150), 600)
 			#graph_node.selected = true
 		)
 		graph_node.set_meta("type", "Result")
