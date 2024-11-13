@@ -158,6 +158,8 @@ func query():
 				if not is_inherit:
 					query_status = "err"
 					assert(false, result_type + " dose not inherit from " + mapping_to_type)
+				if not o is RefCounted:
+					o.free()
 		# xml配置了，但是函数返回值没定义。要确认一下xml配置的是不是Object
 		if mapping_to_type.is_empty():
 			mapping_to_type = result_type

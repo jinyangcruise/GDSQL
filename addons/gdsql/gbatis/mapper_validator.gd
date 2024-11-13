@@ -24,6 +24,8 @@ func validate(item: GXML) -> bool:
 			assert(false, "Cannot initialize object of namespace: %s." % ns)
 		if not obj is GBatisMapper:
 			assert(false, "Namespace should be a GBatisMapper.")
+		if not obj is RefCounted:
+			obj.free()
 	for i in item.root_item.content:
 		if i is GXMLItem:
 			deal_element(i)

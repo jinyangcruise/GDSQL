@@ -117,7 +117,10 @@ func call_method_in_namespace(method: String, args: Array =[]):
 	var obj = GDSQLUtils.evaluate_command_script(ns + ".new()")
 	assert(method in obj, "Cannot find method %s in %s" % [method, ns])
 	obj.mapper_xml = config
-	return obj.callv(method, args)
+	var ret = obj.callv(method, args)
+	if not obj is RefCounted:
+		obj.free()
+	return ret
 	
 func _get_item(id: String) -> GXMLItem:
 	for i in config.root_item.content:
