@@ -88,7 +88,7 @@ func set_datas(data: Dictionary):
 	# processor
 	var processor_obj
 	if processor != "":
-		var script = GDScript.new()
+		var script = GDSQLUtils.gdscript
 		script.source_code = "extends Object\n%s" % processor
 		var err = script.reload()
 		if err != OK:

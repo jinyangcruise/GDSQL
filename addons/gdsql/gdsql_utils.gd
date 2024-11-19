@@ -1,6 +1,12 @@
 extends Object
 class_name GDSQLUtils
 
+## gdscript共享单例。GDScript resources are never removed due to extra reference in 
+## GDScriptCache。为了避免过多的内存泄漏，我们用一个共享的单例来限制泄漏数量。
+## @see https://github.com/godotengine/godot/issues/77513
+## @see https://github.com/godotengine/godot/issues/99169
+static var gdscript = GDScript.new()
+
 ## 执行一个表达式
 ## target：环境对象。比如command里使用的一些函数、变量是在target里定义的
 ## command：表达式
@@ -19,16 +25,15 @@ static func evaluate_command(target: Object, command: String, variable_names = [
 		var target_class_name = "Object"
 		if target and target.get_script() and target.get_script().get_global_name() != "":
 			target_class_name = target.get_script().get_global_name()
-		var script = GDScript.new()
 		var defines = []
 		for i in variable_names.size():
 			defines.push_back("var %s = str_to_var('%s')" % [variable_names[i], var_to_str(variable_values[i]).c_escape()])
-		script.source_code = "extends %s\n%s\nvar value = (%s)\n" % [target_class_name, "\n".join(defines), command]
-		var err = script.reload()
+		gdscript.source_code = "extends %s\n%s\nvar value = (%s)\n" % [target_class_name, "\n".join(defines), command]
+		var err = gdscript.reload()
 		if err != OK:
 			push_error("err: %s" % error_string(err))
 			return null
-		var obj = script.new()
+		var obj = gdscript.new()
 		ret = obj.value
 		if not obj is RefCounted:
 			obj.free()
@@ -52,16 +57,15 @@ static func evaluate_command_with_sql_expression(target: Object, command: String
 		var target_class_name = "Object"
 		if target and target.get_script() and target.get_script().get_global_name() != "":
 			target_class_name = target.get_script().get_global_name()
-		var script = GDScript.new()
 		var defines = []
 		for i in variable_names.size():
 			defines.push_back("var %s = str_to_var('%s')" % [variable_names[i], var_to_str(variable_values[i]).c_escape()])
-		script.source_code = "extends %s\n%s\nvar value = (%s)\n" % [target_class_name, "\n".join(defines), command]
-		var err = script.reload()
+		gdscript.source_code = "extends %s\n%s\nvar value = (%s)\n" % [target_class_name, "\n".join(defines), command]
+		var err = gdscript.reload()
 		if err != OK:
 			push_error("err: %s" % error_string(err))
 			return null
-		var obj = script.new()
+		var obj = gdscript.new()
 		ret = obj.value
 		if not obj is RefCounted:
 			obj.free()
@@ -90,7 +94,7 @@ static func evalute_command_with_agg(target: AggregateFunctions, command: String
 		#var target_class_name = "Object"
 		#if target:
 			#target_class_name = "AggregateFunctionsProxy"
-		#var script = GDScript.new()
+		#var script = gdscript
 		#var defines = []
 		#for i in variable_names.size():
 			#defines.push_back("var %s = str_to_var('%s')" % [variable_names[i], var_to_str(variable_values[i]).c_escape()])
@@ -116,16 +120,15 @@ static func evalute_command_with_agg(target: AggregateFunctions, command: String
 ## variable_names：参数名称列表
 ## variable_values：参数值列表
 static func evaluate_command_script(command: String, variable_names = [], variable_values = []):
-	var script = GDScript.new()
 	var defines = []
 	for i in variable_names.size():
 		defines.push_back("var %s = str_to_var('%s')" % [variable_names[i], var_to_str(variable_values[i]).c_escape()])
-	script.source_code = "extends Object\n%s\nvar value = (%s)\n" % ["\n".join(defines), command]
-	var err = script.reload()
+	gdscript.source_code = "extends Object\n%s\nvar value = (%s)\n" % ["\n".join(defines), command]
+	var err = gdscript.reload()
 	if err != OK:
 		push_error("err: %s" % error_string(err))
 		return null
-	var obj = script.new()
+	var obj = gdscript.new()
 	var ret = obj.value
 	obj.free()
 	return ret

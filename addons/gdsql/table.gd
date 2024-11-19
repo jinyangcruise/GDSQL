@@ -1972,7 +1972,7 @@ func inspect_highlight_rows() -> void:
 		return
 		
 	# 整一个脚本继承该类，得出基类的属性
-	var script = GDScript.new()
+	var script = GDSQLUtils.gdscript
 	script.source_code = "extends %s" % common_class_name
 	script.reload()
 	var obj = script.new()
@@ -2468,7 +2468,7 @@ func _on_button_edit_button_down():
 		return
 		
 	# 整一个脚本继承该类，得出基类的属性
-	var script = GDScript.new()
+	var script = GDSQLUtils.gdscript
 	script.source_code = "extends %s" % common_class_name
 	script.reload()
 	var obj = script.new()

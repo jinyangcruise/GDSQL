@@ -4883,7 +4883,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 		ExpressionENode.Type.TYPE_CLASS:
 			var clazz = p_node as ExpressionClassNode
 			
-			var script = GDScript.new()
+			var script = GDSQLUtils.gdscript
 			script.source_code = "extends Object\nvar value = " + clazz._class
 			var err = script.reload()
 			if err != OK:
