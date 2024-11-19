@@ -4333,7 +4333,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 						elif a[0] == "true":
 							a[0] = true
 						elif a[0] == "false":
-							a[0] == false
+							a[0] = false
 						else:
 							r_error_str[0] = tr("Invalid String: '%s' in OP_AND") % a[0]
 							return true
@@ -4345,7 +4345,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 						elif b[0] == "true":
 							b[0] = true
 						elif b[0] == "false":
-							b[0] == false
+							b[0] = false
 						else:
 							r_error_str[0] = tr("Invalid String: '%s' in OP_AND") % b[0]
 							return true
@@ -4359,7 +4359,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 						elif a[0] == "true":
 							a[0] = true
 						elif a[0] == "false":
-							a[0] == false
+							a[0] = false
 						else:
 							r_error_str[0] = tr("Invalid String: '%s' in OP_AND") % a[0]
 							return true
@@ -4371,7 +4371,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 						elif b[0] == "true":
 							b[0] = true
 						elif b[0] == "false":
-							b[0] == false
+							b[0] = false
 						else:
 							r_error_str[0] = tr("Invalid String: '%s' in OP_AND") % b[0]
 							return true
