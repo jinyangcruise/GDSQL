@@ -168,12 +168,12 @@ func node_close(node: GraphNode):
 						# 如果有修改数据的按钮，需要屏蔽
 						var graph_datas = t_node.datas
 						if graph_datas.size() > 1:
-							#┖╴@HBoxContainer                  get_child(-2)
+							#┖╴@HBoxContainer                  get_child(-1)
 								#┖╴@HFlowContainer             get_child(0)
 									#┠╴@Button
 									#┠╴@Button
 									#┖╴@Button
-							var flow_container = t_node.get_child(-2).get_child(0)
+							var flow_container = t_node.get_child(-1).get_child(0)
 							for i in flow_container.get_children():
 								i.disabled = true
 							var table = graph_datas[0][0].get_child(0)
@@ -3231,12 +3231,12 @@ func _on_graph_edit_disconnection_request(from_node: StringName, from_port: int,
 					# 如果有修改数据的按钮，需要屏蔽
 					var graph_datas = t_node.datas
 					if graph_datas.size() > 1:
-						#┖╴@HBoxContainer                  get_child(-2)
+						#┖╴@HBoxContainer                  get_child(-1)
 							#┖╴@HFlowContainer             get_child(0)
 								#┠╴@Button
 								#┠╴@Button
 								#┖╴@Button
-						var flow_container = t_node.get_child(-2).get_child(0)
+						var flow_container = t_node.get_child(-1).get_child(0)
 						for i in flow_container.get_children():
 							i.disabled = true
 						var table = graph_datas[0][0].get_child(0)
