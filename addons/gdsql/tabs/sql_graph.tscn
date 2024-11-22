@@ -1,6 +1,6 @@
 [gd_scene load_steps=17 format=3 uid="uid://bltgws3ddejkr"]
 
-[ext_resource type="Script" path="res://addons/gdsql/tabs/sql_graph.gd" id="1_jxiqt"]
+[ext_resource type="Script" uid="uid://cfguqq6psgfo8" path="res://addons/gdsql/tabs/sql_graph.gd" id="1_jxiqt"]
 [ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="2_1i8qu"]
 [ext_resource type="Texture2D" uid="uid://lu2m6lhnamxh" path="res://addons/gdsql/img/floppy-disk.png" id="3_v3m7u"]
 [ext_resource type="Texture2D" uid="uid://fud4boba7d2j" path="res://addons/gdsql/img/bolt-lightning.png" id="4_lvyhj"]
