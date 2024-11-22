@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://b0odrde0vkh4k"]
 
-[ext_resource type="Script" path="res://addons/gdsql/tabs/sql_graph_node/graph_node.gd" id="1_s2sbd"]
+[ext_resource type="Script" uid="uid://j2u5pnqqat0m" path="res://addons/gdsql/tabs/sql_graph_node/graph_node.gd" id="1_s2sbd"]
 
 [node name="GraphNode" type="GraphNode"]
 auto_translate_mode = 2

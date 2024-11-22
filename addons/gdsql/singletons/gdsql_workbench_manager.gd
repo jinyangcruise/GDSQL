@@ -379,7 +379,7 @@ ratio: float = 0.0) -> ConfirmationDialog:
 							#or v["usage"] & PROPERTY_USAGE_SUBGROUP))
 						.map(func(v): return v["name"])
 					var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
-					var v_box_container = EditorInterface.get_inspector().get_child(0, true)
+					var v_box_container = get_inspector_main_vbox()
 					for i in v_box_container.get_children(true):
 						var need = false
 						for editor_property in editor_properties:
@@ -596,7 +596,7 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 							v_box.add_child(container)
 					else:
 						min_size.x *= 2
-						var v_box_container = EditorInterface.get_inspector().get_child(0, true)
+						var v_box_container = get_inspector_main_vbox()
 						for i in v_box_container.get_children(true):
 							var need = false
 							for editor_property in editor_properties:
@@ -776,3 +776,14 @@ func disconnect_focused_propagate(control: Control):
 				
 func editor_property_focused(data):
 	EditorInterface.inspect_object(data)
+	
+static func get_inspector_main_vbox() -> VBoxContainer:
+	# 4.4.dev5增加了一个功能，导致vbox有变化
+	# Make possible to favorite properties in the inspector 
+	# https://github.com/godotengine/godot/pull/97415
+	if Engine.get_version_info().hex > 0x040400 or \
+	ClassDB.class_has_signal(&"EditorProperty", &"property_favorited"):
+		return EditorInterface.get_inspector().get_child(0, true).get_child(2, true)
+	# 以前的版本：
+	else:
+		return EditorInterface.get_inspector().get_child(0, true)

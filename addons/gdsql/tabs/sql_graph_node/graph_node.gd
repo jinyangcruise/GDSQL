@@ -280,7 +280,7 @@ func redraw():
 						var properties = data._get_property_list().map(func(v): return v["name"])
 						#EditorInterface.get_inspector().print_tree_pretty()
 						var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
-						var v_box_container = EditorInterface.get_inspector().get_child(0, true)
+						var v_box_container = GDSQLWorkbenchManagerClass.get_inspector_main_vbox()
 						for i in v_box_container.get_children(true):
 							var need = false
 							for editor_property in editor_properties:
@@ -546,7 +546,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 		EditorInterface.inspect_object(data)
 		var properties = data._get_property_list().map(func(v): return v["name"])
 		var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
-		var v_box_container = EditorInterface.get_inspector().get_child(0, true)
+		var v_box_container = GDSQLWorkbenchManagerClass.get_inspector_main_vbox()
 		for i in v_box_container.get_children(true):
 			var need = false
 			for editor_property in editor_properties:
