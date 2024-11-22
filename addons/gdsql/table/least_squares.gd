@@ -119,11 +119,10 @@ class LeastSquaresData:
 		if v is int or v is float or ((v is String or v is StringName) and v.is_valid_float()):
 			data_type = DATA_TYPE.NUMBER
 			var to_int = int(v)
-			var to_float = float(v)
-			if to_int == to_float:
+			if str(v) == str(to_int):
 				value = to_int
 			else:
-				value = to_float
+				value = float(v)
 			is_scientific = (v is String or v is StringName) and (v.contains("e") or v.contains("E"))
 			return
 			
@@ -271,8 +270,8 @@ class LeastSquaresGroupNumber:
 			sumXX += xdata[i] * xdata[i]
 			
 			# 小数点位数
-			if ydata[i] is float and not scientific:
-				var number_str = str(ydata[i])
+			if ydata[i].value is float and not scientific:
+				var number_str = str(ydata[i].value)
 				var decimal_point_index = number_str.find(".")
 				if decimal_point_index != -1:
 					var decimal_places = number_str.length() - decimal_point_index - 1
@@ -290,7 +289,7 @@ class LeastSquaresGroupNumber:
 			if y == int(y):
 				return int(y)
 		else:
-			y = float(('%.%' + str(ndigits) + 'f') % y)
+			y = float(('%.' + str(ndigits) + 'f') % y)
 		return y
 		
 	# 获取y值对应的x坐标，只在ydata全是数字时有效
