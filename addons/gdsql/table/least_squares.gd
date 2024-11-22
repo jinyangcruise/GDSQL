@@ -25,6 +25,7 @@ enum DATA_TYPE {
 static func _static_init() -> void:
 	regex.compile(r"[0-9]+(?=[^0-9]*$)")
 	
+## 传入x轴和y轴的样本
 func _init(xdata: Array, ydata: Array):
 	assert(xdata.size() == ydata.size(), "xdata's size is not equal to ydata's size")
 	var a_xdata = []
@@ -117,7 +118,12 @@ class LeastSquaresData:
 		
 		if v is int or v is float or ((v is String or v is StringName) and v.is_valid_float()):
 			data_type = DATA_TYPE.NUMBER
-			value = type_convert(v, TYPE_FLOAT)
+			var to_int = int(v)
+			var to_float = float(v)
+			if to_int == to_float:
+				value = to_int
+			else:
+				value = to_float
 			is_scientific = (v is String or v is StringName) and (v.contains("e") or v.contains("E"))
 			return
 			
@@ -242,6 +248,8 @@ class LeastSquaresGroupNumber:
 	var intercept: float
 	## 科学计数法表示
 	var scientific: bool
+	## 小数点保留位数（取y中的最大）
+	var ndigits: int
 	
 	func _init(xdata: Array, ydata: Array):
 		var n = xdata.size()
@@ -262,6 +270,15 @@ class LeastSquaresGroupNumber:
 			sumXY += xdata[i] * a_y_element
 			sumXX += xdata[i] * xdata[i]
 			
+			# 小数点位数
+			if ydata[i] is float and not scientific:
+				var number_str = str(ydata[i])
+				var decimal_point_index = number_str.find(".")
+				if decimal_point_index != -1:
+					var decimal_places = number_str.length() - decimal_point_index - 1
+					if decimal_places >= ndigits:
+						ndigits = decimal_places
+						
 		slope = (n * sumXY - sumX * sumY) / float(n * sumXX - sumX * sumX) if (n * sumXX - sumX * sumX) != 0 else 1 # xdata只有1个元素，默认斜率为1
 		intercept = (sumY - slope * sumX) / float(n)
 		
@@ -269,6 +286,11 @@ class LeastSquaresGroupNumber:
 		var y = slope * x + intercept
 		if scientific:
 			return String.num_scientific(y)
+		if ndigits == 0:
+			if y == int(y):
+				return int(y)
+		else:
+			y = float(('%.%' + str(ndigits) + 'f') % y)
 		return y
 		
 	# 获取y值对应的x坐标，只在ydata全是数字时有效
