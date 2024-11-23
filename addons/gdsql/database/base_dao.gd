@@ -1353,9 +1353,8 @@ func ___select(path: String, fill_primary_key: String = ""):
 		# 防止内存占用
 		__union_all.reset()
 		
-	# 空数据（包含一个表头）
-	if grouped_ret.size() == 1:
-		grouped_ret[0] = real_select
+	# 如果是空数据
+	if grouped_ret.is_empty() or (has_head and grouped_ret.size() == 1):
 		return grouped_ret
 		
 	# 排序，支持列别名
