@@ -3,6 +3,8 @@
 ## 移植记录：
 ## 1. Fix find result current match count 17c8e8b2b44af68e5e6ee2ab24970bb0bd1f0a7f
 ## 2. b72d8a3: Cancel code completion and code hint in multiple places
+## 3. 86762f0a03206998bddc539a80c438c2da5068ce Code Editor: Add button to toggle 
+##    between search and search+replace modes
 ## 已检查的版本：
 ## 1. Merge pull request #63744 from KoBeWi/shader_spaghetti Refactor toggling script list 
 ## 3bc84c298841e2633444535ea0b817cda5d15c73
@@ -524,6 +526,8 @@ func _search_text_submitted(_new_text: String) -> void:
 	else:
 		search_next()
 		
+	search_text.edit.call_deferred()
+	
 func _replace_text_submitted(_new_text: String) -> void:
 	if selection_only.is_pressed() and text_editor.has_selection(0):
 		_replace_all()
