@@ -40,7 +40,7 @@ var completion_node_path_color
 var completion_comment_color
 var completion_doc_comment_color
 
-const ZOOM_FACTOR_PRESETS = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
+const ZOOM_FACTOR_PRESETS = [0.5, 0.75, 0.9, 1.0, 1.1, 1.25, 1.5, 2.0]
 
 const SHORTCUT_FINDNEXT = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_findnext.tres")
 const SHORTCUT_FINDPREVIOUS = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_findprevious.tres")
