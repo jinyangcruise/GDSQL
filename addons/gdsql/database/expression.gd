@@ -2743,10 +2743,10 @@ func _get_token(r_token: ExpressionToken) -> Error:
 						num += c
 						c = GET_CHAR()
 						is_first_char = false
-		
-
-					str_ofs -= 1
-
+						
+					if (c != 0):
+						str_ofs -= 1
+						
 					r_token.type = TokenType.TK_CONSTANT
 
 					if (is_float) :
