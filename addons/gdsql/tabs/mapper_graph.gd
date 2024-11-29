@@ -1033,7 +1033,8 @@ func popup_diff_dialog(arr_content: Array):
 		editor.ready.connect(func():
 			editor.toggle_scripts_button.hide()
 			var code_edit = editor.text_editor as CodeEdit
-			code_edit.syntax_highlighter = GDScriptSyntaxHighlighter.new()
+			if not (i.file as String).to_lower().ends_with(".xml"):
+				code_edit.syntax_highlighter = GDScriptSyntaxHighlighter.new()
 			arr_v_scroll_bar.push_back(code_edit.get_v_scroll_bar())
 			code_edit.get_v_scroll_bar().value_changed.connect(func(v):
 				for a_bar: VScrollBar in arr_v_scroll_bar:
