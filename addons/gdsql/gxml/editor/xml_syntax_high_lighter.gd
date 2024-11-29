@@ -27,15 +27,6 @@ var line_cache: Dictionary
 ## 每行累计字符个数
 var line_begin_pos = [0]
 
-## 已使用的节点名称
-## node => [start, end]
-var used_node_name = {}
-## 已使用的节点属性名称
-## node => {attr_key => [start, end]}
-var used_node_attr_key = {}
-## 已使用的节点属性值
-## node => {attr_key => [start, end]}
-var used_node_attr_value = {}
 
 func _update_cache() -> void:
 	element_color = EDITOR_GET("text_editor/theme/highlighting/gdscript/node_path_color")
@@ -49,15 +40,10 @@ func _update_cache() -> void:
 	member_variable_color = EDITOR_GET("text_editor/theme/highlighting/member_variable_color")
 	function_color = EDITOR_GET("text_editor/theme/highlighting/function_color")
 	engine_type_color = EDITOR_GET("text_editor/theme/highlighting/engine_type_color")
-	printt("-------------------- update cache")
-
+	
 func _clear_highlighting_cache():
 	line_cache.clear()
 	line_begin_pos = [0]
-	used_node_name.clear()
-	used_node_attr_key.clear()
-	used_node_attr_value.clear()
-	printt("======= clear")
 	
 func _get_line_syntax_highlighting(p_line: int) -> Dictionary:
 	var color_map = {}
@@ -67,7 +53,11 @@ func _get_line_syntax_highlighting(p_line: int) -> Dictionary:
 	if line_cache.is_empty():
 		# 每行的起始字符位置
 		line_begin_pos = [0]
-		var content = get_text_edit().text
+		var text_edit = get_text_edit()
+		var content = text_edit.text
+		if not text_edit.text_changed.is_connected(_clear_highlighting_cache):
+			text_edit.text_changed.connect(_clear_highlighting_cache)
+			text_edit.text_set.connect(_clear_highlighting_cache)
 		var p = -1
 		for i in content:
 			p += 1
@@ -77,7 +67,6 @@ func _get_line_syntax_highlighting(p_line: int) -> Dictionary:
 		parse(content)
 		
 	for node: GXMLNode in line_cache.get(p_line, []):
-		printt(p_line, "bbbbb", node, node.type, p_line, node.start, node.end)
 		match node.type:
 			XMLParser.NodeType.NODE_NONE:
 				pass
@@ -85,67 +74,41 @@ func _get_line_syntax_highlighting(p_line: int) -> Dictionary:
 				var line_str = get_text_edit().get_line(p_line)
 				var start = 0
 				var end = 0
-				if used_node_name.has(node):
-					start = used_node_name[node][0]
-					end = used_node_name[node][1]
-				else:
-					#var offset0 = line_begin_pos[p_line] - node.start
-					#start = node.raw.find(node.name) - offset0
-					var same_line_nodes = line_cache[p_line]
-					var pre_node: GXMLNode
-					for n in same_line_nodes:
-						if n == node:
-							break
-						pre_node = n
-					var offset = 0 if pre_node == null else pre_node.end - line_begin_pos[p_line]
-					start = line_str.find(node.name, offset)
-					if start == -1:
-						printt("break", node.name, offset)
+				#var offset0 = line_begin_pos[p_line] - node.start
+				#start = node.raw.find(node.name) - offset0
+				var same_line_nodes = line_cache[p_line]
+				var pre_node: GXMLNode
+				for n in same_line_nodes:
+					if n == node:
 						break
-					end = start + node.name.length()
-					_gen_color_info(color_map, node.name, start, end, element_color)
-					used_node_name[node] = [start, end]
-					printt("p_line:", p_line, 'line_str:|%s|' % line_str, "start:", start, "end:", end, "node.start:", 
-						node.start, "node.end:", node.end, "line_begin_pos[p_line]:", line_begin_pos[p_line])
-						
+					pre_node = n
+				var offset = 0 if pre_node == null else pre_node.end - line_begin_pos[p_line]
+				start = line_str.find(node.name, offset)
+				if start == -1:
+					printt("break", node.name, offset)
+					break
+				end = start + node.name.length()
+				_gen_color_info(color_map, node.name, start, end, element_color)
+				#printt("p_line:", p_line, 'line_str:|%s|' % line_str, "start:", start, "end:", end, "node.start:", 
+					#node.start, "node.end:", node.end, "line_begin_pos[p_line]:", line_begin_pos[p_line])
+					
 				# 属性
 				for attr_key: String in node.attrs:
 					# key
-					if used_node_attr_key.has(node) and used_node_attr_key[node].has(attr_key):
-						start = used_node_attr_key[node][attr_key][0]
-						end = used_node_attr_key[node][attr_key][1]
-					else:
-						#start = node.raw.find(attr_key, end) - offset0
-						#if start == -1 - offset0:
-							#break
-						start = line_str.find(attr_key, end)
-						if start == -1:
-							break
-							
-						end = start + attr_key.length()
-						_gen_color_info(color_map, attr_key, start, end, attr_key_color)
-						if not used_node_attr_key.has(node):
-							used_node_attr_key[node] = {}
-						used_node_attr_key[node][attr_key] = [start, end]
+					start = line_str.find(attr_key, end)
+					if start == -1:
+						break
 						
+					end = start + attr_key.length()
+					_gen_color_info(color_map, attr_key, start, end, attr_key_color)
+					
 					# value
 					var attr_value = node.attrs[attr_key]
-					if used_node_attr_value.has(node) and used_node_attr_value[node].has(attr_key):
-						start = used_node_attr_value[node][attr_key][0]
-						end = used_node_attr_value[node][attr_key][1]
-						continue
-					else:
-						#start = node.raw.find(attr_value, end) - offset0
-						#if start == -1 - offset0:
-							#break
-						start = line_str.find(attr_value, end)
-						end = start + attr_value.length()
-						_gen_color_info(color_map, attr_value, start, end)
-						if not used_node_attr_value.has(node):
-							used_node_attr_value[node] = {}
-						used_node_attr_value[node][attr_value] = [start, end]
-						
-	printt("gggggg", color_map)
+					start = line_str.find(attr_value, end)
+					end = start + attr_value.length()
+					_gen_color_info(color_map, attr_value, start, end)
+					
+	#printt("gggggg", color_map)
 	return color_map
 	
 func _gen_color_info(color_map: Dictionary, word: String, start: int, end: int, color = null):
