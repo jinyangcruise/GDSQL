@@ -13,6 +13,7 @@ class_name XMLSyntaxHighLighter
 @export var member_variable_color: Color = EDITOR_GET("text_editor/theme/highlighting/member_variable_color")
 @export var function_color: Color = EDITOR_GET("text_editor/theme/highlighting/function_color")
 @export var engine_type_color: Color = EDITOR_GET("text_editor/theme/highlighting/engine_type_color")
+@export var comment_color: Color = EDITOR_GET("text_editor/theme/highlighting/doc_comment_color")
 
 @export var symbols: Array[String] = ["~", "!", "%", "^", "&", "*", "(", ")", "[", "]", "{", "}", "+", "-", "/", "="]
 @export var keywords: Array[String] = ["var", "null", "and", "or", "not"]
@@ -70,12 +71,28 @@ func _get_line_syntax_highlighting(p_line: int) -> Dictionary:
 		match node.type:
 			XMLParser.NodeType.NODE_NONE:
 				pass
+			XMLParser.NodeType.NODE_COMMENT:
+				var line_str = get_text_edit().get_line(p_line)
+				var start = 0
+				var end = 0
+				var same_line_nodes = line_cache[p_line]
+				var pre_node: GXMLNode
+				for n in same_line_nodes:
+					if n == node:
+						break
+					pre_node = n
+				var offset = 0 if pre_node == null else pre_node.end - line_begin_pos[p_line]
+				start = offset
+				if p_line + 1 >= line_begin_pos.size() or node.end > line_begin_pos[p_line + 1]:
+					end = line_str.length()
+				else:
+					end = node.end - line_begin_pos[p_line]
+				_gen_color_info(color_map, "", start, end, comment_color)
+				#printt(p_line, "comment", start, end)
 			XMLParser.NodeType.NODE_ELEMENT, XMLParser.NodeType.NODE_ELEMENT_END:
 				var line_str = get_text_edit().get_line(p_line)
 				var start = 0
 				var end = 0
-				#var offset0 = line_begin_pos[p_line] - node.start
-				#start = node.raw.find(node.name) - offset0
 				var same_line_nodes = line_cache[p_line]
 				var pre_node: GXMLNode
 				for n in same_line_nodes:
@@ -85,9 +102,10 @@ func _get_line_syntax_highlighting(p_line: int) -> Dictionary:
 				var offset = 0 if pre_node == null else pre_node.end - line_begin_pos[p_line]
 				start = line_str.find(node.name, offset)
 				if start == -1:
-					printt("break", node.name, offset)
+					#printt("break", node.name, offset)
 					break
 				end = start + node.name.length()
+				
 				_gen_color_info(color_map, node.name, start, end, element_color)
 				#printt("p_line:", p_line, 'line_str:|%s|' % line_str, "start:", start, "end:", end, "node.start:", 
 					#node.start, "node.end:", node.end, "line_begin_pos[p_line]:", line_begin_pos[p_line])
@@ -108,7 +126,7 @@ func _get_line_syntax_highlighting(p_line: int) -> Dictionary:
 					end = start + attr_value.length()
 					_gen_color_info(color_map, attr_value, start, end)
 					
-	#printt("gggggg", color_map)
+	#printt("gggggg", p_line, color_map)
 	return color_map
 	
 func _gen_color_info(color_map: Dictionary, word: String, start: int, end: int, color = null):
