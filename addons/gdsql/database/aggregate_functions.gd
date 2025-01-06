@@ -204,13 +204,13 @@ func distinct_group_concat(param, separator = ',', order = '', param_0_names = [
 	if filtered.is_empty():
 		return null
 		
-	var list = []
+	var alist = []
 	var order_by = []
 	if order == '' or filtered.size() <= 1:
 		for i in filtered:
-			if not i in list:
-				list.push_back(i)
-		return separator.join(list.map(func(v):
+			if not i in alist:
+				alist.push_back(i)
+		return separator.join(alist.map(func(v):
 			for i in v.size():
 				v[i] = str(v[i])
 			return ''.join(v)))
@@ -299,10 +299,10 @@ func distinct_group_concat(param, separator = ',', order = '', param_0_names = [
 		return false
 		
 	for i in filtered:
-		if not i in list:
-			list.push_back(i)
-	list.sort_custom(compare)
-	return separator.join(list.map(func(v):
+		if not i in alist:
+			alist.push_back(i)
+	alist.sort_custom(compare)
+	return separator.join(alist.map(func(v):
 		for i in v.size():
 			v[i] = str(v[i])
 		return ''.join(v)))
@@ -455,7 +455,7 @@ func grid_checkbox(param, columns: int, rows: int):
 	for i in rows:
 		for j in columns:
 			var cb = CheckBox.new()
-			if i == floor(columns/2) and j == floor(rows/2):
+			if i == floor(columns/2.0) and j == floor(rows/2.0):
 				cb.add_theme_stylebox_override("normal", sb_center)
 				cb.add_theme_stylebox_override("pressed", sb_center)
 				cb.add_theme_stylebox_override("hover", sb_center)
