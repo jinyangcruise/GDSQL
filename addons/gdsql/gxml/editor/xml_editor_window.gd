@@ -63,8 +63,8 @@ func _on_file_system_dock_popup_menu_idex_pressed(index: int):
 	for i in fs_dock.get_children(true):
 		if i is PopupMenu:
 			for j in i.item_count:
-				if i.get_item_text(j) == tr("Open"):
-					if i.get_item_text(index) == tr("Open"):
+				if i.get_item_text(j) in ["Open", tr("Open")]:
+					if i.get_item_text(index) == ["Open", tr("Open")]:
 						var path = EditorInterface.get_current_path()
 						if path.get_extension() == "xml":
 							open_file(path)

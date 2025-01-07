@@ -1880,7 +1880,7 @@ func inspect_highlight_rows() -> void:
 		await get_tree().process_frame
 		for i: MenuButton in EditorInterface.get_inspector().get_parent().\
 			find_children("@MenuButton*", "MenuButton", true, false):
-			if i.tooltip_text == tr("Manage object properties."):
+			if i.tooltip_text in ["Manage object properties.", tr("Manage object properties.")]:
 				i.get_popup().emit_signal("id_pressed", 12) # 12 is for EXPAND_ALL, @see editor\inspector_dock.h
 				break
 		return
@@ -2056,7 +2056,7 @@ func inspect_highlight_rows() -> void:
 	await get_tree().process_frame
 	for i: MenuButton in EditorInterface.get_inspector().get_parent().\
 		find_children("@MenuButton*", "MenuButton", true, false):
-		if i.tooltip_text == tr("Manage object properties."):
+		if i.tooltip_text in ["Manage object properties.", tr("Manage object properties.")]:
 			i.get_popup().emit_signal("id_pressed", 12) # 12 is for EXPAND_ALL, @see editor\inspector_dock.h
 			break
 			
@@ -2146,7 +2146,7 @@ func row_grab_focus(row: int):
 			# 全部展开（方便用户修改数据）
 			await get_tree().process_frame
 			for i: MenuButton in EditorInterface.get_inspector().get_parent().find_children("@MenuButton*", "MenuButton", true, false):
-				if i.tooltip_text == tr("Manage object properties."):
+				if i.tooltip_text in ["Manage object properties.", tr("Manage object properties.")]:
 					i.get_popup().emit_signal("id_pressed", 12) # 12 is for EXPAND_ALL, @see editor\inspector_dock.h
 					break
 					

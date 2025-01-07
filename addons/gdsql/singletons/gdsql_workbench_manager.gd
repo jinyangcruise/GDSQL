@@ -364,7 +364,7 @@ ratio: float = 0.0) -> ConfirmationDialog:
 						var inspector_dock = editor_inspector.get_parent()
 						var line_edits = inspector_dock.find_children("@LineEdit*", "LineEdit", true, false)
 						for l: LineEdit in line_edits:
-							if l.placeholder_text == tr("Filter Properties"):
+							if l.placeholder_text in ["Filter Properties", tr("Filter Properties")]:
 								_inspector_search = l
 								break
 					assert(_inspector_search != null, "Cannot find inspector search!")
@@ -550,7 +550,7 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 						var inspector_dock = editor_inspector.get_parent()
 						var line_edits = inspector_dock.find_children("@LineEdit*", "LineEdit", true, false)
 						for l: LineEdit in line_edits:
-							if l.placeholder_text == tr("Filter Properties"):
+							if l.placeholder_text in ["Filter Properties", tr("Filter Properties")]:
 								_inspector_search = l
 								break
 					assert(_inspector_search != null, "Cannot find inspector search!")
@@ -562,7 +562,7 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 					await EditorInterface.get_base_control().get_tree().process_frame
 					for i: MenuButton in EditorInterface.get_inspector().get_parent().\
 						find_children("@MenuButton*", "MenuButton", true, false):
-						if i.tooltip_text == tr("Manage object properties."):
+						if i.tooltip_text in ["Manage object properties.", tr("Manage object properties.")]:
 							i.get_popup().emit_signal("id_pressed", 12) # 12 is for EXPAND_ALL, @see editor\inspector_dock.h
 							break
 							

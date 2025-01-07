@@ -268,7 +268,7 @@ func redraw():
 							var inspector_dock = editor_inspector.get_parent()
 							var line_edits = inspector_dock.find_children("@LineEdit*", "LineEdit", true, false)
 							for l: LineEdit in line_edits:
-								if l.placeholder_text == tr("Filter Properties"):
+								if l.placeholder_text in ["Filter Properties", tr("Filter Properties")]:
 									_inspector_search = l
 									break
 						assert(_inspector_search != null, "Cannot find inspector search!")
@@ -536,7 +536,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 			var inspector_dock = editor_inspector.get_parent()
 			var line_edits = inspector_dock.find_children("@LineEdit*", "LineEdit", true, false)
 			for l: LineEdit in line_edits:
-				if l.placeholder_text == tr("Filter Properties"):
+				if l.placeholder_text in ["Filter Properties", tr("Filter Properties")]:
 					_inspector_search = l
 					break
 		assert(_inspector_search != null, "Cannot find inspector search!")
