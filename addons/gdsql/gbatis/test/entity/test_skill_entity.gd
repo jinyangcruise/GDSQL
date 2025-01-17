@@ -1,4 +1,4 @@
-extends RefCounted
+extends GBatisEntity
 class_name TestSkillEntity
 
 var id: int
