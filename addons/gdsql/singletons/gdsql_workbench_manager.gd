@@ -112,7 +112,10 @@ func _notification(what):
 					i.print_tree_pretty()
 					push_error("why there is a non-AcceptDialog (%s) here?!" % i.to_string())
 			dialog_root.queue_free()
-
+			
+func _init() -> void:
+	set_translation_domain("godot.editor")
+	
 ## 返回某个节点是否运行在插件模式中。（脚本的@tool会让它运行在编辑器编辑界面中，而不是插件中，
 ## 可能导致信号多次绑定、额外数据被写入tscn中等问题）
 func run_in_plugin(node: Node) -> bool:
