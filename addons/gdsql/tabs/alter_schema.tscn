@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://cefck4hclp808"]
 
-[ext_resource type="Script" path="res://addons/gdsql/tabs/alter_schema.gd" id="1_1dobv"]
+[ext_resource type="Script" uid="uid://8tko8x8t4wpw" path="res://addons/gdsql/tabs/alter_schema.gd" id="1_1dobv"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_oeto1"]
 

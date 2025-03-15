@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3 uid="uid://ni7b822f0spd"]
 
 [ext_resource type="StyleBox" uid="uid://6h64kifovxwo" path="res://addons/gdsql/detail_panel_normal_unchecked.stylebox" id="1_51gtp"]
-[ext_resource type="Script" path="res://addons/gdsql/detail_panel.gd" id="1_we6vo"]
+[ext_resource type="Script" uid="uid://dvnn8vmh2hi1k" path="res://addons/gdsql/detail_panel.gd" id="1_we6vo"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4xr45"]
 bg_color = Color(0.6, 0.6, 0.6, 0)

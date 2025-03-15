@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://cnxg1ny5jimwv"]
 
-[ext_resource type="Script" path="res://addons/gdsql/tabs/test/test_graph_edit.gd" id="1_g428d"]
+[ext_resource type="Script" uid="uid://dyfohvtjca1od" path="res://addons/gdsql/tabs/test/test_graph_edit.gd" id="1_g428d"]
 
 [node name="GraphEdit" type="GraphEdit"]
 anchors_preset = 15

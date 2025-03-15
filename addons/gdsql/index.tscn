@@ -2,8 +2,8 @@
 
 [ext_resource type="PackedScene" uid="uid://bpawj4a7llynx" path="res://addons/gdsql/table.tscn" id="1_2tgi5"]
 [ext_resource type="PackedScene" uid="uid://c3bjm6oe0687p" path="res://addons/gdsql/tree_databases.tscn" id="1_2yut5"]
-[ext_resource type="Script" path="res://addons/gdsql/index.gd" id="1_ixupm"]
-[ext_resource type="Script" path="res://addons/gdsql/tab_container.gd" id="3_2dwia"]
+[ext_resource type="Script" uid="uid://b21nh7ytf4a0q" path="res://addons/gdsql/index.gd" id="1_ixupm"]
+[ext_resource type="Script" uid="uid://by5xj4fw7qdqi" path="res://addons/gdsql/tab_container.gd" id="3_2dwia"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i3kgl"]
 bg_color = Color(0.145098, 0.168627, 0.203922, 1)

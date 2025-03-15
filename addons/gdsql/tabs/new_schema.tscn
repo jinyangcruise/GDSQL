@@ -1,6 +1,6 @@
 [gd_scene load_steps=5 format=3 uid="uid://du31pexhv4cpk"]
 
-[ext_resource type="Script" path="res://addons/gdsql/tabs/new_schema.gd" id="1_438pb"]
+[ext_resource type="Script" uid="uid://extk7dba57hy" path="res://addons/gdsql/tabs/new_schema.gd" id="1_438pb"]
 [ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="2_lsuxh"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_oeto1"]

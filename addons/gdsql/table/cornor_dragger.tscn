@@ -1,6 +1,6 @@
 [gd_scene load_steps=3 format=3 uid="uid://bo2ofaxmvh7qc"]
 
-[ext_resource type="Script" path="res://addons/gdsql/table/cornor_dragger.gd" id="1_db7ec"]
+[ext_resource type="Script" uid="uid://c40kpqjvsou3v" path="res://addons/gdsql/table/cornor_dragger.gd" id="1_db7ec"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_chohr"]
 bg_color = Color(0.8, 0.8, 0.8, 1)

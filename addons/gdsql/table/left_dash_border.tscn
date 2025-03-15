@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://dalh86csciwit"]
 
-[ext_resource type="Script" path="res://addons/gdsql/table/left_dash_border.gd" id="1_xgrqy"]
+[ext_resource type="Script" uid="uid://4n1dnoycvod4" path="res://addons/gdsql/table/left_dash_border.gd" id="1_xgrqy"]
 
 [node name="LeftDashBorder" type="Control"]
 layout_mode = 3

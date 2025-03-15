@@ -1,6 +1,6 @@
 [gd_scene load_steps=5 format=3 uid="uid://3imb6uxofehr"]
 
-[ext_resource type="Script" path="res://addons/gdsql/custom_control/text_enum.gd" id="1_7pw25"]
+[ext_resource type="Script" uid="uid://cb12x8g5l8x2r" path="res://addons/gdsql/custom_control/text_enum.gd" id="1_7pw25"]
 [ext_resource type="Texture2D" uid="uid://bxe0moactydei" path="res://addons/gdsql/custom_control/img/Edit.png" id="2_4uexb"]
 [ext_resource type="Texture2D" uid="uid://bbxvaad27do72" path="res://addons/gdsql/custom_control/img/ImportCheck.png" id="3_opscf"]
 [ext_resource type="Texture2D" uid="uid://ddofhnjb1uauu" path="res://addons/gdsql/custom_control/img/ImportFail.png" id="4_ykacb"]

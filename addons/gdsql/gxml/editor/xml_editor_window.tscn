@@ -1,7 +1,7 @@
 [gd_scene load_steps=3 format=3 uid="uid://bjixntsmmcrkp"]
 
 [ext_resource type="PackedScene" uid="uid://bb237nhc1oy7t" path="res://addons/gdsql/gxml/editor/xml_editor_panel.tscn" id="1_n6m6o"]
-[ext_resource type="Script" path="res://addons/gdsql/gxml/editor/xml_editor_window.gd" id="1_ywr26"]
+[ext_resource type="Script" uid="uid://bccmo6nywlpt3" path="res://addons/gdsql/gxml/editor/xml_editor_window.gd" id="1_ywr26"]
 
 [node name="XMLEditorWindow" type="Window"]
 title = "XML Editor"

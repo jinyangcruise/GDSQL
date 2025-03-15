@@ -1,6 +1,6 @@
 [gd_scene load_steps=8 format=3 uid="uid://dxiqfy1dnu7m4"]
 
-[ext_resource type="Script" path="res://addons/gdsql/tabs/alter_table.gd" id="1_xbqm1"]
+[ext_resource type="Script" uid="uid://cwb78wbgojxf5" path="res://addons/gdsql/tabs/alter_table.gd" id="1_xbqm1"]
 [ext_resource type="PackedScene" uid="uid://bpawj4a7llynx" path="res://addons/gdsql/table.tscn" id="2_mrk7n"]
 [ext_resource type="Texture2D" uid="uid://dhrujeh8nxhtd" path="res://addons/gdsql/img/trash-can.png" id="3_46hvr"]
 [ext_resource type="Texture2D" uid="uid://ckn3uyjso63l0" path="res://addons/gdsql/img/arrow-up-line.png" id="4_kytjc"]

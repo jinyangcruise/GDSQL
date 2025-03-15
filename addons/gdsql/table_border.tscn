@@ -1,7 +1,7 @@
 [gd_scene load_steps=6 format=3 uid="uid://c878qnlmkmqbq"]
 
-[ext_resource type="Script" path="res://addons/gdsql/table_border.gd" id="1_e5j1h"]
-[ext_resource type="Shader" path="res://addons/gdsql/shader/table_border.gdshader" id="1_mqf3e"]
+[ext_resource type="Script" uid="uid://3jqiwkea2fhe" path="res://addons/gdsql/table_border.gd" id="1_e5j1h"]
+[ext_resource type="Shader" uid="uid://mrexhg7nm8sl" path="res://addons/gdsql/shader/table_border.gdshader" id="1_mqf3e"]
 [ext_resource type="PackedScene" uid="uid://bo2ofaxmvh7qc" path="res://addons/gdsql/table/cornor_dragger.tscn" id="3_ibgkb"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_l6bgx"]

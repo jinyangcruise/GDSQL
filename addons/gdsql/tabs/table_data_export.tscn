@@ -1,7 +1,7 @@
 [gd_scene load_steps=6 format=3 uid="uid://d0o7o40foayti"]
 
 [ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="1_0rcxb"]
-[ext_resource type="Script" path="res://addons/gdsql/tabs/table_data_export.gd" id="1_h6j2y"]
+[ext_resource type="Script" uid="uid://uoqv2b5cinkw" path="res://addons/gdsql/tabs/table_data_export.gd" id="1_h6j2y"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_j2xwm"]
 bg_color = Color(0.6, 0.6, 0.6, 0)
