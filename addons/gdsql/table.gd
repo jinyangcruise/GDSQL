@@ -2625,7 +2625,9 @@ func _on_button_paste_pressed():
 		map = str_to_var(content.substr(prefix.length()))
 		if not map is Dictionary:
 			map = null
-			push_warning("Clipboard has content that begins with %s but fail to convert to a Dictionary." % prefix)
+			var msg = "Clipboard has content that begins with %s but fail to convert to a Dictionary." % prefix
+			EditorInterface.get_editor_toaster().push_toast(msg, EditorToaster.SEVERITY_WARNING)
+			push_warning(msg)
 			
 	# 剪贴板中的内容是从别的地方拷贝的
 	if map == null:

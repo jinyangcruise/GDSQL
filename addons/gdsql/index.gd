@@ -48,6 +48,8 @@ func add_a_log(status: String, begin_timestamp: float, action: String, message, 
 	]
 	log_table.append_data(new_log)
 	log_table.scroll_to_bottom()
+	if status != "OK":
+		EditorInterface.get_editor_toaster().push_toast(message, EditorToaster.SEVERITY_ERROR)
 
 
 func _on_button_clear_log_pressed():
