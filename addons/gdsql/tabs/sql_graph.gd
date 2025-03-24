@@ -831,6 +831,9 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			var modified_data = data.get_modified_value()
 			var all_data = data.get_visible_data()
 			for prop in all_data:
+				# Skip props which are not field, possible are ComputingData
+				if not table_col_index.has(prop):
+					continue
 				var col_info = new_column_prop_name[table_col_index[prop]]
 				var table_path = col_info["table_path"]
 				if not tables.has(table_path):
