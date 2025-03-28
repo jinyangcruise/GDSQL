@@ -325,7 +325,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 						'column="%s"' % (a_col_prefix + a_col_name)]
 				)
 				arr_col_name.push_back(a_col_name)
-				arr_prop_type.push_back([aprops[a_col_name], type_string(col["Data Type"]), -1, col["Comment"]])
+				arr_prop_type.push_back([aprops[a_col_name], 
+					type_string(col["Data Type"]), -1, col["Comment"], col["Hint String"]])
 			arr_columns[node_name] = arr_col_name
 			
 			if node_pair.has(node_name):
@@ -393,7 +394,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							
 					arr_col.push_back(s)
 					arr_prop_type.push_back(
-						[info.link_prop, info.link_prop_type, info.link_type, info.comment])
+						[info.link_prop, info.link_prop_type, info.link_type, info.comment, ""])
 						
 			if not result_map_added.has(result_map_id):
 				xml_arr.push_back('\n\t<resultMap id="%sResult" type="%sEntity"' % [
@@ -445,10 +446,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							#arr.push_back('\nvar %s: %s\n' % [i[0], i[1]])
 							# 不在属性上指定数据类型了，不然update、insert不知道有没有给属性设定值。
 							# 但是保留在get、set函数上进行设置数据类型
-							arr.push_back('\nvar %s # %s\n' % [i[0], i[1]])
-							arr_getset.push_back('\nfunc get_%s() -> %s:' % [i_0_snake, i[1]])
+							arr.push_back('\nvar %s # %s\n' % [i[0], 
+								i[4] if i[1] == "Object" else i[1]])
+							arr_getset.push_back('\nfunc get_%s() -> %s:' % [i_0_snake, 
+								i[4] if i[1] == "Object" else i[1]])
 							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
-							arr_getset.push_back('\nfunc set_%s(p_%s: %s):' % [i_0_snake, i_0_snake, i[1]])
+							arr_getset.push_back('\nfunc set_%s(p_%s: %s):' % [i_0_snake, i_0_snake, 
+								i[4] if i[1] == "Object" else i[1]])
 							arr_getset.push_back('\n\t%s = p_%s\n\t' % [i[0], i_0_snake])
 						else:
 							arr.push_back('\nvar %s: %sEntity\n' % [i[0], i[1]])
