@@ -1564,7 +1564,7 @@ const xid_continue = [
 	[ 0xe0100, 0xe01ef ],
 ]
 
-static var utility_function_table = {
+const utility_function_table = {
 	# under @GlobalScope
 	'sin': [1, 'FUNCBINDR(sin, sarray("angle_rad"), Variant::UTILITY_FUNC_TYPE_MATH);', sin],
 	'cos': [1, ' FUNCBINDR(cos, sarray("angle_rad"), Variant::UTILITY_FUNC_TYPE_MATH);', cos],
@@ -1644,22 +1644,14 @@ static var utility_function_table = {
 	'clampf': [3, ' FUNCBINDR(clampf, sarray("value", "min", "max"), Variant::UTILITY_FUNC_TYPE_MATH);', clampf],
 	'nearest_po2': [1, ' FUNCBINDR(nearest_po2, sarray("value"), Variant::UTILITY_FUNC_TYPE_MATH);', nearest_po2],
 	'pingpong': [2, ' FUNCBINDR(pingpong, sarray("value", "length"), Variant::UTILITY_FUNC_TYPE_MATH);', pingpong],
-	'randomize': [0, ' FUNCBIND(randomize, sarray(), Variant::UTILITY_FUNC_TYPE_RANDOM);', randomize \
-		if not Engine.has_singleton(&"RandomManager") else Engine.get_singleton(&"RandomManager").randomize],
-	'randi': [0, ' FUNCBINDR(randi, sarray(), Variant::UTILITY_FUNC_TYPE_RANDOM);', randi \
-		if not Engine.has_singleton(&"RandomManager") else Engine.get_singleton(&"RandomManager").randi],
-	'randf': [0, ' FUNCBINDR(randf, sarray(), Variant::UTILITY_FUNC_TYPE_RANDOM);', randf \
-		if not Engine.has_singleton(&"RandomManager") else Engine.get_singleton(&"RandomManager").randf],
-	'randi_range': [2, ' FUNCBINDR(randi_range, sarray("from", "to"), Variant::UTILITY_FUNC_TYPE_RANDOM);', randi_range \
-		if not Engine.has_singleton(&"RandomManager") else Engine.get_singleton(&"RandomManager").randi_range],
-	'randf_range': [2, ' FUNCBINDR(randf_range, sarray("from", "to"), Variant::UTILITY_FUNC_TYPE_RANDOM);', randf_range \
-		if not Engine.has_singleton(&"RandomManager") else Engine.get_singleton(&"RandomManager").randf_range],
-	'randfn': [2, ' FUNCBINDR(randfn, sarray("mean", "deviation"), Variant::UTILITY_FUNC_TYPE_RANDOM);', randfn \
-		if not Engine.has_singleton(&"RandomManager") else Engine.get_singleton(&"RandomManager").randfn],
-	'seed': [1, ' FUNCBIND(seed, sarray("base"), Variant::UTILITY_FUNC_TYPE_RANDOM);', seed \
-		if not Engine.has_singleton(&"RandomManager") else Engine.get_singleton(&"RandomManager").seed],
-	'rand_from_seed': [1, ' FUNCBINDR(rand_from_seed, sarray("seed"), Variant::UTILITY_FUNC_TYPE_RANDOM);', rand_from_seed \
-		if not Engine.has_singleton(&"RandomManager") else Engine.get_singleton(&"RandomManager").rand_from_seed],
+	'randomize': [0, ' FUNCBIND(randomize, sarray(), Variant::UTILITY_FUNC_TYPE_RANDOM);', randomize],
+	'randi': [0, ' FUNCBINDR(randi, sarray(), Variant::UTILITY_FUNC_TYPE_RANDOM);', randi],
+	'randf': [0, ' FUNCBINDR(randf, sarray(), Variant::UTILITY_FUNC_TYPE_RANDOM);', randf],
+	'randi_range': [2, ' FUNCBINDR(randi_range, sarray("from", "to"), Variant::UTILITY_FUNC_TYPE_RANDOM);', randi_range],
+	'randf_range': [2, ' FUNCBINDR(randf_range, sarray("from", "to"), Variant::UTILITY_FUNC_TYPE_RANDOM);', randf_range],
+	'randfn': [2, ' FUNCBINDR(randfn, sarray("mean", "deviation"), Variant::UTILITY_FUNC_TYPE_RANDOM);', randfn],
+	'seed': [1, ' FUNCBIND(seed, sarray("base"), Variant::UTILITY_FUNC_TYPE_RANDOM);', seed],
+	'rand_from_seed': [1, ' FUNCBINDR(rand_from_seed, sarray("seed"), Variant::UTILITY_FUNC_TYPE_RANDOM);', rand_from_seed],
 	'weakref': [1, ' FUNCBINDVR(weakref, sarray("obj"), Variant::UTILITY_FUNC_TYPE_GENERAL);', weakref],
 	'typeof': [1, ' FUNCBINDR(_typeof, sarray("variable"), Variant::UTILITY_FUNC_TYPE_GENERAL);', typeof],
 	'type_convert': [2, ' FUNCBINDR(type_convert, sarray("variant", "type"), Variant::UTILITY_FUNC_TYPE_GENERAL);', type_convert],
