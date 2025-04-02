@@ -41,6 +41,7 @@ static var DATA_TYPES = [
 	TYPE_PACKED_VECTOR2_ARRAY,
 	TYPE_PACKED_VECTOR3_ARRAY,
 	TYPE_PACKED_COLOR_ARRAY,
+	TYPE_PACKED_VECTOR4_ARRAY,
 	TYPE_MAX,
 ]
 
@@ -83,6 +84,7 @@ static var DATA_TYPE_NAMES = [
 	"TYPE_PACKED_VECTOR2_ARRAY",
 	"TYPE_PACKED_VECTOR3_ARRAY",
 	"TYPE_PACKED_COLOR_ARRAY",
+	"PackedVector4Array",
 	"TYPE_MAX",
 ]
 
@@ -125,6 +127,7 @@ static var DATA_TYPE_COMMON_NAMES = {
 	"PackedVector2Array": TYPE_PACKED_VECTOR2_ARRAY,
 	"PackedVector3Array": TYPE_PACKED_VECTOR3_ARRAY,
 	"PackedColorArray": TYPE_PACKED_COLOR_ARRAY,
+	"PackedVector4Array": TYPE_PACKED_VECTOR4_ARRAY,
 }
 
 static var DATA_TYPE_NAME_INDEXES = [
@@ -166,7 +169,8 @@ static var DATA_TYPE_NAME_INDEXES = [
 	"TYPE_PACKED_VECTOR2_ARRAY:35",
 	"TYPE_PACKED_VECTOR3_ARRAY:36",
 	"TYPE_PACKED_COLOR_ARRAY:37",
-	"TYPE_MAX:38",
+	"TYPE_PACKED_VECTOR4_ARRAY:38",
+	"TYPE_MAX:39",
 ]
 
 static var DEFUALT_VALUES = [
@@ -208,6 +212,7 @@ static var DEFUALT_VALUES = [
 	PackedVector2Array(),
 	PackedVector3Array(),
 	PackedColorArray(),
+	PackedVector4Array(),
 	null
 ]
 
@@ -250,6 +255,7 @@ static var DEFUALT_VALUES_EXP = [
 	'PackedVector2Array()',
 	'PackedVector3Array()',
 	'PackedColorArray()',
+	'PackedVector4Array()',
 	'null'
 ]
 
