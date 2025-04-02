@@ -2681,16 +2681,16 @@ func _get_token(r_token: ExpressionToken) -> Error:
 							READING_INT:
 								if (is_digit(c)) :
 									if (is_first_char && c == '0') :
-										if (next_char == 'b') :
+										if (next_char == 'b' or next_char == "B") :
 											reading = READING_BIN
-										elif (next_char == 'x') :
+										elif (next_char == 'x' or next_char == "X") :
 											reading = READING_HEX
 							
 						
 								elif (c == '.') :
 									reading = READING_DEC
 									is_float = true
-								elif (c == 'e') :
+								elif (c == 'e' or c == "E") :
 									reading = READING_EXP
 									is_float = true
 								else:
@@ -2701,7 +2701,7 @@ func _get_token(r_token: ExpressionToken) -> Error:
 							READING_BIN:
 								if (bin_beg && !is_binary_digit(c)) :
 									reading = READING_DONE
-								elif (c == 'b') :
+								elif (c == 'b' or c == "B") :
 									bin_beg = true
 					
 
@@ -2709,16 +2709,15 @@ func _get_token(r_token: ExpressionToken) -> Error:
 							READING_HEX:
 								if (hex_beg && !is_hex_digit(c)) :
 									reading = READING_DONE
-								elif (c == 'x') :
+								elif (c == 'x' or c == "X") :
 									hex_beg = true
 					
 
 								#break
 							READING_DEC:
 								if (is_digit(c)) : pass
-								elif (c == 'e') :
+								elif (c == 'e' or c == "E") :
 									reading = READING_EXP
-
 								else:
 									reading = READING_DONE
 					
@@ -2739,7 +2738,7 @@ func _get_token(r_token: ExpressionToken) -> Error:
 
 						if (reading == READING_DONE) :
 							break
-			
+							
 						num += c
 						c = GET_CHAR()
 						is_first_char = false
@@ -2854,11 +2853,12 @@ func _get_token(r_token: ExpressionToken) -> Error:
 					elif (id == "self") :
 						r_token.type = TokenType.TK_SELF
 					else:
-						for i in TYPE_MAX:
-							if (id == type_string(i) and id != 'Object') : # Object moves to CLASS_TYPE
-								r_token.type = TokenType.TK_BASIC_TYPE
-								r_token.value = i
-								return OK
+						# DATA_TYPE_COMMON_NAMES
+						var a_type = DataTypeDef.DATA_TYPE_COMMON_NAMES.get(id, -1)
+						if (a_type >= 0 and a_type != TYPE_OBJECT) : # Object moves to CLASS_TYPE
+							r_token.type = TokenType.TK_BASIC_TYPE
+							r_token.value = a_type
+							return OK
 				
 			
 
