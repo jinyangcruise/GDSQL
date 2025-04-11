@@ -82,6 +82,11 @@ func use_db_name(database_name: String) -> BaseDao:
 	if __database == "":
 		assert(_assert("use_db_name", false, 
 			"database %s's data_path is empty!" % database_name))
+	if _PASSWORD == "":
+		if __database == "user://":
+			_PASSWORD = PasswordDef.USER_DAO_PASS
+		elif __database == "res://src/config/":
+			_PASSWORD = PasswordDef.CONFIG_ENCRYPTED_PASS
 	_set_primary_and_autoincre()
 	return self
 	
@@ -95,6 +100,11 @@ func use_db(database_path: String) -> BaseDao:
 			if adb != "":
 				database_path = adb
 	__database = database_path
+	if _PASSWORD == "":
+		if __database == "user://":
+			_PASSWORD = PasswordDef.USER_DAO_PASS
+		elif __database == "res://src/config/":
+			_PASSWORD = PasswordDef.CONFIG_ENCRYPTED_PASS
 	_set_primary_and_autoincre()
 	return self
 	
