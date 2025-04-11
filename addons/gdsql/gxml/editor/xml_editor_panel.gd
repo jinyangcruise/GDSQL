@@ -659,8 +659,8 @@ func _on_item_tree_item_selected() -> void:
 	var editor = history.back().get_meta("editor")
 	(editor.text_editor as CodeEdit).set_caret_line(line)
 	(editor.text_editor as CodeEdit).center_viewport_to_caret(0)
-
-
+	(editor.text_editor as CodeEdit).select_word_under_caret(0)
+	
 func _on_search_index_pressed(index: int) -> void:
 	match index:
 		SEARCH_MENU_OPTION.FIND:
@@ -689,7 +689,7 @@ func _on_search_index_pressed(index: int) -> void:
 func _on_pin_to_top_button_toggled(toggled_on: bool) -> void:
 	get_window().transient = false
 	get_window().always_on_top = toggled_on
-
+	
 func bind_file_system_events():
 	var dock = EditorInterface.get_file_system_dock()
 	dock.file_removed.connect(_on_file_removed)
