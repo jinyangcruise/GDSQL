@@ -652,7 +652,9 @@ func _on_filter_name_text_changed(new_text: String) -> void:
 				item.visible = true
 			else:
 				item.visible = false
-			
+	if new_text == "":
+		item_tree.scroll_to_item(item_tree.get_selected(), true)
+		
 func _on_item_tree_item_selected() -> void:
 	var item = item_tree.get_selected()
 	var line = item.get_meta("line")
@@ -660,7 +662,10 @@ func _on_item_tree_item_selected() -> void:
 	(editor.text_editor as CodeEdit).set_caret_line(line)
 	(editor.text_editor as CodeEdit).center_viewport_to_caret(0)
 	(editor.text_editor as CodeEdit).select_word_under_caret(0)
-	
+	for aitem: TreeItem in item_tree.get_root().get_children():
+		if aitem != item:
+			aitem.deselect(0)
+			
 func _on_search_index_pressed(index: int) -> void:
 	match index:
 		SEARCH_MENU_OPTION.FIND:
