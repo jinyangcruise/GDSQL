@@ -3019,7 +3019,7 @@ func _parse_expression() -> ExpressionENode:
 
 					var arguments_ref = func_call.arguments
 					# group_concat 特殊处理. eg: group_concat(distinct id, "+", id order by id separator ':')
-					if sql_mode and identifier == "group_concat":
+					if sql_mode and identifier is String and identifier == "group_concat":
 						# group_concat具有多列（不仅仅是多行）拼接的功能，所以要用Array包装一下
 						var cons = alloc_node('ConstructorNode') as ExpressionConstructorNode
 						cons.data_type = TYPE_ARRAY
@@ -3044,7 +3044,7 @@ func _parse_expression() -> ExpressionENode:
 							
 						# count(*) 特殊处理，相当于count('*')
 						var subexpr
-						if sql_mode and identifier == "count" and tk.type == TokenType.TK_OP_MUL:
+						if sql_mode and identifier is String and identifier == "count" and tk.type == TokenType.TK_OP_MUL:
 							var cofs3 = str_ofs
 							_get_token(tk)
 							if tk.type == TokenType.TK_PARENTHESIS_CLOSE:
@@ -3055,7 +3055,7 @@ func _parse_expression() -> ExpressionENode:
 							else:
 								_set_error("Expected ')'")
 								return null
-						elif sql_mode and identifier == "group_concat":
+						elif sql_mode and identifier is String and identifier == "group_concat":
 							if index == 0 and tk.type == TokenType.TK_IDENTIFIER and tk.value.to_lower() == "distinct":
 								func_call.method = "distinct_group_concat"
 								# keep str_ofs also: str_ofs = str_ofs
@@ -3079,7 +3079,7 @@ func _parse_expression() -> ExpressionENode:
 							pass # all good
 						elif (tk.type == TokenType.TK_PARENTHESIS_CLOSE) :
 							str_ofs = cofs2
-						elif sql_mode and identifier == "group_concat" and tk.type == TokenType.TK_IDENTIFIER:
+						elif sql_mode and identifier is String and identifier == "group_concat" and tk.type == TokenType.TK_IDENTIFIER:
 							match tk.value.to_lower():
 								"order":
 									if func_call.has_meta('order'):
