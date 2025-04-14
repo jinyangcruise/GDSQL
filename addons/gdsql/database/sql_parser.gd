@@ -398,6 +398,9 @@ static func prepare_sql(sql: String) -> Array:
 	for i in quoted_matches:
 		index += 1
 		var r = "___Rep%d___" % index
+		while sql.contains(r):
+			index += 1
+			r = "___Rep%d___" % index
 		replacements[r] = i
 		sql = sql.replace(i, r)
 	return [sql, replacements]
