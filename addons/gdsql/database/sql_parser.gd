@@ -77,15 +77,6 @@ static func parse_to_dao(sql: String) -> BaseDao:
 	sql = sql.strip_edges()
 	if sql.countn("select", 0, 6) > 0:
 		var arr = parse_select(sql)
-		if arr.is_empty():
-			assert(_assert(false, "Cannot parse your SELECT sql."))
-		if arr.size() < 2:
-			assert(_assert(false, "SELECT need at least SELECT and FROM."))
-		if arr[0][1] == "":
-			assert(_assert(false, "Missing fields after SELECT."))
-		if arr[1][0].to_upper() != "FROM":
-			assert(_assert(false, "Missing FROM after SELECT."))
-			
 		var db_table_alias = _get_db_table_alias(arr[1][1])
 		if not db_table_alias:
 			return null
@@ -174,12 +165,6 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		return first_dao
 	elif sql.countn("update", 0, 6) > 0:
 		var arr = parse_update(sql)
-		if arr.is_empty():
-			assert(_assert(false, "Cannot parse your UPDATE sql."))
-		if arr[1][0].to_upper() != "SET":
-			assert(_assert(false, "Missing SET after UPDATE."))
-		if arr.size() > 3:
-			assert(_assert(false, "Redundant info near: [%s]" % arr[3][0] if arr.size() > 3 else ""))
 		var db_table = _get_db_table(arr[0][1])
 		if not db_table:
 			return null
@@ -205,14 +190,6 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		return dao
 	elif sql.countn("delete", 0, 6) > 0:
 		var arr = parse_delete(sql)
-		if arr.is_empty():
-			assert(_assert(false, "Cannot parse your DELETE sql."))
-		if arr.size() > 2:
-			assert(_assert(false, "Cannot parse your DELETE sql."))
-		if not (arr[0][0].countn("delete") == 1 and arr[0][0].countn("from") == 1):
-			assert(_assert(false, "Cannot parse your DELETE sql."))
-		if arr.size() == 2 and not arr[1][0].strip_edges().to_upper() == "WHERE":
-			assert(_assert(false, "Cannot parse your DELETE sql."))
 		var db_table = _get_db_table(arr[0][1])
 		if not db_table:
 			return null
@@ -232,13 +209,6 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		return dao
 	elif sql.countn("insert", 0, 6) > 0:
 		var arr = parse_insert(sql)
-		if arr.is_empty():
-			assert(_assert(false, "Cannot parse your INSERT sql."))
-		if arr[3].to_upper() != "VALUES":
-			assert(_assert(false, "Parser error of keyword VALUES."))
-		if arr[5] != "":
-			if arr[5].countn("duplicate") == 0:
-				assert(_assert(false, "Parser error of keyword ON DUPLICATE KEY UPDATE."))
 		var db_table = _get_db_table(arr[1])
 		if not db_table:
 			return null
@@ -294,10 +264,6 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		return dao
 	elif sql.countn("replace", 0, 7) > 0:
 		var arr = parse_replace(sql)
-		if arr.is_empty():
-			assert(_assert(false, "Cannot parse your REPLACE sql."))
-		if arr[3].to_upper() != "VALUES":
-			assert(_assert(false, "Parser error of keyword VALUES."))
 		var db_table = _get_db_table(arr[1])
 		if not db_table:
 			return null
@@ -336,6 +302,14 @@ static func parse_select(sql: String) -> Array:
 	for i: RegExMatch in matches:
 		ret.push_back([i.get_string(1), restore(i.get_string(2).strip_edges(), prepare[1])])
 	ret = _check_semicolon(ret)
+	if ret.is_empty():
+		assert(_assert(false, "Cannot parse your SELECT sql."))
+	if ret.size() < 2:
+		assert(_assert(false, "SELECT need at least SELECT and FROM."))
+	if ret[0][1] == "":
+		assert(_assert(false, "Missing fields after SELECT."))
+	if ret[1][0].to_upper() != "FROM":
+		assert(_assert(false, "Missing FROM after SELECT."))
 	return ret
 	
 static func parse_update(sql: String) -> Array:
@@ -345,6 +319,12 @@ static func parse_update(sql: String) -> Array:
 	for i: RegExMatch in matches:
 		ret.push_back([i.get_string(1), restore(i.get_string(2).strip_edges(), prepare[1])])
 	ret = _check_semicolon(ret)
+	if ret.is_empty():
+		assert(_assert(false, "Cannot parse your UPDATE sql."))
+	if ret[1][0].to_upper() != "SET":
+		assert(_assert(false, "Missing SET after UPDATE."))
+	if ret.size() > 3:
+		assert(_assert(false, "Redundant info near: [%s]" % ret[3][0] if ret.size() > 3 else ""))
 	return ret
 	
 static func parse_delete(sql: String) -> Array:
@@ -354,14 +334,23 @@ static func parse_delete(sql: String) -> Array:
 	for i: RegExMatch in matches:
 		ret.push_back([i.get_string(1), restore(i.get_string(2).strip_edges(), prepare[1])])
 	ret = _check_semicolon(ret)
+	if ret.is_empty():
+		assert(_assert(false, "Cannot parse your DELETE sql."))
+	if ret.size() > 2:
+		assert(_assert(false, "Cannot parse your DELETE sql."))
+	if not (ret[0][0].countn("delete") == 1 and ret[0][0].countn("from") == 1):
+		assert(_assert(false, "Cannot parse your DELETE sql."))
+	if ret.size() == 2 and not ret[1][0].strip_edges().to_upper() == "WHERE":
+		assert(_assert(false, "Cannot parse your DELETE sql."))
 	return ret
 	
 static func parse_insert(sql: String) -> Array:
 	#var prepare = prepare_sql(sql)
 	#var rm = prepare[1]
 	var m = re_insert.search(sql)
+	var ret
 	if m:
-		var ret = [
+		ret = [
 			m.get_string(1).strip_edges(), # insert into
 			m.get_string(2).strip_edges(), # db.table
 			m.get_string(3).strip_edges(), # (x,y,z)
@@ -371,15 +360,22 @@ static func parse_insert(sql: String) -> Array:
 			m.get_string(7).strip_edges(), # xxx
 		]
 		ret = _check_semicolon(ret)
-		return ret
-	return []
+	if ret == null or ret.is_empty():
+		assert(_assert(false, "Cannot parse your INSERT sql."))
+	if ret[3].to_upper() != "VALUES":
+		assert(_assert(false, "Parser error of keyword VALUES."))
+	if ret[5] != "":
+		if ret[5].countn("duplicate") == 0:
+			assert(_assert(false, "Parser error of keyword ON DUPLICATE KEY UPDATE."))
+	return ret
 	
 static func parse_replace(sql: String) -> Array:
 	var prepare = prepare_sql(sql)
 	var rm = prepare[1]
 	var m = re_replace.search(prepare[0])
+	var ret
 	if m:
-		var ret = [
+		ret = [
 			m.get_string(1).strip_edges(), # replace into
 			restore(m.get_string(2).strip_edges(), rm), # db.table
 			m.get_string(3).strip_edges(), # (x,y,z)
@@ -387,7 +383,10 @@ static func parse_replace(sql: String) -> Array:
 			restore(m.get_string(5).strip_edges(), rm), # (1,2,3)
 		]
 		ret = _check_semicolon(ret)
-		return ret
+	if ret == null or ret.is_empty():
+		assert(_assert(false, "Cannot parse your REPLACE sql."))
+	if ret[3].to_upper() != "VALUES":
+		assert(_assert(false, "Parser error of keyword VALUES."))
 	return []
 	
 static func prepare_sql(sql: String) -> Array:
