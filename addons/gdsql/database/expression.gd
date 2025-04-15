@@ -4424,7 +4424,8 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 			base[0] is PackedColorArray or base[0] is PackedFloat32Array or \
 			base[0] is PackedFloat64Array or base[0] is PackedInt32Array or \
 			base[0] is PackedInt64Array or base[0] is PackedStringArray or \
-			base[0] is PackedVector2Array or base[0] is PackedVector3Array:
+			base[0] is PackedVector2Array or base[0] is PackedVector3Array or \
+			base[0] is PackedVector4Array:
 				r_ret[0] = base[0][idx[0]]
 			elif base[0] is Object:
 				if idx[0] is String or idx[0] is StringName:
