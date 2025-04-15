@@ -272,6 +272,11 @@ func select_same() -> BaseDao:
 	__need_head = false
 	return self
 	
+## select是否需要表头
+func set_need_head(p_need_head: bool) -> BaseDao:
+	__need_head = p_need_head
+	return self
+	
 ## 同时设置表名和别名。table支持不带后缀和带后缀.gsql
 func from(table: String, alias: String = "") -> BaseDao:
 	#if __database == null or __database == "":
