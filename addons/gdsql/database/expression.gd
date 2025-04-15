@@ -3020,6 +3020,8 @@ func _parse_expression() -> ExpressionENode:
 
 					var arguments_ref = func_call.arguments
 					# group_concat 特殊处理. eg: group_concat(distinct id, "+", id order by id separator ':')
+					# NOTICE 不支持identifier是 ExpressionInputNode 来实现parse阶段
+					# 不明确调用group_concat而运行时才明确要调用group_concat
 					if sql_mode and identifier is String and identifier == "group_concat":
 						# group_concat具有多列（不仅仅是多行）拼接的功能，所以要用Array包装一下
 						var cons = alloc_node('ConstructorNode') as ExpressionConstructorNode
