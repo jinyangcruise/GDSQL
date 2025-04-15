@@ -878,7 +878,7 @@ cond: String, all_table_defination: Dictionary, all_datas: Dictionary, curr_depe
 				for i in const_collection:
 					if not str(i) in uniq_collection:
 						uniq_collection.push_back(str(i))
-				uniq_collection.sort()
+				uniq_collection.sort_custom(func(a, b): return a.naturalnocasecmp_to(b) < 0)
 				if not uniq_collection.is_empty():
 					for pk_value in uniq_collection:
 						if conf.has_section(pk_value):
