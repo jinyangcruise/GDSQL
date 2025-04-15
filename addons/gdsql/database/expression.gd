@@ -3951,9 +3951,7 @@ func all_constant_node(p_node):
 		ExpressionENode.Type.TYPE_INPUT:
 			return false
 		ExpressionENode.Type.TYPE_CONSTANT:
-			return {
-				"value": p_node.value
-			}
+			return true
 		ExpressionENode.Type.TYPE_SELF:
 			return false
 		ExpressionENode.Type.TYPE_OPERATOR:
