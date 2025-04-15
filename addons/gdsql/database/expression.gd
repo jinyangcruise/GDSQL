@@ -2216,7 +2216,8 @@ const GLOBAL_ENUM_AND_FLAG = {
 		'TYPE_PACKED_VECTOR2_ARRAY': 35,
 		'TYPE_PACKED_VECTOR3_ARRAY': 36,
 		'TYPE_PACKED_COLOR_ARRAY': 37,
-		'TYPE_MAX': 38,
+		'TYPE_PACKED_VECTOR4_ARRAY': 38,
+		'TYPE_MAX': 39,
 	},
 	'Variant.Operator': {
 		'OP_EQUAL': 0,
@@ -4834,6 +4835,13 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 					match arr.size():
 						0: r_ret[0] = PackedColorArray()
 						1: r_ret[0] = PackedColorArray(arr[0])
+						_:
+							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
+							return true
+				TYPE_PACKED_VECTOR4_ARRAY:
+					match arr.size():
+						0: r_ret[0] = PackedVector4Array()
+						1: r_ret[0] = PackedVector4Array(arr[0])
 						_:
 							r_error_str[0] = tr("Invalid arguments to construct '%s'") % type_string(constructor.data_type)
 							return true
