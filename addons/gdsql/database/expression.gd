@@ -4384,7 +4384,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				OP_IN: # = 24 逻辑 IN 运算符（in）。
 					r_ret[0] = a[0] in b[0]
 				_:
-					pass
+					valid = false
 			if (!valid) :
 				r_error_str[0] = tr("Invalid operands to operator %s, %s and %s.") % [get_operator_name(op.op), type_string(typeof(a)), type_string(typeof(b))]
 				return true
