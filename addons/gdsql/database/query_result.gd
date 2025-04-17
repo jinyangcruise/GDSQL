@@ -39,16 +39,27 @@ func get_data() -> Array:
 		return (_data as Array).slice(1)
 	return []
 	
-## 获取query后的数据的第一条数据
-func get_first_row(col_index = null):
+## 获取query后的数据的第一条数据，可以指定只返回某一列和空数据集时的返回值
+func get_first_row(col_index = null, default = null):
 	assert(col_index == null or col_index is int, "Invalid col_index type: %s" % typeof(col_index))
 	var ret = get_data()
 	if ret.is_empty():
-		return null
+		return default
 	if col_index == null:
 		return ret[0]
 	assert(ret[0].size() > col_index, "Invalid col_index: %s" % col_index)
 	return ret[0][col_index]
+	
+## 获取query后的数据的某列数据，可以指定空数据集时的返回值
+func get_column(col_index = 0, default = null):
+	var ret = get_data()
+	if ret.is_empty():
+		return default
+	assert(ret[0].size() > col_index, "Invalid col_index: %s" % col_index)
+	var arr = []
+	for i in ret:
+		arr.push_back(i[col_index])
+	return arr
 	
 ## 获取query后的数据的表头
 func get_head() -> Array:
