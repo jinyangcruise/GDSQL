@@ -2207,4 +2207,5 @@ func reset(force = false):
 	__auto_commit = true
 	__table_conf_path.clear()
 	__enable_evaluate = false
+	regex_field_map.clear()
 	mgr = null
