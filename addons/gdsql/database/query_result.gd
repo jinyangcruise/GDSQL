@@ -6,6 +6,7 @@ var _affected_rows = 0
 var _warnings
 var _data
 var _last_insert_id = 0
+var _columns_count = 0
 var _has_head = true
 ## 自增键的值插入后记录一下
 var _generated_keys = {}
@@ -22,6 +23,9 @@ func get_affected_rows() -> int:
 	
 func get_warnings() -> Array:
 	return [] if _warnings == null else _warnings
+	
+func get_columns_count() -> int:
+	return _columns_count
 	
 ## 获取query后的表头和数据
 func get_head_and_data() -> Array:
