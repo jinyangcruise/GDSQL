@@ -1750,11 +1750,11 @@ func query() -> QueryResult:
 			var ret = ___select(path)
 			if typeof(ret) == TYPE_NIL:
 				assert(_assert("query:%s" % __cmd, false, "Error occur!"))
-			reset()
 			result._has_head = __need_head
 			result._columns_count = __select_query_columns_count
 			result._data = ret
 			result._cost_time = Time.get_unix_time_from_system() - begin_time
+			reset()
 			if not __err.is_empty():
 				result._err = "\n".join(__err)
 			return result
