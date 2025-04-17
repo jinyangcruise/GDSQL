@@ -2178,15 +2178,17 @@ func reset(force = false):
 	__err.clear()
 	if force == false and Engine.is_editor_hint():
 		return
+	__database = ""
+	__cmd = ""
 	__select_str = ""
 	__select.clear()
 	__field_as_index.clear()
 	__table = ""
-	__cmd = ""
 	__table_alias = ""
 	if __data:
 		__data.clear()
 	__where.clear()
+	__group_by.clear()
 	__order_by.clear()
 	__offset = -1
 	__limit = -1
@@ -2200,5 +2202,9 @@ func reset(force = false):
 	if __left_join:
 		__left_join.clear_chain()
 		__left_join = null
+	__need_post_porcess = true
+	__need_head = false
+	__auto_commit = true
 	__table_conf_path.clear()
+	__enable_evaluate = false
 	mgr = null
