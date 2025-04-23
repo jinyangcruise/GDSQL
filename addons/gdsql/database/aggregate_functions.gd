@@ -438,7 +438,7 @@ func grid_checkbox(param, columns: int, rows: int):
 		return self # 用户也不会拿这个去做运算，所以返回self
 	if not _params.has(curr_count):
 		_return_null = true
-		return null # 用户也不会拿这个去做运算，所以返回self
+		return null
 	var grid_c = GridContainer.new()
 	grid_c.add_theme_constant_override("h_separation", 1)
 	grid_c.add_theme_constant_override("v_separation", 1)
