@@ -250,8 +250,28 @@ func check_head(p_head: Array):
 		#if columns.has(column):
 			#assert(false, "Duplicated column name " + column)
 		if primary_column == "":
-			if head[j]["PK"] and pk_index.find_key(column) == null:
-				pk_index[j] = column
+			# 由于主键<id>涉及到是否构造新的数据对象，而在使用过程中，很可能不配置<id>，
+			# 并且把不同表的主键拉取出来当作别的字段再union到一起，所以不能用head中提供
+			# 的"PK"字段来想当然地作为这个ResultMap的主键。比如：
+			# <resultMap id="tSkillUpgradeResult" type="TSkillUpgradeEntity" autoMapping="false">
+			#     <id          property="id"            column="id"            />
+			#     <result      property="sid"           column="sid"           />
+			#     <result      property="upgrade_id"    column="upgrade_id"    />
+			#     <association property="c_skill_upgrade" column="upgrade_id" select="select_c_skill_upgrade_by_id"    />
+			# </resultMap>
+			# <select id="select_t_skill_upgrade_by_sid" resultMap="tSkillUpgradeResult">
+			#     select 0 as id, #{sid} as sid, id as upgrade_id from GameConfig.c_skill_upgrade 
+			#     where sid == (select template_id from UserData.t_skill_upgrade where id == #{sid}) and level == 1
+			#     union all 
+			#     select id, sid, upgrade_id from UserData.t_skill_upgrade where sid == #{sid}
+			# </select>
+			# 在这个例子中，显然会使head中的第3个字段upgrade_id的"PK"为true，这样会产生问题。
+			# 所以首先，我们不应该用head中的主键标记（所以我们把下面两行代码注释掉了）；
+			# 其次，我们要修改resultMap中第一个<id>标签为<result>，因为很显然前面几条数据
+			# 的id都是0（因为 select 0 as id ...），但它们是独立的数据。
+			#if head[j]["PK"] and pk_index.find_key(column) == null:
+				#pk_index[j] = column
+			pass
 		else:
 			if column == primary_column:
 				pk_index[j] = column
