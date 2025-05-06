@@ -45,31 +45,51 @@ static func evaluate_command(target: Object, command: String, variable_names = [
 ## command：表达式
 ## variable_names：参数名称列表
 ## variable_values：参数值列表
-static func evaluate_command_with_sql_expression(target: Object, command: String, variable_names = [], variable_values = []):
+## nested_subqueries: 嵌套的子查询
+static func evaluate_command_with_sql_expression(target: Object, command: String, 
+variable_names: Array = [], variable_values: Array = [], 
+sql_input_names: Dictionary = {}, sql_inputs: Array = [], 
+nested_subqueries: Dictionary = {}, lacking_tables = null):
 	var expression = GDSQLExpression.new()
+	expression.sql_mode = true
+	expression.set_sql_input_names(sql_input_names)
+	expression.set_sql_inputs(sql_inputs)
+	expression.set_nested_sql_queries(nested_subqueries)
 	var error = expression.parse(command, variable_names)
 	if error != OK:
 		push_error(expression.get_error_text())
 		return null
+		
+	# 缺少一些表
+	if not expression.get_lack_input_names().is_empty():
+		if lacking_tables:
+			lacking_tables.append_array(expression.get_lack_input_names())
+		return null
+		
 	var ret = expression.execute(variable_values, target, false)
 	
+	if expression.error_set:
+		push_error(expression.get_error_text())
+		assert(false, expression.get_error_text())
+		return null
+		
 	# 对于一些很简单的但Expression又不支持的写法，动态创建脚本
-	if typeof(ret) == TYPE_NIL:# and target == null:
-		var target_class_name = "Object"
-		if target and target.get_script() and target.get_script().get_global_name() != "":
-			target_class_name = target.get_script().get_global_name()
-		var defines = []
-		for i in variable_names.size():
-			defines.push_back("var %s = str_to_var('%s')" % [variable_names[i], var_to_str(variable_values[i]).c_escape()])
-		gdscript.source_code = "extends %s\n%s\nvar value = (%s)\n" % [target_class_name, "\n".join(defines), command]
-		var err = gdscript.reload()
-		if err != OK:
-			push_error("err: %s" % error_string(err))
-			return null
-		var obj = gdscript.new()
-		ret = obj.value
-		if not obj is RefCounted:
-			obj.free()
+	#if typeof(ret) == TYPE_NIL:# and target == null:
+		#var target_class_name = "Object"
+		#if target and target.get_script() and target.get_script().get_global_name() != "":
+			#target_class_name = target.get_script().get_global_name()
+		#var defines = []
+		#for i in variable_names.size():
+			#defines.push_back("var %s = str_to_var('%s')" % [variable_names[i], var_to_str(variable_values[i]).c_escape()])
+		#gdscript.source_code = "extends %s\n%s\nvar value = (%s)\n" % [target_class_name, "\n".join(defines), command]
+		#var err = gdscript.reload()
+		#if err != OK:
+			#push_error("err: %s" % error_string(err))
+			#return null
+		#var obj = gdscript.new()
+		#ret = obj.value
+		#if not obj is RefCounted:
+			#obj.free()
 	return ret
 	
 ## 用聚合对象执行一个表达式
@@ -77,17 +97,23 @@ static func evaluate_command_with_sql_expression(target: Object, command: String
 ## command：表达式
 ## variable_names：参数名称列表
 ## variable_values：参数值列表
-static func evalute_command_with_agg(target: AggregateFunctions, command: String, variable_names = [], variable_values = []):
+static func evalute_command_with_agg(target: AggregateFunctions, command: String, 
+variable_names: Array = [], variable_values: Array = [], 
+sql_input_names: Dictionary = {}, sql_inputs: Array = [], nested_subqueries = {}):
 	var ex_key = command + str(variable_names)
 	var expression = GDSQLExpression.EXPRESSION_CACHE.get_value(ex_key) # ALERT UNSAFE
 	if not expression:
 		expression = GDSQLExpression.new()
 		expression.sql_mode = true
+		expression.set_sql_input_names(sql_input_names)
+		expression.set_sql_inputs(sql_inputs)
+		expression.set_nested_sql_queries(nested_subqueries)
 		var error = expression.parse(command, variable_names)
 		if error != OK:
 			push_error(expression.get_error_text())
 			return null
 		GDSQLExpression.EXPRESSION_CACHE.put_value(ex_key, expression)
+		# TODO all const 可以缓存结果
 	var ret = expression.execute(variable_values, target, true)
 	
 	## 对于一些很简单的但Expression又不支持的写法，动态创建脚本

@@ -129,12 +129,31 @@ const _op_names = [
 
 var error_str
 var error_set = true
+var show_error = false
 
 var root: ExpressionENode
 var nodes: ExpressionENode
 
 var input_names: Array
 var execution_error = false
+
+# sql_input_names 的结构：
+# {
+#     'x': [
+#         true: 0,			# true表示x是一个普通表名
+#         false: index,		# false表示x是一个补充表名（来自BaseDao的__input_names）
+#         'y': 0,			# 字符串表示x是一个普通表y中的一个字段
+#         N: 0,				# 整数表示x是一个补充表中的一个字段，N表示该表在__input_names中的位置
+#     ]
+# }
+var sql_input_names: Dictionary
+# [data, __inputs] 即 [一行数据, 补充数据]
+var sql_inputs: Array
+## 嵌套的sql
+var nested_sql_queries: Dictionary
+
+## sql模式表达式中包含了没有被放入input_names中的变量名
+var lack_input_names: Array
 
 const READING_SIGN = 0
 const READING_INT = 1
@@ -2260,6 +2279,12 @@ func _init() -> void:
 func get_operator_name(p_op):
 	return _op_names[p_op]
 	
+func get_lack_input_names() -> Array:
+	return lack_input_names
+	
+func clear_lack_input_names():
+	lack_input_names.clear()
+	
 func _set_error(p_err):
 	if error_set:
 		return
@@ -2297,6 +2322,10 @@ func alloc_node(type: String) -> ExpressionENode:
 			node = ExpressionBuiltinFuncCallableNode.new()
 		"ClassNode":
 			node = ExpressionClassNode.new()
+		"SelectNode":
+			node = ExpressionSelectNode.new()
+		"SQLInputNode":
+			node = ExpressionSQLInputNode.new()
 		_:
 			assert(false, "Inner error expression.gd 2281.")
 	node.next = nodes
@@ -3007,11 +3036,23 @@ func _parse_expression() -> ExpressionENode:
 
 				#break
 			TokenType.TK_IDENTIFIER:
-				var identifier = _identifier_to_input_if_match(tk.value) # fix未判定identifier是input名称的问题
+				var err = [null]
+				var identifier = _identifier_to_input_if_match(tk.value, err) # fix未判定identifier是input名称的问题
+				if err[0]:
+					_set_error(err[0])
+					return null
 
 				var cofs = str_ofs
 				_get_token(tk)
 				if (tk.type == TokenType.TK_PARENTHESIS_OPEN) :
+					if identifier is ExpressionSelectNode:
+						_set_error("Un expected '('")
+						return null
+						
+					# 表名/字段名 后面跟一个左括号，说不通，所以还原为字符串
+					if identifier is ExpressionSQLInputNode:
+						identifier = tk.value
+						
 					# function call
 					var func_call = alloc_node('CallNode') as ExpressionCallNode
 					func_call.method = identifier
@@ -3237,6 +3278,10 @@ func _parse_expression() -> ExpressionENode:
 
 					if (identifier is ExpressionInputNode) :
 						expr = identifier
+					elif identifier is ExpressionSelectNode:
+						expr = identifier
+					elif identifier is ExpressionSQLInputNode:
+						expr = identifier
 					elif (has_utility_function(identifier)):
 						var callable = alloc_node('BuiltinFuncCallableNode')
 						callable._func = identifier
@@ -3433,6 +3478,7 @@ func _parse_expression() -> ExpressionENode:
 				TokenType.TK_PERIOD:
 					# named indexing or function call
 					_get_token(tk)
+					var tk_type = tk.type
 					if (tk.type != TokenType.TK_IDENTIFIER && tk.type != TokenType.TK_BUILTIN_FUNC) :
 						_set_error("Expected identifier after '.'")
 						return null
@@ -3443,9 +3489,13 @@ func _parse_expression() -> ExpressionENode:
 					var cofs = str_ofs
 					_get_token(tk)
 					if (tk.type == TokenType.TK_PARENTHESIS_OPEN) :
+						var err = [null]
 						# function call
 						var func_call = alloc_node('CallNode')
-						func_call.method = _identifier_to_input_if_match(identifier) # fix未判定identifier是input名称的问题 
+						func_call.method = _identifier_to_input_if_match(identifier, err) # fix未判定identifier是input名称的问题
+						if err[0]:
+							_set_error(err[0])
+							return null
 						func_call.base = expr
 
 						while (true) :
@@ -3471,6 +3521,7 @@ func _parse_expression() -> ExpressionENode:
 								str_ofs = cofs3
 							else:
 								_set_error("Expected ',' or ')'")
+								return null
 				
 			
 
@@ -3485,8 +3536,17 @@ func _parse_expression() -> ExpressionENode:
 						if sql_mode:
 							if expr is ExpressionInputNode:
 								index.base_name = input_names[expr.index]
+							elif expr is ExpressionSQLInputNode:
+								index.base_name = expr.name
+								expr.subname = identifier
 							elif expr is ExpressionNamedIndexNode:
 								index.base_name = expr.name
+								# 可能缺表的情况
+								if tk_type == TokenType.TK_IDENTIFIER and \
+								expr.base is ExpressionSelfNode and \
+								expr.base.possible_global_enum == false:
+									if not lack_input_names.has(expr.name):
+										lack_input_names.push_back(expr.name)
 						expr = index
 		
 
@@ -3500,7 +3560,13 @@ func _parse_expression() -> ExpressionENode:
 			if (done) :
 				break
 
-		
+		# 如果代表一个补充表中的字段，那么就可以把具体值计算出来
+		if expr is ExpressionSQLInputNode:
+			var err = [null]
+			expr.cal(sql_input_names, sql_inputs, err)
+			if err[0]:
+				_set_error(err[0])
+				return null
 
 		# push expression
 		if true:#{
@@ -3788,26 +3854,65 @@ func search_input_name_equal(node, input_name: String, sub_name: String, tree: D
 		OP_NOT: 'not',
 		OP_IN: 'in',
 	}
+	# 解析另一个操作数（在一个操作中，有两个操作数，外部已经确认其中一个是需要的字段，然后把另一个操作数传入来解析）
 	var parse_node = func(p_node):
 		if p_node is ExpressionNamedIndexNode:
-			return {
-				'base': input_names[p_node.base.index],
-				'name': p_node.name,
-				'index': '%s:%s' % [input_names[p_node.base.index], p_node.base.index]
-			}
-		if p_node is ExpressionInputNode:
-			if input_names[p_node.index] == sub_name:
+			if p_node.base is ExpressionInputNode:
+				# {
+				#    "base": "", # table alias
+				#    "name": "", # column name
+				#    "index": "", # (base或name).在input_names的位置，暂时没用
+				# }
 				return {
-					'base': input_name,
-					'name': sub_name,
-					'index': '%s:%s' % [sub_name, p_node.index],
+					'base': input_names[p_node.base.index],
+					'name': p_node.name,
+					'index': -1 # '%s:%s' % [input_names[p_node.base.index], p_node.base.index]
+				}
+			elif p_node.base is ExpressionSQLInputNode:
+				# 做为一个NamedIndexNode的base，怎么可能是一个常数呢
+				assert(not p_node.base.value_set, "Inner error 3855 in expression.gd")
+				return {
+					'base': p_node.base.name,
+					'name': p_node.name,
+					'index': -1 # '%s:-1' % p_node.base.name,
+				}
+			elif p_node.base is ExpressionNamedIndexNode:
+				return {
+					'base': p_node.base.base_name,
+					'name': p_node.name,
+					'index': -1 # '%s:-1' % p_node.base.base_name,
 				}
 			else:
+				assert(false, "Inner error 3830 in expression.gd") # 没考虑到的情况
+		if p_node is ExpressionInputNode:
+			return null # 无法确认该inputnode代表哪个表，返回null代表复杂情况
+		if p_node is ExpressionSQLInputNode:
+			if p_node.base.value_set:
+				return p_node.base.value # 返回一个常数（说明该节点代表一个补充表的字段）
+			# 非 补充表的字段 的情况（if 和 else都是）
+			if p_node.subname != "":
 				return {
-					'base': '',
-					'name': input_names[p_node.index],
-					'index': '%s:%s' % [input_names[p_node.index], p_node.index],
+					'base': p_node.name,
+					'name': p_node.subname,
+					'index': -1 # '%s:-1' % p_node.subname, # 随便吧，这个字段暂时没什么用
 				}
+			else:
+				# p_node.info的结构：
+				# [
+				#     true: 0,			# true表示x是一个普通表名
+				#     false: index,		# false表示x是一个补充表名（来自__input_names）
+				#     'y': 0,			# 字符串表示x是一个普通表y中的一个字段
+				#     N: 0,				# 整数表示x是一个补充表中的一个字段，N表示该表在__input_names中的位置
+				# ]
+				for k in p_node.info:
+					if k is String:
+						return {
+							'base': k,
+							'name': p_node.name,
+							'index': -1 # '%s:-1' % p_node.name,
+						}
+				return null # 复杂情况
+				
 		if all_constant_node(p_node):
 			var ret = [null]
 			var err = []
@@ -3833,28 +3938,54 @@ func search_input_name_equal(node, input_name: String, sub_name: String, tree: D
 			if node.nodes[1].index == input_index or node.nodes[1].index == sub_index:
 				tree['r' + op_names[node.op]] = parse_node.call(node.nodes[0])
 				dealed = true
+		if not dealed and node.nodes[0] is ExpressionSQLInputNode and not node.nodes[0].value_set:
+			if node.nodes[0].name == input_name and node.nodes[0].subname == sub_name:
+				tree[op_names[node.op]] = parse_node.call(node.nodes[1])
+				dealed = true
+			if not dealed and node.nodes[0].info.has(input_name) and node.nodes[0].name == sub_name:
+				if node.nodes[0].subname == "":
+					tree[op_names[node.op]] = parse_node.call(node.nodes[1])
+					dealed = true
+				else:
+					tree[op_names[node.op]] = null # null表示复杂情况，比如对字段的值做了属性调用
+					dealed = true
+		if not dealed and node.nodes[1] is ExpressionSQLInputNode and not node.nodes[1].value_set:
+			if node.nodes[1].name == input_name and node.nodes[1].subname == sub_name:
+				tree[op_names[node.op]] = parse_node.call(node.nodes[0])
+				dealed = true
+			if not dealed and node.nodes[1].info.has(input_name) and node.nodes[1].name == sub_name:
+				if node.nodes[1].subname == "":
+					tree[op_names[node.op]] = parse_node.call(node.nodes[0])
+					dealed = true
+				else:
+					tree[op_names[node.op]] = null # null表示复杂情况，比如对字段的值做了属性调用
+					dealed = true
 		if not dealed and node.nodes[0] is ExpressionNamedIndexNode:
-			if node.nodes[0].base.index == input_index and node.nodes[0].name == sub_name:
+			if node.nodes[0].base is ExpressionInputNode and \
+			node.nodes[0].base.index == input_index and node.nodes[0].name == sub_name:
 				tree[op_names[node.op]] = parse_node.call(node.nodes[1])
 				dealed = true
 			if not dealed and node.nodes[1] is ExpressionNamedIndexNode:
-				if node.nodes[1].base.index == input_index and node.nodes[1].name == sub_name:
+				if node.nodes[1].base is ExpressionInputNode and \
+				node.nodes[1].base.index == input_index and node.nodes[1].name == sub_name:
 					# 'r'表示操作数是反着的，比如：t.id > 1，符号是'>'，而1 > t.id，符号是'r>'
 					tree['r' + op_names[node.op]] = parse_node.call(node.nodes[0])
 					dealed = true
 		if not dealed and node.nodes[1] is ExpressionNamedIndexNode:
-			if node.nodes[1].base.index == input_index and node.nodes[1].name == sub_name:
+			if node.nodes[1].base is ExpressionInputNode and \
+			node.nodes[1].base.index == input_index and node.nodes[1].name == sub_name:
 				tree['r' + op_names[node.op]] = parse_node.call(node.nodes[0])
 				dealed = true
 			if not dealed and node.nodes[0] is ExpressionNamedIndexNode:
-				if node.nodes[0].base.index == input_index and node.nodes[0].name == sub_name:
+				if node.nodes[0].base is ExpressionInputNode and \
+				node.nodes[0].base.index == input_index and node.nodes[0].name == sub_name:
 					tree['r' + op_names[node.op]] = parse_node.call(node.nodes[1])
 					dealed = true
 		if not dealed:
 			# 检查这个分支和要查的字段有没有关系，如果有关系，设置为null，没有关系，就把这个操作忽略
 			if contains_input_name(node.nodes[0], input_name, sub_name) or \
 			contains_input_name(node.nodes[1], input_name, sub_name):
-				tree['r' + op_names[node.op]] = null
+				tree['r' + op_names[node.op]] = null # null表示复杂情况
 				
 func contains_input_name(p_node, input_name: String, sub_name: String) -> bool:
 	match (p_node.type) :
@@ -3947,6 +4078,39 @@ func contains_input_name(p_node, input_name: String, sub_name: String) -> bool:
 					return true
 					
 			return false
+		ExpressionENode.Type.TYPE_SQL_SELECT:
+			var select = p_node as ExpressionSelectNode
+			if select.value and select.value is QueryResult:
+				if select.value.get_lack_tables().has(input_name):
+					return true
+				return false
+			if select.expression:
+				return select.expression.contains_input_name(
+					select.expression.root, input_name, sub_name)
+			assert(false, "Inner error 3996 in expression.gd") # 没考虑到的情况？
+			return false
+		ExpressionENode.Type.TYPE_SQL_INPUT:
+			var input = p_node as ExpressionSQLInputNode
+			if input.value_set:
+				return false
+			# input.info结构：
+			#     [
+			#         true: 0,			# true表示x是一个普通表名
+			#         false: index,		# false表示x是一个补充表名（来自BaseDao的__input_names）
+			#         'y': 0,			# 字符串表示x是一个普通表y中的一个字段
+			#         N: 0,				# 整数表示x是一个补充表中的一个字段，N表示该表在__input_names中的位置
+			#     ]
+			if input.name == input_name:
+				if input.subname == sub_name:
+					return true
+				elif input.subname == "":
+					if input.info.has(true):
+						return true
+			if input.name == sub_name:
+				for k in input.info:
+					if k is String and k == input_name:
+						return true
+			return false
 	return false
 	
 func all_constant_node(p_node):
@@ -4028,6 +4192,14 @@ func all_constant_node(p_node):
 				if (not ret):
 					return false
 					
+			return true
+		ExpressionENode.Type.TYPE_SQL_SELECT:
+			var select = p_node as ExpressionSelectNode
+			if select.value and select.value is QueryResult:
+				return true
+			if select.expression:
+				return select.expression.all_constant_node(select.expression.root)
+			assert(false, "Inner error 4042 in expression.gd") # 没考虑到的情况？
 			return true
 	assert(false, "Inner error 4063 in expression.gd") # 没考虑到的情况？
 	return false
@@ -4111,9 +4283,99 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				if sql_mode and (b[0] == null or b[0] is AggregateFunctions):
 					r_ret[0] = b[0]
 					return false
-	
-
-
+					
+			if sql_mode and (a[0] is QueryResult or b[0] is QueryResult):
+				# Any row contains null make the final result a null
+				# NOTICE Bad for discover possible error so comment these codes.
+				#if a[0] is QueryResult:
+					#for row in a[0].get_data():
+						#for i in row:
+							#if i == null:
+								#r_ret[0] = null
+								#return false
+				#if b[0] is QueryResult:
+					#for row in b[0].get_data():
+						#for i in row:
+							#if i == null:
+								#r_ret[0] = null
+								#return false
+				match op.op:
+					OP_EQUAL, OP_NOT_EQUAL:
+						if a[0] is QueryResult and b[0] is QueryResult and \
+						a[0].get_columns_count() != b[0].get_columns_count():
+							r_error_str[0] = tr("Operand should contain %d column(s)" % 
+								a[0].get_columns_count())
+							return true
+						var a_and_b = [a, b]
+						for i in 2:
+							var c = a_and_b[0]
+							var d = a_and_b[1]
+							if c[0] is QueryResult:
+								if d[0] is QueryResult:
+									c[0] = c[0].get_data()
+									d[0] = d[0].get_data()
+								elif d[0] is Array:
+									if d[0].is_empty():
+										# 当数据集为空时，也算该数据集等于一个空数组;
+										# 当数据集不为空时，随便c[0].get_data()是什么值，
+										# 都不会影响OP_EQUAL、OP_NOT_EQUAL的判断结果
+										c[0] = c[0].get_data()
+									# WARNING 从使用习惯上来说，d[0][0]和c[0]大概率是
+									# 一个字段的数据进行比较，那么把二维数组转为一维数组。
+									# 当然，这个假设是有漏洞的，但是确实没有办法覆盖所有场景。
+									# 但是用户可以通过调用QueryResult的方法来规避不明确的问题，
+									# 比如：[[1, "peter"], [2, "tom"]] == (select * from UserData.t_user).get_data()
+									# 来比较二维数组。
+									# 比如：[1, 2, 3] == (select * from UserData.t_user).get_column(0, []).sort()
+									# 来比较一维数组。
+									else:
+										var rows = c[0].get_data()
+										if rows.is_empty():
+											c[0] = rows
+										elif rows[0].size() != 1:
+											r_error_str[0] = tr("Subquery returns more than 1 column.")
+											return true
+										else:
+											c[0] = c[0].get_column(0)
+								else:
+									if _deal_query_result(c, r_error_str):
+										return true
+								break
+							else:
+								a_and_b.reverse()
+								
+					OP_LESS, OP_LESS_EQUAL, OP_GREATER, OP_GREATER_EQUAL, \
+					OP_ADD, OP_SUBTRACT, OP_MULTIPLY, OP_DIVIDE, OP_MODULE, \
+					OP_POWER, OP_SHIFT_LEFT, OP_SHIFT_RIGHT, OP_BIT_AND, \
+					OP_BIT_OR, OP_BIT_XOR, OP_BIT_NEGATE, OP_AND, OP_OR:
+						var a_and_b = [a, b]
+						for i in a_and_b.size():
+							if a_and_b[i][0] is QueryResult and _deal_query_result(a_and_b[i], r_error_str):
+								return true
+					OP_IN:
+						if a[0] is QueryResult and b[0] is QueryResult and \
+						a[0].get_columns_count() != b[0].get_columns_count():
+							r_error_str[0] = tr("Operand should contain %d column(s)" % 
+								a[0].get_columns_count())
+							return true
+						elif a[0] is QueryResult:
+							if a[0].get_columns_count() != 1:
+								r_error_str[0] = tr("Operand should contain 1 column.")
+								return true
+							a[0] = a[0].get_column(0, [])
+						elif b[0] is QueryResult:
+							if b[0].get_columns_count() != 1:
+								r_error_str[0] = tr("Operand should contain 1 column.")
+								return true
+							b[0] = b[0].get_column(0, [])
+					OP_NEGATE, OP_POSITIVE, OP_BIT_NEGATE, OP_NOT:
+						if a[0] is QueryResult and _deal_query_result(a, r_error_str):
+							return true
+					OP_XOR: # 逻辑异或运算符（未在 GDScript 中实现）
+						pass
+					_: # 其他运算符，在下面进行拦截，这里不拦截了
+						pass
+						
 			var valid = true
 			#evaluate(op.op, a[0], b[0], r_ret, valid)
 			match op.op:
@@ -4402,7 +4664,9 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 			if sql_mode and (base[0] == null or base[0] is AggregateFunctions):
 				r_ret[0] = base[0]
 				return false
-
+				
+			if sql_mode and base[0] is QueryResult and _deal_query_result(base, r_error_str):
+				return true
 
 			var idx = [null]
 
@@ -4415,6 +4679,9 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				return false
 
 
+			if sql_mode and idx[0] is QueryResult and _deal_query_result(idx, r_error_str):
+				return true
+				
 			#var valid
 			#r_ret[0] = base[0].get(idx[0], valid) # base.get(idx, &valid)
 			#if (!valid) :
@@ -4438,6 +4705,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 					r_error_str[0] = 'Only "String" or "StringName" can be used as index for type "%s", but received "%s"' % [_get_var_type(base[0]), type_string(typeof(idx[0]))]
 					return true
 			else:
+				push_warning("Unrecognized type: %s in 4732 in expression.gd" % typeof(idx[0]))
 				var idxstr = var_to_str(idx[0])
 				var ex_key = "a[" + idxstr + "]"
 				var ex = EXPRESSION_CACHE.get_value(ex_key)
@@ -4467,9 +4735,13 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 			if sql_mode and (base[0] == null or base[0] is AggregateFunctions):
 				r_ret[0] = base[0]
 				return false
+				
+			if sql_mode and base[0] is QueryResult and _deal_query_result(base, r_error_str):
+				return true
 
 
 			var named_index = [index.name]
+			# NOTICE Discard the idea that index.name may not be a String/StringName.
 			## fix index.name is an input node
 			#if named_index[0] is ExpressionENode:
 				#ret = _execute(p_inputs, p_instance, index.name, named_index, p_const_calls_only, r_error_str)
@@ -4477,9 +4749,9 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 					#return true
 				#named_index[0] = input_names[named_index[0]]
 				
-			if sql_mode and (named_index[0] == null or named_index[0] is AggregateFunctions):
-				r_ret[0] = named_index[0]
-				return false
+			#if sql_mode and (named_index[0] == null or named_index[0] is AggregateFunctions):
+				#r_ret[0] = named_index[0]
+				#return false
 				
 			#var valid
 			#r_ret[0] = base[0].get_named(index.name, valid)
@@ -4491,18 +4763,25 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 					if named_index[0] in (base[0] as Object):
 						r_ret[0] = (base[0] as Object).get(named_index[0])
 					else:
-						r_error_str[0] = "Invalid access to property or key '" + named_index[0] + "' on a base object of type '" + _get_var_type(base[0]) + "'."
+						r_error_str[0] = tr("Invalid access to property or key '%s' on a base object of type '%s'.") % [
+							named_index[0], _get_var_type(base[0])]
 						return true
 				else:
-					r_error_str[0] = 'Only "String" or "StringName" can be used as index for type "%s", but received "%s"' % [_get_var_type(base[0]), type_string(typeof(named_index[0]))]
+					r_error_str[0] = tr('Only "String" or "StringName" can be used as index for type "%s", but received "%s"') % [
+						_get_var_type(base[0]), type_string(typeof(named_index[0]))]
 					return true
 			elif base[0] is Dictionary:
 				if base[0].has(named_index[0]):
 					r_ret[0] = base[0].get(named_index[0])
 				else:
-					r_error_str[0] = "Invalid access to property or key '" + named_index[0] + "' on a base object of type '" + _get_var_type(base[0]) + "'."
+					if index.base is ExpressionSQLInputNode:
+						r_error_str[0] = tr("Unknown column: %s.%s in expression: %s") % [index.base.name, index.name, expression]
+					else:
+						r_error_str[0] = tr("Invalid access to property or key '%s' on a base object of type '%s'.") % [
+							named_index[0], _get_var_type(base[0])]
 					return true
 			else:
+				push_warning("Unrecognized type: %s in 4782 in expression.gd" % typeof(base[0]))
 				var ex_key = "a." + named_index[0]
 				var ex = EXPRESSION_CACHE.get_value(ex_key)
 				if not ex:
@@ -4532,7 +4811,10 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 
 				if (ret) :
 					return true
-	
+					
+				if sql_mode and value[0] is QueryResult and _deal_query_result(value, r_error_str):
+					return true
+					
 				arr[i] = value[0]
 
 
@@ -4550,12 +4832,16 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				if (ret) :
 					return true
 	
+				if sql_mode and key[0] is QueryResult and _deal_query_result(key, r_error_str):
+					return true
 
 				var value = [null]
 				ret = _execute(p_inputs, p_instance, dictionary.dict[i + 1], value, p_const_calls_only, r_error_str)
 				if (ret) :
 					return true
-	
+
+				if sql_mode and value[0] is QueryResult and _deal_query_result(value, r_error_str):
+					return true
 
 				d[key[0]] = value[0]
 
@@ -4580,7 +4866,10 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				if sql_mode and (value[0] == null or value[0] is AggregateFunctions):
 					r_ret[0] = value[0]
 					return false
-				
+
+				if sql_mode and value[0] is QueryResult and _deal_query_result(value, r_error_str):
+					return true
+					
 				arr[i] = value[0]
 				#argp[i] = arr[i] # argp.write[i] = &arr[i];
 
@@ -4872,6 +5161,9 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 					r_ret[0] = value[0]
 					return false
 					
+				if sql_mode and value[0] is QueryResult and _deal_query_result(value, r_error_str):
+					return true
+					
 				arr[i] = value[0]
 				#argp[i] = arr[i] # argp.write[i] = &arr[i];
 
@@ -4918,6 +5210,9 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 			if sql_mode and base[0] == null:
 				r_ret[0] = null
 				return false
+				
+			if sql_mode and base[0] is QueryResult and _deal_query_result(base, r_error_str):
+				return true
 
 
 			var arr = []
@@ -4936,7 +5231,10 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 					if not base[0] is AggregateFunctions:
 						r_ret[0] = value[0]
 						return false
-	
+						
+				if sql_mode and value[0] is QueryResult and _deal_query_result(value, r_error_str):
+					return true
+					
 				arr.push_back(value[0])
 				#argp[i] = arr[i] # argp.write[i] = &arr[i]
 
@@ -4947,6 +5245,9 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				ret = _execute(p_inputs, p_instance, _call.method, method, p_const_calls_only, r_error_str)
 
 				if (ret):
+					return true
+					
+				if sql_mode and method[0] is QueryResult and _deal_query_result(method, r_error_str):
 					return true
 					
 			# support group_concat
@@ -4973,7 +5274,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 					elif i is ExpressionConstructorNode:
 						param.push_back(1) # ALERT not support actually
 					else:
-						r_error_str[0] = "Not support this: '%s' in group_concat" % i
+						r_error_str[0] = tr("Not support this: '%s' in group_concat") % i
 						return true
 				arr.push_back(param)
 				
@@ -4990,10 +5291,96 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 
 
 			#break
-	
+		ExpressionENode.Type.TYPE_SQL_SELECT:
+			var select = p_node as ExpressionSelectNode
+			
+			if select.value and select.value is QueryResult:
+				r_ret[0] = select.value
+			elif select.expression:
+				var ret = select.expression._execute(p_inputs, p_instance, 
+					select.expression.root, r_ret, p_const_calls_only, r_error_str)
+				if (ret) :
+					return true
+			else:
+				r_error_str[0] = tr("Inner error %s in expression.gd") % 5305
+				return true
+				
+		ExpressionENode.Type.TYPE_SQL_INPUT:
+			var input_node = p_node as ExpressionSQLInputNode
+			
+			# 满足`补充表名.字段`的形式
+			if input_node.value_set:
+				r_ret[0] = input_node.value
+				return false
+				
+			# sql_input_names的结构：
+			# {
+			#     'x': [
+			#         true: 0,			# true表示x是一个普通表名
+			#         false: index,		# false表示x是一个补充表名（来自__input_names）
+			#         'y': 0,			# 字符串表示x是一个普通表y中的一个字段
+			#         N: 0,				# 整数表示x是一个补充表中的一个字段，N表示该表在__input_names中的位置
+			#     ]
+			# }
+			if input_node.subname == "":
+				# 满足`普通表名.字段`的形式
+				for k in input_node.info:
+					if k is String:
+						r_ret[0] = sql_inputs[0][k][input_node.name] # 这里就不检查ambigious了，parse的时候检查过了
+						return false
+				r_error_str[0] = tr("Unknown column: %s in expression: %s") % [input_node.name, expression]
+				return true
+			else:
+				# 优先满足`普通表名.字段`的形式
+				for k in input_node.info:
+					if k is bool and k:
+						if sql_inputs[0][k].has(input_node.subname):
+							r_ret[0] = sql_inputs[0][k]
+							return false
+						else:
+							break
+				# 其次满足`补充表名.字段`的形式 NOTICE parse的时候已经处理过了，跳过
+				# 再次满足`普通表名`的形式
+				for k in input_node.info:
+					if k is bool and k:
+						r_ret[0] = sql_inputs[0][k]
+						return false
+				# 最后满足`补充表名`的形式
+				for k in input_node.info:
+					if k is bool and not k:
+						r_ret[0] = sql_inputs[1][input_node.info[k]]
+						return false
+				r_error_str[0] = tr("Unknown column: %s.%s in expression: %s") % [
+					input_node.name, input_node.subname, expression]
+				return true
+				
 	return false
 
+## 把QueryResult返回成一个具体的元素
+func _deal_query_result(res: Array, r_error_str: Array) -> bool:
+	var rows = res[0].get_data()
+	if rows.is_empty():
+		res[0] = null
+		return false
+	elif rows[0].size() != 1:
+		r_error_str[0] = tr("Subquery returns more than 1 column.")
+		return true
+	elif rows.size() > 1:
+		r_error_str[0] = tr("Subquery returns more than 1 row.")
+		return true
+	else:
+		res[0] = rows[0][0]
+		return false
 
+func set_sql_input_names(p_input_names: Dictionary):
+	sql_input_names = p_input_names
+
+func set_sql_inputs(p_inputs: Array):
+	sql_inputs = p_inputs
+	
+func set_nested_sql_queries(p_nested_sql_queries: Dictionary):
+	nested_sql_queries = p_nested_sql_queries
+	
 func parse(p_expression, p_input_names = []) -> Error:
 	if (nodes) :
 		#memdelete(nodes)
@@ -5006,22 +5393,22 @@ func parse(p_expression, p_input_names = []) -> Error:
 	str_ofs = 0
 	input_names = p_input_names
 
-	#for i in p_input_names:
-		#if not (i is String or i is StringName):
-			#_set_error("input_names must contain only String or StringName")
-			#return ERR_INVALID_PARAMETER
-		#if _is_global_enum_or_flag(i):
-			#_set_error("input_names contains a global enum: " + i)
-			#return ERR_INVALID_PARAMETER
-		#if _is_class(i):
-			#_set_error("input_names contains a Class name: " + i)
-			#return ERR_INVALID_PARAMETER
-		#if has_utility_function(i):
-			#_set_error("input_names contains a builtin function: " + i)
-			#return ERR_INVALID_PARAMETER
-		#if ["in", "null", "true", "false", "PI", "TAU", "INF", "NAN", "not", "or", "and"].has(i):
-			#_set_error("input_names contains a keyword: " + i)
-			#return ERR_INVALID_PARAMETER
+	for i in p_input_names:
+		if not (i is String or i is StringName):
+			_set_error("input_names must contain only String or StringName")
+			return ERR_INVALID_PARAMETER
+		if _is_global_enum_or_flag(i):
+			_set_error("input_names contains a global enum: " + i)
+			return ERR_INVALID_PARAMETER
+		if _is_class(i):
+			_set_error("input_names contains a Class name: " + i)
+			return ERR_INVALID_PARAMETER
+		if has_utility_function(i):
+			_set_error("input_names contains a builtin function: " + i)
+			return ERR_INVALID_PARAMETER
+		if ["in", "null", "true", "false", "PI", "TAU", "INF", "NAN", "not", "or", "and"].has(i):
+			_set_error("input_names contains a keyword: " + i)
+			return ERR_INVALID_PARAMETER
 			
 	expression = p_expression
 	root = _parse_expression()
@@ -5043,6 +5430,7 @@ func execute(p_inputs: Array = [], p_base: Object = null, p_show_error = true, p
 		push_error("There was previously a parse error: " + error_str + ".")
 		return null
 
+	show_error = p_show_error
 	execution_error = false
 	var output = [null]
 	var error_txt = [null]
@@ -5110,19 +5498,49 @@ func _is_class(p_name) -> bool:
 				
 	return false
 
-func _identifier_to_input_if_match(identifier):
-	var input_index = -1
-	for i in input_names.size():
-		if (input_names[i] == identifier) :
-			input_index = i
-			break
+func _identifier_to_input_if_match(identifier, r_err: Array):
+	var input_index = input_names.find(identifier)
+	#for i in input_names.size():
+		#if (input_names[i] == identifier) :
+			#input_index = i
+			#break
 			
 	if (input_index != -1) :
 		var input = alloc_node('InputNode')
 		input.index = input_index
 		identifier = input
+	elif sql_mode:
+		if sql_input_names.has(identifier):
+			var input = alloc_node('SQLInputNode')
+			input.name = identifier
+			input.info = sql_input_names[identifier]
+			identifier = input
+		elif nested_sql_queries.has(identifier):
+			var input = alloc_node("SelectNode")
+			input.sql_input_names = sql_input_names
+			input.sql_inputs = sql_inputs
+			input.info = nested_sql_queries[identifier]
+			input.cal(r_err)
+			identifier = input
+			
 	return identifier
-
+	
+static func is_expression_e_node(obj) -> bool:
+	return obj is ExpressionENode
+	
+static func is_none_const_expression_e_node(obj, r_ret: Array) -> bool:
+	if obj is ExpressionSelectNode:
+		if obj.value is QueryResult:
+			r_ret[0] = obj.value
+			return false
+		return true
+	if obj is ExpressionSQLInputNode:
+		if obj.value_set:
+			r_ret[0] = obj.value
+			return false
+		return true
+	return obj is ExpressionENode
+	
 class ExpressionInput extends RefCounted:
 	var type: int = TYPE_NIL
 	var name: String
@@ -5147,6 +5565,8 @@ class ExpressionENode extends RefCounted:
 		TYPE_BUILTIN_FUNC_CALLABLE, # 函数本身
 		TYPE_CLASS, # 类名
 		TYPE_CALL,
+		TYPE_SQL_SELECT,
+		TYPE_SQL_INPUT,
 	}
 
 	var next: ExpressionENode
@@ -5260,6 +5680,137 @@ class ExpressionClassNode extends ExpressionENode:
 	func _init() -> void:
 		type = ExpressionENode.Type.TYPE_CLASS
 
+class ExpressionSelectNode extends ExpressionENode:
+	var sql_input_names: Dictionary
+	var sql_inputs: Array
+	var info # QueryResult / {"sql": String, ___Rep0___: QueryResult, ___Rep1___: {"sql": String, ...}
+	var value
+	var expression: GDSQLExpression
+	
+	func _init() -> void:
+		type = ExpressionENode.Type.TYPE_SQL_SELECT
+		
+	func cal(r_error_str: Array):
+		# expression like: 1 == (___Rep1___), not like : select * from xxx where 1 == (___Rep1___)
+		#if info is String:
+			#if info.length() > 6 and info.countn("select", 0, 6) and info[6].strip_edges() == "":
+				#assert(false, "Inner error 5447 in expression.gd.")
+			#expression = GDSQLExpression.new()
+			#expression.sql_mode = true
+			#expression.parse(info, base_input_names)
+		# QueryResult
+		if info is QueryResult:
+			value = info
+		# Dictionary
+		elif info is Dictionary:
+			# info's structure like:
+			# {
+			#     sql: select id from UserData.t_user where create_time == (___Rep1___)
+			#     ___Rep1___: QueryResult
+			# }
+			var reps = info.duplicate()
+			reps.erase("sql")
+			# 如果是select开头的嵌套查询，就不能用expression
+			if info.sql.length() > 6 and info.sql.countn("select", 0, 6) and \
+			info.sql[6].strip_edges() == "":
+				var input_names = [] # 补充表名
+				var inputs = [] # 补充数据
+				# sql_input_names 的结构：
+				# {
+				#     'x': [
+				#         true: 0,			# true表示x是一个普通表名
+				#         false: index,		# false表示x是一个补充表名（来自__input_names）
+				#         'y': 0,			# 字符串表示x是一个普通表y中的一个字段
+				#         N: 0,				# 整数表示x是一个补充表中的一个字段，N表示该表在__input_names中的位置
+				#     ]
+				# }
+				for t in sql_input_names:
+					if sql_input_names[t].has(true):
+						input_names.push_back(t)
+						inputs.push_back(sql_inputs[0][t])
+					if sql_input_names[t].has(false):
+						if not input_names.has(t): # 优先级低于普通表名
+							input_names.push_back(t)
+							inputs.push_back(sql_inputs[1][sql_input_names[t][false]])
+					# NOTICE 不管字段，因为inputs里包含了字段的数据，在子查询dao里，会自己重新构造input_names结构
+					
+				# 如果涉及其他表的数据，现在不能query怎么办？
+				# 比如 select * from t where t.id == a.id，
+				# 这里的办法是QueryResult增加lack_tables属性。
+				var dao = SQLParser.parse_to_dao(info.sql)
+				dao.set_collect_lack_table_mode(true)
+				dao.set_need_head(false)
+				dao.set_input_names(input_names)
+				dao.set_inputs(inputs)
+				dao.set_sub_queries(reps)
+				value = dao.query()
+				
+				if value == null or not value.ok():
+					r_error_str[0] = tr("Error occur in subquery: %s") % \
+						info.sql if value == null else value.get_err()
+			# info.sql类似：1 + (__Rep0__)
+			else:
+				expression = GDSQLExpression.new()
+				expression.sql_mode = true
+				expression.set_sql_input_names(sql_input_names)
+				expression.set_sql_inputs(sql_inputs)
+				expression.set_nested_sql_queries(reps)
+				expression.parse(info.sql)
+		else:
+			r_error_str[0] = tr("Inner error %s in expression.gd") % 5479 # 没考虑到的情况？
+			
+class ExpressionSQLInputNode extends ExpressionENode:
+	var name: String
+	var subname: String # 可能存在
+	var info: Dictionary
+	var value # 当属于补充表的字段时，其实可以当作一个常量
+	var value_set: bool = false
+	
+	func _init() -> void:
+		type = ExpressionENode.Type.TYPE_SQL_INPUT
+		
+	## 该函数的目标是：判断该节点是否代表一个补充表中的字段，这样就能设置value为一个常数
+	func cal(sql_input_names: Dictionary, sql_inputs: Array, r_error_str: Array):
+		if subname == "":
+			# 优先满足`普通表名.字段`的形式
+			var flag = false
+			for k in sql_input_names[name]:
+				if k is String:
+					if not flag:
+						flag = true
+					else:
+						r_error_str[0] = tr("Ambigious column: %s") % name
+						return
+			if flag:
+				return # 不能当常量，因为跟每一行的数据有关系，所以不设置value
+				
+			# 其次满足`补充表名.字段`的形式
+			for k in sql_input_names[name]:
+				if k is int:
+					if not value_set:
+						value = sql_inputs[1][k]
+						value_set = true
+					else:
+						r_error_str[0] = tr("Ambigious column: %s") % name
+						return
+		else:
+			# 优先满足`普通表名.字段`的形式
+			for k in sql_input_names[name]:
+				if k is bool and k:
+					if sql_inputs[0][k].has(subname):
+						return
+					else:
+						break
+			# 其次满足`补充表名.字段`的形式
+			for k in sql_input_names[name]:
+				if k is bool and not k:
+					if sql_inputs[1][sql_input_names[name][k]].has(subname):
+						value = sql_inputs[1][sql_input_names[name][k]]
+						value_set = true
+						return
+					else:
+						break
+						
 class ExpressionCacheNode extends RefCounted:
 	var key: String
 	var value: Variant

@@ -7,8 +7,11 @@ class_name ConditionWrapper
 #static var regex_3: RegEx
 
 var _cond: String
+var _sql_input_names: Dictionary
+var _nested_query: Dictionary
 var _and_wrapper: ConditionWrapper
 var _or_wrapper: ConditionWrapper
+var _lacking_tables: Array
 
 #static func _static_init() -> void:
 	## 匹配xxx.yyy这种格式，并且不在双引号内
@@ -49,49 +52,52 @@ var _or_wrapper: ConditionWrapper
 
 ## 设置条件
 ## a_cond：条件，比如：age >= 20，比如：a.id == b.id
-func cond(a_cond: String) -> ConditionWrapper:
+func cond(a_cond: String, sql_input_names: Dictionary = {}, nested_query: Dictionary = {}) -> ConditionWrapper:
 	_cond = a_cond
+	_sql_input_names = sql_input_names
+	_nested_query.clear()
+	_nested_query.merge(nested_query, true)
 	return self
 	
 ## 对条件进行判定
-## datas: 包含判定所需要的数据，键是表名或别名，值是该表对应的一条数据
-func check(datas: Dictionary):
+## datas: 包含判定所需要的数据，第一个元素是普通表数据（键是表名或别名，值是该表对应的一条数据），第二个元素是补充表
+func check(datas: Array):
 	# 需要check自身以及and、or的条件
 	var ret = true
 	if _cond:
-		var variable_names = []
-		var variable_values = []
-		
-		var is_single_table = datas.size() == 1 # 该行数据只有一个表的意思
-		for key: String in datas:
-			if key != "" and key.is_valid_identifier():
-				variable_names.push_back(key)
-				variable_values.push_back(datas[key])
-			#_cond = ConditionWrapper.modify_dot_to_get(_cond)
+		ret = GDSQLUtils.evaluate_command_with_sql_expression(null, _cond, 
+			[], [], _sql_input_names, datas, _nested_query, _lacking_tables)
+		if not _lacking_tables.is_empty():
+			return null
 			
-			# 还要考虑field不是用的t.xxx而是直接用的xxx的结构该怎么办
-			# 联表时一般select的字段习惯上都会使用`别名.字段`这种形式，所以只考虑单表的情况
-			# 单表查询，我们除了按dictionary传给variable_names，也按每个字段传给variable_names
-			# 但是还是有缺点，就是字段名称和表别名重名了（概率小），另一个就是字段名称使用了Godot函数名称，导致函数名称被替换了（用户需要注意）
-			if is_single_table:
-				for f: String in datas[key]:
-					if f != "" and f.is_valid_identifier():
-						variable_names.push_back(f) # 祈祷字段名称和表名以及用户使用的函数名称不一样吧……
-						variable_values.push_back(datas[key][f])
-						
-		ret = GDSQLUtils.evaluate_command(null, _cond, variable_names, variable_values)
+		if ret is QueryResult:
+			var rows = ret.get_data()
+			if rows.is_empty():
+				ret = false
+			elif rows.size() > 1:
+				assert(false, "Subquery [%s] returns more than 1 row." % _cond)
+			elif rows[0].size() > 1:
+				assert(false, "Subquery [%s] returns more than 1 column." % _cond)
+			else:
+				ret = bool(rows[0][0])
 		assert(typeof(ret) == TYPE_BOOL, "check failed! cond:%s" % _cond)
 		
 	# and / or
 	if _and_wrapper:
 		if !ret:
 			return false
-		return _and_wrapper.check(datas)
+		ret = _and_wrapper.check(datas)
+		if not _and_wrapper.get_lacking_tables().is_empty():
+			_lacking_tables.append_array(_and_wrapper.get_lacking_tables())
+		return ret
 		
 	if _or_wrapper:
 		if ret:
 			return true
-		return _or_wrapper.check(datas)
+		ret = _or_wrapper.check(datas)
+		if not _or_wrapper.get_lacking_tables().is_empty():
+			_lacking_tables.append_array(_or_wrapper.get_lacking_tables())
+		return ret
 		
 	return ret
 	
@@ -108,3 +114,7 @@ func or_(wrapper: ConditionWrapper) -> ConditionWrapper:
 	assert(_or_wrapper == null, "already set an `or` wrapper")
 	_or_wrapper = wrapper
 	return self
+	
+## 缺少的表
+func get_lacking_tables():
+	return _lacking_tables

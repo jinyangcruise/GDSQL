@@ -10,10 +10,10 @@ var __condition: String = "" ## 【外部请勿使用】联表查询条件
 #var __dependencies: Array = [] ## 依赖的表
 var __left_join: LeftJoin ## 【外部请勿使用】后续的联表对象（单纯的前后顺序关系，与__condition无关）
 
-static var regex = RegEx.new()
+#static var regex = RegEx.new()
 
-static func _static_init() -> void:
-	regex.compile("(\\b[0-9a-zA-Z_]+\\b)\\.[0-9a-zA-Z_\\-]+")
+#static func _static_init() -> void:
+	#regex.compile("(\\b[0-9a-zA-Z_]+\\b)\\.[0-9a-zA-Z_\\-]+")
 	
 func set_db(database: String):
 	__database = database
@@ -51,14 +51,14 @@ func get_condition() -> String:
 #func set_dependencies(dependencies: Array):
 	#__dependencies = dependencies
 	
-func get_dependencies() -> Dictionary:
-	var dependencies = [] # 依赖的表
-	var matchs = regex.search_all(__condition)
-	for i in matchs:
-		var t = i.get_string(1)
-		if t != __table_alias and !dependencies.has(t):
-			dependencies.push_back(t)
-	return {__table_alias: dependencies}
+#func get_dependencies() -> Dictionary:
+	#var dependencies = [] # 依赖的表
+	#var matchs = regex.search_all(__condition)
+	#for i in matchs:
+		#var t = i.get_string(1)
+		#if t != __table_alias and !dependencies.has(t):
+			#dependencies.push_back(t)
+	#return {__table_alias: dependencies}
 	
 func set_left_join(left_join: LeftJoin):
 	__left_join = left_join

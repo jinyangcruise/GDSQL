@@ -11,7 +11,14 @@ var _has_head = true
 ## 自增键的值插入后记录一下
 var _generated_keys = {}
 var _cost_time: float
+var _lack_tables
 
+func lack_data() -> bool:
+	return _lack_tables != null
+	
+func get_lack_tables() -> Array:
+	return _lack_tables if _lack_tables != null else []
+	
 func ok() -> bool:
 	return _err is int and _err == OK
 	

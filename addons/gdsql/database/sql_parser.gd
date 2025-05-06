@@ -411,6 +411,89 @@ static func restore(s: String, map: Dictionary) -> String:
 		s = s.replace(k, map[k])
 	return s
 	
+## 可能的返回值：
+## 0. String
+## 1. QueryResult
+## 2. {"sql": String(expression), ___Rep0___: QeuryResult, ___Rep1___: {"sql": String, ...}}
+static func replace_nested_sql_expression(expression: String, sql_input_names: Dictionary = {}, sql_inputs: Array = []):
+	var dp = deep_prepare_sql(expression)
+	if dp.is_empty():
+		return expression
+	var ret = _simplify_expression(dp, sql_input_names, sql_inputs)
+	return ret
+	
+static func _simplify_expression(info, sql_input_names: Dictionary = {}, sql_inputs: Array = []):
+	if info is String:
+		if info.length() > 6 and info.countn("select", 0, 6) > 0 and info[6].strip_edges() == "":
+			var input_names = [] # 补充表名
+			var inputs = [] # 补充数据
+			# sql_input_names 的结构：
+			# {
+			#     'x': [
+			#         true: 0,			# true表示x是一个普通表名
+			#         false: index,		# false表示x是一个补充表名（来自__input_names）
+			#         'y': 0,			# 字符串表示x是一个普通表y中的一个字段
+			#         N: 0,				# 整数表示x是一个补充表中的一个字段，N表示该表在__input_names中的位置
+			#     ]
+			# }
+			for t in sql_input_names:
+				if sql_input_names[t].has(true):
+					# 外部可能传入第一个元素是null，表示暂时没数据，那么当作缺表处理，会
+					# 体现在下面dao的执行结果中。
+					if sql_inputs[0] != null:
+						input_names.push_back(t)
+						inputs.push_back(sql_inputs[0][t])
+					continue
+				if sql_input_names[t].has(false):
+					if not input_names.has(t): # 优先级低于普通表名
+						input_names.push_back(t)
+						inputs.push_back(sql_inputs[1][sql_input_names[t][false]])
+				# NOTICE 不管字段，因为inputs里包含了字段的数据，在子查询dao里，会自己重新构造input_names结构
+				
+			var dao = parse_to_dao(info)
+			dao.set_input_names(input_names)
+			dao.set_inputs(inputs)
+			dao.set_collect_lack_table_mode(true)
+			dao.set_need_head(false)
+			var res = dao.query() # 当sql中存在依赖其他表数据的情况时，res QueryResult的标志lack_data是true
+			return res
+		return info
+	else:
+		for k in info.keys():
+			if k != "sql":
+				info[k] = _simplify_expression(info[k], sql_input_names, sql_inputs)
+		return info
+		
+## WARNING expression cannot be "xxx" + "yyy" or 'xxx' + 'yyy'
+static func deep_prepare_sql(expression: String, origin: String = "", p_index: Array = [-1]):
+	if origin == "":
+		origin = expression
+	var ret = {}
+	var e = _remove_outer_quotes(expression.strip_edges())
+	var sql2 = e[1]
+	if not (sql2.length() > 6 and sql2.contains("select")):
+		return ret
+	var quoted_matches = GDSQLUtils.extract_outer_quotes(sql2)
+	for i in quoted_matches:
+		if i.begins_with("'") or i .begins_with('"'):
+			continue
+		p_index[0] += 1
+		var r = "___Rep%d___" % p_index[0]
+		while origin.contains(r):
+			p_index[0] += 1
+			r = "___Rep%d___" % p_index[0]
+		var ee = _remove_outer_quotes(i.strip_edges())
+		var sets = _get_value_list(ee[1], false)
+		for j in sets:
+			var info = deep_prepare_sql(j, origin, p_index)
+			if not info.is_empty():
+				sql2 = sql2.replace(j, r)
+				ret.sql = sql2
+				ret[r] = info
+	if ret.is_empty():
+		return sql2
+	return ret
+	
 ## 检查有没有多余的分号
 static func _check_semicolon(ret: Array) -> Array:
 	if ret.is_empty():
@@ -463,6 +546,34 @@ static func _extract_bracket(s: String) -> String:
 	if s.begins_with("(") and s.ends_with(")"):
 		s = s.substr(1, s.length()-2)
 	return s
+	
+static func _remove_outer_quotes(s: String) -> Array:
+	var begin = ""
+	var end = ""
+	while true:
+		if s.begins_with("(") and s.ends_with(")"):
+			s = s.substr(1, s.length()-2)
+			begin += "("
+			end = ")" + end
+		elif s.begins_with("[") and s.ends_with("]"):
+			s = s.substr(1, s.length()-2)
+			begin += "["
+			end = "]" + end
+		elif s.begins_with("{") and s.ends_with("}"):
+			s = s.substr(1, s.length()-2)
+			begin += "{"
+			end = "}" + end
+		elif s.begins_with("'") and s.ends_with("'"):
+			s = s.substr(1, s.length()-2)
+			begin += "'"
+			end = "'" + end
+		elif s.begins_with('"') and s.ends_with('"'):
+			s = s.substr(1, s.length()-2)
+			begin += '"'
+			end = '"' + end
+		else:
+			break
+	return [begin, s, end]
 	
 #static func _extract_quote(s: String) -> String:
 	#if s.begins_with("'") and s.begins_with("'"):
