@@ -35,11 +35,19 @@ func get_conf(path: String, password: String) -> ImprovedConfigFile:
 		err = conf.load(path)
 	else:
 		err = conf.load_encrypted_pass(path, password)
-	assert(err == OK, "conf load failed! err:%s, `%s`:`%s`" % [err, path, password])
-	var fa = FileAccess.open(path, FileAccess.READ)
-	if password.is_empty() and fa.get_length() > 0:
-		assert(not conf.get_sections().is_empty(), "conf load failed! file [%s] is encrypted! " % path)
-	
+	assert(err == OK, "conf load failed! err:%s(%s), `%s`:`%s`" % [err, error_string(err), path, password])
+	if password.is_empty() and conf.get_sections().is_empty():
+		if ClassDB.class_has_method(&"FileAccess", &"get_size", true):
+			if ClassDB.class_call_static(&"FileAccess", &"get_size") > 0:
+				assert(false, "conf load failed! file [%s] is encrypted! " % path)
+		else:
+			if not FileAccess.get_file_as_bytes(path).is_empty():
+				assert(false, "conf load failed! file [%s] is encrypted! " % path)
+				
+	#var fa = FileAccess.open(path, FileAccess.READ)
+	#if password.is_empty() and fa.get_length() > 0:
+		#assert(not conf.get_sections().is_empty(), "conf load failed! file [%s] is encrypted! " % path)
+		
 	_passwords[path] = password
 	_conf_map[path] = conf
 	if OS.has_feature("editor"):
