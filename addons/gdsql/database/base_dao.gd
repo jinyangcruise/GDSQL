@@ -1724,7 +1724,7 @@ func _filter_pk_value(dict: Dictionary, collection: Array, constant_mode: bool):
 							_assert("filter pk value", false, "Subquery returns more than 1 row.")
 							collection.clear()
 							return false
-						if rows[0][0] is int or rows[0][0] is String or rows[0][0] is StringName:
+						if typeof(rows[0][0]) in PRIMARY_TYPES:
 							collection.push_back(rows[0][0])
 				# Object which is not ExpressionENode
 				else:
