@@ -125,11 +125,6 @@ func use_db_name(database_name: String) -> BaseDao:
 	if __database == "":
 		assert(_assert("use_db_name", false, 
 			"database %s's data_path is empty!" % database_name))
-	if _PASSWORD == "":
-		if __database == "user://":
-			_PASSWORD = PasswordDef.USER_DAO_PASS
-		elif __database == "res://src/config/":
-			_PASSWORD = PasswordDef.CONFIG_ENCRYPTED_PASS
 	_set_primary_and_autoincre()
 	return self
 	
@@ -143,11 +138,6 @@ func use_db(database_path: String) -> BaseDao:
 			if adb != "":
 				database_path = adb
 	__database = database_path
-	if _PASSWORD == "":
-		if __database == "user://":
-			_PASSWORD = PasswordDef.USER_DAO_PASS
-		elif __database == "res://src/config/":
-			_PASSWORD = PasswordDef.CONFIG_ENCRYPTED_PASS
 	_set_primary_and_autoincre()
 	return self
 	
@@ -1612,6 +1602,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 #		__union_all.__need_head = false
 		# 为了让union表数据包含order by的列，需要先设置一下
 		__union_all.__order_by = __order_by.duplicate()
+		__union_all._handle_defualt_password()
 		var union_datas = __union_all.___select(__union_all.__database.path_join(__union_all.__table))
 		if union_datas == null:
 			if __collect_lack_table_enabled and not __union_all.__lack_table.is_empty():
@@ -2031,6 +2022,13 @@ func __get_table_column_defination(db_path, table_name, table_alias, column_name
 		
 	return column
 	
+func _handle_defualt_password():
+	if _PASSWORD == "":
+		if __database == "user://":
+			_PASSWORD = PasswordDef.USER_DAO_PASS
+		elif __database == "res://src/config/":
+			_PASSWORD = PasswordDef.CONFIG_ENCRYPTED_PASS
+			
 ## 执行。注意：在union的情况下，会自动执行第一个BaseDao的query方法。
 func query() -> QueryResult:
 	var begin_time = Time.get_unix_time_from_system()
@@ -2044,12 +2042,8 @@ func query() -> QueryResult:
 	if __parent_union:
 		return __parent_union.query()
 		
-	if _PASSWORD == "":
-		if __database == "user://":
-			_PASSWORD = PasswordDef.USER_DAO_PASS
-		elif __database == "res://src/config/":
-			_PASSWORD = PasswordDef.CONFIG_ENCRYPTED_PASS
-			
+	_handle_defualt_password()
+	
 	var path = __database.path_join(__table)
 	var result = QueryResult.new()
 	match __cmd:
