@@ -1949,11 +1949,10 @@ func __get_table_defination(db_path: String, table_name: String):
 		db_path += "/"
 	var columns: Array
 	var valid_if_not_exist = false
-	if mgr and Engine.has_singleton("GDSQLWorkbenchManager"):
-		if mgr.databases:
-			columns = mgr.get_table_columns_by_datapath(db_path, table_name)
-			valid_if_not_exist = mgr.get_table_valid_if_not_exist(db_path, table_name)
-			
+	if mgr:
+		columns = mgr.get_table_columns_by_datapath(db_path, table_name)
+		valid_if_not_exist = mgr.get_table_valid_if_not_exist(db_path, table_name)
+		
 	if columns == null or columns.is_empty():
 		var table_name_base = table_name.get_basename()
 		if not __table_conf_path.has(table_name_base):
