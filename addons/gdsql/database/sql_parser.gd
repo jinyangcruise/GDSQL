@@ -153,7 +153,7 @@ static func parse_to_dao(sql: String) -> BaseDao:
 			elif key_words.contains("LIMIT"):
 				if arr[index][1] == "":
 					assert(_assert(false, "Missing number after LIMIT."))
-				var splits = (arr[index][1] as String).split_floats(".")
+				var splits = (arr[index][1] as String).split_floats(",")
 				if not (splits.size() == 1 or splits.size() == 2):
 					assert(_assert(false, 
 					"Incorrect number after LIMIT. %s" % arr[index][1]))
@@ -456,6 +456,7 @@ static func _simplify_expression(info, sql_input_names: Dictionary = {}, sql_inp
 			dao.set_collect_lack_table_mode(true)
 			dao.set_need_head(false)
 			var res = dao.query() # 当sql中存在依赖其他表数据的情况时，res QueryResult的标志lack_data是true
+			assert(res is QueryResult, "Error occur!")
 			return res
 		return info
 	else:
