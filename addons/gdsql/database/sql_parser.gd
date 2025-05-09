@@ -415,14 +415,16 @@ static func restore(s: String, map: Dictionary) -> String:
 ## 0. String
 ## 1. QueryResult
 ## 2. {"sql": String(expression), ___Rep0___: QeuryResult, ___Rep1___: {"sql": String, ...}}
-static func replace_nested_sql_expression(expression: String, sql_input_names: Dictionary = {}, sql_inputs: Array = []):
+static func replace_nested_sql_expression(expression: String, 
+sql_input_names: Dictionary = {}, sql_inputs: Array = [], need_user_enter_password: Array = []):
 	var dp = deep_prepare_sql(expression)
 	if dp.is_empty():
 		return expression
-	var ret = _simplify_expression(dp, sql_input_names, sql_inputs)
+	var ret = _simplify_expression(dp, sql_input_names, sql_inputs, need_user_enter_password)
 	return ret
 	
-static func _simplify_expression(info, sql_input_names: Dictionary = {}, sql_inputs: Array = []):
+static func _simplify_expression(info, sql_input_names: Dictionary = {}, 
+sql_inputs: Array = [], need_user_enter_password: Array = []):
 	if info is String:
 		if info.length() > 6 and info.countn("select", 0, 6) > 0 and info[6].strip_edges() == "":
 			var input_names = [] # 补充表名
@@ -456,13 +458,18 @@ static func _simplify_expression(info, sql_input_names: Dictionary = {}, sql_inp
 			dao.set_collect_lack_table_mode(true)
 			dao.set_need_head(false)
 			var res = dao.query() # 当sql中存在依赖其他表数据的情况时，res QueryResult的标志lack_data是true
-			assert(res is QueryResult, "Error occur!")
+			if dao.need_user_enter_password():
+				need_user_enter_password.push_back(true)
+			else:
+				assert(res is QueryResult, "Error occur!")
 			return res
 		return info
 	else:
 		for k in info.keys():
 			if k != "sql":
-				info[k] = _simplify_expression(info[k], sql_input_names, sql_inputs)
+				info[k] = _simplify_expression(info[k], sql_input_names, sql_inputs, need_user_enter_password)
+				if not need_user_enter_password.is_empty():
+					return null
 		return info
 		
 ## WARNING expression cannot be "xxx" + "yyy" or 'xxx' + 'yyy'

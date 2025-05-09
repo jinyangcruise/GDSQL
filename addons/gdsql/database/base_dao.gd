@@ -6,6 +6,7 @@ class_name BaseDao
 #region Members
 var _PASSWORD = "" ## 数据表密码
 
+var __request_password: Array ## 【外部请勿使用】query过程中是否请求密码（只存在于编辑器模式下）
 var __database = "" ## 【外部请勿使用】数据库路径
 var __cmd: String = "" ## 【外部请勿使用】命令
 var __select_str = "" ## 【外部请勿使用】select字符串
@@ -709,7 +710,10 @@ func _simplify_expression(expression: String, sql_input_names: Dictionary = {}, 
 	if __simplify_exp_cache.has(expression):
 		return __simplify_exp_cache[expression]
 	var bak = expression
-	var possible_sql = SQLParser.replace_nested_sql_expression(expression, sql_input_names, sql_inputs)
+	var possible_sql = SQLParser.replace_nested_sql_expression(expression, 
+		sql_input_names, sql_inputs, __request_password)
+	if need_user_enter_password():
+		return null
 	var nested_sql_queries = {}
 	if possible_sql is QueryResult:
 		__sub_select_index += 1
@@ -818,6 +822,8 @@ loop_index: int, curr_row: Dictionary, head: Array, table_definations: Dictionar
 				var lj = __left_join.get_left_join_by_alias(table)
 				var cond = lj.get_condition()
 				var simple_expression = _simplify_expression(cond, input_names, [acc_row, __inputs])
+				if need_user_enter_password():
+					return false
 				# 如果子查询依赖未知表的数据
 				if not __lack_table.is_empty():
 					if __collect_lack_table_enabled:
@@ -916,6 +922,8 @@ cond: String, all_table_defination: Dictionary, all_datas: Dictionary, curr_depe
 			
 		# 检查cond中是否涉及子查询
 		var simple_expression = _simplify_expression(cond, __final_input_names, [null, __inputs])
+		if need_user_enter_password():
+			return
 		# 子查询依赖未知表的数据，暂时无法query出实际值，那么也不需要下面筛选表达式中涉及主键或
 		# 索引的数据了，所以直接给全量数据。
 		# 那么这影响left join吗，毕竟大部分on条件cond都涉及至少2个表？应该不影响，因为
@@ -1188,6 +1196,8 @@ func ___select(path: String, fill_primary_key: String = ""):
 	else:
 		# data先传null，看看能否让ret中的每一行都共用同一个expression
 		var simple_expression = _simplify_expression(cond, __final_input_names, [null, __inputs])
+		if need_user_enter_password():
+			return null
 		# 如果有子查询依赖未知表的情况
 		if not __lack_table.is_empty():
 			# NOTICE 这里还不能在__collect_lack_table_enabled为true时进行返回，因为
@@ -1211,6 +1221,8 @@ func ___select(path: String, fill_primary_key: String = ""):
 			# 不共享simple_expression的情况
 			if a_expression == null:
 				a_expression = _simplify_expression(cond, __final_input_names, [data, __inputs])
+				if need_user_enter_password():
+					return null
 				if not __lack_table.is_empty():
 					if __collect_lack_table_enabled:
 						return null
@@ -1420,6 +1432,8 @@ func ___select(path: String, fill_primary_key: String = ""):
 						
 					var simple_expression = _simplify_expression(field.name_4_computing, 
 						__final_input_names, [data, __inputs])
+					if need_user_enter_password():
+						return null
 					# 如果有子查询依赖未知表的情况
 					if not __lack_table.is_empty():
 						if __collect_lack_table_enabled:
@@ -1526,6 +1540,8 @@ func ___select(path: String, fill_primary_key: String = ""):
 						AggregateFunctions.prepare_done(agg_func_obj.id)
 						var simple_expression = _simplify_expression(real_select[i].name_4_computing,
 							__final_input_names, [data, __inputs])
+						if need_user_enter_password():
+							return null
 						# 如果有子查询依赖未知表的情况
 						if not __lack_table.is_empty():
 							if __collect_lack_table_enabled:
@@ -1603,7 +1619,12 @@ func ___select(path: String, fill_primary_key: String = ""):
 		# 为了让union表数据包含order by的列，需要先设置一下
 		__union_all.__order_by = __order_by.duplicate()
 		__union_all._handle_defualt_password()
+		if __union_all.need_user_enter_password():
+			return null
+			
 		var union_datas = __union_all.___select(__union_all.__database.path_join(__union_all.__table))
+		if __union_all.need_user_enter_password():
+			return null
 		if union_datas == null:
 			if __collect_lack_table_enabled and not __union_all.__lack_table.is_empty():
 				__lack_table.append_array(__union_all.get_lack_table())
@@ -2021,8 +2042,18 @@ func __get_table_column_defination(db_path, table_name, table_alias, column_name
 		
 	return column
 	
+## 只有在编辑器模式时才可能返回true
+func need_user_enter_password() -> bool:
+	return not __request_password.is_empty()
+	
 func _handle_defualt_password():
-	if _PASSWORD == "":
+	__request_password.clear()
+	# 在编辑器模式，要求用户输入密码
+	if mgr and Engine.is_editor_hint():
+		if mgr.need_request_password(get_db(), get_table(), get_password()):
+			__request_password.push_back(true)
+			return
+	elif _PASSWORD == "":
 		if __database == "user://":
 			_PASSWORD = PasswordDef.USER_DAO_PASS
 		elif __database == "res://src/config/":
@@ -2042,12 +2073,16 @@ func query() -> QueryResult:
 		return __parent_union.query()
 		
 	_handle_defualt_password()
-	
+	if need_user_enter_password():
+		return null
+		
 	var path = __database.path_join(__table)
 	var result = QueryResult.new()
 	match __cmd:
 		"select":
 			var ret = ___select(path)
+			if need_user_enter_password():
+				return null
 			result._has_head = __need_head
 			result._columns_count = __select_query_columns_count
 			result._cost_time = Time.get_unix_time_from_system() - begin_time
@@ -2248,6 +2283,8 @@ func query() -> QueryResult:
 			var primary = "__PRIMARY_1355--5--__" # 让数据库把主键存到这个键里，祈祷用户没有用到这个字段
 			__need_post_porcess = false # update一定是单表，用内部返回模式返回数据
 			var datas = ___select(path, primary)
+			if need_user_enter_password():
+				return null
 			if datas == null:
 				if not __err.is_empty():
 					result._err = "\n".join(__err)
@@ -2339,6 +2376,8 @@ func query() -> QueryResult:
 				var primary = "__PRIMARY_1355--5--__" # 让数据库把主键存到这个键里，祈祷用户没有用到这个字段
 				__need_post_porcess = false # update一定是单表，用内部返回模式返回数据
 				var datas = ___select(path, primary)
+				if need_user_enter_password():
+					return null
 				if datas == null:
 					if not __err.is_empty():
 						result._err = "\n".join(__err)
@@ -2492,6 +2531,7 @@ func reset(force = false):
 	__err.clear()
 	if force == false and Engine.is_editor_hint():
 		return
+	__request_password.clear()
 	__database = ""
 	__cmd = ""
 	__select_str = ""

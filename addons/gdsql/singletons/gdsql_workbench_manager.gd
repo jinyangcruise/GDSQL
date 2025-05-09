@@ -38,7 +38,9 @@ signal open_table_data_export_tab(db_name: String, table_name: String)
 ## 打开数据表导入页签的信号
 signal open_table_data_import_tab(db_name: String, table_name: String)
 ## 请求用户输入数据表密码的信号
-signal request_user_enter_password(db_name: String, table_name: String, try_password: String, callback: Callable)
+signal request_user_enter_password(db_name: String, table_name: String, try_password: String, callback: Callable, fail_callback: Callable)
+## 是否需要用户输入某个表的密码
+signal need_user_enter_password(db_name: String, table_name: String, try_password: String, result: Array)
 
 ## 打开临时数据导出页签的信号
 signal open_select_data_export_tab(columns: Array, datas: Array)
@@ -94,6 +96,9 @@ var main_panel: Control
 var databases: Dictionary
 var _inspector_search: LineEdit
 
+## base_dao在query途中需要密码的情况时使用 [db_name, table_name]
+var _request_password: Array
+
 func _notification(what):
 	if what == NOTIFICATION_PREDELETE:
 		main_panel = null
@@ -122,7 +127,7 @@ func run_in_plugin(node: Node) -> bool:
 	if main_panel == null:
 		return false
 	return node == main_panel or main_panel.is_ancestor_of(node)
-
+	
 func get_table_columns(db, table: String) -> Array:
 	if databases:
 		if table.ends_with(".gsql"):
@@ -130,7 +135,7 @@ func get_table_columns(db, table: String) -> Array:
 		return databases.get(db, {}).get("tables", {}).get(table, {})\
 			.get("columns", [])
 	return []
-
+	
 func get_table_columns_by_datapath(data_path, table: String) -> Array:
 	if databases:
 		if table.ends_with(".gsql"):
@@ -179,7 +184,7 @@ func _add_dialog(dialog: Window):
 				i.exclusive = false
 		break
 	p.add_child(dialog)
-
+	
 func create_confirmation_dialog(msg: String, confirmed_callback: Callable = Callable(), canceled_callback: Callable = Callable()):
 	var dialog := ConfirmationDialog.new()
 	dialog.dialog_text = msg
@@ -779,6 +784,27 @@ func disconnect_focused_propagate(control: Control):
 				
 func editor_property_focused(data):
 	EditorInterface.inspect_object(data)
+	
+func need_request_password(db_name: String, table_name: String, try_password: String) -> bool:
+	var result = []
+	need_user_enter_password.emit(db_name, table_name, try_password, result)
+	assert(not result.is_empty(), "Err occur!")
+	if result[0]:
+		_request_password.clear()
+		_request_password.push_back(db_name)
+		_request_password.push_back(table_name)
+	return result[0]
+	
+func request_curr_password(result: Array):
+	request_user_enter_password.emit(_request_password[0], _request_password[1], "", func():
+		_request_password.clear()
+		result[0] = true
+	, func():
+		result[0] = false
+	)
+	
+func has_password_request() -> bool:
+	return not _request_password.is_empty()
 	
 static func get_inspector_main_vbox() -> VBoxContainer:
 	# 4.4.dev5增加了一个功能，导致vbox有变化

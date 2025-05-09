@@ -613,7 +613,7 @@ func add_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
 	
-	var graph_node = gen_table_node(columns, table_datas, is_union_all, join_conds, v_scroll_h)
+	var graph_node = await gen_table_node(columns, table_datas, is_union_all, join_conds, v_scroll_h)
 	if aname != "":
 		graph_node.name = aname
 	graph_edit.add_child(graph_node)
@@ -934,7 +934,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 							var primary_key = modified_data["PK_key"]
 							var primary_value = modified_data["PK_value_new"]
 							if primary_key != null and modified_data["modified"].has(primary_key):
-								if exist_callable(db_path, table_name, primary_key, primary_value):
+								if await exist_callable(db_path, table_name, primary_key, primary_value):
 									continue
 									
 							insert_call.call()
@@ -1041,7 +1041,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 					if (table_2.datas[index][4] as ProgressBar).value == 100:
 						continue
 					var begin_time = Time.get_unix_time_from_system()
-					var ret = i.query()
+					var ret = i.query() # 修改的表都是前面已经请求过密码的，所以不需要再请求了
 					if ret != null:
 						if ret.ok():
 							var dict_obj_id = i.get_meta("dict_obj_id")
@@ -1112,7 +1112,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 					var onclose = func ():
 						table.remove_meta("deleted_datas")
 						for node in get_from_nodes(graph_node, "Select"):
-							on_select_node_query(node, true)
+							await on_select_node_query(node, true)
 						mgr._clear_custom_dialog(dialog)
 						
 					if btn_apply.disabled:
@@ -1262,8 +1262,9 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 	
 ## 检查是否存在某主键的Callable
 func exist_callable(db_path, table_name, field_name, field_value) -> bool:
-	var ret = BaseDao.new().use_db(db_path).select(field_name, false).from(table_name)\
-		.where("%s == %s" % [field_name, var_to_str(field_value)]).query()
+	var dao = BaseDao.new().use_db(db_path).select(field_name, false).from(table_name)\
+		.where("%s == %s" % [field_name, var_to_str(field_value)])
+	var ret = await _deal_query_need_enter_password(dao, Time.get_unix_time_from_system(), "check primary key exist")
 	if ret == null or not ret.ok():
 		push_warning("Something weired. Check this.")
 		return true # 报错了，不知道具体啥情况，视为true
@@ -2503,6 +2504,25 @@ func get_from_nodes(node: GraphNode, type: String = "") -> Array[GraphNode]:
 				ret.push_back(from_node)
 	return ret
 	
+func _deal_query_need_enter_password(dao: BaseDao, begin_time, action):
+	var ret
+	for i in 100:
+		ret = dao.query()
+		if dao.need_user_enter_password():
+			var password_ret = [null]
+			mgr.request_curr_password(password_ret)
+			while true:
+				await get_tree().process_frame
+				if password_ret[0] != null:
+					break
+			if password_ret[0] == false:
+				mgr.add_log_history.emit("Err", begin_time, action, "Missing password!")
+		else:
+			break
+	if dao.need_user_enter_password():
+		mgr.add_log_history.emit("Err", begin_time, action, "Too many tables need enter password!")
+	return ret
+	
 # Select 执行
 # node: 被点击的select节点
 func on_select_node_query(node: GraphNode, log_history: bool):
@@ -2531,7 +2551,7 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 		mgr.request_user_enter_password.emit(dao.get_db(), dao.get_table(), dao.get_password(), func():
 			var begin_time = Time.get_unix_time_from_system()
 			var action = dao.get_query_cmd()
-			var ret = dao.query()
+			var ret = await _deal_query_need_enter_password(dao, begin_time, action)
 			if ret == null:
 				mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
 				return
@@ -2546,13 +2566,13 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 					var to_node = graph_edit.get_node(str(to))
 					if to_node.get_meta("type") == "Result":
 						if to_node.enabled:
-							gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds(), 0, to_node)
+							await gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds(), 0, to_node)
 							update_result = true
 						else:
 							_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
 						
 			if not update_result:
-				var table_node = gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds())
+				var table_node = await gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds())
 				graph_edit.add_child(table_node)
 				table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 				_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
@@ -2579,7 +2599,7 @@ func on_insert_node_query(node: GraphNode):
 	mgr.create_confirmation_dialog("Please confirm:\n" + action, func():
 		mgr.request_user_enter_password.emit(dao.get_db(), dao.get_table(), dao.get_password(), func():
 			var begin_time = Time.get_unix_time_from_system()
-			var ret = dao.query()
+			var ret = await _deal_query_need_enter_password(dao, begin_time, action)
 			if ret == null:
 				mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
 				return
@@ -2612,7 +2632,7 @@ func on_update_node_query(node: GraphNode):
 	mgr.create_confirmation_dialog("Please confirm:\n" + action, func():
 		mgr.request_user_enter_password.emit(dao.get_db(), dao.get_table(), dao.get_password(), func():
 			var begin_time = Time.get_unix_time_from_system()
-			var ret = dao.query()
+			var ret = await _deal_query_need_enter_password(dao, begin_time, action)
 			if ret == null:
 				mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
 				return
@@ -2634,7 +2654,7 @@ func on_delete_node_query(node: GraphNode):
 	mgr.create_confirmation_dialog("Please confirm:\n" + action, func():
 		mgr.request_user_enter_password.emit(dao.get_db(), dao.get_table(), dao.get_password(), func():
 			var begin_time = Time.get_unix_time_from_system()
-			var ret = dao.query()
+			var ret = await _deal_query_need_enter_password(dao, begin_time, action)
 			if ret == null:
 				mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
 				return
@@ -2677,7 +2697,7 @@ func on_sql_node_query(node: GraphNode, log_history: bool):
 		mgr.request_user_enter_password.emit(dao.get_db(), dao.get_table(), dao.get_password(), func():
 			var action = dao.get_query_cmd()
 			var begin_time = Time.get_unix_time_from_system()
-			var query_ret = dao.query()
+			var query_ret = await _deal_query_need_enter_password(dao, begin_time, action)
 			if query_ret == null:
 				mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
 				return
@@ -2713,13 +2733,13 @@ func on_sql_node_query(node: GraphNode, log_history: bool):
 					var to_node = graph_edit.get_node(str(to))
 					if to_node.get_meta("type") == "Result":
 						if to_node.enabled:
-							gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds(), 0, to_node)
+							await gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds(), 0, to_node)
 							update_result = true
 						else:
 							_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
 							
 			if not update_result:
-				var table_node = gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds())
+				var table_node = await gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds())
 				graph_edit.add_child(table_node)
 				table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 				_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
@@ -2768,17 +2788,14 @@ func on_link_node_query(node: GraphNode):
 	func():
 		var begin_time = Time.get_unix_time_from_system()
 		var link_datas_dao = BaseDao.new()
-		var link_query_ret = (
-			link_datas_dao
-			.use_db(data.get_meta("link_db", ""))
-			.set_password(data.get_meta("link_password", ""))
+		link_datas_dao.use_db(data.get_meta("link_db", "")) \
+			.set_password(data.get_meta("link_password", "")) \
 			.select("%s, list(%s)" % [
-				link_prop_dict_obj._get("Left"), link_prop_dict_obj._get("Right")], true)
-			.from(data.get_meta("link_table", ""))
+				link_prop_dict_obj._get("Left"), link_prop_dict_obj._get("Right")], true) \
+			.from(data.get_meta("link_table", "")) \
 			.group_by(link_prop_dict_obj._get("Left"))
-			.query()
-		)
 		var action = link_datas_dao.get_query_cmd()
+		var link_query_ret = await _deal_query_need_enter_password(link_datas_dao, begin_time, action)
 		if link_query_ret == null:
 			mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
 			return
@@ -2803,18 +2820,15 @@ func on_link_node_query(node: GraphNode):
 			var left_select = left_column_dict_obj.get_data().keys().map(func(v):
 				return v if left_column_dict_obj.get_data()[v] else ""
 			).filter(func(v): return not v.is_empty())
-			var left_query_ret = (
-				left_datas_dao
-				.use_db(data.get_meta("left_db", ""))
-				.set_password(data.get_meta("left_password", ""))
-				.select("*", true)
-				.from(data.get_meta("left_table", ""))
-				.set_where(left_where_dict_obj._get("Where"))
-				.order_by_str(left_order_dict_obj._get("Order By"))
+			left_datas_dao.use_db(data.get_meta("left_db", "")) \
+				.set_password(data.get_meta("left_password", "")) \
+				.select("*", true) \
+				.from(data.get_meta("left_table", "")) \
+				.set_where(left_where_dict_obj._get("Where")) \
+				.order_by_str(left_order_dict_obj._get("Order By")) \
 				.limit(left_limit_dict_obj._get("Offset"), left_limit_dict_obj._get("Limit"))
-				.query()
-			)
 			var action2 = left_datas_dao.get_query_cmd()
+			var left_query_ret = await _deal_query_need_enter_password(left_datas_dao, begin_time_2, action2)
 			if left_query_ret == null:
 				mgr.add_log_history.emit("Err", begin_time_2, action2, "something wrong")
 				return
@@ -2831,21 +2845,18 @@ func on_link_node_query(node: GraphNode):
 			func():
 				var begin_time_3 = Time.get_unix_time_from_system()
 				var right_datas_dao = BaseDao.new()
+				right_datas_dao.use_db(data.get_meta("right_db", "")) \
+					.set_password(data.get_meta("right_password", "")) \
+					.select("*", true) \
+					.from(data.get_meta("right_table", "")) \
+					.set_where(right_where_dict_obj._get("Where")) \
+					.order_by_str(right_order_dict_obj._get("Order By")) \
+					.limit(right_limit_dict_obj._get("Offset"), right_limit_dict_obj._get("Limit"))
+				var action3 = right_datas_dao.get_query_cmd()
 				var right_select = right_column_dict_obj.get_data().keys().map(func(v):
 					return v if right_column_dict_obj.get_data()[v] else ""
 				).filter(func(v): return not v.is_empty())
-				var right_query_ret = (
-					right_datas_dao
-					.use_db(data.get_meta("right_db", ""))
-					.set_password(data.get_meta("right_password", ""))
-					.select("*", true)
-					.from(data.get_meta("right_table", ""))
-					.set_where(right_where_dict_obj._get("Where"))
-					.order_by_str(right_order_dict_obj._get("Order By"))
-					.limit(right_limit_dict_obj._get("Offset"), right_limit_dict_obj._get("Limit"))
-					.query()
-				)
-				var action3 = right_datas_dao.get_query_cmd()
+				var right_query_ret = await _deal_query_need_enter_password(right_datas_dao, begin_time_3, action3)
 				if right_query_ret == null:
 					mgr.add_log_history.emit("Err", begin_time_3, action3, "something wrong")
 					return
@@ -3017,7 +3028,7 @@ func on_link_node_query(node: GraphNode):
 							# 该按钮名称是回滚，则抛弃修改
 							if dialog_ref[0].ok_button_text == "Revert":
 								daos[0].discard()
-								on_link_node_query(node)
+								await on_link_node_query(node)
 								mgr._clear_custom_dialog(dialog_ref[0])
 								return [false, false] # 不涉及defered函数，所以第二个参数传的没什么意义
 								
@@ -3029,7 +3040,7 @@ func on_link_node_query(node: GraphNode):
 								if (table_2.datas[index][2] as ProgressBar).value == 100:
 									continue
 								var begin_time_4 = Time.get_unix_time_from_system()
-								var ret = i.query()
+								var ret = i.query() # 前面已经请求过密码了，这里不需要再请求了
 								if ret != null:
 									if ret.ok():
 										# log and UI
@@ -3077,7 +3088,7 @@ func on_link_node_query(node: GraphNode):
 						dialog.custom_action.connect(func(custom_action):
 							if custom_action == "close_and_refresh":
 								var onclose = func ():
-									on_link_node_query(node)
+									await on_link_node_query(node)
 									mgr._clear_custom_dialog(dialog)
 									
 								if btn_apply.disabled:
@@ -3123,13 +3134,13 @@ func on_link_node_query(node: GraphNode):
 							var to_node = graph_edit.get_node(str(to))
 							if to_node.get_meta("type") == "Result":
 								if to_node.enabled:
-									gen_table_node(head, tdatas, true, [], 0, to_node)
+									await gen_table_node(head, tdatas, true, [], 0, to_node)
 									update_result = true
 								else:
 									_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
 								
 					if not update_result:
-						var table_node = gen_table_node(head, tdatas, true, [])
+						var table_node = await gen_table_node(head, tdatas, true, [])
 						graph_edit.add_child(table_node)
 						table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 						_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)

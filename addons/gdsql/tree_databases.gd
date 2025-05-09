@@ -817,6 +817,8 @@ func _ready():
 		mgr.user_confirm_alter_table.connect(modify_table_to_config, CONNECT_DEFERRED)
 	if not mgr.request_user_enter_password.is_connected(deal_password_before_table_cmd_2):
 		mgr.request_user_enter_password.connect(deal_password_before_table_cmd_2, CONNECT_DEFERRED)
+	if not mgr.need_user_enter_password.is_connected(need_password):
+		mgr.need_user_enter_password.connect(need_password) # 不能用CONNECT_DEFERRED
 	if not mgr.request_drop_table.is_connected(drop_table_from_config):
 		mgr.request_drop_table.connect(drop_table_from_config, CONNECT_DEFERRED)
 	if not mgr.request_create_table.is_connected(add_table_to_config):
@@ -886,6 +888,8 @@ func _exit_tree():
 		mgr.user_confirm_alter_table.disconnect(modify_table_to_config)
 	if mgr.request_user_enter_password.is_connected(deal_password_before_table_cmd_2):
 		mgr.request_user_enter_password.disconnect(deal_password_before_table_cmd_2)
+	if mgr.need_user_enter_password.is_connected(need_password):
+		mgr.need_user_enter_password.disconnect(need_password)
 	if mgr.request_drop_table.is_connected(drop_table_from_config):
 		mgr.request_drop_table.disconnect(drop_table_from_config)
 	if mgr.request_create_table.is_connected(add_table_to_config):
@@ -1198,7 +1202,39 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 		"Refresh All":
 			refresh()
 			
-func deal_password_before_table_cmd_2(db_name: String, table_name: String, try_password: String, pass_callback: Callable):
+func need_password(db_name: String, table_name: String, try_password: String, result: Array = []) -> bool:
+	table_name = table_name.get_basename()
+	for db_item in root.get_children():
+		if db_item.get_meta("db_name") == db_name or db_item.get_meta("data_path") == db_name:
+			for collection in db_item.get_children():
+				if collection.get_meta("type") == "Tables":
+					for table_item in collection.get_children():
+						if table_item.get_meta("table_name") == table_name or \
+							table_item.get_meta("data_path").get_file() == table_name:
+							var ret = _need_password(table_item, try_password)
+							result.push_back(ret)
+							return ret
+	result.push_back(true)
+	return true
+	
+func _need_password(table_item: TreeItem, try_password: String) -> bool:
+	var db_name = table_item.get_meta("db_name")
+	var table_name = table_item.get_meta("table_name")
+	var table_path = table_item.get_meta("data_path")
+	# 加密的表首次操作时需要输入密码
+	var valid_pass_md5 = databases[db_name]["tables"][table_name]["encrypted"]
+	if valid_pass_md5 == "" or (__CONF_MANAGER.has_conf(table_path) and _password_correct.has(table_path)):
+		return false
+		
+	if try_password != "":
+		if valid_pass_md5 == try_password.md5_text():
+			# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
+			__CONF_MANAGER.get_conf(table_path, try_password)
+			_password_correct.push_back(table_path)
+		return false
+	return true
+	
+func deal_password_before_table_cmd_2(db_name: String, table_name: String, try_password: String, pass_callback: Callable, fail_callabck: Callable = Callable()):
 	table_name = table_name.get_basename()
 	var find_db = false
 	var find_table = false
@@ -1212,7 +1248,7 @@ func deal_password_before_table_cmd_2(db_name: String, table_name: String, try_p
 					for table_item in collection.get_children():
 						if table_item.get_meta("table_name") == table_name or \
 						table_item.get_meta("data_path").get_file() == table_name:
-							deal_password_before_table_cmd(table_item, try_password, pass_callback)
+							deal_password_before_table_cmd(table_item, try_password, pass_callback, fail_callabck)
 							return
 						elif table_item.get_meta("table_name").similarity(table_name) >= 0.60:
 							possible.push_back(table_item.get_meta("table_name"))
@@ -1224,6 +1260,9 @@ func deal_password_before_table_cmd_2(db_name: String, table_name: String, try_p
 		elif db_item.get_meta("data_path").similarity(db_name) >= 0.60:
 			possible.push_back(db_item.get_meta("data_path"))
 			
+	if fail_callabck and fail_callabck.is_valid():
+		fail_callabck.call()
+		
 	if not find_db:
 		if possible.is_empty():
 			mgr.create_accept_dialog("Not find database `%s`!" % db_name)
@@ -1235,7 +1274,7 @@ func deal_password_before_table_cmd_2(db_name: String, table_name: String, try_p
 		else:
 			mgr.create_accept_dialog("Not find table `%s`! Maybe:\n%s?" % [table_name, "\n,".join(possible)])
 			
-func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, pass_callback: Callable):
+func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, pass_callback: Callable, fail_callback: Callable = Callable()):
 	var db_name = table_item.get_meta("db_name")
 	var table_name = table_item.get_meta("table_name")
 	var table_path = table_item.get_meta("data_path")
@@ -1246,8 +1285,8 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 	if valid_pass_md5 == "" or (__CONF_MANAGER.has_conf(table_path) and _password_correct.has(table_path)):
 		if pass_callback.is_valid():
 			pass_callback.call()
-			return
-			
+		return
+		
 	var msg = "This table: %s.%s is encrypted. Please input password of this table." % [
 		db_name, table_name
 	]
@@ -1288,6 +1327,9 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 				# 执行用户传入的函数
 				if pass_callback.is_valid():
 					pass_callback.call()
+				return
+		if fail_callback and fail_callback.is_valid():
+			fail_callback.call()
 			
 	mgr.create_custom_dialog(arr, confirmed, Callable(), defered)
 	
