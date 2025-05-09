@@ -1295,7 +1295,8 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 			# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
 			__CONF_MANAGER.get_conf(table_path, try_password)
 			_password_correct.push_back(table_path)
-			pass_callback.call()
+			if pass_callback.is_valid():
+				pass_callback.call()
 			return
 			
 		msg = "Your password is incorrect! Please enter again!"

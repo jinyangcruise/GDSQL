@@ -806,6 +806,9 @@ func request_curr_password(result: Array):
 func has_password_request() -> bool:
 	return not _request_password.is_empty()
 	
+func get_password_request_table():
+	return _request_password
+	
 static func get_inspector_main_vbox() -> VBoxContainer:
 	# 4.4.dev5增加了一个功能，导致vbox有变化
 	# Make possible to favorite properties in the inspector 

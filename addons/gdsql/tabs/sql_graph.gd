@@ -613,7 +613,7 @@ func add_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 	graph_edit.grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
 	
-	var graph_node = await gen_table_node(columns, table_datas, is_union_all, join_conds, v_scroll_h)
+	var graph_node = gen_table_node(columns, table_datas, is_union_all, join_conds, v_scroll_h)
 	if aname != "":
 		graph_node.name = aname
 	graph_edit.add_child(graph_node)
@@ -2506,7 +2506,9 @@ func get_from_nodes(node: GraphNode, type: String = "") -> Array[GraphNode]:
 	
 func _deal_query_need_enter_password(dao: BaseDao, begin_time, action):
 	var ret
+	var reach_max = false
 	for i in 100:
+		reach_max = i == 99
 		ret = dao.query()
 		if dao.need_user_enter_password():
 			var password_ret = [null]
@@ -2515,11 +2517,13 @@ func _deal_query_need_enter_password(dao: BaseDao, begin_time, action):
 				await get_tree().process_frame
 				if password_ret[0] != null:
 					break
-			if password_ret[0] == false:
-				mgr.add_log_history.emit("Err", begin_time, action, "Missing password!")
-		else:
-			break
-	if dao.need_user_enter_password():
+			if password_ret[0]:
+				continue
+			else:
+				mgr.add_log_history.emit("Err", begin_time, action, 
+					"Missing password : [%s%s]!" % mgr.get_password_request_table())
+		break
+	if reach_max and dao.need_user_enter_password():
 		mgr.add_log_history.emit("Err", begin_time, action, "Too many tables need enter password!")
 	return ret
 	
@@ -2566,13 +2570,13 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 					var to_node = graph_edit.get_node(str(to))
 					if to_node.get_meta("type") == "Result":
 						if to_node.enabled:
-							await gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds(), 0, to_node)
+							gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds(), 0, to_node)
 							update_result = true
 						else:
 							_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
 						
 			if not update_result:
-				var table_node = await gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds())
+				var table_node = gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds())
 				graph_edit.add_child(table_node)
 				table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 				_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
@@ -2733,13 +2737,13 @@ func on_sql_node_query(node: GraphNode, log_history: bool):
 					var to_node = graph_edit.get_node(str(to))
 					if to_node.get_meta("type") == "Result":
 						if to_node.enabled:
-							await gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds(), 0, to_node)
+							gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds(), 0, to_node)
 							update_result = true
 						else:
 							_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
 							
 			if not update_result:
-				var table_node = await gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds())
+				var table_node = gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds())
 				graph_edit.add_child(table_node)
 				table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 				_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
@@ -3134,13 +3138,13 @@ func on_link_node_query(node: GraphNode):
 							var to_node = graph_edit.get_node(str(to))
 							if to_node.get_meta("type") == "Result":
 								if to_node.enabled:
-									await gen_table_node(head, tdatas, true, [], 0, to_node)
+									gen_table_node(head, tdatas, true, [], 0, to_node)
 									update_result = true
 								else:
 									_on_graph_edit_disconnection_request(source_node.name, 0, to_node.name, 0)
 								
 					if not update_result:
-						var table_node = await gen_table_node(head, tdatas, true, [])
+						var table_node = gen_table_node(head, tdatas, true, [])
 						graph_edit.add_child(table_node)
 						table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 						_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
