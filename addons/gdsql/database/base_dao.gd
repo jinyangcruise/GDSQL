@@ -632,11 +632,6 @@ func left_join(db: String, table: String, alias: String, cond: String, password:
 	else:
 		left_join_obj = __left_join.create_left_join_to_end()
 	left_join_obj.set_db(db)
-	if password == "":
-		if db == "user://":
-			password = PasswordDef.USER_DAO_PASS
-		elif db == "res://src/config/":
-			password = PasswordDef.CONFIG_ENCRYPTED_PASS
 	left_join_obj.set_password(password)
 	left_join_obj.set_table(table)
 	left_join_obj.set_alias(alias)
@@ -1064,6 +1059,10 @@ func ___select(path: String, fill_primary_key: String = ""):
 	all_table_defination[__table_alias] = __get_table_defination(__database, __table)["columns"]
 	var arr_left_join = __left_join.get_chain_left_joins() if __left_join != null else []
 	for a_left_join in arr_left_join:
+		a_left_join.handle_defualt_password(mgr)
+		if a_left_join.need_user_enter_password():
+			__request_password.push_back(true)
+			return null
 		all_table_defination[a_left_join.get_alias()] = __get_table_defination(
 			a_left_join.get_db(), a_left_join.get_table())["columns"]
 	var all_datas: Dictionary = {} # 把所有表的数据放到这个里边

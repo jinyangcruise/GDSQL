@@ -2,6 +2,7 @@
 extends RefCounted
 class_name LeftJoin
 
+var __request_password: Array
 var __database: String = "" ## 【外部请勿使用】数据库路径
 var __password: String = "" ## 数据表密码
 var __table: String = "" ## 【外部请勿使用】表名
@@ -135,3 +136,20 @@ func get_query_cmds() -> Array:
 		obj = obj.__left_join
 	return ret
 	
+## 只有在编辑器模式时才可能返回true
+func need_user_enter_password() -> bool:
+	return not __request_password.is_empty()
+	
+## mgr: GDSQLWorkbenchManager
+func handle_defualt_password(mgr):
+	__request_password.clear()
+	# 在编辑器模式，要求用户输入密码
+	if mgr and Engine.is_editor_hint():
+		if mgr.need_request_password(get_db(), get_table(), get_password()):
+			__request_password.push_back(true)
+			return
+	elif __password == "":
+		if __database == "user://":
+			__password = PasswordDef.USER_DAO_PASS
+		elif __database == "res://src/config/":
+			__password = PasswordDef.CONFIG_ENCRYPTED_PASS
