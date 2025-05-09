@@ -1211,7 +1211,7 @@ func deal_password_before_table_cmd_2(db_name: String, table_name: String, try_p
 				if collection.get_meta("type") == "Tables":
 					for table_item in collection.get_children():
 						if table_item.get_meta("table_name") == table_name or \
-							table_item.get_meta("data_path").get_file() == table_name:
+						table_item.get_meta("data_path").get_file() == table_name:
 							deal_password_before_table_cmd(table_item, try_password, pass_callback)
 							return
 						elif table_item.get_meta("table_name").similarity(table_name) >= 0.60:
@@ -1254,7 +1254,7 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 	if try_password != "":
 		if valid_pass_md5 == try_password.md5_text():
 			# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
-			__CONF_MANAGER.get_conf(table_path, password_dict_obj._get("Password"))
+			__CONF_MANAGER.get_conf(table_path, try_password)
 			_password_correct.push_back(table_path)
 			pass_callback.call()
 			return
