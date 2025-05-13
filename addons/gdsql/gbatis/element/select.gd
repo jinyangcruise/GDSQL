@@ -229,7 +229,7 @@ func query():
 	
 	var final_ret = null
 	# 为了方便中途跳出来
-	for i in [1]:
+	for i in 1:
 		# 返回Object时也需要处理多条数据，因为多条数据可能是1条主数据和多条集合数据
 		if return_type == "Array" or return_type == "Object":
 			var ret_datas = _gen_array()
