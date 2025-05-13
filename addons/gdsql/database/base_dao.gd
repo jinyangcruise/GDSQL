@@ -1980,10 +1980,12 @@ func __get_table_defination(db_path: String, table_name: String):
 			if db_info.is_empty():
 				db_info = __root_config.filter_first_values("data_path", GDSQLUtils.globalize_path(db_path))
 				if db_info.is_empty():
+					assert(_assert("__get_table_defination", false, "database: %s not exist!" % db_path))
 					return null
-				
+					
 			var table_conf_path = db_info.get("config_path") + table_name.get_basename() + CONF_EXTENSION
 			if not FileAccess.file_exists(table_conf_path):
+				assert(_assert("__get_table_defination", false, "table: %s%s not exist!" % [db_path, table_name]))
 				return null
 				
 			__table_conf_path[table_name_base] = table_conf_path
