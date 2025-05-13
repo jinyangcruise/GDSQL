@@ -4380,7 +4380,10 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 			#evaluate(op.op, a[0], b[0], r_ret, valid)
 			match op.op:
 				OP_EQUAL: # = 0 相等运算符（==）。
-					r_ret[0] = a[0] == b[0]
+					if sql_mode:
+						r_ret[0] = typeof(a[0]) == typeof(b[0]) and a[0] == b[0]
+					else:
+						r_ret[0] = a[0] == b[0]
 				OP_NOT_EQUAL: # = 1 不等运算符（!=）。
 					r_ret[0] = a[0] != b[0]
 				OP_LESS: # = 2 小于运算符（<）。
@@ -5334,8 +5337,8 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				# 优先满足`普通表名.字段`的形式
 				for k in input_node.info:
 					if k is bool and k:
-						if sql_inputs[0][k].has(input_node.subname):
-							r_ret[0] = sql_inputs[0][k]
+						if sql_inputs[0][input_node.name].has(input_node.subname):
+							r_ret[0] = sql_inputs[0][input_node.name]
 							return false
 						else:
 							break
@@ -5343,7 +5346,7 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				# 再次满足`普通表名`的形式
 				for k in input_node.info:
 					if k is bool and k:
-						r_ret[0] = sql_inputs[0][k]
+						r_ret[0] = sql_inputs[0][input_node.name]
 						return false
 				# 最后满足`补充表名`的形式
 				for k in input_node.info:
@@ -5797,7 +5800,7 @@ class ExpressionSQLInputNode extends ExpressionENode:
 			# 优先满足`普通表名.字段`的形式
 			for k in sql_input_names[name]:
 				if k is bool and k:
-					if sql_inputs[0][k].has(subname):
+					if sql_inputs[0][name].has(subname):
 						return
 					else:
 						break
