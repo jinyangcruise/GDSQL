@@ -13,7 +13,7 @@ const SB_SELECT_TITLEBAR_SELECTED = preload("res://addons/gdsql/tabs/sql_graph_n
 
 const TEXT_ENUM = preload("res://addons/gdsql/custom_control/text_enum.tscn")
 
-var copied_nodes: Dictionary
+static var copied_nodes: Dictionary
 
 const SHORTCUT_SELECTALL = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_selectall.tres")
 const SHORTCUT_UNDO = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_undo.tres")
@@ -241,7 +241,7 @@ func update_slot_status(graph_node: GraphNode):
 			graph_node.set_slot_color_right(index, VALID_PORT_COLOR[data_type])
 			
 ## genarate nodes
-func _load_nodes(nodes: Dictionary, connections: Array, pos_offset: Vector2, 
+func _load_nodes(nodes: Dictionary, p_connections: Array, pos_offset: Vector2, 
 auto_name: bool, select_all = false):
 	var node_name_map = {} # 旧name => 新name
 	var node_sizes = {}
@@ -258,7 +258,7 @@ auto_name: bool, select_all = false):
 		
 	# make connections
 	var tos = {}
-	for info in connections:
+	for info in p_connections:
 		var from = node_name_map[info["from_node"]]
 		var to = node_name_map[info["to_node"]]
 		tos[str(to)] = 1
