@@ -401,7 +401,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 					result_map_id, result_map_id.capitalize().replace(" ", "")
 				])
 				xml_arr.push_back(' autoMapping="false">\n\t\t%s\n\t</resultMap>\n\t' % \
-						"\n\t\t".join(arr_col))
+					"\n\t\t".join(arr_col))
 				result_map_added.push_back(result_map_id)
 				
 			# entity
@@ -534,8 +534,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 						db_name, table_name, t_alias, " and ".join(acond)
 					]
 			xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n\t' % \
-			[leading_result_map_id, vo])
-			
+				[leading_result_map_id, vo])
+				
 		# mapper_arr
 		var mp_id = '%s.%sMapper' % [leading_db_name, leading_class_n]
 		if mapper_map.has(mp_id):
