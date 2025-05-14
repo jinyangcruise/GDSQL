@@ -80,8 +80,7 @@ func check(datas: Array):
 				assert(false, "Subquery [%s] returns more than 1 column." % _cond)
 			else:
 				ret = bool(rows[0][0])
-		assert(typeof(ret) == TYPE_BOOL, "check failed! cond:%s" % _cond)
-		
+				
 	# and / or
 	if _and_wrapper:
 		if !ret:

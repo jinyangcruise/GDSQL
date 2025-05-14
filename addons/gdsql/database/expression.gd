@@ -4268,7 +4268,8 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 			if (ret) :
 				return true
 				
-			if sql_mode and (a[0] == null or a[0] is AggregateFunctions):
+			# a[0] == null is ok
+			if sql_mode and a[0] is AggregateFunctions:
 				r_ret[0] = a[0]
 				return false
 
@@ -4280,7 +4281,8 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 				if (ret) :
 					return true
 					
-				if sql_mode and (b[0] == null or b[0] is AggregateFunctions):
+				# b[0] == null is ok
+				if sql_mode and b[0] is AggregateFunctions:
 					r_ret[0] = b[0]
 					return false
 					
@@ -5229,8 +5231,9 @@ func _execute(p_inputs: Array, p_instance: Object, p_node, r_ret: Array, p_const
 
 				if (ret) :
 					return true
-	
-				if sql_mode and (value[0] == null or value[0] is AggregateFunctions):
+					
+				# value[0] == null is ok
+				if sql_mode and value[0] is AggregateFunctions:
 					if not base[0] is AggregateFunctions:
 						r_ret[0] = value[0]
 						return false
