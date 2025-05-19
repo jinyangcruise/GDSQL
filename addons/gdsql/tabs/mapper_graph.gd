@@ -227,10 +227,20 @@ func get_helper_final_entity_nodes(node: GraphNode, nodes_map: Dictionary, node_
 ## where t1.xx == #{id1} and t2.yy == #{id2}
 func get_helpers_left_join_cmds(node: GraphNode, to_from_map: Dictionary, 
 alias_map: Dictionary = {}, arr_index: Array = [-1]):
-	var ret = {"left_join": [], "where": []}
-	var data = node.get_meta("data")
-	var db_name = data.db_name
-	var table_name = data.table_name
+	var ret = {"select": [], "left_join": [], "where": []}
+	# 优先给前面的表取小序号的alias
+	var process = [node]
+	var nodes = []
+	while not process.is_empty():
+		var anode = process.pop_front()
+		if not nodes.has(anode):
+			nodes.push_back(anode)
+		for fnode in to_from_map[anode]:
+			if graph_edit.is_helper_node(fnode):
+				process.push_back(fnode)
+				
+	nodes.reverse()
+	var first_node = arr_index.max() == -1
 	var get_alias_func = func(p_node):
 		if alias_map.has(p_node):
 			return alias_map[p_node]
@@ -239,41 +249,56 @@ alias_map: Dictionary = {}, arr_index: Array = [-1]):
 		var alias = "t%s" % index
 		alias_map[p_node] = alias
 		return alias
+	for n in nodes:
+		get_alias_func.call(n)
+		
+	var data = node.get_meta("data")
+	var db_name = data.db_name
+	var table_name = data.table_name
 	var table_alias = get_alias_func.call(node)
 	var columns = data.columns
 	var cols = columns.map(func(v):
 		return "%s.%s" % [table_alias, v["Column Name"]])
 		
-	if arr_index.max() == 0:
-		ret.left_join.push_back("select %s from %s.%s %s" % [
-			", ".join(cols), db_name, table_name, table_alias])
-			
+	if first_node:
+		ret.select.push_back("select %s " % (", ".join(cols)))
+		
+	var arr_on = []
+	for fnode in to_from_map[node]:
+		var from_alias = get_alias_func.call(fnode)
+		# i is [from_col, to_col]
+		for i in to_from_map[node][fnode]:
+			arr_on.push_back("%s.%s == %s.%s" % [
+				table_alias, i[1], from_alias, i[0]])
+	ret.left_join.push_front("left join %s.%s %s on %s" % [
+		db_name, table_name, table_alias, " and ".join(arr_on)])
+		
 	if to_from_map.has(node):
 		for fnode in to_from_map[node]:
-			if graph_edit.is_helper_node(fnode):
-				var arr_on = []
-				var from_data = fnode.get_meta("data")
-				var from_db = from_data.db_name
-				var from_table = from_data.table_name
-				var from_alias = get_alias_func.call(fnode)
-				# i is [from_col, to_col]
-				for i in to_from_map[node][fnode]:
-					arr_on.push_back("%s.%s == %s.%s" % [
-						from_alias, i[0], table_alias, i[1]])
-				ret.left_join.push_back("left join %s.%s %s on %s" % [
-					from_db, from_table, from_alias, " and ".join(arr_on)])
-					
+			var from_data = fnode.get_meta("data")
+			var from_db = from_data.db_name
+			var from_table = from_data.table_name
+			var from_alias = get_alias_func.call(fnode)
+			var ffnode_is_helper_node = false
+			for ffnode in to_from_map[fnode]:
+				if graph_edit.is_helper_node(ffnode):
+					ffnode_is_helper_node = true
+					break
+			if ffnode_is_helper_node and graph_edit.is_helper_node(fnode):
 				var r = get_helpers_left_join_cmds(
 					fnode, to_from_map, alias_map, arr_index)
-				ret.left_join.append_array(r.left_join)
-				ret.where.append_array(r.where)
+				ret.select.append_array(r.select)
+				ret.left_join = r.left_join + ret.left_join
+				ret.where = r.where + ret.where
 			else:
+				ret.select.push_back("from %s.%s %s" % [from_db, from_table, from_alias])
 				# i is [from_col, to_col]
-				for i in to_from_map[node][fnode]:
-					# 不考虑#{%s}存在两张表相同字段导致变量名混淆的问题，
-					# 因为不能连接多个实体表。
-					ret.where.push_back("%s.%s == #{%s}" % [
-						get_alias_func.call(node), i[1], i[0]])
+				for ffnode in to_from_map[fnode]:
+					for i in to_from_map[fnode][ffnode]:
+						# 不考虑#{%s}存在两张表相同字段导致变量名混淆的问题，
+						# 因为不能连接多个实体表。
+						ret.where.push_front("%s.%s == #{%s}" % [
+							get_alias_func.call(fnode), i[1], i[0]])
 	return ret
 	
 func _generate(nodes: Array):
@@ -810,6 +835,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				var cmds = get_helpers_left_join_cmds(m.info.node, node_to_from_map)
 				xml_arr.push_back('\n\t<select id="%s" resultMap="%s">' % [
 					m.id, m.result_map])
+				xml_arr.push_back('\n\t\t' + '\n\t\t'.join(cmds.select))
 				xml_arr.push_back('\n\t\t' + '\n\t\t'.join(cmds.left_join))
 				xml_arr.push_back('\n\t\twhere %s' % (' and '.join(cmds.where)))
 			else:
