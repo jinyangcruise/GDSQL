@@ -57,13 +57,14 @@ const VALID_PORT_COLOR = {
 	TYPE_PACKED_STRING_ARRAY: Color.FIREBRICK,
 	TYPE_PACKED_VECTOR2_ARRAY: Color.FLORAL_WHITE,
 	TYPE_PACKED_VECTOR3_ARRAY: Color.FOREST_GREEN,
+	TYPE_PACKED_VECTOR4_ARRAY: Color.FUCHSIA,
 	TYPE_PACKED_COLOR_ARRAY: Color.YELLOW,
 }
 
 enum LINK_TYPE {
-	NONE,
-	ASSOCIATION,
+	ASSOCIATION = 1,
 	COLLECTION_ARRAY,
+	LINK_HELPER, # 用于关联表（一对一或一对多，取决于后续表的选择），关联表中的数据不会生成实体类
 }
 
 func _exit_tree():
@@ -118,63 +119,75 @@ asize = null, pos_offset = null, aname = ""):
 	var datas: Array[Array] = []
 	
 	if not extra.is_empty():
-		var type = extra.get("link_type", LINK_TYPE.NONE)
-		if type != LINK_TYPE.NONE:
-			graph_node.set_meta("extra_enabled", true)
-			var prop_type = extra.get("link_prop_type", "") # gdscript type or class name
-			var prop_name = extra.get("link_prop", "")
-			
-			var ob_link_type = OptionButton.new()
-			ob_link_type.add_item("ASSOCIATION", LINK_TYPE.ASSOCIATION)
-			ob_link_type.add_item("COLLECTION_ARRAY", LINK_TYPE.COLLECTION_ARRAY)
-			ob_link_type.selected = 0 if type == LINK_TYPE.ASSOCIATION else 1
-			ob_link_type.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var type = extra.get("link_type", LINK_TYPE.ASSOCIATION)
+		graph_node.set_meta("extra_enabled", true)
+		var prop_type = extra.get("link_prop_type", "") # gdscript type or class name
+		var prop_name = extra.get("link_prop", "")
 		
-			var association_class_name = LineEdit.new()
-			association_class_name.caret_blink = true
-			association_class_name.placeholder_text = "Class name"
-			association_class_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			association_class_name.custom_minimum_size.x = 150
-			association_class_name.tooltip_text = (
-				"Class name of the property.\n'Entity' is not needed.")
-			association_class_name.text = extra.get("association_class_name", "")
-			
-			var text_enum_suggestion = TEXT_ENUM.instantiate()
-			text_enum_suggestion.ready.connect(func():
-				text_enum_suggestion.setup(DataTypeDef.DATA_TYPE_COMMON_NAMES.keys(), true)
-				text_enum_suggestion._custom_value_submitted(prop_type)
-				ob_link_type.item_selected.emit(0 if type == LINK_TYPE.ASSOCIATION else 1)
-			)
-			text_enum_suggestion.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			text_enum_suggestion.custom_minimum_size.x = 150
-			text_enum_suggestion.tooltip_text = "Type of the element of collection."
-			text_enum_suggestion.visible = false
-			
-			ob_link_type.item_selected.connect(func(index):
-				if index == 0:
+		var ob_link_type = OptionButton.new()
+		ob_link_type.add_item("NONE", 0)
+		ob_link_type.set_item_disabled(0, true)
+		ob_link_type.add_item("ASSOCIATION", LINK_TYPE.ASSOCIATION)
+		ob_link_type.add_item("COLLECTION_ARRAY", LINK_TYPE.COLLECTION_ARRAY)
+		ob_link_type.add_separator("table for linking two tables")
+		ob_link_type.add_item("LINK_HELPER", LINK_TYPE.LINK_HELPER)
+		ob_link_type.selected = type
+		ob_link_type.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
+		var association_class_name = LineEdit.new()
+		association_class_name.caret_blink = true
+		association_class_name.placeholder_text = "Class name"
+		association_class_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		association_class_name.custom_minimum_size.x = 150
+		association_class_name.tooltip_text = (
+			"Class name of the property.\n'Entity' is not needed.")
+		association_class_name.text = extra.get("association_class_name", "")
+		
+		var text_enum_suggestion = TEXT_ENUM.instantiate()
+		text_enum_suggestion.ready.connect(func():
+			text_enum_suggestion.setup(DataTypeDef.DATA_TYPE_COMMON_NAMES.keys(), true)
+			text_enum_suggestion._custom_value_submitted(prop_type)
+			ob_link_type.item_selected.emit(type)
+		)
+		text_enum_suggestion.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		text_enum_suggestion.custom_minimum_size.x = 150
+		text_enum_suggestion.tooltip_text = "Type of the element of collection."
+		text_enum_suggestion.visible = false
+		
+		var le_prop_name = LineEdit.new()
+		le_prop_name.text = prop_name
+		le_prop_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		le_prop_name.placeholder_text = "Property name"
+		le_prop_name.tooltip_text = "Property Name"
+		
+		ob_link_type.item_selected.connect(func(index):
+			match ob_link_type.get_item_id(index):
+				LINK_TYPE.ASSOCIATION:
 					association_class_name.show()
 					text_enum_suggestion.hide()
-				else:
+					le_prop_name.show()
+				LINK_TYPE.COLLECTION_ARRAY:
 					association_class_name.hide()
 					text_enum_suggestion.show()
-			)
-			
-			var le_prop_name = LineEdit.new()
-			le_prop_name.text = prop_name
-			le_prop_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			le_prop_name.placeholder_text = "Property name"
-			le_prop_name.tooltip_text = "Property Name"
-			
-			association_class_name.text_changed.connect(func(new_text: String):
-				if new_text.countn(le_prop_name.text) > 0 or \
-				le_prop_name.text.countn(new_text) > 0 or \
-				new_text.to_snake_case().begins_with(le_prop_name.text) or \
-				le_prop_name.text.begins_with(new_text.to_snake_case()):
-					le_prop_name.text = new_text.to_snake_case()
-			)
-			
-			datas.push_back([null, null, ob_link_type, association_class_name, 
-				text_enum_suggestion, le_prop_name])
+					le_prop_name.show()
+				LINK_TYPE.LINK_HELPER:
+					association_class_name.hide()
+					text_enum_suggestion.hide()
+					le_prop_name.hide()
+				_:
+					push_error("Invalid index %s mapper_graph_edit.gd in 178." % index)
+		)
+		
+		association_class_name.text_changed.connect(func(new_text: String):
+			if new_text.countn(le_prop_name.text) > 0 or \
+			le_prop_name.text.countn(new_text) > 0 or \
+			new_text.to_snake_case().begins_with(le_prop_name.text) or \
+			le_prop_name.text.begins_with(new_text.to_snake_case()):
+				le_prop_name.text = new_text.to_snake_case()
+		)
+		
+		datas.push_back([null, null, ob_link_type, association_class_name, 
+			text_enum_suggestion, le_prop_name])
 			
 	for i: Dictionary in data.columns:
 		var label_col_name = Label.new()
@@ -318,6 +331,13 @@ func get_nodes_params(only_selected = false):
 		
 	return all_data
 	
+func is_helper_node(node: GraphNode) -> bool:
+	for arr: Array in node.datas:
+		if arr.size() == 6:
+			if (arr[2] as OptionButton).get_selected_id() == LINK_TYPE.LINK_HELPER:
+				return true
+	return false
+	
 func get_node_extra(node: GraphNode) -> Dictionary:
 	var extra = {}
 	for arr: Array in node.datas:
@@ -423,6 +443,8 @@ to_node: StringName, to_port: int) -> void:
 		
 	# 两个节点之间可以连多条线，但是不允许多个节点连出到同一个节点。
 	# 对to节点来说，只允许from一个节点，所以把前面的先去掉
+	# TODO 是否有例外的情况：当请求连接的多个节点拥有共同的同一个来源节点时，就能连到同一个节点上？
+	# 也就是说请求连接的多个节点都是helper时，且它们有共同的同一个来源
 	#var alreay = false
 	var graph_node = get_node(str(to_node)) as GraphNode
 	for i in get_connection_list():
@@ -448,9 +470,13 @@ to_node: StringName, to_port: int) -> void:
 		var prop_name = ""
 		
 		var ob_link_type = OptionButton.new()
+		ob_link_type.add_item("NONE", 0)
+		ob_link_type.set_item_disabled(0, true)
 		ob_link_type.add_item("ASSOCIATION", LINK_TYPE.ASSOCIATION)
 		ob_link_type.add_item("COLLECTION_ARRAY", LINK_TYPE.COLLECTION_ARRAY)
-		ob_link_type.selected = 0 if type == LINK_TYPE.ASSOCIATION else 1
+		ob_link_type.add_separator("table for linking two tables")
+		ob_link_type.add_item("ASSOCIATION_HELPER", LINK_TYPE.LINK_HELPER)
+		ob_link_type.selected = type
 		ob_link_type.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		ob_link_type.fit_to_longest_item = false
 		
@@ -473,20 +499,29 @@ to_node: StringName, to_port: int) -> void:
 		text_enum_suggestion.tooltip_text = "Type of the element of collection."
 		text_enum_suggestion.visible = false
 		
-		ob_link_type.item_selected.connect(func(index):
-			if index == 0:
-				association_class_name.show()
-				text_enum_suggestion.hide()
-			else:
-				association_class_name.hide()
-				text_enum_suggestion.show()
-		)
-		
 		var le_prop_name = LineEdit.new()
 		le_prop_name.text = prop_name
 		le_prop_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		le_prop_name.placeholder_text = "Property name"
 		le_prop_name.tooltip_text = "Property Name"
+		
+		ob_link_type.item_selected.connect(func(index):
+			match ob_link_type.get_item_id(index):
+				LINK_TYPE.ASSOCIATION:
+					association_class_name.show()
+					text_enum_suggestion.hide()
+					le_prop_name.show()
+				LINK_TYPE.COLLECTION_ARRAY:
+					association_class_name.hide()
+					text_enum_suggestion.show()
+					le_prop_name.show()
+				LINK_TYPE.LINK_HELPER:
+					association_class_name.hide()
+					text_enum_suggestion.hide()
+					le_prop_name.hide()
+				_:
+					push_error("Invalid index %s mapper_graph_edit.gd in 521." % index)
+		)
 		
 		association_class_name.text_changed.connect(func(new_text: String):
 			if new_text.countn(le_prop_name.text) > 0 or \

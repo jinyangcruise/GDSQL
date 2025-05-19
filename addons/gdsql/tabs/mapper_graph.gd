@@ -23,7 +23,7 @@ const EXTENSION = "*.gdmappergraph"
 
 enum LINK_WAY {
 	NESTING_SELECT,
-	NESTING_RESULT_MAP,
+	NESTING_RESULT_MAP, # use left join
 }
 
 func _ready() -> void:
@@ -164,39 +164,154 @@ func _on_button_run_pressed() -> void:
 			arr_node.push_back(i)
 	_generate(arr_node)
 	
+func has_a_helper_pre_node(node: GraphNode, to_from_map: Dictionary) -> bool:
+	if to_from_map.has(node):
+		for fnode in to_from_map[node]:
+			if graph_edit.is_helper_node(fnode):
+				return true
+	return false
+	
+## 获取node前面连接的helper的源头实体节点
+## 由于来源可能是多个字段，所以返回数组.
+## return [[node, from_col, to_col]]
+## node 是实体节点，from_col是实体节点的某个字段，to_col是helper节点的接入字段。
+func get_pre_helpers_source(node: GraphNode, to_from_map: Dictionary):
+	var ret = []
+	if to_from_map.has(node):
+		for fnode in to_from_map[node]:
+			# 如果fnode是helper节点
+			if graph_edit.is_helper_node(fnode):
+				# 如果fnode前面还连着helper节点，继续向前溯源
+				if has_a_helper_pre_node(fnode, to_from_map):
+					var r = get_pre_helpers_source(fnode, to_from_map)
+					ret.append_array(r)
+				# 把fnode前面连着的非helper节点信息加入
+				else:
+					for f_fnode in to_from_map[fnode]:
+						# i is [from_col, to_col]
+						for i in to_from_map[fnode][f_fnode]:
+							ret.push_back([f_fnode] + i)
+			else:
+				# 错误的情况，因为一个非HELPER节点就意味着一个实体，两个实体节点拥有同一个
+				# 实体作为它们的属性，是不正确的，或者说，是我们不支持的。
+				assert(false, "Invalid connection!")
+	return ret
+	
+## 获取node前面连接的helper的源头实体节点的输出列名
+func get_pre_helper_source_cols(node: GraphNode, to_from_map: Dictionary):
+	var ret = []
+	for i in get_pre_helpers_source(node, to_from_map):
+		if not ret.has(i[1]):
+			ret.push_back(i[1])
+	return ret
+	
+## 返回helper的最终实体节点。NOTICE 外部确保传入的node是一个helper节点。
+func get_helper_final_entity_nodes(node: GraphNode, nodes_map: Dictionary, node_pair: Dictionary):
+	var ret = []
+	var process = [node.name]
+	while not process.is_empty():
+		var n = process.pop_front()
+		if node_pair.has(n):
+			for tnode in node_pair[n]:
+				if graph_edit.is_helper_node(nodes_map[tnode]):
+					process.push_back(tnode)
+				else:
+					if not ret.has(nodes_map[tnode]):
+						ret.push_back(nodes_map[tnode])
+	return ret
+	
+## return:
+## select t0.id, t0.xx from db.table t0
+## left join db.table1 t1 on t1.xx == t0.xx
+## left join db.table2 t2 on t2.yy == t1.yy
+## where t1.xx == #{id1} and t2.yy == #{id2}
+func get_helpers_left_join_cmds(node: GraphNode, to_from_map: Dictionary, 
+alias_map: Dictionary = {}, arr_index: Array = [-1]):
+	var ret = {"left_join": [], "where": []}
+	var data = node.get_meta("data")
+	var db_name = data.db_name
+	var table_name = data.table_name
+	var get_alias_func = func(p_node):
+		if alias_map.has(p_node):
+			return alias_map[p_node]
+		var index = arr_index.max() + 1
+		arr_index.push_back(index)
+		var alias = "t%s" % index
+		alias_map[p_node] = alias
+		return alias
+	var table_alias = get_alias_func.call(node)
+	var columns = data.columns
+	var cols = columns.map(func(v):
+		return "%s.%s" % [table_alias, v["Column Name"]])
+		
+	if arr_index.max() == 0:
+		ret.left_join.push_back("select %s from %s.%s %s" % [
+			", ".join(cols), db_name, table_name, table_alias])
+			
+	if to_from_map.has(node):
+		for fnode in to_from_map[node]:
+			if graph_edit.is_helper_node(fnode):
+				var arr_on = []
+				var from_data = fnode.get_meta("data")
+				var from_db = from_data.db_name
+				var from_table = from_data.table_name
+				var from_alias = get_alias_func.call(fnode)
+				# i is [from_col, to_col]
+				for i in to_from_map[node][fnode]:
+					arr_on.push_back("%s.%s == %s.%s" % [
+						from_alias, i[0], table_alias, i[1]])
+				ret.left_join.push_back("left join %s.%s %s on %s" % [
+					from_db, from_table, from_alias, " and ".join(arr_on)])
+					
+				var r = get_helpers_left_join_cmds(
+					fnode, to_from_map, alias_map, arr_index)
+				ret.left_join.append_array(r.left_join)
+				ret.where.append_array(r.where)
+			else:
+				# i is [from_col, to_col]
+				for i in to_from_map[node][fnode]:
+					# 不考虑#{%s}存在两张表相同字段导致变量名混淆的问题，
+					# 因为不能连接多个实体表。
+					ret.where.push_back("%s.%s == #{%s}" % [
+						get_alias_func.call(node), i[1], i[0]])
+	return ret
+	
 func _generate(nodes: Array):
 	var nodes_map = {}
 	var node_pair = {}
 	var node_link_prop = {}
+	var node_to_from_map = {}
 	
 	for i in nodes:
 		if i.enabled:
 			nodes_map[i.name] = i
 			
 	for i in graph_edit.get_connection_list():
+		var from_node = nodes_map[i.from_node]
+		var from_columns = from_node.get_meta("data").columns
+		var from_col = from_columns[i.from_port]["Column Name"]
+		var to_node = nodes_map[i.to_node]
+		var to_columns = to_node.get_meta("data").columns
+		assert(to_node.get_meta("extra_enabled", false), 
+			"This node is supposed to has meta extra_enabled's true.")
+		var to_col = to_columns[i.to_port]["Column Name"]
+		var to_data = to_node.get_meta("data")
+		
+		if not node_to_from_map.has(to_node):
+			node_to_from_map[to_node] = {}
+		if not node_to_from_map[to_node].has(from_node):
+			node_to_from_map[to_node][from_node] = []
+		node_to_from_map[to_node][from_node].push_back([from_col, to_col])
+		
 		if nodes_map.has(i.from_node) and nodes_map.has(i.to_node):
-			var from_node = nodes_map[i.from_node]
-			var from_columns = from_node.get_meta("data").columns
-			#var from_port_offset = -1 if from_node.get_meta("extra_enabled", false) else 0
-			#var from_col = from_columns[i.from_port + from_port_offset]["Column Name"]
-			var from_col = from_columns[i.from_port]["Column Name"]
-			#var from_data = from_node.get_meta("data")
-			
-			var to_node = nodes_map[i.to_node]
-			var to_columns = to_node.get_meta("data").columns
-			assert(to_node.get_meta("extra_enabled", false), 
-				"This node is supposed to has meta extra_enabled's true.")
-			#var to_port_offset = -1
-			#var to_col = to_columns[i.to_port + to_port_offset]["Column Name"]
-			var to_col = to_columns[i.to_port]["Column Name"]
-			var to_data = to_node.get_meta("data")
-			
 			if not node_pair.has(i.from_node):
 				node_pair[i.from_node] = {}
 			if not node_pair[i.from_node].has(i.to_node):
 				var to_node_extra = graph_edit.get_node_extra(to_node)
 				node_link_prop[i.to_node] = to_node_extra.link_prop_type
+				var is_helper = to_node_extra.link_type == graph_edit.LINK_TYPE.LINK_HELPER
 				node_pair[i.from_node][i.to_node] = {
+					"node": nodes_map[i.to_node],
 					"db_name": to_data.db_name,
 					"table_name": to_data.table_name,
 					"comment": to_data.comment,
@@ -205,10 +320,18 @@ func _generate(nodes: Array):
 					"link_prop": to_node_extra.link_prop,
 					"link_col": [],
 					"to_columns": to_columns,
+					"is_helper": is_helper,
+					"helper_finals": null,
 				}
 				
 			node_pair[i.from_node][i.to_node].link_col.push_back([from_col, to_col])
 			
+	for f in node_pair:
+		for t in node_pair[f]:
+			if node_pair[f][t]["is_helper"]:
+				var to_node = nodes_map[t]
+				node_pair[f][t]["helper_finals"] = get_helper_final_entity_nodes(to_node, nodes_map, node_pair)
+				
 	var leading_nodes = nodes_map.keys()
 	for from_node_name in node_pair:
 		for to_node_name in node_pair[from_node_name]:
@@ -235,7 +358,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 	"""]
 		var arr_method = []
 		var arr_columns = {}
-		var has_asso_collec = false
+		var has_asso_collec = node_pair.has(lead_node_name)
 		var valid_prefixes = {} # a0_, a1_, ..., z8_, z9_, aa_, ab_, ..., zy_, zz_
 		for i in prefixes:
 			for j in 10:
@@ -258,6 +381,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		var linked_nodes = get_linked_nodes_bfs(node_pair, lead_node_name)
 		
 		for node_name in linked_nodes:
+			# HELPER 不占用实体类名，除非使用了left join
+			if option_button_link.selected == LINK_WAY.NESTING_SELECT and \
+			graph_edit.is_helper_node(nodes_map[node_name]):
+				continue
+				
 			prefix_index += 1
 			table_alias[node_name] = valid_prefixes.keys()[prefix_index]
 			var data = nodes_map[node_name].get_meta("data") as Dictionary
@@ -282,6 +410,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		var result_map_added = []
 		for node_name in linked_nodes:
 			var node = nodes_map[node_name]
+			# HELPER 不生成实体、xml mapper、gdscript xml
+			if graph_edit.is_helper_node(node):
+				continue
+				
 			var data = node.get_meta("data") as Dictionary
 			var aprops = graph_edit.get_node_props(node) as Dictionary
 			var db_name = data.db_name as String
@@ -290,8 +422,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			var table_comment = data.comment
 			var columns = data.columns as Array
 			var result_map_id = table_name_camel
-			if node_link_prop.has(node.name):
-				result_map_id = node_link_prop[node.name].to_camel_case()
+			if node_link_prop.has(node_name):
+				result_map_id = node_link_prop[node_name].to_camel_case()
 			if leading_result_map_id == null:
 				leading_result_map_id = result_map_id
 				leading_class_n = result_map_id.capitalize().replace(" ", "")
@@ -304,7 +436,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			var arr_col_name = []
 			var arr_prop_type = []
 			var a_col_prefix = ""
-			# lead tabel 可能需要column加前缀。其他的不用，因为association和collection
+			# lead table 可能需要column加前缀。其他的不用，因为association和collection
 			# 支持在columnPrefix属性设定一个前缀。
 			if node_name == lead_node_name:
 				if node_pair.has(node_name) and \
@@ -330,84 +462,110 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			arr_columns[node_name] = arr_col_name
 			
 			if node_pair.has(node_name):
-				has_asso_collec = true
-				for to_node_name in node_pair[node.name]:
-					var info = node_pair[node.name][to_node_name]
-					var s = null
-					var prefix = "<association" if info.link_type == \
-						graph_edit.LINK_TYPE.ASSOCIATION else "<collection "
-					var a_result_map_id = info.link_prop_type.to_camel_case() + "Result"
-					
-					if option_button_link.selected == LINK_WAY.NESTING_SELECT:
-						var by = info.link_col.map(func(v): return v[1])
-						by.sort()
-						var arg_types = []
-						for i in by:
-							for j in info.to_columns:
-								if j["Column Name"] == i:
-									arg_types.push_back(j["Data Type"])
-									break
-						var parent_by = info.link_col.map(func(v): return v[0])
-						parent_by.sort()
-						var method = 'select_%s_by_%s' % \
-							[info.link_prop_type.to_snake_case(), "_".join(by)]
-						var method_info = {
-							"id": method,
-							"result_map": a_result_map_id,
-							"arg_names": by,
-							"arg_types": arg_types,
-							"db_name": info.db_name,
-							"namespace": info.db_name + "." + info.table_name,
-							"node_name": to_node_name,
-							"info": info,
-						}
-						
-						# 为了避免因为各种原因导致method相同但实际上不能共用method的情况，
-						# 需要给method名称加后缀。
-						var new_index = 1
-						var need_add_surfix = false
-						var has_same = false
-						for i in arr_method:
-							if i.id.begins_with(method_info.id):
-								var a_index = Array(i.id.split("_")).back().to_int()
-								new_index = max(a_index, new_index) + 1
-							if i.id == method_info.id:
-								has_same = true
-								if i.result_map != method_info.result_map or \
-								i.arg_names != method_info.arg_names or \
-								i.namespace != method_info.namespace:
-									need_add_surfix = true
-									
-						if need_add_surfix:
-							method_info.id = method_info.id + "_" + str(new_index)
-							
-						s = '%s property="%s" column="%s" select="%s"    />' % \
-							[prefix, info.link_prop, ",".join(parent_by), 
-							method_info.id]
-							
-						if not has_same:
-							arr_method.push_back(method_info)
+				for to_node_name in node_pair[node_name]:
+					var ainfo = node_pair[node_name][to_node_name]
+					var arr_info = [] # 要兼容helper一对多的情况
+					if ainfo.is_helper:
+						for anode in ainfo.helper_finals:
+							for fnode in node_to_from_map[anode]:
+								# WARNING 注意push的info中的部分信息不属于 node_name 的节点
+								arr_info.push_back(node_pair[fnode.name][anode.name])
+								break # 只需要一个关于anode的信息就行了，主要是db名称，表名称，属性名称等
 					else:
-						s = '%s property="%s" columnPrefix="%s" resultMap="%s"    />' % \
-							[prefix, info.link_prop, table_alias[to_node_name], 
-							a_result_map_id]
-							
-					arr_col.push_back(s)
-					arr_prop_type.push_back(
-						[info.link_prop, info.link_prop_type, info.link_type, info.comment, ""])
+						arr_info.push_back(ainfo)
 						
+					for info in arr_info:
+						var s = null
+						var is_association = info.link_type == graph_edit.LINK_TYPE.ASSOCIATION
+						var prefix = "<association" if is_association else "<collection "
+						var a_result_map_id = info.link_prop_type.to_camel_case() + "Result"
+						
+						if option_button_link.selected == LINK_WAY.NESTING_SELECT:
+							var by
+							var parent_by
+							var arg_types = []
+							var method
+							if ainfo.is_helper:
+								by = get_pre_helper_source_cols(info.node, node_to_from_map)
+								by.sort()
+								for i in by:
+									for j in node.get_meta("data").columns:
+										if j["Column Name"] == i:
+											arg_types.push_back(j["Data Type"])
+											break
+								parent_by = by
+								method = "select_%s_by_%s" if is_association \
+									else "select_%s_list_by_%s"
+								method %= [info.link_prop_type.to_snake_case(), "_".join(by)]
+							else:
+								by = info.link_col.map(func(v): return v[1])
+								by.sort()
+								for i in by:
+									for j in info.to_columns:
+										if j["Column Name"] == i:
+											arg_types.push_back(j["Data Type"])
+											break
+								parent_by = info.link_col.map(func(v): return v[0])
+								parent_by.sort()
+								method = "select_%s_by_%s" % [
+									info.link_prop_type.to_snake_case(), "_".join(by)]
+									
+							var method_info = {
+								"id": method,
+								"result_map": a_result_map_id,
+								"arg_names": by,
+								"arg_types": arg_types,
+								"db_name": info.db_name,
+								"namespace": info.db_name + "." + info.table_name,
+								"node_name": to_node_name,
+								"info": info,
+								"from_helper": ainfo.is_helper,
+							}
+							# 为了避免因为各种原因导致method相同但实际上不能共用method的情况，
+							# 需要给method名称加后缀。
+							var new_index = 1
+							var need_add_surfix = false
+							var has_same = false
+							for i in arr_method:
+								if i.id.begins_with(method_info.id):
+									var a_index = Array(i.id.split("_")).back().to_int()
+									new_index = max(a_index, new_index) + 1
+								if i.id == method_info.id:
+									has_same = true
+									if i.result_map != method_info.result_map or \
+									i.arg_names != method_info.arg_names or \
+									i.namespace != method_info.namespace:
+										need_add_surfix = true
+										
+							if need_add_surfix:
+								method_info.id = method_info.id + "_" + str(new_index)
+								
+							s = '%s property="%s" column="%s" select="%s"    />' % \
+								[prefix, info.link_prop, ",".join(parent_by), method_info.id]
+								
+							if not has_same:
+								arr_method.push_back(method_info)
+						else:
+							s = '%s property="%s" columnPrefix="%s" resultMap="%s"    />' % \
+								[prefix, info.link_prop, table_alias[to_node_name], 
+								a_result_map_id]
+								
+						arr_col.push_back(s)
+						arr_prop_type.push_back(
+							[info.link_prop, info.link_prop_type, info.link_type, info.comment, ""])
+							
 			if not result_map_added.has(result_map_id):
 				xml_arr.push_back('\n\t<resultMap id="%sResult" type="%sEntity"' % [
 					result_map_id, result_map_id.capitalize().replace(" ", "")
 				])
-				xml_arr.push_back(' autoMapping="false">\n\t\t%s\n\t</resultMap>\n\t' % \
+				xml_arr.push_back(' autoMapping="false">\n\t\t%s\n\t</resultMap>\n\t' % 
 					"\n\t\t".join(arr_col))
 				result_map_added.push_back(result_map_id)
 				
 			# entity
 			var en_ns = '%s.%sEntity' % [db_name, result_map_id.capitalize().replace(" ", "")]
 			if not entity_map.has(en_ns):
-				var arr = ['extends GBatisEntity\nclass_name %sEntity\n' % \
+				var arr = ['extends GBatisEntity\nclass_name %sEntity\n' % 
 					result_map_id.capitalize().replace(" ", "")]
 				var arr_getset = []
 				if table_comment != "":
@@ -476,6 +634,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		elif option_button_link.selected == LINK_WAY.NESTING_SELECT:
 			select_use_db = true
 			for node_name in linked_nodes:
+				# HELPER 不生成vo、xml mapper
+				if graph_edit.is_helper_node(nodes_map[node_name]):
+					continue
+					
 				var data = nodes_map[node_name].get_meta("data") as Dictionary
 				var db_name = data.db_name as String
 				var table_name = data.table_name as String
@@ -489,8 +651,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 					if count != 1:
 						id += "_" + str(count)
 					vo_ids[db_name + "." + table_name] = id
-					var vo = "select %s from %s" % [", ".join(arr_columns[node_name]), 
-						table_name]
+					var vo = "select %s from %s" % [
+							", ".join(arr_columns[node_name]), table_name]
 					xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n\t' % \
 						[id, split_for_long_content(vo, "\n\t\t")])
 		# nesting resultMap 需要使用left join，把所有表形成一条sql
@@ -499,6 +661,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			var vo = ""
 			var all_column_name = []
 			for node_n in arr_columns:
+				# helper不拉取数据
+				if graph_edit.is_helper_node(nodes_map[node_n]):
+					continue
 				for c in arr_columns[node_n]:
 					all_column_name.push_back(
 						table_alias[node_n].substr(0, 2) + "." + c + \
@@ -527,8 +692,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 								var alias1 = table_alias[t].substr(0, 2)
 								for k in node_pair[f][t].link_col:
 									acond.push_back('%s.%s == %s.%s' % [
-										alias1, k[1], alias0, k[0]
-									])
+										alias1, k[1], alias0, k[0]])
 								break
 					vo += "\n\t\tleft join %s.%s %s on %s" % [
 						db_name, table_name, t_alias, " and ".join(acond)
@@ -629,27 +793,35 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				args.push_back('%s: %s' % [
 					arg_names.back(), type_string(m.arg_types[i])])
 			var return_type = null
+			# WARNING m.info在节点前面连接了helper的情况下，只能使用节点本身相关的信息，
+			# 不能使用前面连接helper节点的信息，因为它可能（也许未来某个版本会支持）前面连
+			# 了多个helper，但是只提供了一个info在这里。
 			if m.info.link_type == graph_edit.LINK_TYPE.ASSOCIATION:
 				return_type = m.info.link_prop_type.capitalize().replace(" ", "") + "Entity"
 			else:
 				return_type = 'Array[%sEntity]' % m.info.link_prop_type
 			mapper_arr.push_back('\nfunc %s(%s) -> %s:' % [
-				m.id, ", ".join(args), return_type
-			])
+				m.id, ", ".join(args), return_type])
 			mapper_arr.push_back('\n\treturn query("%s", %s)\n\t' % [
-				m.id, ", ".join(arg_names)
-			])
-			
-			# xml_arr
-			var acond = []
-			for arg in m.arg_names:
-				acond.push_back('%s == #{%s}' % [arg, arg.to_snake_case()])
+				m.id, ", ".join(arg_names)])
 				
-			xml_arr.push_back('\n\t<select id="%s" resultMap="%s"%s>' % \
-				[m.id, m.result_map, 
-				(' databaseId="%s"' % m.db_name) if select_use_db else ""])
-			xml_arr.push_back('\n\t\t<include refid="%sVo"/>' % vo_ids[m.namespace])
-			xml_arr.push_back('\n\t\twhere %s' % " and ".join(acond))
+			# xml_arr
+			if m.from_helper:
+				var cmds = get_helpers_left_join_cmds(m.info.node, node_to_from_map)
+				xml_arr.push_back('\n\t<select id="%s" resultMap="%s">' % [
+					m.id, m.result_map])
+				xml_arr.push_back('\n\t\t' + '\n\t\t'.join(cmds.left_join))
+				xml_arr.push_back('\n\t\twhere %s' % (' and '.join(cmds.where)))
+			else:
+				var acond = []
+				for arg in m.arg_names:
+					acond.push_back('%s == #{%s}' % [arg, arg.to_snake_case()])
+					
+				xml_arr.push_back('\n\t<select id="%s" resultMap="%s"%s>' %
+					[m.id, m.result_map, 
+					(' databaseId="%s"' % m.db_name) if select_use_db else ""])
+				xml_arr.push_back('\n\t\t<include refid="%sVo"/>' % vo_ids[m.namespace])
+				xml_arr.push_back('\n\t\twhere %s' % (" and ".join(acond)))
 			xml_arr.push_back('\n\t</select>\n\t')
 			
 		# update mapper
@@ -932,7 +1104,7 @@ func comfirm_save(path: String = "", item: TreeItem = null, editor_file_dialog =
 		_generate_dialog.transient = false
 		if _generate_dialog.mode != Window.MODE_WINDOWED:
 			_generate_dialog.mode = Window.MODE_WINDOWED
-		_generate_dialog.grab_focus() # TODO FIXME WAIT_FOR_UPDATE which is useless in 4.3.dev6
+		_generate_dialog.grab_focus()
 	await get_tree().create_timer(2).timeout
 	item.set_button(2, 2, old_btn)
 	item.set_button_disabled(2, 2, false)
