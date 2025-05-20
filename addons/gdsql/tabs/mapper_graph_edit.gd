@@ -131,7 +131,10 @@ asize = null, pos_offset = null, aname = ""):
 		ob_link_type.add_item("COLLECTION_ARRAY", LINK_TYPE.COLLECTION_ARRAY)
 		ob_link_type.add_separator("table for linking two tables")
 		ob_link_type.add_item("LINK_HELPER", LINK_TYPE.LINK_HELPER)
-		ob_link_type.selected = type
+		for i in ob_link_type.item_count:
+			if ob_link_type.get_item_id(i) == type:
+				ob_link_type.selected = i
+				break
 		ob_link_type.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	
 		var association_class_name = LineEdit.new()
@@ -147,7 +150,10 @@ asize = null, pos_offset = null, aname = ""):
 		text_enum_suggestion.ready.connect(func():
 			text_enum_suggestion.setup(DataTypeDef.DATA_TYPE_COMMON_NAMES.keys(), true)
 			text_enum_suggestion._custom_value_submitted(prop_type)
-			ob_link_type.item_selected.emit(type)
+			for i in ob_link_type.item_count:
+				if ob_link_type.get_item_id(i) == type:
+					ob_link_type.item_selected.emit(i)
+					break
 		)
 		text_enum_suggestion.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		text_enum_suggestion.custom_minimum_size.x = 150
@@ -175,7 +181,7 @@ asize = null, pos_offset = null, aname = ""):
 					text_enum_suggestion.hide()
 					le_prop_name.hide()
 				_:
-					push_error("Invalid index %s mapper_graph_edit.gd in 178." % index)
+					push_error("Invalid index %s mapper_graph_edit.gd in 183." % index)
 		)
 		
 		association_class_name.text_changed.connect(func(new_text: String):
@@ -476,7 +482,10 @@ to_node: StringName, to_port: int) -> void:
 		ob_link_type.add_item("COLLECTION_ARRAY", LINK_TYPE.COLLECTION_ARRAY)
 		ob_link_type.add_separator("table for linking two tables")
 		ob_link_type.add_item("ASSOCIATION_HELPER", LINK_TYPE.LINK_HELPER)
-		ob_link_type.selected = type
+		for i in ob_link_type.item_count:
+			if ob_link_type.get_item_id(i) == type:
+				ob_link_type.selected = i
+				break
 		ob_link_type.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		ob_link_type.fit_to_longest_item = false
 		
