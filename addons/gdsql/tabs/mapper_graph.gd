@@ -557,13 +557,18 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 									new_index = max(a_index, new_index) + 1
 								if i.id == method_info.id:
 									has_same = true
-									if i.result_map != method_info.result_map or \
+									if (i.from_helper and i.info.node == 
+										method_info.info.node) or \
+									i.result_map != method_info.result_map or \
 									i.arg_names != method_info.arg_names or \
-									i.namespace != method_info.namespace:
+									i.arg_types != method_info.arg_types or \
+									i.namespace != method_info.namespace or \
+									i.info.link_col != method_info.info.link_col:
 										need_add_surfix = true
 										
 							if need_add_surfix:
 								method_info.id = method_info.id + "_" + str(new_index)
+								has_same = false
 								
 							s = '%s property="%s" column="%s" select="%s"    />' % \
 								[prefix, info.link_prop, ",".join(parent_by), method_info.id]
