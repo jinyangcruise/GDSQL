@@ -261,8 +261,9 @@ alias_map: Dictionary = {}, arr_index: Array = [-1]):
 		return "%s.%s" % [table_alias, v["Column Name"]])
 		
 	if first_node:
-		ret.select.push_back("select %s " % (", ".join(cols)))
-		
+		ret.select.push_back("select %s " % 
+			split_for_long_content(", ".join(cols), "\n\t\t"))
+			
 	var arr_on = []
 	for fnode in to_from_map[node]:
 		var from_alias = get_alias_func.call(fnode)
@@ -312,6 +313,9 @@ func _generate(nodes: Array):
 			nodes_map[i.name] = i
 			
 	for i in graph_edit.get_connection_list():
+		# 节点可能未被选中或开启
+		if not nodes_map.has(i.from_node) or not nodes_map.has(i.to_node):
+			continue
 		var from_node = nodes_map[i.from_node]
 		var from_columns = from_node.get_meta("data").columns
 		var from_col = from_columns[i.from_port]["Column Name"]
