@@ -3965,10 +3965,18 @@ func search_input_name_equal(node, input_name: String, sub_name: String, tree: D
 			node.nodes[0].base.index == input_index and node.nodes[0].name == sub_name:
 				tree[op_names[node.op]] = parse_node.call(node.nodes[1])
 				dealed = true
+			if not dealed and node.nodes[0].base is ExpressionSQLInputNode and \
+			node.nodes[0].base.name == input_name and node.nodes[0].base.subname == sub_name:
+				tree[op_names[node.op]] = parse_node.call(node.nodes[1])
+				dealed = true
 			if not dealed and node.nodes[1] is ExpressionNamedIndexNode:
 				if node.nodes[1].base is ExpressionInputNode and \
 				node.nodes[1].base.index == input_index and node.nodes[1].name == sub_name:
 					# 'r'表示操作数是反着的，比如：t.id > 1，符号是'>'，而1 > t.id，符号是'r>'
+					tree['r' + op_names[node.op]] = parse_node.call(node.nodes[0])
+					dealed = true
+				if not dealed and node.nodes[1].base is ExpressionSQLInputNode and \
+				node.nodes[1].base.name == input_name and node.nodes[1].base.subname == sub_name:
 					tree['r' + op_names[node.op]] = parse_node.call(node.nodes[0])
 					dealed = true
 		if not dealed and node.nodes[1] is ExpressionNamedIndexNode:
@@ -3976,9 +3984,17 @@ func search_input_name_equal(node, input_name: String, sub_name: String, tree: D
 			node.nodes[1].base.index == input_index and node.nodes[1].name == sub_name:
 				tree['r' + op_names[node.op]] = parse_node.call(node.nodes[0])
 				dealed = true
+			if not dealed and node.nodes[1].base is ExpressionSQLInputNode and \
+			node.nodes[1].base.name == input_name and node.nodes[1].base.subname == sub_name:
+				tree['r' + op_names[node.op]] = parse_node.call(node.nodes[0])
+				dealed = true
 			if not dealed and node.nodes[0] is ExpressionNamedIndexNode:
 				if node.nodes[0].base is ExpressionInputNode and \
 				node.nodes[0].base.index == input_index and node.nodes[0].name == sub_name:
+					tree['r' + op_names[node.op]] = parse_node.call(node.nodes[1])
+					dealed = true
+				if not dealed and node.nodes[0].base is ExpressionSQLInputNode and \
+				node.nodes[0].base.name == input_name and node.nodes[0].base.subname == sub_name:
 					tree['r' + op_names[node.op]] = parse_node.call(node.nodes[1])
 					dealed = true
 		if not dealed:
