@@ -57,28 +57,28 @@ func _refresh():
 		clear_cache(now)
 		
 func set_cache(method: String, param: Dictionary, value: Variant):
-	var key = method
+	var key = [method]
 	for i in param:
 		if i != GBatisMapperParser.BIND:
-			key += var_to_str(param[i])
+			key.push_back(param[i])
 	set_cache_by_key(key, value)
 	
-func set_cache_by_key(key: String, value: Variant):
+func set_cache_by_key(key, value: Variant):
 	_refresh()
 	_cache.put_value(key, var_to_str(value))
 	
 func get_cache(method: String, param: Dictionary) -> Array:
-	var key = method
+	var key = [method]
 	for i in param:
 		if i != GBatisMapperParser.BIND:
-			key += var_to_str(param[i])
+			key.push_back(param[i])
 	_refresh()
 	if _cache.has_key(key):
 		return [true, str_to_var(_cache.get_value(key)), key]
 	return [false, null, key]
 	
 class GBatisCacheNode extends RefCounted:
-	var key: String
+	var key
 	var value: Variant
 	var prev: GBatisCacheNode
 	var next: GBatisCacheNode
@@ -102,17 +102,24 @@ class GBatisLRULink extends RefCounted:
 		head.next = tail
 		tail.prev = head
 		
-	func has_key(key: String) -> bool:
+	func has_key(key) -> bool:
 		return cache.has(key)
 		
-	func get_value(key: String):
+	func get_value(key):
 		if not cache.has(key):
 			return null
 		var node = cache[key] as GBatisCacheNode
 		move_to_tail(node)
 		return node.value
 		
-	func put_value(key: String, value: Variant):
+	func remove_value(key):
+		if not has_key(key):
+			return
+		var node = cache[key] as GBatisCacheNode
+		remove_node(node)
+		cache.erase(key)
+		
+	func put_value(key, value: Variant):
 		if cache.has(key):
 			var node = cache[key] as GBatisCacheNode
 			node.value = value
@@ -198,15 +205,15 @@ class GBatisFIFOLink extends RefCounted:
 		head.next = tail
 		tail.prev = head
 		
-	func has_key(key: String) -> bool:
+	func has_key(key) -> bool:
 		return cache.has(key)
 		
-	func get_value(key: String):
+	func get_value(key):
 		if cache.has(key):
 			return cache[key].value
 		return null
 		
-	func put_value(key: String, value: Variant):
+	func put_value(key, value: Variant):
 		if cache.has(key):
 			var node = cache[key]
 			node.value = value
@@ -228,6 +235,19 @@ class GBatisFIFOLink extends RefCounted:
 			oldest_node.prev.next = oldest_node.next
 			oldest_node.next.prev = oldest_node.prev
 			
+	func remove_value(key):
+		if not has_key(key):
+			return
+		var node = cache[key] as GBatisCacheNode
+		remove_node(node)
+		cache.erase(key)
+		
+	func remove_node(node: GBatisCacheNode):
+		var prev_node = node.prev
+		var next_node = node.next
+		prev_node.next = next_node
+		next_node.prev = prev_node
+		
 	func clear():
 		# 清空双向链表
 		var current = head.next

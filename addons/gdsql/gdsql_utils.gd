@@ -48,17 +48,21 @@ static func evaluate_command(target: Object, command: String, variable_names = [
 ## nested_subqueries: 嵌套的子查询
 static func evaluate_command_with_sql_expression(target: Object, command: String, 
 variable_names: Array = [], variable_values: Array = [], 
-sql_input_names: Dictionary = {}, sql_inputs: Array = [], 
-nested_subqueries: Dictionary = {}, lacking_tables = null):
-	var expression = GDSQLExpression.new()
-	expression.sql_mode = true
-	expression.set_sql_input_names(sql_input_names)
-	expression.set_sql_inputs(sql_inputs)
-	expression.set_nested_sql_queries(nested_subqueries)
-	var error = expression.parse(command, variable_names)
-	if error != OK:
-		push_error(expression.get_error_text())
-		return null
+sql_input_names: Dictionary = {}, sql_static_inputs: Array = [], 
+sql_varying_inputs: Dictionary = {}, nested_subqueries: Dictionary = {}, 
+lacking_tables = null):
+	var ex_key = [command, variable_names, sql_input_names, sql_static_inputs]
+	var expression = GDSQLExpression.EXPRESSION_CACHE.get_value(ex_key) # ALERT UNSAFE
+	if not expression:
+		expression = GDSQLExpression.new()
+		expression.sql_mode = true
+		expression.set_sql_input_names(sql_input_names)
+		expression.set_nested_sql_queries(nested_subqueries)
+		var error = expression.parse(command, variable_names, sql_static_inputs)
+		if error != OK:
+			push_error(expression.get_error_text())
+			return null
+		GDSQLExpression.EXPRESSION_CACHE.put_value(ex_key, expression)
 		
 	# 缺少一些表
 	if not expression.get_lack_input_names().is_empty():
@@ -66,9 +70,11 @@ nested_subqueries: Dictionary = {}, lacking_tables = null):
 			lacking_tables.append_array(expression.get_lack_input_names())
 		return null
 		
-	var ret = expression.execute(variable_values, target, false)
+	var ret = expression.execute(variable_values, sql_varying_inputs, target, false)
 	
 	if expression.error_set:
+		# 有可能expression自己有问题，清除缓存，否则就算改了代码也一直有问题
+		GDSQLExpression.EXPRESSION_CACHE.remove_value(ex_key)
 		push_error(expression.get_error_text())
 		assert(false, expression.get_error_text())
 		return null
@@ -99,23 +105,30 @@ nested_subqueries: Dictionary = {}, lacking_tables = null):
 ## variable_values：参数值列表
 static func evalute_command_with_agg(target: AggregateFunctions, command: String, 
 variable_names: Array = [], variable_values: Array = [], 
-sql_input_names: Dictionary = {}, sql_inputs: Array = [], nested_subqueries = {}):
-	var ex_key = command + str(variable_names)
+sql_input_names: Dictionary = {}, sql_static_inputs: Array = [], 
+sql_varying_inputs: Dictionary = {}, nested_subqueries = {}):
+	var ex_key = [command, variable_names, sql_input_names, sql_static_inputs]
 	var expression = GDSQLExpression.EXPRESSION_CACHE.get_value(ex_key) # ALERT UNSAFE
 	if not expression:
 		expression = GDSQLExpression.new()
 		expression.sql_mode = true
 		expression.set_sql_input_names(sql_input_names)
-		expression.set_sql_inputs(sql_inputs)
 		expression.set_nested_sql_queries(nested_subqueries)
-		var error = expression.parse(command, variable_names)
+		var error = expression.parse(command, variable_names, sql_static_inputs)
 		if error != OK:
 			push_error(expression.get_error_text())
 			return null
 		GDSQLExpression.EXPRESSION_CACHE.put_value(ex_key, expression)
 		# TODO all const 可以缓存结果
-	var ret = expression.execute(variable_values, target, true)
+	var ret = expression.execute(variable_values, sql_varying_inputs, target, true)
 	
+	if expression.error_set:
+		# 有可能expression自己有问题，清除缓存，否则就算改了代码也一直有问题
+		GDSQLExpression.EXPRESSION_CACHE.remove_value(ex_key)
+		push_error(expression.get_error_text())
+		assert(false, expression.get_error_text())
+		return null
+		
 	## 对于一些很简单的但Expression又不支持的写法，动态创建脚本
 	#if typeof(ret) == TYPE_NIL:
 		#var target_class_name = "Object"

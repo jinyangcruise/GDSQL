@@ -60,13 +60,15 @@ func cond(a_cond: String, sql_input_names: Dictionary = {}, nested_query: Dictio
 	return self
 	
 ## 对条件进行判定
-## datas: 包含判定所需要的数据，第一个元素是普通表数据（键是表名或别名，值是该表对应的一条数据），第二个元素是补充表
-func check(datas: Array):
+## static_inputs：固定的补充表的数据
+## varying_inputs：每条数据，键是表名或别名，值是该表对应的一条数据）
+func check(static_inputs: Array, varying_inputs: Dictionary):
 	# 需要check自身以及and、or的条件
 	var ret = true
 	if _cond:
 		ret = GDSQLUtils.evaluate_command_with_sql_expression(null, _cond, 
-			[], [], _sql_input_names, datas, _nested_query, _lacking_tables)
+			[], [], _sql_input_names, static_inputs, varying_inputs, 
+			_nested_query, _lacking_tables)
 		if not _lacking_tables.is_empty():
 			return null
 			
@@ -85,7 +87,7 @@ func check(datas: Array):
 	if _and_wrapper:
 		if !ret:
 			return false
-		ret = _and_wrapper.check(datas)
+		ret = _and_wrapper.check(static_inputs, varying_inputs)
 		if not _and_wrapper.get_lacking_tables().is_empty():
 			_lacking_tables.append_array(_and_wrapper.get_lacking_tables())
 		return ret
@@ -93,7 +95,7 @@ func check(datas: Array):
 	if _or_wrapper:
 		if ret:
 			return true
-		ret = _or_wrapper.check(datas)
+		ret = _or_wrapper.check(static_inputs, varying_inputs)
 		if not _or_wrapper.get_lacking_tables().is_empty():
 			_lacking_tables.append_array(_or_wrapper.get_lacking_tables())
 		return ret

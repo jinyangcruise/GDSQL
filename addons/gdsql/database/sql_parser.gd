@@ -416,40 +416,44 @@ static func restore(s: String, map: Dictionary) -> String:
 ## 1. QueryResult
 ## 2. {"sql": String(expression), ___Rep0___: QeuryResult, ___Rep1___: {"sql": String, ...}}
 static func replace_nested_sql_expression(expression: String, 
-sql_input_names: Dictionary = {}, sql_inputs: Array = [], need_user_enter_password: Array = []):
+sql_input_names: Dictionary = {}, sql_static_inputs: Array = [], 
+sql_varying_inputs: Dictionary = {}, need_user_enter_password: Array = []):
 	var dp = deep_prepare_sql(expression)
 	if dp.is_empty():
 		return expression
-	var ret = _simplify_expression(dp, sql_input_names, sql_inputs, need_user_enter_password)
+	var ret = _simplify_expression(dp, sql_input_names, sql_static_inputs, 
+		sql_varying_inputs, need_user_enter_password)
 	return ret
 	
 static func _simplify_expression(info, sql_input_names: Dictionary = {}, 
-sql_inputs: Array = [], need_user_enter_password: Array = []):
+sql_static_inputs: Array = [], sql_varying_inputs: Dictionary = {}, 
+need_user_enter_password: Array = []):
 	if info is String:
 		if info.length() > 6 and info.countn("select", 0, 6) > 0 and info[6].strip_edges() == "":
 			var input_names = [] # 补充表名
 			var inputs = [] # 补充数据
 			# sql_input_names 的结构：
 			# {
-			#     'x': [
-			#         true: 0,			# true表示x是一个普通表名
+			#     'x': {
+			#         true: ['a', 'b'],	# true表示x是一个普通表名，value是一个数组表示x中的字段（可能是多个表合并起来的）
 			#         false: index,		# false表示x是一个补充表名（来自__input_names）
 			#         'y': 0,			# 字符串表示x是一个普通表y中的一个字段
 			#         N: 0,				# 整数表示x是一个补充表中的一个字段，N表示该表在__input_names中的位置
-			#     ]
+			#     }
 			# }
 			for t in sql_input_names:
 				if sql_input_names[t].has(true):
-					# 外部可能传入第一个元素是null，表示暂时没数据，那么当作缺表处理，会
+					# 外部可能传入空字典，表示暂时没数据，那么当作缺表处理，会
 					# 体现在下面dao的执行结果中。
-					if sql_inputs[0] != null:
-						input_names.push_back(t)
-						inputs.push_back(sql_inputs[0][t])
+					if sql_varying_inputs.is_empty():
+						continue
+					input_names.push_back(t)
+					inputs.push_back(sql_varying_inputs[t])
 					continue
 				if sql_input_names[t].has(false):
 					if not input_names.has(t): # 优先级低于普通表名
 						input_names.push_back(t)
-						inputs.push_back(sql_inputs[1][sql_input_names[t][false]])
+						inputs.push_back(sql_static_inputs[sql_input_names[t][false]])
 				# NOTICE 不管字段，因为inputs里包含了字段的数据，在子查询dao里，会自己重新构造input_names结构
 				
 			var dao = parse_to_dao(info)
@@ -467,7 +471,8 @@ sql_inputs: Array = [], need_user_enter_password: Array = []):
 	else:
 		for k in info.keys():
 			if k != "sql":
-				info[k] = _simplify_expression(info[k], sql_input_names, sql_inputs, need_user_enter_password)
+				info[k] = _simplify_expression(info[k], sql_input_names, 
+					sql_static_inputs, sql_varying_inputs, need_user_enter_password)
 				if not need_user_enter_password.is_empty():
 					return null
 		return info
