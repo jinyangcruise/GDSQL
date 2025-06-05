@@ -3845,6 +3845,8 @@ func search_input_name_equal(node, input_name: String, sub_name: String, tree: D
 			elif p_node.base is ExpressionSQLInputNode:
 				# 做为一个NamedIndexNode的base，怎么可能是一个常数呢
 				assert(not p_node.base.value_set, "Inner error 3855 in expression.gd")
+				if p_node.base.info.has(false) and not sql_static_inputs.is_empty():
+					return sql_static_inputs[p_node.base.info[false]][p_node.name]
 				return {
 					'base': p_node.base.name,
 					'name': p_node.name,
@@ -5281,6 +5283,11 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 						param.push_back(1) # ALERT not support actually
 					elif i is ExpressionConstructorNode:
 						param.push_back(1) # ALERT not support actually
+					elif i is ExpressionSQLInputNode:
+						if i.subname != "":
+							param.push_back(i.name + '.' + i.subname)
+						else:
+							param.push_back(i.name)
 					else:
 						r_error_str[0] = tr("Not support this: '%s' in group_concat") % i
 						return true
@@ -5303,7 +5310,7 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 			var select = p_node as ExpressionSelectNode
 			
 			return select.cal(p_inputs, p_sql_varying_inputs, p_instance, 
-				select.expression.root, r_ret, p_const_calls_only, r_error_str)
+				r_ret, p_const_calls_only, r_error_str)
 				
 		ExpressionENode.Type.TYPE_SQL_INPUT:
 			var input_node = p_node as ExpressionSQLInputNode
@@ -5687,14 +5694,14 @@ class ExpressionSelectNode extends ExpressionENode:
 		type = ExpressionENode.Type.TYPE_SQL_SELECT
 		
 	func cal(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Object, 
-	p_node, r_ret: Array, p_const_calls_only: bool, r_error_str: Array):
+	r_ret: Array, p_const_calls_only: bool, r_error_str: Array):
 		if value != null:
 			r_ret[0] = value
 			return false
 			
 		if expression:
 			return expression._execute(p_inputs, p_sql_varying_inputs, p_instance, 
-				p_node, r_ret, p_const_calls_only, r_error_str)
+				expression.root, r_ret, p_const_calls_only, r_error_str)
 				
 		if info is Dictionary:
 			# info's structure like:
@@ -5754,7 +5761,7 @@ class ExpressionSelectNode extends ExpressionENode:
 				expression.set_nested_sql_queries(reps)
 				expression.parse(info.sql, [], sql_static_inputs)
 				return expression._execute(p_inputs, p_sql_varying_inputs, p_instance, 
-					p_node, r_ret, p_const_calls_only, r_error_str)
+					expression.root, r_ret, p_const_calls_only, r_error_str)
 		else:
 			r_error_str[0] = tr("Inner error %s in expression.gd") % 5759 # 没考虑到的情况？
 			return true
