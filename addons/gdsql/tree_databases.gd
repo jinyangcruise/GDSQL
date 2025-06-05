@@ -789,6 +789,9 @@ func truncate_table_from_config(db_name: String, table_name: String) -> void:
 		msgs.push_back("1 file: %s intended to move to trash but not found." % data_path)
 		
 	# create empty file
+	var data_file = ConfigFile.new()
+	data_file.save(data_path)
+	
 	__CONF_MANAGER.get_conf(data_path, "")._clear()
 	__CONF_MANAGER.save_conf_by_origin_password(data_path)
 	msgs.push_back("1 file: %s has been overwritten to an empty file." % data_path)
