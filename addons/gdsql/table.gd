@@ -180,7 +180,7 @@ func _notification(what):
 	
 func clear_header():
 	# header是嵌套的，所以删除第一个就行
-	if header.get_child_count() > 0:
+	if header and header.get_child_count() > 0:
 		var h = header.get_child(0)
 		header.remove_child(h)
 		h.queue_free()
@@ -730,7 +730,7 @@ func split_for_tooltip(content: String) -> String:
 	
 func clear_rows():
 	clear_borders()
-	while v_box_container.get_child_count() > 0:
+	while v_box_container and v_box_container.get_child_count() > 0:
 		var r = v_box_container.get_child(0)
 		#if r == last_focused_row:
 			#last_focused_row = null
