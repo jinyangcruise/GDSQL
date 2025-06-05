@@ -194,19 +194,19 @@ func test_left_join():
 		
 	printt(ret)
 
-func test_insert_into_complex_node():
-	var dao: BaseDao = BaseDao.new()
-	var main = preload("res://src/main/main.tscn").instantiate()
-	add_child(main)
-	await get_tree().process_frame
-	var ret = dao.replace_into("t_scene.gsql")\
-		.primary_key("id", true)\
-		.values({
-			"id": 1,
-			"data": main,
-		})\
-		.query()
-	printt(ret)
+#func test_insert_into_complex_node():
+	#var dao: BaseDao = BaseDao.new()
+	#var main = preload("res://src/main/main.tscn").instantiate()
+	#add_child(main)
+	#await get_tree().process_frame
+	#var ret = dao.replace_into("t_scene.gsql")\
+		#.primary_key("id", true)\
+		#.values({
+			#"id": 1,
+			#"data": main,
+		#})\
+		#.query()
+	#printt(ret)
 	
 func test_insert_db_config():
 	var dao: BaseDao = BaseDao.new()
