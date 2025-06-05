@@ -10,6 +10,7 @@ static var re_update: RegEx = RegEx.new()
 static var re_delete: RegEx = RegEx.new()
 static var re_insert: RegEx = RegEx.new()
 static var re_replace: RegEx = RegEx.new()
+static var lru_cache: SQLParserLRULink
 
 static func _assert(success: bool, msg: String) -> bool:
 	if not success:
@@ -18,6 +19,8 @@ static func _assert(success: bool, msg: String) -> bool:
 	return true
 	
 static func _static_init() -> void:
+	lru_cache = SQLParserLRULink.new()
+	lru_cache.capacity = 1024
 	re_split_comma.compile(",(?=(([^']*'){2})*[^']*$)(?=(([^\"]*\"){2})*[^\"]*$)(?![^()]*\\))")
 	re_split_equal.compile("=(?=(([^']*'){2})*[^']*$)(?=(([^\"]*\"){2})*[^\"]*$)(?![^()]*\\))")
 	re_field_value.compile(r'(?i)^\b([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*values\s*\(\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\)\s*$')
@@ -418,10 +421,14 @@ static func restore(s: String, map: Dictionary) -> String:
 static func replace_nested_sql_expression(expression: String, 
 sql_input_names: Dictionary = {}, sql_static_inputs: Array = [], 
 sql_varying_inputs: Dictionary = {}, need_user_enter_password: Array = []):
-	var dp = deep_prepare_sql(expression)
+	var dp = lru_cache.get_value(expression)
+	if dp == null:
+		dp = deep_prepare_sql(expression)
+		lru_cache.put_value(expression, dp)
+		
 	if dp.is_empty():
 		return expression
-	var ret = _simplify_expression(dp, sql_input_names, sql_static_inputs, 
+	var ret = _simplify_expression(dp.duplicate(), sql_input_names, sql_static_inputs, 
 		sql_varying_inputs, need_user_enter_password)
 	return ret
 	
@@ -456,7 +463,10 @@ need_user_enter_password: Array = []):
 						inputs.push_back(sql_static_inputs[sql_input_names[t][false]])
 				# NOTICE 不管字段，因为inputs里包含了字段的数据，在子查询dao里，会自己重新构造input_names结构
 				
-			var dao = parse_to_dao(info)
+			var dao = lru_cache.get_value(["dao", info])
+			if dao == null:
+				dao = parse_to_dao(info)
+				lru_cache.put_value(["dao", info], dao)
 			dao.set_input_names(input_names)
 			dao.set_inputs(inputs)
 			dao.set_collect_lack_table_mode(true)
@@ -470,6 +480,8 @@ need_user_enter_password: Array = []):
 		return info
 	else:
 		for k in info.keys():
+			if info[k] is QueryResult:
+				continue
 			if k != "sql":
 				info[k] = _simplify_expression(info[k], sql_input_names, 
 					sql_static_inputs, sql_varying_inputs, need_user_enter_password)
@@ -670,3 +682,113 @@ static func _get_var(s: String):
 	if typeof(try) == TYPE_NIL:
 		return s
 	return try
+	
+class SQLParserCacheNode extends RefCounted:
+	var key
+	var value: Variant
+	var prev: SQLParserCacheNode
+	var next: SQLParserCacheNode
+	
+class SQLParserLRULink extends RefCounted:
+	var cache: Dictionary
+	var capacity: int
+	var head: SQLParserCacheNode = SQLParserCacheNode.new()
+	var tail: SQLParserCacheNode = SQLParserCacheNode.new()
+	
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_PREDELETE:
+			if head:
+				head.next = null
+				head = null
+			if tail:
+				tail.prev = null
+				tail = null
+				
+	func _init() -> void:
+		head.next = tail
+		tail.prev = head
+		
+	func has_key(key) -> bool:
+		return cache.has(key)
+		
+	func get_value(key):
+		if not cache.has(key):
+			return null
+		var node = cache[key] as SQLParserCacheNode
+		move_to_tail(node)
+		return node.value
+		
+	func remove_value(key):
+		if not has_key(key):
+			return
+		var node = cache[key] as SQLParserCacheNode
+		remove_node(node)
+		cache.erase(key)
+		
+	func put_value(key, value: Variant):
+		if cache.has(key):
+			var node = cache[key] as SQLParserCacheNode
+			node.value = value
+			move_to_tail(node)
+		else:
+			var node = SQLParserCacheNode.new()
+			node.key = key
+			node.value = value
+			
+			# 添加节点到链表尾部  
+			add_to_tail(node)
+			
+			# 将新节点添加到哈希表中  
+			cache[key] = node
+			
+			# 如果超出容量，删除最久未使用的节点  
+			if cache.size() > capacity:
+				var removed_node = remove_head()
+				cache.erase(removed_node.key)
+				
+	func add_to_tail(node: SQLParserCacheNode):
+		var prev_node = tail.prev
+		prev_node.next = node
+		node.prev = prev_node
+		node.next = tail
+		tail.prev = node
+		
+	func remove_node(node: SQLParserCacheNode):
+		var prev_node = node.prev
+		var next_node = node.next
+		prev_node.next = next_node
+		next_node.prev = prev_node
+		
+	func move_to_tail(node: SQLParserCacheNode):
+		remove_node(node)
+		add_to_tail(node)
+		
+	func remove_head():
+		var head_next = head.next
+		remove_node(head_next)
+		return head_next
+		
+	func clear():
+		# 清空双向链表
+		var current = head.next
+		while current != tail:
+			var next_node = current.next
+			# 从哈希表中移除当前节点的键  
+			cache.erase(current.key)
+			# 断开当前节点的连接  
+			current.prev = null
+			current.next = null
+			# 移动到下一个节点  
+			current = next_node
+			
+		# 双向链表重置为只有一个头节点和尾节点  
+		head.next = tail
+		tail.prev = head
+		
+	func clean():
+		clear()
+		head.next = null
+		tail.prev = null
+		head = null
+		tail = null
+		
