@@ -74,11 +74,26 @@ func _exit_tree():
 	mgr = null
 	
 func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
+	# { "type": "files", "files": ["res://src/dao/t_hero.gdmappergraph"], "from": @Tree@6840:<Tree#603409380691> }
+	if data is Dictionary:
+		if data.has("type") and data.has("files") and data.get("type") == "files":
+			for i in data.get("files"):
+				if i is String:
+					if i.ends_with(".gdmappergraph"):
+						return true
 	return data is Dictionary and data.get("__table_item", false)
 	
 func _drop_data(at_position: Vector2, data: Variant) -> void:
-	add_item(data, {}, {}, null, at_position / zoom + scroll_offset / zoom)
-	
+	if data is Dictionary:
+		if data.has("type") and data.has("files") and data.get("type") == "files":
+			for i in data.get("files"):
+				if i is String and i.ends_with(".gdmappergraph"):
+					mgr.open_mapper_graph_file_tab.emit(i)
+			return
+			
+		if data.get("__table_item", false):
+			add_item(data, {}, {}, null, at_position / zoom + scroll_offset / zoom)
+			
 func _shortcut_input(event: InputEvent) -> void:
 	if not is_visible_in_tree():
 		return

@@ -1,4 +1,4 @@
-[gd_scene load_steps=17 format=3 uid="uid://bltgws3ddejkr"]
+[gd_scene load_steps=18 format=3 uid="uid://bltgws3ddejkr"]
 
 [ext_resource type="Script" uid="uid://cfguqq6psgfo8" path="res://addons/gdsql/tabs/sql_graph.gd" id="1_jxiqt"]
 [ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="2_1i8qu"]
@@ -10,6 +10,7 @@
 [ext_resource type="Texture2D" uid="uid://s0hrlcgxv03f" path="res://addons/gdsql/img/circle-xmark.png" id="8_xf11y"]
 [ext_resource type="Texture2D" uid="uid://yd6w0qkc1whq" path="res://addons/gdsql/img/autocommit.png" id="9_itstw"]
 [ext_resource type="Texture2D" uid="uid://devul8doq53rt" path="res://addons/gdsql/img/plus.png" id="10_8cnpe"]
+[ext_resource type="Script" uid="uid://cgegvrmr52ifn" path="res://addons/gdsql/tabs/sql_graph_edit.gd" id="11_bl2eh"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_03x0p"]
 
@@ -207,8 +208,10 @@ icon = ExtResource("10_8cnpe")
 [node name="GraphEdit" type="GraphEdit" parent="VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3
+scroll_offset = Vector2(0, -32)
 right_disconnects = true
 minimap_enabled = false
+script = ExtResource("11_bl2eh")
 
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonOpen" to="." method="_on_button_open_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSave" to="." method="_on_button_save_pressed"]
