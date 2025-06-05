@@ -38,7 +38,7 @@ func get_conf(path: String, password: String) -> ImprovedConfigFile:
 	assert(err == OK, "conf load failed! err:%s(%s), `%s`:`%s`" % [err, error_string(err), path, password])
 	if password.is_empty() and conf.get_sections().is_empty():
 		if ClassDB.class_has_method(&"FileAccess", &"get_size", true):
-			if ClassDB.class_call_static(&"FileAccess", &"get_size") > 0:
+			if ClassDB.class_call_static(&"FileAccess", &"get_size", path) > 0:
 				assert(false, "conf load failed! file [%s] is encrypted! " % path)
 		else:
 			if not FileAccess.get_file_as_bytes(path).is_empty():
