@@ -51,7 +51,7 @@ variable_names: Array = [], variable_values: Array = [],
 sql_input_names: Dictionary = {}, sql_static_inputs: Array = [], 
 sql_varying_inputs: Dictionary = {}, nested_subqueries: Dictionary = {}, 
 lacking_tables = null):
-	var ex_key = [command, variable_names, sql_input_names, sql_static_inputs]
+	var ex_key = [command, variable_names, sql_input_names, sql_static_inputs, nested_subqueries]
 	var expression = GDSQLExpression.EXPRESSION_CACHE.get_value(ex_key) # ALERT UNSAFE
 	if not expression:
 		expression = GDSQLExpression.new()
@@ -107,7 +107,7 @@ static func evalute_command_with_agg(target: AggregateFunctions, command: String
 variable_names: Array = [], variable_values: Array = [], 
 sql_input_names: Dictionary = {}, sql_static_inputs: Array = [], 
 sql_varying_inputs: Dictionary = {}, nested_subqueries = {}):
-	var ex_key = [command, variable_names, sql_input_names, sql_static_inputs]
+	var ex_key = [command, variable_names, sql_input_names, sql_static_inputs, nested_subqueries]
 	var expression = GDSQLExpression.EXPRESSION_CACHE.get_value(ex_key) # ALERT UNSAFE
 	if not expression:
 		expression = GDSQLExpression.new()
