@@ -62,9 +62,13 @@ func _register(method: String, param):
 	if not _methods.has(_count):
 		_methods[_count] = method
 		_params[_count] = []
-	assert(not param is AggregateFunctions, "Invalid use of group function.")
+	if param is AggregateFunctions:
+		assert(false, "Invalid use of group function.")
+		return null
 	_params[_count].push_back(param)
-	assert(_methods[_count] == method, "Method not match!")
+	if _methods[_count] != method:
+		assert(false, "Method not match!")
+		return null
 	_count += 1
 	return self
 	

@@ -14,16 +14,24 @@ const VALID_ELEMENTS_3 = ["selectKey", "include", "trim", "where", "set",
 		#err.push_back(msg)
 		
 func validate(item: GXML) -> bool:
-	assert(item.root_item, "root item is empty!")
-	assert(item.root_item.name == "mapper", "root item name is not mapper!")
-	assert(item.root_item.attrs.has("namespace"), "root item does not have namespace!")
+	if not item.root_item:
+		assert(false, "root item is empty!")
+		return false
+	if item.root_item.name != "mapper":
+		assert(false, "root item name is not mapper!")
+		return false
+	if not item.root_item.attrs.has("namespace"):
+		assert(false, "root item does not have namespace!")
+		return false
 	var ns = item.root_item.attrs.get("namespace", "") as String
 	if not ns.is_empty():
 		var obj = GDSQLUtils.evaluate_command_script(ns + ".new()")
 		if obj == null:
 			assert(false, "Cannot initialize object of namespace: %s." % ns)
+			return false
 		if not obj is GBatisMapper:
 			assert(false, "Namespace should be a GBatisMapper.")
+			return false
 		if not obj is RefCounted:
 			obj.free()
 	for i in item.root_item.content:

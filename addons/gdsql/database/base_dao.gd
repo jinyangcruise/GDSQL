@@ -122,13 +122,13 @@ func set_collect_lack_table_mode(enable: bool) -> BaseDao:
 func use_db_name(database_name: String) -> BaseDao:
 	if mgr and mgr.databases:
 		if not mgr.databases.has(database_name):
-			assert(_assert("use_db_name", false, "Not found db:%s." % database_name))
+			return _assert_false("use_db_name", "Not found db:%s." % database_name)
 		__database = mgr.databases[database_name]["data_path"]
 	else:
 		__database = __root_config.get_value(database_name, "data_path", "")
 	if __database == "":
-		assert(_assert("use_db_name", false, 
-			"database %s's data_path is empty!" % database_name))
+		return _assert_false("use_db_name", 
+			"database %s's data_path is empty!" % database_name)
 	_set_primary_and_autoincre()
 	return self
 	
@@ -170,15 +170,14 @@ func auto_commit(auto: bool) -> BaseDao:
 	__auto_commit = auto
 	return self
 	
-func _assert(action: String, success: bool, msg: String) -> bool:
-	if not success:
-		if mgr and Engine.is_editor_hint():
-			mgr.create_accept_dialog(msg)
-			mgr.add_log_history.emit("Err", Time.get_unix_time_from_system(), action, msg)
-		push_error(msg)
-		__err.push_back(msg)
-		return false
-	return true
+func _assert_false(action: String, msg: String):
+	if mgr and Engine.is_editor_hint():
+		mgr.create_accept_dialog(msg)
+		mgr.add_log_history.emit("Err", Time.get_unix_time_from_system(), action, msg)
+	push_error(msg)
+	__err.push_back(msg)
+	assert(false, msg)
+	return null
 	
 func _get_conf(path: String, password: String, indexed_names = []) -> ImprovedConfigFile:
 	var defination = __get_table_defination(path.get_base_dir(), path.get_file())
@@ -194,22 +193,22 @@ func _get_conf(path: String, password: String, indexed_names = []) -> ImprovedCo
 ## 手动提交（保存到文件）
 func commit() -> void:
 	if __database == "" or __database == null:
-		assert(_assert("commit", false, "database is empty"))
+		return _assert_false("commit", "database is empty")
 	if __table == "":
-		assert(_assert("commit", false, "table name is empty"))
+		return _assert_false("commit", "table name is empty")
 	var path = __database.path_join(__table)
 	var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
 	if conf == null:
-		assert(_assert("commit", false, "load conf err!"))
+		return _assert_false("commit", "load conf err!")
 	__CONF_MANAGER.save_conf_by_origin_password(path)
 	reset()
 	
 ## 抛弃修改（没有commit时使用才有效果）
 func discard() -> void:
 	if __database == "" or __database == null:
-		assert(_assert("commit", false, "database is empty"))
+		return _assert_false("commit", "database is empty")
 	if __table == "":
-		assert(_assert("commit", false, "table name is empty"))
+		return _assert_false("commit", "table name is empty")
 	var path = __database.path_join(__table)
 	__CONF_MANAGER.remove_conf(path)
 	
@@ -226,7 +225,7 @@ func set_evalueate_mode(enable: bool):
 ## 这个方法会预处理每个要求的字段和字段的别名（如有），但不会马上在这里处理星号，而是推迟到query的时候才处理。
 func select(something: String, need_head: bool) -> BaseDao:
 	if not (__cmd == "" or __cmd == "select"):
-		assert(_assert("select", false, "already set command %s" % __cmd))
+		return _assert_false("select", "already set command %s" % __cmd)
 	#if __parent_union and need_head:
 		#push_warning("union table cannot have head but the param `need_head` is true, 
 		#this param will be ignored")
@@ -299,9 +298,9 @@ func select(something: String, need_head: bool) -> BaseDao:
 ## 该方法是为了简化用户输入。
 func select_same() -> BaseDao:
 	if __parent_union == null:
-		assert(_assert("select_same", false, "must have parent union!"))
+		return _assert_false("select_same", "must have parent union!")
 	if __cmd != "":
-		assert(_assert("select_same", false, "already set command %s" % __cmd))
+		return _assert_false("select_same", "already set command %s" % __cmd)
 	__cmd = "select"
 	__select_str = __parent_union.__select_str
 	__select = __parent_union.__select.duplicate()
@@ -317,7 +316,7 @@ func set_need_head(p_need_head: bool) -> BaseDao:
 ## 同时设置表名和别名。table支持不带后缀和带后缀.gsql
 func from(table: String, alias: String = "") -> BaseDao:
 	#if __database == null or __database == "":
-		#assert(_assert("from", false, "please set db first!"))
+		#return _assert_false("from", "please set db first!"))
 	if not table.ends_with(DATA_EXTENSION):
 		table = table + DATA_EXTENSION
 	__table = table
@@ -357,57 +356,57 @@ func set_table_alias(alias: String) -> BaseDao:
 ## data is Array or Dictionary
 func values(data) -> BaseDao:
 	if not (__cmd.begins_with("insert") or __cmd.begins_with("replace")):
-		assert(_assert("values", false, 
-		"'values' can only be used after 'insert' or 'replace'"))
+		return _assert_false("values", 
+		"'values' can only be used after 'insert' or 'replace'")
 	__data = data
 	return self
 	
 func sets(data: Dictionary) -> BaseDao:
 	if __cmd != "update":
-		assert(_assert("sets", false, "'sets' can only be used after 'update'"))
+		return _assert_false("sets", "'sets' can only be used after 'update'")
 	__data = data
 	return self
 	
 func insert_into(table: String) -> BaseDao:
 	if __cmd != "":
-		assert(_assert("insert_into", false, "already set command %s" % __cmd))
+		return _assert_false("insert_into", "already set command %s" % __cmd)
 	__cmd = "insert_into"
 	set_table(table)
 	return self
 	
 func insert_ignore(table: String) -> BaseDao:
 	if __cmd != "":
-		assert(_assert("insert_ignore", false, "already set command %s" % __cmd))
+		return _assert_false("insert_ignore", "already set command %s" % __cmd)
 	__cmd = "insert_ignore"
 	set_table(table)
 	return self
 	
 func insert_or_update(table: String) -> BaseDao:
 	if __cmd != "":
-		assert(_assert("insert_or_update", false, "already set command %s" % __cmd))
+		return _assert_false("insert_or_update", "already set command %s" % __cmd)
 	__cmd = "insert_or_update"
 	set_table(table)
 	return self
 	
 func replace_into(table: String) -> BaseDao:
 	if __cmd != "":
-		assert(_assert("replace_into", false, "already set command %s" % __cmd))
+		return _assert_false("replace_into", "already set command %s" % __cmd)
 	__cmd = "replace_into"
 	set_table(table)
 	return self
 	
 func update(table: String) -> BaseDao:
 	if __cmd != "":
-		assert(_assert("update", false, "already set command %s" % __cmd))
+		return _assert_false("update", "already set command %s" % __cmd)
 	if __table_alias != "":
-		assert(_assert("update", false, "table alias must be empty"))
+		return _assert_false("update", "table alias must be empty")
 	__cmd = "update"
 	set_table(table)
 	return self
 	
 func delete_from(table: String) -> BaseDao:
 	if __cmd != "":
-		assert(_assert("delete_from", false, "already set command %s" % __cmd))
+		return _assert_false("delete_from", "already set command %s" % __cmd)
 	__cmd = "delete_from"
 	set_table(table)
 	return self
@@ -416,8 +415,8 @@ func delete_from(table: String) -> BaseDao:
 ## 如果是union的，那么where作用于最终数据集上，也就是第一个BaseDao上。
 func where(cond: String) -> BaseDao:
 	if not (__cmd == "select" or __cmd == "update" or __cmd == "delete_from"):
-		assert(_assert("where", false, 
-		"'where' can only be used after 'select' or 'update' or 'delete_from'"))
+		return _assert_false("where", 
+		"'where' can only be used after 'select' or 'update' or 'delete_from'")
 	cond = cond.strip_edges()
 	if cond != "":
 		__where.push_back(cond)
@@ -428,8 +427,8 @@ func set_where(cond: String) -> BaseDao:
 		__parent_union.set_where(cond)
 		return self
 	if not (__cmd == "select" or __cmd == "update" or __cmd == "delete_from"):
-		assert(_assert("where", false, 
-		"'where' can only be used after 'select' or 'update' or 'delete_from'"))
+		return _assert_false("where", 
+		"'where' can only be used after 'select' or 'update' or 'delete_from'")
 	cond = cond.strip_edges()
 	__where.clear()
 	if cond != "":
@@ -439,7 +438,7 @@ func set_where(cond: String) -> BaseDao:
 ## 返回一个新的baseDao
 func union_all() -> BaseDao:
 	if __cmd != "select":
-		assert(_assert("union_all", false, "'union_all' can only be used after 'select'"))
+		return _assert_false("union_all", "'union_all' can only be used after 'select'")
 	var bd = BaseDao.new()
 	__union_all = bd
 	bd.set_collect_lack_table_mode(__collect_lack_table_enabled)
@@ -453,7 +452,7 @@ func is_union_all() -> bool:
 ## 设置unionall对象，返回的仍旧是自己
 func set_union_all(base_dao: BaseDao) -> BaseDao:
 	if __cmd != "select":
-		assert(_assert("set_union_all", false, "'union_all' can only be used after 'select'"))
+		return _assert_false("set_union_all", "'union_all' can only be used after 'select'")
 	__union_all = base_dao
 	base_dao.__parent_union = self
 	return self
@@ -471,7 +470,7 @@ func has_union_all(base_dao: BaseDao) -> bool:
 ## 聚合分组。支持多个字段，用逗号分隔。
 func group_by(something: String) -> BaseDao:
 	if __cmd != "select":
-		assert(_assert("order_by", false, "'order_by' can only be used after 'select'"))
+		return _assert_false("order_by", "'order_by' can only be used after 'select'")
 	something = something.strip_edges()
 	if something == "":
 		return self
@@ -495,7 +494,7 @@ func group_by(something: String) -> BaseDao:
 ## 注意，若用该方法，就一次性传入字符串。如果多次使用，只有最后一次的有效。
 func group_by_str(something: String) -> BaseDao:
 	if __cmd != "select":
-		assert(_assert("group_by_str", false, "'group by' can only be used after 'select'"))
+		return _assert_false("group_by_str", "'group by' can only be used after 'select'")
 	__group_by.clear()
 	return group_by(something)
 	
@@ -506,7 +505,7 @@ func order_by(field: String, order: ORDER_BY) -> BaseDao:
 		__parent_union.order_by(field, order)
 		return self
 	if __cmd != "select":
-		assert(_assert("order_by", false, "'order_by' can only be used after 'select'"))
+		return _assert_false("order_by", "'order_by' can only be used after 'select'")
 	field = field.strip_edges()
 	if field != "":
 		__order_by.push_back([field, order])
@@ -518,7 +517,7 @@ func order_by_str(string: String) -> BaseDao:
 		__parent_union.order_by_str(string)
 		return self
 	if __cmd != "select":
-		assert(_assert("order_by_str", false, "'order_by' can only be used after 'select'"))
+		return _assert_false("order_by_str", "'order_by' can only be used after 'select'")
 	if string.strip_edges() == '':
 		__order_by.clear()
 		return self
@@ -571,25 +570,25 @@ func order_by_str(string: String) -> BaseDao:
 ## 注意该方法具有嵌套效果，在union的时候，链条中某个环节的limit会对后面所有环节进行limit
 func limit(a_offset: int, a_limit: int) -> BaseDao:
 	if __cmd != "select":
-		assert(_assert("limit", false, "'limit' can only be used after 'select'"))
+		return _assert_false("limit", "'limit' can only be used after 'select'")
 	if a_offset < 0 or a_limit <= 0:
-		assert(_assert("limit", false, "offset must not less than 0 and limit must larger than 0"))
+		return _assert_false("limit", "offset must not less than 0 and limit must larger than 0")
 	__offset = a_offset
 	__limit = a_limit
 	return self
 	
 func on_duplicate_update(fields: Array[String]) -> BaseDao:
 	if not (__cmd == "update" or __cmd == "insert_or_update"):
-		assert(_assert("on_duplicate_update", false, 
-		"'on_duplicate_update' can only be used after 'update' or 'insert_or_update'"))
+		return _assert_false("on_duplicate_update", 
+		"'on_duplicate_update' can only be used after 'update' or 'insert_or_update'")
 	__duplicate_update_fields = fields
 	return self
 	
 ## 指定主键（适用于没有定义文件的表。如果表有定义文件，则勿设置其他键为主键。）
 func primary_key(a_key: String, auto_increment: bool = true) -> BaseDao:
 	if not (__primary_key_def == "" or a_key == __primary_key_def):
-		assert(_assert("primary_key", false, 
-		"this table has defination of primary key, do not set a different primary key"))
+		return _assert_false("primary_key", 
+		"this table has defination of primary key, do not set a different primary key")
 	__primary_key = a_key
 	if auto_increment:
 		__autoincrement_keys[a_key] = 0
@@ -601,18 +600,18 @@ func primary_key(a_key: String, auto_increment: bool = true) -> BaseDao:
 ## 注意3：如果操作的表的定义文件中该字段并非自增字段，不影响本次操作临时把其当成自增字段。
 func add_auto_increment_key(a_key: String) -> BaseDao:
 	if not (__cmd.begins_with("insert") or __cmd.begins_with("replace")):
-		assert(_assert("add_auto_increment_key", false, 
-		"'add_auto_increment_key' can only be used after 'insert' or 'replace'"))
+		return _assert_false("add_auto_increment_key", 
+		"'add_auto_increment_key' can only be used after 'insert' or 'replace'")
 	__autoincrement_keys[a_key] = 0
 	return self
 	
 func left_join(db: String, table: String, alias: String, cond: String, password: String) -> BaseDao:
 	if not __cmd.begins_with("select"):
-		assert(_assert("left_join", false, "left_join must use after select"))
+		return _assert_false("left_join", "left_join must use after select")
 	if __table_alias == "":
-		assert(_assert("left_join", false, "main table must have alias name before use 'left join'"))
+		return _assert_false("left_join", "main table must have alias name before use 'left join'")
 	if not (alias != __table_alias and (__left_join == null or not __left_join.chain_has_alias(alias))):
-		assert(_assert("left_join", false, "duplicate table alias"))
+		return _assert_false("left_join", "duplicate table alias")
 	if db == "":
 		db = __database
 	else:
@@ -722,13 +721,11 @@ sql_static_inputs: Array = [], sql_varying_inputs: Dictionary = {}):
 		
 	if not __sub_queries.is_empty():
 		if not nested_sql_queries.is_empty():
-			_assert("___select", false, "Inner error 668 in base_dao.gd.")
-			return null # error occur
+			return _assert_false("___select", "Inner error 730 in base_dao.gd.")
 			
 		for k in __sub_queries:
 			if nested_sql_queries.has(k):
-				_assert("___select", false, "Inner error 673 in base_dao.gd.")
-				return null # error occur
+				return _assert_false("___select", "Inner error 734 in base_dao.gd.")
 			nested_sql_queries[k] = __sub_queries[k]
 			
 	return [expression, nested_sql_queries]
@@ -822,7 +819,7 @@ loop_index: int, curr_row: Dictionary, head: Array, table_definations: Dictionar
 				if not __lack_table.is_empty():
 					if __collect_lack_table_enabled:
 						return false # error occur or lacking table
-					_assert("check left join on", false, "Unknown table(s): %s" % ", ".join(__lack_table))
+					_assert_false("check left join on", "Unknown table(s): %s" % ", ".join(__lack_table))
 					return false
 				var condition_wrapper: ConditionWrapper = ConditionWrapper.new()
 				var check_result = condition_wrapper.cond(simple_expression[0], 
@@ -831,11 +828,11 @@ loop_index: int, curr_row: Dictionary, head: Array, table_definations: Dictionar
 					if __collect_lack_table_enabled:
 						__lack_table.append_array(condition_wrapper.get_lacking_tables())
 						return false
-					_assert("check left join on", false, "Unknown table(s): %s" % ", ".join(
+					_assert_false("check left join on", "Unknown table(s): %s" % ", ".join(
 						condition_wrapper.get_lacking_tables()))
 					return false
 				if typeof(check_result) != TYPE_BOOL:
-					_assert("check left join on", false, "check failed! cond:%s" % cond)
+					_assert_false("check left join on", "check failed! cond:%s" % cond)
 					return false # error occur or lacking table
 				if not check_result:
 					continue
@@ -899,8 +896,7 @@ cond: String, all_table_defination: Dictionary, all_datas: Dictionary, curr_depe
 	)
 	var conf: ImprovedConfigFile = _get_conf(path, password, indexed_names) # 使用索引
 	if conf == null:
-		_assert("___select", false, "failed to get conf:%s" % path)
-		return null # error occur
+		return _assert_false("___select", "failed to get conf:%s" % path)
 	conf.fill_primary_key = fill_primary_key
 	
 	# 为了优化联表导致笛卡尔乘积带来的低效，先获取一下where条件，根据where条件提前筛一批数据
@@ -1015,9 +1011,8 @@ cond: String, all_table_defination: Dictionary, all_datas: Dictionary, curr_depe
 							if not all_datas.has(t):
 								for info in join_collection:
 									if info.base == t:
-										_assert("___select", false, "Unknown column '%s.%s'." % 
+										return _assert_false("___select", "Unknown column '%s.%s'." % 
 											[info.base, info.name])
-										return null
 						# 把依赖的主键值加入const_collection
 						for info in join_collection:
 							for data in all_datas[info.base]:
@@ -1120,8 +1115,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 	# 计算表头
 	var real_select = __get_head(all_datas, arr_left_join)
 	if real_select == null:
-		_assert("___select", false, "failed to get ResultSet's head.")
-		return null
+		return _assert_false("___select", "failed to get ResultSet's head.")
 		
 	# QueryResulty用
 	__select_query_columns_count = real_select.size()
@@ -1130,8 +1124,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 	for a_order_by in __order_by:
 		if a_order_by[0] is int:
 			if a_order_by[0] > real_select.size() or a_order_by[0] <= 0:
-				_assert("___select", false, "Unknown column '%s' in 'order clause'" % a_order_by[0])
-				return null
+				return _assert_false("___select", "Unknown column '%s' in 'order clause'" % a_order_by[0])
 		else:
 			var find = false
 			for i in real_select:
@@ -1140,8 +1133,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 					find = true
 					break
 			if not find:
-				_assert("___select", false, "Unknown column '%s' in 'order clause'" % a_order_by[0])
-				return null
+				return _assert_false("___select", "Unknown column '%s' in 'order clause'" % a_order_by[0])
 				
 	# 不联表的情况
 	if __left_join == null:
@@ -1234,8 +1226,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 				if not __lack_table.is_empty():
 					if __collect_lack_table_enabled:
 						return null
-					_assert("computing field", false, "Unknown table(s): %s" % ", ".join(__lack_table))
-					return null
+					return _assert_false("computing field", "Unknown table(s): %s" % ", ".join(__lack_table))
 				condition_wrapper.cond(simple_expression[0], __final_input_names, simple_expression[1])
 				
 			var check_result = condition_wrapper.check(__inputs, data)
@@ -1244,8 +1235,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 					__lack_table.append_array(condition_wrapper.get_lacking_tables())
 					return null
 			if typeof(check_result) != TYPE_BOOL:
-				_assert("check where", false, "check failed! cond:%s" % cond)
-				return null
+				return _assert_false("check where", "check failed! cond:%s" % cond)
 			if check_result:
 				ret_filter.push_back(data)
 				
@@ -1285,8 +1275,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 						group_key.push_back([real_select[int(i)-1].table_alias, real_select[int(i)-1]["Column Name"]])
 						continue
 					else:
-						_assert("in group statement", false, "Unknow column '%s' in 'group statement'" % i)
-						return null
+						return _assert_false("in group statement", "Unknow column '%s' in 'group statement'" % i)
 				group_key.push_back(i)
 				
 		var grouped_map = {}
@@ -1305,8 +1294,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 					if not __lack_table.is_empty():
 						if __collect_lack_table_enabled:
 							return null
-						_assert("computing group value", false, "Unknown table(s): %s" % ", ".join(__lack_table))
-						return null
+						return _assert_false("computing group value", "Unknown table(s): %s" % ", ".join(__lack_table))
 					grouped_value.push_back(value)
 					
 			var map = grouped_map
@@ -1447,8 +1435,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 					if not __lack_table.is_empty():
 						if __collect_lack_table_enabled:
 							return null
-						_assert("computing field", false, "Unknown table(s): %s" % ", ".join(__lack_table))
-						return null
+						return _assert_false("computing field", "Unknown table(s): %s" % ", ".join(__lack_table))
 					var value = GDSQLUtils.evalute_command_with_agg(agg_func_obj, 
 						simple_expression[0], [], [], __final_input_names, __inputs, data, simple_expression[1])
 					if value is QueryResult:
@@ -1456,13 +1443,11 @@ func ___select(path: String, fill_primary_key: String = ""):
 						if rows.is_empty():
 							value = null
 						elif rows.size() > 1:
-							_assert("in sub query", false, 
+							return _assert_false("in sub query", 
 								"Subquery [%s] returns more than 1 row." % field.name_4_computing)
-							return null
 						elif rows[0].size() > 1:
-							_assert("in sub query", false, 
+							return _assert_false("in sub query", 
 								"Subquery [%s] returns more than 1 column." % field.name_4_computing)
-							return null
 						else:
 							value = rows[0][0]
 					row.push_back(value)
@@ -1528,8 +1513,9 @@ func ___select(path: String, fill_primary_key: String = ""):
 			# 数据集为空，还是要继续检查，因为数据集为空不能说明是否用了聚合函数
 			else:
 				# 检查一下确实是空数据集
-				assert((has_head and ret_post_process.size() == 1) or \
-					ret_post_process.is_empty(), "Inner error 501.") # 有没考虑到的情况？
+				if not ((has_head and ret_post_process.size() == 1) or ret_post_process.is_empty()):
+					assert(false, "Inner error 501.") # 有没考虑到的情况？
+					return null
 				# 构造一条数据，看是否使用了聚合函数对象
 				var has_real_agg_func = false
 				# 把求式子可能需要的变量名称和变量值都放到数组里
@@ -1555,8 +1541,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 						if not __lack_table.is_empty():
 							if __collect_lack_table_enabled:
 								return null
-							_assert("computing field", false, "Unknown table(s): %s" % ", ".join(__lack_table))
-							return null
+							return _assert_false("computing field", "Unknown table(s): %s" % ", ".join(__lack_table))
 						var value = GDSQLUtils.evalute_command_with_agg(agg_func_obj, 
 							simple_expression[0], [], [], __final_input_names, __inputs, data, simple_expression[1])
 						# 如果只使用ifnull或ifn，是不算的，不能额外返回一条聚合数据
@@ -1640,9 +1625,8 @@ func ___select(path: String, fill_primary_key: String = ""):
 				__lack_table.append_array(__union_all.get_lack_table())
 				__union_all.reset()
 				return null
-			_assert("___select", false, "Error occur!")
 			__union_all.reset()
-			return null
+			return _assert_false("___select", "Error occur!")
 		grouped_ret.append_array(union_datas)
 		# 防止内存占用
 		__union_all.reset()
@@ -1748,13 +1732,11 @@ func _filter_pk_value(dict: Dictionary, collection: Array, constant_mode: bool):
 					var rows = (dict[op] as QueryResult).get_data()
 					if not rows.is_empty():
 						if rows[0].size() != 1:
-							_assert("filter pk value", false, "Operand `%s` should contain 1 column." % op)
 							collection.clear()
-							return false
+							return _assert_false("filter pk value", "Operand `%s` should contain 1 column." % op)
 						if rows.size() != 1:
-							_assert("filter pk value", false, "Subquery returns more than 1 row.")
 							collection.clear()
-							return false
+							return _assert_false("filter pk value", "Subquery returns more than 1 row.")
 						if typeof(rows[0][0]) in PRIMARY_TYPES:
 							collection.push_back(rows[0][0])
 				# Object which is not ExpressionENode
@@ -1800,9 +1782,8 @@ func _filter_pk_value(dict: Dictionary, collection: Array, constant_mode: bool):
 				var rows = (dict.in as QueryResult).get_data()
 				if not rows.is_empty():
 					if rows[0].size() != 1:
-						_assert("filter pk value", false, "Operand `in` should contain 1 column.")
 						collection.clear()
-						return false
+						return _assert_false("filter pk value", "Operand `in` should contain 1 column.")
 					for row in rows:
 						collection.push_back(row[0])
 			else:
@@ -1864,12 +1845,10 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 					.map(fill_select_name.bind(alias)))
 			else:
 				if __left_join == null:
-					_assert("___select", false, "table `%s` not found" % alias)
-					return null
+					return _assert_false("___select", "table `%s` not found" % alias)
 				var a_left_join = __left_join.get_left_join_by_alias(alias)
 				if a_left_join == null:
-					_assert("___select", false, "table `%s` not found" % alias)
-					return null
+					return _assert_false("___select", "table `%s` not found" % alias)
 				real_select.append_array(
 					__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias)#, all_datas)\
 						.map(fill_select_name.bind(alias)))
@@ -1878,17 +1857,15 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 			var m = regex_symbol.search(s)
 			if m != null and m.get_string() == s:
 				if __left_join != null:
-					_assert("___select", false, 
-					"must specify table alias name in select fields if using left join")
-					return null
+					return _assert_false("___select", 
+						"must specify table alias name in select fields if using left join")
 				var column = __get_table_column_defination(__database, __table, __table_alias, m.get_string())
 				if column != null and !column.is_empty():
 					real_select.push_back(column)
 				else:
 					if all_datas[__table_alias].is_empty() or not all_datas[__table_alias][0].has(s):
-						_assert("___select", false,
-						"field:[%s] not exist in table:[%s], db:[%s]" % [s, __table, __database])
-						return null
+						return _assert_false("___select",
+							"field:[%s] not exist in table:[%s], db:[%s]" % [s, __table, __database])
 					real_select.push_back(gen_dict.call(s, s, true, __table_alias)) # 可能没有定义文件
 			#elif s.contains(__table_alias + "."):
 			elif s.get_slice_count(".") == 2 and s.get_slice(".", 0).strip_edges() == __table_alias:
@@ -1905,9 +1882,8 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 					else:
 						if s == __table_alias + m.get_string(1) + "." + m.get_string(2) + field:
 							if all_datas[__table_alias].is_empty() or not all_datas[__table_alias][0].has(field):
-								_assert("___select", false,
-								"field:[%s] not exist in table:[%s], db:[%s]" % [field, __table, __database])
-								return null
+								return _assert_false("___select",
+									"field:[%s] not exist in table:[%s], db:[%s]" % [field, __table, __database])
 							real_select.push_back(gen_dict.call(s, field, true, __table_alias, __database, __table))
 						else:
 							real_select.push_back(gen_dict.call(s, s, false))
@@ -1935,10 +1911,9 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 							else:
 								if s == alias + m.get_string(1) + "." + m.get_string(2) + field:
 									if all_datas[alias].is_empty() or not all_datas[alias][0].has(field):
-										_assert("___select", false,
-										"field:[%s] not exist in table:[%s], db:[%s]" \
-										% [field, a_left_join.get_table(), a_left_join.get_db()])
-										return null
+										return _assert_false("___select",
+											"field:[%s] not exist in table:[%s], db:[%s]" \
+											% [field, a_left_join.get_table(), a_left_join.get_db()])
 									real_select.push_back(gen_dict.call(s, field, true, alias, 
 										a_left_join.get_db(), a_left_join.get_table())) # 没定义的文件
 								else:
@@ -1991,13 +1966,11 @@ func __get_table_defination(db_path: String, table_name: String):
 			if db_info.is_empty():
 				db_info = __root_config.filter_first_values("data_path", GDSQLUtils.globalize_path(db_path))
 				if db_info.is_empty():
-					assert(_assert("__get_table_defination", false, "database: %s not exist!" % db_path))
-					return null
+					return _assert_false("__get_table_defination", "database: %s not exist!" % db_path)
 					
 			var table_conf_path = db_info.get("config_path") + table_name.get_basename() + CONF_EXTENSION
 			if not FileAccess.file_exists(table_conf_path):
-				assert(_assert("__get_table_defination", false, "table: %s%s not exist!" % [db_path, table_name]))
-				return null
+				return _assert_false("__get_table_defination", "table: %s%s not exist!" % [db_path, table_name])
 				
 			__table_conf_path[table_name_base] = table_conf_path
 			
@@ -2019,7 +1992,7 @@ func __get_table_columns(db_path, table_name, table_alias):#, all_datas: Diction
 	#if columns == null or columns.is_empty():
 		## 推断表头
 		#if all_datas.get(table_alias, []).is_empty():
-			#assert(_assert("__get_table_columns", false, 
+			#return _assert_false("__get_table_columns", 
 			#"db: [%s] table [%s] cannot get head: no defination of this table or any data of this table" \
 			#% [db_path, table_name]))
 		#columns = all_datas[table_alias][0].keys().map(func(v):
@@ -2075,11 +2048,11 @@ func _handle_defualt_password():
 func query() -> QueryResult:
 	var begin_time = Time.get_unix_time_from_system()
 	if __database == "":
-		assert(_assert("query", false, "database is empty"))
+		return _assert_false("query", "database is empty")
 	if __table == "":
-		assert(_assert("query", false, "table is empty"))
+		return _assert_false("query", "table is empty")
 	if __cmd == "":
-		assert(_assert("query", false, "command is empty"))
+		return _assert_false("query", "command is empty")
 		
 	if __parent_union:
 		return __parent_union.query()
@@ -2105,16 +2078,16 @@ func query() -> QueryResult:
 					result._lack_tables = __lack_table.duplicate()
 					reset()
 					return result
-				assert(_assert("query:%s" % __cmd, false, "Error occur!"))
+				return _assert_false("query:%s" % __cmd, "Error occur!")
 				
 			result._data = ret
 			reset()
 			return result
 		"insert_into", "insert_ignore", "insert_or_update", "replace_into":
 			if __data.is_empty():
-				assert(_assert("query:%s" % __cmd, false, "Data is empty"))
+				return _assert_false("query:%s" % __cmd, "Data is empty")
 			if __primary_key == null or __primary_key == "":
-				assert(_assert("query:%s" % __cmd, false, "Primary key is empty"))
+				return _assert_false("query:%s" % __cmd, "Primary key is empty")
 			# 检查数据类型是否正确
 			var columns_def = __get_table_defination(__database, __table)["columns"]
 			
@@ -2133,14 +2106,14 @@ func query() -> QueryResult:
 						var v2 = type_convert(v1, typeof(__data[col_name]))
 						# 转化过程有损失时，抛出错误
 						if v2 != __data[col_name]:
-							assert(_assert("query:%s" % __cmd, false, 
+							return _assert_false("query:%s" % __cmd, 
 							"data type of %s is not %s" % \
-							[col_name, type_string(col["Data Type"])]))
+							[col_name, type_string(col["Data Type"])])
 						__data[col_name] = v1
 						
 			var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
 			if conf == null:
-				assert(_assert("query:%s" % __cmd, false, "load conf err!"))
+				return _assert_false("query:%s" % __cmd, "load conf err!")
 			var primary_value = str(__data.get(__primary_key))
 			var insert = true # 是insert模式还是update模式。只有insert_or_update时会涉及
 			if primary_value == null:
@@ -2257,10 +2230,10 @@ func query() -> QueryResult:
 			
 		"update":
 			if __data.is_empty():
-				assert(_assert("query:%s" % __cmd, false, "Data is empty"))
+				return _assert_false("query:%s" % __cmd, "Data is empty")
 			if __where.is_empty():
-				assert(_assert("query:%s" % __cmd, false, 
-				"Condition is empty. This limitition if for safety."))
+				return _assert_false("query:%s" % __cmd, 
+				"Condition is empty. This limitition if for safety.")
 				
 			var columns_def = __get_table_defination(__database, __table)["columns"]
 			# 检查数据类型是否正确. __enable_evaluate为true时，需要计算之后才能判断
@@ -2274,8 +2247,8 @@ func query() -> QueryResult:
 							var v2 = type_convert(v1, typeof(new_val))
 							# 转化过程有损失时，抛出错误
 							if v2 != new_val:
-								assert(_assert("query:%s" % __cmd, false, 
-								"data type of %s is not %s" % [col_name, type_string(col["Data Type"])]))
+								return _assert_false("query:%s" % __cmd, 
+								"data type of %s is not %s" % [col_name, type_string(col["Data Type"])])
 							__data[col_name] = v1
 							
 			# 不能有多余的字段
@@ -2289,7 +2262,7 @@ func query() -> QueryResult:
 				if not find:
 					invalid_key.push_back(key)
 			if not invalid_key.is_empty():
-				assert(_assert("query:%s" % __cmd, false, "Invalid field(s): %s." % ",".join(invalid_key)))
+				return _assert_false("query:%s" % __cmd, "Invalid field(s): %s." % ",".join(invalid_key))
 				
 			# 筛选出要更新的数据
 			var primary = "__PRIMARY_1355--5--__" # 让数据库把主键存到这个键里，祈祷用户没有用到这个字段
@@ -2311,7 +2284,7 @@ func query() -> QueryResult:
 			# 更新数据
 			var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
 			if conf == null:
-				assert(_assert("query:%s" % __cmd, false, "Load conf err!"))
+				return _assert_false("query:%s" % __cmd, "Load conf err!")
 			for data in datas:
 				data = data[__table_alias] # 未经过后处理的肯定是用表名分类的结构
 				var a_names = []
@@ -2378,7 +2351,7 @@ func query() -> QueryResult:
 		"delete_from":
 			var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
 			if conf == null:
-				assert(_assert("query:%s" % __cmd, false, "Load conf err!"))
+				return _assert_false("query:%s" % __cmd, "Load conf err!")
 				
 			if __where.is_empty():
 				result._affected_rows = conf.get_sections().size()
@@ -2446,8 +2419,8 @@ func _evaluate_data(p_names: Array, p_values: Array, columns_def: Array) -> Dict
 				var v2 = type_convert(v1, typeof(try))
 				# 转化过程有损失时，抛出错误
 				if v2 != try:
-					assert(_assert("query:%s" % __cmd, false, 
-						"data type of %s is not %s" % [col_name, type_string(col["Data Type"])]))
+					return _assert_false("query:%s" % __cmd, 
+						"data type of %s is not %s" % [col_name, type_string(col["Data Type"])])
 				a_data[col_name] = v1
 			else:
 				a_data[col_name] = try

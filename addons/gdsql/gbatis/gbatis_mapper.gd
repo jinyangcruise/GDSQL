@@ -28,7 +28,9 @@ var return_type_undefined_behavior: String = "ALWAYS_ARRAY"
 ## https://github.com/godotengine/godot/pull/91006
 func query(method: String, arg1 = null, arg2 = null, arg3 = null, arg4 = null,
 arg5 = null, arg6 = null, arg7 = null, arg8 = null, arg9 = null):
-	assert(mapper_xml != null, "Not set mapper_xml.")
+	if mapper_xml == null:
+		assert(false, "Not set mapper_xml.")
+		return null
 	var methods = get_method_list()
 	var args = null
 	var ret_info = null
@@ -37,12 +39,15 @@ arg5 = null, arg6 = null, arg7 = null, arg8 = null, arg9 = null):
 			args = m.args
 			ret_info = m["return"]
 			break
-	assert(args != null, "Not found method %s" % method)
+	if args == null:
+		assert(false, "Not found method %s" % method)
+		return null
 	var params = {}
 	var arg_list = [arg9, arg8, arg7, arg6, arg5, arg4, arg3, arg2, arg1]
 	for i in args:
-		assert(i.name != "__bind__", 
-			"Please change your param's name. `__bind__` is a reserved keyword.")
+		if i.name == "__bind__":
+			assert(false, "Please change your param's name. `__bind__` is a reserved keyword.")
+			return null
 		params[i.name] = arg_list.pop_back()
 		
 	var mapper_parser = GBatisMapperParser.new()

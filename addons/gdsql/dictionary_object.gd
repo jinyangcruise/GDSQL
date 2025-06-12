@@ -197,8 +197,12 @@ func _set_default_by_index(index:int) -> bool:
 ## 请勿嵌套链接。
 ## 还有一种设置链接属性的方法，就是在hint中设置"link"为true。
 func mark_link_prop(prop: String, src_prop: String) -> void:
-	assert(_data.has(prop), "prop [%s] not exist!" % prop)
-	assert(_data.has(_data[prop]), "prop [%s] value is not a prop")
+	if not _data.has(prop):
+		assert(false, "prop [%s] not exist!" % prop)
+		return
+	if not _data.has(_data[prop]):
+		assert(false, "prop [%s] value is not a prop")
+		return
 	_data[prop] = src_prop
 	_duplicate_property.push_back(prop)
 	

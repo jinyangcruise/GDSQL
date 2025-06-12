@@ -78,8 +78,10 @@ func check(static_inputs: Array, varying_inputs: Dictionary):
 				ret = false
 			elif rows.size() > 1:
 				assert(false, "Subquery [%s] returns more than 1 row." % _cond)
+				return null
 			elif rows[0].size() > 1:
 				assert(false, "Subquery [%s] returns more than 1 column." % _cond)
+				return null
 			else:
 				ret = bool(rows[0][0])
 				
@@ -104,15 +106,23 @@ func check(static_inputs: Array, varying_inputs: Dictionary):
 	
 ## 与
 func and_(wrapper: ConditionWrapper) -> ConditionWrapper:
-	assert(_and_wrapper == null, "already set an `add` wrapper")
-	assert(_or_wrapper == null, "already set an `or` wrapper")
+	if _and_wrapper != null:
+		assert(false, "already set an `add` wrapper")
+		return null
+	if _or_wrapper != null:
+		assert(false, "already set an `or` wrapper")
+		return null
 	_and_wrapper = wrapper
 	return self
 	
 ## 或
 func or_(wrapper: ConditionWrapper) -> ConditionWrapper:
-	assert(_and_wrapper == null, "already set an `add` wrapper")
-	assert(_or_wrapper == null, "already set an `or` wrapper")
+	if _and_wrapper != null:
+		assert(false, "already set an `add` wrapper")
+		return null
+	if _or_wrapper != null:
+		assert(false, "already set an `or` wrapper")
+		return null
 	_or_wrapper = wrapper
 	return self
 	

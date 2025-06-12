@@ -29,24 +29,32 @@ func get_conf(path: String, password: String) -> ImprovedConfigFile:
 		_conf_map[path] = conf
 		return conf
 		
-	assert(exist, "file:[%s] not exist" % path)
+	if not exist:
+		assert(false, "file:[%s] not exist" % path)
+		return null
+		
 	var err = OK
 	if password.is_empty():
 		err = conf.load(path)
 	else:
 		err = conf.load_encrypted_pass(path, password)
-	assert(err == OK, "conf load failed! err:%s(%s), `%s`:`%s`" % [err, error_string(err), path, password])
+	if err != OK:
+		assert(false, "conf load failed! err:%s(%s), `%s`:`%s`" % [err, error_string(err), path, password])
+		return null
 	if password.is_empty() and conf.get_sections().is_empty():
 		if ClassDB.class_has_method(&"FileAccess", &"get_size", true):
 			if ClassDB.class_call_static(&"FileAccess", &"get_size", path) > 0:
 				assert(false, "conf load failed! file [%s] is encrypted! " % path)
+				return null
 		else:
 			if not FileAccess.get_file_as_bytes(path).is_empty():
 				assert(false, "conf load failed! file [%s] is encrypted! " % path)
+				return null
 				
 	#var fa = FileAccess.open(path, FileAccess.READ)
 	#if password.is_empty() and fa.get_length() > 0:
 		#assert(not conf.get_sections().is_empty(), "conf load failed! file [%s] is encrypted! " % path)
+		#return null
 		
 	_passwords[path] = password
 	_conf_map[path] = conf
@@ -57,7 +65,9 @@ func get_conf(path: String, password: String) -> ImprovedConfigFile:
 ## 创建并获取配置：前提是该配置的文件不存在
 func create_conf(path: String, password: String) -> ImprovedConfigFile:
 	path = GDSQLUtils.globalize_path(path)
-	assert(not FileAccess.file_exists(path), "file:[%s] already exist" % path)
+	if not FileAccess.file_exists(path):
+		assert(false, "file:[%s] already exist" % path)
+		return null
 	var conf := ImprovedConfigFile.new()
 	_passwords[path] = password
 	_conf_map[path] = conf
@@ -75,7 +85,9 @@ func remove_conf(path: String):
 		
 func save_conf_by_origin_password(path: String):
 	path = GDSQLUtils.globalize_path(path)
-	assert(has_conf(path), "this conf %s is not under control" % path)
+	if not has_conf(path):
+		assert(false, "this conf %s is not under control" % path)
+		return
 	var conf = get_conf(path, "")
 	if _passwords[path] == "":
 		conf.save(path)
@@ -88,8 +100,12 @@ func save_conf_by_origin_password(path: String):
 func save_conf_by_same_password(path: String, ref_path: String):
 	path = GDSQLUtils.globalize_path(path)
 	ref_path = GDSQLUtils.globalize_path(ref_path)
-	assert(has_conf(path), "this conf %s is not under control" % path)
-	assert(has_conf(ref_path), "this conf %s is not under control" % ref_path)
+	if not has_conf(path):
+		assert(path, "this conf %s is not under control" % path)
+		return 
+	if not has_conf(ref_path):
+		assert(false, "this conf %s is not under control" % ref_path)
+		return
 	var conf = get_conf(path, "")
 	_passwords[path] = _passwords[ref_path]
 	if _passwords[ref_path] == "":
@@ -101,7 +117,9 @@ func save_conf_by_same_password(path: String, ref_path: String):
 		
 func save_conf_by_password(path: String, password: String):
 	path = GDSQLUtils.globalize_path(path)
-	assert(has_conf(path), "this conf %s is not under control" % path)
+	if not has_conf(path):
+		assert(false, "this conf %s is not under control" % path)
+		return
 	var conf = get_conf(path, "")
 	_passwords[path] = password
 	if _passwords[path] == "":
@@ -113,6 +131,8 @@ func save_conf_by_password(path: String, password: String):
 		
 func set_conf_indexed_props(path: String, indexed_names: Array):
 	path = GDSQLUtils.globalize_path(path)
-	assert(has_conf(path), "this conf %s is not under control" % path)
+	if not has_conf(path):
+		assert(false, "this conf %s is not under control" % path)
+		return
 	var conf = get_conf(path, "")
 	conf.set_indexed_props(indexed_names)

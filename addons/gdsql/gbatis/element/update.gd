@@ -39,15 +39,21 @@ func set_method_return_info(info: Dictionary):
 # INFO 缓存的逻辑在mapper_parser.gd
 func query():
 	var dao = SQLParser.parse_to_dao(sql)
-	assert(dao != null, "Parse to dao failed: " + sql)
-	assert(dao.get_cmd() == "update", "BaseDao's cmd is not update.")
+	if dao == null:
+		assert(false, "Parse to dao failed: " + sql)
+		return null
+	if dao.get_cmd() != "update":
+		assert(false, "BaseDao's cmd is not update.")
+		return null
 	if not database_id.is_empty():
 		dao.use_db_name(database_id)
 	var query_result = dao.query()
 	if query_result == null:
 		assert(false, "Error occur in base_dao.query().")
+		return null
 	if not query_result.ok():
 		assert(false, "Error occur. %s" % query_result.get_err())
+		return null
 		
 	if method_return_info.type == TYPE_NIL:
 		return
@@ -60,4 +66,4 @@ func query():
 		
 	assert(false, "Method of <update> cannot return %s." % \
 		DataTypeDef.DATA_TYPE_NAMES[method_return_info.type])
-		
+	return null

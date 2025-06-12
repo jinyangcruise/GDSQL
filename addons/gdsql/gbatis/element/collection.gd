@@ -124,8 +124,12 @@ func prepare_deal(data: Array):
 	if _result_map == null:
 		if not result_map.is_empty():
 			_result_map = mapper_parser_ref.get_ref().get_element(result_map)
-			assert(_result_map != null, "Not found <resultMap> of id %s" % result_map)
-			assert(_result_map is GBatisResultMap, "Not found <resultMap> of id %s" % result_map)
+			if _result_map == null:
+				assert(false, "Not found <resultMap> of id %s" % result_map)
+				return null
+			if not _result_map is GBatisResultMap:
+				assert(false, "Not found <resultMap> of id %s" % result_map)
+				return null
 		elif select.is_empty():
 			_result_map = GBatisResultMap.new({"type": java_type})
 			_result_map.set_mapper_parser_ref(mapper_parser_ref)

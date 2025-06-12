@@ -49,13 +49,17 @@ func push_element(element):
 		result_embeded.set_mapper_parser_ref(mapper_parser_ref)
 	result_embeded.push_element(element)
 	
-func get_result_type() -> String:
-	assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
+func get_result_type():
+	if _result_map == null:
+		assert(false, "Call parent node <discriminator>'s prepare_deal() first!")
+		return null
 	# 递归找到返回的对象的类名
 	return _result_map.get_deepest_result_type()
 	
-func get_auto_mapping() -> String:
-	assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
+func get_auto_mapping():
+	if _result_map == null:
+		assert(false, "Call parent node <discriminator>'s prepare_deal() first!")
+		return null
 	return _result_map.get_deepest_auto_mapping()
 	
 #func get_result_map() -> GBatisResultMap:
@@ -63,16 +67,22 @@ func get_auto_mapping() -> String:
 	## 递归找到返回的resultMap
 	#return _result_map.get_deepest_result_map()
 	
-func get_prop_column() -> Dictionary:
-	assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
+func get_prop_column():
+	if _result_map == null:
+		assert(false, "Call parent node <discriminator>'s prepare_deal() first!")
+		return null
 	return _result_map.get_deepest_prop_column()
 	
-func get_associations() -> Array:
-	assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
+func get_associations():
+	if _result_map == null:
+		assert(false, "Call parent node <discriminator>'s prepare_deal() first!")
+		return null
 	return _result_map.get_deepest_associations()
 	
-func get_collections() -> Array:
-	assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
+func get_collections():
+	if _result_map == null:
+		assert(false, "Call parent node <discriminator>'s prepare_deal() first!")
+		return null
 	return _result_map.get_deepest_collections()
 	
 func check_head(p_head: Array):
@@ -87,8 +97,12 @@ func prepare_deal(data: Array):
 	if _result_map == null:
 		if not result_map.is_empty():
 			_result_map = mapper_parser_ref.get_ref().get_element(result_map)
-			assert(_result_map != null, "Not found <resultMap> of id %s" % result_map)
-			assert(_result_map is GBatisResultMap, "Not found <resultMap> of id %s" % result_map)
+			if _result_map == null:
+				assert(false, "Not found <resultMap> of id %s" % result_map)
+				return null
+			if not _result_map is GBatisResultMap:
+				assert(false, "Not found <resultMap> of id %s" % result_map)
+				return null
 		else:
 			_result_map = GBatisResultMap.new({"type": result_type})
 			_result_map.set_mapper_parser_ref(mapper_parser_ref)
@@ -98,7 +112,9 @@ func prepare_deal(data: Array):
 	
 ## 每处理一条数据后需要调用一下
 func reset():
-	assert(_result_map != null, "Call parent node <discriminator>'s prepare_deal() first!")
+	if _result_map == null:
+		assert(false, "Call parent node <discriminator>'s prepare_deal() first!")
+		return null
 	# 如果有鉴别器，则返回值不稳定，需要重置
 	if _result_map.discriminator != null:
 		_result_map.reset()

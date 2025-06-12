@@ -2983,6 +2983,7 @@ func _parse_expression() -> ExpressionENode:
 						str_ofs = cofs
 					else:
 						_set_error("Expected ',' or '}'")
+						return null
 		
 	
 
@@ -3015,6 +3016,7 @@ func _parse_expression() -> ExpressionENode:
 						str_ofs = cofs
 					else:
 						_set_error("Expected ',' or ']'")
+						return null
 		
 	
 
@@ -3267,6 +3269,7 @@ func _parse_expression() -> ExpressionENode:
 									return null
 						else:
 							_set_error("Expected ',' or ')'")
+							return null
 			
 		
 
@@ -3351,6 +3354,7 @@ func _parse_expression() -> ExpressionENode:
 						str_ofs = cofs
 					else:
 						_set_error("Expected ',' or ')'")
+						return null
 		
 	
 
@@ -3394,6 +3398,7 @@ func _parse_expression() -> ExpressionENode:
 						str_ofs = cofs
 					else:
 						_set_error("Expected ',' or ')'")
+						return null
 		
 	
 
@@ -3401,6 +3406,7 @@ func _parse_expression() -> ExpressionENode:
 					var expected_args = get_utility_function_argument_count(bifunc._func)
 					if (expected_args != -1 and expected_args != bifunc.arguments.size()) :
 						_set_error("Builtin func '" + str(bifunc._func) + "' expects " + str(expected_args) + " arguments.")
+						return null
 		
 	
 
@@ -3844,7 +3850,9 @@ func search_input_name_equal(node, input_name: String, sub_name: String, tree: D
 				}
 			elif p_node.base is ExpressionSQLInputNode:
 				# 做为一个NamedIndexNode的base，怎么可能是一个常数呢
-				assert(not p_node.base.value_set, "Inner error 3855 in expression.gd")
+				if p_node.base.value_set:
+					assert(false, "Inner error 3855 in expression.gd")
+					return null
 				if p_node.base.info.has(false) and not sql_static_inputs.is_empty():
 					return sql_static_inputs[p_node.base.info[false]][p_node.name]
 				return {
@@ -3860,6 +3868,7 @@ func search_input_name_equal(node, input_name: String, sub_name: String, tree: D
 				}
 			else:
 				assert(false, "Inner error 3830 in expression.gd") # 没考虑到的情况
+				return null
 		if p_node is ExpressionInputNode:
 			return null # 无法确认该inputnode代表哪个表，返回null代表复杂情况
 		if p_node is ExpressionSQLInputNode:

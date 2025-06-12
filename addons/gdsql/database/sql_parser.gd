@@ -12,11 +12,9 @@ static var re_insert: RegEx = RegEx.new()
 static var re_replace: RegEx = RegEx.new()
 static var lru_cache: SQLParserLRULink
 
-static func _assert(success: bool, msg: String) -> bool:
-	if not success:
-		push_error("You have an error in your SQL syntax. %s" % msg)
-		return false
-	return true
+static func _assert_false(msg: String):
+	assert(false, "You have an error in your SQL syntax. %s" % msg)
+	return null
 	
 static func _static_init() -> void:
 	lru_cache = SQLParserLRULink.new()
@@ -98,9 +96,9 @@ static func parse_to_dao(sql: String) -> BaseDao:
 			var key_words = arr[index][0].to_upper() as String
 			if key_words.contains("LEFT"):
 				if arr.size() <= index + 1:
-					assert(_assert(false, "Missing ON of LEFT JOIN."))
+					return _assert_false("Missing ON of LEFT JOIN.")
 				if arr[index+1][0].to_upper() != "ON":
-					assert(_assert(false, "Missing ON of LEFT JOIN."))
+					return _assert_false("Missing ON of LEFT JOIN.")
 				var left_join_db_table_alias = _get_db_table_alias(arr[index][1])
 				if not left_join_db_table_alias:
 					return null
@@ -112,31 +110,31 @@ static func parse_to_dao(sql: String) -> BaseDao:
 				index += 2
 			elif key_words.contains("WHERE"):
 				if arr[index][1] == "":
-					assert(_assert(false, "Missing condition after WHERE."))
+					return _assert_false("Missing condition after WHERE.")
 				dao.where(arr[index][1])
 				index += 1
 			elif key_words.contains("GROUP"):
 				if arr[index][1] == "":
-					assert(_assert(false, "Missing Field after GROUP BY."))
+					return _assert_false("Missing Field after GROUP BY.")
 				dao.group_by(arr[index][1])
 				index += 1
 			elif key_words.contains("UNION"):
 				# for now only support union all
 				if arr[index][1].to_upper() != "ALL":
-					assert(_assert(false, "ONLY SUPPORT UNION ALL."))
+					return _assert_false("ONLY SUPPORT UNION ALL.")
 				if arr.size() <= index + 1:
-					assert(_assert(false, "Missing SELECT after UNION."))
+					return _assert_false("Missing SELECT after UNION.")
 				if arr[index+1][0].to_upper() != "SELECT":
-					assert(_assert(false, "Missing SELECT after UNION."))
+					return _assert_false("Missing SELECT after UNION.")
 				dao = dao.union_all()
 				index += 1
 			elif key_words.contains("SELECT"):
 				if arr[index][1] == "":
-					assert(_assert(false, "Missing fields after SELECT."))
+					return _assert_false("Missing fields after SELECT.")
 				if arr.size() <= index + 1:
-					assert(_assert(false, "Missing FROM after SELECT."))
+					return _assert_false("Missing FROM after SELECT.")
 				if arr[index+1][0].to_upper() != "FROM":
-					assert(_assert(false, "Missing FROM after SELECT."))
+					return _assert_false("Missing FROM after SELECT.")
 				var a_db_table_alias = _get_db_table_alias(arr[index+1][1])
 				if not a_db_table_alias:
 					return null
@@ -150,16 +148,16 @@ static func parse_to_dao(sql: String) -> BaseDao:
 				index += 2
 			elif key_words.contains("ORDER"):
 				if arr[index][1] == "":
-					assert(_assert(false, "Missing Field after ORDER BY."))
+					return _assert_false("Missing Field after ORDER BY.")
 				dao.order_by_str(arr[index][1])
 				index += 1
 			elif key_words.contains("LIMIT"):
 				if arr[index][1] == "":
-					assert(_assert(false, "Missing number after LIMIT."))
+					return _assert_false("Missing number after LIMIT.")
 				var splits = (arr[index][1] as String).split_floats(",")
 				if not (splits.size() == 1 or splits.size() == 2):
-					assert(_assert(false, 
-					"Incorrect number after LIMIT. %s" % arr[index][1]))
+					return _assert_false(
+					"Incorrect number after LIMIT. %s" % arr[index][1])
 				if splits.size() == 1:
 					dao.limit(0, splits[0])
 				else:
@@ -181,13 +179,13 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		
 		var sets = _get_set_value_list(arr[1][1])
 		if sets.is_empty():
-			assert(_assert(false, "Error near: [%s]" % arr[1][1]))
+			return _assert_false("Error near: [%s]" % arr[1][1])
 		dao.sets(sets)
 		dao.set_evalueate_mode(true)
 		
 		if arr.size() > 2:
 			if arr[2][0].to_upper() != "WHERE":
-				assert(_assert(false, "Invalid keyword near: [%s]" % arr[2][0]))
+				return _assert_false("Invalid keyword near: [%s]" % arr[2][0])
 			dao.where(arr[2][1])
 			
 		return dao
@@ -206,7 +204,7 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		
 		if arr.size() == 2:
 			if arr[1][0].to_upper() != "WHERE":
-				assert(_assert(false, "Invalid keyword near: [%s]" % arr[2][0]))
+				return _assert_false("Invalid keyword near: [%s]" % arr[2][0])
 			dao.where(arr[1][1])
 			
 		return dao
@@ -223,12 +221,12 @@ static func parse_to_dao(sql: String) -> BaseDao:
 			dao.use_db_name(db)
 		if (arr[0] as String).countn("ignore") > 0:
 			if arr[5] == "":
-				assert(_assert(false, 
-				"Cannot use INSERT IGNORE and ON DUPLICATE KEY UPDATE at the same time."))
+				return _assert_false(
+				"Cannot use INSERT IGNORE and ON DUPLICATE KEY UPDATE at the same time.")
 			dao.insert_ignore(table)
 		elif arr[5] != "": # on duplicate key update
 			if arr[6] == "":
-				assert(_assert(false, "Missing set value after ON DUPLICATE KEY UPDATE."))
+				return _assert_false("Missing set value after ON DUPLICATE KEY UPDATE.")
 			dao.insert_or_update(table)
 		else:
 			dao.insert_into(table)
@@ -240,7 +238,7 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		var data = {}
 		if fields.size() > 0 and values.size() > 0:
 			if fields.size() != values.size():
-				assert(_assert(false, "Fields count and Values count not match."))
+				return _assert_false("Fields count and Values count not match.")
 			for i in fields.size():
 				data[fields[i]] = values[i]
 		if data.is_empty():
@@ -256,12 +254,12 @@ static func parse_to_dao(sql: String) -> BaseDao:
 				var field_value = _get_field_value(i)
 				# NOTICE 限于on_duplicate_update方法，目前只支持a=values(a)这样的写法
 				if field_value.is_empty():
-					assert(_assert(false, "Not support this: [%s]." % i))
+					return _assert_false("Not support this: [%s]." % i)
 				if field_value[0] != field_value[1]:
-					assert(_assert(false, "Not support this: [%s]." % i))
+					return _assert_false("Not support this: [%s]." % i)
 				update_fields.push_back(field_value[0])
 			if update_fields.is_empty():
-				assert(_assert(false, "Invalid set value after ON DUPLICATE KEY UPDATE."))
+				return _assert_false("Invalid set value after ON DUPLICATE KEY UPDATE.")
 			dao.on_duplicate_update(fields)
 			
 		return dao
@@ -286,7 +284,7 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		var data = {}
 		if fields.size() > 0 and values.size() > 0:
 			if fields.size() != values.size():
-				assert(_assert(false, "Fields count and Values count not match."))
+				return _assert_false("Fields count and Values count not match.")
 			for i in fields.size():
 				data[fields[i]] = values[i]
 		if data.is_empty():
@@ -295,7 +293,7 @@ static func parse_to_dao(sql: String) -> BaseDao:
 			dao.values(data)
 		return dao
 	else:
-		assert(_assert(false, "Sql should begin with one of [SELECT, UPDATE, DELETE, INSERT, REPLACE]."))
+		return _assert_false("Sql should begin with one of [SELECT, UPDATE, DELETE, INSERT, REPLACE].")
 	return null
 	
 static func parse_select(sql: String) -> Array:
@@ -306,13 +304,13 @@ static func parse_select(sql: String) -> Array:
 		ret.push_back([i.get_string(1), restore(i.get_string(2).strip_edges(), prepare[1])])
 	ret = _check_semicolon(ret)
 	if ret.is_empty():
-		assert(_assert(false, "Cannot parse your SELECT sql."))
+		return _assert_false("Cannot parse your SELECT sql.")
 	if ret.size() < 2:
-		assert(_assert(false, "SELECT need at least SELECT and FROM."))
+		return _assert_false("SELECT need at least SELECT and FROM.")
 	if ret[0][1] == "":
-		assert(_assert(false, "Missing fields after SELECT."))
+		return _assert_false("Missing fields after SELECT.")
 	if ret[1][0].to_upper() != "FROM":
-		assert(_assert(false, "Missing FROM after SELECT."))
+		return _assert_false("Missing FROM after SELECT.")
 	return ret
 	
 static func parse_update(sql: String) -> Array:
@@ -323,11 +321,11 @@ static func parse_update(sql: String) -> Array:
 		ret.push_back([i.get_string(1), restore(i.get_string(2).strip_edges(), prepare[1])])
 	ret = _check_semicolon(ret)
 	if ret.is_empty():
-		assert(_assert(false, "Cannot parse your UPDATE sql."))
+		return _assert_false("Cannot parse your UPDATE sql.")
 	if ret[1][0].to_upper() != "SET":
-		assert(_assert(false, "Missing SET after UPDATE."))
+		return _assert_false("Missing SET after UPDATE.")
 	if ret.size() > 3:
-		assert(_assert(false, "Redundant info near: [%s]" % ret[3][0] if ret.size() > 3 else ""))
+		return _assert_false("Redundant info near: [%s]" % ret[3][0] if ret.size() > 3 else "")
 	return ret
 	
 static func parse_delete(sql: String) -> Array:
@@ -338,13 +336,13 @@ static func parse_delete(sql: String) -> Array:
 		ret.push_back([i.get_string(1), restore(i.get_string(2).strip_edges(), prepare[1])])
 	ret = _check_semicolon(ret)
 	if ret.is_empty():
-		assert(_assert(false, "Cannot parse your DELETE sql."))
+		return _assert_false("Cannot parse your DELETE sql.")
 	if ret.size() > 2:
-		assert(_assert(false, "Cannot parse your DELETE sql."))
+		return _assert_false("Cannot parse your DELETE sql.")
 	if not (ret[0][0].countn("delete") == 1 and ret[0][0].countn("from") == 1):
-		assert(_assert(false, "Cannot parse your DELETE sql."))
+		return _assert_false("Cannot parse your DELETE sql.")
 	if ret.size() == 2 and not ret[1][0].strip_edges().to_upper() == "WHERE":
-		assert(_assert(false, "Cannot parse your DELETE sql."))
+		return _assert_false("Cannot parse your DELETE sql.")
 	return ret
 	
 static func parse_insert(sql: String) -> Array:
@@ -364,12 +362,12 @@ static func parse_insert(sql: String) -> Array:
 		]
 		ret = _check_semicolon(ret)
 	if ret == null or ret.is_empty():
-		assert(_assert(false, "Cannot parse your INSERT sql."))
+		return _assert_false("Cannot parse your INSERT sql.")
 	if ret[3].to_upper() != "VALUES":
-		assert(_assert(false, "Parser error of keyword VALUES."))
+		return _assert_false("Parser error of keyword VALUES.")
 	if ret[5] != "":
 		if ret[5].countn("duplicate") == 0:
-			assert(_assert(false, "Parser error of keyword ON DUPLICATE KEY UPDATE."))
+			return _assert_false("Parser error of keyword ON DUPLICATE KEY UPDATE.")
 	return ret
 	
 static func parse_replace(sql: String) -> Array:
@@ -387,9 +385,9 @@ static func parse_replace(sql: String) -> Array:
 		]
 		ret = _check_semicolon(ret)
 	if ret == null or ret.is_empty():
-		assert(_assert(false, "Cannot parse your REPLACE sql."))
+		return _assert_false("Cannot parse your REPLACE sql.")
 	if ret[3].to_upper() != "VALUES":
-		assert(_assert(false, "Parser error of keyword VALUES."))
+		return _assert_false("Parser error of keyword VALUES.")
 	return []
 	
 static func prepare_sql(sql: String) -> Array:
@@ -475,7 +473,8 @@ need_user_enter_password: Array = []):
 			if dao.need_user_enter_password():
 				need_user_enter_password.push_back(true)
 			else:
-				assert(res is QueryResult, "Error occur!")
+				if not res is QueryResult:
+					return _assert_false("Error occur!")
 			return res
 		return info
 	else:
@@ -527,11 +526,11 @@ static func _check_semicolon(ret: Array) -> Array:
 		if ret[i] is Array:
 			for j in ret[i].size():
 				if ret[i][j].ends_with(";"):
-					assert(_assert(false, 
-					"Invalid semicolon found near [%s]" % ret[i][j]))
+					return _assert_false(
+					"Invalid semicolon found near [%s]" % ret[i][j])
 		else:
 			if ret[i].ends_with(";"):
-				assert(_assert(false, "Invalid semicolon found near [%s]" % ret[i]))
+				return _assert_false("Invalid semicolon found near [%s]" % ret[i])
 	if ret[ret.size()-1] is Array:
 		for j in ret[ret.size()-1].size():
 			ret[ret.size()-1][j] = _remove_last_semicolon(ret[ret.size()-1][j])
@@ -550,7 +549,7 @@ static func _get_db_table(s: String) -> Array[String]:
 		
 	var splits = s.split(".")
 	if splits.size() != 2:
-		assert(_assert(false, "Wrong table format. Near [%s]." % s))
+		return _assert_false("Wrong table format. Near [%s]." % s)
 	return [splits[0].strip_edges(), splits[1].strip_edges()]
 	
 static func _get_db_table_alias(s: String) -> Array[String]:
@@ -561,7 +560,7 @@ static func _get_db_table_alias(s: String) -> Array[String]:
 	if table.contains(" "):
 		var splits = table.split(" ", false)
 		if splits.size() != 2:
-			assert(_assert(false, "Wrong table and alias. Near [%s]." % table))
+			return _assert_false("Wrong table and alias. Near [%s]." % table)
 		table = splits[0]
 		alias = splits[1]
 	return [db, table, alias]
@@ -649,7 +648,7 @@ static func _get_value_list(s: String, evaluate: bool) -> Array:
 static func _get_set_value(s: String) -> Array:
 	var m = re_split_equal.search(s)
 	if not m:
-		assert(_assert(false, "Error near: [%s]" % s))
+		return _assert_false("Error near: [%s]" % s)
 	var first = s.substr(0, m.get_start()).strip_edges()
 	var second = s.substr(m.get_end()).strip_edges()
 	#return [first, _get_var(second)] # 由于数据不全（有些数据在数据库），不能在这里evaluate。
@@ -664,7 +663,7 @@ static func _get_set_value_list(s: String) -> Dictionary:
 		if not splits:
 			return {}
 		if ret.has(splits[0]):
-			assert(_assert(false, "Duplicate set field near: [%s]" % s))
+			return _assert_false("Duplicate set field near: [%s]" % s)
 		ret[splits[0]] = splits[1]
 	return ret
 	

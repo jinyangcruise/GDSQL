@@ -48,13 +48,17 @@ func get_data() -> Array:
 	
 ## 获取query后的数据的第一条数据，可以指定只返回某一列和空数据集时的返回值
 func get_first_row(col_index = null, default = null):
-	assert(col_index == null or col_index is int, "Invalid col_index type: %s" % typeof(col_index))
+	if not (col_index == null or col_index is int):
+		assert(false, "Invalid col_index type: %s" % typeof(col_index))
+		return null
 	var ret = get_data()
 	if ret.is_empty():
 		return default
 	if col_index == null:
 		return ret[0]
-	assert(ret[0].size() > col_index, "Invalid col_index: %s" % col_index)
+	if ret[0].size() <= col_index:
+		assert(false, "Invalid col_index: %s" % col_index)
+		return null
 	return ret[0][col_index]
 	
 ## 获取query后的数据的某列数据，可以指定空数据集时的返回值
@@ -62,7 +66,9 @@ func get_column(col_index = 0, default = null):
 	var ret = get_data()
 	if ret.is_empty():
 		return default
-	assert(ret[0].size() > col_index, "Invalid col_index: %s" % col_index)
+	if ret[0].size() <= col_index:
+		assert(false, "Invalid col_index: %s" % col_index)
+		return null
 	var arr = []
 	for i in ret:
 		arr.push_back(i[col_index])

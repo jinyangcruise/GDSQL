@@ -46,8 +46,9 @@ func _init(conf: Dictionary) -> void:
 	id = conf.get("id").strip_edges()
 	result_map = conf.get("resultMap", "").strip_edges()
 	result_type = conf.get("resultType", "").strip_edges()
-	assert(result_map.is_empty() or result_type.is_empty(), 
-		"Cannot set resultMap and resultType at the same time of <select>.")
+	if not (result_map.is_empty() or result_type.is_empty()):
+		assert(false, "Cannot set resultMap and resultType at the same time of <select>.")
+		return
 	#fetch_size = conf.get("fetchSize", "").strip_edges()
 	flush_cache = conf.get("flushCache", "false").strip_edges()
 	use_cache = conf.get("useCache", "true").strip_edges()
@@ -73,17 +74,23 @@ func set_method_return_info(info: Dictionary):
 func query():
 	query_status = ""
 	var dao = SQLParser.parse_to_dao(sql)
-	assert(dao != null, "Parse to dao failed: " + sql)
-	assert(dao.get_cmd() == "select", "BaseDao's cmd is not select.")
+	if dao == null:
+		assert(false, "Parse to dao failed: " + sql)
+		return null
+	if dao.get_cmd() != "select":
+		assert(false, "BaseDao's cmd is not select.")
+		return null
 	if not database_id.is_empty():
 		dao.use_db_name(database_id)
 	var query_result = dao.query()
 	if query_result == null:
 		query_status = "err"
 		assert(false, "Error occur in base_dao.query().")
+		return null
 	if not query_result.ok():
 		query_status = "err"
 		assert(false, "Error occur. %s" % query_result.get_err())
+		return null
 		
 	# xml指定了返回QueryResult，或mapper中的函数指定返回QueryResult)，那么原样返回
 	if result_map.is_empty() and \
@@ -141,23 +148,27 @@ func query():
 			if DataTypeDef.DATA_TYPE_COMMON_NAMES.has(result_type):
 				query_status = "err"
 				assert(false, "resultType `%s` not match your method type `%s`." % \
-				[result_type, mapping_to_type])
+					[result_type, mapping_to_type])
+				return null
 			elif mapping_to_type == "Object":
 				pass # leave empty
 			elif result_type == "Resource":
 				if not (mapping_to_type == "RefCounted" or mapping_to_type == "Object"):
 					query_status = "err"
 					assert(false, "Resouce dose not inherit from " + mapping_to_type)
+					return null
 			else:
 				var o = GDSQLUtils.evaluate_command_script(result_type + ".new()")
 				if not o:
 					query_status = "err"
 					assert(false, "Cannot initialize " + result_type)
+					return null
 				var is_inherit = GDSQLUtils.evaluate_command_script(
 					"o is " + mapping_to_type, ["o"], [o])
 				if not is_inherit:
 					query_status = "err"
 					assert(false, result_type + " dose not inherit from " + mapping_to_type)
+					return null
 				if not o is RefCounted:
 					o.free()
 		# xml配置了，但是函数返回值没定义。要确认一下xml配置的是不是Object
@@ -195,7 +206,8 @@ func query():
 			return datas
 		else:
 			query_status = "err"
-			assert(false, "Inner error 104.") # 没考虑到的情况
+			assert(false, "Inner error 209.") # 没考虑到的情况
+			return null
 			
 	# 用一个resultMap来映射数据
 	if not result_map.is_empty():
@@ -203,9 +215,11 @@ func query():
 		if _result_map == null:
 			query_status = "err"
 			assert(false, "Not found <resultMap> of id %s" % result_map)
+			return null
 		if not _result_map is GBatisResultMap:
 			query_status = "err"
 			assert(false, "Not found <resultMap> of id %s" % result_map)
+			return null
 	else:
 		_result_map = GBatisResultMap.new({"type": result_type})
 		_result_map.set_mapper_parser_ref(mapper_parser_ref)
@@ -243,9 +257,11 @@ func query():
 				if not a_ret is Array:
 					query_status = "err"
 					assert(false, "Err occur in result_map deal().")
+					return null
 				if (map_to_obj or map_to_array or map_to_dictionary) and a_ret[0] == null:
 					query_status = "err"
 					assert(false, "Err occur in result_map deal().")
+					return null
 					
 				a_ret = a_ret[0]
 				var push = true
@@ -258,6 +274,7 @@ func query():
 					if return_type == "Object" and not ret_datas.is_empty():
 						query_status = "err"
 						assert(false, "Result set is supposed to be mapped to one object.")
+						return null
 					ret_datas.push_back(a_ret)
 					
 			if return_type == "Array":
@@ -277,32 +294,39 @@ func query():
 						break
 					query_status = "err"
 					assert(false, "Result set is supposed to have one row, but 0.")
+					return null
 				break
 				
 			if datas.size() != 1:
 				query_status = "err"
 				assert(false, "Result set is supposed to have one row, but " + str(datas.size()))
+				return null
 			_result_map.prepare_deal(datas[0])
 			if return_type == "OneRow":
 				if not _result_map.mapping_to_array:
 					query_status = "err"
 					assert(false, "resultMap return type not match method return type.")
+					return null
 			elif return_type == "Dictionary":
 				if not _result_map.mapping_to_dictionary:
 					query_status = "err"
 					assert(false, "resultMap return type not match method return type.")
+					return null
 			elif return_type == "Other":
 				if not _result_map.mapping_to_other:
 					query_status = "err"
 					assert(false, "resultMap return type not match method return type.")
+					return null
 			else:
 				query_status = "err"
 				assert(false, "Inner error 105.") # 没考虑到的情况
+				return null
 				
 			var a_ret = _result_map.deal(datas[0])
 			if not a_ret is Array:
 				query_status = "err"
 				assert(false, "Err occur in result_map deal().")
+				return null
 			final_ret = a_ret[0]
 			break
 			

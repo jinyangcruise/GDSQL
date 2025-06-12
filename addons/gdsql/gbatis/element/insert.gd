@@ -63,15 +63,21 @@ func set_param_obj_or_dict(param):
 # INFO 缓存的逻辑在mapper_parser.gd
 func query():
 	var dao = SQLParser.parse_to_dao(sql)
-	assert(dao != null, "Parse to dao failed: " + sql)
-	assert(dao.get_cmd().begins_with("insert"), "BaseDao's cmd is not insert.")
+	if dao == null:
+		assert(false, "Parse to dao failed: " + sql)
+		return null
+	if not dao.get_cmd().begins_with("insert"):
+		assert(false, "BaseDao's cmd is not insert.")
+		return null
 	if not database_id.is_empty():
 		dao.use_db_name(database_id)
 	var query_result = dao.query()
 	if query_result == null:
 		assert(false, "Error occur in base_dao.query().")
+		return null
 	if not query_result.ok():
 		assert(false, "Error occur. %s" % query_result.get_err())
+		return false
 		
 	if use_generated_keys == "true" and param_obj_or_dict:
 		var generated_keys = query_result.get_generated_keys()
@@ -80,10 +86,14 @@ func query():
 		
 		for p in key_properties:
 			if param_obj_or_dict is Object:
-				assert(p in param_obj_or_dict, "Invalid property %s in Object." % p)
+				if not p in param_obj_or_dict:
+					assert(false, "Invalid property %s in Object." % p)
+					return null
 			else:
-				assert(param_obj_or_dict.has(p), "Invalid key %s in Dictionary." % p)
-				
+				if not param_obj_or_dict.has(p):
+					assert(false, "Invalid key %s in Dictionary." % p)
+					return null
+					
 		for k in generated_keys:
 			var v = generated_keys[k]
 			if key_properties.is_empty():
@@ -113,4 +123,4 @@ func query():
 		
 	assert(false, "Method of <insert> cannot return %s." % \
 		DataTypeDef.DATA_TYPE_NAMES[method_return_info.type])
-		
+	return null

@@ -50,8 +50,10 @@ func prepare_deal(data: Array):
 			column_value = type_convert(data[i], type)
 			find = true
 			break
-	assert(find, "Not found column %s in Result set. Defined in <discriminator>." % column)
-	
+	if not find:
+		assert(false, "Not found column %s in Result set. Defined in <discriminator>." % column)
+		return null
+		
 	var index = -1
 	for i: GBatisCase in cases:
 		index += 1
@@ -73,39 +75,51 @@ func prepare_deal(data: Array):
 		#return (cases[selected_case_index] as GBatisCase).get_result_map()
 	#return null
 	
-func get_result_type() -> String:
-	assert(selected_case_index != -2, "Call prepare_deal first!")
+func get_result_type():
+	if selected_case_index == -2:
+		assert(false, "Call prepare_deal first!")
+		return null
 	if selected_case_index > -1:
 		return (cases[selected_case_index] as GBatisCase).get_result_type()
 	return ""
 	
-func get_auto_mapping() -> String:
-	assert(selected_case_index != -2, "Call prepare_deal first!")
+func get_auto_mapping():
+	if selected_case_index == -2:
+		assert(false, "Call prepare_deal first!")
+		return null
 	if selected_case_index > -1:
 		return (cases[selected_case_index] as GBatisCase).get_auto_mapping()
 	return ""
 	
-func get_prop_column() -> Dictionary:
-	assert(selected_case_index != -2, "Call prepare_deal first!")
+func get_prop_column():
+	if selected_case_index == -2:
+		assert(false, "Call prepare_deal first!")
+		return null
 	if selected_case_index > -1:
 		return (cases[selected_case_index] as GBatisCase).get_prop_column()
 	return {}
 	
-func get_associations() -> Array:
-	assert(selected_case_index != -2, "Call prepare_deal first!")
+func get_associations():
+	if selected_case_index == -2:
+		assert(false, "Call prepare_deal first!")
+		return null
 	if selected_case_index > -1:
 		return (cases[selected_case_index] as GBatisCase).get_associations()
 	return []
 	
-func get_collections() -> Array:
-	assert(selected_case_index != -2, "Call prepare_deal first!")
+func get_collections():
+	if selected_case_index == -2:
+		assert(false, "Call prepare_deal first!")
+		return null
 	if selected_case_index > -1:
 		return (cases[selected_case_index] as GBatisCase).get_collections()
 	return []
 	
 ## 处理完一条数据后，要reset
 func reset():
-	assert(selected_case_index != -2, "Call prepare_deal first!")
+	if selected_case_index == -2:
+		assert(false, "Call prepare_deal first!")
+		return null
 	if selected_case_index > -1:
 		return (cases[selected_case_index] as GBatisCase).reset()
 	selected_case_index = -2
