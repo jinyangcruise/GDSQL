@@ -193,22 +193,27 @@ func _get_conf(path: String, password: String, indexed_names = []) -> ImprovedCo
 ## 手动提交（保存到文件）
 func commit() -> void:
 	if __database == "" or __database == null:
-		return _assert_false("commit", "database is empty")
+		_assert_false("commit", "database is empty")
+		return
 	if __table == "":
-		return _assert_false("commit", "table name is empty")
+		_assert_false("commit", "table name is empty")
+		return
 	var path = __database.path_join(__table)
 	var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
 	if conf == null:
-		return _assert_false("commit", "load conf err!")
+		_assert_false("commit", "load conf err!")
+		return
 	__CONF_MANAGER.save_conf_by_origin_password(path)
 	reset()
 	
 ## 抛弃修改（没有commit时使用才有效果）
 func discard() -> void:
 	if __database == "" or __database == null:
-		return _assert_false("commit", "database is empty")
+		_assert_false("commit", "database is empty")
+		return
 	if __table == "":
-		return _assert_false("commit", "table name is empty")
+		_assert_false("commit", "table name is empty")
+		return
 	var path = __database.path_join(__table)
 	__CONF_MANAGER.remove_conf(path)
 	
