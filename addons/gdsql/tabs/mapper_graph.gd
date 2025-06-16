@@ -613,19 +613,22 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							arr_getset.push_back('\nfunc get_%s() -> Array:' % i_0_snake)
 							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
 							arr_getset.push_back('\nfunc set_%s(p_%s: Array):' % [i_0_snake, i_0_snake])
-							arr_getset.push_back('\n\t%s = p_%s\n\t' % [i[0], i_0_snake])
+							arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
+							arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
 						elif DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
 							arr.push_back('\nvar %s: Array[%s]\n' % [i[0], i[1]])
 							arr_getset.push_back('\nfunc get_%s() -> Array[%s]:' % [i_0_snake, i[1]])
 							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
 							arr_getset.push_back('\nfunc set_%s(p_%s: Array[%s]):' % [i_0_snake, i_0_snake, i[1]])
-							arr_getset.push_back('\n\t%s = p_%s\n\t' % [i[0], i_0_snake])
+							arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
+							arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
 						else:
 							arr.push_back('\nvar %s: Array[%sEntity]\n' % [i[0], i[1]])
 							arr_getset.push_back('\nfunc get_%s() -> Array[%sEntity]:' % [i_0_snake, i[1]])
 							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
 							arr_getset.push_back('\nfunc set_%s(p_%s: Array[%sEntity]):' % [i_0_snake, i_0_snake, i[1]])
-							arr_getset.push_back('\n\t%s = p_%s\n\t' % [i[0], i_0_snake])
+							arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
+							arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
 					else:
 						arr.push_back('\n## %s' % i[3])
 						if i[1] == "Nil":
@@ -633,7 +636,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							arr_getset.push_back('\nfunc get_%s():' % i_0_snake)
 							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
 							arr_getset.push_back('\nfunc set_%s(p_%s):' % [i_0_snake, i_0_snake])
-							arr_getset.push_back('\n\t%s = p_%s\n\t' % [i[0], i_0_snake])
+							arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
+							arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
 						elif DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
 							#arr.push_back('\nvar %s: %s\n' % [i[0], i[1]])
 							# 不在属性上指定数据类型了，不然update、insert不知道有没有给属性设定值。
@@ -645,13 +649,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
 							arr_getset.push_back('\nfunc set_%s(p_%s: %s):' % [i_0_snake, i_0_snake, 
 								i[4] if i[1] == "Object" else i[1]])
-							arr_getset.push_back('\n\t%s = p_%s\n\t' % [i[0], i_0_snake])
+							arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
+							arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
 						else:
 							arr.push_back('\nvar %s: %sEntity\n' % [i[0], i[1]])
 							arr_getset.push_back('\nfunc get_%s() -> %sEntity:' % [i_0_snake, i[1]])
 							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
 							arr_getset.push_back('\nfunc set_%s(p_%s: %sEntity):' % [i_0_snake, i_0_snake, i[1]])
-							arr_getset.push_back('\n\t%s = p_%s\n\t' % [i[0], i_0_snake])
+							arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
+							arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
 				entity_map[en_ns] = arr + arr_getset
 				
 		# <sql>
@@ -978,6 +984,12 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	btn_save_all.text = "Save All"
 	hbox.add_child(btn_save_all)
 	
+	var filter_edit = LineEdit.new()
+	filter_edit.placeholder_text = "Filter Files"
+	filter_edit.right_icon = get_theme_icon("Search", "EditorIcons")
+	filter_edit.clear_button_enabled = true
+	filter_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	
 	var tree = Tree.new()
 	tree.columns = 3
 	tree.hide_root = true
@@ -991,6 +1003,49 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	check_all_item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
 	check_all_item.set_editable(0, true)
 	
+	var edit_history = {}
+	tree.set_meta("edit_history", edit_history)
+	var refresh_tree = func():
+		var filter_text = filter_edit.text.strip_edges()
+		# remove all except check_all_item
+		for i in range(root.get_child_count() - 1, 0, -1):
+			root.remove_child(root.get_child(i))
+		for map in [xml_map, mapper_map, entity_map]:
+			for i: String in map:
+				var file_name = i.get_slice(".", 1) + (".xml" if map == xml_map else ".gd")
+				if not (filter_text == "" or i.containsn(filter_text) or file_name.containsn(filter_text)):
+					continue
+				var item = tree.create_item(root)
+				item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
+				item.set_checked(0, true)
+				item.set_editable(0, true)
+				item.set_text(1, i)
+				item.set_meta("file_name", file_name)
+				if edit_history.has(file_name):
+					item.set_metadata(0, edit_history[file_name])
+					item.set_meta("origin", ''.join(map[i]) + '\n')
+					item.set_text(2, file_name + "(*)")
+					item.add_button(2, get_theme_icon("RotateLeft", "EditorIcons"), 3, false, "Revert")
+				else:
+					item.set_metadata(0, ''.join(map[i]) + '\n')
+					item.set_meta("origin", item.get_metadata(0))
+					item.set_text(2, file_name)
+					item.add_button(2, CompressedTexture2D.new(), 3, true, "Revert")
+				item.add_button(2, get_theme_icon("Edit", "EditorIcons"), 0, false, "Edit")
+				item.add_button(2, get_theme_icon("Save", "EditorIcons"), 1, false, "Save As...")
+				item.add_button(2, get_theme_icon("ActionCopy", "EditorIcons"), 2, false, "Copy")
+				item.add_button(2, get_theme_icon("HSplitContainer", "EditorIcons"), 4, false, "Compare")
+				var path = line_edit_path.text.strip_edges().path_join(item.get_meta("file_name"))
+				if FileAccess.file_exists(path):
+					if item.get_metadata(0) != FileAccess.open(path, FileAccess.READ).get_as_text():
+						item.set_button_color(2, item.get_button_by_id(2, 4), Color(2, 0.647059, 0, 1))
+				else:
+					item.set_button_disabled(2, item.get_button_by_id(2, 4), true)
+					
+	refresh_tree.call()
+	line_edit_path.text_changed.connect(refresh_tree.unbind(1))
+	filter_edit.text_changed.connect(refresh_tree.unbind(1))
+	
 	btn_save_all.pressed.connect(func():
 		if line_edit_path.text == "":
 			mgr.create_accept_dialog("Save path is empty!")
@@ -998,7 +1053,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 		for i: TreeItem in root.get_children():
 			if i.get_text(2) != "":
 				var content = i.get_metadata(0)
-				var path = line_edit_path.text.path_join(i.get_text(2).replace("(*)", ""))
+				var path = line_edit_path.text.strip_edges().path_join(i.get_meta("file_name"))
 				var file = FileAccess.open(path, FileAccess.WRITE)
 				file.store_string(content)
 				file.flush()
@@ -1014,27 +1069,12 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 			_generate_dialog.transient = false
 			if _generate_dialog.mode != Window.MODE_WINDOWED:
 				_generate_dialog.mode = Window.MODE_WINDOWED
-			_generate_dialog.grab_focus() # TODO FIXME WAIT_FOR_UPDATE which is useless in 4.3.dev6
+			_generate_dialog.grab_focus()
 		await get_tree().create_timer(2).timeout
 		btn_save_all.icon = old_icon
 		btn_save_all.disabled = false
 	)
 	
-	for map in [xml_map, mapper_map, entity_map]:
-		for i: String in map:
-			var item = tree.create_item(root)
-			item.set_metadata(0, ''.join(map[i]) + '\n')
-			item.set_meta("origin", item.get_metadata(0))
-			item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
-			item.set_checked(0, true)
-			item.set_editable(0, true)
-			item.set_text(1, i)
-			item.set_text(2, i.get_slice(".", 1) + (".xml" if map == xml_map else ".gd"))
-			item.add_button(2, CompressedTexture2D.new(), 3, true, "Revert")
-			item.add_button(2, get_theme_icon("Edit", "EditorIcons"), 0, false, "Edit")
-			item.add_button(2, get_theme_icon("Save", "EditorIcons"), 1, false, "Save As...")
-			item.add_button(2, get_theme_icon("ActionCopy", "EditorIcons"), 2, false, "Copy")
-			
 	tree.item_edited.connect(func():
 		var selected_item = tree.get_selected()
 		if tree.get_selected() == check_all_item:
@@ -1055,6 +1095,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	)
 	tree.button_clicked.connect(
 		func(item: TreeItem, _column: int, id: int, _mouse_button_index: int):
+			item.select(2)
 			match id:
 				0: # Edit
 					popup_edit_dialog(item)
@@ -1064,19 +1105,34 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 				2: # Copy to clipboard
 					DisplayServer.clipboard_set(item.get_metadata(0))
 				3: # Revert
+					item.get_tree().get_meta("edit_history").erase(item.get_meta("file_name"))
 					item.set_metadata(0, item.get_meta("origin"))
 					item.set_button(2, 0, CompressedTexture2D.new())
 					item.set_button_disabled(2, 0, true)
 					item.set_button_tooltip_text(2, 0, "")
 					if item.get_text(2).ends_with("(*)"):
-						item.set_text(2, item.get_text(2).substr(
-							0, item.get_text(2).length()-3))
+						item.set_text(2, item.get_meta("file_name"))
+				4: # Compare
+					var path = line_edit_path.text.strip_edges().path_join(item.get_meta("file_name"))
+					var arr_content = [{
+						"title": "[old] " + item.get_meta("file_name"),
+						"file": item.get_meta("file_name"),
+						"content": FileAccess.open(path, FileAccess.READ).get_as_text(),
+						"item": null,
+					}, {
+						"title": "[new] " + item.get_meta("file_name"),
+						"file": item.get_meta("file_name"),
+						"content": item.get_metadata(0),
+						"item": item,
+					}]
+					popup_diff_dialog(arr_content, true)
 	)
 	tree.ready.connect(func():
 		check_all_item.set_checked(0, true)
 		tree.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
 	)
-	var arr = [[hbox], [tree]] as Array[Array]
+	
+	var arr = [[hbox], [filter_edit], [tree]] as Array[Array]
 	
 	var confirm = func():
 		if line_edit_path.text == "":
@@ -1104,20 +1160,26 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 		hbox.queue_free()
 		tree.queue_free()
 	_generate_dialog = mgr.create_custom_dialog(arr, confirm, Callable(), defer, 0.3)
-	_generate_dialog.add_button("Compare", true, "Compare")
+	_generate_dialog.exclusive = false
+	_generate_dialog.transient = false
+	_generate_dialog.always_on_top = true
+	_generate_dialog.add_button("View", true, "View")
 	_generate_dialog.get_ok_button().text = "Save"
 	
-	_generate_dialog.custom_action.connect(func(_action):
-		var arr_content = []
-		for i: TreeItem in root.get_children():
-			if i.is_checked(0):
-				if i.get_text(2) != "":
-					arr_content.push_back({
-						"file": i.get_text(2),
-						"content": i.get_metadata(0),
-						"item": i,
-					})
-		popup_diff_dialog(arr_content)
+	_generate_dialog.custom_action.connect(func(action):
+		match action:
+			"View":
+				var arr_content = []
+				for i: TreeItem in root.get_children():
+					if i.is_checked(0):
+						if i.get_text(2) != "":
+							arr_content.push_back({
+								"title": i.get_meta("file_name"),
+								"file": i.get_meta("file_name"),
+								"content": i.get_metadata(0),
+								"item": i,
+							})
+				popup_diff_dialog(arr_content)
 	)
 	
 func comfirm_save(path: String = "", item: TreeItem = null, editor_file_dialog = null):
@@ -1157,7 +1219,7 @@ func popup_saveas_dialog(access: int, item: TreeItem, dir: String):
 	editor_file_dialog.ready.connect(func():
 		if dir != "":
 			editor_file_dialog.current_dir = dir
-		editor_file_dialog.current_file = item.get_text(2).replace("(*)", "")
+		editor_file_dialog.current_file = item.get_meta("file_name")
 	)
 	
 	editor_file_dialog.file_selected.connect(
@@ -1167,19 +1229,26 @@ func popup_saveas_dialog(access: int, item: TreeItem, dir: String):
 		editor_file_dialog.queue_free()
 	mgr.popup_user_dialog(editor_file_dialog, Callable(), Callable(), defer, 0.5)
 	
-func reset_content(item: TreeItem, editor):
+func reset_content(item: TreeItem, editor, diff_ref_editor = null):
 	item.set_metadata(0, editor.text_editor.text)
 	if item.get_meta("origin") == editor.text_editor.text:
 		item.set_button(2, 0, CompressedTexture2D.new())
 		item.set_button_disabled(2, 0, true)
-		item.set_button_tooltip_text(2, 0, "")
+		item.set_button_tooltip_text(2, 0, "Edit")
+		item.get_tree().get_meta("edit_history").erase(item.get_meta("file_name"))
 		if item.get_text(2).ends_with("(*)"):
-			item.set_text(2, item.get_text(2).substr(0, item.get_text(2).length()-3))
-	elif not item.get_text(2).ends_with("(*)"):
-		item.set_button(2, 0, get_theme_icon("RotateLeft", "EditorIcons"))
-		item.set_button_disabled(2, 0, false)
-		item.set_button_tooltip_text(2, 0, "Revert")
-		item.set_text(2, item.get_text(2) + "(*)")
+			item.set_text(2, item.get_meta("file_name"))
+	else:
+		item.get_tree().get_meta("edit_history")[item.get_meta("file_name")] = item.get_metadata(0)
+		if not item.get_text(2).ends_with("(*)"):
+			item.set_button(2, 0, get_theme_icon("RotateLeft", "EditorIcons"))
+			item.set_button_disabled(2, 0, false)
+			item.set_button_tooltip_text(2, 0, "Revert")
+			item.set_text(2, item.get_meta("file_name") + "(*)")
+			
+	# 有做对比的editor
+	if diff_ref_editor:
+		_refresh_diff_show(diff_ref_editor.text_editor, editor.text_editor)
 		
 func popup_edit_dialog(item: TreeItem):
 	var editor = preload("res://addons/gdsql/gxml/editor/xml_editor.tscn").instantiate()
@@ -1206,14 +1275,32 @@ func popup_edit_dialog(item: TreeItem):
 	
 	var arr = [[editor]] as Array[Array]
 	var defer = func(_confirmed, _dummy):
-		editor.text_editor.text_changed.disconnect(self.reset_content)
-		editor.text_editor.text_set.disconnect(self.reset_content)
+		if editor.text_editor.text_changed.is_connected(self.reset_content):
+			editor.text_editor.text_changed.disconnect(self.reset_content)
+		if editor.text_editor.text_set.is_connected(self.reset_content):
+			editor.text_editor.text_set.disconnect(self.reset_content)
 		editor.queue_free()
 		
 	var dialog = mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.6)
+	dialog.exclusive = false
+	dialog.transient = false
+	dialog.always_on_top = true
 	dialog.get_cancel_button().hide()
 	
-func popup_diff_dialog(arr_content: Array):
+func _refresh_diff_show(editor1: TextEdit, editor2: TextEdit):
+	var diffs = DiffHelper.compare(editor1.text.split("\n"), editor2.text.split("\n"))
+	for i in editor1.get_line_count():
+		editor1.set_line_background_color(i, editor1.get_theme_color(&"background_color"))
+	for i in editor2.get_line_count():
+		editor2.set_line_background_color(i, editor2.get_theme_color(&"background_color"))
+	# 左边被删除的行
+	for i in diffs[0]:
+		editor1.set_line_background_color(i, Color(Color.INDIAN_RED, 0.2))
+	# 右边新增的行
+	for i in diffs[1]:
+		editor2.set_line_background_color(i, Color(Color.LIGHT_GREEN, 0.2))
+		
+func popup_diff_dialog(arr_content: Array, show_diff = false):
 	if arr_content.is_empty():
 		return
 		
@@ -1230,7 +1317,7 @@ func popup_diff_dialog(arr_content: Array):
 	var columns = []
 	var data = []
 	for i in arr_content:
-		columns.push_back(i.file)
+		columns.push_back(i.title)
 		var vbox = VBoxContainer.new()
 		data.push_back(vbox)
 		vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1268,8 +1355,15 @@ func popup_diff_dialog(arr_content: Array):
 			code_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			code_edit.text = i.content
 			code_edit.selecting_enabled = false
-			code_edit.text_changed.connect(reset_content.bind(i.item, editor))
-			code_edit.text_set.connect(reset_content.bind(i.item, editor))
+			if i.item:
+				if show_diff:
+					code_edit.text_changed.connect(reset_content.bind(i.item, editor, arr_editor[0]))
+					code_edit.text_set.connect(reset_content.bind(i.item, editor, arr_editor[0]))
+				else:
+					code_edit.text_changed.connect(reset_content.bind(i.item, editor))
+					code_edit.text_set.connect(reset_content.bind(i.item, editor))
+			else:
+				code_edit.editable = false
 			await get_tree().process_frame
 			code_edit.selecting_enabled = true
 		)
@@ -1280,18 +1374,32 @@ func popup_diff_dialog(arr_content: Array):
 					a_editor.set_zoom_factor(factor)
 		)
 		
+	if show_diff and arr_editor.size() == 2:
+		var t = create_tween()
+		t.tween_callback(func():
+			for i in arr_editor:
+				while not i.ready:
+					await get_tree().process_frame
+			_refresh_diff_show(arr_editor[0].text_editor, arr_editor[1].text_editor)
+		).set_delay(0.1)
+		
 	table.columns = columns
 	table.datas = [data]
 	table.support_select_border = false
 	var arr = [[table]] as Array[Array]
 	var defer = func(_confirmed, _dummy):
 		for editor in arr_editor:
-			editor.text_editor.text_changed.disconnect(self.reset_content)
-			editor.text_editor.text_set.disconnect(self.reset_content)
+			if editor.text_editor.text_changed.is_connected(self.reset_content):
+				editor.text_editor.text_changed.disconnect(self.reset_content)
+			if editor.text_editor.text_set.is_connected(self.reset_content):
+				editor.text_editor.text_set.disconnect(self.reset_content)
 		arr_editor.clear()
 		arr_v_scroll_bar.clear()
 		table.queue_free()
-	mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.9)
+	var dialog = mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.9)
+	dialog.exclusive = false
+	dialog.transient = false
+	dialog.always_on_top = true
 	
 #func get_linked_nodes(node_pair: Dictionary, head_name, result: Array):
 	#result.push_back(head_name)
