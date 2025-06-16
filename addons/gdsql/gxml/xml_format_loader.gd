@@ -2,16 +2,16 @@
 extends ResourceFormatLoader
 class_name ResourceFormatLoaderXML
 
+const EXTENSION = "xml"
+
 func _get_recognized_extensions() -> PackedStringArray:
-	return ["xml"]
+	return [EXTENSION]
 	
-@warning_ignore("unused_parameter")
 func _get_resource_type(path: String) -> String:
-	return "Resource"
+	return "Resource" if path.get_extension() == EXTENSION else ""
 	
-@warning_ignore("unused_parameter")
 func _get_resource_script_class(path: String) -> String:
-	return "GXML"
+	return "GXML" if path.get_extension() == EXTENSION else ""
 	
 func _handles_type(type: StringName) -> bool:
 	return ClassDB.is_parent_class(type, "Resource")
