@@ -1061,15 +1061,15 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 		var old_icon = btn_save_all.icon
 		btn_save_all.icon = get_theme_icon("ImportCheck", "EditorIcons")
 		btn_save_all.disabled = true
-		EditorInterface.get_resource_filesystem().scan()
-		if _generate_dialog:
-			# scan后窗口可能被最小化了，所以用窗口的方法，能重新激活
-			while EditorInterface.get_resource_filesystem().is_scanning():
-				await get_tree().process_frame
-			_generate_dialog.transient = false
-			if _generate_dialog.mode != Window.MODE_WINDOWED:
-				_generate_dialog.mode = Window.MODE_WINDOWED
-			_generate_dialog.grab_focus()
+		EditorInterface.get_resource_filesystem().scan_sources()
+		#if _generate_dialog:
+			## scan后窗口可能被最小化了，所以用窗口的方法，能重新激活
+			#while EditorInterface.get_resource_filesystem().is_scanning():
+				#await get_tree().process_frame
+			#_generate_dialog.transient = false
+			#if _generate_dialog.mode != Window.MODE_WINDOWED:
+				#_generate_dialog.mode = Window.MODE_WINDOWED
+			#_generate_dialog.grab_focus()
 		await get_tree().create_timer(2).timeout
 		btn_save_all.icon = old_icon
 		btn_save_all.disabled = false
@@ -1142,7 +1142,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 		for i: TreeItem in root.get_children():
 			if i.get_text(2) != "" and i.is_checked(0):
 				var content = i.get_metadata(0)
-				var path = line_edit_path.text.path_join(i.get_text(2).replace("(*)", ""))
+				var path = line_edit_path.text.strip_edges().path_join(i.get_meta("file_name"))
 				var file = FileAccess.open(path, FileAccess.WRITE)
 				file.store_string(content)
 				file.flush()
@@ -1194,17 +1194,18 @@ func comfirm_save(path: String = "", item: TreeItem = null, editor_file_dialog =
 	item.set_button(2, 2, get_theme_icon("ImportCheck", "EditorIcons"))
 	item.set_button_disabled(2, 2, true)
 	EditorInterface.get_resource_filesystem().scan()
-	if _generate_dialog:
+	#if _generate_dialog:
 		# scan后窗口可能被最小化了，所以用窗口的方法，能重新激活
-		while EditorInterface.get_resource_filesystem().is_scanning():
-			await get_tree().process_frame
-		_generate_dialog.transient = false
-		if _generate_dialog.mode != Window.MODE_WINDOWED:
-			_generate_dialog.mode = Window.MODE_WINDOWED
-		_generate_dialog.grab_focus()
+		#while EditorInterface.get_resource_filesystem().is_scanning():
+			#await get_tree().process_frame
+		#_generate_dialog.transient = false
+		#if _generate_dialog.mode != Window.MODE_WINDOWED:
+			#_generate_dialog.mode = Window.MODE_WINDOWED
+		#_generate_dialog.grab_focus()
 	await get_tree().create_timer(2).timeout
-	item.set_button(2, 2, old_btn)
-	item.set_button_disabled(2, 2, false)
+	if item:
+		item.set_button(2, 2, old_btn)
+		item.set_button_disabled(2, 2, false)
 	return [false, false]
 	
 func popup_saveas_dialog(access: int, item: TreeItem, dir: String):
