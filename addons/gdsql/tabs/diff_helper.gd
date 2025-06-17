@@ -13,6 +13,8 @@ static func compare(src: Array, dst: Array):
 	var dst_index = 0
 	var src_deleted_lines = []
 	var dst_inserted_lines = []
+	# 记录 dst 到 src 的映射
+	var mapping_dst_src = {}  # key: dst_index => value: src_index
 	
 	for op in script:
 		match op:
@@ -23,6 +25,7 @@ static func compare(src: Array, dst: Array):
 				
 			Operation.MOVE:
 				#print(src[src_index])
+				mapping_dst_src[dst_index] = src_index
 				src_index += 1
 				dst_index += 1
 				
@@ -31,8 +34,31 @@ static func compare(src: Array, dst: Array):
 				src_deleted_lines.push_back(src_index)
 				src_index += 1
 				
-	return [src_deleted_lines, dst_inserted_lines]
-
+	return [src_deleted_lines, dst_inserted_lines, mapping_dst_src]
+	
+## 把dst中的（新增）行合并到src中，返回src应该插入的位置。参数index是dst中的行。
+static func merge_insert_line_by_mapping(index: int, src_line_count: int, mapping: Dictionary):
+	if mapping.has(index):
+		assert(false, "Err! src has this line!")
+	# 查找最近的 MOVE 行对应的 src 位置
+	for i in range(index - 1, -1, -1):
+		if mapping.has(i):
+			return mapping[i] + 1  # 插入到它后面
+	return src_line_count
+	
+## 把src中的（删除）行合并（还原）到dst中，返回dst应该插入的位置。参数index是src中的行。
+static func merge_delete_line_by_mapping(index: int, dst_line_count: int, mapping: Dictionary):
+	# 查找最近的 MOVE 行对应的 dst 位置
+	var insert_pos = dst_line_count
+	for i in mapping:
+		if mapping[i] < index:
+			insert_pos = i + 1  # 插入到它后面
+		elif mapping[i] == index:
+			assert(false, "Err! dst has this line!")
+		else:
+			break
+	return insert_pos
+	
 static func _shortest_edit_script(src: Array, dst: Array) -> Array:
 	var n = src.size()
 	var m = dst.size()

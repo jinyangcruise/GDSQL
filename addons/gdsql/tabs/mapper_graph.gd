@@ -26,6 +26,10 @@ enum LINK_WAY {
 	NESTING_RESULT_MAP, # use left join
 }
 
+const COLOR_DIFF_BASIC_ADDED = Color(Color.LIGHT_GREEN, 0.2)
+const COLOR_DIFF_BASIC_REMOVED = Color(Color.INDIAN_RED, 0.2)
+const COLOR_DIFF_MERGE_INSERTED = Color(Color.BLUE, 0.2)
+
 func _ready() -> void:
 	pass
 	
@@ -991,11 +995,12 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	filter_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	
 	var tree = Tree.new()
-	tree.columns = 3
+	tree.columns = 4
 	tree.hide_root = true
 	tree.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tree.set_column_expand(0, false)
+	tree.set_column_expand(3, false) # for diff info
 	
 	var root = tree.create_item()
 	var check_all_item = tree.create_item(root)
@@ -1007,7 +1012,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	tree.set_meta("edit_history", edit_history)
 	var refresh_tree = func():
 		var filter_text = filter_edit.text.strip_edges()
-		# remove all except check_all_item
+		# remove all item, except check_all_item
 		for i in range(root.get_child_count() - 1, 0, -1):
 			root.remove_child(root.get_child(i))
 		for map in [xml_map, mapper_map, entity_map]:
@@ -1017,7 +1022,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 					continue
 				var item = tree.create_item(root)
 				item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
-				item.set_checked(0, true)
+				item.set_checked(0, check_all_item.is_checked(0))
 				item.set_editable(0, true)
 				item.set_text(1, i)
 				item.set_meta("file_name", file_name)
@@ -1035,10 +1040,18 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 				item.add_button(2, get_theme_icon("Save", "EditorIcons"), 1, false, "Save As...")
 				item.add_button(2, get_theme_icon("ActionCopy", "EditorIcons"), 2, false, "Copy")
 				item.add_button(2, get_theme_icon("HSplitContainer", "EditorIcons"), 4, false, "Compare")
+				if item.get_button_by_id(3, 5) > -1:
+					item.erase_button(3, item.get_button_by_id(3, 5))
 				var path = line_edit_path.text.strip_edges().path_join(item.get_meta("file_name"))
 				if FileAccess.file_exists(path):
-					if item.get_metadata(0) != FileAccess.open(path, FileAccess.READ).get_as_text():
+					var file_content = FileAccess.open(path, FileAccess.READ).get_as_text()
+					if item.get_metadata(0) != file_content:
 						item.set_button_color(2, item.get_button_by_id(2, 4), Color(2, 0.647059, 0, 1))
+						var diffs = DiffHelper.compare(file_content.split("\n"), item.get_metadata(0).split("\n"))
+						var texture = DiffLabelTexture.new()
+						texture.remove_count = diffs[0].size()
+						texture.add_count = diffs[1].size()
+						item.add_button(3, texture, 5, true)
 				else:
 					item.set_button_disabled(2, item.get_button_by_id(2, 4), true)
 					
@@ -1098,7 +1111,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 			item.select(2)
 			match id:
 				0: # Edit
-					popup_edit_dialog(item)
+					popup_edit_dialog(item, line_edit_path)
 				1: # Save As...
 					popup_saveas_dialog(option_button_choose.selected, item, 
 						line_edit_path.text)
@@ -1112,6 +1125,17 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 					item.set_button_tooltip_text(2, 0, "")
 					if item.get_text(2).ends_with("(*)"):
 						item.set_text(2, item.get_meta("file_name"))
+					item.set_button_color(2, item.get_button_by_id(2, 4), Color.WHITE)
+					if item.get_button_by_id(3, 5) > -1:
+						item.erase_button(3, item.get_button_by_id(3, 5))
+					var path = line_edit_path.text.strip_edges().path_join(item.get_meta("file_name"))
+					var file_content = FileAccess.open(path, FileAccess.READ).get_as_text()
+					if file_content != item.get_metadata(0):
+						var diffs = DiffHelper.compare(file_content.split("\n"), item.get_metadata(0).split("\n"))
+						var texture = DiffLabelTexture.new()
+						texture.remove_count = diffs[0].size()
+						texture.add_count = diffs[1].size()
+						item.add_button(3, texture, 5, true)
 				4: # Compare
 					var path = line_edit_path.text.strip_edges().path_join(item.get_meta("file_name"))
 					var arr_content = [{
@@ -1125,10 +1149,10 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 						"content": item.get_metadata(0),
 						"item": item,
 					}]
-					popup_diff_dialog(arr_content, true)
+					popup_diff_dialog(arr_content, line_edit_path, true)
 	)
 	tree.ready.connect(func():
-		check_all_item.set_checked(0, true)
+		check_all_item.set_checked(0, false)
 		tree.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
 	)
 	
@@ -1163,6 +1187,8 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	_generate_dialog.exclusive = false
 	_generate_dialog.transient = false
 	_generate_dialog.always_on_top = true
+	_generate_dialog.minimize_disabled = false
+	_generate_dialog.maximize_disabled = false
 	_generate_dialog.add_button("View", true, "View")
 	_generate_dialog.get_ok_button().text = "Save"
 	
@@ -1179,7 +1205,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 								"content": i.get_metadata(0),
 								"item": i,
 							})
-				popup_diff_dialog(arr_content)
+				popup_diff_dialog(arr_content, line_edit_path)
 	)
 	
 func comfirm_save(path: String = "", item: TreeItem = null, editor_file_dialog = null):
@@ -1230,28 +1256,43 @@ func popup_saveas_dialog(access: int, item: TreeItem, dir: String):
 		editor_file_dialog.queue_free()
 	mgr.popup_user_dialog(editor_file_dialog, Callable(), Callable(), defer, 0.5)
 	
-func reset_content(item: TreeItem, editor, diff_ref_editor = null):
-	item.set_metadata(0, editor.text_editor.text)
-	if item.get_meta("origin") == editor.text_editor.text:
-		item.set_button(2, 0, CompressedTexture2D.new())
-		item.set_button_disabled(2, 0, true)
-		item.set_button_tooltip_text(2, 0, "Edit")
-		item.get_tree().get_meta("edit_history").erase(item.get_meta("file_name"))
-		if item.get_text(2).ends_with("(*)"):
-			item.set_text(2, item.get_meta("file_name"))
-	else:
-		item.get_tree().get_meta("edit_history")[item.get_meta("file_name")] = item.get_metadata(0)
-		if not item.get_text(2).ends_with("(*)"):
-			item.set_button(2, 0, get_theme_icon("RotateLeft", "EditorIcons"))
-			item.set_button_disabled(2, 0, false)
-			item.set_button_tooltip_text(2, 0, "Revert")
-			item.set_text(2, item.get_meta("file_name") + "(*)")
+func reset_content(item: TreeItem, editor, line_edit_path, arr_editor = null, show_diff: bool = false):
+	if item:
+		item.set_metadata(0, editor.text_editor.text)
+		if item.get_meta("origin") == editor.text_editor.text:
+			item.set_button(2, 0, CompressedTexture2D.new())
+			item.set_button_disabled(2, 0, true)
+			item.set_button_tooltip_text(2, 0, "Edit")
+			item.get_tree().get_meta("edit_history").erase(item.get_meta("file_name"))
+			if item.get_text(2).ends_with("(*)"):
+				item.set_text(2, item.get_meta("file_name"))
+		else:
+			item.get_tree().get_meta("edit_history")[item.get_meta("file_name")] = item.get_metadata(0)
+			if not item.get_text(2).ends_with("(*)"):
+				item.set_button(2, 0, get_theme_icon("RotateLeft", "EditorIcons"))
+				item.set_button_disabled(2, 0, false)
+				item.set_button_tooltip_text(2, 0, "Revert")
+				item.set_text(2, item.get_meta("file_name") + "(*)")
+				
+		if item.get_button_by_id(3, 5) > -1:
+			item.erase_button(3, item.get_button_by_id(3, 5))
+		var path = line_edit_path.text.strip_edges().path_join(item.get_meta("file_name"))
+		var file_content = FileAccess.open(path, FileAccess.READ).get_as_text()
+		if file_content != item.get_metadata(0):
+			var diffs = DiffHelper.compare(file_content.split("\n"), item.get_metadata(0).split("\n"))
+			var texture = DiffLabelTexture.new()
+			texture.remove_count = diffs[0].size()
+			texture.add_count = diffs[1].size()
+			item.add_button(3, texture, 5, true)
 			
 	# 有做对比的editor
-	if diff_ref_editor:
-		_refresh_diff_show(diff_ref_editor.text_editor, editor.text_editor)
-		
-func popup_edit_dialog(item: TreeItem):
+	if show_diff and arr_editor:
+		if arr_editor[1] == editor:
+			_refresh_diff_show(arr_editor[0].text_editor, editor.text_editor)
+		else:
+			_refresh_diff_show(editor.text_editor, arr_editor[1].text_editor)
+			
+func popup_edit_dialog(item: TreeItem, line_edit_path: LineEdit):
 	var editor = preload("res://addons/gdsql/gxml/editor/xml_editor.tscn").instantiate()
 	editor.ready.connect(func():
 		editor.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1267,8 +1308,8 @@ func popup_edit_dialog(item: TreeItem):
 		code_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		code_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		code_edit.text = item.get_metadata(0)
-		code_edit.text_changed.connect(reset_content.bind(item, editor))
-		code_edit.text_set.connect(reset_content.bind(item, editor))
+		code_edit.text_changed.connect(reset_content.bind(item, editor, line_edit_path))
+		code_edit.text_set.connect(reset_content.bind(item, editor, line_edit_path))
 		code_edit.selecting_enabled = false
 		await get_tree().process_frame
 		code_edit.selecting_enabled = true
@@ -1286,22 +1327,51 @@ func popup_edit_dialog(item: TreeItem):
 	dialog.exclusive = false
 	dialog.transient = false
 	dialog.always_on_top = true
+	dialog.minimize_disabled = false
+	dialog.maximize_disabled = false
 	dialog.get_cancel_button().hide()
+	
+func _get_commit_line_gutter(editor: TextEdit):
+	for i in editor.get_gutter_count():
+		if editor.get_gutter_name(i) == "commit_line_gutter":
+			return i
+	return -1
 	
 func _refresh_diff_show(editor1: TextEdit, editor2: TextEdit):
 	var diffs = DiffHelper.compare(editor1.text.split("\n"), editor2.text.split("\n"))
 	for i in editor1.get_line_count():
 		editor1.set_line_background_color(i, editor1.get_theme_color(&"background_color"))
+		
+	# 清空gutter和行背景色
+	var commit_line_gutter1 = _get_commit_line_gutter(editor1)
+	for i in editor1.get_line_count():
+		editor1.set_line_gutter_icon(i, commit_line_gutter1, null)
+		editor1.set_line_gutter_clickable(i, commit_line_gutter1, false)
+		if editor1.get_line_background_color(i) != COLOR_DIFF_MERGE_INSERTED:
+			editor1.set_line_background_color(i, editor2.get_theme_color(&"background_color"))
+			
+	var commit_line_gutter2 = _get_commit_line_gutter(editor2)
 	for i in editor2.get_line_count():
-		editor2.set_line_background_color(i, editor2.get_theme_color(&"background_color"))
+		editor2.set_line_gutter_icon(i, commit_line_gutter2, null)
+		editor2.set_line_gutter_clickable(i, commit_line_gutter2, false)
+		if editor2.get_line_background_color(i) != COLOR_DIFF_MERGE_INSERTED:
+			editor2.set_line_background_color(i, editor2.get_theme_color(&"background_color"))
+			
 	# 左边被删除的行
 	for i in diffs[0]:
-		editor1.set_line_background_color(i, Color(Color.INDIAN_RED, 0.2))
+		editor1.set_meta("gutter_mapping", diffs[2])
+		editor1.set_line_gutter_icon(i, commit_line_gutter1, get_theme_icon("ArrowRight", "EditorIcons"))
+		editor1.set_line_gutter_clickable(i, commit_line_gutter1, true)
+		editor1.set_line_background_color(i, COLOR_DIFF_BASIC_REMOVED)
 	# 右边新增的行
 	for i in diffs[1]:
-		editor2.set_line_background_color(i, Color(Color.LIGHT_GREEN, 0.2))
+		editor2.set_meta("gutter_mapping", diffs[2])
+		# UPDATE: 把右边新增的行合并到左边并没有什么意义，所以右边不增加gutter了
+		#editor2.set_line_gutter_icon(i, commit_line_gutter2, get_theme_icon("ArrowLeft", "EditorIcons"))
+		#editor2.set_line_gutter_clickable(i, commit_line_gutter2, true)
+		editor2.set_line_background_color(i, COLOR_DIFF_BASIC_ADDED)
 		
-func popup_diff_dialog(arr_content: Array, show_diff = false):
+func popup_diff_dialog(arr_content: Array, line_edit_path: LineEdit, show_diff = false):
 	if arr_content.is_empty():
 		return
 		
@@ -1317,7 +1387,9 @@ func popup_diff_dialog(arr_content: Array, show_diff = false):
 	var arr_v_scroll_bar = []
 	var columns = []
 	var data = []
+	var index = -1
 	for i in arr_content:
+		index += 1
 		columns.push_back(i.title)
 		var vbox = VBoxContainer.new()
 		data.push_back(vbox)
@@ -1356,15 +1428,24 @@ func popup_diff_dialog(arr_content: Array, show_diff = false):
 			code_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			code_edit.text = i.content
 			code_edit.selecting_enabled = false
-			if i.item:
-				if show_diff:
-					code_edit.text_changed.connect(reset_content.bind(i.item, editor, arr_editor[0]))
-					code_edit.text_set.connect(reset_content.bind(i.item, editor, arr_editor[0]))
-				else:
-					code_edit.text_changed.connect(reset_content.bind(i.item, editor))
-					code_edit.text_set.connect(reset_content.bind(i.item, editor))
-			else:
+			
+			code_edit.text_changed.connect(reset_content.bind(i.item, editor, line_edit_path, arr_editor, show_diff))
+			code_edit.text_set.connect(reset_content.bind(i.item, editor, line_edit_path, arr_editor, show_diff))
+			
+			if not i.item:
 				code_edit.editable = false
+				
+			if show_diff:
+				var commit_line_gutter = 1
+				code_edit.add_gutter(commit_line_gutter)
+				code_edit.set_gutter_name(commit_line_gutter, "commit_line_gutter")
+				code_edit.set_gutter_clickable(commit_line_gutter, true)
+				code_edit.set_gutter_overwritable(commit_line_gutter, true)
+				code_edit.set_gutter_type(commit_line_gutter, TextEdit.GUTTER_TYPE_ICON)
+				code_edit.set_gutter_width(commit_line_gutter, code_edit.get_line_height())
+				code_edit.gutter_clicked.connect(_on_gutter_clicked.bind(
+					index == 0, arr_editor, arr_content[index]))
+					
 			await get_tree().process_frame
 			code_edit.selecting_enabled = true
 		)
@@ -1401,7 +1482,28 @@ func popup_diff_dialog(arr_content: Array, show_diff = false):
 	dialog.exclusive = false
 	dialog.transient = false
 	dialog.always_on_top = true
+	dialog.minimize_disabled = false
+	dialog.maximize_disabled = false
 	
+func _on_gutter_clicked(line: int, gutter: int, is_left: bool, arr_editor: Array, _info):
+	var left_edit: TextEdit = arr_editor[0].text_editor
+	var right_edit: TextEdit = arr_editor[1].text_editor
+	# 点的是左边窗口的gutter
+	if is_left:
+		if gutter == _get_commit_line_gutter(left_edit):
+			var insert_line = DiffHelper.merge_delete_line_by_mapping(
+				line, right_edit.get_line_count(), right_edit.get_meta("gutter_mapping"))
+			right_edit.insert_line_at(insert_line, left_edit.get_line(line))
+			await get_tree().create_timer(0.1).timeout
+			right_edit.set_line_background_color(insert_line, COLOR_DIFF_MERGE_INSERTED)
+	else:
+		if gutter == _get_commit_line_gutter(right_edit):
+			var insert_line = DiffHelper.merge_insert_line_by_mapping(
+				line, left_edit.get_line_count(), left_edit.get_meta("gutter_mapping"))
+			left_edit.insert_line_at(insert_line, right_edit.get_line(line))
+			await get_tree().create_timer(0.1).timeout
+			left_edit.set_line_background_color(insert_line, COLOR_DIFF_MERGE_INSERTED)
+			
 #func get_linked_nodes(node_pair: Dictionary, head_name, result: Array):
 	#result.push_back(head_name)
 	#if node_pair.has(head_name):
