@@ -250,7 +250,12 @@ func _clear_custom_dialog(dialog: Window):
 				
 	__property_old_parents.erase(dialog)
 	__custom_dialog_datas.erase(dialog)
-	dialog.queue_free()
+	dialog.hide()
+	await get_tree().create_timer(1).timeout # For safety? After encountered several crash...
+	if dialog:
+		if dialog.get_parent():
+			dialog.get_parent().remove_child(dialog)
+		dialog.queue_free()
 	
 ## 创建并弹出自定义对话框。
 ## 【datas】: 构建自定义对话框的数据，类似graph_node.gd，例如：
