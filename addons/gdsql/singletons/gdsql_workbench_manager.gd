@@ -97,7 +97,6 @@ var main_panel: Control
 	#}
 #}
 var databases: Dictionary
-var _inspector_search: LineEdit
 
 ## base_dao在query途中需要密码的情况时使用 [db_name, table_name]
 var _request_password: Array
@@ -171,7 +170,7 @@ func _add_dialog(dialog: Window):
 	var p = dialog_root
 	while p.get_child_count() > 0:
 		for i: Window in p.get_children():
-			if i and not i.is_queued_for_deletion():
+			if i and i.visible and not i.is_queued_for_deletion():
 				p = p.get_child(0)
 				break
 			else:
@@ -218,38 +217,7 @@ func create_accept_dialog(msg) -> void:
 		dialog.queue_free()
 	, CONNECT_DEFERRED)
 	
-var __property_old_parents = {}
-var __custom_dialog_datas = {}
 func _clear_custom_dialog(dialog: Window):
-	if __property_old_parents.has(dialog):
-		for i in __property_old_parents[dialog]:
-			if i:
-				disconnect_focused_propagate(i)
-				if __property_old_parents[dialog][i].get_ref():
-					i.reparent(__property_old_parents[dialog][i].get_ref())
-				else:
-					i.queue_free()
-				
-		__property_old_parents[dialog].clear()
-	
-	if dialog.is_node_ready() and __custom_dialog_datas.has(dialog):
-		# 把自定义控件从树中剥离出来，不然会给下面的queue_free带来麻烦
-		var datas = __custom_dialog_datas.get(dialog)
-		if datas and !datas.is_empty():
-			for arr in datas:
-				for data in arr:
-					if data is Control:
-						if dialog.is_ancestor_of(data):
-							data.get_parent_control().remove_child(data)
-						
-		var children = dialog.get_children()
-		for i in children:
-			if i and !i.is_queued_for_deletion():
-				dialog.remove_child(i)
-				i.queue_free()
-				
-	__property_old_parents.erase(dialog)
-	__custom_dialog_datas.erase(dialog)
 	dialog.hide()
 	await get_tree().create_timer(1).timeout # For safety? After encountered several crash...
 	if dialog:
@@ -279,11 +247,8 @@ confirmed_callback_before_close: Callable = Callable(),
 canceled_callback_before_close: Callable = Callable(),
 defered_callback: Callable = Callable(),
 ratio: float = 0.0) -> ConfirmationDialog:
-	var inspect_change = false # 是否检查了某个obj
 	var dialog := ConfirmationDialog.new()
 	dialog.dialog_hide_on_ok = false
-	__custom_dialog_datas[dialog] = datas
-	__property_old_parents[dialog] = {}
 	# 确定
 	dialog.confirmed.connect(func():
 		var close = true
@@ -374,73 +339,26 @@ ratio: float = 0.0) -> ConfirmationDialog:
 					hb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 					inspector.add_child(p_container)
 					
-					# 去掉筛选属性里的文字，否则有些属性不会被渲染出来
-					if not _inspector_search:
-						var editor_inspector = EditorInterface.get_inspector()
-						var inspector_dock = editor_inspector.get_parent()
-						var line_edits = inspector_dock.find_children("@LineEdit*", "LineEdit", true, false)
-						for l: LineEdit in line_edits:
-							if l.placeholder_text in ["Filter Properties", tr("Filter Properties")]:
-								_inspector_search = l
-								break
-					assert(_inspector_search != null, "Cannot find inspector search!")
-					var old_search_content = _inspector_search.text
-					_inspector_search.text = ""
-					
-					EditorInterface.inspect_object(data)
-					inspect_change = true
-					var properties = data._get_property_list()\
-						#.filter(func(v):
-						#return not (v["usage"] & PROPERTY_USAGE_CATEGORY or v["usage"] & PROPERTY_USAGE_GROUP \
-							#or v["usage"] & PROPERTY_USAGE_SUBGROUP))
-						.map(func(v): return v["name"])
-					var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
-					var v_box_container = get_inspector_main_vbox()
-					for i in v_box_container.get_children(true):
-						var need = false
-						for editor_property in editor_properties:
-							if editor_property is not EditorProperty:
-								continue
-								
-							var prop_name = (editor_property as EditorProperty).get_edited_property()
-							if prop_name not in properties:
-								continue
-								
-							if i.is_ancestor_of(editor_property):
-								need = true
-								break
-								
-						if need:
-							__property_old_parents[dialog][i] = weakref(v_box_container)
-							i.reparent(p_container, false)
-							i.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-							
-					for editor_property in editor_properties:
-						if editor_property is not EditorProperty:
-							continue
-							
-						var prop_name = (editor_property as EditorProperty).get_edited_property()
-						if prop_name not in properties:
-							continue
-							
-						# 只有让检查器显示这个属性，才能修改这个属性。否则修改的是检查器当前显示的属性。
-						connect_focused_propagate(editor_property, data)
-						editor_property.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-						editor_property.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
-						
-						# 下划线开头的隐藏label。隐藏方法是把控件整个添加到一个能按比例隐藏子控件的控件中
-						if prop_name.begins_with("_") and not editor_property.name.contains("EditorPropertyMultilineText")\
-						and not editor_property.name.contains("EditorPropertyArray"):
-							__property_old_parents[editor_property] = weakref(editor_property.get_parent())
-							var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
-							container.name += str(randi() % 100)
-							container.invisible_ratio = 0.5
-							container.set_meta("cut_control", true)
-							editor_property.add_sibling(container)
-							container.control = editor_property
-							
-					# 恢复原来的筛选属性
-					_inspector_search.text = old_search_content
+					var plist = data._get_property_list().filter(func(v):
+						return not (v["usage"] & PROPERTY_USAGE_CATEGORY or v["usage"] & PROPERTY_USAGE_GROUP \
+							or v["usage"] & PROPERTY_USAGE_SUBGROUP))
+					for prop in plist:
+						var editor = EditorInspector.instantiate_property_editor(
+							data, prop.type, prop.name, prop.hint, prop.hint_string, prop.usage)
+						p_container.add_child(editor)
+						editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+						editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
+						editor.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
+						editor.set_object_and_property(data, prop.name)
+						if prop.name.begins_with("_") and \
+						not editor.name.contains("EditorPropertyMultilineText") \
+						and not editor.name.contains("EditorPropertyArray"):
+							editor.draw_label = false
+						else:
+							editor.label = prop.name
+						editor.property_changed.connect(_prop_change.bind(data, editor))
+						editor.selected.connect(_prop_selected.bind(editor, p_container))
+						editor.update_property()
 				elif data is Control:
 					#has_content = true
 					if data.get_parent() and data.get_parent() != hb:
@@ -462,10 +380,6 @@ ratio: float = 0.0) -> ConfirmationDialog:
 	var last_line_edit = _find_last_line_edit(vbox_container)
 	if last_line_edit:
 		dialog.register_text_enter(last_line_edit)
-		
-	# 检视一下null，否则会停留在检查某个dictionary_object，导致修改最后一条属性的时候可能会产生显示上的不统一
-	if inspect_change:
-		EditorInterface.inspect_object(null)
 		
 	return dialog
 	
@@ -494,8 +408,6 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 	#var dialog := ConfirmationDialog.new()
 	var dialog := PopupPanel.new()
 	#dialog.dialog_hide_on_ok = false
-	__custom_dialog_datas[dialog] = datas
-	__property_old_parents[dialog] = {}
 	dialog.popup_hide.connect(func():
 		var close = true
 		var ret
@@ -560,89 +472,30 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 					v_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
 					inspector.add_child(v_box)
 					
-					# 去掉筛选属性里的文字，否则有些属性不会被渲染出来
-					if not _inspector_search:
-						var editor_inspector = EditorInterface.get_inspector()
-						var inspector_dock = editor_inspector.get_parent()
-						var line_edits = inspector_dock.find_children("@LineEdit*", "LineEdit", true, false)
-						for l: LineEdit in line_edits:
-							if l.placeholder_text in ["Filter Properties", tr("Filter Properties")]:
-								_inspector_search = l
-								break
-					assert(_inspector_search != null, "Cannot find inspector search!")
-					var old_search_content = _inspector_search.text
-					_inspector_search.text = ""
-					
-					EditorInterface.inspect_object(data)
-					# 全部展开（方便用户修改数据）
-					await EditorInterface.get_base_control().get_tree().process_frame
-					for i: MenuButton in EditorInterface.get_inspector().get_parent().\
-						find_children("@MenuButton*", "MenuButton", true, false):
-						if i.tooltip_text in ["Manage object properties.", tr("Manage object properties.")]:
-							i.get_popup().emit_signal("id_pressed", 12) # 12 is for EXPAND_ALL, @see editor\inspector_dock.h
-							break
-							
 					var plist = data._get_property_list().filter(func(v):
 						return not (v["usage"] & PROPERTY_USAGE_CATEGORY or v["usage"] & PROPERTY_USAGE_GROUP \
 							or v["usage"] & PROPERTY_USAGE_SUBGROUP))
-					var properties = plist.map(func(v): return v["name"])
-					
-					if properties.size() < 5:
+							
+					if plist.size() < 5:
 						inspector.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 						inspector.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 						
-					var editor_properties = EditorInterface.get_inspector().find_children("@EditorProperty*", "", true, false)
-					# 只改一条属性，则不用显示属性名称（某些情况除外，比如多行文本、数组）
-					if properties.size() == 1 and plist[0].hint != PROPERTY_HINT_MULTILINE_TEXT and \
-					plist[0].type != TYPE_ARRAY:
-						for editor_property in editor_properties:
-							if editor_property is not EditorProperty:
-								continue
-								
-							var prop_name = (editor_property as EditorProperty).get_edited_property()
-							if prop_name not in properties:
-								continue
-								
-							editor_property.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-							__property_old_parents[dialog][editor_property] = weakref(editor_property.get_parent())
-							var container = preload("res://addons/gdsql/tabs/sql_graph_node/cut_control.tscn").instantiate()
-							container.name += str(randi() % 100)
-							container.invisible_ratio = 0.5
-							container.control = editor_property
-							v_box.add_child(container)
-					else:
-						min_size.x *= 2
-						var v_box_container = get_inspector_main_vbox()
-						for i in v_box_container.get_children(true):
-							var need = false
-							for editor_property in editor_properties:
-								if editor_property is not EditorProperty:
-									continue
-									
-								var prop_name = (editor_property as EditorProperty).get_edited_property()
-								if prop_name not in properties:
-									continue
-									
-								if i.is_ancestor_of(editor_property):
-									need = true
-									break
-									
-							if need:
-								__property_old_parents[dialog][i] = weakref(v_box_container)
-								i.reparent(v_box)
-								
-					for editor_property in editor_properties:
-						if editor_property is not EditorProperty:
-							continue
-							
-						var prop_name = (editor_property as EditorProperty).get_edited_property()
-						if prop_name not in properties:
-							continue
-							
-						# 只有让检查器显示这个属性，才能修改这个属性。否则修改的是检查器当前显示的属性。
-						connect_focused_propagate(editor_property, data)
-						
-					_inspector_search.text = old_search_content
+					var count = plist.size()
+					for prop in plist:
+						var editor = EditorInspector.instantiate_property_editor(
+							data, prop.type, prop.name, prop.hint, prop.hint_string, prop.usage)
+						v_box.add_child(editor)
+						editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+						editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
+						editor.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
+						editor.set_object_and_property(data, prop.name)
+						if count <= 1:
+							editor.draw_label = false
+						else:
+							editor.label = prop.name
+						editor.property_changed.connect(_prop_change.bind(data, editor))
+						editor.selected.connect(_prop_selected.bind(editor, v_box))
+						editor.update_property()
 				elif data is Control:
 					hb.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 					#has_content = true
@@ -671,6 +524,21 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 	dialog.popup()
 	return dialog
 	
+@warning_ignore("unused_parameter")
+func _prop_change(property: StringName, value: Variant, field: StringName, 
+changing: bool, dictionary_object: DictionaryObject, editor: EditorProperty):
+	dictionary_object.set(property, value)
+	if typeof(value) > TYPE_ARRAY:
+		editor.update_property()
+		
+@warning_ignore("unused_parameter")
+func _prop_selected(path: String, focusable_idx: int, editor: EditorProperty, editor_container: Control):
+	for i in editor_container.get_children():
+		if not i is EditorProperty or i == editor:
+			continue
+		if i.is_selected():
+			i.deselect()
+			
 ## 弹出用户提供的对话框或window
 ## 【confirmed_callback_before_close】：点击确定后执行的函数，必须返回一个长度为2的数组，第一个元素是布尔值，
 ## true表示保留对话框，false表示关闭对话框。第二个元素用于用户传递一些数据。
@@ -685,7 +553,6 @@ confirmed_callback_before_close: Callable = Callable(),
 canceled_callback_before_close: Callable = Callable(),
 defered_callback: Callable = Callable(),
 ratio: float = 0.0):
-	__property_old_parents[dialog] = {}
 	# 确定
 	if dialog.has_signal("confirmed"):
 		dialog.confirmed.connect(func():
@@ -729,6 +596,7 @@ ratio: float = 0.0):
 func _find_editable_control(control: Node) -> Control:
 	if control is LineEdit:
 		control.select_all_on_focus = true
+		control.select_all()
 		return control
 		
 	if control is TextEdit:
@@ -774,25 +642,6 @@ func _find_last_line_edit(control: Node) -> Control:
 			ret = c
 	return ret
 	
-	
-func connect_focused_propagate(control: Control, data):
-	for child in control.get_children(true):
-		if child is Control:
-			connect_focused_propagate(child, data)
-			if child.mouse_filter != Control.MOUSE_FILTER_IGNORE and child.has_signal("focus_entered"):
-				if not (child as Control).is_connected("focus_entered", editor_property_focused):
-					child.focus_entered.connect(editor_property_focused.bind(data), CONNECT_DEFERRED)
-					
-func disconnect_focused_propagate(control: Control):
-	for child in control.get_children(true):
-		if child is Control:
-			disconnect_focused_propagate(child)
-			if (child as Control).is_connected("focus_entered", editor_property_focused):
-				child.focus_entered.disconnect(editor_property_focused)
-				
-func editor_property_focused(data):
-	EditorInterface.inspect_object(data)
-	
 func need_request_password(db_name: String, table_name: String, try_password: String) -> bool:
 	var result = []
 	need_user_enter_password.emit(db_name, table_name, try_password, result)
@@ -816,14 +665,3 @@ func has_password_request() -> bool:
 	
 func get_password_request_table():
 	return _request_password
-	
-static func get_inspector_main_vbox() -> VBoxContainer:
-	# 4.4.dev5增加了一个功能，导致vbox有变化
-	# Make possible to favorite properties in the inspector 
-	# https://github.com/godotengine/godot/pull/97415
-	if Engine.get_version_info().hex > 0x040400 or \
-	ClassDB.class_has_signal(&"EditorProperty", &"property_favorited"):
-		return EditorInterface.get_inspector().get_child(0, true).get_child(2, true)
-	# 以前的版本：
-	else:
-		return EditorInterface.get_inspector().get_child(0, true)

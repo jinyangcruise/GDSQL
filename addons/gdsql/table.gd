@@ -815,10 +815,10 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 	if not editable:
 		emit_click.call()
 		return
-
+		
 	if not event is InputEventMouseButton:
 		return
-
+		
 	#if not (event as InputEventMouseButton).double_click:
 		#return
 		
@@ -832,7 +832,6 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 	if (event as InputEventMouseButton).double_click:
 		_on_button_edit_button_down()
 		
-	
 func clear_borders() -> void:
 	for info in selected_borders:
 		var rect = info["rect"] as Rect2
@@ -2475,7 +2474,7 @@ func _on_button_edit_button_down():
 	var props_of_common_class = obj.get_property_list()
 	if obj.has_method("free") and not obj is RefCounted:
 		obj.free()
-	
+		
 	# 去掉p_list中的基类的属性
 	for i in props_of_common_class:
 		for j in p_list.size():
@@ -2576,9 +2575,7 @@ func _on_button_edit_button_down():
 	var min_width = 300 if selected_cols.size() == 1 else 600
 	var min_height = 0 if selected_cols.size() < 5 else 800
 	var pos = DisplayServer.mouse_get_position() + Vector2i(20, 15)
-	var defered = func(_a, _b):
-		EditorInterface.inspect_object(null)
-	mgr.create_custom_popup_panel(arr, pos, Callable(), defered, Vector2i(min_width, min_height))
+	mgr.create_custom_popup_panel(arr, pos, Callable(), Callable(), Vector2i(min_width, min_height))
 	
 	
 func _on_button_copy_pressed():
