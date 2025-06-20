@@ -1208,7 +1208,9 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 func need_password(db_name: String, table_name: String, try_password: String, result: Array = []) -> bool:
 	table_name = table_name.get_basename()
 	for db_item in root.get_children():
-		if db_item.get_meta("db_name") == db_name or db_item.get_meta("data_path") == db_name:
+		if db_item.get_meta("db_name") == db_name or \
+		db_item.get_meta("data_path") == db_name or \
+		db_item.get_meta("data_path") == db_name + "/":
 			for collection in db_item.get_children():
 				if collection.get_meta("type") == "Tables":
 					for table_item in collection.get_children():
@@ -1217,7 +1219,7 @@ func need_password(db_name: String, table_name: String, try_password: String, re
 							var ret = _need_password(table_item, try_password)
 							result.push_back(ret)
 							return ret
-	result.push_back(true)
+	result.push_back(true) # TODO FIXME 没找到db和table? 基于tree的，好像不太好，如果以后支持表筛选的话不就找不到了
 	return true
 	
 func _need_password(table_item: TreeItem, try_password: String) -> bool:
@@ -1243,7 +1245,9 @@ func deal_password_before_table_cmd_2(db_name: String, table_name: String, try_p
 	var find_table = false
 	var possible = []
 	for db_item in root.get_children():
-		if db_item.get_meta("db_name") == db_name or db_item.get_meta("data_path") == db_name:
+		if db_item.get_meta("db_name") == db_name or \
+		db_item.get_meta("data_path") == db_name or \
+		db_item.get_meta("data_path") == db_name + "/":
 			find_db = true
 			possible.clear()
 			for collection in db_item.get_children():
