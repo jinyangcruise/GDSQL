@@ -2790,11 +2790,11 @@ func _get_token(r_token: ExpressionToken) -> Error:
 					return OK
 
 				elif (is_unicode_identifier_start(cchar)) :
-					var id = (cchar)
+					var id = cchar
 					cchar = GET_CHAR()
 
 					while (is_unicode_identifier_continue(cchar)) :
-						id += (cchar)
+						id += cchar
 						cchar = GET_CHAR()
 						
 					str_ofs -= 1 # go back one
