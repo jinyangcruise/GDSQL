@@ -17,7 +17,7 @@ static func evaluate_command(target: Object, command: String, variable_names = [
 	var expression = Expression.new()
 	var error = expression.parse(command, variable_names)
 	if error != OK:
-		push_error(expression.get_error_text())
+		push_error(command, "\n", expression.get_error_text())
 		return null
 	var ret = expression.execute(variable_values, target, false)
 	
