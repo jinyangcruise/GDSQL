@@ -863,6 +863,10 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		var btn_ref: Array[Button] = []
 		btn_ref.resize(2)
 		var update_btn_disable_status = func(_prop, _new_val, _old_val):
+			if not table:
+				EditorInterface.get_editor_toaster().push_toast(
+					"Please re-select your data in the table.", EditorToaster.SEVERITY_WARNING)
+				return
 			# 如果有删除的行，btn_revert肯定需要激活，不用再检查表中的数据了
 			if not table.get_meta("deleted_datas", {}).is_empty():
 				return
