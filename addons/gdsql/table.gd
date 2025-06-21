@@ -825,8 +825,8 @@ func _on_row_gui_input(event: InputEvent, row_panel, source_data) -> void:
 	emit_click.call()
 	
 	if editable and event is InputEventMouseButton and \
-		(event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT) and \
-		not (event as InputEventMouseButton).double_click:
+	(event.button_index == MOUSE_BUTTON_LEFT or event.button_index == MOUSE_BUTTON_RIGHT) and \
+	not (event as InputEventMouseButton).double_click:
 		inspect_highlight_rows()
 		
 	if (event as InputEventMouseButton).double_click:
@@ -2200,6 +2200,11 @@ func pos_is_selected(pos: Vector2) -> bool:
 	return false
 	
 func _on_border_panel_container_gui_input(event: InputEvent, panel_container: PanelContainer):
+	# 防止在鼠标拖动某个东西经过该表格时，触发了该方法。
+	if event is InputEventMouseMotion and get_viewport().gui_get_drag_data():
+		# TODO 如果该单元格支持接收鼠标拖动的东西，且可编辑，可以进行数据设置，但是目前暂时不做。
+		return
+		
 	_on_v_box_container_mouse_entered() # 更新鼠标指针形状
 	if datas.is_empty() or not editable or not (Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) \
 	or Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT)):
@@ -2223,7 +2228,6 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 			# 否则要变。
 			if not shift_pressed:
 				last_selected_pos = Vector2(pos_row, pos_col)
-			
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			#if event.is_pressed(): is_pressed一定是true，否则在上面就return了
 			start_drag = true
