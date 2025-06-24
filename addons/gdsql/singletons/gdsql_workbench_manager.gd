@@ -166,10 +166,13 @@ func _add_dialog(dialog: Window):
 		dialog_root = Node.new()
 		dialog_root.name = "DialogRoot"
 		root.add_child(dialog_root, true)
+		
 	# 把新的对话框加到最深一层
 	var p = dialog_root
 	while p.get_child_count() > 0:
-		for i: Window in p.get_children():
+		for i in p.get_children():
+			if not i is Window:
+				continue
 			if i and i.visible and not i.is_queued_for_deletion():
 				p = p.get_child(0)
 				break
