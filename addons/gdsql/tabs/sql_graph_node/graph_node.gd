@@ -565,6 +565,7 @@ func _bind_data_control_focus_entered():
 			if i is GraphNode and i != self:
 				i.selected = false
 	selected = true
+	raise_request.emit()
 	
 func connect_focused_selected_propagate(control: Control):
 	if control.mouse_filter != Control.MOUSE_FILTER_IGNORE:
