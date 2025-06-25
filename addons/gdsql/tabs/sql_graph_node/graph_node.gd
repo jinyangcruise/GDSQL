@@ -268,6 +268,27 @@ func redraw():
 							editor.selected.connect(_prop_selected.bind(editor, p_container))
 							editor.update_property()
 							
+							# 1.可以让检查器中的修改反映到GraphNode中
+							# 2.间接实现了EditorPropertyArray、EditorPropertyDictionary等元素操作比如交换位置、增删改等
+							# NOTICE 如果在lambda中直接使用editor_property时，会在redraw的时候报错，因为editor_property被替换成新的控件了
+							# (Lambda capture at index %d was freed. Passed "null" instead.)
+							# 所以用bind传一下。。过于hack了也是。。
+							var callable_ref = []
+							var callable = func(_p, new, old, ep):
+								if ep and is_instance_valid(ep):
+									if new != old:
+										ep.update_property()
+								else:
+									var list = data.get_signal_connection_list("value_changed")
+									for i in list:
+										if i.callable == callable_ref[0]:
+											var bound_ep = (i.callable as Callable).get_bound_arguments()[0]
+											if not bound_ep or not is_instance_valid(bound_ep):
+												data.value_changed.disconnect(i.callable)
+												
+							callable_ref.push_back(callable.bind(editor))
+							data.value_changed.connect(callable_ref[0])
+							
 							if editor.name.contains("EditorPropertyArray") or \
 							editor.name.contains("EditorPropertyDictionary"):
 								# 没展开的时候去掉背景色
@@ -451,6 +472,26 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 			editor.property_changed.connect(_prop_change.bind(data, editor))
 			editor.selected.connect(_prop_selected.bind(editor, p_container))
 			editor.update_property()
+			# 1.可以让检查器中的修改反映到GraphNode中
+			# 2.间接实现了EditorPropertyArray、EditorPropertyDictionary等元素操作比如交换位置、增删改等
+			# NOTICE 如果在lambda中直接使用editor_property时，会在redraw的时候报错，因为editor_property被替换成新的控件了
+			# (Lambda capture at index %d was freed. Passed "null" instead.)
+			# 所以用bind传一下。。过于hack了也是。。
+			var callable_ref = []
+			var callable = func(_p, new, old, ep):
+				if ep and is_instance_valid(ep):
+					if new != old:
+						ep.update_property()
+				else:
+					var list = data.get_signal_connection_list("value_changed")
+					for i in list:
+						if i.callable == callable_ref[0]:
+							var bound_ep = (i.callable as Callable).get_bound_arguments()[0]
+							if not bound_ep or not is_instance_valid(bound_ep):
+								data.value_changed.disconnect(i.callable)
+								
+			callable_ref.push_back(callable.bind(editor))
+			data.value_changed.connect(callable_ref[0])
 			
 			if editor.name.contains("EditorPropertyArray") or \
 			editor.name.contains("EditorPropertyDictionary"):
