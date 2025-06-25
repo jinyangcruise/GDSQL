@@ -18,10 +18,10 @@ theme_override_styles/panel = ExtResource("1_51gtp")
 script = ExtResource("1_we6vo")
 
 [node name="TextureRect" type="TextureRect" parent="."]
+custom_minimum_size = Vector2(20, 20)
 layout_mode = 2
-size_flags_horizontal = 0
-size_flags_vertical = 0
-stretch_mode = 3
+expand_mode = 1
+stretch_mode = 4
 
 [node name="GridContainer" type="GridContainer" parent="."]
 layout_mode = 2
@@ -35,10 +35,10 @@ size_flags_vertical = 8
 layout_mode = 2
 size_flags_horizontal = 8
 size_flags_vertical = 4
-theme_override_styles/focus = SubResource("StyleBoxFlat_4xr45")
-theme_override_styles/hover = SubResource("StyleBoxFlat_4xr45")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_4xr45")
 theme_override_styles/normal = SubResource("StyleBoxFlat_4xr45")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_4xr45")
+theme_override_styles/hover = SubResource("StyleBoxFlat_4xr45")
+theme_override_styles/focus = SubResource("StyleBoxFlat_4xr45")
 
 [node name="Models" type="HBoxContainer" parent="."]
 visible = false
