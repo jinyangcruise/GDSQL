@@ -349,8 +349,8 @@ ratio: float = 0.0) -> ConfirmationDialog:
 						var editor = EditorInspector.instantiate_property_editor(
 							data, prop.type, prop.name, prop.hint, prop.hint_string, prop.usage)
 						p_container.add_child(editor)
-						editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-						editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
+						#editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+						#editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
 						editor.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
 						editor.set_object_and_property(data, prop.name)
 						if prop.name.begins_with("_") and \
@@ -362,6 +362,8 @@ ratio: float = 0.0) -> ConfirmationDialog:
 						editor.property_changed.connect(_prop_change.bind(data, editor))
 						editor.selected.connect(_prop_selected.bind(editor, p_container))
 						editor.update_property()
+						editor.resized.connect(dialog.reset_size)
+						
 						# 1.可以让检查器中的修改反映到GraphNode中
 						# 2.间接实现了EditorPropertyArray、EditorPropertyDictionary等元素操作比如交换位置、增删改等
 						# NOTICE 如果在lambda中直接使用editor_property时，会在redraw的时候报错，因为editor_property被替换成新的控件了
@@ -508,8 +510,8 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 						var editor = EditorInspector.instantiate_property_editor(
 							data, prop.type, prop.name, prop.hint, prop.hint_string, prop.usage)
 						v_box.add_child(editor)
-						editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-						editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
+						#editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+						#editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
 						editor.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
 						editor.set_object_and_property(data, prop.name)
 						if count <= 1:
@@ -519,6 +521,8 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 						editor.property_changed.connect(_prop_change.bind(data, editor))
 						editor.selected.connect(_prop_selected.bind(editor, v_box))
 						editor.update_property()
+						editor.resized.connect(dialog.reset_size)
+						
 						# 1.可以让检查器中的修改反映到GraphNode中
 						# 2.间接实现了EditorPropertyArray、EditorPropertyDictionary等元素操作比如交换位置、增删改等
 						# NOTICE 如果在lambda中直接使用editor_property时，会在redraw的时候报错，因为editor_property被替换成新的控件了
