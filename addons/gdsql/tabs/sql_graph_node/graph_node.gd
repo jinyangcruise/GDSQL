@@ -255,7 +255,7 @@ func redraw():
 								data, prop.type, prop.name, prop.hint, prop.hint_string, prop.usage)
 							p_container.add_child(editor)
 							editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-							editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
+							#editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
 							editor.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
 							editor.set_object_and_property(data, prop.name)
 							if prop.name.begins_with("_") and \
@@ -436,7 +436,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 		# 一些控件依赖inspector，为了简化，所有情况都使用inspector
 		var inspector = EditorInspector.new()
 		inspector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		inspector.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		#inspector.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		inspector.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 		inspector.set_meta("col_index", slot_col_index)
 		hb.add_child(inspector)

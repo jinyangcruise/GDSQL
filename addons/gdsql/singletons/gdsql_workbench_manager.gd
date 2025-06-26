@@ -349,7 +349,7 @@ ratio: float = 0.0) -> ConfirmationDialog:
 						var editor = EditorInspector.instantiate_property_editor(
 							data, prop.type, prop.name, prop.hint, prop.hint_string, prop.usage)
 						p_container.add_child(editor)
-						#editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+						editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 						#editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
 						editor.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
 						editor.set_object_and_property(data, prop.name)
@@ -510,7 +510,7 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 						var editor = EditorInspector.instantiate_property_editor(
 							data, prop.type, prop.name, prop.hint, prop.hint_string, prop.usage)
 						v_box.add_child(editor)
-						#editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+						editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 						#editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
 						editor.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
 						editor.set_object_and_property(data, prop.name)
