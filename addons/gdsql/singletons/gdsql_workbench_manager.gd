@@ -221,7 +221,8 @@ func create_accept_dialog(msg) -> void:
 	, CONNECT_DEFERRED)
 	
 func _clear_custom_dialog(dialog: Window):
-	dialog.hide()
+	if dialog.visible:
+		dialog.hide()
 	await get_tree().create_timer(1).timeout # For safety? After encountered several crash...
 	if dialog:
 		if dialog.get_parent():
