@@ -126,7 +126,7 @@ asize = null, pos_offset = null, aname = ""):
 	graph_node.set_meta("extra", extra)
 	
 	if aname != "":
-		graph_node.title = aname
+		graph_node.name = aname
 		
 	# 等待页面就绪
 	if not get_rect().has_area():
@@ -265,7 +265,7 @@ asize = null, pos_offset = null, aname = ""):
 	graph_node.delete_request.connect(func():
 		node_close(graph_node)
 	)
-	add_child(graph_node)
+	add_child(graph_node, true)
 	return graph_node
 	
 func update_slot_status(graph_node: GraphNode):
@@ -295,7 +295,7 @@ auto_name: bool, select_all = false):
 		var extra = nodes[node_name]["extra"]
 		var asize = nodes[node_name]["size"]
 		var position_offset = nodes[node_name]["position_offset"] + pos_offset * nodes.size()
-		var a_name = "" if auto_name else node_name
+		var a_name = "MapperGraph" if auto_name else node_name
 		var node = await add_item(data, props, extra, asize, position_offset, a_name)
 		node_name_map[node_name] = node.name
 		node_sizes[node.name] = asize

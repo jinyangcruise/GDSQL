@@ -217,7 +217,8 @@ func _on_button_add_node_select_pressed() -> void:
 	unselect_all_node()
 	
 	var graph_node = gen_select_node()
-	graph_edit.add_child(graph_node)
+	graph_node.name = "SelectGraphNode"
+	graph_edit.add_child(graph_node, true)
 	graph_node.position_offset = \
 		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 		
@@ -228,7 +229,8 @@ func _on_button_add_node_left_join_pressed():
 	unselect_all_node()
 	
 	var graph_node = gen_left_join_node()
-	graph_edit.add_child(graph_node)
+	graph_node.name = "LeftJoinGraphNode"
+	graph_edit.add_child(graph_node, true)
 	graph_node.position_offset = \
 		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 		
@@ -239,7 +241,8 @@ func _on_button_add_node_insert_pressed():
 	unselect_all_node()
 	
 	var graph_node = gen_insert_node()
-	graph_edit.add_child(graph_node)
+	graph_node.name = "InsertGraphNode"
+	graph_edit.add_child(graph_node, true)
 	graph_node.position_offset = \
 		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 		
@@ -250,7 +253,8 @@ func _on_button_add_node_update_pressed():
 	unselect_all_node()
 	
 	var graph_node = gen_update_node()
-	graph_edit.add_child(graph_node)
+	graph_node.name = "UpdateGraphNode"
+	graph_edit.add_child(graph_node, true)
 	graph_node.position_offset = \
 		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 		
@@ -261,7 +265,8 @@ func _on_button_add_node_delete_pressed():
 	unselect_all_node()
 	
 	var graph_node = gen_delete_node()
-	graph_edit.add_child(graph_node)
+	graph_node.name = "DeleteGraphNode"
+	graph_edit.add_child(graph_node, true)
 	graph_node.position_offset = \
 		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 		
@@ -272,7 +277,8 @@ func _on_button_add_node_sql_pressed():
 	unselect_all_node()
 	
 	var graph_node = gen_sql_node()
-	graph_edit.add_child(graph_node)
+	graph_node.name = "SQLGraphNode"
+	graph_edit.add_child(graph_node, true)
 	graph_node.position_offset = \
 		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 		
@@ -283,7 +289,8 @@ func _on_button_add_node_link_pressed():
 	unselect_all_node()
 	
 	var graph_node = gen_link_node()
-	graph_edit.add_child(graph_node)
+	graph_node.name = "LinkGraphNode"
+	graph_edit.add_child(graph_node, true)
 	graph_node.position_offset = \
 		(graph_edit.get_rect().get_center() - graph_node.get_rect().size/2 + graph_edit.scroll_offset) / graph_edit.zoom
 		
@@ -297,7 +304,7 @@ limit = 100, alias = "", password = "", asize = null, pos_offset = null, aname =
 	var graph_node = gen_select_node()
 	if aname != "":
 		graph_node.name = aname
-	graph_edit.add_child(graph_node)
+	graph_edit.add_child(graph_node, true)
 	
 	# 等待页面就绪
 	if not graph_edit.get_rect().has_area():
@@ -491,7 +498,7 @@ cond = "", asize = null, pos_offset = null, aname = ""):
 	var graph_node = gen_left_join_node()
 	if aname != "":
 		graph_node.name = aname
-	graph_edit.add_child(graph_node)
+	graph_edit.add_child(graph_node, true)
 	
 	# 等待页面就绪
 	if not graph_edit.get_rect().has_area():
@@ -616,7 +623,7 @@ func add_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 	var graph_node = gen_table_node(columns, table_datas, is_union_all, join_conds, v_scroll_h)
 	if aname != "":
 		graph_node.name = aname
-	graph_edit.add_child(graph_node)
+	graph_edit.add_child(graph_node, true)
 	
 	# 等待页面就绪
 	if not graph_edit.get_rect().has_area():
@@ -1285,7 +1292,7 @@ asize = null, pos_offset = null, aname = ""):
 	var graph_node = gen_insert_node()
 	if aname != "":
 		graph_node.name = aname
-	graph_edit.add_child(graph_node)
+	graph_edit.add_child(graph_node, true)
 	
 	# 等待页面就绪
 	if not graph_edit.get_rect().has_area():
@@ -1423,7 +1430,7 @@ asize = null, pos_offset = null, aname = ""):
 	var graph_node = gen_update_node()
 	if aname != "":
 		graph_node.name = aname
-	graph_edit.add_child(graph_node)
+	graph_edit.add_child(graph_node, true)
 	
 	# 等待页面就绪
 	if not graph_edit.get_rect().has_area():
@@ -1573,7 +1580,7 @@ asize = null, pos_offset = null, aname = ""):
 	var graph_node = gen_update_node()
 	if aname != "":
 		graph_node.name = aname
-	graph_edit.add_child(graph_node)
+	graph_edit.add_child(graph_node, true)
 	
 	# 等待页面就绪
 	if not graph_edit.get_rect().has_area():
@@ -1694,7 +1701,7 @@ func add_sql_node(sql = "", asize = null, pos_offset = null, aname = "", query =
 	var graph_node = gen_sql_node()
 	if aname != "":
 		graph_node.name = aname
-	graph_edit.add_child(graph_node)
+	graph_edit.add_child(graph_node, true)
 	
 	if asize != null:
 		graph_node.size = asize
@@ -1794,7 +1801,7 @@ asize = null, pos_offset = null, aname = "", query = true):
 	var graph_node = gen_link_node()
 	if aname != "":
 		graph_node.name = aname
-	graph_edit.add_child(graph_node)
+	graph_edit.add_child(graph_node, true)
 	
 	if asize != null:
 		graph_node.size = asize
@@ -2388,7 +2395,7 @@ func _load_nodes(nodes: Dictionary, connections: Array, pos_offset: Vector2, aut
 		var params = nodes[node_name]["params"]
 		var asize = nodes[node_name]["size"]
 		var position_offset = nodes[node_name]["position_offset"] + pos_offset
-		var a_name = "" if auto_name else node_name
+		var a_name = "GraphNode" if auto_name else node_name
 		var node = null
 		match type:
 			"Select":
@@ -2480,9 +2487,11 @@ func set_input(to_port: int, release_position: Vector2, to_node: GraphNode):
 		"Union All":
 			xenophobic = true
 			input_node = gen_select_node()
+			input_node.name = "SelectGraphNode"
 		"Left Join", "Next Left Join":
 			xenophobic = true
 			input_node = gen_left_join_node()
+			input_node.name = "LeftJoinGraphNode"
 			
 	if input_node:
 		#input_node.set_slot_type_right(from_port, to_node.get_slot_type_left(to_port))
@@ -2581,7 +2590,8 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 						
 			if not update_result:
 				var table_node = gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds())
-				graph_edit.add_child(table_node)
+				table_node.name = "TableGraphNode"
+				graph_edit.add_child(table_node, true)
 				table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 				_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
 		)
@@ -2748,7 +2758,8 @@ func on_sql_node_query(node: GraphNode, log_history: bool):
 							
 			if not update_result:
 				var table_node = gen_table_node(ret.get_head(), ret.get_data(), dao.is_union_all(), dao.get_left_join_conds())
-				graph_edit.add_child(table_node)
+				table_node.name = "TableGraphNode"
+				graph_edit.add_child(table_node, true)
 				table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 				_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
 				
@@ -3149,7 +3160,8 @@ func on_link_node_query(node: GraphNode):
 								
 					if not update_result:
 						var table_node = gen_table_node(head, tdatas, true, [])
-						graph_edit.add_child(table_node)
+						table_node.name = "TableGraphNode"
+						graph_edit.add_child(table_node, true)
 						table_node.position_offset = source_node.position_offset + Vector2(source_node.size.x + 20, 0)
 						_on_graph_edit_connection_request(source_node.name, 0, table_node.name, 0)
 						
@@ -3192,7 +3204,7 @@ func get_selected_nodes():
 	)
 	
 func handle_input_node(input_node: GraphNode, connected_node_name, from_port, to_port, release_position, xenophobic):
-	graph_edit.add_child(input_node)
+	graph_edit.add_child(input_node, true)
 	input_node.set_meta("type", input_node.title)
 	input_node.set_meta("node", true)
 	input_node.position_offset = release_position # (release_position + graph_edit.scroll_offset) / graph_edit.zoom
