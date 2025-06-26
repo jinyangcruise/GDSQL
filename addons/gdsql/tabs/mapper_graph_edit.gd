@@ -467,15 +467,16 @@ to_node: StringName, to_port: int) -> void:
 	# TODO 是否有例外的情况：当请求连接的多个节点拥有共同的同一个来源节点时，就能连到同一个节点上？
 	# 也就是说请求连接的多个节点都是helper时，且它们有共同的同一个来源
 	#var alreay = false
+	# 先连接这次的，再取消以前的，因为_on_disconnection_request会判断是否有接入的线，从而
+	# 决定是否显示extra controls
+	connect_node(from_node, from_port, to_node, to_port)
 	var graph_node = get_node(str(to_node)) as GraphNode
 	for i in get_connection_list():
 		if i.to_node == to_node and i.from_node != from_node:
 			#alreay = true
 			_on_disconnection_request(i.from_node, i.from_port, i.to_node, 
-				i.to_port, graph_node.size)
+				i.to_port, graph_node.size, false)
 				
-	connect_node(from_node, from_port, to_node, to_port)
-	
 	# to的一方，增加选项，让用户选择和输入关联属性和属性类型
 	if graph_node.has_meta("extra_controls"):
 		var extra_controls = graph_node.get_meta("extra_controls")
@@ -568,7 +569,7 @@ to_node: StringName, to_port: int) -> void:
 	mark_modified()
 	
 func _on_disconnection_request(from_node: StringName, from_port: int, 
-to_node: StringName, to_port: int, asize = null) -> void:
+to_node: StringName, to_port: int, asize = null, by_mouse = true) -> void:
 	disconnect_node(from_node, from_port, to_node, to_port)
 	
 	# 如果没有连入的线，则隐藏选项
@@ -576,12 +577,24 @@ to_node: StringName, to_port: int, asize = null) -> void:
 	for info in get_connection_list():
 		tos[info.to_node] = 1
 	if not tos.has(to_node):
-		hide_extra_control(get_node(str(to_node)), asize)
+		hide_extra_control(get_node(str(to_node)), asize, by_mouse)
 		
 	mark_modified()
 	
-func hide_extra_control(graph_node: GraphNode, asize = null):
+func hide_extra_control(graph_node: GraphNode, asize = null, by_mouse = true):
 	if graph_node.get_meta("extra_enabled", false):
+		if by_mouse:
+			# 如果立即更新，就会由于graph_node高度产生变化，让鼠标直接连接到了下一个接口上，
+			# 所以等鼠标离得远一些再更新，或者10秒后再更新
+			var mouse_pos = get_global_mouse_position()
+			var time = Time.get_ticks_msec()
+			while get_global_mouse_position().distance_squared_to(mouse_pos) < 400 \
+			and Time.get_ticks_msec() - time < 10_000:
+				await get_tree().process_frame
+		# 在鼠标以比较快的速度连到下方的接口时，又拉开，可能导致删除了多次控件，检查一下
+		if not (graph_node.datas[0].size() == 6 and graph_node.datas[0][0] == null \
+		and graph_node.datas[0][1] == null):
+			return
 		var datas = (graph_node.datas as Array).duplicate()
 		var extra_controls = datas.pop_front()
 		graph_node.datas = datas
