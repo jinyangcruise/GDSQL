@@ -72,7 +72,7 @@ func _on_button_open_pressed() -> void:
 	)
 	add_child(editor_file_dialog)
 	editor_file_dialog.popup_centered_ratio(0.7)
-	editor_file_dialog.close_requested.connect(func():
+	editor_file_dialog.canceled.connect(func():
 		editor_file_dialog.queue_free()
 	)
 	
@@ -131,14 +131,14 @@ func _on_button_save_as_pressed() -> void:
 	)
 	add_child(editor_file_dialog)
 	editor_file_dialog.popup_centered_ratio(0.7)
-	editor_file_dialog.close_requested.connect(func():
+	editor_file_dialog.canceled.connect(func():
 		editor_file_dialog.queue_free()
 	)
 	
 func _on_button_add_node_pressed() -> void:
 	mgr.create_accept_dialog(button_add_node.tooltip_text)
 	
-func _on_option_button_choose_path_item_selected(access: int, extra_line_edit = null) -> void:
+func _on_option_button_choose_path_item_selected(access: int, extra_line_edit = null, parent_dialog = null) -> void:
 	var editor_file_dialog = EditorFileDialog.new()
 	editor_file_dialog.access = access
 	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_DIR
@@ -148,9 +148,14 @@ func _on_option_button_choose_path_item_selected(access: int, extra_line_edit = 
 			extra_line_edit.text = path
 		change_tab_title.emit(self, get_meta("file_name") + "*")
 	, CONNECT_DEFERRED)
-	add_child(editor_file_dialog)
+	if parent_dialog:
+		editor_file_dialog.transient = true
+		editor_file_dialog.exclusive = true
+		parent_dialog.add_child(editor_file_dialog)
+	else:
+		add_child(editor_file_dialog)
 	editor_file_dialog.popup_centered_ratio(0.5)
-	editor_file_dialog.close_requested.connect(func():
+	editor_file_dialog.canceled.connect(func():
 		editor_file_dialog.queue_free()
 	, CONNECT_DEFERRED)
 	
@@ -979,8 +984,6 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	option_button_choose.tooltip_text = "Pick a path from Resource, UserData or FileSystem."
 	option_button_choose.allow_reselect = true
 	option_button_choose.selected = option_button_choose_path.selected
-	option_button_choose.item_selected.connect(
-		_on_option_button_choose_path_item_selected.bind(line_edit_path))
 	hbox.add_child(option_button_choose)
 	
 	var btn_save_all = Button.new()
@@ -1184,14 +1187,16 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 		hbox.queue_free()
 		tree.queue_free()
 	_generate_dialog = mgr.create_custom_dialog(arr, confirm, Callable(), defer, 0.3)
-	_generate_dialog.exclusive = false
-	_generate_dialog.transient = false
-	_generate_dialog.always_on_top = true
+	#_generate_dialog.exclusive = false
+	#_generate_dialog.transient = false
+	#_generate_dialog.transient_to_focused = true
+	#_generate_dialog.always_on_top = true
 	_generate_dialog.minimize_disabled = false
 	_generate_dialog.maximize_disabled = false
 	_generate_dialog.add_button("View", true, "View")
 	_generate_dialog.get_ok_button().text = "Save"
-	
+	option_button_choose.item_selected.connect(
+		_on_option_button_choose_path_item_selected.bind(line_edit_path, _generate_dialog))
 	_generate_dialog.custom_action.connect(func(action):
 		match action:
 			"View":
@@ -1325,8 +1330,6 @@ func popup_edit_dialog(item: TreeItem, line_edit_path: LineEdit):
 		
 	var dialog = mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.6)
 	dialog.exclusive = false
-	dialog.transient = false
-	dialog.always_on_top = true
 	dialog.minimize_disabled = false
 	dialog.maximize_disabled = false
 	dialog.get_cancel_button().hide()
@@ -1480,8 +1483,6 @@ func popup_diff_dialog(arr_content: Array, line_edit_path: LineEdit, show_diff =
 		table.queue_free()
 	var dialog = mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.9)
 	dialog.exclusive = false
-	dialog.transient = false
-	dialog.always_on_top = true
 	dialog.minimize_disabled = false
 	dialog.maximize_disabled = false
 	
