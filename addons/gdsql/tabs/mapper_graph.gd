@@ -456,12 +456,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			var aprops = graph_edit.get_node_props(node) as Dictionary
 			var db_name = data.db_name as String
 			var table_name = data.table_name as String
-			var table_name_camel = table_name.to_camel_case()
 			var table_comment = data.comment
 			var columns = data.columns as Array
-			var result_map_id = table_name_camel
+			var result_map_id = ""
 			if node_link_prop.has(node_name):
 				result_map_id = node_link_prop[node_name].to_camel_case()
+			else:
+				result_map_id = graph_edit.get_node_extra(node).link_prop_type.to_camel_case()
 			if leading_result_map_id == null:
 				leading_result_map_id = result_map_id
 				leading_class_n = result_map_id.capitalize().replace(" ", "")

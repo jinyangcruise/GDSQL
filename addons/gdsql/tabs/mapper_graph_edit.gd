@@ -62,6 +62,7 @@ const VALID_PORT_COLOR = {
 }
 
 enum LINK_TYPE {
+	NONE = 0,
 	ASSOCIATION = 1,
 	COLLECTION_ARRAY,
 	LINK_HELPER, # 用于关联表（一对一或一对多，取决于后续表的选择），关联表中的数据不会生成实体类
@@ -133,83 +134,92 @@ asize = null, pos_offset = null, aname = ""):
 		
 	var datas: Array[Array] = []
 	
-	if not extra.is_empty():
-		var type = extra.get("link_type", LINK_TYPE.ASSOCIATION)
-		graph_node.set_meta("extra_enabled", true)
-		var prop_type = extra.get("link_prop_type", "") # gdscript type or class name
-		var prop_name = extra.get("link_prop", "")
-		
-		var ob_link_type = OptionButton.new()
-		ob_link_type.add_item("NONE", 0)
+	var type = extra.get("link_type", LINK_TYPE.NONE)
+	graph_node.set_meta("extra_enabled", true) # NOTICE 改为了永远显示
+	var prop_type = extra.get("link_prop_type", "") # gdscript type or class name
+	var prop_name = extra.get("link_prop", "")
+	
+	var ob_link_type = OptionButton.new()
+	ob_link_type.fit_to_longest_item = false
+	ob_link_type.add_item("NONE", LINK_TYPE.NONE)
+	if type == LINK_TYPE.NONE:
 		ob_link_type.set_item_disabled(0, true)
-		ob_link_type.add_item("ASSOCIATION", LINK_TYPE.ASSOCIATION)
-		ob_link_type.add_item("COLLECTION_ARRAY", LINK_TYPE.COLLECTION_ARRAY)
-		ob_link_type.add_separator("table for linking two tables")
-		ob_link_type.add_item("LINK_HELPER", LINK_TYPE.LINK_HELPER)
+	ob_link_type.add_item("ASSOCIATION", LINK_TYPE.ASSOCIATION)
+	ob_link_type.add_item("COLLECTION_ARRAY", LINK_TYPE.COLLECTION_ARRAY)
+	ob_link_type.add_separator("table for linking two tables")
+	ob_link_type.add_item("LINK_HELPER", LINK_TYPE.LINK_HELPER)
+	for i in ob_link_type.item_count:
+		if ob_link_type.get_item_id(i) == type:
+			ob_link_type.selected = i
+		if type == LINK_TYPE.NONE:
+			ob_link_type.set_item_disabled(i, i != 0)
+		else:
+			ob_link_type.set_item_disabled(i, i == 0)
+			
+	ob_link_type.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var association_class_name = LineEdit.new()
+	association_class_name.caret_blink = true
+	association_class_name.placeholder_text = "Class name"
+	association_class_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	association_class_name.custom_minimum_size.x = 150
+	association_class_name.tooltip_text = (
+		"Class name of the property.\n'Entity' is not needed.")
+	association_class_name.text = extra.get("association_class_name", data.table_name.to_pascal_case())
+	
+	var text_enum_suggestion = TEXT_ENUM.instantiate()
+	text_enum_suggestion.ready.connect(func():
+		text_enum_suggestion.setup(DataTypeDef.DATA_TYPE_COMMON_NAMES.keys(), true)
+		text_enum_suggestion._custom_value_submitted(prop_type)
 		for i in ob_link_type.item_count:
 			if ob_link_type.get_item_id(i) == type:
-				ob_link_type.selected = i
+				ob_link_type.item_selected.emit(i)
 				break
-		ob_link_type.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	)
+	text_enum_suggestion.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_enum_suggestion.custom_minimum_size.x = 150
+	text_enum_suggestion.tooltip_text = "Type of the element of collection."
+	text_enum_suggestion.visible = false
 	
-		var association_class_name = LineEdit.new()
-		association_class_name.caret_blink = true
-		association_class_name.placeholder_text = "Class name"
-		association_class_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		association_class_name.custom_minimum_size.x = 150
-		association_class_name.tooltip_text = (
-			"Class name of the property.\n'Entity' is not needed.")
-		association_class_name.text = extra.get("association_class_name", "")
+	var le_prop_name = LineEdit.new()
+	le_prop_name.text = prop_name
+	le_prop_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	le_prop_name.placeholder_text = "Property name"
+	le_prop_name.tooltip_text = "Property Name"
+	
+	ob_link_type.item_selected.connect(func(index):
+		match ob_link_type.get_item_id(index):
+			LINK_TYPE.NONE:
+				association_class_name.show()
+				text_enum_suggestion.hide()
+				le_prop_name.hide()
+			LINK_TYPE.ASSOCIATION:
+				association_class_name.show()
+				text_enum_suggestion.hide()
+				le_prop_name.show()
+			LINK_TYPE.COLLECTION_ARRAY:
+				association_class_name.hide()
+				text_enum_suggestion.show()
+				le_prop_name.show()
+			LINK_TYPE.LINK_HELPER:
+				association_class_name.hide()
+				text_enum_suggestion.hide()
+				le_prop_name.hide()
+			_:
+				push_error("Invalid index %s mapper_graph_edit.gd in 183." % index)
+	)
+	
+	association_class_name.text_changed.connect(func(new_text: String):
+		if new_text.countn(le_prop_name.text) > 0 or \
+		le_prop_name.text.countn(new_text) > 0 or \
+		new_text.to_snake_case().begins_with(le_prop_name.text) or \
+		le_prop_name.text.begins_with(new_text.to_snake_case()):
+			le_prop_name.text = new_text.to_snake_case()
+	)
+	
+	datas.push_back([null, null, ob_link_type, association_class_name, 
+		text_enum_suggestion, le_prop_name])
 		
-		var text_enum_suggestion = TEXT_ENUM.instantiate()
-		text_enum_suggestion.ready.connect(func():
-			text_enum_suggestion.setup(DataTypeDef.DATA_TYPE_COMMON_NAMES.keys(), true)
-			text_enum_suggestion._custom_value_submitted(prop_type)
-			for i in ob_link_type.item_count:
-				if ob_link_type.get_item_id(i) == type:
-					ob_link_type.item_selected.emit(i)
-					break
-		)
-		text_enum_suggestion.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		text_enum_suggestion.custom_minimum_size.x = 150
-		text_enum_suggestion.tooltip_text = "Type of the element of collection."
-		text_enum_suggestion.visible = false
-		
-		var le_prop_name = LineEdit.new()
-		le_prop_name.text = prop_name
-		le_prop_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		le_prop_name.placeholder_text = "Property name"
-		le_prop_name.tooltip_text = "Property Name"
-		
-		ob_link_type.item_selected.connect(func(index):
-			match ob_link_type.get_item_id(index):
-				LINK_TYPE.ASSOCIATION:
-					association_class_name.show()
-					text_enum_suggestion.hide()
-					le_prop_name.show()
-				LINK_TYPE.COLLECTION_ARRAY:
-					association_class_name.hide()
-					text_enum_suggestion.show()
-					le_prop_name.show()
-				LINK_TYPE.LINK_HELPER:
-					association_class_name.hide()
-					text_enum_suggestion.hide()
-					le_prop_name.hide()
-				_:
-					push_error("Invalid index %s mapper_graph_edit.gd in 183." % index)
-		)
-		
-		association_class_name.text_changed.connect(func(new_text: String):
-			if new_text.countn(le_prop_name.text) > 0 or \
-			le_prop_name.text.countn(new_text) > 0 or \
-			new_text.to_snake_case().begins_with(le_prop_name.text) or \
-			le_prop_name.text.begins_with(new_text.to_snake_case()):
-				le_prop_name.text = new_text.to_snake_case()
-		)
-		
-		datas.push_back([null, null, ob_link_type, association_class_name, 
-			text_enum_suggestion, le_prop_name])
-			
 	for i: Dictionary in data.columns:
 		var label_col_name = Label.new()
 		label_col_name.text = i.get("Column Name")
@@ -304,11 +314,14 @@ auto_name: bool, select_all = false):
 		var node = get_node(str(a_node_name)) as GraphNode
 		node.enabled = nodes[node_name]["enabled"]
 		
-	# 孤立的node，不要显示额外控件
+	# <del>孤立的node，不要显示额外控件</del>
 	for i in node_name_map:
 		var n = str(node_name_map[i])
 		if not tos.has(n):
-			hide_extra_control(get_node(n), node_sizes[n])
+			#hide_extra_control(get_node(n), node_sizes[n])
+			update_extra_controls_to_none(get_node(n))
+		else:
+			update_extra_controls_to_others(get_node(n))
 			
 	if select_all:
 		for i in node_name_map:
@@ -364,7 +377,8 @@ func get_node_extra(node: GraphNode) -> Dictionary:
 	for arr: Array in node.datas:
 		if arr.size() == 6:
 			extra["link_type"] = (arr[2] as OptionButton).get_selected_id()
-			if extra["link_type"] == LINK_TYPE.ASSOCIATION:
+			if extra["link_type"] == LINK_TYPE.ASSOCIATION \
+			or extra["link_type"] == LINK_TYPE.NONE:
 				extra["link_prop_type"] = (arr[3] as LineEdit).text
 			else:
 				extra["link_prop_type"] = arr[4].get_selected_text()
@@ -427,7 +441,7 @@ func node_close(node: GraphNode):
 		elif node.name == info["from_node"]:
 			disconnect_node(info["from_node"], info["from_port"], 
 				info["to_node"], info["to_port"])
-			
+				
 	node.queue_free()
 	
 func _on_delete_nodes_request(nodes: Array[StringName]) -> void:
@@ -477,91 +491,93 @@ to_node: StringName, to_port: int) -> void:
 			_on_disconnection_request(i.from_node, i.from_port, i.to_node, 
 				i.to_port, graph_node.size, false)
 				
+	update_extra_controls_to_others(graph_node)
+	update_slot_status(graph_node)
 	# to的一方，增加选项，让用户选择和输入关联属性和属性类型
-	if graph_node.has_meta("extra_controls"):
-		var extra_controls = graph_node.get_meta("extra_controls")
-		graph_node.remove_meta("extra_controls")
-		var datas = (graph_node.datas as Array).duplicate()
-		datas.push_front(extra_controls)
-		graph_node.datas = datas
-		graph_node.set_meta("extra_enabled", true)
-		update_slot_status(graph_node)
-	elif not graph_node.get_meta("extra_enabled", false):
-		var type = LINK_TYPE.ASSOCIATION
-		var prop_type = "Nil"
-		var prop_name = ""
-		
-		var ob_link_type = OptionButton.new()
-		ob_link_type.add_item("NONE", 0)
-		ob_link_type.set_item_disabled(0, true)
-		ob_link_type.add_item("ASSOCIATION", LINK_TYPE.ASSOCIATION)
-		ob_link_type.add_item("COLLECTION_ARRAY", LINK_TYPE.COLLECTION_ARRAY)
-		ob_link_type.add_separator("table for linking two tables")
-		ob_link_type.add_item("ASSOCIATION_HELPER", LINK_TYPE.LINK_HELPER)
-		for i in ob_link_type.item_count:
-			if ob_link_type.get_item_id(i) == type:
-				ob_link_type.selected = i
-				break
-		ob_link_type.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		ob_link_type.fit_to_longest_item = false
-		
-		var association_class_name = LineEdit.new()
-		association_class_name.caret_blink = true
-		association_class_name.placeholder_text = "Class name"
-		association_class_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		association_class_name.custom_minimum_size.x = 150
-		association_class_name.tooltip_text = (
-			"Class name of the property.\n'Entity' is not needed.")
-		
-		var text_enum_suggestion = TEXT_ENUM.instantiate()
-		text_enum_suggestion.ready.connect(func():
-			text_enum_suggestion.setup(DataTypeDef.DATA_TYPE_COMMON_NAMES.keys(), true)
-			text_enum_suggestion.value = prop_type
-			text_enum_suggestion.update_property()
-		)
-		text_enum_suggestion.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		text_enum_suggestion.custom_minimum_size.x = 150
-		text_enum_suggestion.tooltip_text = "Type of the element of collection."
-		text_enum_suggestion.visible = false
-		
-		var le_prop_name = LineEdit.new()
-		le_prop_name.text = prop_name
-		le_prop_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		le_prop_name.placeholder_text = "Property name"
-		le_prop_name.tooltip_text = "Property Name"
-		
-		ob_link_type.item_selected.connect(func(index):
-			match ob_link_type.get_item_id(index):
-				LINK_TYPE.ASSOCIATION:
-					association_class_name.show()
-					text_enum_suggestion.hide()
-					le_prop_name.show()
-				LINK_TYPE.COLLECTION_ARRAY:
-					association_class_name.hide()
-					text_enum_suggestion.show()
-					le_prop_name.show()
-				LINK_TYPE.LINK_HELPER:
-					association_class_name.hide()
-					text_enum_suggestion.hide()
-					le_prop_name.hide()
-				_:
-					push_error("Invalid index %s mapper_graph_edit.gd in 521." % index)
-		)
-		
-		association_class_name.text_changed.connect(func(new_text: String):
-			if new_text.countn(le_prop_name.text) > 0 or \
-			le_prop_name.text.countn(new_text) > 0 or \
-			new_text.to_snake_case().begins_with(le_prop_name.text) or \
-			le_prop_name.text.begins_with(new_text.to_snake_case()):
-				le_prop_name.text = new_text.to_snake_case()
-		)
-		
-		var datas = (graph_node.datas as Array).duplicate()
-		datas.push_front([null, null, ob_link_type, association_class_name, 
-			text_enum_suggestion, le_prop_name])
-		graph_node.datas = datas
-		graph_node.set_meta("extra_enabled", true)
-		update_slot_status(graph_node)
+	#if graph_node.has_meta("extra_controls"):
+		#var extra_controls = graph_node.get_meta("extra_controls")
+		#graph_node.remove_meta("extra_controls")
+		#var datas = (graph_node.datas as Array).duplicate()
+		#datas.push_front(extra_controls)
+		#graph_node.datas = datas
+		#graph_node.set_meta("extra_enabled", true)
+		#update_slot_status(graph_node)
+	#elif not graph_node.get_meta("extra_enabled", false):
+		#var type = LINK_TYPE.ASSOCIATION
+		#var prop_type = "Nil"
+		#var prop_name = ""
+		#
+		#var ob_link_type = OptionButton.new()
+		#ob_link_type.add_item("NONE", 0)
+		#ob_link_type.set_item_disabled(0, true)
+		#ob_link_type.add_item("ASSOCIATION", LINK_TYPE.ASSOCIATION)
+		#ob_link_type.add_item("COLLECTION_ARRAY", LINK_TYPE.COLLECTION_ARRAY)
+		#ob_link_type.add_separator("table for linking two tables")
+		#ob_link_type.add_item("ASSOCIATION_HELPER", LINK_TYPE.LINK_HELPER)
+		#for i in ob_link_type.item_count:
+			#if ob_link_type.get_item_id(i) == type:
+				#ob_link_type.selected = i
+				#break
+		#ob_link_type.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		#ob_link_type.fit_to_longest_item = false
+		#
+		#var association_class_name = LineEdit.new()
+		#association_class_name.caret_blink = true
+		#association_class_name.placeholder_text = "Class name"
+		#association_class_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		#association_class_name.custom_minimum_size.x = 150
+		#association_class_name.tooltip_text = (
+			#"Class name of the property.\n'Entity' is not needed.")
+		#
+		#var text_enum_suggestion = TEXT_ENUM.instantiate()
+		#text_enum_suggestion.ready.connect(func():
+			#text_enum_suggestion.setup(DataTypeDef.DATA_TYPE_COMMON_NAMES.keys(), true)
+			#text_enum_suggestion.value = prop_type
+			#text_enum_suggestion.update_property()
+		#)
+		#text_enum_suggestion.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		#text_enum_suggestion.custom_minimum_size.x = 150
+		#text_enum_suggestion.tooltip_text = "Type of the element of collection."
+		#text_enum_suggestion.visible = false
+		#
+		#var le_prop_name = LineEdit.new()
+		#le_prop_name.text = prop_name
+		#le_prop_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		#le_prop_name.placeholder_text = "Property name"
+		#le_prop_name.tooltip_text = "Property Name"
+		#
+		#ob_link_type.item_selected.connect(func(index):
+			#match ob_link_type.get_item_id(index):
+				#LINK_TYPE.ASSOCIATION:
+					#association_class_name.show()
+					#text_enum_suggestion.hide()
+					#le_prop_name.show()
+				#LINK_TYPE.COLLECTION_ARRAY:
+					#association_class_name.hide()
+					#text_enum_suggestion.show()
+					#le_prop_name.show()
+				#LINK_TYPE.LINK_HELPER:
+					#association_class_name.hide()
+					#text_enum_suggestion.hide()
+					#le_prop_name.hide()
+				#_:
+					#push_error("Invalid index %s mapper_graph_edit.gd in 521." % index)
+		#)
+		#
+		#association_class_name.text_changed.connect(func(new_text: String):
+			#if new_text.countn(le_prop_name.text) > 0 or \
+			#le_prop_name.text.countn(new_text) > 0 or \
+			#new_text.to_snake_case().begins_with(le_prop_name.text) or \
+			#le_prop_name.text.begins_with(new_text.to_snake_case()):
+				#le_prop_name.text = new_text.to_snake_case()
+		#)
+		#
+		#var datas = (graph_node.datas as Array).duplicate()
+		#datas.push_front([null, null, ob_link_type, association_class_name, 
+			#text_enum_suggestion, le_prop_name])
+		#graph_node.datas = datas
+		#graph_node.set_meta("extra_enabled", true)
+		#update_slot_status(graph_node)
 		
 	#if not alreay:
 		#graph_node.set_deferred("size", Vector2(graph_node.size.x + 200, graph_node.size.y))
@@ -569,7 +585,7 @@ to_node: StringName, to_port: int) -> void:
 	mark_modified()
 	
 func _on_disconnection_request(from_node: StringName, from_port: int, 
-to_node: StringName, to_port: int, asize = null, by_mouse = true) -> void:
+to_node: StringName, to_port: int, _asize = null, _by_mouse = true) -> void:
 	disconnect_node(from_node, from_port, to_node, to_port)
 	
 	# 如果没有连入的线，则隐藏选项
@@ -577,35 +593,64 @@ to_node: StringName, to_port: int, asize = null, by_mouse = true) -> void:
 	for info in get_connection_list():
 		tos[info.to_node] = 1
 	if not tos.has(to_node):
-		hide_extra_control(get_node(str(to_node)), asize, by_mouse)
+		#hide_extra_control(get_node(str(to_node)), asize, by_mouse)
+		update_extra_controls_to_none(get_node(str(to_node)))
+	else:
+		update_extra_controls_to_others(get_node(str(to_node)))
 		
 	mark_modified()
 	
-func hide_extra_control(graph_node: GraphNode, asize = null, by_mouse = true):
-	if graph_node.get_meta("extra_enabled", false):
-		if by_mouse:
-			# 如果立即更新，就会由于graph_node高度产生变化，让鼠标直接连接到了下一个接口上，
-			# 所以等鼠标离得远一些再更新，或者10秒后再更新
-			var mouse_pos = get_global_mouse_position()
-			var time = Time.get_ticks_msec()
-			while get_global_mouse_position().distance_squared_to(mouse_pos) < 400 \
-			and Time.get_ticks_msec() - time < 10_000:
-				await get_tree().process_frame
-		# 在鼠标以比较快的速度连到下方的接口时，又拉开，可能导致删除了多次控件，检查一下
-		if not (graph_node.datas[0].size() == 6 and graph_node.datas[0][0] == null \
-		and graph_node.datas[0][1] == null):
-			return
-		var datas = (graph_node.datas as Array).duplicate()
-		var extra_controls = datas.pop_front()
-		graph_node.datas = datas
-		graph_node.set_meta("extra_controls", extra_controls)
-		graph_node.set_meta("extra_enabled", false)
-		# shrink
-		if asize:
-			graph_node.set_deferred("size", Vector2(asize.x, 0))
-		else:
-			graph_node.set_deferred("size", Vector2(graph_node.size.x, 0))
-		update_slot_status(graph_node)
+func update_extra_controls_to_none(graph_node: GraphNode):
+	# [null, null, ob_link_type, association_class_name, text_enum_suggestion, le_prop_name]
+	var controls = graph_node.datas[0]
+	var ob_link_type = controls[2]
+	
+	if ob_link_type.selected != 0:
+		graph_node.set_meta("_last_ob_link_type_selected_id", ob_link_type.get_item_id(ob_link_type.selected))
+	for i in ob_link_type.item_count:
+		if ob_link_type.get_item_id(i) == LINK_TYPE.NONE:
+			ob_link_type.selected = i
+			ob_link_type.item_selected.emit(i)
+		ob_link_type.set_item_disabled(i, i != 0)
+		
+func update_extra_controls_to_others(graph_node: GraphNode):
+	# [null, null, ob_link_type, association_class_name, text_enum_suggestion, le_prop_name]
+	var controls = graph_node.datas[0]
+	var ob_link_type = controls[2]
+	
+	if ob_link_type.selected == 0:
+		for i in ob_link_type.item_count:
+			if ob_link_type.get_item_id(i) == \
+			graph_node.get_meta("_last_ob_link_type_selected_id", LINK_TYPE.ASSOCIATION):
+				ob_link_type.selected = i
+				ob_link_type.item_selected.emit(i)
+			ob_link_type.set_item_disabled(i, i == 0)
+			
+#func hide_extra_control(graph_node: GraphNode, asize = null, by_mouse = true):
+	#if graph_node.get_meta("extra_enabled", false):
+		#if by_mouse:
+			## 如果立即更新，就会由于graph_node高度产生变化，让鼠标直接连接到了下一个接口上，
+			## 所以等鼠标离得远一些再更新，或者10秒后再更新
+			#var mouse_pos = get_global_mouse_position()
+			#var time = Time.get_ticks_msec()
+			#while get_global_mouse_position().distance_squared_to(mouse_pos) < 400 \
+			#and Time.get_ticks_msec() - time < 10_000:
+				#await get_tree().process_frame
+		## 在鼠标以比较快的速度连到下方的接口时，又拉开，可能导致删除了多次控件，检查一下
+		#if not (graph_node.datas[0].size() == 6 and graph_node.datas[0][0] == null \
+		#and graph_node.datas[0][1] == null):
+			#return
+		#var datas = (graph_node.datas as Array).duplicate()
+		#var extra_controls = datas.pop_front()
+		#graph_node.datas = datas
+		#graph_node.set_meta("extra_controls", extra_controls)
+		#graph_node.set_meta("extra_enabled", false)
+		## shrink
+		#if asize:
+			#graph_node.set_deferred("size", Vector2(asize.x, 0))
+		#else:
+			#graph_node.set_deferred("size", Vector2(graph_node.size.x, 0))
+		#update_slot_status(graph_node)
 		
 func _on_copy_nodes_request(p_copied_data = null) -> void:
 	var selected_nodes_params = get_nodes_params(true)
