@@ -144,6 +144,7 @@ func _on_option_button_choose_path_item_selected(access: int, extra_line_edit = 
 	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_DIR
 	editor_file_dialog.dir_selected.connect(func(path: String):
 		line_edit_save_path.text = path
+		line_edit_save_path.text_changed.emit(path)
 		if extra_line_edit:
 			extra_line_edit.text = path
 		change_tab_title.emit(self, get_meta("file_name") + "*")
@@ -805,7 +806,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				])
 				
 			xml_arr.push_back('\n\t<select id="%s" resultMap="%s"%s>' % \
-				[leading_method, leading_table_name.to_camel_case() + "Result",
+				[leading_method, leading_result_map_id + "Result",
 				(' databaseId="%s"' % leading_db_name) if select_use_db else ""])
 			xml_arr.push_back('\n\t\t<include refid="%sVo"/>' % leading_result_map_id)
 			
@@ -976,6 +977,20 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	line_edit_path.caret_blink = true
 	line_edit_path.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line_edit_path.text = line_edit_save_path.text
+	line_edit_path.text_changed.connect(func(t):
+		if line_edit_save_path.text != t:
+			line_edit_save_path.text = t
+	)
+	var ref = []
+	ref.push_back(func(t):
+		if line_edit_path:
+			if line_edit_path.text != t:
+				line_edit_path.text = t
+			line_edit_path.text_changed.emit(t)
+		else:
+			line_edit_save_path.text_changed.disconnect(ref[0])
+	)
+	line_edit_save_path.text_changed.connect(ref[0])
 	hbox.add_child(line_edit_path)
 	
 	var option_button_choose = OptionButton.new()
@@ -1044,24 +1059,15 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 				item.add_button(2, get_theme_icon("Save", "EditorIcons"), 1, false, "Save As...")
 				item.add_button(2, get_theme_icon("ActionCopy", "EditorIcons"), 2, false, "Copy")
 				item.add_button(2, get_theme_icon("HSplitContainer", "EditorIcons"), 4, false, "Compare")
-				if item.get_button_by_id(3, 5) > -1:
-					item.erase_button(3, item.get_button_by_id(3, 5))
-				var path = line_edit_path.text.strip_edges().path_join(item.get_meta("file_name"))
-				if FileAccess.file_exists(path):
-					var file_content = FileAccess.open(path, FileAccess.READ).get_as_text()
-					if item.get_metadata(0) != file_content:
-						item.set_button_color(2, item.get_button_by_id(2, 4), Color(2, 0.647059, 0, 1))
-						var diffs = DiffHelper.compare(file_content.split("\n"), item.get_metadata(0).split("\n"))
-						var texture = DiffLabelTexture.new()
-						texture.remove_count = diffs[0].size()
-						texture.add_count = diffs[1].size()
-						item.add_button(3, texture, 5, true)
-				else:
-					item.set_button_disabled(2, item.get_button_by_id(2, 4), true)
-					
+				_refresh_item_diff(item)
+				
 	refresh_tree.call()
-	line_edit_path.text_changed.connect(refresh_tree.unbind(1))
 	filter_edit.text_changed.connect(refresh_tree.unbind(1))
+	line_edit_path.text_changed.connect(func(_text):
+		for item in root.get_children():
+			if item != check_all_item:
+				_refresh_item_diff(item)
+	)
 	
 	btn_save_all.pressed.connect(func():
 		if line_edit_path.text == "":
@@ -1078,7 +1084,9 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 		var old_icon = btn_save_all.icon
 		btn_save_all.icon = get_theme_icon("ImportCheck", "EditorIcons")
 		btn_save_all.disabled = true
-		EditorInterface.get_resource_filesystem().scan_sources()
+		EditorInterface.get_editor_toaster().push_toast(
+			"Please refocus Godot editor window to import file(s).", EditorToaster.SEVERITY_WARNING)
+		#EditorInterface.get_resource_filesystem().scan()
 		#if _generate_dialog:
 			## scan后窗口可能被最小化了，所以用窗口的方法，能重新激活
 			#while EditorInterface.get_resource_filesystem().is_scanning():
@@ -1088,8 +1096,9 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 				#_generate_dialog.mode = Window.MODE_WINDOWED
 			#_generate_dialog.grab_focus()
 		await get_tree().create_timer(2).timeout
-		btn_save_all.icon = old_icon
-		btn_save_all.disabled = false
+		if btn_save_all:
+			btn_save_all.icon = old_icon
+			btn_save_all.disabled = false
 	)
 	
 	tree.item_edited.connect(func():
@@ -1115,7 +1124,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 			item.select(2)
 			match id:
 				0: # Edit
-					popup_edit_dialog(item, line_edit_path)
+					popup_edit_dialog(item)
 				1: # Save As...
 					popup_saveas_dialog(option_button_choose.selected, item, 
 						line_edit_path.text)
@@ -1129,17 +1138,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 					item.set_button_tooltip_text(2, 0, "")
 					if item.get_text(2).ends_with("(*)"):
 						item.set_text(2, item.get_meta("file_name"))
-					item.set_button_color(2, item.get_button_by_id(2, 4), Color.WHITE)
-					if item.get_button_by_id(3, 5) > -1:
-						item.erase_button(3, item.get_button_by_id(3, 5))
-					var path = line_edit_path.text.strip_edges().path_join(item.get_meta("file_name"))
-					var file_content = FileAccess.open(path, FileAccess.READ).get_as_text()
-					if file_content != item.get_metadata(0):
-						var diffs = DiffHelper.compare(file_content.split("\n"), item.get_metadata(0).split("\n"))
-						var texture = DiffLabelTexture.new()
-						texture.remove_count = diffs[0].size()
-						texture.add_count = diffs[1].size()
-						item.add_button(3, texture, 5, true)
+					_refresh_item_diff(item)
 				4: # Compare
 					var path = line_edit_path.text.strip_edges().path_join(item.get_meta("file_name"))
 					var arr_content = [{
@@ -1153,7 +1152,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 						"content": item.get_metadata(0),
 						"item": item,
 					}]
-					popup_diff_dialog(arr_content, line_edit_path, true)
+					popup_diff_dialog(arr_content, true)
 	)
 	tree.ready.connect(func():
 		check_all_item.set_checked(0, false)
@@ -1166,7 +1165,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 		if line_edit_path.text == "":
 			mgr.create_accept_dialog("Save path is empty!")
 			return [true, null]
-		var save_at_least_one = false
+		var save_at_least_one = 0
 		for i: TreeItem in root.get_children():
 			if i.get_text(2) != "" and i.is_checked(0):
 				var content = i.get_metadata(0)
@@ -1175,9 +1174,18 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 				file.store_string(content)
 				file.flush()
 				file = null
-				save_at_least_one = true
-		if save_at_least_one:
-			EditorInterface.get_resource_filesystem().scan()
+				save_at_least_one += 1
+		if save_at_least_one > 0:
+			# TODO FIXME Editor will crash if scan, see https://github.com/godotengine/godot/issues/108003
+			#if not EditorInterface.get_resource_filesystem().is_scanning():
+				#EditorInterface.get_resource_filesystem().scan()
+			EditorInterface.get_editor_toaster().push_toast("Please refocus Godot editor window to import file(s).")
+			_generate_dialog.get_ok_button().disabled = true
+			_generate_dialog.get_ok_button().text = "%s file(s) saved!" % save_at_least_one
+			await get_tree().create_timer(2).timeout
+			if _generate_dialog:
+				_generate_dialog.get_ok_button().disabled = false
+				_generate_dialog.get_ok_button().text = "Save"
 			return [true, null]
 		else:
 			mgr.create_accept_dialog("None selected.")
@@ -1194,13 +1202,13 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	#_generate_dialog.always_on_top = true
 	_generate_dialog.minimize_disabled = false
 	_generate_dialog.maximize_disabled = false
-	_generate_dialog.add_button("View", true, "View")
+	_generate_dialog.add_button("Inspect", true, "Inspect")
 	_generate_dialog.get_ok_button().text = "Save"
 	option_button_choose.item_selected.connect(
 		_on_option_button_choose_path_item_selected.bind(line_edit_path, _generate_dialog))
 	_generate_dialog.custom_action.connect(func(action):
 		match action:
-			"View":
+			"Inspect":
 				var arr_content = []
 				for i: TreeItem in root.get_children():
 					if i.is_checked(0):
@@ -1211,9 +1219,28 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 								"content": i.get_metadata(0),
 								"item": i,
 							})
-				popup_diff_dialog(arr_content, line_edit_path)
+				popup_diff_dialog(arr_content)
 	)
 	
+func _refresh_item_diff(item: TreeItem):
+	if item.get_button_by_id(3, 5) > -1:
+		item.erase_button(3, item.get_button_by_id(3, 5))
+	var path = line_edit_save_path.text.strip_edges().path_join(item.get_meta("file_name"))
+	if FileAccess.file_exists(path):
+		var file_content = FileAccess.open(path, FileAccess.READ).get_as_text()
+		item.set_button_disabled(2, item.get_button_by_id(2, 4), false)
+		if item.get_metadata(0) == file_content:
+			item.set_button_color(2, item.get_button_by_id(2, 4), Color.WHITE)
+		else:
+			item.set_button_color(2, item.get_button_by_id(2, 4), Color(2, 0.647059, 0, 1))
+			var diffs = DiffHelper.compare(file_content.split("\n"), item.get_metadata(0).split("\n"))
+			var texture = DiffLabelTexture.new()
+			texture.remove_count = diffs[0].size()
+			texture.add_count = diffs[1].size()
+			item.add_button(3, texture, 5, true)
+	else:
+		item.set_button_disabled(2, item.get_button_by_id(2, 4), true)
+		
 func comfirm_save(path: String = "", item: TreeItem = null, editor_file_dialog = null):
 	if path == "":
 		path = editor_file_dialog.current_path
@@ -1225,7 +1252,13 @@ func comfirm_save(path: String = "", item: TreeItem = null, editor_file_dialog =
 	var old_btn = item.get_button(2, 2)
 	item.set_button(2, 2, get_theme_icon("ImportCheck", "EditorIcons"))
 	item.set_button_disabled(2, 2, true)
-	EditorInterface.get_resource_filesystem().scan()
+	
+	# refresh diff
+	_refresh_item_diff(item)
+	
+	EditorInterface.get_editor_toaster().push_toast(
+		"Please refocus Godot editor window to import file(s).", EditorToaster.SEVERITY_WARNING)
+	#EditorInterface.get_resource_filesystem().scan()
 	#if _generate_dialog:
 		# scan后窗口可能被最小化了，所以用窗口的方法，能重新激活
 		#while EditorInterface.get_resource_filesystem().is_scanning():
@@ -1262,7 +1295,7 @@ func popup_saveas_dialog(access: int, item: TreeItem, dir: String):
 		editor_file_dialog.queue_free()
 	mgr.popup_user_dialog(editor_file_dialog, Callable(), Callable(), defer, 0.5)
 	
-func reset_content(item: TreeItem, editor, line_edit_path, arr_editor = null, show_diff: bool = false):
+func reset_content(item: TreeItem, editor, arr_editor = null, show_diff: bool = false):
 	if item:
 		item.set_metadata(0, editor.text_editor.text)
 		if item.get_meta("origin") == editor.text_editor.text:
@@ -1280,17 +1313,8 @@ func reset_content(item: TreeItem, editor, line_edit_path, arr_editor = null, sh
 				item.set_button_tooltip_text(2, 0, "Revert")
 				item.set_text(2, item.get_meta("file_name") + "(*)")
 				
-		if item.get_button_by_id(3, 5) > -1:
-			item.erase_button(3, item.get_button_by_id(3, 5))
-		var path = line_edit_path.text.strip_edges().path_join(item.get_meta("file_name"))
-		var file_content = FileAccess.open(path, FileAccess.READ).get_as_text()
-		if file_content != item.get_metadata(0):
-			var diffs = DiffHelper.compare(file_content.split("\n"), item.get_metadata(0).split("\n"))
-			var texture = DiffLabelTexture.new()
-			texture.remove_count = diffs[0].size()
-			texture.add_count = diffs[1].size()
-			item.add_button(3, texture, 5, true)
-			
+		_refresh_item_diff(item)
+		
 	# 有做对比的editor
 	if show_diff and arr_editor:
 		if arr_editor[1] == editor:
@@ -1298,7 +1322,7 @@ func reset_content(item: TreeItem, editor, line_edit_path, arr_editor = null, sh
 		else:
 			_refresh_diff_show(editor.text_editor, arr_editor[1].text_editor)
 			
-func popup_edit_dialog(item: TreeItem, line_edit_path: LineEdit):
+func popup_edit_dialog(item: TreeItem):
 	var editor = preload("res://addons/gdsql/gxml/editor/xml_editor.tscn").instantiate()
 	editor.ready.connect(func():
 		editor.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1314,8 +1338,8 @@ func popup_edit_dialog(item: TreeItem, line_edit_path: LineEdit):
 		code_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		code_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		code_edit.text = item.get_metadata(0)
-		code_edit.text_changed.connect(reset_content.bind(item, editor, line_edit_path))
-		code_edit.text_set.connect(reset_content.bind(item, editor, line_edit_path))
+		code_edit.text_changed.connect(reset_content.bind(item, editor))
+		code_edit.text_set.connect(reset_content.bind(item, editor))
 		code_edit.selecting_enabled = false
 		await get_tree().process_frame
 		code_edit.selecting_enabled = true
@@ -1375,7 +1399,7 @@ func _refresh_diff_show(editor1: TextEdit, editor2: TextEdit):
 		#editor2.set_line_gutter_clickable(i, commit_line_gutter2, true)
 		editor2.set_line_background_color(i, COLOR_DIFF_BASIC_ADDED)
 		
-func popup_diff_dialog(arr_content: Array, line_edit_path: LineEdit, show_diff = false):
+func popup_diff_dialog(arr_content: Array, show_diff = false):
 	if arr_content.is_empty():
 		return
 		
@@ -1433,8 +1457,8 @@ func popup_diff_dialog(arr_content: Array, line_edit_path: LineEdit, show_diff =
 			code_edit.text = i.content
 			code_edit.selecting_enabled = false
 			
-			code_edit.text_changed.connect(reset_content.bind(i.item, editor, line_edit_path, arr_editor, show_diff))
-			code_edit.text_set.connect(reset_content.bind(i.item, editor, line_edit_path, arr_editor, show_diff))
+			code_edit.text_changed.connect(reset_content.bind(i.item, editor, arr_editor, show_diff))
+			code_edit.text_set.connect(reset_content.bind(i.item, editor, arr_editor, show_diff))
 			
 			if not i.item:
 				code_edit.editable = false
