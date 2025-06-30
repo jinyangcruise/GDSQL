@@ -693,7 +693,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				var db_name = data.db_name as String
 				var table_name = data.table_name as String
 				var ns = db_name + "." + table_name
-				var id = table_name.to_camel_case()
+				var id = graph_edit.get_node_extra(nodes_map[node_name]).link_prop_type.to_camel_case()
 				if not vo_ids.has(ns):
 					var count = 1
 					for i in vo_ids:
