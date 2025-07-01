@@ -144,7 +144,6 @@ func _on_option_button_choose_path_item_selected(access: int, extra_line_edit = 
 	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_DIR
 	editor_file_dialog.dir_selected.connect(func(path: String):
 		line_edit_save_path.text = path
-		line_edit_save_path.text_changed.emit(path)
 		if extra_line_edit:
 			extra_line_edit.text = path
 		change_tab_title.emit(self, get_meta("file_name") + "*")
@@ -986,7 +985,6 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 		if line_edit_path:
 			if line_edit_path.text != t:
 				line_edit_path.text = t
-			line_edit_path.text_changed.emit(t)
 		else:
 			line_edit_save_path.text_changed.disconnect(ref[0])
 	)
