@@ -61,6 +61,14 @@ func get_first_row(col_index = null, default = null):
 		return null
 	return ret[0][col_index]
 	
+## 获取query后的数据的第一行的某列数据，通过其名称（第一个匹配名称的列），
+## query必须包含head才可以调用该函数
+func get_column_value_of_first_row_by_name(name: String, default = null):
+	assert(_has_head, "No head!")
+	if _data.size() <= 1:
+		return default
+	return _data[1][_data[0].find(name)]
+	
 ## 获取query后的数据的某列数据，可以指定空数据集时的返回值
 func get_column(col_index = 0, default = null):
 	var ret = get_data()
