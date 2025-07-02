@@ -5195,6 +5195,11 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 			#break
 		ExpressionENode.Type.TYPE_BUILTIN_FUNC_CALLABLE:
 			var bifunccall = p_node as ExpressionBuiltinFuncCallableNode
+			# Fix bifunccall._func is a property/method of the p_instance
+			if p_instance:
+				if bifunccall._func in p_instance:
+					r_ret[0] = p_instance[bifunccall._func]
+					return false
 			r_ret[0] = utility_function_table[bifunccall._func][2]
 
 
