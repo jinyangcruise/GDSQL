@@ -926,6 +926,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			xml_arr.push_back(
 				'\n\t\t\t\t<if test="%s">#{%s},</if>' % [test, props[i["Column Name"]]])
 		xml_arr.push_back('\n\t\t\t</trim>')
+		xml_arr.push_back('\n\t\t)')
 		xml_arr.push_back('\n\t</insert>\n\t')
 		
 		# delete mapper
