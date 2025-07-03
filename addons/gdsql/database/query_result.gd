@@ -67,7 +67,13 @@ func get_column_value_of_first_row_by_name(name: String, default = null):
 	assert(_has_head, "No head!")
 	if _data.size() <= 1:
 		return default
-	return _data[1][_data[0].find(name)]
+	var index = -1
+	for i in _data[0]:
+		index += 1
+		if i.field_as == name:
+			return _data[1][index]
+	assert(false, "Not found name: %s" % name)
+	return null
 	
 ## 获取query后的数据的某列数据，可以指定空数据集时的返回值
 func get_column(col_index = 0, default = null):
