@@ -560,6 +560,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 								"info": info,
 								"from_helper": ainfo.is_helper,
 							}
+							
 							# 为了避免因为各种原因导致method相同但实际上不能共用method的情况，
 							# 需要给method名称加后缀。
 							var new_index = 1
@@ -570,14 +571,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 									var a_index = Array(i.id.split("_")).back().to_int()
 									new_index = max(a_index, new_index) + 1
 								if i.id == method_info.id:
+									# TODO FIXME 有漏洞
 									has_same = true
-									if (i.from_helper and i.info.node == 
-										method_info.info.node) or \
-									i.result_map != method_info.result_map or \
-									i.arg_names != method_info.arg_names or \
-									i.arg_types != method_info.arg_types or \
-									i.namespace != method_info.namespace or \
-									i.info.link_col != method_info.info.link_col:
+									if i.from_helper != method_info.from_helper \
+									or i.result_map != method_info.result_map \
+									or i.arg_names != method_info.arg_names \
+									or i.arg_types != method_info.arg_types \
+									or i.namespace != method_info.namespace \
+									or i.info.link_col != method_info.info.link_col:
 										need_add_surfix = true
 										
 							if need_add_surfix:
@@ -1331,6 +1332,7 @@ func popup_edit_dialog(item: TreeItem):
 		code_edit.gutters_draw_line_numbers = true
 		code_edit.draw_tabs = true
 		code_edit.highlight_all_occurrences = true
+		code_edit.add_theme_color_override(&"word_highlighted_color", Color(Color.YELLOW, 0.3))
 		code_edit.highlight_current_line = true
 		code_edit.minimap_draw = true
 		code_edit.caret_blink = true
@@ -1448,6 +1450,7 @@ func popup_diff_dialog(arr_content: Array, show_diff = false):
 			code_edit.gutters_draw_line_numbers = true
 			code_edit.draw_tabs = true
 			code_edit.highlight_all_occurrences = true
+			code_edit.add_theme_color_override(&"word_highlighted_color", Color(Color.YELLOW, 0.3))
 			code_edit.highlight_current_line = true
 			code_edit.minimap_draw = true
 			code_edit.caret_blink = true

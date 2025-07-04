@@ -97,7 +97,177 @@ func _input(event: InputEvent) -> void:
 		accept_event()
 		return
 		
+## 在TextEdit的GDScript中定义
+func _get_column_pos_of_word(p_key: String, p_search: String, p_search_flags: int, p_from_column: int) -> int:
+	var col = -1
+	
+	if p_key.length() == 0 or p_search.length() == 0:
+		return -1
+		
+	if p_from_column < 0 or p_from_column > p_search.length():
+		p_from_column = 0
+		
+	var key_start_is_symbol = is_symbol(p_key[0])
+	var key_end_is_symbol = is_symbol(p_key[p_key.length() - 1])
+	
+	while col == -1 and p_from_column <= p_search.length():
+		if (p_search_flags & TextEdit.SEARCH_MATCH_CASE):
+			col = p_search.find(p_key, p_from_column)
+		else:
+			col = p_search.findn(p_key, p_from_column)
+			
+		if col == -1:
+			break
+			
+		if (p_search_flags & TextEdit.SEARCH_WHOLE_WORDS):
+			if not key_start_is_symbol and col > 0 and not is_symbol(p_search[col - 1]):
+				col = -1
+			elif not key_end_is_symbol and (col + p_key.length()) < p_search.length() and not is_symbol(p_search[col + p_key.length()]):
+				col = -1
+				
+		p_from_column += 1
+		
+	return col
+	
+func is_symbol(c: String) -> bool:
+	return c != '_' and ((c >= '!' and c <= '/') or (c >= ':' and c <= '@') or \
+	(c >= '[' and c <= '`') or (c >= '{' and c <= '~') or c == '\t' or c == ' ')
+	
+func get_selection_global_positions() -> Vector2i:
+	var start_line = text_editor.get_selection_from_line()
+	var end_line = text_editor.get_selection_to_line()
+	var start_col = text_editor.get_selection_from_column()
+	var end_col = text_editor.get_selection_to_column()
+	
+	if start_line == -1 or end_line == -1:
+		return Vector2i(-1, -1)  # 没有选中内容
+		
+	var total_char_count = 0
+	var found_start = false
+	var found_end = false
+	var start_pos = -1
+	var end_pos = -1
+	
+	for line_idx in text_editor.get_line_count():
+		var line_text = text_editor.get_line(line_idx)
+		var line_len = line_text.length()
+		
+		if not found_start:
+			if line_idx < start_line:
+				# 跳过前面的行
+				total_char_count += line_len + (1 if line_idx > 0 else 0)  # +1 表示换行符
+			elif line_idx == start_line:
+				# 当前行是起始行
+				start_pos = total_char_count + start_col
+				found_start = true
+				if start_line == end_line:
+					end_pos = total_char_count + end_col
+					found_end = true
+					break
+				else:
+					total_char_count += line_len + (1 if line_idx > 0 else 0)  # 加上剩余字符数和换行符
+			else:
+				if line_idx < end_line:
+					total_char_count += line_len + 1
+				elif line_idx == end_line:
+					end_pos = total_char_count + end_col
+					found_end = true
+					break
+					
+	if found_start and found_end:
+		return Vector2i(start_pos, end_pos)
+	else:
+		return Vector2i(-1, -1)
+		
+func global_pos_to_line_col(global_start: int, global_end: int) -> Dictionary:
+	var start_line = -1
+	var start_col = -1
+	var end_line = -1
+	var end_col = -1
+	
+	var current_pos = 1 # first line \n
+	var line_count = text_editor.get_line_count()
+	
+	for line_idx in line_count:
+		var line_text = text_editor.get_line(line_idx)
+		var line_len = line_text.length()
+		var line_end_pos = current_pos + line_len
+		
+		# 判断是否命中 start_pos
+		if start_line == -1:
+			if global_start <= line_end_pos:
+				start_line = line_idx
+				start_col = global_start - current_pos
+			else:
+				current_pos = line_end_pos + (1 if line_idx > 0 else 0)  # +1 for newline
+				continue
+				
+		# 判断是否命中 end_pos
+		if end_line == -1:
+			if global_end <= line_end_pos:
+				end_line = line_idx
+				end_col = global_end - current_pos
+			else:
+				current_pos = line_end_pos + (1 if line_idx > 0 else 0)  # +1 for newline
+				continue
+				
+		# 如果都找到了就退出
+		if start_line != -1 and end_line != -1:
+			break
+			
+	return {
+		"start_line": start_line,
+		"start_col": start_col,
+		"end_line": end_line,
+		"end_col": end_col
+	}
+	
+# 查找单词的起始和结束位置（基于行内列号）
+func find_word_boundaries(line_text: String, col: int) -> Vector2i:
+	if line_text.is_empty() or col < 0 or col >= line_text.length():
+		return Vector2i(-1, -1)# 无效位置
+		
+	# 初始化边界
+	var start_pos = col
+	var end_pos = col
+	# 向前扫描（找起始位置）
+	while start_pos > 0 and not is_symbol(line_text[start_pos - 1]):
+		start_pos -= 1
+	# 向后扫描（找结束位置）
+	while end_pos < line_text.length() - 1 and not is_symbol(line_text[end_pos + 1]):
+		end_pos += 1
+	# 返回行内起始和结束列号
+	return Vector2i(start_pos, end_pos + 1)
+	
+var _draw_line_info = null
+func _on_text_editor_draw() -> void:
+	if _draw_line_info == null:
+		return
+	var under_line_from = _draw_line_info[0]
+	var under_line_to = _draw_line_info[1]
+	text_editor.draw_line(under_line_from, under_line_to, Color.WHITE, 1)
+	
 func _text_editor_gui_input(p_event: InputEvent) -> void:
+	if p_event is InputEventMouseMotion:
+		if p_event.is_command_or_control_pressed():
+			var mouse_pos = text_editor.get_local_mouse_pos()
+			var word = text_editor.get_word_at_pos(mouse_pos)
+			if word == "":
+				return
+			var pos = text_editor.get_line_column_at_pos(mouse_pos)
+			var line = pos.y
+			var col = pos.x
+			var boundry = find_word_boundaries(text_editor.get_line(line), col)
+			var start_col = boundry.x
+			var end_col = boundry.y
+			var under_line_from = text_editor.get_pos_at_line_column(line, start_col)
+			var under_line_to = text_editor.get_pos_at_line_column(line, end_col)
+			_draw_line_info = [under_line_from, under_line_to]
+			text_editor.queue_redraw()
+		elif _draw_line_info != null:
+			_draw_line_info = null
+			text_editor.queue_redraw()
+			
 	if p_event is InputEventMouseButton:
 		var mb = p_event as InputEventMouseButton
 		if mb.is_pressed() and mb.is_command_or_control_pressed():
@@ -138,12 +308,46 @@ func _text_editor_gui_input(p_event: InputEvent) -> void:
 					col_to -= 1
 				else:
 					break
-			
+					
 			text_editor.deselect(0)
 			text_editor.select(line, col_from, line, col_to, 0)
 			text_editor.set_caret_column(col_to)
+			accept_event()
 			return
 			
+		# 如果按了CTRL，则自动跳到下一个/上一个出现的位置
+		elif mb.is_released() and mb.is_command_or_control_pressed():
+			if not text_editor.get_selected_text(0):
+				text_editor.select_word_under_caret(0)
+			var highlighted_text = text_editor.get_selected_text(0)
+			if highlighted_text == "":
+				return
+				
+			# 上一个
+			if Input.is_key_pressed(KEY_SHIFT):
+				pass # TODO
+			else:
+				var highlighted_pos = get_selection_global_positions()
+				var next_highlighted_text_col = _get_column_pos_of_word(
+					highlighted_text, text_editor.text, 
+					TextEdit.SEARCH_MATCH_CASE | TextEdit.SEARCH_WHOLE_WORDS, 
+					highlighted_pos.y)
+				if next_highlighted_text_col == -1:
+					next_highlighted_text_col = _get_column_pos_of_word(
+					highlighted_text, text_editor.text, 
+					TextEdit.SEARCH_MATCH_CASE | TextEdit.SEARCH_WHOLE_WORDS, 0)
+				if next_highlighted_text_col == -1:
+					return
+				var next_info = global_pos_to_line_col(next_highlighted_text_col, 
+					next_highlighted_text_col + highlighted_text.length())
+				text_editor.set_caret_line(next_info.start_line)
+				text_editor.set_caret_column(next_info.start_col)
+				text_editor.select(next_info.start_line, next_info.start_col, 
+					next_info.end_line, next_info.end_col)
+				_draw_line_info = null
+				queue_redraw()
+				accept_event()
+				
 	if p_event is InputEventMagnifyGesture:
 		var magnify_gesture = p_event as InputEventMagnifyGesture
 		_zoom_to(zoom_factor * pow(magnify_gesture.get_factor(), 0.25))
