@@ -97,7 +97,7 @@ func _input(event: InputEvent) -> void:
 		accept_event()
 		return
 		
-## 在TextEdit的GDScript中定义
+## 在p_search中，获取p_key这个词的位置。该函数由TextEdit的C++代码改写为GDScript而来。
 func _get_column_pos_of_word(p_key: String, p_search: String, p_search_flags: int, p_from_column: int) -> int:
 	var col = -1
 	
@@ -122,7 +122,8 @@ func _get_column_pos_of_word(p_key: String, p_search: String, p_search_flags: in
 		if (p_search_flags & TextEdit.SEARCH_WHOLE_WORDS):
 			if not key_start_is_symbol and col > 0 and not is_symbol(p_search[col - 1]):
 				col = -1
-			elif not key_end_is_symbol and (col + p_key.length()) < p_search.length() and not is_symbol(p_search[col + p_key.length()]):
+			elif not key_end_is_symbol and (col + p_key.length()) < p_search.length() \
+			and not is_symbol(p_search[col + p_key.length()]):
 				col = -1
 				
 		p_from_column += 1
@@ -131,13 +132,18 @@ func _get_column_pos_of_word(p_key: String, p_search: String, p_search_flags: in
 	
 func is_symbol(c: String) -> bool:
 	return c != '_' and ((c >= '!' and c <= '/') or (c >= ':' and c <= '@') or \
-	(c >= '[' and c <= '`') or (c >= '{' and c <= '~') or c == '\t' or c == ' ')
-	
-func get_selection_global_positions() -> Vector2i:
-	var start_line = text_editor.get_selection_from_line()
-	var end_line = text_editor.get_selection_to_line()
-	var start_col = text_editor.get_selection_from_column()
-	var end_col = text_editor.get_selection_to_column()
+		(c >= '[' and c <= '`') or (c >= '{' and c <= '~') or c == '\t' or c == ' ')
+		
+## 返回当前鼠标下的词的起始col和结束col，col从整段文本的第一个字符开始算起，而不是从所在行的第一个字符开始算起
+func get_word_global_positions(mouse_pos) -> Vector2i:
+	var pos = text_editor.get_line_column_at_pos(mouse_pos)
+	var line = pos.y
+	var col = pos.x
+	var boundry = find_word_boundaries(text_editor.get_line(line), col)
+	var start_line = pos.y
+	var end_line = pos.y
+	var start_col = boundry.x
+	var end_col = boundry.y
 	
 	if start_line == -1 or end_line == -1:
 		return Vector2i(-1, -1)  # 没有选中内容
@@ -233,9 +239,13 @@ func find_word_boundaries(line_text: String, col: int) -> Vector2i:
 	# 向前扫描（找起始位置）
 	while start_pos > 0 and not is_symbol(line_text[start_pos - 1]):
 		start_pos -= 1
-	# 向后扫描（找结束位置）
-	while end_pos < line_text.length() - 1 and not is_symbol(line_text[end_pos + 1]):
-		end_pos += 1
+	# 如果中间是符号，不向后扫描
+	if is_symbol(line_text[col]):
+		end_pos = col - 1 # 最后会加1，正好是col
+	else:
+		# 向后扫描（找结束位置）
+		while end_pos < line_text.length() - 1 and not is_symbol(line_text[end_pos + 1]):
+			end_pos += 1
 	# 返回行内起始和结束列号
 	return Vector2i(start_pos, end_pos + 1)
 	
@@ -249,6 +259,7 @@ func _on_text_editor_draw() -> void:
 	
 func _text_editor_gui_input(p_event: InputEvent) -> void:
 	if p_event is InputEventMouseMotion:
+		# 按CTRL的时候，显示一个下划线
 		if p_event.is_command_or_control_pressed():
 			var mouse_pos = text_editor.get_local_mouse_pos()
 			var word = text_editor.get_word_at_pos(mouse_pos)
@@ -262,6 +273,14 @@ func _text_editor_gui_input(p_event: InputEvent) -> void:
 			var end_col = boundry.y
 			var under_line_from = text_editor.get_pos_at_line_column(line, start_col)
 			var under_line_to = text_editor.get_pos_at_line_column(line, end_col)
+			var offset = 0
+			# TODO FIXME 由于get_pos_at_line_column有bug，获取的位置是前一个的。
+			# 这个判断条件可以判断是否有bug。
+			if text_editor.get_pos_at_line_column(line, 0) == text_editor.get_pos_at_line_column(line, 1):
+				offset = text_editor.get_pos_at_line_column(line, end_col).x - \
+				text_editor.get_pos_at_line_column(line, end_col - 1).x
+			under_line_from.x += offset
+			under_line_to.x += offset
 			_draw_line_info = [under_line_from, under_line_to]
 			text_editor.queue_redraw()
 		elif _draw_line_info != null:
@@ -317,33 +336,56 @@ func _text_editor_gui_input(p_event: InputEvent) -> void:
 			
 		# 如果按了CTRL，则自动跳到下一个/上一个出现的位置
 		elif mb.is_released() and mb.is_command_or_control_pressed():
-			if not text_editor.get_selected_text(0):
-				text_editor.select_word_under_caret(0)
-			var highlighted_text = text_editor.get_selected_text(0)
+			var mouse_pos = text_editor.get_local_mouse_pos()
+			var highlighted_text = text_editor.get_word_at_pos(mouse_pos)
 			if highlighted_text == "":
 				return
 				
+			# 当前选中词在整个文本中的起始col和结束col
+			var search_flag = TextEdit.SEARCH_MATCH_CASE | TextEdit.SEARCH_WHOLE_WORDS
+			var highlighted_pos = get_word_global_positions(mouse_pos)
+			var to_highlight_col = -1
+			
 			# 上一个
 			if Input.is_key_pressed(KEY_SHIFT):
-				pass # TODO
+				var pre_highlighted_text_col = highlighted_pos.y
+				var next_round_flag = false # 第二轮
+				while true:
+					var next_highlighted_text_col = _get_column_pos_of_word(
+						highlighted_text, text_editor.text, search_flag, 
+						pre_highlighted_text_col)
+					if next_highlighted_text_col == -1:
+						if next_round_flag:
+							break
+						next_round_flag = true
+						next_highlighted_text_col = _get_column_pos_of_word(
+							highlighted_text, text_editor.text, search_flag, 0)
+					if next_highlighted_text_col == -1:
+						return
+					if next_highlighted_text_col + highlighted_text.length() >= highlighted_pos.y:
+						if next_round_flag:
+							break
+					pre_highlighted_text_col = next_highlighted_text_col + highlighted_text.length()
+				to_highlight_col = pre_highlighted_text_col - highlighted_text.length()
+			# 下一个
 			else:
-				var highlighted_pos = get_selection_global_positions()
 				var next_highlighted_text_col = _get_column_pos_of_word(
-					highlighted_text, text_editor.text, 
-					TextEdit.SEARCH_MATCH_CASE | TextEdit.SEARCH_WHOLE_WORDS, 
-					highlighted_pos.y)
+					highlighted_text, text_editor.text, search_flag, highlighted_pos.y)
 				if next_highlighted_text_col == -1:
 					next_highlighted_text_col = _get_column_pos_of_word(
-					highlighted_text, text_editor.text, 
-					TextEdit.SEARCH_MATCH_CASE | TextEdit.SEARCH_WHOLE_WORDS, 0)
+						highlighted_text, text_editor.text, search_flag, 0)
 				if next_highlighted_text_col == -1:
 					return
-				var next_info = global_pos_to_line_col(next_highlighted_text_col, 
-					next_highlighted_text_col + highlighted_text.length())
-				text_editor.set_caret_line(next_info.start_line)
-				text_editor.set_caret_column(next_info.start_col)
-				text_editor.select(next_info.start_line, next_info.start_col, 
-					next_info.end_line, next_info.end_col)
+				to_highlight_col = next_highlighted_text_col
+				
+			if to_highlight_col > 0:
+				var to_highlight_info = global_pos_to_line_col(to_highlight_col, 
+					to_highlight_col + highlighted_text.length())
+				text_editor.set_caret_line(to_highlight_info.start_line, false)
+				text_editor.set_caret_column(to_highlight_info.start_col, false)
+				text_editor.select(to_highlight_info.start_line, to_highlight_info.start_col, 
+					to_highlight_info.end_line, to_highlight_info.end_col)
+				text_editor.center_viewport_to_caret(0)
 				_draw_line_info = null
 				queue_redraw()
 				accept_event()
