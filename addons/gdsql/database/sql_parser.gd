@@ -294,8 +294,7 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		return dao
 	else:
 		return _assert_false("Sql should begin with one of [SELECT, UPDATE, DELETE, INSERT, REPLACE].")
-	return null
-	
+		
 static func parse_select(sql: String) -> Array:
 	var prepare = prepare_sql(sql)
 	var matches = re_select.search_all(prepare[0])
