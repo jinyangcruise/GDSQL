@@ -30,20 +30,20 @@ func bind_file_system_dock_popup_menu():
 			
 	# double click
 	# 可能激活了拆分模式
-	var sc = fs_dock.find_child("@SplitContainer*", false, false)
-	if not sc:
-		print("Cannot find SplitContaier in file system dock.")
+	var trees = fs_dock.find_children("@Tree*", "Tree", true, false)
+	for tree: Tree in trees:
+		if tree.accessibility_name == tr("Directories"):
+			file_tree = tree
+			break
+			
+	if not file_tree:
+		push_warning("Cannot find FileSystemTree in file system dock.")
 		return
 		
-	# first split
-	file_tree = sc.find_child("@Tree*", false, false)
-	if not file_tree:
-		printt("Cannot find Tree in file sytem dock.")
-		return
 	file_tree.item_activated.connect(_on_file_tree_item_activated)
 	
 	# second split
-	file_item_list = sc.find_child("@FileSystemList*", true, false)
+	file_item_list = fs_dock.find_children("@FileSystemList*", "FileSystemList", true, false)[0]
 	file_item_list.item_activated.connect(_on_file_item_list_item_activated)
 	
 func _on_file_tree_item_activated():

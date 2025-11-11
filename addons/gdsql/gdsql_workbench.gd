@@ -100,18 +100,17 @@ func bind_file_system_dock_for_gdmappergraph():
 		if i is PopupMenu:
 			i.index_pressed.connect(_on_file_system_dock_popup_menu_idex_pressed)
 			
-	# double click
-	# 可能激活了拆分模式
-	var sc = fs_dock.find_child("@SplitContainer*", false, false)
-	if not sc:
-		print("Cannot find SplitContaier in file system dock.")
+	var trees = fs_dock.find_children("@Tree*", "Tree", true, false)
+	var file_tree
+	for tree: Tree in trees:
+		if tree.accessibility_name == tr("Directories"):
+			file_tree = tree
+			break
+			
+	if not file_tree:
+		push_warning("Cannot find FileSystemTree in file system dock.")
 		return
 		
-	# first split
-	var file_tree = sc.find_child("@Tree*", false, false)
-	if not file_tree:
-		print("Cannot find Tree in file sytem dock.")
-		return
 	file_tree.item_activated.connect(func():
 		var selected = file_tree.get_selected()
 		if selected:
@@ -122,7 +121,7 @@ func bind_file_system_dock_for_gdmappergraph():
 	)
 	
 	# second split
-	var file_item_list = sc.find_child("@FileSystemList*", true, false)
+	var file_item_list = fs_dock.find_children("@FileSystemList*", "FileSystemList", true, false)[0]
 	file_item_list.item_activated.connect(func(index):
 		var path = file_item_list.get_item_metadata(index) as String
 		if path.get_extension() == "gdmappergraph":
