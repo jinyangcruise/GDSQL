@@ -3374,10 +3374,13 @@ func _input(event: InputEvent) -> void:
 	if not k.is_pressed():
 		return
 		
-	if is_ancestor_of(get_viewport().gui_get_focus_owner()):
+	var focus_owner = get_viewport().gui_get_focus_owner()
+	if not focus_owner:
 		return
 		
-	var focus_owner = get_viewport().gui_get_focus_owner()
+	if is_ancestor_of(focus_owner):
+		return
+		
 	if focus_owner is TextEdit or focus_owner is LineEdit:
 		return
 		

@@ -59,6 +59,7 @@ func _input(event: InputEvent) -> void:
 		return
 	if !text_editor.has_focus():
 		if (find_replace_bar != null and find_replace_bar.is_visible()) and \
+		get_viewport().gui_get_focus_owner() and \
 		(find_replace_bar.has_focus() or (get_viewport().gui_get_focus_owner() and \
 		find_replace_bar.is_ancestor_of(get_viewport().gui_get_focus_owner()))):
 			if SHORTCUT_FINDNEXT.matches_event(key_event):

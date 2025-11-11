@@ -708,6 +708,9 @@ func _input(event: InputEvent) -> void:
 	if not k.is_pressed():
 		return
 		
+	if not get_viewport().gui_get_focus_owner():
+		return
+		
 	if is_ancestor_of(get_viewport().gui_get_focus_owner()):
 		return
 		
