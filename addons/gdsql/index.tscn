@@ -10,7 +10,7 @@ bg_color = Color(0.145098, 0.168627, 0.203922, 1)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_2ech8"]
 
-[node name="Index" type="MarginContainer"]
+[node name="Index" type="MarginContainer" unique_id=1150158982]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -23,55 +23,57 @@ theme_override_constants/margin_right = 20
 theme_override_constants/margin_bottom = 20
 script = ExtResource("1_ixupm")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="."]
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1605228431]
 layout_mode = 2
 
-[node name="GridContainer" type="GridContainer" parent="VBoxContainer"]
+[node name="GridContainer" type="GridContainer" parent="VBoxContainer" unique_id=1310596185]
 layout_mode = 2
 columns = 5
 
-[node name="MenuButtonFile" type="MenuButton" parent="VBoxContainer/GridContainer"]
+[node name="MenuButtonFile" type="MenuButton" parent="VBoxContainer/GridContainer" unique_id=2017574355]
 layout_mode = 2
 text = "文件(F)"
 
-[node name="HSplitContainer" type="HSplitContainer" parent="VBoxContainer"]
+[node name="HSplitContainer" type="HSplitContainer" parent="VBoxContainer" unique_id=1575290738]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/autohide = 0
 
-[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/HSplitContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/HSplitContainer" unique_id=262444778]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="PanelContainer" type="PanelContainer" parent="VBoxContainer/HSplitContainer/VBoxContainer"]
+[node name="PanelContainer" type="PanelContainer" parent="VBoxContainer/HSplitContainer/VBoxContainer" unique_id=1396669090]
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_i3kgl")
 
-[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer"]
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer" unique_id=1326427623]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer/HBoxContainer"]
+[node name="Label" type="Label" parent="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer/HBoxContainer" unique_id=1800567541]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "SCHEMAS"
 
-[node name="ButtonRefresh" type="Button" parent="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer/HBoxContainer"]
+[node name="ButtonRefresh" type="Button" parent="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer/HBoxContainer" unique_id=151763846]
 layout_mode = 2
 tooltip_text = "Refresh All"
 theme_override_styles/focus = SubResource("StyleBoxEmpty_2ech8")
 text = "🔄️"
 
-[node name="TreeDatabases" parent="VBoxContainer/HSplitContainer/VBoxContainer" instance=ExtResource("1_2yut5")]
+[node name="TreeDatabases" parent="VBoxContainer/HSplitContainer/VBoxContainer" unique_id=1620967491 instance=ExtResource("1_2yut5")]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="VSplitContainer" type="VSplitContainer" parent="VBoxContainer/HSplitContainer"]
+[node name="VSplitContainer" type="VSplitContainer" parent="VBoxContainer/HSplitContainer" unique_id=1702884579]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_stretch_ratio = 6.0
 theme_override_constants/autohide = 0
 
-[node name="TabContainer" type="TabContainer" parent="VBoxContainer/HSplitContainer/VSplitContainer"]
+[node name="TabContainer" type="TabContainer" parent="VBoxContainer/HSplitContainer/VSplitContainer" unique_id=567798177]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 size_flags_stretch_ratio = 4.0
@@ -79,34 +81,42 @@ current_tab = 0
 drag_to_rearrange_enabled = true
 script = ExtResource("3_2dwia")
 
-[node name="➕" type="Control" parent="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer"]
+[node name="➕" type="Control" parent="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" unique_id=1253522553]
 layout_mode = 2
 metadata/type = "new_tab_button"
 metadata/_tab_index = 0
 
-[node name="Control" type="MarginContainer" parent="VBoxContainer/HSplitContainer/VSplitContainer"]
+[node name="PanelContainer" type="PanelContainer" parent="VBoxContainer/HSplitContainer/VSplitContainer" unique_id=229180961]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/HSplitContainer/VSplitContainer/Control"]
+[node name="Control" type="MarginContainer" parent="VBoxContainer/HSplitContainer/VSplitContainer/PanelContainer" unique_id=1996873378]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_left = 5
+theme_override_constants/margin_top = -5
+theme_override_constants/margin_right = 5
+
+[node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/HSplitContainer/VSplitContainer/PanelContainer/Control" unique_id=1688356222]
 layout_mode = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/HSplitContainer/VSplitContainer/Control/VBoxContainer"]
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/HSplitContainer/VSplitContainer/PanelContainer/Control/VBoxContainer" unique_id=1344325168]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/HSplitContainer/VSplitContainer/Control/VBoxContainer/HBoxContainer"]
+[node name="Label" type="Label" parent="VBoxContainer/HSplitContainer/VSplitContainer/PanelContainer/Control/VBoxContainer/HBoxContainer" unique_id=1385434832]
 layout_mode = 2
 text = "日志"
 
-[node name="HSeparator2" type="HSeparator" parent="VBoxContainer/HSplitContainer/VSplitContainer/Control/VBoxContainer/HBoxContainer"]
+[node name="HSeparator2" type="HSeparator" parent="VBoxContainer/HSplitContainer/VSplitContainer/PanelContainer/Control/VBoxContainer/HBoxContainer" unique_id=1342674013]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ButtonClearLog" type="Button" parent="VBoxContainer/HSplitContainer/VSplitContainer/Control/VBoxContainer/HBoxContainer"]
+[node name="ButtonClearLog" type="Button" parent="VBoxContainer/HSplitContainer/VSplitContainer/PanelContainer/Control/VBoxContainer/HBoxContainer" unique_id=924903313]
 layout_mode = 2
 text = "Clear"
 
-[node name="LogTable" parent="VBoxContainer/HSplitContainer/VSplitContainer/Control/VBoxContainer" instance=ExtResource("1_2tgi5")]
+[node name="LogTable" parent="VBoxContainer/HSplitContainer/VSplitContainer/PanelContainer/Control/VBoxContainer" unique_id=1739918082 instance=ExtResource("1_2tgi5")]
+unique_name_in_owner = true
 layout_mode = 2
 show_menu = true
 support_delete_row = true
@@ -116,4 +126,4 @@ support_select_border = false
 [connection signal="tab_button_pressed" from="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" to="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" method="_on_tab_button_pressed"]
 [connection signal="tab_changed" from="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" to="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" method="_on_tab_changed"]
 [connection signal="tab_clicked" from="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" to="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" method="_on_tab_clicked"]
-[connection signal="pressed" from="VBoxContainer/HSplitContainer/VSplitContainer/Control/VBoxContainer/HBoxContainer/ButtonClearLog" to="." method="_on_button_clear_log_pressed"]
+[connection signal="pressed" from="VBoxContainer/HSplitContainer/VSplitContainer/PanelContainer/Control/VBoxContainer/HBoxContainer/ButtonClearLog" to="." method="_on_button_clear_log_pressed"]

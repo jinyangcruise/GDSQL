@@ -3,10 +3,9 @@ extends MarginContainer
 
 var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
-@onready var tree_databases: Tree = $VBoxContainer/HSplitContainer/VBoxContainer/TreeDatabases
-@onready var tab_container: TabContainer = $VBoxContainer/HSplitContainer/VSplitContainer/TabContainer
-@onready var log_table: VBoxContainer = $VBoxContainer/HSplitContainer/VSplitContainer/Control/VBoxContainer/LogTable
-
+@onready var tree_databases: Tree = %TreeDatabases
+@onready var tab_container: TabContainer = %TabContainer
+@onready var log_table: VBoxContainer = %LogTable
 
 func _ready() -> void:
 	if mgr == null or not mgr.run_in_plugin(self):
