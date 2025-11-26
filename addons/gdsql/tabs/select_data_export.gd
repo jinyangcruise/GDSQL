@@ -1,8 +1,6 @@
 @tool
 extends ScrollContainer
 
-var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
-
 @onready var grid_container_columns = $VBoxContainer/MarginContainer/PanelContainer/GridContainerColumns
 @onready var line_edit_file_path = $VBoxContainer/HBoxContainer3/LineEditFilePath
 @onready var margin_container_csv_options = $VBoxContainer/MarginContainerCSVOptions
@@ -23,7 +21,7 @@ var _button_group = ButtonGroup.new()
 
 func _ready():
 	_button_group.allow_unpress = true
-
+	
 func load_data(columns, datas):
 	_columns = columns
 	_datas = datas
@@ -61,16 +59,13 @@ func load_data(columns, datas):
 		check_box_2.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		grid_container_columns.add_child(check_box_2)
 		index += 1
-
-func _exit_tree():
-	mgr = null
-
+		
 ## 全选按钮切换
 func _on_check_box_select_all_toggled(toggled_on):
 	var cbs = get_tree().get_nodes_in_group("check_box")
 	for i: CheckBox in cbs:
 		i.button_pressed = toggled_on
-
+		
 ## 导出文件选择
 func _on_button_file_path_pressed(access):
 	var editor_file_dialog = EditorFileDialog.new()
@@ -92,31 +87,28 @@ func _on_button_file_path_pressed(access):
 		editor_file_dialog.queue_free()
 	, CONNECT_DEFERRED)
 	
-	
 ## 导出GSQL
 func _on_check_box_gsql_toggled(toggled_on):
 	if toggled_on:
 		if line_edit_file_path.text != "":
 			line_edit_file_path.text = (line_edit_file_path.text as String).get_basename() + ".cfg"
-
+			
 ## 导出csv
 func _on_check_box_csv_toggled(toggled_on):
 	if toggled_on:
 		if line_edit_file_path.text != "":
 			line_edit_file_path.text = (line_edit_file_path.text as String).get_basename() + ".csv"
 	#margin_container_csv_options.visible = toggled_on
-
+	
 ## 导出json
 func _on_check_box_json_toggled(toggled_on):
 	if toggled_on:
 		if line_edit_file_path.text != "":
 			line_edit_file_path.text = (line_edit_file_path.text as String).get_basename() + ".json"
-
-
+			
 func _on_button_cancel_pressed():
 	queue_free()
-
-
+	
 func _on_button_apply_pressed() -> void:
 	var cbs = get_tree().get_nodes_in_group("check_box")
 	var checked = []
@@ -124,10 +116,10 @@ func _on_button_apply_pressed() -> void:
 		if i.button_pressed:
 			checked.push_back(i.get_meta("col"))
 	if checked.is_empty():
-		return mgr.create_accept_dialog("Must export at least one column!")
+		return GDSQL.WorkbenchManager.create_accept_dialog("Must export at least one column!")
 		
 	if line_edit_file_path.text == "":
-		return mgr.create_accept_dialog("Must enter an export file path!")
+		return GDSQL.WorkbenchManager.create_accept_dialog("Must enter an export file path!")
 		
 	var begin_time = Time.get_unix_time_from_system()
 	var err
@@ -138,17 +130,17 @@ func _on_button_apply_pressed() -> void:
 	elif check_box_json.button_pressed:
 		err = export_json(checked)
 	else:
-		mgr.create_accept_dialog("Do not select an export type!")
+		GDSQL.WorkbenchManager.create_accept_dialog("Do not select an export type!")
 		return
 		
 	if err == OK:
-		mgr.add_log_history.emit("OK", begin_time, "Export table data of Select", 
+		GDSQL.WorkbenchManager.add_log_history.emit("OK", begin_time, "Export table data of Select", 
 			"1 file: %s was exported!" % line_edit_file_path.text)
 		if check_box_open_folder_when_finished.button_pressed:
-			OS.shell_show_in_file_manager(GDSQLUtils.globalize_path(line_edit_file_path.text), true)
+			OS.shell_show_in_file_manager(GDSQL.GDSQLUtils.globalize_path(line_edit_file_path.text), true)
 	else:
-		mgr.add_log_history.emit("Err", begin_time, "Export table data of Select", "Err occur, code: %s." % err)
-	
+		GDSQL.WorkbenchManager.add_log_history.emit("Err", begin_time, "Export table data of Select", "Err occur, code: %s." % err)
+		
 func export_cfg(checked):
 	var primary_index = -1
 	var cb = _button_group.get_pressed_button()

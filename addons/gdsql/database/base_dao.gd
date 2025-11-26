@@ -1,7 +1,5 @@
 @tool
 extends RefCounted
-class_name BaseDao
-
 
 #region Members
 var _PASSWORD = "" ## 数据表密码
@@ -25,16 +23,16 @@ var __primary_key: String = "" ## 【外部请勿使用】主键是什么
 var __primary_key_def: String = "" ## 【外部请勿使用】定义文件中的主键
 var __autoincrement_keys: Dictionary = {} ## 【外部请勿使用】自增键有哪些
 var __autoincrement_keys_def: Dictionary = {} ## 【外部请勿使用】定义文件中的自增键
-var __union_all: BaseDao ## 【外部请勿使用】union的单元
-var __parent_union: BaseDao ## 【外部请勿使用】被uion的单元
+var __union_all: GDSQL.BaseDao ## 【外部请勿使用】union的单元
+var __parent_union: GDSQL.BaseDao ## 【外部请勿使用】被uion的单元
 #var __left_join_tables: Dictionary = {} ## 【外部请勿使用】联表查询的表相关信息
-var __left_join: LeftJoin ## 【外部请勿使用】第一个联表对象（获取第N个联表对象需要通过第N-1个联表对象来获取）
+var __left_join: GDSQL.LeftJoin ## 【外部请勿使用】第一个联表对象（获取第N个联表对象需要通过第N-1个联表对象来获取）
 var __need_post_porcess: bool = true ## 【外部请勿使用】select最终返回数据时处理：是否按照用户所需的字段进行精简
 var __need_head: bool ## 【外部请勿使用】select返回的数据是否包含一行表头（在第一行）
 var __auto_commit: bool = true ## 【外部请勿使用】自动提交标志
-var __root_config: ImprovedConfigFile: ## 【外部请勿使用】临时获取数据库定义文件
+var __root_config: GDSQL.ImprovedConfigFile: ## 【外部请勿使用】临时获取数据库定义文件
 	get:
-		return __CONF_MANAGER.get_conf(ROOT_CONFIG_PATH, "")
+		return GDSQL.ConfManager.get_conf(ROOT_CONFIG_PATH, "")
 var __table_conf_path: Dictionary = {} ## 【外部请勿使用】临时为了获取数据库定义文件
 var __enable_evaluate: bool = false ## 【外部请勿使用】当update或insert、replace时，是否对值进行evaluate操作
 var __sub_select_index: int = -1 ## 【外部请勿使用】子查询序号
@@ -93,11 +91,10 @@ const NORMAL_TYPES = [
 	TYPE_PACKED_COLOR_ARRAY, TYPE_PACKED_VECTOR4_ARRAY,
 ]
 
-var __CONF_MANAGER: ConfManagerClass
-var mgr#: GDSQLWorkbenchManagerClass
+var mgr: GDSQL.WorkbenchManagerClass:
+	get: return GDSQL.WorkbenchManager
 #endregion
 
-enum ORDER_BY { ASC, DESC }
 
 static func _static_init():
 	lru_cache = ExpressionLRULink.new()
@@ -106,20 +103,11 @@ static func _static_init():
 	regex_as.compile("([\\s]+)(as[\\s]+)?([0-9a-zA-Z_:]+)$") # 支持 x as position:x 这样的写法
 	regex_symbol.compile("[a-zA-Z_]+[0-9a-zA-Z_]*")
 	
-func _init():
-	if Engine.has_singleton("ConfManager"):
-		__CONF_MANAGER = Engine.get_singleton("ConfManager")
-	else:
-		__CONF_MANAGER = ConfManager
-		
-	if Engine.has_singleton("GDSQLWorkbenchManager"):
-		mgr = Engine.get_singleton("GDSQLWorkbenchManager")
-		
-func set_collect_lack_table_mode(enable: bool) -> BaseDao:
+func set_collect_lack_table_mode(enable: bool) -> GDSQL.BaseDao:
 	__collect_lack_table_enabled = enable
 	return self
 	
-func use_db_name(database_name: String) -> BaseDao:
+func use_db_name(database_name: String) -> GDSQL.BaseDao:
 	if mgr and mgr.databases:
 		if not mgr.databases.has(database_name):
 			return _assert_false("use_db_name", "Not found db:%s." % database_name)
@@ -132,7 +120,7 @@ func use_db_name(database_name: String) -> BaseDao:
 	_set_primary_and_autoincre()
 	return self
 	
-func use_db(database_path: String) -> BaseDao:
+func use_db(database_path: String) -> GDSQL.BaseDao:
 	if not database_path.contains("/"):
 		if mgr and mgr.databases:
 			if mgr.databases.has(database_path):
@@ -145,20 +133,20 @@ func use_db(database_path: String) -> BaseDao:
 	_set_primary_and_autoincre()
 	return self
 	
-func use_user_db() -> BaseDao:
+func use_user_db() -> GDSQL.BaseDao:
 	__database = "user://"
-	set_password(PasswordDef.USER_DAO_PASS)
+	set_password(GDSQL.PasswordDef.USER_DAO_PASS)
 	return self
 	
-func use_conf_db() -> BaseDao:
+func use_conf_db() -> GDSQL.BaseDao:
 	__database = "res://src/config/"
-	set_password(PasswordDef.CONFIG_ENCRYPTED_PASS)
+	set_password(GDSQL.PasswordDef.CONFIG_ENCRYPTED_PASS)
 	return self
 	
 func get_db() -> String:
 	return __database
 	
-func set_password(password: String) -> BaseDao:
+func set_password(password: String) -> GDSQL.BaseDao:
 	_PASSWORD = password
 	return self
 	
@@ -166,7 +154,7 @@ func get_password() -> String:
 	return _PASSWORD
 	
 ## 是否自动提交（保存文件），不提交只是在内存中更改数据
-func auto_commit(auto: bool) -> BaseDao:
+func auto_commit(auto: bool) -> GDSQL.BaseDao:
 	__auto_commit = auto
 	return self
 	
@@ -179,12 +167,12 @@ func _assert_false(action: String, msg: String):
 	assert(false, msg)
 	return null
 	
-func _get_conf(path: String, password: String, indexed_names = []) -> ImprovedConfigFile:
+func _get_conf(path: String, password: String, indexed_names = []) -> GDSQL.ImprovedConfigFile:
 	var defination = __get_table_defination(path.get_base_dir(), path.get_file())
 	var valid_if_not_exist = defination["valid_if_not_exist"] if defination else false
 	if valid_if_not_exist:
-		__CONF_MANAGER.mark_valid_if_not_exit(path)
-	var conf = __CONF_MANAGER.get_conf(path, password)
+		GDSQL.ConfManager.mark_valid_if_not_exit(path)
+	var conf = GDSQL.ConfManager.get_conf(path, password)
 	if conf:
 		if not indexed_names.is_empty():
 			conf.set_indexed_props(indexed_names)
@@ -199,11 +187,11 @@ func commit() -> void:
 		_assert_false("commit", "table name is empty")
 		return
 	var path = __database.path_join(__table)
-	var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
+	var conf: GDSQL.ImprovedConfigFile = _get_conf(path, _PASSWORD)
 	if conf == null:
 		_assert_false("commit", "load conf err!")
 		return
-	__CONF_MANAGER.save_conf_by_origin_password(path)
+	GDSQL.ConfManager.save_conf_by_origin_password(path)
 	reset()
 	
 ## 抛弃修改（没有commit时使用才有效果）
@@ -215,7 +203,7 @@ func discard() -> void:
 		_assert_false("commit", "table name is empty")
 		return
 	var path = __database.path_join(__table)
-	__CONF_MANAGER.remove_conf(path)
+	GDSQL.ConfManager.remove_conf(path)
 	
 ## 开启求值操作。仅在update操作时有效。仅在值为字符串时进行取值
 func set_evalueate_mode(enable: bool):
@@ -228,7 +216,7 @@ func set_evalueate_mode(enable: bool):
 ## 注意：若联表查询还要求返回平数据，则query后会在每条数据的每个字段前加上表的别名和小数点。例如：
 ## [["t1.a": xx, "t2.m": yy]].
 ## 这个方法会预处理每个要求的字段和字段的别名（如有），但不会马上在这里处理星号，而是推迟到query的时候才处理。
-func select(something: String, need_head: bool) -> BaseDao:
+func select(something: String, need_head: bool) -> GDSQL.BaseDao:
 	if not (__cmd == "" or __cmd == "select"):
 		return _assert_false("select", "already set command %s" % __cmd)
 	#if __parent_union and need_head:
@@ -248,7 +236,7 @@ func select(something: String, need_head: bool) -> BaseDao:
 	# 匹配逗号的位置，括号、引号内的逗号都不匹配
 	#regex.compile(",(?=(([^']*'){2})*[^']*$)(?=(([^\"]*\"){2})*[^\"]*$)(?![^()]*\\))")
 	#var matches = regex_comma.search_all(something)
-	var matches = GDSQLUtils.search_symbol(something, ",")
+	var matches = GDSQL.GDSQLUtils.search_symbol(something, ",")
 	
 	# 别名
 	#var regex_2 = RegEx.new()
@@ -301,7 +289,7 @@ func select(something: String, need_head: bool) -> BaseDao:
 	
 ## union之后的BaseDao可以进行select_same，表示与父BaseDao查询相同的字段。
 ## 该方法是为了简化用户输入。
-func select_same() -> BaseDao:
+func select_same() -> GDSQL.BaseDao:
 	if __parent_union == null:
 		return _assert_false("select_same", "must have parent union!")
 	if __cmd != "":
@@ -314,12 +302,12 @@ func select_same() -> BaseDao:
 	return self
 	
 ## select是否需要表头
-func set_need_head(p_need_head: bool) -> BaseDao:
+func set_need_head(p_need_head: bool) -> GDSQL.BaseDao:
 	__need_head = p_need_head
 	return self
 	
 ## 同时设置表名和别名。table支持不带后缀和带后缀.gsql
-func from(table: String, alias: String = "") -> BaseDao:
+func from(table: String, alias: String = "") -> GDSQL.BaseDao:
 	#if __database == null or __database == "":
 		#return _assert_false("from", "please set db first!"))
 	if not table.ends_with(DATA_EXTENSION):
@@ -343,7 +331,7 @@ func _set_primary_and_autoincre():
 					__autoincrement_keys_def[column["Column Name"]] = 0
 					
 ## 单独设置表名
-func set_table(table: String) -> BaseDao:
+func set_table(table: String) -> GDSQL.BaseDao:
 	from(table, __table_alias)
 	return self
 	
@@ -354,53 +342,53 @@ func get_short_table() -> String:
 	return get_table().get_file().get_basename()
 	
 ## 单独设置表别名
-func set_table_alias(alias: String) -> BaseDao:
+func set_table_alias(alias: String) -> GDSQL.BaseDao:
 	__table_alias = alias
 	return self
 	
 ## data is Array or Dictionary
-func values(data) -> BaseDao:
+func values(data) -> GDSQL.BaseDao:
 	if not (__cmd.begins_with("insert") or __cmd.begins_with("replace")):
 		return _assert_false("values", 
 		"'values' can only be used after 'insert' or 'replace'")
 	__data = data
 	return self
 	
-func sets(data: Dictionary) -> BaseDao:
+func sets(data: Dictionary) -> GDSQL.BaseDao:
 	if __cmd != "update":
 		return _assert_false("sets", "'sets' can only be used after 'update'")
 	__data = data
 	return self
 	
-func insert_into(table: String) -> BaseDao:
+func insert_into(table: String) -> GDSQL.BaseDao:
 	if __cmd != "":
 		return _assert_false("insert_into", "already set command %s" % __cmd)
 	__cmd = "insert_into"
 	set_table(table)
 	return self
 	
-func insert_ignore(table: String) -> BaseDao:
+func insert_ignore(table: String) -> GDSQL.BaseDao:
 	if __cmd != "":
 		return _assert_false("insert_ignore", "already set command %s" % __cmd)
 	__cmd = "insert_ignore"
 	set_table(table)
 	return self
 	
-func insert_or_update(table: String) -> BaseDao:
+func insert_or_update(table: String) -> GDSQL.BaseDao:
 	if __cmd != "":
 		return _assert_false("insert_or_update", "already set command %s" % __cmd)
 	__cmd = "insert_or_update"
 	set_table(table)
 	return self
 	
-func replace_into(table: String) -> BaseDao:
+func replace_into(table: String) -> GDSQL.BaseDao:
 	if __cmd != "":
 		return _assert_false("replace_into", "already set command %s" % __cmd)
 	__cmd = "replace_into"
 	set_table(table)
 	return self
 	
-func update(table: String) -> BaseDao:
+func update(table: String) -> GDSQL.BaseDao:
 	if __cmd != "":
 		return _assert_false("update", "already set command %s" % __cmd)
 	if __table_alias != "":
@@ -409,7 +397,7 @@ func update(table: String) -> BaseDao:
 	set_table(table)
 	return self
 	
-func delete_from(table: String) -> BaseDao:
+func delete_from(table: String) -> GDSQL.BaseDao:
 	if __cmd != "":
 		return _assert_false("delete_from", "already set command %s" % __cmd)
 	__cmd = "delete_from"
@@ -418,7 +406,7 @@ func delete_from(table: String) -> BaseDao:
 	
 ## 如果多次调用，那么这些条件将是`and`的关系。如需避免多次调用，请使用set_where。
 ## 如果是union的，那么where作用于最终数据集上，也就是第一个BaseDao上。
-func where(cond: String) -> BaseDao:
+func where(cond: String) -> GDSQL.BaseDao:
 	if not (__cmd == "select" or __cmd == "update" or __cmd == "delete_from"):
 		return _assert_false("where", 
 		"'where' can only be used after 'select' or 'update' or 'delete_from'")
@@ -427,7 +415,7 @@ func where(cond: String) -> BaseDao:
 		__where.push_back(cond)
 	return self
 	
-func set_where(cond: String) -> BaseDao:
+func set_where(cond: String) -> GDSQL.BaseDao:
 	if __parent_union:
 		__parent_union.set_where(cond)
 		return self
@@ -441,10 +429,10 @@ func set_where(cond: String) -> BaseDao:
 	return self
 	
 ## 返回一个新的baseDao
-func union_all() -> BaseDao:
+func union_all() -> GDSQL.BaseDao:
 	if __cmd != "select":
 		return _assert_false("union_all", "'union_all' can only be used after 'select'")
-	var bd = BaseDao.new()
+	var bd = GDSQL.BaseDao.new()
 	__union_all = bd
 	bd.set_collect_lack_table_mode(__collect_lack_table_enabled)
 	bd.__parent_union = self
@@ -455,25 +443,25 @@ func is_union_all() -> bool:
 	return not (__union_all == null and __parent_union == null)
 	
 ## 设置unionall对象，返回的仍旧是自己
-func set_union_all(base_dao: BaseDao) -> BaseDao:
+func set_union_all(base_dao: GDSQL.BaseDao) -> GDSQL.BaseDao:
 	if __cmd != "select":
 		return _assert_false("set_union_all", "'union_all' can only be used after 'select'")
 	__union_all = base_dao
 	base_dao.__parent_union = self
 	return self
 	
-func remove_union_all(base_dao: BaseDao) -> bool:
+func remove_union_all(base_dao: GDSQL.BaseDao) -> bool:
 	if __union_all == base_dao:
 		__union_all.__parent_union = null
 		__union_all = null
 		return true
 	return false
 	
-func has_union_all(base_dao: BaseDao) -> bool:
+func has_union_all(base_dao: GDSQL.BaseDao) -> bool:
 	return __union_all == base_dao
 	
 ## 聚合分组。支持多个字段，用逗号分隔。
-func group_by(something: String) -> BaseDao:
+func group_by(something: String) -> GDSQL.BaseDao:
 	if __cmd != "select":
 		return _assert_false("order_by", "'order_by' can only be used after 'select'")
 	something = something.strip_edges()
@@ -481,7 +469,7 @@ func group_by(something: String) -> BaseDao:
 		return self
 	#__group_by = Array(fields.split(",")) NOTICE 过于粗糙，改为下面的逻辑
 	#var matches = regex_comma.search_all(something)
-	var matches = GDSQLUtils.search_symbol(something, ",")
+	var matches = GDSQL.GDSQLUtils.search_symbol(something, ",")
 	if not matches.is_empty():
 		var start = 0
 		for i in matches:
@@ -497,7 +485,7 @@ func group_by(something: String) -> BaseDao:
 	return self
 	
 ## 注意，若用该方法，就一次性传入字符串。如果多次使用，只有最后一次的有效。
-func group_by_str(something: String) -> BaseDao:
+func group_by_str(something: String) -> GDSQL.BaseDao:
 	if __cmd != "select":
 		return _assert_false("group_by_str", "'group by' can only be used after 'select'")
 	__group_by.clear()
@@ -505,7 +493,7 @@ func group_by_str(something: String) -> BaseDao:
 	
 ## 注意该方法具有嵌套效果，在union的时候，链条中某个环节的order_by会对后面所有环节进行排序
 ## 如果是union的，那么order by作用于最终数据集上。
-func order_by(field: String, order: ORDER_BY) -> BaseDao:
+func order_by(field: String, order: GDSQL.ORDER_BY) -> GDSQL.BaseDao:
 	if __parent_union:
 		__parent_union.order_by(field, order)
 		return self
@@ -517,7 +505,7 @@ func order_by(field: String, order: ORDER_BY) -> BaseDao:
 	return self
 	
 ## 注意，若用该方法，就一次性传入字符串。如果多次使用，只有最后一次的有效。
-func order_by_str(string: String) -> BaseDao:
+func order_by_str(string: String) -> GDSQL.BaseDao:
 	if __parent_union:
 		__parent_union.order_by_str(string)
 		return self
@@ -532,7 +520,7 @@ func order_by_str(string: String) -> BaseDao:
 	# 匹配逗号的位置，括号、引号内的逗号都不匹配
 	#regex.compile(",(?=(([^']*'){2})*[^']*$)(?=(([^\"]*\"){2})*[^\"]*$)(?![^()]*\\))")
 	#var matches = regex_comma.search_all(string)
-	var matches = GDSQLUtils.search_symbol(string, ",")
+	var matches = GDSQL.GDSQLUtils.search_symbol(string, ",")
 	var arr = []
 	if not matches.is_empty():
 		var start = 0
@@ -559,21 +547,21 @@ func order_by_str(string: String) -> BaseDao:
 				if a_order.countn(" desc", l - 5) > 0 or \
 				a_order.countn("\tdesc", l - 5) > 0 or \
 				a_order.countn("\ndesc", l - 5) > 0:
-					__order_by.push_back([a_order.substr(0, l - 5).strip_edges(), ORDER_BY.DESC])
+					__order_by.push_back([a_order.substr(0, l - 5).strip_edges(), GDSQL.ORDER_BY.DESC])
 					find = true
 			if not find:
 				if a_order.countn(" asc", l - 4) > 0 or \
 				a_order.countn("\tasc", l - 4) > 0 or \
 				a_order.countn("\nasc", l - 4) > 0:
-					__order_by.push_back([a_order.substr(0, l - 4).strip_edges(), ORDER_BY.ASC])
+					__order_by.push_back([a_order.substr(0, l - 4).strip_edges(), GDSQL.ORDER_BY.ASC])
 					find = true
 		if not find:
-			__order_by.push_back([a_order, ORDER_BY.ASC])
+			__order_by.push_back([a_order, GDSQL.ORDER_BY.ASC])
 			
 	return self
 	
 ## 注意该方法具有嵌套效果，在union的时候，链条中某个环节的limit会对后面所有环节进行limit
-func limit(a_offset: int, a_limit: int) -> BaseDao:
+func limit(a_offset: int, a_limit: int) -> GDSQL.BaseDao:
 	if __cmd != "select":
 		return _assert_false("limit", "'limit' can only be used after 'select'")
 	if a_offset < 0 or a_limit <= 0:
@@ -582,7 +570,7 @@ func limit(a_offset: int, a_limit: int) -> BaseDao:
 	__limit = a_limit
 	return self
 	
-func on_duplicate_update(fields: Array[String]) -> BaseDao:
+func on_duplicate_update(fields: Array[String]) -> GDSQL.BaseDao:
 	if not (__cmd == "update" or __cmd == "insert_or_update"):
 		return _assert_false("on_duplicate_update", 
 		"'on_duplicate_update' can only be used after 'update' or 'insert_or_update'")
@@ -590,7 +578,7 @@ func on_duplicate_update(fields: Array[String]) -> BaseDao:
 	return self
 	
 ## 指定主键（适用于没有定义文件的表。如果表有定义文件，则勿设置其他键为主键。）
-func primary_key(a_key: String, auto_increment: bool = true) -> BaseDao:
+func primary_key(a_key: String, auto_increment: bool = true) -> GDSQL.BaseDao:
 	if not (__primary_key_def == "" or a_key == __primary_key_def):
 		return _assert_false("primary_key", 
 		"this table has defination of primary key, do not set a different primary key")
@@ -603,14 +591,14 @@ func primary_key(a_key: String, auto_increment: bool = true) -> BaseDao:
 ## 注意1：如果用户自己设定了某个非主键自增字段的值，则按用户设置的值为准，不会自增；
 ## 注意2：如果用户命令是insert_or_update，只有在新增数据的情况下才可能（也关系到注意1的情况）自增
 ## 注意3：如果操作的表的定义文件中该字段并非自增字段，不影响本次操作临时把其当成自增字段。
-func add_auto_increment_key(a_key: String) -> BaseDao:
+func add_auto_increment_key(a_key: String) -> GDSQL.BaseDao:
 	if not (__cmd.begins_with("insert") or __cmd.begins_with("replace")):
 		return _assert_false("add_auto_increment_key", 
 		"'add_auto_increment_key' can only be used after 'insert' or 'replace'")
 	__autoincrement_keys[a_key] = 0
 	return self
 	
-func left_join(db: String, table: String, alias: String, cond: String, password: String) -> BaseDao:
+func left_join(db: String, table: String, alias: String, cond: String, password: String) -> GDSQL.BaseDao:
 	if not __cmd.begins_with("select"):
 		return _assert_false("left_join", "left_join must use after select")
 	if __table_alias == "":
@@ -632,9 +620,9 @@ func left_join(db: String, table: String, alias: String, cond: String, password:
 	if not table.ends_with(DATA_EXTENSION):
 		table = table + DATA_EXTENSION
 		
-	var left_join_obj: LeftJoin
+	var left_join_obj: GDSQL.LeftJoin
 	if __left_join == null:
-		__left_join = LeftJoin.new()
+		__left_join = GDSQL.LeftJoin.new()
 		left_join_obj = __left_join
 	else:
 		left_join_obj = __left_join.create_left_join_to_end()
@@ -645,27 +633,27 @@ func left_join(db: String, table: String, alias: String, cond: String, password:
 	left_join_obj.set_condition(cond)
 	return self
 	
-func set_left_join(left_join_obj: LeftJoin) -> BaseDao:
+func set_left_join(left_join_obj: GDSQL.LeftJoin) -> GDSQL.BaseDao:
 	__left_join = left_join_obj
 	return self
 	
-func remove_left_join(left_join_obj: LeftJoin) -> bool:
+func remove_left_join(left_join_obj: GDSQL.LeftJoin) -> bool:
 	if __left_join == left_join_obj:
 		__left_join = null
 		return true
 	return false
 	
 ## 联表查询，简化用户输入参数，使用与主表相同的数据库和密码
-func left_join_use_same_db_and_pass(table: String, alias: String, cond: String) -> BaseDao:
+func left_join_use_same_db_and_pass(table: String, alias: String, cond: String) -> GDSQL.BaseDao:
 	return left_join(__database, table, alias, cond, _PASSWORD)
 	
 ## 联表查询，简化用户输入参数，使用用户数据文件夹作为数据库，使用用户数据文件的默认密码
-func left_join_use_user_db_and_default_pass(table: String, alias: String, cond: String) -> BaseDao:
-	return left_join("user://", table, alias, cond, PasswordDef.USER_DAO_PASS)
+func left_join_use_user_db_and_default_pass(table: String, alias: String, cond: String) -> GDSQL.BaseDao:
+	return left_join("user://", table, alias, cond, GDSQL.PasswordDef.USER_DAO_PASS)
 	
 ## 联表查询，简化用户输入参数，使用游戏配置文件夹作为数据库，使用游戏配置文件的默认密码
-func left_join_use_conf_db_and_default_pass(table: String, alias: String, cond: String) -> BaseDao:
-	return left_join("res://src/config/", table, alias, cond, PasswordDef.CONFIG_ENCRYPTED_PASS)
+func left_join_use_conf_db_and_default_pass(table: String, alias: String, cond: String) -> GDSQL.BaseDao:
+	return left_join("res://src/config/", table, alias, cond, GDSQL.PasswordDef.CONFIG_ENCRYPTED_PASS)
 	
 ## 获取联表查询的on条件（外部表格可能用到）。
 func get_left_join_conds() -> Array:
@@ -679,24 +667,24 @@ func get_left_join_conds() -> Array:
 	return ret
 	
 ## 设置表达式中子查询
-func set_sub_queries(p_sub_queries: Dictionary) -> BaseDao:
+func set_sub_queries(p_sub_queries: Dictionary) -> GDSQL.BaseDao:
 	__sub_queries.clear()
 	for k in p_sub_queries:
 		__sub_queries[k] = p_sub_queries[k]
 	return self
 	
 ## 设置额外表名
-func set_input_names(p_input_names: Array) -> BaseDao:
+func set_input_names(p_input_names: Array) -> GDSQL.BaseDao:
 	__input_names = p_input_names
 	return self
 	
 ## 设置额外表数据，和额外表明一一对应，比如[{'id': 1, 'sid': 1}, {'id': 1, 'eid': 1}]
-func set_inputs(p_inputs: Array) -> BaseDao:
+func set_inputs(p_inputs: Array) -> GDSQL.BaseDao:
 	__inputs = p_inputs
 	return self
 	
 #func _collect_lack_table(info) -> bool:
-	#if info is QueryResult:
+	#if info is GDSQL.QueryResult:
 		#if info.lack_data():
 			#__lack_table.append_array(info.get_lack_tables())
 			#return true
@@ -710,12 +698,12 @@ func set_inputs(p_inputs: Array) -> BaseDao:
 ## 将复杂表达式转为简单表达式 
 func _simplify_expression(expression: String, sql_input_names: Dictionary = {}, 
 sql_static_inputs: Array = [], sql_varying_inputs: Dictionary = {}):
-	var possible_sql = SQLParser.replace_nested_sql_expression(expression, 
+	var possible_sql = GDSQL.SQLParser.replace_nested_sql_expression(expression, 
 		sql_input_names, sql_static_inputs, sql_varying_inputs, __request_password)
 	if need_user_enter_password():
 		return null
 	var nested_sql_queries = {}
-	if possible_sql is QueryResult:
+	if possible_sql is GDSQL.QueryResult:
 		__sub_select_index += 1
 		expression = "___Rep%d___" % __sub_select_index
 		nested_sql_queries = {"sql": expression}
@@ -758,7 +746,7 @@ loop_index: int, curr_row: Dictionary, head: Array, table_definations: Dictionar
 		## 只要有一个条件不满足，这条数据就无效
 		#for a_left_join in arr_left_join:
 			#var cond = a_left_join.get_condition()
-			#var conditionWrapper: ConditionWrapper = ConditionWrapper.new()
+			#var conditionWrapper: GDSQL.ConditionWrapper = GDSQL.ConditionWrapper.new()
 			#if not conditionWrapper.cond(cond).check(curr_row):
 				#ok = false
 				#break
@@ -826,7 +814,7 @@ loop_index: int, curr_row: Dictionary, head: Array, table_definations: Dictionar
 						return false # error occur or lacking table
 					_assert_false("check left join on", "Unknown table(s): %s" % ", ".join(__lack_table))
 					return false
-				var condition_wrapper: ConditionWrapper = ConditionWrapper.new()
+				var condition_wrapper: GDSQL.ConditionWrapper = GDSQL.ConditionWrapper.new()
 				var check_result = condition_wrapper.cond(simple_expression[0], 
 					input_names, simple_expression[1]).check(__inputs, acc_row)
 				if not condition_wrapper.get_lacking_tables().is_empty():
@@ -899,7 +887,7 @@ cond: String, all_table_defination: Dictionary, all_datas: Dictionary, curr_depe
 	var indexed_names = all_table_defination[table_alias].filter(func(v): return v.Index).map(func(v):
 		return v["Column Name"]
 	)
-	var conf: ImprovedConfigFile = _get_conf(path, password, indexed_names) # 使用索引
+	var conf: GDSQL.ImprovedConfigFile = _get_conf(path, password, indexed_names) # 使用索引
 	if conf == null:
 		return _assert_false("___select", "failed to get conf:%s" % path)
 	conf.fill_primary_key = fill_primary_key
@@ -933,7 +921,7 @@ cond: String, all_table_defination: Dictionary, all_datas: Dictionary, curr_depe
 			
 		var expression = lru_cache.get_value([simple_expression, __final_input_names, __inputs])
 		if expression == null:
-			expression = GDSQLExpression.new()
+			expression = GDSQL.SQLExpression.new()
 			expression.sql_mode = true
 			expression.set_sql_input_names(__final_input_names)
 			expression.set_nested_sql_queries(simple_expression[1])
@@ -1217,7 +1205,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 			__lack_table.clear()
 			
 		ret_filter = []
-		var condition_wrapper: ConditionWrapper = ConditionWrapper.new()
+		var condition_wrapper: GDSQL.ConditionWrapper = GDSQL.ConditionWrapper.new()
 		if simple_expression:
 			condition_wrapper.cond(simple_expression[0], __final_input_names, simple_expression[1])
 		# NOTICE data可能已经包含了__input_names表和__inputs数据
@@ -1249,7 +1237,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 		return ret_filter
 		
 	# group by 预分组，让每行每列对应某个聚合对象
-	AggregateFunctions.clear_instances()
+	GDSQL.AggregateFunctions.clear_instances()
 	var pre_group_can_remain = {} # 第几行数据（不包括表头） => 可以保留
 	var pre_group = {} # 第几行数据 => {col => agg_func_obj}
 	var pre_group_last_row = {} # map => 最后一行数据的序号。为了找到每个聚合的最后一条数据
@@ -1257,12 +1245,12 @@ func ___select(path: String, fill_primary_key: String = ""):
 	var total_agg_func_obj = {} # col => agg_func_obj。在没有group by但是用了聚合函数的时候有用
 	if __group_by.is_empty():
 		for i in real_select.size():
-			if AggregateFunctions.possible_has_func(real_select[i].select_name):
-				total_agg_func_obj[i] = AggregateFunctions.get_instance(i)
+			if GDSQL.AggregateFunctions.possible_has_func(real_select[i].select_name):
+				total_agg_func_obj[i] = GDSQL.AggregateFunctions.get_instance(i)
 		#for i in __order_by.size():
-			#if AggregateFunctions.possible_has_func(__order_by[i][0]):
+			#if GDSQL.AggregateFunctions.possible_has_func(__order_by[i][0]):
 				#var index = real_select.size() + i
-				#total_agg_func_obj[index] = AggregateFunctions.get_instance(index)
+				#total_agg_func_obj[index] = GDSQL.AggregateFunctions.get_instance(index)
 	else:
 		var group_key = []
 		# NOTICE group by的key不支持子查询，这在group_by函数中进行了约束
@@ -1293,7 +1281,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 					grouped_value.push_back(data[j[0]][j[1]])
 				else: # j is String
 					var m_data = ret_filter[data_index] # map形式的data
-					var value = GDSQLUtils.evaluate_command_with_sql_expression(
+					var value = GDSQL.GDSQLUtils.evaluate_command_with_sql_expression(
 						null, j, [], [], __final_input_names, __inputs, m_data,
 						__sub_queries, __lack_table)
 					if not __lack_table.is_empty():
@@ -1321,12 +1309,12 @@ func ___select(path: String, fill_primary_key: String = ""):
 						map[i] = {}
 					map = map[i]
 				for i in real_select.size():
-					if AggregateFunctions.possible_has_func(real_select[i].select_name):
-						map[i] = AggregateFunctions.get_instance(str(data_index) + "#" + str(i))
+					if GDSQL.AggregateFunctions.possible_has_func(real_select[i].select_name):
+						map[i] = GDSQL.AggregateFunctions.get_instance(str(data_index) + "#" + str(i))
 				for i in __order_by.size():
-					if AggregateFunctions.possible_has_func(__order_by[i][0]):
+					if GDSQL.AggregateFunctions.possible_has_func(__order_by[i][0]):
 						var index = real_select.size() + i
-						map[index] = AggregateFunctions.get_instance(str(data_index) + "#" + str(index))
+						map[index] = GDSQL.AggregateFunctions.get_instance(str(data_index) + "#" + str(index))
 				pre_group[data_index] = map
 			pre_group_last_row[map] = data_index
 			
@@ -1387,7 +1375,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 			#if real_select[i]["is_field"] or real_select[i]["select_name"].contains("."):
 				#real_select[i]["name_4_computing"] = real_select[i]["select_name"]
 			#else:
-				#real_select[i]["name_4_computing"] = ConditionWrapper.modify_dot_to_get(real_select[i]["select_name"])
+				#real_select[i]["name_4_computing"] = GDSQL.ConditionWrapper.modify_dot_to_get(real_select[i]["select_name"])
 		# 求值
 		var data_index = -1
 		for data in ret_filter:
@@ -1422,15 +1410,15 @@ func ___select(path: String, fill_primary_key: String = ""):
 					var agg_func_obj = null
 					# 未使用group by但是使用了聚合函数时，在最后一行数据的时候设置聚合对象的状态为准备就绪
 					if total_agg_func_obj.has(index):
-						agg_func_obj = total_agg_func_obj.get(index) as AggregateFunctions
+						agg_func_obj = total_agg_func_obj.get(index) as GDSQL.AggregateFunctions
 						if data_index == ret_filter.size() - 1:
-							AggregateFunctions.prepare_done(agg_func_obj.id)
+							GDSQL.AggregateFunctions.prepare_done(agg_func_obj.id)
 					elif pre_group.has(data_index) and pre_group[data_index].has(index):
-						agg_func_obj = pre_group[data_index][index] as AggregateFunctions
+						agg_func_obj = pre_group[data_index][index] as GDSQL.AggregateFunctions
 						if last_group_row_index.has(data_index):
-							AggregateFunctions.prepare_done(agg_func_obj.id)
+							GDSQL.AggregateFunctions.prepare_done(agg_func_obj.id)
 					if agg_func_obj:
-						AggregateFunctions.recount(agg_func_obj.id) # 每条数据前需要recount
+						GDSQL.AggregateFunctions.recount(agg_func_obj.id) # 每条数据前需要recount
 						
 					var simple_expression = _simplify_expression(
 						field.name_4_computing, __final_input_names, __inputs, data)
@@ -1441,9 +1429,9 @@ func ___select(path: String, fill_primary_key: String = ""):
 						if __collect_lack_table_enabled:
 							return null
 						return _assert_false("computing field", "Unknown table(s): %s" % ", ".join(__lack_table))
-					var value = GDSQLUtils.evalute_command_with_agg(agg_func_obj, 
+					var value = GDSQL.GDSQLUtils.evalute_command_with_agg(agg_func_obj, 
 						simple_expression[0], [], [], __final_input_names, __inputs, data, simple_expression[1])
-					if value is QueryResult:
+					if value is GDSQL.QueryResult:
 						var rows = value.get_data()
 						if rows.is_empty():
 							value = null
@@ -1535,9 +1523,9 @@ func ___select(path: String, fill_primary_key: String = ""):
 				for i in real_select.size():
 					var agg_func_obj = null
 					if total_agg_func_obj.has(i):
-						agg_func_obj = total_agg_func_obj[i] as AggregateFunctions
-						AggregateFunctions.enable_empty_data_mode(agg_func_obj.id)
-						AggregateFunctions.prepare_done(agg_func_obj.id)
+						agg_func_obj = total_agg_func_obj[i] as GDSQL.AggregateFunctions
+						GDSQL.AggregateFunctions.enable_empty_data_mode(agg_func_obj.id)
+						GDSQL.AggregateFunctions.prepare_done(agg_func_obj.id)
 						var simple_expression = _simplify_expression(
 							real_select[i].name_4_computing, __final_input_names, __inputs, data)
 						if need_user_enter_password():
@@ -1547,7 +1535,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 							if __collect_lack_table_enabled:
 								return null
 							return _assert_false("computing field", "Unknown table(s): %s" % ", ".join(__lack_table))
-						var value = GDSQLUtils.evalute_command_with_agg(agg_func_obj, 
+						var value = GDSQL.GDSQLUtils.evalute_command_with_agg(agg_func_obj, 
 							simple_expression[0], [], [], __final_input_names, __inputs, data, simple_expression[1])
 						# 如果只使用ifnull或ifn，是不算的，不能额外返回一条聚合数据
 						if agg_func_obj._used and agg_func_obj._is_real_aggregate_func:
@@ -1605,7 +1593,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 						data[i] = agg_func_obj_final_col_value[pre_group[real_index][i]][i]
 				grouped_ret.push_back(data)
 				
-	AggregateFunctions.clear_instances()
+	GDSQL.AggregateFunctions.clear_instances()
 	
 	# order by, limit 都需要在主BaseDao上执行，所以非主BaseDao的就可以直接返回了
 	if __parent_union:
@@ -1658,7 +1646,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 				if v1 == v2:
 					continue
 				else:
-					if a_order_by[1] == ORDER_BY.ASC:
+					if a_order_by[1] == GDSQL.ORDER_BY.ASC:
 						if v1 == null and v2 != null:
 							return true
 						if v2 == null and v1 != null:
@@ -1722,7 +1710,7 @@ func _filter_pk_value(dict: Dictionary, collection: Array, constant_mode: bool):
 		if dict.has(op):
 			var ret = [dict[op]]
 			# 涉及运算的，（即便参与运算的都是常数）都不算常数
-			if GDSQLExpression.is_none_const_expression_e_node(dict[op], ret):
+			if GDSQL.SQLExpression.is_none_const_expression_e_node(dict[op], ret):
 				collection.clear()
 				return false # 复杂情况，false终止递归
 				
@@ -1733,8 +1721,8 @@ func _filter_pk_value(dict: Dictionary, collection: Array, constant_mode: bool):
 					collection.push_back(dict[op])
 				elif typeof(dict[op]) in NORMAL_TYPES:
 					pass # 这些类型的忽略，也不需要清空collection
-				elif dict[op] is QueryResult:
-					var rows = (dict[op] as QueryResult).get_data()
+				elif dict[op] is GDSQL.QueryResult:
+					var rows = (dict[op] as GDSQL.QueryResult).get_data()
 					if not rows.is_empty():
 						if rows[0].size() != 1:
 							collection.clear()
@@ -1757,7 +1745,7 @@ func _filter_pk_value(dict: Dictionary, collection: Array, constant_mode: bool):
 			return true # 只可能包含一种操作符
 	if dict.has("in"):
 		var ret = [dict.in]
-		if GDSQLExpression.is_none_const_expression_e_node(dict.in, ret):
+		if GDSQL.SQLExpression.is_none_const_expression_e_node(dict.in, ret):
 			collection.clear()
 			return false
 			
@@ -1782,9 +1770,9 @@ func _filter_pk_value(dict: Dictionary, collection: Array, constant_mode: bool):
 			else:
 				if dict.in.keys() == ["base", "name", "index"]:
 					collection.push_back(dict.in)
-		elif dict.in is QueryResult:
+		elif dict.in is GDSQL.QueryResult:
 			if constant_mode:
-				var rows = (dict.in as QueryResult).get_data()
+				var rows = (dict.in as GDSQL.QueryResult).get_data()
 				if not rows.is_empty():
 					if rows[0].size() != 1:
 						collection.clear()
@@ -1969,7 +1957,7 @@ func __get_table_defination(db_path: String, table_name: String):
 		if not __table_conf_path.has(table_name_base):
 			var db_info = __root_config.filter_first_values("data_path", db_path)
 			if db_info.is_empty():
-				db_info = __root_config.filter_first_values("data_path", GDSQLUtils.globalize_path(db_path))
+				db_info = __root_config.filter_first_values("data_path", GDSQL.GDSQLUtils.globalize_path(db_path))
 				if db_info.is_empty():
 					return _assert_false("__get_table_defination", "database: %s not exist!" % db_path)
 					
@@ -1979,7 +1967,7 @@ func __get_table_defination(db_path: String, table_name: String):
 				
 			__table_conf_path[table_name_base] = table_conf_path
 			
-		var table_config = __CONF_MANAGER.get_conf(__table_conf_path[table_name_base], "")
+		var table_config = GDSQL.ConfManager.get_conf(__table_conf_path[table_name_base], "")
 		columns = table_config.get_value(table_name_base, "columns", [])
 		valid_if_not_exist = table_config.get_value(table_name.get_basename(), "valid_if_not_exist", false)
 		
@@ -2045,12 +2033,12 @@ func _handle_defualt_password():
 			return
 	elif _PASSWORD == "":
 		if __database == "user://":
-			_PASSWORD = PasswordDef.USER_DAO_PASS
+			_PASSWORD = GDSQL.PasswordDef.USER_DAO_PASS
 		elif __database == "res://src/config/":
-			_PASSWORD = PasswordDef.CONFIG_ENCRYPTED_PASS
+			_PASSWORD = GDSQL.PasswordDef.CONFIG_ENCRYPTED_PASS
 			
 ## 执行。注意：在union的情况下，会自动执行第一个BaseDao的query方法。
-func query() -> QueryResult:
+func query() -> GDSQL.QueryResult:
 	var begin_time = Time.get_unix_time_from_system()
 	if __database == "":
 		return _assert_false("query", "database is empty")
@@ -2067,7 +2055,7 @@ func query() -> QueryResult:
 		return null
 		
 	var path = __database.path_join(__table)
-	var result = QueryResult.new()
+	var result = GDSQL.QueryResult.new()
 	match __cmd:
 		"select":
 			var ret = ___select(path)
@@ -2116,7 +2104,7 @@ func query() -> QueryResult:
 							[col_name, type_string(col["Data Type"])])
 						__data[col_name] = v1
 						
-			var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
+			var conf: GDSQL.ImprovedConfigFile = _get_conf(path, _PASSWORD)
 			if conf == null:
 				return _assert_false("query:%s" % __cmd, "load conf err!")
 			var primary_value = str(__data.get(__primary_key))
@@ -2179,7 +2167,7 @@ func query() -> QueryResult:
 						continue
 						
 					if col["Default(Expression)"] != "":
-						__data[col_name] = GDSQLUtils.evaluate_command(null, col["Default(Expression)"])
+						__data[col_name] = GDSQL.GDSQLUtils.evaluate_command(null, col["Default(Expression)"])
 						result._generated_keys[col_name] = __data[col_name]
 						continue
 						
@@ -2224,7 +2212,7 @@ func query() -> QueryResult:
 			# 插入
 			conf.set_values(str(__data.get(__primary_key)), __data)
 			if __auto_commit:
-				__CONF_MANAGER.save_conf_by_origin_password(path)
+				GDSQL.ConfManager.save_conf_by_origin_password(path)
 			result._affected_rows += 1
 			result._last_insert_id = __data.get(__primary_key)
 			result._cost_time = Time.get_unix_time_from_system() - begin_time
@@ -2287,7 +2275,7 @@ func query() -> QueryResult:
 				return result
 				
 			# 更新数据
-			var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
+			var conf: GDSQL.ImprovedConfigFile = _get_conf(path, _PASSWORD)
 			if conf == null:
 				return _assert_false("query:%s" % __cmd, "Load conf err!")
 			for data in datas:
@@ -2309,7 +2297,7 @@ func query() -> QueryResult:
 						result._err = "Error occur."
 						push_error(result.get_err())
 						result._cost_time = Time.get_unix_time_from_system() - begin_time
-						__CONF_MANAGER.remove_conf(path) # discard possible changes
+						GDSQL.ConfManager.remove_conf(path) # discard possible changes
 						return result
 						
 				var primary_value = str(data.get(primary))
@@ -2324,7 +2312,7 @@ func query() -> QueryResult:
 							result._err = "Duplicate entry '%s' for key 'PRIMARY'" % value
 							push_error(result.get_err())
 							result._cost_time = Time.get_unix_time_from_system() - begin_time
-							__CONF_MANAGER.remove_conf(path) # discard possible changes
+							GDSQL.ConfManager.remove_conf(path) # discard possible changes
 							return result
 							
 						conf._erase_section(primary_value)
@@ -2346,7 +2334,7 @@ func query() -> QueryResult:
 					result._affected_rows += 1
 					
 			if __auto_commit and result._affected_rows > 0:
-				__CONF_MANAGER.save_conf_by_origin_password(path)
+				GDSQL.ConfManager.save_conf_by_origin_password(path)
 			result._cost_time = Time.get_unix_time_from_system() - begin_time
 			if not __err.is_empty():
 				result._err = "\n".join(__err)
@@ -2354,7 +2342,7 @@ func query() -> QueryResult:
 			return result
 			
 		"delete_from":
-			var conf: ImprovedConfigFile = _get_conf(path, _PASSWORD)
+			var conf: GDSQL.ImprovedConfigFile = _get_conf(path, _PASSWORD)
 			if conf == null:
 				return _assert_false("query:%s" % __cmd, "Load conf err!")
 				
@@ -2387,7 +2375,7 @@ func query() -> QueryResult:
 					result._affected_rows += 1
 					
 			if __auto_commit and result._affected_rows > 0:
-				__CONF_MANAGER.save_conf_by_origin_password(path)
+				GDSQL.ConfManager.save_conf_by_origin_password(path)
 				
 			result._cost_time = Time.get_unix_time_from_system() - begin_time
 			if not __err.is_empty():
@@ -2412,7 +2400,7 @@ func _evaluate_data(p_names: Array, p_values: Array, columns_def: Array) -> Dict
 			if new_val is String:
 				try = str_to_var(new_val)
 				if typeof(try) == TYPE_NIL:
-					try = GDSQLUtils.evaluate_command_with_sql_expression(null, new_val, p_names, p_values)
+					try = GDSQL.GDSQLUtils.evaluate_command_with_sql_expression(null, new_val, p_names, p_values)
 					if typeof(try) == TYPE_NIL:
 						if col["Data Type"] == TYPE_STRING:
 							continue
@@ -2457,7 +2445,7 @@ func _get_order_by(need_order_by: bool, new_line = false) -> String:
 		
 	var arr = []
 	for i in __order_by:
-		arr.push_back("%s %s" % [i[0], "asc" if i[1] == ORDER_BY.ASC else "desc"])
+		arr.push_back("%s %s" % [i[0], "asc" if i[1] == GDSQL.ORDER_BY.ASC else "desc"])
 	var s = ", ".join(arr)
 	
 	if not need_order_by:

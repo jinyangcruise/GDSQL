@@ -1,6 +1,5 @@
 @tool
 extends RefCounted
-class_name GBatisDelete
 
 var id = ""
 var flush_cache = "true"
@@ -24,7 +23,7 @@ func set_method_return_info(info: Dictionary):
 	
 # INFO 缓存的逻辑在mapper_parser.gd
 func query():
-	var dao = SQLParser.parse_to_dao(sql)
+	var dao = GDSQL.SQLParser.parse_to_dao(sql)
 	if dao == null:
 		assert(false, "Parse to dao failed: " + sql)
 		return null
@@ -51,5 +50,5 @@ func query():
 		return query_result
 		
 	assert(false, "Method of <delete> cannot return %s." % \
-		DataTypeDef.DATA_TYPE_NAMES[method_return_info.type])
+		GDSQL.DataTypeDef.DATA_TYPE_NAMES[method_return_info.type])
 	return null

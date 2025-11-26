@@ -1,6 +1,5 @@
 @tool
 extends RefCounted
-class_name GDSQLExpression
 
 ## SQL模式。
 ## true：开启SQL模式，那么涉及到null的运算始终返回null，AggregateFunctions对象可以参与运算。
@@ -2884,7 +2883,7 @@ func _get_token(r_token: ExpressionToken) -> Error:
 						r_token.type = TokenType.TK_SELF
 					else:
 						# DATA_TYPE_COMMON_NAMES
-						var a_type = DataTypeDef.DATA_TYPE_COMMON_NAMES.get(id, -1)
+						var a_type = GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.get(id, -1)
 						if (a_type >= 0 and a_type != TYPE_OBJECT) : # Object moves to CLASS_TYPE
 							r_token.type = TokenType.TK_BASIC_TYPE
 							r_token.value = a_type
@@ -3065,7 +3064,7 @@ func _parse_expression() -> ExpressionENode:
 					# group_concat 特殊处理. eg: group_concat(distinct id, "+", id order by id separator ':')
 					# NOTICE 不支持identifier是 ExpressionInputNode 来实现parse阶段
 					# 不明确调用group_concat而运行时才明确要调用group_concat
-					if sql_mode and identifier is String and identifier == "group_concat":
+					if sql_mode and identifier is String and identifier.to_lower() == "group_concat":
 						# group_concat具有多列（不仅仅是多行）拼接的功能，所以要用Array包装一下
 						var cons = alloc_node('ConstructorNode') as ExpressionConstructorNode
 						cons.data_type = TYPE_ARRAY
@@ -3090,7 +3089,7 @@ func _parse_expression() -> ExpressionENode:
 							
 						# count(*) 特殊处理，相当于count('*')
 						var subexpr
-						if sql_mode and identifier is String and identifier == "count" and tk.type == TokenType.TK_OP_MUL:
+						if sql_mode and identifier is String and identifier.to_lower() == "count" and tk.type == TokenType.TK_OP_MUL:
 							var cofs3 = str_ofs
 							_get_token(tk)
 							if tk.type == TokenType.TK_PARENTHESIS_CLOSE:
@@ -3101,7 +3100,7 @@ func _parse_expression() -> ExpressionENode:
 							else:
 								_set_error("Expected ')'")
 								return null
-						elif sql_mode and identifier is String and identifier == "group_concat":
+						elif sql_mode and identifier is String and identifier.to_lower() == "group_concat":
 							if index == 0 and tk.type == TokenType.TK_IDENTIFIER and tk.value.to_lower() == "distinct":
 								func_call.method = "distinct_group_concat"
 								# keep str_ofs also: str_ofs = str_ofs
@@ -3125,7 +3124,7 @@ func _parse_expression() -> ExpressionENode:
 							pass # all good
 						elif (tk.type == TokenType.TK_PARENTHESIS_CLOSE) :
 							str_ofs = cofs2
-						elif sql_mode and identifier is String and identifier == "group_concat" and tk.type == TokenType.TK_IDENTIFIER:
+						elif sql_mode and identifier is String and identifier.to_lower() == "group_concat" and tk.type == TokenType.TK_IDENTIFIER:
 							match tk.value.to_lower():
 								"order":
 									if func_call.has_meta('order'):
@@ -4093,7 +4092,7 @@ func contains_input_name(p_node, input_name: String, sub_name: String) -> bool:
 			return false
 		ExpressionENode.Type.TYPE_SQL_SELECT:
 			var select = p_node as ExpressionSelectNode
-			if select.value and select.value is QueryResult:
+			if select.value and select.value is GDSQL.QueryResult:
 				if select.value.get_lack_tables().has(input_name):
 					return true
 				return false
@@ -4208,7 +4207,7 @@ func all_constant_node(p_node):
 			return true
 		ExpressionENode.Type.TYPE_SQL_SELECT:
 			var select = p_node as ExpressionSelectNode
-			if select.value and select.value is QueryResult:
+			if select.value and select.value is GDSQL.QueryResult:
 				return true
 			if select.expression:
 				return select.expression.all_constant_node(select.expression.root)
@@ -4282,7 +4281,7 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 				return true
 				
 			# a[0] == null is ok
-			if sql_mode and a[0] is AggregateFunctions:
+			if sql_mode and a[0] is GDSQL.AggregateFunctions:
 				r_ret[0] = a[0]
 				return false
 
@@ -4295,20 +4294,20 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 					return true
 					
 				# b[0] == null is ok
-				if sql_mode and b[0] is AggregateFunctions:
+				if sql_mode and b[0] is GDSQL.AggregateFunctions:
 					r_ret[0] = b[0]
 					return false
 					
-			if sql_mode and (a[0] is QueryResult or b[0] is QueryResult):
+			if sql_mode and (a[0] is GDSQL.QueryResult or b[0] is GDSQL.QueryResult):
 				# Any row contains null make the final result a null
 				# NOTICE Bad for discover possible error so comment these codes.
-				#if a[0] is QueryResult:
+				#if a[0] is GDSQL.QueryResult:
 					#for row in a[0].get_data():
 						#for i in row:
 							#if i == null:
 								#r_ret[0] = null
 								#return false
-				#if b[0] is QueryResult:
+				#if b[0] is GDSQL.QueryResult:
 					#for row in b[0].get_data():
 						#for i in row:
 							#if i == null:
@@ -4316,7 +4315,7 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 								#return false
 				match op.op:
 					OP_EQUAL, OP_NOT_EQUAL:
-						if a[0] is QueryResult and b[0] is QueryResult and \
+						if a[0] is GDSQL.QueryResult and b[0] is GDSQL.QueryResult and \
 						a[0].get_columns_count() != b[0].get_columns_count():
 							r_error_str[0] = tr("Operand should contain %d column(s)" % 
 								a[0].get_columns_count())
@@ -4325,8 +4324,8 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 						for i in 2:
 							var c = a_and_b[0]
 							var d = a_and_b[1]
-							if c[0] is QueryResult:
-								if d[0] is QueryResult:
+							if c[0] is GDSQL.QueryResult:
+								if d[0] is GDSQL.QueryResult:
 									c[0] = c[0].get_data()
 									d[0] = d[0].get_data()
 								elif d[0] is Array:
@@ -4365,26 +4364,26 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 					OP_BIT_OR, OP_BIT_XOR, OP_BIT_NEGATE, OP_AND, OP_OR:
 						var a_and_b = [a, b]
 						for i in a_and_b.size():
-							if a_and_b[i][0] is QueryResult and _deal_query_result(a_and_b[i], r_error_str):
+							if a_and_b[i][0] is GDSQL.QueryResult and _deal_query_result(a_and_b[i], r_error_str):
 								return true
 					OP_IN:
-						if a[0] is QueryResult and b[0] is QueryResult and \
+						if a[0] is GDSQL.QueryResult and b[0] is GDSQL.QueryResult and \
 						a[0].get_columns_count() != b[0].get_columns_count():
 							r_error_str[0] = tr("Operand should contain %d column(s)" % 
 								a[0].get_columns_count())
 							return true
-						elif a[0] is QueryResult:
+						elif a[0] is GDSQL.QueryResult:
 							if a[0].get_columns_count() != 1:
 								r_error_str[0] = tr("Operand should contain 1 column.")
 								return true
 							a[0] = a[0].get_column(0, [])
-						elif b[0] is QueryResult:
+						elif b[0] is GDSQL.QueryResult:
 							if b[0].get_columns_count() != 1:
 								r_error_str[0] = tr("Operand should contain 1 column.")
 								return true
 							b[0] = b[0].get_column(0, [])
 					OP_NEGATE, OP_POSITIVE, OP_BIT_NEGATE, OP_NOT:
-						if a[0] is QueryResult and _deal_query_result(a, r_error_str):
+						if a[0] is GDSQL.QueryResult and _deal_query_result(a, r_error_str):
 							return true
 					OP_XOR: # 逻辑异或运算符（未在 GDScript 中实现）
 						pass
@@ -4679,11 +4678,11 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 			if (ret) :
 				return true
 				
-			if sql_mode and (base[0] == null or base[0] is AggregateFunctions):
+			if sql_mode and (base[0] == null or base[0] is GDSQL.AggregateFunctions):
 				r_ret[0] = base[0]
 				return false
 				
-			if sql_mode and base[0] is QueryResult and _deal_query_result(base, r_error_str):
+			if sql_mode and base[0] is GDSQL.QueryResult and _deal_query_result(base, r_error_str):
 				return true
 
 			var idx = [null]
@@ -4692,12 +4691,12 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 			if (ret) :
 				return true
 				
-			if sql_mode and (idx[0] == null or idx[0] is AggregateFunctions):
+			if sql_mode and (idx[0] == null or idx[0] is GDSQL.AggregateFunctions):
 				r_ret[0] = idx[0]
 				return false
 
 
-			if sql_mode and idx[0] is QueryResult and _deal_query_result(idx, r_error_str):
+			if sql_mode and idx[0] is GDSQL.QueryResult and _deal_query_result(idx, r_error_str):
 				return true
 				
 			#var valid
@@ -4750,11 +4749,11 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 			if (ret) :
 				return true
 				
-			if sql_mode and (base[0] == null or base[0] is AggregateFunctions):
+			if sql_mode and (base[0] == null or base[0] is GDSQL.AggregateFunctions):
 				r_ret[0] = base[0]
 				return false
 				
-			if sql_mode and base[0] is QueryResult and _deal_query_result(base, r_error_str):
+			if sql_mode and base[0] is GDSQL.QueryResult and _deal_query_result(base, r_error_str):
 				return true
 
 
@@ -4767,7 +4766,7 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 					#return true
 				#named_index[0] = input_names[named_index[0]]
 				
-			#if sql_mode and (named_index[0] == null or named_index[0] is AggregateFunctions):
+			#if sql_mode and (named_index[0] == null or named_index[0] is GDSQL.AggregateFunctions):
 				#r_ret[0] = named_index[0]
 				#return false
 				
@@ -4830,7 +4829,7 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 				if (ret) :
 					return true
 					
-				if sql_mode and value[0] is QueryResult and _deal_query_result(value, r_error_str):
+				if sql_mode and value[0] is GDSQL.QueryResult and _deal_query_result(value, r_error_str):
 					return true
 					
 				arr[i] = value[0]
@@ -4850,7 +4849,7 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 				if (ret) :
 					return true
 	
-				if sql_mode and key[0] is QueryResult and _deal_query_result(key, r_error_str):
+				if sql_mode and key[0] is GDSQL.QueryResult and _deal_query_result(key, r_error_str):
 					return true
 
 				var value = [null]
@@ -4858,7 +4857,7 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 				if (ret) :
 					return true
 
-				if sql_mode and value[0] is QueryResult and _deal_query_result(value, r_error_str):
+				if sql_mode and value[0] is GDSQL.QueryResult and _deal_query_result(value, r_error_str):
 					return true
 
 				d[key[0]] = value[0]
@@ -4881,11 +4880,11 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 				if (ret) :
 					return true
 	
-				if sql_mode and (value[0] == null or value[0] is AggregateFunctions):
+				if sql_mode and (value[0] == null or value[0] is GDSQL.AggregateFunctions):
 					r_ret[0] = value[0]
 					return false
 
-				if sql_mode and value[0] is QueryResult and _deal_query_result(value, r_error_str):
+				if sql_mode and value[0] is GDSQL.QueryResult and _deal_query_result(value, r_error_str):
 					return true
 					
 				arr[i] = value[0]
@@ -5175,11 +5174,11 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 				if (ret) :
 					return true
 	
-				if sql_mode and (value[0] == null or value[0] is AggregateFunctions):
+				if sql_mode and (value[0] == null or value[0] is GDSQL.AggregateFunctions):
 					r_ret[0] = value[0]
 					return false
 					
-				if sql_mode and value[0] is QueryResult and _deal_query_result(value, r_error_str):
+				if sql_mode and value[0] is GDSQL.QueryResult and _deal_query_result(value, r_error_str):
 					return true
 					
 				arr[i] = value[0]
@@ -5207,7 +5206,7 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 		ExpressionENode.Type.TYPE_CLASS:
 			var clazz = p_node as ExpressionClassNode
 			
-			var script = GDSQLUtils.gdscript
+			var script = GDSQL.GDSQLUtils.gdscript
 			script.source_code = "extends Object\nvar value = " + clazz._class
 			var err = script.reload()
 			if err != OK:
@@ -5234,7 +5233,7 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 				r_ret[0] = null
 				return false
 				
-			if sql_mode and base[0] is QueryResult and _deal_query_result(base, r_error_str):
+			if sql_mode and base[0] is GDSQL.QueryResult and _deal_query_result(base, r_error_str):
 				return true
 
 
@@ -5251,12 +5250,12 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 					return true
 					
 				# value[0] == null is ok
-				if sql_mode and value[0] is AggregateFunctions:
-					if not base[0] is AggregateFunctions:
+				if sql_mode and value[0] is GDSQL.AggregateFunctions:
+					if not base[0] is GDSQL.AggregateFunctions:
 						r_ret[0] = value[0]
 						return false
 						
-				if sql_mode and value[0] is QueryResult and _deal_query_result(value, r_error_str):
+				if sql_mode and value[0] is GDSQL.QueryResult and _deal_query_result(value, r_error_str):
 					return true
 					
 				arr.push_back(value[0])
@@ -5271,11 +5270,11 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 				if (ret):
 					return true
 					
-				if sql_mode and method[0] is QueryResult and _deal_query_result(method, r_error_str):
+				if sql_mode and method[0] is GDSQL.QueryResult and _deal_query_result(method, r_error_str):
 					return true
 					
 			# support group_concat
-			if sql_mode and method[0].contains('group_concat') and base[0] is AggregateFunctions:
+			if sql_mode and method[0].contains('group_concat') and base[0] is GDSQL.AggregateFunctions:
 				var index = -1
 				var param = []
 				for i in _call.arguments[0].arguments:
@@ -5547,7 +5546,7 @@ static func is_expression_e_node(obj) -> bool:
 	
 static func is_none_const_expression_e_node(obj, r_ret: Array) -> bool:
 	if obj is ExpressionSelectNode:
-		if obj.value is QueryResult:
+		if obj.value is GDSQL.QueryResult:
 			r_ret[0] = obj.value
 			return false
 		return true
@@ -5702,7 +5701,7 @@ class ExpressionSelectNode extends ExpressionENode:
 	var sql_static_inputs: Array
 	var info # QueryResult / {"sql": String, ___Rep0___: QueryResult, ___Rep1___: {"sql": String, ...}
 	var value
-	var expression: GDSQLExpression
+	var expression#: GDSQL.SQLExpression
 	
 	func _init() -> void:
 		type = ExpressionENode.Type.TYPE_SQL_SELECT
@@ -5752,7 +5751,7 @@ class ExpressionSelectNode extends ExpressionENode:
 				# 如果涉及其他表的数据，现在不能query怎么办？
 				# 比如 select * from t where t.id == a.id，
 				# 这里的办法是QueryResult增加lack_tables属性。
-				var dao = SQLParser.parse_to_dao(info.sql)
+				var dao = GDSQL.SQLParser.parse_to_dao(info.sql)
 				dao.set_collect_lack_table_mode(true)
 				dao.set_need_head(false)
 				dao.set_input_names(input_names)
@@ -5769,7 +5768,7 @@ class ExpressionSelectNode extends ExpressionENode:
 				return false
 			# info.sql类似：1 + (__Rep0__)
 			else:
-				expression = GDSQLExpression.new()
+				expression = GDSQL.SQLExpression.new()
 				expression.sql_mode = true
 				expression.set_sql_input_names(sql_input_names)
 				expression.set_nested_sql_queries(reps)
@@ -5786,7 +5785,7 @@ class ExpressionSelectNode extends ExpressionENode:
 		info = p_info
 		
 		# QueryResult
-		if info is QueryResult:
+		if info is GDSQL.QueryResult:
 			value = info
 		# Dictionary
 		elif info is Dictionary:
@@ -5823,7 +5822,7 @@ class ExpressionSelectNode extends ExpressionENode:
 				# 如果涉及其他表的数据，现在不能query怎么办？
 				# 比如 select * from t where t.id == a.id，
 				# 这里的办法是QueryResult增加lack_tables属性。
-				var dao = SQLParser.parse_to_dao(info.sql)
+				var dao = GDSQL.SQLParser.parse_to_dao(info.sql)
 				dao.set_collect_lack_table_mode(true)
 				dao.set_need_head(false)
 				dao.set_input_names(input_names)
@@ -5840,7 +5839,7 @@ class ExpressionSelectNode extends ExpressionENode:
 							info.sql if value == null else value.get_err()
 			# info.sql类似：1 + (__Rep0__)
 			else:
-				expression = GDSQLExpression.new()
+				expression = GDSQL.SQLExpression.new()
 				expression.sql_mode = true
 				expression.set_sql_input_names(sql_input_names)
 				expression.set_nested_sql_queries(reps)

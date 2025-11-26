@@ -1,6 +1,6 @@
 @tool
 extends RefCounted
-class_name GBatisCache
+
 #<!ELEMENT cache (property*)>
 #<!ATTLIST cache
 #type CDATA #IMPLIED ------------- ❌ not support
@@ -59,7 +59,7 @@ func _refresh():
 func set_cache(method: String, param: Dictionary, value: Variant):
 	var key = [method]
 	for i in param:
-		if i != GBatisMapperParser.BIND:
+		if i != GDSQL.GBatisMapperParser.BIND:
 			key.push_back(param[i])
 	set_cache_by_key(key, value)
 	
@@ -70,7 +70,7 @@ func set_cache_by_key(key, value: Variant):
 func get_cache(method: String, param: Dictionary) -> Array:
 	var key = [method]
 	for i in param:
-		if i != GBatisMapperParser.BIND:
+		if i != GDSQL.GBatisMapperParser.BIND:
 			key.push_back(param[i])
 	_refresh()
 	if _cache.has_key(key):

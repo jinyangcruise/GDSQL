@@ -1,7 +1,6 @@
 ## 一个用于显示对比工具增加/减少行数的Texture2D。显示效果是 +12 -3 这样的纹理。且正数是绿色，
 ## 负数是红色。
 extends Texture2D
-class_name DiffLabelTexture
 
 ## 显示正数，为0时不显示
 @export var add_count: int = 0:

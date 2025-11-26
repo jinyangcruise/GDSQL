@@ -1,31 +1,27 @@
 @tool
 extends MarginContainer
 
-var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
-
 @onready var tree_databases: Tree = %TreeDatabases
 @onready var tab_container: TabContainer = %TabContainer
 @onready var log_table: VBoxContainer = %LogTable
 
 func _ready() -> void:
-	if mgr == null or not mgr.run_in_plugin(self):
+	if GDSQL.WorkbenchManager == null or not GDSQL.WorkbenchManager.run_in_plugin(self):
 		return
 		
-	if not mgr.add_log_history.is_connected(add_a_log):
-		mgr.add_log_history.connect(add_a_log)
+	if not GDSQL.WorkbenchManager.add_log_history.is_connected(add_a_log):
+		GDSQL.WorkbenchManager.add_log_history.connect(add_a_log)
 		
 	log_table.ratios = [22.0, 30.0, 8.0, 1.5, 0.4, 1.0] as Array[float]
 	log_table.columns = ["Status", "#", "Time", "Action", "Message", "Duration / Cost"] as Array[String]
 	
 func _exit_tree():
-	if mgr == null or not mgr.run_in_plugin(self):
+	if GDSQL.WorkbenchManager == null or not GDSQL.WorkbenchManager.run_in_plugin(self):
 		return
-
-	if mgr.add_log_history.is_connected(add_a_log):
-		mgr.add_log_history.disconnect(add_a_log)
 		
-	mgr = null
-
+	if GDSQL.WorkbenchManager.add_log_history.is_connected(add_a_log):
+		GDSQL.WorkbenchManager.add_log_history.disconnect(add_a_log)
+		
 func _on_button_refresh_pressed() -> void:
 	tree_databases.refresh()
 	
@@ -49,7 +45,6 @@ func add_a_log(status: String, begin_timestamp: float, action: String, message, 
 	log_table.scroll_to_bottom()
 	if status != "OK":
 		EditorInterface.get_editor_toaster().push_toast(message, EditorToaster.SEVERITY_ERROR)
-
-
+		
 func _on_button_clear_log_pressed():
 	log_table.datas = []

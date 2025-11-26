@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="189.25137mm"
+   height="189.25137mm"
+   viewBox="0 0 189.25137 189.25137"
+   version="1.1"
+   id="svg1"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:document-units="mm"
+     inkscape:zoom="1.5367214"
+     inkscape:cx="396.62362"
+     inkscape:cy="561.25984"
+     inkscape:window-width="3840"
+     inkscape:window-height="2054"
+     inkscape:window-x="-11"
+     inkscape:window-y="-11"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
+  <defs
+     id="defs1" />
+  <rect
+     style="fill:#445016;fill-rule:evenodd;stroke:#000000;stroke-width:1.0653;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;paint-order:stroke fill markers"
+     id="rect2"
+     width="188.18608"
+     height="188.18608"
+     x="0.53264982"
+     y="0.53265154"
+     inkscape:export-filename="xml.svg"
+     inkscape:export-xdpi="3.2211125"
+     inkscape:export-ydpi="3.2211125" />
+  <path
+     id="path33"
+     style="font-variation-settings:'BEVL' 80, 'wght' 400;fill:#ffffff;fill-rule:evenodd;stroke:#000000;stroke-width:0.55864;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;paint-order:stroke fill markers"
+     d="M 128.08358,14.304286 84.660953,58.676343 61.663153,43.941219 42.159377,34.037452 75.987218,72.579303 37.34724,127.3953 57.461362,110.0096 83.449746,83.613873 108.86332,111.33403 149.09084,111.66554 101.69857,69.313303 175.68638,4.8662257 Z"
+     sodipodi:nodetypes="ccccccccccccc" />
+  <path
+     style="font-variation-settings:'BEVL' 80, 'wght' 400;fill:#ffffff;fill-rule:evenodd;stroke:#000000;stroke-width:0.438113;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;paint-order:stroke fill markers"
+     d="m 13.457403,125.84038 -0.943672,61.21292 15.570477,-0.43415 1.10094,-42.25573 16.828688,30.53411 13.840422,-32.84948 11.795811,43.70283 22.647948,0.28943 -19.502406,-66.56723 -18.558736,2.31539 -11.481266,31.8365 -16.356856,-28.65285 z"
+     id="path35"
+     sodipodi:nodetypes="ccccccccccccc" />
+  <path
+     style="font-variation-settings:'BEVL' 80, 'wght' 400;fill:#ffffff;fill-rule:evenodd;stroke:#000000;stroke-width:0.508419;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;paint-order:stroke fill markers"
+     d="m 95.692077,120.42083 8.756923,66.06905 79.60842,-7.54635 -6.5677,-16.47876 -50.1533,9.85647 -12.14029,-56.52061 -28.061974,0.92404 z"
+     id="path36"
+     sodipodi:nodetypes="cccccccc"
+     inkscape:export-filename="xml.svg"
+     inkscape:export-xdpi="3.2211125"
+     inkscape:export-ydpi="3.2211125" />
+</svg>

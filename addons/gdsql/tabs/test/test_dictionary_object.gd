@@ -19,7 +19,7 @@ func _ready() -> void:
 			"hint_string": ""
 		},
 	}
-	var row := DictionaryObject.new([
+	var row := GDSQL.DictionaryObject.new([
 		["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Default(Expression)", "Comment"], 
 		["id", TYPE_INT, PROPERTY_HINT_NONE , "", true, true, false, true, "", ""]
 	], _hint_string)

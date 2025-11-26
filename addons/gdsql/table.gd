@@ -4,8 +4,6 @@ extends VBoxContainer
 signal row_clicked(row_index: int, mouse_button_index: int, data)
 signal row_deleted(datas) # {index: data}
 
-var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
-
 @onready var header: MarginContainer = $VBoxContainer/Header
 @onready var header_col_model: Control = $HSplitContainer/HeaderColModel
 @onready var row_panel_container: PanelContainer = $Models/RowPanelContainer
@@ -152,7 +150,7 @@ func _notification(what):
 	if what == NOTIFICATION_PREDELETE:
 		# 取消编辑本表中的对象
 		var obj = EditorInterface.get_inspector().get_edited_object()
-		if obj != null and obj is DictionaryObject and datas.has(obj):
+		if obj != null and obj is GDSQL.DictionaryObject and datas.has(obj):
 			EditorInterface.inspect_object(null)
 			
 		if popup_menu_text:
@@ -174,7 +172,7 @@ func _notification(what):
 		#ratios.clear()
 		#column_tips.clear()
 		#columns.clear()
-		mgr = null
+		
 	elif what == NOTIFICATION_ENTER_TREE:
 		_entered_tree = true
 	
@@ -336,8 +334,8 @@ func insert_data(pos: int, a_data):
 		
 func remove_data_at(index: int, free_data: bool):
 	clear_borders()# 可能涉及选框，简单处理，直接清空选框
-	if datas[index] is DictionaryObject:
-		var data = datas[index] as DictionaryObject
+	if datas[index] is GDSQL.DictionaryObject:
+		var data = datas[index] as GDSQL.DictionaryObject
 		if free_data:
 			data.free_all_custom_display_controls()
 		else:
@@ -393,7 +391,7 @@ func add_row(a_data):
 		else:
 			for i in columns.size():
 				data.push_back(a_data.get(a_data.keys()[i], null))
-	elif a_data is DictionaryObject:
+	elif a_data is GDSQL.DictionaryObject:
 		data = []
 		if columns.is_empty():
 			columns = []
@@ -406,7 +404,7 @@ func add_row(a_data):
 			for i in columns.size():
 				data.push_back(a_data._get_by_index(i)) # 不用字段名称去获取是因为columns的字段名称和实际数据的字段名称不一定一致
 	else:
-		push_error("Table only support Array, Dictionary or DictionaryObject.")
+		push_error("Table only support Array, Dictionary or GDSQL.DictionaryObject.")
 		return
 		
 	var a_row = row_panel_container.duplicate()
@@ -491,8 +489,8 @@ func add_row(a_data):
 		if i == data.size() - 1:
 			col_index = -1
 		# 如果该数据提供了自定义显示控件，就直接使用
-		if not handled and col_index >= 0 and a_data is DictionaryObject:
-			a_data = a_data as DictionaryObject
+		if not handled and col_index >= 0 and a_data is GDSQL.DictionaryObject:
+			a_data = a_data as GDSQL.DictionaryObject
 			control = a_data.get_custom_display_control(a_data.__get_index_prop(col_index))
 			handled = is_instance_valid(control)
 			
@@ -540,8 +538,8 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 			control.tooltip_text = str(data)
 			if col_index >= 0:
 				control.gui_input.connect(_label_gui_input.bind(col_index))
-			if col_index >= 0 and a_data is DictionaryObject:
-				a_data = a_data as DictionaryObject
+			if col_index >= 0 and a_data is GDSQL.DictionaryObject:
+				a_data = a_data as GDSQL.DictionaryObject
 				var callback = func(new_value, control_ref: WeakRef):
 					var ctl = control_ref.get_ref()
 					if ctl:
@@ -552,9 +550,9 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 			handled = true
 			control = label_model.duplicate()
 			var p_name = ""
-			if a_data is DictionaryObject:
+			if a_data is GDSQL.DictionaryObject:
 				p_name = a_data.__get_index_prop(col_index).to_snake_case() # NOTICE 真实的属性名称可能包含空格
-			if a_data is DictionaryObject and a_data.get_meta(p_name + "_enum_hint_string_dict", "") != "":
+			if a_data is GDSQL.DictionaryObject and a_data.get_meta(p_name + "_enum_hint_string_dict", "") != "":
 				var hint_string = a_data.get_meta(p_name + "_enum_hint_string_dict") as String
 				var arr_text_value = Array(hint_string.split(",")).map(func(v): return v.split(":"))
 				var find = false
@@ -570,12 +568,12 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 			control.tooltip_text = split_for_tooltip(control.text)
 			if col_index >= 0:
 				control.gui_input.connect(_label_gui_input.bind(col_index))
-			if col_index >= 0 and a_data is DictionaryObject:
-				a_data = a_data as DictionaryObject
+			if col_index >= 0 and a_data is GDSQL.DictionaryObject:
+				a_data = a_data as GDSQL.DictionaryObject
 				var callback = func(new_value, control_ref: WeakRef):
 					var ctl = control_ref.get_ref()
 					if ctl:
-						if a_data is DictionaryObject and a_data.get_meta(p_name + "_enum_hint_string_dict", "") != "":
+						if a_data is GDSQL.DictionaryObject and a_data.get_meta(p_name + "_enum_hint_string_dict", "") != "":
 							var hint_string = a_data.get_meta(p_name + "_enum_hint_string_dict") as String
 							var arr_text_value = Array(hint_string.split(",")).map(func(v): return v.split(":"))
 							var find = false
@@ -603,7 +601,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 					control = texture_rect
 					if col_index >= 0:
 						control.gui_input.connect(_label_gui_input.bind(col_index))
-					if col_index >= 0 and a_data is DictionaryObject:
+					if col_index >= 0 and a_data is GDSQL.DictionaryObject:
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
 							if ctl:
@@ -621,7 +619,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 					control = editor_resource_picker
 					if col_index >= 0:
 						control.gui_input.connect(_label_gui_input.bind(col_index))
-					if col_index >= 0 and a_data is DictionaryObject:
+					if col_index >= 0 and a_data is GDSQL.DictionaryObject:
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
 							if ctl:
@@ -630,7 +628,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 			elif data is Control:
 				handled = true
 				control = data
-			elif data is DictionaryObject:
+			elif data is GDSQL.DictionaryObject:
 				handled = true
 				var grid = GridContainer.new()
 				control = grid
@@ -655,17 +653,17 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 		control.tooltip_text = split_for_tooltip(control.text)
 		if col_index >= 0:
 			control.gui_input.connect(_label_gui_input.bind(col_index))
-		if col_index >= 0 and a_data is DictionaryObject:
-			a_data = a_data as DictionaryObject
+		if col_index >= 0 and a_data is GDSQL.DictionaryObject:
+			a_data = a_data as GDSQL.DictionaryObject
 			var callback = func(new_value, control_ref: WeakRef):
 				var ctl = control_ref.get_ref()
 				if ctl:
 					# 新值的类型仍旧需要用label进行显示
 					if [TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME].has(typeof(new_value)):
 						var p_name = ""
-						if a_data is DictionaryObject:
+						if a_data is GDSQL.DictionaryObject:
 							p_name = a_data.__get_index_prop(col_index).to_snake_case() # NOTICE 真实的属性名称可能包含空格
-						if a_data is DictionaryObject and a_data.get_meta(p_name + "_enum_hint_string_dict", "") != "":
+						if a_data is GDSQL.DictionaryObject and a_data.get_meta(p_name + "_enum_hint_string_dict", "") != "":
 							var hint_string = a_data.get_meta(p_name + "_enum_hint_string_dict") as String
 							var arr_text_value = Array(hint_string.split(",")).map(func(v): return v.split(":"))
 							var find = false
@@ -1738,7 +1736,7 @@ func commit_autofill_border() -> void:
 				
 			# 删除部分的属性设置为该数据类型的默认值
 			for row in range(sub_rect.position.x, sub_rect.end.x):
-				var data = datas[row] as DictionaryObject
+				var data = datas[row] as GDSQL.DictionaryObject
 				for col in range(sub_rect.position.y, sub_rect.end.y):
 					if not (data.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
 						data._set_default_by_index(col)
@@ -1782,23 +1780,23 @@ func commit_autofill_border() -> void:
 					
 			# 根据样本扩展新数据
 			for i in range_outer:
-				var data: DictionaryObject
+				var data: GDSQL.DictionaryObject
 				var xdata = [] # 样本的xdata
 				var ydata = [] # 样本的ydata
 				if outer_is_row:
-					data = datas[i] as DictionaryObject
+					data = datas[i] as GDSQL.DictionaryObject
 					
 				for j in range_inner:
 					xdata.push_back(j)
 					if outer_is_row:
 						ydata.push_back(data._get_by_index(j))
 					else:
-						data = datas[j] as DictionaryObject
+						data = datas[j] as GDSQL.DictionaryObject
 						ydata.push_back(data._get_by_index(i))
 						
 				# 最小二乘法填充数据
-				var ls = LeastSquares.new(xdata, ydata)
-				var fill = func(dict_obj: DictionaryObject, col: int, x: int):
+				var ls = GDSQL.LeastSquares.new(xdata, ydata)
+				var fill = func(dict_obj: GDSQL.DictionaryObject, col: int, x: int):
 					var y = ls.get_y(x)
 					var prop_type = dict_obj.get_prop_type_by_index(col)
 					# 只读属性不能被修改
@@ -1833,13 +1831,13 @@ func commit_vertical_autofill_border() -> void:
 		
 		for j in range(selected_rect.position.x, selected_rect.end.x):
 			xdata.push_back(j)
-			ydata.push_back((datas[j] as DictionaryObject)._get_by_index(col))
+			ydata.push_back((datas[j] as GDSQL.DictionaryObject)._get_by_index(col))
 			
 		# 最小二乘法填充数据
-		var ls = LeastSquares.new(xdata, ydata)
+		var ls = GDSQL.LeastSquares.new(xdata, ydata)
 		for row in range(selected_rect.end.x, datas.size()):
 			var y = ls.get_y(row)
-			var dict_obj = datas[row] as DictionaryObject
+			var dict_obj = datas[row] as GDSQL.DictionaryObject
 			var prop_type = dict_obj.get_prop_type_by_index(col)
 			# 只读属性不能被修改
 			if not (dict_obj.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
@@ -1971,7 +1969,7 @@ func inspect_highlight_rows() -> void:
 		return
 		
 	# 整一个脚本继承该类，得出基类的属性
-	var script = GDSQLUtils.gdscript
+	var script = GDSQL.GDSQLUtils.gdscript
 	script.source_code = "extends %s" % common_class_name
 	script.reload()
 	var obj = script.new()
@@ -1987,7 +1985,7 @@ func inspect_highlight_rows() -> void:
 				break
 				
 	# 去掉dict obj本身的属性。因为我们要用dict obj来构造一个能被检查器检查的属性。
-	var dummy_dict_obj = DictionaryObject.new({})
+	var dummy_dict_obj = GDSQL.DictionaryObject.new({})
 	for i in dummy_dict_obj.get_property_list():
 		for j in p_list.size():
 			if i == p_list[j]:
@@ -2020,7 +2018,7 @@ func inspect_highlight_rows() -> void:
 				
 		impl_data[prop] = common_value
 		
-	var impl_dict_obj = DictionaryObject.new(impl_data, impl_hint)
+	var impl_dict_obj = GDSQL.DictionaryObject.new(impl_data, impl_hint)
 	
 	# 监听值改变的信号，把数据同步到被编辑的对象
 	var on_value_changed_ref = []
@@ -2031,7 +2029,7 @@ func inspect_highlight_rows() -> void:
 				continue
 				
 			# 只读属性不能被修改
-			if data is DictionaryObject:
+			if data is GDSQL.DictionaryObject:
 				if not (data.get_prop_usage(prop) & PROPERTY_USAGE_READ_ONLY):
 					data.set(prop, new_value)
 			else:
@@ -2291,7 +2289,7 @@ func _on_popup_menu_text_index_pressed(index):
 				var arr_content = []
 				for data in get_data_of_highlight_rows():
 					var value = data[col_index] if (data is Array or data is Dictionary) \
-						else (data as DictionaryObject)._get_by_index(col_index)
+						else (data as GDSQL.DictionaryObject)._get_by_index(col_index)
 					match typeof(value):
 						TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME:
 							arr_content.push_back(str(value))
@@ -2309,7 +2307,7 @@ func _on_popup_menu_text_index_pressed(index):
 				var arr_content = []
 				for col_index in columns.size():
 					var value = data[col_index] if (data is Array or data is Dictionary) \
-						else (data as DictionaryObject)._get_by_index(col_index)
+						else (data as GDSQL.DictionaryObject)._get_by_index(col_index)
 					match typeof(value):
 						TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME:
 							arr_content.push_back(var_to_str(value))
@@ -2352,7 +2350,7 @@ func _on_button_select_all_focus_exited():
 	## 如果焦点不在Table中，把检查器中的对象取消掉
 	#if focus_owner == null or not mgr.main_panel.is_ancestor_of(focus_owner):
 		#var obj = EditorInterface.get_inspector().get_edited_object()
-		#if obj != null and obj is DictionaryObject and datas.has(obj):
+		#if obj != null and obj is GDSQL.DictionaryObject and datas.has(obj):
 			#EditorInterface.inspect_object(null)
 
 func _on_button_edit_button_down():
@@ -2379,7 +2377,7 @@ func _on_button_edit_button_down():
 		
 	var selected_cols = []
 	for i in selected_index:
-		selected_cols.push_back((rows.front() as DictionaryObject).__get_index_prop(i))
+		selected_cols.push_back((rows.front() as GDSQL.DictionaryObject).__get_index_prop(i))
 		
 	# NOTICE 每个属性的usage是否一致，如果有不一致的，该属性的usage改成default
 	# 对于表格中的每一行，假定每一行的usage都一样且为默认值。不然的话有些行的某些属性可能是只读的，有些null的属性是可以编辑的，不统一。
@@ -2471,7 +2469,7 @@ func _on_button_edit_button_down():
 		return
 		
 	# 整一个脚本继承该类，得出基类的属性
-	var script = GDSQLUtils.gdscript
+	var script = GDSQL.GDSQLUtils.gdscript
 	script.source_code = "extends %s" % common_class_name
 	script.reload()
 	var obj = script.new()
@@ -2487,7 +2485,7 @@ func _on_button_edit_button_down():
 				break
 				
 	# 去掉dict obj本身的属性。因为我们要用dict obj来构造一个能被检查器检查的属性。
-	var dummy_dict_obj = DictionaryObject.new({})
+	var dummy_dict_obj = GDSQL.DictionaryObject.new({})
 	for i in dummy_dict_obj.get_property_list():
 		for j in p_list.size():
 			if i == p_list[j]:
@@ -2541,7 +2539,7 @@ func _on_button_edit_button_down():
 				
 		impl_data[prop] = common_value
 		
-	var impl_dict_obj = DictionaryObject.new(impl_data, impl_hint)
+	var impl_dict_obj = GDSQL.DictionaryObject.new(impl_data, impl_hint)
 	
 	# 监听值改变的信号，把数据同步到被编辑的对象
 	var on_value_changed_ref = []
@@ -2552,7 +2550,7 @@ func _on_button_edit_button_down():
 				continue
 				
 			# 只读属性不能被修改
-			if data is DictionaryObject:
+			if data is GDSQL.DictionaryObject:
 				if not (data.get_prop_usage(prop) & PROPERTY_USAGE_READ_ONLY):
 					data.set(prop, new_value)
 			else:
@@ -2579,7 +2577,7 @@ func _on_button_edit_button_down():
 	var min_width = 300 if selected_cols.size() == 1 else 600
 	var min_height = 0 if selected_cols.size() < 5 else 800
 	var pos = DisplayServer.mouse_get_position() + Vector2i(20, 15)
-	mgr.create_custom_popup_panel(arr, pos, Callable(), Callable(), Vector2i(min_width, min_height))
+	GDSQL.WorkbenchManager.create_custom_popup_panel(arr, pos, Callable(), Callable(), Vector2i(min_width, min_height))
 	
 	
 func _on_button_copy_pressed():
@@ -2587,7 +2585,7 @@ func _on_button_copy_pressed():
 		return
 		
 	if selected_borders.size() > 1:
-		mgr.create_accept_dialog("Can not apply copy to multi-selected areas.")
+		GDSQL.WorkbenchManager.create_accept_dialog("Can not apply copy to multi-selected areas.")
 		return
 		
 	var rect = selected_borders.front()["rect"] as Rect2
@@ -2604,10 +2602,10 @@ func _on_button_copy_pressed():
 				map[i_index][j_index] = datas[i][j]
 			elif datas[i] is Dictionary:
 				map[i_index][j_index] = datas[i][(datas[i] as Dictionary).keys()[j]]
-			elif datas[i] is DictionaryObject:
-				map[i_index][j_index] = (datas[i] as DictionaryObject)._get_by_index(j)
+			elif datas[i] is GDSQL.DictionaryObject:
+				map[i_index][j_index] = (datas[i] as GDSQL.DictionaryObject)._get_by_index(j)
 			else:
-				push_error("Table only support Array, Dictionary or DictionaryObject.")
+				push_error("Table only support Array, Dictionary or GDSQL.DictionaryObject.")
 				
 	var content = "~~@@GDSQL-TABLE-COPY-CONTENT@@~~" + var_to_str(map)
 	DisplayServer.clipboard_set(content)
@@ -2635,12 +2633,12 @@ func _on_button_paste_pressed():
 		for border in selected_borders:
 			var rect = border["rect"] as Rect2
 			for i in range(rect.position.x, rect.end.x):
-				var dict_obj = datas[i] as DictionaryObject
+				var dict_obj = datas[i] as GDSQL.DictionaryObject
 				for j in range(rect.position.y, rect.end.y):
 					if dict_obj.get_prop_usage_by_index(j) & PROPERTY_USAGE_READ_ONLY:
 						var msg = "Skip a readonly cell. row: %d, col: %d" % [i, j]
 						push_warning(msg)
-						mgr.add_log_history.emit("Warn", 0, "Paste", msg)
+						GDSQL.WorkbenchManager.add_log_history.emit("Warn", 0, "Paste", msg)
 					else:
 						dict_obj._set_by_index(j, type_convert(content, dict_obj.get_prop_type_by_index(j)))
 	else:
@@ -2658,7 +2656,7 @@ func _on_button_paste_pressed():
 			for i in rows:
 				i_index += 1
 				i_index %= map_width
-				var dict_obj = datas[i] as DictionaryObject
+				var dict_obj = datas[i] as GDSQL.DictionaryObject
 				var j_index = -1
 				for j in cols:
 					j_index += 1
@@ -2666,7 +2664,7 @@ func _on_button_paste_pressed():
 					if dict_obj.get_prop_usage_by_index(j) & PROPERTY_USAGE_READ_ONLY:
 						var msg = "Skip a readonly cell. row: %d, col: %d" % [i, j]
 						push_warning(msg)
-						mgr.add_log_history.emit("Warn", 0, "Paste", msg)
+						GDSQL.WorkbenchManager.add_log_history.emit("Warn", 0, "Paste", msg)
 					else:
 						dict_obj._set_by_index(j, type_convert(map[i_index][j_index], dict_obj.get_prop_type_by_index(j)))
 			var border = {
@@ -2680,7 +2678,7 @@ func _on_button_paste_pressed():
 				var rect = border["rect"] as Rect2
 				if not ((rect.size.x == 1 and rect.size.y == 1) \
 				or int(rect.size.x) % map_width == 0 or int(rect.size.y) % map_height == 0):
-					mgr.create_accept_dialog("Cannot paste because the target areas' shape are different with source area.")
+					GDSQL.WorkbenchManager.create_accept_dialog("Cannot paste because the target areas' shape are different with source area.")
 					return
 					
 			var selected_borders_bak = selected_borders.duplicate(true)
@@ -2695,7 +2693,7 @@ func _on_button_paste_pressed():
 				for i in rows:
 					i_index += 1
 					i_index %= map_width
-					var dict_obj = datas[i] as DictionaryObject
+					var dict_obj = datas[i] as GDSQL.DictionaryObject
 					var j_index = -1
 					for j in cols:
 						j_index += 1
@@ -2703,7 +2701,7 @@ func _on_button_paste_pressed():
 						if dict_obj.get_prop_usage_by_index(j) & PROPERTY_USAGE_READ_ONLY:
 							var msg = "Skip a readonly cell. row: %d, col: %d" % [i, j]
 							push_warning(msg)
-							mgr.add_log_history.emit("Warn", 0, "Paste", msg)
+							GDSQL.WorkbenchManager.add_log_history.emit("Warn", 0, "Paste", msg)
 						else:
 							dict_obj._set_by_index(j, type_convert(map[i_index][j_index], dict_obj.get_prop_type_by_index(j)))
 				var border = {
@@ -2718,7 +2716,7 @@ func _on_button_delete_pressed():
 	for border in selected_borders:
 		var rect = border["rect"] as Rect2
 		for row in range(rect.position.x, rect.end.x):
-			var data = datas[row] as DictionaryObject
+			var data = datas[row] as GDSQL.DictionaryObject
 			for col in range(rect.position.y, rect.end.y):
 				if not (data.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
 					data._set_default_by_index(col)

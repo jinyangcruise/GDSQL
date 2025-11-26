@@ -2,7 +2,6 @@
 extends GraphEdit
 
 signal change_tab_title(page: Control, title: String)
-var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
 
 var SQLGraphNode = preload("res://addons/gdsql/tabs/sql_graph_node/graph_node.tscn")
 
@@ -72,7 +71,6 @@ func _exit_tree():
 	for node in get_children():
 		if node is GraphNode:
 			node_close(node)
-	mgr = null
 	
 func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
 	# { "type": "files", "files": ["res://src/dao/t_hero.gdmappergraph"], "from": @Tree@6840:<Tree#603409380691> }
@@ -89,7 +87,7 @@ func _drop_data(at_position: Vector2, data: Variant) -> void:
 		if data.has("type") and data.has("files") and data.get("type") == "files":
 			for i in data.get("files"):
 				if i is String and i.ends_with(".gdmappergraph"):
-					mgr.open_mapper_graph_file_tab.emit(i)
+					GDSQL.WorkbenchManager.open_mapper_graph_file_tab.emit(i)
 			return
 			
 		if data.get("__table_item", false):
@@ -169,7 +167,7 @@ asize = null, pos_offset = null, aname = ""):
 	
 	var text_enum_suggestion = TEXT_ENUM.instantiate()
 	text_enum_suggestion.ready.connect(func():
-		text_enum_suggestion.setup(DataTypeDef.DATA_TYPE_COMMON_NAMES.keys(), true)
+		text_enum_suggestion.setup(GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.keys(), true)
 		text_enum_suggestion._custom_value_submitted(prop_type)
 		for i in ob_link_type.item_count:
 			if ob_link_type.get_item_id(i) == type:
@@ -225,7 +223,7 @@ asize = null, pos_offset = null, aname = ""):
 		label_col_name.text = i.get("Column Name")
 		var j = i.duplicate()
 		j["Data Type"] = '%s(%s)' % [i["Data Type"], 
-			DataTypeDef.DATA_TYPE_COMMON_NAMES.find_key(i["Data Type"])]
+			GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.find_key(i["Data Type"])]
 		label_col_name.tooltip_text = var_to_str(j)
 		label_col_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		label_col_name.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -446,7 +444,7 @@ func node_close(node: GraphNode):
 	
 func _on_delete_nodes_request(nodes: Array[StringName]) -> void:
 	var titles = nodes.map(func(v): return get_node(str(v)).title)
-	mgr.create_confirmation_dialog(
+	GDSQL.WorkbenchManager.create_confirmation_dialog(
 		split_for_long_content(
 			"Are you sure to delete selected nodes `%s`?" % ", ".join(titles)),
 		func():
@@ -531,7 +529,7 @@ to_node: StringName, to_port: int) -> void:
 		#
 		#var text_enum_suggestion = TEXT_ENUM.instantiate()
 		#text_enum_suggestion.ready.connect(func():
-			#text_enum_suggestion.setup(DataTypeDef.DATA_TYPE_COMMON_NAMES.keys(), true)
+			#text_enum_suggestion.setup(GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.keys(), true)
 			#text_enum_suggestion.value = prop_type
 			#text_enum_suggestion.update_property()
 		#)

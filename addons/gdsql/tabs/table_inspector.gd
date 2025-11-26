@@ -1,8 +1,6 @@
 @tool
 extends ScrollContainer
 
-var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
-
 @onready var table: VBoxContainer = $VBoxContainer/Table
 @onready var line_edit_schema: LineEdit = $VBoxContainer/HBoxContainer/LineEditSchema
 @onready var line_edit_table_name: LineEdit = $VBoxContainer/HBoxContainer2/LineEditTableName
@@ -93,12 +91,12 @@ static var _hint_string = {
 static func _static_init() -> void:
 # https://github.com/godotengine/godot/blob/da81ca62a5f6d615516929896caa0b6b09ceccfc/editor/editor_inspector.cpp#L4129
 # https://github.com/godotengine/godot/blob/da81ca62a5f6d615516929896caa0b6b09ceccfc/modules/gdscript/gdscript_parser.cpp#L4020
-	_hint_string["Data Type"]["hint_string"] = ",".join(DataTypeDef.DATA_TYPE_NAME_INDEXES)
-	_hint_string["Hint"]["hint_string"] = ",".join(DataTypeDef.PROPERTY_HINT_INDEXES)
+	_hint_string["Data Type"]["hint_string"] = ",".join(GDSQL.DataTypeDef.DATA_TYPE_NAME_INDEXES)
+	_hint_string["Hint"]["hint_string"] = ",".join(GDSQL.DataTypeDef.PROPERTY_HINT_INDEXES)
 
 # 为Data Type和Hint设置自定义显示控件和数据绑定逻辑，否则会默认显示为一个整数，难以让用户分辨
 static func update_callback(new_value, property, dict_obj_ref: WeakRef, readable_map: Array):
-	var dict_obj = dict_obj_ref.get_ref() as DictionaryObject
+	var dict_obj = dict_obj_ref.get_ref() as GDSQL.DictionaryObject
 	if dict_obj:
 		var label = dict_obj.get_custom_display_control(property) as Label
 		#label.text = (readable_map[new_value] as String).split(":")[0]
@@ -125,13 +123,12 @@ func _ready() -> void:
 		
 func _exit_tree():
 	raw_datas = []
-	for i: DictionaryObject in table.datas:
+	for i: GDSQL.DictionaryObject in table.datas:
 		i.get_custom_display_control("Data Type").queue_free()
 		i.get_custom_display_control("Hint").queue_free()
 	update_total_data_count = Callable()
-	mgr = null
 	
-func _gen_row() -> DictionaryObject:
+func _gen_row() -> GDSQL.DictionaryObject:
 	var label_data_type := Label.new()
 	label_data_type.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	label_data_type.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -139,14 +136,14 @@ func _gen_row() -> DictionaryObject:
 	
 	var label_hint = label_data_type.duplicate()
 	
-	var row := DictionaryObject.new([
+	var row := GDSQL.DictionaryObject.new([
 		table.columns, 
 		["new_table_col", TYPE_INT, PROPERTY_HINT_NONE, "", false, false, false, false, false, "", ""]
 	], _hint_string)
 	row.set_custom_display_control("Data Type", label_data_type, 
-		update_callback.bind("Data Type", weakref(row), DataTypeDef.DATA_TYPE_NAMES), true)
+		update_callback.bind("Data Type", weakref(row), GDSQL.DataTypeDef.DATA_TYPE_NAMES), true)
 	row.set_custom_display_control("Hint", label_hint, 
-		update_callback.bind("Hint", weakref(row), DataTypeDef.PROPERTY_HINT_NAMES), true)
+		update_callback.bind("Hint", weakref(row), GDSQL.DataTypeDef.PROPERTY_HINT_NAMES), true)
 	return row
 	
 func _on_button_apply_pressed():
@@ -155,7 +152,7 @@ func _on_button_apply_pressed():
 
 func _on_button_enter_password_pressed():
 	if update_total_data_count != null:
-		mgr.request_user_enter_password.emit(schema, table_name, "", update_total_data_count)
+		GDSQL.WorkbenchManager.request_user_enter_password.emit(schema, table_name, "", update_total_data_count)
 
 
 func _on_button_show_in_file_manager_pressed():
@@ -166,5 +163,5 @@ func _on_button_show_in_file_manager_pressed():
 
 func _on_button_open_config_pressed():
 	if schema != "" and table_name != "":
-		var path = ProjectSettings.globalize_path(mgr.databases[schema]["config_path"] + table_name + CONFIG_EXTENSION)
+		var path = ProjectSettings.globalize_path(GDSQL.WorkbenchManager.databases[schema]["config_path"] + table_name + CONFIG_EXTENSION)
 		OS.shell_open(path)

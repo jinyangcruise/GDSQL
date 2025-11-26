@@ -1,5 +1,4 @@
 extends RefCounted
-class_name QueryResult
 
 var _err = OK
 var _affected_rows = 0

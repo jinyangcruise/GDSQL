@@ -1,8 +1,9 @@
 @tool
 extends Tree
 
-var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
-
+var mgr: GDSQL.WorkbenchManagerClass:
+	get: return GDSQL.WorkbenchManager
+	
 @onready var popup_menu_database: PopupMenu = $PopupMenuDatabase
 @onready var popup_menu_table_item: PopupMenu = $PopupMenuTableItem
 @onready var popup_menu_tables: PopupMenu = $PopupMenuTables
@@ -32,10 +33,9 @@ var databases: Dictionary
 
 var database_items: Array[TreeItem] = []
 var _default_database_path: String = ""
-var _config_file: ImprovedConfigFile:
+var _config_file: GDSQL.ImprovedConfigFile:
 	get:
-		return __CONF_MANAGER.get_conf(ROOT_CONFIG, "")
-var __CONF_MANAGER: ConfManagerClass # 管理表数据
+		return GDSQL.ConfManager.get_conf(ROOT_CONFIG, "")
 var _password_correct: Array # 保存输入正确密码的表. [datapath]
 
 var disk_changed: ConfirmationDialog
@@ -62,7 +62,7 @@ func _notification(what: int) -> void:
 		disk_changed_list.columns = 2
 		var r = disk_changed_list.create_item()
 		disk_changed_list.hide_root = true
-		for path: String in __CONF_MANAGER._conf_modified_time:
+		for path: String in GDSQL.ConfManager._conf_modified_time:
 			if not FileAccess.file_exists(path):
 				var ti = disk_changed_list.create_item(r)
 				ti.set_meta("path", path)
@@ -71,7 +71,7 @@ func _notification(what: int) -> void:
 				ti.set_text(1, path)
 				ti.add_button(1, get_theme_icon("Clear", "EditorIcons"), 0, 
 					false, tr("Clear cache"))
-			elif FileAccess.get_modified_time(path) != __CONF_MANAGER._conf_modified_time[path]:
+			elif FileAccess.get_modified_time(path) != GDSQL.ConfManager._conf_modified_time[path]:
 				var ti = disk_changed_list.create_item(r)
 				ti.set_meta("path", path)
 				ti.set_icon(0, get_theme_icon("Edit", "EditorIcons"))
@@ -104,12 +104,12 @@ func refresh_databases():
 		
 		var table_confs = _get_specific_extension_files(config_path, CONFIG_EXTENSION.substr(1))
 		for file_name in table_confs:
-			var table_conf = ImprovedConfigFile.new()
+			var table_conf = GDSQL.ImprovedConfigFile.new()
 			table_conf.load(config_path + file_name)
 			var table_name = file_name.get_basename()
 			databases[db_name]["tables"][table_name] = table_conf.get_section_values(table_name)
 			if databases[db_name]["tables"][table_name].get("valid_if_not_exist", false):
-				__CONF_MANAGER.mark_valid_if_not_exit(
+				GDSQL.ConfManager.mark_valid_if_not_exit(
 					(databases[db_name]["data_path"] as String).path_join(table_name) + DATA_EXTENSION)
 			
 	mgr.databases = databases
@@ -412,7 +412,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		exist_col[i["Column Name"]] = true
 		
 	# 注意，这里随便传了一个密码，因为实际操作中用户已经输入过密码了，__CONF_MANAGER后续会从缓存中获取，无需再次输入密码
-	var old_table_data_file = __CONF_MANAGER.get_conf(old_table_data_path, "")
+	var old_table_data_file = GDSQL.ConfManager.get_conf(old_table_data_path, "")
 	var old_values = old_table_data_file.get_all_section_values() # 数据表中的旧数据
 	var warnings = []
 	# 数据为空就没必要检查字段了
@@ -480,7 +480,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 	var apply = func() -> void:
 			
 		var new_table_data_file = old_table_data_file if old_table_data_path == new_table_data_path \
-			else __CONF_MANAGER.create_conf(new_table_data_path, "")
+			else GDSQL.ConfManager.create_conf(new_table_data_path, "")
 		new_table_data_file._clear()
 		
 		for i: Dictionary in old_values:
@@ -489,15 +489,15 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 				var col_name = c["Column Name"]
 				var default_value = null
 				if not (c["Default(Expression)"] as String).strip_edges().is_empty():
-					default_value = GDSQLUtils.evaluate_command(null, c["Default(Expression)"])
+					default_value = GDSQL.GDSQLUtils.evaluate_command(null, c["Default(Expression)"])
 				if default_value == null:
-					default_value = DataTypeDef.DEFUALT_VALUES[c["Data Type"]]
+					default_value = GDSQL.DataTypeDef.DEFUALT_VALUES[c["Data Type"]]
 				new_table_data_file.set_value(primary_value, col_name, i.get(col_name, default_value))
 				
-		__CONF_MANAGER.save_conf_by_same_password(new_table_data_path, old_table_data_path)
+		GDSQL.ConfManager.save_conf_by_same_password(new_table_data_path, old_table_data_path)
 		msgs.push_back("1 file: %s has been saved." % new_table_data_path)
 		if new_table_data_path != old_table_data_path:
-			__CONF_MANAGER.remove_conf(old_table_data_path)
+			GDSQL.ConfManager.remove_conf(old_table_data_path)
 			_password_correct.erase(old_table_data_path)
 			
 		var config_file = ConfigFile.new()
@@ -583,12 +583,12 @@ func set_password(db_name: String, table_name: String, password: String) -> void
 	msgs.push_back("1 file: %s has been saved." % table_conf_path)
 	
 	if table_data_file_exist:
-		__CONF_MANAGER.get_conf(table_data_path, "") # load data
-		__CONF_MANAGER.save_conf_by_password(table_data_path, password)
+		GDSQL.ConfManager.get_conf(table_data_path, "") # load data
+		GDSQL.ConfManager.save_conf_by_password(table_data_path, password)
 		msgs.push_back("1 file: %s has been encrypted." % table_data_path)
 	
 	# 清除该表数据的缓存，可以让用户使用该表时必须输入密码，以加深印象
-	__CONF_MANAGER.remove_conf(table_data_path)
+	GDSQL.ConfManager.remove_conf(table_data_path)
 	_password_correct.erase(table_data_path)
 	
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
@@ -637,8 +637,8 @@ func clear_password(db_name: String, table_name: String) -> void:
 	
 	# 注意，这里随便传了一个密码，因为实际操作中用户已经输入过密码了，__CONF_MANAGER后续会从缓存中获取，无需再次输入密码
 	if table_data_file_exist:
-		__CONF_MANAGER.get_conf(table_data_path, "") # load data 以防万一上面说的“实际操作。。。”并未发生
-		__CONF_MANAGER.save_conf_by_password(table_data_path, "")
+		GDSQL.ConfManager.get_conf(table_data_path, "") # load data 以防万一上面说的“实际操作。。。”并未发生
+		GDSQL.ConfManager.save_conf_by_password(table_data_path, "")
 		msgs.push_back("1 file: %s has been decrypt." % table_data_path)
 	
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
@@ -693,12 +693,12 @@ func change_password(db_name: String, table_name: String, password: String) -> v
 	
 	# 注意，这里随便传了一个密码，因为实际操作中用户已经输入过密码了，__CONF_MANAGER后续会从缓存中获取，无需再次输入密码
 	if table_data_file_exist:
-		__CONF_MANAGER.get_conf(table_data_path, "") # load data 以防万一上面说的“实际操作。。。”并未发生
-		__CONF_MANAGER.save_conf_by_password(table_data_path, password)
+		GDSQL.ConfManager.get_conf(table_data_path, "") # load data 以防万一上面说的“实际操作。。。”并未发生
+		GDSQL.ConfManager.save_conf_by_password(table_data_path, password)
 		msgs.push_back("1 file: %s has been encrypted." % table_data_path)
 	
 	# 清除该表数据的缓存，可以让用户使用该表时必须输入密码，以加深印象
-	__CONF_MANAGER.remove_conf(table_data_path)
+	GDSQL.ConfManager.remove_conf(table_data_path)
 	_password_correct.erase(table_data_path)
 	
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
@@ -747,7 +747,7 @@ func drop_table_from_config(db_name: String, table_name: String) -> void:
 		msgs.push_back("1 file: %s has been moved to trash." % conf_path)
 	else:
 		msgs.push_back("1 file: %s intended to move to trash but not found." % conf_path)
-	__CONF_MANAGER.remove_conf(table_conf_path)
+	GDSQL.ConfManager.remove_conf(table_conf_path)
 	
 	# remove data file
 	var db_absolute_path = ProjectSettings.globalize_path(databases[db_name]["data_path"])
@@ -757,7 +757,7 @@ func drop_table_from_config(db_name: String, table_name: String) -> void:
 		msgs.push_back("1 file: %s has been moved to trash." % data_path)
 	else:
 		msgs.push_back("1 file: %s intended to move to trash but not found." % data_path)
-	__CONF_MANAGER.remove_conf(data_path)
+	GDSQL.ConfManager.remove_conf(data_path)
 	_password_correct.erase(data_path)
 	
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
@@ -792,8 +792,8 @@ func truncate_table_from_config(db_name: String, table_name: String) -> void:
 	var data_file = ConfigFile.new()
 	data_file.save(data_path)
 	
-	__CONF_MANAGER.get_conf(data_path, "")._clear()
-	__CONF_MANAGER.save_conf_by_origin_password(data_path)
+	GDSQL.ConfManager.get_conf(data_path, "")._clear()
+	GDSQL.ConfManager.save_conf_by_origin_password(data_path)
 	msgs.push_back("1 file: %s has been overwritten to an empty file." % data_path)
 	
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
@@ -804,11 +804,6 @@ func _ready():
 	set_translation_domain("godot.editor")
 	if mgr == null or not mgr.run_in_plugin(self):
 		return
-		
-	if Engine.has_singleton("ConfManager"):
-		__CONF_MANAGER = Engine.get_singleton("ConfManager")
-	else:
-		__CONF_MANAGER = ConfManager
 		
 	if not mgr.user_confirm_add_schema.is_connected(add_db_to_config):
 		mgr.user_confirm_add_schema.connect(add_db_to_config, CONNECT_DEFERRED)
@@ -858,7 +853,7 @@ func _ready():
 func _on_disk_changed_list_button_clicked(item: TreeItem, _column: int, id: int, _mouse_button_index: int):
 	match id:
 		0, 1:
-			__CONF_MANAGER.remove_conf(item.get_meta("path"))
+			GDSQL.ConfManager.remove_conf(item.get_meta("path"))
 			_password_correct.erase(item.get_meta("path"))
 			refresh()
 		2:
@@ -871,7 +866,7 @@ func _on_disk_changed_list_button_clicked(item: TreeItem, _column: int, id: int,
 func _reload_modified_scenes():
 	for i in disk_changed_list.get_root().get_child_count():
 		var path = disk_changed_list.get_root().get_child(i).get_meta("path")
-		__CONF_MANAGER.remove_conf(path)
+		GDSQL.ConfManager.remove_conf(path)
 		_password_correct.erase(path)
 	refresh()
 	
@@ -880,7 +875,6 @@ func _exit_tree():
 		return
 		
 	_clear()
-	__CONF_MANAGER = null
 	if mgr.user_confirm_add_schema.is_connected(add_db_to_config):
 		mgr.user_confirm_add_schema.disconnect(add_db_to_config)
 	if mgr.user_confirm_add_table.is_connected(add_table_to_config):
@@ -1009,7 +1003,7 @@ func add_table(db: TreeItem, table_name: String):
 	if databases[db_name]["tables"][table_name]["encrypted"] != "":
 		var texture
 		var tooltip
-		if __CONF_MANAGER.has_conf(data_path) and _password_correct.has(data_path):
+		if GDSQL.ConfManager.has_conf(data_path) and _password_correct.has(data_path):
 			texture = preload("res://addons/gdsql/img/unlock.png")
 			tooltip = "This table is encrypted and you have entered the right password."
 		else:
@@ -1228,13 +1222,13 @@ func _need_password(table_item: TreeItem, try_password: String) -> bool:
 	var table_path = table_item.get_meta("data_path")
 	# 加密的表首次操作时需要输入密码
 	var valid_pass_md5 = databases[db_name]["tables"][table_name]["encrypted"]
-	if valid_pass_md5 == "" or (__CONF_MANAGER.has_conf(table_path) and _password_correct.has(table_path)):
+	if valid_pass_md5 == "" or (GDSQL.ConfManager.has_conf(table_path) and _password_correct.has(table_path)):
 		return false
 		
 	if try_password != "":
 		if valid_pass_md5 == try_password.md5_text():
 			# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
-			__CONF_MANAGER.get_conf(table_path, try_password)
+			GDSQL.ConfManager.get_conf(table_path, try_password)
 			_password_correct.push_back(table_path)
 		return false
 	return true
@@ -1285,11 +1279,11 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 	var db_name = table_item.get_meta("db_name")
 	var table_name = table_item.get_meta("table_name")
 	var table_path = table_item.get_meta("data_path")
-	var password_dict_obj = DictionaryObject.new({"Password": ""}, 
+	var password_dict_obj = GDSQL.DictionaryObject.new({"Password": ""}, 
 		{"Password": {"hint": PROPERTY_HINT_PASSWORD}})
 	# 加密的表首次操作时需要输入密码
 	var valid_pass_md5 = databases[db_name]["tables"][table_name]["encrypted"]
-	if valid_pass_md5 == "" or (__CONF_MANAGER.has_conf(table_path) and _password_correct.has(table_path)):
+	if valid_pass_md5 == "" or (GDSQL.ConfManager.has_conf(table_path) and _password_correct.has(table_path)):
 		if pass_callback.is_valid():
 			pass_callback.call()
 		return
@@ -1300,7 +1294,7 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 	if try_password != "":
 		if valid_pass_md5 == try_password.md5_text():
 			# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
-			__CONF_MANAGER.get_conf(table_path, try_password)
+			GDSQL.ConfManager.get_conf(table_path, try_password)
 			_password_correct.push_back(table_path)
 			if pass_callback.is_valid():
 				pass_callback.call()
@@ -1315,7 +1309,7 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 	var confirmed = func():
 		if valid_pass_md5 == (password_dict_obj._get("Password") as String).md5_text():
 			# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
-			__CONF_MANAGER.get_conf(table_path, password_dict_obj._get("Password"))
+			GDSQL.ConfManager.get_conf(table_path, password_dict_obj._get("Password"))
 			_password_correct.push_back(table_path)
 			return [false, true] # false表示让对话框关闭，true表示密码正确
 		mgr.create_accept_dialog("Password is not correct!")
@@ -1474,7 +1468,7 @@ func _on_popup_menu_copy_to_of_table_item_index_pressed(index):
 				for i in table_columns:
 					column_names.push_back(i["Column Name"])
 				var cmd = """
-var dao = BaseDao.new()
+var dao = GDSQL.BaseDao.new()
 var ret = dao.use_db("%s")\\
 	.set_password("")\\
 	.select("%s", true)\\
@@ -1488,7 +1482,7 @@ var ret = dao.use_db("%s")\\
 				var db_name = item.get_meta("db_name")
 				var table_name = item.get_meta("table_name")
 				var cmd = """
-var dao = BaseDao.new()
+var dao = GDSQL.BaseDao.new()
 var ret = dao.use_db("%s")\\
 	.set_password("")\\
 	.insert_into("%s")\\
@@ -1502,7 +1496,7 @@ var ret = dao.use_db("%s")\\
 				var db_name = item.get_meta("db_name")
 				var table_name = item.get_meta("table_name")
 				var cmd = """
-var dao = BaseDao.new()
+var dao = GDSQL.BaseDao.new()
 var ret = dao.use_db("%s")\\
 	.set_password("")\\
 	.update("%s")\\
@@ -1517,7 +1511,7 @@ var ret = dao.use_db("%s")\\
 				var db_name = item.get_meta("db_name")
 				var table_name = item.get_meta("table_name")
 				var cmd = """
-var dao = BaseDao.new()
+var dao = GDSQL.BaseDao.new()
 var ret = dao.use_db("%s")\\
 	.set_password("")\\
 	.delete_from("%s")\\
@@ -1553,9 +1547,9 @@ func _on_popup_menu_password_index_pressed(index):
 			var db_name = item.get_meta("db_name")
 			var table_name = item.get_meta("table_name")
 			
-			var password_dict_obj_1 = DictionaryObject.new({"Password": ""}, 
+			var password_dict_obj_1 = GDSQL.DictionaryObject.new({"Password": ""}, 
 				{"Password": {"hint": PROPERTY_HINT_PASSWORD}})
-			var password_dict_obj_2 = DictionaryObject.new({"Password": ""}, 
+			var password_dict_obj_2 = GDSQL.DictionaryObject.new({"Password": ""}, 
 				{"Password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "Enter same password agian."}})
 				
 			var arr: Array[Array] = [
@@ -1586,7 +1580,7 @@ func _on_popup_menu_password_index_pressed(index):
 			var db_name = item.get_meta("db_name")
 			var table_name = item.get_meta("table_name")
 				
-			var password_dict_obj = DictionaryObject.new({"Password": ""}, 
+			var password_dict_obj = GDSQL.DictionaryObject.new({"Password": ""}, 
 				{"Password": {"hint": PROPERTY_HINT_PASSWORD}})
 			var arr: Array[Array] = [
 				["Are you sure to clear password for this table?"],
@@ -1618,11 +1612,11 @@ func _on_popup_menu_password_index_pressed(index):
 			var db_name = item.get_meta("db_name")
 			var table_name = item.get_meta("table_name")
 				
-			var password_dict_obj = DictionaryObject.new({"oldPassword": ""}, 
+			var password_dict_obj = GDSQL.DictionaryObject.new({"oldPassword": ""}, 
 				{"oldPassword": {"hint": PROPERTY_HINT_PASSWORD}})
-			var password_dict_obj_1 = DictionaryObject.new({"newPassword": ""}, 
+			var password_dict_obj_1 = GDSQL.DictionaryObject.new({"newPassword": ""}, 
 				{"newPassword": {"hint": PROPERTY_HINT_PASSWORD}})
-			var password_dict_obj_2 = DictionaryObject.new({"newPassword": ""}, 
+			var password_dict_obj_2 = GDSQL.DictionaryObject.new({"newPassword": ""}, 
 				{"newPassword": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "Enter new password again."}})
 			var arr: Array[Array] = [
 				["Are you sure to change password for this table?"],

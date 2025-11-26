@@ -1,8 +1,9 @@
 @tool
 extends TabContainer
 
-var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
-
+var mgr: GDSQL.WorkbenchManagerClass:
+	get: return GDSQL.WorkbenchManager
+	
 var SQLGraph = preload("res://addons/gdsql/tabs/sql_graph.tscn")
 var MAPPER_GRAPH = preload("res://addons/gdsql/tabs/mapper_graph.tscn")
 
@@ -15,16 +16,9 @@ var _tab_activate_time: float = 0
 const CONFIG_EXTENSION = ".cfg"
 const DATA_EXTENSION = ".gsql"
 
-var __CONF_MANAGER: ConfManagerClass # 管理表数据
-
 func _ready() -> void:
 	if mgr == null or not mgr.run_in_plugin(self):
 		return
-		
-	if Engine.has_singleton("ConfManager"):
-		__CONF_MANAGER = Engine.get_singleton("ConfManager")
-	else:
-		__CONF_MANAGER = ConfManager
 		
 	if not mgr.open_add_schema_tab.is_connected(add_tab_new_schema):
 		mgr.open_add_schema_tab.connect(add_tab_new_schema, CONNECT_DEFERRED)
@@ -67,8 +61,6 @@ func _exit_tree():
 	if mgr == null or not mgr.run_in_plugin(self):
 		return
 		
-	__CONF_MANAGER = null
-	
 	if mgr.open_add_schema_tab.is_connected(add_tab_new_schema):
 		mgr.open_add_schema_tab.disconnect(add_tab_new_schema)
 	if mgr.open_add_table_tab.is_connected(add_tab_new_table):
@@ -209,14 +201,14 @@ func add_tab_table_inspector(db_name, table_name) -> void:
 	var defination = mgr.databases.get(db_name, {}).get("tables", {}).get(table_name, {}) as Dictionary
 	table_inspector.comment = defination.get("comment", "")
 	var data_file_path = mgr.databases[db_name]["data_path"] + table_name + DATA_EXTENSION
-	var absolute_path = GDSQLUtils.globalize_path(data_file_path)
+	var absolute_path = GDSQL.GDSQLUtils.globalize_path(data_file_path)
 	table_inspector.data_file_path = data_file_path if data_file_path == absolute_path \
 		else "%s (%s)" % [data_file_path, absolute_path]
 	var data_file = FileAccess.open(absolute_path, FileAccess.READ)
 	table_inspector.data_file_size = "%d KB (%d Byte)" % [ceili(data_file.get_length() / 1024.0), data_file.get_length()]
 	var update_total_data_count = func():
-		if mgr.databases[db_name]["tables"][table_name]["encrypted"] == "" or __CONF_MANAGER.has_conf(data_file_path):
-			table_inspector.total_data_count = str(__CONF_MANAGER.get_conf(data_file_path, "").get_sections().size())
+		if mgr.databases[db_name]["tables"][table_name]["encrypted"] == "" or GDSQL.ConfManager.has_conf(data_file_path):
+			table_inspector.total_data_count = str(GDSQL.ConfManager.get_conf(data_file_path, "").get_sections().size())
 		else:
 			table_inspector.total_data_count = ""
 	table_inspector.update_total_data_count = update_total_data_count
@@ -321,7 +313,7 @@ func _on_tab_changed(tab: int) -> void:
 			if i != tab:
 				set_tab_button_icon(i, null)
 				
-func receive_content(content: String, force_new: bool = false, file_path: String = ""):
+func receive_content(_content: String, force_new: bool = false, file_path: String = ""):
 	#TODO
 	# 当前打开的页签是一个编辑器，则直接发送，否则创建一个
 	if get_tab_control(current_tab).get_meta("type") == "sql_graph":
@@ -333,7 +325,7 @@ func receive_content(content: String, force_new: bool = false, file_path: String
 	else :
 		_on_tab_clicked(get_tab_count()-1)
 		
-	var graph_edit = get_tab_control(current_tab).graph_edit as GraphEdit
+	#var graph_edit = get_tab_control(current_tab).graph_edit as GraphEdit
 	#code_edit.text += content TODO
 	
 	if not file_path.is_empty():

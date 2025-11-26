@@ -1,6 +1,5 @@
 @tool
 extends RefCounted
-class_name ConditionWrapper
 
 #static var regex_1: RegEx
 #static var regex_2: RegEx
@@ -9,8 +8,8 @@ class_name ConditionWrapper
 var _cond: String
 var _sql_input_names: Dictionary
 var _nested_query: Dictionary
-var _and_wrapper: ConditionWrapper
-var _or_wrapper: ConditionWrapper
+var _and_wrapper: GDSQL.ConditionWrapper
+var _or_wrapper: GDSQL.ConditionWrapper
 var _lacking_tables: Array
 
 #static func _static_init() -> void:
@@ -52,7 +51,7 @@ var _lacking_tables: Array
 
 ## 设置条件
 ## a_cond：条件，比如：age >= 20，比如：a.id == b.id
-func cond(a_cond: String, sql_input_names: Dictionary = {}, nested_query: Dictionary = {}) -> ConditionWrapper:
+func cond(a_cond: String, sql_input_names: Dictionary = {}, nested_query: Dictionary = {}) -> GDSQL.ConditionWrapper:
 	_cond = a_cond
 	_sql_input_names = sql_input_names
 	_nested_query.clear()
@@ -66,13 +65,13 @@ func check(static_inputs: Array, varying_inputs: Dictionary):
 	# 需要check自身以及and、or的条件
 	var ret = true
 	if _cond:
-		ret = GDSQLUtils.evaluate_command_with_sql_expression(null, _cond, 
+		ret = GDSQL.GDSQLUtils.evaluate_command_with_sql_expression(null, _cond, 
 			[], [], _sql_input_names, static_inputs, varying_inputs, 
 			_nested_query, _lacking_tables)
 		if not _lacking_tables.is_empty():
 			return null
 			
-		if ret is QueryResult:
+		if ret is GDSQL.QueryResult:
 			var rows = ret.get_data()
 			if rows.is_empty():
 				ret = false
@@ -105,7 +104,7 @@ func check(static_inputs: Array, varying_inputs: Dictionary):
 	return ret
 	
 ## 与
-func and_(wrapper: ConditionWrapper) -> ConditionWrapper:
+func and_(wrapper: GDSQL.ConditionWrapper) -> GDSQL.ConditionWrapper:
 	if _and_wrapper != null:
 		assert(false, "already set an `add` wrapper")
 		return null
@@ -116,7 +115,7 @@ func and_(wrapper: ConditionWrapper) -> ConditionWrapper:
 	return self
 	
 ## 或
-func or_(wrapper: ConditionWrapper) -> ConditionWrapper:
+func or_(wrapper: GDSQL.ConditionWrapper) -> GDSQL.ConditionWrapper:
 	if _and_wrapper != null:
 		assert(false, "already set an `add` wrapper")
 		return null

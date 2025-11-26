@@ -1,4 +1,3 @@
-class_name ImprovedConfigFile
 extends ConfigFile
 
 ## 如果需要把主键返回，请指定返回到哪个键上

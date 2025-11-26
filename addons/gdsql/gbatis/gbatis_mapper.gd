@@ -1,7 +1,7 @@
 @icon("res://addons/gdsql/gbatis/img/GBatisMapper.png")
 @tool
-extends Resource
 ## 数据访问类
+extends Resource
 class_name GBatisMapper
 
 ## mapper对应的xml配置
@@ -50,7 +50,7 @@ arg5 = null, arg6 = null, arg7 = null, arg8 = null, arg9 = null):
 			return null
 		params[i.name] = arg_list.pop_back()
 		
-	var mapper_parser = GBatisMapperParser.new()
+	var mapper_parser = GDSQL.GBatisMapperParser.new()
 	mapper_parser.config = mapper_xml
 	mapper_parser.method_return_info = ret_info
 	mapper_parser.auto_mapping_level = auto_mapping_level

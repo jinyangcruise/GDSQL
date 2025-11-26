@@ -1,5 +1,5 @@
-extends Node
-class_name GDSQLWorkbenchManagerClass
+# Must not be a RefCounted, because this obj is registered in Engine singleton which does not count a reference!
+extends Object
 
 ## 打开新建数据库标签页的信号
 signal open_add_schema_tab
@@ -144,7 +144,7 @@ func get_table_columns_by_datapath(data_path, table: String) -> Array:
 			table = table.get_basename()
 		for db in databases:
 			if databases[db]["data_path"] == data_path or \
-			GDSQLUtils.globalize_path(databases[db]["data_path"]) == GDSQLUtils.globalize_path(data_path):
+			GDSQL.GDSQLUtils.globalize_path(databases[db]["data_path"]) == GDSQL.GDSQLUtils.globalize_path(data_path):
 				return databases[db].get("tables", {}).get(table, {})\
 					.get("columns", []).map(func(v): v["db_name"] = db; return v)
 	return []
@@ -155,7 +155,7 @@ func get_table_valid_if_not_exist(data_path, table: String) -> bool:
 			table = table.get_basename()
 		for db in databases:
 			if databases[db]["data_path"] == data_path or \
-			GDSQLUtils.globalize_path(databases[db]["data_path"]) == GDSQLUtils.globalize_path(data_path):
+			GDSQL.GDSQLUtils.globalize_path(databases[db]["data_path"]) == GDSQL.GDSQLUtils.globalize_path(data_path):
 				return databases[db].get("tables", {}).get(table, {}).get("valid_if_not_exist", false)
 	return false
 	
@@ -223,7 +223,7 @@ func create_accept_dialog(msg) -> void:
 func _clear_custom_dialog(dialog: Window):
 	if dialog.visible:
 		dialog.hide()
-	await get_tree().create_timer(1).timeout # For safety? After encountered several crash...
+	await dialog.get_tree().create_timer(1).timeout # For safety? After encountered several crash...
 	if dialog:
 		if dialog.get_parent():
 			dialog.get_parent().remove_child(dialog)
@@ -321,7 +321,7 @@ ratio: float = 0.0) -> ConfirmationDialog:
 						label.localize_numeral_system = false
 						label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 						hb.add_child(label)
-				elif data is DictionaryObject:
+				elif data is GDSQL.DictionaryObject:
 					#has_content = true
 					# 一些控件依赖inspector，为了简化，所有情况都使用inspector。
 					# 比如：EditorPropertyResource，如果不放到一个inspector中的话，reparent的时候（它想折叠资源）会报错，影响体验。
@@ -483,7 +483,7 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 						label.localize_numeral_system = false
 						label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 						hb.add_child(label)
-				elif data is DictionaryObject:
+				elif data is GDSQL.DictionaryObject:
 					#has_content = true
 					hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 					# 一些控件依赖inspector，为了简化，所有情况都使用inspector。
@@ -574,7 +574,7 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 	
 @warning_ignore("unused_parameter")
 func _prop_change(property: StringName, value: Variant, field: StringName, 
-changing: bool, dictionary_object: DictionaryObject, editor: EditorProperty):
+changing: bool, dictionary_object: GDSQL.DictionaryObject, editor: EditorProperty):
 	dictionary_object.set(property, value)
 	if typeof(value) > TYPE_ARRAY:
 		editor.update_property()

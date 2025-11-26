@@ -1,7 +1,8 @@
 @tool
 extends ScrollContainer
 
-var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
+var mgr: GDSQL.WorkbenchManagerClass:
+	get: return GDSQL.WorkbenchManager
 
 @onready var line_edit_file_path = $VBoxContainer/HBoxContainer/LineEditFilePath
 @onready var button_file_path_resource = $VBoxContainer/HBoxContainer/ButtonFilePathResource
@@ -45,7 +46,6 @@ func _exit_tree():
 	option_button_tables.clear()
 	option_button_dbs.clear()
 	clear_columns()
-	mgr = null
 	
 func select_table(db_name, table_name):
 	for i in option_button_tables.item_count:
@@ -132,8 +132,8 @@ func reset_columns():
 		
 		var opb1 = OptionButton.new()# data type
 		var id = 0
-		for j in DataTypeDef.DATA_TYPE_NAMES.size():
-			opb1.add_item(DataTypeDef.DATA_TYPE_NAMES[j], id)
+		for j in GDSQL.DataTypeDef.DATA_TYPE_NAMES.size():
+			opb1.add_item(GDSQL.DataTypeDef.DATA_TYPE_NAMES[j], id)
 			opb1.set_item_metadata(opb1.get_item_index(id), j)
 			id += 1
 			
@@ -360,7 +360,7 @@ func _on_button_apply_pressed() -> void:
 		var begin_time_1 = Time.get_unix_time_from_system()
 		var action
 		if check_box_truncate_table.button_pressed:
-			var dao1 = BaseDao.new()
+			var dao1 = GDSQL.BaseDao.new()
 			var ret = dao1.use_db(db_path).delete_from(table_path).query()
 			action = "Delete from %s.%s" % [db_name, table_name]
 			if ret == null:
@@ -394,7 +394,7 @@ func _on_button_apply_pressed() -> void:
 		var col_indexes = []
 		for cb: CheckBox in checked:
 			col_indexes.push_back(columns.find(cb.get_meta("col")))
-		var dao: BaseDao
+		var dao: GDSQL.BaseDao
 		# 中间发生任何错误会中断。但是没发生错误的数据会保存进去。
 		var err = OK
 		var total_affected_rows = 0
@@ -403,7 +403,7 @@ func _on_button_apply_pressed() -> void:
 			var value = {}
 			for i in col_indexes:
 				value[_col_names[i]] = str_to_var(data[i]) if need_trans else data[i]
-			dao = BaseDao.new()
+			dao = GDSQL.BaseDao.new()
 			var ret = dao.auto_commit(false).use_db(db_path).insert_into(table_path).values(value).query()
 			if ret == null:
 				err = "something wrong"

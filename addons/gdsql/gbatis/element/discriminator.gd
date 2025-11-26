@@ -1,6 +1,6 @@
 @tool
 extends RefCounted
-class_name GBatisDiscriminator
+
 #<!ELEMENT discriminator (case+)>
 #<!ATTLIST discriminator
 #column CDATA #REQUIRED
@@ -21,17 +21,17 @@ var head: Array
 func _init(conf: Dictionary) -> void:
 	column = conf.get("column").strip_edges()
 	java_type = conf.get("javaType").strip_edges()
-	assert(DataTypeDef.DATA_TYPE_COMMON_NAMES.has(java_type), 
+	assert(GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(java_type), 
 		"Invalid javaType %s in <discriminator>" % java_type)
 		
 func clean():
 	selected_case_index = -2
 	head.clear()
-	for i: GBatisCase in cases:
+	for i: GDSQL.GBatisCase in cases:
 		i.clean()
 	cases.clear()
 	
-func push_element(case: GBatisCase):
+func push_element(case: GDSQL.GBatisCase):
 	cases.push_back(case)
 	
 func check_head(p_head: Array):
@@ -43,7 +43,7 @@ func prepare_deal(data: Array):
 		return
 		
 	var column_value = null
-	var type = DataTypeDef.DATA_TYPE_COMMON_NAMES.keys().find(java_type)
+	var type = GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.keys().find(java_type)
 	var find = false
 	for i in head.size():
 		if head[i]["field_as"] == column:
@@ -55,7 +55,7 @@ func prepare_deal(data: Array):
 		return null
 		
 	var index = -1
-	for i: GBatisCase in cases:
+	for i: GDSQL.GBatisCase in cases:
 		index += 1
 		if column_value == type_convert(i.value, type):
 			i.check_head(head)
@@ -66,13 +66,13 @@ func prepare_deal(data: Array):
 #func get_selected_case_return_type():
 	#assert(selected_case_index != -2, "Call prepare_deal first!")
 	#if selected_case_index > -1:
-		#return (cases[selected_case_index] as GBatisCase).get_return_type()
+		#return (cases[selected_case_index] as GDSQL.GBatisCase).get_return_type()
 	#return ""
 	
-#func get_result_map() -> GBatisResultMap:
+#func get_result_map() -> GDSQL.GBatisResultMap:
 	#assert(selected_case_index != -2, "Call prepare_deal first!")
 	#if selected_case_index > -1:
-		#return (cases[selected_case_index] as GBatisCase).get_result_map()
+		#return (cases[selected_case_index] as GDSQL.GBatisCase).get_result_map()
 	#return null
 	
 func get_result_type():
@@ -80,7 +80,7 @@ func get_result_type():
 		assert(false, "Call prepare_deal first!")
 		return null
 	if selected_case_index > -1:
-		return (cases[selected_case_index] as GBatisCase).get_result_type()
+		return (cases[selected_case_index] as GDSQL.GBatisCase).get_result_type()
 	return ""
 	
 func get_auto_mapping():
@@ -88,7 +88,7 @@ func get_auto_mapping():
 		assert(false, "Call prepare_deal first!")
 		return null
 	if selected_case_index > -1:
-		return (cases[selected_case_index] as GBatisCase).get_auto_mapping()
+		return (cases[selected_case_index] as GDSQL.GBatisCase).get_auto_mapping()
 	return ""
 	
 func get_prop_column():
@@ -96,7 +96,7 @@ func get_prop_column():
 		assert(false, "Call prepare_deal first!")
 		return null
 	if selected_case_index > -1:
-		return (cases[selected_case_index] as GBatisCase).get_prop_column()
+		return (cases[selected_case_index] as GDSQL.GBatisCase).get_prop_column()
 	return {}
 	
 func get_associations():
@@ -104,7 +104,7 @@ func get_associations():
 		assert(false, "Call prepare_deal first!")
 		return null
 	if selected_case_index > -1:
-		return (cases[selected_case_index] as GBatisCase).get_associations()
+		return (cases[selected_case_index] as GDSQL.GBatisCase).get_associations()
 	return []
 	
 func get_collections():
@@ -112,7 +112,7 @@ func get_collections():
 		assert(false, "Call prepare_deal first!")
 		return null
 	if selected_case_index > -1:
-		return (cases[selected_case_index] as GBatisCase).get_collections()
+		return (cases[selected_case_index] as GDSQL.GBatisCase).get_collections()
 	return []
 	
 ## 处理完一条数据后，要reset
@@ -121,6 +121,6 @@ func reset():
 		assert(false, "Call prepare_deal first!")
 		return null
 	if selected_case_index > -1:
-		return (cases[selected_case_index] as GBatisCase).reset()
+		return (cases[selected_case_index] as GDSQL.GBatisCase).reset()
 	selected_case_index = -2
 	

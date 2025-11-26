@@ -1,6 +1,6 @@
 @tool
 extends RefCounted
-class_name GBatisSelect
+
 #<!ELEMENT select (#PCDATA | include | trim | where | set | foreach | choose 
 #| if | bind)*>
 #<!ATTLIST select
@@ -40,7 +40,7 @@ var mapper_parser_ref: WeakRef: set = set_mapper_parser_ref
 
 ## ----------------- 内部使用 ------------------
 var object_class_name: String
-var _result_map: GBatisResultMap # resultType和resultMap统一到这个变量上
+var _result_map: GDSQL.GBatisResultMap # resultType和resultMap统一到这个变量上
 
 func _init(conf: Dictionary) -> void:
 	id = conf.get("id").strip_edges()
@@ -73,7 +73,7 @@ func set_method_return_info(info: Dictionary):
 # INFO 缓存的逻辑在mapper_parser.gd
 func query():
 	query_status = ""
-	var dao = SQLParser.parse_to_dao(sql)
+	var dao = GDSQL.SQLParser.parse_to_dao(sql)
 	if dao == null:
 		assert(false, "Parse to dao failed: " + sql)
 		return null
@@ -108,7 +108,7 @@ func query():
 	if not method_return_info.class_name.is_empty():
 		mapping_to_type = method_return_info.class_name
 		# Resouce类型的，和用户自定义的Object不能用一种办法处理，反而应该用other的办法
-		if DataTypeDef.RESOURCE_TYPE_NAMES.has(method_return_info.class_name):
+		if GDSQL.DataTypeDef.RESOURCE_TYPE_NAMES.has(method_return_info.class_name):
 			return_type = "Other"
 		else:
 			return_type = "Object"
@@ -120,8 +120,8 @@ func query():
 		mapping_to_type = "" # 不确定
 		if method_return_info.hint == PROPERTY_HINT_ARRAY_TYPE:
 			mapping_to_type = method_return_info.hint_string # 确定
-			if not DataTypeDef.RESOURCE_TYPE_NAMES.has(mapping_to_type) and \
-			not DataTypeDef.DATA_TYPE_COMMON_NAMES.has(mapping_to_type):
+			if not GDSQL.DataTypeDef.RESOURCE_TYPE_NAMES.has(mapping_to_type) and \
+			not GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(mapping_to_type):
 				mapping_to_object = true
 				object_class_name = mapping_to_type
 	# 调用函数需要返回一个字典
@@ -145,7 +145,7 @@ func query():
 			pass # leave empty
 		# 不一致的话，要检查继承关系
 		else:
-			if DataTypeDef.DATA_TYPE_COMMON_NAMES.has(result_type):
+			if GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(result_type):
 				query_status = "err"
 				assert(false, "resultType `%s` not match your method type `%s`." % \
 					[result_type, mapping_to_type])
@@ -158,12 +158,12 @@ func query():
 					assert(false, "Resouce dose not inherit from " + mapping_to_type)
 					return null
 			else:
-				var o = GDSQLUtils.evaluate_command_script(result_type + ".new()")
+				var o = GDSQL.GDSQLUtils.evaluate_command_script(result_type + ".new()")
 				if not o:
 					query_status = "err"
 					assert(false, "Cannot initialize " + result_type)
 					return null
-				var is_inherit = GDSQLUtils.evaluate_command_script(
+				var is_inherit = GDSQL.GDSQLUtils.evaluate_command_script(
 					"o is " + mapping_to_type, ["o"], [o])
 				if not is_inherit:
 					query_status = "err"
@@ -175,8 +175,8 @@ func query():
 		if mapping_to_type.is_empty():
 			mapping_to_type = result_type
 			# 既不是普通数据类型也不是Resource，就当做Object
-			if not DataTypeDef.DATA_TYPE_COMMON_NAMES.has(mapping_to_type) and \
-			not DataTypeDef.RESOURCE_TYPE_NAMES.has(mapping_to_type):
+			if not GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(mapping_to_type) and \
+			not GDSQL.DataTypeDef.RESOURCE_TYPE_NAMES.has(mapping_to_type):
 				mapping_to_object = true
 				object_class_name = result_type
 				
@@ -216,12 +216,12 @@ func query():
 			query_status = "err"
 			assert(false, "Not found <resultMap> of id %s" % result_map)
 			return null
-		if not _result_map is GBatisResultMap:
+		if not _result_map is GDSQL.GBatisResultMap:
 			query_status = "err"
 			assert(false, "Not found <resultMap> of id %s" % result_map)
 			return null
 	else:
-		_result_map = GBatisResultMap.new({"type": result_type})
+		_result_map = GDSQL.GBatisResultMap.new({"type": result_type})
 		_result_map.set_mapper_parser_ref(mapper_parser_ref)
 		
 	if return_type == "Undefined":
@@ -289,7 +289,7 @@ func query():
 				elif return_type == "Dictionary":
 					final_ret = {}
 				elif return_type == "Other":
-					if DataTypeDef.RESOURCE_TYPE_NAMES.has(result_type):
+					if GDSQL.DataTypeDef.RESOURCE_TYPE_NAMES.has(result_type):
 						final_ret = null
 						break
 					query_status = "err"
@@ -339,6 +339,6 @@ func query():
 func _gen_array():
 	if method_return_info.hint == PROPERTY_HINT_ARRAY_TYPE:
 		# 不能使用evaluate_command，原因是Expression虽然成功返回但并不是typed array
-		return GDSQLUtils.evaluate_command_script(
+		return GDSQL.GDSQLUtils.evaluate_command_script(
 			"[] as Array[" + method_return_info.hint_string + "]")
 	return []

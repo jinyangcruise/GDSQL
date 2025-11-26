@@ -1,6 +1,6 @@
 @tool
 extends RefCounted
-class_name  GBatisResultMap
+
 #<!ELEMENT resultMap (constructor?,id*,result*,association*,collection*, discriminator?)>
 #<!ATTLIST resultMap
 #id CDATA #REQUIRED
@@ -58,7 +58,7 @@ var column_prop_map: Dictionary # 子元素<id>和<result>定义的关联，colu
 								# NOTICE 一个列可以给多个属性赋值。
 								# NOTICE 考虑使用该变量还是get_deepest_column_prop()
 var array_type: String = "" # 当mapping_to_array==true时有用
-var discriminator: GBatisDiscriminator
+var discriminator: GDSQL.GBatisDiscriminator
 
 # ----------- mapping to object -----------
 var columns: Array # [数据集的列名]， 从head中提取的
@@ -83,19 +83,19 @@ func end_push_element():
 	
 func push_element(i):
 	# 只允许存在一个discriminator
-	if i is GBatisDiscriminator:
+	if i is GDSQL.GBatisDiscriminator:
 		if discriminator != null:
 			assert(false, "At most one <discriminator> can be put under <resultMap>.")
 			return null
 		discriminator = i
 		
-	if i is GBatisId or i is GBatisResult:
+	if i is GDSQL.GBatisId or i is GDSQL.GBatisResult:
 		var column_name = null
 		if column_prefix == "":
 			column_name = i.column
 		else:
 			column_name = column_prefix + i.column
-		if i is GBatisId:
+		if i is GDSQL.GBatisId:
 			if primary_prop != "":
 				assert(false, "Only one <id> can be put under <resultMap>.")
 				return null
@@ -143,24 +143,24 @@ func get_sub_element():
 	var ret = []
 	for i in range(result_embeded.size()-1, -1, -1):
 		var e = result_embeded[i]
-		if e is GBatisId or e is GBatisResult or e is GBatisAssociation or \
-		e is GBatisCollection:
+		if e is GDSQL.GBatisId or e is GDSQL.GBatisResult or e is GDSQL.GBatisAssociation or \
+		e is GDSQL.GBatisCollection:
 			props[e.property] = 0
-		elif e is GBatisDiscriminator:
+		elif e is GDSQL.GBatisDiscriminator:
 			a_columns[e.column] = 0
 		ret.push_back(e)
 		
-	var extend_result_map = mapper_parser_ref.get_ref().get_element(_extends) as GBatisResultMap
+	var extend_result_map = mapper_parser_ref.get_ref().get_element(_extends) as GDSQL.GBatisResultMap
 	var extends_children = extend_result_map.sub_elements
 	extend_result_map.result_embeded.clear() # 清空引用，防止内存泄漏
 	extend_result_map.sub_elements.clear() # 清空引用，防止内存泄漏
 	for i in range(extends_children.size()-1, -1, -1):
 		var e = extends_children[i]
-		if e is GBatisId or e is GBatisResult or e is GBatisAssociation or \
-		e is GBatisCollection:
+		if e is GDSQL.GBatisId or e is GDSQL.GBatisResult or e is GDSQL.GBatisAssociation or \
+		e is GDSQL.GBatisCollection:
 			if props.has(e.property):
 				continue
-		elif e is GBatisDiscriminator:
+		elif e is GDSQL.GBatisDiscriminator:
 			if props.has(e.column):
 				continue
 		ret.push_back(e)
@@ -170,7 +170,7 @@ func get_sub_element():
 	
 ### 如果存在discriminator，需要返回其对应的resultMap，否则返回自己.
 ### 该方法仅在<case>标签中用，别的地方勿用。
-#func get_deepest_result_map() -> GBatisResultMap:
+#func get_deepest_result_map() -> GDSQL.GBatisResultMap:
 	#if discriminator != null:
 		#return discriminator.get_result_map()
 	#return self
@@ -196,12 +196,12 @@ func get_deepest_auto_mapping() -> String:
 func get_deepest_prop_column() -> Dictionary:
 	var ret = {}
 	for i in sub_elements:
-		if i is GBatisId or i is GBatisResult:
+		if i is GDSQL.GBatisId or i is GDSQL.GBatisResult:
 			if column_prefix == "":
 				ret[i.property] = i.column
 			else:
 				ret[i.property] = column_prefix + i.column
-		elif i is GBatisDiscriminator:
+		elif i is GDSQL.GBatisDiscriminator:
 			ret.merge(discriminator.get_prop_column())
 	return ret
 	
@@ -222,9 +222,9 @@ func get_deepest_column_prop() -> Dictionary:
 func get_deepest_associations() -> Array:
 	var ret = []
 	for i in sub_elements:
-		if i is GBatisAssociation:
+		if i is GDSQL.GBatisAssociation:
 			ret.push_back(i)
-		elif i is GBatisDiscriminator:
+		elif i is GDSQL.GBatisDiscriminator:
 			ret.append_array(i.get_associations())
 	return ret
 	
@@ -233,9 +233,9 @@ func get_deepest_associations() -> Array:
 func get_deepest_collections() -> Array:
 	var ret = []
 	for i in sub_elements:
-		if i is GBatisCollection:
+		if i is GDSQL.GBatisCollection:
 			ret.push_back(i)
-		elif i is GBatisDiscriminator:
+		elif i is GDSQL.GBatisDiscriminator:
 			ret.append_array(i.get_collections())
 	return ret
 	
@@ -283,7 +283,7 @@ func check_head(p_head: Array):
 		
 	# 检查一下xml配置有没有问题
 	for i in sub_elements:
-		if i is GBatisId or i is GBatisResult:
+		if i is GDSQL.GBatisId or i is GDSQL.GBatisResult:
 			var column_name = null
 			if column_prefix == "":
 				column_name = i.column
@@ -293,8 +293,8 @@ func check_head(p_head: Array):
 				assert(false, "Not found column: " + column_name + 
 					" in Result set. Check your xml config.")
 				return null
-		elif i is GBatisDiscriminator or i is GBatisAssociation or \
-		i is GBatisCollection:
+		elif i is GDSQL.GBatisDiscriminator or i is GDSQL.GBatisAssociation or \
+		i is GDSQL.GBatisCollection:
 			i.check_head(head)
 			
 ## 应对discriminator分裂造成有多个类
@@ -305,7 +305,7 @@ func prepare_prop_map():
 	prop_map[object_class_name] = {}
 	prop_info[object_class_name] = {} # 顺便初始化一下prop_info
 	# obj的属性列表及其类型，缓存到这个变量中
-	var model_obj = GDSQLUtils.evaluate_command_script(object_class_name + ".new()") as Object
+	var model_obj = GDSQL.GDSQLUtils.evaluate_command_script(object_class_name + ".new()") as Object
 	if model_obj == null:
 		assert(false, "Cannot initialize this class " + object_class_name)
 		return null
@@ -350,13 +350,13 @@ func prepare_deal(data: Array):
 			
 	# assocoiation和collection由于存在内部的resultMap，所以由它们自己决定是否prepare_deal
 	var associations = get_deepest_associations()
-	for a: GBatisAssociation in associations:
+	for a: GDSQL.GBatisAssociation in associations:
 		# select == ""的，是用left join，共用数据集的，所以要提前prepare。
 		if a.select == "":
 			a.prepare_deal(data)
 			
 	var collections = get_deepest_collections()
-	for c: GBatisCollection in collections:
+	for c: GDSQL.GBatisCollection in collections:
 		# select == ""的，是用left join，共用数据集的，所以要提前prepare。
 		if c.select == "":
 			c.prepare_deal(data)
@@ -397,9 +397,9 @@ func reset():
 	if discriminator:
 		discriminator.reset()
 	for i in sub_elements:
-		if i is GBatisAssociation:
+		if i is GDSQL.GBatisAssociation:
 			i.reset()
-		elif i is GBatisCollection:
+		elif i is GDSQL.GBatisCollection:
 			i.reset()
 			
 func _automapping_obejct(data: Array) -> Object:
@@ -619,7 +619,7 @@ func _obj_set_indexed(obj: Object, column: String, prop: String, val: Variant):
 			
 func _automapping_associations(data: Array, obj: Object):
 	var associations = get_deepest_associations()
-	for ass: GBatisAssociation in associations:
+	for ass: GDSQL.GBatisAssociation in associations:
 		if not ass.property in obj:
 			assert(false, "Invalid property %s in %s" % \
 				[ass.property, object_class_name])
@@ -672,7 +672,7 @@ func _automapping_associations(data: Array, obj: Object):
 	
 func _automapping_collections(data: Array, obj: Object):
 	var collections = get_deepest_collections()
-	for col: GBatisCollection in collections:
+	for col: GDSQL.GBatisCollection in collections:
 		if not col.property in obj:
 			assert(false, "Invalid property %s in %s" % [col.property, object_class_name])
 			return null
@@ -767,15 +767,15 @@ func _automapping_other(data: Array):
 		assert(false, "Result set is supposed to have one column, but %d." % data.size())
 		return null
 	if real_type == "" or \
-	DataTypeDef.DATA_TYPE_COMMON_NAMES[real_type] == typeof(data[0]):
+	GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES[real_type] == typeof(data[0]):
 		return data[0]
 		
 	if data[0] is String:
 		var v = str_to_var(data[0])
-		if typeof(v) == DataTypeDef.DATA_TYPE_COMMON_NAMES[real_type]:
+		if typeof(v) == GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES[real_type]:
 			return v
 		
-	return type_convert(data[0], DataTypeDef.DATA_TYPE_COMMON_NAMES[real_type])
+	return type_convert(data[0], GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES[real_type])
 	
 func _get_similar_prop(column_1: String):
 	var prop = ""
@@ -805,13 +805,13 @@ func _get_similar_prop(column_1: String):
 	
 func _is_prop_an_object(property_info: Dictionary):
 	return property_info.type == TYPE_OBJECT and \
-		not DataTypeDef.RESOURCE_TYPE_NAMES.has(property_info.class_name)
+		not GDSQL.DataTypeDef.RESOURCE_TYPE_NAMES.has(property_info.class_name)
 		
 func _is_class_name(s: String) -> bool:
 	if s == "":
 		return false
-	return not DataTypeDef.DATA_TYPE_COMMON_NAMES.has(s) and \
-		not DataTypeDef.RESOURCE_TYPE_NAMES.has(s)
+	return not GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(s) and \
+		not GDSQL.DataTypeDef.RESOURCE_TYPE_NAMES.has(s)
 		
 ## 每个主键只允许返回一个对应的对象。如果主键不存在，那就每条数据都返回
 ## 一个对象，这也是允许的。
@@ -822,7 +822,7 @@ func _get_obj_or_generate(data: Array) -> Object:
 	if pk_confirm[0] != -1:
 		obj = pk_obj.get(data[pk_confirm[0]], null)
 	if obj == null:
-		obj = GDSQLUtils.evaluate_command_script(object_class_name + ".new()")
+		obj = GDSQL.GDSQLUtils.evaluate_command_script(object_class_name + ".new()")
 		if obj:
 			obj.set_meta("new", true) # 临时存储
 			obj.set_meta("new_for_select", true) # 临时存储，给外部的select用
@@ -832,5 +832,5 @@ func _gen_array(p_array_type: String):
 	if p_array_type == "":
 		return []
 	# 不能使用evaluate_command，原因是Expression虽然成功返回但并不是typed array
-	return GDSQLUtils.evaluate_command_script(
+	return GDSQL.GDSQLUtils.evaluate_command_script(
 		"[] as Array[" + p_array_type + "]")

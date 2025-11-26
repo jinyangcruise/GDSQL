@@ -11,9 +11,6 @@ extends VSplitContainer
 @onready var button_run_selected: Button = $VBoxContainer/HFlowContainer/ButtonRunSelected
 @onready var button_run: Button = $VBoxContainer/HFlowContainer/ButtonRun
 
-var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
-
-
 signal request_open_file(path: String)
 signal change_tab_title(page: Control, title: String)
 
@@ -34,7 +31,7 @@ func _ready() -> void:
 	pass
 	
 func load_mapper_file(path):
-	var config = ImprovedConfigFile.new()
+	var config = GDSQL.ImprovedConfigFile.new()
 	config.load(path)
 	var nodes = config.get_value("data", "nodes", {})
 	var connections = config.get_value("data", "connections", [])
@@ -79,7 +76,7 @@ func _on_button_open_pressed() -> void:
 func _on_button_save_pressed() -> void:
 	# 本身就是一个已经保存的文件，就直接保存
 	if get_meta("is_file"):
-		var config = ImprovedConfigFile.new()
+		var config = GDSQL.ImprovedConfigFile.new()
 		config.set_value("data", "nodes", graph_edit.get_nodes_params())
 		config.set_value("data", "connections", graph_edit.get_connection_list().map(func(v):
 			v["from_node"] = v["from_node"].validate_node_name()
@@ -106,7 +103,7 @@ func _on_button_save_as_pressed() -> void:
 	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_SAVE_FILE
 	editor_file_dialog.add_filter(EXTENSION, "GDSQL MAPPER File")
 	editor_file_dialog.file_selected.connect(func(path: String):
-		var config = ImprovedConfigFile.new()
+		var config = GDSQL.ImprovedConfigFile.new()
 		config.set_value("data", "nodes", graph_edit.get_nodes_params())
 		config.set_value("data", "connections", graph_edit.get_connection_list().map(func(v):
 			v["from_node"] = v["from_node"].validate_node_name()
@@ -136,7 +133,7 @@ func _on_button_save_as_pressed() -> void:
 	)
 	
 func _on_button_add_node_pressed() -> void:
-	mgr.create_accept_dialog(button_add_node.tooltip_text)
+	GDSQL.WorkbenchManager.create_accept_dialog(button_add_node.tooltip_text)
 	
 func _on_option_button_choose_path_item_selected(access: int, extra_line_edit = null, parent_dialog = null) -> void:
 	var editor_file_dialog = EditorFileDialog.new()
@@ -610,7 +607,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			# entity
 			var en_ns = '%s.%sEntity' % [db_name, result_map_id.capitalize().replace(" ", "")]
 			if not entity_map.has(en_ns):
-				var arr = ['extends GBatisEntity\nclass_name %sEntity\n' % 
+				var arr = ['extends GDSQL.GBatisEntity\nclass_name %sEntity\n' % 
 					result_map_id.capitalize().replace(" ", "")]
 				var arr_getset = []
 				if table_comment != "":
@@ -626,7 +623,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							arr_getset.push_back('\nfunc set_%s(p_%s: Array):' % [i_0_snake, i_0_snake])
 							arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
 							arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
-						elif DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
+						elif GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
 							arr.push_back('\nvar %s: Array[%s]\n' % [i[0], i[1]])
 							arr_getset.push_back('\nfunc get_%s() -> Array[%s]:' % [i_0_snake, i[1]])
 							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
@@ -649,7 +646,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							arr_getset.push_back('\nfunc set_%s(p_%s):' % [i_0_snake, i_0_snake])
 							arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
 							arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
-						elif DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
+						elif GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
 							#arr.push_back('\nvar %s: %s\n' % [i[0], i[1]])
 							# 不在属性上指定数据类型了，不然update、insert不知道有没有给属性设定值。
 							# 但是保留在get、set函数上进行设置数据类型
@@ -1071,7 +1068,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	
 	btn_save_all.pressed.connect(func():
 		if line_edit_path.text == "":
-			mgr.create_accept_dialog("Save path is empty!")
+			GDSQL.WorkbenchManager.create_accept_dialog("Save path is empty!")
 			return
 		for i: TreeItem in root.get_children():
 			if i.get_text(2) != "":
@@ -1163,7 +1160,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	
 	var confirm = func():
 		if line_edit_path.text == "":
-			mgr.create_accept_dialog("Save path is empty!")
+			GDSQL.WorkbenchManager.create_accept_dialog("Save path is empty!")
 			return [true, null]
 		var save_at_least_one = 0
 		for i: TreeItem in root.get_children():
@@ -1188,14 +1185,14 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 				_generate_dialog.get_ok_button().text = "Save"
 			return [true, null]
 		else:
-			mgr.create_accept_dialog("None selected.")
+			GDSQL.WorkbenchManager.create_accept_dialog("None selected.")
 			return [true, null]
 			
 	var defer = func(_a, _b):
 		_generate_dialog = null
 		hbox.queue_free()
 		tree.queue_free()
-	_generate_dialog = mgr.create_custom_dialog(arr, confirm, Callable(), defer, 0.3)
+	_generate_dialog = GDSQL.WorkbenchManager.create_custom_dialog(arr, confirm, Callable(), defer, 0.3)
 	#_generate_dialog.exclusive = false
 	#_generate_dialog.transient = false
 	#_generate_dialog.transient_to_focused = true
@@ -1233,8 +1230,8 @@ func _refresh_item_diff(item: TreeItem):
 			item.set_button_color(2, item.get_button_by_id(2, 4), Color.WHITE)
 		else:
 			item.set_button_color(2, item.get_button_by_id(2, 4), Color(2, 0.647059, 0, 1))
-			var diffs = DiffHelper.compare(file_content.split("\n"), item.get_metadata(0).split("\n"))
-			var texture = DiffLabelTexture.new()
+			var diffs = GDSQL.DiffHelper.compare(file_content.split("\n"), item.get_metadata(0).split("\n"))
+			var texture = GDSQL.DiffLabelTexture.new()
 			texture.remove_count = diffs[0].size()
 			texture.add_count = diffs[1].size()
 			item.add_button(3, texture, 5, true)
@@ -1293,7 +1290,7 @@ func popup_saveas_dialog(access: int, item: TreeItem, dir: String):
 		
 	var defer = func(_confirmed, _dummy):
 		editor_file_dialog.queue_free()
-	mgr.popup_user_dialog(editor_file_dialog, Callable(), Callable(), defer, 0.5)
+	GDSQL.WorkbenchManager.popup_user_dialog(editor_file_dialog, Callable(), Callable(), defer, 0.5)
 	
 func reset_content(item: TreeItem, editor, arr_editor = null, show_diff: bool = false):
 	if item:
@@ -1354,7 +1351,7 @@ func popup_edit_dialog(item: TreeItem):
 			editor.text_editor.text_set.disconnect(self.reset_content)
 		editor.queue_free()
 		
-	var dialog = mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.6)
+	var dialog = GDSQL.WorkbenchManager.create_custom_dialog(arr, Callable(), Callable(), defer, 0.6)
 	dialog.exclusive = false
 	dialog.minimize_disabled = false
 	dialog.maximize_disabled = false
@@ -1367,7 +1364,7 @@ func _get_commit_line_gutter(editor: TextEdit):
 	return -1
 	
 func _refresh_diff_show(editor1: TextEdit, editor2: TextEdit):
-	var diffs = DiffHelper.compare(editor1.text.split("\n"), editor2.text.split("\n"))
+	var diffs = GDSQL.DiffHelper.compare(editor1.text.split("\n"), editor2.text.split("\n"))
 	for i in editor1.get_line_count():
 		editor1.set_line_background_color(i, editor1.get_theme_color(&"background_color"))
 		
@@ -1508,7 +1505,7 @@ func popup_diff_dialog(arr_content: Array, show_diff = false):
 		arr_editor.clear()
 		arr_v_scroll_bar.clear()
 		table.queue_free()
-	var dialog = mgr.create_custom_dialog(arr, Callable(), Callable(), defer, 0.9)
+	var dialog = GDSQL.WorkbenchManager.create_custom_dialog(arr, Callable(), Callable(), defer, 0.9)
 	dialog.exclusive = false
 	dialog.minimize_disabled = false
 	dialog.maximize_disabled = false
@@ -1519,14 +1516,14 @@ func _on_gutter_clicked(line: int, gutter: int, is_left: bool, arr_editor: Array
 	# 点的是左边窗口的gutter
 	if is_left:
 		if gutter == _get_commit_line_gutter(left_edit):
-			var insert_line = DiffHelper.merge_delete_line_by_mapping(
+			var insert_line = GDSQL.DiffHelper.merge_delete_line_by_mapping(
 				line, right_edit.get_line_count(), right_edit.get_meta("gutter_mapping"))
 			right_edit.insert_line_at(insert_line, left_edit.get_line(line))
 			await get_tree().create_timer(0.1).timeout
 			right_edit.set_line_background_color(insert_line, COLOR_DIFF_MERGE_INSERTED)
 	else:
 		if gutter == _get_commit_line_gutter(right_edit):
-			var insert_line = DiffHelper.merge_insert_line_by_mapping(
+			var insert_line = GDSQL.DiffHelper.merge_insert_line_by_mapping(
 				line, left_edit.get_line_count(), left_edit.get_meta("gutter_mapping"))
 			left_edit.insert_line_at(insert_line, right_edit.get_line(line))
 			await get_tree().create_timer(0.1).timeout
@@ -1551,7 +1548,7 @@ func get_linked_nodes_bfs(node_pair: Dictionary, head_name):
 	return result
 	
 func default_val(type: int) -> String:
-	return var_to_str(DataTypeDef.DEFUALT_VALUES[type]).replace('""', "''")
+	return var_to_str(GDSQL.DataTypeDef.DEFUALT_VALUES[type]).replace('""', "''")
 	
 func get_max_col_name_length(columns: Array) -> int:
 	var ret = 0

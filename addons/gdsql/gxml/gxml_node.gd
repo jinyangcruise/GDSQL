@@ -1,6 +1,5 @@
 @tool
 extends Resource
-class_name GXMLNode
 
 ## 节点类型
 var type: XMLParser.NodeType

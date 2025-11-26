@@ -1,8 +1,6 @@
 @tool
 extends GraphNode
 
-var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
-
 signal node_enabled
 signal node_enable_status(enabled: bool)
 signal redraw_slot(row, col)
@@ -182,7 +180,6 @@ func _notification(what):
 						data.queue_free()
 			datas = []
 			
-		mgr = null
 		max_btn = null
 		
 func redraw():
@@ -224,7 +221,7 @@ func redraw():
 							label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 							label.set_meta("col_index", left - 1)
 							hb.add_child(label)
-					elif data is DictionaryObject:
+					elif data is GDSQL.DictionaryObject:
 						#has_content = true
 						# 一些控件依赖inspector，为了简化，所有情况都使用inspector。
 						# 比如：EditorPropertyResource，如果不放到一个inspector中的话，reparent的时候（它想折叠资源）会报错，影响体验。
@@ -343,7 +340,7 @@ func redraw():
 	
 @warning_ignore("unused_parameter")
 func _prop_change(property: StringName, value: Variant, field: StringName, 
-changing: bool, dictionary_object: DictionaryObject, editor: EditorProperty):
+changing: bool, dictionary_object: GDSQL.DictionaryObject, editor: EditorProperty):
 	dictionary_object.set(property, value)
 	if typeof(value) > TYPE_ARRAY:
 		editor.update_property()
@@ -432,7 +429,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 			data.reparent(hb)
 		else:
 			hb.add_child(data)
-	elif data is DictionaryObject:
+	elif data is GDSQL.DictionaryObject:
 		# 一些控件依赖inspector，为了简化，所有情况都使用inspector
 		var inspector = EditorInspector.new()
 		inspector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -541,7 +538,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 func get_prop_value(prop):
 	for row_datas in datas:
 		for data in row_datas:
-			if data is DictionaryObject:
+			if data is GDSQL.DictionaryObject:
 				if data._get(prop) != null:
 					return data._get(prop)
 	return null

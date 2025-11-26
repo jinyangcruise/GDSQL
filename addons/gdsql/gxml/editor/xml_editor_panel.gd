@@ -7,7 +7,7 @@ extends PanelContainer
 @onready var file_tree: Tree = $VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer/FileTree
 @onready var filter_name: LineEdit = $VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer2/FilterName
 @onready var item_tree: Tree = $VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer2/ItemTree
-@onready var xml_editor_container: Control = $VBoxContainer/HSplitContainer/VBoxContainer/XMLEditorContainer
+@onready var xml_editor_container: PanelContainer = $VBoxContainer/HSplitContainer/VBoxContainer/XMLEditorContainer
 @onready var find_replace_bar: HBoxContainer = $VBoxContainer/HSplitContainer/VBoxContainer/FindReplaceBar
 @onready var curr_file: LineEdit = $VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer2/HBoxContainer/CurrFile
 @onready var sort_button: TextureButton = $VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer2/HBoxContainer/SortButton
@@ -92,9 +92,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
 func _ready() -> void:
 	set_translation_domain("godot.editor")
+	add_theme_stylebox_override(&"panel", get_theme_stylebox(&"PanelForeground", &"EditorStyles"))
+	file_tree.add_theme_stylebox_override(&"panel", get_theme_stylebox(&"panel", &"ItemList"))
 	file_tree.create_item()
 	file_tree.hide_root = true
 	
+	item_tree.add_theme_stylebox_override(&"panel", get_theme_stylebox(&"panel", &"ItemList"))
 	item_tree.create_item()
 	item_tree.hide_root = true
 	item_tree.set_column_expand(1, true)
@@ -120,6 +123,8 @@ func _ready() -> void:
 	rmb_menu.set_item_shortcut(RMB_MENU_OPTION.CLOSE, SHORTCUT_CLOSE)
 	
 	_deal_popup_menu_hide_behind_window_bug()
+	
+	xml_editor_container.add_theme_stylebox_override(&"panel", get_theme_stylebox(&"ScriptEditor", &"EditorStyles"))
 	
 	config = ConfigFile.new()
 	config.load(config_path)
@@ -213,7 +218,7 @@ func modify_item_name(item: TreeItem):
 	item.set_text(0, a_name)
 	
 func open_file(path: String):
-	path = GDSQLUtils.globalize_path(path)
+	path = GDSQL.GDSQLUtils.globalize_path(path)
 	var arr_name = {}
 	for i: TreeItem in file_tree.get_root().get_children():
 		arr_name[i.get_text(0)] = i
@@ -227,7 +232,8 @@ func open_file(path: String):
 		arr_name[a_name].set_text(0, arr_name[a_name].get_meta("path"))
 		a_name = path
 	file_tree_item.set_text(0, a_name)
-	file_tree_item.set_icon(0, get_theme_icon("TextFile", "EditorIcons"))
+	file_tree_item.set_icon_max_width(0, get_theme_icon("TextFile", "EditorIcons").get_width())
+	file_tree_item.set_icon(0, load("res://addons/gdsql/gbatis/img/xml.svg"))
 	
 	# new 
 	var file = FileAccess.open(path, FileAccess.READ)
@@ -268,7 +274,7 @@ func refresh_xml_item_tree():
 	for i in gxml.root_item.content:
 		parse_gxml_item(i, root, item_tree)
 		
-func parse_gxml_item(item: GXMLItem, parent_tree_item: TreeItem, tree: Tree):
+func parse_gxml_item(item: GDSQL.GXMLItem, parent_tree_item: TreeItem, tree: Tree):
 	var tree_item = tree.create_item(parent_tree_item)
 	tree_item.set_meta("line", item.line)
 	var id = ""
@@ -626,12 +632,12 @@ func _on_debug_index_pressed(index: int) -> void:
 		0:
 			var path = item.get_meta("path")
 			var gxml = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)
-			var validator = GBatisMapperValidator.new()
+			var validator = GDSQL.GBatisMapperValidator.new()
 			var ret = validator.validate(gxml)
 			if ret:
-				printt("Success!")
+				EditorInterface.get_editor_toaster().push_toast("No error found.", EditorToaster.SEVERITY_WARNING)
 			else:
-				printt("Error!")
+				EditorInterface.get_editor_toaster().push_toast("Error!", EditorToaster.SEVERITY_ERROR)
 				
 func _on_filter_file_text_changed(new_text: String) -> void:
 	for item: TreeItem in history:

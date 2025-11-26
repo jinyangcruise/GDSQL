@@ -2,7 +2,7 @@ extends EditorInspectorPlugin
 
 
 func _can_handle(object: Object) -> bool:
-	return object is DictionaryObject
+	return object is GDSQL.DictionaryObject
 	
 func _parse_begin(object: Object) -> void:
 	if object.has_method("get_custom_begin_control"):

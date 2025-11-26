@@ -67,7 +67,7 @@ func _get_line_syntax_highlighting(p_line: int) -> Dictionary:
 		# 解析xml
 		parse(content)
 		
-	for node: GXMLNode in line_cache.get(p_line, []):
+	for node: GDSQL.GXMLNode in line_cache.get(p_line, []):
 		match node.type:
 			XMLParser.NodeType.NODE_NONE:
 				pass
@@ -76,7 +76,7 @@ func _get_line_syntax_highlighting(p_line: int) -> Dictionary:
 				var start = 0
 				var end = 0
 				var same_line_nodes = line_cache[p_line]
-				var pre_node: GXMLNode
+				var pre_node: GDSQL.GXMLNode
 				for n in same_line_nodes:
 					if n == node:
 						break
@@ -94,7 +94,7 @@ func _get_line_syntax_highlighting(p_line: int) -> Dictionary:
 				var start = 0
 				var end = 0
 				var same_line_nodes = line_cache[p_line]
-				var pre_node: GXMLNode
+				var pre_node: GDSQL.GXMLNode
 				for n in same_line_nodes:
 					if n == node:
 						break
@@ -156,7 +156,7 @@ func parse(xml_string: String):
 	parser.open_buffer(content)
 	var arr_data = []
 	while parser.read() != ERR_FILE_EOF:
-		var node = GXMLNode.new()
+		var node = GDSQL.GXMLNode.new()
 		node.type = parser.get_node_type()
 		node.name = parser.get_node_name() if node.is_element_like() else ""
 		node.start = parser.get_node_offset()
@@ -195,7 +195,7 @@ func binary_search(target):
 			right = mid - 1# 目标在左侧
 	# 如果没有找到目标值，`left` 就是正确的插入位置
 	return left - 1
-#func cache_item(item: GXMLItem):
+#func cache_item(item: GDSQL.GXMLItem):
 	#for i in range(item.line)
 	
 #var highlighter: CodeHighlighter = Codenew()

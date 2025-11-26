@@ -1,6 +1,5 @@
 @tool
 extends RefCounted
-class_name SQLParser
 
 static var re_split_comma: RegEx = RegEx.new()
 static var re_split_equal: RegEx = RegEx.new()
@@ -74,7 +73,7 @@ static func _static_init() -> void:
 	#re_replace.compile(r"(?is)(REPLACE\s+INTO)\s+((?:\s*\b[^\s.]+\b\s*\.\s*)*\s*\b[^\s.]+\b\s*)((?:\s*\([^)]*\))?)\s*(VALUES)\s*(\([^)]*\))")
 	re_replace.compile(r"(?is)(REPLACE\s+INTO)\s+((?:\s*\b[^\s.]+\b\s*\.\s*)*\s*\b[^\s.]+\b\s*)((?:\s*\([^)]*\))?)\s*(VALUES)\s*(\((?:[^()]|\([^()]*\))*\))")
 	
-static func parse_to_dao(sql: String) -> BaseDao:
+static func parse_to_dao(sql: String) -> GDSQL.BaseDao:
 	sql = sql.strip_edges()
 	if sql.countn("select", 0, 6) > 0:
 		var arr = parse_select(sql)
@@ -85,7 +84,7 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		var table = db_table_alias[1]
 		var alias = db_table_alias[2]
 		
-		var dao = BaseDao.new()
+		var dao = GDSQL.BaseDao.new()
 		var first_dao = dao
 		if db != "":
 			dao.use_db_name(db)
@@ -172,7 +171,7 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		var db = db_table[0]
 		var table = db_table[1]
 		
-		var dao = BaseDao.new()
+		var dao = GDSQL.BaseDao.new()
 		if db != "":
 			dao.use_db_name(db)
 		dao.update(table)
@@ -197,7 +196,7 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		var db = db_table[0]
 		var table = db_table[1]
 		
-		var dao = BaseDao.new()
+		var dao = GDSQL.BaseDao.new()
 		if db != "":
 			dao.use_db_name(db)
 		dao.delete_from(table)
@@ -216,7 +215,7 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		var db = db_table[0]
 		var table = db_table[1]
 		
-		var dao = BaseDao.new()
+		var dao = GDSQL.BaseDao.new()
 		if db != "":
 			dao.use_db_name(db)
 		if (arr[0] as String).countn("ignore") > 0:
@@ -271,7 +270,7 @@ static func parse_to_dao(sql: String) -> BaseDao:
 		var db = db_table[0]
 		var table = db_table[1]
 		
-		var dao = BaseDao.new()
+		var dao = GDSQL.BaseDao.new()
 		if db != "":
 			dao.use_db_name(db)
 		dao.replace_into(table)
@@ -391,7 +390,7 @@ static func parse_replace(sql: String) -> Array:
 	
 static func prepare_sql(sql: String) -> Array:
 	sql = sql.strip_edges()
-	var quoted_matches = GDSQLUtils.extract_outer_quotes(sql)
+	var quoted_matches = GDSQL.GDSQLUtils.extract_outer_quotes(sql)
 	var replacements = {}
 	var index = -1
 	for i in quoted_matches:
@@ -472,13 +471,13 @@ need_user_enter_password: Array = []):
 			if dao.need_user_enter_password():
 				need_user_enter_password.push_back(true)
 			else:
-				if not res is QueryResult:
+				if not res is GDSQL.QueryResult:
 					return _assert_false("Error occur!")
 			return res
 		return info
 	else:
 		for k in info.keys():
-			if info[k] is QueryResult:
+			if info[k] is GDSQL.QueryResult:
 				continue
 			if k != "sql":
 				info[k] = _simplify_expression(info[k], sql_input_names, 
@@ -496,7 +495,7 @@ static func deep_prepare_sql(expression: String, origin: String = "", p_index: A
 	var sql2 = e[1]
 	if not (sql2.length() > 6 and sql2.contains("select")):
 		return ret
-	var quoted_matches = GDSQLUtils.extract_outer_quotes(sql2)
+	var quoted_matches = GDSQL.GDSQLUtils.extract_outer_quotes(sql2)
 	for i in quoted_matches:
 		if i.begins_with("'") or i .begins_with('"'):
 			continue
@@ -676,7 +675,7 @@ static func _get_field_value(s: String) -> Array[String]:
 static func _get_var(s: String):
 	var try = str_to_var(s)
 	if typeof(try) == TYPE_NIL:
-		try = GDSQLUtils.evaluate_command(null, s)
+		try = GDSQL.GDSQLUtils.evaluate_command(null, s)
 	if typeof(try) == TYPE_NIL:
 		return s
 	return try

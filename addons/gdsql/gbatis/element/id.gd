@@ -1,6 +1,5 @@
 @tool
 extends RefCounted
-class_name  GBatisId
 
 var column: String
 var property: String

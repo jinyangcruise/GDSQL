@@ -1,7 +1,6 @@
 @tool
-extends RefCounted
 ## 验证一个配置是否正确配置
-class_name GBatisMapperValidator
+extends RefCounted
 
 #var err = []
 const VALID_ELEMENTS_1 = ["include", "trim", "where", "set", "foreach", "choose", "if", "bind"]
@@ -25,7 +24,7 @@ func validate(item: GXML) -> bool:
 		return false
 	var ns = item.root_item.attrs.get("namespace", "") as String
 	if not ns.is_empty():
-		var obj = GDSQLUtils.evaluate_command_script(ns + ".new()")
+		var obj = GDSQL.GDSQLUtils.evaluate_command_script(ns + ".new()")
 		if obj == null:
 			assert(false, "Cannot initialize object of namespace: %s." % ns)
 			return false
@@ -35,11 +34,11 @@ func validate(item: GXML) -> bool:
 		if not obj is RefCounted:
 			obj.free()
 	for i in item.root_item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			deal_element(i)
 	return true
 	
-func deal_element(item: GXMLItem):
+func deal_element(item: GDSQL.GXMLItem):
 	match item.name:
 		"cache-ref":
 			deal_cache_ref(item)
@@ -112,7 +111,7 @@ func deal_element(item: GXMLItem):
 #<!ATTLIST cache-ref
 #namespace CDATA #REQUIRED
 #>
-func deal_cache_ref(item: GXMLItem):
+func deal_cache_ref(item: GDSQL.GXMLItem):
 	assert(not item.attrs.get("namespace", "").strip_edges().is_empty(), "namespace is empty of cache-ref!")
 	
 #<!ELEMENT cache (property*)>
@@ -124,16 +123,16 @@ func deal_cache_ref(item: GXMLItem):
 #readOnly CDATA #IMPLIED
 #blocking CDATA #IMPLIED
 #>
-func deal_cache(item: GXMLItem):
+func deal_cache(item: GDSQL.GXMLItem):
 	for i in item.content:
-		assert(i is GXMLItem and i.name == "property", "content of cache must be property!")
+		assert(i is GDSQL.GXMLItem and i.name == "property", "content of cache must be property!")
 		
 #<!ELEMENT parameterMap (parameter+)?>
 #<!ATTLIST parameterMap
 #id CDATA #REQUIRED
 #type CDATA #REQUIRED
 #>
-func deal_parameter_map(item: GXMLItem):
+func deal_parameter_map(item: GDSQL.GXMLItem):
 	assert(not item.attrs.get("id", "").strip_edges().is_empty(), "id is empty of parameterMap!")
 	assert(not item.attrs.get("type", "").strip_edges().is_empty(), "type is empty of parameterMap!")
 	
@@ -147,7 +146,7 @@ func deal_parameter_map(item: GXMLItem):
 #scale CDATA #IMPLIED
 #typeHandler CDATA #IMPLIED
 #>
-func deal_parameter(item: GXMLItem):
+func deal_parameter(item: GDSQL.GXMLItem):
 	assert(not item.attrs.get("property", "").strip_edges().is_empty(), "property is empty of parameter!")
 	assert(item.content.is_empty(), "parameter content should be empty!")
 	
@@ -158,11 +157,11 @@ func deal_parameter(item: GXMLItem):
 #extends CDATA #IMPLIED
 #autoMapping (true|false) #IMPLIED
 #>
-func deal_result_map(item: GXMLItem):
+func deal_result_map(item: GDSQL.GXMLItem):
 	assert(not item.attrs.get("id", "").strip_edges().is_empty(), "id is empty of result map!")
 	assert(not item.attrs.get("type", "").strip_edges().is_empty(), "type is empty of result map!")
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_2.has(i.name):
 				assert(false, "not support %s in resultMap" % i.name)
 			deal_element(i)
@@ -175,7 +174,7 @@ func deal_result_map(item: GXMLItem):
 #jdbcType CDATA #IMPLIED
 #typeHandler CDATA #IMPLIED
 #>
-func deal_id(item: GXMLItem):
+func deal_id(item: GDSQL.GXMLItem):
 	assert(not item.attrs.get("property", "").strip_edges().is_empty(), "id is empty of <id>!")
 	assert(not item.attrs.get("column", "").strip_edges().is_empty(), "type is empty of <id>!")
 	assert(item.content.is_empty(), "id content should be empty!")
@@ -188,7 +187,7 @@ func deal_id(item: GXMLItem):
 #jdbcType CDATA #IMPLIED
 #typeHandler CDATA #IMPLIED
 #>
-func deal_result(item: GXMLItem):
+func deal_result(item: GDSQL.GXMLItem):
 	assert(not item.attrs.get("property", "").strip_edges().is_empty(), "id is empty of <result>!")
 	assert(not item.attrs.get("column", "").strip_edges().is_empty(), "type is empty of <result>!")
 	assert(item.content.is_empty(), "result content should be empty!")
@@ -204,7 +203,7 @@ func deal_result(item: GXMLItem):
 #name CDATA #IMPLIED
 #columnPrefix CDATA #IMPLIED
 #>
-func deal_id_arg(item:GXMLItem):
+func deal_id_arg(item:GDSQL.GXMLItem):
 	assert(item.content.is_empty(), "idArg content should be empty!")
 	
 #<!ELEMENT arg EMPTY>
@@ -218,7 +217,7 @@ func deal_id_arg(item:GXMLItem):
 #name CDATA #IMPLIED
 #columnPrefix CDATA #IMPLIED
 #>
-func deal_arg(item:GXMLItem):
+func deal_arg(item:GDSQL.GXMLItem):
 	assert(item.content.is_empty(), "arg content should be empty!")
 	
 #<!ELEMENT collection (constructor?,id*,result*,association*,collection*, discriminator?)>
@@ -238,10 +237,10 @@ func deal_arg(item:GXMLItem):
 #autoMapping (true|false) #IMPLIED
 #fetchType (lazy|eager) #IMPLIED
 #>
-func deal_collection(item:GXMLItem):
+func deal_collection(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("property", "").strip_edges().is_empty(), "property is empty of colletion!")
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_2.has(i.name):
 				assert(false, "not support %s in collection" % i.name)
 			deal_element(i)
@@ -262,10 +261,10 @@ func deal_collection(item:GXMLItem):
 #autoMapping (true|false) #IMPLIED
 #fetchType (lazy|eager) #IMPLIED
 #>
-func deal_association(item:GXMLItem):
+func deal_association(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("property", "").strip_edges().is_empty(), "property is empty of association!")
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_2.has(i.name):
 				assert(false, "not support %s in association" % i.name)
 			deal_element(i)
@@ -277,12 +276,12 @@ func deal_association(item:GXMLItem):
 #jdbcType CDATA #IMPLIED
 #typeHandler CDATA #IMPLIED
 #>
-func deal_discriminator(item:GXMLItem):
+func deal_discriminator(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("column", "").strip_edges().is_empty(), "column is empty of discriminator!")
 	assert(not item.attrs.get("javaType", "").strip_edges().is_empty(), "javaType is empty of discriminator!")
 	assert(not item.content.is_empty(), "content of discriminator is empty!")
 	for i in item.content:
-		assert(i is GXMLItem and i.name == "case", "content of discriminator must be case!")
+		assert(i is GDSQL.GXMLItem and i.name == "case", "content of discriminator must be case!")
 		
 #<!ELEMENT case (constructor?,id*,result*,association*,collection*, discriminator?)>
 #<!ATTLIST case
@@ -290,10 +289,10 @@ func deal_discriminator(item:GXMLItem):
 #resultMap CDATA #IMPLIED
 #resultType CDATA #IMPLIED
 #>
-func deal_case(item:GXMLItem):
+func deal_case(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("value", "").strip_edges().is_empty(), "value is empty of case!")
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_2.has(i.name):
 				assert(false, "not support %s in case" % i.name)
 			deal_element(i)
@@ -303,7 +302,7 @@ func deal_case(item:GXMLItem):
 #name CDATA #REQUIRED
 #value CDATA #REQUIRED
 #>
-func deal_property(item:GXMLItem):
+func deal_property(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("name", "").strip_edges().is_empty(), "name is empty of property!")
 	assert(not item.attrs.get("value", "").strip_edges().is_empty(), "value is empty of property!")
 	assert(item.content.is_empty(), "property content should be empty!")
@@ -313,7 +312,7 @@ func deal_property(item:GXMLItem):
 #alias CDATA #REQUIRED
 #type CDATA #REQUIRED
 #>
-func deal_type_alias(item:GXMLItem):
+func deal_type_alias(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("alias", "").strip_edges().is_empty(), "alias is empty of typeAlias!")
 	assert(not item.attrs.get("type", "").strip_edges().is_empty(), "type is empty of typeAlias!")
 	assert(item.content.is_empty(), "typeAlias content should be empty!")
@@ -336,10 +335,10 @@ func deal_type_alias(item:GXMLItem):
 #resultOrdered (true|false) #IMPLIED
 #resultSets CDATA #IMPLIED 
 #>
-func deal_select(item:GXMLItem):
+func deal_select(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("id", "").strip_edges().is_empty(), "id is empty of select!")
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_1.has(i.name):
 				assert(false, "not support %s in select" % i.name)
 			deal_element(i)
@@ -359,10 +358,10 @@ func deal_select(item:GXMLItem):
 #databaseId CDATA #IMPLIED
 #lang CDATA #IMPLIED
 #>
-func deal_insert(item:GXMLItem):
+func deal_insert(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("id", "").strip_edges().is_empty(), "id is empty of insert!")
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_3.has(i.name):
 				assert(false, "not support %s in insert" % i.name)
 			deal_element(i)
@@ -382,10 +381,10 @@ func deal_insert(item:GXMLItem):
 #databaseId CDATA #IMPLIED
 #lang CDATA #IMPLIED
 #>
-func deal_replace(item:GXMLItem):
+func deal_replace(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("id", "").strip_edges().is_empty(), "id is empty of insert!")
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_3.has(i.name):
 				assert(false, "not support %s in replace" % i.name)
 			deal_element(i)
@@ -399,9 +398,9 @@ func deal_replace(item:GXMLItem):
 #order (BEFORE|AFTER) #IMPLIED
 #databaseId CDATA #IMPLIED
 #>
-func deal_select_key(item:GXMLItem):
+func deal_select_key(item:GDSQL.GXMLItem):
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_1.has(i.name):
 				assert(false, "not support %s in selectKey" % i.name)
 			deal_element(i)
@@ -421,10 +420,10 @@ func deal_select_key(item:GXMLItem):
 #databaseId CDATA #IMPLIED
 #lang CDATA #IMPLIED
 #>
-func deal_update(item:GXMLItem):
+func deal_update(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("id", "").strip_edges().is_empty(), "id is empty of update!")
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_3.has(i.name):
 				assert(false, "not support %s in update" % i.name)
 			deal_element(i)
@@ -440,10 +439,10 @@ func deal_update(item:GXMLItem):
 #databaseId CDATA #IMPLIED
 #lang CDATA #IMPLIED
 #>
-func deal_delete(item:GXMLItem):
+func deal_delete(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("id", "").strip_edges().is_empty(), "id is empty of delete!")
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_1.has(i.name):
 				assert(false, "not support %s in delete" % i.name)
 			deal_element(i)
@@ -452,17 +451,17 @@ func deal_delete(item:GXMLItem):
 #<!ATTLIST include
 #refid CDATA #REQUIRED
 #>
-func deal_include(item:GXMLItem):
+func deal_include(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("refid", "").strip_edges().is_empty(), "refid is empty of include!")
 	for i in item.content:
-		assert(i is GXMLItem and i.name == "property", "content of include must be property!")
+		assert(i is GDSQL.GXMLItem and i.name == "property", "content of include must be property!")
 		
 #<!ELEMENT bind EMPTY>
 #<!ATTLIST bind
  #name CDATA #REQUIRED
  #value CDATA #REQUIRED
 #>
-func deal_bind(item:GXMLItem):
+func deal_bind(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("name", "").strip_edges().is_empty(), "name is empty of bind!")
 	assert(not item.attrs.get("value", "").strip_edges().is_empty(), "value is empty of bind!")
 	
@@ -472,10 +471,10 @@ func deal_bind(item:GXMLItem):
 #lang CDATA #IMPLIED
 #databaseId CDATA #IMPLIED
 #>
-func deal_sql(item:GXMLItem):
+func deal_sql(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("id", "").strip_edges().is_empty(), "id is empty of sql!")
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_1.has(i.name):
 				assert(false, "not support %s in sql" % i.name)
 			deal_element(i)
@@ -487,25 +486,25 @@ func deal_sql(item:GXMLItem):
 #suffix CDATA #IMPLIED
 #suffixOverrides CDATA #IMPLIED
 #>
-func deal_trim(item:GXMLItem):
+func deal_trim(item:GDSQL.GXMLItem):
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_1.has(i.name):
 				assert(false, "not support %s in trim" % i.name)
 			deal_element(i)
 			
 #<!ELEMENT where (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
-func deal_where(item:GXMLItem):
+func deal_where(item:GDSQL.GXMLItem):
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_1.has(i.name):
 				assert(false, "not support %s in where" % i.name)
 			deal_element(i)
 			
 #<!ELEMENT set (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
-func deal_set(item:GXMLItem):
+func deal_set(item:GDSQL.GXMLItem):
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_1.has(i.name):
 				assert(false, "not support %s in set" % i.name)
 			deal_element(i)
@@ -519,18 +518,18 @@ func deal_set(item:GXMLItem):
 #close CDATA #IMPLIED
 #separator CDATA #IMPLIED
 #>
-func deal_foreach(item:GXMLItem):
+func deal_foreach(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("collection", "").strip_edges().is_empty(), "collection is empty of foreach!")
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_1.has(i.name):
 				assert(false, "not support %s in foreach" % i.name)
 			deal_element(i)
 			
 #<!ELEMENT choose (when* , otherwise?)>
-func deal_choose(item:GXMLItem):
+func deal_choose(item:GDSQL.GXMLItem):
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not ["when", "otherwise"].has(i.name):
 				assert(false, "not support %s in choose" % i.name)
 			deal_element(i)
@@ -539,18 +538,18 @@ func deal_choose(item:GXMLItem):
 #<!ATTLIST when
 #test CDATA #REQUIRED
 #>
-func deal_when(item:GXMLItem):
+func deal_when(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("test", "").strip_edges().is_empty(), "test is empty of when!")
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_1.has(i.name):
 				assert(false, "not support %s in when" % i.name)
 			deal_element(i)
 			
 #<!ELEMENT otherwise (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
-func deal_otherwise(item:GXMLItem):
+func deal_otherwise(item:GDSQL.GXMLItem):
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_1.has(i.name):
 				assert(false, "not support %s in otherwise" % i.name)
 			deal_element(i)
@@ -559,10 +558,10 @@ func deal_otherwise(item:GXMLItem):
 #<!ATTLIST if
 #test CDATA #REQUIRED
 #>
-func deal_if(item:GXMLItem):
+func deal_if(item:GDSQL.GXMLItem):
 	assert(not item.attrs.get("test", "").strip_edges().is_empty(), "test is empty of if!")
 	for i in item.content:
-		if i is GXMLItem:
+		if i is GDSQL.GXMLItem:
 			if not VALID_ELEMENTS_1.has(i.name):
 				assert(false, "not support %s in if" % i.name)
 			deal_element(i)

@@ -11,7 +11,6 @@ extends RefCounted
 ## 使用同一个AggresiveFunction，但是需要重置调用次数，这样才能根据调用
 ## 次数找到对应的空间。所以AggresiveFunction要根据“分组-列序号-调用次数”
 ## 来做hash id。
-class_name AggregateFunctions
 
 var id
 var _preparing = true ## 准备模式。计算最后一条数据前，需要把它设置成false
@@ -43,9 +42,9 @@ static func enable_empty_data_mode(p_id):
 	var obj = get_instance(p_id)
 	obj._empty_data_mode = true
 	
-static func get_instance(p_id) -> AggregateFunctions:
+static func get_instance(p_id) -> GDSQL.AggregateFunctions:
 	if not _instances.has(p_id):
-		_instances[p_id] = AggregateFunctions.new()
+		_instances[p_id] = GDSQL.AggregateFunctions.new()
 		_instances[p_id].id = p_id
 	return _instances[p_id]
 	
@@ -53,16 +52,17 @@ static func clear_instances():
 	_instances.clear()
 	
 static func possible_has_func(select_name: String) -> bool:
-	for i in FUNCTIONS:
-		if select_name.contains(i) and select_name.contains("(") and select_name.contains(")"):
-			return true
+	if select_name.contains("(") and select_name.contains(")"):
+		for i in FUNCTIONS:
+			if select_name.containsn(i):
+				return true
 	return false
 	
 func _register(method: String, param):
 	if not _methods.has(_count):
 		_methods[_count] = method
 		_params[_count] = []
-	if param is AggregateFunctions:
+	if param is GDSQL.AggregateFunctions:
 		assert(false, "Invalid use of group function.")
 		return null
 	_params[_count].push_back(param)
@@ -220,7 +220,7 @@ func distinct_group_concat(param, separator = ',', order = '', param_0_names = [
 			return ''.join(v)))
 			
 	#var matches = regex_comma.search_all(order)
-	var matches = GDSQLUtils.search_symbol(order, ",")
+	var matches = GDSQL.GDSQLUtils.search_symbol(order, ",")
 	var arr = []
 	if not matches.is_empty():
 		var start = 0
@@ -343,7 +343,7 @@ func group_concat(param, separator = ',', order = '', param_0_names = []):
 			return ''.join(v)))
 		
 	#var matches = regex_comma.search_all(order)
-	var matches = GDSQLUtils.search_symbol(order, ",")
+	var matches = GDSQL.GDSQLUtils.search_symbol(order, ",")
 	var arr = []
 	if not matches.is_empty():
 		var start = 0
@@ -482,13 +482,13 @@ func grid_checkbox(param, columns: int, rows: int):
 	
 # NOTICE 非聚合函数，不register
 func ifn(condition, value_if_true, value_if_false):
-	if condition is AggregateFunctions or value_if_true is AggregateFunctions or value_if_false is AggregateFunctions:
+	if condition is GDSQL.AggregateFunctions or value_if_true is GDSQL.AggregateFunctions or value_if_false is GDSQL.AggregateFunctions:
 		#assert(_preparing, "Inner error 330.")
 		return self # self中必定包含了condition、value_if_true、value_if_false，如果它们是AggregateFunctions的话
 	return value_if_true if condition else value_if_false
 	
 # NOTICE 非聚合函数，不register
 func ifnull(value, value_if_null):
-	if value is AggregateFunctions or value_if_null is AggregateFunctions:
+	if value is GDSQL.AggregateFunctions or value_if_null is GDSQL.AggregateFunctions:
 		return self
 	return value_if_null if typeof(value) == TYPE_NIL else value

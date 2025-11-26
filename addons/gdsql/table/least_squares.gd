@@ -1,7 +1,6 @@
 ## 最小二乘法
 @tool
 extends RefCounted
-class_name LeastSquares
 
 var groups: Array[LeastSquaresGroupNumber] = []
 var group_x_map = {}

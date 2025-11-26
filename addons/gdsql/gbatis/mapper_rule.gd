@@ -1,5 +1,4 @@
 extends RefCounted
-class_name GBatisMapperRule
 
 const rule = {
 	"cache-ref": {

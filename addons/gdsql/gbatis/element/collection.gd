@@ -1,6 +1,6 @@
 @tool
 extends RefCounted
-class_name GBatisCollection
+
 #<!ELEMENT collection (constructor?,id*,result*,association*,collection*, discriminator?)>
 #<!ATTLIST collection
 #===============================================================================
@@ -75,11 +75,11 @@ var result_map = ""
 var column_prefix = ""
 var foreign_column = ""
 var auto_mapping = ""
-var result_embeded: GBatisResultMap
+var result_embeded: GDSQL.GBatisResultMap
 var mapper_parser_ref: WeakRef: set = set_mapper_parser_ref
 
 # --------- 内部使用 ----------
-var _result_map: GBatisResultMap # 把collection当作一个resultMap来用
+var _result_map: GDSQL.GBatisResultMap # 把collection当作一个resultMap来用
 var head: Array
 
 func _init(conf: Dictionary):
@@ -108,7 +108,7 @@ func set_mapper_parser_ref(mapper_parser):
 	
 func push_element(element):
 	if not result_embeded:
-		result_embeded = GBatisResultMap.new({"type": java_type})
+		result_embeded = GDSQL.GBatisResultMap.new({"type": java_type})
 		result_embeded.set_mapper_parser_ref(mapper_parser_ref)
 	result_embeded.push_back(element)
 	
@@ -127,11 +127,11 @@ func prepare_deal(data: Array):
 			if _result_map == null:
 				assert(false, "Not found <resultMap> of id %s" % result_map)
 				return null
-			if not _result_map is GBatisResultMap:
+			if not _result_map is GDSQL.GBatisResultMap:
 				assert(false, "Not found <resultMap> of id %s" % result_map)
 				return null
 		elif select.is_empty():
-			_result_map = GBatisResultMap.new({"type": java_type})
+			_result_map = GDSQL.GBatisResultMap.new({"type": java_type})
 			_result_map.set_mapper_parser_ref(mapper_parser_ref)
 			
 	if _result_map != null:

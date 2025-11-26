@@ -1,6 +1,5 @@
 @tool
 extends Resource
-class_name GXMLItem
 
 ## 节点名称
 var name: String
@@ -15,7 +14,7 @@ var content: Array
 ## CDATA在content中的索引
 var cdata_indexes: Array
 ## 父
-var parent: GXMLItem
+var parent#: GDSQL.GXMLItem
 
 func _validate_property(property: Dictionary) -> void:
 	match property.name:
@@ -37,7 +36,7 @@ func to_dict(flags: GXML.TO_DICT_FLAG) -> Dictionary:
 			if not pre_str.is_empty():
 				a_content.push_back(pre_str)
 				pre_str = ""
-			a_content.push_back((i as GXMLItem).to_dict(flags))
+			a_content.push_back(i.to_dict(flags))
 			
 	if not pre_str.is_empty():
 		a_content.push_back(pre_str)
@@ -53,7 +52,7 @@ func clean():
 	parent = null
 	attrs.clear()
 	for i in content:
-		if i is GXMLItem:
+		if i is Resource and i.resource_path == resource_path:
 			i.clean()
 	content.clear()
 	cdata_indexes.clear()
@@ -63,7 +62,7 @@ func _notification(what):
 		parent = null
 		attrs.clear()
 		for i in content:
-			if i is GXMLItem:
+			if i is Resource and i.resource_path == resource_path:
 				i.clean()
 		content.clear()
 		cdata_indexes.clear()

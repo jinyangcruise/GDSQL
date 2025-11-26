@@ -59,11 +59,11 @@ func _parse_buffer(buffer: PackedByteArray):
 	parser.open_buffer(buffer)
 	return _parse(parser, buffer)
 	
-func _parse(parser: XMLParser, content: PackedByteArray) -> GXMLItem:
-	var root_item: GXMLItem = null
+func _parse(parser: XMLParser, content: PackedByteArray) -> GDSQL.GXMLItem:
+	var root_item: GDSQL.GXMLItem = null
 	var arr_data = []
 	while parser.read() != ERR_FILE_EOF:
-		var node = GXMLNode.new()
+		var node = GDSQL.GXMLNode.new()
 		node.type = parser.get_node_type()
 		node.name = parser.get_node_name() if node.is_element_like() else ""
 		node.start = parser.get_node_offset()
@@ -81,7 +81,7 @@ func _parse(parser: XMLParser, content: PackedByteArray) -> GXMLItem:
 		if arr_data[i].is_cdata():
 			arr_data[i].raw = content.slice(arr_data[i].start, arr_data[i].end).get_string_from_utf8()
 			
-	var curr_item: GXMLItem = null
+	var curr_item: GDSQL.GXMLItem = null
 	for i in arr_data.size():
 		if i == arr_data.size() - 1 and not curr_item:
 			break
@@ -92,13 +92,13 @@ func _parse(parser: XMLParser, content: PackedByteArray) -> GXMLItem:
 				pass
 			XMLParser.NODE_ELEMENT:
 				if not root_item:
-					root_item = GXMLItem.new()
+					root_item = GDSQL.GXMLItem.new()
 					root_item.name = node.name
 					root_item.attrs = node.attrs
 					root_item.line = node.line
 					curr_item = root_item
 				else:
-					var element = GXMLItem.new()
+					var element = GDSQL.GXMLItem.new()
 					element.name = node.name
 					element.attrs = node.attrs
 					element.line = node.line

@@ -10,26 +10,7 @@ var resource_format_loader_xml: ResourceFormatLoaderXML
 var xml_inspector_plugin
 var xml_editor_window
 
-#region Singleton
-var conf_manager: Node
-var gdsql_workbench_manager: Node
-#endregion
-
 func _enter_tree():
-	# 注册配置单例，让非插件范围的代码能使用ConfManager
-	add_autoload_singleton("ConfManager", "res://addons/gdsql/database/conf_manager.gd")
-	
-	# 注册配置单例，让插件范围内的代码能使用ConfManager（需通过类型转换为ConfManagerClass来实现编辑器代码提示）
-	if not Engine.has_singleton("ConfManager"):
-		conf_manager = preload("res://addons/gdsql/database/conf_manager.gd").new()
-		Engine.register_singleton("ConfManager", conf_manager)
-	
-	# 注册配置单例，让插件范围内的代码能使用GDSQLWorkbenchManager（需通过类型转换为GDSQLWorkbenchManageClass来实现编辑器代码提示）
-	if not Engine.has_singleton("GDSQLWorkbenchManager"):
-		gdsql_workbench_manager = preload("res://addons/gdsql/singletons/gdsql_workbench_manager.gd").new()
-		get_tree().root.add_child(gdsql_workbench_manager)
-		Engine.register_singleton("GDSQLWorkbenchManager", gdsql_workbench_manager)
-	
 	# 特别需求，让检查器能够查看DictionaryObject
 	# EditorInspectorPlugin is a resource, so we use `new()` instead of `instance()`.
 	dictionary_object_inspector_plugin = preload("res://addons/gdsql/inspector_plugin/dictionary_object_inspector_plugin.gd").new()
@@ -53,7 +34,7 @@ func _enter_tree():
 	
 	# 进入界面
 	main_panel_instance = MainPanel.instantiate()
-	Engine.get_singleton("GDSQLWorkbenchManager").main_panel = main_panel_instance
+	GDSQL.WorkbenchManager.main_panel = main_panel_instance
 	# Add the main panel to the editor's main viewport.
 	EditorInterface.get_editor_main_screen().add_child(main_panel_instance)
 	# Hide the main panel. Very much required.
@@ -66,19 +47,11 @@ func _exit_tree():
 	if xml_editor_window:
 		xml_editor_window.queue_free()
 	remove_tool_menu_item("XML Editor")
-	Engine.get_singleton("GDSQLWorkbenchManager").main_panel = null
 	if dictionary_object_inspector_plugin:
 		remove_inspector_plugin(dictionary_object_inspector_plugin)
 	if xml_inspector_plugin:
 		remove_inspector_plugin(xml_inspector_plugin)
-	if Engine.has_singleton("ConfManager"):
-		Engine.unregister_singleton("ConfManager")
-		conf_manager.queue_free()
-	if Engine.has_singleton("GDSQLWorkbenchManager"):
-		Engine.unregister_singleton("GDSQLWorkbenchManager")
-		gdsql_workbench_manager.queue_free()
-		
-	remove_autoload_singleton("ConfManager")
+	GDSQL._clear()
 	
 func _has_main_screen():
 	return true
@@ -91,7 +64,7 @@ func _get_plugin_name():
 	return PLUGIN_NAME
 	
 func _get_plugin_icon():
-	return EditorInterface.get_base_control().get_theme_icon("ItemList", "EditorIcons")
+	return load("res://addons/gdsql/img/gdsql_icon.svg")
 	
 func bind_file_system_dock_for_gdmappergraph():
 	var fs_dock = EditorInterface.get_file_system_dock()
@@ -117,7 +90,7 @@ func bind_file_system_dock_for_gdmappergraph():
 			var path = selected.get_metadata(0) as String
 			if path.get_extension() == "gdmappergraph":
 				EditorInterface.set_main_screen_editor(PLUGIN_NAME)
-				gdsql_workbench_manager.open_mapper_graph_file_tab.emit(path)
+				GDSQL.WorkbenchManager.open_mapper_graph_file_tab.emit(path)
 	)
 	
 	# second split
@@ -126,7 +99,7 @@ func bind_file_system_dock_for_gdmappergraph():
 		var path = file_item_list.get_item_metadata(index) as String
 		if path.get_extension() == "gdmappergraph":
 			EditorInterface.set_main_screen_editor(PLUGIN_NAME)
-			gdsql_workbench_manager.open_mapper_graph_file_tab.emit(path)
+			GDSQL.WorkbenchManager.open_mapper_graph_file_tab.emit(path)
 	)
 	
 func _on_file_system_dock_popup_menu_idex_pressed(index: int):
@@ -139,6 +112,6 @@ func _on_file_system_dock_popup_menu_idex_pressed(index: int):
 						var path = EditorInterface.get_current_path()
 						if path.get_extension() == "gdmappergraph":
 							EditorInterface.set_main_screen_editor(PLUGIN_NAME)
-							gdsql_workbench_manager.open_mapper_graph_file_tab.emit(path)
+							GDSQL.WorkbenchManager.open_mapper_graph_file_tab.emit(path)
 							return
 							

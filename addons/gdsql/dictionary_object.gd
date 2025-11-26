@@ -1,5 +1,4 @@
 extends RefCounted
-class_name DictionaryObject
 
 signal value_changed(prop: StringName, new_value: Variant, old_value: Variant)
 
@@ -13,16 +12,10 @@ var _read_only: bool
 ## 连接属性
 var _duplicate_property: Array
 
-var __CONF_MANAGER: ConfManagerClass
-
 ## data： 一个key-value形成的字典数据。或一个长度为2的数组，第一个元素是key的一维数组，第二个元素是value的一维数组
 ## hint： 一个key-dictionary字典数据。key为data中的key，dictionary为包含"hint"和"hint_string"，"link"，"usage"，"type"键的数据。@see PropertyHint 
 ## 是否只读
 func _init(data, hint: Dictionary = {}, read_only: bool = false) -> void:
-	if Engine.has_singleton("ConfManager"):
-		__CONF_MANAGER = Engine.get_singleton("ConfManager")
-	else:
-		__CONF_MANAGER = ConfManager
 	_hint = hint
 	_read_only = read_only
 	if data is Dictionary:
@@ -40,7 +33,6 @@ func _init(data, hint: Dictionary = {}, read_only: bool = false) -> void:
 			
 func _notification(what):
 	if what == NOTIFICATION_PREDELETE:
-		__CONF_MANAGER = null
 		_origin = {}
 		_data = {}
 		_hint = {}
@@ -117,8 +109,8 @@ func reset_read_only(read_only: bool):
 	_read_only = read_only
 	notify_property_list_changed()
 	
-func duplicate(deep: bool = false) -> DictionaryObject:
-	var dict_obj = DictionaryObject.new(_data.duplicate(deep), _hint.duplicate(deep), _read_only)
+func duplicate(deep: bool = false) -> GDSQL.DictionaryObject:
+	var dict_obj = GDSQL.DictionaryObject.new(_data.duplicate(deep), _hint.duplicate(deep), _read_only)
 	if _origin:
 		dict_obj._origin = _origin.duplicate(deep)
 	if _update_callback:
@@ -190,7 +182,7 @@ func _set_default_by_index(index:int) -> bool:
 		
 	var type = _hint[prop]["type"] if (_hint.has(prop) and _hint[prop].has("type")) \
 		else (TYPE_NIL if _data[prop] == null else typeof(_data[prop]))
-	return _set(prop, DataTypeDef.DEFUALT_VALUES[type])
+	return _set(prop, GDSQL.DataTypeDef.DEFUALT_VALUES[type])
 	
 ## 设置属性为链接属性，链接属性的值指向到被链接的属性的值。
 ## 被链接属性的名称可以从_hint[链接属性]["link"]获取到。
@@ -234,7 +226,7 @@ func _get_property_list() -> Array[Dictionary]:
 			if info.type == TYPE_STRING:
 				var arr = (info["hint_string"] as String).rsplit(":", true, 1)
 				if arr.size() == 2 and (arr[0] as String).is_absolute_path():
-					var conf = __CONF_MANAGER.get_conf(arr[0], "")
+					var conf = GDSQL.ConfManager.get_conf(arr[0], "")
 					if conf:
 						info["hint_string"] = ",".join(conf.get_all_section_value(arr[1]))
 					else:
@@ -246,7 +238,7 @@ func _get_property_list() -> Array[Dictionary]:
 					if has_meta(meta_key):
 						info["hint_string"] = get_meta(meta_key)
 					else:
-						var conf = __CONF_MANAGER.get_conf(arr[0], "")
+						var conf = GDSQL.ConfManager.get_conf(arr[0], "")
 						if conf:
 							info["hint_string"] = ",".join(
 								conf.get_all_section_values([arr[1], arr[2]]).map(func(v):
@@ -285,7 +277,7 @@ func get_update_callback(property: String) -> Callable:
 ## 如果需要数据和控件进行单、双向绑定，需要用户自行完成绑定逻辑。
 ## 用户需要充分了解外部可能释放该控件（queue_free），因此需要多加注意。请根据实际情况，是直接使用传入的control还是复制一份再使用。
 ## property: 属性名称
-## control: 自定义显示控件（注意！！！请避免同一个控件被多个DictionaryObject使用，可使用duplicate复制。除非您充分了解自己要干什么。）
+## control: 自定义显示控件（注意！！！请避免同一个控件被多个GDSQL.DictionaryObject使用，可使用duplicate复制。除非您充分了解自己要干什么。）
 ## update_callback: 当属性的值发生改变时的回调函数。比如：用户可以利用该函数进行显示控件的更新。
 func set_custom_display_control(property: String, control: Control, update_callback: Callable = Callable(), 
 	update_immediately: bool = true) -> void:

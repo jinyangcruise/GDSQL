@@ -1,6 +1,6 @@
 @tool
 extends RefCounted
-class_name GBatisReplace
+
 # NOTICE GBatis新增特性。mybatis原本不支持replace.
 #<!ELEMENT replace (#PCDATA | selectKey | include | trim | where | set | foreach 
 #| choose | if | bind)*>
@@ -61,7 +61,7 @@ func set_param_obj_or_dict(param):
 	
 # INFO 缓存的逻辑在mapper_parser.gd
 func query():
-	var dao = SQLParser.parse_to_dao(sql)
+	var dao = GDSQL.SQLParser.parse_to_dao(sql)
 	if dao == null:
 		assert(false, "Parse to dao failed: " + sql)
 		return null
@@ -121,5 +121,5 @@ func query():
 		return query_result
 		
 	assert(false, "Method of <replace> cannot return %s." % \
-		DataTypeDef.DATA_TYPE_NAMES[method_return_info.type])
+		GDSQL.DataTypeDef.DATA_TYPE_NAMES[method_return_info.type])
 	return null

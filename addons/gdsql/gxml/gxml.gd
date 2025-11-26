@@ -15,10 +15,11 @@
 ##             <b>...</b>
 ##         </abc>
 @tool
+@icon("res://addons/gdsql/gbatis/img/xml.svg")
 extends Resource
 class_name GXML
 
-var root_item: GXMLItem
+var root_item: GDSQL.GXMLItem
 
 ## Some features that to_dict() uses. You can combine these flags.
 enum TO_DICT_FLAG {

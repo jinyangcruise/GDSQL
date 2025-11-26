@@ -1,6 +1,5 @@
 @tool
 extends Object
-class_name DataTypeDef
 
 static var DATA_TYPES = [
 	TYPE_NIL,
@@ -84,7 +83,7 @@ static var DATA_TYPE_NAMES = [
 	"TYPE_PACKED_VECTOR2_ARRAY",
 	"TYPE_PACKED_VECTOR3_ARRAY",
 	"TYPE_PACKED_COLOR_ARRAY",
-	"PackedVector4Array",
+	"TYPE_PACKED_VECTOR4_ARRAY",
 	"TYPE_MAX",
 ]
 

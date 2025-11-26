@@ -1,8 +1,6 @@
 @tool
 extends GraphEdit
 
-var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
-
 func _can_drop_data(_position, data):
 	# { "type": "files", "files": ["res://src/dao/t_hero.gdmappergraph"], "from": @Tree@6840:<Tree#603409380691> }
 	if data is Dictionary:
@@ -16,5 +14,5 @@ func _can_drop_data(_position, data):
 func _drop_data(_position, data):
 	for i in data.get("files"):
 		if i is String and i.ends_with(".gdmappergraph"):
-			mgr.open_mapper_graph_file_tab.emit(i)
+			GDSQL.WorkbenchManager.open_mapper_graph_file_tab.emit(i)
 	

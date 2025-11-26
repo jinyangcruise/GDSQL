@@ -1,7 +1,8 @@
 @tool
 extends ScrollContainer
 
-var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
+var mgr: GDSQL.WorkbenchManagerClass:
+	get: return GDSQL.WorkbenchManager
 
 @onready var option_button_tables: OptionButton = $VBoxContainer/HBoxContainer/OptionButtonTables
 @onready var grid_container_columns = $VBoxContainer/MarginContainer/PanelContainer/GridContainerColumns
@@ -26,7 +27,6 @@ func _ready():
 			
 func _exit_tree():
 	option_button_tables.clear()
-	mgr = null
 	
 func select_table(db_name, table_name):
 	for i in option_button_tables.item_count:
@@ -130,7 +130,7 @@ func _on_button_apply_pressed() -> void:
 	var table_name = table[1]
 	mgr.request_user_enter_password.emit(db_name, table_name, "", func():
 		var begin_time = Time.get_unix_time_from_system()
-		var dao = BaseDao.new()
+		var dao = GDSQL.BaseDao.new()
 		var ret = dao.use_db(mgr.databases[db_name]["data_path"])\
 			.select(",".join(checked), true).from(table_name + DATA_EXTENSION).query()
 		if ret == null:
@@ -152,7 +152,7 @@ func _on_button_apply_pressed() -> void:
 			mgr.add_log_history.emit("OK", begin_time, "Export table data of %s.%s" % [db_name, table_name], 
 				"1 file: %s was exported!" % line_edit_file_path.text)
 			if check_box_open_folder_when_finished.button_pressed:
-				OS.shell_show_in_file_manager(GDSQLUtils.globalize_path(line_edit_file_path.text), true)
+				OS.shell_show_in_file_manager(GDSQL.GDSQLUtils.globalize_path(line_edit_file_path.text), true)
 		else:
 			mgr.add_log_history.emit("Err", begin_time, "Export table data of %s.%s" % [db_name, table_name], "Err occur, code: %s." % err)
 	)

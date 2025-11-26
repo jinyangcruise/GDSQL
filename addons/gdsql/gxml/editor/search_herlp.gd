@@ -38,19 +38,19 @@ func _ready() -> void:
 		Callable(get_ok_button(), "set_disabled").bind(false))
 		
 	var root = results_tree.create_item()
-	for item_name in GBatisMapperRule.rule:
+	for item_name in GDSQL.GBatisMapperRule.rule:
 		var item = results_tree.create_item(root)
 		item.set_meta("is_base", true)
 		item.set_icon(0, get_theme_icon("Object", "EditorIcons"))
 		item.set_text(0, item_name)
 		item.set_icon(2, get_theme_icon("Object", "EditorIcons"))
 		item.set_text(2, tr("Class"))
-		if GBatisMapperRule.rule[item_name].deprecated:
+		if GDSQL.GBatisMapperRule.rule[item_name].deprecated:
 			item.set_meta("deprecated", true)
 			item.set_icon(1, get_theme_icon("StatusError", "EditorIcons"))
 			item.set_tooltip_text(1, tr("This class is marked as deprecated."))
 			item.collapsed = true
-		var props_info = GBatisMapperRule.rule[item_name]["attr_list"]
+		var props_info = GDSQL.GBatisMapperRule.rule[item_name]["attr_list"]
 		for prop in props_info:
 			var p_item = results_tree.create_item(item)
 			p_item.set_meta("is_attr", true)
@@ -71,7 +71,7 @@ func _ready() -> void:
 				p_item.set_icon(2, get_theme_icon("KeyValue", "EditorIcons"))
 			p_item.set_text(2, tr("Property"))
 			
-		var sub_elements = GBatisMapperRule.rule[item_name]["valid_child"]
+		var sub_elements = GDSQL.GBatisMapperRule.rule[item_name]["valid_child"]
 		for element in sub_elements:
 			var e_item = results_tree.create_item(item)
 			e_item.set_meta("is_child", true)
@@ -210,8 +210,8 @@ func _confirmed() -> void:
 		if selected.get_meta("is_base", false):
 			var curr_base = selected.get_text(0)
 			arr_base[curr_base] = {"attrs": [], "children": []}
-			for i in GBatisMapperRule.rule[curr_base].attr_list:
-				if GBatisMapperRule.rule[curr_base].attr_list[i].required:
+			for i in GDSQL.GBatisMapperRule.rule[curr_base].attr_list:
+				if GDSQL.GBatisMapperRule.rule[curr_base].attr_list[i].required:
 					arr_base[curr_base].attrs.push_back(i)
 		elif selected.get_meta("is_attr", false):
 			if arr_base.has(selected.get_meta("parent")):
@@ -236,7 +236,7 @@ func _confirmed() -> void:
 		s.push_back("<%s" % i)
 		for j in arr_base[i].attrs:
 			s.push_back(' %s="%s"' % [j, 
-				GBatisMapperRule.rule[i].attr_list[j].default])
+				GDSQL.GBatisMapperRule.rule[i].attr_list[j].default])
 		s.push_back(">")
 		for j in arr_base[i].children:
 			var c = j.replace("*", "").replace("?", "").replace("+", "")
@@ -246,7 +246,7 @@ func _confirmed() -> void:
 	var s1 = []
 	for i in arr_attr:
 		s1.push_back('%s="%s"' % [i[0], 
-			GBatisMapperRule.rule[i[1]].attr_list[i[0]].default])
+			GDSQL.GBatisMapperRule.rule[i[1]].attr_list[i[0]].default])
 	s.push_back(" ".join(s1))
 	
 	var s2 = []

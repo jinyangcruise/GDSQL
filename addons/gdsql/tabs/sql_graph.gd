@@ -3,8 +3,9 @@ extends VSplitContainer
 
 const DATA_EXTENSION = ".gsql"
 
-var mgr: GDSQLWorkbenchManagerClass = Engine.get_singleton("GDSQLWorkbenchManager")
-
+var mgr: GDSQL.WorkbenchManagerClass:
+	get: return GDSQL.WorkbenchManager
+	
 signal request_open_file(path: String)
 signal change_tab_title(page: Control, title: String)
 
@@ -82,7 +83,7 @@ func _on_button_open_pressed() -> void:
 func _on_button_save_pressed() -> void:
 	# 本身就是一个已经保存的文件，就直接保存
 	if get_meta("is_file"):
-		var config = ImprovedConfigFile.new()
+		var config = GDSQL.ImprovedConfigFile.new()
 		config.set_value("data", "nodes", get_nodes_params())
 		config.set_value("data", "connections", graph_edit.get_connection_list().map(func(v):
 			v["from_node"] = v["from_node"].validate_node_name()
@@ -107,7 +108,7 @@ func _on_button_save_as_pressed():
 	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_SAVE_FILE
 	editor_file_dialog.add_filter("*.gdsqlgraph", "GDSQL GRAPH File")
 	editor_file_dialog.file_selected.connect(func(path: String):
-		var config = ImprovedConfigFile.new()
+		var config = GDSQL.ImprovedConfigFile.new()
 		config.set_value("data", "nodes", get_nodes_params())
 		config.set_value("data", "connections", graph_edit.get_connection_list().map(func(v):
 			v["from_node"] = v["from_node"].validate_node_name()
@@ -145,10 +146,10 @@ func node_close(node: GraphNode):
 			#if not from_node.show_close:
 				## 清空一些数据代理
 				#if from_node.has_meta("base_dao"):
-					#(from_node.get_meta("base_dao") as BaseDao).reset(true)
+					#(from_node.get_meta("base_dao") as GDSQL.BaseDao).reset(true)
 					#from_node.remove_meta("base_dao")
 				#if from_node.has_meta("left_join"):
-					#(from_node.get_meta("left_join") as LeftJoin).clear_chain()
+					#(from_node.get_meta("left_join") as GDSQL.LeftJoin).clear_chain()
 					#from_node.remove_meta("left_join")
 				#from_node.queue_free()
 		# 表示node是输入节点
@@ -163,7 +164,7 @@ func node_close(node: GraphNode):
 			"Select":
 				match t_node.get_meta("type"):
 					"Select":
-						(t_node.get_meta("base_dao") as BaseDao).remove_union_all(f_node.get_meta("base_dao") as BaseDao)
+						(t_node.get_meta("base_dao") as GDSQL.BaseDao).remove_union_all(f_node.get_meta("base_dao") as GDSQL.BaseDao)
 					"Result":
 						# 如果有修改数据的按钮，需要屏蔽
 						var graph_datas = t_node.datas
@@ -178,20 +179,20 @@ func node_close(node: GraphNode):
 								i.disabled = true
 							var table = graph_datas[0][0].get_child(0)
 							for i in table.datas:
-								(i as DictionaryObject).reset_read_only(true)
+								(i as GDSQL.DictionaryObject).reset_read_only(true)
 			"Left Join":
 				match t_node.get_meta("type"):
 					"Select":
-						(t_node.get_meta("base_dao") as BaseDao).remove_left_join(f_node.get_meta("left_join") as LeftJoin)
+						(t_node.get_meta("base_dao") as GDSQL.BaseDao).remove_left_join(f_node.get_meta("left_join") as GDSQL.LeftJoin)
 					"Left Join":
-						(t_node.get_meta("left_join") as LeftJoin).remove_left_join((f_node.get_meta("left_join") as LeftJoin))
+						(t_node.get_meta("left_join") as GDSQL.LeftJoin).remove_left_join((f_node.get_meta("left_join") as GDSQL.LeftJoin))
 						
 	# 清空一些数据代理
 	if node.has_meta("base_dao"):
-		(node.get_meta("base_dao") as BaseDao).reset(true)
+		(node.get_meta("base_dao") as GDSQL.BaseDao).reset(true)
 		node.remove_meta("base_dao")
 	if node.has_meta("left_join"):
-		(node.get_meta("left_join") as LeftJoin).clear_chain()
+		(node.get_meta("left_join") as GDSQL.LeftJoin).clear_chain()
 		node.remove_meta("left_join")
 	node.queue_free()
 	
@@ -319,13 +320,13 @@ limit = 100, alias = "", password = "", asize = null, pos_offset = null, aname =
 	if asize != null:
 		graph_node.set_deferred("size", asize)
 	
-	var schema_dict_obj: DictionaryObject = graph_node.datas[2][2]
-	var table_dict_obj: DictionaryObject = graph_node.datas[3][2]
-	var fields_dict_obj: DictionaryObject = graph_node.datas[4][2]
-	var where_dict_obj: DictionaryObject = graph_node.datas[5][2]
-	var groupby_dict_obj: DictionaryObject = graph_node.datas[6][2]
-	var order_dict_obj: DictionaryObject = graph_node.datas[7][2]
-	var limit_dict_obj: DictionaryObject = graph_node.datas[8][2]
+	var schema_dict_obj: GDSQL.DictionaryObject = graph_node.datas[2][2]
+	var table_dict_obj: GDSQL.DictionaryObject = graph_node.datas[3][2]
+	var fields_dict_obj: GDSQL.DictionaryObject = graph_node.datas[4][2]
+	var where_dict_obj: GDSQL.DictionaryObject = graph_node.datas[5][2]
+	var groupby_dict_obj: GDSQL.DictionaryObject = graph_node.datas[6][2]
+	var order_dict_obj: GDSQL.DictionaryObject = graph_node.datas[7][2]
+	var limit_dict_obj: GDSQL.DictionaryObject = graph_node.datas[8][2]
 	#var separetor: Control = graph_node.datas[9][2]
 	var btn_query: Button = graph_node.datas[10][2]
 	
@@ -358,22 +359,22 @@ limit = 100, alias = "", password = "", asize = null, pos_offset = null, aname =
 func gen_select_node() -> GraphNode:
 	var databases = mgr.databases.keys()
 	
-	var schema_dict_obj = DictionaryObject.new(
+	var schema_dict_obj = GDSQL.DictionaryObject.new(
 		{"Schema": "", "_password": ""}, 
 		{"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
 		"_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
-	var table_dict_obj = DictionaryObject.new(
+	var table_dict_obj = GDSQL.DictionaryObject.new(
 		{"Table": "", "_alias": ""}, 
 		{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}, 
 		"_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
-	var fields_dict_obj = DictionaryObject.new({"Fields": "*"}, {"Fields": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
-	var where_dict_obj = DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
-	var groupby_dict_obj = DictionaryObject.new({"Group By": ""})
-	var order_dict_obj = DictionaryObject.new({"Order By": ""})
-	var limit_dict_obj = DictionaryObject.new({"Offset": 0, "Limit": 100})
+	var fields_dict_obj = GDSQL.DictionaryObject.new({"Fields": "*"}, {"Fields": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
+	var where_dict_obj = GDSQL.DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
+	var groupby_dict_obj = GDSQL.DictionaryObject.new({"Group By": ""})
+	var order_dict_obj = GDSQL.DictionaryObject.new({"Order By": ""})
+	var limit_dict_obj = GDSQL.DictionaryObject.new({"Offset": 0, "Limit": 100})
 	
 	# 关联该节点的BaseDao
-	var base_dao = BaseDao.new()
+	var base_dao = GDSQL.BaseDao.new()
 	base_dao.select("*", true)
 	base_dao.limit(0, 100)
 	
@@ -513,9 +514,9 @@ cond = "", asize = null, pos_offset = null, aname = ""):
 	if asize != null:
 		graph_node.set_deferred("size", asize)
 	
-	var schema_dict_obj: DictionaryObject = graph_node.datas[1][2]
-	var table_dict_obj: DictionaryObject = graph_node.datas[2][2]
-	var cond_dict_obj: DictionaryObject = graph_node.datas[3][2]
+	var schema_dict_obj: GDSQL.DictionaryObject = graph_node.datas[1][2]
+	var table_dict_obj: GDSQL.DictionaryObject = graph_node.datas[2][2]
+	var cond_dict_obj: GDSQL.DictionaryObject = graph_node.datas[3][2]
 	
 	if schema != schema_dict_obj._get("Schema"):
 		schema_dict_obj._set("Schema", schema)
@@ -533,18 +534,18 @@ cond = "", asize = null, pos_offset = null, aname = ""):
 func gen_left_join_node() -> GraphNode:
 	var databases = mgr.databases.keys()
 	
-	var schema_dict_obj = DictionaryObject.new(
+	var schema_dict_obj = GDSQL.DictionaryObject.new(
 		{"Schema": "", "_password": ""}, 
 		{"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
 		"_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
-	var table_dict_obj = DictionaryObject.new(
+	var table_dict_obj = GDSQL.DictionaryObject.new(
 		{"Table": "", "_alias": ""}, 
 		{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}, 
 		"_alias": {"hint": PROPERTY_HINT_PLACEHOLDER_TEXT, "hint_string": "alias"}})
-	var cond_dict_obj = DictionaryObject.new({"On": ""}, {"On": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
+	var cond_dict_obj = GDSQL.DictionaryObject.new({"On": ""}, {"On": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
 	
 	# 与该节点关联的LeftJoin对象
-	var left_join_obj = LeftJoin.new()
+	var left_join_obj = GDSQL.LeftJoin.new()
 	
 	var graph_node = SQLGraphNode.instantiate()
 	graph_node.set_meta("left_join", left_join_obj)
@@ -833,7 +834,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 				#}
 			#}
 		#}
-		var group_modified_data_call = func(data: DictionaryObject) -> Dictionary:
+		var group_modified_data_call = func(data: GDSQL.DictionaryObject) -> Dictionary:
 			var tables = {} # 更新数据可能涉及多个表，所以把modified_data按表分类
 			var modified_data = data.get_modified_value()
 			var all_data = data.get_visible_data()
@@ -878,7 +879,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			if not table.get_meta("deleted_datas", {}).is_empty():
 				return
 				
-			for j: DictionaryObject in table.datas:
+			for j: GDSQL.DictionaryObject in table.datas:
 				if not j.get_modified_new_value().is_empty():
 					if btn_ref and btn_ref.size() == 2 and is_instance_valid(btn_ref[0]) and is_instance_valid(btn_ref[1]):
 						btn_ref[0].disabled = false
@@ -894,14 +895,14 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		btn_apply.text = "apply"
 		btn_apply.disabled = true
 		btn_apply.pressed.connect(func():
-			var daos: Array[BaseDao] = []
+			var daos: Array[GDSQL.BaseDao] = []
 			# 整条被删的数据。【WARNING】规定联表查询时禁止删除操作（屏蔽右键删除功能）
 			var deleted_datas = table.get_meta("deleted_datas", {})
 			for i in deleted_datas:
-				var data: DictionaryObject = deleted_datas[i]
+				var data: GDSQL.DictionaryObject = deleted_datas[i]
 				var grouped_modified_data = group_modified_data_call.call(data)
 				for table_path: String in grouped_modified_data:
-					var base_dao = BaseDao.new()
+					var base_dao = GDSQL.BaseDao.new()
 					base_dao.use_db(table_path.get_base_dir()).delete_from(table_path.get_file())
 					if grouped_modified_data[table_path]["PK_key"] == null:
 						base_dao.set_meta("lackWhere", true)
@@ -913,7 +914,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 					
 				
 			# 要更新部分字段的数据
-			for i: DictionaryObject in table.datas:
+			for i: GDSQL.DictionaryObject in table.datas:
 				var grouped_modified_data = group_modified_data_call.call(i)
 				for table_path: String in grouped_modified_data:
 					var modified_data = grouped_modified_data[table_path]
@@ -929,7 +930,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 						var values = {}
 						for col_name in modified_data["modified"]:
 							values[col_name] = modified_data["modified"][col_name]["new"]
-						var base_dao = BaseDao.new()
+						var base_dao = GDSQL.BaseDao.new()
 						base_dao.use_db(db_path).insert_into(table_name).values(values)
 						base_dao.set_meta("dict_obj_id", i.get_instance_id())
 						daos.push_back(base_dao)
@@ -957,7 +958,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 							var data = {}
 							for key in modified_data["modified"]:
 								data[key] = modified_data["modified"][key]["new"]
-							var base_dao = BaseDao.new().use_db(db_path).update(table_name).sets(data)
+							var base_dao = GDSQL.BaseDao.new().use_db(db_path).update(table_name).sets(data)
 							if primary_key == null:
 								base_dao.set_meta("lackWhere", true)
 							else:
@@ -995,7 +996,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			)
 			var datas = []
 			var k = 0
-			for i: BaseDao in daos:
+			for i: GDSQL.BaseDao in daos:
 				var row = [k+1, i.get_query_cmd()]
 				if i.has_meta("lackWhere"):
 					var line_edit = LineEdit.new()
@@ -1045,7 +1046,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 					
 				# sql query
 				var index = -1
-				for i: BaseDao in daos:
+				for i: GDSQL.BaseDao in daos:
 					index += 1
 					if not (table_2.datas[index][3] as CheckBox).button_pressed:
 						continue
@@ -1056,7 +1057,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 					if ret != null:
 						if ret.ok():
 							var dict_obj_id = i.get_meta("dict_obj_id")
-							var dict_obj = instance_from_id(dict_obj_id) as DictionaryObject
+							var dict_obj = instance_from_id(dict_obj_id) as GDSQL.DictionaryObject
 							
 							# remove deleted data
 							if i.get_cmd().to_lower().contains("delete"):
@@ -1142,7 +1143,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		btn_revert.pressed.connect(func():
 			var old_datas: Array = []
 			# 恢复被修改的数据
-			for i: DictionaryObject in table.datas:
+			for i: GDSQL.DictionaryObject in table.datas:
 				if not i.has_meta("new"):
 					i.revert()
 					old_datas.push_back(i)
@@ -1151,7 +1152,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			table.remove_meta("deleted_datas")
 			for i in deleted_datas:
 				#old_datas.insert(i, deleted_datas[i]) # 注意：前提是新建的数据都是放在最后面的，不影响数据回到原来的位置。
-				(deleted_datas[i] as DictionaryObject).revert()
+				(deleted_datas[i] as GDSQL.DictionaryObject).revert()
 				table.insert_data(i, deleted_datas[i]) # 注意：前提是新建的数据都是放在最后面的，不影响数据回到原来的位置。
 			#table.datas = old_datas
 			# 删除新建的数据
@@ -1213,12 +1214,12 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 							return v["Column Name"] == j["col_name"]
 						).front()
 						if (col_def["Default(Expression)"] as String).strip_edges().is_empty():
-							new_data[j["prop"]] = DataTypeDef.DEFUALT_VALUES[col_def["Data Type"]]
+							new_data[j["prop"]] = GDSQL.DataTypeDef.DEFUALT_VALUES[col_def["Data Type"]]
 						else:
-							new_data[j["prop"]] = GDSQLUtils.evaluate_command(null, col_def["Default(Expression)"])
+							new_data[j["prop"]] = GDSQL.GDSQLUtils.evaluate_command(null, col_def["Default(Expression)"])
 							
 							
-				var dict_obj = DictionaryObject.new(new_data, hint, false)
+				var dict_obj = GDSQL.DictionaryObject.new(new_data, hint, false)
 				dict_obj.set_meta("new", true)
 				if table.datas.is_empty():
 					dict_obj.set_meta("index", 0)
@@ -1236,7 +1237,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		flow_container.add_child(btn_revert)
 		flow_container.get_child(0).move_to_front() # move export button to last
 		
-		# 每行数据转成一个DictionaryObject
+		# 每行数据转成一个GDSQL.DictionaryObject
 		var new_table_datas = []
 		for i in table_datas:
 			var data = {}
@@ -1253,7 +1254,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 						new_hint[j["prop"]]["usage"] = PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY
 						# TODO 不能使用已存在的键值
 						
-			var dict_obj = DictionaryObject.new(data, new_hint, false)
+			var dict_obj = GDSQL.DictionaryObject.new(data, new_hint, false)
 			dict_obj.value_changed.connect(update_btn_disable_status)
 			dict_obj.set_meta("index", new_table_datas.size()) # 为了revert删除的数据时判断前后位置
 			dict_obj._get_property_list() # NOTICE trigger ENUM text possibly
@@ -1273,7 +1274,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 	
 ## 检查是否存在某主键的Callable
 func exist_callable(db_path, table_name, field_name, field_value) -> bool:
-	var dao = BaseDao.new().use_db(db_path).select(field_name, false).from(table_name)\
+	var dao = GDSQL.BaseDao.new().use_db(db_path).select(field_name, false).from(table_name)\
 		.where("%s == %s" % [field_name, var_to_str(field_value)])
 	var ret = await _deal_query_need_enter_password(dao, Time.get_unix_time_from_system(), "check primary key exist")
 	if ret == null or not ret.ok():
@@ -1307,14 +1308,14 @@ asize = null, pos_offset = null, aname = ""):
 	if asize != null:
 		graph_node.set_deferred("size", asize)
 	
-	var schema_dict_obj: DictionaryObject = graph_node.datas[0][2]
-	var table_dict_obj: DictionaryObject = graph_node.datas[1][2]
+	var schema_dict_obj: GDSQL.DictionaryObject = graph_node.datas[0][2]
+	var table_dict_obj: GDSQL.DictionaryObject = graph_node.datas[1][2]
 	
 	if not fields.is_empty():
 		var arr = []
 		var redraw_call = func(row, col):
 			if row == 2 and col == 2 and table_dict_obj._get("Table") == table:
-				var fields_dict_obj: DictionaryObject = graph_node.datas[2][2]
+				var fields_dict_obj: GDSQL.DictionaryObject = graph_node.datas[2][2]
 				for key in fields:
 					fields_dict_obj._set(key, fields[key])
 				graph_node.redraw_slot.disconnect(arr[0])
@@ -1335,18 +1336,18 @@ asize = null, pos_offset = null, aname = ""):
 func gen_insert_node() -> GraphNode:
 	var databases = mgr.databases.keys()
 	
-	var schema_dict_obj = DictionaryObject.new(
+	var schema_dict_obj = GDSQL.DictionaryObject.new(
 		{"Schema": "", "_password": ""}, 
 		{"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
 		"_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
-	var table_dict_obj = DictionaryObject.new(
+	var table_dict_obj = GDSQL.DictionaryObject.new(
 		{"Table": ""}, {"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}})
-	var fields_dict_obj = DictionaryObject.new(
+	var fields_dict_obj = GDSQL.DictionaryObject.new(
 		{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY}})
 	fields_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
 	
 	# 关联该节点的BaseDao
-	var base_dao = BaseDao.new()
+	var base_dao = GDSQL.BaseDao.new()
 	base_dao.insert_into("")
 	var graph_node = SQLGraphNode.instantiate()
 	graph_node.set_meta("base_dao", base_dao)
@@ -1374,7 +1375,7 @@ func gen_insert_node() -> GraphNode:
 					var data = {}
 					var hints = {}
 					for col in mgr.databases[schema_dict_obj._get("Schema")]["tables"][new_val]["columns"]:
-						data[col["Column Name"]] = DataTypeDef.DEFUALT_VALUES[col["Data Type"]]
+						data[col["Column Name"]] = GDSQL.DataTypeDef.DEFUALT_VALUES[col["Data Type"]]
 						hints[col["Column Name"]] = {"hint": col["Hint"], "hint_string": col["Hint String"], "type": col["Data Type"]}
 					fields_dict_obj.reset_data(data, hints)
 				else:
@@ -1445,15 +1446,15 @@ asize = null, pos_offset = null, aname = ""):
 	if asize != null:
 		graph_node.set_deferred("size", asize)
 	
-	var schema_dict_obj: DictionaryObject = graph_node.datas[0][2]
-	var table_dict_obj: DictionaryObject = graph_node.datas[1][2]
-	var where_dict_obj: DictionaryObject = graph_node.datas[3][2]
+	var schema_dict_obj: GDSQL.DictionaryObject = graph_node.datas[0][2]
+	var table_dict_obj: GDSQL.DictionaryObject = graph_node.datas[1][2]
+	var where_dict_obj: GDSQL.DictionaryObject = graph_node.datas[3][2]
 	
 	if not fields.is_empty():
 		var arr = []
 		var redraw_call = func(row, col):
 			if row == 2 and col == 2 and table_dict_obj._get("Table") == table:
-				var fields_dict_obj: DictionaryObject = graph_node.datas[2][2]
+				var fields_dict_obj: GDSQL.DictionaryObject = graph_node.datas[2][2]
 				for key in fields:
 					fields_dict_obj._set(key, fields[key])
 				graph_node.redraw_slot.disconnect(arr[0])
@@ -1475,18 +1476,18 @@ asize = null, pos_offset = null, aname = ""):
 func gen_update_node() -> GraphNode:
 	var databases = mgr.databases.keys()
 	
-	var schema_dict_obj = DictionaryObject.new(
+	var schema_dict_obj = GDSQL.DictionaryObject.new(
 		{"Schema": "", "_password": ""}, 
 		{"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
 		"_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
-	var table_dict_obj = DictionaryObject.new(
+	var table_dict_obj = GDSQL.DictionaryObject.new(
 		{"Table": ""}, {"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}})
-	var fields_dict_obj = DictionaryObject.new(
+	var fields_dict_obj = GDSQL.DictionaryObject.new(
 		{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY}})
-	var where_dict_obj = DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
+	var where_dict_obj = GDSQL.DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
 	
 	# 关联该节点的BaseDao
-	var base_dao = BaseDao.new()
+	var base_dao = GDSQL.BaseDao.new()
 	base_dao.update("")
 	base_dao.set_evalueate_mode(true)
 	
@@ -1516,7 +1517,7 @@ func gen_update_node() -> GraphNode:
 					var data = {}
 					var hints = {}
 					for col in mgr.databases[schema_dict_obj._get("Schema")]["tables"][new_val]["columns"]:
-						data[col["Column Name"]] = DataTypeDef.DEFUALT_VALUES[col["Data Type"]]
+						data[col["Column Name"]] = GDSQL.DataTypeDef.DEFUALT_VALUES[col["Data Type"]]
 						hints[col["Column Name"]] = {"hint": col["Hint"], "hint_string": col["Hint String"], "type": col["Data Type"]}
 					fields_dict_obj.reset_data(data, hints)
 					fields_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
@@ -1595,9 +1596,9 @@ asize = null, pos_offset = null, aname = ""):
 	if asize != null:
 		graph_node.set_deferred("size", asize)
 	
-	var schema_dict_obj: DictionaryObject = graph_node.datas[0][2]
-	var table_dict_obj: DictionaryObject = graph_node.datas[1][2]
-	var where_dict_obj: DictionaryObject = graph_node.datas[2][2]
+	var schema_dict_obj: GDSQL.DictionaryObject = graph_node.datas[0][2]
+	var table_dict_obj: GDSQL.DictionaryObject = graph_node.datas[1][2]
+	var where_dict_obj: GDSQL.DictionaryObject = graph_node.datas[2][2]
 	
 	if schema != schema_dict_obj._get("Schema"):
 		schema_dict_obj._set("Schema", schema)
@@ -1613,16 +1614,16 @@ asize = null, pos_offset = null, aname = ""):
 func gen_delete_node() -> GraphNode:
 	var databases = mgr.databases.keys()
 	
-	var schema_dict_obj = DictionaryObject.new(
+	var schema_dict_obj = GDSQL.DictionaryObject.new(
 		{"Schema": "", "_password": ""}, 
 		{"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
 		"_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
-	var table_dict_obj = DictionaryObject.new(
+	var table_dict_obj = GDSQL.DictionaryObject.new(
 		{"Table": ""}, {"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}})
-	var where_dict_obj = DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
+	var where_dict_obj = GDSQL.DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_MULTILINE_TEXT}})
 	
 	# 关联该节点的BaseDao
-	var base_dao = BaseDao.new()
+	var base_dao = GDSQL.BaseDao.new()
 	base_dao.delete_from("")
 	var graph_node = SQLGraphNode.instantiate()
 	graph_node.set_meta("base_dao", base_dao)
@@ -1822,25 +1823,25 @@ asize = null, pos_offset = null, aname = "", query = true):
 	#13 [null, null, separator],
 	#14 [null, null, btn_query],
 	#15 [null, null, separator2]
-	var schema_dict_obj: DictionaryObject = graph_node.datas[1][2]
-	var table_dict_obj: DictionaryObject = graph_node.datas[2][2]
-	var link_prop_dict_obj: DictionaryObject = graph_node.datas[3][2]
-	var left_schema_dict_obj: DictionaryObject = graph_node.datas[5][2]
-	var right_schema_dict_obj: DictionaryObject = graph_node.datas[5][3]
-	var left_table_dict_obj: DictionaryObject = graph_node.datas[6][2]
-	var right_table_dict_obj: DictionaryObject = graph_node.datas[6][3]
-	var left_link_prop_dict_obj: DictionaryObject = graph_node.datas[7][2]
-	var right_link_prop_dict_obj: DictionaryObject = graph_node.datas[7][3]
-	var left_column_dict_obj: DictionaryObject = graph_node.datas[8][2]
-	var right_column_dict_obj: DictionaryObject = graph_node.datas[8][3]
-	var left_where_dict_obj: DictionaryObject = graph_node.datas[9][2]
-	var right_where_dict_obj: DictionaryObject = graph_node.datas[9][3]
-	var left_order_dict_obj: DictionaryObject = graph_node.datas[10][2]
-	var right_order_dict_obj: DictionaryObject = graph_node.datas[10][3]
-	var left_limit_dict_obj: DictionaryObject = graph_node.datas[11][2]
-	var right_limit_dict_obj: DictionaryObject = graph_node.datas[11][3]
-	var left_other_options: DictionaryObject = graph_node.datas[12][2]
-	var right_other_options: DictionaryObject = graph_node.datas[12][3]
+	var schema_dict_obj: GDSQL.DictionaryObject = graph_node.datas[1][2]
+	var table_dict_obj: GDSQL.DictionaryObject = graph_node.datas[2][2]
+	var link_prop_dict_obj: GDSQL.DictionaryObject = graph_node.datas[3][2]
+	var left_schema_dict_obj: GDSQL.DictionaryObject = graph_node.datas[5][2]
+	var right_schema_dict_obj: GDSQL.DictionaryObject = graph_node.datas[5][3]
+	var left_table_dict_obj: GDSQL.DictionaryObject = graph_node.datas[6][2]
+	var right_table_dict_obj: GDSQL.DictionaryObject = graph_node.datas[6][3]
+	var left_link_prop_dict_obj: GDSQL.DictionaryObject = graph_node.datas[7][2]
+	var right_link_prop_dict_obj: GDSQL.DictionaryObject = graph_node.datas[7][3]
+	var left_column_dict_obj: GDSQL.DictionaryObject = graph_node.datas[8][2]
+	var right_column_dict_obj: GDSQL.DictionaryObject = graph_node.datas[8][3]
+	var left_where_dict_obj: GDSQL.DictionaryObject = graph_node.datas[9][2]
+	var right_where_dict_obj: GDSQL.DictionaryObject = graph_node.datas[9][3]
+	var left_order_dict_obj: GDSQL.DictionaryObject = graph_node.datas[10][2]
+	var right_order_dict_obj: GDSQL.DictionaryObject = graph_node.datas[10][3]
+	var left_limit_dict_obj: GDSQL.DictionaryObject = graph_node.datas[11][2]
+	var right_limit_dict_obj: GDSQL.DictionaryObject = graph_node.datas[11][3]
+	var left_other_options: GDSQL.DictionaryObject = graph_node.datas[12][2]
+	var right_other_options: GDSQL.DictionaryObject = graph_node.datas[12][3]
 	
 	if link_db != schema_dict_obj._get("Schema"):
 		schema_dict_obj._set("Schema", link_db)
@@ -1935,20 +1936,20 @@ asize = null, pos_offset = null, aname = "", query = true):
 func gen_link_node() -> GraphNode:
 	var databases = mgr.databases.keys()
 	
-	var schema_dict_obj = DictionaryObject.new(
+	var schema_dict_obj = GDSQL.DictionaryObject.new(
 		{"Schema": "", "_password": ""}, 
 		{"Schema": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
 		"_password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"}})
-	var table_dict_obj = DictionaryObject.new(
+	var table_dict_obj = GDSQL.DictionaryObject.new(
 		{"Table": "", "Right Columns": 3}, 
 		{"Table": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}})
-	var link_prop_dict_obj = DictionaryObject.new(
+	var link_prop_dict_obj = GDSQL.DictionaryObject.new(
 		{"Left": "", "Right": ""},
 		{"Left": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""},
 		"Right": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}})
 		
 	# 关联该节点的BaseDao
-	var data = DictionaryObject.new({"a": 1})
+	var data = GDSQL.DictionaryObject.new({"a": 1})
 	
 	var graph_node = SQLGraphNode.instantiate()
 	graph_node.set_meta("data", data)
@@ -1986,41 +1987,41 @@ func gen_link_node() -> GraphNode:
 				link_prop_dict_obj._set("Right", "", true)
 				graph_node.push_redraw_slot_control(3, 2)
 	)
-	var left_schema_dict_obj = DictionaryObject.new(
+	var left_schema_dict_obj = GDSQL.DictionaryObject.new(
 		{"Schema1": "", "_password1": ""}, 
 		{
 			"Schema1": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
 			"_password1": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"},
 		}
 	)
-	var right_schema_dict_obj = DictionaryObject.new(
+	var right_schema_dict_obj = GDSQL.DictionaryObject.new(
 		{"Schema2": "", "_password2": ""}, 
 		{
 			"Schema2": {"hint": PROPERTY_HINT_ENUM, "hint_string": ",".join(databases)}, 
 			"_password2": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "password"},
 		}
 	)
-	var left_table_dict_obj = DictionaryObject.new(
+	var left_table_dict_obj = GDSQL.DictionaryObject.new(
 		{"Table1": ""}, 
 		{"Table1": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""},}
 	)
-	var right_table_dict_obj = DictionaryObject.new(
+	var right_table_dict_obj = GDSQL.DictionaryObject.new(
 		{"Table2": ""}, 
 		{"Table2": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""},}
 	)
-	var left_link_prop_dict_obj = DictionaryObject.new(
+	var left_link_prop_dict_obj = GDSQL.DictionaryObject.new(
 		{"LinkColumnName": ""},
 		{"LinkColumnName": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}},
 	)
-	var right_link_prop_dict_obj = DictionaryObject.new(
+	var right_link_prop_dict_obj = GDSQL.DictionaryObject.new(
 		{"LinkColumnName": ""},
 		{"LinkColumnName": {"hint": PROPERTY_HINT_ENUM, "hint_string": ""}},
 	)
-	var left_column_dict_obj = DictionaryObject.new(
+	var left_column_dict_obj = GDSQL.DictionaryObject.new(
 		{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY}}
 	) # dummy obj
 	left_column_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
-	var right_column_dict_obj = DictionaryObject.new(
+	var right_column_dict_obj = GDSQL.DictionaryObject.new(
 		{"ColumnName": false}, {"ColumnName": {"usage": PROPERTY_USAGE_EDITOR | PROPERTY_USAGE_READ_ONLY}}
 	) # dummy obj
 	right_column_dict_obj.set_meta("align", "vertical") # 垂直显示各属性
@@ -2102,13 +2103,13 @@ func gen_link_node() -> GraphNode:
 				graph_node.push_redraw_slot_control(7, 3)
 				graph_node.push_redraw_slot_control(8, 3)
 	)
-	var left_where_dict_obj = DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_NONE}})
-	var left_order_dict_obj = DictionaryObject.new({"Order By": ""}, {"Order By": {"hint": PROPERTY_HINT_NONE}})
-	var left_limit_dict_obj = DictionaryObject.new({"Offset": 0, "Limit": 1000})
-	var right_where_dict_obj = DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_NONE}})
-	var right_order_dict_obj = DictionaryObject.new({"Order By": ""}, {"Order By": {"hint": PROPERTY_HINT_NONE}})
-	var right_limit_dict_obj = DictionaryObject.new({"Offset": 0, "Limit": 1000})
-	var left_other_options = DictionaryObject.new({
+	var left_where_dict_obj = GDSQL.DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_NONE}})
+	var left_order_dict_obj = GDSQL.DictionaryObject.new({"Order By": ""}, {"Order By": {"hint": PROPERTY_HINT_NONE}})
+	var left_limit_dict_obj = GDSQL.DictionaryObject.new({"Offset": 0, "Limit": 1000})
+	var right_where_dict_obj = GDSQL.DictionaryObject.new({"Where": ""}, {"Where": {"hint": PROPERTY_HINT_NONE}})
+	var right_order_dict_obj = GDSQL.DictionaryObject.new({"Order By": ""}, {"Order By": {"hint": PROPERTY_HINT_NONE}})
+	var right_limit_dict_obj = GDSQL.DictionaryObject.new({"Offset": 0, "Limit": 1000})
+	var left_other_options = GDSQL.DictionaryObject.new({
 		"Other Options": "", "show_column_name": false, "show_column_value": true, "font_size": 14, "processor": ""},
 		{"Other Options": {"hint": PROPERTY_HINT_NONE, "usage": PROPERTY_USAGE_GROUP},
 		"processor": {"hint": PROPERTY_HINT_MULTILINE_TEXT}},
@@ -2134,7 +2135,7 @@ func gen_link_node() -> GraphNode:
 			left_code_edit.text = new_val
 	, false)
 	left_other_options.set_meta("align", "vertical")
-	var right_other_options = DictionaryObject.new({
+	var right_other_options = GDSQL.DictionaryObject.new({
 		"Other Options": "", "show_column_name": false, "show_column_value": true, "font_size": 14, "processor": ""},
 		{"Other Options": {"hint": PROPERTY_HINT_NONE, "usage": PROPERTY_USAGE_GROUP},
 		"processor": {"hint": PROPERTY_HINT_MULTILINE_TEXT}},
@@ -2222,7 +2223,7 @@ func gen_link_node() -> GraphNode:
 	
 ## TODO FIXME NODE类型的怎么保存？
 func extract_table_data_call(v, columns):
-	if v is DictionaryObject:
+	if v is GDSQL.DictionaryObject:
 		var arr = []
 		for i in columns.size():
 			arr.push_back(v._get_by_index(i))
@@ -2273,8 +2274,8 @@ func get_nodes_params(only_selected = false):
 			"Select", "Left Join", "Delete":
 				for arr in graph_node.datas:
 					for i in arr:
-						if i is DictionaryObject:
-							data.merge((i as DictionaryObject).get_data())
+						if i is GDSQL.DictionaryObject:
+							data.merge((i as GDSQL.DictionaryObject).get_data())
 			"Result":
 				var table = graph_node.datas[0][0].get_child(0)
 				data["is_union_all"] = graph_node.get_meta("is_union_all")
@@ -2283,8 +2284,8 @@ func get_nodes_params(only_selected = false):
 				data["table_datas"] = table.datas.map(extract_table_data_call.bind(data["columns"]))
 				data["v_scroll_height"] = table.v_scroll_height
 			"Insert":
-				var schema_dict_obj: DictionaryObject = graph_node.datas[0][2]
-				var table_dict_obj: DictionaryObject = graph_node.datas[1][2]
+				var schema_dict_obj: GDSQL.DictionaryObject = graph_node.datas[0][2]
+				var table_dict_obj: GDSQL.DictionaryObject = graph_node.datas[1][2]
 				var fields_dict_obj = graph_node.datas[2][2]
 				data["Schema"] = schema_dict_obj._get("Schema")
 				data["_password"] = schema_dict_obj._get("_password")
@@ -2292,10 +2293,10 @@ func get_nodes_params(only_selected = false):
 				data["_alias"] = table_dict_obj._get("_alias")
 				data["Fields"] = {} if fields_dict_obj == null else fields_dict_obj.get_data()
 			"Update":
-				var schema_dict_obj: DictionaryObject = graph_node.datas[0][2]
-				var table_dict_obj: DictionaryObject = graph_node.datas[1][2]
+				var schema_dict_obj: GDSQL.DictionaryObject = graph_node.datas[0][2]
+				var table_dict_obj: GDSQL.DictionaryObject = graph_node.datas[1][2]
 				var fields_dict_obj = graph_node.datas[2][2]
-				var where_dict_obj: DictionaryObject = graph_node.datas[3][2]
+				var where_dict_obj: GDSQL.DictionaryObject = graph_node.datas[3][2]
 				data["Schema"] = schema_dict_obj._get("Schema")
 				data["_password"] = schema_dict_obj._get("_password")
 				data["Table"] = table_dict_obj._get("Table")
@@ -2306,25 +2307,25 @@ func get_nodes_params(only_selected = false):
 				var code_editor = graph_node.datas[1][2] as CodeEdit
 				data["sql"] = code_editor.text
 			"Link":
-				var schema_dict_obj: DictionaryObject = graph_node.datas[1][2]
-				var table_dict_obj: DictionaryObject = graph_node.datas[2][2]
-				var link_prop_dict_obj: DictionaryObject = graph_node.datas[3][2]
-				var left_schema_dict_obj: DictionaryObject = graph_node.datas[5][2]
-				var right_schema_dict_obj: DictionaryObject = graph_node.datas[5][3]
-				var left_table_dict_obj: DictionaryObject = graph_node.datas[6][2]
-				var right_table_dict_obj: DictionaryObject = graph_node.datas[6][3]
-				var left_link_prop_dict_obj: DictionaryObject = graph_node.datas[7][2]
-				var right_link_prop_dict_obj: DictionaryObject = graph_node.datas[7][3]
-				var left_column_dict_obj: DictionaryObject = graph_node.datas[8][2]
-				var right_column_dict_obj: DictionaryObject = graph_node.datas[8][3]
-				var left_where_dict_obj: DictionaryObject = graph_node.datas[9][2]
-				var right_where_dict_obj: DictionaryObject = graph_node.datas[9][3]
-				var left_order_dict_obj: DictionaryObject = graph_node.datas[10][2]
-				var right_order_dict_obj: DictionaryObject = graph_node.datas[10][3]
-				var left_limit_dict_obj: DictionaryObject = graph_node.datas[11][2]
-				var right_limit_dict_obj: DictionaryObject = graph_node.datas[11][3]
-				var left_other_options: DictionaryObject = graph_node.datas[12][2]
-				var right_other_options: DictionaryObject = graph_node.datas[12][3]
+				var schema_dict_obj: GDSQL.DictionaryObject = graph_node.datas[1][2]
+				var table_dict_obj: GDSQL.DictionaryObject = graph_node.datas[2][2]
+				var link_prop_dict_obj: GDSQL.DictionaryObject = graph_node.datas[3][2]
+				var left_schema_dict_obj: GDSQL.DictionaryObject = graph_node.datas[5][2]
+				var right_schema_dict_obj: GDSQL.DictionaryObject = graph_node.datas[5][3]
+				var left_table_dict_obj: GDSQL.DictionaryObject = graph_node.datas[6][2]
+				var right_table_dict_obj: GDSQL.DictionaryObject = graph_node.datas[6][3]
+				var left_link_prop_dict_obj: GDSQL.DictionaryObject = graph_node.datas[7][2]
+				var right_link_prop_dict_obj: GDSQL.DictionaryObject = graph_node.datas[7][3]
+				var left_column_dict_obj: GDSQL.DictionaryObject = graph_node.datas[8][2]
+				var right_column_dict_obj: GDSQL.DictionaryObject = graph_node.datas[8][3]
+				var left_where_dict_obj: GDSQL.DictionaryObject = graph_node.datas[9][2]
+				var right_where_dict_obj: GDSQL.DictionaryObject = graph_node.datas[9][3]
+				var left_order_dict_obj: GDSQL.DictionaryObject = graph_node.datas[10][2]
+				var right_order_dict_obj: GDSQL.DictionaryObject = graph_node.datas[10][3]
+				var left_limit_dict_obj: GDSQL.DictionaryObject = graph_node.datas[11][2]
+				var right_limit_dict_obj: GDSQL.DictionaryObject = graph_node.datas[11][3]
+				var left_other_options: GDSQL.DictionaryObject = graph_node.datas[12][2]
+				var right_other_options: GDSQL.DictionaryObject = graph_node.datas[12][3]
 				
 				data["link_db"] = schema_dict_obj._get("Schema")
 				data["link_password"] = schema_dict_obj._get("_password")
@@ -2374,7 +2375,7 @@ func get_nodes_params(only_selected = false):
 	return all_data
 	
 func load_graph_file(path):
-	var config = ImprovedConfigFile.new()
+	var config = GDSQL.ImprovedConfigFile.new()
 	config.load(path)
 	var nodes = config.get_value("data", "nodes", {})
 	var connections = config.get_value("data", "connections", [])
@@ -2455,28 +2456,28 @@ func _load_nodes(nodes: Dictionary, connections: Array, pos_offset: Vector2, aut
 func make_useful_of_select_node(graph_node: GraphNode):
 	var to_nodes = get_to_nodes(graph_node, "Select")
 	for node in to_nodes:
-		(node.get_meta("base_dao") as BaseDao).set_union_all(graph_node.get_meta("base_dao") as BaseDao)
+		(node.get_meta("base_dao") as GDSQL.BaseDao).set_union_all(graph_node.get_meta("base_dao") as GDSQL.BaseDao)
 		
 func make_useless_of_select_node(graph_node: GraphNode):
 	var to_nodes = get_to_nodes(graph_node, "Select")
 	for node in to_nodes:
-		(node.get_meta("base_dao") as BaseDao).remove_union_all(graph_node.get_meta("base_dao") as BaseDao)
+		(node.get_meta("base_dao") as GDSQL.BaseDao).remove_union_all(graph_node.get_meta("base_dao") as GDSQL.BaseDao)
 		
 func make_useful_of_left_join_node(graph_node: GraphNode):
 	var to_select_nodes = get_to_nodes(graph_node, "Select")
 	for node in to_select_nodes:
-		(node.get_meta("base_dao") as BaseDao).set_left_join(graph_node.get_meta("left_join") as LeftJoin)
+		(node.get_meta("base_dao") as GDSQL.BaseDao).set_left_join(graph_node.get_meta("left_join") as GDSQL.LeftJoin)
 	var to_left_join_nodes = get_to_nodes(graph_node, "Left Join")
 	for node in to_left_join_nodes:
-		(node.get_meta("left_join") as LeftJoin).set_left_join(graph_node.get_meta("left_join") as LeftJoin)
+		(node.get_meta("left_join") as GDSQL.LeftJoin).set_left_join(graph_node.get_meta("left_join") as GDSQL.LeftJoin)
 		
 func make_useless_of_left_join_node(graph_node: GraphNode):
 	var to_nodes = get_to_nodes(graph_node, "Select")
 	for node in to_nodes:
-		(node.get_meta("base_dao") as BaseDao).remove_left_join(graph_node.get_meta("left_join") as LeftJoin)
+		(node.get_meta("base_dao") as GDSQL.BaseDao).remove_left_join(graph_node.get_meta("left_join") as GDSQL.LeftJoin)
 	var to_left_join_nodes = get_to_nodes(graph_node, "Left Join")
 	for node in to_left_join_nodes:
-		(node.get_meta("left_join") as LeftJoin).remove_left_join(graph_node.get_meta("left_join") as LeftJoin)
+		(node.get_meta("left_join") as GDSQL.LeftJoin).remove_left_join(graph_node.get_meta("left_join") as GDSQL.LeftJoin)
 		
 func set_input(to_port: int, release_position: Vector2, to_node: GraphNode):
 	var input_node: GraphNode
@@ -2517,7 +2518,7 @@ func get_from_nodes(node: GraphNode, type: String = "") -> Array[GraphNode]:
 				ret.push_back(from_node)
 	return ret
 	
-func _deal_query_need_enter_password(dao: BaseDao, begin_time, action):
+func _deal_query_need_enter_password(dao: GDSQL.BaseDao, begin_time, action):
 	var ret
 	var reach_max = false
 	for i in 100:
@@ -2564,7 +2565,7 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 	# 每个源头都要query
 	for node_name in arr_source_node:
 		var source_node = graph_edit.get_node(str(node_name)) as GraphNode # 一个select node
-		var dao = source_node.get_meta("base_dao") as BaseDao
+		var dao = source_node.get_meta("base_dao") as GDSQL.BaseDao
 		mgr.request_user_enter_password.emit(dao.get_db(), dao.get_table(), dao.get_password(), func():
 			var begin_time = Time.get_unix_time_from_system()
 			var action = dao.get_query_cmd()
@@ -2606,12 +2607,12 @@ func on_insert_node_query(node: GraphNode):
 		mgr.create_accept_dialog("Nothing changed")
 		return
 		
-	modified_datas = (modified_datas as DictionaryObject).get_modified_new_value()
+	modified_datas = (modified_datas as GDSQL.DictionaryObject).get_modified_new_value()
 	if modified_datas.is_empty():
 		mgr.create_accept_dialog("Nothing changed")
 		return
 		
-	var dao = node.get_meta("base_dao") as BaseDao
+	var dao = node.get_meta("base_dao") as GDSQL.BaseDao
 	dao.values(modified_datas)
 	var action = dao.get_query_cmd()
 	mgr.create_confirmation_dialog("Please confirm:\n" + action, func():
@@ -2639,12 +2640,12 @@ func on_update_node_query(node: GraphNode):
 		mgr.create_accept_dialog("Nothing changed")
 		return
 		
-	modified_datas = (modified_datas as DictionaryObject).get_modified_new_value()
+	modified_datas = (modified_datas as GDSQL.DictionaryObject).get_modified_new_value()
 	if modified_datas.is_empty():
 		mgr.create_accept_dialog("Nothing changed")
 		return
 		
-	var dao = node.get_meta("base_dao") as BaseDao
+	var dao = node.get_meta("base_dao") as GDSQL.BaseDao
 	dao.sets(modified_datas)
 	var action = dao.get_query_cmd()
 	mgr.create_confirmation_dialog("Please confirm:\n" + action, func():
@@ -2667,7 +2668,7 @@ func on_update_node_query(node: GraphNode):
 # Delete 执行
 # node: 被点击的delete节点
 func on_delete_node_query(node: GraphNode):
-	var dao = node.get_meta("base_dao") as BaseDao
+	var dao = node.get_meta("base_dao") as GDSQL.BaseDao
 	var action = dao.get_query_cmd()
 	mgr.create_confirmation_dialog("Please confirm:\n" + action, func():
 		mgr.request_user_enter_password.emit(dao.get_db(), dao.get_table(), dao.get_password(), func():
@@ -2711,7 +2712,7 @@ func on_sql_node_query(node: GraphNode, log_history: bool):
 	for node_name in arr_source_node:
 		var source_node = graph_edit.get_node(str(node_name)) as GraphNode # 一个sql node
 		var sql = (node.datas[1][2] as CodeEdit).text
-		var dao = SQLParser.parse_to_dao(sql)
+		var dao = GDSQL.SQLParser.parse_to_dao(sql)
 		mgr.request_user_enter_password.emit(dao.get_db(), dao.get_table(), dao.get_password(), func():
 			var action = dao.get_query_cmd()
 			var begin_time = Time.get_unix_time_from_system()
@@ -2720,7 +2721,7 @@ func on_sql_node_query(node: GraphNode, log_history: bool):
 				mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
 				return
 				
-			var ret: QueryResult = null
+			var ret: GDSQL.QueryResult = null
 			if dao.get_cmd().begins_with("select"):
 				ret = query_ret
 			else:
@@ -2730,7 +2731,7 @@ func on_sql_node_query(node: GraphNode, log_history: bool):
 						"table_name": "", "hint": PROPERTY_HINT_NONE, 
 						"Hint String": "", "Data Type": TYPE_NIL,
 						"Default(Expression)": ""}
-				ret = QueryResult.new()
+				ret = GDSQL.QueryResult.new()
 				ret._has_head = true
 				ret._data = [
 					["err", "affected_rows", "warnings", "last_insert_id", 
@@ -2780,25 +2781,25 @@ func on_sql_node_query(node: GraphNode, log_history: bool):
 func on_link_node_query(node: GraphNode):
 	# 拉取已经存在的关联数据
 	var data = node.get_meta("data")
-	#var schema_dict_obj: DictionaryObject = node.datas[1][2]
-	var table_dict_obj: DictionaryObject = node.datas[2][2]
-	var link_prop_dict_obj: DictionaryObject = node.datas[3][2]
-	#var left_schema_dict_obj: DictionaryObject = node.datas[5][2]
-	#var right_schema_dict_obj: DictionaryObject = node.datas[5][3]
-	#var left_table_dict_obj: DictionaryObject = node.datas[6][2]
-	#var right_table_dict_obj: DictionaryObject = node.datas[6][3]
-	var left_link_prop_dict_obj: DictionaryObject = node.datas[7][2]
-	var right_link_prop_dict_obj: DictionaryObject = node.datas[7][3]
-	var left_column_dict_obj: DictionaryObject = node.datas[8][2]
-	var right_column_dict_obj: DictionaryObject = node.datas[8][3]
-	var left_where_dict_obj: DictionaryObject = node.datas[9][2]
-	var right_where_dict_obj: DictionaryObject = node.datas[9][3]
-	var left_order_dict_obj: DictionaryObject = node.datas[10][2]
-	var right_order_dict_obj: DictionaryObject = node.datas[10][3]
-	var left_limit_dict_obj: DictionaryObject = node.datas[11][2]
-	var right_limit_dict_obj: DictionaryObject = node.datas[11][3]
-	var left_other_options: DictionaryObject = node.datas[12][2]
-	var right_other_options: DictionaryObject = node.datas[12][3]
+	#var schema_dict_obj: GDSQL.DictionaryObject = node.datas[1][2]
+	var table_dict_obj: GDSQL.DictionaryObject = node.datas[2][2]
+	var link_prop_dict_obj: GDSQL.DictionaryObject = node.datas[3][2]
+	#var left_schema_dict_obj: GDSQL.DictionaryObject = node.datas[5][2]
+	#var right_schema_dict_obj: GDSQL.DictionaryObject = node.datas[5][3]
+	#var left_table_dict_obj: GDSQL.DictionaryObject = node.datas[6][2]
+	#var right_table_dict_obj: GDSQL.DictionaryObject = node.datas[6][3]
+	var left_link_prop_dict_obj: GDSQL.DictionaryObject = node.datas[7][2]
+	var right_link_prop_dict_obj: GDSQL.DictionaryObject = node.datas[7][3]
+	var left_column_dict_obj: GDSQL.DictionaryObject = node.datas[8][2]
+	var right_column_dict_obj: GDSQL.DictionaryObject = node.datas[8][3]
+	var left_where_dict_obj: GDSQL.DictionaryObject = node.datas[9][2]
+	var right_where_dict_obj: GDSQL.DictionaryObject = node.datas[9][3]
+	var left_order_dict_obj: GDSQL.DictionaryObject = node.datas[10][2]
+	var right_order_dict_obj: GDSQL.DictionaryObject = node.datas[10][3]
+	var left_limit_dict_obj: GDSQL.DictionaryObject = node.datas[11][2]
+	var right_limit_dict_obj: GDSQL.DictionaryObject = node.datas[11][3]
+	var left_other_options: GDSQL.DictionaryObject = node.datas[12][2]
+	var right_other_options: GDSQL.DictionaryObject = node.datas[12][3]
 	
 	mgr.request_user_enter_password.emit(
 	data.get_meta("link_db", ""),
@@ -2806,7 +2807,7 @@ func on_link_node_query(node: GraphNode):
 	data.get_meta("link_password", ""), 
 	func():
 		var begin_time = Time.get_unix_time_from_system()
-		var link_datas_dao = BaseDao.new()
+		var link_datas_dao = GDSQL.BaseDao.new()
 		link_datas_dao.use_db(data.get_meta("link_db", "")) \
 			.set_password(data.get_meta("link_password", "")) \
 			.select("%s, list(%s)" % [
@@ -2835,7 +2836,7 @@ func on_link_node_query(node: GraphNode):
 		data.get_meta("left_password", ""), 
 		func():
 			var begin_time_2 = Time.get_unix_time_from_system()
-			var left_datas_dao = BaseDao.new()
+			var left_datas_dao = GDSQL.BaseDao.new()
 			var left_select = left_column_dict_obj.get_data().keys().map(func(v):
 				return v if left_column_dict_obj.get_data()[v] else ""
 			).filter(func(v): return not v.is_empty())
@@ -2863,7 +2864,7 @@ func on_link_node_query(node: GraphNode):
 			data.get_meta("right_password", ""), 
 			func():
 				var begin_time_3 = Time.get_unix_time_from_system()
-				var right_datas_dao = BaseDao.new()
+				var right_datas_dao = GDSQL.BaseDao.new()
 				right_datas_dao.use_db(data.get_meta("right_db", "")) \
 					.set_password(data.get_meta("right_password", "")) \
 					.select("*", true) \
@@ -2984,11 +2985,11 @@ func on_link_node_query(node: GraphNode):
 					vbox.add_child(btn_apply)
 					btn_apply.text = tr("Apply")
 					btn_apply.pressed.connect(func():
-						var daos: Array[BaseDao] = []
+						var daos: Array[GDSQL.BaseDao] = []
 						for detail_panel in grid.get_children():
 							var change_status = detail_panel.get_change_status()
 							if change_status == "add":
-								var dao = BaseDao.new()
+								var dao = GDSQL.BaseDao.new()
 								dao.auto_commit(false)
 								(
 									dao.use_db(data.get_meta("link_db", ""))
@@ -3005,7 +3006,7 @@ func on_link_node_query(node: GraphNode):
 									if v is String:
 										return "'" + v.c_escape() + "'"
 									return v
-								var dao = BaseDao.new()
+								var dao = GDSQL.BaseDao.new()
 								dao.auto_commit(false)
 								(
 									dao.use_db(data.get_meta("link_db", ""))
@@ -3024,7 +3025,7 @@ func on_link_node_query(node: GraphNode):
 						table_2.columns = ["#", "action", "status"]
 						var datas = []
 						var k = 0
-						for i: BaseDao in daos:
+						for i: GDSQL.BaseDao in daos:
 							var data_row = [k+1, i.get_query_cmd()]
 							var pb = ProgressBar.new()
 							data_row.push_back(pb)
@@ -3054,7 +3055,7 @@ func on_link_node_query(node: GraphNode):
 							# sql query
 							var failed = false
 							var index = -1
-							for i: BaseDao in daos:
+							for i: GDSQL.BaseDao in daos:
 								index += 1
 								if (table_2.datas[index][2] as ProgressBar).value == 100:
 									continue
@@ -3260,7 +3261,7 @@ func _on_graph_edit_disconnection_request(from_node: StringName, from_port: int,
 		"Select":
 			match t_node.get_meta("type"):
 				"Select":
-					(t_node.get_meta("base_dao") as BaseDao).remove_union_all(f_node.get_meta("base_dao") as BaseDao)
+					(t_node.get_meta("base_dao") as GDSQL.BaseDao).remove_union_all(f_node.get_meta("base_dao") as GDSQL.BaseDao)
 				"Result":
 					# 如果有修改数据的按钮，需要屏蔽
 					var graph_datas = t_node.datas
@@ -3275,13 +3276,13 @@ func _on_graph_edit_disconnection_request(from_node: StringName, from_port: int,
 							i.disabled = true
 						var table = graph_datas[0][0].get_child(0)
 						for i in table.datas:
-							(i as DictionaryObject).reset_read_only(true)
+							(i as GDSQL.DictionaryObject).reset_read_only(true)
 		"Left Join":
 			match t_node.get_meta("type"):
 				"Select":
-					(t_node.get_meta("base_dao") as BaseDao).remove_left_join(f_node.get_meta("left_join") as LeftJoin)
+					(t_node.get_meta("base_dao") as GDSQL.BaseDao).remove_left_join(f_node.get_meta("left_join") as GDSQL.LeftJoin)
 				"Left Join":
-					(t_node.get_meta("left_join") as LeftJoin).remove_left_join((f_node.get_meta("left_join") as LeftJoin))
+					(t_node.get_meta("left_join") as GDSQL.LeftJoin).remove_left_join((f_node.get_meta("left_join") as GDSQL.LeftJoin))
 					
 func _exit_tree():
 	for node in graph_edit.get_children():

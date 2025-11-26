@@ -46,7 +46,7 @@ func _parse_begin(object: Object) -> void:
 func _on_edit_btn_pressed(path: String):
 	xml_editor_window.open_file(path)
 	
-func parse_gxml_item(item: GXMLItem, parent_tree_item: TreeItem, tree: Tree):
+func parse_gxml_item(item: GDSQL.GXMLItem, parent_tree_item: TreeItem, tree: Tree):
 	var tree_item = tree.create_item(parent_tree_item)
 	# 看需不需要合并到一行显示
 	if item.line == item.end_line:
@@ -66,14 +66,14 @@ func parse_gxml_item(item: GXMLItem, parent_tree_item: TreeItem, tree: Tree):
 		if i is String:
 			var s_item = tree.create_item(tree_item)
 			s_item.set_text(0, '    ' + i.strip_edges())
-		elif i is GXMLItem:
+		elif i is GDSQL.GXMLItem:
 			parse_gxml_item(i, tree_item, tree)
 			
 	if not item.content.is_empty():
 		var end_item = tree.create_item(tree_item)
 		end_item.set_text(0, "</" + item.name + ">")
 		
-func parse_gxml_item_to_str(item: GXMLItem):
+func parse_gxml_item_to_str(item: GDSQL.GXMLItem):
 	var strs = ["<", item.name]
 	if not item.attrs.is_empty():
 		strs.push_back(" ")
@@ -84,7 +84,7 @@ func parse_gxml_item_to_str(item: GXMLItem):
 	for i in item.content:
 		if i is String:
 			strs.push_back(i)
-		elif i is GXMLItem:
+		elif i is GDSQL.GXMLItem:
 			strs.push_back(parse_gxml_item_to_str(i))
 	if item.content.is_empty():
 		strs.push_back("/>")

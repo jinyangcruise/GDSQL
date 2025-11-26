@@ -1,6 +1,5 @@
-extends Node
-class_name ConfManagerClass
-# 项目设置里自动加载了该类，名称为ConfManager
+# Must not be a RefCounted, because this obj is registered in Engine singleton which does not count a reference!
+extends Object
 
 var _conf_map: Dictionary = {}
 var _conf_modified_time: Dictionary = {} # 用于检测外部工具对配置的更新
@@ -10,19 +9,19 @@ var _valid_if_not_exist_path = []
 ## 标记某路径在不存在时，可以当作一个空配置
 func mark_valid_if_not_exit(path: String) -> void:
 	# 使用绝对路径，防止用户对同一个文件使用不同形式的路径导致获得了多个配置实例
-	path = GDSQLUtils.globalize_path(path)
+	path = GDSQL.GDSQLUtils.globalize_path(path)
 	if not _valid_if_not_exist_path.has(path):
 		_valid_if_not_exist_path.push_back(path)
 
 ## 获取配置：前提是该配置的文件是存在的
-func get_conf(path: String, password: String) -> ImprovedConfigFile:
+func get_conf(path: String, password: String) -> GDSQL.ImprovedConfigFile:
 	# 使用绝对路径，防止用户对同一个文件使用不同形式的路径导致获得了多个配置实例
-	path = GDSQLUtils.globalize_path(path)
+	path = GDSQL.GDSQLUtils.globalize_path(path)
 	
 	if _conf_map.has(path):
 		return _conf_map.get(path)
 		
-	var conf := ImprovedConfigFile.new()
+	var conf := GDSQL.ImprovedConfigFile.new()
 	var exist = FileAccess.file_exists(path)
 	if not exist and _valid_if_not_exist_path.has(path):
 		_passwords[path] = password # FIXME unsafe
@@ -63,28 +62,28 @@ func get_conf(path: String, password: String) -> ImprovedConfigFile:
 	return conf
 	
 ## 创建并获取配置：前提是该配置的文件不存在
-func create_conf(path: String, password: String) -> ImprovedConfigFile:
-	path = GDSQLUtils.globalize_path(path)
+func create_conf(path: String, password: String) -> GDSQL.ImprovedConfigFile:
+	path = GDSQL.GDSQLUtils.globalize_path(path)
 	if not FileAccess.file_exists(path):
 		assert(false, "file:[%s] already exist" % path)
 		return null
-	var conf := ImprovedConfigFile.new()
+	var conf := GDSQL.ImprovedConfigFile.new()
 	_passwords[path] = password
 	_conf_map[path] = conf
 	return conf
 
 func has_conf(path: String) -> bool:
-	path = GDSQLUtils.globalize_path(path)
+	path = GDSQL.GDSQLUtils.globalize_path(path)
 	return _conf_map.has(path)
 	
 func remove_conf(path: String):
-	path = GDSQLUtils.globalize_path(path)
+	path = GDSQL.GDSQLUtils.globalize_path(path)
 	_conf_map.erase(path)
 	if OS.has_feature("editor"):
 		_conf_modified_time.erase(path)
 		
 func save_conf_by_origin_password(path: String):
-	path = GDSQLUtils.globalize_path(path)
+	path = GDSQL.GDSQLUtils.globalize_path(path)
 	if not has_conf(path):
 		assert(false, "this conf %s is not under control" % path)
 		return
@@ -98,8 +97,8 @@ func save_conf_by_origin_password(path: String):
 		
 ## NOTICE unsafe
 func save_conf_by_same_password(path: String, ref_path: String):
-	path = GDSQLUtils.globalize_path(path)
-	ref_path = GDSQLUtils.globalize_path(ref_path)
+	path = GDSQL.GDSQLUtils.globalize_path(path)
+	ref_path = GDSQL.GDSQLUtils.globalize_path(ref_path)
 	if not has_conf(path):
 		assert(path, "this conf %s is not under control" % path)
 		return 
@@ -116,7 +115,7 @@ func save_conf_by_same_password(path: String, ref_path: String):
 		_conf_modified_time[path] = FileAccess.get_modified_time(path)
 		
 func save_conf_by_password(path: String, password: String):
-	path = GDSQLUtils.globalize_path(path)
+	path = GDSQL.GDSQLUtils.globalize_path(path)
 	if not has_conf(path):
 		assert(false, "this conf %s is not under control" % path)
 		return
@@ -130,7 +129,7 @@ func save_conf_by_password(path: String, password: String):
 		_conf_modified_time[path] = FileAccess.get_modified_time(path)
 		
 func set_conf_indexed_props(path: String, indexed_names: Array):
-	path = GDSQLUtils.globalize_path(path)
+	path = GDSQL.GDSQLUtils.globalize_path(path)
 	if not has_conf(path):
 		assert(false, "this conf %s is not under control" % path)
 		return

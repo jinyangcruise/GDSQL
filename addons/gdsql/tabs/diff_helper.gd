@@ -1,5 +1,4 @@
 extends Object
-class_name DiffHelper
 
 enum Operation {
 	INSERT,

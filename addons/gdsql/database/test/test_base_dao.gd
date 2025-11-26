@@ -14,7 +14,7 @@ func _ready() -> void:
 	#var b = type_convert(a, TYPE_STRING)
 	#print(b)
 	
-	var dao = SQLParser.parse_to_dao("""
+	var dao = GDSQL.SQLParser.parse_to_dao("""
 	select t0.id as t0_id, t0.name as t0_name, t0.icon as t0_icon, 
 	t0.desc as t0_desc, t0.max_level as t0_max_level,
 	t1.id as t1_id, t1.sid as t1_sid, t1.eid as t1_eid
@@ -65,7 +65,7 @@ func _assert(action: String, success: bool, msg: String) -> bool:
 	return true
 
 func test_insert():
-	var dao: BaseDao = BaseDao.new()
+	var dao: GDSQL.BaseDao = GDSQL.BaseDao.new()
 	dao._PASSWORD = ""
 	var ret = dao.insert_into("t_user_2.gsql")\
 		.primary_key("id", true)\
@@ -78,7 +78,7 @@ func test_insert():
 	printt(ret)
 		
 func test_insert_ignore():
-	var dao: BaseDao = BaseDao.new()
+	var dao: GDSQL.BaseDao = GDSQL.BaseDao.new()
 	dao._PASSWORD = ""
 	var ret = dao.insert_ignore("t_user_1.gsql")\
 		.primary_key("id", true)\
@@ -92,7 +92,7 @@ func test_insert_ignore():
 	printt(ret)
 		
 func test_insert_or_update():
-	var dao: BaseDao = BaseDao.new()
+	var dao: GDSQL.BaseDao = GDSQL.BaseDao.new()
 	dao._PASSWORD = ""
 	var ret = dao.insert_or_update("t_user_1.gsql")\
 		.primary_key("id", true)\
@@ -107,7 +107,7 @@ func test_insert_or_update():
 	printt(ret)
 		
 func test_replace_into():
-	var dao: BaseDao = BaseDao.new()
+	var dao: GDSQL.BaseDao = GDSQL.BaseDao.new()
 	dao._PASSWORD = ""
 	var ret = dao.replace_into("t_user_1.gsql")\
 		.primary_key("id", true)\
@@ -121,7 +121,7 @@ func test_replace_into():
 	printt(ret)
 		
 func test_update():
-	var dao: BaseDao = BaseDao.new()
+	var dao: GDSQL.BaseDao = GDSQL.BaseDao.new()
 	dao.set_password("")
 	var ret = dao.update("t_user_2.gsql")\
 		.primary_key("id", true)\
@@ -134,7 +134,7 @@ func test_update():
 	printt(ret)
 	
 func test_select():
-	var dao: BaseDao = BaseDao.new()
+	var dao: GDSQL.BaseDao = GDSQL.BaseDao.new()
 	dao._PASSWORD = ""
 	var ret = dao.select("id, name, level, sex", true)\
 		.from("t_user_1.gsql")\
@@ -143,32 +143,32 @@ func test_select():
 	printt(ret)
 	
 func test_select2():
-	var dao: BaseDao = BaseDao.new()
+	var dao: GDSQL.BaseDao = GDSQL.BaseDao.new()
 	var ret = dao.use_user_db()\
 		.select("t.*, t.name,1,2, 'a,b', t.name.substr(0, 3)", true)\
 		.from("t_user_1.gsql", "t")\
-		.order_by("id", BaseDao.ORDER_BY.DESC)\
+		.order_by("id", GDSQL.ORDER_BY.DESC)\
 		.query()
 	printt(ret)
 	
 func test_select_limit():
-	var dao: BaseDao = BaseDao.new()
+	var dao: GDSQL.BaseDao = GDSQL.BaseDao.new()
 	dao._PASSWORD = ""
 	var ret = dao.select("id*10 as a, name, level, sex", true)\
 		.from("t_user_1.gsql", "t")\
 		.where("t.name.contains('man')")\
-		.order_by("t.id", BaseDao.ORDER_BY.DESC)\
+		.order_by("t.id", GDSQL.ORDER_BY.DESC)\
 		.limit(0, 2)\
 		.query()
 	printt(ret)
 	
 func test_union():
-	var dao: BaseDao = BaseDao.new()
+	var dao: GDSQL.BaseDao = GDSQL.BaseDao.new()
 	var ret = dao.set_password("")\
 		.select("id*10 as a, name, level, sex, 'user1'", true)\
 		.from("t_user_1.gsql", "t")\
 		.where("name.contains('man')")\
-		.order_by("id", BaseDao.ORDER_BY.DESC)\
+		.order_by("id", GDSQL.ORDER_BY.DESC)\
 		.limit(0, 50)\
 		
 		.union_all()\
@@ -176,7 +176,7 @@ func test_union():
 #		.select("id*10 as a, name, level, sex, 'user2'", false)\
 		.select_same()\
 		.from("t_user_2.gsql", "")\
-		.order_by("name", BaseDao.ORDER_BY.ASC)\
+		.order_by("name", GDSQL.ORDER_BY.ASC)\
 		.limit(0, 2)\
 		
 		.query()
@@ -185,7 +185,7 @@ func test_union():
 	printt(ret)
 	
 func test_left_join():
-	var dao: BaseDao = BaseDao.new()
+	var dao: GDSQL.BaseDao = GDSQL.BaseDao.new()
 	var ret = dao.set_password("")\
 		.select("t1.id, t1.name, t1.level, t1.sex, t2.id, t2.name, t2.level, t2.sex, 1+1 as a", true)\
 		.from("t_user_2.gsql", "t2")\
@@ -195,7 +195,7 @@ func test_left_join():
 	printt(ret)
 
 #func test_insert_into_complex_node():
-	#var dao: BaseDao = BaseDao.new()
+	#var dao: GDSQL.BaseDao = GDSQL.BaseDao.new()
 	#var main = preload("res://src/main/main.tscn").instantiate()
 	#add_child(main)
 	#await get_tree().process_frame
@@ -209,7 +209,7 @@ func test_left_join():
 	#printt(ret)
 	
 func test_insert_db_config():
-	var dao: BaseDao = BaseDao.new()
+	var dao: GDSQL.BaseDao = GDSQL.BaseDao.new()
 	return dao.use_db("res://addons/gdsql/config/")\
 				.insert_into("config.cfg")\
 				.primary_key("name", false)\

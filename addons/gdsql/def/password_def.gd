@@ -1,4 +1,3 @@
-class_name PasswordDef
 extends Object
 
 const CONFIG_ENCRYPTED_PASS = ""

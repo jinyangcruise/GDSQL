@@ -1,7 +1,6 @@
 # https://github.com/morganherlocker/cubic-spline
 # 三次拟合
 extends RefCounted
-class_name CubicSpline
 
 var xs = []
 var ys = []

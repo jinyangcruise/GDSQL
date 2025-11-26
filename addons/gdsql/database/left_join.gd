@@ -1,6 +1,5 @@
 @tool
 extends RefCounted
-class_name LeftJoin
 
 var __request_password: Array
 var __database: String = "" ## 【外部请勿使用】数据库路径
@@ -9,7 +8,7 @@ var __table: String = "" ## 【外部请勿使用】表名
 var __table_alias: String = "" ## 【外部请勿使用】别名
 var __condition: String = "" ## 【外部请勿使用】联表查询条件
 #var __dependencies: Array = [] ## 依赖的表
-var __left_join: LeftJoin ## 【外部请勿使用】后续的联表对象（单纯的前后顺序关系，与__condition无关）
+var __left_join: GDSQL.LeftJoin  ## 【外部请勿使用】后续的联表对象（单纯的前后顺序关系，与__condition无关）
 
 #static var regex = RegEx.new()
 
@@ -61,16 +60,16 @@ func get_condition() -> String:
 			#dependencies.push_back(t)
 	#return {__table_alias: dependencies}
 	
-func set_left_join(left_join: LeftJoin):
+func set_left_join(left_join: GDSQL.LeftJoin):
 	__left_join = left_join
 	
-func remove_left_join(left_join: LeftJoin) -> bool:
+func remove_left_join(left_join: GDSQL.LeftJoin) -> bool:
 	if __left_join == left_join:
 		__left_join = null
 		return true
 	return false
 	
-func get_left_join() -> LeftJoin:
+func get_left_join() -> GDSQL.LeftJoin:
 	return __left_join
 	
 ## 检查链条上是否有该别名的联表对象
@@ -87,21 +86,21 @@ func chain_has_alias(alias: String) -> bool:
 	return false
 	
 ## 在链条末尾增加一个LeftJoin对象
-func create_left_join_to_end(a_left_join: LeftJoin = null) -> LeftJoin:
+func create_left_join_to_end(a_left_join: GDSQL.LeftJoin = null):
 	if __left_join == null:
-		__left_join = LeftJoin.new() if a_left_join == null else a_left_join
+		__left_join = GDSQL.LeftJoin.new() if a_left_join == null else a_left_join
 		return __left_join
 		
 	var obj = __left_join
 	while obj.__left_join != null:
 		obj = obj.__left_join
 		
-	obj.__left_join = LeftJoin.new() if a_left_join == null else a_left_join
+	obj.__left_join = GDSQL.LeftJoin.new() if a_left_join == null else a_left_join
 	return obj.__left_join
 	
 ## 获取链条上的LeftJoin对象。注意需要在根对象上调用。
-func get_chain_left_joins() -> Array[LeftJoin]:
-	var ret: Array[LeftJoin] = [self]
+func get_chain_left_joins() -> Array[GDSQL.LeftJoin]:
+	var ret: Array[GDSQL.LeftJoin] = [self]
 	var obj = __left_join
 	while obj != null:
 		ret.push_back(obj)
@@ -109,7 +108,7 @@ func get_chain_left_joins() -> Array[LeftJoin]:
 	return ret
 	
 ## 根据别名获取链条上LeftJoin对象。注意需要在根对象上调用。
-func get_left_join_by_alias(alias) -> LeftJoin:
+func get_left_join_by_alias(alias) -> GDSQL.LeftJoin:
 	if __table_alias == alias:
 		return self
 	var obj = __left_join
@@ -150,6 +149,6 @@ func handle_defualt_password(mgr):
 			return
 	elif __password == "":
 		if __database == "user://":
-			__password = PasswordDef.USER_DAO_PASS
+			__password = GDSQL.PasswordDef.USER_DAO_PASS
 		elif __database == "res://src/config/":
-			__password = PasswordDef.CONFIG_ENCRYPTED_PASS
+			__password = GDSQL.PasswordDef.CONFIG_ENCRYPTED_PASS
