@@ -1,0 +1,532 @@
+[gd_scene load_steps=33 format=3 uid="uid://dgmeafb51u3cu"]
+
+[ext_resource type="Script" uid="uid://dpww5xh83russ" path="res://addons/gdsql/tabs/welcome/welcome.gd" id="1_5y5vp"]
+[ext_resource type="Texture2D" uid="uid://bx2rpo0iobkg5" path="res://addons/gdsql/img/circle-info.png" id="1_siirs"]
+[ext_resource type="Gradient" uid="uid://is38yas58jon" path="res://addons/gdsql/tabs/welcome/welcome_bg_color_ramp.tres" id="2_ntqe3"]
+[ext_resource type="Texture2D" uid="uid://bhdwuawd35hcq" path="res://addons/gdsql/img/rotate.png" id="3_r41uy"]
+[ext_resource type="Texture2D" uid="uid://c5ri47qve45qj" path="res://addons/gdsql/img/ExternalLink.svg" id="4_m5llx"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_tcyoh"]
+noise_type = 2
+seed = 71
+frequency = 0.04
+fractal_type = 3
+fractal_octaves = 1
+fractal_lacunarity = 0.0
+fractal_gain = 0.0
+cellular_return_type = 6
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_1camd"]
+noise = SubResource("FastNoiseLite_tcyoh")
+color_ramp = ExtResource("2_ntqe3")
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bmgg2"]
+draw_center = false
+corner_radius_top_left = 15
+corner_radius_top_right = 15
+corner_radius_bottom_right = 15
+corner_radius_bottom_left = 15
+shadow_color = Color(1, 1, 1, 1)
+shadow_size = 5
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_3tgy8"]
+corner_radius_top_left = 15
+corner_radius_top_right = 15
+
+[sub_resource type="Gradient" id="Gradient_eplp7"]
+colors = PackedColorArray(0.29268384, 0.7849823, 0.55131197, 1, 0.023928065, 0.26535943, 0.32024193, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_4uue8"]
+gradient = SubResource("Gradient_eplp7")
+fill_to = Vector2(1, 1)
+
+[sub_resource type="Gradient" id="Gradient_ilb7s"]
+colors = PackedColorArray(0.28918967, 0.76862043, 1.2474049, 1, 1.0085651, 0.4881915, 1.2326523, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_bmgg2"]
+gradient = SubResource("Gradient_ilb7s")
+fill_from = Vector2(0.21652421, 0.3903134)
+fill_to = Vector2(0.997151, 1)
+
+[sub_resource type="Gradient" id="Gradient_ntqe3"]
+colors = PackedColorArray(0.2784314, 0.54901963, 0.7490196, 1, 0.3437118, 0.23492959, 0.6227616, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_m5llx"]
+gradient = SubResource("Gradient_ntqe3")
+fill_from = Vector2(0.21082622, 0.23361823)
+fill_to = Vector2(0.997151, 1)
+
+[sub_resource type="FontVariation" id="FontVariation_r41uy"]
+variation_embolden = 2.0
+variation_transform = Transform2D(1, -0.235, 0.31, 1, 0, 0)
+spacing_glyph = -11
+baseline_offset = 0.11
+
+[sub_resource type="LabelSettings" id="LabelSettings_r41uy"]
+font = SubResource("FontVariation_r41uy")
+font_size = 72
+font_color = Color(0.2784314, 0.54901963, 0.7490196, 1)
+stacked_shadow_count = 3
+stacked_shadow_0/offset = Vector2(0, 0)
+stacked_shadow_0/outline_size = 10
+stacked_shadow_1/offset = Vector2(0, 5)
+stacked_shadow_1/outline_size = 15
+stacked_shadow_2/offset = Vector2(0, 10)
+stacked_shadow_2/outline_size = 20
+
+[sub_resource type="FontVariation" id="FontVariation_tcyoh"]
+variation_embolden = 2.0
+variation_transform = Transform2D(1, -0.235, 0.31, 1, 0, 0)
+spacing_glyph = -3
+baseline_offset = 0.11
+
+[sub_resource type="LabelSettings" id="LabelSettings_1camd"]
+font = SubResource("FontVariation_tcyoh")
+font_size = 72
+stacked_shadow_count = 3
+stacked_shadow_0/offset = Vector2(0, 0)
+stacked_shadow_0/outline_size = 10
+stacked_shadow_1/offset = Vector2(0, 5)
+stacked_shadow_1/outline_size = 15
+stacked_shadow_2/offset = Vector2(0, 10)
+stacked_shadow_2/outline_size = 20
+
+[sub_resource type="FontVariation" id="FontVariation_3tgy8"]
+variation_transform = Transform2D(1, -0.235, 0.31, 1, 0, 0)
+baseline_offset = 0.11
+
+[sub_resource type="LabelSettings" id="LabelSettings_eplp7"]
+font = SubResource("FontVariation_3tgy8")
+font_size = 72
+stacked_outline_count = 3
+stacked_shadow_count = 2
+stacked_outline_0/size = 15
+stacked_outline_0/color = Color(0.30196083, 0.7603859, 1, 1)
+stacked_outline_1/size = 10
+stacked_outline_1/color = Color(1, 0.41568625, 0.42085248, 1)
+stacked_outline_2/size = 5
+stacked_outline_2/color = Color(1, 1, 1, 1)
+stacked_shadow_0/offset = Vector2(4, 4)
+stacked_shadow_0/color = Color(1, 0.27978832, 0, 0.263)
+stacked_shadow_0/outline_size = 60
+stacked_shadow_1/offset = Vector2(-4, -4)
+stacked_shadow_1/color = Color(0, 1, 0.28493494, 0.21200001)
+stacked_shadow_1/outline_size = 60
+
+[sub_resource type="LabelSettings" id="LabelSettings_3tgy8"]
+font = SubResource("FontVariation_3tgy8")
+font_size = 72
+stacked_outline_count = 3
+stacked_shadow_count = 2
+stacked_outline_0/size = 15
+stacked_outline_0/color = Color(0.3019608, 0.6431373, 1, 1)
+stacked_outline_1/size = 10
+stacked_outline_1/color = Color(0.6901961, 0.41568628, 1, 1)
+stacked_outline_2/size = 5
+stacked_outline_2/color = Color(1, 1, 1, 1)
+stacked_shadow_0/offset = Vector2(4, 4)
+stacked_shadow_0/color = Color(1, 0, 0, 0.293)
+stacked_shadow_0/outline_size = 60
+stacked_shadow_1/offset = Vector2(-4, -4)
+stacked_shadow_1/color = Color(0, 0.9251009, 1, 0.62200004)
+stacked_shadow_1/outline_size = 60
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_h306i"]
+content_margin_left = 15.0
+content_margin_top = 15.0
+content_margin_right = 15.0
+content_margin_bottom = 15.0
+bg_color = Color(0, 0, 0, 1)
+corner_radius_bottom_right = 15
+corner_radius_bottom_left = 15
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_4uue8"]
+corner_radius_bottom_right = 15
+corner_radius_bottom_left = 15
+
+[sub_resource type="Gradient" id="Gradient_h306i"]
+offsets = PackedFloat32Array(0.55112654, 1)
+colors = PackedColorArray(0, 0.082998775, 0.07509922, 1, 0, 0.2237864, 0.21266624, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_eplp7"]
+gradient = SubResource("Gradient_h306i")
+fill_to = Vector2(0.43304843, 1)
+
+[sub_resource type="Gradient" id="Gradient_paf02"]
+colors = PackedColorArray(0.03991354, 0.043577667, 0.08348745, 1, 0.3496866, 0.23431528, 0.6359146, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_ntqe3"]
+gradient = SubResource("Gradient_paf02")
+fill_to = Vector2(1, 1)
+
+[sub_resource type="FontVariation" id="FontVariation_bmgg2"]
+variation_transform = Transform2D(1, 0.155, 0, 1, 0, 0)
+
+[sub_resource type="LabelSettings" id="LabelSettings_h306i"]
+font = SubResource("FontVariation_bmgg2")
+font_size = 19
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_eplp7"]
+content_margin_left = 12.0
+content_margin_top = 12.0
+content_margin_right = 12.0
+content_margin_bottom = 12.0
+bg_color = Color(1, 1, 1, 0.15100001)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ilb7s"]
+
+[node name="Welcome" type="PanelContainer" unique_id=529169008]
+clip_contents = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+script = ExtResource("1_5y5vp")
+metadata/_tab_index = 0
+metadata/type = "welcome"
+metadata/is_file = false
+metadata/file_name = ""
+metadata/file_path = ""
+
+[node name="bg" type="TextureRect" parent="." unique_id=1585698331]
+self_modulate = Color(1, 1, 1, 0.1)
+layout_mode = 2
+mouse_filter = 2
+texture = SubResource("NoiseTexture2D_1camd")
+stretch_mode = 1
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=1297049550]
+layout_mode = 2
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+
+[node name="TextureButton" type="TextureButton" parent="MarginContainer" unique_id=131191313]
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 0
+tooltip_text = "This page is inspired by Dialogic."
+texture_normal = ExtResource("1_siirs")
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=863089687]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+
+[node name="PanelContainer" type="PanelContainer" parent="CenterContainer" unique_id=387321162]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_bmgg2")
+
+[node name="Content" type="VBoxContainer" parent="CenterContainer/PanelContainer" unique_id=1045338964]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(900, 0)
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="Top" type="PanelContainer" parent="CenterContainer/PanelContainer/Content" unique_id=1655964794]
+clip_children = 1
+custom_minimum_size = Vector2(0, 150)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_3tgy8")
+
+[node name="TopBg" type="TextureRect" parent="CenterContainer/PanelContainer/Content/Top" unique_id=877289620]
+visible = false
+custom_minimum_size = Vector2(0, 150)
+layout_mode = 2
+texture = SubResource("GradientTexture2D_4uue8")
+
+[node name="TopBg2" type="TextureRect" parent="CenterContainer/PanelContainer/Content/Top" unique_id=746752840]
+visible = false
+custom_minimum_size = Vector2(0, 150)
+layout_mode = 2
+texture = SubResource("GradientTexture2D_bmgg2")
+
+[node name="TopBg3" type="TextureRect" parent="CenterContainer/PanelContainer/Content/Top" unique_id=1179558171]
+custom_minimum_size = Vector2(0, 150)
+layout_mode = 2
+texture = SubResource("GradientTexture2D_m5llx")
+
+[node name="ColorRect" type="ColorRect" parent="CenterContainer/PanelContainer/Content/Top" unique_id=49184632]
+visible = false
+layout_mode = 2
+color = Color(0.8784314, 0.8784314, 0.8784314, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="CenterContainer/PanelContainer/Content/Top" unique_id=377519169]
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CenterContainer/PanelContainer/Content/Top/CenterContainer" unique_id=1122745210]
+layout_mode = 2
+theme_override_constants/separation = -30
+
+[node name="Label4" type="Label" parent="CenterContainer/PanelContainer/Content/Top/CenterContainer/HBoxContainer" unique_id=580119439]
+layout_mode = 2
+tooltip_text = "Welcome to GDSQL, a plugin that lets you easily manage datas for your game or software!"
+mouse_filter = 1
+text = "GD"
+label_settings = SubResource("LabelSettings_r41uy")
+horizontal_alignment = 1
+
+[node name="Label5" type="Label" parent="CenterContainer/PanelContainer/Content/Top/CenterContainer/HBoxContainer" unique_id=1529626742]
+layout_mode = 2
+tooltip_text = "Welcome to GDSQL, a plugin that lets you easily manage datas for your game or software!"
+mouse_filter = 1
+text = "SQL"
+label_settings = SubResource("LabelSettings_1camd")
+horizontal_alignment = 1
+
+[node name="Label" type="Label" parent="CenterContainer/PanelContainer/Content/Top" unique_id=1398103295]
+visible = false
+layout_mode = 2
+tooltip_text = "Welcome to GDSQL, a plugin that lets you easily manage datas for your game or software!"
+mouse_filter = 1
+text = "GDSQL"
+label_settings = SubResource("LabelSettings_eplp7")
+horizontal_alignment = 1
+
+[node name="Label2" type="Label" parent="CenterContainer/PanelContainer/Content/Top" unique_id=1802572026]
+visible = false
+layout_mode = 2
+tooltip_text = "Welcome to GDSQL, a plugin that lets you easily manage datas for your game or software!"
+mouse_filter = 1
+text = "GDSQL"
+label_settings = SubResource("LabelSettings_3tgy8")
+horizontal_alignment = 1
+
+[node name="Bottom" type="PanelContainer" parent="CenterContainer/PanelContainer/Content" unique_id=1816127561]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_h306i")
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PanelContainer/Content/Bottom" unique_id=306611119]
+layout_mode = 2
+theme_override_constants/margin_left = -15
+theme_override_constants/margin_top = -15
+theme_override_constants/margin_right = -15
+theme_override_constants/margin_bottom = -16
+
+[node name="PanelContainer" type="PanelContainer" parent="CenterContainer/PanelContainer/Content/Bottom/MarginContainer" unique_id=498622111]
+clip_children = 1
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_4uue8")
+
+[node name="BottomBg" type="TextureRect" parent="CenterContainer/PanelContainer/Content/Bottom/MarginContainer/PanelContainer" unique_id=2071135183]
+visible = false
+layout_mode = 2
+texture = SubResource("GradientTexture2D_eplp7")
+
+[node name="BottomBg2" type="TextureRect" parent="CenterContainer/PanelContainer/Content/Bottom/MarginContainer/PanelContainer" unique_id=1335414484]
+layout_mode = 2
+texture = SubResource("GradientTexture2D_ntqe3")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CenterContainer/PanelContainer/Content/Bottom" unique_id=1954801835]
+layout_mode = 2
+
+[node name="Left" type="VBoxContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer" unique_id=1411373882]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Documentation" type="Label" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left" unique_id=1856391598]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "Documentation"
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left" unique_id=1345116852]
+layout_mode = 2
+theme_override_constants/margin_left = 30
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer" unique_id=934365054]
+layout_mode = 2
+
+[node name="WikiLinkButton" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer/VBoxContainer" unique_id=118182866]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_colors/font_color = Color(0.7882353, 0.7882353, 0.7882353, 1)
+theme_override_colors/font_pressed_color = Color(0.2784314, 0.54901963, 0.7490196, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+text = "Wiki"
+underline = 2
+
+[node name="GettingStartedLinkButton" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer/VBoxContainer" unique_id=492756820]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_colors/font_color = Color(0.7882353, 0.7882353, 0.7882353, 1)
+theme_override_colors/font_pressed_color = Color(0.2784314, 0.54901963, 0.7490196, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+text = "Getting Started"
+underline = 2
+
+[node name="GetInTouch" type="Label" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left" unique_id=398495198]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "Get in Touch"
+
+[node name="MarginContainer2" type="MarginContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left" unique_id=767018768]
+layout_mode = 2
+theme_override_constants/margin_left = 30
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer2" unique_id=2077804697]
+layout_mode = 2
+
+[node name="BugLinkButton" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer2/VBoxContainer" unique_id=295548880]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_colors/font_color = Color(0.7882353, 0.7882353, 0.7882353, 1)
+theme_override_colors/font_pressed_color = Color(0.2784314, 0.54901963, 0.7490196, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+text = "Bug / Request"
+underline = 2
+
+[node name="QQLinkButton" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer2/VBoxContainer" unique_id=2041182745]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_colors/font_color = Color(0.7882353, 0.7882353, 0.7882353, 1)
+theme_override_colors/font_pressed_color = Color(0.2784314, 0.54901963, 0.7490196, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+text = "QQ Group"
+underline = 2
+
+[node name="DiscordLinkButton" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer2/VBoxContainer" unique_id=1770035481]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_colors/font_color = Color(0.7882353, 0.7882353, 0.7882353, 1)
+theme_override_colors/font_pressed_color = Color(0.2784314, 0.54901963, 0.7490196, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+text = "Discord"
+underline = 2
+
+[node name="DonateLinkButton" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer2/VBoxContainer" unique_id=1236082966]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_colors/font_color = Color(0.7882353, 0.7882353, 0.7882353, 1)
+theme_override_colors/font_pressed_color = Color(0.2784314, 0.54901963, 0.7490196, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+text = "Donate"
+underline = 2
+
+[node name="MarginContainer3" type="MarginContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left" unique_id=1487157054]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer3" unique_id=426590612]
+layout_mode = 2
+
+[node name="ShowcaseLink" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer3/HBoxContainer" unique_id=744034852]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_colors/font_color = Color(0.7882353, 0.7882353, 0.7882353, 1)
+theme_override_colors/font_pressed_color = Color(0.2784314, 0.54901963, 0.7490196, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+text = "Showcase"
+underline = 2
+
+[node name="TextureButton" type="TextureButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer3/HBoxContainer" unique_id=862952276]
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+toggle_mode = true
+texture_normal = ExtResource("4_m5llx")
+texture_pressed = ExtResource("4_m5llx")
+texture_hover = ExtResource("4_m5llx")
+ignore_texture_size = true
+stretch_mode = 3
+
+[node name="MarginContainer4" type="MarginContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left" unique_id=461018073]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer4" unique_id=113022903]
+layout_mode = 2
+
+[node name="OtherAddonsLink" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer4/HBoxContainer" unique_id=1310515071]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_colors/font_color = Color(0.7882353, 0.7882353, 0.7882353, 1)
+theme_override_colors/font_pressed_color = Color(0.2784314, 0.54901963, 0.7490196, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+text = "Other Addons"
+underline = 2
+
+[node name="TextureButton" type="TextureButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer4/HBoxContainer" unique_id=1508102096]
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+toggle_mode = true
+texture_normal = ExtResource("4_m5llx")
+texture_pressed = ExtResource("4_m5llx")
+texture_hover = ExtResource("4_m5llx")
+ignore_texture_size = true
+stretch_mode = 3
+
+[node name="Right" type="VBoxContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer" unique_id=536152320]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 3.0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Right" unique_id=1119669638]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Introduction" type="Label" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Right/VBoxContainer" unique_id=2042216286]
+visible = false
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+size_flags_vertical = 8
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+text = "Welcome to GDSQL, a plugin that lets you easily manage datas for your game or software!"
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Right/VBoxContainer" unique_id=1498629324]
+layout_mode = 2
+
+[node name="RandomTip" type="Label" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Right/VBoxContainer/HBoxContainer" unique_id=1834238884]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Random Tip"
+label_settings = SubResource("LabelSettings_h306i")
+
+[node name="Button" type="Button" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Right/VBoxContainer/HBoxContainer" unique_id=985433786]
+layout_mode = 2
+icon = ExtResource("3_r41uy")
+flat = true
+alignment = 0
+icon_alignment = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Right/VBoxContainer" unique_id=1176927398]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_right = 20
+
+[node name="PanelContainer" type="PanelContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Right/VBoxContainer/MarginContainer" unique_id=399439265]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_eplp7")
+
+[node name="RandomTipLabel" type="RichTextLabel" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Right/VBoxContainer/MarginContainer/PanelContainer" unique_id=1431129961]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_styles/normal = SubResource("StyleBoxEmpty_ilb7s")
+bbcode_enabled = true
+text = "This is a random tip! This is a random tip!"
+fit_content = true
+scroll_active = false
+
+[node name="Version" type="Label" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Right" unique_id=1643781930]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6227616, 0.6089944, 0.6089944, 1)
+text = "1.0.0.0"
+horizontal_alignment = 2
+
+[connection signal="resized" from="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Right/VBoxContainer/MarginContainer/PanelContainer/RandomTipLabel" to="." method="_on_random_tip_label_resized"]

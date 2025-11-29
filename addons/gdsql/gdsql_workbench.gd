@@ -1,7 +1,9 @@
 @tool
 extends EditorPlugin
 
-const PLUGIN_NAME = "GDSQL"
+## Icon already has plugin name, so we give it an invisible name.
+## We can use ramdom combinations of invisible characters.
+const PLUGIN_NAME = "\u200e\u200f\u2060"
 const MainPanel = preload("res://addons/gdsql/index.tscn")
 
 var main_panel_instance
@@ -64,7 +66,7 @@ func _get_plugin_name():
 	return PLUGIN_NAME
 	
 func _get_plugin_icon():
-	return load("res://addons/gdsql/img/gdsql_icon.svg")
+	return load("res://addons/gdsql/img/gdsql_text_icon.svg")
 	
 func bind_file_system_dock_for_gdmappergraph():
 	var fs_dock = EditorInterface.get_file_system_dock()

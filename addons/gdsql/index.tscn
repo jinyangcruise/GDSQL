@@ -1,12 +1,24 @@
-[gd_scene load_steps=7 format=3 uid="uid://dhptbdbjxq468"]
+[gd_scene load_steps=10 format=3 uid="uid://dhptbdbjxq468"]
 
 [ext_resource type="PackedScene" uid="uid://bpawj4a7llynx" path="res://addons/gdsql/table.tscn" id="1_2tgi5"]
 [ext_resource type="PackedScene" uid="uid://c3bjm6oe0687p" path="res://addons/gdsql/tree_databases.tscn" id="1_2yut5"]
 [ext_resource type="Script" uid="uid://b21nh7ytf4a0q" path="res://addons/gdsql/index.gd" id="1_ixupm"]
 [ext_resource type="Script" uid="uid://by5xj4fw7qdqi" path="res://addons/gdsql/tab_container.gd" id="3_2dwia"]
+[ext_resource type="Texture2D" uid="uid://bhdwuawd35hcq" path="res://addons/gdsql/img/rotate.png" id="3_h306i"]
+[ext_resource type="PackedScene" uid="uid://dgmeafb51u3cu" path="res://addons/gdsql/tabs/welcome/welcome.tscn" id="4_ilb7s"]
+[ext_resource type="Texture2D" uid="uid://3eswwjjajdjo" path="res://addons/gdsql/img/gdsql_text_icon.svg" id="5_eplp7"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_i3kgl"]
-bg_color = Color(0.145098, 0.168627, 0.203922, 1)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_eplp7"]
+content_margin_left = 5.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0.1021275, 0.1021275, 0.1021275, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+corner_detail = 5
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_2ech8"]
 
@@ -37,15 +49,18 @@ text = "文件(F)"
 [node name="HSplitContainer" type="HSplitContainer" parent="VBoxContainer" unique_id=1575290738]
 layout_mode = 2
 size_flags_vertical = 3
+theme_override_constants/separation = 10
 theme_override_constants/autohide = 0
 
 [node name="VBoxContainer" type="VBoxContainer" parent="VBoxContainer/HSplitContainer" unique_id=262444778]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 0
 
 [node name="PanelContainer" type="PanelContainer" parent="VBoxContainer/HSplitContainer/VBoxContainer" unique_id=1396669090]
+unique_name_in_owner = true
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_i3kgl")
+theme_override_styles/panel = SubResource("StyleBoxFlat_eplp7")
 
 [node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer" unique_id=1326427623]
 layout_mode = 2
@@ -54,12 +69,16 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 text = "SCHEMAS"
+text_overrun_behavior = 3
 
 [node name="ButtonRefresh" type="Button" parent="VBoxContainer/HSplitContainer/VBoxContainer/PanelContainer/HBoxContainer" unique_id=151763846]
 layout_mode = 2
 tooltip_text = "Refresh All"
 theme_override_styles/focus = SubResource("StyleBoxEmpty_2ech8")
-text = "🔄️"
+icon = ExtResource("3_h306i")
+flat = true
+text_overrun_behavior = 1
+icon_alignment = 1
 
 [node name="TreeDatabases" parent="VBoxContainer/HSplitContainer/VBoxContainer" unique_id=1620967491 instance=ExtResource("1_2yut5")]
 unique_name_in_owner = true
@@ -79,12 +98,20 @@ size_flags_vertical = 3
 size_flags_stretch_ratio = 4.0
 current_tab = 0
 drag_to_rearrange_enabled = true
+tab_0/icon = ExtResource("5_eplp7")
 script = ExtResource("3_2dwia")
 
+[node name="Welcome" parent="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" unique_id=529169008 instance=ExtResource("4_ilb7s")]
+unique_name_in_owner = true
+layout_mode = 2
+metadata/_tab_name = ""
+
 [node name="➕" type="Control" parent="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" unique_id=1253522553]
+unique_name_in_owner = true
+visible = false
 layout_mode = 2
 metadata/type = "new_tab_button"
-metadata/_tab_index = 0
+metadata/_tab_index = 1
 
 [node name="PanelContainer" type="PanelContainer" parent="VBoxContainer/HSplitContainer/VSplitContainer" unique_id=229180961]
 layout_mode = 2

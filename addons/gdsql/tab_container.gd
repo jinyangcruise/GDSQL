@@ -7,8 +7,10 @@ var mgr: GDSQL.WorkbenchManagerClass:
 var SQLGraph = preload("res://addons/gdsql/tabs/sql_graph.tscn")
 var MAPPER_GRAPH = preload("res://addons/gdsql/tabs/mapper_graph.tscn")
 
-@onready var new_tab_button: Control = $"➕"
+@onready var welcome_page: PanelContainer = %Welcome
+@onready var new_tab_button: Control = %"➕"
 
+const WELCOME_PAGE_TAB_INDEX = 0
 var _tab_index = 1
 
 var _tab_activate_time: float = 0
@@ -54,8 +56,9 @@ func _ready() -> void:
 		mgr.send_to_editor.connect(receive_content, CONNECT_DEFERRED)
 	if not mgr.send_to_editor_and_execute.is_connected(receive_content_and_execute):
 		mgr.send_to_editor_and_execute.connect(receive_content_and_execute, CONNECT_DEFERRED)
-	
-	_on_tab_clicked(0)
+		
+	set_tab_icon(WELCOME_PAGE_TAB_INDEX, preload("res://addons/gdsql/img/gdsql_text_icon.svg"))
+	get_tab_bar().active_tab_rearranged.connect(_on_active_tab_rearranged)
 	
 func _exit_tree():
 	if mgr == null or not mgr.run_in_plugin(self):
@@ -298,19 +301,29 @@ func _on_tab_button_pressed(tab: int) -> void:
 	page.queue_free()
 	# TODO 有内容的时候要提示保存或者二次确认
 	
+func _on_active_tab_rearranged(_idx_to: int):
+	await get_tree().process_frame
+	if get_tab_control(WELCOME_PAGE_TAB_INDEX) != welcome_page:
+		move_child(welcome_page, WELCOME_PAGE_TAB_INDEX)
+		
 func close_content_window(content_id: String):
 	var child = get_node(content_id)
 	if child:
 		child.queue_free()
-
+		
 ## 切换标签的时候，把激活的标签上加一个关闭按钮，没激活的标签取消关闭按钮防止误触
 func _on_tab_changed(tab: int) -> void:
 	_tab_activate_time = Time.get_unix_time_from_system()
+	if tab == WELCOME_PAGE_TAB_INDEX:
+		welcome_page.name = tr("Welcome")
+	else:
+		welcome_page.name = "\n"
 	if get_tab_control(tab) != new_tab_button:
-		set_tab_button_icon(tab, preload("res://addons/gdsql/img/xmark.png"))
-		
+		if tab != WELCOME_PAGE_TAB_INDEX:
+			set_tab_button_icon(tab, preload("res://addons/gdsql/img/xmark.png"))
+			
 		for i in get_tab_count():
-			if i != tab:
+			if i != tab and i > WELCOME_PAGE_TAB_INDEX:
 				set_tab_button_icon(i, null)
 				
 func receive_content(_content: String, force_new: bool = false, file_path: String = ""):

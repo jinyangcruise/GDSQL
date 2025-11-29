@@ -1,6 +1,7 @@
 @tool
 extends MarginContainer
 
+@onready var panel_container: PanelContainer = %PanelContainer
 @onready var tree_databases: Tree = %TreeDatabases
 @onready var tab_container: TabContainer = %TabContainer
 @onready var log_table: VBoxContainer = %LogTable
@@ -12,9 +13,25 @@ func _ready() -> void:
 	if not GDSQL.WorkbenchManager.add_log_history.is_connected(add_a_log):
 		GDSQL.WorkbenchManager.add_log_history.connect(add_a_log)
 		
+	var sb: StyleBoxFlat = get_theme_stylebox(&"normal", &"LineEdit").duplicate()
+	sb.content_margin_top = 0
+	sb.content_margin_bottom = 0
+	sb.content_margin_right = 0
+	sb.content_margin_left = 5
+	panel_container.add_theme_stylebox_override(&"panel", sb)
 	log_table.ratios = [22.0, 30.0, 8.0, 1.5, 0.4, 1.0] as Array[float]
 	log_table.columns = ["Status", "#", "Time", "Action", "Message", "Duration / Cost"] as Array[String]
 	
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_THEME_CHANGED:
+		if panel_container:
+			var sb: StyleBoxFlat = get_theme_stylebox(&"normal", &"LineEdit").duplicate()
+			sb.content_margin_top = 0
+			sb.content_margin_bottom = 0
+			sb.content_margin_right = 0
+			sb.content_margin_left = 5
+			panel_container.add_theme_stylebox_override(&"panel", sb)
+			
 func _exit_tree():
 	if GDSQL.WorkbenchManager == null or not GDSQL.WorkbenchManager.run_in_plugin(self):
 		return
