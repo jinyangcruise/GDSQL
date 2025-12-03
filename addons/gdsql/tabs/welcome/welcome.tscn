@@ -21,7 +21,7 @@ noise = SubResource("FastNoiseLite_tcyoh")
 color_ramp = ExtResource("2_ntqe3")
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bmgg2"]
-draw_center = false
+bg_color = Color(0.2784314, 0.54901963, 0.7490196, 1)
 corner_radius_top_left = 15
 corner_radius_top_right = 15
 corner_radius_bottom_right = 15
