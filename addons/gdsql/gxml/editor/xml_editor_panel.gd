@@ -157,6 +157,15 @@ func _ready() -> void:
 		else:
 			print_rich("[color=yellow]XML Editor: File not exist, '%s'[/color]" % path)
 			
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_THEME_CHANGED:
+		if file_tree:
+			file_tree.add_theme_stylebox_override(&"panel", get_theme_stylebox(&"panel", &"ItemList"))
+		if item_tree:
+			item_tree.add_theme_stylebox_override(&"panel", get_theme_stylebox(&"panel", &"ItemList"))
+		if xml_editor_container:
+			xml_editor_container.add_theme_stylebox_override(&"panel", get_theme_stylebox(&"ScriptEditor", &"EditorStyles"))
+			
 func refresh_sub_menu():
 	var recent_files = config.get_value("history", "primary", [])
 	sub_menu.clear()

@@ -1,7 +1,7 @@
 @tool
 extends Window
 
-@onready var xml_editor_panel: PanelContainer = $XMLEditorPanel
+@onready var xml_editor_panel: PanelContainer = %XMLEditorPanel
 
 var inited = false
 
@@ -13,6 +13,10 @@ func _ready() -> void:
 	transient = false
 	bind_file_system_dock_popup_menu()
 	
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_THEME_CHANGED:
+		%XMLEditorPanel.add_theme_stylebox_override(&"panel", get_theme_stylebox(&"PanelForeground", &"EditorStyles"))
+		
 func _exit_tree() -> void:
 	if file_tree:
 		file_tree.item_activated.disconnect(_on_file_tree_item_activated)

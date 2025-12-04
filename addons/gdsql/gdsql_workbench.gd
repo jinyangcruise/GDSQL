@@ -30,6 +30,7 @@ func _enter_tree():
 	xml_inspector_plugin.xml_editor_window = xml_editor_window
 	add_tool_menu_item("XML Editor", xml_editor_window.open_file.bind(""))
 	add_inspector_plugin(xml_inspector_plugin)
+	get_window().theme_changed.connect(xml_editor_window.theme_changed.emit)
 	
 	# 支持双击或右键打开.gdmappergraph文件跳转到workbench
 	bind_file_system_dock_for_gdmappergraph()

@@ -2,10 +2,10 @@
 
 [ext_resource type="Script" uid="uid://j2u5pnqqat0m" path="res://addons/gdsql/tabs/sql_graph_node/graph_node.gd" id="1_s2sbd"]
 
-[node name="GraphNode" type="GraphNode"]
+[node name="GraphNode" type="GraphNode" unique_id=527071600]
 auto_translate_mode = 2
-offset_right = 170.0
-offset_bottom = 63.0
+offset_right = 263.0
+offset_bottom = 80.0
 localize_numeral_system = false
 resizable = true
 script = ExtResource("1_s2sbd")

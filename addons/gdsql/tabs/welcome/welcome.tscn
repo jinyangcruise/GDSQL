@@ -421,7 +421,7 @@ layout_mode = 2
 [node name="ShowcaseLink" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer3/HBoxContainer" unique_id=744034852]
 layout_mode = 2
 size_flags_horizontal = 0
-theme_override_colors/font_color = Color(0.7882353, 0.7882353, 0.7882353, 1)
+theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_pressed_color = Color(0.2784314, 0.54901963, 0.7490196, 1)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 text = "Showcase"
@@ -450,7 +450,7 @@ layout_mode = 2
 [node name="OtherAddonsLink" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer4/HBoxContainer" unique_id=1310515071]
 layout_mode = 2
 size_flags_horizontal = 0
-theme_override_colors/font_color = Color(0.7882353, 0.7882353, 0.7882353, 1)
+theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_pressed_color = Color(0.2784314, 0.54901963, 0.7490196, 1)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 text = "Other Addons"
@@ -516,6 +516,7 @@ custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+theme_override_colors/default_color = Color(1, 1, 1, 0.7019608)
 theme_override_styles/normal = SubResource("StyleBoxEmpty_ilb7s")
 bbcode_enabled = true
 text = "This is a random tip! This is a random tip!"
