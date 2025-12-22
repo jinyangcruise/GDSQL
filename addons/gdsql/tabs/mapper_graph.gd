@@ -607,7 +607,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			# entity
 			var en_ns = '%s.%sEntity' % [db_name, result_map_id.capitalize().replace(" ", "")]
 			if not entity_map.has(en_ns):
-				var arr = ['extends GDSQL.GBatisEntity\nclass_name %sEntity\n' % 
+				var arr = ['@warning_ignore("missing_tool")\nextends GDSQL.GBatisEntity\nclass_name %sEntity\n' % 
 					result_map_id.capitalize().replace(" ", "")]
 				var arr_getset = []
 				if table_comment != "":
