@@ -24,7 +24,7 @@ var __primary_key_def: String = "" ## 【外部请勿使用】定义文件中的
 var __autoincrement_keys: Dictionary = {} ## 【外部请勿使用】自增键有哪些
 var __autoincrement_keys_def: Dictionary = {} ## 【外部请勿使用】定义文件中的自增键
 var __union_all: GDSQL.BaseDao ## 【外部请勿使用】union的单元
-var __parent_union: GDSQL.BaseDao ## 【外部请勿使用】被uion的单元
+var __parent_union: WeakRef ## 【外部请勿使用】被uion的单元
 #var __left_join_tables: Dictionary = {} ## 【外部请勿使用】联表查询的表相关信息
 var __left_join: GDSQL.LeftJoin ## 【外部请勿使用】第一个联表对象（获取第N个联表对象需要通过第N-1个联表对象来获取）
 var __need_post_porcess: bool = true ## 【外部请勿使用】select最终返回数据时处理：是否按照用户所需的字段进行精简
@@ -295,9 +295,9 @@ func select_same() -> GDSQL.BaseDao:
 	if __cmd != "":
 		return _assert_false("select_same", "already set command %s" % __cmd)
 	__cmd = "select"
-	__select_str = __parent_union.__select_str
-	__select = __parent_union.__select.duplicate()
-	__field_as_index = __parent_union.__field_as_index.duplicate()
+	__select_str = __parent_union.get_ref().__select_str
+	__select = __parent_union.get_ref().__select.duplicate()
+	__field_as_index = __parent_union.get_ref().__field_as_index.duplicate()
 	__need_head = false
 	return self
 	
@@ -417,7 +417,7 @@ func where(cond: String) -> GDSQL.BaseDao:
 	
 func set_where(cond: String) -> GDSQL.BaseDao:
 	if __parent_union:
-		__parent_union.set_where(cond)
+		__parent_union.get_ref().set_where(cond)
 		return self
 	if not (__cmd == "select" or __cmd == "update" or __cmd == "delete_from"):
 		return _assert_false("where", 
@@ -435,7 +435,7 @@ func union_all() -> GDSQL.BaseDao:
 	var bd = GDSQL.BaseDao.new()
 	__union_all = bd
 	bd.set_collect_lack_table_mode(__collect_lack_table_enabled)
-	bd.__parent_union = self
+	bd.__parent_union = weakref(self)
 	return bd
 	
 ## 是否uionall了
@@ -447,7 +447,7 @@ func set_union_all(base_dao: GDSQL.BaseDao) -> GDSQL.BaseDao:
 	if __cmd != "select":
 		return _assert_false("set_union_all", "'union_all' can only be used after 'select'")
 	__union_all = base_dao
-	base_dao.__parent_union = self
+	base_dao.__parent_union = weakref(self)
 	return self
 	
 func remove_union_all(base_dao: GDSQL.BaseDao) -> bool:
@@ -495,7 +495,7 @@ func group_by_str(something: String) -> GDSQL.BaseDao:
 ## 如果是union的，那么order by作用于最终数据集上。
 func order_by(field: String, order: GDSQL.ORDER_BY) -> GDSQL.BaseDao:
 	if __parent_union:
-		__parent_union.order_by(field, order)
+		__parent_union.get_ref().order_by(field, order)
 		return self
 	if __cmd != "select":
 		return _assert_false("order_by", "'order_by' can only be used after 'select'")
@@ -507,7 +507,7 @@ func order_by(field: String, order: GDSQL.ORDER_BY) -> GDSQL.BaseDao:
 ## 注意，若用该方法，就一次性传入字符串。如果多次使用，只有最后一次的有效。
 func order_by_str(string: String) -> GDSQL.BaseDao:
 	if __parent_union:
-		__parent_union.order_by_str(string)
+		__parent_union.get_ref().order_by_str(string)
 		return self
 	if __cmd != "select":
 		return _assert_false("order_by_str", "'order_by' can only be used after 'select'")
@@ -2048,7 +2048,7 @@ func query() -> GDSQL.QueryResult:
 		return _assert_false("query", "command is empty")
 		
 	if __parent_union:
-		return __parent_union.query()
+		return __parent_union.get_ref().query()
 		
 	_handle_defualt_password()
 	if need_user_enter_password():
