@@ -35,6 +35,7 @@ func _ready() -> void:
 	sb3.corner_radius_bottom_left = 5
 	sb3.corner_radius_bottom_right = 0
 	tab_container.add_theme_stylebox_override(&"panel", sb3)
+	tab_container.set_theme_type_variation("TabContainerInner")
 	
 	log_table.ratios = [22.0, 30.0, 8.0, 1.5, 0.4, 1.0] as Array[float]
 	log_table.columns = ["Status", "#", "Time", "Action", "Message", "Duration / Cost"] as Array[String]
