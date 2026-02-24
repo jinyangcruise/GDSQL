@@ -7,6 +7,7 @@ extends VSplitContainer
 @onready var button_add_node: Button = $VBoxContainer/HFlowContainer/ButtonAddNode
 @onready var line_edit_save_path: LineEdit = $VBoxContainer/HFlowContainer/LineEditSavePath
 @onready var option_button_choose_path: OptionButton = $VBoxContainer/HFlowContainer/OptionButtonChoosePath
+@onready var option_button_result_map_mode: OptionButton = $VBoxContainer/HFlowContainer/OptionButtonResultMapMode
 @onready var option_button_link: OptionButton = $VBoxContainer/HFlowContainer/OptionButtonLink
 @onready var button_run_selected: Button = $VBoxContainer/HFlowContainer/ButtonRunSelected
 @onready var button_run: Button = $VBoxContainer/HFlowContainer/ButtonRun
@@ -17,6 +18,11 @@ signal change_tab_title(page: Control, title: String)
 @onready var graph_edit: GraphEdit = $VBoxContainer/GraphEdit
 
 const EXTENSION = "*.gdmappergraph"
+
+enum RESULT_MAP_MODE {
+	SIMPLEST,
+	FULL,
+}
 
 enum LINK_WAY {
 	NESTING_SELECT,
@@ -36,9 +42,11 @@ func load_mapper_file(path):
 	var nodes = config.get_value("data", "nodes", {})
 	var connections = config.get_value("data", "connections", [])
 	var save_path = config.get_value("data", "path", "") as String
-	var link_type = config.get_value("data", "link_type", 0)
+	var result_map_mode = config.get_value("data", "result_map_mode", RESULT_MAP_MODE.SIMPLEST)
+	var link_type = config.get_value("data", "link_type", LINK_WAY.NESTING_SELECT)
 	
 	line_edit_save_path.text = save_path
+	option_button_result_map_mode.selected = result_map_mode
 	option_button_link.selected = link_type
 	if save_path != "":
 		if save_path.begins_with("res://"):
@@ -84,6 +92,7 @@ func _on_button_save_pressed() -> void:
 			return v
 		))
 		config.set_value("data", "path", line_edit_save_path.text.strip_edges())
+		config.set_value("data", "result_map_mode", option_button_result_map_mode.selected)
 		config.set_value("data", "link_type", option_button_link.selected)
 		
 		# 防止报错导致丢失文件中的旧数据
@@ -111,6 +120,7 @@ func _on_button_save_as_pressed() -> void:
 			return v
 		))
 		config.set_value("data", "path", line_edit_save_path.text.strip_edges())
+		config.set_value("data", "result_map_mode", option_button_result_map_mode.selected)
 		config.set_value("data", "link_type", option_button_link.selected)
 		
 		# 防止报错导致丢失文件中的旧数据
@@ -267,9 +277,12 @@ alias_map: Dictionary = {}, arr_index: Array = [-1]):
 		return "%s.%s" % [table_alias, v["Column Name"]])
 		
 	if first_node:
-		ret.select.push_back("select %s " % 
-			split_for_long_content(", ".join(cols), "\n\t\t"))
-			
+		if option_button_result_map_mode.selected == RESULT_MAP_MODE.SIMPLEST:
+			ret.select.push_back("select %s.*" % table_alias)
+		else:
+			ret.select.push_back("select %s " % 
+				split_for_long_content(", ".join(cols), "\n\t\t"))
+				
 	var arr_on = []
 	for fnode in to_from_map[node]:
 		var from_alias = get_alias_func.call(fnode)
@@ -486,12 +499,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				if linked_nodes.size() > 1:
 					prefix += '     ' # +5 as long as associaiton
 				var a_col_name = col["Column Name"]
-				arr_col.push_back(('%s %-' + str(prop_max_length) + 's    %-' + \
-					str(col_max_length) + 's/>') % [
-						prefix, 
-						'property="%s"' % aprops[a_col_name], 
-						'column="%s"' % (a_col_prefix + a_col_name)]
-				)
+				if option_button_result_map_mode.selected == RESULT_MAP_MODE.FULL:
+					arr_col.push_back(('%s %-' + str(prop_max_length) + 's    %-' + \
+						str(col_max_length) + 's/>') % [
+							prefix, 
+							'property="%s"' % aprops[a_col_name], 
+							'column="%s"' % (a_col_prefix + a_col_name)]
+					)
 				arr_col_name.push_back(a_col_name)
 				arr_prop_type.push_back([aprops[a_col_name], 
 					type_string(col["Data Type"]), -1, col["Comment"], col["Hint String"]])
@@ -600,8 +614,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				xml_arr.push_back('\n\t<resultMap id="%sResult" type="%sEntity"' % [
 					result_map_id, result_map_id.capitalize().replace(" ", "")
 				])
-				xml_arr.push_back(' autoMapping="false">\n\t\t%s\n\t</resultMap>\n\t' % 
-					"\n\t\t".join(arr_col))
+				if arr_col.is_empty():
+					xml_arr.push_back(' autoMapping="%s" />\n\t' % (
+						"true" if option_button_result_map_mode.selected == RESULT_MAP_MODE.SIMPLEST else "false"))
+				else:
+					xml_arr.push_back(' autoMapping="%s">\n\t\t%s\n\t</resultMap>\n\t' % 
+						["true" if option_button_result_map_mode.selected == RESULT_MAP_MODE.SIMPLEST else "false", 
+						"\n\t\t".join(arr_col)])
 				result_map_added.push_back(result_map_id)
 				
 			# entity
@@ -674,8 +693,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		if not has_asso_collec:
 			select_use_db = true
 			vo_ids[leading_db_name + "." + leading_table_name] = leading_result_map_id
-			var vo = "select %s from %s" % [", ".join(arr_columns[lead_node_name]), 
-				leading_table_name]
+			var vo = ""
+			if option_button_result_map_mode.selected == RESULT_MAP_MODE.SIMPLEST:
+				vo = "select * from %s" % leading_table_name
+			else:
+				vo = "select %s from %s" % [", ".join(arr_columns[lead_node_name]), leading_table_name]
 			xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n\t' % \
 				[leading_result_map_id, split_for_long_content(vo, "\n\t\t")])
 		# nesting select 不使用left join，直接select主表即可，但是有多个sql
@@ -699,7 +721,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 					if count != 1:
 						id += "_" + str(count)
 					vo_ids[db_name + "." + table_name] = id
-					var vo = "select %s from %s" % [
+					var vo = ""
+					if option_button_result_map_mode.selected == RESULT_MAP_MODE.SIMPLEST:
+						vo = "select * from %s" % table_name
+					else:
+						vo = "select %s from %s" % [
 							", ".join(arr_columns[node_name]), table_name]
 					xml_arr.push_back('\n\t<sql id="%sVo">\n\t\t%s\n\t</sql>\n\t' % \
 						[id, split_for_long_content(vo, "\n\t\t")])
@@ -708,10 +734,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			vo_ids[leading_db_name + "." + leading_table_name] = leading_result_map_id
 			var vo = ""
 			var all_column_name = []
+			var all_table_alias_simplest_fields = []
 			for node_n in arr_columns:
 				# helper不拉取数据
 				if graph_edit.is_helper_node(nodes_map[node_n]):
 					continue
+				all_table_alias_simplest_fields.push_back(table_alias[node_n].substr(0, 2) + ".*")
 				for c in arr_columns[node_n]:
 					all_column_name.push_back(
 						table_alias[node_n].substr(0, 2) + "." + c + \
@@ -723,10 +751,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				# first is leading node
 				if leading:
 					leading = false
-					vo = "select %s \n\t\tfrom %s.%s %s" % [
-						split_for_long_content(", ".join(all_column_name), "\n\t\t"),
-						leading_db_name, leading_table_name, t_alias
-					]
+					if option_button_result_map_mode.selected == RESULT_MAP_MODE.SIMPLEST:
+						vo = split_for_long_content("select %s from %s.%s %s" % [", ".join(all_table_alias_simplest_fields), 
+							leading_db_name, leading_table_name, t_alias], "\n\t\t")
+					else:
+						vo = "select %s \n\t\tfrom %s.%s %s" % [
+							split_for_long_content(", ".join(all_column_name), "\n\t\t"),
+							leading_db_name, leading_table_name, t_alias
+						]
 				else:
 					var db_name = null
 					var table_name = null

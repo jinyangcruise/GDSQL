@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://dryqmdnjvj0rt"]
+[gd_scene format=3 uid="uid://dryqmdnjvj0rt"]
 
 [ext_resource type="Script" uid="uid://wm8q6ctsmlk7" path="res://addons/gdsql/tabs/mapper_graph.gd" id="1_skh3h"]
 [ext_resource type="Script" uid="uid://1uifvxy4j0kw" path="res://addons/gdsql/tabs/mapper_graph_edit.gd" id="2_455wi"]
@@ -25,7 +25,7 @@ keycode = 83
 [sub_resource type="Shortcut" id="Shortcut_n7cwt"]
 events = [SubResource("InputEventKey_lywi6")]
 
-[node name="MapperGraph" type="VSplitContainer"]
+[node name="MapperGraph" type="VSplitContainer" unique_id=1742084449]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -37,42 +37,42 @@ metadata/is_file = false
 metadata/file_name = ""
 metadata/file_path = ""
 
-[node name="VBoxContainer" type="VBoxContainer" parent="."]
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1741529244]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="HFlowContainer" type="HFlowContainer" parent="VBoxContainer"]
+[node name="HFlowContainer" type="HFlowContainer" parent="VBoxContainer" unique_id=768529000]
 layout_mode = 2
 
-[node name="ButtonOpen" type="Button" parent="VBoxContainer/HFlowContainer"]
+[node name="ButtonOpen" type="Button" parent="VBoxContainer/HFlowContainer" unique_id=145248926]
 layout_mode = 2
 icon = ExtResource("2_ommw4")
 
-[node name="ButtonSave" type="Button" parent="VBoxContainer/HFlowContainer" node_paths=PackedStringArray("shortcut_context")]
+[node name="ButtonSave" type="Button" parent="VBoxContainer/HFlowContainer" unique_id=1714504404 node_paths=PackedStringArray("shortcut_context")]
 layout_mode = 2
 tooltip_text = "Save"
 shortcut_context = NodePath("../../..")
 shortcut = SubResource("Shortcut_8uhqv")
 icon = ExtResource("3_blmae")
 
-[node name="ButtonSaveAs" type="Button" parent="VBoxContainer/HFlowContainer"]
+[node name="ButtonSaveAs" type="Button" parent="VBoxContainer/HFlowContainer" unique_id=455505210]
 layout_mode = 2
 tooltip_text = "Save As..."
 shortcut = SubResource("Shortcut_n7cwt")
 icon = ExtResource("3_blmae")
 
-[node name="VSeparator" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+[node name="VSeparator" type="VSeparator" parent="VBoxContainer/HFlowContainer" unique_id=887118200]
 layout_mode = 2
 
-[node name="ButtonAddNode" type="Button" parent="VBoxContainer/HFlowContainer"]
+[node name="ButtonAddNode" type="Button" parent="VBoxContainer/HFlowContainer" unique_id=1535955547]
 layout_mode = 2
 tooltip_text = "This button does not work. Please drag a table from left tree into this panel."
 icon = ExtResource("4_ump4m")
 
-[node name="VSeparator2" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+[node name="VSeparator2" type="VSeparator" parent="VBoxContainer/HFlowContainer" unique_id=1018002398]
 layout_mode = 2
 
-[node name="LineEditSavePath" type="LineEdit" parent="VBoxContainer/HFlowContainer"]
+[node name="LineEditSavePath" type="LineEdit" parent="VBoxContainer/HFlowContainer" unique_id=332271534]
 custom_minimum_size = Vector2(325, 0)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -82,7 +82,7 @@ clear_button_enabled = true
 select_all_on_focus = true
 caret_blink = true
 
-[node name="OptionButtonChoosePath" type="OptionButton" parent="VBoxContainer/HFlowContainer"]
+[node name="OptionButtonChoosePath" type="OptionButton" parent="VBoxContainer/HFlowContainer" unique_id=1925708174]
 layout_mode = 2
 tooltip_text = "Pick a path from Resource, UserData or FileSystem."
 selected = 0
@@ -95,14 +95,29 @@ popup/item_1/id = 1
 popup/item_2/text = "FileSystem"
 popup/item_2/id = 2
 
-[node name="VSeparator3" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+[node name="VSeparator3" type="VSeparator" parent="VBoxContainer/HFlowContainer" unique_id=1613920618]
 layout_mode = 2
 
-[node name="OptionButtonLink" type="OptionButton" parent="VBoxContainer/HFlowContainer"]
+[node name="OptionButtonResultMapMode" type="OptionButton" parent="VBoxContainer/HFlowContainer" unique_id=52824579]
+layout_mode = 2
+tooltip_text = "Determine the way how to write result map and vo sql.
+Simplest: Omit all non-associated/collected fields.
+Full: Full fields."
+selected = 0
+item_count = 2
+popup/item_0/text = "Simplest"
+popup/item_0/id = 0
+popup/item_1/text = "Full"
+popup/item_1/id = 1
+
+[node name="VSeparator4" type="VSeparator" parent="VBoxContainer/HFlowContainer" unique_id=2085245280]
+layout_mode = 2
+
+[node name="OptionButtonLink" type="OptionButton" parent="VBoxContainer/HFlowContainer" unique_id=199223780]
 layout_mode = 2
 tooltip_text = "Determine the way how to interlink a property to an association or a collection.
-Nesting Select: association and collection use a stand alone select to fetch data.
-Nesting ResultMap: association and collection use 'left join' to fetch data."
+Nesting Select: use a stand alone select to fetch association and collection data.
+Nesting ResultMap: use 'left join' to fetch association and collection data."
 selected = 0
 item_count = 2
 popup/item_0/text = "Nesting Select"
@@ -110,23 +125,23 @@ popup/item_0/id = 0
 popup/item_1/text = "Nesting ResultMap"
 popup/item_1/id = 1
 
-[node name="VSeparator6" type="VSeparator" parent="VBoxContainer/HFlowContainer"]
+[node name="VSeparator6" type="VSeparator" parent="VBoxContainer/HFlowContainer" unique_id=186364146]
 layout_mode = 2
 
-[node name="ButtonRunSelected" type="Button" parent="VBoxContainer/HFlowContainer"]
+[node name="ButtonRunSelected" type="Button" parent="VBoxContainer/HFlowContainer" unique_id=1796626951]
 layout_mode = 2
 tooltip_text = "Generate mapper by selected nodes."
 icon = ExtResource("5_xasyh")
 
-[node name="ButtonRun" type="Button" parent="VBoxContainer/HFlowContainer"]
+[node name="ButtonRun" type="Button" parent="VBoxContainer/HFlowContainer" unique_id=852060008]
 layout_mode = 2
 tooltip_text = "Generate mapper by all the nodes."
 icon = ExtResource("6_ip2ph")
 
-[node name="GraphEdit" type="GraphEdit" parent="VBoxContainer"]
+[node name="GraphEdit" type="GraphEdit" parent="VBoxContainer" unique_id=1274486436]
 layout_mode = 2
 size_flags_vertical = 3
-scroll_offset = Vector2(0, -32)
+scroll_offset = Vector2(0, -50)
 right_disconnects = true
 minimap_enabled = false
 script = ExtResource("2_455wi")
@@ -136,6 +151,7 @@ script = ExtResource("2_455wi")
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSaveAs" to="." method="_on_button_save_as_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNode" to="." method="_on_button_add_node_pressed"]
 [connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonChoosePath" to="." method="_on_option_button_choose_path_item_selected"]
+[connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonResultMapMode" to="." method="_on_option_button_link_item_selected"]
 [connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonLink" to="." method="_on_option_button_link_item_selected"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRunSelected" to="." method="_on_button_run_selected_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRun" to="." method="_on_button_run_pressed"]
