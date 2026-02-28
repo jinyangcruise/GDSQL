@@ -41,6 +41,7 @@ func load_mapper_file(path):
 	config.load(path)
 	var nodes = config.get_value("data", "nodes", {})
 	var connections = config.get_value("data", "connections", [])
+	var includes = config.get_value("data", "include_files", {})
 	var save_path = config.get_value("data", "path", "") as String
 	var result_map_mode = config.get_value("data", "result_map_mode", RESULT_MAP_MODE.SIMPLEST)
 	var link_type = config.get_value("data", "link_type", LINK_WAY.NESTING_SELECT)
@@ -56,9 +57,41 @@ func load_mapper_file(path):
 		else:
 			option_button_choose_path.selected = 2
 			
+	# NOTICE See include_file() in mapper_graph_edit.gd
 	# genarate nodes
-	graph_edit._load_nodes(nodes, connections, Vector2.ZERO, false, false)
-	
+	var pos_offset = Vector2.ZERO
+	var include_connections = []
+	var added_nodes = await graph_edit._load_nodes(nodes, connections, pos_offset, 
+		false, false, "/root", -1, include_connections)
+		
+	var sub_frames = {}
+	for i in includes:
+		var sub_path = "/root/" + str(i)
+		var sub_frame = await graph_edit.include_file(includes[i].file_path, sub_path,
+			includes[i].position_offset + pos_offset, 
+			includes[i].first_node_position_offset + pos_offset, 
+			includes[i].name, 0, include_connections)
+		sub_frames[i] = sub_frame
+		
+	if not added_nodes.is_empty():
+		var first_node_pos_conf = nodes[nodes.keys().front()].position_offset
+		for i in includes:
+			var frame_name = sub_frames[i].name
+			var include_first_node_should_at_pos = includes[i].first_node_position_offset - \
+				first_node_pos_conf + added_nodes[0].position_offset
+			var diff = null
+			for e_name in graph_edit.get_attached_nodes_of_frame(frame_name):
+				var element = graph_edit.get_node(str(e_name))
+				if element is GraphNode:
+					if diff == null:
+						diff = include_first_node_should_at_pos - element.position_offset
+					element.position_offset += diff
+			if diff != null:
+				for e_name in graph_edit.get_attached_nodes_of_frame(frame_name):
+					var element = graph_edit.get_node(str(e_name))
+					if element is GraphFrame:
+						graph_edit._set_position_of_frame_attached_nodes(element, diff)
+						
 	set_meta("type", "mapper_graph")
 	set_meta("is_file", true)
 	set_meta("file_path", path)
@@ -77,20 +110,15 @@ func _on_button_open_pressed() -> void:
 	)
 	add_child(editor_file_dialog)
 	editor_file_dialog.popup_centered_ratio(0.7)
-	editor_file_dialog.canceled.connect(func():
-		editor_file_dialog.queue_free()
-	)
+	editor_file_dialog.canceled.connect(editor_file_dialog.queue_free)
 	
 func _on_button_save_pressed() -> void:
 	# 本身就是一个已经保存的文件，就直接保存
 	if get_meta("is_file"):
 		var config = GDSQL.ImprovedConfigFile.new()
 		config.set_value("data", "nodes", graph_edit.get_nodes_params())
-		config.set_value("data", "connections", graph_edit.get_connection_list().map(func(v):
-			v["from_node"] = v["from_node"].validate_node_name()
-			v["to_node"] = v["to_node"].validate_node_name()
-			return v
-		))
+		config.set_value("data", "connections", graph_edit.get_connection_params())
+		config.set_value("data", "include_files", graph_edit.get_inlcude_params())
 		config.set_value("data", "path", line_edit_save_path.text.strip_edges())
 		config.set_value("data", "result_map_mode", option_button_result_map_mode.selected)
 		config.set_value("data", "link_type", option_button_link.selected)
@@ -114,11 +142,8 @@ func _on_button_save_as_pressed() -> void:
 	editor_file_dialog.file_selected.connect(func(path: String):
 		var config = GDSQL.ImprovedConfigFile.new()
 		config.set_value("data", "nodes", graph_edit.get_nodes_params())
-		config.set_value("data", "connections", graph_edit.get_connection_list().map(func(v):
-			v["from_node"] = v["from_node"].validate_node_name()
-			v["to_node"] = v["to_node"].validate_node_name()
-			return v
-		))
+		config.set_value("data", "connections", graph_edit.get_connection_params())
+		config.set_value("data", "include_files", graph_edit.get_inlcude_params())
 		config.set_value("data", "path", line_edit_save_path.text.strip_edges())
 		config.set_value("data", "result_map_mode", option_button_result_map_mode.selected)
 		config.set_value("data", "link_type", option_button_link.selected)
@@ -138,9 +163,7 @@ func _on_button_save_as_pressed() -> void:
 	)
 	add_child(editor_file_dialog)
 	editor_file_dialog.popup_centered_ratio(0.7)
-	editor_file_dialog.canceled.connect(func():
-		editor_file_dialog.queue_free()
-	)
+	editor_file_dialog.canceled.connect(editor_file_dialog.queue_free)
 	
 func _on_button_add_node_pressed() -> void:
 	GDSQL.WorkbenchManager.create_accept_dialog(button_add_node.tooltip_text)
@@ -1624,7 +1647,9 @@ func split_for_long_content(content: String, delimiter = "\n") -> String:
 			break
 		start += l
 	return delimiter.join(arr)
-
-
+	
 func _on_option_button_link_item_selected(_index: int) -> void:
 	change_tab_title.emit(self, get_meta("file_name") + "*")
+	
+func _on_button_add_include_pressed() -> void:
+	EditorInterface.popup_quick_open(graph_edit.include_file, [&"GDMapperGraph"])

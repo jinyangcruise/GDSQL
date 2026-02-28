@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://lu2m6lhnamxh" path="res://addons/gdsql/img/floppy-disk.png" id="3_blmae"]
 [ext_resource type="Texture2D" uid="uid://devul8doq53rt" path="res://addons/gdsql/img/plus.png" id="4_ump4m"]
 [ext_resource type="Texture2D" uid="uid://bj6qe4a23bjvc" path="res://addons/gdsql/img/bolt-lightning-edit.png" id="5_xasyh"]
+[ext_resource type="Texture2D" uid="uid://cihap4hh0yid3" path="res://addons/gdsql/img/Instance.svg" id="5_xgrh4"]
 [ext_resource type="Texture2D" uid="uid://fud4boba7d2j" path="res://addons/gdsql/img/bolt-lightning.png" id="6_ip2ph"]
 
 [sub_resource type="InputEventKey" id="InputEventKey_kjho4"]
@@ -68,6 +69,11 @@ layout_mode = 2
 layout_mode = 2
 tooltip_text = "This button does not work. Please drag a table from left tree into this panel."
 icon = ExtResource("4_ump4m")
+
+[node name="ButtonAddInclude" type="Button" parent="VBoxContainer/HFlowContainer" unique_id=1348853935]
+layout_mode = 2
+text = "Include"
+icon = ExtResource("5_xgrh4")
 
 [node name="VSeparator2" type="VSeparator" parent="VBoxContainer/HFlowContainer" unique_id=1018002398]
 layout_mode = 2
@@ -150,6 +156,7 @@ script = ExtResource("2_455wi")
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSave" to="." method="_on_button_save_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSaveAs" to="." method="_on_button_save_as_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddNode" to="." method="_on_button_add_node_pressed"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonAddInclude" to="." method="_on_button_add_include_pressed"]
 [connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonChoosePath" to="." method="_on_option_button_choose_path_item_selected"]
 [connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonResultMapMode" to="." method="_on_option_button_link_item_selected"]
 [connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonLink" to="." method="_on_option_button_link_item_selected"]

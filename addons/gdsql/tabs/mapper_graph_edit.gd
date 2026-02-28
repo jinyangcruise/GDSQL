@@ -16,7 +16,6 @@ static var copied_nodes: Dictionary
 
 const SHORTCUT_SELECTALL = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_selectall.tres")
 const SHORTCUT_UNDO = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_undo.tres")
-const SHORTCUT_QUERY = preload("res://addons/gdsql/tabs/sql_graph_node/shortcut_query.tres")
 
 const VALID_PORT_COLOR = {
 	TYPE_NIL: Color.ALICE_BLUE,
@@ -67,6 +66,20 @@ enum LINK_TYPE {
 	LINK_HELPER, # 用于关联表（一对一或一对多，取决于后续表的选择），关联表中的数据不会生成实体类
 }
 
+var drag_dirty = false
+var drag_buffer: Array
+var cached_theme_base_scale = 1.0
+var frame_node_id_to_link_to
+var nodes_link_to_frame_buffer: Array
+var include_file_index = -1
+
+func _init() -> void:
+	graph_elements_linked_to_frame_request.connect(_nodes_linked_to_frame_request)
+	
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_THEME_CHANGED:
+		cached_theme_base_scale = get_theme_default_base_scale()
+		
 func _exit_tree():
 	for node in get_children():
 		if node is GraphNode:
@@ -112,8 +125,8 @@ func _shortcut_input(event: InputEvent) -> void:
 	#"comment": "",
 	#"columns": databases[db_name]["tables"][table_name]["columns"],
 #}
-func add_item(data: Dictionary, props: Dictionary, extra: Dictionary = {}, 
-asize = null, pos_offset = null, aname = ""):
+func add_item(data: Dictionary, props: Dictionary, extra: Dictionary = {},
+asize = null, pos_offset = null, aname = "", path = "/root"):
 	grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
 	
@@ -122,6 +135,7 @@ asize = null, pos_offset = null, aname = ""):
 	var graph_node = SQLGraphNode.instantiate() as GraphNode
 	graph_node.set_meta("data", data)
 	graph_node.set_meta("extra", extra)
+	graph_node.set_meta("include_path", path)
 	
 	if aname != "":
 		graph_node.name = aname
@@ -215,14 +229,14 @@ asize = null, pos_offset = null, aname = ""):
 			le_prop_name.text = new_text.to_snake_case()
 	)
 	
-	datas.push_back([null, null, ob_link_type, association_class_name, 
+	datas.push_back([null, null, ob_link_type, association_class_name,
 		text_enum_suggestion, le_prop_name])
 		
 	for i: Dictionary in data.columns:
 		var label_col_name = Label.new()
 		label_col_name.text = i.get("Column Name")
 		var j = i.duplicate()
-		j["Data Type"] = '%s(%s)' % [i["Data Type"], 
+		j["Data Type"] = '%s(%s)' % [i["Data Type"],
 			GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.find_key(i["Data Type"])]
 		label_col_name.tooltip_text = var_to_str(j)
 		label_col_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -264,8 +278,176 @@ asize = null, pos_offset = null, aname = ""):
 		node_close(graph_node)
 	)
 	add_child(graph_node, true)
+	graph_node.dragged.connect(_node_dragged.bind(graph_node))
 	return graph_node
 	
+func add_frame(title: String, pos_offset = null, aname = "", support_drag_into = false):
+	grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
+	unselect_all_node()
+	
+	# 等待页面就绪
+	if not get_rect().has_area():
+		await resized
+		
+	var graph_frame := GraphFrame.new()
+	graph_frame.title = title
+	if aname != "":
+		graph_frame.name = aname
+		
+	if pos_offset == null:
+		graph_frame.position_offset = (get_rect().get_center() - \
+			graph_frame.get_rect().size/2 + scroll_offset) / zoom
+	else:
+		graph_frame.position_offset = pos_offset
+		
+	if support_drag_into:
+		var frame_hint_label = Label.new()
+		frame_hint_label.focus_mode = Control.FOCUS_ACCESSIBILITY
+		graph_frame.add_child(frame_hint_label)
+		
+		frame_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		frame_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		frame_hint_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		frame_hint_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		frame_hint_label.text = tr("Drag and drop nodes here to attach them.")
+		frame_hint_label.modulate = Color(1.0, 1.0, 1.0, 0.3)
+		graph_frame.autoshrink_enabled = true
+		graph_frame.custom_minimum_size = Vector2(600, 400)
+	else:
+		graph_frame.autoshrink_enabled = true
+		
+	graph_frame.set_meta("support_drag_into", support_drag_into)
+	add_child(graph_frame, true)
+	return graph_frame
+	
+func include_file(file_path: String, p_path = "/root", pos_offset = null,
+first_node_position_offset = null, p_name = "", depth = 0, include_connections = []):
+	if file_path == "":
+		return
+		
+	if depth > 1024:
+		push_error("Depth is greater than 1024! A recursive include exist, maybe!")
+		return
+		
+	if depth == 0 and p_path == "/root":
+		p_path += "/%s" % get_include_count()
+		
+	if pos_offset == null:
+		pos_offset = get_rect().get_center()
+		first_node_position_offset = pos_offset
+		
+	var config = GDSQL.ImprovedConfigFile.new()
+	config.load(file_path)
+	var nodes = config.get_value("data", "nodes", {})
+	var cons = config.get_value("data", "connections", [])
+	
+	var include_index = get_next_include_index()
+	
+	# 连接数据中的序号进行偏移
+	for c in cons:
+		if not c.has("from_include_path"):
+			continue
+		c.from_include_index += include_index + 1
+		c.to_include_index += include_index + 1
+		if c.from_node.contains("_include_"):
+			c.from_node = c.from_node.substr(0, c.from_node.find("_include_")) + ("_include_%s" % c.from_include_index)
+		else:
+			c.from_node += "_include_%s" % c.from_include_index
+		if c.to_node.contains("_include_"):
+			c.to_node = c.to_node.substr(0, c.to_node.find("_include_")) + ("_include_%s" % c.to_include_index)
+		else:
+			c.to_node += "_include_%s" % c.to_include_index
+			
+	var graph_frame = await add_frame(file_path, pos_offset, p_name, false)
+	graph_frame.set_meta("include_depth", depth)
+	graph_frame.set_meta("include_index", include_index)
+	
+	var added_nodes = await _load_nodes(nodes, cons, pos_offset,
+		false, false, p_path, include_index, include_connections)
+		
+	var includes = config.get_value("data", "include_files", {})
+	var sub_frames = {}
+	for i in includes:
+		var path = p_path + "/" + str(i)
+		var sub_frame = await include_file(includes[i].file_path, path,
+			includes[i].position_offset + pos_offset, 
+			includes[i].first_node_position_offset + first_node_position_offset,
+			includes[i].name, depth + 1, include_connections)
+		sub_frames[i] = sub_frame
+		
+	for anode in added_nodes:
+		attach_graph_element_to_frame(anode.name, graph_frame.name)
+		
+	for i in sub_frames:
+		attach_graph_element_to_frame(sub_frames[i].name, graph_frame.name)
+		
+	if depth == 0 and not include_connections.is_empty():
+		for info in include_connections:
+			_on_graph_edit_connection_request(info.from_node, info.from_port, info.to_node, info.to_port)
+			
+	# Make sure position not move.
+	if not added_nodes.is_empty():
+		var first_node_pos_conf = nodes[nodes.keys().front()].position_offset
+		for i in includes:
+			var frame_name = sub_frames[i].name
+			var include_first_node_should_at_pos = includes[i].first_node_position_offset - \
+				first_node_pos_conf + added_nodes[0].position_offset
+			var diff = null
+			for e_name in get_attached_nodes_of_frame(frame_name):
+				var element = get_node(str(e_name))
+				if element is GraphNode:
+					if diff == null:
+						diff = include_first_node_should_at_pos - element.position_offset
+					element.position_offset += diff
+			if diff != null:
+				for e_name in get_attached_nodes_of_frame(frame_name):
+					var element = get_node(str(e_name))
+					if element is GraphFrame:
+						_set_position_of_frame_attached_nodes(element, diff)
+						
+	return graph_frame
+	
+func _set_position_of_frame_attached_nodes(p_frame: GraphFrame, diff: Vector2) -> void:
+	for attached_node_name in get_attached_nodes_of_frame(p_frame.name):
+		var attached_node: GraphElement = get_node_or_null(str(attached_node_name))
+		if not attached_node:
+			continue
+			
+		#var pos: Vector2 = (attached_node.position_offset * zoom + diff) / zoom
+		var pos: Vector2 = attached_node.position_offset + diff
+		# 异或，即当两个值不同时结果为 true，相同时结果为 false。
+		if snapping_enabled != Input.is_key_pressed(KEY_CTRL):
+			pos = pos.snapped(Vector2(snapping_distance, snapping_distance))
+			
+		if attached_node is GraphNode:
+			attached_node.position_offset = pos
+		if attached_node is GraphFrame:
+			_set_position_of_frame_attached_nodes(attached_node, diff)
+			
+func _nodes_linked_to_frame_request(p_nodes: Array, p_frame: StringName):
+	frame_node_id_to_link_to = p_frame
+	nodes_link_to_frame_buffer = p_nodes.duplicate()
+	
+func _node_dragged(p_from: Vector2, p_to: Vector2, p_node: Node):
+	drag_buffer.push_back([p_node, p_from / cached_theme_base_scale, p_to / cached_theme_base_scale]);
+	if not drag_dirty:
+		_nodes_dragged.call_deferred()
+	drag_dirty = true
+	
+func _nodes_dragged():
+	drag_dirty = false;
+	# TODO undo redo 所以暂时用不上drag_buffer
+	drag_buffer.clear()
+	
+	if not nodes_link_to_frame_buffer.is_empty():
+		var frame = get_node(str(frame_node_id_to_link_to)) as GraphFrame
+		if frame.get_meta("support_drag_into", false):
+			for i in nodes_link_to_frame_buffer:
+				attach_graph_element_to_frame(i, frame_node_id_to_link_to)
+			frame.get_child(0).hide()
+			
+		nodes_link_to_frame_buffer.clear()
+		
 func update_slot_status(graph_node: GraphNode):
 	var index = 0 if graph_node.get_meta("extra_enabled", false) else -1
 	if index == 0:
@@ -283,40 +465,49 @@ func update_slot_status(graph_node: GraphNode):
 			graph_node.set_slot_color_right(index, VALID_PORT_COLOR[data_type])
 			
 ## genarate nodes
-func _load_nodes(nodes: Dictionary, p_connections: Array, pos_offset: Vector2, 
-auto_name: bool, select_all = false):
+func _load_nodes(nodes: Dictionary, p_connections: Array, pos_offset: Vector2,
+auto_name: bool, select_all: bool = false, p_path: String = "/root",
+p_include_file_index: int = -1, include_connections: Array = []):
+	var ret_nodes = []
 	var node_name_map = {} # 旧name => 新name
 	var node_sizes = {}
 	for node_name in nodes:
-		var data = nodes[node_name]["data"]
-		var props = nodes[node_name]["props"]
-		var extra = nodes[node_name]["extra"]
-		var asize = nodes[node_name]["size"]
-		var position_offset = nodes[node_name]["position_offset"] + pos_offset * nodes.size()
+		var data = nodes[node_name].data
+		var props = nodes[node_name].props
+		var extra = nodes[node_name].extra
+		var asize = nodes[node_name].size
+		var position_offset = nodes[node_name].position_offset + pos_offset
 		var a_name = "MapperGraph" if auto_name else node_name
-		var node = await add_item(data, props, extra, asize, position_offset, a_name)
+		if p_path != "/root":
+			a_name += "_include_%s" % p_include_file_index
+		var node = await add_item(data, props, extra, asize, position_offset, a_name, p_path)
+		node.set_meta("include_index", p_include_file_index)
+		node.set_meta("original_name", node_name)
+		ret_nodes.push_back(node)
 		node_name_map[node_name] = node.name
 		node_sizes[node.name] = asize
 		
 	# make connections
 	var tos = {}
 	for info in p_connections:
-		var from = node_name_map[info["from_node"]]
-		var to = node_name_map[info["to_node"]]
+		# 涉及include的，后续特殊处理。
+		if info.has("from_include_path") or info.has("to_include_path"):
+			tos[str(info.to_node)] = 1
+			include_connections.push_back(info)
+			continue
+		var from = node_name_map[info.from_node]
+		var to = node_name_map[info.to_node]
 		tos[str(to)] = 1
-		_on_graph_edit_connection_request(from, info["from_port"], to, info["to_port"])
+		_on_graph_edit_connection_request(from, info.from_port, to, info.to_port)
 		
-	# enable会影响connection对象间的数据关联，最好最后设置
 	for node_name in nodes:
 		var a_node_name = node_name_map[node_name]
 		var node = get_node(str(a_node_name)) as GraphNode
-		node.enabled = nodes[node_name]["enabled"]
+		node.enabled = nodes[node_name].enabled
 		
-	# <del>孤立的node，不要显示额外控件</del>
 	for i in node_name_map:
 		var n = str(node_name_map[i])
 		if not tos.has(n):
-			#hide_extra_control(get_node(n), node_sizes[n])
 			update_extra_controls_to_none(get_node(n))
 		else:
 			update_extra_controls_to_others(get_node(n))
@@ -325,6 +516,8 @@ auto_name: bool, select_all = false):
 		for i in node_name_map:
 			get_node(str(node_name_map[i])).selected = true
 			
+	return ret_nodes
+	
 func get_nodes_params(only_selected = false):
 	var all_data = {}
 	for graph_node in get_children():
@@ -332,7 +525,8 @@ func get_nodes_params(only_selected = false):
 			continue
 		if only_selected and not graph_node.selected:
 			continue
-			
+		if graph_node.get_meta("include_path", "/root") != "/root":
+			continue
 		var props = {}
 		var extra = {}
 		for arr: Array in graph_node.datas:
@@ -352,7 +546,7 @@ func get_nodes_params(only_selected = false):
 				assert(false, "Inner error check this in mapper_graph_edit.gd")
 				
 		# validate一下，不然会存在@符号，再次设置name的时候会被替换为下划线
-		all_data[graph_node.name.validate_node_name()] = { 
+		all_data[graph_node.name.validate_node_name()] = {
 			"data": graph_node.get_meta("data"),
 			"props": props,
 			"extra": extra,
@@ -362,6 +556,100 @@ func get_nodes_params(only_selected = false):
 		}
 		
 	return all_data
+	
+func get_inlcude_params(only_selected = false):
+	var all_data = {}
+	for graph_frame in get_children():
+		if not graph_frame is GraphFrame:
+			continue
+			
+		if graph_frame.get_meta("include_depth") != 0:
+			continue
+			
+		graph_frame = graph_frame as GraphFrame
+		if only_selected and not graph_frame.selected:
+			continue
+			
+		var first_node_position_offset = null
+		var first_node = null
+		for i in get_attached_nodes_of_frame(graph_frame.name):
+			if get_node(str(i)) is GraphNode:
+				first_node_position_offset = get_node(str(i)).position_offset
+				first_node = get_node(str(i))
+				break
+		if not first_node_position_offset:
+			first_node_position_offset = graph_frame.position_offset
+			
+		all_data[graph_frame.get_meta("include_index")] = {
+			"file_path": graph_frame.title,
+			"position_offset": graph_frame.position_offset,
+			"name": graph_frame.name.validate_node_name(),
+			"first_node_position_offset": first_node_position_offset,
+			"first_node": "%s:%s" % [first_node, first_node.title],
+		}
+		
+	return all_data
+	
+## 获取包含的include的文件数量，不包括嵌套的。
+func get_include_count() -> int:
+	var ret = 0
+	for graph_frame in get_children():
+		if not graph_frame is GraphFrame:
+			continue
+		if graph_frame.get_meta("include_depth") != 0:
+			continue
+		ret += 1
+	return ret
+	
+func get_next_include_index() -> int:
+	var arr_index = []
+	for graph_frame in get_children():
+		if not graph_frame is GraphFrame:
+			continue
+		if not graph_frame.has_meta("include_index"):
+			printt("?FDFsdf", graph_frame, graph_frame.title)
+		arr_index.push_back(graph_frame.get_meta("include_index"))
+		
+	var index = -1
+	while true:
+		index += 1
+		if not arr_index.has(index):
+			return index
+	push_error("Bug?")
+	return -1
+	
+func get_connection_params(only_selected = false):
+	var ret = []
+	for v in get_connection_list():
+		if only_selected and (not get_node(str(v.from_node)).selected or
+		not get_node(str(v.to_node)).selected):
+			continue
+			
+		var from_include_path = get_node(str(v.from_node)).get_meta("include_path", "/root")
+		var to_include_path = get_node(str(v.to_node)).get_meta("include_path", "/root")
+		if from_include_path == "/root" or to_include_path == "/root" or \
+		(longest_common_path_prefix(from_include_path, to_include_path) == "/root"):
+			v["from_node"] = v["from_node"].validate_node_name()
+			v["to_node"] = v["to_node"].validate_node_name()
+			v["from_include_path"] = from_include_path
+			v["to_include_path"] = to_include_path
+			v["from_include_index"] = get_node(str(v.from_node)).get_meta("include_index", -1)
+			v["to_include_index"] = get_node(str(v.to_node)).get_meta("include_index", -1)
+			ret.push_back(v)
+	return ret
+	
+func longest_common_path_prefix(path1: String, path2: String) -> String:
+	var parts1 = path1.trim_prefix("/").split("/")
+	var parts2 = path2.trim_prefix("/").split("/")
+	
+	var common = []
+	for i in min(parts1.size(), parts2.size()):
+		if parts1[i] == parts2[i]:
+			common.append(parts1[i])
+		else:
+			break
+			
+	return "/" + "/".join(common) if not common.is_empty() else ""
 	
 func is_helper_node(node: GraphNode) -> bool:
 	for arr: Array in node.datas:
@@ -393,18 +681,7 @@ func get_node_props(node: GraphNode) -> Dictionary:
 			props[arr[2].text] = arr[3].text
 	return props
 	
-func get_connections_only_selected():
-	var ret = []
-	var conns = get_connection_list()
-	for c in conns:
-		if get_node(str(c.from_node)).selected and\
-		get_node(str(c.to_node)).selected:
-			c.from_node = (c.from_node as String).validate_node_name()
-			c.to_node = (c.to_node as String).validate_node_name()
-			ret.push_back(c)
-	return ret
-	
-func _on_graph_edit_connection_request(from_node: StringName, from_port: int, 
+func _on_graph_edit_connection_request(from_node: StringName, from_port: int,
 to_node: StringName, to_port: int) -> void:
 	connect_node(from_node, from_port, to_node, to_port)
 	mark_modified()
@@ -415,17 +692,17 @@ func mark_modified(_whatever = null):
 		
 func select_all_node():
 	for i in get_children():
-		if i is GraphNode:
+		if i is GraphElement:
 			i.selected = true
 			
 func unselect_all_node():
 	for i in get_children():
-		if i is GraphNode:
+		if i is GraphElement:
 			i.selected = false
 			
 func get_selected_nodes():
 	return get_children().filter(func(v):
-		return v is GraphNode and v.selected
+		return v is GraphElement and v.selected
 	)
 	
 ## 关闭一个节点的时候，把没有关闭按钮的输入节点一起关闭
@@ -433,11 +710,11 @@ func node_close(node: GraphNode):
 	for info in get_connection_list():
 		# 表示node是被输入的节点
 		if node.name == info["to_node"]:
-			disconnect_node(info["from_node"], info["from_port"], 
+			disconnect_node(info["from_node"], info["from_port"],
 				info["to_node"], info["to_port"])
 		# 表示node是输入节点
 		elif node.name == info["from_node"]:
-			disconnect_node(info["from_node"], info["from_port"], 
+			disconnect_node(info["from_node"], info["from_port"],
 				info["to_node"], info["to_port"])
 				
 	node.queue_free()
@@ -450,7 +727,10 @@ func _on_delete_nodes_request(nodes: Array[StringName]) -> void:
 		func():
 			for i in nodes:
 				var node = get_node(str(i))
-				node_close(node)
+				if node is GraphNode:
+					node_close(node)
+				elif node is GraphFrame:
+					pass
 				node.queue_free()
 			mark_modified()
 	)
@@ -469,7 +749,7 @@ func split_for_long_content(content: String) -> String:
 		start += l
 	return "\n".join(arr)
 	
-func _on_connection_request(from_node: StringName, from_port: int, 
+func _on_connection_request(from_node: StringName, from_port: int,
 to_node: StringName, to_port: int) -> void:
 	if from_node == to_node:
 		return
@@ -486,7 +766,7 @@ to_node: StringName, to_port: int) -> void:
 	for i in get_connection_list():
 		if i.to_node == to_node and i.from_node != from_node:
 			#alreay = true
-			_on_disconnection_request(i.from_node, i.from_port, i.to_node, 
+			_on_disconnection_request(i.from_node, i.from_port, i.to_node,
 				i.to_port, graph_node.size, false)
 				
 	update_extra_controls_to_others(graph_node)
@@ -582,7 +862,7 @@ to_node: StringName, to_port: int) -> void:
 	
 	mark_modified()
 	
-func _on_disconnection_request(from_node: StringName, from_port: int, 
+func _on_disconnection_request(from_node: StringName, from_port: int,
 to_node: StringName, to_port: int, _asize = null, _by_mouse = true) -> void:
 	disconnect_node(from_node, from_port, to_node, to_port)
 	
@@ -656,26 +936,26 @@ func _on_copy_nodes_request(p_copied_data = null) -> void:
 		return
 	if p_copied_data == null:
 		copied_nodes = {
-			"data": selected_nodes_params,
-			"connections": get_connections_only_selected(),
+			"nodes": selected_nodes_params,
+			"connections": get_connection_params(true),
+			"include_files": get_inlcude_params(true),
 		}
 	else:
-		p_copied_data["data"] = selected_nodes_params
-		p_copied_data["connections"] = get_connections_only_selected()
+		p_copied_data["nodes"] = selected_nodes_params
+		p_copied_data["connections"] = get_connection_params(true)
+		p_copied_data["include_files"] = get_inlcude_params(true)
 		
 func _on_paste_nodes_request(p_copied_data = null) -> void:
 	if p_copied_data == null:
 		if copied_nodes.is_empty():
 			return
-		_load_nodes(copied_nodes.data, copied_nodes.connections, Vector2(40, 40), 
-			true, true)
-		for i in copied_nodes.data:
-			copied_nodes.data[i].position_offset += Vector2(40, 40) * copied_nodes.data.size()
+		_load_nodes(copied_nodes.nodes, copied_nodes.connections, Vector2(40, 40) * copied_nodes.nodes.size(), true, true)
+		for i in copied_nodes.nodes:
+			copied_nodes.nodes[i].position_offset += Vector2(40, 40) * copied_nodes.nodes.size()
 	else:
-		_load_nodes(p_copied_data.data, p_copied_data.connections, Vector2(40, 40), 
-			true, true)
-		for i in p_copied_data.data:
-			p_copied_data.data[i].position_offset += Vector2(40, 40) * p_copied_data.data.size()
+		_load_nodes(p_copied_data.nodes, p_copied_data.connections, Vector2(40, 40) * p_copied_data.nodes.size(), true, true)
+		for i in p_copied_data.nodes:
+			p_copied_data.nodes[i].position_offset += Vector2(40, 40) * p_copied_data.nodes.size()
 			
 func _on_duplicate_nodes_request() -> void:
 	var tmp_data = {}
@@ -688,15 +968,6 @@ func _input(event: InputEvent) -> void:
 		
 	var selected_nodes = get_selected_nodes()
 	if selected_nodes.is_empty():
-		return
-		
-	if event.is_pressed() and SHORTCUT_QUERY.matches_event(event):
-		for node in selected_nodes:
-			for arr in node.datas:
-				for i in arr:
-					if i is Button and (i as Button).text.to_lower() in ["apply", "query"]:
-						(i as Button).pressed.emit()
-		get_viewport().set_input_as_handled()
 		return
 		
 	if not event is InputEventKey:
