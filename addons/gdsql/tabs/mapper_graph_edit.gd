@@ -169,7 +169,7 @@ asize = null, pos_offset = null, aname = "", path = "/root"):
 			ob_link_type.set_item_disabled(i, i == 0)
 			
 	ob_link_type.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-
+	
 	var association_class_name = LineEdit.new()
 	association_class_name.caret_blink = true
 	association_class_name.placeholder_text = "Class name"
@@ -320,8 +320,9 @@ func add_frame(title: String, pos_offset = null, aname = "", support_drag_into =
 	add_child(graph_frame, true)
 	return graph_frame
 	
-func include_file(file_path: String, p_path = "/root", pos_offset = null,
-first_node_position_offset = null, p_name = "", depth = 0, include_connections = []):
+func include_file(file_path: String, p_add_frame: bool = true, p_path = "/root", pos_offset = null,
+first_node_position_offset = null, p_name = "", depth = 0, include_connections = [], 
+p_deal_include_connections = true, p_adjust_viewport = true):
 	if file_path == "":
 		return
 		
@@ -329,63 +330,68 @@ first_node_position_offset = null, p_name = "", depth = 0, include_connections =
 		push_error("Depth is greater than 1024! A recursive include exist, maybe!")
 		return
 		
-	if depth == 0 and p_path == "/root":
+	if p_add_frame and depth == 0 and p_path == "/root":
 		p_path += "/%s" % get_include_count()
 		
 	if pos_offset == null:
-		pos_offset = get_rect().get_center()
+		pos_offset = (get_rect().get_center() + scroll_offset) / zoom
+		if snapping_enabled != Input.is_key_pressed(KEY_CTRL):
+			pos_offset = pos_offset.snapped(Vector2(snapping_distance, snapping_distance))
 		first_node_position_offset = pos_offset
 		
 	var config = GDSQL.ImprovedConfigFile.new()
 	config.load(file_path)
 	var nodes = config.get_value("data", "nodes", {})
 	var cons = config.get_value("data", "connections", [])
-	
-	var include_index = get_next_include_index()
-	
-	# 连接数据中的序号进行偏移
-	for c in cons:
-		if not c.has("from_include_path"):
-			continue
-		c.from_include_index += include_index + 1
-		c.to_include_index += include_index + 1
-		if c.from_node.contains("_include_"):
-			c.from_node = c.from_node.substr(0, c.from_node.find("_include_")) + ("_include_%s" % c.from_include_index)
-		else:
-			c.from_node += "_include_%s" % c.from_include_index
-		if c.to_node.contains("_include_"):
-			c.to_node = c.to_node.substr(0, c.to_node.find("_include_")) + ("_include_%s" % c.to_include_index)
-		else:
-			c.to_node += "_include_%s" % c.to_include_index
-			
-	var graph_frame = await add_frame(file_path, pos_offset, p_name, false)
-	graph_frame.set_meta("include_depth", depth)
-	graph_frame.set_meta("include_index", include_index)
-	
-	var added_nodes = await _load_nodes(nodes, cons, pos_offset,
-		false, false, p_path, include_index, include_connections)
-		
 	var includes = config.get_value("data", "include_files", {})
+	
+	var include_index = -1
+	var graph_frame = null
+	
+	if p_add_frame:
+		include_index = get_next_include_index()
+		
+		# 连接数据中的序号进行偏移
+		for c in cons:
+			if not c.has("from_include_path"):
+				continue
+			c.from_include_index += include_index + 1
+			c.to_include_index += include_index + 1
+			if c.from_node.contains("_include_"):
+				c.from_node = c.from_node.substr(0, c.from_node.find("_include_")) + ("_include_%s" % c.from_include_index)
+			else:
+				c.from_node += "_include_%s" % c.from_include_index
+			if c.to_node.contains("_include_"):
+				c.to_node = c.to_node.substr(0, c.to_node.find("_include_")) + ("_include_%s" % c.to_include_index)
+			else:
+				c.to_node += "_include_%s" % c.to_include_index
+				
+		graph_frame = await add_frame(file_path, pos_offset, p_name, false)
+		graph_frame.set_meta("include_depth", depth)
+		graph_frame.set_meta("include_index", include_index)
+		
 	var sub_frames = {}
 	for i in includes:
 		var path = p_path + "/" + str(i)
-		var sub_frame = await include_file(includes[i].file_path, path,
+		var sub_frame = await include_file(includes[i].file_path, true, path,
 			includes[i].position_offset + pos_offset, 
 			includes[i].first_node_position_offset + first_node_position_offset,
-			includes[i].name, depth + 1, include_connections)
+			includes[i].name, depth + 1, include_connections, false)
 		sub_frames[i] = sub_frame
 		
-	for anode in added_nodes:
-		attach_graph_element_to_frame(anode.name, graph_frame.name)
+	# _load_nodes() 必须放到 include_file() 后面，因为需要让当前文件的 include_connections
+	# 在子文件的 include_connections 收集后再收集，否则相同节点的extra信息会被覆盖。
+	var added_nodes = await _load_nodes(nodes, cons, pos_offset,
+		false, false, p_path, include_index, include_connections)
 		
-	for i in sub_frames:
-		attach_graph_element_to_frame(sub_frames[i].name, graph_frame.name)
-		
-	if depth == 0 and not include_connections.is_empty():
-		for info in include_connections:
-			_on_graph_edit_connection_request(info.from_node, info.from_port, info.to_node, info.to_port)
+	if p_add_frame:
+		for anode in added_nodes:
+			attach_graph_element_to_frame(anode.name, graph_frame.name)
 			
-	# Make sure position not move.
+		for i in sub_frames:
+			attach_graph_element_to_frame(sub_frames[i].name, graph_frame.name)
+			
+	# 按照原文件的位置关系，排列好节点
 	if not added_nodes.is_empty():
 		var first_node_pos_conf = nodes[nodes.keys().front()].position_offset
 		for i in includes:
@@ -405,8 +411,91 @@ first_node_position_offset = null, p_name = "", depth = 0, include_connections =
 					if element is GraphFrame:
 						_set_position_of_frame_attached_nodes(element, diff)
 						
+	# 把第一个节点放到该放到的位置，其他节点一起平移
+	var ref_node: GraphElement
+	var ref_pos: Vector2
+	if not added_nodes.is_empty():
+		ref_node = added_nodes[0]
+		ref_pos = first_node_position_offset
+	elif graph_frame:
+		ref_node = graph_frame
+		ref_pos = pos_offset
+	if ref_node and ref_node.position_offset != ref_pos:
+		var diff = ref_pos - ref_node.position_offset
+		for node: GraphNode in added_nodes:
+			node.position_offset += diff
+		for i in includes:
+			var frame_name = sub_frames[i].name
+			for e_name in get_attached_nodes_of_frame(frame_name):
+				var element = get_node(str(e_name))
+				if element is GraphNode:
+					element.position_offset += diff
+			if diff != null:
+				for e_name in get_attached_nodes_of_frame(frame_name):
+					var element = get_node(str(e_name))
+					if element is GraphFrame:
+						_set_position_of_frame_attached_nodes(element, diff)
+						
+	if p_deal_include_connections and depth == 0:
+		deal_include_connections(include_connections)
+		
+	if p_adjust_viewport:
+		if not added_nodes.is_empty():
+			_ensure_control_visible.call_deferred(added_nodes[0])
+		elif graph_frame:
+			_ensure_control_visible.call_deferred(graph_frame)
+			
 	return graph_frame
 	
+func deal_include_connections(include_connections: Array):
+	for info in include_connections:
+		_on_graph_edit_connection_request(info.from_node, info.from_port, info.to_node, info.to_port)
+		
+		var connection_nodes = {
+			"from_node_extra": get_node_or_null(str(info.from_node)), 
+			"to_node_extra": get_node_or_null(str(info.to_node))
+		}
+		var err_occur = false
+		for i: String in connection_nodes:
+			if connection_nodes[i] == null:
+				EditorInterface.get_editor_toaster().push_toast(
+					tr("Cannot find a GraphNode! You may have delete it!"), EditorToaster.SEVERITY_ERROR)
+				var err_info = {}
+				for key: String in info:
+					if key.begins_with(i.get_slice("_", 0)):
+						err_info[key] = info[key]
+				printerr("Miss node information: %s." % err_info)
+				err_occur = true
+		if err_occur:
+			continue
+		for i in connection_nodes:
+			if not info.has(i):
+				continue
+				
+			var extra = info[i]
+			var node = connection_nodes[i]
+			node.set_meta("extra", extra)
+			
+			if i == "to_node_extra":
+				update_extra_controls_to_others(node)
+				
+			for arr: Array in node.datas:
+				if arr.size() == 6:
+					var ob_link_type = arr[2] as OptionButton
+					var association_class_name = arr[3] as LineEdit
+					var text_enum_suggestion = arr[4]
+					var le_prop_name = arr[5] as LineEdit
+					
+					ob_link_type.select(ob_link_type.get_item_index(extra.link_type))
+					association_class_name.text = extra.association_class_name
+					if extra.link_type == LINK_TYPE.ASSOCIATION:
+						association_class_name.text = extra.link_prop_type
+					else:
+						text_enum_suggestion._custom_value_submitted(extra.link_prop_type)
+					le_prop_name.text = extra.link_prop
+					ob_link_type.item_selected.emit(ob_link_type.selected)
+					break
+					
 func _set_position_of_frame_attached_nodes(p_frame: GraphFrame, diff: Vector2) -> void:
 	for attached_node_name in get_attached_nodes_of_frame(p_frame.name):
 		var attached_node: GraphElement = get_node_or_null(str(attached_node_name))
@@ -482,7 +571,6 @@ p_include_file_index: int = -1, include_connections: Array = []):
 			a_name += "_include_%s" % p_include_file_index
 		var node = await add_item(data, props, extra, asize, position_offset, a_name, p_path)
 		node.set_meta("include_index", p_include_file_index)
-		node.set_meta("original_name", node_name)
 		ret_nodes.push_back(node)
 		node_name_map[node_name] = node.name
 		node_sizes[node.name] = asize
@@ -571,11 +659,11 @@ func get_inlcude_params(only_selected = false):
 			continue
 			
 		var first_node_position_offset = null
-		var first_node = null
+		#var first_node = null
 		for i in get_attached_nodes_of_frame(graph_frame.name):
 			if get_node(str(i)) is GraphNode:
 				first_node_position_offset = get_node(str(i)).position_offset
-				first_node = get_node(str(i))
+				#first_node = get_node(str(i))
 				break
 		if not first_node_position_offset:
 			first_node_position_offset = graph_frame.position_offset
@@ -585,7 +673,7 @@ func get_inlcude_params(only_selected = false):
 			"position_offset": graph_frame.position_offset,
 			"name": graph_frame.name.validate_node_name(),
 			"first_node_position_offset": first_node_position_offset,
-			"first_node": "%s:%s" % [first_node, first_node.title],
+			#"first_node": "%s:%s" % [first_node, first_node.title],
 		}
 		
 	return all_data
@@ -635,6 +723,8 @@ func get_connection_params(only_selected = false):
 			v["to_include_path"] = to_include_path
 			v["from_include_index"] = get_node(str(v.from_node)).get_meta("include_index", -1)
 			v["to_include_index"] = get_node(str(v.to_node)).get_meta("include_index", -1)
+			v["from_node_extra"] = get_node_extra(get_node(str(v.from_node)))
+			v["to_node_extra"] = get_node_extra(get_node(str(v.to_node)))
 			ret.push_back(v)
 	return ret
 	
@@ -669,6 +759,7 @@ func get_node_extra(node: GraphNode) -> Dictionary:
 			else:
 				extra["link_prop_type"] = arr[4].get_selected_text()
 			extra["link_prop"] = (arr[5] as LineEdit).text.strip_edges()
+			extra["association_class_name"] = (arr[3] as LineEdit).text
 			break
 	return extra
 	
@@ -871,7 +962,6 @@ to_node: StringName, to_port: int, _asize = null, _by_mouse = true) -> void:
 	for info in get_connection_list():
 		tos[info.to_node] = 1
 	if not tos.has(to_node):
-		#hide_extra_control(get_node(str(to_node)), asize, by_mouse)
 		update_extra_controls_to_none(get_node(str(to_node)))
 	else:
 		update_extra_controls_to_others(get_node(str(to_node)))
@@ -881,8 +971,15 @@ to_node: StringName, to_port: int, _asize = null, _by_mouse = true) -> void:
 func update_extra_controls_to_none(graph_node: GraphNode):
 	# [null, null, ob_link_type, association_class_name, text_enum_suggestion, le_prop_name]
 	var controls = graph_node.datas[0]
-	var ob_link_type = controls[2]
+	var ob_link_type = controls[2] as OptionButton
 	
+	for i in ob_link_type.item_count:
+		if ob_link_type.get_selected_id() == LINK_TYPE.NONE:
+			ob_link_type.set_item_disabled(i, i != 0)
+		else:
+			ob_link_type.set_item_disabled(i, i == 0)
+			
+			
 	if ob_link_type.selected != 0:
 		graph_node.set_meta("_last_ob_link_type_selected_id", ob_link_type.get_item_id(ob_link_type.selected))
 	for i in ob_link_type.item_count:
@@ -894,8 +991,14 @@ func update_extra_controls_to_none(graph_node: GraphNode):
 func update_extra_controls_to_others(graph_node: GraphNode):
 	# [null, null, ob_link_type, association_class_name, text_enum_suggestion, le_prop_name]
 	var controls = graph_node.datas[0]
-	var ob_link_type = controls[2]
+	var ob_link_type = controls[2] as OptionButton
 	
+	for i in ob_link_type.item_count:
+		if ob_link_type.get_selected_id() == LINK_TYPE.NONE:
+			ob_link_type.set_item_disabled(i, i != 0)
+		else:
+			ob_link_type.set_item_disabled(i, i == 0)
+			
 	if ob_link_type.selected == 0:
 		for i in ob_link_type.item_count:
 			if ob_link_type.get_item_id(i) == \
@@ -1000,3 +1103,10 @@ func _input(event: InputEvent) -> void:
 		for node in selected_nodes:
 			node.position_offset.x += distance
 		get_viewport().set_input_as_handled()
+		
+func _ensure_control_visible(p_control: GraphElement) -> void:
+	if not is_ancestor_of(p_control):
+		push_error("Must be an ancestor of the control.")
+		return
+		
+	scroll_offset = p_control.position_offset * zoom - get_rect().get_center() + p_control.size / 2 * zoom

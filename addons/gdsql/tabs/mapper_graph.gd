@@ -39,9 +39,6 @@ func _ready() -> void:
 func load_mapper_file(path):
 	var config = GDSQL.ImprovedConfigFile.new()
 	config.load(path)
-	var nodes = config.get_value("data", "nodes", {})
-	var connections = config.get_value("data", "connections", [])
-	var includes = config.get_value("data", "include_files", {})
 	var save_path = config.get_value("data", "path", "") as String
 	var result_map_mode = config.get_value("data", "result_map_mode", RESULT_MAP_MODE.SIMPLEST)
 	var link_type = config.get_value("data", "link_type", LINK_WAY.NESTING_SELECT)
@@ -57,41 +54,8 @@ func load_mapper_file(path):
 		else:
 			option_button_choose_path.selected = 2
 			
-	# NOTICE See include_file() in mapper_graph_edit.gd
-	# genarate nodes
-	var pos_offset = Vector2.ZERO
-	var include_connections = []
-	var added_nodes = await graph_edit._load_nodes(nodes, connections, pos_offset, 
-		false, false, "/root", -1, include_connections)
-		
-	var sub_frames = {}
-	for i in includes:
-		var sub_path = "/root/" + str(i)
-		var sub_frame = await graph_edit.include_file(includes[i].file_path, sub_path,
-			includes[i].position_offset + pos_offset, 
-			includes[i].first_node_position_offset + pos_offset, 
-			includes[i].name, 0, include_connections)
-		sub_frames[i] = sub_frame
-		
-	if not added_nodes.is_empty():
-		var first_node_pos_conf = nodes[nodes.keys().front()].position_offset
-		for i in includes:
-			var frame_name = sub_frames[i].name
-			var include_first_node_should_at_pos = includes[i].first_node_position_offset - \
-				first_node_pos_conf + added_nodes[0].position_offset
-			var diff = null
-			for e_name in graph_edit.get_attached_nodes_of_frame(frame_name):
-				var element = graph_edit.get_node(str(e_name))
-				if element is GraphNode:
-					if diff == null:
-						diff = include_first_node_should_at_pos - element.position_offset
-					element.position_offset += diff
-			if diff != null:
-				for e_name in graph_edit.get_attached_nodes_of_frame(frame_name):
-					var element = graph_edit.get_node(str(e_name))
-					if element is GraphFrame:
-						graph_edit._set_position_of_frame_attached_nodes(element, diff)
-						
+	graph_edit.include_file(path, false)
+	
 	set_meta("type", "mapper_graph")
 	set_meta("is_file", true)
 	set_meta("file_path", path)
