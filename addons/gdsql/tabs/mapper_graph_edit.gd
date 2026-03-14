@@ -376,7 +376,7 @@ p_deal_include_connections = true, p_adjust_viewport = true):
 		var sub_frame = await include_file(includes[i].file_path, true, path,
 			includes[i].position_offset + pos_offset, 
 			includes[i].first_node_position_offset + first_node_position_offset,
-			includes[i].name, depth + 1, include_connections, false)
+			includes[i].name, ((depth + 1) if p_add_frame else depth), include_connections, false)
 		sub_frames[i] = sub_frame
 		
 	# _load_nodes() 必须放到 include_file() 后面，因为需要让当前文件的 include_connections
