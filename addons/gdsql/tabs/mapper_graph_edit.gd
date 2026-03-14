@@ -716,16 +716,20 @@ func get_connection_params(only_selected = false):
 		var from_include_path = get_node(str(v.from_node)).get_meta("include_path", "/root")
 		var to_include_path = get_node(str(v.to_node)).get_meta("include_path", "/root")
 		if from_include_path == "/root" or to_include_path == "/root" or \
-		(longest_common_path_prefix(from_include_path, to_include_path) == "/root"):
+		longest_common_path_prefix(from_include_path, to_include_path) == "/root":
 			v["from_node"] = v["from_node"].validate_node_name()
 			v["to_node"] = v["to_node"].validate_node_name()
-			v["from_include_path"] = from_include_path
-			v["to_include_path"] = to_include_path
-			v["from_include_index"] = get_node(str(v.from_node)).get_meta("include_index", -1)
-			v["to_include_index"] = get_node(str(v.to_node)).get_meta("include_index", -1)
-			v["from_node_extra"] = get_node_extra(get_node(str(v.from_node)))
-			v["to_node_extra"] = get_node_extra(get_node(str(v.to_node)))
+			if from_include_path != to_include_path:
+				v["from_include_path"] = from_include_path
+				v["from_include_index"] = get_node(str(v.from_node)).get_meta("include_index", -1)
+				v["to_include_path"] = to_include_path
+				v["to_include_index"] = get_node(str(v.to_node)).get_meta("include_index", -1)
+				if from_include_path != "/root":
+					v["from_node_extra"] = get_node_extra(get_node(str(v.from_node)))
+				if to_include_path != "/root":
+					v["to_node_extra"] = get_node_extra(get_node(str(v.to_node)))
 			ret.push_back(v)
+			
 	return ret
 	
 func longest_common_path_prefix(path1: String, path2: String) -> String:
