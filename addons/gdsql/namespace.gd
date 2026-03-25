@@ -44,12 +44,19 @@ const DictionaryObject = preload("res://addons/gdsql/dictionary_object.gd")
 
 static func _get_conf_manager() -> ConfManagerClass:
 	if not Engine.has_singleton(&"GDSQLConfManager"):
-		Engine.register_singleton(&"GDSQLConfManager", ConfManagerClass.new())
+		var conf_mgr = ConfManagerClass.new()
+		conf_mgr.name = &"GDSQLConfManager"
+		Engine.register_singleton(&"GDSQLConfManager", conf_mgr)
+		Engine.get_main_loop().root.add_child.call_deferred(conf_mgr, true)
 	return Engine.get_singleton(&"GDSQLConfManager")
 	
 static func _get_workbench_manager() -> WorkbenchManagerClass:
+	if not Engine.is_editor_hint():
+		return null
 	if not Engine.has_singleton(&"GDSQLWorkbenchManager"):
-		Engine.register_singleton(&"GDSQLWorkbenchManager", WorkbenchManagerClass.new())
+		var wb_mgr = WorkbenchManagerClass.new()
+		Engine.register_singleton(&"GDSQLWorkbenchManager", wb_mgr)
+		Engine.get_main_loop().root.add_child.call_deferred(wb_mgr, true)
 	return Engine.get_singleton(&"GDSQLWorkbenchManager")
 	
 static func _clear():

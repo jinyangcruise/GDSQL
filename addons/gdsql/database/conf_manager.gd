@@ -1,5 +1,6 @@
 # Must not be a RefCounted, because this obj is registered in Engine singleton which does not count a reference!
-extends Object
+# Must not be a pure Object, because will crash when close game.
+extends Node
 
 var _conf_map: Dictionary = {}
 var _conf_modified_time: Dictionary = {} # 用于检测外部工具对配置的更新

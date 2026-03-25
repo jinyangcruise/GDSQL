@@ -1,5 +1,6 @@
 # Must not be a RefCounted, because this obj is registered in Engine singleton which does not count a reference!
-extends Object
+# Must not be a pure Object, because will crash when close game.
+extends Node
 
 ## 打开新建数据库标签页的信号
 signal open_add_schema_tab
