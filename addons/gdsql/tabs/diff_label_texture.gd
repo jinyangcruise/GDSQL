@@ -25,7 +25,7 @@ func _init() -> void:
 	
 func refresh():
 	# 构建显示文本
-	_positive_text = "+%d" % add_count if add_count > 0 else ""
+	_positive_text = "+%d" % add_count if add_count > 0 else " "
 	_negative_text = "-%d" % remove_count if remove_count > 0 else ""
 	
 	# 获取默认字体
@@ -76,7 +76,7 @@ func _draw_string(to_canvas_item, base_pos = Vector2.ZERO):
 		@warning_ignore("narrowing_conversion")
 		_width = _positive_size.x
 		var pos = Vector2(0, font_size) + base_pos
-		font.draw_string(to_canvas_item, pos, _positive_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.GREEN)
+		font.draw_string(to_canvas_item, pos, _positive_text, HORIZONTAL_ALIGNMENT_RIGHT, -1, font_size, Color.GREEN)
 		
 	#绘制负数文本（红色）
 	if _negative_text:
@@ -87,7 +87,7 @@ func _draw_string(to_canvas_item, base_pos = Vector2.ZERO):
 		var spacing = 4 if _positive_text else 0
 		var pos = Vector2(_positive_size.x + spacing, font_size) + base_pos
 		_width = pos.x + _negative_size.x - base_pos.x
-		font.draw_string(to_canvas_item, pos, _negative_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color.RED)
+		font.draw_string(to_canvas_item, pos, _negative_text, HORIZONTAL_ALIGNMENT_RIGHT, -1, font_size, Color.RED)
 		
 func _get_height() -> int:
 	@warning_ignore("narrowing_conversion")
