@@ -16,7 +16,10 @@ func _ready() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_THEME_CHANGED:
 		%XMLEditorPanel.add_theme_stylebox_override(&"panel", get_theme_stylebox(&"PanelForeground", &"EditorStyles"))
-		
+	elif what == NOTIFICATION_VISIBILITY_CHANGED:
+		if visible and DisplayServer.has_method("window_set_icon"):
+			DisplayServer.window_set_icon(load("res://addons/gdsql/gbatis/img/xml.svg").get_image(), get_window_id())
+			
 func _exit_tree() -> void:
 	if file_tree:
 		file_tree.item_activated.disconnect(_on_file_tree_item_activated)
