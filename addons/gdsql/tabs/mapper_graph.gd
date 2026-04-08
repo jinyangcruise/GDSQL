@@ -376,6 +376,7 @@ func _generate(nodes: Array):
 	
 	# gdscript of entity
 	var entity_map = {} # db.entity_name => [content]
+	var entity_map_2 = {} # db.entity_name => {property => {"comment": "", "define": "", "getset": []}}
 	# xml of mapper
 	var xml_map = {} # db.mapper_name => [content]
 	# gdscrip of mapper
@@ -613,67 +614,84 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			# entity
 			var en_ns = '%s.%sEntity' % [db_name, result_map_id.capitalize().replace(" ", "")]
 			if not entity_map.has(en_ns):
-				var arr = ['@warning_ignore("missing_tool")\nextends GDSQL.GBatisEntity\nclass_name %sEntity\n' % 
-					result_map_id.capitalize().replace(" ", "")]
-				var arr_getset = []
+				entity_map[en_ns] = []
 				if table_comment != "":
-					arr.push_front('## %s\n' % table_comment)
-				for i in arr_prop_type:
-					var i_0_snake = i[0].to_snake_case()
-					if i[2] == graph_edit.LINK_TYPE.COLLECTION_ARRAY:
-						arr.push_back('\n## Array[%s]' % i[3])
-						if i[1] == "Nil":
-							arr.push_back('\nvar %s: Array\n' % i[0])
-							arr_getset.push_back('\nfunc get_%s() -> Array:' % i_0_snake)
-							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
-							arr_getset.push_back('\nfunc set_%s(p_%s: Array):' % [i_0_snake, i_0_snake])
-							arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
-							arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
-						elif GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
-							arr.push_back('\nvar %s: Array[%s]\n' % [i[0], i[1]])
-							arr_getset.push_back('\nfunc get_%s() -> Array[%s]:' % [i_0_snake, i[1]])
-							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
-							arr_getset.push_back('\nfunc set_%s(p_%s: Array[%s]):' % [i_0_snake, i_0_snake, i[1]])
-							arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
-							arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
-						else:
-							arr.push_back('\nvar %s: Array[%sEntity]\n' % [i[0], i[1]])
-							arr_getset.push_back('\nfunc get_%s() -> Array[%sEntity]:' % [i_0_snake, i[1]])
-							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
-							arr_getset.push_back('\nfunc set_%s(p_%s: Array[%sEntity]):' % [i_0_snake, i_0_snake, i[1]])
-							arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
-							arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
+					entity_map[en_ns].push_back('## %s\n' % table_comment)
+				entity_map[en_ns].push_back('@warning_ignore("missing_tool")\nextends GDSQL.GBatisEntity\nclass_name %sEntity\n' % 
+					result_map_id.capitalize().replace(" ", ""))
+					
+			var e_map = entity_map_2.get(en_ns, {})
+			entity_map_2[en_ns] = e_map
+			for i in arr_prop_type:
+				var arr_getset = []
+				var p_map = {"comment": "", "define": "", "getset": arr_getset}
+				var i_0_snake = i[0].to_snake_case()
+				if i[2] == graph_edit.LINK_TYPE.COLLECTION_ARRAY:
+					p_map.comment = '\n## Array[%s]' % i[3]
+					if i[1] == "Nil":
+						p_map.define = '\nvar %s: Array\n' % i[0]
+						arr_getset.push_back('\nfunc get_%s() -> Array:' % i_0_snake)
+						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
+						arr_getset.push_back('\nfunc set_%s(p_%s: Array):' % [i_0_snake, i_0_snake])
+						arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
+						arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
+					elif GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
+						p_map.define = '\nvar %s: Array[%s]\n' % [i[0], i[1]]
+						arr_getset.push_back('\nfunc get_%s() -> Array[%s]:' % [i_0_snake, i[1]])
+						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
+						arr_getset.push_back('\nfunc set_%s(p_%s: Array[%s]):' % [i_0_snake, i_0_snake, i[1]])
+						arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
+						arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
 					else:
-						arr.push_back('\n## %s' % i[3])
-						if i[1] == "Nil":
-							arr.push_back('\nvar %s\n' % i[0])
-							arr_getset.push_back('\nfunc get_%s():' % i_0_snake)
-							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
-							arr_getset.push_back('\nfunc set_%s(p_%s):' % [i_0_snake, i_0_snake])
-							arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
-							arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
-						elif GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
-							#arr.push_back('\nvar %s: %s\n' % [i[0], i[1]])
-							# 不在属性上指定数据类型了，不然update、insert不知道有没有给属性设定值。
-							# 但是保留在get、set函数上进行设置数据类型
-							arr.push_back('\nvar %s # %s\n' % [i[0], 
-								i[4] if i[1] == "Object" else i[1]])
-							arr_getset.push_back('\nfunc get_%s() -> %s:' % [i_0_snake, 
-								i[4] if i[1] == "Object" else i[1]])
-							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
-							arr_getset.push_back('\nfunc set_%s(p_%s: %s):' % [i_0_snake, i_0_snake, 
-								i[4] if i[1] == "Object" else i[1]])
-							arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
-							arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
-						else:
-							arr.push_back('\nvar %s: %sEntity\n' % [i[0], i[1]])
-							arr_getset.push_back('\nfunc get_%s() -> %sEntity:' % [i_0_snake, i[1]])
-							arr_getset.push_back('\n\treturn %s\n\t' % i[0])
-							arr_getset.push_back('\nfunc set_%s(p_%s: %sEntity):' % [i_0_snake, i_0_snake, i[1]])
-							arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
-							arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
-				entity_map[en_ns] = arr + arr_getset
-				
+						p_map.define = '\nvar %s: Array[%sEntity]\n' % [i[0], i[1]]
+						arr_getset.push_back('\nfunc get_%s() -> Array[%sEntity]:' % [i_0_snake, i[1]])
+						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
+						arr_getset.push_back('\nfunc set_%s(p_%s: Array[%sEntity]):' % [i_0_snake, i_0_snake, i[1]])
+						arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
+						arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
+				else:
+					p_map.comment = '\n## %s' % i[3]
+					if i[1] == "Nil":
+						p_map.define = '\nvar %s\n' % i[0]
+						arr_getset.push_back('\nfunc get_%s():' % i_0_snake)
+						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
+						arr_getset.push_back('\nfunc set_%s(p_%s):' % [i_0_snake, i_0_snake])
+						arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
+						arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
+					elif GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
+						#arr.push_back('\nvar %s: %s\n' % [i[0], i[1]])
+						# 不在属性上指定数据类型了，不然update、insert不知道有没有给属性设定值。
+						# 但是保留在get、set函数上进行设置数据类型
+						p_map.define = '\nvar %s # %s\n' % [i[0], i[4] if i[1] == "Object" else i[1]]
+						arr_getset.push_back('\nfunc get_%s() -> %s:' % [i_0_snake, 
+							i[4] if i[1] == "Object" else i[1]])
+						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
+						arr_getset.push_back('\nfunc set_%s(p_%s: %s):' % [i_0_snake, i_0_snake, 
+							i[4] if i[1] == "Object" else i[1]])
+						arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
+						arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
+					else:
+						p_map.define = '\nvar %s: %sEntity\n' % [i[0], i[1]]
+						arr_getset.push_back('\nfunc get_%s() -> %sEntity:' % [i_0_snake, i[1]])
+						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
+						arr_getset.push_back('\nfunc set_%s(p_%s: %sEntity):' % [i_0_snake, i_0_snake, i[1]])
+						arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
+						arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
+						
+				if e_map.has(i[0]):
+					var old_p_map = e_map[i[0]]
+					if old_p_map.comment != p_map.comment:
+						push_error("Detect inconsistent comment of property: `%s.%s`, 1: `%s`, 2: `%s`." %[
+							en_ns, i[0], old_p_map.comment, p_map.comment])
+					if old_p_map.define != p_map.define:
+						push_error("Detect inconsistent defination of property: `%s.%s`, 1: `%s`, 2: `%s`." %[
+							en_ns, i[0], old_p_map.define, p_map.define])
+					if old_p_map.getset != p_map.getset:
+						push_error("Detect inconsistent getset of property: `%s.%s`, 1: `%s`, 2: `%s`." %[
+							en_ns, i[0], "".join(old_p_map.define), "".join(p_map.define)])
+				else:
+					e_map[i[0]] = p_map
+			
 		# <sql>
 		var vo_ids = {} # namespace => vo_id
 		var select_use_db = false # <select>标签是否使用databaseId属性
@@ -981,6 +999,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				xml_ns = '%s.%s%sMapper' % [leading_db_name, leading_class_n, a_index]
 		xml_map[xml_ns] = xml_arr
 		
+	# 归一化 entity_map
+	for en_ns in entity_map:
+		for p in entity_map_2[en_ns]:
+			entity_map[en_ns].push_back(entity_map_2[en_ns][p].comment)
+			entity_map[en_ns].push_back(entity_map_2[en_ns][p].define)
+		for p in entity_map_2[en_ns]:
+			entity_map[en_ns].append_array(entity_map_2[en_ns][p].getset)
+			
 	# popup confirm dialog
 	popup_generate_dialog(xml_map, mapper_map, entity_map)
 	
