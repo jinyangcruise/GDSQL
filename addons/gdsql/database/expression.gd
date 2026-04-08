@@ -3404,7 +3404,7 @@ func _parse_expression() -> ExpressionENode:
 				if (!is_utility_function_vararg(bifunc._func)) :
 					var expected_args = get_utility_function_argument_count(bifunc._func)
 					if (expected_args != -1 and expected_args != bifunc.arguments.size()) :
-						_set_error("Builtin func '" + str(bifunc._func) + "' expects " + str(expected_args) + " arguments.")
+						_set_error("Builtin func '" + str(bifunc._func) + "' expects " + str(expected_args) + " argument(s).")
 						return null
 		
 	
