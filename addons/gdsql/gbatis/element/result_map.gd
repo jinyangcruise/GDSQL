@@ -545,7 +545,7 @@ func _automapping_object_simple_property(data: Array, obj: Object):
 				"prop": [prop], # 这列数据对应的属性名称
 				"prop_type": [prop_type], # 这列数据的数据类型。
 				"prop_is_object": [prop_is_object],
-				"method": [""] # 填充时用type_convert还是str_to_var转化数据
+				"method": [SET_VALUE_METHOD.UNSET] # 填充时用type_convert还是str_to_var转化数据
 			}
 			
 		# 现在是根据column名称来给某个属性赋值，如果这个属性代表一个对象，
