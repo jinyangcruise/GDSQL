@@ -5507,14 +5507,10 @@ func _is_class(p_name) -> bool:
 		if i.class == p_name:
 			return true
 			
-	# Autoload. ALERT make sure to add 'project.godot' file when export game
-	var project_config = ConfigFile.new()
-	project_config.load("res://project.godot")
-	if project_config.has_section("autoload"):
-		for i in project_config.get_section_keys("autoload"):
-			if i == p_name:
-				return true
-				
+	# Autoload.
+	if ProjectSettings.has_setting("autoload/" + p_name):
+		return true
+		
 	return false
 
 func _identifier_to_input_if_match(identifier, r_err: Array):
