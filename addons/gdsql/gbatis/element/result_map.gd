@@ -812,13 +812,13 @@ func _get_similar_prop(column_1: String):
 	
 func _is_prop_an_object(property_info: Dictionary):
 	return property_info.type == TYPE_OBJECT and \
-		not GDSQL.DataTypeDef.RESOURCE_TYPE_NAMES.has(property_info.class_name)
+		not ClassDB.is_parent_class(property_info.class_name, &"Resource")
 		
 func _is_class_name(s: String) -> bool:
 	if s == "":
 		return false
 	return not GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(s) and \
-		not GDSQL.DataTypeDef.RESOURCE_TYPE_NAMES.has(s)
+		not ClassDB.is_parent_class(s, &"Resource")
 		
 ## 每个主键只允许返回一个对应的对象。如果主键不存在，那就每条数据都返回
 ## 一个对象，这也是允许的。

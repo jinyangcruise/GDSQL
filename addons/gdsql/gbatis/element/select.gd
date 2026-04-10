@@ -108,7 +108,7 @@ func query():
 	if not method_return_info.class_name.is_empty():
 		mapping_to_type = method_return_info.class_name
 		# Resouce类型的，和用户自定义的Object不能用一种办法处理，反而应该用other的办法
-		if GDSQL.DataTypeDef.RESOURCE_TYPE_NAMES.has(method_return_info.class_name):
+		if ClassDB.is_parent_class(method_return_info.class_name, &"Resource"):
 			return_type = "Other"
 		else:
 			return_type = "Object"
@@ -120,7 +120,7 @@ func query():
 		mapping_to_type = "" # 不确定
 		if method_return_info.hint == PROPERTY_HINT_ARRAY_TYPE:
 			mapping_to_type = method_return_info.hint_string # 确定
-			if not GDSQL.DataTypeDef.RESOURCE_TYPE_NAMES.has(mapping_to_type) and \
+			if not ClassDB.is_parent_class(mapping_to_type, &"Resource") and \
 			not GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(mapping_to_type):
 				mapping_to_object = true
 				object_class_name = mapping_to_type
@@ -176,7 +176,7 @@ func query():
 			mapping_to_type = result_type
 			# 既不是普通数据类型也不是Resource，就当做Object
 			if not GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(mapping_to_type) and \
-			not GDSQL.DataTypeDef.RESOURCE_TYPE_NAMES.has(mapping_to_type):
+			not ClassDB.is_parent_class(mapping_to_type, &"Resource"):
 				mapping_to_object = true
 				object_class_name = result_type
 				
@@ -289,7 +289,7 @@ func query():
 				elif return_type == "Dictionary":
 					final_ret = {}
 				elif return_type == "Other":
-					if GDSQL.DataTypeDef.RESOURCE_TYPE_NAMES.has(result_type):
+					if ClassDB.is_parent_class(result_type, &"Resource"):
 						final_ret = null
 						break
 					query_status = "err"

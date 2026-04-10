@@ -26,10 +26,10 @@ func _init(conf: Dictionary) -> void:
 		"Cannot set resultMap and resultType at the same time in <case>.")
 	if not result_type.is_empty():
 		# result_type必须是一个对象的className
-		assert(not GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(result_type) and \
-		not GDSQL.DataTypeDef.RESOURCE_TYPE_NAMES.has(result_type),
-		"Attr resultType %s in <case> should be an Object's class_name" % result_type)
-		
+		assert(not GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(result_type) and
+			not ClassDB.is_parent_class(result_type, &"Resource"),
+			"Attr resultType %s in <case> should be an Object's class_name" % result_type)
+			
 func set_mapper_parser_ref(mapper_parser):
 	mapper_parser_ref = mapper_parser
 	
