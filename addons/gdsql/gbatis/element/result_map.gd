@@ -69,6 +69,13 @@ var pk_index: Dictionary # 主键的可能索引，序号是key，column是value
 var pk_confirm: Array = [-1] # [主键确认的索引]
 var pk_obj: Dictionary # =用主键关联obj
 
+enum SET_VALUE_METHOD {
+	UNSET,
+	DIRECT,
+	STR_TO_VAR,
+	TYPE_CONVERT,
+}
+
 func _init(conf: Dictionary) -> void:
 	id = conf.get("id", "").strip_edges()
 	type = conf.get("type", "").strip_edges()
@@ -574,7 +581,7 @@ func _obj_set_indexed(obj: Object, column: String, prop: String, val: Variant):
 	if not prop_info[object_class_name][column].prop.has(prop):
 		prop_info[object_class_name][column].prop.push_back(prop)
 		prop_info[object_class_name][column].prop_type.push_back(-1)
-		prop_info[object_class_name][column].method.push_back("")
+		prop_info[object_class_name][column].method.push_back(SET_VALUE_METHOD.UNSET)
 		
 	var prop_index = prop_info[object_class_name][column].prop.find(prop)
 	var prop_type = prop_info[object_class_name][column].prop_type[prop_index]
@@ -588,33 +595,33 @@ func _obj_set_indexed(obj: Object, column: String, prop: String, val: Variant):
 	var value = null
 	var value_set = false
 	var method = prop_info[object_class_name][column].method[prop_index]
-	if method == "":
+	if method == SET_VALUE_METHOD.UNSET:
 		# NOTICE type_convert并不是万能的，依赖于引擎
 		# 底层数据格式的相互转换。例如：
 		# type_convert("Vector2(1, 1)", Vector2) 并不会得到
 		# Vector2(1, 1)，而是得到Vector2(0, 0)。
 		if typeof(val) == prop_type or prop_type == TYPE_NIL:
-			method = "none"
+			method = SET_VALUE_METHOD.DIRECT
 		elif val is String:
 			value = str_to_var(val)
 			if typeof(value) == prop_type:
 				value_set = true
-				method = "str_to_var"
+				method = SET_VALUE_METHOD.STR_TO_VAR
 			else:
-				method = "type_convert"
+				method = SET_VALUE_METHOD.TYPE_CONVERT
 		else:
-			method = "type_convert"
+			method = SET_VALUE_METHOD.TYPE_CONVERT
 		prop_info[object_class_name][column].method[prop_index] = method
 		
 	match method:
-		"none":
+		SET_VALUE_METHOD.DIRECT:
 			obj.set_indexed(prop, val)
-		"str_to_var":
+		SET_VALUE_METHOD.STR_TO_VAR:
 			obj.set_indexed(prop, value if value_set else str_to_var(val))
-		"type_convert":
+		SET_VALUE_METHOD.TYPE_CONVERT:
 			obj.set_indexed(prop, type_convert(val, prop_type))
 		_:
-			assert(false, "Inner error 617.")
+			assert(false, "Inner error 624.")
 			return null
 			
 func _automapping_associations(data: Array, obj: Object):
