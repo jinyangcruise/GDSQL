@@ -622,7 +622,7 @@ func _deal_select(item:GDSQL.GXMLItem, param: Dictionary, depth: int) -> GDSQL.G
 			_record_binded_param(i, binded_param)
 			sql = _combine(sql, _deal_element(i, param, depth+1))
 		else:
-			sql = _combine_pcdata(sql, i, param, depth+1)
+			sql = _combine_pcdata(sql, i, param, depth)
 	_clear_binded_param(depth+1, binded_param, param)
 	
 	var ret = GDSQL.GBatisSelect.new(item.attrs)
