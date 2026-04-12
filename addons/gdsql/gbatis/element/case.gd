@@ -73,6 +73,18 @@ func get_prop_column():
 		return null
 	return _result_map.get_deepest_prop_column()
 	
+func get_primary_prop() -> String:
+	if _result_map == null:
+		assert(false, "Call parent node <discriminator>'s prepare_deal() first!")
+		return ""
+	return _result_map.get_deepest_primary_prop()
+	
+func get_primary_column() -> String:
+	if _result_map == null:
+		assert(false, "Call parent node <discriminator>'s prepare_deal() first!")
+		return ""
+	return _result_map.get_deepest_primary_column()
+	
 func get_associations():
 	if _result_map == null:
 		assert(false, "Call parent node <discriminator>'s prepare_deal() first!")

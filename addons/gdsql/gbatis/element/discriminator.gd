@@ -107,6 +107,22 @@ func get_prop_column():
 		return (cases[selected_case_index] as GDSQL.GBatisCase).get_prop_column()
 	return {}
 	
+func get_primary_prop() -> String:
+	if selected_case_index == -2:
+		assert(false, "Call prepare_deal first!")
+		return ""
+	if selected_case_index > -1:
+		return (cases[selected_case_index] as GDSQL.GBatisCase).get_primary_prop()
+	return ""
+	
+func get_primary_column() -> String:
+	if selected_case_index == -2:
+		assert(false, "Call prepare_deal first!")
+		return ""
+	if selected_case_index > -1:
+		return (cases[selected_case_index] as GDSQL.GBatisCase).get_primary_column()
+	return ""
+	
 func get_associations():
 	if selected_case_index == -2:
 		assert(false, "Call prepare_deal first!")
