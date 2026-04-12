@@ -75,6 +75,14 @@ func prepare_deal(data: Array):
 		#return (cases[selected_case_index] as GDSQL.GBatisCase).get_result_map()
 	#return null
 	
+func is_result_map() -> bool:
+	if selected_case_index == -2:
+		assert(false, "Call prepare_deal first!")
+		return false
+	if selected_case_index > -1:
+		return (cases[selected_case_index] as GDSQL.GBatisCase).is_result_map()
+	return false
+	
 func get_result_type():
 	if selected_case_index == -2:
 		assert(false, "Call prepare_deal first!")

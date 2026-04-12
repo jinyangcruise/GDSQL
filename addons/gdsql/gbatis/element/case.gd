@@ -85,6 +85,10 @@ func get_collections():
 		return null
 	return _result_map.get_deepest_collections()
 	
+## 是否用了result_map属性而不是result_type属性。
+func is_result_map() -> bool:
+	return not result_map.is_empty()
+	
 func check_head(p_head: Array):
 	head = p_head
 	
