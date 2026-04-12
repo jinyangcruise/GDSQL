@@ -54,9 +54,6 @@ var mapping_to_other: bool = false
 var object_class_name: String = "" # 当mapping_to_object==true时有用
 var primary_prop = ""
 var primary_column = ""
-var column_prop_map: Dictionary # 子元素<id>和<result>定义的关联，column => [prop]
-								# NOTICE 一个列可以给多个属性赋值。
-								# NOTICE 考虑使用该变量还是get_deepest_column_prop()
 var array_type: String = "" # 当mapping_to_array==true时有用
 var discriminator: GDSQL.GBatisDiscriminator
 
@@ -96,6 +93,7 @@ func push_element(i):
 			return null
 		discriminator = i
 		
+	var column_prop_map = {} # 子元素<id>和<result>定义的关联，column => [prop]，一个列可以给多个属性赋值。
 	if i is GDSQL.GBatisId or i is GDSQL.GBatisResult:
 		var column_name = null
 		if column_prefix == "":
@@ -130,7 +128,6 @@ func clean():
 	sub_elements.clear()
 	result_embeded.clear()
 	head.clear()
-	column_prop_map.clear()
 	discriminator = null
 	columns.clear()
 	prop_map.clear()
@@ -146,21 +143,19 @@ func get_sub_element():
 		return result_embeded
 		
 	var props = {}
-	var a_columns = {}
 	var ret = []
+	discriminator = null # 重新赋值，不用push_element时设置的了。那个时候设置仅用于防止用户多次定义discriminator。
 	for i in range(result_embeded.size()-1, -1, -1):
 		var e = result_embeded[i]
 		if e is GDSQL.GBatisId or e is GDSQL.GBatisResult or e is GDSQL.GBatisAssociation or \
 		e is GDSQL.GBatisCollection:
 			props[e.property] = 0
 		elif e is GDSQL.GBatisDiscriminator:
-			a_columns[e.column] = 0
+			discriminator = e
 		ret.push_back(e)
 		
 	var extend_result_map = mapper_parser_ref.get_ref().get_element(_extends) as GDSQL.GBatisResultMap
 	var extends_children = extend_result_map.sub_elements
-	extend_result_map.result_embeded.clear() # 清空引用，防止内存泄漏
-	extend_result_map.sub_elements.clear() # 清空引用，防止内存泄漏
 	for i in range(extends_children.size()-1, -1, -1):
 		var e = extends_children[i]
 		if e is GDSQL.GBatisId or e is GDSQL.GBatisResult or e is GDSQL.GBatisAssociation or \
@@ -168,8 +163,11 @@ func get_sub_element():
 			if props.has(e.property):
 				continue
 		elif e is GDSQL.GBatisDiscriminator:
-			if a_columns.has(e.column):
+			# 子类定义的鉴别器优先级更高
+			if discriminator != null:
 				continue
+			else:
+				discriminator = e
 		ret.push_back(e)
 		
 	ret.reverse()
@@ -201,6 +199,10 @@ func get_deepest_auto_mapping() -> String:
 ## 如果存在discriminator，需要合并返回其对应的prop_column。
 ## 别的地方勿用.
 func get_deepest_prop_column() -> Dictionary:
+	# 有鉴别器时，若鉴别器运行时返回的case的result_map属性不为空，则要忽略鉴别器外部定义的映射规则。
+	if discriminator != null and discriminator.is_result_map():
+		return discriminator.get_prop_column()
+		
 	var ret = {}
 	for i in sub_elements:
 		if i is GDSQL.GBatisId or i is GDSQL.GBatisResult:
@@ -209,13 +211,10 @@ func get_deepest_prop_column() -> Dictionary:
 			else:
 				ret[i.property] = column_prefix + i.column
 		elif i is GDSQL.GBatisDiscriminator:
-			ret.merge(discriminator.get_prop_column())
+			ret.merge(i.get_prop_column())
 	return ret
 	
 func get_deepest_column_prop() -> Dictionary:
-	if discriminator == null:
-		return column_prop_map
-		
 	var info = get_deepest_prop_column()
 	var ret = {}
 	for prop in info:
@@ -227,6 +226,10 @@ func get_deepest_column_prop() -> Dictionary:
 ## 如果存在discriminator，需要合并返回其包含的association。
 ## 别的地方勿用.
 func get_deepest_associations() -> Array:
+	# 有鉴别器时，若鉴别器运行时返回的case的result_map属性不为空，则要忽略鉴别器外部定义的映射规则。
+	if discriminator != null and discriminator.is_result_map():
+		return discriminator.get_associations()
+		
 	var ret = []
 	for i in sub_elements:
 		if i is GDSQL.GBatisAssociation:
@@ -238,6 +241,10 @@ func get_deepest_associations() -> Array:
 ## 如果存在discriminator，需要合并返回其包含的collection。
 ## 别的地方勿用.
 func get_deepest_collections() -> Array:
+	# 有鉴别器时，若鉴别器运行时返回的case的result_map属性不为空，则要忽略鉴别器外部定义的映射规则。
+	if discriminator != null and discriminator.is_result_map():
+		return discriminator.get_collections()
+		
 	var ret = []
 	for i in sub_elements:
 		if i is GDSQL.GBatisCollection:
