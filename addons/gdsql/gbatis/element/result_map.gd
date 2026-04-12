@@ -168,7 +168,7 @@ func get_sub_element():
 			if props.has(e.property):
 				continue
 		elif e is GDSQL.GBatisDiscriminator:
-			if props.has(e.column):
+			if a_columns.has(e.column):
 				continue
 		ret.push_back(e)
 		
