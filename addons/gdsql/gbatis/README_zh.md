@@ -50,7 +50,7 @@ select 元素允许你配置很多属性来配置每条语句的行为细节。
   timeout="10"
   fetchSize="256"
   statementType="PREPARED"
-  resultSetType="FORWARD\_ONLY">
+  resultSetType="FORWARD_ONLY">
 
 Select 元素的属性
 | 属性 | 描述 |
@@ -65,7 +65,7 @@ Select 元素的属性
 | `timeout` | 这个设置是在抛出异常之前，驱动程序等待数据库返回请求结果的秒数。默认值为未设置（unset）（依赖数据库驱动）。 |
 | `fetchSize` | 这是一个给驱动的建议值，尝试让驱动程序每次批量返回的结果行数等于这个设置值。 默认值为未设置（unset）（依赖驱动）。 |
 | `statementType` | 可选 STATEMENT，PREPARED 或 CALLABLE。这会让 MyBatis 分别使用 Statement，PreparedStatement 或 CallableStatement，默认值：PREPARED。 |
-| `resultSetType` | FORWARD\_ONLY，SCROLL\_SENSITIVE, SCROLL\_INSENSITIVE 或 DEFAULT（等价于 unset） 中的一个，默认值为 unset （依赖数据库驱动）。 |
+| `resultSetType` | FORWARD_ONLY，SCROLL_SENSITIVE, SCROLL_INSENSITIVE 或 DEFAULT（等价于 unset） 中的一个，默认值为 unset （依赖数据库驱动）。 |
 | `databaseId` | 如果配置了数据库厂商标识（databaseIdProvider），MyBatis 会加载所有不带 databaseId 或匹配当前 databaseId 的语句；如果带和不带的语句都有，则不带的会被忽略。 |
 | `resultOrdered` | 这个设置仅针对嵌套结果 select 语句：如果为 true，则假设结果集以正确顺序（排序后）执行映射，当返回新的主结果行时，将不再发生对以前结果行的引用。 这样可以减少内存消耗。默认值：`false`。 |
 | `resultSets` | 这个设置仅适用于多结果集的情况。它将列出语句执行后返回的结果集并赋予每个结果集一个名称，多个名称之间以逗号分隔。 |
@@ -162,7 +162,7 @@ Insert, Update, Delete 元素的属性
 	select CAST(RANDOM()\*1000000 as INTEGER) a from SYSIBM.SYSDUMMY1
   </selectKey>
   insert into Author
-	(id, username, password, email,bio, favourite\_section)
+	(id, username, password, email,bio, favourite_section)
   values
 	(#{id}, #{username}, #{password}, #{email}, #{bio}, #{favouriteSection,jdbcType=VARCHAR})
 </insert>
@@ -207,8 +207,8 @@ selectKey 元素的属性
   select
 	<include refid="userColumns"><property name="alias" value="t1"/></include>,
 	<include refid="userColumns"><property name="alias" value="t2"/></include>
-  from some\_table t1
-	cross join some\_table t2
+  from some_table t1
+	cross join some_table t2
 </select>
 
 也可以在 include 元素的 refid 属性或内部语句中使用属性值，例如：
@@ -219,7 +219,7 @@ selectKey 元素的属性
 
 <sql id="someinclude">
   from
-	<include refid="${include\_target}"/>
+	<include refid="${include_target}"/>
 </sql>
 
 <select id="select" resultType="map">
@@ -227,7 +227,7 @@ selectKey 元素的属性
 	field1, field2, field3
   <include refid="someinclude">
 	<property name="prefix" value="Some"/>
-	<property name="include\_target" value="sometable"/>
+	<property name="include_target" value="sometable"/>
   </include>
 </select>
 
@@ -276,7 +276,7 @@ selectKey 元素的属性
 
 MyBatis 也支持很多高级的数据类型，比如结构体（structs），但是当使用 out 参数时，你必须显式设置类型的名称。比如（再次提示，在实际中要像这样不能换行）：
 
-#{middleInitial, mode=OUT, jdbcType=STRUCT, jdbcTypeName=MY\_TYPE, resultMap=departmentResultMap}
+#{middleInitial, mode=OUT, jdbcType=STRUCT, jdbcTypeName=MY_TYPE, resultMap=departmentResultMap}
 
 尽管上面这些选项很强大，但大多时候，你只须简单指定属性名，顶多要为可能为空的列指定 `jdbcType`，其他的事情交给 MyBatis 自己去推断就行了。
 
@@ -326,7 +326,7 @@ User userOfEmail = userMapper.findByColumn("email", "noone@nowhere.com");
 
 <select id="selectUsers" resultType="map">
   select id, username, hashedPassword
-  from some\_table
+  from some_table
   where id = #{id}
 </select>
 
@@ -364,7 +364,7 @@ public class User {
 
 <select id="selectUsers" resultType="com.someapp.model.User">
   select id, username, hashedPassword
-  from some\_table
+  from some_table
   where id = #{id}
 </select>
 
@@ -376,7 +376,7 @@ public class User {
 <!-- SQL 映射 XML 中 -->
 <select id="selectUsers" resultType="User">
   select id, username, hashedPassword
-  from some\_table
+  from some_table
   where id = #{id}
 </select>
 
@@ -384,26 +384,26 @@ public class User {
 
 <select id="selectUsers" resultType="User">
   select
-	user\_id             as "id",
-	user\_name           as "userName",
-	hashed\_password     as "hashedPassword"
-  from some\_table
+	user_id             as "id",
+	user_name           as "userName",
+	hashed_password     as "hashedPassword"
+  from some_table
   where id = #{id}
 </select>
 
 在学习了上面的知识后，你会发现上面的例子没有一个需要显式配置 `ResultMap`，这就是 `ResultMap` 的优秀之处——你完全可以不用显式地配置它们。 虽然上面的例子不用显式配置 `ResultMap`。 但为了讲解，我们来看看如果在刚刚的示例中，显式使用外部的 `resultMap` 会怎样，这也是解决列名不匹配的另外一种方式。
 
 <resultMap id="userResultMap" type="User">
-  <id property="id" column="user\_id" />
-  <result property="username" column="user\_name"/>
-  <result property="password" column="hashed\_password"/>
+  <id property="id" column="user_id" />
+  <result property="username" column="user_name"/>
+  <result property="password" column="hashed_password"/>
 </resultMap>
 
 然后在引用它的语句中设置 `resultMap` 属性就行了（注意我们去掉了 `resultType` 属性）。比如:
 
 <select id="selectUsers" resultMap="userResultMap">
-  select user\_id, user\_name, hashed\_password
-  from some\_table
+  select user_id, user_name, hashed_password
+  from some_table
   where id = #{id}
 </select>
 
@@ -418,35 +418,35 @@ MyBatis 创建时的一个思想是：数据库不可能永远是你所想或所
 <!-- 非常复杂的语句 -->
 <select id="selectBlogDetails" resultMap="detailedBlogResultMap">
   select
-	   B.id as blog\_id,
-	   B.title as blog\_title,
-	   B.author\_id as blog\_author\_id,
-	   A.id as author\_id,
-	   A.username as author\_username,
-	   A.password as author\_password,
-	   A.email as author\_email,
-	   A.bio as author\_bio,
-	   A.favourite\_section as author\_favourite\_section,
-	   P.id as post\_id,
-	   P.blog\_id as post\_blog\_id,
-	   P.author\_id as post\_author\_id,
-	   P.created\_on as post\_created\_on,
-	   P.section as post\_section,
-	   P.subject as post\_subject,
+	   B.id as blog_id,
+	   B.title as blog_title,
+	   B.author_id as blog_author_id,
+	   A.id as author_id,
+	   A.username as author_username,
+	   A.password as author_password,
+	   A.email as author_email,
+	   A.bio as author_bio,
+	   A.favourite_section as author_favourite_section,
+	   P.id as post_id,
+	   P.blog_id as post_blog_id,
+	   P.author_id as post_author_id,
+	   P.created_on as post_created_on,
+	   P.section as post_section,
+	   P.subject as post_subject,
 	   P.draft as draft,
-	   P.body as post\_body,
-	   C.id as comment\_id,
-	   C.post\_id as comment\_post\_id,
-	   C.name as comment\_name,
-	   C.comment as comment\_text,
-	   T.id as tag\_id,
-	   T.name as tag\_name
+	   P.body as post_body,
+	   C.id as comment_id,
+	   C.post_id as comment_post_id,
+	   C.name as comment_name,
+	   C.comment as comment_text,
+	   T.id as tag_id,
+	   T.name as tag_name
   from Blog B
-	   left outer join Author A on B.author\_id = A.id
-	   left outer join Post P on B.id = P.blog\_id
-	   left outer join Comment C on P.id = C.post\_id
-	   left outer join Post\_Tag PT on PT.post\_id = P.id
-	   left outer join Tag T on PT.tag\_id = T.id
+	   left outer join Author A on B.author_id = A.id
+	   left outer join Post P on B.id = P.blog_id
+	   left outer join Comment C on P.id = C.post_id
+	   left outer join Post_Tag PT on PT.post_id = P.id
+	   left outer join Tag T on PT.tag_id = T.id
   where B.id = #{id}
 </select>
 
@@ -455,26 +455,26 @@ MyBatis 创建时的一个思想是：数据库不可能永远是你所想或所
 <!-- 非常复杂的结果映射 -->
 <resultMap id="detailedBlogResultMap" type="Blog">
   <constructor>
-	<idArg column="blog\_id" javaType="int"/>
+	<idArg column="blog_id" javaType="int"/>
   </constructor>
-  <result property="title" column="blog\_title"/>
+  <result property="title" column="blog_title"/>
   <association property="author" javaType="Author">
-	<id property="id" column="author\_id"/>
-	<result property="username" column="author\_username"/>
-	<result property="password" column="author\_password"/>
-	<result property="email" column="author\_email"/>
-	<result property="bio" column="author\_bio"/>
-	<result property="favouriteSection" column="author\_favourite\_section"/>
+	<id property="id" column="author_id"/>
+	<result property="username" column="author_username"/>
+	<result property="password" column="author_password"/>
+	<result property="email" column="author_email"/>
+	<result property="bio" column="author_bio"/>
+	<result property="favouriteSection" column="author_favourite_section"/>
   </association>
   <collection property="posts" ofType="Post">
-	<id property="id" column="post\_id"/>
-	<result property="subject" column="post\_subject"/>
+	<id property="id" column="post_id"/>
+	<result property="subject" column="post_subject"/>
 	<association property="author" javaType="Author"/>
 	<collection property="comments" ofType="Comment">
-	  <id property="id" column="comment\_id"/>
+	  <id property="id" column="comment_id"/>
 	</collection>
 	<collection property="tags" ofType="Tag" >
-	  <id property="id" column="tag\_id"/>
+	  <id property="id" column="tag_id"/>
 	</collection>
 	<discriminator javaType="int" column="draft">
 	  <case value="1" resultType="DraftPost"/>
@@ -512,8 +512,8 @@ ResultMap 的属性列表
 
 #### id & result
 
-<id property="id" column="post\_id"/>
-<result property="subject" column="post\_subject"/>
+<id property="id" column="post_id"/>
+<result property="subject" column="post_subject"/>
 
 这些元素是结果映射的基础。*id* 和 *result* 元素都将一个列的值映射到一个简单数据类型（String, int, double, Date 等）的属性或字段。
 
@@ -555,14 +555,14 @@ public class User {
 <constructor>
    <idArg column="id" javaType="int"/>
    <arg column="username" javaType="String"/>
-   <arg column="age" javaType="\_int"/>
+   <arg column="age" javaType="int"/>
 </constructor>
 
 当你在处理一个带有多个形参的构造方法时，很容易搞乱 arg 元素的顺序。 从版本 3.4.3 开始，可以在指定参数名称的前提下，以任意顺序编写 arg 元素。 为了通过名称来引用构造方法参数，你可以添加 `@Param` 注解，或者使用 '-parameters' 编译选项并启用 `useActualParamName` 选项（默认开启）来编译项目。下面是一个等价的例子，尽管函数签名中第二和第三个形参的顺序与 constructor 元素中参数声明的顺序不匹配。
 
 <constructor>
    <idArg column="id" javaType="int" name="id" />
-   <arg column="age" javaType="\_int" name="age" />
+   <arg column="age" javaType="int" name="age" />
    <arg column="username" javaType="String" name="username" />
 </constructor>
 
@@ -582,9 +582,9 @@ public class User {
 
 #### 关联
 
-<association property="author" column="blog\_author\_id" javaType="Author">
-  <id property="id" column="author\_id"/>
-  <result property="username" column="author\_username"/>
+<association property="author" column="blog_author_id" javaType="Author">
+  <id property="id" column="author_id"/>
+  <result property="username" column="author_username"/>
 </association>
 
 关联（association）元素处理“有一个”类型的关系。 比如，在我们的示例中，一个博客有一个用户。关联结果映射和其它类型的映射工作方式差不多。 你需要指定目标属性名以及属性的`javaType`（很多时候 MyBatis 可以自己推断出来），在必要的情况下你还可以设置 JDBC 类型，如果你想覆盖获取结果值的过程，还可以设置类型处理器。
@@ -614,7 +614,7 @@ public class User {
 示例：
 
 <resultMap id="blogResult" type="Blog">
-  <association property="author" column="author\_id" javaType="Author" select="selectAuthor"/>
+  <association property="author" column="author_id" javaType="Author" select="selectAuthor"/>
 </resultMap>
 
 <select id="selectBlog" resultMap="blogResult">
@@ -653,32 +653,32 @@ public class User {
 
 <select id="selectBlog" resultMap="blogResult">
   select
-	B.id            as blog\_id,
-	B.title         as blog\_title,
-	B.author\_id     as blog\_author\_id,
-	A.id            as author\_id,
-	A.username      as author\_username,
-	A.password      as author\_password,
-	A.email         as author\_email,
-	A.bio           as author\_bio
-  from Blog B left outer join Author A on B.author\_id = A.id
+	B.id            as blog_id,
+	B.title         as blog_title,
+	B.author_id     as blog_author_id,
+	A.id            as author_id,
+	A.username      as author_username,
+	A.password      as author_password,
+	A.email         as author_email,
+	A.bio           as author_bio
+  from Blog B left outer join Author A on B.author_id = A.id
   where B.id = #{id}
 </select>
 
 注意查询中的连接，以及为确保结果能够拥有唯一且清晰的名字，我们设置的别名。 这使得进行映射非常简单。现在我们可以映射这个结果：
 
 <resultMap id="blogResult" type="Blog">
-  <id property="id" column="blog\_id" />
-  <result property="title" column="blog\_title"/>
-  <association property="author" column="blog\_author\_id" javaType="Author" resultMap="authorResult"/>
+  <id property="id" column="blog_id" />
+  <result property="title" column="blog_title"/>
+  <association property="author" column="blog_author_id" javaType="Author" resultMap="authorResult"/>
 </resultMap>
 
 <resultMap id="authorResult" type="Author">
-  <id property="id" column="author\_id"/>
-  <result property="username" column="author\_username"/>
-  <result property="password" column="author\_password"/>
-  <result property="email" column="author\_email"/>
-  <result property="bio" column="author\_bio"/>
+  <id property="id" column="author_id"/>
+  <result property="username" column="author_username"/>
+  <result property="password" column="author_password"/>
+  <result property="email" column="author_email"/>
+  <result property="bio" column="author_bio"/>
 </resultMap>
 
 在上面的例子中，你可以看到，博客（Blog）作者（author）的关联元素委托名为 “authorResult” 的结果映射来加载作者对象的实例。
@@ -688,14 +688,14 @@ public class User {
 现在，上面的示例使用了外部的结果映射元素来映射关联。这使得 Author 的结果映射可以被重用。 然而，如果你不打算重用它，或者你更喜欢将你所有的结果映射放在一个具有描述性的结果映射元素中。 你可以直接将结果映射作为子元素嵌套在内。这里给出使用这种方式的等效例子：
 
 <resultMap id="blogResult" type="Blog">
-  <id property="id" column="blog\_id" />
-  <result property="title" column="blog\_title"/>
+  <id property="id" column="blog_id" />
+  <result property="title" column="blog_title"/>
   <association property="author" javaType="Author">
-	<id property="id" column="author\_id"/>
-	<result property="username" column="author\_username"/>
-	<result property="password" column="author\_password"/>
-	<result property="email" column="author\_email"/>
-	<result property="bio" column="author\_bio"/>
+	<id property="id" column="author_id"/>
+	<result property="username" column="author_username"/>
+	<result property="password" column="author_password"/>
+	<result property="email" column="author_email"/>
+	<result property="bio" column="author_bio"/>
   </association>
 </resultMap>
 
@@ -703,44 +703,44 @@ public class User {
 
 <select id="selectBlog" resultMap="blogResult">
   select
-	B.id            as blog\_id,
-	B.title         as blog\_title,
-	A.id            as author\_id,
-	A.username      as author\_username,
-	A.password      as author\_password,
-	A.email         as author\_email,
-	A.bio           as author\_bio,
-	CA.id           as co\_author\_id,
-	CA.username     as co\_author\_username,
-	CA.password     as co\_author\_password,
-	CA.email        as co\_author\_email,
-	CA.bio          as co\_author\_bio
+	B.id            as blog_id,
+	B.title         as blog_title,
+	A.id            as author_id,
+	A.username      as author_username,
+	A.password      as author_password,
+	A.email         as author_email,
+	A.bio           as author_bio,
+	CA.id           as co_author_id,
+	CA.username     as co_author_username,
+	CA.password     as co_author_password,
+	CA.email        as co_author_email,
+	CA.bio          as co_author_bio
   from Blog B
-  left outer join Author A on B.author\_id = A.id
-  left outer join Author CA on B.co\_author\_id = CA.id
+  left outer join Author A on B.author_id = A.id
+  left outer join Author CA on B.co_author_id = CA.id
   where B.id = #{id}
 </select>
 
 回忆一下，Author 的结果映射定义如下：
 
 <resultMap id="authorResult" type="Author">
-  <id property="id" column="author\_id"/>
-  <result property="username" column="author\_username"/>
-  <result property="password" column="author\_password"/>
-  <result property="email" column="author\_email"/>
-  <result property="bio" column="author\_bio"/>
+  <id property="id" column="author_id"/>
+  <result property="username" column="author_username"/>
+  <result property="password" column="author_password"/>
+  <result property="email" column="author_email"/>
+  <result property="bio" column="author_bio"/>
 </resultMap>
 
 由于结果中的列名与结果映射中的列名不同。你需要指定 `columnPrefix` 以便重复使用该结果映射来映射 co-author 的结果。
 
 <resultMap id="blogResult" type="Blog">
-  <id property="id" column="blog\_id" />
-  <result property="title" column="blog\_title"/>
+  <id property="id" column="blog_id" />
+  <result property="title" column="blog_title"/>
   <association property="author"
 	resultMap="authorResult" />
   <association property="coAuthor"
 	resultMap="authorResult"
-	columnPrefix="co\_" />
+	columnPrefix="co_" />
 </resultMap>
 
 #### 关联的多结果集（ResultSet）
@@ -772,7 +772,7 @@ SELECT \* FROM AUTHOR WHERE ID = #{id}
 <resultMap id="blogResult" type="Blog">
   <id property="id" column="id" />
   <result property="title" column="title"/>
-  <association property="author" javaType="Author" resultSet="authors" column="author\_id" foreignColumn="id">
+  <association property="author" javaType="Author" resultSet="authors" column="author_id" foreignColumn="id">
 	<id property="id" column="id"/>
 	<result property="username" column="username"/>
 	<result property="password" column="password"/>
@@ -786,9 +786,9 @@ SELECT \* FROM AUTHOR WHERE ID = #{id}
 #### 集合
 
 <collection property="posts" ofType="domain.blog.Post">
-  <id property="id" column="post\_id"/>
-  <result property="subject" column="post\_subject"/>
-  <result property="body" column="post\_body"/>
+  <id property="id" column="post_id"/>
+  <result property="subject" column="post_subject"/>
+  <result property="body" column="post_body"/>
 </collection>
 
 集合元素和关联元素几乎是一样的，它们相似的程度之高，以致于没有必要再介绍集合元素的相似部分。 所以让我们来关注它们的不同之处吧。
@@ -812,7 +812,7 @@ private List<Post> posts;
 </select>
 
 <select id="selectPostsForBlog" resultType="Post">
-  SELECT \* FROM POST WHERE BLOG\_ID = #{id}
+  SELECT \* FROM POST WHERE BLOG_ID = #{id}
 </select>
 
 你可能会立刻注意到几个不同，但大部分都和我们上面学习过的关联元素非常相似。 首先，你会注意到我们使用的是集合元素。 接下来你会注意到有一个新的 “ofType” 属性。这个属性非常重要，它用来将 JavaBean（或字段）属性的类型和集合存储的类型区分开来。 所以你可以按照下面这样来阅读映射：
@@ -833,26 +833,26 @@ private List<Post> posts;
 
 <select id="selectBlog" resultMap="blogResult">
   select
-  B.id as blog\_id,
-  B.title as blog\_title,
-  B.author\_id as blog\_author\_id,
-  P.id as post\_id,
-  P.subject as post\_subject,
-  P.body as post\_body,
+  B.id as blog_id,
+  B.title as blog_title,
+  B.author_id as blog_author_id,
+  P.id as post_id,
+  P.subject as post_subject,
+  P.body as post_body,
   from Blog B
-  left outer join Post P on B.id = P.blog\_id
+  left outer join Post P on B.id = P.blog_id
   where B.id = #{id}
 </select>
 
 我们再次连接了博客表和文章表，并且为每一列都赋予了一个有意义的别名，以便映射保持简单。 要映射博客里面的文章集合，就这么简单：
 
 <resultMap id="blogResult" type="Blog">
-  <id property="id" column="blog\_id" />
-  <result property="title" column="blog\_title"/>
+  <id property="id" column="blog_id" />
+  <result property="title" column="blog_title"/>
   <collection property="posts" ofType="Post">
-	<id property="id" column="post\_id"/>
-	<result property="subject" column="post\_subject"/>
-	<result property="body" column="post\_body"/>
+	<id property="id" column="post_id"/>
+	<result property="subject" column="post_subject"/>
+	<result property="body" column="post_body"/>
   </collection>
 </resultMap>
 
@@ -861,9 +861,9 @@ private List<Post> posts;
 如果你喜欢更详略的、可重用的结果映射，你可以使用下面的等价形式：
 
 <resultMap id="blogResult" type="Blog">
-  <id property="id" column="blog\_id" />
-  <result property="title" column="blog\_title"/>
-  <collection property="posts" ofType="Post" resultMap="blogPostResult" columnPrefix="post\_"/>
+  <id property="id" column="blog_id" />
+  <result property="title" column="blog_title"/>
+  <collection property="posts" ofType="Post" resultMap="blogPostResult" columnPrefix="post_"/>
 </resultMap>
 
 <resultMap id="blogPostResult" type="Post">
@@ -878,7 +878,7 @@ private List<Post> posts;
 
 SELECT \* FROM BLOG WHERE ID = #{id}
 
-SELECT \* FROM POST WHERE BLOG\_ID = #{id}
+SELECT \* FROM POST WHERE BLOG_ID = #{id}
 
 在映射语句中，必须通过 `resultSets` 属性为每个结果集指定一个名字，多个名字使用逗号隔开。
 
@@ -891,7 +891,7 @@ SELECT \* FROM POST WHERE BLOG\_ID = #{id}
 <resultMap id="blogResult" type="Blog">
   <id property="id" column="id" />
   <result property="title" column="title"/>
-  <collection property="posts" ofType="Post" resultSet="posts" column="id" foreignColumn="blog\_id">
+  <collection property="posts" ofType="Post" resultSet="posts" column="id" foreignColumn="blog_id">
 	<id property="id" column="id"/>
 	<result property="subject" column="subject"/>
 	<result property="body" column="body"/>
@@ -919,7 +919,7 @@ SELECT \* FROM POST WHERE BLOG\_ID = #{id}
   <result property="make" column="make"/>
   <result property="model" column="model"/>
   <result property="color" column="color"/>
-  <discriminator javaType="int" column="vehicle\_type">
+  <discriminator javaType="int" column="vehicle_type">
 	<case value="1" resultMap="carResult"/>
 	<case value="2" resultMap="truckResult"/>
 	<case value="3" resultMap="vanResult"/>
@@ -930,13 +930,13 @@ SELECT \* FROM POST WHERE BLOG\_ID = #{id}
 在这个示例中，MyBatis 会从结果集中得到每条记录，然后比较它的 vehicle type 值。 如果它匹配任意一个鉴别器的 case，就会使用这个 case 指定的结果映射。 这个过程是互斥的，也就是说，剩余的结果映射将被忽略（除非它是扩展的，我们将在稍后讨论它）。 如果不能匹配任何一个 case，MyBatis 就只会使用鉴别器块外定义的结果映射。 所以，如果 carResult 的声明如下：
 
 <resultMap id="carResult" type="Car">
-  <result property="doorCount" column="door\_count" />
+  <result property="doorCount" column="door_count" />
 </resultMap>
 
 那么只有 doorCount 属性会被加载。这是为了即使鉴别器的 case 之间都能分为完全独立的一组，尽管和父结果映射可能没有什么关系。在上面的例子中，我们当然知道 cars 和 vehicles 之间有关系，也就是 Car 是一个 Vehicle。因此，我们希望剩余的属性也能被加载。而这只需要一个小修改。
 
 <resultMap id="carResult" type="Car" extends="vehicleResult">
-  <result property="doorCount" column="door\_count" />
+  <result property="doorCount" column="door_count" />
 </resultMap>
 
 现在 vehicleResult 和 carResult 的属性都会被加载了。
@@ -950,19 +950,19 @@ SELECT \* FROM POST WHERE BLOG\_ID = #{id}
   <result property="make" column="make"/>
   <result property="model" column="model"/>
   <result property="color" column="color"/>
-  <discriminator javaType="int" column="vehicle\_type">
+  <discriminator javaType="int" column="vehicle_type">
 	<case value="1" resultType="carResult">
-	  <result property="doorCount" column="door\_count" />
+	  <result property="doorCount" column="door_count" />
 	</case>
 	<case value="2" resultType="truckResult">
-	  <result property="boxSize" column="box\_size" />
-	  <result property="extendedCab" column="extended\_cab" />
+	  <result property="boxSize" column="box_size" />
+	  <result property="extendedCab" column="extended_cab" />
 	</case>
 	<case value="3" resultType="vanResult">
-	  <result property="powerSlidingDoor" column="power\_sliding\_door" />
+	  <result property="powerSlidingDoor" column="power_sliding_door" />
 	</case>
 	<case value="4" resultType="suvResult">
-	  <result property="allWheelDrive" column="all\_wheel\_drive" />
+	  <result property="allWheelDrive" column="all_wheel_drive" />
 	</case>
   </discriminator>
 </resultMap>
@@ -977,19 +977,19 @@ SELECT \* FROM POST WHERE BLOG\_ID = #{id}
 
 通常数据库列使用大写字母组成的单词命名，单词间用下划线分隔；而 Java 属性一般遵循驼峰命名法约定。为了在这两种命名方式之间启用自动映射，需要将 `mapUnderscoreToCamelCase` 设置为 true。
 
-甚至在提供了结果映射后，自动映射也能工作。在这种情况下，对于每一个结果映射，在 ResultSet 出现的列，如果没有设置手动映射，将被自动映射。在自动映射处理完毕后，再处理手动映射。 在下面的例子中，*id* 和 *userName* 列将被自动映射，*hashed\_password* 列将根据配置进行映射。
+甚至在提供了结果映射后，自动映射也能工作。在这种情况下，对于每一个结果映射，在 ResultSet 出现的列，如果没有设置手动映射，将被自动映射。在自动映射处理完毕后，再处理手动映射。 在下面的例子中，*id* 和 *userName* 列将被自动映射，*hashed_password* 列将根据配置进行映射。
 
 <select id="selectUsers" resultMap="userResultMap">
   select
-	user\_id             as "id",
-	user\_name           as "userName",
-	hashed\_password
-  from some\_table
+	user_id             as "id",
+	user_name           as "userName",
+	hashed_password
+  from some_table
   where id = #{id}
 </select>
 
 <resultMap id="userResultMap" type="User">
-  <result property="password" column="hashed\_password"/>
+  <result property="password" column="hashed_password"/>
 </resultMap>
 
 有三种自动映射等级：
@@ -1005,7 +1005,7 @@ SELECT \* FROM POST WHERE BLOG\_ID = #{id}
 	B.id,
 	B.title,
 	A.username,
-  from Blog B left outer join Author A on B.author\_id = A.id
+  from Blog B left outer join Author A on B.author_id = A.id
   where B.id = #{id}
 </select>
 
@@ -1014,7 +1014,7 @@ SELECT \* FROM POST WHERE BLOG\_ID = #{id}
 </resultMap>
 
 <resultMap id="authorResult" type="Author">
-  <result property="username" column="author\_username"/>
+  <result property="username" column="author_username"/>
 </resultMap>
 
 在该结果映射中，*Blog* 和 *Author* 均将被自动映射。但是注意 *Author* 有一个 *id* 属性，在 ResultSet 中也有一个名为 *id* 的列，所以 Author 的 id 将填入 Blog 的 id，这可不是你期望的行为。 所以，要谨慎使用 `FULL`。
@@ -1022,7 +1022,7 @@ SELECT \* FROM POST WHERE BLOG\_ID = #{id}
 无论设置的自动映射等级是哪种，你都可以通过在结果映射上设置 `autoMapping` 属性来为指定的结果映射设置启用/禁用自动映射。
 
 <resultMap id="userResultMap" type="User" autoMapping="false">
-  <result property="password" column="hashed\_password"/>
+  <result property="password" column="hashed_password"/>
 </resultMap>
 
 ## 缓存
