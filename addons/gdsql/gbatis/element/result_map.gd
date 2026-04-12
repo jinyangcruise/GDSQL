@@ -62,8 +62,7 @@ var columns: Array # [数据集的列名]， 从head中提取的
 var prop_map: Dictionary # 对象类名 => {对象的属性列表，用name作为key}
 var prop_info: Dictionary # 对象类名 => {column和prop不一定完全相同，比如可能有冒号，
 						  # 比如大小写、下划线、驼峰格式不同}
-var pk_index: Dictionary # 主键的可能索引，序号是key，column是value
-var pk_confirm: Array = [-1] # [主键确认的索引]
+var pk_confirm: Array = [-1] # [主键确认的索引]，设置为数组，可能对以后支持多主键有帮助。
 var pk_obj: Dictionary # =用主键关联obj
 
 enum SET_VALUE_METHOD {
@@ -95,17 +94,12 @@ func push_element(i):
 		
 	var column_prop_map = {} # 子元素<id>和<result>定义的关联，column => [prop]，一个列可以给多个属性赋值。
 	if i is GDSQL.GBatisId or i is GDSQL.GBatisResult:
-		var column_name = null
-		if column_prefix == "":
-			column_name = i.column
-		else:
-			column_name = column_prefix + i.column
+		var column_name = column_prefix + i.column
 		if i is GDSQL.GBatisId:
 			if primary_prop != "":
 				assert(false, "Only one <id> can be put under <resultMap>.")
 				return null
 			primary_prop = i.property
-			primary_column = column_name
 			
 		for column in column_prop_map:
 			# 多个不同的列对应一个属性，这是错的
@@ -132,7 +126,6 @@ func clean():
 	columns.clear()
 	prop_map.clear()
 	prop_info.clear()
-	pk_index.clear()
 	pk_confirm.clear()
 	pk_obj.clear()
 	
@@ -206,10 +199,7 @@ func get_deepest_prop_column() -> Dictionary:
 	var ret = {}
 	for i in sub_elements:
 		if i is GDSQL.GBatisId or i is GDSQL.GBatisResult:
-			if column_prefix == "":
-				ret[i.property] = i.column
-			else:
-				ret[i.property] = column_prefix + i.column
+			ret[i.property] = column_prefix + i.column
 		elif i is GDSQL.GBatisDiscriminator:
 			ret.merge(i.get_prop_column())
 	return ret
@@ -221,6 +211,36 @@ func get_deepest_column_prop() -> Dictionary:
 		if not ret.has(info[prop]):
 			ret[info[prop]] = []
 		ret[info[prop]].push_back(prop)
+	return ret
+	
+func get_deepest_primary_prop() -> String:
+	# 有鉴别器时，若鉴别器运行时返回的case的result_map属性不为空，则要忽略鉴别器外部定义的映射规则。
+	if discriminator != null and discriminator.is_result_map():
+		return discriminator.get_primary_prop()
+		
+	var ret = ""
+	for i in sub_elements:
+		if i is GDSQL.GBatisId:
+			if ret == "":
+				ret = i.property
+			else:
+				assert(false, "Only one <id> can be put under <resultMap>.")
+				return ""
+				
+	return ret
+	
+func get_deepest_primary_column() -> String:
+	# 有鉴别器时，若鉴别器运行时返回的case的result_map属性不为空，则要忽略鉴别器外部定义的映射规则。
+	if discriminator != null and discriminator.is_result_map():
+		return discriminator.get_primary_column()
+		
+	var ret = ""
+	for i in sub_elements:
+		var column_name = column_prefix + i.column
+		if i is GDSQL.GBatisId:
+			ret = column_name
+			break
+			
 	return ret
 	
 ## 如果存在discriminator，需要合并返回其包含的association。
@@ -259,15 +279,14 @@ func check_head(p_head: Array):
 		return
 		
 	head = p_head
-	# 准备columns和pk_index
-	# columns: Array # 数据集的列名数组
-	# pk_index: Dictionary # 主键的可能索引
+	# 准备columns: Array # 数据集的列名数组
 	for j in head.size():
 		var column = head[j]["field_as"]
 		#if columns.has(column):
 			#assert(false, "Duplicated column name " + column)
 			#return null
-		if primary_column == "":
+		# 由于 primary_column 在处理每条data的时候才能确认（discriminator的影响），所以这里不处理主键了
+		#if primary_column == "":
 			# 由于主键<id>涉及到是否构造新的数据对象，而在使用过程中，很可能不配置<id>，
 			# 并且把不同表的主键拉取出来当作别的字段再union到一起，所以不能用head中提供
 			# 的"PK"字段来想当然地作为这个ResultMap的主键。比如：
@@ -286,23 +305,25 @@ func check_head(p_head: Array):
 			# 在这个例子中，显然会使head中的第3个字段upgrade_id的"PK"为true，这样会产生问题。
 			# 所以首先，我们不应该用head中的主键标记（所以我们把下面两行代码注释掉了）；
 			# 其次，我们要修改resultMap中第一个<id>标签为<result>，因为很显然前面几条数据
-			# 的id都是0（因为 select 0 as id ...），但它们是独立的数据。
+			# 的id都是0（因为 select 0 as id ...），但它们是独立的数据：
+			# <resultMap id="tSkillUpgradeResult" type="TSkillUpgradeEntity" autoMapping="false">
+			#     <result      property="id"            column="id"            />
+			#     <result      property="sid"           column="sid"           />
+			#     <result      property="upgrade_id"    column="upgrade_id"    />
+			#     <association property="c_skill_upgrade" column="upgrade_id" select="select_c_skill_upgrade_by_id"    />
+			# </resultMap>
 			#if head[j]["PK"] and pk_index.find_key(column) == null:
 				#pk_index[j] = column
-			pass
-		else:
-			if column == primary_column:
-				pk_index[j] = column
+			#pass
+		#else:
+			#if column == primary_column:
+				#pk_index[j] = column
 		columns.push_back(column)
 		
 	# 检查一下xml配置有没有问题
 	for i in sub_elements:
 		if i is GDSQL.GBatisId or i is GDSQL.GBatisResult:
-			var column_name = null
-			if column_prefix == "":
-				column_name = i.column
-			else:
-				column_name = column_prefix + i.column
+			var column_name = column_prefix + i.column
 			if not columns.has(column_name):
 				assert(false, "Not found column: " + column_name + 
 					" in Result set. Check your xml config.")
@@ -348,6 +369,22 @@ func prepare_deal(data: Array):
 			if case_return_type != "":
 				real_type = case_return_type
 				
+		primary_prop = get_deepest_primary_prop()
+		primary_column = get_deepest_primary_column()
+		
+		# 主键
+		pk_confirm[0] = -1
+		if primary_column != "":
+			for j in head.size():
+				var column = head[j]["field_as"]
+				if column == primary_column:
+					if pk_confirm[0] == -1:
+						pk_confirm[0] = j
+					# 已经找到一个了，怎么又冒出来一个
+					else:
+						assert(false, "Multiple primary keys [%s, %s] detected." %
+							[pk_confirm[0], j])
+							
 		if _is_class_name(real_type):
 			mapping_to_object = true
 			object_class_name = real_type
@@ -562,17 +599,6 @@ func _automapping_object_simple_property(data: Array, obj: Object):
 			
 		_obj_set_indexed(obj, column, prop, data[j])
 		
-		# 主键
-		if pk_index.has(j):
-			if pk_confirm[0] == -1:
-				pk_confirm[0] = j
-			else:
-				# 已经找到一个了，怎么又冒出来一个
-				if pk_confirm[0] != j:
-					assert(false, 
-						"Multiple primary keys [%s, %s] are mapped to %s." % \
-						[pk_confirm[0], j, object_class_name])
-					return null
 	return 1
 	
 func _obj_set_indexed(obj: Object, column: String, prop: String, val: Variant):
