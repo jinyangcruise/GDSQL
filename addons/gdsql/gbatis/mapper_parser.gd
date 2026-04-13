@@ -133,6 +133,20 @@ func call_method_in_namespace(method: String, args: Array =[]):
 		obj.free()
 	return ret
 	
+## 适用于某些item获取其全部sql内容或部分sql内容。适用范围请搜索该方法的调用者，比如<select>的_deal_selct()。
+func _item_to_string(item: GDSQL.GXMLItem, param: Dictionary, depth: int, valid_sub_items: Array, binded_param: Array):
+	var ret = ""
+	for i in item.content:
+		if i is GDSQL.GXMLItem:
+			if not valid_sub_items.has(i.name):
+				assert(false, "Invalid element %s in <%s>." % [i.name, item.name])
+				return null
+			_record_binded_param(i, binded_param)
+			ret = _combine(ret, _deal_element(i, param, depth + 1))
+		else:
+			ret = _combine_pcdata(ret, i, param, depth)
+	return ret
+	
 func _get_item(id: String) -> GDSQL.GXMLItem:
 	for i in config.root_item.content:
 		if i is GDSQL.GXMLItem and (i as GDSQL.GXMLItem).attrs.get("id", "") == id:
@@ -610,20 +624,9 @@ func _deal_type_alias(item:GDSQL.GXMLItem, param: Dictionary, depth: int):
 #                                        will be loaded from. 
 #                                        eg. resultSets="blogs,authors"
 #>
-func _deal_select(item:GDSQL.GXMLItem, param: Dictionary, depth: int) -> GDSQL.GBatisSelect:
-	var sql = ""
+	var valid_sub_items = ["include", "trim", "where", "set", "foreach", "choose", "if", "bind"]
 	var binded_param = []
-	for i in item.content:
-		if i is GDSQL.GXMLItem:
-			if not ["include", "trim", "where", "set", "foreach", "choose", 
-			"if", "bind"].has(i.name):
-				assert(false, "Invalid element %s in select." % i.name)
-				return null
-			_record_binded_param(i, binded_param)
-			sql = _combine(sql, _deal_element(i, param, depth+1))
-		else:
-			sql = _combine_pcdata(sql, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
+	var sql = _item_to_string(item, param, depth, valid_sub_items, binded_param)
 	
 	var ret = GDSQL.GBatisSelect.new(item.attrs)
 	ret.set_mapper_parser_ref(weakref(self))
@@ -657,20 +660,9 @@ func _deal_select(item:GDSQL.GXMLItem, param: Dictionary, depth: int) -> GDSQL.G
 #databaseId CDATA #IMPLIED
 #lang CDATA #IMPLIED -------------------------------- ❌ not support
 #> 
-func _deal_insert(item:GDSQL.GXMLItem, param: Dictionary, depth: int) -> GDSQL.GBatisInsert:
-	var sql = ""
+	var valid_sub_items = ["selectKey", "include", "trim", "where", "set", "foreach", "choose", "if", "bind"]
 	var binded_param = []
-	for i in item.content:
-		if i is GDSQL.GXMLItem:
-			if not ["selectKey", "include", "trim", "where", "set", "foreach", 
-			"choose", "if", "bind"].has(i.name):
-				assert(false, "Invalid element %s in insert." % i.name)
-				return null
-			_record_binded_param(i, binded_param)
-			sql = _combine(sql, _deal_element(i, param, depth+1))
-		else:
-			sql = _combine_pcdata(sql, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
+	var sql = _item_to_string(item, param, depth, valid_sub_items, binded_param)
 	
 	var ret = GDSQL.GBatisInsert.new(item.attrs)
 	ret.set_sql(sql)
@@ -710,20 +702,9 @@ func _deal_insert(item:GDSQL.GXMLItem, param: Dictionary, depth: int) -> GDSQL.G
 #databaseId CDATA #IMPLIED
 #lang CDATA #IMPLIED -------------------------------- ❌ not support
 #> 
-func _deal_replace(item:GDSQL.GXMLItem, param: Dictionary, depth: int) -> GDSQL.GBatisReplace:
-	var sql = ""
+	var valid_sub_items = ["selectKey", "include", "trim", "where", "set", "foreach", "choose", "if", "bind"]
 	var binded_param = []
-	for i in item.content:
-		if i is GDSQL.GXMLItem:
-			if not ["selectKey", "include", "trim", "where", "set", "foreach", 
-			"choose", "if", "bind"].has(i.name):
-				assert(false, "Invalid element %s in replace." % i.name)
-				return null
-			_record_binded_param(i, binded_param)
-			sql = _combine(sql, _deal_element(i, param, depth+1))
-		else:
-			sql = _combine_pcdata(sql, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
+	var sql = _item_to_string(item, param, depth, valid_sub_items, binded_param)
 	
 	var ret = GDSQL.GBatisReplace.new(item.attrs)
 	ret.set_sql(sql)
@@ -766,20 +747,9 @@ func _deal_select_key(item:GDSQL.GXMLItem, param: Dictionary, depth: int):
 #databaseId CDATA #IMPLIED
 #lang CDATA #IMPLIED -------------------------------- ❌ not support
 #>
-func _deal_update(item:GDSQL.GXMLItem, param: Dictionary, depth: int) -> GDSQL.GBatisUpdate:
-	var sql = ""
+	var valid_sub_items = ["selectKey", "include", "trim", "where", "set", "foreach", "choose", "if", "bind"]
 	var binded_param = []
-	for i in item.content:
-		if i is GDSQL.GXMLItem:
-			if not ["selectKey", "include", "trim", "where", "set", "foreach", 
-			"choose", "if", "bind"].has(i.name):
-				assert(false, "Invalid element %s in the current context." % i.name)
-				return null
-			_record_binded_param(i, binded_param)
-			sql = _combine(sql, _deal_element(i, param, depth+1))
-		else:
-			sql = _combine_pcdata(sql, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
+	var sql = _item_to_string(item, param, depth, valid_sub_items, binded_param)
 	
 	var ret = GDSQL.GBatisUpdate.new(item.attrs)
 	ret.set_sql(sql)
@@ -799,20 +769,9 @@ func _deal_update(item:GDSQL.GXMLItem, param: Dictionary, depth: int) -> GDSQL.G
 #databaseId CDATA #IMPLIED
 #lang CDATA #IMPLIED
 #>
-func _deal_delete(item:GDSQL.GXMLItem, param: Dictionary, depth: int) -> GDSQL.GBatisDelete:
-	var sql = ""
+	var valid_sub_items = ["include", "trim", "where", "set", "foreach", "choose", "if", "bind"]
 	var binded_param = []
-	for i in item.content:
-		if i is GDSQL.GXMLItem:
-			if not ["include", "trim", "where", "set", "foreach", "choose", 
-			"if", "bind"].has(i.name):
-				assert(false, "Invalid element %s in delete." % i.name)
-				return null
-			_record_binded_param(i, binded_param)
-			sql = _combine(sql, _deal_element(i, param, depth+1))
-		else:
-			sql = _combine_pcdata(sql, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
+	var sql = _item_to_string(item, param, depth, valid_sub_items, binded_param)
 	
 	var ret = GDSQL.GBatisDelete.new(item.attrs)
 	ret.set_sql(sql)
@@ -863,20 +822,9 @@ func _deal_bind(item:GDSQL.GXMLItem, param: Dictionary, depth: int):
 #lang CDATA #IMPLIED -----------X
 #databaseId CDATA #IMPLIED ----------X
 #>
-func _deal_sql(item:GDSQL.GXMLItem, param: Dictionary, depth: int):
-	var ret = ""
+	var valid_sub_items = ["include", "trim", "where", "set", "foreach", "choose", "if", "bind"]
 	var binded_param = []
-	for i in item.content:
-		if i is GDSQL.GXMLItem:
-			if not ["include", "trim", "where", "set", "foreach", "choose", 
-			"if", "bind"].has(i.name):
-				assert(false, "Invalid element %s in sql." % i.name)
-				return null
-			_record_binded_param(i, binded_param)
-			ret = _combine(ret, _deal_element(i, param, depth+1))
-		else:
-			ret = _combine_pcdata(ret, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
+	var ret = _item_to_string(item, param, depth, valid_sub_items, binded_param)
 	#assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
 	#element_cache[ret.id] = ret
 	return ret
@@ -888,20 +836,10 @@ func _deal_sql(item:GDSQL.GXMLItem, param: Dictionary, depth: int):
 #prefixOverrides CDATA #IMPLIED 表示去掉（覆盖）trim包裹的SQL的指定首部内容
 #suffixOverrides CDATA #IMPLIED 表示去掉（覆盖）trim包裹的SQL的指定尾部内容
 #>
-func _deal_trim(item:GDSQL.GXMLItem, param: Dictionary, depth: int):
-	var ret = ""
+	var valid_sub_items = ["include", "trim", "where", "set", "foreach", "choose", "if", "bind"]
 	var binded_param = []
-	for i in item.content:
-		if i is GDSQL.GXMLItem:
-			if not ["include", "trim", "where", "set", "foreach", "choose", 
-			"if", "bind"].has(i.name):
-				assert(false, "Invalid element %s in trim." % i.name)
-				return null
-			_record_binded_param(i, binded_param)
-			ret = _combine(ret, _deal_element(i, param, depth+1))
-		else:
-			ret = _combine_pcdata(ret, i, param, depth)
-			
+	var ret = _item_to_string(item, param, depth, valid_sub_items, binded_param)
+	
 	var prefix = item.attrs.get("prefix", "") as String
 	var prefixOverrides = item.attrs.get("prefixOverrides", "") as String
 	var suffix = item.attrs.get("suffix", "") as String
@@ -919,19 +857,10 @@ func _deal_trim(item:GDSQL.GXMLItem, param: Dictionary, depth: int):
 	return ret
 	
 #<!ELEMENT where (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
-func _deal_where(item:GDSQL.GXMLItem, param: Dictionary, depth: int):
-	var ret = ""
+	var valid_sub_items = ["include", "trim", "where", "set", "foreach", "choose", "if", "bind"]
 	var binded_param = []
-	for i in item.content:
-		if i is GDSQL.GXMLItem:
-			if not ["include", "trim", "where", "set", "foreach", "choose", 
-			"if", "bind"].has(i.name):
-				assert(false, "Invalid element %s in where." % i.name)
-				return null
-			_record_binded_param(i, binded_param)
-			ret = _combine(ret, _deal_element(i, param, depth+1))
-		else:
-			ret = _combine_pcdata(ret, i, param, depth)
+	var ret = _item_to_string(item, param, depth, valid_sub_items, binded_param)
+	
 	if ret.countn("and", 0, 3) > 0:
 		ret = ret.substr(3)
 	elif ret.countn("or", 0, 2) > 0:
@@ -941,19 +870,10 @@ func _deal_where(item:GDSQL.GXMLItem, param: Dictionary, depth: int):
 	return ret
 	
 #<!ELEMENT set (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
-func _deal_set(item:GDSQL.GXMLItem, param: Dictionary, depth: int):
-	var ret = ""
+	var valid_sub_items = ["include", "trim", "where", "set", "foreach", "choose", "if", "bind"]
 	var binded_param = []
-	for i in item.content:
-		if i is GDSQL.GXMLItem:
-			if not ["include", "trim", "where", "set", "foreach", "choose", 
-			"if", "bind"].has(i.name):
-				assert(false, "Invalid element %s in set." % i.name)
-				return null
-			_record_binded_param(i, binded_param)
-			ret = _combine(ret, _deal_element(i, param, depth+1))
-		else:
-			ret = _combine_pcdata(ret, i, param, depth)
+	var ret = _item_to_string(item, param, depth, valid_sub_items, binded_param)
+	
 	if ret.ends_with(","):
 		ret = ret.substr(0, ret.length()-1)
 	ret = _combine("set", ret)
@@ -1083,20 +1003,9 @@ func _deal_when(item:GDSQL.GXMLItem, param: Dictionary, depth: int):
 	return [true, ret]
 	
 #<!ELEMENT otherwise (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
-func _deal_otherwise(item:GDSQL.GXMLItem, param: Dictionary, depth: int):
-	var ret = ""
+	var valid_sub_items = ["include", "trim", "where", "set", "foreach", "choose", "if", "bind"]
 	var binded_param = []
-	for i in item.content:
-		if i is GDSQL.GXMLItem:
-			if not ["include", "trim", "where", "set", "foreach", "choose", 
-			"if", "bind"].has(i.name):
-				assert(false, "Invalid element %s in otherwise." % i.name)
-				return null
-			_record_binded_param(i, binded_param)
-			ret = _combine(ret, _deal_element(i, param, depth+1))
-		else:
-			ret = _combine_pcdata(ret, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
+	var ret = _item_to_string(item, param, depth, valid_sub_items, binded_param)
 	return ret
 	
 #<!ELEMENT if (#PCDATA | include | trim | where | set | foreach | choose | if | bind)*>
@@ -1108,19 +1017,9 @@ func _deal_if(item:GDSQL.GXMLItem, param: Dictionary, depth: int):
 	if not test:
 		return ""
 		
-	var ret = ""
+	var valid_sub_items = ["include", "trim", "where", "set", "foreach", "choose", "if", "bind"]
 	var binded_param = []
-	for i in item.content:
-		if i is GDSQL.GXMLItem:
-			if not ["include", "trim", "where", "set", "foreach", "choose", 
-			"if", "bind"].has(i.name):
-				assert(false, "Invalid element %s in if." % i.name)
-				return null
-			_record_binded_param(i, binded_param)
-			ret = _combine(ret, _deal_element(i, param, depth+1))
-		else:
-			ret = _combine_pcdata(ret, i, param, depth)
-	_clear_binded_param(depth+1, binded_param, param)
+	var ret = _item_to_string(item, param, depth, valid_sub_items, binded_param)
 	return ret
 	
 func _combine(s1: String, s2: String) -> String:
