@@ -626,10 +626,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				var arr_getset = []
 				var p_map = {"comment": "", "define": "", "getset": arr_getset}
 				var i_0_snake = i[0].to_snake_case()
+				if is_shadowing(i[0]):
+					p_map.define = '\n@warning_ignore("shadowed_global_identifier")'
 				if i[2] == graph_edit.LINK_TYPE.COLLECTION_ARRAY:
 					if i[1] == "Nil":
 						p_map.comment = '\n## Array[null]. %s' % i[3]
-						p_map.define = '\nvar %s: Array\n' % i[0]
+						p_map.define += '\nvar %s: Array\n' % i[0]
 						arr_getset.push_back('\nfunc get_%s() -> Array:' % i_0_snake)
 						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
 						arr_getset.push_back('\nfunc set_%s(p_%s: Array):' % [i_0_snake, i_0_snake])
@@ -637,7 +639,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 						arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
 					elif GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
 						p_map.comment = '\n## Array[%s]. %s' % [i[1], i[3]]
-						p_map.define = '\nvar %s: Array[%s]\n' % [i[0], i[1]]
+						p_map.define += '\nvar %s: Array[%s]\n' % [i[0], i[1]]
 						arr_getset.push_back('\nfunc get_%s() -> Array[%s]:' % [i_0_snake, i[1]])
 						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
 						arr_getset.push_back('\nfunc set_%s(p_%s: Array[%s]):' % [i_0_snake, i_0_snake, i[1]])
@@ -645,7 +647,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 						arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
 					else:
 						p_map.comment = '\n## Array[%sEntity]. %s' % [i[1], i[3]]
-						p_map.define = '\nvar %s: Array[%sEntity]\n' % [i[0], i[1]]
+						p_map.define += '\nvar %s: Array[%sEntity]\n' % [i[0], i[1]]
 						arr_getset.push_back('\nfunc get_%s() -> Array[%sEntity]:' % [i_0_snake, i[1]])
 						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
 						arr_getset.push_back('\nfunc set_%s(p_%s: Array[%sEntity]):' % [i_0_snake, i_0_snake, i[1]])
@@ -654,7 +656,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				else:
 					if i[1] == "Nil":
 						p_map.comment = '\n## null. %s' % i[3]
-						p_map.define = '\nvar %s\n' % i[0]
+						p_map.define += '\nvar %s\n' % i[0]
 						arr_getset.push_back('\nfunc get_%s():' % i_0_snake)
 						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
 						arr_getset.push_back('\nfunc set_%s(p_%s):' % [i_0_snake, i_0_snake])
@@ -666,7 +668,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 						# 不在属性上指定数据类型了，不然update、insert不知道有没有给属性设定值。
 						# 比如：<if test="name != null">
 						# 但是保留在get、set函数上进行设置数据类型
-						p_map.define = '\nvar %s = NULL\n' % i[0]
+						p_map.define += '\nvar %s = NULL\n' % i[0]
 						arr_getset.push_back('\nfunc get_%s() -> %s:' % [i_0_snake, 
 							i[4] if i[1] == "Object" else i[1]])
 						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
@@ -676,7 +678,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 						arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
 					else:
 						p_map.comment = '\n## %sEntity. %s' % [i[1], i[3]]
-						p_map.define = '\nvar %s: %sEntity\n' % [i[0], i[1]]
+						p_map.define += '\nvar %s: %sEntity\n' % [i[0], i[1]]
 						arr_getset.push_back('\nfunc get_%s() -> %sEntity:' % [i_0_snake, i[1]])
 						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
 						arr_getset.push_back('\nfunc set_%s(p_%s: %sEntity):' % [i_0_snake, i_0_snake, i[1]])
@@ -1014,6 +1016,22 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			
 	# popup confirm dialog
 	popup_generate_dialog(xml_map, mapper_map, entity_map)
+	
+func is_shadowing(p_identifier: String) -> bool:
+	if GDSQL.SQLExpression.has_utility_function(p_identifier):
+		return true
+		
+	if ClassDB.is_class(p_identifier):
+		return true
+		
+	for i in ProjectSettings.get_global_class_list():
+		if i.class == p_identifier:
+			return true
+			
+	if GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(p_identifier):
+		return true
+		
+	return false
 	
 var _generate_dialog
 func popup_generate_dialog(xml_map, mapper_map, entity_map):

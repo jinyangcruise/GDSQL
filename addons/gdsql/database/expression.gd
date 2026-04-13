@@ -1671,18 +1671,24 @@ const utility_function_table = {
 	'rid_from_int64': [1, ' FUNCBINDR(rid_from_int64, sarray("base"), Variant::UTILITY_FUNC_TYPE_GENERAL);', rid_from_int64],
 	'is_same': [2, ' FUNCBINDR(is_same, sarray("a", "b"), Variant::UTILITY_FUNC_TYPE_GENERAL);', is_same],
 	# under @GDScript
-	'type_exists': [1, 'REGISTER_FUNC(type_exists, true, Variant::BOOL, ARG("type", Variant::STRING_NAME));', type_exists],
-	'char': [1, 'REGISTER_FUNC(_char, true, Variant::STRING, ARG("char", Variant::INT));', char],
-	'range': [-1, 'REGISTER_VARARG_FUNC(range, false, Variant::ARRAY);', range],
-	'load': [1, 'REGISTER_CLASS_FUNC(load, false, "Resource", ARG("path", Variant::STRING));', load],
-	'inst_to_dict': [1, 'REGISTER_FUNC(inst_to_dict, false, Variant::DICTIONARY, ARG("instance", Variant::OBJECT));', inst_to_dict],
-	'dict_to_inst': [1, 'REGISTER_FUNC(dict_to_inst, false, Variant::OBJECT, ARG("dictionary", Variant::DICTIONARY));', dict_to_inst],
-	'Color8': [4, 'REGISTER_FUNC_DEF(Color8, true, 255, Variant::COLOR, ARG("r8", Variant::INT), ARG("g8", Variant::INT), ARG("b8", Variant::INT), ARG("a8", Variant::INT));', Color8],
-	'print_debug': [-1, 'REGISTER_VARARG_FUNC(print_debug, false, Variant::NIL);', print_debug],
-	'print_stack': [0, 'REGISTER_FUNC_NO_ARGS(print_stack, false, Variant::NIL);', print_stack],
-	'get_stack': [0, 'REGISTER_FUNC_NO_ARGS(get_stack, false, Variant::ARRAY);', get_stack],
-	'len': [1, 'REGISTER_FUNC(len, true, Variant::INT, VARARG("var"));', len],
-	'is_instance_of': [2, 'REGISTER_FUNC(is_instance_of, true, Variant::BOOL, VARARG("value"), VARARG("type"));', is_instance_of],
+	'convert': [2, 'REGISTER_FUNC( convert,        true,  RETVAR,             ARGS( ARGVAR("what"), ARGTYPE("type") ), false, varray(     ));', convert, false],
+	'type_exists': [1, 'REGISTER_FUNC( type_exists,    true,  RET(BOOL),          ARGS( ARG("type", STRING_NAME)        ), false, varray(     ));', type_exists, false],
+	'char': [1, 'REGISTER_FUNC( _char,          true,  RET(STRING),        ARGS( ARG("code", INT)                ), false, varray(     ));', char, false],
+	'ord': [1, 'REGISTER_FUNC( ord,            true,  RET(INT),           ARGS( ARG("char", STRING)             ), false, varray(     ));', ord, false],
+	'range': [-1, 'REGISTER_FUNC( range,          false, RET(ARRAY),         NOARGS,                                  true,  varray(     ));', range, true],
+	'load': [1, 'REGISTER_FUNC( load,           false, RETCLS("Resource"), ARGS( ARG("path", STRING)             ), false, varray(     ));', load, false],
+	'inst_to_dict': [1, 'REGISTER_FUNC( inst_to_dict,   false, RET(DICTIONARY),    ARGS( ARG("instance", OBJECT)         ), false, varray(     ));', inst_to_dict, false],
+	'dict_to_inst': [1, 'REGISTER_FUNC( dict_to_inst,   false, RET(OBJECT),        ARGS( ARG("dictionary", DICTIONARY)   ), false, varray(     ));', dict_to_inst, false],
+	'Color8': [4, 'REGISTER_FUNC( Color8,         true,  RET(COLOR),         ARGS( ARG("r8", INT), ARG("g8", INT),
+																ARG("b8", INT), ARG("a8", INT)  ), false, varray( 255 ));', Color8, false],
+	'print_debug': [-1, 'REGISTER_FUNC( print_debug,    false, RET(NIL),           NOARGS,                                  true,  varray(     ));', print_debug, true],
+	'print_stack': [-1, 'REGISTER_FUNC( print_stack,    false, RET(NIL),           NOARGS,                                  false, varray(     ));', print_stack, false],
+	'get_stack': [0, 'REGISTER_FUNC( get_stack,      false, RET(ARRAY),         NOARGS,                                  false, varray(     ));', get_stack, false],
+	'len': [1, 'REGISTER_FUNC( len,            true,  RET(INT),           ARGS( ARGVAR("var")                   ), false, varray(     ));', len, false],
+	'is_instance_of': [2, 'REGISTER_FUNC( is_instance_of, true,  RET(BOOL),          ARGS( ARGVAR("value"), ARGVAR("type") ), false, varray(     ));', is_instance_of, false],
+	# Not really "functions", but show in documentation.
+	'preload': [1, '', load],
+	'assert': [-1, '', Callable()]
 }
 
 ## NOTICE 复制 @GlobalScope 文档内容到一个文件（例如：22.txt）中，然后执行下面的命令：
@@ -2376,7 +2382,7 @@ static func BSEARCH_CHAR_RANGE(m_array, c: String):
 			return true                                   
 	return false
 	
-func has_utility_function(p_name) -> bool:
+static func has_utility_function(p_name) -> bool:
 	return utility_function_table.has(p_name)
 	
 func is_utility_function_vararg(p_name) -> bool:
@@ -2384,7 +2390,8 @@ func is_utility_function_vararg(p_name) -> bool:
 		return false
 	return utility_function_table[p_name][1].begins_with("FUNCBINDVARARG(") or \
 	utility_function_table[p_name][1].begins_with("FUNCBINDVARARGS(") or \
-	utility_function_table[p_name][1].begins_with("FUNCBINDVARARGV(")
+	utility_function_table[p_name][1].begins_with("FUNCBINDVARARGV(") or \
+	(utility_function_table[p_name].size() == 4 and utility_function_table[p_name][3])
 	
 func get_utility_function_argument_count(p_name) -> int:
 	if not utility_function_table.has(p_name):
