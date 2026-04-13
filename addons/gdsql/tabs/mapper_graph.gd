@@ -627,8 +627,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				var p_map = {"comment": "", "define": "", "getset": arr_getset}
 				var i_0_snake = i[0].to_snake_case()
 				if i[2] == graph_edit.LINK_TYPE.COLLECTION_ARRAY:
-					p_map.comment = '\n## Array[%s]' % i[3]
 					if i[1] == "Nil":
+						p_map.comment = '\n## Array[null]. %s' % i[3]
 						p_map.define = '\nvar %s: Array\n' % i[0]
 						arr_getset.push_back('\nfunc get_%s() -> Array:' % i_0_snake)
 						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
@@ -636,6 +636,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 						arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
 						arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
 					elif GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
+						p_map.comment = '\n## Array[%s]. %s' % [i[1], i[3]]
 						p_map.define = '\nvar %s: Array[%s]\n' % [i[0], i[1]]
 						arr_getset.push_back('\nfunc get_%s() -> Array[%s]:' % [i_0_snake, i[1]])
 						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
@@ -643,6 +644,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 						arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
 						arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
 					else:
+						p_map.comment = '\n## Array[%sEntity]. %s' % [i[1], i[3]]
 						p_map.define = '\nvar %s: Array[%sEntity]\n' % [i[0], i[1]]
 						arr_getset.push_back('\nfunc get_%s() -> Array[%sEntity]:' % [i_0_snake, i[1]])
 						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
@@ -650,8 +652,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 						arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
 						arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
 				else:
-					p_map.comment = '\n## %s. %s' % [i[4] if i[1] == "Object" else i[1], i[3]]
 					if i[1] == "Nil":
+						p_map.comment = '\n## null. %s' % i[3]
 						p_map.define = '\nvar %s\n' % i[0]
 						arr_getset.push_back('\nfunc get_%s():' % i_0_snake)
 						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
@@ -659,6 +661,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 						arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
 						arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
 					elif GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(i[1]):
+						p_map.comment = '\n## %s. %s' % [i[4] if i[1] == "Object" else i[1], i[3]]
 						#arr.push_back('\nvar %s: %s\n' % [i[0], i[1]])
 						# 不在属性上指定数据类型了，不然update、insert不知道有没有给属性设定值。
 						# 比如：<if test="name != null">
@@ -672,6 +675,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 						arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
 						arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
 					else:
+						p_map.comment = '\n## %sEntity. %s' % [i[1], i[3]]
 						p_map.define = '\nvar %s: %sEntity\n' % [i[0], i[1]]
 						arr_getset.push_back('\nfunc get_%s() -> %sEntity:' % [i_0_snake, i[1]])
 						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
