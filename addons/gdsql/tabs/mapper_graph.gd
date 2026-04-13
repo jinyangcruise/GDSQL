@@ -650,7 +650,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 						arr_getset.push_back('\n\t%s = p_%s' % [i[0], i_0_snake])
 						arr_getset.push_back('\n\tvalue_changed.emit("%s", %s)\n\t' % [i_0_snake, i[0]])
 				else:
-					p_map.comment = '\n## %s' % i[3]
+					p_map.comment = '\n## %s. %s' % [i[4] if i[1] == "Object" else i[1], i[3]]
 					if i[1] == "Nil":
 						p_map.define = '\nvar %s\n' % i[0]
 						arr_getset.push_back('\nfunc get_%s():' % i_0_snake)
