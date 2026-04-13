@@ -41,6 +41,8 @@ const DiffLabelTexture = preload("res://addons/gdsql/tabs/diff_label_texture.gd"
 const DiffHelper = preload("res://addons/gdsql/tabs/diff_helper.gd")
 const GDSQLUtils = preload("res://addons/gdsql/gdsql_utils.gd")
 const DictionaryObject = preload("res://addons/gdsql/dictionary_object.gd")
+const GBatisEntityDBClass = preload("res://addons/gdsql/gbatis/entity_db.gd")
+static var GBatisEntityDB: GBatisEntityDBClass: get = _get_gbatis_entitydb
 
 static func _get_conf_manager() -> ConfManagerClass:
 	if not Engine.has_singleton(&"GDSQLConfManager"):
@@ -59,8 +61,16 @@ static func _get_workbench_manager() -> WorkbenchManagerClass:
 		Engine.get_main_loop().root.add_child.call_deferred(wb_mgr, true)
 	return Engine.get_singleton(&"GDSQLWorkbenchManager")
 	
+static func _get_gbatis_entitydb() -> GBatisEntityDBClass:
+	if not Engine.has_singleton(&"GBatisEntityDB"):
+		var db = GBatisEntityDBClass.new()
+		db.name = &"GBatisEntityDB"
+		Engine.register_singleton(&"GBatisEntityDB", db)
+		Engine.get_main_loop().root.add_child.call_deferred(db, true)
+	return Engine.get_singleton(&"GBatisEntityDB")
+	
 static func _clear():
-	for singleton_name in [&"GDSQLConfManager", &"GDSQLWorkbenchManager"]:
+	for singleton_name in [&"GDSQLConfManager", &"GDSQLWorkbenchManager", &"GBatisEntityDB"]:
 		if Engine.has_singleton(singleton_name):
 			var mgr = Engine.get_singleton(singleton_name)
 			Engine.unregister_singleton(singleton_name)
