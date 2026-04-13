@@ -698,7 +698,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							en_ns, i[0], "".join(old_p_map.define), "".join(p_map.define)])
 				else:
 					e_map[i[0]] = p_map
-			
+					
 		# <sql>
 		var vo_ids = {} # namespace => vo_id
 		var select_use_db = false # <select>标签是否使用databaseId属性
