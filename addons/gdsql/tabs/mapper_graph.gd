@@ -663,7 +663,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 						# 不在属性上指定数据类型了，不然update、insert不知道有没有给属性设定值。
 						# 比如：<if test="name != null">
 						# 但是保留在get、set函数上进行设置数据类型
-						p_map.define = '\nvar %s # %s\n' % [i[0], i[4] if i[1] == "Object" else i[1]]
+						p_map.define = '\nvar %s\n' % i[0]
 						arr_getset.push_back('\nfunc get_%s() -> %s:' % [i_0_snake, 
 							i[4] if i[1] == "Object" else i[1]])
 						arr_getset.push_back('\n\treturn %s\n\t' % i[0])
