@@ -225,6 +225,19 @@ func get_deepest_primary_prop() -> String:
 				assert(false, "Only one <id> can be put under <resultMap>.")
 				return ""
 				
+	if ret == "" and real_auto_mapping == "true":
+		var pk_index = -1
+		for j in head.size():
+			if head[j]["PK"]:
+				if pk_index == -1:
+					pk_index = j
+				else:
+					assert(false, "More than 1 primary key found in head!")
+					return ""
+					
+		if pk_index != -1:
+			ret = _get_similar_prop(head[pk_index]["field_as"])
+			
 	return ret
 	
 func get_deepest_primary_column() -> String:
@@ -238,6 +251,19 @@ func get_deepest_primary_column() -> String:
 		if i is GDSQL.GBatisId:
 			ret = column_name
 			break
+			
+	if ret == "" and real_auto_mapping == "true":
+		var pk_index = -1
+		for j in head.size():
+			if head[j]["PK"]:
+				if pk_index == -1:
+					pk_index = j
+				else:
+					assert(false, "More than 1 primary key found in head!")
+					return ""
+					
+		if pk_index != -1:
+			ret = head[pk_index]["field_as"]
 			
 	return ret
 	
@@ -347,8 +373,9 @@ func prepare_prop_map():
 	# prop_map: Dictionary # 对象的属性列表，用name作为key
 	var list = model_obj.get_property_list()
 	for i in list:
-		prop_map[object_class_name][i.name] = i
-		
+		if i.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			prop_map[object_class_name][i.name] = i
+			
 	if not model_obj is RefCounted:
 		model_obj.free()
 		
@@ -362,31 +389,32 @@ func prepare_deal(data: Array):
 		else:
 			need_prepare_deal = true
 			discriminator.prepare_deal(data)
-			real_auto_mapping = get_deepest_auto_mapping()
 			var case_return_type = discriminator.get_result_type()
 			if case_return_type != "":
 				real_type = case_return_type
 				
-		primary_prop = get_deepest_primary_prop()
-		primary_column = get_deepest_primary_column()
-		
-		# 主键
-		pk_confirm[0] = -1
-		if primary_column != "":
-			for j in head.size():
-				var column = head[j]["field_as"]
-				if column == primary_column:
-					if pk_confirm[0] == -1:
-						pk_confirm[0] = j
-					# 已经找到一个了，怎么又冒出来一个
-					else:
-						assert(false, "Multiple primary keys [%s, %s] detected." %
-							[pk_confirm[0], j])
-							
 		if _is_class_name(real_type):
 			mapping_to_object = true
 			object_class_name = real_type
 			prepare_prop_map()
+			
+			real_auto_mapping = get_deepest_auto_mapping() # 只有 mapping_to_object 的时候才用这个
+			primary_prop = get_deepest_primary_prop() # 要使用 prepare_prop_map() 的结果
+			primary_column = get_deepest_primary_column()
+			
+			# 主键
+			pk_confirm[0] = -1
+			if primary_column != "":
+				for j in head.size():
+					var column = head[j]["field_as"]
+					if column == primary_column:
+						if pk_confirm[0] == -1:
+							pk_confirm[0] = j
+						# 已经找到一个了，怎么又冒出来一个
+						else:
+							assert(false, "Multiple primary keys [%s, %s] detected." %
+								[pk_confirm[0], j])
+								
 		elif real_type.begins_with("Array[") and real_type.ends_with("]"):
 			mapping_to_array = true
 			array_type = real_type.replace("Array[", "").replace("]", "").strip_edges()
@@ -533,8 +561,8 @@ func _automapping_object_simple_property(data: Array, obj: Object):
 				all_null = false
 				
 	# NONE - 禁用自动映射。仅对手动映射的属性进行映射。
-	if real_auto_mapping == "false" or \
-	mapper_parser_ref.get_ref().auto_mapping_level == "NONE":
+	if real_auto_mapping == "false" or (real_auto_mapping == "" and
+	mapper_parser_ref.get_ref().auto_mapping_level == "NONE"):
 		return -1 if all_null else 1
 		
 	for j in columns.size():
