@@ -143,11 +143,12 @@ func query():
 	if not result_type.is_empty():
 		if result_type == mapping_to_type or mapping_to_type == "":
 			pass # leave empty
-		# 不一致的话，要检查继承关系
+		# 不一致的话，必须是对象类型，要检查继承关系
 		else:
+			# 不应该是基础类型。如果是基础类型，就应该一致，到不了这里。
 			if GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(result_type):
 				query_status = "err"
-				assert(false, "resultType `%s` not match your method type `%s`." % \
+				assert(false, "resultType `%s` not match your method type `%s`." % 
 					[result_type, mapping_to_type])
 				return null
 			elif mapping_to_type == "Object":
@@ -158,13 +159,20 @@ func query():
 					assert(false, "Resouce dose not inherit from " + mapping_to_type)
 					return null
 			else:
-				var o = GDSQL.GDSQLUtils.evaluate_command_script(result_type + ".new()")
+				assert(ClassDB.class_exists(result_type) or 
+					GDSQL.GBatisEntityDB.get_class_path(result_type) != "", "Err!")
+				var is_native_class = ClassDB.class_exists(result_type)
+				var o: Object = ClassDB.instantiate(result_type) if is_native_class else \
+					load(GDSQL.GBatisEntityDB.get_class_path(result_type)).new()
 				if not o:
 					query_status = "err"
 					assert(false, "Cannot initialize " + result_type)
 					return null
-				var is_inherit = GDSQL.GDSQLUtils.evaluate_command_script(
-					"o is " + mapping_to_type, ["o"], [o])
+				var is_inherit = false
+				if ClassDB.class_exists(mapping_to_type):
+					is_inherit = o.is_class(mapping_to_type)
+				else:
+					is_inherit = is_instance_of(o, load(GDSQL.GBatisEntityDB.get_class_path(mapping_to_type)))
 				if not is_inherit:
 					query_status = "err"
 					assert(false, result_type + " dose not inherit from " + mapping_to_type)

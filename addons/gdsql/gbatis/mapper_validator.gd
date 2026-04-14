@@ -24,7 +24,7 @@ func validate(item: GXML) -> bool:
 		return false
 	var ns = item.root_item.attrs.get("namespace", "") as String
 	if not ns.is_empty():
-		var obj = GDSQL.GDSQLUtils.evaluate_command_script(ns + ".new()")
+		var obj = load(GDSQL.GBatisEntityDB.get_class_path(ns)).new()
 		if obj == null:
 			assert(false, "Cannot initialize object of namespace: %s." % ns)
 			return false

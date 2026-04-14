@@ -364,7 +364,9 @@ func prepare_prop_map():
 	prop_map[object_class_name] = {}
 	prop_info[object_class_name] = {} # 顺便初始化一下prop_info
 	# obj的属性列表及其类型，缓存到这个变量中
-	var model_obj = GDSQL.GDSQLUtils.evaluate_command_script(object_class_name + ".new()") as Object
+	var model_obj: Object = ClassDB.instantiate(object_class_name) \
+		if ClassDB.class_exists(object_class_name) \
+		else load(GDSQL.GBatisEntityDB.get_class_path(object_class_name)).new()
 	if model_obj == null:
 		assert(false, "Cannot initialize this class " + object_class_name)
 		return null
@@ -894,7 +896,8 @@ func _get_obj_or_generate(data: Array) -> Object:
 	if pk_confirm[0] != -1:
 		obj = GDSQL.GBatisEntityDB.get_entity(object_class_name, data[pk_confirm[0]])
 	if obj == null:
-		obj = GDSQL.GDSQLUtils.evaluate_command_script(object_class_name + ".new()")
+		obj = ClassDB.instantiate(object_class_name) if ClassDB.class_exists(object_class_name) \
+			else load(GDSQL.GBatisEntityDB.get_class_path(object_class_name)).new()
 		if obj:
 			obj.set_meta("new", true) # 临时存储
 			obj.set_meta("new_for_select", true) # 临时存储，给外部的select用
@@ -903,6 +906,16 @@ func _get_obj_or_generate(data: Array) -> Object:
 func _gen_array(p_array_type: String):
 	if p_array_type == "":
 		return []
-	# 不能使用evaluate_command，原因是Expression虽然成功返回但并不是typed array
-	return GDSQL.GDSQLUtils.evaluate_command_script(
-		"[] as Array[" + p_array_type + "]")
+	if GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(p_array_type):
+		return Array([], GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES[p_array_type], "", null)
+	if ClassDB.class_exists(p_array_type):
+		return Array([], TYPE_OBJECT, p_array_type, null)
+	var script = load(GDSQL.GBatisEntityDB.get_class_path(p_array_type))
+	var base = GDSQL.GBatisEntityDB.get_class_base(p_array_type)
+	# TODO base为空源于一个bug：https://github.com/godotengine/godot/issues/118338
+	if base == "":
+		var obj: Object = script.new()
+		base = obj.get_class()
+		if not obj is RefCounted:
+			obj.free()
+	return Array([], TYPE_OBJECT, base, script)
