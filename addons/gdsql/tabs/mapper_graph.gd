@@ -1021,7 +1021,7 @@ func is_shadowing(p_identifier: String) -> bool:
 	if GDSQL.SQLExpression.has_utility_function(p_identifier):
 		return true
 		
-	if ClassDB.is_class(p_identifier):
+	if ClassDB.class_exists(p_identifier):
 		return true
 		
 	for i in ProjectSettings.get_global_class_list():
