@@ -25,8 +25,7 @@ var return_type_undefined_behavior: String = "ALWAYS_ARRAY"
 ## - hint 是应当如何编辑该属性（见 PropertyHint）；
 ## - hint_string 取决于 hint（见 PropertyHint）；
 ## - usage 是 PropertyUsageFlags 的组合
-@export var method_return_info: Dictionary
-
+#@export var method_return_info: Dictionary
 
 ## 数据缓存。用方法名-参数，序列化后作为key，用返回值序列化作为value。
 static var _cache_manager: Dictionary
@@ -55,7 +54,16 @@ static func _static_init() -> void:
 					if i is GDSQL.GXMLItem and i.name == "cache":
 						_cache_manager[config.resource_path] = GDSQL.GBatisCache.new(i.attrs)
 						break
-					
+						
+## gbatis_mapper 对象的 method_list转化成字典而来。
+var method_map: Dictionary
+
+## query前必须传入gbatis_mapper对象的方法列表。
+func set_method_list(method_list: Array):
+	method_map.clear()
+	for i in method_list:
+		method_map[i.name] = i
+		
 ## TODO 等官方支持可变参数数量函数时，可以进行优化
 ## https://github.com/godotengine/godot/pull/82808
 ## btw: Ability to print and log script backtraces
@@ -64,6 +72,11 @@ func query(method_id: String, param: Dictionary):
 	if config == null:
 		assert(false, "config is empty!")
 		return null
+		
+	if method_map.is_empty():
+		assert(false, "Call set_method_list() first!")
+		return null
+		
 	param[BIND] = {}
 	var item = _get_item(method_id)
 	if not item:
@@ -122,16 +135,22 @@ func call_method_in_namespace(method: String, args: Array =[]):
 	if config == null:
 		assert(false, "config is empty!")
 		return null
-	var ns = config.root_item.attrs.get("namespace", "")
-	var obj = GDSQL.GDSQLUtils.evaluate_command_script(ns + ".new()")
-	if not method in obj:
-		assert(false, "Cannot find method %s in %s" % [method, ns])
-		return null
-	obj.mapper_xml = config
-	var ret = obj.callv(method, args)
-	if not obj is RefCounted:
-		obj.free()
+		
+	assert(method_map.has(method), "Not found method: %s." % method)
+	var margs = method_map[method].args
+	var params = {}
+	for i in margs.size():
+		if margs[i].name == "__bind__":
+			assert(false, "Please change your param's name. `__bind__` is a reserved keyword.")
+			return null
+		params[margs[i].name] = args[i]
+		
+	var ret = query(method, params)
 	return ret
+	
+func _get_method_return_info(method_name) -> Dictionary:
+	assert(method_map.has(method_name), "Err! Not found method: %s." % method_name)
+	return method_map[method_name].return.duplicate()
 	
 ## 适用于某些item获取其全部sql内容或部分sql内容。适用范围请搜索该方法的调用者，比如<select>的_deal_selct()。
 func _item_to_string(item: GDSQL.GXMLItem, param: Dictionary, depth: int, valid_sub_items: Array, binded_param: Array):
@@ -633,7 +652,7 @@ func _deal_select(item: GDSQL.GXMLItem, param: Dictionary, depth: int) -> GDSQL.
 	var ret = GDSQL.GBatisSelect.new(item.attrs)
 	ret.set_mapper_parser_ref(weakref(self))
 	ret.set_sql(sql)
-	ret.set_method_return_info(method_return_info)
+	ret.set_method_return_info(_get_method_return_info(item.attrs.get("id", "")))
 	#assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
 	#element_cache[ret.id] = ret
 	return ret
@@ -670,7 +689,7 @@ func _deal_insert(item: GDSQL.GXMLItem, param: Dictionary, depth: int) -> GDSQL.
 	
 	var ret = GDSQL.GBatisInsert.new(item.attrs)
 	ret.set_sql(sql)
-	ret.set_method_return_info(method_return_info)
+	ret.set_method_return_info(_get_method_return_info(item.attrs.get("id", "")))
 	if ret.use_generated_keys == "true" and param.size() == 2:
 		for i in param:
 			if i != BIND:
@@ -714,7 +733,7 @@ func _deal_replace(item: GDSQL.GXMLItem, param: Dictionary, depth: int) -> GDSQL
 	
 	var ret = GDSQL.GBatisReplace.new(item.attrs)
 	ret.set_sql(sql)
-	ret.set_method_return_info(method_return_info)
+	ret.set_method_return_info(_get_method_return_info(item.attrs.get("id", "")))
 	if ret.use_generated_keys == "true" and param.size() == 2:
 		for i in param:
 			if i != BIND:
@@ -761,7 +780,7 @@ func _deal_update(item: GDSQL.GXMLItem, param: Dictionary, depth: int) -> GDSQL.
 	
 	var ret = GDSQL.GBatisUpdate.new(item.attrs)
 	ret.set_sql(sql)
-	ret.set_method_return_info(method_return_info)
+	ret.set_method_return_info(_get_method_return_info(item.attrs.get("id", "")))
 	#assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
 	#element_cache[ret.id] = ret
 	return ret
@@ -785,7 +804,7 @@ func _deal_delete(item: GDSQL.GXMLItem, param: Dictionary, depth: int) -> GDSQL.
 	
 	var ret = GDSQL.GBatisDelete.new(item.attrs)
 	ret.set_sql(sql)
-	ret.set_method_return_info(method_return_info)
+	ret.set_method_return_info(_get_method_return_info(item.attrs.get("id", "")))
 	#assert(not element_cache.has(ret.id), "Duplicate element id: %s." % ret.id)
 	#element_cache[ret.id] = ret
 	return ret

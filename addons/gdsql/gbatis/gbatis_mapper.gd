@@ -20,6 +20,8 @@ var auto_mapping_level: String = "PARTIAL"
 @export_enum("ALWAYS_ARRAY", "ARRAY_WHEN_NECESSARY")
 var return_type_undefined_behavior: String = "ALWAYS_ARRAY"
 
+var mapper_parser: GDSQL.GBatisMapperParser
+
 ## 子类调用该函数实现自动执行sql命令。sql命令定义在xml中。
 ## NOTICE 子类method函数请勿使用`__bind__`作为形参名称
 ## TODO 等官方支持可变参数数量函数时，可以进行优化
@@ -31,13 +33,12 @@ arg5 = null, arg6 = null, arg7 = null, arg8 = null, arg9 = null):
 	if mapper_xml == null:
 		assert(false, "Not set mapper_xml.")
 		return null
+		
 	var methods = get_method_list()
 	var args = null
-	var ret_info = null
 	for m in methods:
 		if m.name == method:
 			args = m.args
-			ret_info = m["return"]
 			break
 	if args == null:
 		assert(false, "Not found method %s" % method)
@@ -50,9 +51,11 @@ arg5 = null, arg6 = null, arg7 = null, arg8 = null, arg9 = null):
 			return null
 		params[i.name] = arg_list.pop_back()
 		
-	var mapper_parser = GDSQL.GBatisMapperParser.new()
-	mapper_parser.config = mapper_xml
-	mapper_parser.method_return_info = ret_info
-	mapper_parser.auto_mapping_level = auto_mapping_level
-	mapper_parser.return_type_undefined_behavior = return_type_undefined_behavior
+	if mapper_parser == null:
+		mapper_parser = GDSQL.GBatisMapperParser.new()
+		mapper_parser.config = mapper_xml
+		mapper_parser.auto_mapping_level = auto_mapping_level
+		mapper_parser.return_type_undefined_behavior = return_type_undefined_behavior
+		mapper_parser.set_method_list(methods)
+		
 	return mapper_parser.query(method, params)
