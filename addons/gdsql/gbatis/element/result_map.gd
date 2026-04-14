@@ -912,8 +912,7 @@ func _gen_array(p_array_type: String):
 		return Array([], TYPE_OBJECT, p_array_type, null)
 	var script = load(GDSQL.GBatisEntityDB.get_class_path(p_array_type))
 	var base = GDSQL.GBatisEntityDB.get_class_base(p_array_type)
-	# TODO base为空源于一个bug：https://github.com/godotengine/godot/issues/118338
-	if base == "":
+	if base == "" or not ClassDB.class_exists(base):
 		var obj: Object = script.new()
 		base = obj.get_class()
 		if not obj is RefCounted:
