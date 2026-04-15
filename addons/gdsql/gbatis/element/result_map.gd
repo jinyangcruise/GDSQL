@@ -518,10 +518,6 @@ func _automapping_obejct(data: Array) -> Object:
 			assert(false, "Err occur in _automapping_object_simple_property().")
 			return null
 			
-		# 这里我们已经确定了是否存在主键
-		if entity_primary_column[0] != -1:
-			GDSQL.GBatisEntityDB.set_entity(object_class_name, data[entity_primary_column[0]], obj)
-			
 		# INFO 第二部分：association，一对一对象赋值
 		var succ2 = _automapping_associations(data, obj)
 		if not succ2:
@@ -585,7 +581,7 @@ func _automapping_object_simple_property(data: Array, obj: Object):
 		if prop_info[object_class_name].has(column):
 			# 这里的column本来就是用户没有手动映射的，所以只允许有1个猜测的属性
 			if prop_info[object_class_name][column].prop.size() > 1:
-				assert(false, "Inner error 555.")
+				assert(false, "Inner error 588.")
 				return null
 			prop = prop_info[object_class_name][column].prop[0]
 			prop_type = prop_info[object_class_name][column].prop_type[0]
@@ -630,6 +626,9 @@ func _automapping_object_simple_property(data: Array, obj: Object):
 			
 		_obj_set_indexed(obj, column, prop, data[j])
 		
+		if j == entity_primary_column[0]:
+			GDSQL.GBatisEntityDB.set_entity(object_class_name, prop, data[entity_primary_column[0]], obj)
+			
 	return 1
 	
 func _obj_set_indexed(obj: Object, column: String, prop: String, val: Variant):
@@ -897,7 +896,8 @@ func _get_obj_or_generate(data: Array) -> Object:
 	# 每个主键只允许返回一个对应的对象。如果主键不存在，那就每条数据都返回
 	# 一个对象，这也是允许的。
 	if entity_primary_column[0] != -1:
-		obj = GDSQL.GBatisEntityDB.get_entity(object_class_name, data[entity_primary_column[0]])
+		var p_prop = _get_similar_prop(columns[entity_primary_column[0]])
+		obj = GDSQL.GBatisEntityDB.get_entity(object_class_name, p_prop, data[entity_primary_column[0]])
 	if obj == null:
 		obj = ClassDB.instantiate(object_class_name) if ClassDB.class_exists(object_class_name) \
 			else load(GDSQL.GBatisEntityDB.get_class_path(object_class_name)).new()
