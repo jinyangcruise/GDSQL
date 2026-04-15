@@ -414,6 +414,9 @@ func prepare_deal(data: Array):
 							pk_confirm[0] = j
 						# 已经找到一个了，怎么又冒出来一个
 						else:
+							# 可能用户select了这列多次，也没问题，比如 select id, id from xxx.
+							if head[pk_confirm[0]] == head[j]:
+								continue
 							assert(false, "Multiple primary keys [%s, %s] detected." %
 								[pk_confirm[0], j])
 								
