@@ -62,7 +62,7 @@ var columns: Array # [数据集的列名]， 从head中提取的
 var prop_map: Dictionary # 对象类名 => {对象的属性列表，用name作为key}
 var prop_info: Dictionary # 对象类名 => {column和prop不一定完全相同，比如可能有冒号，
 						  # 比如大小写、下划线、驼峰格式不同}
-var pk_confirm: Array = [-1] # [主键确认的索引]，设置为数组，可能对以后支持多主键有帮助。
+var entity_primary_column: Array = [-1] # [能确认唯一实体的列，比如主键/UN键]，设置为数组，可能对以后支持多主键有帮助。
 
 enum SET_VALUE_METHOD {
 	UNSET,
@@ -125,7 +125,7 @@ func clean():
 	columns.clear()
 	prop_map.clear()
 	prop_info.clear()
-	pk_confirm.clear()
+	entity_primary_column.clear()
 	
 ## 由于可以extends，所以通过该方法获取子元素
 ## 涉及到内存释放，所以请勿多次调用，除非自己管理内存
@@ -404,21 +404,21 @@ func prepare_deal(data: Array):
 			primary_prop = get_deepest_primary_prop() # 要使用 prepare_prop_map() 的结果
 			primary_column = get_deepest_primary_column()
 			
-			# 主键
-			pk_confirm[0] = -1
+			# 找到哪列可以唯一确认该实体
+			entity_primary_column[0] = -1
 			if primary_column != "":
 				for j in head.size():
 					var column = head[j]["field_as"]
 					if column == primary_column:
-						if pk_confirm[0] == -1:
-							pk_confirm[0] = j
+						if entity_primary_column[0] == -1:
+							entity_primary_column[0] = j
 						# 已经找到一个了，怎么又冒出来一个
 						else:
 							# 可能用户select了这列多次，也没问题，比如 select id, id from xxx.
-							if head[pk_confirm[0]] == head[j]:
+							if head[entity_primary_column[0]] == head[j]:
 								continue
 							assert(false, "Multiple primary keys [%s, %s] detected." %
-								[pk_confirm[0], j])
+								[entity_primary_column[0], j])
 								
 		elif real_type.begins_with("Array[") and real_type.ends_with("]"):
 			mapping_to_array = true
@@ -519,8 +519,8 @@ func _automapping_obejct(data: Array) -> Object:
 			return null
 			
 		# 这里我们已经确定了是否存在主键
-		if pk_confirm[0] != -1:
-			GDSQL.GBatisEntityDB.set_entity(object_class_name, data[pk_confirm[0]], obj)
+		if entity_primary_column[0] != -1:
+			GDSQL.GBatisEntityDB.set_entity(object_class_name, data[entity_primary_column[0]], obj)
 			
 		# INFO 第二部分：association，一对一对象赋值
 		var succ2 = _automapping_associations(data, obj)
@@ -557,7 +557,7 @@ func _automapping_object_simple_property(data: Array, obj: Object):
 			assert(false, "Not found column %s in ResultSet's head" % column)
 			return null
 		if column == primary_column:
-			pk_confirm[0] = col_index
+			entity_primary_column[0] = col_index
 		dealed_column_indexes.push_back(col_index)
 		for p in prop:
 			_obj_set_indexed(obj, column, p, data[col_index])
@@ -896,8 +896,8 @@ func _get_obj_or_generate(data: Array) -> Object:
 	var obj = null
 	# 每个主键只允许返回一个对应的对象。如果主键不存在，那就每条数据都返回
 	# 一个对象，这也是允许的。
-	if pk_confirm[0] != -1:
-		obj = GDSQL.GBatisEntityDB.get_entity(object_class_name, data[pk_confirm[0]])
+	if entity_primary_column[0] != -1:
+		obj = GDSQL.GBatisEntityDB.get_entity(object_class_name, data[entity_primary_column[0]])
 	if obj == null:
 		obj = ClassDB.instantiate(object_class_name) if ClassDB.class_exists(object_class_name) \
 			else load(GDSQL.GBatisEntityDB.get_class_path(object_class_name)).new()
