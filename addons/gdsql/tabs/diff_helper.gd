@@ -1,9 +1,9 @@
 extends Object
 
 enum Operation {
-	INSERT,
+	MOVE,
 	DELETE,
-	MOVE
+	INSERT,
 }
 
 static func compare(src: Array, dst: Array):
@@ -17,11 +17,6 @@ static func compare(src: Array, dst: Array):
 	
 	for op in script:
 		match op:
-			Operation.INSERT:
-				#print_rich("[color=green]+%s[/color]" % dst[dst_index]) 
-				dst_inserted_lines.push_back(dst_index)
-				dst_index += 1
-				
 			Operation.MOVE:
 				#print(src[src_index])
 				mapping_dst_src[dst_index] = src_index
@@ -33,7 +28,12 @@ static func compare(src: Array, dst: Array):
 				src_deleted_lines.push_back(src_index)
 				src_index += 1
 				
-	return [src_deleted_lines, dst_inserted_lines, mapping_dst_src]
+			Operation.INSERT:
+				#print_rich("[color=green]+%s[/color]" % dst[dst_index]) 
+				dst_inserted_lines.push_back(dst_index)
+				dst_index += 1
+				
+	return [src_deleted_lines, dst_inserted_lines, mapping_dst_src, script]
 	
 ## 把dst中的（新增）行合并到src中，返回src应该插入的位置。参数index是dst中的行。
 static func merge_insert_line_by_mapping(index: int, src_line_count: int, mapping: Dictionary):
