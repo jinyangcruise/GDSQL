@@ -385,7 +385,6 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 		else:
 			set_slot_enabled_right(slot_row_index, true)
 			
-			
 	var to_remain = []
 	var to_remove = []
 	for c in hb.get_children():
@@ -425,8 +424,9 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 			if data.size_flags_vertical == Control.SIZE_EXPAND_FILL:
 				hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		data.set_meta("col_index", slot_col_index)
-		if data.get_parent() and data.get_parent() != hb:
-			data.reparent(hb)
+		if data.get_parent():
+			if data.get_parent() != hb:
+				data.reparent(hb)
 		else:
 			hb.add_child(data)
 	elif data is GDSQL.DictionaryObject:
