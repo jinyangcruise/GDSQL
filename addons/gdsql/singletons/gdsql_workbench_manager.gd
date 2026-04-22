@@ -56,6 +56,8 @@ signal open_mapper_graph_file_tab(path: String)
 signal request_create_table(db_name: String, table_name: String, comment: String, password: String, column_infos: Array)
 ## 请求删除某表
 signal request_drop_table(db_name: String, table_name: String)
+## 系统确认删除某表
+signal sys_confirm_drop_table(db_name: String, table_name: String)
 
 ## 发送到编辑器
 signal send_to_editor(content: String)
@@ -136,8 +138,16 @@ func get_table_columns(db, table: String) -> Array:
 		if table.ends_with(".gsql"):
 			table = table.get_basename()
 		return databases.get(db, {}).get("tables", {}).get(table, {})\
-			.get("columns", [])
+			.get("columns", []).duplicate(true)
 	return []
+	
+func get_table_comment(db, table: String) -> String:
+	if databases:
+		if table.ends_with(".gsql"):
+			table = table.get_basename()
+		return databases.get(db, {}).get("tables", {}).get(table, {})\
+			.get("comment", "")
+	return ""
 	
 func get_table_columns_by_datapath(data_path, table: String) -> Array:
 	if databases:
@@ -147,7 +157,7 @@ func get_table_columns_by_datapath(data_path, table: String) -> Array:
 			if databases[db]["data_path"] == data_path or \
 			GDSQL.GDSQLUtils.globalize_path(databases[db]["data_path"]) == GDSQL.GDSQLUtils.globalize_path(data_path):
 				return databases[db].get("tables", {}).get(table, {})\
-					.get("columns", []).map(func(v): v["db_name"] = db; return v)
+					.get("columns", []).duplicate(true).map(func(v): v["db_name"] = db; return v)
 	return []
 	
 func get_table_valid_if_not_exist(data_path, table: String) -> bool:
@@ -251,7 +261,8 @@ func create_custom_dialog(datas: Array[Array],
 confirmed_callback_before_close: Callable = Callable(), 
 canceled_callback_before_close: Callable = Callable(),
 defered_callback: Callable = Callable(),
-ratio: float = 0.0) -> ConfirmationDialog:
+ratio = 0.0, # Support Vector2
+vertical_scroll: bool = false) -> ConfirmationDialog:
 	var dialog := ConfirmationDialog.new()
 	dialog.dialog_hide_on_ok = false
 	# 确定
@@ -287,17 +298,22 @@ ratio: float = 0.0) -> ConfirmationDialog:
 				defered_callback.call(false, ret[1] if ret is Array else null)
 	, CONNECT_DEFERRED)
 	_add_dialog(dialog)
-	if ratio == 0:
-		dialog.popup_centered()
-	else:
-		dialog.popup_centered_ratio(ratio)
-		
-	var vbox_container = VBoxContainer.new()
-	#vbox_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	vbox_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	dialog.add_child(vbox_container)
 	
+	var vbox_container = VBoxContainer.new()
+	var sc: ScrollContainer
+	if vertical_scroll:
+		sc = ScrollContainer.new()
+		sc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		sc.add_child(vbox_container)
+		dialog.add_child(sc)
+	else:
+		#vbox_container.set_anchors_preset(Control.PRESET_FULL_RECT)
+		vbox_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		vbox_container.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		dialog.add_child(vbox_container)
+		
 	for arr in datas:
 		var hb = HBoxContainer.new()
 		#var has_content = false
@@ -398,6 +414,38 @@ ratio: float = 0.0) -> ConfirmationDialog:
 			#hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		vbox_container.add_child(hb)
 		
+	if ((ratio is float or ratio is int) and is_zero_approx(ratio)) or (ratio is Vector2 and Vector2.ZERO.is_equal_approx(ratio)):
+		dialog.popup_centered()
+	else:
+		if (ratio is float or ratio is int):
+			dialog.popup_centered_ratio(ratio)
+		else:
+			var parent_rect: Rect2
+			var parent_win = get_parent_visible_window(dialog)
+			var screen_idx = DisplayServer.window_get_current_screen(parent_win.get_window_id())
+			parent_rect.position = Vector2(DisplayServer.screen_get_position(screen_idx))
+			parent_rect.size = Vector2(DisplayServer.screen_get_size(screen_idx))
+			
+			var max_w: float
+			if ratio.x > 0:
+				max_w = parent_rect.size.x * ratio.x
+			else:
+				max_w = dialog.max_size.x
+				
+			var max_h: float
+			if ratio.y > 0:
+				max_h = parent_rect.size.y * ratio.y
+			else:
+				max_h = dialog.max_size.y
+			dialog.max_size = Vector2(max_w, max_h) # 如果不设置该属性，vbox_container.size.y就会等于0
+			if sc:
+				if vbox_container.size.y > max_h:
+					dialog.size.y = int(max_h)
+				else:
+					sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+				dialog.max_size = Vector2(16384, 16384)
+			dialog.popup_centered()
+			
 	# 自动聚焦到第一个输入组件上
 	var editable_control = _find_editable_control(vbox_container)
 	if editable_control:
@@ -409,6 +457,26 @@ ratio: float = 0.0) -> ConfirmationDialog:
 		dialog.register_text_enter(last_line_edit)
 		
 	return dialog
+	
+func get_parent_visible_window(window: Window) -> Window:
+	if not is_instance_valid(window):
+		return null
+	var vp: Viewport = get_parent_viewport(window)
+	var parent_window: Window = null
+	while vp != null:
+		if vp is Window:
+			parent_window = vp
+			if parent_window.visible:
+				break
+		if not vp.get_parent():
+			break
+		vp = vp.get_parent().get_viewport()
+	return parent_window
+	
+func get_parent_viewport(window: Window):
+	if window.get_parent():
+		return window.get_parent().get_viewport()
+	return null
 	
 ## 创建并弹出自定义对话框。
 ## 【datas】: 构建自定义对话框的数据，类似graph_node.gd，例如：

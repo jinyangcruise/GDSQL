@@ -1,7 +1,10 @@
 @tool
 extends GraphEdit
 
+@export var tree_node_list: Tree
+
 signal change_tab_title(page: Control, title: String)
+signal tree_node_list_item_added
 
 var SQLGraphNode = preload("res://addons/gdsql/tabs/sql_graph_node/graph_node.tscn")
 
@@ -72,6 +75,7 @@ var cached_theme_base_scale = 1.0
 var frame_node_id_to_link_to
 var nodes_link_to_frame_buffer: Array
 var include_file_index = -1
+var add_index = 0
 
 func _init() -> void:
 	graph_elements_linked_to_frame_request.connect(_nodes_linked_to_frame_request)
@@ -126,7 +130,7 @@ func _shortcut_input(event: InputEvent) -> void:
 	#"columns": databases[db_name]["tables"][table_name]["columns"],
 #}
 func add_item(data: Dictionary, props: Dictionary, extra: Dictionary = {},
-asize = null, pos_offset = null, aname = "", path = "/root"):
+asize = null, pos_offset = null, aname = "", path = "/root", p_parent_frame = null):
 	grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
 	
@@ -136,6 +140,8 @@ asize = null, pos_offset = null, aname = "", path = "/root"):
 	graph_node.set_meta("data", data)
 	graph_node.set_meta("extra", extra)
 	graph_node.set_meta("include_path", path)
+	graph_node.set_meta("_meta_add_index", add_index)
+	add_index += 1
 	
 	if aname != "":
 		graph_node.name = aname
@@ -144,8 +150,6 @@ asize = null, pos_offset = null, aname = "", path = "/root"):
 	if not get_rect().has_area():
 		await resized
 		
-	var datas: Array[Array] = []
-	
 	var type = extra.get("link_type", LINK_TYPE.NONE)
 	graph_node.set_meta("extra_enabled", true) # NOTICE 改为了永远显示
 	var prop_type = extra.get("link_prop_type", "") # gdscript type or class name
@@ -229,6 +233,7 @@ asize = null, pos_offset = null, aname = "", path = "/root"):
 			le_prop_name.text = new_text.to_snake_case()
 	)
 	
+	var datas: Array[Array] = []
 	datas.push_back([null, null, ob_link_type, association_class_name,
 		text_enum_suggestion, le_prop_name])
 		
@@ -279,9 +284,187 @@ asize = null, pos_offset = null, aname = "", path = "/root"):
 	)
 	add_child(graph_node, true)
 	graph_node.dragged.connect(_node_dragged.bind(graph_node))
+	_add_to_tree_item(graph_node, p_parent_frame)
 	return graph_node
 	
-func add_frame(title: String, pos_offset = null, aname = "", support_drag_into = false):
+func update_item_comment(graph_node: GraphNode, comment: String):
+	var data = graph_node.get_meta("data")
+	data.comment = comment
+	
+func update_item_columns(graph_node: GraphNode, new_columns: Array):
+	var old_columns: Array = graph_node.get_meta("data").columns
+	if new_columns == old_columns:
+		return
+		
+	# 涉及到节点连接
+	var deferred_calls = [] # 等更新完节点后再做的事情
+	var cons = get_connection_list_from_node(graph_node.name)
+	for con in cons:
+		if con.from_node == graph_node.name:
+			var old_from_prop = get_prop_name(graph_node, con.from_port)
+			assert(old_from_prop != "", "Inner error!")
+			var prop_still_exist = new_columns.filter(func(v): return v["Column Name"] == old_from_prop)
+			if prop_still_exist:
+				# 需要先更新节点，再连接
+				deferred_calls.push_back(func():
+					var new_from_port = get_prop_port(graph_node, old_from_prop)
+					assert(new_from_port != -1, "Inner error!")
+					if new_from_port != con.from_port:
+						disconnect_node(con.from_node, con.from_port, con.to_node, con.to_port)
+						connect_node(con.from_node, new_from_port, con.to_node, con.to_port)
+				)
+			else:
+				# 直接移除不用等
+				disconnect_node(con.from_node, con.from_port, con.to_node, con.to_port)
+		elif con.to_node == graph_node.name:
+			var old_to_prop = get_prop_name(graph_node, con.to_port)
+			assert(old_to_prop != "", "Inner error!")
+			var prop_still_exist = new_columns.filter(func(v): return v["Column Name"] == old_to_prop)
+			if prop_still_exist:
+				# 需要先更新节点，再连接
+				deferred_calls.push_back(func():
+					var new_to_port = get_prop_port(graph_node, old_to_prop)
+					assert(new_to_port != -1, "Inner error!")
+					if new_to_port != con.to_port:
+						disconnect_node(con.from_node, con.from_port, con.to_node, con.to_port)
+						connect_node(con.from_node, con.to_port, con.to_node, new_to_port)
+				)
+			else:
+				# 直接移除不用等
+				disconnect_node(con.from_node, con.from_port, con.to_node, con.to_port)
+				
+	graph_node.get_meta("data").columns = new_columns
+	
+	# 尽量重复使用以前的控件
+	var old_datas: Array = graph_node.datas
+	var old_datas_bak = old_datas.duplicate(false)
+	var old_column_index_map = {}
+	for i in range(1, old_datas.size(), 1):
+		if old_datas[i][0] == null:
+			old_column_index_map[(old_datas[i][2] as Label).text] = i
+		else:
+			old_column_index_map[(old_datas[i][0] as Label).text] = i
+			
+	while old_datas.size() > 1:
+		old_datas.pop_back()
+		
+	var occupied = []
+	for i: Dictionary in new_columns:
+		if old_column_index_map.has(i["Column Name"]):
+			occupied.push_back(i["Column Name"])
+			
+	var left: Array = old_column_index_map.keys()
+	for i in occupied:
+		left.erase(i)
+		
+	var need_redraw = false
+	var index = 0 # 这样第一个属性就可以从1开始（0被extra控件占用了）
+	for i: Dictionary in new_columns:
+		index += 1
+		if old_column_index_map.has(i["Column Name"]):
+			var old_index = old_column_index_map[i["Column Name"]]
+			var old_data: Array = old_datas_bak[old_index]
+			
+			# tooltip 可能变了，重设
+			var data = old_data.filter(func(v): return v != null)
+			var label_col_name = data[0]
+			var j = i.duplicate()
+			j["Data Type"] = '%s(%s)' % [i["Data Type"],
+				GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.find_key(i["Data Type"])]
+			label_col_name.tooltip_text = var_to_str(j)
+			
+			old_datas.push_back(old_data)
+			
+			if index != old_index:
+				for k in old_data.size():
+					# 别让控件被删
+					var c = old_data[k]
+					if c is Control:
+						c.get_parent().remove_child(c)
+					graph_node.push_redraw_slot_control(index, k)
+					need_redraw = true
+					
+		elif not left.is_empty():
+			var old_index = old_column_index_map[left.pop_back()]
+			var old_data: Array = old_datas_bak[old_index]
+			var data = old_data.filter(func(v): return v != null)
+			
+			var label_col_name = data[0] # 复用
+			label_col_name.text = i.get("Column Name")
+			var j = i.duplicate()
+			j["Data Type"] = '%s(%s)' % [i["Data Type"],
+				GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.find_key(i["Data Type"])]
+			label_col_name.tooltip_text = var_to_str(j)
+			var line_edit_prop = data[1] # 复用
+			line_edit_prop.text = i.get("Column Name").to_snake_case()
+			
+			if i.get("Data Type") in VALID_PORT_COLOR:
+				old_datas.push_back([label_col_name, line_edit_prop])
+			else:
+				old_datas.push_back([null, null, label_col_name, line_edit_prop])
+				
+			if index != old_index:
+				for k in old_data.size():
+					# 别让控件被删
+					var c = data[k]
+					if c is Control:
+						c.get_parent().remove_child(c)
+					graph_node.push_redraw_slot_control(index, k)
+					need_redraw = true
+		else:
+			var label_col_name = Label.new()
+			label_col_name.text = i.get("Column Name")
+			var j = i.duplicate()
+			j["Data Type"] = '%s(%s)' % [i["Data Type"],
+				GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.find_key(i["Data Type"])]
+			label_col_name.tooltip_text = var_to_str(j)
+			label_col_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			label_col_name.mouse_filter = Control.MOUSE_FILTER_PASS
+			var line_edit_prop = LineEdit.new()
+			line_edit_prop.text = i.get("Column Name").to_snake_case()
+			line_edit_prop.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			if i.get("Data Type") in VALID_PORT_COLOR:
+				old_datas.push_back([label_col_name, line_edit_prop])
+			else:
+				old_datas.push_back([null, null, label_col_name, line_edit_prop])
+				
+			for k in old_datas.back().size():
+				graph_node.push_redraw_slot_control(index, k)
+				need_redraw = true
+				
+	# 多余的控件，也要清除
+	if not left.is_empty():
+		graph_node.shrink_by_data_count()
+		need_redraw = true
+		
+	if need_redraw:
+		graph_node.redraw_slots_finished.connect(func():
+			for callback: Callable in deferred_calls:
+				callback.call()
+			update_slot_status(graph_node)
+		, ConnectFlags.CONNECT_ONE_SHOT)
+		
+func get_prop_name(graph_node: GraphNode, port: int):
+	var index = -1
+	var prop_name = ""
+	for arr in graph_node.datas:
+		if arr[0] != null:
+			index += 1
+			if index == port:
+				prop_name = (arr[0] as Label).text
+				break
+	return prop_name
+	
+func get_prop_port(graph_node: GraphNode, prop_name: String):
+	var port = -1
+	for arr in graph_node.datas:
+		if arr[0] != null:
+			port += 1
+			if (arr[0] as Label).text == prop_name:
+				return port
+	return -1
+	
+func add_frame(title: String, pos_offset = null, aname = "", support_drag_into = false, p_parent_frame = null):
 	grab_focus() # 激活绘图板的快捷键，比如delte， ctrl+C/V
 	unselect_all_node()
 	
@@ -317,12 +500,15 @@ func add_frame(title: String, pos_offset = null, aname = "", support_drag_into =
 		graph_frame.autoshrink_enabled = true
 		
 	graph_frame.set_meta("support_drag_into", support_drag_into)
+	graph_frame.set_meta("_meta_add_index", add_index)
+	add_index += 1
 	add_child(graph_frame, true)
+	_add_to_tree_item(graph_frame, p_parent_frame)
 	return graph_frame
 	
 func include_file(file_path: String, p_add_frame: bool = true, p_path = "/root", pos_offset = null,
 first_node_position_offset = null, p_name = "", depth = 0, include_connections = [], 
-p_deal_include_connections = true, p_adjust_viewport = true):
+p_deal_include_connections = true, p_adjust_viewport = true, p_parent_frame = null):
 	if file_path == "":
 		return
 		
@@ -366,7 +552,7 @@ p_deal_include_connections = true, p_adjust_viewport = true):
 			else:
 				c.to_node += "_include_%s" % c.to_include_index
 				
-		graph_frame = await add_frame(file_path, pos_offset, p_name, false)
+		graph_frame = await add_frame(file_path, pos_offset, p_name, false, p_parent_frame)
 		graph_frame.set_meta("include_depth", depth)
 		graph_frame.set_meta("include_index", include_index)
 		
@@ -376,13 +562,14 @@ p_deal_include_connections = true, p_adjust_viewport = true):
 		var sub_frame = await include_file(includes[i].file_path, true, path,
 			includes[i].position_offset + pos_offset, 
 			includes[i].first_node_position_offset + first_node_position_offset,
-			includes[i].name, ((depth + 1) if p_add_frame else depth), include_connections, false)
+			includes[i].name, ((depth + 1) if p_add_frame else depth), 
+			include_connections, false, true, graph_frame)
 		sub_frames[i] = sub_frame
 		
 	# _load_nodes() 必须放到 include_file() 后面，因为需要让当前文件的 include_connections
 	# 在子文件的 include_connections 收集后再收集，否则相同节点的extra信息会被覆盖。
 	var added_nodes = await _load_nodes(nodes, cons, pos_offset,
-		false, false, p_path, include_index, include_connections)
+		false, false, p_path, include_index, include_connections, graph_frame)
 		
 	if p_add_frame:
 		for anode in added_nodes:
@@ -441,9 +628,9 @@ p_deal_include_connections = true, p_adjust_viewport = true):
 		
 	if p_adjust_viewport:
 		if not added_nodes.is_empty():
-			_ensure_control_visible.call_deferred(added_nodes[0])
+			ensure_control_visible.call_deferred(added_nodes[0])
 		elif graph_frame:
-			_ensure_control_visible.call_deferred(graph_frame)
+			ensure_control_visible.call_deferred(graph_frame)
 			
 	return graph_frame
 	
@@ -556,7 +743,7 @@ func update_slot_status(graph_node: GraphNode):
 ## genarate nodes
 func _load_nodes(nodes: Dictionary, p_connections: Array, pos_offset: Vector2,
 auto_name: bool, select_all: bool = false, p_path: String = "/root",
-p_include_file_index: int = -1, include_connections: Array = []):
+p_include_file_index: int = -1, include_connections: Array = [], p_parent_frame = null):
 	var ret_nodes = []
 	var node_name_map = {} # 旧name => 新name
 	var node_sizes = {}
@@ -569,7 +756,7 @@ p_include_file_index: int = -1, include_connections: Array = []):
 		var a_name = "MapperGraph" if auto_name else node_name
 		if p_path != "/root":
 			a_name += "_include_%s" % p_include_file_index
-		var node = await add_item(data, props, extra, asize, position_offset, a_name, p_path)
+		var node = await add_item(data, props, extra, asize, position_offset, a_name, p_path, p_parent_frame)
 		node.set_meta("include_index", p_include_file_index)
 		ret_nodes.push_back(node)
 		node_name_map[node_name] = node.name
@@ -694,8 +881,6 @@ func get_next_include_index() -> int:
 	for graph_frame in get_children():
 		if not graph_frame is GraphFrame:
 			continue
-		if not graph_frame.has_meta("include_index"):
-			printt("?FDFsdf", graph_frame, graph_frame.title)
 		arr_index.push_back(graph_frame.get_meta("include_index"))
 		
 	var index = -1
@@ -1108,9 +1293,38 @@ func _input(event: InputEvent) -> void:
 			node.position_offset.x += distance
 		get_viewport().set_input_as_handled()
 		
-func _ensure_control_visible(p_control: GraphElement) -> void:
+func ensure_control_visible(p_control: GraphElement, animation_duration: float = 0) -> void:
 	if not is_ancestor_of(p_control):
 		push_error("Must be an ancestor of the control.")
 		return
 		
-	scroll_offset = p_control.position_offset * zoom - get_rect().get_center() + p_control.size / 2 * zoom
+	if is_zero_approx(animation_duration):
+		scroll_offset = p_control.position_offset * zoom - get_rect().get_center() + p_control.size / 2 * zoom
+	else:
+		var tween = create_tween()
+		tween.set_trans(Tween.TRANS_EXPO)
+		tween.tween_property(self, "scroll_offset", 
+			p_control.position_offset * zoom - get_rect().get_center() + p_control.size / 2 * zoom, animation_duration)
+			
+func _add_to_tree_item(node: GraphElement, parent_frame):
+	var parent_item: TreeItem
+	if parent_frame:
+		parent_item = parent_frame.get_meta("_meta_node_list_item")
+	else:
+		parent_item = tree_node_list.get_root()
+		
+	var item = parent_item.create_child()
+	item.set_autowrap_trim_flags(0, TextServer.BREAK_NONE)
+	item.set_expand_right(0, true)
+	item.set_text_overrun_behavior(0, TextServer.OVERRUN_NO_TRIMMING)
+	item.set_text(0, "%s: %s" % [node.name, node.title])
+	node.set_meta("_meta_node_list_item", item)
+	item.set_meta("_meta_graph_element", node)
+	node.tree_exiting.connect(_delete_from_tree_item.bind(node))
+	tree_node_list_item_added.emit()
+	
+func _delete_from_tree_item(node: GraphElement):
+	var item: TreeItem = node.get_meta("_meta_node_list_item")
+	if item and item.get_parent():
+		item.get_parent().remove_child(item)
+		item.free()

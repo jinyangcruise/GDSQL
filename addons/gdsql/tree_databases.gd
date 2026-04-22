@@ -320,10 +320,9 @@ func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String
 			mgr.add_log_history.emit("Err", begin_time, action, msgs)
 			return mgr.create_accept_dialog(msgs)
 			
+	refresh()
 	mgr.sys_confirm_alter_schema.emit(id)
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
-	
-	refresh()
 	
 func modify_table_to_config(db_name: String, old_table_name: String, new_table_name, \
 		comments: String, valid_if_not_exist: bool, column_infos: Array, id: String) -> void:
@@ -390,10 +389,9 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 				OS.move_to_trash(old_table_conf_path_abs) # 删配置
 				msgs.push_back("1 file: %s has been moved to trash." % old_table_conf_path_abs)
 				
+		refresh()
 		mgr.sys_confirm_alter_table.emit(id)
 		mgr.add_log_history.emit("OK", begin_time, action, msgs)
-		
-		refresh()
 		return
 		
 	if new_table_data_path != old_table_data_path and FileAccess.file_exists(new_table_data_path):
@@ -525,10 +523,9 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 				OS.move_to_trash(old_table_data_path_abs) # 删数据
 				msgs.push_back("1 file: %s has been moved to trash." % old_table_data_path_abs)
 				
+		refresh()
 		mgr.sys_confirm_alter_table.emit(id)
 		mgr.add_log_history.emit("OK", begin_time, action, msgs)
-		
-		refresh()
 		
 	if warnings.is_empty():
 		apply.call()
@@ -723,6 +720,7 @@ func drop_db_from_config(db_name: String) -> void:
 	mgr.add_log_history.emit("OK", begin_time, action, msg)
 	
 	refresh()
+	# TODO notify mapper graph
 	
 func drop_table_from_config(db_name: String, table_name: String) -> void:
 	var begin_time = Time.get_unix_time_from_system()
@@ -763,6 +761,7 @@ func drop_table_from_config(db_name: String, table_name: String) -> void:
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
 	
 	refresh()
+	mgr.sys_confirm_drop_table.emit(db_name, table_name)
 	
 func truncate_table_from_config(db_name: String, table_name: String) -> void:
 	var begin_time = Time.get_unix_time_from_system()
@@ -1569,7 +1568,7 @@ func _on_popup_menu_password_index_pressed(index):
 						# 安全起见还是通过检查是否需要用户输入密码再执行后续方法
 						deal_password_before_table_cmd(item, "", 
 							set_password.bind(db_name, table_name, password_dict_obj_1._get("Password")))
-				
+							
 			mgr.create_custom_dialog(arr, confirmed, Callable(), defered)
 			
 		"Clear Password":

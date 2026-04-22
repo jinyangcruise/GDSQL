@@ -8,6 +8,8 @@
 [ext_resource type="Texture2D" uid="uid://bj6qe4a23bjvc" path="res://addons/gdsql/img/bolt-lightning-edit.png" id="5_xasyh"]
 [ext_resource type="Texture2D" uid="uid://cihap4hh0yid3" path="res://addons/gdsql/img/Instance.svg" id="5_xgrh4"]
 [ext_resource type="Texture2D" uid="uid://fud4boba7d2j" path="res://addons/gdsql/img/bolt-lightning.png" id="6_ip2ph"]
+[ext_resource type="Texture2D" uid="uid://dgfl0ydyvpe7" path="res://addons/gdsql/img/progress_check_icon.svg" id="8_iwaq8"]
+[ext_resource type="Script" uid="uid://niieejo28hi8" path="res://addons/gdsql/tabs/tree_node_list.gd" id="8_snyhw"]
 
 [sub_resource type="InputEventKey" id="InputEventKey_kjho4"]
 device = -1
@@ -25,6 +27,17 @@ keycode = 83
 
 [sub_resource type="Shortcut" id="Shortcut_n7cwt"]
 events = [SubResource("InputEventKey_lywi6")]
+
+[sub_resource type="DPITexture" id="DPITexture_iwaq8"]
+_source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#e0e0e0\" d=\"M9 1v2h6V1zM4 1a1 1 0 0 0-.691.291l-2 2a1 1 0 0 0 1.414 1.414l.293-.293v7.172l-.293-.293a1 1 0 0 0-1.414 1.414l2 2a1 1 0 0 0 1.414 0l2-2a1 1 0 0 0-1.414-1.414l-.293.293V4.412l.293.293a1 1 0 0 0 1.414-1.414l-2-2A1 1 0 0 0 4 1zm5 6v2h4V7zm0 6v2h2v-2z\"/></svg>
+"
+base_scale = 1.5
+saturation = 2.0
+color_map = {
+Color(1, 0.37254903, 0.37254903, 1): Color(1, 0.47, 0.42, 1),
+Color(0.37254903, 1, 0.5921569, 1): Color(0.45, 0.95, 0.5, 1),
+Color(1, 0.8666667, 0.39607844, 1): Color(0.83, 0.78, 0.62, 1)
+}
 
 [node name="MapperGraph" type="VSplitContainer" unique_id=1742084449]
 anchors_preset = 15
@@ -144,13 +157,98 @@ layout_mode = 2
 tooltip_text = "Generate mapper by all the nodes."
 icon = ExtResource("6_ip2ph")
 
-[node name="GraphEdit" type="GraphEdit" parent="VBoxContainer" unique_id=1274486436]
+[node name="VSeparator7" type="VSeparator" parent="VBoxContainer/HFlowContainer" unique_id=131381588]
 layout_mode = 2
+
+[node name="ButtonNodeList" type="Button" parent="VBoxContainer/HFlowContainer" unique_id=1106671294]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "Node List"
+icon_alignment = 2
+
+[node name="PopupPanelNodeList" type="PopupPanel" parent="VBoxContainer/HFlowContainer/ButtonNodeList" unique_id=1828115341]
+unique_name_in_owner = true
+oversampling_override = 1.0
+size = Vector2i(529, 136)
+force_native = true
+
+[node name="VBoxContainerNodeList" type="VBoxContainer" parent="VBoxContainer/HFlowContainer/ButtonNodeList/PopupPanelNodeList" unique_id=477068297]
+unique_name_in_owner = true
+offset_left = 21.0
+offset_top = 21.0
+offset_right = 508.0
+offset_bottom = 115.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer/HFlowContainer/ButtonNodeList/PopupPanelNodeList/VBoxContainerNodeList" unique_id=82205397]
+layout_mode = 2
+
+[node name="LineEditFilterNodeList" type="LineEdit" parent="VBoxContainer/HFlowContainer/ButtonNodeList/PopupPanelNodeList/VBoxContainerNodeList/HBoxContainer" unique_id=997043258]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Search"
+keep_editing_on_text_submit = true
+clear_button_enabled = true
+caret_blink = true
+
+[node name="MenuButtonSortNodeList" type="MenuButton" parent="VBoxContainer/HFlowContainer/ButtonNodeList/PopupPanelNodeList/VBoxContainerNodeList/HBoxContainer" unique_id=1447528022]
+unique_name_in_owner = true
+layout_mode = 2
+icon = SubResource("DPITexture_iwaq8")
+item_count = 7
+popup/item_0/text = "Default"
+popup/item_0/id = 0
+popup/item_1/text = "Sort by Name (Ascending)"
+popup/item_1/id = 1
+popup/item_2/text = "Sort by Name (Descending)"
+popup/item_2/id = 2
+popup/item_3/text = "Sort by Position (Left to Right)"
+popup/item_3/id = 3
+popup/item_4/text = "Sort by Position (Right to Left)"
+popup/item_4/id = 4
+popup/item_5/text = "Sort by Position (Top to Bottom)"
+popup/item_5/id = 5
+popup/item_6/text = "Sort by Position (Bottom to Top)"
+popup/item_6/id = 6
+
+[node name="ButtonRefreshNodeList" type="Button" parent="VBoxContainer/HFlowContainer/ButtonNodeList/PopupPanelNodeList/VBoxContainerNodeList/HBoxContainer" unique_id=1967108362]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Check whether table has changed."
+icon = ExtResource("8_iwaq8")
+flat = true
+
+[node name="ScrollContainerNodeList" type="ScrollContainer" parent="VBoxContainer/HFlowContainer/ButtonNodeList/PopupPanelNodeList/VBoxContainerNodeList" unique_id=1896051524]
+layout_mode = 2
+size_flags_vertical = 3
+follow_focus = true
+horizontal_scroll_mode = 0
+scroll_hint_mode = 1
+
+[node name="TreeNodeList" type="Tree" parent="VBoxContainer/HFlowContainer/ButtonNodeList/PopupPanelNodeList/VBoxContainerNodeList/ScrollContainerNodeList" unique_id=966349810]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 1
+hide_root = true
+scroll_horizontal_enabled = false
+scroll_vertical_enabled = false
+script = ExtResource("8_snyhw")
+
+[node name="GraphEdit" type="GraphEdit" parent="VBoxContainer" unique_id=1274486436 node_paths=PackedStringArray("tree_node_list")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 scroll_offset = Vector2(0, -50)
 right_disconnects = true
 zoom_min = 0.05
 script = ExtResource("2_455wi")
+tree_node_list = NodePath("../HFlowContainer/ButtonNodeList/PopupPanelNodeList/VBoxContainerNodeList/ScrollContainerNodeList/TreeNodeList")
 
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonOpen" to="." method="_on_button_open_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSave" to="." method="_on_button_save_pressed"]
@@ -162,6 +260,12 @@ script = ExtResource("2_455wi")
 [connection signal="item_selected" from="VBoxContainer/HFlowContainer/OptionButtonLink" to="." method="_on_option_button_link_item_selected"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRunSelected" to="." method="_on_button_run_selected_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRun" to="." method="_on_button_run_pressed"]
+[connection signal="toggled" from="VBoxContainer/HFlowContainer/ButtonNodeList" to="." method="_on_button_node_list_toggled"]
+[connection signal="popup_hide" from="VBoxContainer/HFlowContainer/ButtonNodeList/PopupPanelNodeList" to="." method="_on_popup_panel_node_list_popup_hide"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonNodeList/PopupPanelNodeList/VBoxContainerNodeList/HBoxContainer/ButtonRefreshNodeList" to="." method="_on_button_refresh_node_list_pressed"]
+[connection signal="button_clicked" from="VBoxContainer/HFlowContainer/ButtonNodeList/PopupPanelNodeList/VBoxContainerNodeList/ScrollContainerNodeList/TreeNodeList" to="." method="_on_tree_node_list_button_clicked"]
+[connection signal="item_collapsed" from="VBoxContainer/HFlowContainer/ButtonNodeList/PopupPanelNodeList/VBoxContainerNodeList/ScrollContainerNodeList/TreeNodeList" to="." method="update_popup_panel_node_list_size" unbinds=1]
+[connection signal="item_selected" from="VBoxContainer/HFlowContainer/ButtonNodeList/PopupPanelNodeList/VBoxContainerNodeList/ScrollContainerNodeList/TreeNodeList" to="." method="_on_tree_node_list_item_selected"]
 [connection signal="connection_request" from="VBoxContainer/GraphEdit" to="VBoxContainer/GraphEdit" method="_on_connection_request"]
 [connection signal="copy_nodes_request" from="VBoxContainer/GraphEdit" to="VBoxContainer/GraphEdit" method="_on_copy_nodes_request"]
 [connection signal="delete_nodes_request" from="VBoxContainer/GraphEdit" to="VBoxContainer/GraphEdit" method="_on_delete_nodes_request"]

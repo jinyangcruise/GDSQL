@@ -23,6 +23,9 @@ var window_size: Vector2
 ## ALERT 外部请勿直接在datas上使用pop_front(), pop_back()等改变数组本身的操作，
 ## 请先使用duplciate浅拷贝一份数据，然后调用本类中的clear()，最后重新对datas进行赋值！
 ## 否则会产生自定义控件被释放的问题。
+## 如果要在修改datas的时候保留节点间的连接，则需要使用 datas[index] = [xx] 修改数据，然后调用 push_redraw_slot_control() 、
+## shrink_by_data_count() 来修改显示。
+## 而不是对 datas 进行赋值。
 var datas: Array[Array]:
 	set(val):
 		#if datas != val:
@@ -365,16 +368,58 @@ func push_redraw_slot_control(slot_row_index, slot_col_index):
 	_redraw_queue[slot_row_index] = cols
 	_mutex.unlock()
 	
+## 根据datas的行数，减少渲染旧的行。减少的行内如果有自定义组件，会直接被free。
+func shrink_by_data_count():
+	var datas_size = datas.size()
+	if get_child_count() > datas_size:
+		push_redraw_slot_control(datas_size, 0)
+		
 ## 强制刷新某个栏位的控件。
 func redraw_slot_control(slot_row_index, slot_col_index):
 	# 记录焦点控件，用于恢复（如果不恢复，正在修改被刷新控件的内容，则会造成无法连续输入或用户输入后数据并没生效
 	var focus_owner = get_viewport().gui_get_focus_owner()
-	var hb = get_child(slot_row_index)
 	
+	if slot_row_index >= datas.size():
+		var removed = false
+		for i in range(slot_row_index, get_child_count(), 1):
+			var child = get_child(i)
+			remove_child(child)
+			child.queue_free()
+			removed = true
+			
+		if removed and focus_owner:
+			focus_owner.emit_signal("focus_entered") # 可以触发之前绑定的函数：editor_property_focused
+			
+		return
+		
+	var hb
+	if slot_row_index >= get_child_count():
+		var new_hb_count = slot_row_index - get_child_count() + 1
+		for i in new_hb_count:
+			hb = HBoxContainer.new()
+			add_child(hb)
+	else:
+		hb = get_child(slot_row_index)
+		
 	# 如果请求刷新某hb里的内容，但是该hb里边的内容正在被编辑，就会造成无法输入。
 	# 所以等失去焦点的时候再重绘或者要刷新的地方和正被编辑的地方无关时再重绘，免得影响连续输入或用户输入后数据并没生效。
 	if focus_owner and hb.is_ancestor_of(focus_owner):
 		push_redraw_slot_control(slot_row_index, slot_col_index)
+		return
+		
+	# 比如原来datas长度是4，现在datas长度是2，现在请求刷新后两个，那么直接删除多余的控件
+	if slot_col_index >= datas[slot_row_index].size():
+		var remove = []
+		for c in hb.get_children():
+			if c.get_meta("col_index") >= slot_col_index:
+				remove.add_child(c)
+		for c in remove:
+			hb.remove_child(c)
+			c.queue_free()
+			
+		if focus_owner and not remove.is_empty():
+			focus_owner.emit_signal("focus_entered") # 可以触发之前绑定的函数：editor_property_focused
+			
 		return
 		
 	var data = datas[slot_row_index][slot_col_index]

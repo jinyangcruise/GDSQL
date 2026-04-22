@@ -11,11 +11,18 @@ extends VSplitContainer
 @onready var option_button_link: OptionButton = $VBoxContainer/HFlowContainer/OptionButtonLink
 @onready var button_run_selected: Button = $VBoxContainer/HFlowContainer/ButtonRunSelected
 @onready var button_run: Button = $VBoxContainer/HFlowContainer/ButtonRun
+@onready var button_node_list: Button = %ButtonNodeList
+@onready var popup_panel_node_list: PopupPanel = %PopupPanelNodeList
+@onready var v_box_container_node_list: VBoxContainer = %VBoxContainerNodeList
+@onready var line_edit_filter_node_list: LineEdit = %LineEditFilterNodeList
+@onready var menu_button_sort_node_list: MenuButton = %MenuButtonSortNodeList
+@onready var button_refresh_node_list: Button = %ButtonRefreshNodeList
+@onready var scroll_container_node_list: ScrollContainer = $VBoxContainer/HFlowContainer/ButtonNodeList/PopupPanelNodeList/VBoxContainerNodeList/ScrollContainerNodeList
+@onready var tree_node_list: Tree = %TreeNodeList
+@onready var graph_edit: GraphEdit = %GraphEdit
 
 signal request_open_file(path: String)
 signal change_tab_title(page: Control, title: String)
-
-@onready var graph_edit: GraphEdit = $VBoxContainer/GraphEdit
 
 const EXTENSION = "*.gdmappergraph"
 
@@ -29,13 +36,46 @@ enum LINK_WAY {
 	NESTING_RESULT_MAP, # use left join
 }
 
+enum NODE_LIST_TREE_ITEM_BUTTON {
+	TABLE_NOT_EXIST, ## 表不存在
+	TABLE_COMMENT_CHANGE, ## 表描述有变化
+	COLUMNS_CHANGE, ## 表字段发生了变化
+}
+
+enum TABLE_CHANGE_TYPE {
+	META_TABLE_NOT_EXIST, ## 表不存在
+	META_TABLE_COMMENT_CHANGE, ## 表描述有变化
+	META_COLUMN_NAME_CHANGE, ## 列名发生了变化
+	META_COLUMN_DEFINE_CHANGE, ## 列定义有变化
+}
+
 const COLOR_DIFF_BASIC_ADDED = Color(Color.LIGHT_GREEN, 0.2)
 const COLOR_DIFF_BASIC_REMOVED = Color(Color.INDIAN_RED, 0.2)
 const COLOR_DIFF_MERGE_INSERTED = Color(Color.BLUE, 0.2)
 
+var tree_node_list_root: TreeItem
+
 func _ready() -> void:
-	pass
+	line_edit_filter_node_list.text_changed.connect(_filter_node_list_changed)
 	
+	tree_node_list.set_column_expand(0, true)
+	tree_node_list.set_column_clip_content(0, false)
+	tree_node_list_root = tree_node_list.create_item()
+	tree_node_list.hide_root = true
+	
+	menu_button_sort_node_list.get_popup().id_pressed.connect(_on_sort_node_list_pressed)
+	menu_button_sort_node_list.icon = get_theme_icon(&"Sort", &"EditorIcons")
+	
+	graph_edit.tree_node_list_item_added.connect(_filter_node_list_changed.bind(""))
+	
+	GDSQL.WorkbenchManager.sys_confirm_alter_table.connect(_on_sys_confirm_alter_table)
+	GDSQL.WorkbenchManager.sys_confirm_drop_table.connect(_on_sys_confirm_drop_table)
+	
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_THEME_CHANGED:
+		if menu_button_sort_node_list:
+			menu_button_sort_node_list.icon = get_theme_icon(&"Sort", &"EditorIcons")
+			
 func load_mapper_file(path):
 	var config = GDSQL.ImprovedConfigFile.new()
 	config.load(path)
@@ -1666,3 +1706,376 @@ func _on_option_button_link_item_selected(_index: int) -> void:
 	
 func _on_button_add_include_pressed() -> void:
 	EditorInterface.popup_quick_open(graph_edit.include_file, [&"GDMapperGraph"])
+	
+func _filter_node_list_changed(_p_filter: String, item: TreeItem = null):
+	if item == null:
+		item = tree_node_list_root
+		
+	var filter = line_edit_filter_node_list.text.strip_edges().to_lower()
+	if filter == "":
+		item.call_recursive(&"set_custom_color", 0, tree_node_list.get_theme_color(&"font_color"))
+		item.call_recursive(&"set_visible", true)
+		await _refresh_table_change_status()
+		update_popup_panel_node_list_size()
+		return true
+		
+	var find_any = item.get_text(0).to_lower().contains(filter)
+	if find_any:
+		item.set_custom_color(0, get_theme_color(&"accent_color", &"Editor"))
+	else:
+		item.set_custom_color(0, get_theme_color(&"font_disabled_color", &"Editor"))
+		
+	for i in item.get_children():
+		if await _filter_node_list_changed(filter, i):
+			find_any = true
+			
+	item.visible = find_any
+	
+	if item == tree_node_list_root:
+		await _refresh_table_change_status()
+		update_popup_panel_node_list_size()
+		
+	return find_any
+	
+func _on_button_node_list_toggled(toggled_on: bool) -> void:
+	if toggled_on:
+		var button_rect = get_screen_rect(button_node_list)
+		var rect = button_rect
+		rect.position.y = rect.end.y
+		rect.size.y = 0
+		popup_panel_node_list.popup(rect)
+		update_popup_panel_node_list_size()
+	else:
+		popup_panel_node_list.hide()
+		
+func update_popup_panel_node_list_size():
+	var button_rect = get_screen_rect(button_node_list)
+	var sb_panel: StyleBox = popup_panel_node_list.get_theme_stylebox(&"panel")
+	var max_width = get_max_item_width(tree_node_list_root) + \
+		sb_panel.get_content_margin(SIDE_LEFT) + sb_panel.get_content_margin(SIDE_RIGHT)
+	var last_item_rect = get_last_item_rect(tree_node_list_root)
+	var sb_tree: StyleBox = tree_node_list.get_theme_stylebox(&"panel")
+	var sb_sc: StyleBox = scroll_container_node_list.get_theme_stylebox(&"panel")
+	var max_height = min(last_item_rect.end.y + line_edit_filter_node_list.size.y + 
+		v_box_container_node_list.get_theme_constant(&"separation") + 
+		sb_panel.get_content_margin(SIDE_TOP) + sb_panel.get_content_margin(SIDE_BOTTOM) +
+		sb_tree.get_content_margin(SIDE_TOP) + sb_tree.get_content_margin(SIDE_BOTTOM) +
+		sb_sc.get_content_margin(SIDE_TOP) + sb_sc.get_content_margin(SIDE_BOTTOM) +
+		tree_node_list.get_theme_constant(&"v_separation"),
+		
+		DisplayServer.screen_get_size().y - button_rect.end.y - 
+		sb_panel.get_content_margin(SIDE_TOP) - sb_panel.get_content_margin(SIDE_BOTTOM) -
+		sb_tree.get_content_margin(SIDE_TOP) - sb_tree.get_content_margin(SIDE_BOTTOM) -
+		sb_sc.get_content_margin(SIDE_TOP) - sb_sc.get_content_margin(SIDE_BOTTOM) - 
+		tree_node_list.get_theme_constant(&"v_separation"))
+	popup_panel_node_list.set_min_size(Vector2(max_width, max_height))
+	popup_panel_node_list.set_max_size(Vector2(max_width, max_height))
+	#await get_tree().process_frame
+	#if popup_panel_node_list.position.y < button_rect.end.y:
+		#var offset = button_rect.end.y - popup_panel_node_list.position.y
+		#popup_panel_node_list.set_min_size(Vector2(max_width, max_height - offset))
+		#popup_panel_node_list.set_max_size(Vector2(max_width, max_height - offset))
+		#popup_panel_node_list.position.y += offset
+		
+func get_last_item_rect(tree_item: TreeItem):
+	if tree_item.get_child_count() == 0:
+		return tree_node_list.get_item_area_rect(tree_item)
+	return get_last_item_rect(tree_item.get_children().back())
+	
+func get_max_item_width(tree_item: TreeItem):
+	var max_width = tree_node_list.get_item_area_rect(tree_item).end.x
+	for i in tree_item.get_children():
+		max_width = max(max_width, get_max_item_width(i))
+	return max_width
+	
+func get_screen_rect(control: Control):
+	var xform = control.get_screen_transform()
+	return Rect2(xform.get_origin(), xform.get_scale() * control.get_size())
+	
+func _on_popup_panel_node_list_popup_hide() -> void:
+	button_node_list.button_pressed = false
+	
+func _on_sort_node_list_pressed(id: int):
+	match id:
+		# Default
+		0: sort_tree_items(tree_node_list_root, func(a: TreeItem, b: TreeItem):
+			return a.get_meta("_meta_graph_element").get_meta("_meta_add_index") < b.get_meta("_meta_graph_element").get_meta("_meta_add_index")
+			)
+		# Sort by Name (Ascending)
+		1: sort_tree_items(tree_node_list_root, func(a: TreeItem, b: TreeItem):
+			return a.get_text(0).to_lower() < b.get_text(0).to_lower()
+			)
+		# Sort by Name (Descending)
+		2: sort_tree_items(tree_node_list_root, func(a: TreeItem, b: TreeItem):
+			return a.get_text(0).to_lower() > b.get_text(0).to_lower()
+			)
+		# Sort by Position (Left to Right)
+		3: sort_tree_items(tree_node_list_root, func(a: TreeItem, b: TreeItem):
+			return a.get_meta("_meta_graph_element").position_offset.x < b.get_meta("_meta_graph_element").position_offset.x
+			)
+		# Sort by Position (Right to Left)
+		4: sort_tree_items(tree_node_list_root, func(a: TreeItem, b: TreeItem):
+			return a.get_meta("_meta_graph_element").position_offset.x > b.get_meta("_meta_graph_element").position_offset.x
+			)
+		# Sort by Position (Top to Bottom)
+		5: sort_tree_items(tree_node_list_root, func(a: TreeItem, b: TreeItem):
+			return a.get_meta("_meta_graph_element").position_offset.y < b.get_meta("_meta_graph_element").position_offset.y
+			)
+		# Sort by Position (Bottom to Top)
+		6: sort_tree_items(tree_node_list_root, func(a: TreeItem, b: TreeItem):
+			return a.get_meta("_meta_graph_element").position_offset.y > b.get_meta("_meta_graph_element").position_offset.y
+			)
+		
+# 对 Tree 中指定父节点下的直接子项进行文字排序
+# parent_item: 要排序的父节点（传 null 表示排序根节点）
+func sort_tree_items(parent_item: TreeItem, sort_func: Callable):
+	var items = parent_item.get_children()
+	if items.size() <= 1:
+		return
+		
+	items.sort_custom(sort_func)
+	
+	for i in items:
+		parent_item.remove_child(i)
+		
+	for i in items:
+		parent_item.add_child(i)
+		
+	for i in items:
+		sort_tree_items(i, sort_func)
+		
+func _on_tree_node_list_item_selected() -> void:
+	var item: TreeItem = tree_node_list.get_selected()
+	if not item:
+		return
+	var node: GraphElement = item.get_meta("_meta_graph_element")
+	if not node:
+		return
+		
+	graph_edit.ensure_control_visible(node, 0.3)
+	graph_edit.unselect_all_node()
+	node.selected = true
+	
+func _on_button_refresh_node_list_pressed() -> void:
+	_refresh_table_change_status()
+	
+func _on_sys_confirm_alter_table(_id = null) -> void:
+	_refresh_table_change_status()
+	
+func _on_sys_confirm_drop_table(_db, _table) -> void:
+	_refresh_table_change_status()
+	
+func _refresh_table_change_status():
+	var change = await _check_table_change(tree_node_list_root)
+	if change:
+		button_node_list.icon = get_theme_icon(&"StatusWarning", &"EditorIcons")
+	else:
+		button_node_list.icon = null
+		
+func _check_table_change(item: TreeItem) -> bool:
+	var node: GraphElement = null if not item.has_meta("_meta_graph_element") else item.get_meta("_meta_graph_element")
+	var change = false
+	if node and node is GraphNode and node.has_meta("data") and node.get_meta("data").get("__table_item", false):
+		item.clear_buttons()
+		
+		var data = node.get_meta("data")
+		var db = data.db_name
+		var table = data.table_name
+		var columns_define = GDSQL.WorkbenchManager.get_table_columns(db, table)
+		if columns_define.is_empty():
+			item.add_button(0, get_theme_icon(&"StatusWarning", &"EditorIcons"), 
+				NODE_LIST_TREE_ITEM_BUTTON.TABLE_NOT_EXIST, false, tr("This table is not exist!"))
+			item.set_meta("_meta_change_%d" % TABLE_CHANGE_TYPE.META_TABLE_NOT_EXIST, [db, table])
+			change = true
+		else:
+			#TABLE_COMMENT_CHANGE, ## 表描述有变化
+			var old_comment = data.comment
+			var new_comment = GDSQL.WorkbenchManager.get_table_comment(db, table)
+			if old_comment != new_comment:
+				item.add_button(0, get_theme_icon(&"VisualShaderNodeComment", &"EditorIcons"), 
+					NODE_LIST_TREE_ITEM_BUTTON.TABLE_COMMENT_CHANGE, false, 
+					tr("Table comment changes.") + "\n" + 
+					("Old: [%s]." % old_comment) + "\n" + ("New: [%s]." % new_comment))
+				item.set_meta("_meta_change_%d" % TABLE_CHANGE_TYPE.META_TABLE_COMMENT_CHANGE, new_comment)
+				change = true
+				
+			var old_column_map = {}
+			for col in data.columns:
+				old_column_map[col["Column Name"]] = col
+			var new_column_map = {}
+			for col in columns_define:
+				new_column_map[col["Column Name"]] = col
+				
+			# NEW_COLUMN, ## 新增了列
+			#var new_cols = []
+			#for col_name in new_column_map:
+				#if not old_column_map.has(col_name):
+					#new_cols.push_back(col_name)
+			#if not new_cols.is_empty():
+				#item.add_button(0, get_theme_icon(&"InsertAfter", &"EditorIcons"), 
+					#NODE_LIST_TREE_ITEM_BUTTON.NEW_COLUMN, false, 
+					#tr("New column(s) found:[%s].") % (", ".join(new_cols)))
+				#item.set_meta("_meta_change_%d" % NODE_LIST_TREE_ITEM_BUTTON.NEW_COLUMN, 
+					#[old_column_map, new_column_map, new_cols])
+				#change = true
+				
+			# Column name diff
+			var change_message = []
+			var column_diffs = GDSQL.DiffHelper.get_compare_result_in_bbcode(old_column_map.keys(), new_column_map.keys())
+			if not column_diffs.is_empty():
+				change_message.push_back("[center][color=white]%s[/color][/center]" % tr("Column name changed:"))
+				change_message.push_back(column_diffs[0])
+				item.set_meta("_meta_change_%d" % TABLE_CHANGE_TYPE.META_COLUMN_NAME_CHANGE, 
+					[old_column_map, new_column_map, column_diffs, db, table])
+					
+			## COLUMN_NOT_EXIST, ## 列不存在
+			#var not_exist_cols = []
+			#for col_name in old_column_map:
+				#if not new_column_map.has(col_name):
+					#not_exist_cols.push_back(col_name)
+			#if not not_exist_cols.is_empty():
+				#item.add_button(0, get_theme_icon(&"MissingNode", &"EditorIcons"), 
+					#NODE_LIST_TREE_ITEM_BUTTON.COLUMN_NOT_EXIST, false, 
+					#tr("Column(s) not exist:[%s].") % (", ".join(not_exist_cols)))
+				#item.set_meta("_meta_change_%d" % NODE_LIST_TREE_ITEM_BUTTON.COLUMN_NOT_EXIST, 
+					#[old_column_map, new_column_map, not_exist_cols])
+				#change = true
+				#
+				
+			## COLUMN_DEFINE_CHANGE, ## 列定义有变化
+			var defination_changed = []
+			var defineation_diff = {}
+			for col_name in old_column_map:
+				if new_column_map.has(col_name) and new_column_map[col_name] != old_column_map[col_name]:
+					defination_changed.push_back(col_name)
+					var old_content = []
+					for p in old_column_map[col_name]:
+						old_content.push_back("%s: %s" % [p, old_column_map[col_name][p]])
+					var new_content = []
+					for p in new_column_map[col_name]:
+						new_content.push_back("%s: %s" % [p, new_column_map[col_name][p]])
+					var prop_diffs = GDSQL.DiffHelper.get_compare_result_in_bbcode(old_content, new_content, true)
+					if not prop_diffs.is_empty():
+						defineation_diff[col_name] = prop_diffs
+						if not change_message.is_empty():
+							change_message.push_back("")
+						change_message.push_back("[center][color=white]%s[/color][/center]" % 
+							(tr("Column [%s] defination changed:")) % col_name)
+						change_message.push_back(prop_diffs[0])
+			if not defination_changed.is_empty():
+				item.set_meta("_meta_change_%d" % TABLE_CHANGE_TYPE.META_COLUMN_DEFINE_CHANGE, 
+					[old_column_map, new_column_map, defination_changed, defineation_diff])
+					
+			if not change_message.is_empty():
+				item.add_button(0, load("res://addons/gdsql/img/file_type_diff_icon.svg"), 
+					NODE_LIST_TREE_ITEM_BUTTON.COLUMNS_CHANGE, false, "\n".join(change_message))
+				change = true
+				
+			#if not defination_changed.is_empty():
+				#item.add_button(0, get_theme_icon(&"Tools", &"EditorIcons"), 
+					#NODE_LIST_TREE_ITEM_BUTTON.COLUMN_DEFINE_CHANGE, false, 
+					#tr("Column(s) defination changed:[%s].") % (", ".join(defination_changed)))
+				#change = true
+				
+			## COLUMN_ORDER_CHANGE, ## 列顺序有变化
+			#var same_cols = []
+			#for i in old_column_map.keys() + new_column_map.keys():
+				#if old_column_map.has(i) and new_column_map.has(i) and not same_cols.has(i):
+					#same_cols.push_back(i)
+			#var old_column_map_dup = old_column_map.duplicate(true)
+			#var new_column_map_dup = new_column_map.duplicate(true)
+			#for col in old_column_map_dup:
+				#if not col in same_cols:
+					#old_column_map_dup.erase(col)
+			#for col in new_column_map_dup:
+				#if not col in same_cols:
+					#new_column_map_dup.erase(col)
+			#var old_order = old_column_map_dup.keys()
+			#var new_order = new_column_map_dup.keys()
+			#if old_order != new_order:
+				#var tooltip = tr("Columns order changed:") + \
+					#"\n[table=3][cell]Old[/cell][cell]New[/cell][cell][/cell][cell]%s[/cell][cell]%s[/cell][cell][/cell]" % \
+					#["—".repeat(5), "—".repeat(5)]
+				#for i in old_order.size():
+					#tooltip += "[cell]%s[/cell][cell]%s[/cell][cell]%s[/cell]" % \
+						#[old_order[i], new_order[i], "" if old_order[i] == new_order[i] else "*"]
+				#tooltip += "[/table]"
+				#
+				#item.add_button(0, get_theme_icon(&"YSort", &"EditorIcons"), 
+					#NODE_LIST_TREE_ITEM_BUTTON.COLUMN_ORDER_CHANGE, false, tooltip)
+				#item.set_meta("_meta_change_%d" % NODE_LIST_TREE_ITEM_BUTTON.COLUMN_NOT_EXIST, 
+					#[old_column_map, new_column_map, old_order, new_order])
+				#change = true
+				
+	for i in item.get_children():
+		var child_change = await _check_table_change(i)
+		change = change or child_change
+		
+	if change and item == tree_node_list_root:
+		await get_tree().process_frame
+		update_popup_panel_node_list_size()
+		
+	return change
+	
+func _on_tree_node_list_button_clicked(item: TreeItem, _column: int, id: int, _mouse_button_index: int) -> void:
+	popup_panel_node_list.hide()
+	item.select(0)
+	match id:
+		NODE_LIST_TREE_ITEM_BUTTON.TABLE_NOT_EXIST:
+			GDSQL.WorkbenchManager.create_accept_dialog("You can delete this node or leave it and create this table later.")
+		NODE_LIST_TREE_ITEM_BUTTON.TABLE_COMMENT_CHANGE:
+			var new_comment = item.get_meta("_meta_change_%d" % TABLE_CHANGE_TYPE.META_TABLE_COMMENT_CHANGE)
+			var confirm = func():
+				var graph_node = item.get_meta("_meta_graph_element")
+				graph_edit.update_item_comment(graph_node, new_comment)
+				_on_sys_confirm_alter_table()
+			GDSQL.WorkbenchManager.create_confirmation_dialog("Change the comment to: [%s]." % new_comment, confirm, Callable())
+			if get_meta("is_file"):
+				change_tab_title.emit(self, get_meta("file_name") + "*")
+		NODE_LIST_TREE_ITEM_BUTTON.COLUMNS_CHANGE:
+			var new_column_map: Dictionary
+			var datas_for_dialog: Array[Array] = [[(tr("Click [%s] ") % tr("OK")) + tr("to confirm the changes:")]]
+			if item.has_meta("_meta_change_%d" % TABLE_CHANGE_TYPE.META_COLUMN_NAME_CHANGE):
+				# [old_column_map, new_column_map, column_diffs, db, table]
+				var info = item.get_meta("_meta_change_%d" % TABLE_CHANGE_TYPE.META_COLUMN_NAME_CHANGE)
+				new_column_map = info[1]
+				
+				var label = RichTextLabel.new()
+				label.bbcode_enabled = true
+				label.text = info[2][0]
+				label.autowrap_trim_flags = TextServer.BREAK_NONE
+				label.fit_content = true
+				label.autowrap_mode = TextServer.AUTOWRAP_OFF
+				
+				datas_for_dialog.push_back([tr("Table: %s.%s") % [info[3], info[4]]])
+				datas_for_dialog.push_back([tr("Column name changed:")])
+				datas_for_dialog.push_back([label])
+				
+			if item.has_meta("_meta_change_%d" % TABLE_CHANGE_TYPE.META_COLUMN_DEFINE_CHANGE):
+				# [old_column_map, new_column_map, defination_changed, defineation_diff]
+				var info = item.get_meta("_meta_change_%d" % TABLE_CHANGE_TYPE.META_COLUMN_DEFINE_CHANGE)
+				new_column_map = info[1]
+				
+				for col_name in info[3]:
+					var label = RichTextLabel.new()
+					label.bbcode_enabled = true
+					label.text = info[3][col_name][0]
+					label.autowrap_trim_flags = TextServer.BREAK_NONE
+					label.fit_content = true
+					label.autowrap_mode = TextServer.AUTOWRAP_OFF
+					
+					datas_for_dialog.push_back([tr("Column [%s] defination changed:") % col_name])
+					datas_for_dialog.push_back([label])
+					
+			var confirm = func():
+				var graph_node = item.get_meta("_meta_graph_element")
+				graph_edit.update_item_columns(graph_node, new_column_map.values())
+				await get_tree().process_frame
+				_on_sys_confirm_alter_table()
+				return [false, null]
+			var defer = func(_a, _b):
+				for arr in datas_for_dialog:
+					for i in arr:
+						if i is Control:
+							i.queue_free()
+			GDSQL.WorkbenchManager.create_custom_dialog(datas_for_dialog, confirm, Callable(), defer, Vector2(0, 0.5), true)
