@@ -4,6 +4,7 @@ extends GraphNode
 signal node_enabled
 signal node_enable_status(enabled: bool)
 signal redraw_slot(row, col)
+signal redraw_slots_finished
 
 var check_button_enable: CheckButton
 
@@ -145,13 +146,16 @@ func _flush_redraw_queue():
 		_mutex.unlock()
 		return
 		
-	for row in _redraw_queue:
-		for col in _redraw_queue[row]:
+	var queue = _redraw_queue.duplicate(true)
+	_redraw_queue.clear()
+	for row in queue:
+		for col in queue[row]:
 			redraw_slot_control(row, col)
 			
-	_redraw_queue.clear()
 	_mutex.unlock()
-
+	if _redraw_queue.is_empty():
+		redraw_slots_finished.emit()
+		
 func clear():
 	disconnect_focused_selected_propagate(self)
 	if is_node_ready():
