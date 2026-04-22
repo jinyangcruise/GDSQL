@@ -35,6 +35,60 @@ static func compare(src: Array, dst: Array):
 				
 	return [src_deleted_lines, dst_inserted_lines, mapping_dst_src, script]
 	
+static func get_compare_result_in_bbcode(left_content: Array, right_content: Array, condense: bool = false) -> Array:
+	var diffs = GDSQL.DiffHelper.compare(left_content, right_content)
+	if not diffs[0].is_empty() or not diffs[1].is_empty():
+		var diff_text = "[center][table=2][cell padding=2,2,2,2 border=white bg=DARK_SLATE_GRAY]Old[/cell][cell padding=2,2,2,2 border=white bg=DARK_SLATE_GRAY]New[/cell]"
+		var src_line = 0
+		var dst_line = 0
+		var op_index = -1
+		var skipped_op_index = [] # 只添加进来insert的步骤的序号
+		while op_index < diffs[3].size() - 1:
+			op_index += 1
+			if skipped_op_index.has(op_index):
+				continue
+			var op = diffs[3][op_index]
+			match op:
+				GDSQL.DiffHelper.Operation.MOVE:
+					if not condense:
+						diff_text += "[cell padding=2,2,2,2 border=white]%s[/cell][cell padding=2,2,2,2 border=white]%s[/cell]" % \
+							[left_content[src_line], right_content[dst_line]]
+					src_line += 1
+					dst_line += 1
+				GDSQL.DiffHelper.Operation.DELETE:
+					# 连续的delete
+					var tmp_op_index = op_index + 1
+					while tmp_op_index < diffs[3].size() and diffs[3][tmp_op_index] == GDSQL.DiffHelper.Operation.DELETE:
+						tmp_op_index += 1
+					if tmp_op_index < diffs[3].size() \
+					and diffs[3][tmp_op_index] == GDSQL.DiffHelper.Operation.INSERT \
+					and not skipped_op_index.has(diffs[3][tmp_op_index]):
+						# 连续的insert
+						var tmp_op_index2 = tmp_op_index
+						while tmp_op_index2 < diffs[3].size() and diffs[3][tmp_op_index2] == GDSQL.DiffHelper.Operation.INSERT:
+							tmp_op_index2 += 1
+						# 可以把删除的和增加的放在同一行的个数
+						var count = min(tmp_op_index - op_index, tmp_op_index2 - tmp_op_index)
+						for i in count:
+							diff_text += "[cell padding=2,2,2,2 border=white][color=red]%s[/color][/cell][cell padding=2,2,2,2 border=white][color=green]%s[/color][/cell]" % \
+								[left_content[src_line], right_content[dst_line]]
+							src_line += 1
+							dst_line += 1
+							skipped_op_index.push_back(tmp_op_index)
+							tmp_op_index += 1
+						op_index += count
+						continue
+					diff_text += "[cell padding=2,2,2,2 border=white][color=red]%s[/color][/cell][cell padding=2,2,2,2 border=white]%s[/cell]" % \
+						[left_content[src_line], "/".repeat(28)]
+					src_line += 1
+				GDSQL.DiffHelper.Operation.INSERT:
+					diff_text += "[cell padding=2,2,2,2 border=white]%s[/cell][cell padding=2,2,2,2 border=white][color=green]%s[/color][/cell]" % \
+						["/".repeat(28), right_content[dst_line]]
+					dst_line += 1
+		diff_text += "[/table][/center]"
+		return [diff_text, diffs]
+	return []
+	
 ## 把dst中的（新增）行合并到src中，返回src应该插入的位置。参数index是dst中的行。
 static func merge_insert_line_by_mapping(index: int, src_line_count: int, mapping: Dictionary):
 	if mapping.has(index):
