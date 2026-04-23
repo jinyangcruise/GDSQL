@@ -52,6 +52,8 @@ func deal_element(item: GDSQL.GXMLItem):
 			deal_result_map(item)
 		"id":
 			deal_id(item)
+		"uq":
+			deal_uq(item)
 		"result":
 			deal_result(item)
 		"idArg":
@@ -175,6 +177,19 @@ func deal_result_map(item: GDSQL.GXMLItem):
 #typeHandler CDATA #IMPLIED
 #>
 func deal_id(item: GDSQL.GXMLItem):
+	assert(not item.attrs.get("property", "").strip_edges().is_empty(), "id is empty of <id>!")
+	assert(not item.attrs.get("column", "").strip_edges().is_empty(), "type is empty of <id>!")
+	assert(item.content.is_empty(), "id content should be empty!")
+	
+#<!ELEMENT uq EMPTY>
+#<!ATTLIST id
+#property CDATA #IMPLIED ------ required
+#javaType CDATA #IMPLIED
+#column CDATA #IMPLIED -------- required
+#jdbcType CDATA #IMPLIED
+#typeHandler CDATA #IMPLIED
+#>
+func deal_uq(item: GDSQL.GXMLItem):
 	assert(not item.attrs.get("property", "").strip_edges().is_empty(), "id is empty of <id>!")
 	assert(not item.attrs.get("column", "").strip_edges().is_empty(), "type is empty of <id>!")
 	assert(item.content.is_empty(), "id content should be empty!")

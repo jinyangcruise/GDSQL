@@ -166,11 +166,60 @@ false: do not automap columns to
 	   properties which are not configured.
 				""",
 				"default": ""
+			},
+			"uniqueColumn": {
+				"required": false,
+				"support": true,
+				"desc": """Specify the column(s) that uniquely 
+identify each entity in the system.
+Separate each distinct column with a comma, eg. "id,name".
+Columns defined within an `<id>` or `<uq>` element 
+are implicitly included in `uniqueColumn`.
+				""",
+				"default": ""
 			}
 		},
 		"deprecated": false
 	},
 	"id": {
+		"valid_child": [],
+		"attr_list": {
+			"property": {
+				"required": true,
+				"support": true,
+				"desc": "Object's property name",
+				"default": ""
+			},
+			"javaType": {
+				"required": false,
+				"support": true,
+				"desc": """gdscript variant type or a class name, 
+eg. int, String, SysDept, Dictionary
+				""",
+				"default": ""
+			},
+			"column": {
+				"required": true,
+				"support": true,
+				"desc": "Column name of ResultSet.",
+				"default": ""
+			},
+			"jdbcType": {
+				"required": false,
+				"support": false,
+				"desc": "",
+				"default": ""
+			},
+			"typeHandler": {
+				"required": false,
+				"support": false,
+				"desc": "",
+				"default": ""
+			}
+		},
+		"deprecated": false
+	},
+	"uq": {
 		"valid_child": [],
 		"attr_list": {
 			"property": {

@@ -56,6 +56,12 @@ func get_result_type():
 	# 递归找到返回的对象的类名
 	return _result_map.get_deepest_result_type()
 	
+func get_unique_column():
+	if _result_map == null:
+		assert(false, "Call parent node <discriminator>'s prepare_deal() first!")
+		return null
+	return _result_map.get_deepest_unique_column()
+	
 func get_auto_mapping():
 	if _result_map == null:
 		assert(false, "Call parent node <discriminator>'s prepare_deal() first!")
@@ -79,11 +85,11 @@ func get_primary_prop() -> String:
 		return ""
 	return _result_map.get_deepest_primary_prop()
 	
-func get_primary_column() -> String:
+func get_primary_column() -> Array:
 	if _result_map == null:
 		assert(false, "Call parent node <discriminator>'s prepare_deal() first!")
-		return ""
-	return _result_map.get_deepest_primary_column()
+		return []
+	return _result_map.get_deepest_primary_columns()
 	
 func get_associations():
 	if _result_map == null:

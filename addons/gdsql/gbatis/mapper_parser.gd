@@ -188,6 +188,8 @@ func _deal_element(item: GDSQL.GXMLItem, param: Dictionary, depth: int):
 			return _deal_result_map(item, param, depth)
 		"id":
 			return _deal_id(item, param, depth)
+		"uq":
+			return _deal_uq(item, param, depth)
 		"result":
 			return _deal_result(item, param, depth)
 		"idArg":
@@ -349,6 +351,20 @@ func _deal_result_map(item: GDSQL.GXMLItem, param: Dictionary, depth: int) -> GD
 @warning_ignore("unused_parameter")
 func _deal_id(item: GDSQL.GXMLItem, param: Dictionary, depth: int) -> GDSQL.GBatisId:
 	return GDSQL.GBatisId.new(item.attrs)
+	
+	
+#<!ELEMENT uq EMPTY>
+#<!ATTLIST uq
+#property CDATA #REQUIRED -------- changed from #IMPLED to #REQUIRED
+#javaType CDATA #IMPLIED --------- gdscript variant type or a class name, 
+#                                  eg. int, String, SysDept, Dictionary
+#column CDATA #REQUIRED ---------- changed from #IMPLED to #REQUIRED
+#jdbcType CDATA #IMPLIED --------- ❌ not support
+#typeHandler CDATA #IMPLIED ------ ❌ not support
+#>
+@warning_ignore("unused_parameter")
+func _deal_uq(item: GDSQL.GXMLItem, param: Dictionary, depth: int) -> GDSQL.GBatisUQ:
+	return GDSQL.GBatisUQ.new(item.attrs)
 	
 #<!ELEMENT result EMPTY>
 #<!ATTLIST result

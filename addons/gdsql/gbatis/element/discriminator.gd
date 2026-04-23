@@ -91,6 +91,14 @@ func get_result_type():
 		return (cases[selected_case_index] as GDSQL.GBatisCase).get_result_type()
 	return ""
 	
+func get_unique_column():
+	if selected_case_index == -2:
+		assert(false, "Call prepare_deal first!")
+		return null
+	if selected_case_index > -1:
+		return (cases[selected_case_index] as GDSQL.GBatisCase).get_unique_column()
+	return ""
+	
 func get_auto_mapping():
 	if selected_case_index == -2:
 		assert(false, "Call prepare_deal first!")
@@ -115,13 +123,13 @@ func get_primary_prop() -> String:
 		return (cases[selected_case_index] as GDSQL.GBatisCase).get_primary_prop()
 	return ""
 	
-func get_primary_column() -> String:
+func get_primary_columns() -> Array:
 	if selected_case_index == -2:
 		assert(false, "Call prepare_deal first!")
-		return ""
+		return []
 	if selected_case_index > -1:
-		return (cases[selected_case_index] as GDSQL.GBatisCase).get_primary_column()
-	return ""
+		return (cases[selected_case_index] as GDSQL.GBatisCase).get_primary_columns()
+	return []
 	
 func get_associations():
 	if selected_case_index == -2:

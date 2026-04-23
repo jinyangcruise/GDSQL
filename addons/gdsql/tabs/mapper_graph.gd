@@ -517,17 +517,19 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			# lead table 可能需要column加前缀。其他的不用，因为association和collection
 			# 支持在columnPrefix属性设定一个前缀。
 			if node_name == lead_node_name:
-				if node_pair.has(node_name) and \
-				option_button_link.selected != LINK_WAY.NESTING_SELECT:
+				if node_pair.has(node_name) and option_button_link.selected != LINK_WAY.NESTING_SELECT:
 					a_col_prefix = table_alias[node_name]
 			var prop_max_length = get_max_prop_name_length(aprops) + 'property=""'.length()
 			var col_max_length = get_max_col_name_length(columns) + 'column=""'.length() + \
 				a_col_prefix.length() + 4
+			var unique_cols = []
 			for col in columns:
-				var prefix = '<id    ' if col.PK else '<result'
+				var prefix = '<id    ' if col.PK else ('<uq    ' if col.UQ else '<result')
 				if linked_nodes.size() > 1:
 					prefix += '     ' # +5 as long as associaiton
 				var a_col_name = col["Column Name"]
+				if col.PK or col.UQ:
+					unique_cols.push_back(a_col_name)
 				if option_button_result_map_mode.selected == RESULT_MAP_MODE.FULL:
 					arr_col.push_back(('%s %-' + str(prop_max_length) + 's    %-' + \
 						str(col_max_length) + 's/>') % [
@@ -641,6 +643,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							
 			if not result_map_added.has(result_map_id):
 				xml_arr.push_back('\n\t<resultMap id="%sResult" type="%s"' % [result_map_id, entity_name])
+				if option_button_result_map_mode.selected == RESULT_MAP_MODE.SIMPLEST:
+					xml_arr.push_back(' uniqueColumn="%s"' % ",".join(unique_cols))
 				if arr_col.is_empty():
 					xml_arr.push_back(' autoMapping="%s" />\n\t' % (
 						"true" if option_button_result_map_mode.selected == RESULT_MAP_MODE.SIMPLEST else "false"))
