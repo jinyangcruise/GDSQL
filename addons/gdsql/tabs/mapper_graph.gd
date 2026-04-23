@@ -428,7 +428,7 @@ func _generate(nodes: Array):
 <!DOCTYPE mapper
 PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="%sMapper">
+<mapper namespace="%s">
 	
 	<cache eviction="LRU" flushInterval="0" size="50" />
 	"""]
@@ -445,7 +445,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		var prefix_index = -1
 		var table_alias = {}
 		var leading_result_map_id = null
-		var leading_class_n = null
+		var leading_mapper_n = null
 		var leading_entity_n = null
 		var leading_db_name = null
 		var leading_table_name = null
@@ -501,10 +501,11 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				result_map_id = node_link_prop[node_name].to_camel_case()
 			else:
 				result_map_id = graph_edit.get_node_extra(node).link_prop_type.to_camel_case()
+			var entity_name = result_map_id.capitalize().replace(" ", "") + "Entity"
 			if leading_result_map_id == null:
 				leading_result_map_id = result_map_id
-				leading_class_n = result_map_id.capitalize().replace(" ", "")
-				leading_entity_n = leading_class_n + "Entity"
+				leading_mapper_n = result_map_id.capitalize().replace(" ", "") + "Mapper"
+				leading_entity_n = entity_name
 				leading_db_name = db_name
 				leading_table_name = table_name
 				leading_table_name_snake = table_name.to_snake_case()
@@ -639,9 +640,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 							[info.link_prop, info.link_prop_type, info.link_type, info.comment, ""])
 							
 			if not result_map_added.has(result_map_id):
-				xml_arr.push_back('\n\t<resultMap id="%sResult" type="%sEntity"' % [
-					result_map_id, result_map_id.capitalize().replace(" ", "")
-				])
+				xml_arr.push_back('\n\t<resultMap id="%sResult" type="%s"' % [result_map_id, entity_name])
 				if arr_col.is_empty():
 					xml_arr.push_back(' autoMapping="%s" />\n\t' % (
 						"true" if option_button_result_map_mode.selected == RESULT_MAP_MODE.SIMPLEST else "false"))
@@ -652,14 +651,13 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				result_map_added.push_back(result_map_id)
 				
 			# entity
-			var en_ns = '%s.%sEntity' % [db_name, result_map_id.capitalize().replace(" ", "")]
+			var en_ns = '%s.%s' % [db_name, entity_name]
 			if not entity_map.has(en_ns):
 				entity_map[en_ns] = []
 				if table_comment != "":
 					entity_map[en_ns].push_back('## %s\n' % table_comment)
-				entity_map[en_ns].push_back('@warning_ignore("missing_tool")\nextends GDSQL.GBatisEntity\nclass_name %sEntity\n' % 
-					result_map_id.capitalize().replace(" ", ""))
-					
+				entity_map[en_ns].push_back('@warning_ignore("missing_tool")\nextends GDSQL.GBatisEntity\nclass_name %s\n' % entity_name)
+				
 			var e_map = entity_map_2.get(en_ns, {})
 			entity_map_2[en_ns] = e_map
 			for i in arr_prop_type:
@@ -833,15 +831,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 				[leading_result_map_id, vo])
 				
 		# mapper_arr
-		var mp_id = '%s.%sMapper' % [leading_db_name, leading_class_n]
+		var mp_id = '%s.%s' % [leading_db_name, leading_mapper_n]
 		if mapper_map.has(mp_id):
 			var count = 1
 			for i in mapper_map:
 				if i.begins_with(mp_id):
 					count += 1
 			if count != 1:
-				mp_id = '%s.%s%sMapper' % [leading_db_name, leading_class_n, count]
-		var mapper_arr = ['@tool\nextends GBatisMapper\nclass_name %sMapper\n' % leading_class_n]
+				leading_mapper_n += str(count)
+				mp_id += str(count)
+		var mapper_arr = ['@tool\nextends GBatisMapper\nclass_name %s\n' % leading_mapper_n]
 		mapper_map[mp_id] = mapper_arr
 		
 		# prepare somthing
@@ -1035,15 +1034,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 		
 		# end
 		xml_arr.push_back('\n</mapper>')
-		xml_arr[0] = xml_arr[0] % leading_class_n # replace namespace
-		var xml_ns = '%s.%sMapper' % [leading_db_name, leading_class_n]
+		xml_arr[0] = xml_arr[0] % leading_mapper_n # replace namespace
+		var xml_ns = '%s.%s' % [leading_db_name, leading_mapper_n]
 		if xml_map.has(xml_ns):
 			var a_index = 1
 			for n: String in xml_map:
 				if n.begins_with(xml_ns):
 					a_index += 1
 			if a_index > 1:
-				xml_ns = '%s.%s%sMapper' % [leading_db_name, leading_class_n, a_index]
+				xml_ns = '%s.%s%s' % [leading_db_name, leading_mapper_n, a_index]
 		xml_map[xml_ns] = xml_arr
 		
 	# 归一化 entity_map
