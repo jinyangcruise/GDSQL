@@ -401,7 +401,7 @@ func prepare_deal(data: Array):
 			prepare_prop_map()
 			
 			real_auto_mapping = get_deepest_auto_mapping() # 只有 mapping_to_object 的时候才用这个
-			primary_prop = get_deepest_primary_prop() # 要使用 prepare_prop_map() 的结果
+			#primary_prop = get_deepest_primary_prop() # 要使用 prepare_prop_map() 的结果
 			primary_column = get_deepest_primary_column()
 			
 			# 找到哪列可以唯一确认该实体
