@@ -2028,16 +2028,32 @@ func _on_tree_node_list_button_clicked(item: TreeItem, _column: int, id: int, _m
 			GDSQL.WorkbenchManager.create_accept_dialog("You can delete this node or leave it and create this table later.")
 		NODE_LIST_TREE_ITEM_BUTTON.TABLE_COMMENT_CHANGE:
 			var new_comment = item.get_meta("_meta_change_%d" % TABLE_CHANGE_TYPE.META_TABLE_COMMENT_CHANGE)
+			var graph_node: GraphNode = item.get_meta("_meta_graph_element")
+			var frame = graph_edit.get_element_frame(graph_node.name)
 			var confirm = func():
-				var graph_node = item.get_meta("_meta_graph_element")
-				graph_edit.update_item_comment(graph_node, new_comment)
-				_on_sys_confirm_alter_table()
-			GDSQL.WorkbenchManager.create_confirmation_dialog("Change the comment to: [%s]." % new_comment, confirm, Callable())
-			if get_meta("is_file"):
-				change_tab_title.emit(self, get_meta("file_name") + "*")
+				if frame:
+					request_open_file.emit(frame.title)
+				else:
+					graph_edit.update_item_comment(graph_node, new_comment)
+					_on_sys_confirm_alter_table()
+					if get_meta("is_file"):
+						change_tab_title.emit(self, get_meta("file_name") + "*")
+			var dialog = GDSQL.WorkbenchManager.create_confirmation_dialog("Change the comment to: [%s]." % new_comment, confirm, Callable())
+			if frame:
+				dialog.ok_button_text = tr("Open file to modify this")
+				var ok_btn = dialog.get_ok_button()
+				ok_btn.icon = get_theme_icon(&"ExternalLink", &"EditorIcons")
+				ok_btn.tooltip_text = frame.title
+				
 		NODE_LIST_TREE_ITEM_BUTTON.COLUMNS_CHANGE:
+			var graph_node = item.get_meta("_meta_graph_element")
+			var frame = graph_edit.get_element_frame(graph_node.name)
+			var datas_for_dialog: Array[Array] = []
+			if frame:
+				datas_for_dialog.push_back([tr("Confirm the changes:")])
+			else:
+				datas_for_dialog.push_back([(tr("Click [%s] ") % tr("OK")) + tr("to confirm the changes:")])
 			var new_column_map: Dictionary
-			var datas_for_dialog: Array[Array] = [[(tr("Click [%s] ") % tr("OK")) + tr("to confirm the changes:")]]
 			if item.has_meta("_meta_change_%d" % TABLE_CHANGE_TYPE.META_COLUMN_NAME_CHANGE):
 				# [old_column_map, new_column_map, column_diffs, db, table]
 				var info = item.get_meta("_meta_change_%d" % TABLE_CHANGE_TYPE.META_COLUMN_NAME_CHANGE)
@@ -2071,14 +2087,22 @@ func _on_tree_node_list_button_clicked(item: TreeItem, _column: int, id: int, _m
 					datas_for_dialog.push_back([label])
 					
 			var confirm = func():
-				var graph_node = item.get_meta("_meta_graph_element")
-				graph_edit.update_item_columns(graph_node, new_column_map.values())
-				await get_tree().process_frame
-				_on_sys_confirm_alter_table()
-				return [false, null]
+				if frame:
+					request_open_file.emit(frame.title)
+					return [false, null]
+				else:
+					graph_edit.update_item_columns(graph_node, new_column_map.values())
+					await get_tree().process_frame
+					_on_sys_confirm_alter_table()
+					return [false, null]
 			var defer = func(_a, _b):
 				for arr in datas_for_dialog:
 					for i in arr:
 						if i is Control:
 							i.queue_free()
-			GDSQL.WorkbenchManager.create_custom_dialog(datas_for_dialog, confirm, Callable(), defer, Vector2(0, 0.5), true)
+			var dialog = GDSQL.WorkbenchManager.create_custom_dialog(datas_for_dialog, confirm, Callable(), defer, Vector2(0, 0.5), true)
+			if frame:
+				dialog.ok_button_text = tr("Open file to modify this")
+				var ok_btn = dialog.get_ok_button()
+				ok_btn.icon = get_theme_icon(&"ExternalLink", &"EditorIcons")
+				ok_btn.tooltip_text = frame.title

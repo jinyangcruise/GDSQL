@@ -201,7 +201,8 @@ func _add_dialog(dialog: Window):
 		break
 	p.add_child(dialog)
 	
-func create_confirmation_dialog(msg: String, confirmed_callback: Callable = Callable(), canceled_callback: Callable = Callable()):
+func create_confirmation_dialog(msg: String, confirmed_callback: Callable = Callable(), 
+canceled_callback: Callable = Callable()) -> ConfirmationDialog:
 	var dialog := ConfirmationDialog.new()
 	dialog.dialog_text = msg
 	_add_dialog(dialog)
@@ -216,6 +217,7 @@ func create_confirmation_dialog(msg: String, confirmed_callback: Callable = Call
 		if canceled_callback.is_valid():
 			canceled_callback.call()
 	, CONNECT_DEFERRED)
+	return dialog
 	
 func create_accept_dialog(msg) -> void:
 	if msg is Array:
