@@ -25,7 +25,7 @@ var scripts_panel_toggled = false
 ## 由外部设置
 var find_replace_bar: Node
 var content: String
-var EDSCALE: float
+var EDSCALE: float = EditorInterface.get_editor_scale()
 var error_line = 0
 var error_column = 0
 var is_warnings_panel_opened = false
@@ -540,7 +540,8 @@ func set_warning_count(p_warning_count: int):
 		
 func _notification(p_what):
 	match p_what:
-		#NOTIFICATION_THEME_CHANGED:
+		NOTIFICATION_ENTER_TREE, NOTIFICATION_THEME_CHANGED:
+			EDSCALE = EditorInterface.get_editor_scale()
 			#if toggle_scripts_button and toggle_scripts_button.is_visible():
 				#update_toggle_scripts_button()
 			##_update_text_editor_theme()
@@ -591,7 +592,6 @@ func set_zoom_factor(p_zoom_factor: float):
 	
 func _ready() -> void:
 	set_translation_domain("godot.editor")
-	EDSCALE = get_display_scale()
 	#status_bar.custom_minimum_size.y = 24 * EDSCALE
 	
 	var zoom_menu = zoom_button.get_popup()
@@ -622,51 +622,6 @@ func _ready() -> void:
 	
 func EDITOR_GET(n: String):
 	return EditorInterface.get_editor_settings().get_setting(n)
-	
-func get_display_scale():
-	var setting = EDITOR_GET("interface/editor/display_scale")
-	match setting:
-		0: return get_auto_display_scale()
-		1: return 0.75
-		2: return 1.0
-		3: return 1.25
-		4: return 1.5
-		5: return 1.75
-		6: return 2.0
-		_: return EDITOR_GET("interface/editor/custom_display_scale")
-		
-func get_auto_display_scale() -> float:
-	#ifdef LINUXBSD_ENABLED
-	if OS.has_feature("linuxbsd"):
-		if DisplayServer.get_name() == "Wayland":
-			var main_window_scale = DisplayServer.screen_get_scale(DisplayServer.SCREEN_OF_MAIN_WINDOW)
-			
-			if DisplayServer.get_screen_count() == 1 || fract(main_window_scale) != 0:
-				return main_window_scale
-			return DisplayServer.screen_get_max_scale()
-	#endif
-
-	#if defined(MACOS_ENABLED) || defined(ANDROID_ENABLED)
-	if OS.has_feature("macos") or OS.has_feature("android"):
-		return DisplayServer.screen_get_max_scale()
-	#else
-	var screen = DisplayServer.window_get_current_screen()
-	
-	if DisplayServer.screen_get_size(screen) == Vector2i():
-		return 1.0
-		
-	var smallest_dimension = min(DisplayServer.screen_get_size(screen).x, DisplayServer.screen_get_size(screen).y)
-	if DisplayServer.screen_get_dpi(screen) >= 192 and smallest_dimension >= 1400:
-		return 2.0
-	elif smallest_dimension >= 1700:
-		return 1.5
-	elif smallest_dimension <= 800:
-		return 0.75
-	return 1.0
-	#endif
-
-func fract(value):
-	return value - floor(value)
 	
 func is_scripts_panel_toggled():
 	return not scripts_panel_toggled
@@ -699,7 +654,5 @@ func _warning_button_pressed() -> void:
 #func ED_IS_SHORTCUT(p_name: String, p_event: InputEvent) -> bool:
 	#return true# 
 	
-
-
 func _text_changed_idle_timeout() -> void:
 	pass # Replace with function body.

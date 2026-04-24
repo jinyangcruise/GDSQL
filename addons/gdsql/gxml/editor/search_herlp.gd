@@ -10,11 +10,10 @@ signal search_help_insert(content: String)
 @onready var hide_deprecated: CheckButton = $vbox/hbox/hide_deprecated
 
 
-var EDSCALE: float
+var EDSCALE: float = EditorInterface.get_editor_scale()
 
 func _ready() -> void:
 	set_translation_domain("godot.editor")
-	EDSCALE = get_display_scale()
 	
 	search_box.custom_minimum_size.x = 200 * EDSCALE
 	register_text_enter(search_box)
@@ -82,63 +81,23 @@ func _ready() -> void:
 			e_item.set_text(2, tr("Children"))
 			
 	_on_hide_deprecated_toggled(hide_deprecated.button_pressed)
-		
-		
+	
+	
 func popup_search(search: String = ""):
 	if search != "":
 		search_box.text = search
 		search_box.text_changed.emit(search)
 		search_box.select_all()
 	popup_centered_ratio(0.5)
-		
+	
 func EDITOR_GET(n: String):
 	return EditorInterface.get_editor_settings().get_setting(n)
 	
-func get_display_scale():
-	var setting = EDITOR_GET("interface/editor/display_scale")
-	match setting:
-		0: return get_auto_display_scale()
-		1: return 0.75
-		2: return 1.0
-		3: return 1.25
-		4: return 1.5
-		5: return 1.75
-		6: return 2.0
-		_: return EDITOR_GET("interface/editor/custom_display_scale")
-		
-func get_auto_display_scale() -> float:
-	#ifdef LINUXBSD_ENABLED
-	if OS.has_feature("linuxbsd"):
-		if DisplayServer.get_name() == "Wayland":
-			var main_window_scale = DisplayServer.screen_get_scale(DisplayServer.SCREEN_OF_MAIN_WINDOW)
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_ENTER_TREE, NOTIFICATION_THEME_CHANGED:
+			EDSCALE = EditorInterface.get_editor_scale()
 			
-			if DisplayServer.get_screen_count() == 1 || fract(main_window_scale) != 0:
-				return main_window_scale
-			return DisplayServer.screen_get_max_scale()
-	#endif
-
-	#if defined(MACOS_ENABLED) || defined(ANDROID_ENABLED)
-	if OS.has_feature("macos") or OS.has_feature("android"):
-		return DisplayServer.screen_get_max_scale()
-	#else
-	var screen = DisplayServer.window_get_current_screen()
-	
-	if DisplayServer.screen_get_size(screen) == Vector2i():
-		return 1.0
-		
-	var smallest_dimension = min(DisplayServer.screen_get_size(screen).x, DisplayServer.screen_get_size(screen).y)
-	if DisplayServer.screen_get_dpi(screen) >= 192 and smallest_dimension >= 1400:
-		return 2.0
-	elif smallest_dimension >= 1700:
-		return 1.5
-	elif smallest_dimension <= 800:
-		return 0.75
-	return 1.0
-	#endif
-	
-func fract(value):
-	return value - floor(value)
-
 func _search_box_gui_input(event: InputEvent) -> void:
 	if not event is InputEventKey:
 		return
@@ -153,8 +112,7 @@ func _search_box_gui_input(event: InputEvent) -> void:
 			
 func _search_box_text_changed(_new_text: String) -> void:
 	_update_results()
-
-
+	
 func _update_results() -> void:
 	var a_hide_deprecated = hide_deprecated.button_pressed
 	var search_str = search_box.text.to_lower()
@@ -196,8 +154,7 @@ func _update_results() -> void:
 		
 func _filter_combo_item_selected(_index: int) -> void:
 	pass # Replace with function body.
-
-
+	
 func _confirmed() -> void:
 	var selected = null
 	var arr_base = {}
@@ -261,8 +218,7 @@ func _confirmed() -> void:
 	
 func _on_hide_deprecated_toggled(_toggled_on: bool) -> void:
 	_update_results()
-
-
+	
 func _on_visibility_changed() -> void:
 	if visible:
 		search_box.grab_focus()

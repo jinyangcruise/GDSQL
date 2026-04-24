@@ -29,7 +29,7 @@ extends HBoxContainer
 
 signal error(label: String)
 
-var EDSCALE: float
+var EDSCALE: float = EditorInterface.get_editor_scale()
 var base_text_editor: Node
 var text_editor: CodeEdit
 
@@ -55,7 +55,8 @@ func _notification(p_what: int):
 			pass
 		NOTIFICATION_VISIBILITY_CHANGED:
 			set_process_unhandled_input(is_visible_in_tree())
-		#NOTIFICATION_THEME_CHANGED:
+		NOTIFICATION_ENTER_TREE, NOTIFICATION_THEME_CHANGED:
+			EDSCALE = EditorInterface.get_editor_scale()
 			#if matches_label:
 				#matches_label.add_theme_color_override("font_color", 
 					#(get_theme_color("font_color", "Label") if results_count > 0 else\
@@ -587,7 +588,6 @@ func set_text_edit(p_text_editor):
 	
 func _ready() -> void:
 	set_translation_domain("godot.editor")
-	EDSCALE = get_display_scale()
 	search_text.custom_minimum_size.x = 100 * EDSCALE
 	replace_text.custom_minimum_size.x = 100 * EDSCALE
 	#find_prev.custom_minimum_size.y = search_text.size.y
@@ -613,51 +613,6 @@ func ED_GET_SHORTCUT(n: String):
 	
 func get_editor_theme_icon(p_name):
 	return get_theme_icon(p_name, "EditorIcons")
-	
-func get_display_scale():
-	var setting = EDITOR_GET("interface/editor/display_scale")
-	match setting:
-		0: return get_auto_display_scale()
-		1: return 0.75
-		2: return 1.0
-		3: return 1.25
-		4: return 1.5
-		5: return 1.75
-		6: return 2.0
-		_: return EDITOR_GET("interface/editor/custom_display_scale")
-		
-func get_auto_display_scale() -> float:
-	#ifdef LINUXBSD_ENABLED
-	if OS.has_feature("linuxbsd"):
-		if DisplayServer.get_name() == "Wayland":
-			var main_window_scale = DisplayServer.screen_get_scale(DisplayServer.SCREEN_OF_MAIN_WINDOW)
-			
-			if DisplayServer.get_screen_count() == 1 || fract(main_window_scale) != 0:
-				return main_window_scale
-			return DisplayServer.screen_get_max_scale()
-	#endif
-
-	#if defined(MACOS_ENABLED) || defined(ANDROID_ENABLED)
-	if OS.has_feature("macos") or OS.has_feature("android"):
-		return DisplayServer.screen_get_max_scale()
-	#else
-	var screen = DisplayServer.window_get_current_screen()
-	
-	if DisplayServer.screen_get_size(screen) == Vector2i():
-		return 1.0
-		
-	var smallest_dimension = min(DisplayServer.screen_get_size(screen).x, DisplayServer.screen_get_size(screen).y)
-	if DisplayServer.screen_get_dpi(screen) >= 192 and smallest_dimension >= 1400:
-		return 2.0
-	elif smallest_dimension >= 1700:
-		return 1.5
-	elif smallest_dimension <= 800:
-		return 0.75
-	return 1.0
-	#endif
-	
-func fract(value):
-	return value - floor(value)
 	
 func is_symbol(c: String) -> bool:
 	return c != '_' and ((c >= '!' and c <= '/') or (c >= ':' and c <= '@') or \
