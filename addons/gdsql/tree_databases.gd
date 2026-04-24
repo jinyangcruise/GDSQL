@@ -945,7 +945,7 @@ func _get_specific_extension_files(path: String, extension: String) -> Array[Str
 				pass # 不支持发现子目录里的数据，用户可自行把子目录创建为新的数据库即可
 			# 文件
 			else:
-				if file_name.get_extension() == extension:
+				if file_name.get_extension().to_lower() == extension:
 					ret.push_back(file_name)
 					
 			file_name = dir.get_next()

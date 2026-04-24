@@ -57,12 +57,12 @@ func _on_file_tree_item_activated():
 	var selected = file_tree.get_selected()
 	if selected:
 		var path = selected.get_metadata(0) as String
-		if path.get_extension() == "xml":
+		if path.get_extension().to_lower() == "xml":
 			open_file(path)
 			
 func _on_file_item_list_item_activated(index: int):
 	var path = file_item_list.get_item_metadata(index) as String
-	if path.get_extension() == "xml":
+	if path.get_extension().to_lower() == "xml":
 		open_file(path)
 		
 func _on_file_system_dock_popup_menu_idex_pressed(index: int):
@@ -73,7 +73,7 @@ func _on_file_system_dock_popup_menu_idex_pressed(index: int):
 				if i.get_item_text(j) in ["Open", tr("Open")]:
 					if i.get_item_text(index) in ["Open", tr("Open")]:
 						var path = EditorInterface.get_current_path()
-						if path.get_extension() == "xml":
+						if path.get_extension().to_lower() == "xml":
 							open_file(path)
 							return
 							
