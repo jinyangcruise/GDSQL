@@ -1003,15 +1003,35 @@ func _on_delete_nodes_request(nodes: Array[StringName]) -> void:
 	var titles = nodes.map(func(v): return get_node(str(v)).title)
 	GDSQL.WorkbenchManager.create_confirmation_dialog(
 		split_for_long_content(
-			"Are you sure to delete selected nodes `%s`?" % ", ".join(titles)),
+			tr("Are you sure to delete selected nodes `%s`?") % ", ".join(titles)),
 		func():
+			# First check someting.
+			var in_frame = []
+			var frames = []
+			for i in nodes:
+				var node = get_node(str(i))
+				if node is GraphNode:
+					var frame = get_element_frame(i)
+					if frame and not in_frame.has(frame):
+						in_frame.push_back(frame)
+				elif node is GraphFrame:
+					frames.push_back(node)
+			for f: GraphFrame in in_frame:
+				if not f in frames:
+					GDSQL.WorkbenchManager.create_accept_dialog(
+						tr("You cannot delete a node from an included file unless you delete the entire included file frame."))
+					return
+			for f: GraphFrame in frames:
+				var contain_nodes = get_attached_nodes_of_frame(f.name)
+				for n in contain_nodes:
+					if not n in nodes:
+						nodes.push_back(n)
 			for i in nodes:
 				var node = get_node(str(i))
 				if node is GraphNode:
 					node_close(node)
 				elif node is GraphFrame:
-					pass
-				node.queue_free()
+					node.queue_free()
 			mark_modified()
 	)
 	
@@ -1324,7 +1344,7 @@ func _add_to_tree_item(node: GraphElement, parent_frame):
 	tree_node_list_item_added.emit()
 	
 func _delete_from_tree_item(node: GraphElement):
-	var item: TreeItem = node.get_meta("_meta_node_list_item")
-	if item and item.get_parent():
-		item.get_parent().remove_child(item)
-		item.free()
+	var item = node.get_meta("_meta_node_list_item")
+	if not item:
+		return
+	item.free()
