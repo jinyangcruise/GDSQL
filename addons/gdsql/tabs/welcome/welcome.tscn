@@ -1,4 +1,4 @@
-[gd_scene load_steps=33 format=3 uid="uid://dgmeafb51u3cu"]
+[gd_scene format=3 uid="uid://dgmeafb51u3cu"]
 
 [ext_resource type="Script" uid="uid://dpww5xh83russ" path="res://addons/gdsql/tabs/welcome/welcome.gd" id="1_5y5vp"]
 [ext_resource type="Texture2D" uid="uid://bx2rpo0iobkg5" path="res://addons/gdsql/img/circle-info.png" id="1_siirs"]
@@ -158,6 +158,8 @@ colors = PackedColorArray(0.03991354, 0.043577667, 0.08348745, 1, 0.3496866, 0.2
 [sub_resource type="GradientTexture2D" id="GradientTexture2D_ntqe3"]
 gradient = SubResource("Gradient_paf02")
 fill_to = Vector2(1, 1)
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_paf02"]
 
 [sub_resource type="FontVariation" id="FontVariation_bmgg2"]
 variation_transform = Transform2D(1, 0.155, 0, 1, 0, 0)
@@ -338,6 +340,8 @@ text = "Documentation"
 [node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left" unique_id=1345116852]
 layout_mode = 2
 theme_override_constants/margin_left = 30
+theme_override_constants/margin_top = -10
+theme_override_constants/margin_bottom = -10
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer" unique_id=934365054]
 layout_mode = 2
@@ -368,6 +372,7 @@ text = "Get in Touch"
 [node name="MarginContainer2" type="MarginContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left" unique_id=767018768]
 layout_mode = 2
 theme_override_constants/margin_left = 30
+theme_override_constants/margin_top = -10
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer2" unique_id=2077804697]
 layout_mode = 2
@@ -381,7 +386,7 @@ theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 text = "Bug / Request"
 underline = 2
 
-[node name="QQLinkButton" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer2/VBoxContainer" unique_id=2041182745]
+[node name="QQLinkButton2" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer2/VBoxContainer" unique_id=597071515]
 layout_mode = 2
 size_flags_horizontal = 0
 theme_override_colors/font_color = Color(0.7882353, 0.7882353, 0.7882353, 1)
@@ -389,6 +394,7 @@ theme_override_colors/font_pressed_color = Color(0.2784314, 0.54901963, 0.749019
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 text = "QQ Group"
 underline = 2
+uri = "https://qm.qq.com/q/BJgWJ4Eo38"
 
 [node name="DiscordLinkButton" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer2/VBoxContainer" unique_id=1770035481]
 layout_mode = 2
@@ -398,22 +404,57 @@ theme_override_colors/font_pressed_color = Color(0.2784314, 0.54901963, 0.749019
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 text = "Discord"
 underline = 2
+uri = "https://discord.gg/q9vWxmW7sH"
 
-[node name="DonateLinkButton" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer2/VBoxContainer" unique_id=1236082966]
+[node name="MarginContainer5" type="MarginContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left" unique_id=1733145118]
+layout_mode = 2
+theme_override_constants/margin_left = -10
+
+[node name="FoldableContainer" type="FoldableContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer5" unique_id=440675613]
+layout_mode = 2
+theme_override_styles/title_panel = SubResource("StyleBoxEmpty_paf02")
+theme_override_styles/title_hover_panel = SubResource("StyleBoxEmpty_paf02")
+theme_override_styles/title_collapsed_panel = SubResource("StyleBoxEmpty_paf02")
+theme_override_styles/title_collapsed_hover_panel = SubResource("StyleBoxEmpty_paf02")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_paf02")
+theme_override_styles/panel = SubResource("StyleBoxEmpty_paf02")
+folded = true
+title = "Donate"
+
+[node name="MarginContainer" type="MarginContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer5/FoldableContainer" unique_id=1018974119]
+visible = false
+layout_mode = 2
+theme_override_constants/margin_left = 39
+theme_override_constants/margin_top = 5
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer5/FoldableContainer/MarginContainer" unique_id=558572915]
+layout_mode = 2
+
+[node name="DonateLinkButton2" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer5/FoldableContainer/MarginContainer/VBoxContainer" unique_id=250004923]
 layout_mode = 2
 size_flags_horizontal = 0
 theme_override_colors/font_color = Color(0.7882353, 0.7882353, 0.7882353, 1)
 theme_override_colors/font_pressed_color = Color(0.2784314, 0.54901963, 0.7490196, 1)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
-text = "Donate"
+text = "Buy me a coffee"
 underline = 2
+uri = "https://ko-fi.com/jinyangcruise"
+
+[node name="DonateLinkButton" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer5/FoldableContainer/MarginContainer/VBoxContainer" unique_id=1236082966]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_colors/font_color = Color(0.7882353, 0.7882353, 0.7882353, 1)
+theme_override_colors/font_pressed_color = Color(0.2784314, 0.54901963, 0.7490196, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+text = "爱发电"
+underline = 2
+uri = "https://ifdian.net/a/jinyangcruise"
 
 [node name="MarginContainer3" type="MarginContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left" unique_id=1487157054]
 layout_mode = 2
-theme_override_constants/margin_left = 6
-theme_override_constants/margin_top = 6
+theme_override_constants/margin_left = 14
 theme_override_constants/margin_right = 6
-theme_override_constants/margin_bottom = 6
+theme_override_constants/margin_bottom = -10
 
 [node name="HBoxContainer" type="HBoxContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer3" unique_id=426590612]
 layout_mode = 2
@@ -426,6 +467,7 @@ theme_override_colors/font_pressed_color = Color(0.2784314, 0.54901963, 0.749019
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 text = "Showcase"
 underline = 2
+uri = "https://store.steampowered.com/app/4526720/Pawn_Within_Two_Fates/"
 
 [node name="TextureButton" type="TextureButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer3/HBoxContainer" unique_id=862952276]
 custom_minimum_size = Vector2(24, 0)
@@ -439,8 +481,8 @@ stretch_mode = 3
 
 [node name="MarginContainer4" type="MarginContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left" unique_id=461018073]
 layout_mode = 2
-theme_override_constants/margin_left = 6
-theme_override_constants/margin_top = 6
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 6
 theme_override_constants/margin_bottom = 6
 
@@ -513,6 +555,7 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_eplp7")
 [node name="RandomTipLabel" type="RichTextLabel" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Right/VBoxContainer/MarginContainer/PanelContainer" unique_id=1431129961]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 100)
+custom_maximum_size = Vector2(-1, 200)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -521,7 +564,6 @@ theme_override_styles/normal = SubResource("StyleBoxEmpty_ilb7s")
 bbcode_enabled = true
 text = "This is a random tip! This is a random tip!"
 fit_content = true
-scroll_active = false
 
 [node name="Version" type="Label" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Right" unique_id=1643781930]
 unique_name_in_owner = true
