@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://bb237nhc1oy7t"]
+[gd_scene format=3 uid="uid://bb237nhc1oy7t"]
 
 [ext_resource type="Script" uid="uid://cu6wj617ntnky" path="res://addons/gdsql/gxml/editor/xml_editor_panel.gd" id="1_mkxqm"]
 [ext_resource type="PackedScene" uid="uid://p78q13vs6fku" path="res://addons/gdsql/gxml/editor/find_replace_bar.tscn" id="2_ulsi5"]
@@ -160,6 +160,7 @@ flat = true
 [node name="HSplitContainer" type="HSplitContainer" parent="VBoxContainer" unique_id=266625173]
 layout_mode = 2
 size_flags_vertical = 3
+split_offsets = PackedInt32Array(470)
 split_offset = 470
 
 [node name="VSplitContainer" type="VSplitContainer" parent="VBoxContainer/HSplitContainer" unique_id=1142745535]
@@ -173,8 +174,8 @@ size_flags_vertical = 3
 layout_mode = 2
 placeholder_text = "Filter Files"
 clear_button_enabled = true
-right_icon = SubResource("DPITexture_cfi1p")
 caret_blink = true
+right_icon = SubResource("DPITexture_cfi1p")
 
 [node name="FileTree" type="Tree" parent="VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer" unique_id=1787272360]
 layout_mode = 2
@@ -210,8 +211,8 @@ texture_pressed = SubResource("DPITexture_u3x5y")
 layout_mode = 2
 placeholder_text = "Filter Items"
 clear_button_enabled = true
-right_icon = SubResource("DPITexture_cfi1p")
 caret_blink = true
+right_icon = SubResource("DPITexture_cfi1p")
 
 [node name="ItemTree" type="Tree" parent="VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer2" unique_id=881443461]
 layout_mode = 2
@@ -274,5 +275,3 @@ item_9/id = 9
 [connection signal="text_changed" from="VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer2/FilterName" to="." method="_on_filter_name_text_changed"]
 [connection signal="item_selected" from="VBoxContainer/HSplitContainer/VSplitContainer/VBoxContainer2/ItemTree" to="." method="_on_item_tree_item_selected"]
 [connection signal="index_pressed" from="RMBMenu" to="." method="_on_rmb_menu_index_pressed"]
-[connection signal="confirmed" from="SearchHerlp" to="SearchHerlp" method="_confirmed"]
-[connection signal="visibility_changed" from="SearchHerlp" to="SearchHerlp" method="_on_visibility_changed"]

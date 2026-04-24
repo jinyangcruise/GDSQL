@@ -53,6 +53,15 @@ func bind_file_system_dock_popup_menu():
 	file_item_list = fs_dock.find_children("@FileSystemList*", "FileSystemList", true, false)[0]
 	file_item_list.item_activated.connect(_on_file_item_list_item_activated)
 	
+	# Find in files bind
+	for i in EditorInterface.get_script_editor().get_incoming_connections():
+		var s: Signal = i.signal
+		if s.get_name() == &"result_selected" and \
+		(i.callable as Callable).get_method() == "ScriptEditor::_on_find_in_files_result_selected":
+			s.get_object().disconnect(&"result_selected", i.callable)
+			s.get_object().connect(&"result_selected", _proxy_on_find_in_files_result_selected.bind(i.callable), i.flags)
+			break
+			
 func _on_file_tree_item_activated():
 	var selected = file_tree.get_selected()
 	if selected:
@@ -77,10 +86,16 @@ func _on_file_system_dock_popup_menu_idex_pressed(index: int):
 							open_file(path)
 							return
 							
+func _proxy_on_find_in_files_result_selected(fpath: String, line_number: int, begin: int, end: int, native_callable: Callable):
+	if fpath.get_extension().to_lower() == "xml":
+		open_file(fpath, line_number - 1, begin, end)
+	else:
+		native_callable.call(fpath, line_number, begin, end)
+		
 func _on_close_requested() -> void:
 	hide()
-
-func open_file(path: String):
+	
+func open_file(path: String, p_line: int = 0, p_begin: int = -1, p_end: int = -1):
 	transient = false
 	if visible:
 		if mode != MODE_WINDOWED:
@@ -94,4 +109,4 @@ func open_file(path: String):
 			inited = true
 			
 	if path != "":
-		xml_editor_panel.open_file(path)
+		xml_editor_panel.open_file(path, p_line, p_begin, p_end)

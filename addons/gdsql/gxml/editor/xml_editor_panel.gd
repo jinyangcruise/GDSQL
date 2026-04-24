@@ -226,13 +226,18 @@ func modify_item_name(item: TreeItem):
 		a_name = path
 	item.set_text(0, a_name)
 	
-func open_file(path: String):
+func open_file(path: String, p_line: int = 0, p_begin: int = -1, p_end: int = -1):
 	path = GDSQL.GDSQLUtils.globalize_path(path)
 	var arr_name = {}
 	for i: TreeItem in file_tree.get_root().get_children():
 		arr_name[i.get_text(0)] = i
 		if i.get_meta("path") == path:
 			i.select(0)
+			var a_xml_editor = i.get_meta("editor")
+			if p_begin != -1 and p_end != -1:
+				a_xml_editor.call_deferred("goto_line_selection", p_line, p_begin, p_end)
+			elif p_line != -1:
+				a_xml_editor.call_deferred("goto_line", p_line, 0)
 			return
 			
 	var file_tree_item = file_tree.create_item(file_tree.get_root())
@@ -257,6 +262,11 @@ func open_file(path: String):
 	xml_editor.zoomed.connect(_update_zoom)
 	xml_editor.call_deferred("set_zoom_factor", zoom_factor)
 	
+	if p_begin != -1 and p_end != -1:
+		xml_editor.call_deferred("goto_line_selection", p_line, p_begin, p_end)
+	elif p_line != -1:
+		xml_editor.call_deferred("goto_line", p_line, 0)
+		
 	file_tree_item.set_meta("path", path)
 	file_tree_item.set_meta("editor", xml_editor)
 	file_tree_item.select(0)

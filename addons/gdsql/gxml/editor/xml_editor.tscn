@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://cb0umrs5k37ku"]
+[gd_scene format=3 uid="uid://cb0umrs5k37ku"]
 
 [ext_resource type="Script" uid="uid://b7fng3t4t1213" path="res://addons/gdsql/gxml/editor/xml_editor.gd" id="1_8wa0a"]
 [ext_resource type="Script" uid="uid://c6txskw6gitkr" path="res://addons/gdsql/gxml/editor/xml_syntax_high_lighter.gd" id="2_e72eg"]
@@ -8,7 +8,7 @@ resource_local_to_scene = true
 script = ExtResource("2_e72eg")
 element_color = Color(0.72, 0.77, 0.49, 1)
 attr_key_color = Color(0.736, 0.88, 1, 1)
-text_color = Color(0.8025, 0.81, 0.8225, 1)
+text_color = Color(1, 1, 1, 0.75)
 symbol_color = Color(0.67, 0.79, 1, 1)
 keyword_color = Color(1, 0.44, 0.52, 1)
 number_color = Color(0.63, 1, 0.88, 1)
@@ -18,7 +18,7 @@ member_variable_color = Color(0.736, 0.88, 1, 1)
 function_color = Color(0.34, 0.7, 1, 1)
 engine_type_color = Color(0.56, 1, 0.86, 1)
 comment_color = Color(0.6, 0.7, 0.8, 0.8)
-metadata/_custom_type_script = ExtResource("2_e72eg")
+metadata/_custom_type_script = "uid://c6txskw6gitkr"
 
 [sub_resource type="InputEventKey" id="InputEventKey_bjxvd"]
 device = -1
@@ -29,10 +29,17 @@ keycode = 92
 events = [SubResource("InputEventKey_bjxvd")]
 
 [sub_resource type="DPITexture" id="DPITexture_e72eg"]
-_source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#ff5d5d\" d=\"M2 1v8.586l1.293-1.293a1 1 0 0 1 1.414 0L7 10.587l2.293-2.293a1 1 0 0 1 1.414 0L13 10.586l1-1V6H9V1H2zm8 0v4h4zm-6 9.414-2 2V15h12v-2.586l-.293.293a1 1 0 0 1-1.414 0L10 10.414l-2.293 2.293a1 1 0 0 1-1.414 0L4 10.414z\"/></svg>
+_source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"8\" height=\"16\"><path fill=\"none\" stroke=\"#e0e0e0\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M6 2 2 8l4 6\"/></svg>
 "
+base_scale = 1.5
+saturation = 2.0
+color_map = {
+Color(1, 0.37254903, 0.37254903, 1): Color(1, 0.47, 0.42, 1),
+Color(0.37254903, 1, 0.5921569, 1): Color(0.45, 0.95, 0.5, 1),
+Color(1, 0.8666667, 0.39607844, 1): Color(0.83, 0.78, 0.62, 1)
+}
 
-[node name="XMLEditor" type="VBoxContainer"]
+[node name="XMLEditor" type="VBoxContainer" unique_id=333498302]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -43,7 +50,7 @@ size_flags_vertical = 3
 theme_override_constants/separation = 6
 script = ExtResource("1_8wa0a")
 
-[node name="TextEditor" type="CodeEdit" parent="."]
+[node name="TextEditor" type="CodeEdit" parent="." unique_id=354001472]
 layout_mode = 2
 size_flags_vertical = 3
 deselect_on_focus_loss_enabled = false
@@ -67,18 +74,18 @@ indent_automatic = true
 auto_brace_completion_enabled = true
 auto_brace_completion_highlight_matching = true
 
-[node name="ScrollContainer" type="ScrollContainer" parent="."]
+[node name="ScrollContainer" type="ScrollContainer" parent="." unique_id=198710276]
 layout_mode = 2
 horizontal_scroll_mode = 3
 vertical_scroll_mode = 0
 
-[node name="StatusBar" type="HBoxContainer" parent="ScrollContainer"]
+[node name="StatusBar" type="HBoxContainer" parent="ScrollContainer" unique_id=213660426]
 custom_minimum_size = Vector2(0, 48)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="ToggleScriptsButton" type="Button" parent="ScrollContainer/StatusBar"]
+[node name="ToggleScriptsButton" type="Button" parent="ScrollContainer/StatusBar" unique_id=268608336]
 layout_mode = 2
 size_flags_vertical = 5
 tooltip_text = "Toggle Scripts Panel (Ctrl+BackSlash)"
@@ -86,76 +93,76 @@ shortcut = SubResource("Shortcut_brei4")
 icon = SubResource("DPITexture_e72eg")
 flat = true
 
-[node name="Scroll" type="ScrollContainer" parent="ScrollContainer/StatusBar"]
+[node name="Scroll" type="ScrollContainer" parent="ScrollContainer/StatusBar" unique_id=1733193328]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="Error" type="Label" parent="ScrollContainer/StatusBar/Scroll"]
+[node name="Error" type="Label" parent="ScrollContainer/StatusBar/Scroll" unique_id=763828845]
 layout_mode = 2
 size_flags_vertical = 5
 mouse_filter = 0
 
-[node name="ErrorButton" type="Button" parent="ScrollContainer/StatusBar"]
+[node name="ErrorButton" type="Button" parent="ScrollContainer/StatusBar" unique_id=364117350]
 visible = false
 layout_mode = 2
 mouse_default_cursor_shape = 2
 text = "Errors"
 flat = true
 
-[node name="WarningButton" type="Button" parent="ScrollContainer/StatusBar"]
+[node name="WarningButton" type="Button" parent="ScrollContainer/StatusBar" unique_id=805828205]
 visible = false
 layout_mode = 2
 mouse_default_cursor_shape = 2
 text = "Warnings"
 flat = true
 
-[node name="VSeparator" type="VSeparator" parent="ScrollContainer/StatusBar"]
+[node name="VSeparator" type="VSeparator" parent="ScrollContainer/StatusBar" unique_id=575112761]
 layout_mode = 2
 
-[node name="ZoomButton" type="MenuButton" parent="ScrollContainer/StatusBar"]
+[node name="ZoomButton" type="MenuButton" parent="ScrollContainer/StatusBar" unique_id=262976715]
 layout_mode = 2
 tooltip_text = "Zoom factor"
 text = "100 %"
 item_count = 8
-popup/item_0/text = "50.0 %"
+popup/item_0/text = "50 %"
 popup/item_0/id = 0
-popup/item_1/text = "75.0 %"
+popup/item_1/text = "75 %"
 popup/item_1/id = 1
-popup/item_2/text = "90.0 %"
+popup/item_2/text = "90 %"
 popup/item_2/id = 2
-popup/item_3/text = "100.0 %"
+popup/item_3/text = "100 %"
 popup/item_3/id = 3
-popup/item_4/text = "110.0 %"
+popup/item_4/text = "110 %"
 popup/item_4/id = 4
-popup/item_5/text = "125.0 %"
+popup/item_5/text = "125 %"
 popup/item_5/id = 5
-popup/item_6/text = "150.0 %"
+popup/item_6/text = "150 %"
 popup/item_6/id = 6
-popup/item_7/text = "200.0 %"
+popup/item_7/text = "200 %"
 popup/item_7/id = 7
 
-[node name="VSeparator2" type="VSeparator" parent="ScrollContainer/StatusBar"]
+[node name="VSeparator2" type="VSeparator" parent="ScrollContainer/StatusBar" unique_id=1252286415]
 layout_mode = 2
 
-[node name="LineAndColTxt" type="Label" parent="ScrollContainer/StatusBar"]
+[node name="LineAndColTxt" type="Label" parent="ScrollContainer/StatusBar" unique_id=1603618951]
 layout_mode = 2
 tooltip_text = "Line and column numbers."
 mouse_filter = 0
 text = "   1 :   1"
 
-[node name="VSeparator3" type="VSeparator" parent="ScrollContainer/StatusBar"]
+[node name="VSeparator3" type="VSeparator" parent="ScrollContainer/StatusBar" unique_id=1068545376]
 layout_mode = 2
 
-[node name="IndentationTxt" type="Label" parent="ScrollContainer/StatusBar"]
+[node name="IndentationTxt" type="Label" parent="ScrollContainer/StatusBar" unique_id=1219674026]
 layout_mode = 2
 tooltip_text = "Indentation"
 mouse_filter = 0
 text = "制表符"
 
-[node name="Idle" type="Timer" parent="."]
+[node name="Idle" type="Timer" parent="." unique_id=304961556]
 one_shot = true
 
-[node name="CodeCompleteTimer" type="Timer" parent="."]
+[node name="CodeCompleteTimer" type="Timer" parent="." unique_id=1656607499]
 one_shot = true
 
 [connection signal="caret_changed" from="TextEditor" to="." method="_line_col_changed"]

@@ -50,6 +50,24 @@ const SHORTCUT_DELETELINE = preload("res://addons/gdsql/gxml/editor/shortcut/sho
 const SHORTCUT_DUPLICATESELECTION = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_duplicateselection.tres")
 const SHORTCUT_DUPLICATELINE = preload("res://addons/gdsql/gxml/editor/shortcut/shortcut_duplicateline.tres")
 
+func goto_line(p_line: int, p_column: int):
+	text_editor.remove_secondary_carets()
+	text_editor.deselect()
+	text_editor.unfold_line(clamp(p_line, 0, text_editor.get_line_count() - 1))
+	text_editor.set_caret_line(p_line, false)
+	text_editor.set_caret_column(p_column, false)
+	text_editor.set_code_hint("")
+	text_editor.cancel_code_completion()
+	text_editor.center_viewport_to_caret()
+	
+func goto_line_selection(p_line: int, p_begin: int, p_end: int):
+	text_editor.remove_secondary_carets()
+	text_editor.unfold_line(clamp(p_line, 0, text_editor.get_line_count() - 1))
+	text_editor.select(p_line, p_begin, p_line, p_end)
+	text_editor.set_code_hint("")
+	text_editor.cancel_code_completion()
+	text_editor.center_viewport_to_caret()
+	
 func _input(event: InputEvent) -> void:
 	if not event is InputEventKey:
 		return
