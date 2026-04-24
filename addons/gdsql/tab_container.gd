@@ -14,6 +14,7 @@ const WELCOME_PAGE_TAB_INDEX = 0
 var _tab_index = 1
 
 var _tab_activate_time: float = 0
+var _tab_history: Array
 
 const CONFIG_EXTENSION = ".cfg"
 const DATA_EXTENSION = ".gsql"
@@ -297,6 +298,10 @@ func _on_tab_button_pressed(tab: int) -> void:
 		return
 		
 	var page = get_tab_control(tab)
+	
+	# 删除页面前，先切换到上次打开的页面，否则系统会自动切换到被删除页面左边的那一个页面。
+	_switch_to_previous_page(page)
+	
 	remove_child(page)
 	page.queue_free()
 	# TODO 有内容的时候要提示保存或者二次确认
@@ -306,19 +311,37 @@ func _on_active_tab_rearranged(_idx_to: int):
 	if get_tab_control(WELCOME_PAGE_TAB_INDEX) != welcome_page:
 		move_child(welcome_page, WELCOME_PAGE_TAB_INDEX)
 		
+func _switch_to_previous_page(current_page: Node):
+	for i in range(_tab_history.size() -1, -1, -1):
+		if _tab_history[i] == current_page:
+			continue
+		printt("change to ", get_tab_idx_from_control(_tab_history[i]))
+		current_tab = get_tab_idx_from_control(_tab_history[i])
+		break
+		
 func close_content_window(content_id: String):
 	var child = get_node(content_id)
 	if child:
+		_switch_to_previous_page(child)
+		remove_child(child)
 		child.queue_free()
 		
 ## 切换标签的时候，把激活的标签上加一个关闭按钮，没激活的标签取消关闭按钮防止误触
 func _on_tab_changed(tab: int) -> void:
+	var tab_control = get_tab_control(tab)
+	
+	# 保持最新的tab在最尾端
+	if tab_control != new_tab_button:
+		if _tab_history.has(tab_control):
+			_tab_history.erase(tab_control)
+		_tab_history.push_back(tab_control)
+		
 	_tab_activate_time = Time.get_unix_time_from_system()
-	if tab == WELCOME_PAGE_TAB_INDEX:
-		welcome_page.name = tr("Welcome")
-	else:
-		welcome_page.name = "\n"
-	if get_tab_control(tab) != new_tab_button:
+	#if tab == WELCOME_PAGE_TAB_INDEX:
+		#welcome_page.name = tr("Welcome")
+	#else:
+		#welcome_page.name = "\n"
+	if tab_control != new_tab_button:
 		if tab != WELCOME_PAGE_TAB_INDEX:
 			set_tab_button_icon(tab, preload("res://addons/gdsql/img/xmark.png"))
 			
@@ -348,7 +371,7 @@ func receive_content(_content: String, force_new: bool = false, file_path: Strin
 		page.set_meta("file_name", file_name)
 		page.set_meta("file_path", file_path)
 		set_tab_title(current_tab, file_name)
-	
+		
 func receive_content_and_execute(title: String, info: Dictionary):
 	# 因为要执行，所以直接创建新页面
 	_on_tab_clicked(get_tab_count()-1)
@@ -365,3 +388,7 @@ func receive_content_and_execute(title: String, info: Dictionary):
 	match info["cmd"]:
 		"select":
 			sql_graph.add_select_node(info["db_name"], info["table_name"], info["fields"])
+			
+func _on_child_exiting_tree(node: Node) -> void:
+	if node in _tab_history:
+		_tab_history.erase(node)
