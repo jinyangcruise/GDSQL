@@ -580,9 +580,9 @@ func _zoom_to(p_zoom_factor: float):
 func set_zoom_factor(p_zoom_factor: float):
 	zoom_factor = clamp(p_zoom_factor, ZOOM_FACTOR_PRESETS[0], ZOOM_FACTOR_PRESETS.back());
 	var neutral_font_size = int(EDITOR_GET("interface/editor/code_font_size")) * EDSCALE;
-	var new_font_size = round(zoom_factor * neutral_font_size)
+	var new_font_size = roundi(zoom_factor * neutral_font_size)
 	
-	zoom_button.set_text(str(round(zoom_factor * 100)) + " %")
+	zoom_button.set_text(str(roundi(zoom_factor * 100)) + " %")
 	
 	if text_editor.has_theme_font_size_override("font_size"):
 		text_editor.remove_theme_font_size_override("font_size")
@@ -598,7 +598,7 @@ func _ready() -> void:
 	zoom_menu.clear(true)
 	for i in ZOOM_FACTOR_PRESETS.size():
 		var z = ZOOM_FACTOR_PRESETS[i]
-		zoom_menu.add_item(str(round(z * 100)) + " %")
+		zoom_menu.add_item(str(roundi(z * 100)) + " %")
 		zoom_menu.set_item_metadata(i, z)
 	zoom_menu.id_pressed.connect(_zoom_popup_id_pressed)
 	
