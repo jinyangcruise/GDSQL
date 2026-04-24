@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://dhptbdbjxq468"]
+[gd_scene format=3 uid="uid://dhptbdbjxq468"]
 
 [ext_resource type="PackedScene" uid="uid://bpawj4a7llynx" path="res://addons/gdsql/table.tscn" id="1_2tgi5"]
 [ext_resource type="PackedScene" uid="uid://c3bjm6oe0687p" path="res://addons/gdsql/tree_databases.tscn" id="1_2yut5"]
@@ -183,6 +183,7 @@ support_delete_row = true
 support_select_border = false
 
 [connection signal="pressed" from="VBoxContainer/HSplitContainer/PanelContainer/VBoxContainer/HBoxContainer/ButtonRefresh" to="." method="_on_button_refresh_pressed"]
+[connection signal="child_exiting_tree" from="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" to="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" method="_on_child_exiting_tree"]
 [connection signal="tab_button_pressed" from="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" to="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" method="_on_tab_button_pressed"]
 [connection signal="tab_changed" from="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" to="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" method="_on_tab_changed"]
 [connection signal="tab_clicked" from="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" to="VBoxContainer/HSplitContainer/VSplitContainer/TabContainer" method="_on_tab_clicked"]
