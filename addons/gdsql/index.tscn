@@ -68,7 +68,7 @@ columns = 5
 
 [node name="MenuButtonFile" type="MenuButton" parent="VBoxContainer/GridContainer" unique_id=2017574355]
 layout_mode = 2
-text = "文件(F)"
+text = "文件"
 
 [node name="HSplitContainer" type="HSplitContainer" parent="VBoxContainer" unique_id=1575290738]
 layout_mode = 2
