@@ -104,7 +104,9 @@ static func update_callback(new_value, property, dict_obj_ref: WeakRef, readable
 
 func _ready() -> void:
 	table.ratios = [10.0, 8.0, 3.0, 4.0, 17.0, 14.0, 11.0, 9.0, 6.0, 1.0, 1.0] as Array[float]
-	table.column_tips = ["字段名称", "数据类型", "检查器属性提示", "提示字符串", "是否为主键", "是否非空", "是否唯一", "是否自增", "是否索引", "默认值（支持表达式）", "备注"] as Array[String]
+	table.column_tips = ["Column Name", "Data Type", "Inspector Property Hint", "Hint String", 
+		"Is Primary Key", "Is Not Null", "Is Unique", "Is Auto Increment", "Is Indexed", 
+		"Default Value (Expression Supported)", "Comment"] as Array[String]
 	table.columns = ["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Index", "Default(Expression)", "Comment"]
 	
 	if schema != "":

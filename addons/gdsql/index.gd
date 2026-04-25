@@ -11,6 +11,8 @@ func _ready() -> void:
 	if GDSQL.WorkbenchManager == null or not GDSQL.WorkbenchManager.run_in_plugin(self):
 		return
 		
+	set_translation_domain("GDSQL")
+	
 	if not GDSQL.WorkbenchManager.add_log_history.is_connected(add_a_log):
 		GDSQL.WorkbenchManager.add_log_history.connect(add_a_log)
 		
@@ -38,7 +40,7 @@ func _ready() -> void:
 	tab_container.set_theme_type_variation("TabContainerInner")
 	
 	log_table.ratios = [22.0, 30.0, 8.0, 1.5, 0.4, 1.0] as Array[float]
-	log_table.columns = ["Status", "#", "Time", "Action", "Message", "Duration / Cost"] as Array[String]
+	log_table.columns = [tr("Status"), "#", tr("Time"), tr("Action"), tr("Message"), tr("Duration / Cost")] as Array[String]
 	
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_THEME_CHANGED:
@@ -89,7 +91,7 @@ func add_a_log(status: String, begin_timestamp: float, action: String, message, 
 		),
 		action,
 		message,
-		"%.3f / %.3f sec" % [(0.0 if is_zero_approx(begin_timestamp) else (now - begin_timestamp)), cost]
+		"%.3f sec / %.3f" % [(0.0 if is_zero_approx(begin_timestamp) else (now - begin_timestamp)), cost]
 	]
 	log_table.append_data(new_log)
 	log_table.scroll_to_bottom()

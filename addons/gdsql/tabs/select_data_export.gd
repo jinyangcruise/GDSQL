@@ -47,10 +47,12 @@ func load_data(columns, datas):
 		grid_container_columns.add_child(check_box)
 		var label = Label.new()
 		label.text = i["field_as"]
+		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		check_box.set_meta("col", index)
 		grid_container_columns.add_child(label)
 		var label_comment = Label.new()
 		label_comment.text = i["Comment"] if i.has("Comment") else (i["select_name"] if i.has("select_name") else "")
+		label_comment.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		grid_container_columns.add_child(label_comment)
 		var check_box_2 = CheckBox.new()
 		check_box_2.set_meta("col", index)
@@ -116,10 +118,10 @@ func _on_button_apply_pressed() -> void:
 		if i.button_pressed:
 			checked.push_back(i.get_meta("col"))
 	if checked.is_empty():
-		return GDSQL.WorkbenchManager.create_accept_dialog("Must export at least one column!")
+		return GDSQL.WorkbenchManager.create_accept_dialog(tr("Must export at least one column!"))
 		
 	if line_edit_file_path.text == "":
-		return GDSQL.WorkbenchManager.create_accept_dialog("Must enter an export file path!")
+		return GDSQL.WorkbenchManager.create_accept_dialog(tr("Must enter an export file path!"))
 		
 	var begin_time = Time.get_unix_time_from_system()
 	var err
@@ -130,7 +132,7 @@ func _on_button_apply_pressed() -> void:
 	elif check_box_json.button_pressed:
 		err = export_json(checked)
 	else:
-		GDSQL.WorkbenchManager.create_accept_dialog("Do not select an export type!")
+		GDSQL.WorkbenchManager.create_accept_dialog(tr("No export type selected!"))
 		return
 		
 	if err == OK:

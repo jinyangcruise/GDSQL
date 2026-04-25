@@ -44,7 +44,6 @@ var graph_edit: GraphEdit:
 		return _graph_edit
 		
 func _ready() -> void:
-	set_translation_domain("godot.editor")
 	button_commit.disabled = button_auto_commit.button_pressed
 	button_rollback.disabled = button_auto_commit.button_pressed
 	
@@ -438,7 +437,7 @@ func gen_select_node() -> GraphNode:
 	)
 	
 	var btn_query = Button.new()
-	btn_query.text = "query"
+	btn_query.text = tr("query")
 	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_query.pressed.connect(on_select_node_query.bind(graph_node, true))
 	btn_query.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
@@ -761,7 +760,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		, CONNECT_ONE_SHOT)
 		
 		var btn_export = Button.new()
-		btn_export.text = "export"
+		btn_export.text = tr("export")
 		btn_export.pressed.connect(func():
 			var _columns = table.get_meta("columns")
 			mgr.open_select_data_export_tab.emit(_columns, table.datas.map(extract_table_data_call.bind(_columns)))
@@ -892,7 +891,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		# 加俩按钮:1.新建一条数据；2.应用
 		var btn_apply = Button.new()
 		btn_ref[0] = btn_apply
-		btn_apply.text = "apply"
+		btn_apply.text = tr("apply")
 		btn_apply.disabled = true
 		btn_apply.pressed.connect(func():
 			var daos: Array[GDSQL.BaseDao] = []
@@ -987,7 +986,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			table_2.columns = ["#", "action", "extra info", "do", "status"]
 			table_2.column_tips = ["", "", "If necessary.", "Only execute checked actions.", "Execute status."]
 			var check_all_btn = CheckBox.new()
-			check_all_btn.text = "Check all"
+			check_all_btn.text = tr("Check all")
 			check_all_btn.button_pressed = true
 			check_all_btn.toggled.connect(func(toggled_on):
 				for row in table_2.datas:
@@ -1111,13 +1110,12 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			dialog_ref.push_back(dialog)
 			dialog.ok_button_text = "execute"
 			var btn_close_refresh = dialog.add_button("close and refresh", true, "close_and_refresh")
-			btn_close_refresh.tooltip_text = "Refresh the table. Actions that not have been executed will be discarded."
+			btn_close_refresh.tooltip_text = tr("Refresh the table. Actions that not have been executed will be discarded.")
 			btn_close_refresh.disabled = get_from_nodes(graph_node, "Select").filter(func(v):
 				return v.enabled
 			).is_empty() # 如果这个表格没有关联select节点，就无法刷新
 			if btn_close_refresh.disabled:
-				btn_close_refresh.tooltip_text += "\n[Tip]This button is disabled because this Result-node is "\
-					+ "not connected to a Select-node or the Select-node is not enabled."
+				btn_close_refresh.tooltip_text += "\n" + tr("[Tip]This button is disabled because this Result-node is not connected to a Select-node or the Select-node is not enabled.")
 			dialog.custom_action.connect(func(action):
 				if action == "close_and_refresh":
 					update_btn_disable_status.call("", 0, 0)
@@ -1130,15 +1128,15 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 					if btn_apply.disabled:
 						onclose.call()
 					else:
-						mgr.create_confirmation_dialog("You have some modifications that have not been executed.\n"\
-							+ "If you refresh, these modifications will be discarded. \nAre you sure to refresh the table?"
-							, onclose)
+						mgr.create_confirmation_dialog(split_for_long_content(tr(
+							"You have unsaved changes. Refreshing will discard all current edits. Are you sure you want to refresh the table?"
+						)), onclose)
 			)
 		)
 		
 		var btn_revert = Button.new()
 		btn_ref[1] = btn_revert
-		btn_revert.text = "revert"
+		btn_revert.text = tr("revert")
 		btn_revert.disabled = true
 		btn_revert.pressed.connect(func():
 			var old_datas: Array = []
@@ -1197,8 +1195,8 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		)
 		
 		var btn_new = Button.new()
-		btn_new.text = "new"
-		btn_new.tooltip_text = "Press 'Ctrl' to add 10 new row."
+		btn_new.text = tr("New Row")
+		btn_new.tooltip_text = tr("Press 'Ctrl' to add 10 new row.")
 		btn_new.pressed.connect(func():
 			var num = 1
 			if Input.is_key_pressed(KEY_CTRL):
@@ -1384,7 +1382,7 @@ func gen_insert_node() -> GraphNode:
 	)
 	
 	var btn_query = Button.new()
-	btn_query.text = "apply"
+	btn_query.text = tr("Apply")
 	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_query.pressed.connect(on_insert_node_query.bind(graph_node))
 	btn_query.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
@@ -1533,7 +1531,7 @@ func gen_update_node() -> GraphNode:
 	)
 	
 	var btn_query = Button.new()
-	btn_query.text = "apply"
+	btn_query.text = tr("Apply")
 	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_query.pressed.connect(on_update_node_query.bind(graph_node))
 	btn_query.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
@@ -1656,7 +1654,7 @@ func gen_delete_node() -> GraphNode:
 	)
 	
 	var btn_query = Button.new()
-	btn_query.text = "apply"
+	btn_query.text = tr("Apply")
 	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_query.pressed.connect(on_delete_node_query.bind(graph_node))
 	btn_query.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
@@ -1750,7 +1748,7 @@ func gen_sql_node() -> GraphNode:
 	separator2.custom_minimum_size.y = 10
 	
 	var btn_query = Button.new()
-	btn_query.text = "apply"
+	btn_query.text = tr("Apply")
 	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_query.pressed.connect(on_sql_node_query.bind(graph_node, true))
 	btn_query.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
@@ -2163,7 +2161,7 @@ func gen_link_node() -> GraphNode:
 	right_other_options.set_meta("align", "vertical")
 	
 	var btn_query = Button.new()
-	btn_query.text = "query"
+	btn_query.text = tr("query")
 	btn_query.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_query.pressed.connect(on_link_node_query.bind(graph_node))
 	btn_query.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
@@ -2604,12 +2602,12 @@ func on_select_node_query(node: GraphNode, log_history: bool):
 func on_insert_node_query(node: GraphNode):
 	var modified_datas = node.datas[2][2]
 	if modified_datas == null:
-		mgr.create_accept_dialog("Nothing changed")
+		mgr.create_accept_dialog(tr("Nothing changed"))
 		return
 		
 	modified_datas = (modified_datas as GDSQL.DictionaryObject).get_modified_new_value()
 	if modified_datas.is_empty():
-		mgr.create_accept_dialog("Nothing changed")
+		mgr.create_accept_dialog(tr("Nothing changed"))
 		return
 		
 	var dao = node.get_meta("base_dao") as GDSQL.BaseDao
@@ -2637,12 +2635,12 @@ func on_insert_node_query(node: GraphNode):
 func on_update_node_query(node: GraphNode):
 	var modified_datas = node.datas[2][2]
 	if modified_datas == null:
-		mgr.create_accept_dialog("Nothing changed")
+		mgr.create_accept_dialog(tr("Nothing changed"))
 		return
 		
 	modified_datas = (modified_datas as GDSQL.DictionaryObject).get_modified_new_value()
 	if modified_datas.is_empty():
-		mgr.create_accept_dialog("Nothing changed")
+		mgr.create_accept_dialog(tr("Nothing changed"))
 		return
 		
 	var dao = node.get_meta("base_dao") as GDSQL.BaseDao
@@ -3098,7 +3096,7 @@ func on_link_node_query(node: GraphNode):
 						dialog_ref.push_back(dialog)
 						dialog.ok_button_text = "execute"
 						var btn_close_refresh = dialog.add_button("close and refresh", true, "close_and_refresh")
-						btn_close_refresh.tooltip_text = "Refresh the table. Modifications that not have been applied will be discarded."
+						btn_close_refresh.tooltip_text = tr("Refresh the table. Modifications that not have been applied will be discarded.")
 						btn_close_refresh.disabled = get_from_nodes(node, "Link").filter(func(v):
 							return v.enabled
 						).is_empty() # 如果这个表格没有关联Link节点，就无法刷新
@@ -3295,7 +3293,7 @@ func _on_graph_edit_delete_nodes_request(nodes):
 	var titles = nodes.map(func(v): return graph_edit.get_node(str(v)).title)
 	mgr.create_confirmation_dialog(
 		split_for_long_content(
-			"Are you sure to delete selected nodes `%s`?" % ", ".join(titles)),
+			tr("Are you sure to delete selected nodes `%s`?") % ", ".join(titles)),
 		func():
 			for i in nodes:
 				var node = graph_edit.get_node(str(i))
@@ -3363,7 +3361,7 @@ func _input(event: InputEvent) -> void:
 		for node in selected_nodes:
 			for arr in node.datas:
 				for i in arr:
-					if i is Button and (i as Button).text.to_lower() in ["apply", "query"]:
+					if i is Button and (i as Button).text.to_lower() in ["apply", "query", tr("apply"), tr("query")]:
 						(i as Button).pressed.emit()
 		get_viewport().set_input_as_handled()
 		return

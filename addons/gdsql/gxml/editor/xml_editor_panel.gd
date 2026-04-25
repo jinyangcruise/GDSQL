@@ -91,7 +91,6 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 
 
 func _ready() -> void:
-	set_translation_domain("godot.editor")
 	add_theme_stylebox_override(&"panel", get_theme_stylebox(&"PanelForeground", &"EditorStyles"))
 	file_tree.add_theme_stylebox_override(&"panel", get_theme_stylebox(&"panel", &"ItemList"))
 	file_tree.create_item()

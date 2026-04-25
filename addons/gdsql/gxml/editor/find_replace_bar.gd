@@ -587,7 +587,6 @@ func set_text_edit(p_text_editor):
 	_editor_text_changed()
 	
 func _ready() -> void:
-	set_translation_domain("godot.editor")
 	search_text.custom_minimum_size.x = 100 * EDSCALE
 	replace_text.custom_minimum_size.x = 100 * EDSCALE
 	#find_prev.custom_minimum_size.y = search_text.size.y

@@ -30,7 +30,7 @@ func _on_button_apply_pressed() -> void:
 	var db_name = line_edit_name.text.strip_edges()
 	var path = line_edit_path.text.strip_edges()
 	if db_name.is_empty() or path.is_empty():
-		GDSQL.WorkbenchManager.create_accept_dialog("name and path must be set!")
+		GDSQL.WorkbenchManager.create_accept_dialog(tr("Name and path must be set!"))
 		return
 		
 	path = GDSQL.GDSQLUtils.globalize_path(path)

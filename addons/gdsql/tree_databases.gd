@@ -143,12 +143,12 @@ func add_db_to_config(db_name: String, path: String, id: String) -> void:
 	
 	for a_db_name in databases:
 		if a_db_name.to_lower() == db_name.to_lower():
-			msgs.push_back("Failed! Database name `%s` has been occupied!" % db_name)
+			msgs.push_back(tr("Failed! Database name `%s` has been occupied!") % db_name)
 			mgr.add_log_history.emit("Err", begin_time, action, msgs)
 			return mgr.create_accept_dialog(msgs)
 			
 		if databases[a_db_name]["data_path"] == path:
-			msgs.push_back("Failed! Database path `%s`(%s) already exist!" % [path, a_db_name])
+			msgs.push_back(tr("Failed! Database path `%s`(%s) already exist!") % [path, a_db_name])
 			mgr.add_log_history.emit("Err", begin_time, action, msgs)
 			return mgr.create_accept_dialog(msgs)
 			
@@ -156,20 +156,20 @@ func add_db_to_config(db_name: String, path: String, id: String) -> void:
 	_config_file.set_value(db_name, "data_path", path)
 	_config_file.set_value(db_name, "config_path", config_path)
 	_config_file.save(ROOT_CONFIG)
-	msgs.push_back("1 file: %s has been modified." % ROOT_CONFIG)
+	msgs.push_back(tr("1 file: %s has been modified.") % ROOT_CONFIG)
 	
 	var dir = DirAccess.open(CONFIG_ROOT)
 	if dir == null:
-		msgs.push_back("Failed! Cannot open config root %s dir! Err: %s." % [CONFIG_ROOT, DirAccess.get_open_error()])
+		msgs.push_back(tr("Failed! Cannot open config root %s dir! Err: %s.") % [CONFIG_ROOT, DirAccess.get_open_error()])
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	if not dir.dir_exists(config_path):
 		var err = dir.make_dir_recursive(config_path)
 		if err == OK:
-			msgs.push_back("dir: %s has been made." % config_path)
+			msgs.push_back(tr("Dir: %s has been made.") % config_path)
 		else:
-			msgs.push_back("Failed! Cannot make dir %s ! Err: %s." % [config_path, err])
+			msgs.push_back(tr("Failed! Cannot make dir %s ! Err: %s.") % [config_path, err])
 			mgr.add_log_history.emit("Err", begin_time, action, msgs)
 			return mgr.create_accept_dialog(msgs)
 		
@@ -205,26 +205,26 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 	var exist_col = {}
 	for i in column_infos:
 		if exist_col.has(i["Column Name"]):
-			msgs.push_back("duplicate field [%s]." % i["Column Name"])
+			msgs.push_back(tr("Duplicate column [%s].") % i["Column Name"])
 			mgr.add_log_history.emit("Err", begin_time, action, msgs)
 			return mgr.create_accept_dialog(msgs)
 			
 		exist_col[i["Column Name"]] = true
 		
 	if not databases.has(db_name):
-		var msg = "Failed! Database %s not exists!" % db_name
+		var msg = tr("Failed! Database %s not exists!") % db_name
 		mgr.add_log_history.emit("Err", begin_time, action, msg)
 		return mgr.create_accept_dialog(msg)
 		
 	var conf_dir = DirAccess.open(databases[db_name]["config_path"])
 	if conf_dir == null:
-		msgs.push_back("Failed! Cannot open database config dir %s! Err: %s." \
+		msgs.push_back(tr("Failed! Cannot open database config dir %s! Err: %s.") \
 			% [databases[db_name]["config_path"], DirAccess.get_open_error()])
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	if conf_dir.file_exists(table_name + CONFIG_EXTENSION):
-		msgs.push_back("Failed! Table conf %s already exist!" % (table_name + CONFIG_EXTENSION))
+		msgs.push_back(tr("Failed! Table conf %s already exist!") % (table_name + CONFIG_EXTENSION))
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
@@ -233,14 +233,14 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 	if not DirAccess.dir_exists_absolute(db_absolute_path):
 		var err = DirAccess.make_dir_recursive_absolute(db_absolute_path)
 		if err == OK:
-			msgs.push_back("Dir: %s has been made." % db_absolute_path)
+			msgs.push_back(tr("Dir: %s has been made.") % db_absolute_path)
 		else:
-			msgs.push_back("Failed! Cannot make dir %s ! Err: %s." % [db_absolute_path, err])
+			msgs.push_back(tr("Failed! Cannot make dir %s ! Err: %s.") % [db_absolute_path, err])
 			mgr.add_log_history.emit("Err", begin_time, action, msgs)
 			return mgr.create_accept_dialog(msgs)
 	else:
 		if FileAccess.file_exists(table_data_path):
-			msgs.push_back("Failed! Data file [%s] already exist!" % table_data_path)
+			msgs.push_back(tr("Failed! Data file [%s] already exist!") % table_data_path)
 			mgr.add_log_history.emit("Err", begin_time, action, msgs)
 			return mgr.create_accept_dialog(msgs)
 			
@@ -274,17 +274,17 @@ func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String
 	var msgs = []
 	
 	if old_db_name == new_db_name:
-		msgs.push_back("nothing changed!")
+		msgs.push_back(tr("Nothing changed!"))
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	if not databases.has(old_db_name):
-		msgs.push_back("database [%s] not exist!" % old_db_name)
+		msgs.push_back(tr("Database [%s] not exist!") % old_db_name)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	if databases.has(new_db_name):
-		msgs.push_back("database's name [%s] has been occupied!" % new_db_name)
+		msgs.push_back(tr("Database's name [%s] has been occupied!") % new_db_name)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
@@ -299,24 +299,24 @@ func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String
 	
 	var dir = DirAccess.open(CONFIG_ROOT)
 	if dir == null:
-		msgs.push_back("Failed! Cannot open config root %s dir! Err: %s." % [CONFIG_ROOT, DirAccess.get_open_error()])
+		msgs.push_back(tr("Failed! Cannot open config root %s dir! Err: %s.") % [CONFIG_ROOT, DirAccess.get_open_error()])
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	if dir.dir_exists(old_config_path):
 		var err = dir.rename(old_config_path, new_config_path)
 		if err == OK:
-			msgs.push_back("1 file: %s has been renamed to %s." % [old_config_path, new_config_path])
+			msgs.push_back(tr("1 file: %s has been renamed to %s.") % [old_config_path, new_config_path])
 		else:
-			msgs.push_back("Failed! Cannot rename dir from %s to %s ! Err: %s." % [old_config_path, new_config_path, err])
+			msgs.push_back(tr("Failed! Cannot rename dir from %s to %s ! Err: %s.") % [old_config_path, new_config_path, err])
 			mgr.add_log_history.emit("Err", begin_time, action, msgs)
 			return mgr.create_accept_dialog(msgs)
 	else:
 		var err = dir.make_dir_recursive(new_config_path)
 		if err == OK:
-			msgs.push_back("Dir: %s has been made" % new_config_path)
+			msgs.push_back(tr("Dir: %s has been made.") % new_config_path)
 		else:
-			msgs.push_back("Failed! Cannot make dir %s ! Err: %s." % [new_config_path, err])
+			msgs.push_back(tr("Failed! Cannot make dir %s ! Err: %s.") % [new_config_path, err])
 			mgr.add_log_history.emit("Err", begin_time, action, msgs)
 			return mgr.create_accept_dialog(msgs)
 			
@@ -348,12 +348,12 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 	action += ";" if comments.is_empty() else " COMMENT '%s';" % comments.c_escape()
 	
 	if primarys.size() != 1:
-		msgs.push_back("Multiple primary key or none primary key is not supported!")
+		msgs.push_back(tr("Multiple primary key or none primary key is not supported!"))
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 	
 	if not databases.has(db_name):
-		msgs.push_back("Failed! Database %s not exists!" % db_name)
+		msgs.push_back(tr("Failed! Database %s not exists!") % db_name)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
@@ -365,7 +365,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		#return mgr.create_accept_dialog(msg)
 		
 	if new_table_name != old_table_name and table_confs.has(new_table_name):
-		msgs.push_back("Failed! Table [%s] name has been occupied!" % new_table_name)
+		msgs.push_back(tr("Failed! Table [%s] name has been occupied!") % new_table_name)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
@@ -380,14 +380,14 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		config_file.set_value(new_table_name, "valid_if_not_exist", valid_if_not_exist)
 		config_file.set_value(new_table_name, "columns", column_infos)
 		config_file.save(table_conf_path) # 如果新路径和旧路径一致，就会覆盖掉，也是我们所期待的
-		msgs.push_back("1 file: %s has been saved." % table_conf_path)
+		msgs.push_back(tr("1 file: %s has been saved.") % table_conf_path)
 		
 		if old_table_data_path != new_table_data_path:
 			var old_table_conf_path = databases[db_name]["config_path"] + old_table_name + CONFIG_EXTENSION
 			var old_table_conf_path_abs = ProjectSettings.globalize_path(old_table_conf_path)
 			if FileAccess.file_exists(old_table_conf_path_abs):
 				OS.move_to_trash(old_table_conf_path_abs) # 删配置
-				msgs.push_back("1 file: %s has been moved to trash." % old_table_conf_path_abs)
+				msgs.push_back(tr("1 file: %s has been moved to trash.") % old_table_conf_path_abs)
 				
 		refresh()
 		mgr.sys_confirm_alter_table.emit(id)
@@ -395,7 +395,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		return
 		
 	if new_table_data_path != old_table_data_path and FileAccess.file_exists(new_table_data_path):
-		msgs.push_back("Failed! File [%s] already exist!" % new_table_data_path)
+		msgs.push_back(tr("Failed! File [%s] already exist!") % new_table_data_path)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
@@ -403,7 +403,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 	var exist_col = {}
 	for i in column_infos:
 		if exist_col.has(i["Column Name"]):
-			var msg = "Duplicate field [%s]" % i["Column Name"]
+			var msg = tr("Duplicate Column [%s].") % i["Column Name"]
 			mgr.add_log_history.emit("Err", begin_time, action, msg)
 			return mgr.create_accept_dialog(msg)
 			
@@ -426,7 +426,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 			if old_columns_map.has(col_name):
 				# 检查字段类型发生变化
 				if old_columns_map[col_name]["Data Type"] != i["Data Type"]:
-					warnings.push_back("Field [%s] data type changed from [%s] to [%s], datas will be converted!" % \
+					warnings.push_back(tr("Column [%s] data type changed from [%s] to [%s], datas will be converted!") % \
 						[col_name, type_string(old_columns_map[col_name]["Data Type"]), type_string(i["Data Type"])])
 					for j: Dictionary in old_values:
 						j[col_name] = type_convert(j[col_name], i["Data Type"])
@@ -435,14 +435,14 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 				# 检查自增
 				if not old_columns_map[col_name]["AI"] and i["AI"]:
 					if not [TYPE_INT, TYPE_FLOAT].has(i["Data Type"]):
-						msgs.push_back("Field [%s] data type must be int or float to support auto increment!" % col_name)
+						msgs.push_back(tr("Column [%s] data type must be int or float to support auto increment!") % col_name)
 						mgr.add_log_history.emit("Err", begin_time, action, msgs)
 						return mgr.create_accept_dialog(msgs)
 						
 					for j: Dictionary in old_values:
 						if not [TYPE_INT, TYPE_FLOAT].has(typeof(j[col_name])):
 							msgs.push_back(
-								"Old datas' field [%s] are not int or float, cannot support auto increment!" % col_name)
+								tr("Old datas' field [%s] are not int or float, cannot support auto increment!") % col_name)
 							mgr.add_log_history.emit("Err", begin_time, action, msgs)
 							return mgr.create_accept_dialog(msgs)
 				# 检查主键
@@ -451,7 +451,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 					var exist = {}
 					for j: Dictionary in old_values:
 						if exist.has(j[col_name]):
-							msgs.push_back("Old datas have duplicate value of primary key [%s]!" % col_name)
+							msgs.push_back(tr("Old datas have duplicate value of primary key [%s]!") % col_name)
 							mgr.add_log_history.emit("Err", begin_time, action, msgs)
 							return mgr.create_accept_dialog(msgs)
 							
@@ -462,7 +462,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 					var exist = {}
 					for j: Dictionary in old_values:
 						if exist.has(j[col_name]):
-							msgs.push_back("Old datas have duplicate value of unique key [%s]!" % col_name)
+							msgs.push_back(tr("Old datas have duplicate value of unique key [%s]!") % col_name)
 							mgr.add_log_history.emit("Err", begin_time, action, msgs)
 							return mgr.create_accept_dialog(msgs)
 							
@@ -471,7 +471,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 				if i["NN"]:
 					for j: Dictionary in old_values:
 						if j[col_name] == null:
-							msgs.push_back("Old datas have NULL value of not null key [%s]!" % col_name)
+							msgs.push_back(tr("Old datas have NULL value of not null key [%s]!") % col_name)
 							mgr.add_log_history.emit("Err", begin_time, action, msgs)
 							return mgr.create_accept_dialog(msgs)
 							
@@ -540,28 +540,28 @@ func set_password(db_name: String, table_name: String, password: String) -> void
 	var msgs = []
 	
 	if password == "":
-		msgs.push_back("Failed! Password is empty!")
+		msgs.push_back(tr("Failed! Password is empty!"))
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	if not databases.has(db_name):
-		msgs.push_back("Failed! Database %s not exists!" % db_name)
+		msgs.push_back(tr("Failed! Database %s not exists!") % db_name)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	if not databases[db_name]["tables"].has(table_name):
-		msgs.push_back("Failed! Table %s.%s not exists!" % [db_name, table_name])
+		msgs.push_back(tr("Failed! Table %s.%s not exists!") % [db_name, table_name])
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	if databases[db_name]["tables"][table_name]["encrypted"] != "":
-		msgs.push_back("Failed! Table %s.%s is encrypted already!" % [db_name, table_name])
+		msgs.push_back(tr("Failed! Table %s.%s is encrypted already!") % [db_name, table_name])
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	var table_conf_path = databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
 	if not FileAccess.file_exists(table_conf_path):
-		msgs.push_back("Failed! Table conf %s does not exist!" % table_conf_path)
+		msgs.push_back(tr("Failed! Table conf %s does not exist!") % table_conf_path)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
@@ -598,23 +598,23 @@ func clear_password(db_name: String, table_name: String) -> void:
 	var msgs = []
 	
 	if not databases.has(db_name):
-		msgs.push_back("Failed! Database %s not exists!" % db_name)
+		msgs.push_back(tr("Failed! Database %s not exists!") % db_name)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	if not databases[db_name]["tables"].has(table_name):
-		msgs.push_back("Failed! Table %s.%s not exists!" % [db_name, table_name])
+		msgs.push_back(tr("Failed! Table %s.%s not exists!") % [db_name, table_name])
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	if databases[db_name]["tables"][table_name]["encrypted"] == "":
-		msgs.push_back("Failed! Table %s.%s is not encrypted! No need to clear password." % [db_name, table_name])
+		msgs.push_back(tr("Failed! Table %s.%s is not encrypted! No need to clear password.") % [db_name, table_name])
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	var table_conf_path = databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
 	if not FileAccess.file_exists(table_conf_path):
-		msgs.push_back("Failed! Table conf %s does not exist!" % table_conf_path)
+		msgs.push_back(tr("Failed! Table conf %s does not exist!") % table_conf_path)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
@@ -649,28 +649,28 @@ func change_password(db_name: String, table_name: String, password: String) -> v
 	var msgs = []
 	
 	if password == "":
-		msgs.push_back("Failed! Password is empty!")
+		msgs.push_back(tr("Failed! Password is empty!"))
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	if not databases.has(db_name):
-		msgs.push_back("Failed! Database %s not exists!" % db_name)
+		msgs.push_back(tr("Failed! Database %s not exists!") % db_name)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	if not databases[db_name]["tables"].has(table_name):
-		msgs.push_back("Failed! Table %s.%s not exists!" % [db_name, table_name])
+		msgs.push_back(tr("Failed! Table %s.%s not exists!") % [db_name, table_name])
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	if databases[db_name]["tables"][table_name]["encrypted"] == "":
-		msgs.push_back("Failed! Table %s.%s is not encrypted!" % [db_name, table_name])
+		msgs.push_back(tr("Failed! Table %s.%s is not encrypted!") % [db_name, table_name])
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
 	var table_conf_path = databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
 	if not FileAccess.file_exists(table_conf_path):
-		msgs.push_back("Failed! Table conf %s does not exist!" % table_conf_path)
+		msgs.push_back(tr("Failed! Table conf %s does not exist!") % table_conf_path)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
@@ -707,7 +707,7 @@ func drop_db_from_config(db_name: String) -> void:
 	var action = "Drop Schema %s;" % db_name
 	
 	if not databases.has(db_name):
-		var content = "Database: %s not exist!" % db_name
+		var content = tr("Database: %s not exist!") % db_name
 		mgr.add_log_history.emit("Err", begin_time, action, content)
 		return mgr.create_accept_dialog(content)
 	
@@ -728,12 +728,12 @@ func drop_table_from_config(db_name: String, table_name: String) -> void:
 	var msgs = []
 	
 	if not databases.has(db_name):
-		var content = "Database: %s not exist!" % db_name
+		var content = tr("Database: %s not exist!") % db_name
 		mgr.add_log_history.emit("Err", begin_time, action, content)
 		return mgr.create_accept_dialog(content)
 		
 	if not databases[db_name]["tables"].has(table_name):
-		var content = "Table: `%s`.`%s` not exist!" % [db_name, table_name]
+		var content = tr("Table: `%s`.`%s` not exist!") % [db_name, table_name]
 		mgr.add_log_history.emit("Err", begin_time, action, content)
 		return mgr.create_accept_dialog(content)
 		
@@ -769,12 +769,12 @@ func truncate_table_from_config(db_name: String, table_name: String) -> void:
 	var msgs = []
 	
 	if not databases.has(db_name):
-		var content = "Database: %s not exist!" % db_name
+		var content = tr("Database: %s not exist!") % db_name
 		mgr.add_log_history.emit("Err", begin_time, action, content)
 		return mgr.create_accept_dialog(content)
 		
 	if not databases[db_name]["tables"].has(table_name):
-		var content = "Table: `%s`.`%s` not exist!" % [db_name, table_name]
+		var content = tr("Table: `%s`.`%s` not exist!") % [db_name, table_name]
 		mgr.add_log_history.emit("Err", begin_time, action, content)
 		return mgr.create_accept_dialog(content)
 		
@@ -800,7 +800,6 @@ func truncate_table_from_config(db_name: String, table_name: String) -> void:
 	refresh()
 
 func _ready():
-	set_translation_domain("godot.editor")
 	if mgr == null or not mgr.run_in_plugin(self):
 		return
 		
@@ -965,7 +964,7 @@ func add_database(db_name: String, data_path: String, conf_path: String) -> Tree
 	database_item.set_icon(0, preload("res://addons/gdsql/img/icon_db.png"))
 	database_item.set_icon_max_width(0, 20)
 	database_item.add_button(0, preload("res://addons/gdsql/img/folder.png"), 
-		ITEM_BUTTON_INDEX.FOLDER, false, "Show in File Manager")
+		ITEM_BUTTON_INDEX.FOLDER, false, tr("Show in File Manager"))
 	database_item.set_tooltip_text(0, data_path)
 	database_item.set_meta("db_name", db_name)
 	database_item.set_meta("data_path", data_path)
@@ -1041,7 +1040,7 @@ func add_table(db: TreeItem, table_name: String):
 				, true, tooltips[i])
 		if col.get("Index", false):
 			col_item.add_button(0, load("res://addons/gdsql/img/word_in.png"), 
-				ITEM_BUTTON_INDEX.COLUMN_PROPERTY, true, "Indexed")
+				ITEM_BUTTON_INDEX.COLUMN_PROPERTY, true, tr("Indexed"))
 				
 func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_index: int) -> void:
 	if column == 0:
@@ -1168,7 +1167,7 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 				var table_name = item.get_meta("table_name")
 				var open_dialog = func():
 					mgr.create_confirmation_dialog(
-						"Are you sure to Drop table `%s`.`%s`? Config file and data file of this table will be moved to trash." % \
+						tr("Are you sure to Drop table `%s`.`%s`? Config file and data file of this table will be moved to trash.") % \
 						[db_name, table_name], drop_table_from_config.bind(db_name, table_name))
 				deal_password_before_table_cmd(item, "", open_dialog)
 		"Truncate Table...":
@@ -1178,7 +1177,7 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 				var table_name = item.get_meta("table_name")
 				var open_dialog = func():
 					mgr.create_confirmation_dialog(
-						"Are you sure to Truncate table `%s`.`%s`?" % \
+						tr("Are you sure to Truncate table `%s`.`%s`?") % \
 						[db_name, table_name], truncate_table_from_config.bind(db_name, table_name))
 				deal_password_before_table_cmd(item, "", open_dialog)
 		"Show in File Manager":
@@ -1265,14 +1264,14 @@ func deal_password_before_table_cmd_2(db_name: String, table_name: String, try_p
 		
 	if not find_db:
 		if possible.is_empty():
-			mgr.create_accept_dialog("Not find database `%s`!" % db_name)
+			mgr.create_accept_dialog(tr("Not find database `%s`!") % db_name)
 		else:
-			mgr.create_accept_dialog("Not find database `%s`! Maybe:\n%s?" % [db_name, "\n,".join(possible)])
+			mgr.create_accept_dialog(tr("Not find database `%s`! Possible database:\n%s?") % [db_name, "\n,".join(possible)])
 	elif not find_table:
 		if possible.is_empty():
-			mgr.create_accept_dialog("Not find table `%s`!" % table_name)
+			mgr.create_accept_dialog(tr("Not find table `%s`!") % table_name)
 		else:
-			mgr.create_accept_dialog("Not find table `%s`! Maybe:\n%s?" % [table_name, "\n,".join(possible)])
+			mgr.create_accept_dialog(tr("Not find table `%s`! Possible table:\n%s?") % [table_name, "\n,".join(possible)])
 			
 func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, pass_callback: Callable, fail_callback: Callable = Callable()):
 	var db_name = table_item.get_meta("db_name")
@@ -1311,7 +1310,7 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 			GDSQL.ConfManager.get_conf(table_path, password_dict_obj._get("Password"))
 			_password_correct.push_back(table_path)
 			return [false, true] # false表示让对话框关闭，true表示密码正确
-		mgr.create_accept_dialog("Password is not correct!")
+		mgr.create_accept_dialog(tr("Password is not correct!"))
 		return [true, false] # true表示让对话框存在，false表示密码错误
 		
 	var defered = func(clicked_confirm: bool, validation):
@@ -1369,7 +1368,7 @@ func _on_popup_menu_database_index_pressed(index: int) -> void:
 			var item := get_selected()
 			if item:
 				mgr.create_confirmation_dialog(
-					"Are you sure to drop this database `%s`? This will NOT delete the folder from your operation system." \
+					tr("Are you sure to drop this database `%s`? This will NOT delete the folder from your operation system.") \
 					% get_selected().get_meta("db_name"),
 					drop_db_from_config.bind(item.get_meta("db_name"))
 				)
@@ -1534,8 +1533,7 @@ var ret = dao.use_db("%s")\\
 			if item:
 				var statement = "TODO"
 				DisplayServer.clipboard_set(statement)
-
-
+				
 func _on_popup_menu_password_index_pressed(index):
 	match popup_menu_password.get_item_text(index):
 		"Set Password":
@@ -1552,13 +1550,13 @@ func _on_popup_menu_password_index_pressed(index):
 				{"Password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "Enter same password agian."}})
 				
 			var arr: Array[Array] = [
-				["Set password for this table:"],
+				[tr("Set password for this table:")],
 				[password_dict_obj_1],
 				[password_dict_obj_2],
 			]
 			var confirmed = func():
 				if password_dict_obj_1._get("Password") != password_dict_obj_2._get("Password"):
-					mgr.create_accept_dialog("Passwords are different!")
+					mgr.create_accept_dialog(tr("Passwords are different!"))
 					return [true, false]
 				return [false, true]
 				
@@ -1582,14 +1580,14 @@ func _on_popup_menu_password_index_pressed(index):
 			var password_dict_obj = GDSQL.DictionaryObject.new({"Password": ""}, 
 				{"Password": {"hint": PROPERTY_HINT_PASSWORD}})
 			var arr: Array[Array] = [
-				["Are you sure to clear password for this table?"],
-				["Please enter password to apply."],
+				[tr("Are you sure to clear password for this table?")],
+				[tr("Please enter password to apply.")],
 				[password_dict_obj],
 			]
 			var confirmed = func():
 				if password_dict_obj._get("Password").md5_text() != \
 					mgr.databases[db_name]["tables"][table_name]["encrypted"]:
-					mgr.create_accept_dialog("Password is not correct!")
+					mgr.create_accept_dialog(tr("Password is not correct!"))
 					return [true, false]
 				return [false, true]
 				
@@ -1618,7 +1616,7 @@ func _on_popup_menu_password_index_pressed(index):
 			var password_dict_obj_2 = GDSQL.DictionaryObject.new({"newPassword": ""}, 
 				{"newPassword": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "Enter new password again."}})
 			var arr: Array[Array] = [
-				["Are you sure to change password for this table?"],
+				[tr("Are you sure to change password for this table?")],
 				[password_dict_obj],
 				[password_dict_obj_1],
 				[password_dict_obj_2],
@@ -1626,13 +1624,13 @@ func _on_popup_menu_password_index_pressed(index):
 			var confirmed = func():
 				if password_dict_obj._get("oldPassword").md5_text() != \
 					mgr.databases[db_name]["tables"][table_name]["encrypted"]:
-					mgr.create_accept_dialog("Password is not correct!")
+					mgr.create_accept_dialog(tr("Password is not correct!"))
 					return [true, false]
 				if password_dict_obj_1._get("newPassword") != password_dict_obj_2._get("newPassword"):
-					mgr.create_accept_dialog("The second password entered is not the same as the first one!")
+					mgr.create_accept_dialog(tr("The second password entered is not the same as the first one!"))
 					return [true, false]
 				if password_dict_obj_1._get("newPassword") == "":
-					mgr.create_accept_dialog("New password is empty!")
+					mgr.create_accept_dialog(tr("New password is empty!"))
 					return [true, false]
 				return [false, true]
 				
@@ -1645,7 +1643,7 @@ func _on_popup_menu_password_index_pressed(index):
 				mgr.create_custom_dialog(arr, confirmed, Callable(), defered)
 				
 			deal_password_before_table_cmd(item, "", callback)
-
+			
 ## 密码修改相关操作
 func _on_popup_menu_password_about_to_popup():
 	var item := get_selected()

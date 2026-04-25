@@ -1,4 +1,4 @@
-[gd_scene load_steps=7 format=3 uid="uid://byhi4jpo0rbtr"]
+[gd_scene format=3 uid="uid://byhi4jpo0rbtr"]
 
 [ext_resource type="Script" uid="uid://b7c85xlww24po" path="res://addons/gdsql/tabs/table_data_import.gd" id="1_7aquc"]
 [ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="1_86bt8"]
@@ -15,7 +15,7 @@ border_width_top = 2
 border_width_right = 2
 border_width_bottom = 2
 
-[node name="TableDataImport" type="ScrollContainer"]
+[node name="TableDataImport" type="ScrollContainer" unique_id=1396651381]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -23,208 +23,208 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_7aquc")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="."]
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=2078664492]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="Label" type="Label" parent="VBoxContainer"]
+[node name="Label" type="Label" parent="VBoxContainer" unique_id=592802559]
 layout_mode = 2
 text = "Select file to import:"
 
-[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer"]
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=826213092]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer"]
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer" unique_id=679897890]
 layout_mode = 2
 text = "File Path"
 
-[node name="LineEditFilePath" type="LineEdit" parent="VBoxContainer/HBoxContainer"]
+[node name="LineEditFilePath" type="LineEdit" parent="VBoxContainer/HBoxContainer" unique_id=135314892]
 layout_mode = 2
 size_flags_horizontal = 3
 editable = false
 
-[node name="ButtonFilePathResource" type="Button" parent="VBoxContainer/HBoxContainer"]
+[node name="ButtonFilePathResource" type="Button" parent="VBoxContainer/HBoxContainer" unique_id=1199604906]
 layout_mode = 2
 text = "Resource"
 icon = ExtResource("1_86bt8")
 
-[node name="ButtonFilePathUserData" type="Button" parent="VBoxContainer/HBoxContainer"]
+[node name="ButtonFilePathUserData" type="Button" parent="VBoxContainer/HBoxContainer" unique_id=1392519008]
 layout_mode = 2
 text = "UserData"
 icon = ExtResource("1_86bt8")
 
-[node name="ButtonFilePathFileSystem" type="Button" parent="VBoxContainer/HBoxContainer"]
+[node name="ButtonFilePathFileSystem" type="Button" parent="VBoxContainer/HBoxContainer" unique_id=1188105994]
 layout_mode = 2
 text = "FileSystem"
 icon = ExtResource("1_86bt8")
 
-[node name="HFlowContainer2" type="HFlowContainer" parent="VBoxContainer"]
+[node name="HFlowContainer2" type="HFlowContainer" parent="VBoxContainer" unique_id=618969781]
 visible = false
 layout_mode = 2
 alignment = 1
 
-[node name="CheckBoxCFG" type="CheckBox" parent="VBoxContainer/HFlowContainer2"]
+[node name="CheckBoxCFG" type="CheckBox" parent="VBoxContainer/HFlowContainer2" unique_id=2082981323]
 layout_mode = 2
 button_group = SubResource("ButtonGroup_u7q5e")
 text = "cfg"
 
-[node name="CheckBoxCSV" type="CheckBox" parent="VBoxContainer/HFlowContainer2"]
+[node name="CheckBoxCSV" type="CheckBox" parent="VBoxContainer/HFlowContainer2" unique_id=1799239137]
 layout_mode = 2
 button_pressed = true
 button_group = SubResource("ButtonGroup_u7q5e")
 text = "csv"
 
-[node name="CheckBoxJSON" type="CheckBox" parent="VBoxContainer/HFlowContainer2"]
+[node name="CheckBoxJSON" type="CheckBox" parent="VBoxContainer/HFlowContainer2" unique_id=228807914]
 layout_mode = 2
 button_group = SubResource("ButtonGroup_u7q5e")
 text = "json"
 
-[node name="LabelDataSamples" type="Label" parent="VBoxContainer"]
+[node name="LabelDataSamples" type="Label" parent="VBoxContainer" unique_id=714463467]
 visible = false
 layout_mode = 2
 text = "Data Samples:"
 
-[node name="TableSample" parent="VBoxContainer" instance=ExtResource("2_nyxc8")]
+[node name="TableSample" parent="VBoxContainer" unique_id=376393452 instance=ExtResource("2_nyxc8")]
 visible = false
 custom_minimum_size = Vector2(0, 250)
 layout_mode = 2
 
-[node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer" unique_id=1230089801]
 layout_mode = 2
 theme_override_constants/separation = 20
 
-[node name="Label2" type="Label" parent="VBoxContainer"]
+[node name="Label2" type="Label" parent="VBoxContainer" unique_id=561579173]
 layout_mode = 2
 text = "Select destination table and additional options:"
 
-[node name="HBoxContainer2" type="HBoxContainer" parent="VBoxContainer"]
+[node name="HBoxContainer2" type="HBoxContainer" parent="VBoxContainer" unique_id=510995334]
 layout_mode = 2
 
-[node name="CheckBoxUseExistingTable" type="CheckBox" parent="VBoxContainer/HBoxContainer2"]
+[node name="CheckBoxUseExistingTable" type="CheckBox" parent="VBoxContainer/HBoxContainer2" unique_id=1668950535]
 layout_mode = 2
 button_pressed = true
 button_group = SubResource("ButtonGroup_22oyv")
 text = "Use existing table:"
 
-[node name="OptionButtonTables" type="OptionButton" parent="VBoxContainer/HBoxContainer2"]
+[node name="OptionButtonTables" type="OptionButton" parent="VBoxContainer/HBoxContainer2" unique_id=2123850228]
 layout_mode = 2
 
-[node name="HBoxContainer3" type="HBoxContainer" parent="VBoxContainer"]
+[node name="HBoxContainer3" type="HBoxContainer" parent="VBoxContainer" unique_id=790472991]
 layout_mode = 2
 
-[node name="CheckBoxCreateNewTable" type="CheckBox" parent="VBoxContainer/HBoxContainer3"]
+[node name="CheckBoxCreateNewTable" type="CheckBox" parent="VBoxContainer/HBoxContainer3" unique_id=104823766]
 layout_mode = 2
 button_group = SubResource("ButtonGroup_22oyv")
 text = "Create new table:"
 
-[node name="OptionButtonDbs" type="OptionButton" parent="VBoxContainer/HBoxContainer3"]
+[node name="OptionButtonDbs" type="OptionButton" parent="VBoxContainer/HBoxContainer3" unique_id=2020080868]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer3"]
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer3" unique_id=555130775]
 layout_mode = 2
 text = "."
 
-[node name="LineEditTableName" type="LineEdit" parent="VBoxContainer/HBoxContainer3"]
+[node name="LineEditTableName" type="LineEdit" parent="VBoxContainer/HBoxContainer3" unique_id=1091989249]
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Enter table name without extension"
 caret_blink = true
 
-[node name="HSeparator2" type="HSeparator" parent="VBoxContainer"]
+[node name="HSeparator2" type="HSeparator" parent="VBoxContainer" unique_id=837556954]
 layout_mode = 2
 theme_override_constants/separation = 20
 
-[node name="CheckBoxTruncateTable" type="CheckBox" parent="VBoxContainer"]
+[node name="CheckBoxTruncateTable" type="CheckBox" parent="VBoxContainer" unique_id=1022026211]
 layout_mode = 2
 text = "Truncate table before import"
 
-[node name="CheckBoxDropTable" type="CheckBox" parent="VBoxContainer"]
+[node name="CheckBoxDropTable" type="CheckBox" parent="VBoxContainer" unique_id=756370096]
 visible = false
 layout_mode = 2
-text = "Drop table if exist"
+text = "Drop table if table exist"
 
-[node name="HSeparator3" type="HSeparator" parent="VBoxContainer"]
+[node name="HSeparator3" type="HSeparator" parent="VBoxContainer" unique_id=1537513128]
 layout_mode = 2
 theme_override_constants/separation = 20
 
-[node name="Label3" type="Label" parent="VBoxContainer"]
+[node name="Label3" type="Label" parent="VBoxContainer" unique_id=1651621355]
 layout_mode = 2
 text = "Select columns to import:"
 
-[node name="MarginContainerUseExistingTable" type="MarginContainer" parent="VBoxContainer"]
+[node name="MarginContainerUseExistingTable" type="MarginContainer" parent="VBoxContainer" unique_id=2049751987]
 layout_mode = 2
 theme_override_constants/margin_left = 10
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 10
 
-[node name="PanelContainer" type="PanelContainer" parent="VBoxContainer/MarginContainerUseExistingTable"]
+[node name="PanelContainer" type="PanelContainer" parent="VBoxContainer/MarginContainerUseExistingTable" unique_id=298320019]
 layout_mode = 2
 size_flags_horizontal = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_ao3ii")
 
-[node name="GridContainerColumnsUsingExistingTable" type="GridContainer" parent="VBoxContainer/MarginContainerUseExistingTable/PanelContainer"]
+[node name="GridContainerColumnsUsingExistingTable" type="GridContainer" parent="VBoxContainer/MarginContainerUseExistingTable/PanelContainer" unique_id=2079736263]
 layout_mode = 2
 size_flags_horizontal = 0
 columns = 3
 
-[node name="CheckBoxSelectAll1" type="CheckBox" parent="VBoxContainer/MarginContainerUseExistingTable/PanelContainer/GridContainerColumnsUsingExistingTable"]
+[node name="CheckBoxSelectAll1" type="CheckBox" parent="VBoxContainer/MarginContainerUseExistingTable/PanelContainer/GridContainerColumnsUsingExistingTable" unique_id=511969773]
 layout_mode = 2
 
-[node name="LabelHead1" type="Label" parent="VBoxContainer/MarginContainerUseExistingTable/PanelContainer/GridContainerColumnsUsingExistingTable"]
+[node name="LabelHead1" type="Label" parent="VBoxContainer/MarginContainerUseExistingTable/PanelContainer/GridContainerColumnsUsingExistingTable" unique_id=688069180]
 layout_mode = 2
 size_flags_horizontal = 6
 text = "Source Column"
 
-[node name="LabelHead2" type="Label" parent="VBoxContainer/MarginContainerUseExistingTable/PanelContainer/GridContainerColumnsUsingExistingTable"]
+[node name="LabelHead2" type="Label" parent="VBoxContainer/MarginContainerUseExistingTable/PanelContainer/GridContainerColumnsUsingExistingTable" unique_id=795585711]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Dest Column"
 
-[node name="MarginContainerCreateNewTable" type="MarginContainer" parent="VBoxContainer"]
+[node name="MarginContainerCreateNewTable" type="MarginContainer" parent="VBoxContainer" unique_id=421630903]
 visible = false
 layout_mode = 2
 theme_override_constants/margin_left = 10
 theme_override_constants/margin_right = 10
 theme_override_constants/margin_bottom = 10
 
-[node name="PanelContainer" type="PanelContainer" parent="VBoxContainer/MarginContainerCreateNewTable"]
+[node name="PanelContainer" type="PanelContainer" parent="VBoxContainer/MarginContainerCreateNewTable" unique_id=1183638948]
 layout_mode = 2
 size_flags_horizontal = 0
 theme_override_styles/panel = SubResource("StyleBoxFlat_ao3ii")
 
-[node name="GridContainerColumnsCreateNewTable" type="GridContainer" parent="VBoxContainer/MarginContainerCreateNewTable/PanelContainer"]
+[node name="GridContainerColumnsCreateNewTable" type="GridContainer" parent="VBoxContainer/MarginContainerCreateNewTable/PanelContainer" unique_id=1566262959]
 layout_mode = 2
 size_flags_horizontal = 0
 columns = 4
 
-[node name="CheckBoxSelectAll2" type="CheckBox" parent="VBoxContainer/MarginContainerCreateNewTable/PanelContainer/GridContainerColumnsCreateNewTable"]
+[node name="CheckBoxSelectAll2" type="CheckBox" parent="VBoxContainer/MarginContainerCreateNewTable/PanelContainer/GridContainerColumnsCreateNewTable" unique_id=1871367652]
 layout_mode = 2
 
-[node name="LabelHead1" type="Label" parent="VBoxContainer/MarginContainerCreateNewTable/PanelContainer/GridContainerColumnsCreateNewTable"]
+[node name="LabelHead1" type="Label" parent="VBoxContainer/MarginContainerCreateNewTable/PanelContainer/GridContainerColumnsCreateNewTable" unique_id=409664486]
 layout_mode = 2
 size_flags_horizontal = 6
 text = "Source Column"
 
-[node name="LabelHead2" type="Label" parent="VBoxContainer/MarginContainerCreateNewTable/PanelContainer/GridContainerColumnsCreateNewTable"]
+[node name="LabelHead2" type="Label" parent="VBoxContainer/MarginContainerCreateNewTable/PanelContainer/GridContainerColumnsCreateNewTable" unique_id=1421398399]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Data Type"
 
-[node name="LabelHead3" type="Label" parent="VBoxContainer/MarginContainerCreateNewTable/PanelContainer/GridContainerColumnsCreateNewTable"]
+[node name="LabelHead3" type="Label" parent="VBoxContainer/MarginContainerCreateNewTable/PanelContainer/GridContainerColumnsCreateNewTable" unique_id=1957509488]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Primary Key"
 
-[node name="HFlowContainer" type="HFlowContainer" parent="VBoxContainer"]
+[node name="HFlowContainer" type="HFlowContainer" parent="VBoxContainer" unique_id=1098441997]
 layout_mode = 2
 alignment = 1
 
-[node name="ButtonApply" type="Button" parent="VBoxContainer/HFlowContainer"]
+[node name="ButtonApply" type="Button" parent="VBoxContainer/HFlowContainer" unique_id=722179967]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 text = "Import"
 
-[node name="ButtonCancel" type="Button" parent="VBoxContainer/HFlowContainer"]
+[node name="ButtonCancel" type="Button" parent="VBoxContainer/HFlowContainer" unique_id=2018730573]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 text = "Cancel"

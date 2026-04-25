@@ -2279,8 +2279,9 @@ static func _static_init() -> void:
 
 func _init() -> void:
 	if Engine.is_editor_hint():
-		set_translation_domain("godot.editor")
-		
+		if TranslationServer.has_domain("GDSQL"):
+			set_translation_domain("GDSQL")
+			
 func get_operator_name(p_op):
 	return op_names[p_op]
 	

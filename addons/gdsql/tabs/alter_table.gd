@@ -84,7 +84,9 @@ static func update_callback(new_value, property, dict_obj_ref: WeakRef, readable
 
 func _ready() -> void:
 	table.ratios = [10.0, 8.0, 3.0, 4.0, 17.0, 14.0, 11.0, 9.0, 6.0, 1.0, 1.0] as Array[float]
-	table.column_tips = ["字段名称", "数据类型", "检查器属性提示", "提示字符串", "是否为主键", "是否非空", "是否唯一", "是否自增", "是否索引", "默认值（支持表达式）", "备注"] as Array[String]
+	table.column_tips = ["Column Name", "Data Type", "Inspector Property Hint", "Hint String", 
+		"Is Primary Key", "Is Not Null", "Is Unique", "Is Auto Increment", "Is Indexed", 
+		"Default Value (Expression Supported)", "Comment"] as Array[String]
 	table.columns = ["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Index", "Default(Expression)", "Comment"]
 	
 	if schema != "":
@@ -132,7 +134,7 @@ func _on_button_apply_pressed() -> void:
 	var curr_schema = line_edit_schema.text.strip_edges()
 	var curr_table_name = line_edit_table_name.text.strip_edges()
 	if curr_schema.is_empty() or curr_table_name.is_empty():
-		return GDSQL.WorkbenchManager.create_accept_dialog("schema and table name must be set!")
+		return GDSQL.WorkbenchManager.create_accept_dialog(tr("Database and table name must be set!"))
 		
 	var comments = text_edit_comment.text
 	var valid = check_box_valid_if_not_exist.button_pressed

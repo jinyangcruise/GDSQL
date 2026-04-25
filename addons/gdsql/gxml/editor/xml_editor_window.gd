@@ -7,10 +7,13 @@ var inited = false
 
 var file_tree: Tree
 var file_item_list: ItemList
+var _native_find_in_files: Object
+var _native_on_find_in_files_result_selected: Callable
+var _native_on_find_in_files_result_selected_flags
 
 func _ready() -> void:
-	set_translation_domain("godot.editor")
 	transient = false
+	set_translation_domain("GDSQL")
 	bind_file_system_dock_popup_menu()
 	
 func _notification(what: int) -> void:
@@ -21,6 +24,10 @@ func _notification(what: int) -> void:
 			DisplayServer.window_set_icon(load("res://addons/gdsql/gbatis/img/xml.svg").get_image(), get_window_id())
 			
 func _exit_tree() -> void:
+	if _native_find_in_files and _native_on_find_in_files_result_selected.is_valid():
+		if not _native_find_in_files.is_connected(&"result_selected", _native_on_find_in_files_result_selected):
+			_native_find_in_files.connect(&"result_selected", _native_on_find_in_files_result_selected, 
+				_native_on_find_in_files_result_selected_flags)
 	if file_tree:
 		file_tree.item_activated.disconnect(_on_file_tree_item_activated)
 	file_tree = null
@@ -58,8 +65,11 @@ func bind_file_system_dock_popup_menu():
 		var s: Signal = i.signal
 		if s.get_name() == &"result_selected" and \
 		(i.callable as Callable).get_method() == "ScriptEditor::_on_find_in_files_result_selected":
+			_native_find_in_files = s.get_object()
+			_native_on_find_in_files_result_selected = i.callable
+			_native_on_find_in_files_result_selected_flags = i.flags
 			s.get_object().disconnect(&"result_selected", i.callable)
-			s.get_object().connect(&"result_selected", _proxy_on_find_in_files_result_selected.bind(i.callable), i.flags)
+			s.get_object().connect(&"result_selected", _proxy_on_find_in_files_result_selected, i.flags)
 			break
 			
 func _on_file_tree_item_activated():
@@ -86,11 +96,11 @@ func _on_file_system_dock_popup_menu_idex_pressed(index: int):
 							open_file(path)
 							return
 							
-func _proxy_on_find_in_files_result_selected(fpath: String, line_number: int, begin: int, end: int, native_callable: Callable):
+func _proxy_on_find_in_files_result_selected(fpath: String, line_number: int, begin: int, end: int):
 	if fpath.get_extension().to_lower() == "xml":
 		open_file(fpath, line_number - 1, begin, end)
 	else:
-		native_callable.call(fpath, line_number, begin, end)
+		_native_on_find_in_files_result_selected.call(fpath, line_number, begin, end)
 		
 func _on_close_requested() -> void:
 	hide()

@@ -111,6 +111,7 @@ func reset_columns():
 		
 		var label = Label.new()
 		label.text = i
+		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		grid_container_columns_using_existing_table.add_child(label)
 		
 		var opb = OptionButton.new()
@@ -128,6 +129,7 @@ func reset_columns():
 		
 		var label1 = Label.new()
 		label1.text = i
+		label1.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		grid_container_columns_create_new_table.add_child(label1)
 		
 		var opb1 = OptionButton.new()# data type
@@ -179,7 +181,7 @@ func _on_button_file_path_pressed(access):
 			"json":
 				ret = read_json(path, 4)
 			_:
-				mgr.create_accept_dialog("Do not support this file! Valid file extension: .cfg, .csv, .json")
+				mgr.create_accept_dialog(tr("Do not support this file! Valid file extension: .cfg, .csv, .json"))
 				return
 				
 		table_sample.columns = ret[0]
@@ -210,7 +212,7 @@ func read_cfg(path, limit = 4) -> Array:
 	conf.load(path)
 	var sections = conf.get_sections()
 	if sections.is_empty():
-		mgr.create_accept_dialog("File is empty or not a valid .cfg file!")
+		mgr.create_accept_dialog(tr("File is empty or not a valid .cfg file!"))
 		return []
 		
 	var datas = []
@@ -228,7 +230,7 @@ func read_cfg(path, limit = 4) -> Array:
 func read_csv(path, limit = 4) -> Array:
 	var file = FileAccess.open(path, FileAccess.READ)
 	if file == null:
-		mgr.create_accept_dialog("Cannot open this file! Err code:%s" % FileAccess.get_open_error())
+		mgr.create_accept_dialog(tr("Cannot open this file! Err code:%s") % FileAccess.get_open_error())
 		return []
 		
 	var i = 0
@@ -242,7 +244,7 @@ func read_csv(path, limit = 4) -> Array:
 			datas.push_back(Array(file.get_csv_line(delim)))
 		i += 1
 	if head == null or datas.is_empty():
-		mgr.create_accept_dialog("File is empty or not a valid .csv file!")
+		mgr.create_accept_dialog(tr("File is empty or not a valid .csv file!"))
 		return []
 		
 	return [head, datas]
@@ -250,7 +252,7 @@ func read_csv(path, limit = 4) -> Array:
 func read_json(path, limit = 4) -> Array:
 	var file = FileAccess.open(path, FileAccess.READ)
 	if file == null:
-		mgr.create_accept_dialog("Cannot open this file! Err code:%s" % FileAccess.get_open_error())
+		mgr.create_accept_dialog(tr("Cannot open this file! Err code:%s") % FileAccess.get_open_error())
 		return []
 		
 	var content = file.get_as_text()
@@ -258,7 +260,7 @@ func read_json(path, limit = 4) -> Array:
 	if json is Dictionary:
 		json = (json as Dictionary).values()
 	if json == null or not json is Array or (json as Array).size() < 1 or not json[0] is Dictionary:
-		mgr.create_accept_dialog("File is empty or not a valid .json file!")
+		mgr.create_accept_dialog(tr("File is empty or not a valid .json file!"))
 		return []
 		
 	json = json as Array
@@ -300,13 +302,13 @@ func _on_button_apply_pressed() -> void:
 		if i.button_pressed:
 			checked.push_back(i)
 	if checked.is_empty():
-		return mgr.create_accept_dialog("Must import at least one column!")
+		return mgr.create_accept_dialog(tr("Must import at least one column!"))
 		
 	if line_edit_file_path.text == "":
-		return mgr.create_accept_dialog("Must enter an import file path!")
+		return mgr.create_accept_dialog(tr("Must enter an import file path!"))
 		
 	if check_box_create_new_table.button_pressed and line_edit_table_name.text == "":
-		return mgr.create_accept_dialog("Must enter a table name")
+		return mgr.create_accept_dialog(tr("Must enter a table name!"))
 		
 	var db_name
 	var table_name
@@ -332,7 +334,7 @@ func _on_button_apply_pressed() -> void:
 			column_infos.push_back(data)
 			
 		if not has_pk:
-			mgr.create_accept_dialog("Must import primary key!")
+			mgr.create_accept_dialog(tr("Must import primary key!"))
 			return
 		db_name = option_button_dbs.get_item_text(option_button_dbs.selected)
 		table_name = line_edit_table_name.text
@@ -342,7 +344,7 @@ func _on_button_apply_pressed() -> void:
 			)
 			
 		if not check_box_drop_table.button_pressed and mgr.databases[db_name]["tables"].has(table_name):
-			mgr.create_accept_dialog("Table exist! Please select `Using existing table` or check `Drop table if exist`.")
+			mgr.create_accept_dialog(tr("Table exist! Please select `Using existing table` or check `Drop table if table exist`."))
 			return
 			
 		# 请求新建表
@@ -387,7 +389,7 @@ func _on_button_apply_pressed() -> void:
 				need_trans = true
 				file_ret = read_json(path, MAX_INT)
 			_:
-				mgr.create_accept_dialog("Do not support this file! Valid file extension: .cfg, .csv, .json")
+				mgr.create_accept_dialog(tr("Do not support this file! Valid file extension: .cfg, .csv, .json"))
 				return
 		var columns = file_ret[0] as Array
 		var datas = file_ret[1] as Array

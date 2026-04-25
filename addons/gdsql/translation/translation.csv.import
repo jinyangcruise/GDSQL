@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://dn6xsncydnq0m"
+
+[deps]
+
+files=["res://addons/gdsql/translation/translation.en.translation", "res://addons/gdsql/translation/translation.zh_CN.translation", "res://addons/gdsql/translation/translation.zh_TW.translation", "res://addons/gdsql/translation/translation.ja.translation", "res://addons/gdsql/translation/translation.ko.translation", "res://addons/gdsql/translation/translation.es.translation", "res://addons/gdsql/translation/translation.pt_BR.translation", "res://addons/gdsql/translation/translation.fr.translation", "res://addons/gdsql/translation/translation.de.translation", "res://addons/gdsql/translation/translation.ru.translation", "res://addons/gdsql/translation/translation.it.translation", "res://addons/gdsql/translation/translation.pl.translation", "res://addons/gdsql/translation/translation.tr.translation"]
+
+source_file="res://addons/gdsql/translation/translation.csv"
+dest_files=["res://addons/gdsql/translation/translation.en.translation", "res://addons/gdsql/translation/translation.zh_CN.translation", "res://addons/gdsql/translation/translation.zh_TW.translation", "res://addons/gdsql/translation/translation.ja.translation", "res://addons/gdsql/translation/translation.ko.translation", "res://addons/gdsql/translation/translation.es.translation", "res://addons/gdsql/translation/translation.pt_BR.translation", "res://addons/gdsql/translation/translation.fr.translation", "res://addons/gdsql/translation/translation.de.translation", "res://addons/gdsql/translation/translation.ru.translation", "res://addons/gdsql/translation/translation.it.translation", "res://addons/gdsql/translation/translation.pl.translation", "res://addons/gdsql/translation/translation.tr.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

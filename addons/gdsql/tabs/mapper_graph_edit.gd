@@ -240,6 +240,7 @@ asize = null, pos_offset = null, aname = "", path = "/root", p_parent_frame = nu
 	for i: Dictionary in data.columns:
 		var label_col_name = Label.new()
 		label_col_name.text = i.get("Column Name")
+		label_col_name.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		var j = i.duplicate()
 		j["Data Type"] = '%s(%s)' % [i["Data Type"],
 			GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.find_key(i["Data Type"])]
@@ -414,6 +415,7 @@ func update_item_columns(graph_node: GraphNode, new_columns: Array):
 		else:
 			var label_col_name = Label.new()
 			label_col_name.text = i.get("Column Name")
+			label_col_name.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 			var j = i.duplicate()
 			j["Data Type"] = '%s(%s)' % [i["Data Type"],
 				GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.find_key(i["Data Type"])]

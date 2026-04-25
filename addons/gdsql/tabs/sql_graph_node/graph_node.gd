@@ -48,7 +48,6 @@ var _mutex: Mutex
 var max_btn: TextureButton
 
 func _ready() -> void:
-	set_translation_domain("godot.editor")
 	var tween = create_tween()
 	tween.set_loops(-1)
 	tween.tween_callback(_on_timer_timeout).set_delay(0.1)
@@ -67,7 +66,7 @@ func _ready() -> void:
 		
 	# enable button
 	check_button_enable = CheckButton.new()
-	check_button_enable.text = "enable"
+	check_button_enable.text = tr("enable")
 	check_button_enable.button_pressed = true
 	check_button_enable.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	check_button_enable.toggled.connect(_on_check_button_enable_toggled)

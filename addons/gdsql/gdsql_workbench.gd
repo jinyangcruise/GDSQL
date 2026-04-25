@@ -13,6 +13,8 @@ var xml_inspector_plugin
 var xml_editor_window
 
 func _enter_tree():
+	set_up_localization()
+	
 	# 特别需求，让检查器能够查看DictionaryObject
 	# EditorInspectorPlugin is a resource, so we use `new()` instead of `instance()`.
 	dictionary_object_inspector_plugin = preload("res://addons/gdsql/inspector_plugin/dictionary_object_inspector_plugin.gd").new()
@@ -118,3 +120,24 @@ func _on_file_system_dock_popup_menu_idex_pressed(index: int):
 							GDSQL.WorkbenchManager.open_mapper_graph_file_tab.emit(path)
 							return
 							
+func set_up_localization():
+	var domain = TranslationServer.get_or_add_domain("GDSQL")
+	
+	var translations = [
+		load("res://addons/gdsql/translation/translation.de.translation"),
+		load("res://addons/gdsql/translation/translation.en.translation"),
+		load("res://addons/gdsql/translation/translation.es.translation"),
+		load("res://addons/gdsql/translation/translation.fr.translation"),
+		load("res://addons/gdsql/translation/translation.it.translation"),
+		load("res://addons/gdsql/translation/translation.ja.translation"),
+		load("res://addons/gdsql/translation/translation.ko.translation"),
+		load("res://addons/gdsql/translation/translation.pl.translation"),
+		load("res://addons/gdsql/translation/translation.pt_BR.translation"),
+		load("res://addons/gdsql/translation/translation.ru.translation"),
+		load("res://addons/gdsql/translation/translation.tr.translation"),
+		load("res://addons/gdsql/translation/translation.zh_CN.translation"),
+		load("res://addons/gdsql/translation/translation.zh_TW.translation"),
+	]
+	
+	for translation in translations:
+		domain.add_translation(translation)

@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://dxiqfy1dnu7m4"]
+[gd_scene format=3 uid="uid://dxiqfy1dnu7m4"]
 
 [ext_resource type="Script" uid="uid://cwb78wbgojxf5" path="res://addons/gdsql/tabs/alter_table.gd" id="1_xbqm1"]
 [ext_resource type="PackedScene" uid="uid://bpawj4a7llynx" path="res://addons/gdsql/table.tscn" id="2_mrk7n"]
@@ -8,7 +8,7 @@
 [ext_resource type="Texture2D" uid="uid://b7ff01dmwhqry" path="res://addons/gdsql/img/arrow-down.png" id="6_40j5r"]
 [ext_resource type="Texture2D" uid="uid://b3lvu5w27beu6" path="res://addons/gdsql/img/arrow-down-line.png" id="7_a132x"]
 
-[node name="alter_table" type="ScrollContainer"]
+[node name="alter_table" type="ScrollContainer" unique_id=1231800853]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -17,48 +17,48 @@ grow_vertical = 2
 script = ExtResource("1_xbqm1")
 metadata/type = "new_table"
 
-[node name="VBoxContainer" type="VBoxContainer" parent="."]
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1128367492]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer"]
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=3473260]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer"]
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer" unique_id=1902300319]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 text = "Schema"
 horizontal_alignment = 2
 
-[node name="LineEditSchema" type="LineEdit" parent="VBoxContainer/HBoxContainer"]
+[node name="LineEditSchema" type="LineEdit" parent="VBoxContainer/HBoxContainer" unique_id=970207558]
 layout_mode = 2
 size_flags_horizontal = 3
 editable = false
 
-[node name="HBoxContainer2" type="HBoxContainer" parent="VBoxContainer"]
+[node name="HBoxContainer2" type="HBoxContainer" parent="VBoxContainer" unique_id=1684063845]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer2"]
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer2" unique_id=111104386]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 text = "Table Name"
 horizontal_alignment = 2
 
-[node name="LineEditTableName" type="LineEdit" parent="VBoxContainer/HBoxContainer2"]
+[node name="LineEditTableName" type="LineEdit" parent="VBoxContainer/HBoxContainer2" unique_id=2005655252]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="HBoxContainer3" type="HBoxContainer" parent="VBoxContainer"]
+[node name="HBoxContainer3" type="HBoxContainer" parent="VBoxContainer" unique_id=1302903428]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer3"]
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer3" unique_id=698478084]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 text = "Comments"
 horizontal_alignment = 2
 
-[node name="TextEditComment" type="TextEdit" parent="VBoxContainer/HBoxContainer3"]
+[node name="TextEditComment" type="TextEdit" parent="VBoxContainer/HBoxContainer3" unique_id=443541814]
 custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -67,49 +67,49 @@ scroll_smooth = true
 scroll_fit_content_height = true
 caret_blink = true
 
-[node name="HBoxContainer4" type="HBoxContainer" parent="VBoxContainer"]
+[node name="HBoxContainer4" type="HBoxContainer" parent="VBoxContainer" unique_id=820943594]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer4"]
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer4" unique_id=1389149334]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
-text = "Valid if not exist"
+text = "Use without table pre-creation"
 horizontal_alignment = 2
 
-[node name="CheckBoxValidIfNotExist" type="CheckBox" parent="VBoxContainer/HBoxContainer4"]
+[node name="CheckBoxValidIfNotExist" type="CheckBox" parent="VBoxContainer/HBoxContainer4" unique_id=351520471]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "(will not trigger file-not-exist-error)"
 
-[node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer" unique_id=1035170223]
 layout_mode = 2
 
-[node name="ButtonNewColumn" type="Button" parent="VBoxContainer"]
+[node name="ButtonNewColumn" type="Button" parent="VBoxContainer" unique_id=1749232823]
 layout_mode = 2
 text = "➕New Column"
 
-[node name="Table" parent="VBoxContainer" instance=ExtResource("2_mrk7n")]
+[node name="Table" parent="VBoxContainer" unique_id=839909589 instance=ExtResource("2_mrk7n")]
 layout_mode = 2
 editable = true
 columns = ["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Index", "Default(Expression)", "Comment"]
-column_tips = Array[String](["字段名称", "数据类型", "检查器属性提示", "提示字符串", "是否为主键", "是否非空", "是否唯一", "是否自增", "是否索引", "默认值（支持表达式）", "备注"])
+column_tips = Array[String](["Column Name", "Data Type", "Inspector Property Hint", "Hint String", "Is Primary Key", "Is Not Null", "Is Unique", "Is Auto Increment", "Is Indexed", "Default Value (Expression Supported)", "Comment"])
 ratios = Array[float]([10.0, 8.0, 3.0, 4.0, 17.0, 14.0, 11.0, 9.0, 6.0, 1.0, 1.0])
 
-[node name="HFlowContainer" type="HFlowContainer" parent="VBoxContainer"]
+[node name="HFlowContainer" type="HFlowContainer" parent="VBoxContainer" unique_id=1934951839]
 layout_mode = 2
 alignment = 1
 
-[node name="ButtonApply" type="Button" parent="VBoxContainer/HFlowContainer"]
+[node name="ButtonApply" type="Button" parent="VBoxContainer/HFlowContainer" unique_id=120214213]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 text = "Apply"
 
-[node name="ButtonCancel" type="Button" parent="VBoxContainer/HFlowContainer"]
+[node name="ButtonCancel" type="Button" parent="VBoxContainer/HFlowContainer" unique_id=1858161805]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 text = "Cancel"
 
-[node name="PopupMenu" type="PopupMenu" parent="."]
+[node name="PopupMenu" type="PopupMenu" parent="." unique_id=1885157353]
 item_count = 9
 item_0/text = "remove"
 item_0/icon = ExtResource("3_46hvr")

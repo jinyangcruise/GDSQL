@@ -55,18 +55,20 @@ func _on_option_button_tables_item_selected(index):
 		grid_container_columns.add_child(check_box)
 		var label = Label.new()
 		label.text = i["Column Name"]
+		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		check_box.set_meta("col", i["Column Name"])
 		grid_container_columns.add_child(label)
 		var label_comment = Label.new()
 		label_comment.text = i["Comment"]
+		label_comment.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		grid_container_columns.add_child(label_comment)
-
+		
 ## 全选按钮切换
 func _on_check_box_select_all_toggled(toggled_on):
 	var cbs = get_tree().get_nodes_in_group("check_box")
 	for i: CheckBox in cbs:
 		i.button_pressed = toggled_on
-
+		
 ## 导出文件选择
 func _on_button_file_path_pressed(access):
 	var editor_file_dialog = EditorFileDialog.new()
@@ -120,10 +122,10 @@ func _on_button_apply_pressed() -> void:
 		if i.button_pressed:
 			checked.push_back(i.get_meta("col"))
 	if checked.is_empty():
-		return mgr.create_accept_dialog("Must export at least one column!")
+		return mgr.create_accept_dialog(tr("Must export at least one column!"))
 		
 	if line_edit_file_path.text == "":
-		return mgr.create_accept_dialog("Must enter an export file path!")
+		return mgr.create_accept_dialog(tr("Must enter an export file path!"))
 		
 	var table = option_button_tables.get_item_text(option_button_tables.selected).split(".")
 	var db_name = table[0]
@@ -145,7 +147,7 @@ func _on_button_apply_pressed() -> void:
 		elif check_box_json.button_pressed:
 			err = export_json(ret.get_raw())
 		else:
-			mgr.create_accept_dialog("Do not select an export type!")
+			mgr.create_accept_dialog(tr("No export type selected!"))
 			return
 			
 		if err == OK:

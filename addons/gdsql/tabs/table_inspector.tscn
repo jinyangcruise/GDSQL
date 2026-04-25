@@ -1,11 +1,11 @@
-[gd_scene load_steps=5 format=3 uid="uid://bidbwri5dkve2"]
+[gd_scene format=3 uid="uid://bidbwri5dkve2"]
 
 [ext_resource type="Script" uid="uid://sw2kf57ntg2w" path="res://addons/gdsql/tabs/table_inspector.gd" id="1_6rb4l"]
 [ext_resource type="PackedScene" uid="uid://bpawj4a7llynx" path="res://addons/gdsql/table.tscn" id="2_bur0t"]
 [ext_resource type="Texture2D" uid="uid://cixkw34qbkoq" path="res://addons/gdsql/img/arrow-up-right-from-square.png" id="2_puyp5"]
 [ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="2_y42p4"]
 
-[node name="table_inspector" type="ScrollContainer"]
+[node name="table_inspector" type="ScrollContainer" unique_id=1752317340]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -14,49 +14,49 @@ grow_vertical = 2
 script = ExtResource("1_6rb4l")
 metadata/type = "new_table"
 
-[node name="VBoxContainer" type="VBoxContainer" parent="."]
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=1490851662]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer"]
+[node name="HBoxContainer" type="HBoxContainer" parent="VBoxContainer" unique_id=279533774]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer"]
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer" unique_id=860972556]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 text = "Schema"
 horizontal_alignment = 2
 
-[node name="LineEditSchema" type="LineEdit" parent="VBoxContainer/HBoxContainer"]
+[node name="LineEditSchema" type="LineEdit" parent="VBoxContainer/HBoxContainer" unique_id=1493736644]
 layout_mode = 2
 size_flags_horizontal = 3
 editable = false
 
-[node name="HBoxContainer2" type="HBoxContainer" parent="VBoxContainer"]
+[node name="HBoxContainer2" type="HBoxContainer" parent="VBoxContainer" unique_id=1385835308]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer2"]
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer2" unique_id=969323325]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 text = "Table Name"
 horizontal_alignment = 2
 
-[node name="LineEditTableName" type="LineEdit" parent="VBoxContainer/HBoxContainer2"]
+[node name="LineEditTableName" type="LineEdit" parent="VBoxContainer/HBoxContainer2" unique_id=2041989175]
 layout_mode = 2
 size_flags_horizontal = 3
 editable = false
 
-[node name="HBoxContainer3" type="HBoxContainer" parent="VBoxContainer"]
+[node name="HBoxContainer3" type="HBoxContainer" parent="VBoxContainer" unique_id=447807891]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer3"]
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer3" unique_id=503617616]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 text = "Comments"
 horizontal_alignment = 2
 
-[node name="TextEditComment" type="TextEdit" parent="VBoxContainer/HBoxContainer3"]
+[node name="TextEditComment" type="TextEdit" parent="VBoxContainer/HBoxContainer3" unique_id=129719193]
 custom_minimum_size = Vector2(0, 60)
 layout_mode = 2
 size_flags_horizontal = 3
@@ -66,79 +66,79 @@ scroll_smooth = true
 scroll_fit_content_height = true
 caret_blink = true
 
-[node name="HBoxContainer4" type="HBoxContainer" parent="VBoxContainer"]
+[node name="HBoxContainer4" type="HBoxContainer" parent="VBoxContainer" unique_id=380987537]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer4"]
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer4" unique_id=438653478]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 text = "Data File Path"
 horizontal_alignment = 2
 
-[node name="LineEditDataFilePath" type="LineEdit" parent="VBoxContainer/HBoxContainer4"]
+[node name="LineEditDataFilePath" type="LineEdit" parent="VBoxContainer/HBoxContainer4" unique_id=914447304]
 layout_mode = 2
 size_flags_horizontal = 3
 editable = false
 
-[node name="ButtonShowInFileManager" type="Button" parent="VBoxContainer/HBoxContainer4"]
+[node name="ButtonShowInFileManager" type="Button" parent="VBoxContainer/HBoxContainer4" unique_id=1204087381]
 layout_mode = 2
 text = "Show in File Manager"
 icon = ExtResource("2_y42p4")
 
-[node name="HBoxContainer5" type="HBoxContainer" parent="VBoxContainer"]
+[node name="HBoxContainer5" type="HBoxContainer" parent="VBoxContainer" unique_id=1242174379]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer5"]
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer5" unique_id=791543481]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 text = "Data File Size"
 horizontal_alignment = 2
 
-[node name="LineEditDataFileSize" type="LineEdit" parent="VBoxContainer/HBoxContainer5"]
+[node name="LineEditDataFileSize" type="LineEdit" parent="VBoxContainer/HBoxContainer5" unique_id=717202819]
 layout_mode = 2
 size_flags_horizontal = 3
 editable = false
 
-[node name="HBoxContainer6" type="HBoxContainer" parent="VBoxContainer"]
+[node name="HBoxContainer6" type="HBoxContainer" parent="VBoxContainer" unique_id=1627922025]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer6"]
+[node name="Label" type="Label" parent="VBoxContainer/HBoxContainer6" unique_id=1910966186]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 text = "Total Data Count"
 horizontal_alignment = 2
 
-[node name="LineEditTotalDataCount" type="LineEdit" parent="VBoxContainer/HBoxContainer6"]
+[node name="LineEditTotalDataCount" type="LineEdit" parent="VBoxContainer/HBoxContainer6" unique_id=2144022898]
 visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 editable = false
 
-[node name="ButtonEnterPassword" type="Button" parent="VBoxContainer/HBoxContainer6"]
+[node name="ButtonEnterPassword" type="Button" parent="VBoxContainer/HBoxContainer6" unique_id=143466970]
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Enter password to show this data"
 
-[node name="HSeparator" type="HSeparator" parent="VBoxContainer"]
+[node name="HSeparator" type="HSeparator" parent="VBoxContainer" unique_id=1266340885]
 layout_mode = 2
 
-[node name="ButtonOpenConfig" type="Button" parent="VBoxContainer"]
+[node name="ButtonOpenConfig" type="Button" parent="VBoxContainer" unique_id=1724046902]
 layout_mode = 2
 text = "Open Config File"
 icon = ExtResource("2_puyp5")
 expand_icon = true
 
-[node name="Table" parent="VBoxContainer" instance=ExtResource("2_bur0t")]
+[node name="Table" parent="VBoxContainer" unique_id=1846633324 instance=ExtResource("2_bur0t")]
 layout_mode = 2
 columns = ["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Index", "Default(Expression)", "Comment"]
-column_tips = Array[String](["字段名称", "数据类型", "检查器属性提示", "提示字符串", "是否为主键", "是否非空", "是否唯一", "是否自增", "是否索引", "默认值（支持表达式）", "备注"])
+column_tips = Array[String](["Column Name", "Data Type", "Inspector Property Hint", "Hint String", "Is Primary Key", "Is Not Null", "Is Unique", "Is Auto Increment", "Is Indexed", "Default Value (Expression Supported)", "Comment"])
 ratios = Array[float]([10.0, 8.0, 3.0, 4.0, 17.0, 14.0, 11.0, 9.0, 6.0, 1.0, 1.0])
 
-[node name="HFlowContainer" type="HFlowContainer" parent="VBoxContainer"]
+[node name="HFlowContainer" type="HFlowContainer" parent="VBoxContainer" unique_id=1962518164]
 layout_mode = 2
 alignment = 1
 
-[node name="ButtonApply" type="Button" parent="VBoxContainer/HFlowContainer"]
+[node name="ButtonApply" type="Button" parent="VBoxContainer/HFlowContainer" unique_id=1852141729]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 text = "Close"

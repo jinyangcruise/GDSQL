@@ -170,7 +170,7 @@ func _on_button_save_as_pressed() -> void:
 	editor_file_dialog.canceled.connect(editor_file_dialog.queue_free)
 	
 func _on_button_add_node_pressed() -> void:
-	GDSQL.WorkbenchManager.create_accept_dialog(button_add_node.tooltip_text)
+	GDSQL.WorkbenchManager.create_accept_dialog(tr(button_add_node.tooltip_text))
 	
 func _on_option_button_choose_path_item_selected(access: int, extra_line_edit = null, parent_dialog = null) -> void:
 	var editor_file_dialog = EditorFileDialog.new()
@@ -1157,16 +1157,16 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 					item.set_metadata(0, edit_history[file_name])
 					item.set_meta("origin", ''.join(map[i]) + '\n')
 					item.set_text(2, file_name + "(*)")
-					item.add_button(2, get_theme_icon("RotateLeft", "EditorIcons"), 3, false, "Revert")
+					item.add_button(2, get_theme_icon("RotateLeft", "EditorIcons"), 3, false, tr("Revert"))
 				else:
 					item.set_metadata(0, ''.join(map[i]) + '\n')
 					item.set_meta("origin", item.get_metadata(0))
 					item.set_text(2, file_name)
-					item.add_button(2, CompressedTexture2D.new(), 3, true, "Revert")
-				item.add_button(2, get_theme_icon("Edit", "EditorIcons"), 0, false, "Edit")
-				item.add_button(2, get_theme_icon("Save", "EditorIcons"), 1, false, "Save As...")
-				item.add_button(2, get_theme_icon("ActionCopy", "EditorIcons"), 2, false, "Copy")
-				item.add_button(2, get_theme_icon("HSplitContainer", "EditorIcons"), 4, false, "Compare")
+					item.add_button(2, CompressedTexture2D.new(), 3, true, tr("Revert"))
+				item.add_button(2, get_theme_icon("Edit", "EditorIcons"), 0, false, tr("Edit"))
+				item.add_button(2, get_theme_icon("Save", "EditorIcons"), 1, false, tr("Save As..."))
+				item.add_button(2, get_theme_icon("ActionCopy", "EditorIcons"), 2, false, tr("Copy"))
+				item.add_button(2, get_theme_icon("HSplitContainer", "EditorIcons"), 4, false, tr("Compare"))
 				_refresh_item_diff(item)
 				
 	refresh_tree.call()
@@ -1179,7 +1179,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	
 	btn_save_all.pressed.connect(func():
 		if line_edit_path.text == "":
-			GDSQL.WorkbenchManager.create_accept_dialog("Save path is empty!")
+			GDSQL.WorkbenchManager.create_accept_dialog(tr("Save path is empty!"))
 			return
 		for i: TreeItem in root.get_children():
 			if i.get_text(2) != "":
@@ -1271,7 +1271,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 	
 	var confirm = func():
 		if line_edit_path.text == "":
-			GDSQL.WorkbenchManager.create_accept_dialog("Save path is empty!")
+			GDSQL.WorkbenchManager.create_accept_dialog(tr("Save path is empty!"))
 			return [true, null]
 		var save_at_least_one = 0
 		for i: TreeItem in root.get_children():
@@ -1296,7 +1296,7 @@ func popup_generate_dialog(xml_map, mapper_map, entity_map):
 				_generate_dialog.get_ok_button().text = "Save"
 			return [true, null]
 		else:
-			GDSQL.WorkbenchManager.create_accept_dialog("None selected.")
+			GDSQL.WorkbenchManager.create_accept_dialog(tr("None selected."))
 			return [true, null]
 			
 	var defer = func(_a, _b):
@@ -1898,7 +1898,7 @@ func _check_table_change(item: TreeItem) -> bool:
 				item.add_button(0, get_theme_icon(&"VisualShaderNodeComment", &"EditorIcons"), 
 					NODE_LIST_TREE_ITEM_BUTTON.TABLE_COMMENT_CHANGE, false, 
 					tr("Table comment changes.") + "\n" + 
-					("Old: [%s]." % old_comment) + "\n" + ("New: [%s]." % new_comment))
+					(tr("Old: [%s].") % old_comment) + "\n" + (tr("New: [%s].") % new_comment))
 				item.set_meta("_meta_change_%d" % TABLE_CHANGE_TYPE.META_TABLE_COMMENT_CHANGE, new_comment)
 				change = true
 				
@@ -2025,7 +2025,7 @@ func _on_tree_node_list_button_clicked(item: TreeItem, _column: int, id: int, _m
 	item.select(0)
 	match id:
 		NODE_LIST_TREE_ITEM_BUTTON.TABLE_NOT_EXIST:
-			GDSQL.WorkbenchManager.create_accept_dialog("You can delete this node or leave it and create this table later.")
+			GDSQL.WorkbenchManager.create_accept_dialog(tr("You can delete this node or leave it and create this table later."))
 		NODE_LIST_TREE_ITEM_BUTTON.TABLE_COMMENT_CHANGE:
 			var new_comment = item.get_meta("_meta_change_%d" % TABLE_CHANGE_TYPE.META_TABLE_COMMENT_CHANGE)
 			var graph_node: GraphNode = item.get_meta("_meta_graph_element")

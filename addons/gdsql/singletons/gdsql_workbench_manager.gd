@@ -65,7 +65,7 @@ signal send_to_editor(content: String)
 signal send_to_editor_and_execute(title: String, info: Dictionary)
 
 ## 记录操作日志
-signal add_log_history(status: String, begin_timestamp: String, action: String, message: String)
+signal add_log_history(status: String, begin_timestamp: String, action: String, message: String, cost: float)
 
 ## 主界面引用。只有设定了该变量，才能使用run_in_plugin方法
 var main_panel: Control
@@ -124,8 +124,9 @@ func _notification(what):
 			dialog_root.queue_free()
 			
 func _init() -> void:
-	set_translation_domain("godot.editor")
-	
+	if TranslationServer.has_domain("GDSQL"):
+		set_translation_domain("GDSQL")
+		
 ## 返回某个节点是否运行在插件模式中。（脚本的@tool会让它运行在编辑器编辑界面中，而不是插件中，
 ## 可能导致信号多次绑定、额外数据被写入tscn中等问题）
 func run_in_plugin(node: Node) -> bool:

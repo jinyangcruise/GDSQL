@@ -61,7 +61,7 @@ signal row_deleted(datas) # {index: data}
 				for i in columns.size():
 					buttons[i+1+int(show_frame)].text = columns[i]
 					if not column_tips.is_empty():
-						buttons[i+1+int(show_frame)].tooltip_text = column_tips[i]
+						buttons[i+1+int(show_frame)].tooltip_text = tr(column_tips[i])
 			else:
 				reset_header()
 				
@@ -125,7 +125,6 @@ const DEFAULT_BORDER_BG_COLOR = Color(Color.WHITE, 0.05)
 const DEFAULT_BORDER_BORDER_COLOR = Color(Color.WHITE_SMOKE, 0.75)
 
 func _ready() -> void:
-	set_translation_domain("godot.editor")
 	DEFAULT_BORDER_STYLE.draw_center = false
 	DEFAULT_BORDER_STYLE.bg_color = DEFAULT_BORDER_BG_COLOR
 	DEFAULT_BORDER_STYLE.border_color = DEFAULT_BORDER_BORDER_COLOR
@@ -269,7 +268,7 @@ func reset_header():
 				preload("res://addons/gdsql/img/ArrowDown.png"), DisplayServer.CURSOR_HELP, Vector2(12, 12)))
 			c.dragger_visibility = HSplitContainer.DRAGGER_HIDDEN_COLLAPSED
 			if not column_tips.is_empty():
-				button.tooltip_text = column_tips[i-1-int(show_frame)]
+				button.tooltip_text = tr(column_tips[i-1-int(show_frame)])
 		elif i == fake_columns.size() - 1:
 			button.size_flags_stretch_ratio = 1
 			button.self_modulate.a = 0
@@ -283,7 +282,7 @@ func reset_header():
 			button.mouse_entered.connect(DisplayServer.cursor_set_custom_image.bind(
 				preload("res://addons/gdsql/img/ArrowDown.png"), DisplayServer.CURSOR_HELP, Vector2(12, 12)))
 			if not column_tips.is_empty():
-				button.tooltip_text = column_tips[i-1-int(show_frame)]
+				button.tooltip_text = tr(column_tips[i-1-int(show_frame)])
 				
 			if ratios.size() > i - 1 - int(show_frame):
 				control.size_flags_stretch_ratio = ratios[i - 1 - int(show_frame)]
@@ -293,6 +292,7 @@ func reset_header():
 			
 		button.text = fake_columns[i]
 		button.name = ("Button_" + button.text).validate_node_name()
+		button.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		parent = control
 		buttons.push_back(button)
 		if i < fake_columns.size() - 1:
@@ -643,10 +643,11 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 					a_index += 1
 					var label = Label.new()
 					label.text = info["name"]
+					label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 					grid.add_child(label)
 					grid.add_child(get_control_by_data_type(data.get(info["name"]), data, a_index))
 			## TODO 可能需要添加其他有必要预览的类型
-		
+			
 	if not handled:
 		control = label_model.duplicate()
 		control.text = var_to_str(data)
@@ -2585,7 +2586,7 @@ func _on_button_copy_pressed():
 		return
 		
 	if selected_borders.size() > 1:
-		GDSQL.WorkbenchManager.create_accept_dialog("Can not apply copy to multi-selected areas.")
+		GDSQL.WorkbenchManager.create_accept_dialog(tr("Can not apply copy to multi-selected areas."))
 		return
 		
 	var rect = selected_borders.front()["rect"] as Rect2
@@ -2678,7 +2679,7 @@ func _on_button_paste_pressed():
 				var rect = border["rect"] as Rect2
 				if not ((rect.size.x == 1 and rect.size.y == 1) \
 				or int(rect.size.x) % map_width == 0 or int(rect.size.y) % map_height == 0):
-					GDSQL.WorkbenchManager.create_accept_dialog("Cannot paste because the target areas' shape are different with source area.")
+					GDSQL.WorkbenchManager.create_accept_dialog(tr("Cannot paste because the target areas' shape are different with source area."))
 					return
 					
 			var selected_borders_bak = selected_borders.duplicate(true)

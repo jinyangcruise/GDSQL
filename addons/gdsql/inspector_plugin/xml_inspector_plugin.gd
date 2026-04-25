@@ -23,7 +23,7 @@ func _parse_begin(object: Object) -> void:
 	
 	var edit_btn = Button.new()
 	vbc.add_child(edit_btn)
-	edit_btn.text = "Edit"
+	edit_btn.text = tr("Edit")
 	edit_btn.icon = EditorInterface.get_base_control().get_theme_icon("Edit", "EditorIcons")
 	edit_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	edit_btn.self_modulate = Color(1, 2, 1, 1)
