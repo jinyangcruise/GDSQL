@@ -315,7 +315,6 @@ func _switch_to_previous_page(current_page: Node):
 	for i in range(_tab_history.size() -1, -1, -1):
 		if _tab_history[i] == current_page:
 			continue
-		printt("change to ", get_tab_idx_from_control(_tab_history[i]))
 		current_tab = get_tab_idx_from_control(_tab_history[i])
 		break
 		
