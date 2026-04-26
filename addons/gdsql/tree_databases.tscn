@@ -1,26 +1,18 @@
-[gd_scene load_steps=19 format=3 uid="uid://c3bjm6oe0687p"]
+[gd_scene format=3 uid="uid://c3bjm6oe0687p"]
 
 [ext_resource type="Script" uid="uid://cux8i7ttu5uij" path="res://addons/gdsql/tree_databases.gd" id="1_e77h1"]
 [ext_resource type="Texture2D" uid="uid://dhrujeh8nxhtd" path="res://addons/gdsql/img/trash-can.png" id="2_1e3si"]
 [ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="2_ffwpe"]
 [ext_resource type="Texture2D" uid="uid://devul8doq53rt" path="res://addons/gdsql/img/plus.png" id="2_ld4lc"]
 [ext_resource type="Texture2D" uid="uid://defy2bknd7eqs" path="res://addons/gdsql/img/quick_search.png" id="2_obdc1"]
-[ext_resource type="Texture2D" uid="uid://b547qfqxrv2h" path="res://addons/gdsql/img/pen.png" id="2_sdu3l"]
-[ext_resource type="Texture2D" uid="uid://c2rmigc5ahckg" path="res://addons/gdsql/img/xmark.png" id="3_2yegw"]
-[ext_resource type="Texture2D" uid="uid://cwib4k4sjqyo4" path="res://addons/gdsql/img/plusfile.png" id="3_c6cxx"]
-[ext_resource type="Texture2D" uid="uid://cixkw34qbkoq" path="res://addons/gdsql/img/arrow-up-right-from-square.png" id="3_cmntk"]
 [ext_resource type="Texture2D" uid="uid://bx2rpo0iobkg5" path="res://addons/gdsql/img/circle-info.png" id="6_4gqw3"]
 [ext_resource type="Texture2D" uid="uid://uv864j1h58kn" path="res://addons/gdsql/img/copy.png" id="7_puf8r"]
-[ext_resource type="Texture2D" uid="uid://bhdwuawd35hcq" path="res://addons/gdsql/img/rotate.png" id="7_udc60"]
-[ext_resource type="Texture2D" uid="uid://bgsurijylxgeu" path="res://addons/gdsql/img/pen-to-square.png" id="8_qmvfl"]
-[ext_resource type="Texture2D" uid="uid://cdy7ibprpxqjo" path="res://addons/gdsql/img/download.png" id="9_s5rbm"]
-[ext_resource type="Texture2D" uid="uid://bowjgvek2y3aw" path="res://addons/gdsql/img/upload.png" id="10_8aje2"]
 [ext_resource type="Texture2D" uid="uid://dlx17p6r8ac6t" path="res://addons/gdsql/img/lock.png" id="13_h0vib"]
 [ext_resource type="Texture2D" uid="uid://3oeyna134iv4" path="res://addons/gdsql/img/m.png" id="17_c518k"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ou145"]
 
-[node name="TreeDatabases" type="Tree"]
+[node name="TreeDatabases" type="Tree" unique_id=746982389]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -34,17 +26,18 @@ hide_root = true
 select_mode = 2
 script = ExtResource("1_e77h1")
 
-[node name="PopupMenuDatabase" type="PopupMenu" parent="."]
-size = Vector2i(334, 221)
+[node name="PopupMenuDatabase" type="PopupMenu" parent="." unique_id=398079646]
+oversampling_override = 1.0
+size = Vector2i(484, 327)
 item_count = 11
 item_0/text = "Set as Default Schema [Double Click]"
+item_0/id = 0
 item_1/id = 1
 item_1/separator = true
 item_2/text = "Copy to Clipboard"
 item_2/icon = ExtResource("7_puf8r")
 item_2/id = 2
 item_3/text = "Send to SQL Editor"
-item_3/icon = ExtResource("2_sdu3l")
 item_3/id = 3
 item_3/disabled = true
 item_4/id = 4
@@ -53,7 +46,6 @@ item_5/text = "Create Schema..."
 item_5/icon = ExtResource("2_ld4lc")
 item_5/id = 5
 item_6/text = "Alter Schema..."
-item_6/icon = ExtResource("8_qmvfl")
 item_6/id = 6
 item_7/id = 7
 item_7/separator = true
@@ -63,12 +55,14 @@ item_8/id = 8
 item_9/id = 9
 item_9/separator = true
 item_10/text = "Refresh All"
-item_10/icon = ExtResource("7_udc60")
 item_10/id = 10
 
-[node name="PopupMenuCopyTo" type="PopupMenu" parent="PopupMenuDatabase"]
+[node name="PopupMenuCopyTo" type="PopupMenu" parent="PopupMenuDatabase" unique_id=1712210619]
+oversampling_override = 1.0
+size = Vector2i(283, 168)
 item_count = 4
 item_0/text = "Name"
+item_0/id = 0
 item_1/text = "Config Path"
 item_1/id = 2
 item_2/text = "Data Path"
@@ -77,64 +71,82 @@ item_3/text = "Create Statement"
 item_3/id = 1
 item_3/disabled = true
 
-[node name="PopupMenuSendTo" type="PopupMenu" parent="PopupMenuDatabase"]
+[node name="PopupMenuSendTo" type="PopupMenu" parent="PopupMenuDatabase" unique_id=339342987]
+oversampling_override = 1.0
+size = Vector2i(283, 133)
 item_count = 3
 item_0/text = "Name"
+item_0/id = 0
 item_1/text = "Path"
 item_1/id = 2
 item_2/text = "Create Statement"
 item_2/id = 1
 
-[node name="PopupMenuTables" type="PopupMenu" parent="."]
+[node name="PopupMenuTables" type="PopupMenu" parent="." unique_id=2049760709]
+oversampling_override = 1.0
+size = Vector2i(299, 146)
 item_count = 4
 item_0/text = "Create Table..."
 item_0/icon = ExtResource("2_ld4lc")
+item_0/id = 0
 item_1/text = "Create Table Like..."
-item_1/icon = ExtResource("3_c6cxx")
 item_1/id = 1
 item_2/id = 2
 item_2/separator = true
 item_3/text = "Refresh All"
-item_3/icon = ExtResource("7_udc60")
 item_3/id = 3
 
-[node name="PopupMenuCreateTableLike" type="PopupMenu" parent="PopupMenuTables"]
+[node name="PopupMenuCreateTableLike" type="PopupMenu" parent="PopupMenuTables" unique_id=1687542528]
+oversampling_override = 1.0
+size = Vector2i(110, 100)
+search_bar_enabled_on_item_count = 20
 
-[node name="PopupMenuVeiws" type="PopupMenu" parent="."]
+[node name="PopupMenuVeiws" type="PopupMenu" parent="." unique_id=818289195]
+oversampling_override = 1.0
+size = Vector2i(247, 111)
 item_count = 3
 item_0/text = "Create View..."
 item_0/icon = ExtResource("2_ld4lc")
+item_0/id = 0
+item_0/disabled = true
 item_1/id = 1
 item_1/separator = true
 item_2/text = "Refresh All"
-item_2/icon = ExtResource("7_udc60")
 item_2/id = 2
 
-[node name="PopupMenuStoredProcedures" type="PopupMenu" parent="."]
+[node name="PopupMenuStoredProcedures" type="PopupMenu" parent="." unique_id=437575064]
+oversampling_override = 1.0
+size = Vector2i(372, 111)
 item_count = 3
 item_0/text = "Create Stored Procedure..."
 item_0/icon = ExtResource("2_ld4lc")
+item_0/id = 0
+item_0/disabled = true
 item_1/id = 1
 item_1/separator = true
 item_2/text = "Refresh All"
-item_2/icon = ExtResource("7_udc60")
 item_2/id = 2
 
-[node name="PopupMenuFunctions" type="PopupMenu" parent="."]
+[node name="PopupMenuFunctions" type="PopupMenu" parent="." unique_id=1957455319]
+oversampling_override = 1.0
+size = Vector2i(284, 111)
 item_count = 3
 item_0/text = "Create Function..."
 item_0/icon = ExtResource("2_ld4lc")
+item_0/id = 0
+item_0/disabled = true
 item_1/id = 1
 item_1/separator = true
 item_2/text = "Refresh All"
-item_2/icon = ExtResource("7_udc60")
 item_2/id = 2
 
-[node name="PopupMenuTableItem" type="PopupMenu" parent="."]
+[node name="PopupMenuTableItem" type="PopupMenu" parent="." unique_id=1097020788]
+oversampling_override = 1.0
 size = Vector2i(409, 1079)
 item_count = 23
 item_0/text = "Select Rows"
 item_0/icon = ExtResource("2_obdc1")
+item_0/id = 0
 item_1/text = "Table Inspector"
 item_1/icon = ExtResource("6_4gqw3")
 item_1/id = 1
@@ -144,15 +156,12 @@ item_3/text = "Copy to Clipboard"
 item_3/icon = ExtResource("7_puf8r")
 item_3/id = 3
 item_4/text = "Table Data Export Wizard"
-item_4/icon = ExtResource("10_8aje2")
 item_4/id = 4
 item_5/text = "Table Data Import Wizard"
-item_5/icon = ExtResource("9_s5rbm")
 item_5/id = 5
 item_6/id = 6
 item_6/separator = true
 item_7/text = "Send to SQL Editor"
-item_7/icon = ExtResource("2_sdu3l")
 item_7/id = 7
 item_7/disabled = true
 item_8/id = 8
@@ -161,10 +170,8 @@ item_9/text = "Create Table..."
 item_9/icon = ExtResource("2_ld4lc")
 item_9/id = 9
 item_10/text = "Create Table Like..."
-item_10/icon = ExtResource("3_c6cxx")
 item_10/id = 10
 item_11/text = "Alter Table..."
-item_11/icon = ExtResource("8_qmvfl")
 item_11/id = 11
 item_12/text = "Password"
 item_12/icon = ExtResource("13_h0vib")
@@ -175,7 +182,6 @@ item_14/text = "Drop Table..."
 item_14/icon = ExtResource("2_1e3si")
 item_14/id = 14
 item_15/text = "Truncate Table..."
-item_15/icon = ExtResource("3_2yegw")
 item_15/id = 15
 item_16/id = 16
 item_16/separator = true
@@ -183,7 +189,6 @@ item_17/text = "Show in File Manager"
 item_17/icon = ExtResource("2_ffwpe")
 item_17/id = 17
 item_18/text = "Open in External Program"
-item_18/icon = ExtResource("3_cmntk")
 item_18/id = 18
 item_19/id = 19
 item_19/separator = true
@@ -193,13 +198,14 @@ item_20/id = 21
 item_21/id = 22
 item_21/separator = true
 item_22/text = "Refresh All"
-item_22/icon = ExtResource("7_udc60")
 item_22/id = 20
 
-[node name="PopupMenuCopyTo" type="PopupMenu" parent="PopupMenuTableItem"]
-size = Vector2i(254, 293)
+[node name="PopupMenuCopyTo" type="PopupMenu" parent="PopupMenuTableItem" unique_id=289450004]
+oversampling_override = 1.0
+size = Vector2i(311, 356)
 item_count = 10
 item_0/text = "Name (Short)"
+item_0/id = 0
 item_1/text = "Name (long)"
 item_1/id = 1
 item_2/text = "Select All Statement"
@@ -220,9 +226,12 @@ item_8/id = 8
 item_9/text = "Data Path"
 item_9/id = 9
 
-[node name="PopupMenuSendTo" type="PopupMenu" parent="PopupMenuTableItem"]
+[node name="PopupMenuSendTo" type="PopupMenu" parent="PopupMenuTableItem" unique_id=686102047]
+oversampling_override = 1.0
+size = Vector2i(311, 273)
 item_count = 7
 item_0/text = "Name (Short)"
+item_0/id = 0
 item_1/text = "Name (long)"
 item_1/id = 1
 item_2/text = "Select All Statement"
@@ -236,50 +245,59 @@ item_5/id = 5
 item_6/text = "Create Statement"
 item_6/id = 6
 
-[node name="PopupMenuCreateTableLike" type="PopupMenu" parent="PopupMenuTableItem"]
+[node name="PopupMenuCreateTableLike" type="PopupMenu" parent="PopupMenuTableItem" unique_id=1193095219]
+oversampling_override = 1.0
+size = Vector2i(110, 100)
+search_bar_enabled_on_item_count = 20
 
-[node name="PopupMenuPassword" type="PopupMenu" parent="PopupMenuTableItem"]
-size = Vector2i(234, 129)
+[node name="PopupMenuPassword" type="PopupMenu" parent="PopupMenuTableItem" unique_id=943491839]
+oversampling_override = 1.0
+size = Vector2i(290, 133)
 item_count = 3
 item_0/text = "Set Password"
+item_0/id = 0
 item_1/text = "Clear Password"
 item_1/id = 1
 item_2/text = "Change Password"
 item_2/id = 2
 
-[node name="PopupMenuEmpty" type="PopupMenu" parent="."]
+[node name="PopupMenuEmpty" type="PopupMenu" parent="." unique_id=1114180912]
+oversampling_override = 1.0
+size = Vector2i(279, 111)
 item_count = 3
 item_0/text = "Create Schema..."
 item_0/icon = ExtResource("2_ld4lc")
+item_0/id = 0
 item_1/id = 1
 item_1/separator = true
 item_2/text = "Refresh All"
-item_2/icon = ExtResource("7_udc60")
 item_2/id = 2
 
-[node name="PopupMenuColumn" type="PopupMenu" parent="."]
-size = Vector2i(204, 127)
+[node name="PopupMenuColumn" type="PopupMenu" parent="." unique_id=75725538]
+oversampling_override = 1.0
+size = Vector2i(296, 194)
 item_count = 6
 item_0/text = "Select Rows"
 item_0/icon = ExtResource("2_obdc1")
+item_0/id = 0
 item_1/id = 1
 item_1/separator = true
 item_2/text = "Copy to Clipboard"
 item_2/icon = ExtResource("7_puf8r")
 item_2/id = 2
 item_3/text = "Send to SQL Editor"
-item_3/icon = ExtResource("2_sdu3l")
 item_3/id = 3
 item_4/id = 4
 item_4/separator = true
 item_5/text = "Refresh All"
-item_5/icon = ExtResource("7_udc60")
 item_5/id = 5
 
-[node name="PopupMenuCopyTo" type="PopupMenu" parent="PopupMenuColumn"]
-size = Vector2i(318, 211)
+[node name="PopupMenuCopyTo" type="PopupMenu" parent="PopupMenuColumn" unique_id=941341419]
+oversampling_override = 1.0
+size = Vector2i(373, 211)
 item_count = 5
 item_0/text = "Name (short)"
+item_0/id = 0
 item_1/text = "Name (long)"
 item_1/id = 1
 item_2/text = "Select Columns Statement"
@@ -289,9 +307,12 @@ item_3/id = 3
 item_4/text = "Update Statement"
 item_4/id = 4
 
-[node name="PopupMenuSendTo" type="PopupMenu" parent="PopupMenuColumn"]
+[node name="PopupMenuSendTo" type="PopupMenu" parent="PopupMenuColumn" unique_id=165077959]
+oversampling_override = 1.0
+size = Vector2i(373, 203)
 item_count = 5
 item_0/text = "Name (short)"
+item_0/id = 0
 item_1/text = "Name (long)"
 item_1/id = 1
 item_2/text = "Select Columns Statement"

@@ -212,7 +212,7 @@ theme_override_constants/margin_right = 10
 layout_mode = 2
 size_flags_horizontal = 8
 size_flags_vertical = 0
-tooltip_text = "This page is inspired by Dialogic."
+tooltip_text = "The welcome page is inspired by Dialogic."
 texture_normal = ExtResource("1_siirs")
 
 [node name="CenterContainer" type="CenterContainer" parent="." unique_id=863089687]
@@ -331,6 +331,7 @@ layout_mode = 2
 [node name="Left" type="VBoxContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer" unique_id=1411373882]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 12
 
 [node name="Documentation" type="Label" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left" unique_id=1856391598]
 layout_mode = 2

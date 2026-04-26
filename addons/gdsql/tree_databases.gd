@@ -111,7 +111,7 @@ func refresh_databases():
 			if databases[db_name]["tables"][table_name].get("valid_if_not_exist", false):
 				GDSQL.ConfManager.mark_valid_if_not_exit(
 					(databases[db_name]["data_path"] as String).path_join(table_name) + DATA_EXTENSION)
-			
+					
 	mgr.databases = databases
 	
 func _get_drag_data(at_position: Vector2) -> Variant:
@@ -803,6 +803,7 @@ func _ready():
 	if mgr == null or not mgr.run_in_plugin(self):
 		return
 		
+	set_translation_domain("GDSQL")
 	if not mgr.user_confirm_add_schema.is_connected(add_db_to_config):
 		mgr.user_confirm_add_schema.connect(add_db_to_config, CONNECT_DEFERRED)
 	if not mgr.user_confirm_add_table.is_connected(add_table_to_config):
@@ -960,6 +961,7 @@ func _get_specific_extension_files(path: String, extension: String) -> Array[Str
 
 func add_database(db_name: String, data_path: String, conf_path: String) -> TreeItem:
 	var database_item = create_item(root)
+	database_item.set_auto_translate_mode(0, Node.AUTO_TRANSLATE_MODE_DISABLED)
 	database_item.set_text(0, db_name)
 	database_item.set_icon(0, preload("res://addons/gdsql/img/icon_db.png"))
 	database_item.set_icon_max_width(0, 20)
@@ -974,19 +976,18 @@ func add_database(db_name: String, data_path: String, conf_path: String) -> Tree
 		database_item.set_custom_bg_color(0, Color.BLUE_VIOLET)
 	
 	var arr := ["Tables", "Views", "Stored Procedures", "Functions"]
-	var tooltips := ["数据表", "视图", "存储过程", "函数"]
 	for i in arr.size():
 		var item = create_item(database_item)
-		item.set_text(0, arr[i])
+		item.set_auto_translate_mode(0, Node.AUTO_TRANSLATE_MODE_ALWAYS)
+		item.set_text(0, tr(arr[i]))
 		item.set_icon(0, preload("res://addons/gdsql/img/windows.png"))
 		item.set_icon_max_width(0, 16)
-		item.set_tooltip_text(0, tooltips[i])
 		item.set_meta("type", arr[i])
 		item.set_meta("db_name", db_name)
 		item.set_meta("data_path", data_path)
 		if i > 0:
 			item.set_collapsed_recursive(true)
-	
+			
 	return database_item
 	
 func add_table(db: TreeItem, table_name: String):
@@ -995,6 +996,7 @@ func add_table(db: TreeItem, table_name: String):
 	var db_name = db.get_meta("db_name")
 	var data_path = db.get_meta("data_path") + file_name
 	table_item.set_text(0, table_name)
+	table_item.set_auto_translate_mode(0, Node.AUTO_TRANSLATE_MODE_DISABLED)
 	table_item.set_icon(0, preload("res://addons/gdsql/img/table.png"))
 	table_item.set_icon_max_width(0, 20)
 	table_item.set_tooltip_text(0, file_name)
@@ -1003,10 +1005,10 @@ func add_table(db: TreeItem, table_name: String):
 		var tooltip
 		if GDSQL.ConfManager.has_conf(data_path) and _password_correct.has(data_path):
 			texture = preload("res://addons/gdsql/img/unlock.png")
-			tooltip = "This table is encrypted and you have entered the right password."
+			tooltip = tr("This table is encrypted and you have entered the right password.")
 		else:
 			texture = preload("res://addons/gdsql/img/lock.png") 
-			tooltip = "This table's data file is encrypted. Enter password before using it."
+			tooltip = tr("This table's data file is encrypted. Enter password before using it.")
 		table_item.add_button(0, texture, ITEM_BUTTON_INDEX.ENCRYPT, false, tooltip)
 	table_item.add_button(0, preload("res://addons/gdsql/img/quick_search.png"), 
 		ITEM_BUTTON_INDEX.QUICK_SEARCH, false, "select * from %s.%s;" % [db_name, table_name])
@@ -1023,6 +1025,7 @@ func add_table(db: TreeItem, table_name: String):
 		var col_item = create_item(table_item)
 		var texts = [col["Column Name"]]
 		texts.push_back(type_string(col["Data Type"]))
+		col_item.set_auto_translate_mode(0, Node.AUTO_TRANSLATE_MODE_DISABLED)
 		col_item.set_text(0, ": ".join(texts))
 		col_item.set_tooltip_text(0, "Comment: %s\nDefault(Expression): %s" % \
 			[col["Comment"], col["Default(Expression)"]])
@@ -1277,8 +1280,8 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 	var db_name = table_item.get_meta("db_name")
 	var table_name = table_item.get_meta("table_name")
 	var table_path = table_item.get_meta("data_path")
-	var password_dict_obj = GDSQL.DictionaryObject.new({"Password": ""}, 
-		{"Password": {"hint": PROPERTY_HINT_PASSWORD}})
+	var password_dict_obj = GDSQL.DictionaryObject.new({tr("Password"): ""}, 
+		{tr("Password"): {"hint": PROPERTY_HINT_PASSWORD}})
 	# 加密的表首次操作时需要输入密码
 	var valid_pass_md5 = databases[db_name]["tables"][table_name]["encrypted"]
 	if valid_pass_md5 == "" or (GDSQL.ConfManager.has_conf(table_path) and _password_correct.has(table_path)):
@@ -1286,7 +1289,7 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 			pass_callback.call()
 		return
 		
-	var msg = "This table: %s.%s is encrypted. Please input password of this table." % [
+	var msg = tr("This table: %s.%s is encrypted. Please input password of this table.") % [
 		db_name, table_name
 	]
 	if try_password != "":
@@ -1298,16 +1301,16 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 				pass_callback.call()
 			return
 			
-		msg = "Your password is incorrect! Please enter again!"
+		msg = tr("Your password is incorrect! Please enter again!")
 		
 	var arr: Array[Array] = [
 		[msg],
 		[password_dict_obj],
 	]
 	var confirmed = func():
-		if valid_pass_md5 == (password_dict_obj._get("Password") as String).md5_text():
+		if valid_pass_md5 == (password_dict_obj._get(tr("Password")) as String).md5_text():
 			# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
-			GDSQL.ConfManager.get_conf(table_path, password_dict_obj._get("Password"))
+			GDSQL.ConfManager.get_conf(table_path, password_dict_obj._get(tr("Password")))
 			_password_correct.push_back(table_path)
 			return [false, true] # false表示让对话框关闭，true表示密码正确
 		mgr.create_accept_dialog(tr("Password is not correct!"))
@@ -1318,7 +1321,7 @@ func deal_password_before_table_cmd(table_item: TreeItem, try_password: String, 
 			if validation is bool and validation == true:
 				# 更新锁的图标为打开的样式
 				var texture = preload("res://addons/gdsql/img/unlock.png")
-				var tooltip = "This table: %s.%s is encrypted and you have entered the right password." % [
+				var tooltip = tr("This table: %s.%s is encrypted and you have entered the right password.") % [
 					db_name, table_name
 				]
 				var index = table_item.get_button_by_id(0, ITEM_BUTTON_INDEX.ENCRYPT)
@@ -1544,10 +1547,10 @@ func _on_popup_menu_password_index_pressed(index):
 			var db_name = item.get_meta("db_name")
 			var table_name = item.get_meta("table_name")
 			
-			var password_dict_obj_1 = GDSQL.DictionaryObject.new({"Password": ""}, 
-				{"Password": {"hint": PROPERTY_HINT_PASSWORD}})
-			var password_dict_obj_2 = GDSQL.DictionaryObject.new({"Password": ""}, 
-				{"Password": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "Enter same password agian."}})
+			var password_dict_obj_1 = GDSQL.DictionaryObject.new({tr("Password"): ""}, 
+				{tr("Password"): {"hint": PROPERTY_HINT_PASSWORD}})
+			var password_dict_obj_2 = GDSQL.DictionaryObject.new({tr("Password"): ""}, 
+				{tr("Password"): {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "Enter same password agian."}})
 				
 			var arr: Array[Array] = [
 				[tr("Set password for this table:")],
@@ -1555,7 +1558,7 @@ func _on_popup_menu_password_index_pressed(index):
 				[password_dict_obj_2],
 			]
 			var confirmed = func():
-				if password_dict_obj_1._get("Password") != password_dict_obj_2._get("Password"):
+				if password_dict_obj_1._get(tr("Password")) != password_dict_obj_2._get(tr("Password")):
 					mgr.create_accept_dialog(tr("Passwords are different!"))
 					return [true, false]
 				return [false, true]
@@ -1565,7 +1568,7 @@ func _on_popup_menu_password_index_pressed(index):
 					if validation is bool and validation == true:
 						# 安全起见还是通过检查是否需要用户输入密码再执行后续方法
 						deal_password_before_table_cmd(item, "", 
-							set_password.bind(db_name, table_name, password_dict_obj_1._get("Password")))
+							set_password.bind(db_name, table_name, password_dict_obj_1._get(tr("Password"))))
 							
 			mgr.create_custom_dialog(arr, confirmed, Callable(), defered)
 			
@@ -1577,15 +1580,15 @@ func _on_popup_menu_password_index_pressed(index):
 			var db_name = item.get_meta("db_name")
 			var table_name = item.get_meta("table_name")
 				
-			var password_dict_obj = GDSQL.DictionaryObject.new({"Password": ""}, 
-				{"Password": {"hint": PROPERTY_HINT_PASSWORD}})
+			var password_dict_obj = GDSQL.DictionaryObject.new({tr("Password"): ""}, 
+				{tr("Password"): {"hint": PROPERTY_HINT_PASSWORD}})
 			var arr: Array[Array] = [
 				[tr("Are you sure to clear password for this table?")],
 				[tr("Please enter password to apply.")],
 				[password_dict_obj],
 			]
 			var confirmed = func():
-				if password_dict_obj._get("Password").md5_text() != \
+				if password_dict_obj._get(tr("Password")).md5_text() != \
 					mgr.databases[db_name]["tables"][table_name]["encrypted"]:
 					mgr.create_accept_dialog(tr("Password is not correct!"))
 					return [true, false]
@@ -1609,12 +1612,12 @@ func _on_popup_menu_password_index_pressed(index):
 			var db_name = item.get_meta("db_name")
 			var table_name = item.get_meta("table_name")
 				
-			var password_dict_obj = GDSQL.DictionaryObject.new({"oldPassword": ""}, 
-				{"oldPassword": {"hint": PROPERTY_HINT_PASSWORD}})
-			var password_dict_obj_1 = GDSQL.DictionaryObject.new({"newPassword": ""}, 
-				{"newPassword": {"hint": PROPERTY_HINT_PASSWORD}})
-			var password_dict_obj_2 = GDSQL.DictionaryObject.new({"newPassword": ""}, 
-				{"newPassword": {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "Enter new password again."}})
+			var password_dict_obj = GDSQL.DictionaryObject.new({tr("oldPassword"): ""}, 
+				{tr("oldPassword"): {"hint": PROPERTY_HINT_PASSWORD}})
+			var password_dict_obj_1 = GDSQL.DictionaryObject.new({tr("newPassword"): ""}, 
+				{tr("newPassword"): {"hint": PROPERTY_HINT_PASSWORD}})
+			var password_dict_obj_2 = GDSQL.DictionaryObject.new({tr("newPassword"): ""}, 
+				{tr("newPassword"): {"hint": PROPERTY_HINT_PASSWORD, "hint_string": "Enter new password again."}})
 			var arr: Array[Array] = [
 				[tr("Are you sure to change password for this table?")],
 				[password_dict_obj],
@@ -1622,14 +1625,14 @@ func _on_popup_menu_password_index_pressed(index):
 				[password_dict_obj_2],
 			]
 			var confirmed = func():
-				if password_dict_obj._get("oldPassword").md5_text() != \
+				if password_dict_obj._get(tr("oldPassword")).md5_text() != \
 					mgr.databases[db_name]["tables"][table_name]["encrypted"]:
 					mgr.create_accept_dialog(tr("Password is not correct!"))
 					return [true, false]
-				if password_dict_obj_1._get("newPassword") != password_dict_obj_2._get("newPassword"):
+				if password_dict_obj_1._get(tr("newPassword")) != password_dict_obj_2._get(tr("newPassword")):
 					mgr.create_accept_dialog(tr("The second password entered is not the same as the first one!"))
 					return [true, false]
-				if password_dict_obj_1._get("newPassword") == "":
+				if password_dict_obj_1._get(tr("newPassword")) == "":
 					mgr.create_accept_dialog(tr("New password is empty!"))
 					return [true, false]
 				return [false, true]
@@ -1637,7 +1640,7 @@ func _on_popup_menu_password_index_pressed(index):
 			var defered = func(clicked_confirm: bool, validation):
 				if clicked_confirm:
 					if validation is bool and validation == true:
-						change_password(db_name, table_name, password_dict_obj_1._get("newPassword"))
+						change_password(db_name, table_name, password_dict_obj_1._get(tr("newPassword")))
 						
 			var callback = func():
 				mgr.create_custom_dialog(arr, confirmed, Callable(), defered)
