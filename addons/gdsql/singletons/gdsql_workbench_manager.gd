@@ -347,6 +347,7 @@ vertical_scroll: bool = false) -> ConfirmationDialog:
 					# 比如：EditorPropertyResource，如果不放到一个inspector中的话，reparent的时候（它想折叠资源）会报错，影响体验。
 					var inspector = EditorInspector.new()
 					inspector.queue_redraw()
+					inspector.focus_mode = Control.FOCUS_NONE
 					inspector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 					inspector.size_flags_vertical = Control.SIZE_EXPAND_FILL
 					inspector.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -372,6 +373,8 @@ vertical_scroll: bool = false) -> ConfirmationDialog:
 						p_container.add_child(editor)
 						editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 						#editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
+						editor.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_ENABLED
+						editor.focus_mode = Control.FOCUS_NONE
 						editor.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
 						editor.set_object_and_property(data, prop.name)
 						if prop.name.begins_with("_") and \
@@ -458,6 +461,15 @@ vertical_scroll: bool = false) -> ConfirmationDialog:
 	var last_line_edit = _find_last_line_edit(vbox_container)
 	if last_line_edit:
 		dialog.register_text_enter(last_line_edit)
+		# 避免第一次弹出时就聚焦到最后一个输入组件上
+		dialog.focus_exited.connect(
+			func():
+				dialog.focus_entered.connect(func():
+					last_line_edit.grab_focus()
+					last_line_edit.edit()
+					last_line_edit.select_all()
+				)
+		, ConnectFlags.CONNECT_ONE_SHOT)
 		
 	return dialog
 	
@@ -561,6 +573,7 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 					# 一些控件依赖inspector，为了简化，所有情况都使用inspector。
 					# 比如：EditorPropertyResource，如果不放到一个inspector中的话，reparent的时候（它想折叠资源）会报错，影响体验。
 					var inspector = EditorInspector.new()
+					inspector.focus_mode = Control.FOCUS_NONE
 					inspector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 					inspector.size_flags_vertical = Control.SIZE_EXPAND_FILL
 					hb.add_child(inspector)
@@ -583,6 +596,8 @@ min_size: Vector2i = Vector2i.ZERO) -> PopupPanel:
 						var editor = EditorInspector.instantiate_property_editor(
 							data, prop.type, prop.name, prop.hint, prop.hint_string, prop.usage)
 						v_box.add_child(editor)
+						editor.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_ENABLED
+						editor.focus_mode = Control.FOCUS_NONE
 						editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 						#editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
 						editor.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())

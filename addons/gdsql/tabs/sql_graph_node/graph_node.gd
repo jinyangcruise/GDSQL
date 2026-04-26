@@ -233,6 +233,7 @@ func redraw():
 						# 比如：EditorPropertyResource，如果不放到一个inspector中的话，reparent的时候（它想折叠资源）会报错，影响体验。
 						var inspector = EditorInspector.new()
 						inspector.queue_redraw()
+						inspector.focus_mode = Control.FOCUS_NONE
 						inspector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 						inspector.size_flags_vertical = Control.SIZE_EXPAND_FILL
 						inspector.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -257,6 +258,8 @@ func redraw():
 							var editor = EditorInspector.instantiate_property_editor(
 								data, prop.type, prop.name, prop.hint, prop.hint_string, prop.usage)
 							p_container.add_child(editor)
+							editor.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_ENABLED
+							editor.focus_mode = Control.FOCUS_NONE
 							editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 							#editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
 							editor.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
@@ -480,6 +483,7 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 	elif data is GDSQL.DictionaryObject:
 		# 一些控件依赖inspector，为了简化，所有情况都使用inspector
 		var inspector = EditorInspector.new()
+		inspector.focus_mode = Control.FOCUS_NONE
 		inspector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		#inspector.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		inspector.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -504,6 +508,8 @@ func redraw_slot_control(slot_row_index, slot_col_index):
 			var editor = EditorInspector.instantiate_property_editor(
 				data, prop.type, prop.name, prop.hint, prop.hint_string, prop.usage)
 			p_container.add_child(editor)
+			editor.focus_behavior_recursive = Control.FOCUS_BEHAVIOR_ENABLED
+			editor.focus_mode = Control.FOCUS_NONE
 			editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			editor.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			editor.add_theme_stylebox_override("bg_selected", StyleBoxEmpty.new())
