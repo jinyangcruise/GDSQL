@@ -821,15 +821,15 @@ func _ready():
 	if not mgr.request_create_table.is_connected(add_table_to_config):
 		mgr.request_create_table.connect(add_table_to_config, CONNECT_DEFERRED)
 		
-	popup_menu_database.set_item_submenu(2, "PopupMenuCopyTo")
-	popup_menu_database.set_item_submenu(3, "PopupMenuSendTo")
-	popup_menu_tables.set_item_submenu(1, "PopupMenuCreateTableLike")
-	popup_menu_table_item.set_item_submenu(3, "PopupMenuCopyTo")
-	popup_menu_table_item.set_item_submenu(7, "PopupMenuSendTo")
-	popup_menu_table_item.set_item_submenu(10, "PopupMenuCreateTableLike")
-	popup_menu_table_item.set_item_submenu(12, "PopupMenuPassword")
-	popup_menu_column.set_item_submenu(2, "PopupMenuCopyTo")
-	popup_menu_column.set_item_submenu(3, "PopupMenuSendTo")
+	popup_menu_database.set_item_submenu_node(2, popup_menu_copy_to)
+	popup_menu_database.set_item_submenu_node(3, popup_menu_send_to)
+	popup_menu_tables.set_item_submenu_node(1, popup_menu_create_table_like_tables)
+	popup_menu_table_item.set_item_submenu_node(3, popup_menu_copy_to_of_table)
+	popup_menu_table_item.set_item_submenu_node(7, popup_menu_send_to_of_table)
+	popup_menu_table_item.set_item_submenu_node(10, popup_menu_create_table_like_table_item)
+	popup_menu_table_item.set_item_submenu_node(12, popup_menu_password)
+	popup_menu_column.set_item_submenu_node(2, popup_menu_copy_to_of_column)
+	popup_menu_column.set_item_submenu_node(3, popup_menu_send_to_of_column)
 	refresh()
 	
 	# 配置变化检测
