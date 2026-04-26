@@ -117,7 +117,6 @@ func use_db_name(database_name: String) -> GDSQL.BaseDao:
 	if __database == "":
 		return _assert_false("use_db_name", 
 			"database %s's data_path is empty!" % database_name)
-	_set_primary_and_autoincre()
 	return self
 	
 func use_db(database_path: String) -> GDSQL.BaseDao:
@@ -130,7 +129,6 @@ func use_db(database_path: String) -> GDSQL.BaseDao:
 			if adb != "":
 				database_path = adb
 	__database = database_path
-	_set_primary_and_autoincre()
 	return self
 	
 func use_user_db() -> GDSQL.BaseDao:
@@ -314,7 +312,6 @@ func from(table: String, alias: String = "") -> GDSQL.BaseDao:
 		table = table + DATA_EXTENSION
 	__table = table
 	__table_alias = alias
-	_set_primary_and_autoincre()
 	return self
 	
 func _set_primary_and_autoincre():
@@ -2047,6 +2044,8 @@ func query() -> GDSQL.QueryResult:
 	if __cmd == "":
 		return _assert_false("query", "command is empty")
 		
+	_set_primary_and_autoincre()
+	
 	if __parent_union:
 		return __parent_union.get_ref().query()
 		
