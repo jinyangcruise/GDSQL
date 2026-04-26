@@ -269,6 +269,11 @@ func get_deepest_primary_columns() -> Array:
 			if i.column in real_unique_column:
 				ret.push_back(column_name)
 				
+	if not real_unique_column.is_empty():
+		for i in columns:
+			if i in real_unique_column and not i in ret:
+				ret.push_back(i)
+				
 	return ret
 	
 ## 如果存在discriminator，需要合并返回其包含的association。
