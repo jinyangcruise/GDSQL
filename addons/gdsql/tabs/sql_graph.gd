@@ -737,7 +737,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 	if graph_node == null:
 		graph_node = SQLGraphNode.instantiate()
 		graph_node.node_enable_status.connect(mark_modified)
-	
+		
 		var margin_container = MarginContainer.new()
 		margin_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		margin_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -983,7 +983,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			var arr: Array[Array] = [["Please confirm:"]]
 			var table_2 = preload("res://addons/gdsql/table.tscn").instantiate()
 			table_2.ratios = [15.0, 0.4, 2.0, 4.0, 8.0] as Array[float]
-			table_2.columns = ["#", "action", "extra info", "do", "status"]
+			table_2.columns = ["#", tr("Action"), tr("Extra info"), tr("Do"), tr("Status")]
 			table_2.column_tips = ["", "", "If necessary.", "Only execute checked actions.", "Execute status."]
 			var check_all_btn = CheckBox.new()
 			check_all_btn.text = tr("Check all")
