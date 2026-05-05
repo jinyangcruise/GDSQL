@@ -882,7 +882,19 @@ func drop_db_from_config(db_name: String) -> void:
 		
 	if _default_database_path == mgr.databases[db_name]["data_path"]:
 		_default_database_path = ""
-	_config_file.set_value(DEK, _config_file.get_value(db_name, "data_path"), null)
+		
+	var dek = _config_file.get_value(DEK, mgr.databases[db_name]["data_path"], "")
+	if dek != "":
+		# In case user want to revert but don't know the dek.
+		var tmp_file_path = "user://%s.%s.%s.dek" % [db_name, 
+			Time.get_datetime_string_from_system(false, true).to_snake_case().replace(":", "_").validate_filename()]
+		var file = FileAccess.open(tmp_file_path, FileAccess.WRITE)
+		file.store_string(dek)
+		file.flush()
+		file.close()
+		OS.move_to_trash(tmp_file_path)
+		
+	_config_file.set_value(DEK, mgr.databases[db_name]["data_path"], null)
 	_config_file.erase_section(db_name)
 	_config_file.save(ROOT_CONFIG)
 	var msg = tr("1 file: %s has been modified") % ROOT_CONFIG
@@ -925,7 +937,17 @@ func drop_table_from_config(db_name: String, table_name: String) -> void:
 	else:
 		msgs.push_back(tr("1 file: %s could not be found when attempting to move to trash.") % data_path)
 		
-	if _config_file.get_value(DEK, data_path, "") != "":
+	var dek = _config_file.get_value(DEK, data_path, "")
+	if dek != "":
+		# In case user want to revert but don't know the dek.
+		var tmp_file_path = "user://%s.%s.%s.dek" % [db_name, table_name, 
+			Time.get_datetime_string_from_system(false, true).to_snake_case().replace(":", "_").validate_filename()]
+		var file = FileAccess.open(tmp_file_path, FileAccess.WRITE)
+		file.store_string(dek)
+		file.flush()
+		file.close()
+		OS.move_to_trash(tmp_file_path)
+		
 		_config_file.set_value(DEK, data_path, null)
 		_config_file.save(ROOT_CONFIG)
 		msgs.push_back(tr("1 file: %s has been modified") % ROOT_CONFIG)
