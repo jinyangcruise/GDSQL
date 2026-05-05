@@ -68,6 +68,7 @@ var regex_field_map: Dictionary
 const ROOT_CONFIG_PATH = "res://addons/gdsql/config/config.cfg"
 const DATA_EXTENSION = ".gsql"
 const CONF_EXTENSION = ".cfg"
+const DEK = "_DEK_"
 
 const PRIMARY_TYPES = [TYPE_INT, TYPE_STRING, TYPE_STRING_NAME]
 const NORMAL_TYPES = [
@@ -133,22 +134,20 @@ func use_db(database_path: String) -> GDSQL.BaseDao:
 	
 func use_user_db() -> GDSQL.BaseDao:
 	__database = "user://"
-	set_password(GDSQL.PasswordDef.USER_DAO_PASS)
 	return self
 	
 func use_conf_db() -> GDSQL.BaseDao:
-	__database = "res://src/config/"
-	set_password(GDSQL.PasswordDef.CONFIG_ENCRYPTED_PASS)
+	__database = GDSQL.get_setting_game_conf_db_dir()
 	return self
 	
 func get_db() -> String:
 	return __database
 	
-func set_password(password: String) -> GDSQL.BaseDao:
+func set_password(password) -> GDSQL.BaseDao:
 	_PASSWORD = password
 	return self
 	
-func get_password() -> String:
+func get_password():
 	return _PASSWORD
 	
 ## 是否自动提交（保存文件），不提交只是在内存中更改数据
@@ -189,7 +188,7 @@ func commit() -> void:
 	if conf == null:
 		_assert_false("commit", "load conf err!")
 		return
-	GDSQL.ConfManager.save_conf_by_origin_password(path)
+	GDSQL.ConfManager.save_conf_by_origin_password_or_dek(path)
 	reset()
 	
 ## 抛弃修改（没有commit时使用才有效果）
@@ -644,13 +643,12 @@ func remove_left_join(left_join_obj: GDSQL.LeftJoin) -> bool:
 func left_join_use_same_db_and_pass(table: String, alias: String, cond: String) -> GDSQL.BaseDao:
 	return left_join(__database, table, alias, cond, _PASSWORD)
 	
-## 联表查询，简化用户输入参数，使用用户数据文件夹作为数据库，使用用户数据文件的默认密码
 func left_join_use_user_db_and_default_pass(table: String, alias: String, cond: String) -> GDSQL.BaseDao:
-	return left_join("user://", table, alias, cond, GDSQL.PasswordDef.USER_DAO_PASS)
+	return left_join("user://", table, alias, cond, "")
 	
 ## 联表查询，简化用户输入参数，使用游戏配置文件夹作为数据库，使用游戏配置文件的默认密码
 func left_join_use_conf_db_and_default_pass(table: String, alias: String, cond: String) -> GDSQL.BaseDao:
-	return left_join("res://src/config/", table, alias, cond, GDSQL.PasswordDef.CONFIG_ENCRYPTED_PASS)
+	return left_join("res://src/config/", table, alias, cond, "")
 	
 ## 获取联表查询的on条件（外部表格可能用到）。
 func get_left_join_conds() -> Array:
@@ -1050,7 +1048,10 @@ func ___select(path: String, fill_primary_key: String = ""):
 	all_table_defination[__table_alias] = __get_table_defination(__database, __table)["columns"]
 	var arr_left_join = __left_join.get_chain_left_joins() if __left_join != null else []
 	for a_left_join in arr_left_join:
-		a_left_join.handle_defualt_password(mgr)
+		var err = a_left_join.handle_defualt_password()
+		if err != OK:
+			__err.append_array(a_left_join.get_err())
+			return null
 		if a_left_join.need_user_enter_password():
 			__request_password.push_back(true)
 			return null
@@ -1602,7 +1603,9 @@ func ___select(path: String, fill_primary_key: String = ""):
 #		__union_all.__need_head = false
 		# 为了让union表数据包含order by的列，需要先设置一下
 		__union_all.__order_by = __order_by.duplicate()
-		__union_all._handle_defualt_password()
+		var err = __union_all._handle_defualt_password()
+		if err != OK:
+			return null
 		if __union_all.need_user_enter_password():
 			__request_password.push_back(true)
 			return null
@@ -2027,13 +2030,22 @@ func _handle_defualt_password():
 	if mgr and Engine.is_editor_hint():
 		if mgr.need_request_password(get_db(), get_table(), get_password()):
 			__request_password.push_back(true)
-			return
-	elif _PASSWORD == "":
-		if __database == "user://":
-			_PASSWORD = GDSQL.PasswordDef.USER_DAO_PASS
-		elif __database == "res://src/config/":
-			_PASSWORD = GDSQL.PasswordDef.CONFIG_ENCRYPTED_PASS
-			
+	elif _PASSWORD.is_empty():
+		_PASSWORD = GDSQL.RootConfig.get_database_dek(__database)
+	elif _PASSWORD is PackedByteArray:
+		pass # Skip
+	else:
+		# 既然用户输入了密码，那就验证一下吧
+		var encrypted_dek = GDSQL.RootConfig.get_database_encrypted_dek(__database)
+		if encrypted_dek == "":
+			_assert_false("query", "Incorrect password!")
+			return ERR_UNAUTHORIZED
+		var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(encrypted_dek, _PASSWORD)
+		if recovered_dek == "":
+			_assert_false("query", "Incorrect password!")
+			return ERR_UNAUTHORIZED
+	return OK
+	
 ## 执行。注意：在union的情况下，会自动执行第一个BaseDao的query方法。
 func query() -> GDSQL.QueryResult:
 	var begin_time = Time.get_unix_time_from_system()
@@ -2049,7 +2061,9 @@ func query() -> GDSQL.QueryResult:
 	if __parent_union:
 		return __parent_union.get_ref().query()
 		
-	_handle_defualt_password()
+	var err = _handle_defualt_password()
+	if err != OK:
+		return null
 	if need_user_enter_password():
 		return null
 		
@@ -2211,7 +2225,7 @@ func query() -> GDSQL.QueryResult:
 			# 插入
 			conf.set_values(str(__data.get(__primary_key)), __data)
 			if __auto_commit:
-				GDSQL.ConfManager.save_conf_by_origin_password(path)
+				GDSQL.ConfManager.save_conf_by_origin_password_or_dek(path)
 			result._affected_rows += 1
 			result._last_insert_id = __data.get(__primary_key)
 			result._cost_time = Time.get_unix_time_from_system() - begin_time
@@ -2282,7 +2296,8 @@ func query() -> GDSQL.QueryResult:
 				var a_names = []
 				var a_values = []
 				for i: String in data:
-					if i.is_valid_identifier():
+					# i 是 table_alias，排除 i 为空字符串的情况。
+					if i != "":
 						a_names.push_back(i)
 						a_values.push_back(data[i])
 						
@@ -2333,7 +2348,7 @@ func query() -> GDSQL.QueryResult:
 					result._affected_rows += 1
 					
 			if __auto_commit and result._affected_rows > 0:
-				GDSQL.ConfManager.save_conf_by_origin_password(path)
+				GDSQL.ConfManager.save_conf_by_origin_password_or_dek(path)
 			result._cost_time = Time.get_unix_time_from_system() - begin_time
 			if not __err.is_empty():
 				result._err = "\n".join(__err)
@@ -2374,7 +2389,7 @@ func query() -> GDSQL.QueryResult:
 					result._affected_rows += 1
 					
 			if __auto_commit and result._affected_rows > 0:
-				GDSQL.ConfManager.save_conf_by_origin_password(path)
+				GDSQL.ConfManager.save_conf_by_origin_password_or_dek(path)
 				
 			result._cost_time = Time.get_unix_time_from_system() - begin_time
 			if not __err.is_empty():

@@ -3,13 +3,17 @@ extends RefCounted
 
 var __request_password: Array
 var __database: String = "" ## 【外部请勿使用】数据库路径
-var __password: String = "" ## 数据表密码
+var __password = "" ## 数据表密码
 var __table: String = "" ## 【外部请勿使用】表名
 var __table_alias: String = "" ## 【外部请勿使用】别名
 var __condition: String = "" ## 【外部请勿使用】联表查询条件
 #var __dependencies: Array = [] ## 依赖的表
 var __left_join: GDSQL.LeftJoin  ## 【外部请勿使用】后续的联表对象（单纯的前后顺序关系，与__condition无关）
+var __err = []
 
+var mgr: GDSQL.WorkbenchManagerClass: 
+	get: return GDSQL.WorkbenchManager
+	
 #static var regex = RegEx.new()
 
 #static func _static_init() -> void:
@@ -21,10 +25,10 @@ func set_db(database: String):
 func get_db() -> String:
 	return __database
 	
-func set_password(password: String):
+func set_password(password):
 	__password = password
 	
-func get_password() -> String:
+func get_password():
 	return __password
 	
 func set_table(table: String):
@@ -139,16 +143,38 @@ func get_query_cmds() -> Array:
 func need_user_enter_password() -> bool:
 	return not __request_password.is_empty()
 	
-## mgr: GDSQLWorkbenchManager
-func handle_defualt_password(mgr):
+func handle_defualt_password():
 	__request_password.clear()
 	# 在编辑器模式，要求用户输入密码
 	if mgr and Engine.is_editor_hint():
 		if mgr.need_request_password(get_db(), get_table(), get_password()):
 			__request_password.push_back(true)
 			return
-	elif __password == "":
-		if __database == "user://":
-			__password = GDSQL.PasswordDef.USER_DAO_PASS
-		elif __database == "res://src/config/":
-			__password = GDSQL.PasswordDef.CONFIG_ENCRYPTED_PASS
+	elif __password.is_empty():
+		__password = GDSQL.RootConfig.get_database_dek(__database)
+	elif __password is PackedByteArray:
+		pass # Skip
+	else:
+		# 既然用户输入了密码，那就验证一下吧
+		var encrypted_dek = GDSQL.RootConfig.get_database_encrypted_dek(__database)
+		if encrypted_dek == "":
+			_assert_false("left join", "Incorrect password!")
+			return ERR_UNAUTHORIZED
+		var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(encrypted_dek, __password)
+		if recovered_dek == "":
+			_assert_false("left join", "Incorrect password!")
+			return ERR_UNAUTHORIZED
+	return OK
+	
+func _assert_false(action: String, msg: String):
+	__err.clear()
+	if mgr and Engine.is_editor_hint():
+		mgr.create_accept_dialog(msg)
+		mgr.add_log_history.emit("Err", Time.get_unix_time_from_system(), action, msg)
+	push_error(msg)
+	__err.push_back(msg)
+	assert(false, msg)
+	return null
+	
+func get_err() -> Array:
+	return __err

@@ -75,6 +75,7 @@ var main_panel: Control
 	#"db1": {
 		#"data_path": conf.get_value(db_name, "data_path"),
 		#"config_path": conf.get_value(db_name, "config_path"),
+		#"encrypted": conf.get_value(db_name, "encrypted"),
 		#"tables": {
 			#"table1": {
 				#"comment": "",

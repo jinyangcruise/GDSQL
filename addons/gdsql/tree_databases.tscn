@@ -28,8 +28,8 @@ script = ExtResource("1_e77h1")
 
 [node name="PopupMenuDatabase" type="PopupMenu" parent="." unique_id=398079646]
 oversampling_override = 1.0
-size = Vector2i(484, 327)
-item_count = 11
+size = Vector2i(484, 404)
+item_count = 13
 item_0/text = "Set as Default Schema [Double Click]"
 item_0/id = 0
 item_1/id = 1
@@ -49,13 +49,17 @@ item_6/text = "Alter Schema..."
 item_6/id = 6
 item_7/id = 7
 item_7/separator = true
-item_8/text = "Drop Schema..."
-item_8/icon = ExtResource("2_1e3si")
+item_8/text = "Password"
 item_8/id = 8
 item_9/id = 9
 item_9/separator = true
-item_10/text = "Refresh All"
+item_10/text = "Drop Schema..."
+item_10/icon = ExtResource("2_1e3si")
 item_10/id = 10
+item_11/id = 11
+item_11/separator = true
+item_12/text = "Refresh All"
+item_12/id = 12
 
 [node name="PopupMenuCopyTo" type="PopupMenu" parent="PopupMenuDatabase" unique_id=1712210619]
 oversampling_override = 1.0
@@ -81,6 +85,17 @@ item_1/text = "Path"
 item_1/id = 2
 item_2/text = "Create Statement"
 item_2/id = 1
+
+[node name="PopupMenuPassword" type="PopupMenu" parent="PopupMenuDatabase" unique_id=1096261473]
+oversampling_override = 1.0
+size = Vector2i(290, 133)
+item_count = 3
+item_0/text = "Set Password"
+item_0/id = 0
+item_1/text = "Clear Password"
+item_1/id = 1
+item_2/text = "Change Password"
+item_2/id = 2
 
 [node name="PopupMenuTables" type="PopupMenu" parent="." unique_id=2049760709]
 oversampling_override = 1.0
@@ -329,6 +344,8 @@ item_4/id = 4
 [connection signal="index_pressed" from="PopupMenuDatabase" to="." method="_on_popup_menu_database_index_pressed"]
 [connection signal="index_pressed" from="PopupMenuDatabase/PopupMenuCopyTo" to="." method="_on_popup_menu_copy_to_index_pressed"]
 [connection signal="index_pressed" from="PopupMenuDatabase/PopupMenuSendTo" to="." method="_on_popup_menu_send_to_index_pressed"]
+[connection signal="about_to_popup" from="PopupMenuDatabase/PopupMenuPassword" to="." method="_on_popup_menu_password_database_about_to_popup"]
+[connection signal="index_pressed" from="PopupMenuDatabase/PopupMenuPassword" to="." method="_on_popup_menu_password_database_index_pressed"]
 [connection signal="index_pressed" from="PopupMenuTables" to="." method="_on_popup_menu_tables_index_pressed"]
 [connection signal="index_pressed" from="PopupMenuTables/PopupMenuCreateTableLike" to="." method="_on_popup_menu_create_table_like_tables_index_pressed"]
 [connection signal="index_pressed" from="PopupMenuTableItem" to="." method="_on_popup_menu_table_item_index_pressed"]
