@@ -115,6 +115,14 @@ func _ready() -> void:
 	if not raw_datas.is_empty():
 		raw_datas = raw_datas
 		
+	if GDSQL.RootConfig.get_database_dek64(schema) != "":
+		password = ""
+		password_again = ""
+		line_edit_password.editable = false
+		line_edit_password_again.editable = false
+		line_edit_password.get_parent().hide()
+		line_edit_password_again.get_parent().hide()
+		
 	var label_data_type := Label.new()
 	label_data_type.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	label_data_type.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED

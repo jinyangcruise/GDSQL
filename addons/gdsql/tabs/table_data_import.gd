@@ -24,8 +24,6 @@ var mgr: GDSQL.WorkbenchManagerClass:
 @onready var check_box_select_all_2 = $VBoxContainer/MarginContainerCreateNewTable/PanelContainer/GridContainerColumnsCreateNewTable/CheckBoxSelectAll2
 @onready var label_data_samples = $VBoxContainer/LabelDataSamples
 
-const DATA_EXTENSION = ".gsql"
-const CONF_EXTENSION = ".cfg"
 const MAX_INT = 9223372036854775807
 
 var _columns = []
@@ -357,13 +355,12 @@ func _on_button_apply_pressed() -> void:
 		
 	# 不管是新建的表，还是存量表，逻辑一致
 	mgr.request_user_enter_password.emit(db_name, table_name, "", func():
-		var db_path = mgr.databases[db_name]["data_path"]
-		var table_path = table_name + DATA_EXTENSION
+		var db_path = GDSQL.RootConfig.get_database_data_path(db_name)
 		var begin_time_1 = Time.get_unix_time_from_system()
 		var action
 		if check_box_truncate_table.button_pressed:
 			var dao1 = GDSQL.BaseDao.new()
-			var ret = dao1.use_db(db_path).delete_from(table_path).query()
+			var ret = dao1.use_db(db_path).delete_from(table_name).query()
 			action = "Delete from %s.%s" % [db_name, table_name]
 			if ret == null:
 				mgr.add_log_history.emit("Err", begin_time_1, action, "somthing wrong")
@@ -406,7 +403,7 @@ func _on_button_apply_pressed() -> void:
 			for i in col_indexes:
 				value[_col_names[i]] = str_to_var(data[i]) if need_trans else data[i]
 			dao = GDSQL.BaseDao.new()
-			var ret = dao.auto_commit(false).use_db(db_path).insert_into(table_path).values(value).query()
+			var ret = dao.auto_commit(false).use_db(db_path).insert_into(table_name).values(value).query()
 			if ret == null:
 				err = "something wrong"
 				mgr.add_log_history.emit("Err", begin_time_2, dao.get_query_cmd(), err)

@@ -15,8 +15,6 @@ func _on_button_pressed(access) -> void:
 	editor_file_dialog.access = access
 	editor_file_dialog.file_mode = EditorFileDialog.FILE_MODE_OPEN_DIR
 	editor_file_dialog.dir_selected.connect(func(dir: String):
-		if not dir.ends_with("/"):
-			dir += "/"
 		line_edit_path.text = dir
 	, CONNECT_DEFERRED)
 	h_box_container_2.add_child(editor_file_dialog)

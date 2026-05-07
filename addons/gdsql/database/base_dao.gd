@@ -30,10 +30,7 @@ var __left_join: GDSQL.LeftJoin ## 【外部请勿使用】第一个联表对象
 var __need_post_porcess: bool = true ## 【外部请勿使用】select最终返回数据时处理：是否按照用户所需的字段进行精简
 var __need_head: bool ## 【外部请勿使用】select返回的数据是否包含一行表头（在第一行）
 var __auto_commit: bool = true ## 【外部请勿使用】自动提交标志
-var __root_config: GDSQL.ImprovedConfigFile: ## 【外部请勿使用】临时获取数据库定义文件
-	get:
-		return GDSQL.ConfManager.get_conf(ROOT_CONFIG_PATH, "")
-var __table_conf_path: Dictionary = {} ## 【外部请勿使用】临时为了获取数据库定义文件
+#var __table_conf_path: Dictionary = {} ## 【外部请勿使用】临时为了获取数据库定义文件
 var __enable_evaluate: bool = false ## 【外部请勿使用】当update或insert、replace时，是否对值进行evaluate操作
 var __sub_select_index: int = -1 ## 【外部请勿使用】子查询序号
 var __select_query_columns_count: int = 0 ## 【外部请勿使用】select时，结果的列数
@@ -65,9 +62,6 @@ static var lru_cache: ExpressionLRULink
 
 var regex_field_map: Dictionary
 
-const ROOT_CONFIG_PATH = "res://addons/gdsql/config/config.cfg"
-const DATA_EXTENSION = ".gsql"
-const CONF_EXTENSION = ".cfg"
 const DEK = "_DEK_"
 
 const PRIMARY_TYPES = [TYPE_INT, TYPE_STRING, TYPE_STRING_NAME]
@@ -109,12 +103,7 @@ func set_collect_lack_table_mode(enable: bool) -> GDSQL.BaseDao:
 	return self
 	
 func use_db_name(database_name: String) -> GDSQL.BaseDao:
-	if mgr and mgr.databases:
-		if not mgr.databases.has(database_name):
-			return _assert_false("use_db_name", "Not found db:%s." % database_name)
-		__database = mgr.databases[database_name]["data_path"]
-	else:
-		__database = __root_config.get_value(database_name, "data_path", "")
+	__database = GDSQL.RootConfig.get_database_data_path(database_name)
 	if __database == "":
 		return _assert_false("use_db_name", 
 			"database %s's data_path is empty!" % database_name)
@@ -122,13 +111,9 @@ func use_db_name(database_name: String) -> GDSQL.BaseDao:
 	
 func use_db(database_path: String) -> GDSQL.BaseDao:
 	if not database_path.contains("/"):
-		if mgr and mgr.databases:
-			if mgr.databases.has(database_path):
-				database_path = mgr.databases[database_path]["data_path"]
-		else:
-			var adb = __root_config.get_value(database_path, "data_path", "")
-			if adb != "":
-				database_path = adb
+		var adb = GDSQL.RootConfig.get_database_data_path(database_path)
+		if adb != "":
+			database_path = adb
 	__database = database_path
 	return self
 	
@@ -307,14 +292,15 @@ func set_need_head(p_need_head: bool) -> GDSQL.BaseDao:
 func from(table: String, alias: String = "") -> GDSQL.BaseDao:
 	#if __database == null or __database == "":
 		#return _assert_false("from", "please set db first!"))
-	if not table.ends_with(DATA_EXTENSION):
-		table = table + DATA_EXTENSION
+	table = GDSQL.RootConfig.validate_name(table)
+	if not table.ends_with(GDSQL.RootConfig.DATA_EXTENSION):
+		table = table + GDSQL.RootConfig.DATA_EXTENSION
 	__table = table
 	__table_alias = alias
 	return self
 	
 func _set_primary_and_autoincre():
-	if __database != "" and __table != "" and __table != DATA_EXTENSION:
+	if __database != "" and __table != "" and __table != GDSQL.RootConfig.DATA_EXTENSION:
 		__primary_key_def = ""
 		__autoincrement_keys_def = {}
 		var defination = __get_table_defination(__database, __table)
@@ -605,16 +591,12 @@ func left_join(db: String, table: String, alias: String, cond: String, password:
 		db = __database
 	else:
 		if not db.contains("/"):
-			if mgr and mgr.databases:
-				if mgr.databases.has(db):
-					db = mgr.databases[db]["data_path"]
-			else:
-				var adb = __root_config.get_value(db, "data_path", "")
-				if adb != "":
-					db = adb
-					
-	if not table.ends_with(DATA_EXTENSION):
-		table = table + DATA_EXTENSION
+			var adb = GDSQL.RootConfig.get_database_data_path(db)
+			if adb != "":
+				db = adb
+				
+	if not table.ends_with(GDSQL.RootConfig.DATA_EXTENSION):
+		table = table + GDSQL.RootConfig.DATA_EXTENSION
 		
 	var left_join_obj: GDSQL.LeftJoin
 	if __left_join == null:
@@ -1944,36 +1926,9 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 	return real_select
 	
 func __get_table_defination(db_path: String, table_name: String):
-	if not db_path.ends_with("/"):
-		db_path += "/"
-	var columns: Array
-	var valid_if_not_exist = false
-	if mgr:
-		columns = mgr.get_table_columns_by_datapath(db_path, table_name)
-		valid_if_not_exist = mgr.get_table_valid_if_not_exist(db_path, table_name)
-		
-	if columns == null or columns.is_empty():
-		var table_name_base = table_name.get_basename()
-		if not __table_conf_path.has(table_name_base):
-			var db_info = __root_config.filter_first_values("data_path", db_path)
-			if db_info.is_empty():
-				db_info = __root_config.filter_first_values("data_path", GDSQL.GDSQLUtils.globalize_path(db_path))
-				if db_info.is_empty():
-					return _assert_false("__get_table_defination", "database: %s not exist!" % db_path)
-					
-			var table_conf_path = db_info.get("config_path") + table_name.get_basename() + CONF_EXTENSION
-			if not FileAccess.file_exists(table_conf_path):
-				return _assert_false("__get_table_defination", "table: %s%s not exist!" % [db_path, table_name])
-				
-			__table_conf_path[table_name_base] = table_conf_path
-			
-		var table_config = GDSQL.ConfManager.get_conf(__table_conf_path[table_name_base], "")
-		columns = table_config.get_value(table_name_base, "columns", [])
-		valid_if_not_exist = table_config.get_value(table_name.get_basename(), "valid_if_not_exist", false)
-		
 	return {
-		"columns": columns,
-		"valid_if_not_exist": valid_if_not_exist,
+		"columns": GDSQL.RootConfig.get_table_columns_by_db_path(db_path, table_name),
+		"valid_if_not_exist": GDSQL.RootConfig.get_table_valid_if_not_exist(db_path, table_name),
 	}
 	
 func __get_table_columns(db_path, table_name, table_alias):#, all_datas: Dictionary = {}):
@@ -2032,6 +1987,8 @@ func _handle_defualt_password():
 			__request_password.push_back(true)
 	elif _PASSWORD.is_empty():
 		_PASSWORD = GDSQL.RootConfig.get_database_dek(__database)
+		if _PASSWORD.is_empty():
+			_PASSWORD = GDSQL.RootConfig.get_table_dek(GDSQL.RootConfig.get_database_name_by_db_path(__database), __table)
 	elif _PASSWORD is PackedByteArray:
 		pass # Skip
 	else:
@@ -2484,7 +2441,7 @@ func get_cmd() -> String:
 	
 ## 获取正正执行的语句
 func get_query_cmd() -> String:
-	var a_table = __table.substr(0, __table.length() - DATA_EXTENSION.length())
+	var a_table = __table.substr(0, __table.length() - GDSQL.RootConfig.DATA_EXTENSION.length())
 	match __cmd:
 		"select":
 			return "select %s from %s%s%s%s%s%s%s" % [

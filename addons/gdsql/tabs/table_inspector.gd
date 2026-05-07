@@ -10,8 +10,6 @@ extends ScrollContainer
 @onready var line_edit_total_data_count = $VBoxContainer/HBoxContainer6/LineEditTotalDataCount
 @onready var button_enter_password = $VBoxContainer/HBoxContainer6/ButtonEnterPassword
 
-const CONFIG_EXTENSION = ".cfg"
-
 var schema: String:
 	set(val):
 		schema = val
@@ -165,5 +163,5 @@ func _on_button_show_in_file_manager_pressed():
 
 func _on_button_open_config_pressed():
 	if schema != "" and table_name != "":
-		var path = ProjectSettings.globalize_path(GDSQL.WorkbenchManager.databases[schema]["config_path"] + table_name + CONFIG_EXTENSION)
+		var path = ProjectSettings.globalize_path(GDSQL.RootConfig.get_table_config_path(schema, table_name))
 		OS.shell_open(path)

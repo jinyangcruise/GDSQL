@@ -74,7 +74,6 @@ var main_panel: Control
 #databases = {
 	#"db1": {
 		#"data_path": conf.get_value(db_name, "data_path"),
-		#"config_path": conf.get_value(db_name, "config_path"),
 		#"encrypted": conf.get_value(db_name, "encrypted"),
 		#"tables": {
 			#"table1": {
@@ -134,43 +133,6 @@ func run_in_plugin(node: Node) -> bool:
 	if main_panel == null:
 		return false
 	return node == main_panel or main_panel.is_ancestor_of(node)
-	
-func get_table_columns(db, table: String) -> Array:
-	if databases:
-		if table.ends_with(".gsql"):
-			table = table.get_basename()
-		return databases.get(db, {}).get("tables", {}).get(table, {})\
-			.get("columns", []).duplicate(true)
-	return []
-	
-func get_table_comment(db, table: String) -> String:
-	if databases:
-		if table.ends_with(".gsql"):
-			table = table.get_basename()
-		return databases.get(db, {}).get("tables", {}).get(table, {})\
-			.get("comment", "")
-	return ""
-	
-func get_table_columns_by_datapath(data_path, table: String) -> Array:
-	if databases:
-		if table.ends_with(".gsql"):
-			table = table.get_basename()
-		for db in databases:
-			if databases[db]["data_path"] == data_path or \
-			GDSQL.GDSQLUtils.globalize_path(databases[db]["data_path"]) == GDSQL.GDSQLUtils.globalize_path(data_path):
-				return databases[db].get("tables", {}).get(table, {})\
-					.get("columns", []).duplicate(true).map(func(v): v["db_name"] = db; return v)
-	return []
-	
-func get_table_valid_if_not_exist(data_path, table: String) -> bool:
-	if databases:
-		if table.ends_with(".gsql"):
-			table = table.get_basename()
-		for db in databases:
-			if databases[db]["data_path"] == data_path or \
-			GDSQL.GDSQLUtils.globalize_path(databases[db]["data_path"]) == GDSQL.GDSQLUtils.globalize_path(data_path):
-				return databases[db].get("tables", {}).get(table, {}).get("valid_if_not_exist", false)
-	return false
 	
 func _add_dialog(dialog: Window):
 	var root = EditorInterface.get_base_control().get_tree().get_root()

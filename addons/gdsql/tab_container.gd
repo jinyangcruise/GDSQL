@@ -16,9 +16,6 @@ var _tab_index = 1
 var _tab_activate_time: float = 0
 var _tab_history: Array
 
-const CONFIG_EXTENSION = ".cfg"
-const DATA_EXTENSION = ".gsql"
-
 func _ready() -> void:
 	if mgr == null or not mgr.run_in_plugin(self):
 		return
@@ -204,7 +201,7 @@ func add_tab_table_inspector(db_name, table_name) -> void:
 	table_inspector.table_name = table_name
 	var defination = mgr.databases.get(db_name, {}).get("tables", {}).get(table_name, {}) as Dictionary
 	table_inspector.comment = defination.get("comment", "")
-	var data_file_path = mgr.databases[db_name]["data_path"] + table_name + DATA_EXTENSION
+	var data_file_path = GDSQL.RootConfig.get_table_data_path(db_name, table_name)
 	var absolute_path = GDSQL.GDSQLUtils.globalize_path(data_file_path)
 	table_inspector.data_file_path = data_file_path if data_file_path == absolute_path \
 		else "%s (%s)" % [data_file_path, absolute_path]

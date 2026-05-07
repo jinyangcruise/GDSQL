@@ -48,12 +48,19 @@ func filter_values(prop: String, value: Variant, num: int = 0) -> Array[Dictiona
 				break
 	return ret
 	
-## 返回筛选后的第1个数据。筛选规则是，prop==value的数据。num规定了返回多少个匹配的数据。0表示不限制
+## 返回筛选后的第1个数据。筛选规则是，prop==value的数据。
 func filter_first_values(prop: String, value: Variant) -> Dictionary:
 	for section in get_sections():
 		if _get_value(section, prop) == value:
 			return get_section_values(section)
 	return {}
+	
+## 返回筛选后的第1个数据的section。筛选规则是，prop==value的数据。
+func filter_first_values_return_section(prop: String, value: Variant):
+	for section in get_sections():
+		if _get_value(section, prop) == value:
+			return section
+	return null
 	
 func set_indexed_props(props: Array):
 	if props == indexed_datas.keys():

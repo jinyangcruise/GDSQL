@@ -1,4 +1,4 @@
-[gd_scene load_steps=5 format=3 uid="uid://du31pexhv4cpk"]
+[gd_scene format=3 uid="uid://du31pexhv4cpk"]
 
 [ext_resource type="Script" uid="uid://extk7dba57hy" path="res://addons/gdsql/tabs/new_schema.gd" id="1_438pb"]
 [ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="2_lsuxh"]
@@ -7,7 +7,7 @@
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_0kgcd"]
 
-[node name="new_schema" type="VBoxContainer"]
+[node name="new_schema" type="VBoxContainer" unique_id=366475420]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -16,69 +16,69 @@ grow_vertical = 2
 script = ExtResource("1_438pb")
 metadata/type = "new_schema"
 
-[node name="HBoxContainer" type="HBoxContainer" parent="."]
+[node name="HBoxContainer" type="HBoxContainer" parent="." unique_id=967602862]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="HBoxContainer"]
+[node name="Label" type="Label" parent="HBoxContainer" unique_id=896276653]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 text = "Name"
 horizontal_alignment = 2
 
-[node name="LineEditName" type="LineEdit" parent="HBoxContainer"]
+[node name="LineEditName" type="LineEdit" parent="HBoxContainer" unique_id=813976687]
 layout_mode = 2
 size_flags_horizontal = 3
-placeholder_text = "database alias name"
+placeholder_text = "Database name. The system is case-insensitive for this name."
 context_menu_enabled = false
 caret_blink = true
 
-[node name="HBoxContainer2" type="HBoxContainer" parent="."]
+[node name="HBoxContainer2" type="HBoxContainer" parent="." unique_id=649418438]
 layout_mode = 2
 
-[node name="Label" type="Label" parent="HBoxContainer2"]
+[node name="Label" type="Label" parent="HBoxContainer2" unique_id=1147912809]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
-text = "Path"
+text = "Data Path"
 horizontal_alignment = 2
 
-[node name="LineEditPath" type="LineEdit" parent="HBoxContainer2"]
+[node name="LineEditPath" type="LineEdit" parent="HBoxContainer2" unique_id=1337069559]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/focus = SubResource("StyleBoxEmpty_oeto1")
 placeholder_text = "choose a dir"
 editable = false
 
-[node name="Button" type="Button" parent="HBoxContainer2"]
+[node name="Button" type="Button" parent="HBoxContainer2" unique_id=71180956]
 layout_mode = 2
 tooltip_text = "open project's dir"
 theme_override_styles/focus = SubResource("StyleBoxEmpty_0kgcd")
 text = "Resource"
 icon = ExtResource("2_lsuxh")
 
-[node name="Button2" type="Button" parent="HBoxContainer2"]
+[node name="Button2" type="Button" parent="HBoxContainer2" unique_id=540655288]
 layout_mode = 2
 tooltip_text = "open user's data dir"
 theme_override_styles/focus = SubResource("StyleBoxEmpty_0kgcd")
 text = "UserData"
 icon = ExtResource("2_lsuxh")
 
-[node name="Button3" type="Button" parent="HBoxContainer2"]
+[node name="Button3" type="Button" parent="HBoxContainer2" unique_id=2088547218]
 layout_mode = 2
 tooltip_text = "open any dir of your system"
 theme_override_styles/focus = SubResource("StyleBoxEmpty_0kgcd")
 text = "FileSystem"
 icon = ExtResource("2_lsuxh")
 
-[node name="HFlowContainer" type="HFlowContainer" parent="."]
+[node name="HFlowContainer" type="HFlowContainer" parent="." unique_id=213056495]
 layout_mode = 2
 alignment = 1
 
-[node name="ButtonApply" type="Button" parent="HFlowContainer"]
+[node name="ButtonApply" type="Button" parent="HFlowContainer" unique_id=361920926]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 text = "Apply"
 
-[node name="ButtonCancel" type="Button" parent="HFlowContainer"]
+[node name="ButtonCancel" type="Button" parent="HFlowContainer" unique_id=1878846428]
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 text = "Cancel"

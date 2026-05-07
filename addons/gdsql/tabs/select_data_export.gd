@@ -13,8 +13,6 @@ extends ScrollContainer
 @onready var check_box_open_folder_when_finished = $VBoxContainer/CheckBoxOpenFolderWhenFinished
 @onready var table_data_samples = $VBoxContainer/TableDataSamples
 
-const DATA_EXTENSION = ".gsql"
-
 var _columns
 var _datas
 var _button_group = ButtonGroup.new()

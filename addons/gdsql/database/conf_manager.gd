@@ -14,6 +14,10 @@ func mark_valid_if_not_exit(path: String) -> void:
 	if not _valid_if_not_exist_path.has(path):
 		_valid_if_not_exist_path.push_back(path)
 		
+func mark_invalid_if_not_exist(path: String) -> void:
+	path = GDSQL.GDSQLUtils.globalize_path(path)
+	_valid_if_not_exist_path.erase(path)
+	
 ## 获取配置：前提是该配置的文件是存在的。
 func get_conf(path: String, password) -> GDSQL.ImprovedConfigFile:
 	# 使用绝对路径，防止用户对同一个文件使用不同形式的路径导致获得了多个配置实例

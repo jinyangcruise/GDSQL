@@ -1884,7 +1884,7 @@ func _check_table_change(item: TreeItem) -> bool:
 		var data = node.get_meta("data")
 		var db = data.db_name
 		var table = data.table_name
-		var columns_define = GDSQL.WorkbenchManager.get_table_columns(db, table)
+		var columns_define = GDSQL.RootConfig.get_table_columns(db, table)
 		if columns_define.is_empty():
 			item.add_button(0, get_theme_icon(&"StatusWarning", &"EditorIcons"), 
 				NODE_LIST_TREE_ITEM_BUTTON.TABLE_NOT_EXIST, false, tr("This table is not exist!"))
@@ -1893,7 +1893,7 @@ func _check_table_change(item: TreeItem) -> bool:
 		else:
 			#TABLE_COMMENT_CHANGE, ## 表描述有变化
 			var old_comment = data.comment
-			var new_comment = GDSQL.WorkbenchManager.get_table_comment(db, table)
+			var new_comment = GDSQL.RootConfig.get_table_comment(db, table)
 			if old_comment != new_comment:
 				item.add_button(0, get_theme_icon(&"VisualShaderNodeComment", &"EditorIcons"), 
 					NODE_LIST_TREE_ITEM_BUTTON.TABLE_COMMENT_CHANGE, false, 

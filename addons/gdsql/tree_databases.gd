@@ -32,19 +32,10 @@ var root: TreeItem
 
 var database_items: Array[TreeItem] = []
 var _default_database_path: String = ""
-var _config_file: GDSQL.ImprovedConfigFile:
-	get:
-		return GDSQL.ConfManager.get_conf(ROOT_CONFIG, "")
 var _password_correct: Dictionary # 保存输入正确密码的表. {datapath: dek}
 
 var disk_changed: ConfirmationDialog
 var disk_changed_list: Tree
-
-const CONFIG_ROOT = "res://addons/gdsql/config/"
-const ROOT_CONFIG = "res://addons/gdsql/config/config.cfg"
-const CONFIG_EXTENSION = ".cfg"
-const DATA_EXTENSION = ".gsql"
-const DEK = "_DEK_"
 
 enum ITEM_BUTTON_INDEX {
 	QUICK_SEARCH = 0,
@@ -93,31 +84,14 @@ func _clear():
 	popup_menu_create_table_like_table_item.clear()
 	
 func refresh_databases():
-	var databases = {}
-	for db_name in _config_file.get_sections():
-		if db_name == DEK:
-			continue
-			
-		var config_path = _config_file.get_value(db_name, "config_path")
-		databases[db_name] = {
-			"data_path": _config_file.get_value(db_name, "data_path"),
-			"config_path": config_path,
-			"encrypted": _config_file.get_value(db_name, "encrypted", ""),
-			"tables": {}
-		}
-		
-		var table_confs = _get_specific_extension_files(config_path, CONFIG_EXTENSION.substr(1))
-		for file_name in table_confs:
-			var table_conf = GDSQL.ImprovedConfigFile.new()
-			table_conf.load(config_path + file_name)
-			var table_name = file_name.get_basename()
-			databases[db_name]["tables"][table_name] = table_conf.get_section_values(table_name)
-			if databases[db_name]["tables"][table_name].get("valid_if_not_exist", false):
+	GDSQL.RootConfig.reload()
+	mgr.databases = GDSQL.RootConfig.get_databases_info()
+	for db_name in mgr.databases:
+		for table_name in mgr.databases[db_name]["tables"]:
+			if mgr.databases[db_name]["tables"][table_name]["valid_if_not_exist"]:
 				GDSQL.ConfManager.mark_valid_if_not_exit(
-					(databases[db_name]["data_path"] as String).path_join(table_name) + DATA_EXTENSION)
+					GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 					
-	mgr.databases = databases
-	
 func _get_drag_data(at_position: Vector2) -> Variant:
 	var item = get_item_at_position(at_position)
 	if not item or item.get_meta("type", "") != "table":
@@ -141,17 +115,18 @@ func make_drag_data(item: TreeItem):
 	return map
 	
 func add_db_to_config(db_name: String, path: String, id: String) -> void:
+	db_name = GDSQL.RootConfig.validate_name(db_name)
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "CREATE DATABASE %s PATH %s;" % [db_name, path]
 	var msgs = []
 	
-	if db_name == DEK or not (db_name.is_valid_ascii_identifier() or db_name.is_valid_unicode_identifier()):
+	if db_name == GDSQL.RootConfig.DEK or not (db_name.is_valid_ascii_identifier() or db_name.is_valid_unicode_identifier()):
 		msgs.push_back(tr("Failed! Database name `%s` is invalid!") % db_name)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	for a_db_name in mgr.databases:
-		if a_db_name.to_lower() == db_name.to_lower():
+	for a_db_name: String in mgr.databases:
+		if a_db_name == db_name:
 			msgs.push_back(tr("Failed! Database name `%s` has been occupied!") % db_name)
 			mgr.add_log_history.emit("Err", begin_time, action, msgs)
 			return mgr.create_accept_dialog(msgs)
@@ -161,19 +136,18 @@ func add_db_to_config(db_name: String, path: String, id: String) -> void:
 			mgr.add_log_history.emit("Err", begin_time, action, msgs)
 			return mgr.create_accept_dialog(msgs)
 			
-	var config_path = CONFIG_ROOT + db_name.to_lower().to_snake_case() + "/"
-	_config_file.set_value(db_name, "data_path", path)
-	_config_file.set_value(db_name, "config_path", config_path)
-	_config_file.set_value(db_name, "encrypted", "")
-	_config_file.save(ROOT_CONFIG)
-	msgs.push_back(tr("1 file: %s has been modified.") % ROOT_CONFIG)
+	GDSQL.RootConfig.set_database_data(db_name, path, "")
+	GDSQL.RootConfig.save()
+	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
 	
-	var dir = DirAccess.open(CONFIG_ROOT)
+	var dir = DirAccess.open(GDSQL.RootConfig.get_base_dir())
 	if dir == null:
-		msgs.push_back(tr("Failed! Cannot open config root %s dir! Err: %s.") % [CONFIG_ROOT, DirAccess.get_open_error()])
+		msgs.push_back(tr("Failed! Cannot open config root %s dir! Err: %s.") % 
+			[GDSQL.RootConfig.get_base_dir(), DirAccess.get_open_error()])
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
+	var config_path = GDSQL.RootConfig.get_database_config_path(db_name)
 	if not dir.dir_exists(config_path):
 		var err = dir.make_dir_recursive(config_path)
 		if err == OK:
@@ -182,15 +156,16 @@ func add_db_to_config(db_name: String, path: String, id: String) -> void:
 			msgs.push_back(tr("Failed! Cannot make dir %s ! Err: %s.") % [config_path, err])
 			mgr.add_log_history.emit("Err", begin_time, action, msgs)
 			return mgr.create_accept_dialog(msgs)
-		
+			
 	mgr.sys_confirm_add_schema.emit(id)
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
 	
 	refresh()
 	
-	
 func add_table_to_config(db_name: String, table_name: String, comment: String, 
 	password: String, valid_if_not_exist: bool, column_infos: Array, id: String = "") -> void:
+	db_name = GDSQL.RootConfig.validate_name(db_name)
+	table_name = GDSQL.RootConfig.validate_name(table_name)
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "CREATE TABLE `%s`.`%s` (" % [db_name, table_name]
 	var msgs = []
@@ -222,24 +197,30 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 		exist_col[i["Column Name"]] = true
 		
 	if not mgr.databases.has(db_name):
-		var msg = tr("Failed! Database %s not exists!") % db_name
-		mgr.add_log_history.emit("Err", begin_time, action, msg)
-		return mgr.create_accept_dialog(msg)
+		msgs.push_back(tr("Failed! Database %s not exists!") % db_name)
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
 		
-	var conf_dir = DirAccess.open(mgr.databases[db_name]["config_path"])
+	var db_dek = GDSQL.RootConfig.get_database_dek64(db_name)
+	if db_dek != "" and password != "":
+		msgs.push_back(tr("Failed! Database %s is encrypted! Cannot set another password for this table!"))
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
+	var conf_dir = DirAccess.open(GDSQL.RootConfig.get_database_config_path(db_name))
 	if conf_dir == null:
 		msgs.push_back(tr("Failed! Cannot open database config dir %s! Err: %s.") \
-			% [mgr.databases[db_name]["config_path"], DirAccess.get_open_error()])
+			% [GDSQL.RootConfig.get_database_config_path(db_name), DirAccess.get_open_error()])
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	if conf_dir.file_exists(table_name + CONFIG_EXTENSION):
-		msgs.push_back(tr("Failed! Table conf %s already exist!") % (table_name + CONFIG_EXTENSION))
+	if conf_dir.file_exists(table_name + GDSQL.RootConfig.CONFIG_EXTENSION):
+		msgs.push_back(tr("Failed! Table conf %s already exist!") % (table_name + GDSQL.RootConfig.CONFIG_EXTENSION))
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var db_absolute_path = ProjectSettings.globalize_path(mgr.databases[db_name]["data_path"])
-	var table_data_path = db_absolute_path.path_join(table_name) + DATA_EXTENSION
+	var db_absolute_path = ProjectSettings.globalize_path(GDSQL.RootConfig.get_database_data_path(db_name))
+	var table_data_path = ProjectSettings.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 	if not DirAccess.dir_exists_absolute(db_absolute_path):
 		var err = DirAccess.make_dir_recursive_absolute(db_absolute_path)
 		if err == OK:
@@ -255,21 +236,30 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 			return mgr.create_accept_dialog(msgs)
 			
 	# 不记录path、database等信息，是方便转移数据表时，直接剪切文件到对应的数据库目录即可（配置文件和数据文件分别到各自目录）
+	var dek = "" if password == "" else GDSQL.CryptoUtil.generate_dek()
 	var config_file = ConfigFile.new()
-	var table_conf_path = mgr.databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
-	config_file.set_value(table_name, "encrypted", "" if password.is_empty() else password.md5_text())
+	var table_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, table_name)
+	config_file.set_value(table_name, "encrypted", "" if dek == "" else GDSQL.CryptoUtil.encrypt_dek(dek, password))
 	config_file.set_value(table_name, "comment", comment)
 	config_file.set_value(table_name, "valid_if_not_exist", valid_if_not_exist)
 	config_file.set_value(table_name, "columns", column_infos)
 	config_file.save(table_conf_path)
 	msgs.push_back(tr("1 file: %s has been saved.") % table_conf_path)
 	
-	# 这里不通过__CONF_MANAGER，可以让用户使用该表时输入一次密码加深记忆，防止用户加入了很多数据后才发现密码错误
-	var data_file = ConfigFile.new()
-	if password == "":
-		data_file.save(table_data_path)
+	# 先设置成虚拟的文件，便于首次保存
+	GDSQL.ConfManager.mark_valid_if_not_exit(table_data_path)
+	GDSQL.ConfManager.get_conf(table_data_path, "") # load data
+	if db_dek != "":
+		GDSQL.ConfManager.save_conf_by_dek(table_data_path, db_dek)
+	elif dek != "":
+		GDSQL.ConfManager.save_conf_by_dek(table_data_path, dek)
+		GDSQL.RootConfig.set_table_dek(db_name, table_name, dek)
+		GDSQL.RootConfig.save()
+		msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
 	else:
-		data_file.save_encrypted_pass(table_data_path, password)
+		GDSQL.ConfManager.save(table_data_path)
+	if not valid_if_not_exist:
+		GDSQL.ConfManager.mark_invalid_if_not_exist(table_data_path)
 	msgs.push_back(tr("1 file: %s has been saved.") % table_data_path)
 	
 	if id != "":
@@ -279,11 +269,13 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 	refresh()
 	
 func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String, id: String) -> void:
+	old_db_name = GDSQL.RootConfig.validate_name(old_db_name)
+	new_db_name = GDSQL.RootConfig.validate_name(new_db_name)
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "ALTER DATABASE `%s` RENAME `%s`;" % [old_db_name, new_db_name]
 	var msgs = []
 	
-	if new_db_name == DEK or not (new_db_name.is_valid_ascii_identifier() or new_db_name.is_valid_unicode_identifier()):
+	if new_db_name == GDSQL.RootConfig.DEK or not (new_db_name.is_valid_ascii_identifier() or new_db_name.is_valid_unicode_identifier()):
 		msgs.push_back(tr("Failed! Database name `%s` is invalid!") % new_db_name)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
@@ -303,19 +295,18 @@ func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var old_config_path = CONFIG_ROOT + old_db_name.to_lower().to_snake_case() + "/"
-	var new_config_path = CONFIG_ROOT + new_db_name.to_lower().to_snake_case() + "/"
+	var old_config_path = GDSQL.RootConfig.get_database_config_path(old_db_name)
+	var new_config_path = GDSQL.RootConfig.get_database_config_path(new_db_name)
 	var old_data = mgr.databases[old_db_name]
-	_config_file.erase_section(old_db_name)
-	_config_file.set_value(new_db_name, "data_path", old_data["data_path"])
-	_config_file.set_value(new_db_name, "config_path", new_config_path)
-	_config_file.set_value(new_db_name, "encrypted", old_data["encrypted"])
-	_config_file.save(ROOT_CONFIG)
-	msgs.push_back(tr("1 file: %s has been modified.") % ROOT_CONFIG)
+	GDSQL.RootConfig.erase_section(old_db_name)
+	GDSQL.RootConfig.set_database_data(new_db_name, old_data["data_path"], old_data["encrypted"])
+	GDSQL.RootConfig.save()
+	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
 	
-	var dir = DirAccess.open(CONFIG_ROOT)
+	var dir = DirAccess.open(GDSQL.RootConfig.get_base_dir())
 	if dir == null:
-		msgs.push_back(tr("Failed! Cannot open config root %s dir! Err: %s.") % [CONFIG_ROOT, DirAccess.get_open_error()])
+		msgs.push_back(tr("Failed! Cannot open config root %s dir! Err: %s.") % 
+			[GDSQL.RootConfig.get_base_dir(), DirAccess.get_open_error()])
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
@@ -342,7 +333,9 @@ func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String
 	
 func modify_table_to_config(db_name: String, old_table_name: String, new_table_name, \
 		comments: String, valid_if_not_exist: bool, column_infos: Array, id: String) -> void:
-		
+	db_name = GDSQL.RootConfig.validate_name(db_name)
+	old_table_name = GDSQL.RootConfig.validate_name(old_table_name)
+	new_table_name = GDSQL.RootConfig.validate_name(new_table_name)
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "ALTER TABLE `%s`.`%s` to `%s`.`%s` (" % [db_name, old_table_name, db_name, new_table_name]
 	var msgs = []
@@ -385,12 +378,11 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var db_path = mgr.databases[db_name]["data_path"]
-	var old_table_data_path = db_path + old_table_name + DATA_EXTENSION
-	var new_table_data_path = db_path + new_table_name + DATA_EXTENSION
+	var old_table_data_path = GDSQL.RootConfig.get_table_data_path(db_name, old_table_name)
+	var new_table_data_path = GDSQL.RootConfig.get_table_data_path(db_name, new_table_name)
 	if not FileAccess.file_exists(old_table_data_path):
 		var config_file = ConfigFile.new()
-		var table_conf_path = mgr.databases[db_name]["config_path"] + new_table_name + CONFIG_EXTENSION
+		var table_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, new_table_name)
 		config_file.set_value(new_table_name, "encrypted", table_confs[old_table_name]["encrypted"]) # 保留原密码
 		config_file.set_value(new_table_name, "comment", comments)
 		config_file.set_value(new_table_name, "valid_if_not_exist", valid_if_not_exist)
@@ -399,7 +391,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		msgs.push_back(tr("1 file: %s has been saved.") % table_conf_path)
 		
 		if old_table_data_path != new_table_data_path:
-			var old_table_conf_path = mgr.databases[db_name]["config_path"] + old_table_name + CONFIG_EXTENSION
+			var old_table_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, old_table_name)
 			var old_table_conf_path_abs = ProjectSettings.globalize_path(old_table_conf_path)
 			if FileAccess.file_exists(old_table_conf_path_abs):
 				OS.move_to_trash(old_table_conf_path_abs) # 删配置
@@ -515,7 +507,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 			_password_correct.erase(old_table_data_path)
 			
 		var config_file = ConfigFile.new()
-		var table_conf_path = mgr.databases[db_name]["config_path"] + new_table_name + CONFIG_EXTENSION
+		var table_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, new_table_name)
 		config_file.set_value(new_table_name, "encrypted", table_confs[old_table_name]["encrypted"]) # 保留原密码
 		config_file.set_value(new_table_name, "comment", comments)
 		config_file.set_value(new_table_name, "valid_if_not_exist", valid_if_not_exist)
@@ -529,7 +521,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		))
 		
 		if old_table_data_path != new_table_data_path:
-			var old_table_conf_path = mgr.databases[db_name]["config_path"] + old_table_name + CONFIG_EXTENSION
+			var old_table_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, old_table_name)
 			var old_table_conf_path_abs = ProjectSettings.globalize_path(old_table_conf_path)
 			var old_table_data_path_abs = ProjectSettings.globalize_path(old_table_data_path)
 			if FileAccess.file_exists(old_table_conf_path_abs):
@@ -550,6 +542,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		
 ## set password for a non-enctyped database
 func set_password_for_database(db_name: String, password: String) -> void:
+	db_name = GDSQL.RootConfig.validate_name(db_name)
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "ALTER DATABASE `%s` SET PASSWORD" % db_name
 	var msgs = []
@@ -572,17 +565,14 @@ func set_password_for_database(db_name: String, password: String) -> void:
 			
 	var dek = GDSQL.CryptoUtil.generate_dek()
 	var old_data = mgr.databases[db_name]
-	_config_file.erase_section(db_name)
-	_config_file.set_value(db_name, "data_path", old_data["data_path"])
-	_config_file.set_value(db_name, "config_path", old_data["config_path"])
-	_config_file.set_value(db_name, "encrypted", GDSQL.CryptoUtil.encrypt_dek(dek, password))
-	_config_file.set_value(DEK, old_data["data_path"], dek)
-	_config_file.save(ROOT_CONFIG)
-	msgs.push_back(tr("1 file: %s has been modified.") % ROOT_CONFIG)
+	GDSQL.RootConfig.erase_section(db_name)
+	GDSQL.RootConfig.set_database_data(db_name, old_data["data_path"], GDSQL.CryptoUtil.encrypt_dek(dek, password))
+	GDSQL.RootConfig.set_database_dek(db_name, dek)
+	GDSQL.RootConfig.save()
+	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
 	
-	var db_absolute_path = ProjectSettings.globalize_path(mgr.databases[db_name]["data_path"])
 	for table_name in mgr.databases[db_name]["tables"]:
-		var table_data_path = db_absolute_path.path_join(table_name) + DATA_EXTENSION
+		var table_data_path = GDSQL.RootConfig.get_table_data_path(db_name, table_name)
 		var table_data_file_exist = FileAccess.file_exists(table_data_path)
 		if table_data_file_exist:
 			GDSQL.ConfManager.get_conf(table_data_path, "") # load data
@@ -593,13 +583,14 @@ func set_password_for_database(db_name: String, password: String) -> void:
 		GDSQL.ConfManager.remove_conf(table_data_path)
 		_password_correct.erase(table_data_path)
 		
-	_password_correct.erase(db_absolute_path)
+	_password_correct.erase(GDSQL.RootConfig.get_database_data_path(db_name))
 	
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
 	refresh()
 	
 ## clear password for an encrypted database
 func clear_password_for_database(db_name: String) -> void:
+	db_name = GDSQL.RootConfig.validate_name(db_name)
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "ALTER DATABASE `%s` CLEAR PASSWORD" % db_name
 	var msgs = []
@@ -615,17 +606,14 @@ func clear_password_for_database(db_name: String) -> void:
 		return mgr.create_accept_dialog(msgs)
 		
 	var old_data = mgr.databases[db_name]
-	_config_file.erase_section(db_name)
-	_config_file.set_value(db_name, "data_path", old_data["data_path"])
-	_config_file.set_value(db_name, "config_path", old_data["config_path"])
-	_config_file.set_value(db_name, "encrypted", "")
-	_config_file.set_value(DEK, old_data["data_path"], null)
-	_config_file.save(ROOT_CONFIG)
-	msgs.push_back(tr("1 file: %s has been modified.") % ROOT_CONFIG)
+	GDSQL.RootConfig.erase_section(db_name)
+	GDSQL.RootConfig.set_database_data(db_name, old_data["data_path"], "")
+	GDSQL.RootConfig.set_database_dek(db_name, null)
+	GDSQL.RootConfig.save()
+	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
 	
-	var db_absolute_path = ProjectSettings.globalize_path(mgr.databases[db_name]["data_path"])
 	for table_name in mgr.databases[db_name]["tables"]:
-		var table_data_path = db_absolute_path.path_join(table_name) + DATA_EXTENSION
+		var table_data_path = GDSQL.RootConfig.get_table_data_path(db_name, table_name)
 		var table_data_file_exist = FileAccess.file_exists(table_data_path)
 		
 		# 注意，这里随便传了一个密码，因为实际操作中用户已经输入过密码了，__CONF_MANAGER后续会从缓存中获取，无需再次输入密码
@@ -635,13 +623,14 @@ func clear_password_for_database(db_name: String) -> void:
 			msgs.push_back(tr("1 file: %s has been decrypted.") % table_data_path)
 			_password_correct.erase(table_data_path)
 			
-	_password_correct.erase(db_absolute_path)
+	_password_correct.erase(GDSQL.RootConfig.get_database_data_path(db_name))
 	
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
 	refresh()
 	
 ## change password for an enctyped table
 func change_password_for_database(db_name: String, password: String) -> void:
+	db_name = GDSQL.RootConfig.validate_name(db_name)
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "ALTER DATABASE `%s` CHANGE PASSWORD" % db_name
 	var msgs = []
@@ -663,35 +652,34 @@ func change_password_for_database(db_name: String, password: String) -> void:
 		
 	var old_data = mgr.databases[db_name]
 	# 修改密码不会导致dek变化，所以文件也不变化，变化的是dek的加密字符串，这样达到最大效率。
-	var dek = _config_file.get_value(DEK, old_data["data_path"], "")
+	var dek = GDSQL.RootConfig.get_database_dek64(db_name)
 	if dek == "":
 		msgs.push_back(tr("Failed! Dek of %s should not be empty!") % db_name)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	_config_file.erase_section(db_name)
-	_config_file.set_value(db_name, "data_path", old_data["data_path"])
-	_config_file.set_value(db_name, "config_path", old_data["config_path"])
-	_config_file.set_value(db_name, "encrypted", GDSQL.CryptoUtil.encrypt_dek(dek, password))
-	_config_file.save(ROOT_CONFIG)
-	msgs.push_back(tr("1 file: %s has been modified.") % ROOT_CONFIG)
+	GDSQL.RootConfig.erase_section(db_name)
+	GDSQL.RootConfig.set_database_data(db_name, old_data["data_path"], GDSQL.CryptoUtil.encrypt_dek(dek, password))
+	GDSQL.RootConfig.save()
+	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
 	
 	# 修改密码不会导致dek变化，所以文件也不变化，变化的是dek的加密字符串，这样达到最大效率。
 	# 因此这里不会把数据文件重新加密。
-	var db_absolute_path = ProjectSettings.globalize_path(mgr.databases[db_name]["data_path"])
 	for table_name in mgr.databases[db_name]["tables"]:
-		var table_data_path = db_absolute_path.path_join(table_name) + DATA_EXTENSION
+		var table_data_path = GDSQL.RootConfig.get_table_data_path(db_name, table_name)
 		GDSQL.ConfManager.remove_conf(table_data_path)
 		_password_correct.erase(table_data_path)
 		
 	# 清除该数据库密码记录，可以让用户使用该数据库时必须输入密码，以加深印象
-	_password_correct.erase(db_absolute_path)
+	_password_correct.erase(GDSQL.RootConfig.get_database_data_path(db_name))
 	
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
 	refresh()
 	
 ## set password for a non-enctyped table
 func set_password(db_name: String, table_name: String, password: String) -> void:
+	db_name = GDSQL.RootConfig.validate_name(db_name)
+	table_name = GDSQL.RootConfig.validate_name(table_name)
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "ALTER TABLE `%s`.`%s` SET PASSWORD" % [db_name, table_name]
 	var msgs = []
@@ -721,14 +709,13 @@ func set_password(db_name: String, table_name: String, password: String) -> void
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var table_conf_path = mgr.databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
+	var table_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, table_name)
 	if not FileAccess.file_exists(table_conf_path):
 		msgs.push_back(tr("Failed! Table conf %s does not exist!") % table_conf_path)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var db_absolute_path = ProjectSettings.globalize_path(mgr.databases[db_name]["data_path"])
-	var table_data_path = db_absolute_path.path_join(table_name) + DATA_EXTENSION
+	var table_data_path = ProjectSettings.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 	var table_data_file_exist = FileAccess.file_exists(table_data_path)
 	#if not FileAccess.file_exists(table_data_path):
 		#msgs.push_back("Failed! Data file [%s] dose not exist!" % table_data_path)
@@ -742,9 +729,9 @@ func set_password(db_name: String, table_name: String, password: String) -> void
 	config_file.save(table_conf_path)
 	msgs.push_back(tr("1 file: %s has been saved.") % table_conf_path)
 	
-	_config_file.set_value(DEK, table_data_path, dek)
-	_config_file.save(ROOT_CONFIG)
-	msgs.push_back(tr("1 file: %s has been modified.") % ROOT_CONFIG)
+	GDSQL.RootConfig.set_table_dek(db_name, table_name, dek)
+	GDSQL.RootConfig.save()
+	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
 	
 	if table_data_file_exist:
 		GDSQL.ConfManager.get_conf(table_data_path, "") # load data
@@ -760,6 +747,8 @@ func set_password(db_name: String, table_name: String, password: String) -> void
 	
 ## clear password for an encrypted table
 func clear_password(db_name: String, table_name: String) -> void:
+	db_name = GDSQL.RootConfig.validate_name(db_name)
+	table_name = GDSQL.RootConfig.validate_name(table_name)
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "ALTER TABLE `%s`.`%s` CLEAR PASSWORD" % [db_name, table_name]
 	var msgs = []
@@ -779,25 +768,34 @@ func clear_password(db_name: String, table_name: String) -> void:
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var table_conf_path = mgr.databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
+	var table_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, table_name)
 	if not FileAccess.file_exists(table_conf_path):
 		msgs.push_back(tr("Failed! Table conf %s does not exist!") % table_conf_path)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var db_absolute_path = ProjectSettings.globalize_path(mgr.databases[db_name]["data_path"])
-	var table_data_path = db_absolute_path.path_join(table_name) + DATA_EXTENSION
+	var table_data_path = ProjectSettings.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 	var table_data_file_exist = FileAccess.file_exists(table_data_path)
 	#if not FileAccess.file_exists(table_data_path):
 		#msgs.push_back("Failed! Data file [%s] dose not exist!" % table_data_path)
 		#mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		#return mgr.create_accept_dialog(msgs)
 		
+	var dek = GDSQL.RootConfig.get_table_dek64(db_name, table_name)
+	if dek == "":
+		msgs.push_back(tr("Failed! Dek of %s.%s should not be empty!") % [db_name, table_name])
+		mgr.add_log_history.emit("Err", begin_time, action, msgs)
+		return mgr.create_accept_dialog(msgs)
+		
 	var config_file = ConfigFile.new()
 	config_file.load(table_conf_path)
 	config_file.set_value(table_name, "encrypted", "")
 	config_file.save(table_conf_path)
 	msgs.push_back(tr("1 file: %s has been saved.") % table_conf_path)
+	
+	GDSQL.RootConfig.set_table_dek(db_name, table_name, null)
+	GDSQL.RootConfig.save()
+	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
 	
 	# 注意，这里随便传了一个密码，因为实际操作中用户已经输入过密码了，__CONF_MANAGER后续会从缓存中获取，无需再次输入密码
 	if table_data_file_exist:
@@ -812,6 +810,8 @@ func clear_password(db_name: String, table_name: String) -> void:
 	
 ## change password for an enctyped table
 func change_password(db_name: String, table_name: String, password: String) -> void:
+	db_name = GDSQL.RootConfig.validate_name(db_name)
+	table_name = GDSQL.RootConfig.validate_name(table_name)
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "ALTER TABLE `%s`.`%s` CHANGE PASSWORD" % [db_name, table_name]
 	var msgs = []
@@ -836,21 +836,20 @@ func change_password(db_name: String, table_name: String, password: String) -> v
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var table_conf_path = mgr.databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
+	var table_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, table_name)
 	if not FileAccess.file_exists(table_conf_path):
 		msgs.push_back(tr("Failed! Table conf %s does not exist!") % table_conf_path)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var db_absolute_path = ProjectSettings.globalize_path(mgr.databases[db_name]["data_path"])
-	var table_data_path = db_absolute_path.path_join(table_name) + DATA_EXTENSION
+	var table_data_path = ProjectSettings.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 	#var table_data_file_exist = FileAccess.file_exists(table_data_path)
 	#if not FileAccess.file_exists(table_data_path):
 		#msgs.push_back("Failed! Data file [%s] dose not exist!" % table_data_path)
 		#mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		#return mgr.create_accept_dialog(msgs)
 		
-	var dek = _config_file.get_value(DEK, table_data_path, "")
+	var dek = GDSQL.RootConfig.get_table_dek64(db_name, table_name)
 	if dek == "":
 		msgs.push_back(tr("Failed! Dek of %s.%s should not be empty!") % [db_name, table_name])
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
@@ -872,6 +871,7 @@ func change_password(db_name: String, table_name: String, password: String) -> v
 	refresh()
 	
 func drop_db_from_config(db_name: String) -> void:
+	db_name = GDSQL.RootConfig.validate_name(db_name)
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "Drop Schema %s;" % db_name
 	
@@ -880,10 +880,10 @@ func drop_db_from_config(db_name: String) -> void:
 		mgr.add_log_history.emit("Err", begin_time, action, content)
 		return mgr.create_accept_dialog(content)
 		
-	if _default_database_path == mgr.databases[db_name]["data_path"]:
+	if _default_database_path == GDSQL.RootConfig.get_database_data_path(db_name):
 		_default_database_path = ""
 		
-	var dek = _config_file.get_value(DEK, mgr.databases[db_name]["data_path"], "")
+	var dek = GDSQL.RootConfig.get_database_dek64(db_name)
 	if dek != "":
 		# In case user want to revert but don't know the dek.
 		var tmp_file_path = "user://%s.%s.%s.dek" % [db_name, 
@@ -892,18 +892,20 @@ func drop_db_from_config(db_name: String) -> void:
 		file.store_string(dek)
 		file.flush()
 		file.close()
-		OS.move_to_trash(tmp_file_path)
+		OS.move_to_trash(ProjectSettings.globalize_path(tmp_file_path))
 		
-	_config_file.set_value(DEK, mgr.databases[db_name]["data_path"], null)
-	_config_file.erase_section(db_name)
-	_config_file.save(ROOT_CONFIG)
-	var msg = tr("1 file: %s has been modified") % ROOT_CONFIG
+	GDSQL.RootConfig.set_database_dek(db_name, null)
+	GDSQL.RootConfig.erase_database(db_name)
+	GDSQL.RootConfig.save()
+	var msg = tr("1 file: %s has been modified") % GDSQL.RootConfig.path
 	mgr.add_log_history.emit("OK", begin_time, action, msg)
 	
 	refresh()
 	# TODO notify mapper graph
 	
 func drop_table_from_config(db_name: String, table_name: String) -> void:
+	db_name = GDSQL.RootConfig.validate_name(db_name)
+	table_name = GDSQL.RootConfig.validate_name(table_name)
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "Drop table `%s`.`%s`;" % [db_name, table_name]
 	var msgs = []
@@ -919,7 +921,7 @@ func drop_table_from_config(db_name: String, table_name: String) -> void:
 		return mgr.create_accept_dialog(content)
 		
 	# remove config file
-	var table_conf_path = mgr.databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
+	var table_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, table_name)
 	var conf_path = ProjectSettings.globalize_path(table_conf_path)
 	if FileAccess.file_exists(table_conf_path):
 		OS.move_to_trash(conf_path)
@@ -929,15 +931,14 @@ func drop_table_from_config(db_name: String, table_name: String) -> void:
 	GDSQL.ConfManager.remove_conf(table_conf_path)
 	
 	# remove data file
-	var db_absolute_path = ProjectSettings.globalize_path(mgr.databases[db_name]["data_path"])
-	var data_path = db_absolute_path.path_join(table_name) + DATA_EXTENSION
+	var data_path = ProjectSettings.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 	if FileAccess.file_exists(data_path):
 		OS.move_to_trash(data_path)
 		msgs.push_back(tr("1 file: %s has been moved to trash.") % data_path)
 	else:
 		msgs.push_back(tr("1 file: %s could not be found when attempting to move to trash.") % data_path)
 		
-	var dek = _config_file.get_value(DEK, data_path, "")
+	var dek = GDSQL.RootConfig.get_table_dek64(db_name, table_name)
 	if dek != "":
 		# In case user want to revert but don't know the dek.
 		var tmp_file_path = "user://%s.%s.%s.dek" % [db_name, table_name, 
@@ -946,11 +947,11 @@ func drop_table_from_config(db_name: String, table_name: String) -> void:
 		file.store_string(dek)
 		file.flush()
 		file.close()
-		OS.move_to_trash(tmp_file_path)
+		OS.move_to_trash(ProjectSettings.globalize_path(tmp_file_path))
 		
-		_config_file.set_value(DEK, data_path, null)
-		_config_file.save(ROOT_CONFIG)
-		msgs.push_back(tr("1 file: %s has been modified") % ROOT_CONFIG)
+		GDSQL.RootConfig.set_table_dek(db_name, table_name, null)
+		GDSQL.RootConfig.save()
+		msgs.push_back(tr("1 file: %s has been modified") % GDSQL.RootConfig.path)
 		
 	GDSQL.ConfManager.remove_conf(data_path)
 	_password_correct.erase(data_path)
@@ -961,6 +962,8 @@ func drop_table_from_config(db_name: String, table_name: String) -> void:
 	mgr.sys_confirm_drop_table.emit(db_name, table_name)
 	
 func truncate_table_from_config(db_name: String, table_name: String) -> void:
+	db_name = GDSQL.RootConfig.validate_name(db_name)
+	table_name = GDSQL.RootConfig.validate_name(table_name)
 	var begin_time = Time.get_unix_time_from_system()
 	var action = "Truncate table `%s`.`%s`;" % [db_name, table_name]
 	var msgs = []
@@ -976,8 +979,7 @@ func truncate_table_from_config(db_name: String, table_name: String) -> void:
 		return mgr.create_accept_dialog(content)
 		
 	# clear data file
-	var db_absolute_path = ProjectSettings.globalize_path(mgr.databases[db_name]["data_path"])
-	var data_path = db_absolute_path.path_join(table_name) + DATA_EXTENSION
+	var data_path = ProjectSettings.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 	if FileAccess.file_exists(data_path):
 		OS.move_to_trash(data_path) # users can get their old data file in trash can
 		msgs.push_back(tr("1 file: %s has been moved to trash.") % data_path)
@@ -987,15 +989,19 @@ func truncate_table_from_config(db_name: String, table_name: String) -> void:
 	# create empty file
 	var data_file = ConfigFile.new()
 	data_file.save(data_path)
-	
 	GDSQL.ConfManager.get_conf(data_path, "")._clear()
-	GDSQL.ConfManager.save_conf_by_origin_password_or_dek(data_path)
+	
+	var dek = GDSQL.RootConfig.get_database_dek64(db_name)
+	if dek == "":
+		dek = GDSQL.RootConfig.get_table_dek64(db_name, table_name)
+	if dek != "":
+		GDSQL.ConfManager.save_conf_by_dek(data_path, dek)
 	msgs.push_back(tr("1 file: %s has been overwritten with an empty file.") % data_path)
 	
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
 	
 	refresh()
-
+	
 func _ready():
 	if mgr == null or not mgr.run_in_plugin(self):
 		return
@@ -1158,18 +1164,14 @@ func _get_specific_extension_files(path: String, extension: String) -> Array[Str
 
 func add_database(db_name: String, data: Dictionary) -> TreeItem:
 	var data_path = data["data_path"]
-	var conf_path = data["config_path"]
 	var database_item = create_item(root)
 	database_item.set_auto_translate_mode(0, Node.AUTO_TRANSLATE_MODE_DISABLED)
 	database_item.set_text(0, db_name)
 	database_item.set_icon(0, load("res://addons/gdsql/img/icon_db.png"))
 	database_item.set_icon_max_width(0, 20)
-	database_item.add_button(0, load("res://addons/gdsql/img/folder.png"), 
-		ITEM_BUTTON_INDEX.FOLDER, false, tr("Show in File Manager"))
 	database_item.set_tooltip_text(0, data_path)
 	database_item.set_meta("db_name", db_name)
 	database_item.set_meta("data_path", data_path)
-	database_item.set_meta("config_path", conf_path)
 	database_item.set_meta("type", "database")
 	if data["encrypted"] != "":
 		var texture
@@ -1181,6 +1183,8 @@ func add_database(db_name: String, data: Dictionary) -> TreeItem:
 			texture = load("res://addons/gdsql/img/lock.png") 
 			tooltip = tr("This database is encrypted. Please enter your password to proceed.")
 		database_item.add_button(0, texture, ITEM_BUTTON_INDEX.ENCRYPT, false, tooltip)
+	database_item.add_button(0, load("res://addons/gdsql/img/folder.png"), 
+		ITEM_BUTTON_INDEX.FOLDER, false, tr("Show in File Manager"))
 	if data_path == _default_database_path:
 		database_item.set_custom_bg_color(0, Color.BLUE_VIOLET)
 		
@@ -1201,7 +1205,7 @@ func add_database(db_name: String, data: Dictionary) -> TreeItem:
 	
 func add_table(db: TreeItem, table_name: String):
 	var table_item = create_item(db.get_child(0)) # child 0 是 Tables。其他是Views、Stored Procedures等等
-	var file_name = table_name + DATA_EXTENSION
+	var file_name = table_name + GDSQL.RootConfig.DATA_EXTENSION
 	var db_name = db.get_meta("db_name")
 	var data_path = db.get_meta("data_path").path_join(file_name)
 	table_item.set_text(0, table_name)
@@ -1274,9 +1278,12 @@ func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_inde
 			ITEM_BUTTON_INDEX.COLUMN_PROPERTY:
 				pass
 			ITEM_BUTTON_INDEX.ENCRYPT:
-				deal_password_before_table_cmd(item, "", Callable())
-
-
+				var item_is_table: bool = item.get_meta("type") == "table"
+				var table_name = item.get_meta("table_name") if item_is_table else ""
+				var data_path = item.get_meta("data_path")
+				deal_password_before_table_cmd_3(item, item.get_meta("db_name"), table_name, 
+					data_path, "", Callable(), Callable(), true)
+					
 func _on_item_activated(item: TreeItem = null) -> void:
 	if item == null:
 		item = get_item_at_position(get_local_mouse_position())
@@ -1300,8 +1307,6 @@ func _on_item_activated(item: TreeItem = null) -> void:
 		if need_collapsed:
 			item.collapsed = !item.collapsed
 			
-
-
 func _on_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		var item := get_item_at_position(get_local_mouse_position())
@@ -1419,7 +1424,7 @@ func need_password(db_name: String, table_name: String, try_password: String, re
 				if collection.get_meta("type") == "Tables":
 					for table_item in collection.get_children():
 						if table_item.get_meta("table_name") == table_name or \
-							table_item.get_meta("data_path").get_file() == table_name:
+						table_item.get_meta("data_path").get_file() == table_name:
 							var ret = _need_password(table_item, try_password)
 							result.push_back(ret)
 							return ret
@@ -1433,13 +1438,14 @@ func _need_password(table_item: TreeItem, try_password: String) -> bool:
 	
 	var dek_info = ""
 	var path = ""
+	var is_db_locked = mgr.databases[db_name]["encrypted"] != ""
 	if mgr.databases[db_name]["tables"][table_name]["encrypted"] != "":
 		if GDSQL.ConfManager.has_conf(table_path) and _password_correct.has(table_path):
 			return false
 		dek_info = mgr.databases[db_name]["tables"][table_name]["encrypted"]
 		path = table_path
-	elif mgr.databases[db_name]["encrypted"] != "":
-		var db_path = mgr.databases[db_name]["data_path"]
+	elif is_db_locked:
+		var db_path = GDSQL.RootConfig.get_database_data_path(db_name)
 		if _password_correct.has(db_path):
 			return false
 		dek_info = mgr.databases[db_name]["encrypted"]
@@ -1452,12 +1458,16 @@ func _need_password(table_item: TreeItem, try_password: String) -> bool:
 		if recovered_dek == "":
 			return true # Wrong password
 		# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
-		GDSQL.ConfManager.get_conf(table_path, recovered_dek)
+		if not is_db_locked:
+			GDSQL.ConfManager.get_conf(table_path, recovered_dek)
 		_password_correct[path] = recovered_dek
 		return false
 	return true
 	
 func deal_password_before_table_cmd_2(db_name: String, table_name: String, try_password: String, pass_callback: Callable, fail_callabck: Callable = Callable()):
+	if not db_name.contains("/"):
+		db_name = GDSQL.RootConfig.validate_name(db_name)
+	table_name = GDSQL.RootConfig.validate_name(table_name)
 	table_name = table_name.get_basename()
 	var find_db = false
 	var find_table = false
@@ -1504,28 +1514,71 @@ func deal_password_before_table_cmd(item: TreeItem, try_password: String, pass_c
 	var db_name = item.get_meta("db_name")
 	var data_path = item.get_meta("data_path")
 	var table_name = item.get_meta("table_name") if item_is_table else ""
+	deal_password_before_table_cmd_3(item, db_name, table_name, data_path, try_password, pass_callback, fail_callback)
+	
+func _switch_item_lock_status(item: TreeItem, lock: bool = true):
+	var index = item.get_button_by_id(0, ITEM_BUTTON_INDEX.ENCRYPT)
+	if index < 0:
+		return
+	var tooltip = ""
+	var item_is_table: bool = item.get_meta("type") == "table"
+	var db_name = item.get_meta("db_name")
+	var table_name = item.get_meta("table_name") if item_is_table else ""
+	if item_is_table:
+		if lock:
+			tooltip = tr("This table: %s.%s is encrypted. Please input password of this table.") % [db_name, table_name]
+		else:
+			tooltip = tr("This table: %s.%s is encrypted and you have entered the right password.") % [db_name, table_name]
+	else:
+		if lock:
+			tooltip = tr("This database: %s is encrypted. Please input password of this databse.") % db_name
+		else:
+			tooltip = tr("This database: %s is encrypted and you have entered the right password.") % db_name
+	var texture = load("res://addons/gdsql/img/lock.png") if lock else load("res://addons/gdsql/img/unlock.png")
+	item.set_button(0, index, texture)
+	item.set_button_tooltip_text(0, index, tooltip)
+	
+	if lock:
+		if item_is_table:
+			_password_correct.erase(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
+		else:
+			for a_table_name in mgr.databases[db_name]["tables"]:
+				var table_data_path = GDSQL.RootConfig.get_table_data_path(db_name, a_table_name)
+				GDSQL.ConfManager.remove_conf(table_data_path)
+				_password_correct.erase(table_data_path)
+			_password_correct.erase(GDSQL.RootConfig.get_database_data_path(db_name))
+			
+func deal_password_before_table_cmd_3(item: TreeItem, db_name: String, table_name: String, 
+data_path: String, try_password: String, pass_callback: Callable, fail_callback: Callable = Callable(),
+lock_if_already_passed: bool = false):
 	var password_dict_obj = GDSQL.DictionaryObject.new({tr("Password"): ""}, 
 		{tr("Password"): {"hint": PROPERTY_HINT_PASSWORD}})
 		
 	var dek_info = ""
 	var msg
-	var is_table_encrypted = true
+	var item_is_table: bool = item.get_meta("type") == "table"
+	var is_db_locked = mgr.databases[db_name]["encrypted"] != ""
 	if item_is_table and mgr.databases[db_name]["tables"][table_name]["encrypted"] != "":
 		if GDSQL.ConfManager.has_conf(data_path) and _password_correct.has(data_path):
 			if pass_callback.is_valid():
 				pass_callback.call()
+			if lock_if_already_passed:
+				_switch_item_lock_status(item, true)
 			return
 		dek_info = mgr.databases[db_name]["tables"][table_name]["encrypted"]
 		msg = tr("This table: %s.%s is encrypted. Please input password of this table.") % [db_name, table_name]
-		is_table_encrypted = true
-	elif mgr.databases[db_name]["encrypted"] != "":
-		if _password_correct.has(data_path):
+	elif is_db_locked:
+		var db_path = data_path
+		if db_path.ends_with(GDSQL.RootConfig.DATA_EXTENSION):
+			db_path = db_path.get_base_dir()
+		if _password_correct.has(db_path):
 			if pass_callback.is_valid():
 				pass_callback.call()
+			if lock_if_already_passed:
+				_switch_item_lock_status(item.get_parent().get_parent() if item_is_table else item, true)
 			return
 		dek_info = mgr.databases[db_name]["encrypted"]
 		msg = tr("This database: %s is encrypted. Please input password of this databse.") % db_name
-		is_table_encrypted = false
 	else:
 		if pass_callback.is_valid():
 			pass_callback.call()
@@ -1537,8 +1590,25 @@ func deal_password_before_table_cmd(item: TreeItem, try_password: String, pass_c
 			msg = tr("Your password is incorrect! Please enter again!")
 		else:
 			# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
-			GDSQL.ConfManager.get_conf(data_path, recovered_dek)
-			_password_correct[data_path] = recovered_dek
+			if data_path.ends_with(GDSQL.RootConfig.DATA_EXTENSION):
+				var conf = GDSQL.ConfManager.get_conf(data_path, recovered_dek)
+				if conf == null:
+					return
+					
+				if is_db_locked:
+					_password_correct[data_path.get_base_dir()] = recovered_dek
+				else:
+					_password_correct[data_path] = recovered_dek
+			else:
+				_password_correct[data_path] = recovered_dek
+				
+			if item_is_table:
+				if is_db_locked:
+					_switch_item_lock_status(item.get_parent().get_parent(), false)
+				else:
+					_switch_item_lock_status(item, false)
+			else:
+				_switch_item_lock_status(item, false)
 			if pass_callback.is_valid():
 				pass_callback.call()
 			return
@@ -1551,8 +1621,18 @@ func deal_password_before_table_cmd(item: TreeItem, try_password: String, pass_c
 		var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(dek_info, password_dict_obj._get(tr("Password")))
 		if recovered_dek != "":
 			# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
-			GDSQL.ConfManager.get_conf(data_path, recovered_dek)
-			_password_correct[data_path] = recovered_dek
+			if data_path.ends_with(GDSQL.RootConfig.DATA_EXTENSION):
+				var conf = GDSQL.ConfManager.get_conf(data_path, recovered_dek)
+				if conf == null:
+					return [true, false]
+					
+				if is_db_locked:
+					_password_correct[data_path.get_base_dir()] = recovered_dek
+				else:
+					_password_correct[data_path] = recovered_dek
+			else:
+				_password_correct[data_path] = recovered_dek
+				
 			return [false, true] # false表示让对话框关闭，true表示密码正确
 		mgr.create_accept_dialog(tr("Incorrect password!"))
 		return [true, false] # true表示让对话框存在，false表示密码错误
@@ -1560,23 +1640,14 @@ func deal_password_before_table_cmd(item: TreeItem, try_password: String, pass_c
 	var defered = func(clicked_confirm: bool, validation):
 		if clicked_confirm:
 			if validation is bool and validation == true:
-				# 更新锁的图标为打开的样式 TODO 继续修改
-				var texture = load("res://addons/gdsql/img/unlock.png")
-				var tooltip = ""
-				if is_table_encrypted:
-					tooltip = tr("This table: %s.%s is encrypted and you have entered the right password.") % [
-						db_name, table_name
-					]
-					var index = item.get_button_by_id(0, ITEM_BUTTON_INDEX.ENCRYPT)
-					item.set_button(0, index, texture)
-					item.set_button_tooltip_text(0, index, tooltip)
+				# 更新锁的图标为打开的样式
+				if item_is_table:
+					if is_db_locked:
+						_switch_item_lock_status(item.get_parent().get_parent(), false)
+					else:
+						_switch_item_lock_status(item, false)
 				else:
-					tooltip = tr("This database: %s is encrypted and you have entered the right password.") % db_name
-					var db_item = item.get_parent().get_parent()
-					var index = db_item.get_button_by_id(0, ITEM_BUTTON_INDEX.ENCRYPT)
-					db_item.set_button(0, index, texture)
-					db_item.set_button_tooltip_text(0, index, tooltip)
-					
+					_switch_item_lock_status(item, false)
 				# 执行用户传入的函数
 				if pass_callback.is_valid():
 					pass_callback.call()
@@ -1594,8 +1665,10 @@ func _on_popup_menu_create_table_like_tables_index_pressed(index: int) -> void:
 		var meta_data = popup_menu_create_table_like_tables.get_item_metadata(index)
 		var like_db_name = meta_data["db_name"]
 		var like_table_name = meta_data["table_name"]
-		mgr.open_add_table_tab.emit(db_name, like_db_name, like_table_name)
-
+		deal_password_before_table_cmd_3(item.get_parent(), db_name, "", 
+			item.get_meta("data_path"), "",
+			mgr.open_add_table_tab.emit.bind(db_name, like_db_name, like_table_name))
+			
 ## Table Item的create table like子目录的菜单
 func _on_popup_menu_create_table_like_table_item_index_pressed(index: int) -> void:
 	var item = get_selected()
@@ -1604,8 +1677,10 @@ func _on_popup_menu_create_table_like_table_item_index_pressed(index: int) -> vo
 		var meta_data = popup_menu_create_table_like_table_item.get_item_metadata(index)
 		var like_db_name = meta_data["db_name"]
 		var like_table_name = meta_data["table_name"]
-		mgr.open_add_table_tab.emit(db_name, like_db_name, like_table_name)
-	
+		deal_password_before_table_cmd_3(item.get_parent().get_parent(), db_name, "",
+			item.get_meta("data_path"), "",
+			mgr.open_add_table_tab.emit.bind(db_name, like_db_name, like_table_name))
+			
 ## 数据库目录的右键菜单
 func _on_popup_menu_database_index_pressed(index: int) -> void:
 	match popup_menu_database.get_item_text(index):
@@ -1631,14 +1706,14 @@ func _on_popup_menu_database_index_pressed(index: int) -> void:
 			refresh()
 		_:
 			push_error("not support this %s" % popup_menu_database.get_item_text(index))
-
+			
 ## 在空白位置弹出右键菜单
 func _on_empty_clicked(_position: Vector2, mouse_button_index: int) -> void:
 	# 右键
 	if mouse_button_index == 2:
 		popup_menu_empty.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
 		popup_menu_empty.popup()
-
+		
 ## 树的空白位置的右键菜单
 func _on_popup_menu_empty_index_pressed(index: int) -> void:
 	match popup_menu_empty.get_item_text(index):
@@ -1646,7 +1721,7 @@ func _on_popup_menu_empty_index_pressed(index: int) -> void:
 			mgr.open_add_schema_tab.emit()
 		"Refresh All":
 			refresh()
-
+			
 ## 数据库“复制到”子菜单
 func _on_popup_menu_copy_to_index_pressed(index: int) -> void:
 	match popup_menu_copy_to.get_item_text(index):
@@ -1657,7 +1732,7 @@ func _on_popup_menu_copy_to_index_pressed(index: int) -> void:
 		"Config Path":
 			var item := get_selected()
 			if item:
-				DisplayServer.clipboard_set(item.get_meta("config_path"))
+				DisplayServer.clipboard_set(GDSQL.RootConfig.get_database_config_path(item.get_meta("db_name")))
 		"Data Path":
 			var item := get_selected()
 			if item:
@@ -1667,7 +1742,7 @@ func _on_popup_menu_copy_to_index_pressed(index: int) -> void:
 			if item:
 				var statement = "CREATE DATABASE %s PATH %s;" % [item.get_meta("db_name"), item.get_meta("path")]
 				DisplayServer.clipboard_set(statement)
-
+				
 ## 数据库“发送到”子菜单
 func _on_popup_menu_send_to_index_pressed(index: int) -> void:
 	match popup_menu_send_to.get_item_text(index):
@@ -1684,7 +1759,7 @@ func _on_popup_menu_send_to_index_pressed(index: int) -> void:
 			if item:
 				var statement = "CREATE DATABASE %s PATH %s;" % [item.get_meta("db_name"), item.get_meta("path")]
 				mgr.send_to_editor.emit(statement)
-
+				
 ## Tables目录右键菜单
 func _on_popup_menu_tables_index_pressed(index: int) -> void:
 	match popup_menu_tables.get_item_text(index):
@@ -1697,8 +1772,6 @@ func _on_popup_menu_tables_index_pressed(index: int) -> void:
 		"Refresh All":
 			refresh()
 			
-
-
 func _on_popup_menu_copy_to_of_table_item_index_pressed(index):
 	match popup_menu_copy_to_of_table.get_item_text(index):
 		"Name (Short)":
@@ -1716,7 +1789,7 @@ func _on_popup_menu_copy_to_of_table_item_index_pressed(index):
 			if item:
 				var db_name = item.get_meta("db_name")
 				var table_name = item.get_meta("table_name")
-				var table_columns = mgr.get_table_columns(db_name, table_name)
+				var table_columns = GDSQL.RootConfig.get_table_columns(db_name, table_name)
 				var column_names = []
 				for i in table_columns:
 					column_names.push_back(i["Column Name"])
@@ -1727,7 +1800,7 @@ var ret = dao.use_db("%s")\\
 	.select("%s", true)\\
 	.from("%s")\\
 	.query()
-""" % [mgr.databases[db_name]["data_path"], ",".join(column_names), table_name + DATA_EXTENSION]
+""" % [db_name, ",".join(column_names), table_name]
 				DisplayServer.clipboard_set(cmd)
 		"Insert Statement":
 			var item := get_selected()
@@ -1741,7 +1814,7 @@ var ret = dao.use_db("%s")\\
 	.insert_into("%s")\\
 	.values(<data: Dictionary>)\\
 	.query()
-""" % [mgr.databases[db_name]["data_path"], table_name + DATA_EXTENSION]
+""" % [db_name, table_name]
 				DisplayServer.clipboard_set(cmd)
 		"Update Statement":
 			var item := get_selected()
@@ -1756,7 +1829,7 @@ var ret = dao.use_db("%s")\\
 	.sets(<data: Dictionary>)\\
 	.where(<cond: String>)\\
 	.query()
-""" % [mgr.databases[db_name]["data_path"], table_name + DATA_EXTENSION]
+""" % [db_name, table_name]
 				DisplayServer.clipboard_set(cmd)
 		"Delete Statement":
 			var item := get_selected()
@@ -1770,14 +1843,14 @@ var ret = dao.use_db("%s")\\
 	.delete_from("%s")\\
 	.where(<cond: String>)\\
 	.query()
-""" % [mgr.databases[db_name]["data_path"], table_name + DATA_EXTENSION]
+""" % [db_name, table_name]
 				DisplayServer.clipboard_set(cmd)
 		"Config Path":
 			var item := get_selected()
 			if item:
 				var db_name = item.get_meta("db_name")
 				var table_name = item.get_meta("table_name")
-				var config_path = mgr.databases[db_name]["config_path"] + table_name + CONFIG_EXTENSION
+				var config_path = GDSQL.RootConfig.get_table_config_path(db_name, table_name)
 				DisplayServer.clipboard_set(config_path)
 		"Data Path":
 			var item := get_selected()
@@ -1831,7 +1904,7 @@ func _on_popup_menu_password_index_pressed(index):
 				
 			var db_name = item.get_meta("db_name")
 			var table_name = item.get_meta("table_name")
-				
+			
 			var password_dict_obj = GDSQL.DictionaryObject.new({tr("Password"): ""}, 
 				{tr("Password"): {"hint": PROPERTY_HINT_PASSWORD}})
 			var arr: Array[Array] = [
@@ -1840,8 +1913,9 @@ func _on_popup_menu_password_index_pressed(index):
 				[password_dict_obj],
 			]
 			var confirmed = func():
-				if password_dict_obj._get(tr("Password")).md5_text() != \
-					mgr.databases[db_name]["tables"][table_name]["encrypted"]:
+				var dek_info = mgr.databases[db_name]["tables"][table_name]["encrypted"]
+				var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(dek_info, password_dict_obj._get(tr("Password")))
+				if recovered_dek == "":
 					mgr.create_accept_dialog(tr("Incorrect password!"))
 					return [true, false]
 				return [false, true]
@@ -1863,7 +1937,7 @@ func _on_popup_menu_password_index_pressed(index):
 				
 			var db_name = item.get_meta("db_name")
 			var table_name = item.get_meta("table_name")
-				
+			
 			var password_dict_obj = GDSQL.DictionaryObject.new({tr("oldPassword"): ""}, 
 				{tr("oldPassword"): {"hint": PROPERTY_HINT_PASSWORD}})
 			var password_dict_obj_1 = GDSQL.DictionaryObject.new({tr("newPassword"): ""}, 
@@ -1877,15 +1951,16 @@ func _on_popup_menu_password_index_pressed(index):
 				[password_dict_obj_2],
 			]
 			var confirmed = func():
-				if password_dict_obj._get(tr("oldPassword")).md5_text() != \
-					mgr.databases[db_name]["tables"][table_name]["encrypted"]:
-					mgr.create_accept_dialog(tr("Incorrect password!"))
-					return [true, false]
 				if password_dict_obj_1._get(tr("newPassword")) != password_dict_obj_2._get(tr("newPassword")):
 					mgr.create_accept_dialog(tr("The second password entered is not the same as the first one!"))
 					return [true, false]
 				if password_dict_obj_1._get(tr("newPassword")) == "":
 					mgr.create_accept_dialog(tr("New password is empty!"))
+					return [true, false]
+				var dek_info = mgr.databases[db_name]["tables"][table_name]["encrypted"]
+				var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(dek_info, password_dict_obj._get(tr("oldPassword")))
+				if recovered_dek == "":
+					mgr.create_accept_dialog(tr("Incorrect password!"))
 					return [true, false]
 				return [false, true]
 				
@@ -2007,7 +2082,7 @@ func _on_popup_menu_password_database_index_pressed(index: int) -> void:
 					mgr.create_accept_dialog(tr("New password is empty!"))
 					return [true, false]
 				var dek_info = mgr.databases[db_name]["encrypted"]
-				var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(dek_info, password_dict_obj._get(tr("Password")))
+				var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(dek_info, password_dict_obj._get(tr("oldPassword")))
 				if recovered_dek == "":
 					mgr.create_accept_dialog(tr("Incorrect password!"))
 					return [true, false]

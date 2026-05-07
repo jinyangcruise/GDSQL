@@ -86,10 +86,10 @@ static func _get_gbatis_entitydb() -> GBatisEntityDBClass:
 	
 static func _get_root_config() -> RootConfigClass:
 	if not Engine.has_singleton(&"RootConfig"):
-		var db = RootConfigClass.new(get_setting_root_config_path())
-		db.name = &"RootConfig"
-		Engine.register_singleton(&"RootConfig", db)
-		Engine.get_main_loop().root.add_child.call_deferred(db, true)
+		var rc = RootConfigClass.new(get_setting_root_config_path())
+		rc.name = &"RootConfig"
+		Engine.register_singleton(&"RootConfig", rc)
+		Engine.get_main_loop().root.add_child.call_deferred(rc, true)
 	return Engine.get_singleton(&"RootConfig")
 	
 static func _clear():

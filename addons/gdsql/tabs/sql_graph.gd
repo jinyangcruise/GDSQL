@@ -1,8 +1,6 @@
 @tool
 extends VSplitContainer
 
-const DATA_EXTENSION = ".gsql"
-
 var mgr: GDSQL.WorkbenchManagerClass:
 	get: return GDSQL.WorkbenchManager
 	
@@ -399,7 +397,7 @@ func gen_select_node() -> GraphNode:
 		graph_node.push_redraw_slot_control(3, 2)
 		match prop:
 			"Table":
-				base_dao.set_table(new_val + DATA_EXTENSION)
+				base_dao.set_table(new_val)
 			"_alias":
 				base_dao.set_table_alias(new_val)
 	)
@@ -568,7 +566,7 @@ func gen_left_join_node() -> GraphNode:
 		graph_node.push_redraw_slot_control(2, 2) # table是第3行第3个控件。
 		match prop:
 			"Table":
-				left_join_obj.set_table(new_val + DATA_EXTENSION)
+				left_join_obj.set_table(new_val)
 			"_alias":
 				left_join_obj.set_alias(new_val)
 	)
@@ -682,8 +680,8 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		# 表中的字段
 		if columns[j]["is_field"]:
 			table_path = columns[j]["db_name"] + " " + columns[j]["table_name"].get_basename() # 实际上用的是数据库名称（而不是路径）+表名（去后缀）
-			if not table_primary_index.has(columns[j]["db_path"] + columns[j]["table_name"]): # 这里用的是数据库的路径+表名
-				table_primary_index[columns[j]["db_path"] + columns[j]["table_name"]] = -1
+			if not table_primary_index.has(columns[j]["db_path"].path_join(columns[j]["table_name"])): # 这里用的是数据库的路径+表名
+				table_primary_index[columns[j]["db_path"].path_join(columns[j]["table_name"])] = -1
 		else:
 			table_path = "ComputingData"
 			
@@ -709,13 +707,13 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		if dealed_columns.has(real_column_name):
 			var col_name = prefix + " " + columns[j]["Column Name"] + " (Copy" + str(dealed_columns[real_column_name]) + ")"
 			new_column_prop_name.push_back({"type": j, "prop": col_name, "col_name": columns[j]["Column Name"],
-				"table_path": columns[j]["db_path"] + columns[j]["table_name"]}) # 记录j列数据的属性名称等信息
+				"table_path": columns[j]["db_path"].path_join(columns[j]["table_name"])}) # 记录j列数据的属性名称等信息
 			hint[col_name] = {"link": real_col_name_name[real_column_name]}
 			dealed_columns[real_column_name] += 1
 		else:
 			var col_name = prefix + " " + columns[j]["Column Name"]
 			new_column_prop_name.push_back({"type": j, "prop": col_name, "col_name": columns[j]["Column Name"],
-				"table_path": columns[j]["db_path"] + columns[j]["table_name"]}) # 记录j列数据的属性名称等信息
+				"table_path": columns[j]["db_path"].path_join(columns[j]["table_name"])}) # 记录j列数据的属性名称等信息
 			if columns[j]["is_field"]:
 				hint[col_name] = {"hint": columns[j]["Hint"], 
 					"hint_string": columns[j]["Hint String"], "type": columns[j]["Data Type"]}
@@ -723,7 +721,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 				table_col_index[col_name] = new_column_prop_name.size() - 1
 				# 记录主键信息
 				if columns[j]["PK"]:
-					table_primary_index[columns[j]["db_path"] + columns[j]["table_name"]] = table_col_index[col_name] # 主键位置
+					table_primary_index[columns[j]["db_path"].path_join(columns[j]["table_name"])] = table_col_index[col_name] # 主键位置
 			else:
 				hint[col_name] = {"usage": PROPERTY_USAGE_READ_ONLY | PROPERTY_USAGE_EDITOR}
 			real_col_name_name[real_column_name] = col_name
@@ -921,7 +919,6 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 						continue
 						
 					var db_path = table_path.get_base_dir()
-					if not db_path.ends_with("/"): db_path += "/"
 					var table_name = table_path.get_file()
 					# 新增（用户在联表查询结果中new新数据时，在new的这行数据中对联表旧数据进行修改的可能性不大，所以逻辑中忽略这种奇怪的操作）
 					var insert_call = func():
@@ -1368,7 +1365,7 @@ func gen_insert_node() -> GraphNode:
 		graph_node.push_redraw_slot_control(1, 2)
 		match prop:
 			"Table":
-				base_dao.set_table(new_val + DATA_EXTENSION)
+				base_dao.set_table(new_val)
 				if new_val != "" and mgr.databases[schema_dict_obj._get("Schema")]["tables"].has(new_val):
 					var data = {}
 					var hints = {}
@@ -1510,7 +1507,7 @@ func gen_update_node() -> GraphNode:
 		graph_node.push_redraw_slot_control(1, 2)
 		match prop:
 			"Table":
-				base_dao.set_table(new_val + DATA_EXTENSION)
+				base_dao.set_table(new_val)
 				if new_val != "" and mgr.databases[schema_dict_obj._get("Schema")]["tables"].has(new_val):
 					var data = {}
 					var hints = {}
@@ -1644,7 +1641,7 @@ func gen_delete_node() -> GraphNode:
 		graph_node.push_redraw_slot_control(1, 2)
 		match prop:
 			"Table":
-				base_dao.set_table(new_val + DATA_EXTENSION)
+				base_dao.set_table(new_val)
 	)
 	where_dict_obj.value_changed.connect(func(prop, new_val, _old_val):
 		graph_node.push_redraw_slot_control(2, 2)

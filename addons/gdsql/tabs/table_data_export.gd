@@ -18,8 +18,6 @@ var mgr: GDSQL.WorkbenchManagerClass:
 @onready var check_box_json = $VBoxContainer/HFlowContainer/CheckBoxJSON
 @onready var check_box_open_folder_when_finished = $VBoxContainer/CheckBoxOpenFolderWhenFinished
 
-const DATA_EXTENSION = ".gsql"
-
 func _ready():
 	for a_db_name in mgr.databases:
 		for a_table_name in mgr.databases[a_db_name]["tables"]:
@@ -133,8 +131,8 @@ func _on_button_apply_pressed() -> void:
 	mgr.request_user_enter_password.emit(db_name, table_name, "", func():
 		var begin_time = Time.get_unix_time_from_system()
 		var dao = GDSQL.BaseDao.new()
-		var ret = dao.use_db(mgr.databases[db_name]["data_path"])\
-			.select(",".join(checked), true).from(table_name + DATA_EXTENSION).query()
+		var ret = dao.use_db(db_name)\
+			.select(",".join(checked), true).from(table_name).query()
 		if ret == null:
 			mgr.add_log_history.emit("Err", begin_time, "Export table data of %s.%s" % [db_name, table_name], "something wrong")
 			return

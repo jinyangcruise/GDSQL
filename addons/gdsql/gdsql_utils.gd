@@ -375,3 +375,30 @@ static func extract_outer_bracket(text: String):
 		
 	result.sort_custom(func(a, b): return a.length() > b.length())
 	return result
+	
+static func get_specific_extension_files(p_path: String, extension: String) -> Array[String]:
+	var ret: Array[String] = []
+	var dir = DirAccess.open(p_path)
+	if dir:
+		dir.list_dir_begin()
+		var file_name = dir.get_next()
+		while file_name != "":
+			# 子目录
+			if dir.current_is_dir():
+				# print("Found directory: " + file_name)
+				pass # 不支持发现子目录里的数据，用户可自行把子目录创建为新的数据库即可
+			# 文件
+			else:
+				if file_name.get_extension().to_lower() == extension:
+					ret.push_back(file_name)
+					
+			file_name = dir.get_next()
+		dir.list_dir_end()
+	else:
+		# 注意：git不能提交空目录，可能是因为这个导致clone下来的代码没有空目录
+		# 这种情况下，请自己手动创建个空目录即可
+		var msg = "Can not open the path: %s." % p_path
+		EditorInterface.get_editor_toaster().push_toast(msg, EditorToaster.SEVERITY_WARNING)
+		push_warning(msg)
+		
+	return ret
