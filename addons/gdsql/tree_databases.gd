@@ -201,8 +201,8 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var db_dek = GDSQL.RootConfig.get_database_dek64(db_name)
-	if db_dek != "" and password != "":
+	var db_dek64 = GDSQL.RootConfig.get_database_dek64(db_name)
+	if db_dek64 and password:
 		msgs.push_back(tr("Failed! Database %s is encrypted! Cannot set another password for this table!"))
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
@@ -236,10 +236,10 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 			return mgr.create_accept_dialog(msgs)
 			
 	# 不记录path、database等信息，是方便转移数据表时，直接剪切文件到对应的数据库目录即可（配置文件和数据文件分别到各自目录）
-	var dek = "" if password == "" else GDSQL.CryptoUtil.generate_dek()
+	var dek64 = "" if password == "" else GDSQL.CryptoUtil.generate_dek()
 	var config_file = ConfigFile.new()
 	var table_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, table_name)
-	config_file.set_value(table_name, "encrypted", "" if dek == "" else GDSQL.CryptoUtil.encrypt_dek(dek, password))
+	config_file.set_value(table_name, "encrypted", "" if dek64 == "" else GDSQL.CryptoUtil.encrypt_dek(dek64, password))
 	config_file.set_value(table_name, "comment", comment)
 	config_file.set_value(table_name, "valid_if_not_exist", valid_if_not_exist)
 	config_file.set_value(table_name, "columns", column_infos)
@@ -249,11 +249,11 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 	# 先设置成虚拟的文件，便于首次保存
 	GDSQL.ConfManager.mark_valid_if_not_exit(table_data_path)
 	GDSQL.ConfManager.get_conf(table_data_path, "") # load data
-	if db_dek != "":
-		GDSQL.ConfManager.save_conf_by_dek(table_data_path, db_dek)
-	elif dek != "":
-		GDSQL.ConfManager.save_conf_by_dek(table_data_path, dek)
-		GDSQL.RootConfig.set_table_dek(db_name, table_name, dek)
+	if db_dek64:
+		GDSQL.ConfManager.save_conf_by_dek(table_data_path, db_dek64)
+	elif dek64:
+		GDSQL.ConfManager.save_conf_by_dek(table_data_path, dek64)
+		GDSQL.RootConfig.set_table_dek(db_name, table_name, dek64)
 		GDSQL.RootConfig.save()
 		msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
 	else:
@@ -298,8 +298,8 @@ func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String
 	var old_config_path = GDSQL.RootConfig.get_database_config_path(old_db_name)
 	var new_config_path = GDSQL.RootConfig.get_database_config_path(new_db_name)
 	var old_data = mgr.databases[old_db_name]
-	GDSQL.RootConfig.erase_section(old_db_name)
 	GDSQL.RootConfig.set_database_data(new_db_name, old_data["data_path"], old_data["encrypted"])
+	GDSQL.RootConfig.erase_database(old_db_name)
 	GDSQL.RootConfig.save()
 	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
 	
@@ -417,8 +417,11 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 			
 		exist_col[i["Column Name"]] = true
 		
-	# 注意，这里随便传了一个密码，因为实际操作中用户已经输入过密码了，__CONF_MANAGER后续会从缓存中获取，无需再次输入密码
-	var old_table_data_file = GDSQL.ConfManager.get_conf(old_table_data_path, "")
+	var dek = GDSQL.RootConfig.get_database_dek(db_name)
+	if not dek:
+		dek = GDSQL.RootConfig.get_table_dek(db_name, old_table_name)
+		
+	var old_table_data_file = GDSQL.ConfManager.get_conf(old_table_data_path, dek)
 	var old_values = old_table_data_file.get_all_section_values() # 数据表中的旧数据
 	var warnings = []
 	# 数据为空就没必要检查字段了
@@ -563,11 +566,9 @@ func set_password_for_database(db_name: String, password: String) -> void:
 			mgr.add_log_history.emit("Err", begin_time, action, msgs)
 			return mgr.create_accept_dialog(msgs)
 			
-	var dek = GDSQL.CryptoUtil.generate_dek()
-	var old_data = mgr.databases[db_name]
-	GDSQL.RootConfig.erase_section(db_name)
-	GDSQL.RootConfig.set_database_data(db_name, old_data["data_path"], GDSQL.CryptoUtil.encrypt_dek(dek, password))
-	GDSQL.RootConfig.set_database_dek(db_name, dek)
+	var dek64 = GDSQL.CryptoUtil.generate_dek()
+	GDSQL.RootConfig.set_database_encrypted(db_name, GDSQL.CryptoUtil.encrypt_dek(dek64, password))
+	GDSQL.RootConfig.set_database_dek(db_name, dek64)
 	GDSQL.RootConfig.save()
 	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
 	
@@ -575,8 +576,16 @@ func set_password_for_database(db_name: String, password: String) -> void:
 		var table_data_path = GDSQL.RootConfig.get_table_data_path(db_name, table_name)
 		var table_data_file_exist = FileAccess.file_exists(table_data_path)
 		if table_data_file_exist:
-			GDSQL.ConfManager.get_conf(table_data_path, "") # load data
-			GDSQL.ConfManager.save_conf_by_dek(table_data_path, dek)
+			if not GDSQL.ConfManager.get_conf(table_data_path, ""): # load data
+				msgs.push_back(tr("Failed! Get file %s content failed!") % table_data_path)
+				mgr.add_log_history.emit("Err", begin_time, action, msgs)
+				return mgr.create_accept_dialog(msgs)
+				
+	for table_name in mgr.databases[db_name]["tables"]:
+		var table_data_path = GDSQL.RootConfig.get_table_data_path(db_name, table_name)
+		var table_data_file_exist = FileAccess.file_exists(table_data_path)
+		if table_data_file_exist:
+			GDSQL.ConfManager.save_conf_by_dek(table_data_path, dek64)
 			msgs.push_back(tr("1 file: %s has been encrypted.") % table_data_path)
 			
 		# 清除该表数据的缓存，可以让用户使用该表时必须输入密码，以加深印象
@@ -605,9 +614,8 @@ func clear_password_for_database(db_name: String) -> void:
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var old_data = mgr.databases[db_name]
-	GDSQL.RootConfig.erase_section(db_name)
-	GDSQL.RootConfig.set_database_data(db_name, old_data["data_path"], "")
+	var dek = GDSQL.RootConfig.get_database_dek(db_name)
+	GDSQL.RootConfig.set_database_encrypted(db_name, "")
 	GDSQL.RootConfig.set_database_dek(db_name, null)
 	GDSQL.RootConfig.save()
 	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
@@ -616,9 +624,8 @@ func clear_password_for_database(db_name: String) -> void:
 		var table_data_path = GDSQL.RootConfig.get_table_data_path(db_name, table_name)
 		var table_data_file_exist = FileAccess.file_exists(table_data_path)
 		
-		# 注意，这里随便传了一个密码，因为实际操作中用户已经输入过密码了，__CONF_MANAGER后续会从缓存中获取，无需再次输入密码
 		if table_data_file_exist:
-			GDSQL.ConfManager.get_conf(table_data_path, "") # load data 以防万一上面说的“实际操作。。。”并未发生
+			GDSQL.ConfManager.get_conf(table_data_path, dek)
 			GDSQL.ConfManager.save_conf_by_password(table_data_path, "")
 			msgs.push_back(tr("1 file: %s has been decrypted.") % table_data_path)
 			_password_correct.erase(table_data_path)
@@ -650,16 +657,14 @@ func change_password_for_database(db_name: String, password: String) -> void:
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var old_data = mgr.databases[db_name]
 	# 修改密码不会导致dek变化，所以文件也不变化，变化的是dek的加密字符串，这样达到最大效率。
-	var dek = GDSQL.RootConfig.get_database_dek64(db_name)
-	if dek == "":
+	var dek64 = GDSQL.RootConfig.get_database_dek64(db_name)
+	if not dek64:
 		msgs.push_back(tr("Failed! Dek of %s should not be empty!") % db_name)
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	GDSQL.RootConfig.erase_section(db_name)
-	GDSQL.RootConfig.set_database_data(db_name, old_data["data_path"], GDSQL.CryptoUtil.encrypt_dek(dek, password))
+	GDSQL.RootConfig.set_database_encrypted(db_name, GDSQL.CryptoUtil.encrypt_dek(dek64, password))
 	GDSQL.RootConfig.save()
 	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
 	
@@ -722,20 +727,24 @@ func set_password(db_name: String, table_name: String, password: String) -> void
 		#mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		#return mgr.create_accept_dialog(msgs)
 		
-	var dek = GDSQL.CryptoUtil.generate_dek()
+	var dek64 = GDSQL.CryptoUtil.generate_dek()
 	var config_file = ConfigFile.new()
 	config_file.load(table_conf_path)
-	config_file.set_value(table_name, "encrypted", GDSQL.CryptoUtil.encrypt_dek(dek, password))
+	config_file.set_value(table_name, "encrypted", GDSQL.CryptoUtil.encrypt_dek(dek64, password))
 	config_file.save(table_conf_path)
 	msgs.push_back(tr("1 file: %s has been saved.") % table_conf_path)
 	
-	GDSQL.RootConfig.set_table_dek(db_name, table_name, dek)
+	GDSQL.RootConfig.set_table_dek(db_name, table_name, dek64)
 	GDSQL.RootConfig.save()
 	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
 	
 	if table_data_file_exist:
-		GDSQL.ConfManager.get_conf(table_data_path, "") # load data
-		GDSQL.ConfManager.save_conf_by_dek(table_data_path, dek)
+		if not GDSQL.ConfManager.get_conf(table_data_path, ""): # load data
+			msgs.push_back(tr("Failed! Get file %s content failed!") % table_data_path)
+			mgr.add_log_history.emit("Err", begin_time, action, msgs)
+			return mgr.create_accept_dialog(msgs)
+			
+		GDSQL.ConfManager.save_conf_by_dek(table_data_path, dek64)
 		msgs.push_back(tr("1 file: %s has been encrypted.") % table_data_path)
 		
 	# 清除该表数据的缓存，可以让用户使用该表时必须输入密码，以加深印象
@@ -781,8 +790,8 @@ func clear_password(db_name: String, table_name: String) -> void:
 		#mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		#return mgr.create_accept_dialog(msgs)
 		
-	var dek = GDSQL.RootConfig.get_table_dek64(db_name, table_name)
-	if dek == "":
+	var dek = GDSQL.RootConfig.get_table_dek(db_name, table_name)
+	if not dek:
 		msgs.push_back(tr("Failed! Dek of %s.%s should not be empty!") % [db_name, table_name])
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
@@ -797,9 +806,8 @@ func clear_password(db_name: String, table_name: String) -> void:
 	GDSQL.RootConfig.save()
 	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
 	
-	# 注意，这里随便传了一个密码，因为实际操作中用户已经输入过密码了，__CONF_MANAGER后续会从缓存中获取，无需再次输入密码
 	if table_data_file_exist:
-		GDSQL.ConfManager.get_conf(table_data_path, "") # load data 以防万一上面说的“实际操作。。。”并未发生
+		GDSQL.ConfManager.get_conf(table_data_path, dek)
 		GDSQL.ConfManager.save_conf_by_password(table_data_path, "")
 		msgs.push_back(tr("1 file: %s has been decrypted.") % table_data_path)
 		
@@ -850,7 +858,7 @@ func change_password(db_name: String, table_name: String, password: String) -> v
 		#return mgr.create_accept_dialog(msgs)
 		
 	var dek = GDSQL.RootConfig.get_table_dek64(db_name, table_name)
-	if dek == "":
+	if not dek:
 		msgs.push_back(tr("Failed! Dek of %s.%s should not be empty!") % [db_name, table_name])
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
@@ -883,13 +891,13 @@ func drop_db_from_config(db_name: String) -> void:
 	if _default_database_path == GDSQL.RootConfig.get_database_data_path(db_name):
 		_default_database_path = ""
 		
-	var dek = GDSQL.RootConfig.get_database_dek64(db_name)
-	if dek != "":
+	var dek64 = GDSQL.RootConfig.get_database_dek64(db_name)
+	if dek64:
 		# In case user want to revert but don't know the dek.
 		var tmp_file_path = "user://%s.%s.%s.dek" % [db_name, 
 			Time.get_datetime_string_from_system(false, true).to_snake_case().replace(":", "_").validate_filename()]
 		var file = FileAccess.open(tmp_file_path, FileAccess.WRITE)
-		file.store_string(dek)
+		file.store_string(dek64)
 		file.flush()
 		file.close()
 		OS.move_to_trash(ProjectSettings.globalize_path(tmp_file_path))
@@ -938,13 +946,13 @@ func drop_table_from_config(db_name: String, table_name: String) -> void:
 	else:
 		msgs.push_back(tr("1 file: %s could not be found when attempting to move to trash.") % data_path)
 		
-	var dek = GDSQL.RootConfig.get_table_dek64(db_name, table_name)
-	if dek != "":
+	var dek64 = GDSQL.RootConfig.get_table_dek64(db_name, table_name)
+	if dek64:
 		# In case user want to revert but don't know the dek.
 		var tmp_file_path = "user://%s.%s.%s.dek" % [db_name, table_name, 
 			Time.get_datetime_string_from_system(false, true).to_snake_case().replace(":", "_").validate_filename()]
 		var file = FileAccess.open(tmp_file_path, FileAccess.WRITE)
-		file.store_string(dek)
+		file.store_string(dek64)
 		file.flush()
 		file.close()
 		OS.move_to_trash(ProjectSettings.globalize_path(tmp_file_path))
@@ -979,7 +987,7 @@ func truncate_table_from_config(db_name: String, table_name: String) -> void:
 		return mgr.create_accept_dialog(content)
 		
 	# clear data file
-	var data_path = ProjectSettings.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
+	var data_path = GDSQL.GDSQLUtils.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 	if FileAccess.file_exists(data_path):
 		OS.move_to_trash(data_path) # users can get their old data file in trash can
 		msgs.push_back(tr("1 file: %s has been moved to trash.") % data_path)
@@ -989,13 +997,18 @@ func truncate_table_from_config(db_name: String, table_name: String) -> void:
 	# create empty file
 	var data_file = ConfigFile.new()
 	data_file.save(data_path)
+	
+	# Update cache.
 	GDSQL.ConfManager.get_conf(data_path, "")._clear()
 	
-	var dek = GDSQL.RootConfig.get_database_dek64(db_name)
-	if dek == "":
-		dek = GDSQL.RootConfig.get_table_dek64(db_name, table_name)
-	if dek != "":
-		GDSQL.ConfManager.save_conf_by_dek(data_path, dek)
+	var dek64 = GDSQL.RootConfig.get_database_dek64(db_name)
+	if not dek64:
+		dek64 = GDSQL.RootConfig.get_table_dek(db_name, table_name)
+		
+	if dek64:
+		GDSQL.ConfManager.save_conf_by_dek(data_path, dek64)
+	else:
+		GDSQL.ConfManager.save_conf_by_password(data_path, "")
 	msgs.push_back(tr("1 file: %s has been overwritten with an empty file.") % data_path)
 	
 	mgr.add_log_history.emit("OK", begin_time, action, msgs)
@@ -1455,7 +1468,7 @@ func _need_password(table_item: TreeItem, try_password: String) -> bool:
 		
 	if try_password != "":
 		var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(dek_info, try_password)
-		if recovered_dek == "":
+		if not recovered_dek:
 			return true # Wrong password
 		# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
 		if not is_db_locked:
@@ -1586,7 +1599,7 @@ lock_if_already_passed: bool = false):
 		
 	if try_password != "":
 		var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(dek_info, try_password)
-		if recovered_dek == "":
+		if not recovered_dek:
 			msg = tr("Your password is incorrect! Please enter again!")
 		else:
 			# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
@@ -1619,7 +1632,7 @@ lock_if_already_passed: bool = false):
 	]
 	var confirmed = func():
 		var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(dek_info, password_dict_obj._get(tr("Password")))
-		if recovered_dek != "":
+		if recovered_dek:
 			# 在内存中load一次表，后续再通过__CONF_MANAGER获取表就不需要密码了
 			if data_path.ends_with(GDSQL.RootConfig.DATA_EXTENSION):
 				var conf = GDSQL.ConfManager.get_conf(data_path, recovered_dek)
@@ -1915,7 +1928,7 @@ func _on_popup_menu_password_index_pressed(index):
 			var confirmed = func():
 				var dek_info = mgr.databases[db_name]["tables"][table_name]["encrypted"]
 				var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(dek_info, password_dict_obj._get(tr("Password")))
-				if recovered_dek == "":
+				if not recovered_dek:
 					mgr.create_accept_dialog(tr("Incorrect password!"))
 					return [true, false]
 				return [false, true]
@@ -1959,7 +1972,7 @@ func _on_popup_menu_password_index_pressed(index):
 					return [true, false]
 				var dek_info = mgr.databases[db_name]["tables"][table_name]["encrypted"]
 				var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(dek_info, password_dict_obj._get(tr("oldPassword")))
-				if recovered_dek == "":
+				if not recovered_dek:
 					mgr.create_accept_dialog(tr("Incorrect password!"))
 					return [true, false]
 				return [false, true]
@@ -2040,7 +2053,7 @@ func _on_popup_menu_password_database_index_pressed(index: int) -> void:
 			var confirmed = func():
 				var dek_info = mgr.databases[db_name]["encrypted"]
 				var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(dek_info, password_dict_obj._get(tr("Password")))
-				if recovered_dek == "":
+				if not recovered_dek:
 					mgr.create_accept_dialog(tr("Incorrect password!"))
 					return [true, false]
 				return [false, true]
@@ -2083,7 +2096,7 @@ func _on_popup_menu_password_database_index_pressed(index: int) -> void:
 					return [true, false]
 				var dek_info = mgr.databases[db_name]["encrypted"]
 				var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(dek_info, password_dict_obj._get(tr("oldPassword")))
-				if recovered_dek == "":
+				if not recovered_dek:
 					mgr.create_accept_dialog(tr("Incorrect password!"))
 					return [true, false]
 				return [false, true]

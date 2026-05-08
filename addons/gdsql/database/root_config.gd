@@ -131,6 +131,14 @@ func set_database_data(db_name: String, data_path: String, encypted_dek: String)
 	conf.set_value(db_name, "data_path", data_path)
 	conf.set_value(db_name, "encrypted", encypted_dek)
 	
+func set_database_data_path(db_name: String, data_path: String):
+	db_name = validate_name(db_name)
+	conf.set_value(db_name, "data_path", data_path)
+	
+func set_database_encrypted(db_name: String, encypted_dek: String):
+	db_name = validate_name(db_name)
+	conf.set_value(db_name, "encrypted", encypted_dek)
+	
 func erase_database(db_name: String):
 	db_name = validate_name(db_name)
 	erase_section(db_name)
@@ -230,10 +238,9 @@ func get_table_columns_by_db_path(db_path: String, table_name: String) -> Array:
 	var columns = get_table_columns(db_name, table_name)
 	return columns.duplicate(true).map(func(v): v["db_name"] = db_name; return v)
 	
-func get_table_valid_if_not_exist(db_path: String, table_name: String) -> bool:
-	var db_name = get_database_name_by_db_path(db_path)
+func get_table_valid_if_not_exist(db_name: String, table_name: String) -> bool:
+	db_name = validate_name(db_name)
 	table_name = validate_name(table_name)
-	get_table_config_path(db_name, table_name)
 	var table_config = GDSQL.ConfManager.get_conf(get_table_config_path(db_name, table_name), "")
 	return table_config.get_value(table_name, "valid_if_not_exist", false)
 	

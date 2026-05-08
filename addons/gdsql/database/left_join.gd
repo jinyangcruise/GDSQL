@@ -2,7 +2,8 @@
 extends RefCounted
 
 var __request_password: Array
-var __database: String = "" ## 【外部请勿使用】数据库路径
+var __db_name: String = "" ## 【外部请勿使用】数据库名称
+var __db_path: String = "" ## 【外部请勿使用】数据库路径
 var __password = "" ## 数据表密码
 var __table: String = "" ## 【外部请勿使用】表名
 var __table_alias: String = "" ## 【外部请勿使用】别名
@@ -19,11 +20,23 @@ var mgr: GDSQL.WorkbenchManagerClass:
 #static func _static_init() -> void:
 	#regex.compile("(\\b[0-9a-zA-Z_]+\\b)\\.[0-9a-zA-Z_\\-]+")
 	
-func set_db(database: String):
-	__database = database
-	
+func set_db(database_name_or_path: String):
+	if database_name_or_path.contains("/"):
+		__db_path = database_name_or_path
+		__db_name = GDSQL.RootConfig.get_database_name_by_db_path(__db_path)
+		if __db_name == "":
+			return _assert_false("set_db",
+				"Not found database name of this path: %s." % __db_path)
+	else:
+		database_name_or_path = GDSQL.RootConfig.validate_name(database_name_or_path)
+		__db_name = database_name_or_path
+		__db_path = GDSQL.RootConfig.get_database_data_path(__db_name)
+		if __db_path == "":
+			return _assert_false("set_db",
+				"Not found database path of this name: %s." % __db_name)
+				
 func get_db() -> String:
-	return __database
+	return __db_name
 	
 func set_password(password):
 	__password = password
@@ -38,7 +51,7 @@ func get_table() -> String:
 	return __table
 	
 func get_path() -> String:
-	return __database.path_join(__table)
+	return __db_path.path_join(__table)
 	
 func set_alias(alias: String):
 	__table_alias = alias
@@ -151,17 +164,19 @@ func handle_defualt_password():
 			__request_password.push_back(true)
 			return
 	elif __password.is_empty():
-		__password = GDSQL.RootConfig.get_database_dek(__database)
+		__password = GDSQL.RootConfig.get_database_dek(__db_name)
+		if __password.is_empty():
+			__password = GDSQL.RootConfig.get_table_dek(__db_name, __table)
 	elif __password is PackedByteArray:
 		pass # Skip
 	else:
 		# 既然用户输入了密码，那就验证一下吧
-		var encrypted_dek = GDSQL.RootConfig.get_database_encrypted_dek(__database)
+		var encrypted_dek = GDSQL.RootConfig.get_database_encrypted_dek(__db_name)
 		if encrypted_dek == "":
 			_assert_false("left join", "Incorrect password!")
 			return ERR_UNAUTHORIZED
 		var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(encrypted_dek, __password)
-		if recovered_dek == "":
+		if not recovered_dek:
 			_assert_false("left join", "Incorrect password!")
 			return ERR_UNAUTHORIZED
 	return OK

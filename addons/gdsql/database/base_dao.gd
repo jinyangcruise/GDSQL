@@ -5,7 +5,8 @@ extends RefCounted
 var _PASSWORD = "" ## 数据表密码
 
 var __request_password: Array ## 【外部请勿使用】query过程中是否请求密码（只存在于编辑器模式下）
-var __database = "" ## 【外部请勿使用】数据库路径
+var __db_path = "" ## 【外部请勿使用】数据库路径
+var __db_name: String = ""  ## 【外部请勿使用】数据库名称
 var __cmd: String = "" ## 【外部请勿使用】命令
 var __select_str = "" ## 【外部请勿使用】select字符串
 var __select: Array[String] = [] ## 【外部请勿使用】select哪些字段
@@ -102,31 +103,43 @@ func set_collect_lack_table_mode(enable: bool) -> GDSQL.BaseDao:
 	__collect_lack_table_enabled = enable
 	return self
 	
+## 使用某个数据库。传入数据库名称。
 func use_db_name(database_name: String) -> GDSQL.BaseDao:
-	__database = GDSQL.RootConfig.get_database_data_path(database_name)
-	if __database == "":
+	database_name = GDSQL.RootConfig.validate_name(database_name)
+	__db_name = database_name
+	__db_path = GDSQL.RootConfig.get_database_data_path(__db_name)
+	if __db_path == "":
 		return _assert_false("use_db_name", 
-			"database %s's data_path is empty!" % database_name)
+			"database %s's data_path is empty!" % __db_name)
 	return self
 	
-func use_db(database_path: String) -> GDSQL.BaseDao:
-	if not database_path.contains("/"):
-		var adb = GDSQL.RootConfig.get_database_data_path(database_path)
-		if adb != "":
-			database_path = adb
-	__database = database_path
+## 使用某个数据库。可以传入数据库名称或数据库的数据路径。系统自动判断传入的是数据库名称还是数据库路径。
+func use_db(database_name_or_path: String) -> GDSQL.BaseDao:
+	if database_name_or_path.contains("/"):
+		__db_path = database_name_or_path
+		__db_name = GDSQL.RootConfig.get_database_name_by_db_path(__db_path)
+		if __db_name == "":
+			return _assert_false("use_db",
+				"Not found database name of this path: %s." % __db_path)
+	else:
+		database_name_or_path = GDSQL.RootConfig.validate_name(database_name_or_path)
+		__db_name = database_name_or_path
+		__db_path = GDSQL.RootConfig.get_database_data_path(__db_name)
+		if __db_path == "":
+			return _assert_false("use_db",
+				"Not found database path of this name: %s." % __db_name)
 	return self
 	
 func use_user_db() -> GDSQL.BaseDao:
-	__database = "user://"
+	use_db("user://")
 	return self
 	
 func use_conf_db() -> GDSQL.BaseDao:
-	__database = GDSQL.get_setting_game_conf_db_dir()
+	use_db(GDSQL.get_setting_game_conf_db_dir())
 	return self
 	
 func get_db() -> String:
-	return __database
+	return __db_name
 	
 func set_password(password) -> GDSQL.BaseDao:
 	_PASSWORD = password
@@ -149,9 +162,10 @@ func _assert_false(action: String, msg: String):
 	assert(false, msg)
 	return null
 	
-func _get_conf(path: String, password: String, indexed_names = []) -> GDSQL.ImprovedConfigFile:
-	var defination = __get_table_defination(path.get_base_dir(), path.get_file())
+func _get_conf(db_name: String, table_name: String, password, indexed_names = []) -> GDSQL.ImprovedConfigFile:
+	var defination = __get_table_defination(db_name, table_name)
 	var valid_if_not_exist = defination["valid_if_not_exist"] if defination else false
+	var path = GDSQL.RootConfig.get_table_data_path(db_name, table_name)
 	if valid_if_not_exist:
 		GDSQL.ConfManager.mark_valid_if_not_exit(path)
 	var conf = GDSQL.ConfManager.get_conf(path, password)
@@ -162,14 +176,14 @@ func _get_conf(path: String, password: String, indexed_names = []) -> GDSQL.Impr
 	
 ## 手动提交（保存到文件）
 func commit() -> void:
-	if __database == "" or __database == null:
+	if not __db_name or not __db_path:
 		_assert_false("commit", "database is empty")
 		return
 	if __table == "":
 		_assert_false("commit", "table name is empty")
 		return
-	var path = __database.path_join(__table)
-	var conf: GDSQL.ImprovedConfigFile = _get_conf(path, _PASSWORD)
+	var path = __db_path.path_join(__table)
+	var conf: GDSQL.ImprovedConfigFile = _get_conf(__db_name, __table, _PASSWORD)
 	if conf == null:
 		_assert_false("commit", "load conf err!")
 		return
@@ -178,13 +192,13 @@ func commit() -> void:
 	
 ## 抛弃修改（没有commit时使用才有效果）
 func discard() -> void:
-	if __database == "" or __database == null:
+	if not __db_name or not __db_path:
 		_assert_false("commit", "database is empty")
 		return
 	if __table == "":
 		_assert_false("commit", "table name is empty")
 		return
-	var path = __database.path_join(__table)
+	var path = __db_path.path_join(__table)
 	GDSQL.ConfManager.remove_conf(path)
 	
 ## 开启求值操作。仅在update操作时有效。仅在值为字符串时进行取值
@@ -290,8 +304,6 @@ func set_need_head(p_need_head: bool) -> GDSQL.BaseDao:
 	
 ## 同时设置表名和别名。table支持不带后缀和带后缀.gsql
 func from(table: String, alias: String = "") -> GDSQL.BaseDao:
-	#if __database == null or __database == "":
-		#return _assert_false("from", "please set db first!"))
 	table = GDSQL.RootConfig.validate_name(table)
 	if not table.ends_with(GDSQL.RootConfig.DATA_EXTENSION):
 		table = table + GDSQL.RootConfig.DATA_EXTENSION
@@ -300,10 +312,10 @@ func from(table: String, alias: String = "") -> GDSQL.BaseDao:
 	return self
 	
 func _set_primary_and_autoincre():
-	if __database != "" and __table != "" and __table != GDSQL.RootConfig.DATA_EXTENSION:
+	if __db_name and __db_path and __table and __table != GDSQL.RootConfig.DATA_EXTENSION:
 		__primary_key_def = ""
 		__autoincrement_keys_def = {}
-		var defination = __get_table_defination(__database, __table)
+		var defination = __get_table_defination(__db_name, __table)
 		if defination != null and !defination.is_empty():
 			for column in defination["columns"]:
 				if column["PK"]:
@@ -580,21 +592,15 @@ func add_auto_increment_key(a_key: String) -> GDSQL.BaseDao:
 	__autoincrement_keys[a_key] = 0
 	return self
 	
-func left_join(db: String, table: String, alias: String, cond: String, password: String) -> GDSQL.BaseDao:
+func left_join(db_name: String, table: String, alias: String, cond: String, password: String) -> GDSQL.BaseDao:
 	if not __cmd.begins_with("select"):
 		return _assert_false("left_join", "left_join must use after select")
 	if __table_alias == "":
 		return _assert_false("left_join", "main table must have alias name before use 'left join'")
 	if not (alias != __table_alias and (__left_join == null or not __left_join.chain_has_alias(alias))):
 		return _assert_false("left_join", "duplicate table alias")
-	if db == "":
-		db = __database
-	else:
-		if not db.contains("/"):
-			var adb = GDSQL.RootConfig.get_database_data_path(db)
-			if adb != "":
-				db = adb
-				
+	if db_name == "":
+		db_name = __db_name
 	if not table.ends_with(GDSQL.RootConfig.DATA_EXTENSION):
 		table = table + GDSQL.RootConfig.DATA_EXTENSION
 		
@@ -604,7 +610,7 @@ func left_join(db: String, table: String, alias: String, cond: String, password:
 		left_join_obj = __left_join
 	else:
 		left_join_obj = __left_join.create_left_join_to_end()
-	left_join_obj.set_db(db)
+	left_join_obj.set_db(db_name)
 	left_join_obj.set_password(password)
 	left_join_obj.set_table(table)
 	left_join_obj.set_alias(alias)
@@ -623,7 +629,7 @@ func remove_left_join(left_join_obj: GDSQL.LeftJoin) -> bool:
 	
 ## 联表查询，简化用户输入参数，使用与主表相同的数据库和密码
 func left_join_use_same_db_and_pass(table: String, alias: String, cond: String) -> GDSQL.BaseDao:
-	return left_join(__database, table, alias, cond, _PASSWORD)
+	return left_join(__db_name, table, alias, cond, _PASSWORD)
 	
 func left_join_use_user_db_and_default_pass(table: String, alias: String, cond: String) -> GDSQL.BaseDao:
 	return left_join("user://", table, alias, cond, "")
@@ -856,7 +862,7 @@ func is_circular_util(node, dependencies, visited, rec_stack):
 	rec_stack.erase(node)
 	return false
 	
-func _get_init_datas(table_alias: String, path: String, password: String, fill_primary_key: String,
+func _get_init_datas(db_name: String, table_name: String, table_alias: String, password, fill_primary_key: String,
 cond: String, all_table_defination: Dictionary, all_datas: Dictionary, curr_dependency: Dictionary = {}):
 	if all_datas.has(table_alias):
 		return
@@ -864,9 +870,9 @@ cond: String, all_table_defination: Dictionary, all_datas: Dictionary, curr_depe
 	var indexed_names = all_table_defination[table_alias].filter(func(v): return v.Index).map(func(v):
 		return v["Column Name"]
 	)
-	var conf: GDSQL.ImprovedConfigFile = _get_conf(path, password, indexed_names) # 使用索引
+	var conf: GDSQL.ImprovedConfigFile = _get_conf(db_name, table_name, password, indexed_names) # 使用索引
 	if conf == null:
-		return _assert_false("___select", "failed to get conf:%s" % path)
+		return _assert_false("___select", "failed to get conf: %s.%s" % [db_name, table_name])
 	conf.fill_primary_key = fill_primary_key
 	
 	# 为了优化联表导致笛卡尔乘积带来的低效，先获取一下where条件，根据where条件提前筛一批数据
@@ -968,15 +974,14 @@ cond: String, all_table_defination: Dictionary, all_datas: Dictionary, curr_depe
 						for t in request:
 							if not all_datas.has(t):
 								var arr_left_join = __left_join.get_chain_left_joins() if __left_join != null else []
-								var pt # path
-								var ps # password
 								for a_left_join in arr_left_join:
 									if a_left_join.get_alias() == t:
-										pt = a_left_join.get_path()
-										ps = a_left_join.get_password()
-										_get_init_datas(t, pt, ps, fill_primary_key, 
-											a_left_join.get_condition(), all_table_defination, 
-											all_datas, curr_dependency)
+										var db = a_left_join.get_db()
+										var tb = a_left_join.get_table()
+										var ps = a_left_join.get_password()
+										var cd = a_left_join.get_condition()
+										_get_init_datas(db, tb, t, ps, fill_primary_key, cd, 
+											all_table_defination, all_datas, curr_dependency)
 										break
 							if not all_datas.has(t):
 								for info in join_collection:
@@ -1016,7 +1021,7 @@ cond: String, all_table_defination: Dictionary, all_datas: Dictionary, curr_depe
 	if not all_datas.has(table_alias):
 		all_datas[table_alias] = conf.get_all_section_values()
 		
-func ___select(path: String, fill_primary_key: String = ""):
+func ___select(fill_primary_key: String = ""):
 	# 需要重置的属性：
 	__sub_select_index = -1
 	__select_query_columns_count = 0
@@ -1027,7 +1032,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 	var ret: Array = []
 	# 表结构定义
 	var all_table_defination = {}
-	all_table_defination[__table_alias] = __get_table_defination(__database, __table)["columns"]
+	all_table_defination[__table_alias] = __get_table_defination(__db_name, __table)["columns"]
 	var arr_left_join = __left_join.get_chain_left_joins() if __left_join != null else []
 	for a_left_join in arr_left_join:
 		var err = a_left_join.handle_defualt_password()
@@ -1075,16 +1080,18 @@ func ___select(path: String, fill_primary_key: String = ""):
 	# 为了优化联表导致笛卡尔乘积带来的低效，先获取一下where条件，根据where条件提前筛一批数据
 	var cond = _get_cond(false)
 	# 主表数据
-	_get_init_datas(__table_alias, path, _PASSWORD, fill_primary_key, cond, 
+	_get_init_datas(__db_name, __table, __table_alias, _PASSWORD, fill_primary_key, cond, 
 		all_table_defination, all_datas)
 		
 	# 取联表所有数据
 	for a_left_join in arr_left_join:
-		var pt = a_left_join.get_path()
+		var db = a_left_join.get_db()
+		var tb = a_left_join.get_table()
+		var al = a_left_join.get_alias()
 		var ps = a_left_join.get_password()
-		_get_init_datas(a_left_join.get_alias(), pt, ps, fill_primary_key,
-			a_left_join.get_condition(), all_table_defination, all_datas)
-			
+		var cd = a_left_join.get_condition()
+		_get_init_datas(db, tb, al, ps, fill_primary_key, cd, all_table_defination, all_datas)
+		
 	# 计算表头
 	var real_select = __get_head(all_datas, arr_left_join)
 	if real_select == null:
@@ -1592,7 +1599,7 @@ func ___select(path: String, fill_primary_key: String = ""):
 			__request_password.push_back(true)
 			return null
 			
-		var union_datas = __union_all.___select(__union_all.__database.path_join(__union_all.__table))
+		var union_datas = __union_all.___select()
 		if __union_all.need_user_enter_password():
 			return null
 		if union_datas == null:
@@ -1804,19 +1811,19 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 			for alias in all_datas:
 				if alias == __table_alias:
 					real_select.append_array(
-						__get_table_columns(__database, __table, __table_alias)#, all_datas)\
+						__get_table_columns(__db_name, __table, __table_alias)
 						.map(fill_select_name.bind(alias)))
 				else:
 					var a_left_join = __left_join.get_left_join_by_alias(alias)
 					real_select.append_array(
-						__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias)#, all_datas)\
+						__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias)
 						.map(fill_select_name.bind(alias)))
 			asterisk_index_count[index] = real_select.size() - pre_size
 		elif s.ends_with(".*"):
 			var alias = s.substr(0, s.length() - 2)
 			if alias == __table_alias:
 				real_select.append_array(
-					__get_table_columns(__database, __table, __table_alias)#, all_datas)\
+					__get_table_columns(__db_name, __table, __table_alias)
 					.map(fill_select_name.bind(alias)))
 			else:
 				if __left_join == null:
@@ -1825,7 +1832,7 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 				if a_left_join == null:
 					return _assert_false("___select", "table `%s` not found" % alias)
 				real_select.append_array(
-					__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias)#, all_datas)\
+					__get_table_columns(a_left_join.get_db(), a_left_join.get_table(), alias)
 						.map(fill_select_name.bind(alias)))
 			asterisk_index_count[index] = real_select.size() - pre_size
 		else:
@@ -1834,20 +1841,20 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 				if __left_join != null:
 					return _assert_false("___select", 
 						"must specify table alias name in select fields if using left join")
-				var column = __get_table_column_defination(__database, __table, __table_alias, m.get_string())
+				var column = __get_table_column_defination(__db_name, __table, __table_alias, m.get_string())
 				if column != null and !column.is_empty():
 					real_select.push_back(column)
 				else:
 					if all_datas[__table_alias].is_empty() or not all_datas[__table_alias][0].has(s):
 						return _assert_false("___select",
-							"field:[%s] not exist in table:[%s], db:[%s]" % [s, __table, __database])
+							"field:[%s] not exist in table:[%s], db:[%s]" % [s, __table, __db_name])
 					real_select.push_back(gen_dict.call(s, s, true, __table_alias)) # 可能没有定义文件
 			#elif s.contains(__table_alias + "."):
 			elif s.get_slice_count(".") == 2 and s.get_slice(".", 0).strip_edges() == __table_alias:
 				m = _get_regex_field(__table_alias).search(s)
 				if m:
 					var field = m.get_string(3)
-					var column = __get_table_column_defination(__database, __table, __table_alias, field)
+					var column = __get_table_column_defination(__db_name, __table, __table_alias, field)
 					if column != null and !column.is_empty():
 						if s == __table_alias + m.get_string(1) + "." + m.get_string(2) + field:
 							column["select_name"] = s
@@ -1858,8 +1865,8 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 						if s == __table_alias + m.get_string(1) + "." + m.get_string(2) + field:
 							if all_datas[__table_alias].is_empty() or not all_datas[__table_alias][0].has(field):
 								return _assert_false("___select",
-									"field:[%s] not exist in table:[%s], db:[%s]" % [field, __table, __database])
-							real_select.push_back(gen_dict.call(s, field, true, __table_alias, __database, __table))
+									"field:[%s] not exist in table:[%s], db:[%s]" % [field, __table, __db_name])
+							real_select.push_back(gen_dict.call(s, field, true, __table_alias, __db_path, __table))
 						else:
 							real_select.push_back(gen_dict.call(s, s, false))
 				else:
@@ -1925,39 +1932,30 @@ func __get_head(all_datas: Dictionary, arr_left_join: Array):
 		f["name_4_computing"] = f["select_name"]
 	return real_select
 	
-func __get_table_defination(db_path: String, table_name: String):
+func __get_table_defination(db_name: String, table_name: String):
 	return {
-		"columns": GDSQL.RootConfig.get_table_columns_by_db_path(db_path, table_name),
-		"valid_if_not_exist": GDSQL.RootConfig.get_table_valid_if_not_exist(db_path, table_name),
+		"columns": GDSQL.RootConfig.get_table_columns(db_name, table_name),
+		"valid_if_not_exist": GDSQL.RootConfig.get_table_valid_if_not_exist(db_name, table_name),
 	}
 	
-func __get_table_columns(db_path, table_name, table_alias):#, all_datas: Dictionary = {}):
+func __get_table_columns(db_name: String, table_name: String, table_alias: String):
 	var columns: Array
-	var defination = __get_table_defination(db_path, table_name)
+	var defination = __get_table_defination(db_name, table_name)
 	if defination:
 		columns = defination["columns"]
-		
-	#if columns == null or columns.is_empty():
-		## 推断表头
-		#if all_datas.get(table_alias, []).is_empty():
-			#return _assert_false("__get_table_columns", 
-			#"db: [%s] table [%s] cannot get head: no defination of this table or any data of this table" \
-			#% [db_path, table_name]))
-		#columns = all_datas[table_alias][0].keys().map(func(v):
-			#return {"select_name": v, "Column Name": v, "is_field": true, "table_alias": table_alias})
 		
 	if columns != null:
 		columns = columns.duplicate(true)
 		for i in columns:
-			i["db_path"] = db_path
+			i["db_path"] = GDSQL.RootConfig.get_database_data_path(db_name)
 			i["table_name"] = table_name
 			i["is_field"] = true
 			i["table_alias"] = table_alias
 			
 	return columns
 	
-func __get_table_column_defination(db_path, table_name, table_alias, column_name):
-	var defination = __get_table_defination(db_path, table_name)
+func __get_table_column_defination(db_name: String, table_name: String, table_alias: String, column_name: String):
+	var defination = __get_table_defination(db_name, table_name)
 	var columns = defination["columns"] if defination else null
 	var column
 	if columns != null:
@@ -1968,7 +1966,7 @@ func __get_table_column_defination(db_path, table_name, table_alias, column_name
 				
 	if column != null:
 		column = (column as Dictionary).duplicate(true)
-		column["db_path"] = db_path
+		column["db_path"] = GDSQL.RootConfig.get_database_data_path(db_name)
 		column["table_name"] = table_name
 		column["is_field"] = true
 		column["table_alias"] = table_alias
@@ -1986,19 +1984,19 @@ func _handle_defualt_password():
 		if mgr.need_request_password(get_db(), get_table(), get_password()):
 			__request_password.push_back(true)
 	elif _PASSWORD.is_empty():
-		_PASSWORD = GDSQL.RootConfig.get_database_dek(__database)
+		_PASSWORD = GDSQL.RootConfig.get_database_dek(__db_name)
 		if _PASSWORD.is_empty():
-			_PASSWORD = GDSQL.RootConfig.get_table_dek(GDSQL.RootConfig.get_database_name_by_db_path(__database), __table)
+			_PASSWORD = GDSQL.RootConfig.get_table_dek(__db_name, __table)
 	elif _PASSWORD is PackedByteArray:
 		pass # Skip
 	else:
 		# 既然用户输入了密码，那就验证一下吧
-		var encrypted_dek = GDSQL.RootConfig.get_database_encrypted_dek(__database)
+		var encrypted_dek = GDSQL.RootConfig.get_database_encrypted_dek(__db_name)
 		if encrypted_dek == "":
 			_assert_false("query", "Incorrect password!")
 			return ERR_UNAUTHORIZED
 		var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(encrypted_dek, _PASSWORD)
-		if recovered_dek == "":
+		if not recovered_dek:
 			_assert_false("query", "Incorrect password!")
 			return ERR_UNAUTHORIZED
 	return OK
@@ -2006,7 +2004,7 @@ func _handle_defualt_password():
 ## 执行。注意：在union的情况下，会自动执行第一个BaseDao的query方法。
 func query() -> GDSQL.QueryResult:
 	var begin_time = Time.get_unix_time_from_system()
-	if __database == "":
+	if not __db_name or not __db_path:
 		return _assert_false("query", "database is empty")
 	if __table == "":
 		return _assert_false("query", "table is empty")
@@ -2024,11 +2022,11 @@ func query() -> GDSQL.QueryResult:
 	if need_user_enter_password():
 		return null
 		
-	var path = __database.path_join(__table)
+	var path = GDSQL.RootConfig.get_table_data_path(__db_name, __table)
 	var result = GDSQL.QueryResult.new()
 	match __cmd:
 		"select":
-			var ret = ___select(path)
+			var ret = ___select()
 			if need_user_enter_password():
 				return null
 			result._has_head = __need_head
@@ -2052,7 +2050,7 @@ func query() -> GDSQL.QueryResult:
 			if __primary_key == null or __primary_key == "":
 				return _assert_false("query:%s" % __cmd, "Primary key is empty")
 			# 检查数据类型是否正确
-			var columns_def = __get_table_defination(__database, __table)["columns"]
+			var columns_def = __get_table_defination(__db_name, __table)["columns"]
 			
 			# __data是数组的情况下，需要转成字典格式
 			if __data is Array:
@@ -2074,7 +2072,7 @@ func query() -> GDSQL.QueryResult:
 							[col_name, type_string(col["Data Type"])])
 						__data[col_name] = v1
 						
-			var conf: GDSQL.ImprovedConfigFile = _get_conf(path, _PASSWORD)
+			var conf: GDSQL.ImprovedConfigFile = _get_conf(__db_name, __table, _PASSWORD)
 			if conf == null:
 				return _assert_false("query:%s" % __cmd, "load conf err!")
 			var primary_value = str(__data.get(__primary_key))
@@ -2198,7 +2196,7 @@ func query() -> GDSQL.QueryResult:
 				return _assert_false("query:%s" % __cmd, 
 				"Condition is empty. This limitition if for safety.")
 				
-			var columns_def = __get_table_defination(__database, __table)["columns"]
+			var columns_def = __get_table_defination(__db_name, __table)["columns"]
 			# 检查数据类型是否正确. __enable_evaluate为true时，需要计算之后才能判断
 			if not __enable_evaluate:
 				for col in columns_def:
@@ -2230,7 +2228,7 @@ func query() -> GDSQL.QueryResult:
 			# 筛选出要更新的数据
 			var primary = "__PRIMARY_1355--5--__" # 让数据库把主键存到这个键里，祈祷用户没有用到这个字段
 			__need_post_porcess = false # update一定是单表，用内部返回模式返回数据
-			var datas = ___select(path, primary)
+			var datas = ___select(primary)
 			if need_user_enter_password():
 				return null
 			if datas == null:
@@ -2245,7 +2243,7 @@ func query() -> GDSQL.QueryResult:
 				return result
 				
 			# 更新数据
-			var conf: GDSQL.ImprovedConfigFile = _get_conf(path, _PASSWORD)
+			var conf: GDSQL.ImprovedConfigFile = _get_conf(__db_name, __table, _PASSWORD)
 			if conf == null:
 				return _assert_false("query:%s" % __cmd, "Load conf err!")
 			for data in datas:
@@ -2313,7 +2311,7 @@ func query() -> GDSQL.QueryResult:
 			return result
 			
 		"delete_from":
-			var conf: GDSQL.ImprovedConfigFile = _get_conf(path, _PASSWORD)
+			var conf: GDSQL.ImprovedConfigFile = _get_conf(__db_name, __table, _PASSWORD)
 			if conf == null:
 				return _assert_false("query:%s" % __cmd, "Load conf err!")
 				
@@ -2324,7 +2322,7 @@ func query() -> GDSQL.QueryResult:
 				# 筛选出要删除的数据
 				var primary = "__PRIMARY_1355--5--__" # 让数据库把主键存到这个键里，祈祷用户没有用到这个字段
 				__need_post_porcess = false # update一定是单表，用内部返回模式返回数据
-				var datas = ___select(path, primary)
+				var datas = ___select(primary)
 				if need_user_enter_password():
 					return null
 				if datas == null:

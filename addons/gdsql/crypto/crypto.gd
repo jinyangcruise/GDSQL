@@ -15,7 +15,7 @@ extends Object
 #print("✅ 加密配置保存成功")
 #
 #var new_cfg = ConfigFile.new()
-#var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(encrypted_dek_data, "我的密www码13")
+#var recovered_dek = GDSQL.CryptoUtil.decrypt_dek64(encrypted_dek_data, "我的密www码13")
 #printt(recovered_dek == dek_base64)
 #if recovered_dek != "":
 	#GDSQL.CryptoUtil.load_encrypted_config(new_cfg, recovered_dek, CONFIG_PATH)
@@ -74,7 +74,13 @@ static func encrypt_dek(dek: String, user_password: String) -> String:
 	
 	return ede64 + "|" + iv64 + "|" + salt64 + "|" + verify_code64 + "|" + iv_verify64
 	
-static func decrypt_dek(encrypted_dek_info: String, user_password: String) -> String:
+static func decrypt_dek64(encrypted_dek_info: String, user_password: String) -> String:
+	var dek = decrypt_dek(encrypted_dek_info, user_password)
+	if dek and not dek.is_empty():
+		return Marshalls.raw_to_base64(dek)
+	return ""
+	
+static func decrypt_dek(encrypted_dek_info: String, user_password: String) -> PackedByteArray:
 	var parts = encrypted_dek_info.split("|")
 	var encrypted_dek_b64 = parts[0]
 	var iv_b64 = parts[1]
@@ -101,7 +107,7 @@ static func decrypt_dek(encrypted_dek_info: String, user_password: String) -> St
 	aes.finish()
 	var decrypted_verify_code = _pkcs7_unpad(encrypted_verify_code)
 	if decrypted_verify_code != VERIFY_CONTENT.to_utf8_buffer():
-		return "" # Wrong password!
+		return PackedByteArray() # Wrong password!
 		
 	aes.start(AESContext.MODE_CBC_DECRYPT, key, iv)
 	var dek_bytes = aes.update(encrypted_dek)
@@ -110,9 +116,9 @@ static func decrypt_dek(encrypted_dek_info: String, user_password: String) -> St
 	var dek_str = _pkcs7_unpad(dek_bytes).get_string_from_utf8()
 	var dek_raw = Marshalls.base64_to_raw(dek_str)
 	if dek_raw.size() == 32:
-		return dek_str
+		return dek_raw
 	else:
-		return "" # Wrong password!
+		return PackedByteArray() # Wrong password!
 		
 static func save_encrypted_config(cfg: ConfigFile, dek_base64: String, path: String) -> Error:
 	var dek_raw = Marshalls.base64_to_raw(dek_base64)
