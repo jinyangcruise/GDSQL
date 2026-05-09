@@ -219,8 +219,8 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var db_absolute_path = ProjectSettings.globalize_path(GDSQL.RootConfig.get_database_data_path(db_name))
-	var table_data_path = ProjectSettings.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
+	var db_absolute_path = GDSQL.GDSQLUtils.globalize_path(GDSQL.RootConfig.get_database_data_path(db_name))
+	var table_data_path = GDSQL.GDSQLUtils.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 	if not DirAccess.dir_exists_absolute(db_absolute_path):
 		var err = DirAccess.make_dir_recursive_absolute(db_absolute_path)
 		if err == OK:
@@ -392,7 +392,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		
 		if old_table_data_path != new_table_data_path:
 			var old_table_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, old_table_name)
-			var old_table_conf_path_abs = ProjectSettings.globalize_path(old_table_conf_path)
+			var old_table_conf_path_abs = GDSQL.GDSQLUtils.globalize_path(old_table_conf_path)
 			if FileAccess.file_exists(old_table_conf_path_abs):
 				OS.move_to_trash(old_table_conf_path_abs) # 删配置
 				msgs.push_back(tr("1 file: %s has been moved to trash.") % old_table_conf_path_abs)
@@ -525,8 +525,8 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 		
 		if old_table_data_path != new_table_data_path:
 			var old_table_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, old_table_name)
-			var old_table_conf_path_abs = ProjectSettings.globalize_path(old_table_conf_path)
-			var old_table_data_path_abs = ProjectSettings.globalize_path(old_table_data_path)
+			var old_table_conf_path_abs = GDSQL.GDSQLUtils.globalize_path(old_table_conf_path)
+			var old_table_data_path_abs = GDSQL.GDSQLUtils.globalize_path(old_table_data_path)
 			if FileAccess.file_exists(old_table_conf_path_abs):
 				OS.move_to_trash(old_table_conf_path_abs) # 删配置
 				msgs.push_back(tr("1 file: %s has been moved to trash.") % old_table_conf_path_abs)
@@ -720,7 +720,7 @@ func set_password(db_name: String, table_name: String, password: String) -> void
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var table_data_path = ProjectSettings.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
+	var table_data_path = GDSQL.GDSQLUtils.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 	var table_data_file_exist = FileAccess.file_exists(table_data_path)
 	#if not FileAccess.file_exists(table_data_path):
 		#msgs.push_back("Failed! Data file [%s] dose not exist!" % table_data_path)
@@ -783,7 +783,7 @@ func clear_password(db_name: String, table_name: String) -> void:
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var table_data_path = ProjectSettings.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
+	var table_data_path = GDSQL.GDSQLUtils.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 	var table_data_file_exist = FileAccess.file_exists(table_data_path)
 	#if not FileAccess.file_exists(table_data_path):
 		#msgs.push_back("Failed! Data file [%s] dose not exist!" % table_data_path)
@@ -850,7 +850,7 @@ func change_password(db_name: String, table_name: String, password: String) -> v
 		mgr.add_log_history.emit("Err", begin_time, action, msgs)
 		return mgr.create_accept_dialog(msgs)
 		
-	var table_data_path = ProjectSettings.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
+	var table_data_path = GDSQL.GDSQLUtils.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 	#var table_data_file_exist = FileAccess.file_exists(table_data_path)
 	#if not FileAccess.file_exists(table_data_path):
 		#msgs.push_back("Failed! Data file [%s] dose not exist!" % table_data_path)
@@ -900,7 +900,7 @@ func drop_db_from_config(db_name: String) -> void:
 		file.store_string(dek64)
 		file.flush()
 		file.close()
-		OS.move_to_trash(ProjectSettings.globalize_path(tmp_file_path))
+		OS.move_to_trash(GDSQL.GDSQLUtils.globalize_path(tmp_file_path))
 		
 	GDSQL.RootConfig.set_database_dek(db_name, null)
 	GDSQL.RootConfig.erase_database(db_name)
@@ -930,7 +930,7 @@ func drop_table_from_config(db_name: String, table_name: String) -> void:
 		
 	# remove config file
 	var table_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, table_name)
-	var conf_path = ProjectSettings.globalize_path(table_conf_path)
+	var conf_path = GDSQL.GDSQLUtils.globalize_path(table_conf_path)
 	if FileAccess.file_exists(table_conf_path):
 		OS.move_to_trash(conf_path)
 		msgs.push_back(tr("1 file: %s has been moved to trash.") % conf_path)
@@ -939,7 +939,7 @@ func drop_table_from_config(db_name: String, table_name: String) -> void:
 	GDSQL.ConfManager.remove_conf(table_conf_path)
 	
 	# remove data file
-	var data_path = ProjectSettings.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
+	var data_path = GDSQL.GDSQLUtils.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 	if FileAccess.file_exists(data_path):
 		OS.move_to_trash(data_path)
 		msgs.push_back(tr("1 file: %s has been moved to trash.") % data_path)
@@ -955,7 +955,7 @@ func drop_table_from_config(db_name: String, table_name: String) -> void:
 		file.store_string(dek64)
 		file.flush()
 		file.close()
-		OS.move_to_trash(ProjectSettings.globalize_path(tmp_file_path))
+		OS.move_to_trash(GDSQL.GDSQLUtils.globalize_path(tmp_file_path))
 		
 		GDSQL.RootConfig.set_table_dek(db_name, table_name, null)
 		GDSQL.RootConfig.save()
@@ -1073,10 +1073,10 @@ func _on_disk_changed_list_button_clicked(item: TreeItem, _column: int, id: int,
 			_password_correct.erase(item.get_meta("path"))
 			refresh()
 		2:
-			var path = ProjectSettings.globalize_path(item.get_meta("path"))
+			var path = GDSQL.GDSQLUtils.globalize_path(item.get_meta("path"))
 			OS.shell_open(path)
 		3:
-			var path = ProjectSettings.globalize_path(item.get_meta("path"))
+			var path = GDSQL.GDSQLUtils.globalize_path(item.get_meta("path"))
 			OS.shell_show_in_file_manager(path, true)
 			
 func _reload_modified_scenes():
@@ -1286,7 +1286,7 @@ func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_inde
 				deal_password_before_table_cmd(item, "", exe_select)
 			# Show in File Manager
 			ITEM_BUTTON_INDEX.FOLDER:
-				var path = ProjectSettings.globalize_path(item.get_meta("data_path"))
+				var path = GDSQL.GDSQLUtils.globalize_path(item.get_meta("data_path"))
 				OS.shell_show_in_file_manager(path, true)
 			ITEM_BUTTON_INDEX.COLUMN_PROPERTY:
 				pass
@@ -1413,12 +1413,12 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 		"Show in File Manager":
 			var item := get_selected()
 			if item:
-				var path = ProjectSettings.globalize_path(item.get_meta("data_path"))
+				var path = GDSQL.GDSQLUtils.globalize_path(item.get_meta("data_path"))
 				OS.shell_show_in_file_manager(path, true)
 		"Open in External Program":
 			var item := get_selected()
 			if item:
-				var path = ProjectSettings.globalize_path(item.get_meta("data_path"))
+				var path = GDSQL.GDSQLUtils.globalize_path(item.get_meta("data_path"))
 				OS.shell_open(path)
 		"Generate Mapper...":
 			var item := get_selected()

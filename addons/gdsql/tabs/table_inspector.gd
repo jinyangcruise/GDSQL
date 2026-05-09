@@ -157,11 +157,11 @@ func _on_button_enter_password_pressed():
 
 func _on_button_show_in_file_manager_pressed():
 	if data_file_path != "":
-		var path = ProjectSettings.globalize_path(data_file_path.split("(")[0])
+		var path = GDSQL.GDSQLUtils.globalize_path(data_file_path.split("(")[0])
 		OS.shell_show_in_file_manager(path, true)
 
 
 func _on_button_open_config_pressed():
 	if schema != "" and table_name != "":
-		var path = ProjectSettings.globalize_path(GDSQL.RootConfig.get_table_config_path(schema, table_name))
+		var path = GDSQL.GDSQLUtils.globalize_path(GDSQL.RootConfig.get_table_config_path(schema, table_name))
 		OS.shell_open(path)
