@@ -56,7 +56,7 @@
 # 查询气血大于100的英雄，按气血降序排列
 var result = GDSQL.BaseDao.new()
     .use_db("game_config")
-    .select("id", "name", "hp", "mp")
+    .select("id, name, hp, mp")
     .from("c_hero")
     .where("hp > 100 AND mp >= 50")
     .order_by("hp")

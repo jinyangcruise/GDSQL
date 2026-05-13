@@ -56,7 +56,7 @@ Complete database operations through GDScript method chaining — no XML require
 # Select
 var result = GDSQL.BaseDao.new()
     .use_db("game_config")
-    .select("id", "name", "hp", "mp")
+    .select("id, name, hp, mp")
     .from("c_hero")
     .where("hp > 100 AND mp >= 50")
     .order_by("hp")
