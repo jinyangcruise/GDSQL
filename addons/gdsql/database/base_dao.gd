@@ -487,7 +487,7 @@ func group_by_str(something: String) -> GDSQL.BaseDao:
 	
 ## 注意该方法具有嵌套效果，在union的时候，链条中某个环节的order_by会对后面所有环节进行排序
 ## 如果是union的，那么order by作用于最终数据集上。
-func order_by(field: String, order: GDSQL.ORDER_BY) -> GDSQL.BaseDao:
+func order_by(field: String, order: GDSQL.ORDER_BY = GDSQL.ORDER_BY.ASC) -> GDSQL.BaseDao:
 	if __parent_union:
 		__parent_union.get_ref().order_by(field, order)
 		return self

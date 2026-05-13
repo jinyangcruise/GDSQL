@@ -48,7 +48,6 @@
 - **最小二乘法数据拟合**：基于已有数据样本，自动预测和填充后续数据
 - **支持多种数据类型**：数字、字符串（含数字占位符）、Vector2/3/4、Vector2i/3i/4i、Resource 路径
 - **智能模式识别**：自动检测数据中的编号模式（如 `"name_001"`、`"name_002"`），按模式规律填充
-- **分组处理**：当数据模式发生突变（如数字→字符串→Vector），自动切换填充策略
 
 ### 链式 DAO API
 无需编写 XML 映射文件，直接通过 GDScript 链式调用完成数据库操作：
@@ -60,9 +59,9 @@ var result = GDSQL.BaseDao.new()
     .select("id", "name", "hp", "mp")
     .from("c_hero")
     .where("hp > 100 AND mp >= 50")
-    .order_by("hp DESC")
+    .order_by("hp")
     .limit(10)
-    .query_all()
+    .query()
 
 # 插入新数据
 GDSQL.BaseDao.new()

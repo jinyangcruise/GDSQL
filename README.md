@@ -48,20 +48,42 @@ Available as a dedicated main screen in the Godot Editor:
 - **Least-squares fitting**: Predicts and fills subsequent data based on existing samples
 - **Multi-type support**: Numbers, strings (with numeric placeholders), Vector2/3/4, Vector2i/3i/4i, Resource paths
 - **Pattern recognition**: Detects numbering patterns (e.g. `"name_001"`, `"name_002"`) and fills accordingly
-- **Group switching**: When data patterns change, automatically switches filling strategy
 
 ### Fluent DAO API
 Complete database operations through GDScript method chaining — no XML required:
 
 ```gdscript
+# Select
 var result = GDSQL.BaseDao.new()
     .use_db("game_config")
     .select("id", "name", "hp", "mp")
     .from("c_hero")
     .where("hp > 100 AND mp >= 50")
-    .order_by("hp DESC")
+    .order_by("hp")
     .limit(10)
-    .query_all()
+    .query()
+
+# Insert
+GDSQL.BaseDao.new()
+    .use_db("game_config")
+    .insert_into("c_hero")
+    .values({"id": 101, "name": "NewHero", "hp": 200})
+    .query()
+
+# Update
+GDSQL.BaseDao.new()
+    .use_db("game_config")
+    .update("c_hero")
+    .set({"hp": 300})
+    .where("id = 101")
+    .query()
+
+# Delete
+GDSQL.BaseDao.new()
+    .use_db("game_config")
+    .delete_from("c_hero")
+    .where("id = 101")
+    .query()
 ```
 
 ### Mapper Graph Visual Editor
