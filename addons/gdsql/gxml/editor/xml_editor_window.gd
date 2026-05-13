@@ -21,7 +21,7 @@ func _notification(what: int) -> void:
 		%XMLEditorPanel.add_theme_stylebox_override(&"panel", get_theme_stylebox(&"PanelForeground", &"EditorStyles"))
 	elif what == NOTIFICATION_VISIBILITY_CHANGED:
 		if visible and DisplayServer.has_method("window_set_icon"):
-			DisplayServer.window_set_icon(load("res://addons/gdsql/gbatis/img/xml.svg").get_image(), get_window_id())
+			DisplayServer.call("window_set_icon", load("res://addons/gdsql/gbatis/img/xml.svg").get_image(), get_window_id())
 			
 func _exit_tree() -> void:
 	if _native_find_in_files and _native_on_find_in_files_result_selected.is_valid():

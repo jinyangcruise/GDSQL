@@ -48,13 +48,17 @@ const RootConfigClass = preload("res://addons/gdsql/database/root_config.gd")
 static var RootConfig: RootConfigClass: get = _get_root_config
 
 static func get_setting_root_config_path() -> String:
-	return _get_settings("config/root_config_path", "res://addons/gdsql/config/config.cfg")
+	return _get_settings("config/root_config_path", "res://gdsql/define/config.cfg")
 	
 static func get_setting_game_conf_db_dir() -> String:
-	return _get_settings("config/game_conf_db_dir", "res://src/config/")
+	return _get_settings("config/game_conf_db_dir", "")
 	
-static func _get_settings(key: String, default_value: Variant = null):
-	return ProjectSettings.get_setting("GDSQL/" + key, default_value)
+static func _get_settings(prop: String, default_value: Variant = null):
+	var settings = ConfigFile.new()
+	settings.load("res://gdsql/settings.cfg")
+	var section = prop.get_slice("/", 0)
+	var key = prop.get_slice("/", 1)
+	return settings.get_value(section, key, default_value)
 	
 static func _get_conf_manager() -> ConfManagerClass:
 	if not Engine.has_singleton(&"GDSQLConfManager"):
@@ -82,15 +86,15 @@ static func _get_gbatis_entitydb() -> GBatisEntityDBClass:
 	return Engine.get_singleton(&"GBatisEntityDB")
 	
 static func _get_root_config() -> RootConfigClass:
-	if not Engine.has_singleton(&"RootConfig"):
+	if not Engine.has_singleton(&"GDSQLRootConfig"):
 		var rc = RootConfigClass.new(get_setting_root_config_path())
-		rc.name = &"RootConfig"
-		Engine.register_singleton(&"RootConfig", rc)
+		rc.name = &"GDSQLRootConfig"
+		Engine.register_singleton(&"GDSQLRootConfig", rc)
 		Engine.get_main_loop().root.add_child.call_deferred(rc, true)
-	return Engine.get_singleton(&"RootConfig")
+	return Engine.get_singleton(&"GDSQLRootConfig")
 	
 static func _clear():
-	for singleton_name in [&"GDSQLConfManager", &"GDSQLWorkbenchManager", &"GBatisEntityDB"]:
+	for singleton_name in [&"GDSQLConfManager", &"GDSQLWorkbenchManager", &"GBatisEntityDB", &"GDSQLRootConfig"]:
 		if Engine.has_singleton(singleton_name):
 			var mgr = Engine.get_singleton(singleton_name)
 			Engine.unregister_singleton(singleton_name)

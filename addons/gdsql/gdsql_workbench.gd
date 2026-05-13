@@ -15,8 +15,10 @@ var xml_editor_window
 func _enter_tree():
 	set_up_localization()
 	
-	init_settings()
-	
+	var err = init_settings()
+	if err != OK:
+		return
+		
 	# 特别需求，让检查器能够查看DictionaryObject
 	# EditorInspectorPlugin is a resource, so we use `new()` instead of `instance()`.
 	dictionary_object_inspector_plugin = preload("res://addons/gdsql/inspector_plugin/dictionary_object_inspector_plugin.gd").new()
@@ -144,14 +146,55 @@ func set_up_localization():
 	for translation in translations:
 		domain.add_translation(translation)
 		
-func init_settings():
-	var map = {
-		"GDSQL/config/root_config_path": "res://addons/gdsql/config/config.cfg",
-		"GDSQL/config/game_conf_db_dir": "res://src/config",
+func init_settings() -> Error:
+	var settings_path = "res://gdsql/settings.cfg"
+	var settings: ConfigFile
+	if not FileAccess.file_exists(settings_path):
+		if not DirAccess.dir_exists_absolute(settings_path.get_base_dir()):
+			var err = DirAccess.make_dir_recursive_absolute(settings_path.get_base_dir())
+			if err != OK:
+				push_error("Initialize GDSQL settings failed! Path: %s." % settings_path.get_base_dir())
+				return FAILED
+				
+		settings = ConfigFile.new()
+		settings.save(settings_path)
+	else:
+		settings = ConfigFile.new()
+		settings.load(settings_path)
+		
+	var default_values = {
+		"config/root_config_path": "res://gdsql/define/config.cfg",
+		"config/database_dir": "res://gdsql/database",
 	}
 	
-	for key in map:
-		if not ProjectSettings.has_setting(key):
-			ProjectSettings.set_setting(key, map[key])
-		ProjectSettings.set_initial_value(key, map[key])
-	ProjectSettings.save()
+	var changed = false
+	for prop: String in default_values:
+		var section = prop.get_slice("/", 0)
+		var key = prop.get_slice("/", 1)
+		if not settings.has_section_key(section, key):
+			settings.set_value(section, key, default_values[prop])
+			changed = true
+			
+	if changed:
+		settings.save(settings_path)
+		
+	if true:
+		var path: String = settings.get_value("config", "root_config_path")
+		if not FileAccess.file_exists(path):
+			var err = DirAccess.make_dir_recursive_absolute(path.get_base_dir())
+			if err == OK:
+				var cf = ConfigFile.new()
+				cf.save(path)
+			else:
+				push_error("Initialize GDSQL root config failed! Path: %s." % path)
+				return FAILED
+				
+	if true:
+		var path: String = settings.get_value("config", "database_dir")
+		if not DirAccess.dir_exists_absolute(path):
+			var err = DirAccess.make_dir_recursive_absolute(path)
+			if err != OK:
+				push_error("Initialize GDSQL database dir failed! Path: %s." % path)
+				return FAILED
+				
+	return OK
