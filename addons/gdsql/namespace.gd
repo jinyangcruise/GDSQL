@@ -48,16 +48,13 @@ const RootConfigClass = preload("res://addons/gdsql/database/root_config.gd")
 static var RootConfig: RootConfigClass: get = _get_root_config
 
 static func get_setting_root_config_path() -> String:
-	return _get_settings("root_config_path", "res://addons/gdsql/config/config.cfg")
+	return _get_settings("config/root_config_path", "res://addons/gdsql/config/config.cfg")
 	
 static func get_setting_game_conf_db_dir() -> String:
-	return _get_settings("game_conf_db_dir", "res://src/config/")
-	
-static func get_setting_gdsql_config_dir() -> String:
-	return _get_settings("gdsql_config_dir", "res://addons/gdsql/config/")
+	return _get_settings("config/game_conf_db_dir", "res://src/config/")
 	
 static func _get_settings(key: String, default_value: Variant = null):
-	return ProjectSettings.get_setting("gdsql/" + key, default_value)
+	return ProjectSettings.get_setting("GDSQL/" + key, default_value)
 	
 static func _get_conf_manager() -> ConfManagerClass:
 	if not Engine.has_singleton(&"GDSQLConfManager"):

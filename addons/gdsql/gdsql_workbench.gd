@@ -15,6 +15,8 @@ var xml_editor_window
 func _enter_tree():
 	set_up_localization()
 	
+	init_settings()
+	
 	# 特别需求，让检查器能够查看DictionaryObject
 	# EditorInspectorPlugin is a resource, so we use `new()` instead of `instance()`.
 	dictionary_object_inspector_plugin = preload("res://addons/gdsql/inspector_plugin/dictionary_object_inspector_plugin.gd").new()
@@ -141,3 +143,15 @@ func set_up_localization():
 	
 	for translation in translations:
 		domain.add_translation(translation)
+		
+func init_settings():
+	var map = {
+		"GDSQL/config/root_config_path": "res://addons/gdsql/config/config.cfg",
+		"GDSQL/config/game_conf_db_dir": "res://src/config",
+	}
+	
+	for key in map:
+		if not ProjectSettings.has_setting(key):
+			ProjectSettings.set_setting(key, map[key])
+		ProjectSettings.set_initial_value(key, map[key])
+	ProjectSettings.save()
