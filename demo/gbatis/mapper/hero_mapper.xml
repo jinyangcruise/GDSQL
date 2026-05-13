@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<mapper namespace="DemoHeroMapper">
+    <resultMap id="heroMap" type="DemoHeroEntity">
+        <id property="id" column="id"/><result property="name" column="name"/>
+        <result property="hp" column="hp"/><result property="mp" column="mp"/>
+        <result property="class_type" column="class_type"/>
+    </resultMap>
+    <select id="selectHeroById" resultMap="heroMap">
+        select * from hero.gsql where id == #{id}
+    </select>
+    <select id="selectHeroesByMinHp" resultMap="heroMap">
+        select * from hero.gsql where hp >= #{min_hp} order by hp desc
+    </select>
+    <insert id="insertHero" useGeneratedKeys="true" keyProperty="id">
+        insert into hero.gsql values ({id}, {name}, {hp}, {mp}, {class_type})
+    </insert>
+    <update id="updateHeroHp">
+        update hero.gsql set hp = {hp} where id == {id}
+    </update>
+    <delete id="deleteHeroById">
+        delete from hero.gsql where id == {id}
+    </delete>
+</mapper>

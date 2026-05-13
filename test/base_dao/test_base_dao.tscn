@@ -1,0 +1,4 @@
+[gd_scene load_steps=2 format=4]
+[ext_resource type="Script" path="res://test/base_dao/test_base_dao.gd" id="1"]
+[node name="TestBaseDao" type="Node2D"]
+script = ExtResource("1")

@@ -1,0 +1,4 @@
+[gd_scene load_steps=2 format=4]
+[ext_resource type="Script" path="res://test/expression/test_expression.gd" id="1"]
+[node name="TestExpression" type="Node2D"]
+script = ExtResource("1")

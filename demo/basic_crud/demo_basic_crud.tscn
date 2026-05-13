@@ -1,0 +1,4 @@
+[gd_scene load_steps=2 format=4]
+[ext_resource type="Script" path="res://demo/basic_crud/demo_basic_crud.gd" id="1"]
+[node name="DemoBasicCRUD" type="Node2D"]
+script = ExtResource("1")
