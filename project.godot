@@ -1,0 +1,10 @@
+; Engine configuration file.
+; Godot 4.x project for GDSQL standalone testing.
+
+[application]
+config/name="GDSQL - Database SQL Workbench"
+config/features=PackedStringArray("4.0", "Forward Plus")
+run/main_scene="res://test/test_runner.tscn"
+
+[editor_plugins]
+enabled=PackedStringArray("GDSQL")
