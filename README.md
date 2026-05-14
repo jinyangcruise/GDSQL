@@ -55,35 +55,35 @@ Complete database operations through GDScript method chaining — no XML require
 ```gdscript
 # Select
 var result = GDSQL.BaseDao.new()
-    .use_db("game_config")
-    .select("id, name, hp, mp")
-    .from("c_hero")
-    .where("hp > 100 AND mp >= 50")
-    .order_by("hp")
-    .limit(10)
-    .query()
+	.use_db("game_config")
+	.select("id, name, hp, mp")
+	.from("c_hero")
+	.where("hp > 100 AND mp >= 50")
+	.order_by("hp")
+	.limit(10)
+	.query()
 
 # Insert
 GDSQL.BaseDao.new()
-    .use_db("game_config")
-    .insert_into("c_hero")
-    .values({"id": 101, "name": "NewHero", "hp": 200})
-    .query()
+	.use_db("game_config")
+	.insert_into("c_hero")
+	.values({"id": 101, "name": "NewHero", "hp": 200})
+	.query()
 
 # Update
 GDSQL.BaseDao.new()
-    .use_db("game_config")
-    .update("c_hero")
-    .set({"hp": 300})
-    .where("id = 101")
-    .query()
+	.use_db("game_config")
+	.update("c_hero")
+	.sets({"hp": 300})
+	.where("id = 101")
+	.query()
 
 # Delete
 GDSQL.BaseDao.new()
-    .use_db("game_config")
-    .delete_from("c_hero")
-    .where("id = 101")
-    .query()
+	.use_db("game_config")
+	.delete_from("c_hero")
+	.where("id = 101")
+	.query()
 ```
 
 ### Mapper Graph Visual Editor
