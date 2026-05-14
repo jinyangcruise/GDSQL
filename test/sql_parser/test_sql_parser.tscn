@@ -1,4 +1,6 @@
-[gd_scene load_steps=2 format=4]
-[ext_resource type="Script" path="res://test/sql_parser/test_sql_parser.gd" id="1"]
-[node name="TestSQLParser" type="Node2D"]
+[gd_scene format=3 uid="uid://1d08epfe2q4d"]
+
+[ext_resource type="Script" uid="uid://v082ec4xfbla" path="res://test/sql_parser/test_sql_parser.gd" id="1"]
+
+[node name="TestSQLParser" type="Node2D" unique_id=676514735]
 script = ExtResource("1")
