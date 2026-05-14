@@ -41,6 +41,7 @@ const LeastSquares = preload("res://addons/gdsql/table/least_squares.gd")
 const DiffLabelTexture = preload("res://addons/gdsql/tabs/diff_label_texture.gd")
 const DiffHelper = preload("res://addons/gdsql/tabs/diff_helper.gd")
 const GDSQLUtils = preload("res://addons/gdsql/gdsql_utils.gd")
+const AdminDao = preload("res://addons/gdsql/admin/admin_dao.gd")
 const DictionaryObject = preload("res://addons/gdsql/dictionary_object.gd")
 const GBatisEntityDBClass = preload("res://addons/gdsql/gbatis/entity_db.gd")
 static var GBatisEntityDB: GBatisEntityDBClass: get = _get_gbatis_entitydb
