@@ -1028,11 +1028,11 @@ func ___select(fill_primary_key: String = ""):
 	var all_table_defination = {}
 	all_table_defination[__table_alias] = __get_table_defination(__db_name, __table)["columns"]
 	var arr_left_join = __left_join.get_chain_left_joins() if __left_join != null else []
-	for a_left_join in arr_left_join:
+	for a_left_join: GDSQL.LeftJoin in arr_left_join:
 		if not a_left_join.validate():
 			__err.append_array(a_left_join.get_err())
 			return null
-	for a_left_join in arr_left_join:
+	for a_left_join: GDSQL.LeftJoin in arr_left_join:
 		var err = a_left_join.handle_defualt_password()
 		if err != OK:
 			__err.append_array(a_left_join.get_err())

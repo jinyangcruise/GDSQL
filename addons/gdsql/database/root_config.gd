@@ -7,7 +7,7 @@ const DEK = "_DEK_"
 var path: String
 var conf: ConfigFile
 
-func _init(p_path: String = "res://addons/gdsql/config/config.cfg") -> void:
+func _init(p_path: String = "res://gdsql/define/config.cfg") -> void:
 	set_path(p_path)
 	
 func set_path(p_path: String):
