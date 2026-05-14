@@ -24,17 +24,11 @@ func set_db(database_name_or_path: String):
 	if database_name_or_path.contains("/"):
 		__db_path = database_name_or_path
 		__db_name = GDSQL.RootConfig.get_database_name_by_db_path(__db_path)
-		if __db_name == "":
-			return _assert_false("set_db",
-				"Not found database name of this path: %s." % __db_path)
 	else:
 		database_name_or_path = GDSQL.RootConfig.validate_name(database_name_or_path)
 		__db_name = database_name_or_path
 		__db_path = GDSQL.RootConfig.get_database_data_path(__db_name)
-		if __db_path == "":
-			return _assert_false("set_db",
-				"Not found database path of this name: %s." % __db_name)
-				
+		
 func get_db() -> String:
 	return __db_name
 	
@@ -193,3 +187,11 @@ func _assert_false(action: String, msg: String):
 	
 func get_err() -> Array:
 	return __err
+	
+func validate() -> bool:
+	__err.clear()
+	if not __db_name or not __db_path:
+		return bool(_assert_false("validate", "database is empty"))
+	if __table == "":
+		return bool(_assert_false("validate", "table is empty"))
+	return true

@@ -108,9 +108,6 @@ func use_db_name(database_name: String) -> GDSQL.BaseDao:
 	database_name = GDSQL.RootConfig.validate_name(database_name)
 	__db_name = database_name
 	__db_path = GDSQL.RootConfig.get_database_data_path(__db_name)
-	if __db_path == "":
-		return _assert_false("use_db_name", 
-			"database %s's data_path is empty!" % __db_name)
 	return self
 	
 ## 使用某个数据库。可以传入数据库名称或数据库的数据路径。系统自动判断传入的是数据库名称还是数据库路径。
@@ -118,16 +115,10 @@ func use_db(database_name_or_path: String) -> GDSQL.BaseDao:
 	if database_name_or_path.contains("/"):
 		__db_path = database_name_or_path
 		__db_name = GDSQL.RootConfig.get_database_name_by_db_path(__db_path)
-		if __db_name == "":
-			return _assert_false("use_db",
-				"Not found database name of this path: %s." % __db_path)
 	else:
 		database_name_or_path = GDSQL.RootConfig.validate_name(database_name_or_path)
 		__db_name = database_name_or_path
 		__db_path = GDSQL.RootConfig.get_database_data_path(__db_name)
-		if __db_path == "":
-			return _assert_false("use_db",
-				"Not found database path of this name: %s." % __db_name)
 	return self
 	
 func use_user_db() -> GDSQL.BaseDao:
@@ -1037,6 +1028,10 @@ func ___select(fill_primary_key: String = ""):
 	var all_table_defination = {}
 	all_table_defination[__table_alias] = __get_table_defination(__db_name, __table)["columns"]
 	var arr_left_join = __left_join.get_chain_left_joins() if __left_join != null else []
+	for a_left_join in arr_left_join:
+		if not a_left_join.validate():
+			__err.append_array(a_left_join.get_err())
+			return null
 	for a_left_join in arr_left_join:
 		var err = a_left_join.handle_defualt_password()
 		if err != OK:
