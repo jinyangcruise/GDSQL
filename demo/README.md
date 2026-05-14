@@ -1,7 +1,5 @@
 # GDSQL Demos
 
-Each demo is a Godot scene. Open and run in-editor.
-
 | Demo | Scene | What It Shows |
 |------|-------|---------------|
 | Basic CRUD | `demo/basic_crud/demo_basic_crud.tscn` | INSERT, SELECT, UPDATE, DELETE |
