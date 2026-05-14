@@ -233,6 +233,12 @@ func get_table_comment(db_name: String, table_name: String) -> String:
 	var table_config = GDSQL.ConfManager.get_conf(get_table_config_path(db_name, table_name), "")
 	return table_config.get_value(table_name, "comment", "")
 	
+func get_table_encrypted_dek(db_name: String, table_name: String) -> String:
+	table_name = validate_name(table_name)
+	get_table_config_path(db_name, table_name)
+	var table_config = GDSQL.ConfManager.get_conf(get_table_config_path(db_name, table_name), "")
+	return table_config.get_value(table_name, "encrypted", "")
+	
 func get_table_columns_by_db_path(db_path: String, table_name: String) -> Array:
 	var db_name = get_database_name_by_db_path(db_path)
 	var columns = get_table_columns(db_name, table_name)

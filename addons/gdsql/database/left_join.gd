@@ -167,8 +167,11 @@ func handle_defualt_password():
 		# 既然用户输入了密码，那就验证一下吧
 		var encrypted_dek = GDSQL.RootConfig.get_database_encrypted_dek(__db_name)
 		if encrypted_dek == "":
-			_assert_false("left join", "Incorrect password!")
-			return ERR_UNAUTHORIZED
+			encrypted_dek = GDSQL.RootConfig.get_table_encrypted_dek(__db_name, __table)
+			if encrypted_dek == "":
+				# 本来没密码，非要输入一个错的密码，也不行。
+				_assert_false("left join", "Incorrect password!")
+				return ERR_UNAUTHORIZED
 		var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(encrypted_dek, __password)
 		if not recovered_dek:
 			_assert_false("left join", "Incorrect password!")
