@@ -62,14 +62,14 @@ func _handle_password(db_name: String, table_name: String = "") -> Error:
 		if _password and not table_name.is_empty():
 			var conf = GDSQL.ConfManager.get_conf(GDSQL.RootConfig.get_table_data_path(db_name, table_name), _password)
 			if not conf:
-				_assert_false("password", "Incorrect password!")
+				_assert_false("password", tr("Incorrect password!"))
 				return ERR_UNAUTHORIZED
 	elif typeof(_password) == TYPE_PACKED_BYTE_ARRAY:
 		# DDL 涉及表的操作，需要先load一下表
 		if _password and not table_name.is_empty():
 			var conf = GDSQL.ConfManager.get_conf(GDSQL.RootConfig.get_table_data_path(db_name, table_name), _password)
 			if not conf:
-				_assert_false("password", "Incorrect password!")
+				_assert_false("password", tr("Incorrect password!"))
 				return ERR_UNAUTHORIZED
 	else:
 		var encrypted_dek = GDSQL.RootConfig.get_database_encrypted_dek(db_name)
@@ -77,17 +77,17 @@ func _handle_password(db_name: String, table_name: String = "") -> Error:
 			encrypted_dek = GDSQL.RootConfig.get_table_encrypted_dek(db_name, table_name)
 			if encrypted_dek == "":
 				# 本来没密码，非要输入一个错的密码，也不行。
-				_assert_false("password", "Incorrect password!")
+				_assert_false("password", tr("Incorrect password!"))
 				return ERR_UNAUTHORIZED
 		var recovered_dek = GDSQL.CryptoUtil.decrypt_dek(encrypted_dek, _password)
 		# DDL 涉及表的操作，需要先load一下表
 		if recovered_dek and not table_name.is_empty():
 			var conf = GDSQL.ConfManager.get_conf(GDSQL.RootConfig.get_table_data_path(db_name, table_name), recovered_dek)
 			if not conf:
-				_assert_false("password", "Incorrect password!")
+				_assert_false("password", tr("Incorrect password!"))
 				return ERR_UNAUTHORIZED
 		else:
-			_assert_false("password", "Incorrect password!")
+			_assert_false("password", tr("Incorrect password!"))
 			return ERR_UNAUTHORIZED
 	return OK
 	
@@ -114,12 +114,12 @@ func _exec_with_password_guard(action_name: String, db_name: String, action_impl
 					continue
 				else:
 					mgr.add_log_history.emit("Err", Time.get_unix_time_from_system(),
-						action_name, "Missing password!")
+						action_name, tr("Missing password!"))
 			return ERR_UNAUTHORIZED
 		else:
 			return action_impl.call()
 	if reach_max:
-		return _assert_false(action_name, "Too many password attempts!")
+		return _assert_false(action_name, tr("Too many password attempts!"))
 	return ERR_UNAUTHORIZED
 	
 # ----- Database Operations -----
@@ -132,31 +132,31 @@ func _create_database_impl(name: String, path: String) -> Error:
 	name = _validate_name(name)
 	
 	if not _is_valid_name(name):
-		return _assert_false("CREATE DATABASE", "Invalid database name: " + name)
+		return _assert_false("CREATE DATABASE", tr("Invalid database name: ") + name)
 		
 	var dbs = GDSQL.RootConfig.get_databases_info()
 	if dbs.has(name):
-		return _assert_false("CREATE DATABASE", "Database already exists: " + name)
+		return _assert_false("CREATE DATABASE", tr("Database already exists: ") + name)
 	for db_name in dbs:
 		if dbs[db_name]["data_path"] == path:
-			return _assert_false("CREATE DATABASE", "Path already in use: " + path)
+			return _assert_false("CREATE DATABASE", tr("Path already in use: ") + path)
 			
 	GDSQL.RootConfig.set_database_data(name, path, "")
 	GDSQL.RootConfig.save()
 	
 	var msgs = []
-	msgs.push_back("1 file: %s has been modified." % GDSQL.RootConfig.path)
+	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
 	
 	var dir = DirAccess.open(GDSQL.RootConfig.get_base_dir())
 	if dir == null:
-		return _assert_false("CREATE DATABASE", "Cannot open config root: " + GDSQL.RootConfig.get_base_dir())
+		return _assert_false("CREATE DATABASE", tr("Cannot open config root: ") + GDSQL.RootConfig.get_base_dir())
 		
 	var config_path = GDSQL.RootConfig.get_database_config_path(name)
 	if not dir.dir_exists(config_path):
 		var err = dir.make_dir_recursive(config_path)
 		if err != OK:
-			return _assert_false("CREATE DATABASE", "Cannot make dir %s! Err: %s." % [config_path, err])
-		msgs.push_back("Dir: %s has been made." % config_path)
+			return _assert_false("CREATE DATABASE", tr("Cannot make dir %s! Err: %s.") % [config_path, err])
+		msgs.push_back(tr("Dir: %s has been made.") % config_path)
 		
 	_log("CREATE DATABASE", msgs, false)
 	return OK
@@ -171,15 +171,15 @@ func _alter_database_impl(old_name: String, new_name: String) -> Error:
 	new_name = _validate_name(new_name)
 	
 	if not _is_valid_name(new_name):
-		return _assert_false("ALTER DATABASE", "Invalid new database name: " + new_name)
+		return _assert_false("ALTER DATABASE", tr("Invalid new database name: ") + new_name)
 	if old_name == new_name:
-		return _assert_false("ALTER DATABASE", "Nothing changed!")
+		return _assert_false("ALTER DATABASE", tr("Nothing changed!"))
 		
 	var dbs = GDSQL.RootConfig.get_databases_info()
 	if not dbs.has(old_name):
-		return _assert_false("ALTER DATABASE", "Database not found: " + old_name)
+		return _assert_false("ALTER DATABASE", tr("Database not found: ") + old_name)
 	if dbs.has(new_name):
-		return _assert_false("ALTER DATABASE", "Database name has been occupied: " + new_name)
+		return _assert_false("ALTER DATABASE", tr("Database name has been occupied: ") + new_name)
 		
 	var data = dbs[old_name].duplicate(true)
 	var old_path = GDSQL.RootConfig.get_database_config_path(old_name)
@@ -188,7 +188,7 @@ func _alter_database_impl(old_name: String, new_name: String) -> Error:
 	if DirAccess.dir_exists_absolute(old_path):
 		var err = DirAccess.rename_absolute(old_path, new_path)
 		if err != OK:
-			return _assert_false("ALTER DATABASE", "Cannot rename config dir!")
+			return _assert_false("ALTER DATABASE", tr("Cannot rename config dir!"))
 			
 	var old_data_path = data.get("data_path", "")
 	if not old_data_path.is_empty() and DirAccess.dir_exists_absolute(old_data_path):
@@ -213,7 +213,7 @@ func _alter_database_impl(old_name: String, new_name: String) -> Error:
 	GDSQL.RootConfig.erase_database(old_name)
 	GDSQL.RootConfig.save()
 	
-	_log("ALTER DATABASE", "Database renamed: %s -> %s" % [old_name, new_name], false)
+	_log("ALTER DATABASE", tr("Database renamed: %s -> %s") % [old_name, new_name], false)
 	return OK
 	
 ## Delete a database.
@@ -226,7 +226,7 @@ func _drop_database_impl(name: String) -> Error:
 	
 	var dbs = GDSQL.RootConfig.get_databases_info()
 	if not dbs.has(name):
-		return _assert_false("DROP DATABASE", "Database not found: " + name)
+		return _assert_false("DROP DATABASE", tr("Database not found: ") + name)
 		
 	var tables = dbs[name].get("tables", {})
 	for table_name in tables:
@@ -242,7 +242,7 @@ func _drop_database_impl(name: String) -> Error:
 	GDSQL.RootConfig.erase_database(name)
 	GDSQL.RootConfig.save()
 	
-	_log("DROP DATABASE", "Database deleted: " + name, false)
+	_log("DROP DATABASE", tr("Database deleted: ") + name, false)
 	return OK
 	
 # ----- Table Operations -----
@@ -260,11 +260,11 @@ func _create_table_impl(db_name: String, table_name: String, column_infos: Array
 	
 	var dbs = GDSQL.RootConfig.get_databases_info()
 	if not dbs.has(db_name):
-		return _assert_false("CREATE TABLE", "Database not found: " + db_name)
+		return _assert_false("CREATE TABLE", tr("Database not found: ") + db_name)
 	if dbs[db_name].get("tables", {}).has(table_name):
-		return _assert_false("CREATE TABLE", "Table already exists: " + table_name)
+		return _assert_false("CREATE TABLE", tr("Table already exists: ") + table_name)
 	if column_infos.is_empty():
-		return _assert_false("CREATE TABLE", "No columns defined")
+		return _assert_false("CREATE TABLE", tr("No columns defined"))
 		
 	var primarys = []
 	var action = "CREATE TABLE `%s`.`%s` (" % [db_name, table_name]
@@ -288,7 +288,7 @@ func _create_table_impl(db_name: String, table_name: String, column_infos: Array
 	for i in column_infos:
 		var cn = i.get("Column Name", "")
 		if cn in col_names:
-			return _assert_false(action, "Duplicate column name: " + cn)
+			return _assert_false(action, tr("Duplicate column name: ") + cn)
 		col_names.append(cn)
 		
 	var table_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, table_name)
@@ -296,7 +296,7 @@ func _create_table_impl(db_name: String, table_name: String, column_infos: Array
 	
 	var _path = GDSQL.GDSQLUtils.globalize_path(table_conf_path)
 	if FileAccess.file_exists(_path):
-		return _assert_false(action, "Table config file already exists: " + _path)
+		return _assert_false(action, tr("Table config file already exists: ") + _path)
 		
 	var conf: GDSQL.ImprovedConfigFile
 	if password.is_empty():
@@ -309,7 +309,7 @@ func _create_table_impl(db_name: String, table_name: String, column_infos: Array
 			conf = GDSQL.ConfManager.get_conf(table_conf_path, password)
 			
 	if conf == null:
-		return _assert_false(action, "Cannot create table config!")
+		return _assert_false(action, tr("Cannot create table config!"))
 		
 	conf.set_value(table_name, "columns", column_infos)
 	conf.set_value(table_name, "valid_if_not_exist", valid_if_not_exist)
@@ -320,7 +320,7 @@ func _create_table_impl(db_name: String, table_name: String, column_infos: Array
 	else:
 		conf.save_encrypted_pass(table_conf_path, password)
 		
-	msgs.push_back("1 file: %s has been modified." % table_conf_path)
+	msgs.push_back(tr("1 file: %s has been modified.") % table_conf_path)
 	
 	GDSQL.RootConfig.set_table_data(db_name, table_name, column_infos, comment, password, valid_if_not_exist)
 	GDSQL.RootConfig.save()
@@ -344,11 +344,11 @@ func _alter_table_impl(db_name: String, old_name: String, new_name: String,
 	
 	var dbs = GDSQL.RootConfig.get_databases_info()
 	if not dbs.has(db_name):
-		return _assert_false("ALTER TABLE", "Database not found: " + db_name)
+		return _assert_false("ALTER TABLE", tr("Database not found: ") + db_name)
 	if not dbs[db_name].get("tables", {}).has(old_name):
-		return _assert_false("ALTER TABLE", "Table not found: " + old_name)
+		return _assert_false("ALTER TABLE", tr("Table not found: ") + old_name)
 	if old_name != new_name and dbs[db_name].get("tables", {}).has(new_name):
-		return _assert_false("ALTER TABLE", "New table name already exists: " + new_name)
+		return _assert_false("ALTER TABLE", tr("New table name already exists: ") + new_name)
 		
 	var old_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, old_name)
 	GDSQL.ConfManager.remove_conf(old_conf_path)
@@ -397,15 +397,15 @@ func _drop_table_impl(db_name: String, table_name: String) -> Error:
 	
 	var dbs = GDSQL.RootConfig.get_databases_info()
 	if not dbs.has(db_name):
-		return _assert_false("DROP TABLE", "Database not found: " + db_name)
+		return _assert_false("DROP TABLE", tr("Database not found: ") + db_name)
 	if not dbs[db_name].get("tables", {}).has(table_name):
-		return _assert_false("DROP TABLE", "Table not found: " + table_name)
+		return _assert_false("DROP TABLE", tr("Table not found: ") + table_name)
 		
 	_remove_table_files(db_name, table_name)
 	GDSQL.RootConfig.erase_table(db_name, table_name)
 	GDSQL.RootConfig.save()
 	
-	_log("DROP TABLE", "Table deleted: " + table_name, false)
+	_log("DROP TABLE", tr("Table deleted: ") + table_name, false)
 	return OK
 	
 func truncate_table(db_name: String, table_name: String) -> Error:
@@ -418,15 +418,15 @@ func _truncate_table_impl(db_name: String, table_name: String) -> Error:
 	
 	var dbs = GDSQL.RootConfig.get_databases_info()
 	if not dbs.has(db_name):
-		return _assert_false("TRUNCATE TABLE", "Database not found: " + db_name)
+		return _assert_false("TRUNCATE TABLE", tr("Database not found: ") + db_name)
 	if not dbs[db_name].get("tables", {}).has(table_name):
-		return _assert_false("TRUNCATE TABLE", "Table not found: " + table_name)
+		return _assert_false("TRUNCATE TABLE", tr("Table not found: ") + table_name)
 		
 	var data_path = GDSQL.GDSQLUtils.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 	if FileAccess.file_exists(data_path):
 		OS.move_to_trash(data_path)
 		
-	_log("TRUNCATE TABLE", "Table truncated: " + table_name, false)
+	_log("TRUNCATE TABLE", tr("Table truncated: ") + table_name, false)
 	return OK
 	
 # ----- Password Operations -----
@@ -436,12 +436,12 @@ func set_db_password(db_name: String, password: String) -> Error:
 	
 	var dbs = GDSQL.RootConfig.get_databases_info()
 	if not dbs.has(db_name):
-		return _assert_false("SET PASSWORD", "Database not found: " + db_name)
+		return _assert_false("SET PASSWORD", tr("Database not found: ") + db_name)
 		
 	GDSQL.RootConfig.set_database_data(db_name, dbs[db_name].get("data_path", ""), password)
 	GDSQL.RootConfig.save()
 	
-	_log("SET PASSWORD", "Database password set", false)
+	_log("SET PASSWORD", tr("Database password set"), false)
 	return OK
 	
 func change_db_password(db_name: String, new_password: String) -> Error:
@@ -456,9 +456,9 @@ func set_table_password(db_name: String, table_name: String, password: String) -
 	
 	var dbs = GDSQL.RootConfig.get_databases_info()
 	if not dbs.has(db_name):
-		return _assert_false("SET PASSWORD", "Database not found: " + db_name)
+		return _assert_false("SET PASSWORD", tr("Database not found: ") + db_name)
 	if not dbs[db_name].get("tables", {}).has(table_name):
-		return _assert_false("SET PASSWORD", "Table not found: " + table_name)
+		return _assert_false("SET PASSWORD", tr("Table not found: ") + table_name)
 		
 	var data_path = GDSQL.RootConfig.get_table_data_path(db_name, table_name)
 	var conf_path = GDSQL.RootConfig.get_table_config_path(db_name, table_name)
@@ -473,7 +473,7 @@ func set_table_password(db_name: String, table_name: String, password: String) -
 	GDSQL.RootConfig.set_table_password(db_name, table_name, password)
 	GDSQL.RootConfig.save()
 	
-	_log("SET PASSWORD", "Table password set", false)
+	_log("SET PASSWORD", tr("Table password set"), false)
 	return OK
 	
 func change_table_password(db_name: String, table_name: String, new_password: String) -> Error:
