@@ -126,9 +126,8 @@ func _exec_with_password_guard(action_name: String, db_name: String, action_impl
 	
 ## Create a new database.
 func create_database(name: String, path: String) -> Error:
-	return await _exec_with_password_guard("CREATE DATABASE", name,
-		func(): return _create_database_impl(name, path))
-		
+	return _create_database_impl(name, path)
+	
 func _create_database_impl(name: String, path: String) -> Error:
 	name = _validate_name(name)
 	
