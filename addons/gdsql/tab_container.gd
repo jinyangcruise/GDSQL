@@ -40,6 +40,8 @@ func _ready() -> void:
 		mgr.open_mapper_graph_tab.connect(add_tab_mapper_graph, CONNECT_DEFERRED)
 	if not mgr.open_mapper_graph_file_tab.is_connected(add_tab_mapper_graph_file):
 		mgr.open_mapper_graph_file_tab.connect(add_tab_mapper_graph_file)
+	if not mgr.open_settings_tab.is_connected(add_tab_settings):
+		mgr.open_settings_tab.connect(add_tab_settings, CONNECT_DEFERRED)
 		
 	if not mgr.sys_confirm_add_schema.is_connected(close_content_window):
 		mgr.sys_confirm_add_schema.connect(close_content_window, CONNECT_DEFERRED)
@@ -82,6 +84,8 @@ func _exit_tree():
 		mgr.open_mapper_graph_tab.disconnect(add_tab_mapper_graph)
 	if mgr.open_mapper_graph_file_tab.is_connected(add_tab_mapper_graph_file):
 		mgr.open_mapper_graph_file_tab.disconnect(add_tab_mapper_graph_file)
+	if mgr.open_settings_tab.is_connected(add_tab_settings):
+		mgr.open_settings_tab.disconnect(add_tab_settings)
 		
 	if mgr.sys_confirm_add_schema.is_connected(close_content_window):
 		mgr.sys_confirm_add_schema.disconnect(close_content_window)
@@ -285,6 +289,20 @@ func add_tab_mapper_graph_file(path: String):
 	set_tab_title(current_tab, path.get_file())
 	_tab_index += 1
 	mapper_file.load_mapper_file(path)
+	
+func add_tab_settings() -> void:
+	# 检查是否已经打开了设置页签，直接激活
+	for i in get_tab_count():
+		var page = get_tab_control(i)
+		if page.get_meta("type") == "settings":
+			current_tab = i
+			return
+			
+	var settings_tab = preload("res://addons/gdsql/tabs/gsql_tab_settings.tscn").instantiate()
+	add_child(settings_tab)
+	move_child(new_tab_button, get_child_count() - 1)
+	current_tab = get_child_count() - 2
+	set_tab_title(current_tab, "Settings")
 	
 func _on_tab_button_pressed(tab: int) -> void:
 	if tab != current_tab:

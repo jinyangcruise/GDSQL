@@ -52,6 +52,9 @@ signal open_mapper_graph_tab(info: Dictionary)
 ## 打开生成Mapper文件的信号
 signal open_mapper_graph_file_tab(path: String)
 
+## 打开设置页签的信号
+signal open_settings_tab
+
 ## 请求新建某表
 signal request_create_table(db_name: String, table_name: String, comment: String, password: String, column_infos: Array)
 ## 请求删除某表

@@ -566,6 +566,13 @@ bbcode_enabled = true
 text = "This is a random tip! This is a random tip!"
 fit_content = true
 
+[node name="SettingsButton" type="Button" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Right" unique_id=2117045278]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 36)
+layout_mode = 2
+size_flags_horizontal = 8
+text = "Settings"
+
 [node name="Version" type="Label" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Right" unique_id=1643781930]
 unique_name_in_owner = true
 layout_mode = 2

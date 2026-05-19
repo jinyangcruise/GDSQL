@@ -6,6 +6,7 @@ extends MarginContainer
 @onready var tree_databases: Tree = %TreeDatabases
 @onready var tab_container: TabContainer = %TabContainer
 @onready var log_table: VBoxContainer = %LogTable
+@onready var menu_button_settings: MenuButton = %MenuButtonSettings
 
 func _ready() -> void:
 	if GDSQL.WorkbenchManager == null or not GDSQL.WorkbenchManager.run_in_plugin(self):
@@ -15,6 +16,9 @@ func _ready() -> void:
 	
 	if not GDSQL.WorkbenchManager.add_log_history.is_connected(add_a_log):
 		GDSQL.WorkbenchManager.add_log_history.connect(add_a_log)
+		
+	if menu_button_settings:
+		menu_button_settings.pressed.connect(_on_menu_settings_pressed)
 		
 	var sb: StyleBoxFlat = get_theme_stylebox(&"panel", &"TabContainer").duplicate()
 	sb.corner_radius_top_left = 0
@@ -73,6 +77,12 @@ func _exit_tree():
 		
 	if GDSQL.WorkbenchManager.add_log_history.is_connected(add_a_log):
 		GDSQL.WorkbenchManager.add_log_history.disconnect(add_a_log)
+		
+	if menu_button_settings and menu_button_settings.pressed.is_connected(_on_menu_settings_pressed):
+		menu_button_settings.pressed.disconnect(_on_menu_settings_pressed)
+		
+func _on_menu_settings_pressed() -> void:
+	GDSQL.WorkbenchManager.open_settings_tab.emit()
 		
 func _on_button_refresh_pressed() -> void:
 	tree_databases.refresh()

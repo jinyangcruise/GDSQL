@@ -18,6 +18,10 @@ config/name="GDSQL - Database SQL Workbench"
 run/main_scene="res://test/test_runner.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
+[editor]
+
+script/search_in_file_extensions=PackedStringArray("gd", "tscn", "gdshader")
+
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/gdsql/plugin.cfg")

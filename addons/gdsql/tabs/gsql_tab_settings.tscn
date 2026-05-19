@@ -1,0 +1,183 @@
+[gd_scene format=3 uid="uid://nmkw30kvvjy3"]
+
+[ext_resource type="Script" uid="uid://leju7sj5k0eq" path="res://addons/gdsql/tabs/gsql_tab_settings.gd" id="1_gd"]
+[ext_resource type="Texture2D" uid="uid://cvsng4qulhy7p" path="res://addons/gdsql/img/folder.png" id="2_folder"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
+
+[node name="settings" type="VBoxContainer" unique_id=96272528]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_gd")
+metadata/type = "settings"
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=589648543]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=1015686014]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="TitleLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1859949575]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.278, 0.549, 0.749, 1)
+theme_override_font_sizes/font_size = 22
+text = "GDSQL Settings"
+
+[node name="HSeparator" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=201253379]
+layout_mode = 2
+
+[node name="SectionConfig" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1963642115]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.8)
+theme_override_font_sizes/font_size = 18
+text = "Config Paths"
+
+[node name="HBoxRootConfig" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1799485061]
+layout_mode = 2
+
+[node name="LabelRootConfig" type="Label" parent="MarginContainer/VBoxContainer/HBoxRootConfig" unique_id=589763954]
+custom_minimum_size = Vector2(290, 0)
+layout_mode = 2
+tooltip_text = "Root config file path. Stores the root config (database/table schemas) used by GDSQL within the project."
+text = "Root Config Path"
+horizontal_alignment = 2
+
+[node name="LineEditRootConfig" type="LineEdit" parent="MarginContainer/VBoxContainer/HBoxRootConfig" unique_id=516281190]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "res://gdsql/define/config.cfg"
+placeholder_text = "res://gdsql/define/config.cfg"
+
+[node name="ButtonRootConfig" type="Button" parent="MarginContainer/VBoxContainer/HBoxRootConfig" unique_id=80452130]
+layout_mode = 2
+tooltip_text = "Select file from project resources"
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "Resource"
+icon = ExtResource("2_folder")
+
+[node name="ButtonRootConfig2" type="Button" parent="MarginContainer/VBoxContainer/HBoxRootConfig" unique_id=1390459104]
+layout_mode = 2
+tooltip_text = "Select file from user data directory"
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "UserData"
+icon = ExtResource("2_folder")
+
+[node name="ButtonRootConfig3" type="Button" parent="MarginContainer/VBoxContainer/HBoxRootConfig" unique_id=740544839]
+layout_mode = 2
+tooltip_text = "Select file from file system"
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "FileSystem"
+icon = ExtResource("2_folder")
+
+[node name="ButtonRootConfigInstall" type="Button" parent="MarginContainer/VBoxContainer/HBoxRootConfig" unique_id=187000669]
+layout_mode = 2
+tooltip_text = "Use the game installation directory (install://). You may append a subdirectory, e.g. install://gdsql/define/"
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "Install"
+
+[node name="HBoxSupplConfig" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=564776647]
+layout_mode = 2
+
+[node name="LabelSupplConfig" type="Label" parent="MarginContainer/VBoxContainer/HBoxSupplConfig" unique_id=853546660]
+custom_minimum_size = Vector2(290, 0)
+layout_mode = 2
+tooltip_text = "Supplementary config file path. Used when the game is exported, storing runtime-created database/table metadata. Should point to a user:// or install:// path."
+text = "Supplementary Config Path"
+horizontal_alignment = 2
+
+[node name="LineEditSupplConfig" type="LineEdit" parent="MarginContainer/VBoxContainer/HBoxSupplConfig" unique_id=694360984]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "user://gdsql/define/runtime_config.cfg"
+placeholder_text = "user://gdsql/define/runtime_config.cfg"
+
+[node name="ButtonSupplConfig2" type="Button" parent="MarginContainer/VBoxContainer/HBoxSupplConfig" unique_id=1631824122]
+layout_mode = 2
+tooltip_text = "Select file from user data directory"
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "UserData"
+icon = ExtResource("2_folder")
+
+[node name="ButtonSupplConfig3" type="Button" parent="MarginContainer/VBoxContainer/HBoxSupplConfig" unique_id=1853984013]
+layout_mode = 2
+tooltip_text = "Select file from file system"
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "FileSystem"
+icon = ExtResource("2_folder")
+
+[node name="ButtonSupplConfigInstall" type="Button" parent="MarginContainer/VBoxContainer/HBoxSupplConfig" unique_id=175539485]
+layout_mode = 2
+tooltip_text = "Use the game installation directory (install://). You may append a subdirectory, e.g. install://gdsql/define/"
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "Install"
+
+[node name="HSeparator2" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=1850536713]
+layout_mode = 2
+
+[node name="SectionDatabase" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1103354298]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.8)
+theme_override_font_sizes/font_size = 18
+text = "Database"
+
+[node name="HBoxGameDbName" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=494004156]
+layout_mode = 2
+
+[node name="LabelGameDbName" type="Label" parent="MarginContainer/VBoxContainer/HBoxGameDbName" unique_id=902117084]
+custom_minimum_size = Vector2(290, 0)
+layout_mode = 2
+tooltip_text = "The database name used for game configuration (e.g. for storing runtime game settings)."
+text = "Game Conf DB Name"
+horizontal_alignment = 2
+
+[node name="OptionButtonGameDbName" type="OptionButton" parent="MarginContainer/VBoxContainer/HBoxGameDbName" unique_id=796619345]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Choose a configured database, or leave empty."
+selected = 0
+fit_to_longest_item = false
+item_count = 1
+popup/item_0/id = 0
+
+[node name="HSeparator3" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=1078470491]
+layout_mode = 2
+
+[node name="HFlowContainer" type="HFlowContainer" parent="MarginContainer/VBoxContainer" unique_id=957094673]
+layout_mode = 2
+alignment = 1
+
+[node name="ButtonSave" type="Button" parent="MarginContainer/VBoxContainer/HFlowContainer" unique_id=473698243]
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "Save"
+
+[node name="HSeparator4" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=1623243278]
+layout_mode = 2
+
+[node name="StatusContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=46626828]
+layout_mode = 2
+alignment = 1
+
+[node name="StatusLabel" type="Label" parent="MarginContainer/VBoxContainer/StatusContainer" unique_id=716574135]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.4, 0.8, 0.4, 1)
+
+[connection signal="pressed" from="MarginContainer/VBoxContainer/HBoxRootConfig/ButtonRootConfig" to="." method="_on_select_root_config_path" binds= [0]]
+[connection signal="pressed" from="MarginContainer/VBoxContainer/HBoxRootConfig/ButtonRootConfig2" to="." method="_on_select_root_config_path" binds= [1]]
+[connection signal="pressed" from="MarginContainer/VBoxContainer/HBoxRootConfig/ButtonRootConfig3" to="." method="_on_select_root_config_path" binds= [2]]
+[connection signal="pressed" from="MarginContainer/VBoxContainer/HBoxRootConfig/ButtonRootConfigInstall" to="." method="_on_install_config_path" binds= ["LineEditRootConfig"]]
+[connection signal="pressed" from="MarginContainer/VBoxContainer/HBoxSupplConfig/ButtonSupplConfig2" to="." method="_on_select_supplementary_config_path" binds= [1]]
+[connection signal="pressed" from="MarginContainer/VBoxContainer/HBoxSupplConfig/ButtonSupplConfig3" to="." method="_on_select_supplementary_config_path" binds= [2]]
+[connection signal="pressed" from="MarginContainer/VBoxContainer/HBoxSupplConfig/ButtonSupplConfigInstall" to="." method="_on_install_config_path" binds= ["LineEditSupplConfig"]]
+[connection signal="pressed" from="MarginContainer/VBoxContainer/HFlowContainer/ButtonSave" to="." method="_on_button_save_pressed"]
