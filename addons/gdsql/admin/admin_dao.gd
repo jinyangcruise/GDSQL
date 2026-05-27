@@ -156,6 +156,7 @@ func create_database(name: String, path: String) -> Error:
 	
 func _create_database_impl(db_name: String, path: String) -> Error:
 	db_name = _validate_name(db_name)
+	var path_bak = path
 	path = GDSQL.GDSQLUtils.globalize_path(path)
 	
 	var action = "CREATE DATABASE %s PATH %s;" % [db_name, path]
@@ -175,11 +176,11 @@ func _create_database_impl(db_name: String, path: String) -> Error:
 			msgs.push_back(tr("Failed! Database name `%s` has been occupied!") % db_name)
 			return _error_occur(action, msgs)
 			
-		if databases[a_db_name]["data_path"] == path:
+		if databases[a_db_name]["data_path"] in [path, path_bak]:
 			msgs.push_back(tr("Failed! Database path `%s`(%s) already exist!") % [path, a_db_name])
 			return _error_occur(action, msgs)
 			
-	GDSQL.RootConfig.set_database_data(db_name, path, "")
+	GDSQL.RootConfig.set_database_data(db_name, path_bak, "")
 	GDSQL.RootConfig.save()
 	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.RootConfig.path)
 	
