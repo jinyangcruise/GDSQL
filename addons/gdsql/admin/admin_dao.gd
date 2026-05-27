@@ -570,7 +570,7 @@ column_infos: Array, comments: String = "", valid_if_not_exist: bool = false) ->
 							msgs.push_back(tr("Old datas have NULL value of not null key [%s]!") % col_name)
 							return _error_occur(action, msgs)
 							
-	var apply = func() -> void:
+	var apply = func() -> Error:
 		
 		var new_table_data_file = old_table_data_file if old_table_data_path == new_table_data_path \
 			else GDSQL.ConfManager.create_conf(new_table_data_path, "")
