@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        godot-version: [4.7-beta3]
+        godot-version: [4.7]
 
     steps:
       - uses: actions/checkout@v4
@@ -24,6 +24,7 @@ jobs:
       - uses: godot-gdunit-labs/gdUnit4-action@v1
         with:
           godot-version: ${{ matrix.godot-version }}
+          godot-status: beta3
           version: installed
           paths: |
             res://test/core
