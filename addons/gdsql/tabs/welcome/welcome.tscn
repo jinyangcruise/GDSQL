@@ -510,6 +510,25 @@ texture_hover = ExtResource("4_ag8ky")
 ignore_texture_size = true
 stretch_mode = 3
 
+[node name="MarginContainer6" type="MarginContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left" unique_id=1237235363]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = -6
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="HBoxContainer" type="HBoxContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer6" unique_id=1122947784]
+layout_mode = 2
+
+[node name="ThankButton" type="LinkButton" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer6/HBoxContainer" unique_id=651717355]
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.2784314, 0.54901963, 0.7490196, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+text = "Credits"
+underline = 2
+
 [node name="Right" type="VBoxContainer" parent="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer" unique_id=536152320]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -586,4 +605,5 @@ tooltip_text = "Settings"
 icon = ExtResource("6_ntqe3")
 flat = true
 
+[connection signal="pressed" from="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer6/HBoxContainer/ThankButton" to="." method="_on_license_button_pressed"]
 [connection signal="resized" from="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Right/VBoxContainer/MarginContainer/PanelContainer/RandomTipLabel" to="." method="_on_random_tip_label_resized"]

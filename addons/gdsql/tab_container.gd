@@ -4,8 +4,8 @@ extends TabContainer
 var mgr: GDSQL.WorkbenchManagerClass:
 	get: return GDSQL.WorkbenchManager
 	
-var SQLGraph = preload("res://addons/gdsql/tabs/sql_graph.tscn")
-var MAPPER_GRAPH = preload("res://addons/gdsql/tabs/mapper_graph.tscn")
+var SQLGraph = load("res://addons/gdsql/tabs/sql_graph.tscn")
+var MAPPER_GRAPH = load("res://addons/gdsql/tabs/mapper_graph.tscn")
 
 @onready var welcome_page: PanelContainer = %Welcome
 @onready var new_tab_button: Control = %"➕"
@@ -42,6 +42,8 @@ func _ready() -> void:
 		mgr.open_mapper_graph_file_tab.connect(add_tab_mapper_graph_file)
 	if not mgr.open_settings_tab.is_connected(add_tab_settings):
 		mgr.open_settings_tab.connect(add_tab_settings, CONNECT_DEFERRED)
+	if not mgr.open_license_tab.is_connected(add_tab_license):
+		mgr.open_license_tab.connect(add_tab_license, CONNECT_DEFERRED)
 		
 	if not mgr.sys_confirm_add_schema.is_connected(close_content_window):
 		mgr.sys_confirm_add_schema.connect(close_content_window, CONNECT_DEFERRED)
@@ -57,7 +59,7 @@ func _ready() -> void:
 	if not mgr.send_to_editor_and_execute.is_connected(receive_content_and_execute):
 		mgr.send_to_editor_and_execute.connect(receive_content_and_execute, CONNECT_DEFERRED)
 		
-	set_tab_icon(WELCOME_PAGE_TAB_INDEX, preload("res://addons/gdsql/img/gdsql_text_icon.svg"))
+	set_tab_icon(WELCOME_PAGE_TAB_INDEX, load("res://addons/gdsql/img/gdsql_text_icon.svg"))
 	get_tab_bar().active_tab_rearranged.connect(_on_active_tab_rearranged)
 	
 func _exit_tree():
@@ -86,6 +88,8 @@ func _exit_tree():
 		mgr.open_mapper_graph_file_tab.disconnect(add_tab_mapper_graph_file)
 	if mgr.open_settings_tab.is_connected(add_tab_settings):
 		mgr.open_settings_tab.disconnect(add_tab_settings)
+	if mgr.open_license_tab.is_connected(add_tab_license):
+		mgr.open_license_tab.disconnect(add_tab_license)
 		
 	if mgr.sys_confirm_add_schema.is_connected(close_content_window):
 		mgr.sys_confirm_add_schema.disconnect(close_content_window)
@@ -147,14 +151,14 @@ func add_tab_graph_file(path: String) -> void:
 	sql_file.load_graph_file(path)
 	
 func add_tab_new_schema() -> void:
-	var new_schema = preload("res://addons/gdsql/tabs/new_schema.tscn").instantiate()
+	var new_schema = load("res://addons/gdsql/tabs/new_schema.tscn").instantiate()
 	add_child(new_schema)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
 	set_tab_title(current_tab, "new_schema")
 		
 func add_tab_alter_schema(db_name, path) -> void:
-	var alter_schema = preload("res://addons/gdsql/tabs/alter_schema.tscn").instantiate()
+	var alter_schema = load("res://addons/gdsql/tabs/alter_schema.tscn").instantiate()
 	alter_schema.old_db_name = db_name
 	alter_schema.db_name = db_name
 	alter_schema.path = path
@@ -164,7 +168,7 @@ func add_tab_alter_schema(db_name, path) -> void:
 	set_tab_title(current_tab, "alter_schema")
 	
 func add_tab_new_table(db_name, like_db_name = "", like_table_name = "") -> void:
-	var new_table = preload("res://addons/gdsql/tabs/new_table.tscn").instantiate()
+	var new_table = load("res://addons/gdsql/tabs/new_table.tscn").instantiate()
 	new_table.schema = db_name
 	# 如果是create table like，把参考表的表结构复制过来
 	if like_db_name != "" and like_table_name != "":
@@ -182,7 +186,7 @@ func add_tab_new_table(db_name, like_db_name = "", like_table_name = "") -> void
 	set_tab_title(current_tab, "new_table")
 	
 func add_tab_alter_table(db_name, table_name) -> void:
-	var alter_table = preload("res://addons/gdsql/tabs/alter_table.tscn").instantiate()
+	var alter_table = load("res://addons/gdsql/tabs/alter_table.tscn").instantiate()
 	alter_table.schema = db_name
 	alter_table.old_table_name = table_name
 	alter_table.table_name = table_name
@@ -200,7 +204,7 @@ func add_tab_alter_table(db_name, table_name) -> void:
 	set_tab_title(current_tab, "alter_table")
 	
 func add_tab_table_inspector(db_name, table_name) -> void:
-	var table_inspector = preload("res://addons/gdsql/tabs/table_inspector.tscn").instantiate()
+	var table_inspector = load("res://addons/gdsql/tabs/table_inspector.tscn").instantiate()
 	table_inspector.schema = db_name
 	table_inspector.table_name = table_name
 	var defination = mgr.databases.get(db_name, {}).get("tables", {}).get(table_name, {}) as Dictionary
@@ -230,7 +234,7 @@ func add_tab_table_inspector(db_name, table_name) -> void:
 	set_tab_title(current_tab, "Inspector:%s" % table_name)
 	
 func add_tab_table_data_export(db_name, table_name) -> void:
-	var table_data_export = preload("res://addons/gdsql/tabs/table_data_export.tscn").instantiate()
+	var table_data_export = load("res://addons/gdsql/tabs/table_data_export.tscn").instantiate()
 	add_child(table_data_export)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
@@ -238,7 +242,7 @@ func add_tab_table_data_export(db_name, table_name) -> void:
 	table_data_export.select_table(db_name, table_name)
 	
 func add_tab_table_data_import(db_name, table_name) -> void:
-	var table_data_import = preload("res://addons/gdsql/tabs/table_data_import.tscn").instantiate()
+	var table_data_import = load("res://addons/gdsql/tabs/table_data_import.tscn").instantiate()
 	add_child(table_data_import)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
@@ -246,7 +250,7 @@ func add_tab_table_data_import(db_name, table_name) -> void:
 	table_data_import.select_table(db_name, table_name)
 	
 func add_tab_select_data_export(columns: Array, datas: Array) -> void:
-	var select_data_export = preload("res://addons/gdsql/tabs/select_data_export.tscn").instantiate()
+	var select_data_export = load("res://addons/gdsql/tabs/select_data_export.tscn").instantiate()
 	add_child(select_data_export)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
@@ -298,12 +302,27 @@ func add_tab_settings() -> void:
 			current_tab = i
 			return
 			
-	var settings_tab = preload("res://addons/gdsql/tabs/gsql_tab_settings.tscn").instantiate()
+	var settings_tab = load("res://addons/gdsql/tabs/gsql_tab_settings.tscn").instantiate()
 	add_child(settings_tab)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
 	set_tab_title(current_tab, "Settings")
 	
+func add_tab_license() -> void:
+	for i in get_tab_count():
+		var page = get_tab_control(i)
+		if page.get_meta("type") == "license":
+			current_tab = i
+			return
+
+	var license_page = load("res://addons/gdsql/tabs/license/license.gd").new()
+	license_page.set_meta("type", "license")
+	add_child(license_page)
+	move_child(new_tab_button, get_child_count() - 1)
+	current_tab = get_child_count() - 2
+	set_tab_title(current_tab, "Licenses")
+
+
 func _on_tab_button_pressed(tab: int) -> void:
 	if tab != current_tab:
 		current_tab = tab

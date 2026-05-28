@@ -16,6 +16,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 config/name="GDSQL"
 config/description="GDSQL - Database SQL Workbench"
+config/tags=PackedStringArray("opensource")
 config/features=PackedStringArray("4.7", "Forward Plus")
 
 [editor]

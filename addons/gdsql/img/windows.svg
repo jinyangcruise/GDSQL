@@ -22,18 +22,17 @@
      inkscape:pageopacity="0"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#505050"
-     inkscape:zoom="6.7382812"
-     inkscape:cx="-81.029565"
-     inkscape:cy="16.102029"
+     inkscape:zoom="13.476562"
+     inkscape:cx="-33.762319"
+     inkscape:cy="1.0017391"
      inkscape:window-width="3840"
      inkscape:window-height="2054"
      inkscape:window-x="-11"
      inkscape:window-y="-11"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg1" />
-  <!--! Font Awesome Free 6.0.0-beta2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) -->
   <path
-     d="M 14.25,7.4999974 H 5.2499984 c -1.2427736,0 -2.2500004,1.0072267 -2.2500004,2.2500004 V 18.75 c 0,1.242422 1.0072268,2.25 2.2500004,2.25 H 14.25 c 1.242774,0 2.250001,-1.007578 2.250001,-2.25 V 9.7499978 c 0,-1.1355471 -0.92461,-2.2500004 -2.250001,-2.2500004 z m 0,4.5000006 H 5.2499984 V 9.7499978 H 14.25 Z M 18.750001,3 H 9.7499993 C 8.5072256,3 7.4999989,4.0072268 7.4999989,5.2183598 V 5.812497 H 9.7499993 V 5.2499969 h 9.0000017 v 9.0000021 h -0.5625 v 2.25 l 0.5625,4e-6 c 1.242774,0 2.250001,-1.007579 2.250001,-2.250001 V 5.2500004 C 21.000002,4.0072232 19.991017,3 18.750001,3 Z"
+     d="M 19.3125,3 H 8.0625 C 7.1308594,3 6.375,3.7558594 6.375,4.6875 V 6.375 H 4.6875 C 3.7558594,6.375 3,7.1308594 3,8.0625 v 11.25 C 3,20.244141 3.7558594,21 4.6875,21 h 11.25 c 0.931641,0 1.6875,-0.755859 1.6875,-1.6875 V 17.625 h 1.6875 C 20.244141,17.625 21,16.869141 21,15.9375 V 4.6875 C 21,3.7558594 20.244141,3 19.3125,3 Z m -3.375,16.3125 H 4.6875 V 12 h 11.25 z m 3.375,-3.375 H 17.625 V 8.0625 C 17.625,7.1308594 16.869141,6.375 15.9375,6.375 H 8.0625 V 4.6875 h 11.25 z"
      id="path1"
-     style="stroke-width:0.0351563;fill:#d7dbe4;fill-opacity:1" />
+     style="fill:#d7dbe4;fill-opacity:1;stroke-width:0.0351562" />
 </svg>
