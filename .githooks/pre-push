@@ -1,0 +1,44 @@
+#!/bin/bash
+## Git pre-push hook: auto-update file_manifest.txt before pushing a tag.
+## Install: git config core.hooksPath .githooks
+##
+## Detects if a tag is being pushed, diffs against the last tag,
+## and appends added/removed file entries to file_manifest.txt.
+
+MANIFEST="addons/gdsql/tabs/plugin_updater/file_manifest.txt"
+
+# Read stdin to check if a tag is being pushed
+while read local_ref local_sha remote_ref remote_sha; do
+	if [[ "$local_ref" == refs/tags/v* ]]; then
+		TAG="${local_ref#refs/tags/}"
+		VER="${TAG#v}"
+
+		PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v' | sed -n '2p')
+
+		if [ -n "$PREV_TAG" ]; then
+			echo "Updating manifest: $PREV_TAG → $TAG"
+
+			grep -v "^[+-],$VER," "$MANIFEST" > "${MANIFEST}.tmp" 2>/dev/null && mv "${MANIFEST}.tmp" "$MANIFEST"
+
+			while IFS= read -r f; do
+				[ -n "$f" ] && echo "+,$VER,$f" >> "$MANIFEST"
+			done < <(git diff --name-only --diff-filter=A "$PREV_TAG"...HEAD -- addons/gdsql/)
+			while IFS= read -r f; do
+				[ -n "$f" ] && echo "-,$VER,$f" >> "$MANIFEST"
+			done < <(git diff --name-only --diff-filter=D "$PREV_TAG"...HEAD -- addons/gdsql/)
+		else
+			echo "No previous tag. Creating initial manifest."
+			find addons/gdsql/ -type f \
+				! -name '*.import' \
+				! -name '*.translation' \
+				| sort \
+				| sed "s|^|+,$VER,|" > "$MANIFEST"
+		fi
+
+		git add "$MANIFEST"
+		echo "Manifest updated. Please commit and push again."
+		break
+	fi
+done
+
+exit 0
