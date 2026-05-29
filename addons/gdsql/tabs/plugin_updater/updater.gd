@@ -202,6 +202,10 @@ func _collect_files(dir: DirAccess, prefix: String, known: Dictionary, result: A
 			if sub:
 				_collect_files(sub, prefix + f + "/", known, result)
 		else:
+			# Skip auto-generated .translation files
+			if f.ends_with(".translation"):
+				f = dir.get_next()
+				continue
 			# For .uid/.import: flag only if the base file is not in known
 			if f.ends_with(".uid") or f.ends_with(".import"):
 				var base = rel.trim_suffix(".uid") if rel.ends_with(".uid") else rel.trim_suffix(".import")
