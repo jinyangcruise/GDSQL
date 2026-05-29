@@ -268,6 +268,9 @@
 +,0.5.0,addons/gdsql/tabs/new_table.gd
 +,0.5.0,addons/gdsql/tabs/new_table.gd.uid
 +,0.5.0,addons/gdsql/tabs/new_table.tscn
++,0.5.0,addons/gdsql/tabs/plugin_updater/file_manifest.txt
++,0.5.0,addons/gdsql/tabs/plugin_updater/updater.gd
++,0.5.0,addons/gdsql/tabs/plugin_updater/updater.gd.uid
 +,0.5.0,addons/gdsql/tabs/select_data_export.gd
 +,0.5.0,addons/gdsql/tabs/select_data_export.gd.uid
 +,0.5.0,addons/gdsql/tabs/select_data_export.tscn

@@ -1,34 +1,32 @@
 #!/bin/bash
 ## Git pre-tag hook: auto-update file_manifest.txt before tagging.
-## Place this file in .git/hooks/pre-tag or run: git config core.hooksPath .githooks
-##
-## It diffs the working tree against the last tag to find added/removed files
+## Diffs the working tree against the last tag to find added/removed files
 ## in addons/gdsql/ and appends them to file_manifest.txt.
 
 MANIFEST="addons/gdsql/tabs/plugin_updater/file_manifest.txt"
-CUR_TAG="${1:-$(git describe --tags --dirty 2>/dev/null || echo 'dev')}"
+TAG="${1:-$(git describe --tags --dirty 2>/dev/null || echo 'dev')}"
+VER="${TAG#v}"
 
-# Find the previous tag
-PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v' | head -1)
+PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v' | sed -n '2p')
 
-if [ -z "$PREV_TAG" ]; then
-	echo "No previous tag found, skipping manifest update."
-	exit 0
+if [ -n "$PREV_TAG" ]; then
+	echo "Diffing $PREV_TAG → $TAG"
+
+	grep -v "^[+-],$VER," "$MANIFEST" > "${MANIFEST}.tmp" 2>/dev/null && mv "${MANIFEST}.tmp" "$MANIFEST"
+
+	while IFS= read -r f; do
+		[ -n "$f" ] && echo "+,$VER,$f" >> "$MANIFEST"
+	done < <(git diff --name-only --diff-filter=A "$PREV_TAG"...HEAD -- addons/gdsql/)
+	while IFS= read -r f; do
+		[ -n "$f" ] && echo "-,$VER,$f" >> "$MANIFEST"
+	done < <(git diff --name-only --diff-filter=D "$PREV_TAG"...HEAD -- addons/gdsql/)
+else
+	echo "No previous tag. Creating initial manifest."
+	find addons/gdsql/ -type f \
+		! -name '*.import' \
+		! -name '*.translation' \
+		| sort \
+		| sed "s|^|+,$VER,|" > "$MANIFEST"
 fi
 
-echo "Updating manifest: $PREV_TAG -> $CUR_TAG"
-
-# New files
-git diff --name-only --diff-filter=A "$PREV_TAG"...HEAD -- addons/gdsql/ | while read f; do
-	echo "+,$CUR_TAG,$f" >> "$MANIFEST"
-	echo "  + $f"
-done
-
-# Removed files
-git diff --name-only --diff-filter=D "$PREV_TAG"...HEAD -- addons/gdsql/ | while read f; do
-	echo "-,$CUR_TAG,$f" >> "$MANIFEST"
-	echo "  - $f"
-done
-
 git add "$MANIFEST"
-echo "Manifest updated."
