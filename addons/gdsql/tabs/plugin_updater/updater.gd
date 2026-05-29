@@ -224,34 +224,37 @@ func _on_upgrade() -> void:
 	var user_files = _detect_user_files(_latest_version)
 	
 	if not user_files.is_empty():
-		# Show warning dialog with force-overwrite option
+		var warn_text = "The following files in addons/gdsql/ are not part of the plugin. They may be your custom data:\n\n"
+		var max_show = 30
+		for i in range(min(user_files.size(), max_show)):
+			warn_text += "  - " + user_files[i] + "\n"
+		if user_files.size() > max_show:
+			warn_text += "  ... and %d more files\n" % (user_files.size() - max_show)
+		warn_text += "\nDo you want to proceed with the upgrade?"
+		
 		var warn = AcceptDialog.new()
 		warn.title = "Files Not Part of GDSQL"
-		warn.dialog_text = "The following files in addons/gdsql/ are not part of the plugin. They may be your custom data:\n\n"
-		for uf in user_files:
-			warn.dialog_text += "  - " + uf + "\n"
-		warn.dialog_text += "\nDo you want to proceed with the upgrade?"
+		warn.dialog_text = warn_text
 		warn.get_ok_button().text = "Cancel"
 		warn.add_button("Ignore and force overwrite", false, "force")
 		
-		get_tree().root.add_child(warn)
+		add_child(warn)
 		
 		var user_choice = ["cancel"]
-		warn.confirmed.connect(func(): user_choice[0] = "cancel")
-		warn.canceled.connect(func(): user_choice[0] = "cancel")
-		warn.custom_action.connect(func(a): user_choice[0] = a)
+		warn.confirmed.connect(func(): user_choice[0] = "cancel"; warn.queue_free())
+		warn.canceled.connect(func(): user_choice[0] = "cancel"; warn.queue_free())
+		warn.custom_action.connect(func(a): user_choice[0] = a; warn.queue_free())
 		warn.popup_centered()
 		await warn.tree_exited
+		
 		if user_choice[0] != "force":
 			_upgrade_btn.disabled = false
 			_upgrade_btn.text = "Upgrade to v%s" % _latest_version
 			return
-		# "force" → proceed to download
-		
-	# If force-overwrite was clicked (or no user files), proceed
+			
 	_start_download()
-
-
+	
+	
 func _start_download() -> void:
 	var zip_url = _release_info.get("zipball_url", "")
 	if zip_url.is_empty():
