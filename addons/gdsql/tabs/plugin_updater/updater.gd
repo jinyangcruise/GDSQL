@@ -21,7 +21,6 @@ var _info_label: Label
 var _notes_rt: RichTextLabel
 var _upgrade_btn: Button
 var _http: HTTPRequest
-var _dl_http: HTTPRequest
 
 
 func _init() -> void:
@@ -70,11 +69,6 @@ func _init() -> void:
 	add_child(_http)
 	_http.request_completed.connect(_on_request_completed)
 
-	# HTTP request for download
-	_dl_http = HTTPRequest.new()
-	_dl_http.name = "DownloadHTTP"
-	add_child(_dl_http)
-	_dl_http.request_completed.connect(_on_download_complete)
 
 
 
@@ -304,21 +298,146 @@ func _start_download() -> void:
 	if zip_url.is_empty():
 		_status_label.text = "Error: No download URL found."
 		return
-		
-	_status_label.text = "Downloading v%s..." % _latest_version
+
+	_status_label.text = "Preparing..."
 	_upgrade_btn.text = "Downloading..."
 	_upgrade_btn.disabled = true
-	
-	if not _dl_http:
-		_status_label.text = "Internal error."
-		return
-	var err = _dl_http.request(zip_url)
-	if err != OK:
-		_status_label.text = "Failed to start download."
+
+	var body = await _download_with_progress(zip_url)
+	if body.is_empty():
+		_status_label.text = "Download failed."
 		_upgrade_btn.disabled = false
 		_upgrade_btn.text = "Retry"
-		
-		
+		return
+
+	_status_label.text = "Extracting..."
+
+	# Save to temp file
+	var tmp_path = "user://gdsql_update_%s.zip" % _latest_version
+	var f = FileAccess.open(tmp_path, FileAccess.WRITE)
+	if not f:
+		_status_label.text = "Failed to write temp file."
+		_upgrade_btn.disabled = false
+		_upgrade_btn.text = "Retry"
+		return
+	f.store_buffer(body)
+	f.close()
+
+	# Extract using ZIPReader
+	var reader = ZIPReader.new()
+	var open_err = reader.open(tmp_path)
+	if open_err != OK:
+		_status_label.text = "Failed to open zip."
+		_upgrade_btn.disabled = false
+		_upgrade_btn.text = "Retry"
+		return
+
+	var zip_files = reader.get_files()
+	var prefix = ""
+	for fp in zip_files:
+		if fp.ends_with("/"):
+			prefix = fp
+			break
+
+	var extracted = 0
+	for fp in zip_files:
+		if not fp.begins_with(prefix + "addons/gdsql/"):
+			continue
+		if fp.ends_with("/"):
+			continue
+		var rel = fp.trim_prefix(prefix)
+		var target = "res://" + rel
+		var data = reader.read_file(fp)
+		if fp.ends_with(".import"):
+			continue
+		var d = DirAccess.open("res://")
+		if d:
+			d.make_dir_recursive(target.get_base_dir())
+		var wf = FileAccess.open(target, FileAccess.WRITE)
+		if wf:
+			wf.store_buffer(data)
+			wf.close()
+			extracted += 1
+
+	reader.close()
+	var global_path = ProjectSettings.globalize_path(tmp_path)
+	if DirAccess.dir_exists_absolute(global_path):
+		var dp = DirAccess.open(tmp_path.get_base_dir())
+		if dp:
+			dp.remove(tmp_path.get_file())
+
+	_status_label.text = "Upgrade complete! (%d files updated) Please restart Godot." % extracted
+	_upgrade_btn.disabled = true
+	_upgrade_btn.text = "Done"
+
+
+func _download_with_progress(url: String) -> PackedByteArray:
+	var client = HTTPClient.new()
+	var https = url.begins_with("https://")
+	var u = url.trim_prefix("https://").trim_prefix("http://")
+	var path = "/" + u.substr(u.find("/") + 1)
+	var host = u.substr(0, u.find("/"))
+	var tls = TLSOptions.client() if https else null
+	var err = client.connect_to_host(host, 443 if https else 80, tls)
+	if err != OK:
+		return PackedByteArray()
+
+	while client.get_status() in [HTTPClient.STATUS_CONNECTING, HTTPClient.STATUS_RESOLVING]:
+		client.poll()
+		await get_tree().process_frame
+
+	if client.get_status() != HTTPClient.STATUS_CONNECTED:
+		return PackedByteArray()
+
+	client.request(HTTPClient.METHOD_GET, path, ["User-Agent: Godot"])
+	while client.get_status() == HTTPClient.STATUS_REQUESTING:
+		client.poll()
+		await get_tree().process_frame
+
+	var status = client.get_status()
+	if status != HTTPClient.STATUS_BODY and status != HTTPClient.STATUS_CONNECTED:
+		return PackedByteArray()
+
+	# Follow redirect
+	var code = client.get_response_code()
+	if code >= 300 and code < 400:
+		for h in client.get_response_headers():
+			if h.to_lower().begins_with("location:"):
+				client.close()
+				return await _download_with_progress(h.substr(9).strip_edges())
+
+	# Get content length
+	var total = 0
+	for h in client.get_response_headers():
+		if h.to_lower().begins_with("content-length:"):
+			total = int(h.substr(15).strip_edges())
+			break
+
+	# Read body with progress
+	var body = PackedByteArray()
+	while client.get_status() == HTTPClient.STATUS_BODY:
+		client.poll()
+		var chunk = client.read_response_body_chunk()
+		if chunk.size() == 0:
+			await get_tree().process_frame
+			continue
+		body.append_array(chunk)
+		if total > 0:
+			var pct = int(float(body.size()) / total * 100)
+			_status_label.text = "Downloading... %d%% (%s / %s)" % [pct, _format_size(body.size()), _format_size(total)]
+			_upgrade_btn.text = "%d%%" % pct
+		else:
+			_status_label.text = "Downloading... %s" % _format_size(body.size())
+		await get_tree().process_frame
+
+	client.close()
+	return body
+
+
+func _format_size(b: int) -> String:
+	if b < 1024: return "%d B" % b
+	if b < 1048576: return "%.1f KB" % (b / 1024.0)
+	return "%.1f MB" % (b / 1048576.0)
 func _on_download_complete(result: int, _code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	if result != HTTPRequest.RESULT_SUCCESS:
 		_status_label.text = "Download failed."
