@@ -433,9 +433,13 @@ func _download_with_progress(url: String) -> PackedByteArray:
 		if total > 0:
 			_download_pct = int(float(body.size()) / total * 100)
 			_download_size = "%s / %s" % [_format_size(body.size()), _format_size(total)]
+			_status_label.text = "Downloading... " + str(_download_pct) + "% (" + _download_size + ")"
+			_upgrade_btn.text = str(_download_pct) + "%"
 		else:
 			_download_pct = -1
 			_download_size = _format_size(body.size())
+			_status_label.text = "Downloading... " + _download_size
+			_upgrade_btn.text = _download_size
 		await get_tree().process_frame
 
 	client.close()
@@ -444,15 +448,13 @@ func _download_with_progress(url: String) -> PackedByteArray:
 
 func _process(_delta: float) -> void:
 	if _download_pct >= 0:
-		var pct = _download_pct
-		var sz = _download_size
 		if _status_label:
-			_status_label.text = "Downloading... %d%% (%s)" % [pct, sz]
+			_status_label.text = "Downloading... " + str(_download_pct) + "% (" + _download_size + ")"
 		if _upgrade_btn:
-			_upgrade_btn.text = "%d%%" % pct
+			_upgrade_btn.text = str(_download_pct) + "%"
 	elif _download_pct == -1 and not _download_size.is_empty():
 		if _status_label:
-			_status_label.text = "Downloading... %s" % _download_size
+			_status_label.text = "Downloading... " + _download_size
 		if _upgrade_btn:
 			_upgrade_btn.text = _download_size
 
