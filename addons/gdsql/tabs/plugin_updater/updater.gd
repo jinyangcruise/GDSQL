@@ -403,8 +403,9 @@ func _download_with_progress(url: String) -> PackedByteArray:
 	if code >= 300 and code < 400:
 		for h in client.get_response_headers():
 			if h.to_lower().begins_with("location:"):
+				var loc = h.substr(9).strip_edges()
 				client.close()
-				return await _download_with_progress(h.substr(9).strip_edges())
+				return await _download_with_progress(loc)
 
 	# Get content length
 	var total = 0
