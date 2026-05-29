@@ -1,0 +1,71 @@
+# Normalize line endings for all text files
+* text=auto
+
+# GDScript source
+*.gd text eol=lf
+
+# Godot scenes and resources
+*.tscn text eol=lf
+*.tres text eol=lf
+*.res text eol=lf
+
+# Godot shaders
+*.gdshader text eol=lf
+*.gdshaderinc text eol=lf
+
+# Godot UID
+*.uid text eol=lf
+
+# Config
+*.cfg text eol=lf
+*.ini text eol=lf
+*.godot text eol=lf
+*.stylebox text eol=lf
+
+# Documents
+*.md text eol=lf
+*.txt text eol=lf
+*.csv text eol=lf
+
+# Web / XML / SVG
+*.svg text eol=lf
+*.xml text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+
+# Scripts
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Shell/batch
+*.bat text eol=crlf
+
+# Translation
+*.translation text eol=lf
+
+# Images
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.ttf binary
+*.woff2 binary
+
+# Audio
+*.ogg binary
+*.mp3 binary
+*.wav binary
+
+# 3D
+*.glb binary
+*.gltf binary
+*.blend binary
+
+# Godot import files (auto-generated)
+*.import binary
+
+# Archives
+*.zip binary
