@@ -416,6 +416,9 @@ func _download_with_progress(url: String) -> PackedByteArray:
 	# Read body with progress
 	var body = PackedByteArray()
 	while client.get_status() == HTTPClient.STATUS_BODY:
+		if not is_inside_tree():
+			client.close()
+			return PackedByteArray()
 		client.poll()
 		var chunk = client.read_response_body_chunk()
 		if chunk.size() == 0:
@@ -428,6 +431,7 @@ func _download_with_progress(url: String) -> PackedByteArray:
 			_upgrade_btn.text = "%d%%" % pct
 		else:
 			_status_label.text = "Downloading... %s" % _format_size(body.size())
+			_upgrade_btn.text = _format_size(body.size())
 		await get_tree().process_frame
 
 	client.close()
