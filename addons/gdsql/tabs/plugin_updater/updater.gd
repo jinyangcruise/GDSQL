@@ -224,17 +224,55 @@ func _on_upgrade() -> void:
 	var user_files = _detect_user_files(_latest_version)
 	
 	if not user_files.is_empty():
-		var warn_text = "The following files in addons/gdsql/ are not part of the plugin. They may be your custom data:\n\n"
-		var max_show = 30
-		for i in range(min(user_files.size(), max_show)):
-			warn_text += "  - " + user_files[i] + "\n"
-		if user_files.size() > max_show:
-			warn_text += "  ... and %d more files\n" % (user_files.size() - max_show)
-		warn_text += "\nDo you want to proceed with the upgrade?"
-		
 		var warn = AcceptDialog.new()
 		warn.title = "Files Not Part of GDSQL"
-		warn.dialog_text = warn_text
+		warn.min_size = Vector2(540, 420)
+		
+		var mc = MarginContainer.new()
+		mc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		mc.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		warn.add_child(mc)
+		
+		var vb = VBoxContainer.new()
+		vb.add_theme_constant_override("separation", 15)
+		mc.add_child(vb)
+		
+		var warn_text = "The following files in addons/gdsql/ are not part of the plugin.\nThey may be your custom data:"
+		var wl = Label.new()
+		wl.text = warn_text
+		vb.add_child(wl)
+		
+		var mc2 = MarginContainer.new()
+		mc2.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		vb.add_child(mc2)
+		
+		var sc = ScrollContainer.new()
+		mc2.add_child(sc)
+		
+		var il = ItemList.new()
+		il.theme_type_variation = "ItemListSecondary"
+		il.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		il.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		var ft = []
+		for uf in user_files:
+			ft.push_back(uf)
+			il.add_item(uf)
+		sc.add_child(il)
+		
+		var wl2 = Label.new()
+		wl2.text = "Do you want to proceed with the upgrade?\nForcing overwrite will erase existing files in the addons/gdsql/ directory."
+		vb.add_child(wl2)
+		
+		var cp = Button.new()
+		cp.size_flags_horizontal = Control.SIZE_SHRINK_END
+		cp.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		cp.text = "Copy list"
+		cp.pressed.connect(func():
+			DisplayServer.clipboard_set("\n".join(ft))
+			cp.text = "Copied!"
+		)
+		mc2.add_child(cp)
+		
 		warn.get_ok_button().text = "Cancel"
 		warn.add_button("Ignore and force overwrite", false, "force")
 		
@@ -244,6 +282,7 @@ func _on_upgrade() -> void:
 		warn.confirmed.connect(func(): user_choice[0] = "cancel"; warn.queue_free())
 		warn.canceled.connect(func(): user_choice[0] = "cancel"; warn.queue_free())
 		warn.custom_action.connect(func(a): user_choice[0] = a; warn.queue_free())
+
 		warn.popup_centered()
 		await warn.tree_exited
 		
