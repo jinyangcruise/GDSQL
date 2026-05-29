@@ -15,6 +15,8 @@ const GDSQL_DIR = "res://addons/gdsql/"
 var _current_version: String = ""
 var _latest_version: String = ""
 var _release_info: Dictionary = {}
+var _download_pct: int = -1
+var _download_size: String = ""
 var _vbox: VBoxContainer
 var _status_label: Label
 var _info_label: Label
@@ -429,17 +431,30 @@ func _download_with_progress(url: String) -> PackedByteArray:
 			continue
 		body.append_array(chunk)
 		if total > 0:
-			var pct = int(float(body.size()) / total * 100)
-			_status_label.text = "Downloading... %d%% (%s / %s)" % [pct, _format_size(body.size()), _format_size(total)]
-			_upgrade_btn.text = "%d%%" % pct
+			_download_pct = int(float(body.size()) / total * 100)
+			_download_size = "%s / %s" % [_format_size(body.size()), _format_size(total)]
 		else:
-			_status_label.text = "Downloading... %s" % _format_size(body.size())
-			_upgrade_btn.text = _format_size(body.size())
+			_download_pct = -1
+			_download_size = _format_size(body.size())
 		await get_tree().process_frame
 
 	client.close()
 	return body
 
+
+func _process(_delta: float) -> void:
+	if _download_pct >= 0:
+		var pct = _download_pct
+		var sz = _download_size
+		if _status_label:
+			_status_label.text = "Downloading... %d%% (%s)" % [pct, sz]
+		if _upgrade_btn:
+			_upgrade_btn.text = "%d%%" % pct
+	elif _download_pct == -1 and not _download_size.is_empty():
+		if _status_label:
+			_status_label.text = "Downloading... %s" % _download_size
+		if _upgrade_btn:
+			_upgrade_btn.text = _download_size
 
 func _format_size(b: int) -> String:
 	if b < 1024: return "%d B" % b
