@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://bidbwri5dkve2"]
 
 [ext_resource type="Script" uid="uid://sw2kf57ntg2w" path="res://addons/gdsql/tabs/table_inspector.gd" id="1_6rb4l"]
-[ext_resource type="PackedScene" uid="uid://bpawj4a7llynx" path="res://addons/gdsql/tabs/table/table.tscn" id="2_bur0t"]
+[ext_resource type="PackedScene" uid="uid://bpawj4a7llynx" path="res://addons/gdsql/table/table.tscn" id="2_bur0t"]
 [ext_resource type="Texture2D" uid="uid://caxb01gsgiywd" path="res://addons/gdsql/img/folder.svg" id="2_t78cm"]
 [ext_resource type="Texture2D" uid="uid://coxbdfa8jtlyd" path="res://addons/gdsql/img/external_link.svg" id="3_t78cm"]
 

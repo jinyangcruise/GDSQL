@@ -1512,7 +1512,7 @@ func popup_diff_dialog(arr_content: Array, show_diff = false):
 	if arr_content.is_empty():
 		return
 		
-	var table = load("res://addons/gdsql/tabs/table/table.tscn").instantiate()
+	var table = load("res://addons/gdsql/table/table.tscn").instantiate()
 	table.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	table.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	table.row_expend_and_fill = true

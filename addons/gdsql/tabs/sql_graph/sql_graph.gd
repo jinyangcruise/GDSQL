@@ -741,7 +741,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 		margin_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		margin_container.add_theme_constant_override("margin_top", 10)
 		margin_container.add_theme_constant_override("margin_bottom", 10)
-		table = load("res://addons/gdsql/tabs/table/table.tscn").instantiate()
+		table = load("res://addons/gdsql/table/table.tscn").instantiate()
 		table.show_frame = true
 		table.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		margin_container.add_child(table)
@@ -978,7 +978,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 						
 			# 弹对话框让用户选择更新哪些数据
 			var arr: Array[Array] = [["Please confirm:"]]
-			var table_2 = load("res://addons/gdsql/tabs/table/table.tscn").instantiate()
+			var table_2 = load("res://addons/gdsql/table/table.tscn").instantiate()
 			table_2.ratios = [15.0, 0.4, 2.0, 4.0, 8.0] as Array[float]
 			table_2.columns = ["#", tr("Action"), tr("Extra info"), tr("Do"), tr("Status")]
 			table_2.column_tips = ["", "", "If necessary.", "Only execute checked actions.", "Execute status."]
@@ -3015,7 +3015,7 @@ func on_link_node_query(node: GraphNode):
 								daos.push_back(dao)
 						# 弹对话框
 						var arr: Array[Array] = [["Please confirm:"]]
-						var table_2 = load("res://addons/gdsql/tabs/table/table.tscn").instantiate()
+						var table_2 = load("res://addons/gdsql/table/table.tscn").instantiate()
 						table_2.ratios = [15.0, 0.2, 2.0, 10.0, 8.0] as Array[float]
 						table_2.columns = ["#", "action", "status"]
 						var datas = []
