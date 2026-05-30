@@ -65,7 +65,6 @@
 
 # Godot import files (auto-generated)
 *.stylebox binary
-*.import binary
 
 # Archives
 *.zip binary
