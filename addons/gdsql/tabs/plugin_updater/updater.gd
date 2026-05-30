@@ -368,7 +368,7 @@ func _on_upgrade() -> void:
 	_upgrade_btn.text = "Preparing..."
 	
 	# Check for user-modified files
-	var user_files = _detect_user_files(_latest_version)
+	var user_files = _detect_user_files(_target_version)
 	
 	if not user_files.is_empty():
 		var warn = AcceptDialog.new()
