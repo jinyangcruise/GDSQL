@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://d0o7o40foayti"]
 
-[ext_resource type="Script" uid="uid://uoqv2b5cinkw" path="res://addons/gdsql/tabs/table_data_export.gd" id="1_h6j2y"]
+[ext_resource type="Script" uid="uid://uoqv2b5cinkw" path="res://addons/gdsql/tabs/table_data_export/table_data_export.gd" id="1_h6j2y"]
 [ext_resource type="Texture2D" uid="uid://caxb01gsgiywd" path="res://addons/gdsql/img/folder.svg" id="2_fomhw"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_j2xwm"]

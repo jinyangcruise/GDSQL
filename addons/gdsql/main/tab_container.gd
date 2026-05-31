@@ -151,14 +151,14 @@ func add_tab_graph_file(path: String) -> void:
 	sql_file.load_graph_file(path)
 	
 func add_tab_new_schema() -> void:
-	var new_schema = load("res://addons/gdsql/tabs/new_schema.tscn").instantiate()
+	var new_schema = load("res://addons/gdsql/tabs/new_schema/new_schema.tscn").instantiate()
 	add_child(new_schema)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
 	set_tab_title(current_tab, "new_schema")
 		
 func add_tab_alter_schema(db_name, path) -> void:
-	var alter_schema = load("res://addons/gdsql/tabs/alter_schema.tscn").instantiate()
+	var alter_schema = load("res://addons/gdsql/tabs/alter_schema/alter_schema.tscn").instantiate()
 	alter_schema.old_db_name = db_name
 	alter_schema.db_name = db_name
 	alter_schema.path = path
@@ -168,7 +168,7 @@ func add_tab_alter_schema(db_name, path) -> void:
 	set_tab_title(current_tab, "alter_schema")
 	
 func add_tab_new_table(db_name, like_db_name = "", like_table_name = "") -> void:
-	var new_table = load("res://addons/gdsql/tabs/new_table.tscn").instantiate()
+	var new_table = load("res://addons/gdsql/tabs/new_table/new_table.tscn").instantiate()
 	new_table.schema = db_name
 	# 如果是create table like，把参考表的表结构复制过来
 	if like_db_name != "" and like_table_name != "":
@@ -186,7 +186,7 @@ func add_tab_new_table(db_name, like_db_name = "", like_table_name = "") -> void
 	set_tab_title(current_tab, "new_table")
 	
 func add_tab_alter_table(db_name, table_name) -> void:
-	var alter_table = load("res://addons/gdsql/tabs/alter_table.tscn").instantiate()
+	var alter_table = load("res://addons/gdsql/tabs/alter_table/alter_table.tscn").instantiate()
 	alter_table.schema = db_name
 	alter_table.old_table_name = table_name
 	alter_table.table_name = table_name
@@ -204,7 +204,7 @@ func add_tab_alter_table(db_name, table_name) -> void:
 	set_tab_title(current_tab, "alter_table")
 	
 func add_tab_table_inspector(db_name, table_name) -> void:
-	var table_inspector = load("res://addons/gdsql/tabs/table_inspector.tscn").instantiate()
+	var table_inspector = load("res://addons/gdsql/tabs/table_inspector/table_inspector.tscn").instantiate()
 	table_inspector.schema = db_name
 	table_inspector.table_name = table_name
 	var defination = mgr.databases.get(db_name, {}).get("tables", {}).get(table_name, {}) as Dictionary
@@ -234,7 +234,7 @@ func add_tab_table_inspector(db_name, table_name) -> void:
 	set_tab_title(current_tab, "Inspector:%s" % table_name)
 	
 func add_tab_table_data_export(db_name, table_name) -> void:
-	var table_data_export = load("res://addons/gdsql/tabs/table_data_export.tscn").instantiate()
+	var table_data_export = load("res://addons/gdsql/tabs/table_data_export/table_data_export.tscn").instantiate()
 	add_child(table_data_export)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
@@ -242,7 +242,7 @@ func add_tab_table_data_export(db_name, table_name) -> void:
 	table_data_export.select_table(db_name, table_name)
 	
 func add_tab_table_data_import(db_name, table_name) -> void:
-	var table_data_import = load("res://addons/gdsql/tabs/table_data_import.tscn").instantiate()
+	var table_data_import = load("res://addons/gdsql/tabs/table_data_import/table_data_import.tscn").instantiate()
 	add_child(table_data_import)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
@@ -250,7 +250,7 @@ func add_tab_table_data_import(db_name, table_name) -> void:
 	table_data_import.select_table(db_name, table_name)
 	
 func add_tab_select_data_export(columns: Array, datas: Array) -> void:
-	var select_data_export = load("res://addons/gdsql/tabs/select_data_export.tscn").instantiate()
+	var select_data_export = load("res://addons/gdsql/tabs/select_data_export/select_data_export.tscn").instantiate()
 	add_child(select_data_export)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
@@ -302,7 +302,7 @@ func add_tab_settings() -> void:
 			current_tab = i
 			return
 			
-	var settings_tab = load("res://addons/gdsql/tabs/gsql_tab_settings.tscn").instantiate()
+	var settings_tab = load("res://addons/gdsql/tabs/settings/gsql_tab_settings.tscn").instantiate()
 	add_child(settings_tab)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2

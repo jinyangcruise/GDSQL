@@ -9,7 +9,7 @@
 [ext_resource type="Texture2D" uid="uid://bhybihfaocei7" path="res://addons/gdsql/img/flash_on.svg" id="6_iwaq8"]
 [ext_resource type="Texture2D" uid="uid://djuofwx6afqi2" path="res://addons/gdsql/img/flash_auto.svg" id="7_iwaq8"]
 [ext_resource type="Texture2D" uid="uid://dgfl0ydyvpe7" path="res://addons/gdsql/img/progress_check_icon.svg" id="8_iwaq8"]
-[ext_resource type="Script" uid="uid://niieejo28hi8" path="res://addons/gdsql/tabs/tree_node_list.gd" id="8_snyhw"]
+[ext_resource type="Script" uid="uid://niieejo28hi8" path="res://addons/gdsql/tabs/mapper_graph/tree_node_list.gd" id="8_snyhw"]
 
 [sub_resource type="InputEventKey" id="InputEventKey_kjho4"]
 device = -1

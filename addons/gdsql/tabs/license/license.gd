@@ -3,7 +3,7 @@ extends ScrollContainer
 
 ## License attribution page — shows all third-party icons and their licenses.
 
-const LICENSE_FILE = "res://addons/gdsql/img/license.txt"
+const LICENSE_FILE = "res://addons/gdsql/license.txt"
 
 var _font_variation: FontVariation
 
