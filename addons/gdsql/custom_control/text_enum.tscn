@@ -32,6 +32,7 @@ icon = ExtResource("2_5fywh")
 flat = true
 
 [node name="edit_custom_layout" type="HBoxContainer" parent="." unique_id=251338904]
+visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 
