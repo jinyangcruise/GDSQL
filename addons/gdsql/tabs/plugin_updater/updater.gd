@@ -468,7 +468,7 @@ func _start_download() -> void:
 	_status_label.text = "Extracting..."
 
 	# Save to temp file
-	var tmp_path = "user://gdsql_update_%s.zip" % _latest_version
+	var tmp_path = "user://gdsql-v%s.zip" % _target_version
 	var f = FileAccess.open(tmp_path, FileAccess.WRITE)
 	if not f:
 		_status_label.text = "Failed to write temp file."
