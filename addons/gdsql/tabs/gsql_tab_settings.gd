@@ -5,6 +5,7 @@ extends VBoxContainer
 @onready var line_edit_suppl_config: LineEdit = %LineEditSupplConfig
 @onready var option_game_db_name: OptionButton = %OptionButtonGameDbName
 @onready var status_label: Label = %StatusLabel
+@onready var auto_update_checkbox: CheckBox = %CheckBoxAutoUpdate
 
 const SETTINGS_PATH = "res://gdsql/settings.cfg"
 
@@ -12,6 +13,7 @@ var _default_values = {
 	"root_config_path": "res://gdsql/define/config.cfg",
 	"supplementary_config_path": "user://gdsql/define/runtime_config.cfg",
 	"game_conf_db_name": "",
+	"auto_check_updates": true,
 }
 
 
@@ -41,6 +43,9 @@ func _load_settings() -> void:
 		if option_game_db_name.get_item_text(i) == saved_db_name:
 			option_game_db_name.select(i)
 			break
+
+	# Load auto update checkbox
+	auto_update_checkbox.button_pressed = settings.get_value("config", "auto_check_updates", _default_values["auto_check_updates"])
 
 
 func _populate_db_dropdown() -> void:
@@ -120,7 +125,8 @@ func _on_button_save_pressed() -> void:
 	settings.set_value("config", "root_config_path", root_config_path)
 	settings.set_value("config", "supplementary_config_path", suppl_config_path)
 	settings.set_value("config", "game_conf_db_name", game_db_name)
-	
+	settings.set_value("config", "auto_check_updates", auto_update_checkbox.button_pressed)
+
 	var err = settings.save(SETTINGS_PATH)
 	if err == OK:
 		_show_status("Settings saved successfully.", Color(0.4, 0.8, 0.4))

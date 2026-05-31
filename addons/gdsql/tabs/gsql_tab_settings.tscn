@@ -82,6 +82,7 @@ layout_mode = 2
 tooltip_text = "Use the game installation directory (install://). You may append a subdirectory, e.g. install://gdsql/define/"
 theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 text = "Install"
+icon = ExtResource("2_45jch")
 
 [node name="HBoxSupplConfig" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=564776647]
 layout_mode = 2
@@ -119,6 +120,7 @@ layout_mode = 2
 tooltip_text = "Use the game installation directory (install://). You may append a subdirectory, e.g. install://gdsql/define/"
 theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 text = "Install"
+icon = ExtResource("2_45jch")
 
 [node name="HSeparator2" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=1850536713]
 layout_mode = 2
@@ -143,7 +145,7 @@ horizontal_alignment = 2
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Choose a configured database, or leave empty."
+tooltip_text = "Select a pre-configured database, or leave it blank. This setting is required when using GDSQL.BaseDao.use_conf_db()."
 selected = 0
 fit_to_longest_item = false
 item_count = 1
@@ -151,6 +153,21 @@ popup/item_0/id = 0
 
 [node name="HSeparator3" type="HSeparator" parent="MarginContainer/VBoxContainer" unique_id=1078470491]
 layout_mode = 2
+
+[node name="SectionUpdates" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1200000001]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.8)
+theme_override_font_sizes/font_size = 18
+text = "Updates"
+
+[node name="HBoxAutoCheck" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1200000002]
+layout_mode = 2
+
+[node name="CheckBoxAutoUpdate" type="CheckBox" parent="MarginContainer/VBoxContainer/HBoxAutoCheck" unique_id=1200000003]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Auto check for updates (on startup)"
 
 [node name="HFlowContainer" type="HFlowContainer" parent="MarginContainer/VBoxContainer" unique_id=957094673]
 layout_mode = 2

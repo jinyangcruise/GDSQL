@@ -409,3 +409,42 @@ static func get_specific_extension_files(p_path: String, extension: String) -> A
 		push_warning(msg)
 		
 	return ret
+	
+## Compare two semver strings. Returns -1, 0, or 1.
+static func cmp_version(a: String, b: String) -> int:
+	var pa = a.split(".")
+	var pb = b.split(".")
+	for i in range(max(pa.size(), pb.size())):
+		var va = int(pa[i]) if i < pa.size() else 0
+		var vb = int(pb[i]) if i < pb.size() else 0
+		if va < vb:
+			return -1
+		if va > vb:
+			return 1
+	return 0
+	
+## Parse upgrade_ranges from release body and return max version the current ver can reach.
+## Format: upgrade_ranges: 0.5.0-0.5.99|0.6.0-999.999.999
+static func parse_max_upgrade(body: String, current_ver: String) -> String:
+	if body.is_empty():
+		return ""
+	var lines = body.split("\n")
+	var range_line = ""
+	for l in lines:
+		var trimmed = l.trim_prefix(" ").trim_prefix("\t")
+		if trimmed.begins_with("upgrade_ranges:"):
+			range_line = trimmed.trim_prefix("upgrade_ranges:").strip_edges()
+			break
+	if range_line.is_empty():
+		return ""
+		
+	var ranges = range_line.split("|")
+	for r in ranges:
+		var parts = r.split("-")
+		if parts.size() != 2:
+			continue
+		var from_v = parts[0].strip_edges()
+		var to_v = parts[1].strip_edges()
+		if cmp_version(current_ver, from_v) >= 0 and cmp_version(current_ver, to_v) <= 0:
+			return to_v
+	return ""

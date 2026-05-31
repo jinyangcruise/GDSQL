@@ -87,15 +87,7 @@ func _ready() -> void:
 	_http.request(GITHUB_API)
 
 
-func _cmp_version(a: String, b: String) -> int:
-	var pa = a.split(".")
-	var pb = b.split(".")
-	for i in range(max(pa.size(), pb.size())):
-		var va = int(pa[i]) if i < pa.size() else 0
-		var vb = int(pb[i]) if i < pb.size() else 0
-		if va < vb: return -1
-		if va > vb: return 1
-	return 0
+
 
 
 ## Called when the latest-release HTTP request completes.
@@ -135,7 +127,7 @@ func _on_request_completed(result: int, _code: int, _headers: PackedStringArray,
 		latest_notes = latest_notes.substr(0, 10000) + "\n... (truncated)"
 
 	# Parse upgrade ranges from latest release body
-	_max_upgrade = _parse_max_upgrade(latest_notes, _current_version)
+	_max_upgrade = GDSQL.GDSQLUtils.parse_max_upgrade(latest_notes, _current_version)
 
 	# Determine target version — set to "" (no upgrade) in 4 cases:
 	#   1. cmp > 0:  current is ahead of latest (dev version)
@@ -143,10 +135,10 @@ func _on_request_completed(result: int, _code: int, _headers: PackedStringArray,
 	#   3. _max_upgrade == "": current version not in any upgrade range
 	#   4. current >= max_upgrade AND latest > max_upgrade:
 	#      current already at or past the range ceiling, and latest is beyond that ceiling
-	var cmp = _cmp_version(_current_version, _latest_version)
-	if cmp > 0 or cmp == 0 or _max_upgrade == "" or (_cmp_version(_current_version, _max_upgrade) >= 0 and _cmp_version(_latest_version, _max_upgrade) > 0):
+	var cmp = GDSQL.GDSQLUtils.cmp_version(_current_version, _latest_version)
+	if cmp > 0 or cmp == 0 or _max_upgrade == "" or (GDSQL.GDSQLUtils.cmp_version(_current_version, _max_upgrade) >= 0 and GDSQL.GDSQLUtils.cmp_version(_latest_version, _max_upgrade) > 0):
 		_target_version = ""
-	elif _cmp_version(_latest_version, _max_upgrade) > 0:
+	elif GDSQL.GDSQLUtils.cmp_version(_latest_version, _max_upgrade) > 0:
 		_target_version = _max_upgrade
 	else:
 		_target_version = _latest_version
@@ -196,7 +188,7 @@ func _on_notes_completed(result: int, _code: int, _headers: PackedStringArray, b
 
 ## Show the final version info UI once we have the correct release notes.
 func _finalize_version_info(notes: String) -> void:
-	var cmp = _cmp_version(_current_version, _latest_version)
+	var cmp = GDSQL.GDSQLUtils.cmp_version(_current_version, _latest_version)
 	if cmp > 0:
 		_status_label.text = "Your version (v%s) is ahead of the latest release (v%s)." % [_current_version, _latest_version]
 		_upgrade_btn.disabled = true
@@ -212,8 +204,8 @@ func _finalize_version_info(notes: String) -> void:
 		_notes_rt.text = "[b]No upgrade path[/b]\n\nYour version (v%s) does not fall into any supported upgrade range.\n\nPlease check GitHub Releases for manual upgrade options.\n\n" % _current_version + "[b]Release notes:[/b]\n" + notes
 		_upgrade_btn.disabled = true
 		_upgrade_btn.text = "No upgrade path"
-	elif _cmp_version(_latest_version, _max_upgrade) > 0:
-		if _cmp_version(_current_version, _max_upgrade) >= 0:
+	elif GDSQL.GDSQLUtils.cmp_version(_latest_version, _max_upgrade) > 0:
+		if GDSQL.GDSQLUtils.cmp_version(_current_version, _max_upgrade) >= 0:
 			_status_label.text = "No compatible upgrade available for v%s." % _current_version
 			_notes_rt.text = "[b]Breaking change detected[/b]\n\nLatest version v%s has breaking changes that are incompatible with your current version (v%s).\n\nYour version has reached the maximum upgrade path. Please check GitHub Releases for any newer compatible version.\n\n" % [_latest_version, _current_version] + "[b]Release notes:[/b]\n" + notes
 			_upgrade_btn.disabled = true
@@ -269,34 +261,6 @@ func _delete_collected(to_delete: Array) -> int:
 	return n
 
 
-## Parse upgrade_ranges from release body and return max version the current ver can reach.
-## Format: upgrade_ranges: 0.5.0-0.5.99|0.6.0-999.999.999
-func _parse_max_upgrade(body: String, current_ver: String) -> String:
-	if body.is_empty():
-		return ""
-	# Find the line starting with upgrade_ranges:
-	var lines = body.split("
-")
-	var range_line = ""
-	for l in lines:
-		if l.trim_prefix(" ").trim_prefix("	").begins_with("upgrade_ranges:"):
-			range_line = l.trim_prefix(" ").trim_prefix("	").trim_prefix("upgrade_ranges:").strip_edges()
-			break
-	if range_line.is_empty():
-		return ""
-
-	var ranges = range_line.split("|")
-	for r in ranges:
-		var parts = r.split("-")
-		if parts.size() != 2:
-			continue
-		var from_v = parts[0].strip_edges()
-		var to_v = parts[1].strip_edges()
-		if _cmp_version(current_ver, from_v) >= 0 and _cmp_version(current_ver, to_v) <= 0:
-			return to_v
-	return ""
-
-
 ## Build the set of files a given version should have, based on the manifest.
 func _files_for_version(version: String) -> Dictionary:
 	var files = {}
@@ -314,7 +278,7 @@ func _files_for_version(version: String) -> Dictionary:
 		var action = parts[0]
 		var ver = parts[1]
 		var path = parts[2]
-		if _cmp_version(ver, version) > 0:
+		if GDSQL.GDSQLUtils.cmp_version(ver, version) > 0:
 			continue
 		match action:
 			"+":
