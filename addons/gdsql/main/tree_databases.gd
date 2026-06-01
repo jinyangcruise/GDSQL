@@ -392,6 +392,7 @@ func add_database(db_name: String, data: Dictionary) -> TreeItem:
 	database_item.set_icon_max_width(0, 20)
 	database_item.set_tooltip_text(0, data_path)
 	database_item.set_meta("db_name", db_name)
+	database_item.set_meta("display_name", data.get("display_name", db_name))
 	database_item.set_meta("data_path", data_path)
 	database_item.set_meta("type", "database")
 	if data["encrypted"] != "":
@@ -449,6 +450,7 @@ func add_table(db: TreeItem, table_name: String):
 		ITEM_BUTTON_INDEX.QUICK_SEARCH, false, "select * from %s.%s;" % [db_name, table_name])
 	table_item.set_meta("db_name", db_name)
 	table_item.set_meta("table_name", table_name)
+	table_item.set_meta("display_name", table_def.get("display_name", table_name))
 	table_item.set_meta("data_path", data_path)
 	table_item.set_meta("type", "table")
 	table_item.collapsed = true
@@ -486,7 +488,7 @@ func _on_button_clicked(item: TreeItem, column: int, id: int, _mouse_button_inde
 			# Select Rows
 			ITEM_BUTTON_INDEX.QUICK_SEARCH:
 				var exe_select = func():
-					mgr.send_to_editor_and_execute.emit(item.get_meta("table_name"), {
+					mgr.send_to_editor_and_execute.emit(item.get_meta("display_name"), {
 						"cmd": "select",
 						"db_name": item.get_meta("db_name"),
 						"table_name": item.get_meta("table_name"),
@@ -560,7 +562,7 @@ func _on_popup_menu_table_item_index_pressed(index: int) -> void:
 			var item := get_selected()
 			if item:
 				var exe_select = func():
-					mgr.send_to_editor_and_execute.emit(item.get_meta("table_name"), {
+					mgr.send_to_editor_and_execute.emit(item.get_meta("display_name"), {
 						"cmd": "select",
 						"db_name": item.get_meta("db_name"),
 						"table_name": item.get_meta("table_name"),
@@ -958,7 +960,7 @@ func _on_popup_menu_copy_to_index_pressed(index: int) -> void:
 		"Name":
 			var item := get_selected()
 			if item:
-				DisplayServer.clipboard_set(item.get_meta("db_name"))
+				DisplayServer.clipboard_set(item.get_meta("display_name"))
 		"Config Path":
 			var item := get_selected()
 			if item:
@@ -970,7 +972,7 @@ func _on_popup_menu_copy_to_index_pressed(index: int) -> void:
 		"Create Statement":
 			var item := get_selected()
 			if item:
-				var statement = "CREATE DATABASE %s PATH %s;" % [item.get_meta("db_name"), item.get_meta("path")]
+				var statement = "CREATE DATABASE %s PATH %s;" % [item.get_meta("display_name"), item.get_meta("path")]
 				DisplayServer.clipboard_set(statement)
 				
 ## 数据库“发送到”子菜单
@@ -979,7 +981,7 @@ func _on_popup_menu_send_to_index_pressed(index: int) -> void:
 		"Name":
 			var item := get_selected()
 			if item:
-				mgr.send_to_editor.emit(item.get_meta("db_name"))
+				mgr.send_to_editor.emit(item.get_meta("display_name"))
 		"Path":
 			var item := get_selected()
 			if item:
@@ -987,7 +989,7 @@ func _on_popup_menu_send_to_index_pressed(index: int) -> void:
 		"Create Statement":
 			var item := get_selected()
 			if item:
-				var statement = "CREATE DATABASE %s PATH %s;" % [item.get_meta("db_name"), item.get_meta("path")]
+				var statement = "CREATE DATABASE %s PATH %s;" % [item.get_meta("display_name"), item.get_meta("path")]
 				mgr.send_to_editor.emit(statement)
 				
 ## Tables目录右键菜单
@@ -1007,19 +1009,21 @@ func _on_popup_menu_copy_to_of_table_item_index_pressed(index):
 		"Name (Short)":
 			var item := get_selected()
 			if item:
-				DisplayServer.clipboard_set(item.get_meta("table_name"))
+				DisplayServer.clipboard_set(item.get_meta("display_name"))
 		"Name (long)":
 			var item := get_selected()
 			if item:
 				var db_name = item.get_meta("db_name")
+				var db_display = GDSQL.RootConfig.get_database_display_name(db_name)
 				var table_name = item.get_meta("table_name")
-				DisplayServer.clipboard_set("`%s`.`%s`" % [db_name, table_name])
+				DisplayServer.clipboard_set("`%s`.`%s`" % [db_display, item.get_meta("display_name")])
 		"Select All Statement":
 			var item := get_selected()
 			if item:
 				var db_name = item.get_meta("db_name")
-				var table_name = item.get_meta("table_name")
-				var table_columns = GDSQL.RootConfig.get_table_columns(db_name, table_name)
+				var db_display = GDSQL.RootConfig.get_database_display_name(db_name)
+				var table_name = item.get_meta("display_name")
+				var table_columns = GDSQL.RootConfig.get_table_columns(db_name, item.get_meta("table_name"))
 				var column_names = []
 				for i in table_columns:
 					column_names.push_back(i["Column Name"])
@@ -1030,13 +1034,14 @@ var ret = dao.use_db("%s")\\
 	.select("%s", true)\\
 	.from("%s")\\
 	.query()
-""" % [db_name, ",".join(column_names), table_name]
+""" % [db_display, ",".join(column_names), table_name]
 				DisplayServer.clipboard_set(cmd)
 		"Insert Statement":
 			var item := get_selected()
 			if item:
 				var db_name = item.get_meta("db_name")
-				var table_name = item.get_meta("table_name")
+				var db_display = GDSQL.RootConfig.get_database_display_name(db_name)
+				var table_name = item.get_meta("display_name")
 				var cmd = """
 var dao = GDSQL.BaseDao.new()
 var ret = dao.use_db("%s")\\
@@ -1044,13 +1049,14 @@ var ret = dao.use_db("%s")\\
 	.insert_into("%s")\\
 	.values(<data: Dictionary>)\\
 	.query()
-""" % [db_name, table_name]
+""" % [db_display, table_name]
 				DisplayServer.clipboard_set(cmd)
 		"Update Statement":
 			var item := get_selected()
 			if item:
 				var db_name = item.get_meta("db_name")
-				var table_name = item.get_meta("table_name")
+				var db_display = GDSQL.RootConfig.get_database_display_name(db_name)
+				var table_name = item.get_meta("display_name")
 				var cmd = """
 var dao = GDSQL.BaseDao.new()
 var ret = dao.use_db("%s")\\
@@ -1059,13 +1065,14 @@ var ret = dao.use_db("%s")\\
 	.sets(<data: Dictionary>)\\
 	.where(<cond: String>)\\
 	.query()
-""" % [db_name, table_name]
+""" % [db_display, table_name]
 				DisplayServer.clipboard_set(cmd)
 		"Delete Statement":
 			var item := get_selected()
 			if item:
 				var db_name = item.get_meta("db_name")
-				var table_name = item.get_meta("table_name")
+				var db_display = GDSQL.RootConfig.get_database_display_name(db_name)
+				var table_name = item.get_meta("display_name")
 				var cmd = """
 var dao = GDSQL.BaseDao.new()
 var ret = dao.use_db("%s")\\
@@ -1073,7 +1080,7 @@ var ret = dao.use_db("%s")\\
 	.delete_from("%s")\\
 	.where(<cond: String>)\\
 	.query()
-""" % [db_name, table_name]
+""" % [db_display, table_name]
 				DisplayServer.clipboard_set(cmd)
 		"Config Path":
 			var item := get_selected()
