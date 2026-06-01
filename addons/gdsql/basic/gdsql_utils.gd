@@ -186,6 +186,14 @@ static func globalize_path(path: String) -> String:
 	else:
 		return path.simplify_path()
 		
+static func localize_path(path: String) -> String:
+	if path.begins_with("res://") or path.begins_with("user://") or path.begins_with("install://") or path.begins_with("uid://"):
+		return path.simplify_path()
+	if OS.has_feature("editor"):
+		return ProjectSettings.localize_path(path)
+	else:
+		return path.simplify_path()
+		
 ## 找字符串中某个符号的位置。处于引号、括号内的符号不会计算在内。
 ## 返回数组的子元素是一个长度为2的数组，分别为开始位置和结束位置。
 ## 不支持符号是单引号或双引号或斜杠\。支持\s：looking_for = '\\s'
