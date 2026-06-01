@@ -320,6 +320,13 @@ func get_table_config_by_db_path(db_path: String, table_name: String) -> ConfigF
 	get_table_config_path(db_name, table_name)
 	return GDSQL.ConfManager.get_conf(get_table_config_path(db_name, table_name), "")
 	
+func get_table_display_name(db_name: String, table_name: String) -> String:
+	table_name = validate_name(table_name)
+	get_table_config_path(db_name, table_name)
+	var table_config = GDSQL.ConfManager.get_conf(get_table_config_path(db_name, table_name), "")
+	var dn = table_config.get_value(table_name, "display_name", "")
+	return dn if dn != "" else table_name
+	
 func get_table_columns(db_name: String, table_name: String) -> Array:
 	table_name = validate_name(table_name)
 	get_table_config_path(db_name, table_name)

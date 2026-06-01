@@ -1891,6 +1891,14 @@ func _check_table_change(item: TreeItem) -> bool:
 			item.set_meta("_meta_change_%d" % TABLE_CHANGE_TYPE.META_TABLE_NOT_EXIST, [db, table])
 			change = true
 		else:
+			# 无感刷新库名/表名显示
+			var cur_db_display = GDSQL.RootConfig.get_database_display_name(db)
+			var cur_tbl_display = GDSQL.RootConfig.get_table_display_name(db, table)
+			var new_title = "%s.%s" % [cur_db_display, cur_tbl_display]
+			if node.title != new_title:
+				node.title = new_title
+				item.set_text(0, "%s: %s" % [node.name, node.title])
+			
 			#TABLE_COMMENT_CHANGE, ## 表描述有变化
 			var old_comment = data.comment
 			var new_comment = GDSQL.RootConfig.get_table_comment(db, table)

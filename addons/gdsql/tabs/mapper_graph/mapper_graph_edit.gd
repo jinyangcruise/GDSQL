@@ -181,7 +181,7 @@ asize = null, pos_offset = null, aname = "", path = "/root", p_parent_frame = nu
 	association_class_name.custom_minimum_size.x = 150
 	association_class_name.tooltip_text = (
 		"Class name of the property.\n'Entity' is not needed.")
-	association_class_name.text = extra.get("association_class_name", data.get("table_display_name", data.table_name).to_pascal_case())
+	association_class_name.text = extra.get("association_class_name", GDSQL.RootConfig.get_table_display_name(data.db_name, data.table_name).to_pascal_case())
 	
 	var text_enum_suggestion = TEXT_ENUM.instantiate()
 	text_enum_suggestion.ready.connect(func():
@@ -259,7 +259,7 @@ asize = null, pos_offset = null, aname = "", path = "/root", p_parent_frame = nu
 			datas.push_back([null, null, label_col_name, line_edit_prop])
 			
 	graph_node.datas = datas
-	graph_node.title = "%s.%s" % [data.get("db_display_name", data.db_name), data.get("table_display_name", data.table_name)]
+	graph_node.title = "%s.%s" % [GDSQL.RootConfig.get_database_display_name(data.db_name), GDSQL.RootConfig.get_table_display_name(data.db_name, data.table_name)]
 	graph_node.add_theme_stylebox_override("panel", SB_PANEL)
 	graph_node.add_theme_stylebox_override("panel_selected", SB_PANEL_SELECTED)
 	graph_node.add_theme_stylebox_override("titlebar", SB_SELECT_TITLEBAR)

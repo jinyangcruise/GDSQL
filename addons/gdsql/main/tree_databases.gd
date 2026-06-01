@@ -105,14 +105,10 @@ func _get_drag_data(at_position: Vector2) -> Variant:
 func make_drag_data(item: TreeItem):
 	var db_name = item.get_meta("db_name")
 	var table_name = item.get_meta("table_name")
-	var db_display_name = GDSQL.RootConfig.get_database_display_name(db_name)
-	var table_display_name = item.get_meta("display_name")
 	var map = {
 		"__table_item": true,
 		"db_name": db_name,
 		"table_name": table_name,
-		"db_display_name": db_display_name,
-		"table_display_name": table_display_name,
 		"comment": mgr.databases[db_name]["tables"][table_name]["comment"],
 		"columns": mgr.databases[db_name]["tables"][table_name]["columns"],
 	}
