@@ -250,10 +250,10 @@ func _collect_extra(dir: DirAccess, prefix: String, extracted: Dictionary, to_de
 func _delete_collected(to_delete: Array) -> int:
 	var n = 0
 	for rel in to_delete:
-		var abs = ProjectSettings.globalize_path("res://" + rel)
-		var dp = DirAccess.open(abs.get_base_dir())
+		var path_abs = ProjectSettings.globalize_path("res://" + rel)
+		var dp = DirAccess.open(path_abs.get_base_dir())
 		if dp:
-			var err = dp.remove(abs.get_file())
+			var err = dp.remove(path_abs.get_file())
 			if err == OK:
 				n += 1
 			else:

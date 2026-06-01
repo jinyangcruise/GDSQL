@@ -19,6 +19,13 @@ config/description="GDSQL - Database SQL Workbench"
 config/tags=PackedStringArray("opensource")
 config/features=PackedStringArray("4.7", "Forward Plus")
 
+[debug]
+
+gdscript/warnings/directory_rules={
+"res://addons": 1,
+"res://addons/gdUnit4": 0
+}
+
 [editor]
 
 script/search_in_file_extensions=PackedStringArray("gd", "tscn", "gdshader")

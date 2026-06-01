@@ -10,8 +10,6 @@ extends RefCounted
 ##   var err = await dao.create_database("mydb", "user://mydb/")
 ##   if err != OK: printerr("Failed: ", error_string(err))
 
-var _db_name: String = ""
-var _db_path: String = ""
 var _password = ""  # can be String or PackedByteArray
 var _request_password: Array = []
 var _begin_time: float = 0
