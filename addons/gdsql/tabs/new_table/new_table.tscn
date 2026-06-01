@@ -124,7 +124,7 @@ editable = true
 columns = ["Column Name", "Data Type", "Hint", "Hint String", "PK", "NN", "UQ", "AI", "Index", "Default(Expression)", "Comment"]
 column_tips = Array[String](["Column Name", "Data Type", "Inspector Property Hint", "Hint String", "Is Primary Key", "Is Not Null", "Is Unique", "Is Auto Increment", "Is Indexed", "Default Value (Expression Supported)", "Comment"])
 ratios = Array[float]([10.0, 8.0, 3.0, 4.0, 17.0, 14.0, 11.0, 9.0, 6.0, 1.0, 1.0])
-datas = [Object(RefCounted,"script":Resource("res://addons/gdsql/dictionary_object.gd"),"_origin":{},"_data":{
+datas = [Object(RefCounted,"script":Resource("res://addons/gdsql/basic/dictionary_object.gd"),"_origin":{},"_data":{
 "AI": true,
 "Column Name": "id",
 "Comment": "",
