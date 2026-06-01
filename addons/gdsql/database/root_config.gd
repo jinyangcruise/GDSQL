@@ -162,6 +162,15 @@ func validate_name(p_name: String) -> String:
 	if ret.ends_with(DATA_EXTENSION):
 		return ret.get_basename()
 	return ret
+
+func set_database_display_name(db_name: String, display_name: String):
+	db_name = validate_name(db_name)
+	set_value(db_name, "display_name", display_name)
+
+func get_database_display_name(db_name: String) -> String:
+	db_name = validate_name(db_name)
+	var dn = get_value(db_name, "display_name", "")
+	return dn if dn != "" else db_name
 	
 func get_databases() -> Array[String]:
 	var ret: Array[String]
@@ -191,6 +200,7 @@ func get_databases_info() -> Dictionary:
 		databases[db_name] = {
 			"data_path": get_value(db_name, "data_path"),
 			"encrypted": get_value(db_name, "encrypted", ""),
+			"display_name": get_database_display_name(db_name),
 			"tables": {}
 		}
 		

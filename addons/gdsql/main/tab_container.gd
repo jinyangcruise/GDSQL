@@ -160,7 +160,7 @@ func add_tab_new_schema() -> void:
 func add_tab_alter_schema(db_name, path) -> void:
 	var alter_schema = load("res://addons/gdsql/tabs/alter_schema/alter_schema.tscn").instantiate()
 	alter_schema.old_db_name = db_name
-	alter_schema.db_name = db_name
+	alter_schema.db_name = GDSQL.RootConfig.get_database_display_name(db_name)
 	alter_schema.path = path
 	add_child(alter_schema)
 	move_child(new_tab_button, get_child_count() - 1)
@@ -173,7 +173,7 @@ func add_tab_new_table(db_name, like_db_name = "", like_table_name = "") -> void
 	# 如果是create table like，把参考表的表结构复制过来
 	if like_db_name != "" and like_table_name != "":
 		var defination = mgr.databases.get(like_db_name, {}).get("tables", {}).get(like_table_name, {}) as Dictionary
-		new_table.table_name = like_table_name
+		new_table.table_name = defination.get("display_name", like_table_name)
 		new_table.comment = defination.get("comment", "")
 		var datas = defination.get("columns", [])
 		for i in datas:
@@ -187,10 +187,13 @@ func add_tab_new_table(db_name, like_db_name = "", like_table_name = "") -> void
 	
 func add_tab_alter_table(db_name, table_name) -> void:
 	var alter_table = load("res://addons/gdsql/tabs/alter_table/alter_table.tscn").instantiate()
-	alter_table.schema = db_name
+	var db_display = GDSQL.RootConfig.get_database_display_name(db_name)
+	var table_def = mgr.databases.get(db_name, {}).get("tables", {}).get(table_name, {})
+	var table_display = table_def.get("display_name", table_name) if table_def else table_name
+	alter_table.schema = db_display
 	alter_table.old_table_name = table_name
-	alter_table.table_name = table_name
-	var defination = mgr.databases.get(db_name, {}).get("tables", {}).get(table_name, {}) as Dictionary
+	alter_table.table_name = table_display
+	var defination = table_def as Dictionary
 	alter_table.comment = defination.get("comment", "")
 	alter_table.valid_if_not_exist = defination.get("valid_if_not_exist", false)
 	var datas = defination.get("columns", [])

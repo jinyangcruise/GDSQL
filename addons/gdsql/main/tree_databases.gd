@@ -59,7 +59,7 @@ func _notification(what: int) -> void:
 				ti.set_meta("path", path)
 				ti.set_icon(0, get_theme_icon("FileDead", "EditorIcons"))
 				ti.set_text(0, path.get_file())
-				ti.set_text(1, path)
+				ti.set_text(1, GDSQL.GDSQLUtils.localize_path(path))
 				ti.add_button(1, get_theme_icon("Clear", "EditorIcons"), 0, 
 					false, tr("Clear cache"))
 			elif FileAccess.get_modified_time(path) != GDSQL.ConfManager._conf_modified_time[path]:
@@ -67,7 +67,7 @@ func _notification(what: int) -> void:
 				ti.set_meta("path", path)
 				ti.set_icon(0, get_theme_icon("Edit", "EditorIcons"))
 				ti.set_text(0, path.get_file())
-				ti.set_text(1, path)
+				ti.set_text(1, GDSQL.GDSQLUtils.localize_path(path))
 				ti.add_button(1, get_theme_icon("Reload", "EditorIcons"), 1, 
 					false, tr("Clear cache"))
 				ti.add_button(1, get_theme_icon("ExternalLink", "EditorIcons"), 2, 
@@ -115,7 +115,6 @@ func make_drag_data(item: TreeItem):
 	return map
 	
 func add_db_to_config(db_name: String, path: String, id: String) -> void:
-	db_name = GDSQL.RootConfig.validate_name(db_name)
 	var dao = GDSQL.AdminDao.new()
 	var err = dao.create_database(db_name, path)
 	if err == OK:
@@ -338,18 +337,19 @@ func refresh() -> void:
 	for db_name in mgr.databases:
 		var data = mgr.databases[db_name]
 		if !data["tables"].is_empty():
-			popup_menu_create_table_like_tables.add_separator("SCHEMA：%s" % db_name, id)
-			popup_menu_create_table_like_table_item.add_separator("SCHEMA：%s" % db_name, id)
+			popup_menu_create_table_like_tables.add_separator("SCHEMA：%s" % data.get("display_name", db_name), id)
+			popup_menu_create_table_like_table_item.add_separator("SCHEMA：%s" % data.get("display_name", db_name), id)
 		for t in data["tables"]:
+			var t_display_name = data["tables"][t].get("display_name", t)
 			id += 1
-			popup_menu_create_table_like_tables.add_item(t, id)
+			popup_menu_create_table_like_tables.add_item(t_display_name, id)
 			var idx_1 = popup_menu_create_table_like_tables.get_item_index(id)
 			popup_menu_create_table_like_tables.set_item_metadata(idx_1, {
 				"db_name": db_name,
 				"table_name": t
 			})
 			
-			popup_menu_create_table_like_table_item.add_item(t, id)
+			popup_menu_create_table_like_table_item.add_item(t_display_name, id)
 			var idx_2 = popup_menu_create_table_like_table_item.get_item_index(id)
 			popup_menu_create_table_like_table_item.set_item_metadata(idx_2, {
 				"db_name": db_name,
@@ -387,7 +387,7 @@ func add_database(db_name: String, data: Dictionary) -> TreeItem:
 	var data_path = data["data_path"]
 	var database_item = create_item(root)
 	database_item.set_auto_translate_mode(0, Node.AUTO_TRANSLATE_MODE_DISABLED)
-	database_item.set_text(0, db_name)
+	database_item.set_text(0, data.get("display_name", db_name))
 	database_item.set_icon(0, load("res://addons/gdsql/img/icon_db.svg"))
 	database_item.set_icon_max_width(0, 20)
 	database_item.set_tooltip_text(0, data_path)
@@ -429,7 +429,8 @@ func add_table(db: TreeItem, table_name: String):
 	var file_name = table_name + GDSQL.RootConfig.DATA_EXTENSION
 	var db_name = db.get_meta("db_name")
 	var data_path = db.get_meta("data_path").path_join(file_name)
-	table_item.set_text(0, table_name)
+	var table_def = mgr.databases[db_name]["tables"][table_name]
+	table_item.set_text(0, table_def.get("display_name", table_name))
 	table_item.set_auto_translate_mode(0, Node.AUTO_TRANSLATE_MODE_DISABLED)
 	table_item.set_icon(0, load("res://addons/gdsql/img/document_table.svg"))
 	table_item.set_icon_max_width(0, 20)

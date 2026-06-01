@@ -152,6 +152,7 @@ func create_database(name: String, path: String) -> Error:
 	return _create_database_impl(name, path)
 	
 func _create_database_impl(db_name: String, path: String) -> Error:
+	var original_db_name = db_name
 	db_name = _validate_name(db_name)
 	var path_bak = path
 	path = GDSQL.GDSQLUtils.globalize_path(path)
@@ -178,6 +179,7 @@ func _create_database_impl(db_name: String, path: String) -> Error:
 			return _error_occur(action, msgs)
 			
 	GDSQL.RootConfig.set_database_data(db_name, path_bak, "")
+	GDSQL.RootConfig.set_value(db_name, "display_name", original_db_name)
 	GDSQL.RootConfig.save()
 	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.GDSQLUtils.localize_path(GDSQL.RootConfig.path))
 	
@@ -201,6 +203,7 @@ func alter_database(old_name: String, new_name: String) -> Error:
 		
 func _alter_database_impl(old_db_name: String, new_db_name: String) -> Error:
 	old_db_name = _validate_name(old_db_name)
+	var original_new_name = new_db_name
 	new_db_name = _validate_name(new_db_name)
 	
 	var action = "ALTER DATABASE `%s` RENAME `%s`;" % [old_db_name, new_db_name]
@@ -235,6 +238,7 @@ func _alter_database_impl(old_db_name: String, new_db_name: String) -> Error:
 		
 	var old_data = databases[old_db_name]
 	GDSQL.RootConfig.set_database_data(new_db_name, old_data["data_path"], old_data["encrypted"])
+	GDSQL.RootConfig.set_value(new_db_name, "display_name", original_new_name)
 	GDSQL.RootConfig.erase_database(old_db_name)
 	GDSQL.RootConfig.save()
 	msgs.push_back(tr("1 file: %s has been modified.") % GDSQL.GDSQLUtils.localize_path(GDSQL.RootConfig.path))
@@ -325,6 +329,7 @@ comment: String = "", password: String = "", valid_if_not_exist: bool = false) -
 func _create_table_impl(db_name: String, table_name: String, column_infos: Array,
 comment: String = "", password: String = "", valid_if_not_exist: bool = false) -> Error:
 	db_name = _validate_name(db_name)
+	var original_table_name = table_name
 	table_name = _validate_name(table_name)
 	
 	var action = "CREATE TABLE `%s`.`%s` (" % [db_name, table_name]
@@ -401,6 +406,7 @@ comment: String = "", password: String = "", valid_if_not_exist: bool = false) -
 	config_file.set_value(table_name, "comment", comment)
 	config_file.set_value(table_name, "valid_if_not_exist", valid_if_not_exist)
 	config_file.set_value(table_name, "columns", column_infos)
+	config_file.set_value(table_name, "display_name", original_table_name)
 	config_file.save(table_conf_path)
 	msgs.push_back(tr("1 file: %s has been saved.") % GDSQL.GDSQLUtils.localize_path(table_conf_path))
 	
@@ -433,6 +439,7 @@ func _alter_table_impl(db_name: String, old_table_name: String, new_table_name: 
 column_infos: Array, comments: String = "", valid_if_not_exist: bool = false) -> Error:
 	db_name = _validate_name(db_name)
 	old_table_name = _validate_name(old_table_name)
+	var original_new_name = new_table_name
 	new_table_name = _validate_name(new_table_name)
 	
 	var action = "ALTER TABLE `%s`.`%s` to `%s`.`%s` (" % [db_name, old_table_name, db_name, new_table_name]
@@ -485,6 +492,7 @@ column_infos: Array, comments: String = "", valid_if_not_exist: bool = false) ->
 		config_file.set_value(new_table_name, "comment", comments)
 		config_file.set_value(new_table_name, "valid_if_not_exist", valid_if_not_exist)
 		config_file.set_value(new_table_name, "columns", column_infos)
+		config_file.set_value(new_table_name, "display_name", original_new_name)
 		config_file.save(table_conf_path) # 如果新路径和旧路径一致，就会覆盖掉，也是我们所期待的
 		msgs.push_back(tr("1 file: %s has been saved.") % GDSQL.GDSQLUtils.localize_path(table_conf_path))
 		
@@ -600,6 +608,7 @@ column_infos: Array, comments: String = "", valid_if_not_exist: bool = false) ->
 		config_file.set_value(new_table_name, "comment", comments)
 		config_file.set_value(new_table_name, "valid_if_not_exist", valid_if_not_exist)
 		config_file.set_value(new_table_name, "columns", column_infos)
+		config_file.set_value(new_table_name, "display_name", original_new_name)
 		config_file.save(table_conf_path) # 如果新路径和旧路径一致，就会覆盖掉，也是我们所期待的
 		msgs.push_back(tr("1 file: %s has been saved.") % GDSQL.GDSQLUtils.localize_path(table_conf_path))
 		
