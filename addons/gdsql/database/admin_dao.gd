@@ -628,13 +628,16 @@ column_infos: Array, comments: String = "", valid_if_not_exist: bool = false) ->
 			return v["Column Name"]
 		))
 		
-		if old_table_data_path != new_table_data_path:
-			var old_table_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, old_table_name)
+		var old_table_conf_path = GDSQL.RootConfig.get_table_config_path(db_name, old_table_name)
+		if old_table_conf_path != table_conf_path:
 			var old_table_conf_path_abs = GDSQL.GDSQLUtils.globalize_path(old_table_conf_path)
-			var old_table_data_path_abs = GDSQL.GDSQLUtils.globalize_path(old_table_data_path)
 			if GDSQL.GDSQLUtils.file_exists(old_table_conf_path_abs):
 				OS.move_to_trash(old_table_conf_path_abs) # 删配置
 				msgs.push_back(tr("1 file: %s has been moved to trash.") % GDSQL.GDSQLUtils.localize_path(old_table_conf_path_abs))
+			GDSQL.ConfManager.remove_conf(old_table_conf_path)
+			
+		if old_table_data_path != new_table_data_path:
+			var old_table_data_path_abs = GDSQL.GDSQLUtils.globalize_path(old_table_data_path)
 			if GDSQL.GDSQLUtils.file_exists(old_table_data_path_abs):
 				OS.move_to_trash(old_table_data_path_abs) # 删数据
 				msgs.push_back(tr("1 file: %s has been moved to trash.") % GDSQL.GDSQLUtils.localize_path(old_table_data_path_abs))
