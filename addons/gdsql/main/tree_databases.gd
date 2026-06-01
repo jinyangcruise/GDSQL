@@ -121,6 +121,7 @@ func add_db_to_config(db_name: String, path: String, id: String) -> void:
 	if err == OK:
 		mgr.sys_confirm_add_schema.emit(id)
 		refresh()
+		
 func add_table_to_config(db_name: String, table_name: String, comment: String,
 	password: String, valid_if_not_exist: bool, column_infos: Array, id: String = "") -> void:
 	var dao = GDSQL.AdminDao.new()
@@ -129,12 +130,14 @@ func add_table_to_config(db_name: String, table_name: String, comment: String,
 		if id != "":
 			mgr.sys_confirm_add_table.emit(id)
 		refresh()
+		
 func modify_db_to_config(old_db_name: String, new_db_name: String, _path: String, id: String) -> void:
 	var dao = GDSQL.AdminDao.new()
 	var err = await dao.alter_database(old_db_name, new_db_name)
 	if err == OK:
 		refresh()
 		mgr.sys_confirm_alter_schema.emit(id)
+		
 func modify_table_to_config(db_name: String, old_table_name: String, new_table_name,
 		comments: String, valid_if_not_exist: bool, column_infos: Array, id: String) -> void:
 	var dao = GDSQL.AdminDao.new()
@@ -142,6 +145,7 @@ func modify_table_to_config(db_name: String, old_table_name: String, new_table_n
 	if err == OK:
 		refresh()
 		mgr.sys_confirm_alter_table.emit(id)
+		
 func set_password_for_database(db_name: String, password: String) -> void:
 	var dao = GDSQL.AdminDao.new()
 	var err = dao.set_db_password(db_name, password)
@@ -151,6 +155,7 @@ func set_password_for_database(db_name: String, password: String) -> void:
 			_password_correct.erase(table_data_path)
 		_password_correct.erase(GDSQL.RootConfig.get_database_data_path(db_name))
 		refresh()
+		
 func clear_password_for_database(db_name: String) -> void:
 	var dao = GDSQL.AdminDao.new()
 	var err = dao.clear_db_password(db_name)
@@ -160,6 +165,7 @@ func clear_password_for_database(db_name: String) -> void:
 			_password_correct.erase(table_data_path)
 		_password_correct.erase(GDSQL.RootConfig.get_database_data_path(db_name))
 		refresh()
+		
 func change_password_for_database(db_name: String, password: String) -> void:
 	var dao = GDSQL.AdminDao.new()
 	var err = dao.change_db_password(db_name, password)
@@ -169,6 +175,7 @@ func change_password_for_database(db_name: String, password: String) -> void:
 			_password_correct.erase(table_data_path)
 		_password_correct.erase(GDSQL.RootConfig.get_database_data_path(db_name))
 		refresh()
+		
 func set_password(db_name: String, table_name: String, password: String) -> void:
 	var dao = GDSQL.AdminDao.new()
 	var err = dao.set_table_password(db_name, table_name, password)
@@ -176,6 +183,7 @@ func set_password(db_name: String, table_name: String, password: String) -> void
 		var table_data_path = GDSQL.GDSQLUtils.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 		_password_correct.erase(table_data_path)
 		refresh()
+		
 func clear_password(db_name: String, table_name: String) -> void:
 	var dao = GDSQL.AdminDao.new()
 	var err = dao.clear_table_password(db_name, table_name)
@@ -183,6 +191,7 @@ func clear_password(db_name: String, table_name: String) -> void:
 		var table_data_path = GDSQL.GDSQLUtils.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 		_password_correct.erase(table_data_path)
 		refresh()
+		
 func change_password(db_name: String, table_name: String, password: String) -> void:
 	var dao = GDSQL.AdminDao.new()
 	var err = dao.change_table_password(db_name, table_name, password)
@@ -190,6 +199,7 @@ func change_password(db_name: String, table_name: String, password: String) -> v
 		var table_data_path = GDSQL.GDSQLUtils.globalize_path(GDSQL.RootConfig.get_table_data_path(db_name, table_name))
 		_password_correct.erase(table_data_path)
 		refresh()
+		
 func drop_db_from_config(db_name: String) -> void:
 	if mgr.databases.has(db_name) and _default_database_path == GDSQL.RootConfig.get_database_data_path(db_name):
 		_default_database_path = ""
@@ -197,6 +207,7 @@ func drop_db_from_config(db_name: String) -> void:
 	var err = await dao.drop_database(db_name)
 	if err == OK:
 		refresh()
+		
 func drop_table_from_config(db_name: String, table_name: String) -> void:
 	var dao = GDSQL.AdminDao.new()
 	var err = await dao.drop_table(db_name, table_name)
@@ -205,11 +216,13 @@ func drop_table_from_config(db_name: String, table_name: String) -> void:
 		_password_correct.erase(data_path)
 		refresh()
 		mgr.sys_confirm_drop_table.emit(db_name, table_name)
+		
 func truncate_table_from_config(db_name: String, table_name: String) -> void:
 	var dao = GDSQL.AdminDao.new()
 	var err = await dao.truncate_table(db_name, table_name)
 	if err == OK:
 		refresh()
+		
 func _ready():
 	if mgr == null or not mgr.run_in_plugin(self):
 		return
@@ -342,7 +355,7 @@ func refresh() -> void:
 				"db_name": db_name,
 				"table_name": t
 			})
-	
+			
 func _get_specific_extension_files(path: String, extension: String) -> Array[String]:
 	var ret: Array[String] = []
 	var dir = DirAccess.open(path)
@@ -369,7 +382,7 @@ func _get_specific_extension_files(path: String, extension: String) -> Array[Str
 		push_warning(msg)
 		
 	return ret
-
+	
 func add_database(db_name: String, data: Dictionary) -> TreeItem:
 	var data_path = data["data_path"]
 	var database_item = create_item(root)
