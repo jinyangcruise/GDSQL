@@ -315,13 +315,6 @@ func test_evaluate_command_script_dictionary_literal() -> void:
 # globalize_path
 # --------------------------------------------------------------------------
 
-## 测试: res://路径简化
-func test_globalize_path_res_simplify() -> void:
-	var path = "res://addons/gdsql/basic/gdsql_utils.gd"
-	var result = GDSQL.GDSQLUtils.globalize_path(path)
-	assert_str(result).is_equal(path.simplify_path())
-
-
 ## 测试: res://含.和..路径
 func test_globalize_path_res_with_dots() -> void:
 	var path = "res://addons/../addons/gdsql/./gdsql_utils.gd"
@@ -329,13 +322,6 @@ func test_globalize_path_res_with_dots() -> void:
 	# res:// paths are simplified
 	assert_bool(result.ends_with("gdsql_utils.gd")).is_true()
 	assert_bool(".." in result).is_false()
-
-
-## 测试: res://目录路径
-func test_globalize_path_res_simple_dir() -> void:
-	var path = "res://addons/gdsql/"
-	var result = GDSQL.GDSQLUtils.globalize_path(path)
-	assert_str(result).is_equal(path.simplify_path())
 
 
 ## 测试: install://含gdsql/data

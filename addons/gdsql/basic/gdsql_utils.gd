@@ -177,20 +177,15 @@ static func file_exists(path: String) -> bool:
 	return FileAccess.file_exists(globalize_path(path))
 	
 ## 由于在导出的游戏中，ProjectSettings.globalize_path()函数不能正确处理"res://"(@see
-## Godot Doc)，所以在这里统一处理。如果是res:开头，或实际指向程序内资源，则返回一个res:开头
-## 的目录
+## Godot Doc)，所以在这里统一处理。
 static func globalize_path(path: String) -> String:
-	if path.begins_with("res://"):
-		return path.simplify_path()
 	if path.begins_with("install://"):
-		return OS.get_executable_path().get_base_dir().path_join(path.substr("install://".length()))
+		return OS.get_executable_path().get_base_dir().path_join(path.substr("install://".length())).simplify_path()
 	if OS.has_feature("editor"):
-		var res_path = ProjectSettings.globalize_path("res://")
-		if path.begins_with(res_path):
-			return ("res://" + path.substr(res_path.length())).simplify_path()
 		return ProjectSettings.globalize_path(path).simplify_path()
-	return path
-	
+	else:
+		return path.simplify_path()
+		
 ## 找字符串中某个符号的位置。处于引号、括号内的符号不会计算在内。
 ## 返回数组的子元素是一个长度为2的数组，分别为开始位置和结束位置。
 ## 不支持符号是单引号或双引号或斜杠\。支持\s：looking_for = '\\s'
