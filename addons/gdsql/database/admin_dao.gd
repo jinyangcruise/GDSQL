@@ -61,7 +61,6 @@ func _success(action: String, msgs) -> Error:
 	var mgr = _get_mgr()
 	if mgr:
 		mgr.add_log_history.emit("OK", _begin_time, action, msgs)
-		mgr.create_accept_dialog(msgs)
 	return OK
 	
 func _mgr_create_confirmation_dialog(msgs, confirm_callback: Callable):
