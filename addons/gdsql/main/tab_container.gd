@@ -61,11 +61,19 @@ func _ready() -> void:
 		
 	set_tab_icon(WELCOME_PAGE_TAB_INDEX, load("res://addons/gdsql/img/gdsql_text_icon.svg"))
 	get_tab_bar().active_tab_rearranged.connect(_on_active_tab_rearranged)
+	_add_tab_context_menu()
 	
 func _exit_tree():
 	if mgr == null or not mgr.run_in_plugin(self):
 		return
-		
+
+	# 清理右键菜单
+	if _tab_context_menu:
+		if _tab_context_menu.is_connected("popup_hide", _tab_context_menu.queue_free):
+			_tab_context_menu.disconnect("popup_hide", _tab_context_menu.queue_free)
+		_tab_context_menu.queue_free()
+		_tab_context_menu = null
+
 	if mgr.open_add_schema_tab.is_connected(add_tab_new_schema):
 		mgr.open_add_schema_tab.disconnect(add_tab_new_schema)
 	if mgr.open_add_table_tab.is_connected(add_tab_new_table):
@@ -362,6 +370,79 @@ func close_content_window(content_id: String):
 		remove_child(child)
 		child.queue_free()
 		
+
+var _tab_context_menu: PopupMenu
+
+func _add_tab_context_menu():
+	_tab_context_menu = PopupMenu.new()
+	_tab_context_menu.add_item(tr("Close"), 0)
+	_tab_context_menu.add_item(tr("Close Other Tabs"), 1)
+	_tab_context_menu.add_item(tr("Close Tabs to the Right"), 2)
+	_tab_context_menu.add_item(tr("Close All Tabs"), 3)
+	_tab_context_menu.id_pressed.connect(_on_tab_context_menu_pressed)
+	# 注意：不能 add_child 到 TabContainer，会影响 get_child_count() 导致➕按钮下标计算错误
+	get_tree().root.add_child(_tab_context_menu)
+	get_tab_bar().gui_input.connect(_on_tab_bar_gui_input)
+
+func _on_tab_bar_gui_input(event: InputEvent):
+	if event is InputEventMouseButton and event.pressed:
+		var tab_bar = get_tab_bar()
+		var tab_idx = -1
+		for i in tab_bar.get_tab_count():
+			if tab_bar.get_tab_rect(i).has_point(event.position):
+				tab_idx = i
+				break
+		if tab_idx < 0:
+			return
+		match event.button_index:
+			MOUSE_BUTTON_RIGHT:
+				_on_tab_right_clicked(tab_idx)
+			MOUSE_BUTTON_MIDDLE:
+				_close_tab(tab_idx)
+
+func _on_tab_right_clicked(clicked_tab: int):
+	# 只对实际的内容标签页显示右键菜单（排除欢迎页和➕按钮）
+	if clicked_tab <= WELCOME_PAGE_TAB_INDEX:
+		return
+	var tab_control = get_tab_control(clicked_tab)
+	if tab_control == null or tab_control == new_tab_button:
+		return
+	current_tab = clicked_tab
+	_tab_context_menu.position = DisplayServer.mouse_get_position()
+	_tab_context_menu.popup()
+	_tab_context_menu.grab_focus()
+
+func _on_tab_context_menu_pressed(id: int):
+	match id:
+		0:  # Close current
+			_close_tab(current_tab)
+		1:  # Close other tabs
+			_close_tabs(func(i): return i != current_tab and i != WELCOME_PAGE_TAB_INDEX and get_child(i) != new_tab_button)
+		2:  # Close tabs to the right
+			_close_tabs(func(i): return i > current_tab and get_child(i) != new_tab_button)
+		3:  # Close all tabs
+			_close_tabs(func(i): return i != WELCOME_PAGE_TAB_INDEX and get_child(i) != new_tab_button)
+
+func _close_tab(tab_idx: int):
+	if tab_idx < 0 or tab_idx >= get_tab_count():
+		return
+	var child = get_tab_control(tab_idx)
+	if child == new_tab_button or tab_idx == WELCOME_PAGE_TAB_INDEX:
+		return
+	_switch_to_previous_page(child)
+	remove_child(child)
+	child.queue_free()
+
+func _close_tabs(filter: Callable):
+	# Collect tabs to close (from right to left to keep indices stable)
+	var tabs_to_close = []
+	for i in get_tab_count():
+		if filter.call(i):
+			tabs_to_close.push_back(i)
+	tabs_to_close.reverse()
+	for i in tabs_to_close:
+		_close_tab(i)
+
 ## 切换标签的时候，把激活的标签上加一个关闭按钮，没激活的标签取消关闭按钮防止误触
 func _on_tab_changed(tab: int) -> void:
 	var tab_control = get_tab_control(tab)
