@@ -75,8 +75,9 @@ func _notification(what: int) -> void:
 				ti.add_button(1, get_theme_icon("FileDialog", "EditorIcons"), 3, 
 					false, tr("Show in File Manager"))
 		if disk_changed_list.get_root().get_child_count() > 0:
-			disk_changed.popup_centered_ratio(0.3)
-			
+			if not disk_changed.visible:
+				disk_changed.popup_centered_ratio(0.3)
+				
 func _clear():
 	clear()
 	database_items.clear()

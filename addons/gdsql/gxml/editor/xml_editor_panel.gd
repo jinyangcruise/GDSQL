@@ -23,10 +23,14 @@ var confirm_save_dialog = ConfirmationDialog.new()
 var file_not_exist_dialog = AcceptDialog.new()
 var search_help_dialog = preload("res://addons/gdsql/gxml/editor/search_herlp.tscn").instantiate()
 
+var disk_changed: ConfirmationDialog
+var disk_changed_list: Tree
+
 var history = []
 var closing_item: TreeItem # 正在关闭的tab
 var sub_menu: PopupMenu
 var zoom_factor: float = 1.0
+var _file_modified_times: Dictionary # {path: FileAccess.get_modified_time(path)}
 
 const config_path = "user://xml_editor.cfg"
 var config: ConfigFile
@@ -155,6 +159,8 @@ func _ready() -> void:
 			open_file(path)
 		else:
 			print_rich("[color=yellow]XML Editor: File not exist, '%s'[/color]" % path)
+	
+	_init_disk_changed_dialog()
 			
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_THEME_CHANGED:
@@ -164,7 +170,9 @@ func _notification(what: int) -> void:
 			item_tree.add_theme_stylebox_override(&"panel", get_theme_stylebox(&"panel", &"ItemList"))
 		if xml_editor_container:
 			xml_editor_container.add_theme_stylebox_override(&"panel", get_theme_stylebox(&"ScriptEditor", &"EditorStyles"))
-			
+	elif what == NOTIFICATION_APPLICATION_FOCUS_IN or what == NOTIFICATION_VISIBILITY_CHANGED:
+		_check_disk_changed()
+		
 func refresh_sub_menu():
 	var recent_files = config.get_value("history", "primary", [])
 	sub_menu.clear()
@@ -253,6 +261,8 @@ func open_file(path: String, p_line: int = 0, p_begin: int = -1, p_end: int = -1
 	if not file:
 		push_error(error_string(FileAccess.get_open_error()))
 	var content = file.get_as_text()
+	file = null
+	_file_modified_times[path] = FileAccess.get_modified_time(path)
 	var xml_editor = preload("res://addons/gdsql/gxml/editor/xml_editor.tscn").instantiate()
 	xml_editor.content = content
 	xml_editor_container.add_child(xml_editor)
@@ -389,6 +399,7 @@ func _save_file(item: TreeItem):
 	file.store_string(content)
 	file.flush()
 	file = null
+	_file_modified_times[path] = FileAccess.get_modified_time(path)
 	item.set_text(0, item.get_text(0).replace("(*)", ""))
 	curr_file.text = item.get_text(0)
 	refresh_xml_item_tree()
@@ -498,6 +509,7 @@ func _init_file_saveas_dialog():
 		file.store_string(content)
 		file.flush()
 		file = null
+		_file_modified_times[path] = FileAccess.get_modified_time(path)
 		EditorInterface.get_resource_filesystem().scan()
 		# scan后窗口可能被最小化了，所以用窗口的方法，能重新激活
 		while EditorInterface.get_resource_filesystem().is_scanning():
@@ -590,6 +602,7 @@ func _close_tab(p_save: bool):
 	editor.queue_free()
 	add_to_recent_history(path)
 	remove_from_unclosed_files(path)
+	_file_modified_times.erase(path)
 	_update_find_replace_bar()
 	if history.is_empty():
 		refresh_xml_item_tree()
@@ -793,3 +806,193 @@ func _on_dialog_visibility_changed(dialog: AcceptDialog):
 		if pin_to_top_button.button_pressed:
 			_on_pin_to_top_button_toggled(false)
 			_on_pin_to_top_button_toggled(true)
+
+func _init_disk_changed_dialog():
+	disk_changed = ConfirmationDialog.new()
+	disk_changed.set_translation_domain("GDSQL")
+	var vbc = VBoxContainer.new()
+	disk_changed.add_child(vbc)
+	
+	var dl = Label.new()
+	dl.text = tr("The following files are newer on disk.\nWhat action should be taken?")
+	vbc.add_child(dl)
+	
+	disk_changed_list = Tree.new()
+	vbc.add_child(disk_changed_list)
+	disk_changed_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	disk_changed_list.button_clicked.connect(_on_disk_changed_list_button_clicked)
+	disk_changed.confirmed.connect(_reload_disk_changed_files)
+	disk_changed.ok_button_text = tr("Reload")
+	add_child(disk_changed)
+
+func _check_disk_changed():
+	if not is_visible_in_tree() or not disk_changed_list:
+		return
+	if history.is_empty():
+		return
+	disk_changed_list.clear()
+	disk_changed_list.columns = 2
+	var r = disk_changed_list.create_item()
+	disk_changed_list.hide_root = true
+	for item: TreeItem in history:
+		var path: String = item.get_meta("path")
+		if not _file_modified_times.has(path):
+			continue
+		if not FileAccess.file_exists(path):
+			var ti = disk_changed_list.create_item(r)
+			ti.set_meta("path", path)
+			ti.set_icon(0, get_theme_icon("FileDead", "EditorIcons"))
+			ti.set_text(0, path.get_file())
+			ti.set_text(1, GDSQL.GDSQLUtils.localize_path(path) if path.begins_with("res://") else path)
+			ti.add_button(1, get_theme_icon("Close", "EditorIcons"), 0,
+				false, tr("Close file"))
+		elif FileAccess.get_modified_time(path) != _file_modified_times[path]:
+			var ti = disk_changed_list.create_item(r)
+			ti.set_meta("path", path)
+			ti.set_icon(0, get_theme_icon("Edit", "EditorIcons"))
+			ti.set_text(0, path.get_file())
+			ti.set_text(1, GDSQL.GDSQLUtils.localize_path(path) if path.begins_with("res://") else path)
+			ti.add_button(1, get_theme_icon("Reload", "EditorIcons"), 1,
+				false, tr("Reload from disk"))
+			ti.add_button(1, get_theme_icon("ExternalLink", "EditorIcons"), 2,
+				false, tr("Open in External Program"))
+			ti.add_button(1, get_theme_icon("FileDialog", "EditorIcons"), 3,
+				false, tr("Show in File Manager"))
+	if disk_changed_list.get_root().get_child_count() > 0:
+		if not disk_changed.visible:
+			disk_changed.popup_centered_ratio(0.3)
+			
+func _on_disk_changed_list_button_clicked(item: TreeItem, _column: int, id: int, _mouse_button_index: int):
+	var path: String = item.get_meta("path")
+	match id:
+		0:
+			# Close file
+			for tab_item: TreeItem in history:
+				if tab_item.get_meta("path") == path:
+					closing_item = tab_item
+					_close_tab(false)
+					break
+			_remove_disk_changed_item(item)
+		1:
+			# Reload from disk
+			_reload_single_file_with_check(path, item)
+		2:
+			# Open in external program
+			var global_path = path
+			if path.begins_with("res://"):
+				global_path = GDSQL.GDSQLUtils.globalize_path(path)
+			OS.shell_open(global_path)
+		3:
+			# Show in file manager
+			var global_path = path
+			if path.begins_with("res://"):
+				global_path = GDSQL.GDSQLUtils.globalize_path(path)
+			OS.shell_show_in_file_manager(global_path, true)
+
+func _remove_disk_changed_item(item: TreeItem):
+	var root = disk_changed_list.get_root()
+	root.remove_child(item)
+	item.free()
+	if root.get_child_count() == 0:
+		disk_changed.hide()
+
+func _reopen_disk_changed_if_needed():
+	if disk_changed_list.get_root().get_child_count() > 0:
+		disk_changed.popup_centered_ratio(0.3)
+
+func _reload_disk_changed_files():
+	var has_unsaved = false
+	for i in disk_changed_list.get_root().get_child_count():
+		var path: String = disk_changed_list.get_root().get_child(i).get_meta("path")
+		for tab_item: TreeItem in history:
+			if tab_item.get_meta("path") == path and tab_item.get_text(0).ends_with("(*)"):
+				has_unsaved = true
+				break
+		if has_unsaved:
+			break
+	if has_unsaved:
+		disk_changed.hide()
+		var confirm = ConfirmationDialog.new()
+		confirm.set_translation_domain("GDSQL")
+		confirm.dialog_text = tr("Some files have unsaved changes. Reload anyway?")
+		confirm.ok_button_text = tr("Reload")
+		confirm.confirmed.connect(func():
+			_do_reload_all()
+			confirm.queue_free()
+		)
+		confirm.canceled.connect(func():
+			confirm.hide()
+			confirm.queue_free()
+			_reopen_disk_changed_if_needed.call_deferred()
+		)
+		add_child(confirm)
+		confirm.popup_centered()
+	else:
+		_do_reload_all()
+
+func _do_reload_all():
+	var root = disk_changed_list.get_root()
+	var children = root.get_children()
+	for child in children:
+		var path: String = child.get_meta("path")
+		_reload_single_file(path)
+		root.remove_child(child)
+		child.free()
+	disk_changed.hide()
+
+func _reload_single_file_with_check(path: String, item: TreeItem):
+	for tab_item: TreeItem in history:
+		if tab_item.get_meta("path") == path and tab_item.get_text(0).ends_with("(*)"):
+			disk_changed.hide()
+			var confirm = ConfirmationDialog.new()
+			confirm.set_translation_domain("GDSQL")
+			confirm.dialog_text = tr("This file has unsaved changes. Reload anyway?") + "\n\"" + path + "\""
+			confirm.ok_button_text = tr("Reload")
+			confirm.confirmed.connect(func():
+				_reload_single_file(path)
+				_remove_disk_changed_item(item)
+				confirm.hide()
+				confirm.queue_free()
+				_reopen_disk_changed_if_needed.call_deferred()
+			)
+			confirm.canceled.connect(func():
+				confirm.hide()
+				confirm.queue_free()
+				_reopen_disk_changed_if_needed.call_deferred()
+			)
+			add_child(confirm)
+			confirm.popup_centered()
+			return
+	_reload_single_file(path)
+	_remove_disk_changed_item(item)
+
+func _reload_single_file(path: String):
+	for item: TreeItem in history:
+		if item.get_meta("path") != path:
+			continue
+		if not FileAccess.file_exists(path):
+			continue
+		var file = FileAccess.open(path, FileAccess.READ)
+		if not file:
+			continue
+		var new_content = file.get_as_text()
+		file = null
+		_file_modified_times[path] = FileAccess.get_modified_time(path)
+		var old_editor = item.get_meta("editor") as Node
+		var xml_editor = preload("res://addons/gdsql/gxml/editor/xml_editor.tscn").instantiate()
+		xml_editor.content = new_content
+		xml_editor.text_changed.connect(_on_text_changed)
+		xml_editor.toggle_scripts_pressed.connect(toggle_left_window)
+		xml_editor.zoomed.connect(_update_zoom)
+		xml_editor.call_deferred("set_zoom_factor", zoom_factor)
+		xml_editor.scripts_panel_toggled = not left_window.visible
+		item.set_meta("editor", xml_editor)
+		xml_editor_container.add_child(xml_editor)
+		xml_editor.visible = old_editor.visible
+		xml_editor_container.remove_child(old_editor)
+		old_editor.queue_free()
+		# Reset the modified indicator
+		item.set_text(0, item.get_text(0).replace("(*)", ""))
+		curr_file.text = item.get_text(0)
+		refresh_xml_item_tree()
+		break
