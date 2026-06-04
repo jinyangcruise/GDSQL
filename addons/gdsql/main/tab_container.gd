@@ -137,25 +137,34 @@ func _exit_tree():
 func _on_tab_clicked(tab: int) -> void:
 	# 点击了“新建SQL页面”（加号），增加一个编辑页面，并激活
 	if get_child(tab) == new_tab_button:
-		var sql_file = SQLGraph.instantiate()
-		sql_file.request_open_file.connect(add_tab_graph_file)
-		sql_file.change_tab_title.connect(func(page, title):
-			var idx = get_tab_idx_from_control(page)
-			if idx >= 0:
-				set_tab_title(idx, title.get_basename())
-		)
-		add_child(sql_file)
-		move_child(new_tab_button, get_child_count() - 1)
-		current_tab = get_child_count() - 2
-		set_tab_title(current_tab, "SQL File %d" % _tab_index)
-		set_tab_icon(current_tab, load("res://addons/gdsql/img/GDSQLGraph.svg"))
-		_tab_index += 1
+		add_tab_empty_graph()
 		
+func add_tab_empty_graph():
+	var sql_file = SQLGraph.instantiate()
+	sql_file.request_open_file.connect(add_tab_graph_file)
+	sql_file.change_tab_title.connect(func(page, title):
+		var idx = get_tab_idx_from_control(page)
+		if idx >= 0:
+			set_tab_title(idx, title.get_basename())
+	)
+	add_child(sql_file)
+	move_child(new_tab_button, get_child_count() - 1)
+	current_tab = get_child_count() - 2
+	set_tab_title(current_tab, "SQL File %d" % _tab_index)
+	set_tab_icon(current_tab, load("res://addons/gdsql/img/GDSQLGraph.svg"))
+	_tab_index += 1
+	return sql_file
+	
 func add_tab_graph_file(path: String) -> void:
+	if path.is_empty():
+		add_tab_empty_graph()
+		return
+		
 	# 是否已经打开过了，就直接激活
 	for i in get_tab_count():
 		var page = get_tab_control(i)
-		if page.get_meta("type") == "sql_graph" and page.get_meta("file_path", "") == path:
+		if page.get_meta("type") == "sql_graph" and \
+		GDSQL.GDSQLUtils.localize_path(page.get_meta("file_path", "")) == GDSQL.GDSQLUtils.localize_path(path):
 			current_tab = i
 			return
 			
@@ -286,6 +295,10 @@ func add_tab_select_data_export(columns: Array, datas: Array) -> void:
 	select_data_export.load_data(columns, datas)
 	
 func add_tab_mapper_graph(info: Dictionary):
+	var mapper_file = add_tab_empty_mapper_graph()
+	mapper_file.load_data(info)
+	
+func add_tab_empty_mapper_graph():
 	var mapper_file = MAPPER_GRAPH.instantiate()
 	mapper_file.request_open_file.connect(add_tab_mapper_graph_file)
 	mapper_file.change_tab_title.connect(func(page, title):
@@ -297,14 +310,20 @@ func add_tab_mapper_graph(info: Dictionary):
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
 	set_tab_title(current_tab, "Mapper File %d" % _tab_index)
+	set_tab_icon(current_tab, load("res://addons/gdsql/gbatis/img/GBMapperGraph.svg"))
 	_tab_index += 1
-	mapper_file.load_data(info)
+	return mapper_file
 	
 func add_tab_mapper_graph_file(path: String):
+	if path.is_empty():
+		add_tab_empty_mapper_graph()
+		return
+		
 	# 是否已经打开过了，就直接激活
 	for i in get_tab_count():
 		var page = get_tab_control(i)
-		if page.get_meta("type") == "mapper_graph" and page.get_meta("file_path", "") == path:
+		if page.get_meta("type") == "mapper_graph" and \
+		GDSQL.GDSQLUtils.localize_path(page.get_meta("file_path", "")) == GDSQL.GDSQLUtils.localize_path(path):
 			current_tab = i
 			return
 			

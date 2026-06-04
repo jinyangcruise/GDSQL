@@ -28,9 +28,16 @@ keycode = 83
 [sub_resource type="Shortcut" id="Shortcut_n7cwt"]
 events = [SubResource("InputEventKey_lywi6")]
 
-[sub_resource type="DPITexture" id="DPITexture_rpwxo"]
-_source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#ff5d5d\" d=\"M2 1v8.586l1.293-1.293a1 1 0 0 1 1.414 0L7 10.587l2.293-2.293a1 1 0 0 1 1.414 0L13 10.586l1-1V6H9V1H2zm8 0v4h4zm-6 9.414-2 2V15h12v-2.586l-.293.293a1 1 0 0 1-1.414 0L10 10.414l-2.293 2.293a1 1 0 0 1-1.414 0L4 10.414z\"/></svg>
+[sub_resource type="DPITexture" id="DPITexture_6mfrp"]
+_source = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"16\" height=\"16\"><path fill=\"#e0e0e0\" d=\"M9 1v2h6V1zM4 1a1 1 0 0 0-.691.291l-2 2a1 1 0 0 0 1.414 1.414l.293-.293v7.172l-.293-.293a1 1 0 0 0-1.414 1.414l2 2a1 1 0 0 0 1.414 0l2-2a1 1 0 0 0-1.414-1.414l-.293.293V4.412l.293.293a1 1 0 0 0 1.414-1.414l-2-2A1 1 0 0 0 4 1zm5 6v2h4V7zm0 6v2h2v-2z\"/></svg>
 "
+base_scale = 1.5
+saturation = 2.0
+color_map = {
+Color(1, 0.37254903, 0.37254903, 1): Color(1, 0.47, 0.42, 1),
+Color(0.37254903, 1, 0.5921569, 1): Color(0.45, 0.95, 0.5, 1),
+Color(1, 0.8666667, 0.39607844, 1): Color(0.83, 0.78, 0.62, 1)
+}
 
 [node name="MapperGraph" type="VSplitContainer" unique_id=1742084449]
 anchors_preset = 15
@@ -168,10 +175,10 @@ force_native = true
 
 [node name="VBoxContainerNodeList" type="VBoxContainer" parent="VBoxContainer/HFlowContainer/ButtonNodeList/PopupPanelNodeList" unique_id=477068297]
 unique_name_in_owner = true
-offset_left = 4.0
-offset_top = 4.0
-offset_right = 525.0
-offset_bottom = 132.0
+offset_left = 21.0
+offset_top = 21.0
+offset_right = 508.0
+offset_bottom = 115.0
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
@@ -190,7 +197,7 @@ caret_blink = true
 [node name="MenuButtonSortNodeList" type="MenuButton" parent="VBoxContainer/HFlowContainer/ButtonNodeList/PopupPanelNodeList/VBoxContainerNodeList/HBoxContainer" unique_id=1447528022]
 unique_name_in_owner = true
 layout_mode = 2
-icon = SubResource("DPITexture_rpwxo")
+icon = SubResource("DPITexture_6mfrp")
 item_count = 7
 popup/item_0/text = "Default"
 popup/item_0/id = 0
@@ -237,7 +244,7 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-scroll_offset = Vector2(0, -67)
+scroll_offset = Vector2(0, -106)
 right_disconnects = true
 zoom_min = 0.05
 script = ExtResource("2_455wi")

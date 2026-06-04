@@ -393,13 +393,11 @@ func _on_file_new_query_tab() -> void:
 	pass
 
 func _on_file_new_graph_tab() -> void:
-	# TODO: Implement new graph tab
-	pass
-
+	GDSQL.WorkbenchManager.open_sql_graph_file_tab.emit("")
+	
 func _on_file_new_mapper_tab() -> void:
-	# TODO: Implement new mapper tab
-	pass
-
+	GDSQL.WorkbenchManager.open_mapper_graph_file_tab.emit("")
+	
 func _on_file_open(path: String) -> void:
 	match path.get_extension().to_lower():
 		"gdsqlgraph":
