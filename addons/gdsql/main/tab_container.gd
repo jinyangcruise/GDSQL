@@ -4,6 +4,7 @@ extends TabContainer
 var mgr: GDSQL.WorkbenchManagerClass:
 	get: return GDSQL.WorkbenchManager
 	
+var SQLFile = load("res://addons/gdsql/tabs/sql_file/sql_file.tscn")
 var SQLGraph = load("res://addons/gdsql/tabs/sql_graph/sql_graph.tscn")
 var MAPPER_GRAPH = load("res://addons/gdsql/tabs/mapper_graph/mapper_graph.tscn")
 
@@ -45,6 +46,8 @@ func _ready() -> void:
 		mgr.open_select_data_export_tab.connect(add_tab_select_data_export, CONNECT_DEFERRED)
 	if not mgr.open_mapper_graph_tab.is_connected(add_tab_mapper_graph):
 		mgr.open_mapper_graph_tab.connect(add_tab_mapper_graph, CONNECT_DEFERRED)
+	if not mgr.open_sql_text_file_tab.is_connected(add_tab_sql_file):
+		mgr.open_sql_text_file_tab.connect(add_tab_sql_file)
 	if not mgr.open_sql_graph_file_tab.is_connected(add_tab_graph_file):
 		mgr.open_sql_graph_file_tab.connect(add_tab_graph_file)
 	if not mgr.open_mapper_graph_file_tab.is_connected(add_tab_mapper_graph_file):
@@ -99,6 +102,8 @@ func _exit_tree():
 		mgr.open_table_data_import_tab.disconnect(add_tab_table_data_import)
 	if mgr.open_select_data_export_tab.is_connected(add_tab_select_data_export):
 		mgr.open_select_data_export_tab.disconnect(add_tab_select_data_export)
+	if mgr.open_sql_text_file_tab.is_connected(add_tab_sql_file):
+		mgr.open_sql_text_file_tab.disconnect(add_tab_sql_file)
 	if mgr.open_sql_graph_file_tab.is_connected(add_tab_graph_file):
 		mgr.open_sql_graph_file_tab.disconnect(add_tab_graph_file)
 	if mgr.open_mapper_graph_tab.is_connected(add_tab_mapper_graph):
@@ -139,9 +144,9 @@ func _on_tab_clicked(tab: int) -> void:
 	if get_child(tab) == new_tab_button:
 		add_tab_empty_graph()
 		
-func add_tab_empty_graph():
-	var sql_file = SQLGraph.instantiate()
-	sql_file.request_open_file.connect(add_tab_graph_file)
+func add_tab_empty_sql_file():
+	var sql_file = SQLFile.instantiate()
+	sql_file.request_open_file.connect(add_tab_sql_file)
 	sql_file.change_tab_title.connect(func(page, title):
 		var idx = get_tab_idx_from_control(page)
 		if idx >= 0:
@@ -151,9 +156,54 @@ func add_tab_empty_graph():
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
 	set_tab_title(current_tab, "SQL File %d" % _tab_index)
-	set_tab_icon(current_tab, load("res://addons/gdsql/img/GDSQLGraph.svg"))
+	set_tab_icon(current_tab, load("res://addons/gdsql/img/sql_file.svg"))
 	_tab_index += 1
 	return sql_file
+	
+func add_tab_sql_file(path: String):
+	if path.is_empty():
+		add_tab_empty_sql_file()
+		return
+		
+	# 是否已经打开过了，就直接激活
+	for i in get_tab_count():
+		var page = get_tab_control(i)
+		if page.get_meta("type") == "sql_file" and \
+		GDSQL.GDSQLUtils.localize_path(page.get_meta("file_path", "")) == GDSQL.GDSQLUtils.localize_path(path):
+			current_tab = i
+			return
+			
+	var sql_file = SQLFile.instantiate()
+	sql_file.request_open_file.connect(add_tab_sql_file)
+	sql_file.change_tab_title.connect(func(page, title):
+		var idx = get_tab_idx_from_control(page)
+		if idx >= 0:
+			set_tab_title(idx, title)
+	)
+	add_child(sql_file)
+	move_child(new_tab_button, get_child_count() - 1)
+	current_tab = get_child_count() - 2
+	set_tab_title(current_tab, path.get_file().get_basename())
+	set_tab_icon(current_tab, load("res://addons/gdsql/img/sql_file.svg"))
+	_tab_index += 1
+	sql_file.load_graph_file(path)
+	mgr.file_tab_opened.emit(path)
+	
+func add_tab_empty_graph():
+	var sql_graph = SQLGraph.instantiate()
+	sql_graph.request_open_file.connect(add_tab_graph_file)
+	sql_graph.change_tab_title.connect(func(page, title):
+		var idx = get_tab_idx_from_control(page)
+		if idx >= 0:
+			set_tab_title(idx, title.get_basename())
+	)
+	add_child(sql_graph)
+	move_child(new_tab_button, get_child_count() - 1)
+	current_tab = get_child_count() - 2
+	set_tab_title(current_tab, "Graph File %d" % _tab_index)
+	set_tab_icon(current_tab, load("res://addons/gdsql/img/GDSQLGraph.svg"))
+	_tab_index += 1
+	return sql_graph
 	
 func add_tab_graph_file(path: String) -> void:
 	if path.is_empty():
@@ -168,20 +218,20 @@ func add_tab_graph_file(path: String) -> void:
 			current_tab = i
 			return
 			
-	var sql_file = SQLGraph.instantiate()
-	sql_file.request_open_file.connect(add_tab_graph_file)
-	sql_file.change_tab_title.connect(func(page, title):
+	var sql_graph = SQLGraph.instantiate()
+	sql_graph.request_open_file.connect(add_tab_graph_file)
+	sql_graph.change_tab_title.connect(func(page, title):
 		var idx = get_tab_idx_from_control(page)
 		if idx >= 0:
 			set_tab_title(idx, title)
 	)
-	add_child(sql_file)
+	add_child(sql_graph)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
 	set_tab_title(current_tab, path.get_file().get_basename())
 	set_tab_icon(current_tab, load("res://addons/gdsql/img/GDSQLGraph.svg"))
 	_tab_index += 1
-	sql_file.load_graph_file(path)
+	sql_graph.load_graph_file(path)
 	mgr.file_tab_opened.emit(path)
 	
 func add_tab_new_schema() -> void:

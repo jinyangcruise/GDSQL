@@ -73,6 +73,10 @@ tooltip_text = "Execute the selected portion of the script or everything, if the
 theme_override_styles/focus = SubResource("StyleBoxEmpty_03x0p")
 icon = ExtResource("4_imqmf")
 icon_alignment = 1
+metadata/type = "sql_file"
+metadata/is_file = false
+metadata/file_name = ""
+metadata/file_path = ""
 
 [node name="ButtonRunEdit" type="Button" parent="VBoxContainer/HFlowContainer" unique_id=410155218]
 layout_mode = 2

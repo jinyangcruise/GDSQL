@@ -100,7 +100,7 @@ func _on_button_save_pressed() -> void:
 		return
 		
 	_on_button_save_as_pressed()
-
+	
 func _on_button_save_as_pressed():
 	var editor_file_dialog = EditorFileDialog.new()
 	editor_file_dialog.access = EditorFileDialog.ACCESS_FILESYSTEM
@@ -132,9 +132,7 @@ func _on_button_save_as_pressed():
 	)
 	add_child(editor_file_dialog)
 	editor_file_dialog.popup_centered_ratio(0.7)
-	editor_file_dialog.close_requested.connect(func():
-		editor_file_dialog.queue_free()
-	)
+	editor_file_dialog.close_requested.connect(editor_file_dialog.queue_free)
 	
 ## 关闭一个节点的时候，把没有关闭按钮的输入节点一起关闭
 func node_close(node: GraphNode):

@@ -102,7 +102,10 @@ func bind_file_system_dock_for_gdmappergraph():
 		var selected = file_tree.get_selected()
 		if selected:
 			var path = selected.get_metadata(0) as String
-			if path.get_extension().to_lower() == "gdsqlgraph":
+			if path.get_extension().to_lower() == "gdsqltext":
+				EditorInterface.set_main_screen_editor(PLUGIN_NAME)
+				GDSQL.WorkbenchManager.open_sql_text_file_tab.emit(path)
+			elif path.get_extension().to_lower() == "gdsqlgraph":
 				EditorInterface.set_main_screen_editor(PLUGIN_NAME)
 				GDSQL.WorkbenchManager.open_sql_graph_file_tab.emit(path)
 			elif path.get_extension().to_lower() == "gdmappergraph":
@@ -114,7 +117,10 @@ func bind_file_system_dock_for_gdmappergraph():
 	var file_item_list = fs_dock.find_children("@FileSystemList*", "FileSystemList", true, false)[0]
 	file_item_list.item_activated.connect(func(index):
 		var path = file_item_list.get_item_metadata(index) as String
-		if path.get_extension().to_lower() == "gdsqlgraph":
+		if path.get_extension().to_lower() == "gdsqltext":
+			EditorInterface.set_main_screen_editor(PLUGIN_NAME)
+			GDSQL.WorkbenchManager.open_sql_text_file_tab.emit(path)
+		elif path.get_extension().to_lower() == "gdsqlgraph":
 			EditorInterface.set_main_screen_editor(PLUGIN_NAME)
 			GDSQL.WorkbenchManager.open_sql_graph_file_tab.emit(path)
 		elif path.get_extension().to_lower() == "gdmappergraph":
@@ -130,6 +136,10 @@ func _on_file_system_dock_popup_menu_idex_pressed(index: int):
 				if i.get_item_text(j) in ["Open", tr("Open")]:
 					if i.get_item_text(index) in ["Open", tr("Open")]:
 						var path = EditorInterface.get_current_path()
+						if path.get_extension().to_lower() == "gdsqltext":
+							EditorInterface.set_main_screen_editor(PLUGIN_NAME)
+							GDSQL.WorkbenchManager.open_sql_text_file_tab.emit(path)
+							return
 						if path.get_extension().to_lower() == "gdsqlgraph":
 							EditorInterface.set_main_screen_editor(PLUGIN_NAME)
 							GDSQL.WorkbenchManager.open_sql_graph_file_tab.emit(path)
@@ -224,7 +234,7 @@ func set_up_textfile_extensions():
 	var settings = EditorInterface.get_editor_settings()
 	var old: String = settings.get_setting("docks/filesystem/textfile_extensions")
 	var old_extendsions = Array(old.split(",", false)).map(func(v: String): return v.strip_edges())
-	var new_valid_extensions = ["cfg", "xml", "gsql", "gdmappergraph", "gdsqlgraph"]
+	var new_valid_extensions = ["cfg", "xml", "gsql", "gdmappergraph", "gdsqlgraph", "gdsqltext"]
 	for extension in new_valid_extensions:
 		if not extension in old_extendsions:
 			old_extendsions.push_back(extension)

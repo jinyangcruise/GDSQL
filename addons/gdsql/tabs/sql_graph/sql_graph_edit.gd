@@ -14,7 +14,9 @@ func _can_drop_data(_position, data):
 func _drop_data(_position, data):
 	for i in data.get("files"):
 		if i is String:
-			if i.ends_with(".gdsqlgraph"):
+			if i.ends_with(".gdsqltext"):
+				GDSQL.WorkbenchManager.open_sql_text_file_tab.emit(i)
+			elif i.ends_with(".gdsqlgraph"):
 				GDSQL.WorkbenchManager.open_sql_graph_file_tab.emit(i)
 			elif i.ends_with(".gdmappergraph"):
 				GDSQL.WorkbenchManager.open_mapper_graph_file_tab.emit(i)

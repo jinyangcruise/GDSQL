@@ -104,7 +104,9 @@ func _drop_data(at_position: Vector2, data: Variant) -> void:
 		if data.has("type") and data.has("files") and data.get("type") == "files":
 			for i in data.get("files"):
 				if i is String:
-					if i.ends_with(".gdsqlgraph"):
+					if i.ends_with(".gdsqltext"):
+						GDSQL.WorkbenchManager.open_sql_text_file_tab.emit(i)
+					elif i.ends_with(".gdsqlgraph"):
 						GDSQL.WorkbenchManager.open_sql_graph_file_tab.emit(i)
 					elif i.ends_with(".gdmappergraph"):
 						GDSQL.WorkbenchManager.open_mapper_graph_file_tab.emit(i)

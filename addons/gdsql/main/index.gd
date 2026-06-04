@@ -390,9 +390,8 @@ func _on_file_menu_id_pressed(id: int) -> void:
 			_on_file_exit()
 
 func _on_file_new_query_tab() -> void:
-	# TODO: Implement new query tab
-	pass
-
+	GDSQL.WorkbenchManager.open_sql_text_file_tab.emit("")
+	
 func _on_file_new_graph_tab() -> void:
 	GDSQL.WorkbenchManager.open_sql_graph_file_tab.emit("")
 	
