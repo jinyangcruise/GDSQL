@@ -55,8 +55,10 @@ func _enter_tree():
 func _exit_tree():
 	#ResourceLoader.remove_resource_format_loader(resource_format_loader_xml)
 	if main_panel_instance:
+		main_panel_instance.get_parent().remove_child(main_panel_instance)
 		main_panel_instance.queue_free()
 	if xml_editor_window:
+		xml_editor_window.get_parent().remove_child(xml_editor_window)
 		xml_editor_window.queue_free()
 	remove_tool_menu_item("XML Editor")
 	if dictionary_object_inspector_plugin:

@@ -16,6 +16,13 @@ var _tab_index = 1
 var _tab_activate_time: float = 0
 var _tab_history: Array
 
+enum CLOSE_OPTION {
+	CLOSE_CURRENT_TAB = 0,
+	CLOSE_OTHER_TABS = 1,
+	CLOSE_TABS_TO_THE_RIGHT = 2,
+	CLOSE_ALL_TABS = 3,
+}
+
 func _ready() -> void:
 	if mgr == null or not mgr.run_in_plugin(self):
 		return
@@ -68,14 +75,14 @@ func _ready() -> void:
 func _exit_tree():
 	if mgr == null or not mgr.run_in_plugin(self):
 		return
-
+		
 	# 清理右键菜单
 	if _tab_context_menu:
 		if _tab_context_menu.is_connected("popup_hide", _tab_context_menu.queue_free):
 			_tab_context_menu.disconnect("popup_hide", _tab_context_menu.queue_free)
 		_tab_context_menu.queue_free()
 		_tab_context_menu = null
-
+		
 	if mgr.open_add_schema_tab.is_connected(add_tab_new_schema):
 		mgr.open_add_schema_tab.disconnect(add_tab_new_schema)
 	if mgr.open_add_table_tab.is_connected(add_tab_new_table):
@@ -92,8 +99,8 @@ func _exit_tree():
 		mgr.open_table_data_import_tab.disconnect(add_tab_table_data_import)
 	if mgr.open_select_data_export_tab.is_connected(add_tab_select_data_export):
 		mgr.open_select_data_export_tab.disconnect(add_tab_select_data_export)
-	if mgr.open_sql_graph_tab.is_connected(add_tab_graph_file):
-		mgr.open_sql_graph_tab.disconnect(add_tab_graph_file)
+	if mgr.open_sql_graph_file_tab.is_connected(add_tab_graph_file):
+		mgr.open_sql_graph_file_tab.disconnect(add_tab_graph_file)
 	if mgr.open_mapper_graph_tab.is_connected(add_tab_mapper_graph):
 		mgr.open_mapper_graph_tab.disconnect(add_tab_mapper_graph)
 	if mgr.open_mapper_graph_file_tab.is_connected(add_tab_mapper_graph_file):
@@ -117,6 +124,9 @@ func _exit_tree():
 	if mgr.send_to_editor_and_execute.is_connected(receive_content_and_execute):
 		mgr.send_to_editor_and_execute.disconnect(receive_content_and_execute)
 		
+	# Fix files not saved to recent files.
+	_on_tab_context_menu_pressed(CLOSE_OPTION.CLOSE_ALL_TABS)
+	
 	while get_child_count() > 0:
 		var child = get_child(0)
 		remove_child(child)
@@ -384,10 +394,10 @@ var _tab_context_menu: PopupMenu
 
 func _add_tab_context_menu():
 	_tab_context_menu = PopupMenu.new()
-	_tab_context_menu.add_item(tr("Close"), 0)
-	_tab_context_menu.add_item(tr("Close Other Tabs"), 1)
-	_tab_context_menu.add_item(tr("Close Tabs to the Right"), 2)
-	_tab_context_menu.add_item(tr("Close All Tabs"), 3)
+	_tab_context_menu.add_item(tr("Close"), CLOSE_OPTION.CLOSE_CURRENT_TAB)
+	_tab_context_menu.add_item(tr("Close Other Tabs"), CLOSE_OPTION.CLOSE_OTHER_TABS)
+	_tab_context_menu.add_item(tr("Close Tabs to the Right"), CLOSE_OPTION.CLOSE_TABS_TO_THE_RIGHT)
+	_tab_context_menu.add_item(tr("Close All Tabs"), CLOSE_OPTION.CLOSE_ALL_TABS)
 	_tab_context_menu.id_pressed.connect(_on_tab_context_menu_pressed)
 	# 注意：不能 add_child 到 TabContainer，会影响 get_child_count() 导致➕按钮下标计算错误
 	get_tree().root.add_child(_tab_context_menu)
@@ -429,10 +439,10 @@ func _on_tab_right_clicked(clicked_tab: int):
 		if i > clicked_tab:
 			has_tabs_to_right = true
 
-	_tab_context_menu.set_item_disabled(0, false)  # Close 永远可用
-	_tab_context_menu.set_item_disabled(1, not has_other_tabs)  # Close Other Tabs
-	_tab_context_menu.set_item_disabled(2, not has_tabs_to_right)  # Close Tabs to the Right
-	_tab_context_menu.set_item_disabled(3, false)  # Close All 永远可用
+	_tab_context_menu.set_item_disabled(_tab_context_menu.get_item_index(CLOSE_OPTION.CLOSE_CURRENT_TAB), false)  # Close 永远可用
+	_tab_context_menu.set_item_disabled(_tab_context_menu.get_item_index(CLOSE_OPTION.CLOSE_OTHER_TABS), not has_other_tabs)  # Close Other Tabs
+	_tab_context_menu.set_item_disabled(_tab_context_menu.get_item_index(CLOSE_OPTION.CLOSE_TABS_TO_THE_RIGHT), not has_tabs_to_right)  # Close Tabs to the Right
+	_tab_context_menu.set_item_disabled(_tab_context_menu.get_item_index(CLOSE_OPTION.CLOSE_ALL_TABS), false)  # Close All 永远可用
 
 	_tab_context_menu.position = DisplayServer.mouse_get_position()
 	_tab_context_menu.popup()
@@ -440,13 +450,13 @@ func _on_tab_right_clicked(clicked_tab: int):
 
 func _on_tab_context_menu_pressed(id: int):
 	match id:
-		0:  # Close current
+		CLOSE_OPTION.CLOSE_CURRENT_TAB:  # Close current
 			_close_tab(current_tab)
-		1:  # Close other tabs
+		CLOSE_OPTION.CLOSE_OTHER_TABS:  # Close other tabs
 			_close_tabs(func(i): return i != current_tab and i != WELCOME_PAGE_TAB_INDEX and get_child(i) != new_tab_button)
-		2:  # Close tabs to the right
+		CLOSE_OPTION.CLOSE_TABS_TO_THE_RIGHT:  # Close tabs to the right
 			_close_tabs(func(i): return i > current_tab and get_child(i) != new_tab_button)
-		3:  # Close all tabs
+		CLOSE_OPTION.CLOSE_ALL_TABS:  # Close all tabs
 			_close_tabs(func(i): return i != WELCOME_PAGE_TAB_INDEX and get_child(i) != new_tab_button)
 
 func _close_tab(tab_idx: int):

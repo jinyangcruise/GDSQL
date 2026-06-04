@@ -120,7 +120,7 @@ var databases: Dictionary
 var _request_password: Array
 
 func _notification(what):
-	if what == NOTIFICATION_PREDELETE:
+	if what == NOTIFICATION_EXIT_TREE:
 		main_panel = null
 		databases.clear()
 		
