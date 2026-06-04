@@ -144,6 +144,7 @@ func _ready() -> void:
 func _init_menus() -> void:
 	# File menu
 	popup_menu_file.add_item(tr("New Text Query Tab"), FILE_MENU.NEW_QUERY_TAB)
+	popup_menu_file.set_item_icon(popup_menu_file.get_item_index(FILE_MENU.NEW_QUERY_TAB), load("res://addons/gdsql/img/sql_file.svg"))
 	popup_menu_file.add_item(tr("New SQL Graph Tab"), FILE_MENU.NEW_GRAPH_TAB)
 	popup_menu_file.set_item_icon(popup_menu_file.get_item_index(FILE_MENU.NEW_GRAPH_TAB), load("res://addons/gdsql/img/GDSQLGraph.svg"))
 	popup_menu_file.add_item(tr("New Mapper Graph Tab"), FILE_MENU.NEW_MAPPER_TAB)
