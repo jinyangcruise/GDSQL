@@ -30,6 +30,14 @@ keycode = 83
 [sub_resource type="Shortcut" id="Shortcut_k6kxf"]
 events = [SubResource("InputEventKey_k6kxf")]
 
+[sub_resource type="InputEventKey" id="InputEventKey_kt13l"]
+device = -1
+command_or_control_autoremap = true
+keycode = 4194309
+
+[sub_resource type="Shortcut" id="Shortcut_ln0ie"]
+events = [SubResource("InputEventKey_kt13l")]
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_0ukqh"]
 bg_color = Color(0.541176, 0.168627, 0.890196, 1)
 corner_radius_top_left = 3
@@ -89,11 +97,13 @@ icon_alignment = 1
 [node name="VSeparator" type="VSeparator" parent="VBoxContainer/HFlowContainer" unique_id=367245651]
 layout_mode = 2
 
-[node name="ButtonRunEdit" type="Button" parent="VBoxContainer/HFlowContainer" unique_id=410155218]
+[node name="ButtonRunEdit" type="Button" parent="VBoxContainer/HFlowContainer" unique_id=410155218 node_paths=PackedStringArray("shortcut_context")]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Execute the statement under the keyboard cursor"
+shortcut_context = NodePath("../../..")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_03x0p")
+shortcut = SubResource("Shortcut_ln0ie")
 icon = ExtResource("5_cabxx")
 icon_alignment = 1
 
@@ -189,10 +199,15 @@ popup/item_4/id = 4
 popup/item_5/text = "Limit to 100000 rows"
 popup/item_5/id = 5
 
-[node name="CodeEdit" type="CodeEdit" parent="VBoxContainer" unique_id=430235659]
+[node name="VSplitContainer" type="VSplitContainer" parent="VBoxContainer" unique_id=1252358798]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="CodeEdit" type="CodeEdit" parent="VBoxContainer/VSplitContainer" unique_id=430235659 node_paths=PackedStringArray("button_run_edit")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
+size_flags_stretch_ratio = 3.0
 middle_mouse_paste_enabled = false
 scroll_smooth = true
 caret_blink = true
@@ -204,9 +219,18 @@ indent_automatic = true
 auto_brace_completion_enabled = true
 auto_brace_completion_highlight_matching = true
 script = ExtResource("10_ln0ie")
+button_run_edit = NodePath("../../HFlowContainer/ButtonRunEdit")
+
+[node name="ResultsTab" type="TabContainer" parent="VBoxContainer/VSplitContainer" unique_id=2078486873]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+tabs_position = 1
+drag_to_rearrange_enabled = true
 
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonOpen" to="." method="_on_button_open_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSave" to="." method="_on_button_save_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSaveAs" to="." method="_on_button_save_as_pressed"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRunEdit" to="." method="_on_button_run_edit_pressed"]
 [connection signal="toggled" from="VBoxContainer/HFlowContainer/ButtonAutoCommit" to="." method="_on_button_auto_commit_toggled"]
-[connection signal="text_changed" from="VBoxContainer/CodeEdit" to="." method="_on_code_edit_text_changed"]
+[connection signal="text_changed" from="VBoxContainer/VSplitContainer/CodeEdit" to="." method="_on_code_edit_text_changed"]
