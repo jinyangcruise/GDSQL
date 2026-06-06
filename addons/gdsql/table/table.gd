@@ -548,7 +548,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 			control.button_pressed = data
 			control.tooltip_text = str(data)
 			if col_index >= 0:
-				control.gui_input.connect(_label_gui_input.bind(col_index))
+				control.gui_input.connect(_label_gui_input.bind(col_index, control))
 			if col_index >= 0 and a_data is GDSQL.DictionaryObject:
 				a_data = a_data as GDSQL.DictionaryObject
 				var callback = func(new_value, control_ref: WeakRef):
@@ -578,7 +578,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 				control.text = str(data)
 			control.tooltip_text = split_for_tooltip(control.text)
 			if col_index >= 0:
-				control.gui_input.connect(_label_gui_input.bind(col_index))
+				control.gui_input.connect(_label_gui_input.bind(col_index, control))
 			if col_index >= 0 and a_data is GDSQL.DictionaryObject:
 				a_data = a_data as GDSQL.DictionaryObject
 				var callback = func(new_value, control_ref: WeakRef):
@@ -611,7 +611,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 						"%s\nType: %s\nSize: %s" % [data.resource_path, data.get_class(), data.get_size()]
 					control = texture_rect
 					if col_index >= 0:
-						control.gui_input.connect(_label_gui_input.bind(col_index))
+						control.gui_input.connect(_label_gui_input.bind(col_index, control))
 					if col_index >= 0 and a_data is GDSQL.DictionaryObject:
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
@@ -629,7 +629,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 					editor_resource_picker.editable = false
 					control = editor_resource_picker
 					if col_index >= 0:
-						control.gui_input.connect(_label_gui_input.bind(col_index))
+						control.gui_input.connect(_label_gui_input.bind(col_index, control))
 					if col_index >= 0 and a_data is GDSQL.DictionaryObject:
 						var callback = func(new_value, control_ref: WeakRef):
 							var ctl = control_ref.get_ref()
@@ -664,7 +664,7 @@ func get_control_by_data_type(data, a_data, col_index) -> Control:
 		control.text = var_to_str(data)
 		control.tooltip_text = split_for_tooltip(control.text)
 		if col_index >= 0:
-			control.gui_input.connect(_label_gui_input.bind(col_index))
+			control.gui_input.connect(_label_gui_input.bind(col_index, control))
 		if col_index >= 0 and a_data is GDSQL.DictionaryObject:
 			a_data = a_data as GDSQL.DictionaryObject
 			var callback = func(new_value, control_ref: WeakRef):
@@ -2164,11 +2164,12 @@ func scroll_to_bottom():
 	await get_tree().create_timer(0.1).timeout
 	v_scroll_bar.value = v_scroll_bar.max_value
 
-func _label_gui_input(event: InputEvent, col_index: int):
+func _label_gui_input(event: InputEvent, col_index: int, control: Control):
 	if show_menu and event is InputEventMouseButton and Input.is_mouse_button_pressed(MOUSE_BUTTON_RIGHT):
 		popup_menu_text.position = DisplayServer.mouse_get_position() # 为什么要用这个方法获取鼠标位置？不知道……在插件中该方法是正确的
-		popup_menu_text.set_item_metadata(0, col_index)
-		#popup_menu_text.set_item_metadata(1, col_index)
+		popup_menu_text.set_item_metadata(0, [col_index, control])
+		popup_menu_text.set_item_metadata(1, [col_index, control])
+		popup_menu_text.set_item_metadata(2, [col_index, control])
 		#if support_delete_row and popup_menu_text.get_item_metadata(2) != null:
 			#popup_menu_text.set_item_disabled(2, false)
 		#else:
@@ -2296,26 +2297,50 @@ func _on_border_panel_container_gui_input(event: InputEvent, panel_container: Pa
 func _on_popup_menu_text_index_pressed(index):
 	match popup_menu_text.get_item_text(index):
 		"Copy Field":
-			var col_index = popup_menu_text.get_item_metadata(index)
-			if col_index != null:
-				var arr_content = []
-				for data in get_data_of_highlight_rows():
-					var value = data[col_index] if (data is Array or data is Dictionary) \
-						else (data as GDSQL.DictionaryObject)._get_by_index(col_index)
-					match typeof(value):
-						TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME:
-							arr_content.push_back(str(value))
-						TYPE_OBJECT:
-							if value is Resource:
-								arr_content.push_back(value.resource_path)
-							else:
-								arr_content.push_back(var_to_str(value))
-						_:
+			var info = popup_menu_text.get_item_metadata(index)
+			if not info:
+				return
+			var highlight_rows = get_data_of_highlight_rows()
+			if highlight_rows.is_empty():
+				var control = info[1]
+				var p = control.get_parent()
+				while p and p.get_parent() != v_box_container:
+					p = p.get_parent()
+				if p and p.get_parent() == v_box_container:
+					highlight_rows.push_back(p.get_meta("data"))
+					
+			var col_index = info[0]
+			var arr_content = []
+			for data in highlight_rows:
+				var value = data[col_index] if (data is Array or data is Dictionary) \
+					else (data as GDSQL.DictionaryObject)._get_by_index(col_index)
+				match typeof(value):
+					TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_STRING_NAME:
+						arr_content.push_back(str(value))
+					TYPE_OBJECT:
+						if value is Resource:
+							arr_content.push_back(value.resource_path)
+						else:
 							arr_content.push_back(var_to_str(value))
-				DisplayServer.clipboard_set("\n".join(arr_content))
+					_:
+						arr_content.push_back(var_to_str(value))
+			DisplayServer.clipboard_set("\n".join(arr_content))
 		"Copy Line":
+			var info = popup_menu_text.get_item_metadata(index)
+			if not info:
+				return
+				
+			var highlight_rows = get_data_of_highlight_rows()
+			if highlight_rows.is_empty():
+				var control = info[1]
+				var p = control.get_parent()
+				while p and p.get_parent() != v_box_container:
+					p = p.get_parent()
+				if p and p.get_parent() == v_box_container:
+					highlight_rows.push_back(p.get_meta("data"))
+					
 			var arr = []
-			for data in get_data_of_highlight_rows():
+			for data in highlight_rows:
 				var arr_content = []
 				for col_index in columns.size():
 					var value = data[col_index] if (data is Array or data is Dictionary) \
@@ -2333,8 +2358,18 @@ func _on_popup_menu_text_index_pressed(index):
 				arr.push_back("\t".join(arr_content))
 			DisplayServer.clipboard_set("\n".join(arr))
 		"Delete":
-			_on_button_delete_row_pressed()
-			
+			if selected_borders.is_empty():
+				var info = popup_menu_text.get_item_metadata(index)
+				if info:
+					var control = info[1]
+					var p = control.get_parent()
+					while p and p.get_parent() != v_box_container:
+						p = p.get_parent()
+					if p and p.get_parent() == v_box_container:
+						_on_button_delete_row_pressed(p.get_index())
+			else:
+				_on_button_delete_row_pressed()
+				
 	popup_menu_text.set_item_metadata(index, null)
 
 
@@ -2734,8 +2769,8 @@ func _on_button_delete_pressed():
 					data._set_default_by_index(col)
 
 
-func _on_button_delete_row_pressed():
-	if selected_borders.is_empty():
+func _on_button_delete_row_pressed(p_row = -1):
+	if selected_borders.is_empty() and p_row == -1:
 		return
 		
 	var deleted_datas = {}
@@ -2749,6 +2784,10 @@ func _on_button_delete_row_pressed():
 				
 	delete_row.sort()
 	delete_row.reverse()
+	
+	if delete_row.is_empty():
+		delete_row.push_back(p_row)
+		
 	for i in delete_row:
 		remove_data_at(i, true) # WARNING 有可能把用户自定义控件释放掉，这个规则缺乏明确的告知
 	row_deleted.emit(deleted_datas)
