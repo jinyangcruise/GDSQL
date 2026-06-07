@@ -138,6 +138,8 @@ func _ready() -> void:
 			scroll_container_container.add_theme_constant_override("margin_right", -int(v_scroll_bar.visible) * 18) # scroll bar别占位置
 		if not buttons.is_empty():
 			(buttons.back() as Button).custom_minimum_size.x = int(v_scroll_bar.visible) * v_scroll_bar.size.x
+			if not is_inside_tree():
+				return
 			await get_tree().process_frame
 			realign_rows()
 	)
