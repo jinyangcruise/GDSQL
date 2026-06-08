@@ -16,6 +16,12 @@ var _completion_inserting: bool = false
 var _completion_dot_mode: bool = false
 var _completion_selected_idx: int = 0
 
+# 补全图标
+var _icon_db: Texture2D
+var _icon_table: Texture2D
+var _icon_column: Texture2D
+var _icon_keyword: Texture2D
+
 const SQL_KEYWORDS: Array[String] = [
 	"select", "insert", "update", "delete", "replace",
 	"from", "where", "set", "into", "values",
@@ -43,6 +49,12 @@ var mgr: GDSQL.WorkbenchManagerClass:
 
 func _ready() -> void:
 	syntax_highlighter = _create_sql_highlighter()
+
+	# 加载补全图标
+	_icon_db = load("res://addons/gdsql/img/icon_db.svg")
+	_icon_table = load("res://addons/gdsql/img/document_table.svg")
+	_icon_column = load("res://addons/gdsql/img/circle_dot.svg")
+	_icon_keyword = get_theme_icon("Keyword", "EditorIcons") if has_theme_icon("Keyword", "EditorIcons") else null
 
 	# 创建补全面板（非弹窗，不抢焦点）
 	_completion_panel = PanelContainer.new()
@@ -257,13 +269,13 @@ func _show_popup() -> void:
 	for i in range(_completion_matches.size()):
 		var m = _completion_matches[i]
 		var display_text = m.get("display", m["text"])
-		var type_tag = ""
+		var icon: Texture2D = null
 		match m["type"]:
-			"keyword": type_tag = " [关键字]"
-			"database": type_tag = " [数据库]"
-			"table": type_tag = " [表]"
-			"column": type_tag = " [字段]"
-		_completion_list.add_item(display_text + type_tag)
+			"keyword": icon = _icon_keyword
+			"database": icon = _icon_db
+			"table": icon = _icon_table
+			"column": icon = _icon_column
+		_completion_list.add_item(display_text, icon)
 
 	_completion_selected_idx = 0
 	if _completion_list.item_count > 0:
@@ -286,7 +298,7 @@ func _show_popup() -> void:
 			max_width = max(max_width, string_size.x)
 	else:
 		total_h = _completion_list.item_count * 32.0
-	total_h += list_sb.get_margin(SIDE_TOP) + list_sb.get_margin(SIDE_BOTTOM) + v_sep * _completion_list.item_count
+	total_h += list_sb.get_margin(SIDE_TOP) + list_sb.get_margin(SIDE_BOTTOM) + v_sep * (_completion_list.item_count - 1)
 	max_width += list_sb.get_margin(SIDE_LEFT) + list_sb.get_margin(SIDE_RIGHT)
 	var list_h = clampi(int(total_h), 32, 300)
 	# 读取面板 stylebox 边距
