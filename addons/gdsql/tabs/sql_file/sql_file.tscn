@@ -248,6 +248,7 @@ v_split_container = NodePath("..")
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSave" to="." method="_on_button_save_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonSaveAs" to="." method="_on_button_save_as_pressed"]
 [connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRunEdit" to="." method="_on_button_run_edit_pressed"]
+[connection signal="pressed" from="VBoxContainer/HFlowContainer/ButtonRunAll" to="." method="_on_button_run_all_pressed"]
 [connection signal="toggled" from="VBoxContainer/HFlowContainer/ButtonAutoCommit" to="." method="_on_button_auto_commit_toggled"]
 [connection signal="text_changed" from="VBoxContainer/VSplitContainer/CodeEdit" to="." method="_on_code_edit_text_changed"]
 [connection signal="child_exiting_tree" from="VBoxContainer/VSplitContainer/ResultsTab" to="VBoxContainer/VSplitContainer/ResultsTab" method="_on_child_exiting_tree"]

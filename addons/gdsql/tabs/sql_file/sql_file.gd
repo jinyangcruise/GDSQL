@@ -91,6 +91,9 @@ func load_sql_file(path: String):
 	set_meta("file_path", path)
 	set_meta("file_name", path.get_file())
 	
+func _on_button_run_all_pressed() -> void:
+	pass # Replace with function body.
+	
 func _on_button_run_edit_pressed() -> void:
 	# 清理旧的标签页
 	var children = results_tab.get_children()
