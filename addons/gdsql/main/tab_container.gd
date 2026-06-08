@@ -327,7 +327,7 @@ func add_tab_table_inspector(db_name, table_name) -> void:
 	add_child(table_inspector)
 	move_child(new_tab_button, get_child_count() - 1)
 	current_tab = get_child_count() - 2
-	set_tab_title(current_tab, "Inspector:%s" % table_name)
+	set_tab_title(current_tab, tr("Inspector:%s") % table_name)
 	
 func add_tab_table_data_export(db_name, table_name) -> void:
 	var table_data_export = load("res://addons/gdsql/tabs/table_data_export/table_data_export.tscn").instantiate()

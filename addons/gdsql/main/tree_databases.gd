@@ -338,8 +338,8 @@ func refresh() -> void:
 	for db_name in mgr.databases:
 		var data = mgr.databases[db_name]
 		if !data["tables"].is_empty():
-			popup_menu_create_table_like_tables.add_separator("SCHEMA：%s" % data.get("display_name", db_name), id)
-			popup_menu_create_table_like_table_item.add_separator("SCHEMA：%s" % data.get("display_name", db_name), id)
+			popup_menu_create_table_like_tables.add_separator(tr("SCHEMA：%s") % data.get("display_name", db_name), id)
+			popup_menu_create_table_like_table_item.add_separator(tr("SCHEMA：%s") % data.get("display_name", db_name), id)
 		for t in data["tables"]:
 			var t_display_name = data["tables"][t].get("display_name", t)
 			id += 1
@@ -1016,7 +1016,6 @@ func _on_popup_menu_copy_to_of_table_item_index_pressed(index):
 			if item:
 				var db_name = item.get_meta("db_name")
 				var db_display = GDSQL.RootConfig.get_database_display_name(db_name)
-				var table_name = item.get_meta("table_name")
 				DisplayServer.clipboard_set("`%s`.`%s`" % [db_display, item.get_meta("display_name")])
 		"Select All Statement":
 			var item := get_selected()
