@@ -179,16 +179,19 @@ func _update_completion() -> void:
 	var matches: Array[Dictionary] = []
 	_completion_dot_mode = false
 
-	# 检查 "xxx." 模式
+	# 检查 "xxx." 模式（数据库名、表名、或别名后跟点号）
 	var stripped = before.strip_edges()
 	var dot_pos = stripped.rfind(".")
 	if dot_pos >= 0:
 		var after_dot = stripped.substr(dot_pos + 1)
 		var before_dot = stripped.substr(0, dot_pos)
 		if before.length() == stripped.length() and (after_dot.is_empty() or after_dot == word):
-			var db_prefix = before_dot.get_slice(" ", before_dot.get_slice_count(" ") - 1).strip_edges()
-			if db_prefix != "":
-				matches = _get_dot_completions(db_prefix, word)
+			var prefix = before_dot.get_slice(" ", before_dot.get_slice_count(" ") - 1).strip_edges()
+			if prefix != "":
+				# 用全文提取别名，支持光标在行中间时也能解析后面的 FROM 子句
+				var aliases = _extract_table_aliases(text)
+				var resolved = aliases.get(prefix.to_lower(), prefix)
+				matches = _get_dot_completions(resolved, word)
 				_completion_dot_mode = true
 
 	# 通用候选词
@@ -374,16 +377,31 @@ func _get_dot_completions(db_prefix: String, word_filter: String) -> Array[Dicti
 	return []
 
 
-## 从SQL文本中提取 FROM / JOIN 后面引用的表名
-func _extract_referenced_tables(sql_text: String) -> Array[String]:
-	var tables: Array[String] = []
+## 从SQL文本中提取 FROM / JOIN 后面的表名及别名映射
+## 返回 {alias_lower: table_name}，无别名时 {table_name_lower: table_name}
+func _extract_table_aliases(sql_text: String) -> Dictionary:
+	var aliases: Dictionary = {}
 	var re = RegEx.new()
-	re.compile(r"(?i)(?:from|join)\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\.([a-zA-Z_][a-zA-Z0-9_]*))?")
+	re.compile(r"(?i)(?:from|join)\s+([a-zA-Z_][a-zA-Z0-9_]*)(?:\.([a-zA-Z_][a-zA-Z0-9_]*))?(?:\s+(?:as\s+)?([a-zA-Z_][a-zA-Z0-9_]*))?")
 	for m in re.search_all(sql_text):
-		if m.get_group_count() >= 2 and m.get_string(2) != "":
-			tables.push_back(m.get_string(2))  # table部分
-		elif m.get_group_count() >= 1:
-			tables.push_back(m.get_string(1))  # 可能是db或table
+		var db_or_table = m.get_string(1)
+		var table = m.get_string(2) if m.get_group_count() >= 2 and m.get_string(2) != "" else ""
+		var alias = m.get_string(3) if m.get_group_count() >= 3 and m.get_string(3) != "" else ""
+		var actual_table = table if table != "" else db_or_table
+		if alias != "" and alias.to_lower() not in ["where", "on", "set", "left", "right", "inner", "outer", "cross", "join", "group", "order", "having", "limit", "union", "values"]:
+			aliases[alias.to_lower()] = actual_table
+		else:
+			aliases[actual_table.to_lower()] = actual_table
+	return aliases
+
+
+## 从SQL文本中提取 FROM / JOIN 后面引用的表名（兼容别名）
+func _extract_referenced_tables(sql_text: String) -> Array[String]:
+	var alias_map = _extract_table_aliases(sql_text)
+	var tables: Array[String] = []
+	for v in alias_map.values():
+		if not tables.has(v):
+			tables.push_back(v)
 	return tables
 
 
