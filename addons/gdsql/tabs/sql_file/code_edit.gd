@@ -64,7 +64,6 @@ func _ready() -> void:
 	_completion_panel.custom_minimum_size = Vector2(280, 0)
 
 	text_changed.connect(_on_text_changed)
-	print("[SQL CodeEdit] _ready done")
 
 
 ## 创建 SQL 语法高亮器
@@ -162,17 +161,13 @@ func _create_sql_highlighter() -> CodeHighlighter:
 # ==================== 代码补全 ====================
 
 func _on_text_changed() -> void:
-	# 防止插入补全文本时递归触发
 	if _completion_inserting:
-		print("[SQL CodeEdit] text_changed skipped (inserting)")
 		return
-	print("[SQL CodeEdit] text_changed fired")
 	_update_completion()
 
 
 func _update_completion() -> void:
 	if _is_cursor_in_string_or_comment():
-		print("[SQL CodeEdit] cursor in string/comment, hiding")
 		_hide_popup()
 		return
 
@@ -180,7 +175,6 @@ func _update_completion() -> void:
 	var caret_col = get_caret_column(0)
 	var before: String = get_line(line_idx).substr(0, caret_col)
 	var word = _get_word_before_cursor(before)
-	print("[SQL CodeEdit] before='", before, "' word='", word, "'")
 
 	var matches: Array[Dictionary] = []
 	_completion_dot_mode = false
@@ -226,15 +220,12 @@ func _update_completion() -> void:
 						for column in tables[t_name].get("columns", []):
 							all_candidates.push_back({"text": column["Column Name"], "display": column["Column Name"], "type": "column"})
 		matches = _filter_and_sort(all_candidates, word)
-		print("[SQL CodeEdit] candidates=", all_candidates.size(), " matches=", matches.size())
 
 	if matches.is_empty():
-		print("[SQL CodeEdit] no matches, hiding popup")
 		_hide_popup()
 		return
 
 	# 记录当前词的起止位置
-	print("[SQL CodeEdit] showing popup with ", matches.size(), " matches")
 	_completion_word_end = caret_col
 	_completion_word_start = caret_col - word.length()
 	_completion_matches = matches
@@ -259,20 +250,46 @@ func _show_popup() -> void:
 		_completion_list.select(0)
 
 	# 定位到光标下方
-	_completion_panel.visible = true
 	var caret_draw_pos = get_caret_draw_pos(0)
+	# 用主题字体的实际像素高度和间距计算行高
+	# 遍历候选词累加实际像素高度
+	var font = _completion_list.get_theme_font("font")
+	var font_size = _completion_list.get_theme_font_size("font_size")
+	var v_sep = _completion_list.get_theme_constant("v_separation")
+	var list_sb = _completion_list.get_theme_stylebox("panel")
+	var total_h = 0.0
+	if font:
+		for i in _completion_list.item_count:
+			total_h += font.get_string_size(_completion_list.get_item_text(i), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).y
+	else:
+		total_h = _completion_list.item_count * 32.0
+	total_h += list_sb.get_margin(SIDE_TOP) + list_sb.get_margin(SIDE_BOTTOM) + v_sep * _completion_list.item_count
+	var list_h = clampi(int(total_h), 32, 300)
+	# 读取面板 stylebox 边距
+	var panel_sb = _completion_panel.get_theme_stylebox("panel")
+	var panel_margin_v = 0
+	if panel_sb:
+		panel_margin_v = int(panel_sb.content_margin_top + panel_sb.content_margin_bottom)
+	_completion_list.custom_minimum_size = Vector2(280, list_h)
+	_completion_list.size = Vector2(280, list_h)
+	_completion_panel.custom_minimum_size = Vector2(280, list_h)
+	_completion_panel.size = Vector2(296, list_h + panel_margin_v)
 	_completion_panel.position = Vector2(caret_draw_pos.x, caret_draw_pos.y + 4)
-	# 根据条目数计算高度，最大 300
-	var item_height = 24  # 每行约 24px
-	var list_height = mini(_completion_list.item_count * item_height, 300)
-	_completion_list.custom_minimum_size = Vector2(280, list_height)
-	_completion_panel.custom_minimum_size = Vector2(280, 0)
-	print("[SQL CodeEdit] popup: visible=", _completion_panel.visible, 
-		" pos=", _completion_panel.position, 
-		" size=", _completion_panel.size,
-		" items=", _completion_list.item_count,
-		" list_size=", _completion_list.size,
-		" parent=", _completion_panel.get_parent())
+	_completion_panel.visible = true
+
+
+func _adjust_popup_height() -> void:
+	var actual_height = _completion_list.size.y
+	if actual_height <= 0:
+		actual_height = _completion_list.get_combined_minimum_size().y
+	if actual_height <= 0:
+		return
+	var max_height = 300.0
+	var final_height = minf(actual_height, max_height)
+	_completion_list.custom_minimum_size = Vector2(280, final_height)
+	_completion_list.size = Vector2(280, final_height)
+	_completion_panel.custom_minimum_size = Vector2(280, final_height)
+	_completion_panel.size = Vector2(296, final_height + 16)
 
 
 func _hide_popup() -> void:
