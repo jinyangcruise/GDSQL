@@ -212,13 +212,30 @@ func _update_completion() -> void:
 					if tbl_display == "":
 						tbl_display = table_name
 					all_candidates.push_back({"text": table_name, "display": tbl_display, "type": "table"})
+			# 字段名推荐：有引用表时缩小范围，否则列出所有表的字段
 			var referenced_tables = _extract_referenced_tables(before)
-			for t_name in referenced_tables:
+			var column_added: Dictionary = {}  # 去重
+			if referenced_tables.size() > 0:
+				# 仅从已引用表中取字段
+				for t_name in referenced_tables:
+					for db_name in mgr.databases:
+						var tables = mgr.databases[db_name].get("tables", {})
+						var matched_table = _find_key_ci(tables, t_name)
+						if matched_table != "":
+							for column in tables[matched_table].get("columns", []):
+								var col_name = column["Column Name"]
+								if not column_added.has(col_name):
+									column_added[col_name] = true
+									all_candidates.push_back({"text": col_name, "display": col_name, "type": "column"})
+			else:
+				# 未引用任何表，列出所有表的所有字段
 				for db_name in mgr.databases:
-					var tables = mgr.databases[db_name].get("tables", {})
-					if tables.has(t_name):
-						for column in tables[t_name].get("columns", []):
-							all_candidates.push_back({"text": column["Column Name"], "display": column["Column Name"], "type": "column"})
+					for table_name in mgr.databases[db_name].get("tables", {}):
+						for column in mgr.databases[db_name]["tables"][table_name].get("columns", []):
+							var col_name = column["Column Name"]
+							if not column_added.has(col_name):
+								column_added[col_name] = true
+								all_candidates.push_back({"text": col_name, "display": col_name, "type": "column"})
 		matches = _filter_and_sort(all_candidates, word)
 
 	if matches.is_empty():
