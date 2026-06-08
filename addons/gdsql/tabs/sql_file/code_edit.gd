@@ -278,39 +278,28 @@ func _show_popup() -> void:
 	var v_sep = _completion_list.get_theme_constant("v_separation")
 	var list_sb = _completion_list.get_theme_stylebox("panel")
 	var total_h = 0.0
+	var max_width = 280
 	if font:
 		for i in _completion_list.item_count:
-			total_h += font.get_string_size(_completion_list.get_item_text(i), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).y
+			var string_size = font.get_string_size(_completion_list.get_item_text(i), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+			total_h += string_size.y
+			max_width = max(max_width, string_size.x)
 	else:
 		total_h = _completion_list.item_count * 32.0
 	total_h += list_sb.get_margin(SIDE_TOP) + list_sb.get_margin(SIDE_BOTTOM) + v_sep * _completion_list.item_count
+	max_width += list_sb.get_margin(SIDE_LEFT) + list_sb.get_margin(SIDE_RIGHT)
 	var list_h = clampi(int(total_h), 32, 300)
 	# 读取面板 stylebox 边距
 	var panel_sb = _completion_panel.get_theme_stylebox("panel")
-	var panel_margin_v = 0
 	if panel_sb:
-		panel_margin_v = int(panel_sb.content_margin_top + panel_sb.content_margin_bottom)
-	_completion_list.custom_minimum_size = Vector2(280, list_h)
-	_completion_list.size = Vector2(280, list_h)
+		list_h += int(panel_sb.get_margin(SIDE_TOP) + panel_sb.get_margin(SIDE_BOTTOM))
+		max_width += panel_sb.get_margin(SIDE_LEFT) + list_sb.get_margin(SIDE_RIGHT)
+	_completion_list.custom_minimum_size = Vector2(max_width, list_h)
+	_completion_list.size.y = list_h
 	_completion_panel.custom_minimum_size = Vector2(280, list_h)
-	_completion_panel.size = Vector2(296, list_h + panel_margin_v)
+	_completion_panel.size = Vector2(max_width, list_h)
 	_completion_panel.position = Vector2(caret_draw_pos.x, caret_draw_pos.y + 4)
 	_completion_panel.visible = true
-
-
-func _adjust_popup_height() -> void:
-	var actual_height = _completion_list.size.y
-	if actual_height <= 0:
-		actual_height = _completion_list.get_combined_minimum_size().y
-	if actual_height <= 0:
-		return
-	var max_height = 300.0
-	var final_height = minf(actual_height, max_height)
-	_completion_list.custom_minimum_size = Vector2(280, final_height)
-	_completion_list.size = Vector2(280, final_height)
-	_completion_panel.custom_minimum_size = Vector2(280, final_height)
-	_completion_panel.size = Vector2(296, final_height + 16)
-
 
 func _hide_popup() -> void:
 	_completion_panel.visible = false
@@ -323,13 +312,13 @@ func _on_completion_selected(index: int) -> void:
 	if index < 0 or index >= _completion_matches.size():
 		return
 	var candidate = _completion_matches[index]
-	var insert_text: String = candidate.get("display", candidate["text"])
+	var s_insert_text: String = candidate.get("display", candidate["text"])
 	_completion_inserting = true
 	var line_idx = get_caret_line(0)
 	var line_text = get_line(line_idx)
-	var new_line = line_text.substr(0, _completion_word_start) + insert_text + line_text.substr(_completion_word_end)
+	var new_line = line_text.substr(0, _completion_word_start) + s_insert_text + line_text.substr(_completion_word_end)
 	set_line(line_idx, new_line)
-	set_caret_column(_completion_word_start + insert_text.length())
+	set_caret_column(_completion_word_start + s_insert_text.length())
 	_completion_inserting = false
 	_hide_popup()
 
