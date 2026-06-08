@@ -54,7 +54,7 @@ func _ready() -> void:
 	_icon_db = load("res://addons/gdsql/img/icon_db.svg")
 	_icon_table = load("res://addons/gdsql/img/document_table.svg")
 	_icon_column = load("res://addons/gdsql/img/circle_dot.svg")
-	_icon_keyword = get_theme_icon("Keyword", "EditorIcons") if has_theme_icon("Keyword", "EditorIcons") else null
+	_icon_keyword = get_theme_icon("Keyword", "EditorIcons") if has_theme_icon("Keyword", "EditorIcons") else load("res://addons/gdsql/img/link.svg")
 
 	# 创建补全面板（非弹窗，不抢焦点）
 	_completion_panel = PanelContainer.new()
@@ -306,6 +306,7 @@ func _show_popup() -> void:
 	if panel_sb:
 		list_h += int(panel_sb.get_margin(SIDE_TOP) + panel_sb.get_margin(SIDE_BOTTOM))
 		max_width += panel_sb.get_margin(SIDE_LEFT) + list_sb.get_margin(SIDE_RIGHT)
+	max_width += max(_icon_db.get_width(), _icon_table.get_width(), _icon_column.get_width(), _icon_keyword.get_width())
 	_completion_list.custom_minimum_size = Vector2(max_width, list_h)
 	_completion_list.size.y = list_h
 	_completion_panel.custom_minimum_size = Vector2(280, list_h)
