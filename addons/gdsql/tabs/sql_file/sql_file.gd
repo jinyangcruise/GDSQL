@@ -8,6 +8,7 @@ signal change_tab_title(page: Control, title: String)
 @onready var button_commit: Button = %ButtonCommit
 @onready var button_rollback: Button = %ButtonRollback
 @onready var button_auto_commit: Button = %ButtonAutoCommit
+@onready var button_continue_run: Button = %ButtonContinueRun
 @onready var results_tab: TabContainer = %ResultsTab
 @onready var v_split_container: VSplitContainer = %VSplitContainer
 
@@ -114,24 +115,31 @@ func _on_button_run_all_pressed() -> void:
 		return
 		
 	var index = 0
+	var _continue_on_error = button_continue_run.button_pressed
 	for sql in statements:
 		if sql.strip_edges().is_empty():
 			continue
-			
+
 		var dao = GDSQL.SQLParser.parse_to_dao(sql)
 		if dao == null:
 			mgr.add_log_history.emit("Err", Time.get_unix_time_from_system(), sql, "Parse failed")
+			if not _continue_on_error:
+				break
 			continue
-			
+
 		var action = dao.get_query_cmd()
 		var begin_time = Time.get_unix_time_from_system()
 		var query_ret: GDSQL.QueryResult = await _deal_query_need_enter_password(dao, begin_time, action)
 		if query_ret == null:
 			mgr.add_log_history.emit("Err", begin_time, action, "something wrong")
+			if not _continue_on_error:
+				break
 			continue
-			
+
 		if not query_ret.ok():
 			mgr.add_log_history.emit("Err", begin_time, action, query_ret.get_err(), query_ret.get_cost_time())
+			if not _continue_on_error:
+				break
 			continue
 			
 		index += 1
