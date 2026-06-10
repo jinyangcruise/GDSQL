@@ -1357,7 +1357,8 @@ func _on_corner_drag_moving(diff: Vector2):
 		expand_cy = pos_row * actual_row_height + actual_row_height * 0.2  # expand threshold (20%)
 
 	# Compute desired end based on mouse position with threshold
-	var desired_end = src_end
+	var cur_end = autofill_info.get("rect", Rect2(src_start, src_end - src_start)).end
+	var desired_end = cur_end
 
 	# --- Column ---
 	if pos_col < src_start.y:
@@ -1400,7 +1401,6 @@ func _on_corner_drag_moving(diff: Vector2):
 		desired_end.x = pos_row
 
 	# Determine mode and apply (compare against current rect, not original)
-	var cur_end = autofill_info.get("rect", Rect2(src_start, src_end - src_start)).end
 	var mode = "add" if (desired_end.x > src_end.x or desired_end.y > src_end.y) else "sub"
 	if desired_end != cur_end:
 		add_autofill_border(src_start, desired_end, mode)
