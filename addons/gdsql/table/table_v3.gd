@@ -951,6 +951,7 @@ func _on_borders_overlay_draw():
 		var sl = _get_col_x(start_c + fo)
 		var last_ci = end_c + fo - 1
 		var sr = _get_col_x(last_ci) + col_widths[last_ci] if last_ci >= 0 else sl
+
 		var st = start_r * actual_row_height - scroll_val
 		var sb = end_r * actual_row_height - scroll_val
 		var bc = DEFAULT_BORDER_LINE
@@ -965,7 +966,7 @@ func _on_borders_overlay_draw():
 	var sx = _get_col_x(si)
 	var sy = start_pos.x * actual_row_height - scroll_val
 	var scolor = Color(DEFAULT_BORDER_LINE, 0.1)
-	var sw = _get_col_x(min(si + 1, col_widths.size())) - sx
+	var sw = col_widths[si] if si >= 0 and si < col_widths.size() else 0.0
 	borders_overlay.draw_rect(Rect2(sx, sy, sw, actual_row_height), scolor, false, 1.0)
 
 	# Autofill dashed border
