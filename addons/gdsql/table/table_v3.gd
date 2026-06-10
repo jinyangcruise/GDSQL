@@ -940,10 +940,11 @@ func _on_borders_overlay_draw():
 				var x0 = _get_col_x(ci)
 				var cell_rect = Rect2(x0, y0, col_widths[ci], actual_row_height)
 
-				var is_start = r == last_selected_pos.x and c == last_selected_pos.y
-
+				var b_start = border.get("start", Vector2i(-1, -1))
+				var is_start_cell = r == b_start.x and c == b_start.y
+				
 				# Background (skip start cell — matches table.gd draw_center=false)
-				if not is_start:
+				if not is_start_cell:
 					var alpha = DEFAULT_BORDER_BG.a * _get_overlap_count(r, c) * 1.05
 					var bg = Color(DEFAULT_BORDER_BG.r, DEFAULT_BORDER_BG.g, DEFAULT_BORDER_BG.b, alpha)
 					borders_overlay.draw_rect(cell_rect, bg)
@@ -1124,7 +1125,8 @@ func add_border(border: Dictionary):
 		if selected_borders[i]["start"] == start:
 			selected_borders[i] = border
 			borders_overlay.queue_redraw()
-			_add_corner_dragger()
+			if selected_borders.size() <= 1:
+				_add_corner_dragger()
 			return
 	if not border.get("ctrl", false):
 		selected_borders.clear()
@@ -1178,25 +1180,25 @@ func commit_exclude_border():
 		# Top strip: above the intersection (full width)
 		if inter.position.y > bp.y:
 			to_add.push_back({
-				"start": Vector2(bp.x, bp.y),
+				"start": Vector2i(bp.x, bp.y),
 				"rect": Rect2(bp.x, bp.y, b_rect.size.x, inter.position.y - bp.y)
 			})
 		# Bottom strip: below the intersection (full width)
 		if inter.end.y < be.y:
 			to_add.push_back({
-				"start": Vector2(bp.x, inter.end.y),
+				"start": Vector2i(bp.x, inter.end.y),
 				"rect": Rect2(bp.x, inter.end.y, b_rect.size.x, be.y - inter.end.y)
 			})
 		# Left strip: between top/bottom, to the left
 		if inter.position.x > bp.x:
 			to_add.push_back({
-				"start": Vector2(bp.x, inter.position.y),
+				"start": Vector2i(bp.x, inter.position.y),
 				"rect": Rect2(bp.x, inter.position.y, inter.position.x - bp.x, inter.size.y)
 			})
 		# Right strip: between top/bottom, to the right
 		if inter.end.x < be.x:
 			to_add.push_back({
-				"start": Vector2(inter.end.x, inter.position.y),
+				"start": Vector2i(inter.end.x, inter.position.y),
 				"rect": Rect2(inter.end.x, inter.position.y, be.x - inter.end.x, inter.size.y)
 			})
 
@@ -1207,25 +1209,27 @@ func commit_exclude_border():
 	for b in to_add:
 		selected_borders.append(b)
 
-	exclude_border = {}
-	exclude_border_active = false
 
-	# Save start pos before clearing exclude_border
+	# Save exclude start before clearing
 	var eb_start = exclude_border.get("start", Vector2i.ZERO)
-	
 	exclude_border = {}
 	exclude_border_active = false
 
-	# Fallback: if everything was excluded, keep a single-cell border at exclude start
+	# Handle corner dragger based on remaining selection count
 	if selected_borders.is_empty():
-		var fp = Vector2i(eb_start)
-		var fb = {"start": fp, "rect": Rect2(fp.x, fp.y, 1, 1)}
+		var fb = {"start": Vector2i(eb_start), "rect": Rect2(eb_start.x, eb_start.y, 1, 1)}
 		add_border(fb)
 		return
+	elif selected_borders.size() == 1:
+		last_selected_pos = selected_borders.front()["start"]
+		_remove_corner_dragger()
+		_add_corner_dragger()
+	else:
+		last_selected_pos = selected_borders.back()["start"]
+		_remove_corner_dragger()
 
 	borders_overlay.queue_redraw()
 
-func borders_has_same_cols() -> bool:
 	if selected_borders.is_empty():
 		return false
 	var start_c = (selected_borders.front()["rect"] as Rect2).position.y
@@ -1602,6 +1606,7 @@ func _handle_shift_click(cell_pos: Vector2i):
 func _handle_ctrl_click(cell_pos: Vector2i):
 	start_drag = true
 	start_drag_with_ctrl = true
+	last_selected_pos = cell_pos
 	if pos_is_selected(cell_pos):
 		exclude_mode = true
 		var border = {
