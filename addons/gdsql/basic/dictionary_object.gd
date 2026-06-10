@@ -63,6 +63,14 @@ func get_prop_usage_by_index(index: int) -> int:
 	var prop = __get_index_prop(index)
 	return get_prop_usage(prop)
 	
+func get_prop_hint_by_index(index: int) -> int:
+	var prop = __get_index_prop(index)
+	return _hint[prop]["hint"] if (_hint.has(prop) and _hint[prop].has("hint")) else PROPERTY_HINT_NONE
+
+func get_prop_hint_string_by_index(index: int) -> String:
+	var prop = __get_index_prop(index)
+	return _hint[prop]["hint_string"] if (_hint.has(prop) and _hint[prop].has("hint_string")) else ""
+
 func get_visible_data() -> Dictionary:
 	var ret = {}
 	for key in _data:
