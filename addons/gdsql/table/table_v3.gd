@@ -1339,57 +1339,62 @@ func _on_corner_drag_moving(diff: Vector2):
 	var cell_pos = get_cell_at_pos(local_mouse)
 	var pos_row = cell_pos.x
 	var pos_col = cell_pos.y
-	
+
 	if pos_row < 0 or pos_col < 0:
 		return
 
-	# Determine direction and call add_autofill_border
-	if pos_col >= src_start.y and pos_col <= src_end.y - 1:
-		if pos_row < src_start.x:
-			# Extend upward
-			add_autofill_border(Vector2(pos_row, src_start.y), src_end, "add")
-			return
-		if pos_row >= src_end.x:
-			# Extend downward
-			add_autofill_border(src_start, Vector2(pos_row + 1, src_end.y), "add")
-			return
-	if pos_row >= src_start.x and pos_row <= src_end.x - 1:
-		if pos_col < src_start.y:
-			# Extend leftward
-			add_autofill_border(Vector2(src_start.x, pos_col), src_end, "add")
-			return
-		if pos_col >= src_end.y:
-			# Extend rightward
-			add_autofill_border(src_start, Vector2(src_end.x, pos_col + 1), "add")
-			return
-	
-	# Diagonal or inward - use diff to determine intent
-	if diff.x > 0:
-		if diff.y > 0:
-			if diff.x > diff.y:
-				add_autofill_border(src_start, Vector2(src_end.x, pos_col + 1), "add")
-			else:
-				add_autofill_border(src_start, Vector2(pos_row + 1, src_end.y), "add")
-		else:
-			if diff.x > -diff.y:
-				add_autofill_border(src_start, Vector2(src_end.x, pos_col + 1), "add")
-			else:
-				if pos_row > src_start.x:
-					add_autofill_border(src_start, Vector2(pos_row, src_end.y), "sub")
-				else:
-					add_autofill_border(src_start, src_end, "sub")
+	# Determine whether mouse is outside the original selection (expand) or inside (shrink)
+	var ci = pos_col + int(show_frame)
+	var cell_cx = local_mouse.x
+	var cell_cy = local_mouse.y
+	if ci >= 0 and ci < col_widths.size():
+		var cell_x = _get_col_x(ci)
+		cell_cx = cell_x + col_widths[ci] * 0.5
+		cell_cy = pos_row * actual_row_height + actual_row_height * 0.5
+	var inside = pos_row >= src_start.x and pos_row < src_end.x and pos_col >= src_start.y and pos_col < src_end.y
+
+	if inside:
+		# Sub mode: shrinking
+		var new_end = src_end
+		# Shrink columns from right: need pos_col < src_end.y and past left half of that cell
+		if pos_col < src_end.y and local_mouse.x < cell_cx:
+			new_end.y = pos_col + 1
+		if pos_row < src_end.x and local_mouse.y < cell_cy:
+			new_end.x = pos_row + 1
+		
+		if new_end.x <= src_start.x or new_end.y <= src_start.y:
+			# Everything removed
+			add_autofill_border(src_start, src_end, "sub")
+		elif new_end != src_end:
+			add_autofill_border(src_start, new_end, "sub")
 	else:
-		if diff.y > 0:
-			if -diff.x > diff.y:
-				add_autofill_border(Vector2(pos_row, src_start.y), src_end, "sub")
-			else:
-				add_autofill_border(src_start, Vector2(pos_row + 1, src_end.y), "add")
-		else:
-			if pos_col > src_start.y:
-				add_autofill_border(src_start, Vector2(src_end.x, pos_col), "sub")
-			else:
-				add_autofill_border(src_start, src_end, "sub")
-	
+		# Add mode: expanding
+		var new_end = src_end
+		# Expand right: need pos_col >= src_end.y and past right half of that cell
+		if pos_col >= src_end.y and local_mouse.x > cell_cx:
+			new_end.y = pos_col + 1
+		# Expand left: need pos_col < src_start.y
+		if pos_col < src_start.y:
+			new_end.y = src_end.y  # keep same end.y, start changes - handled below
+			# Actually for left/up expansion, recompute full rect
+			var start_p = Vector2(min(src_start.x, pos_row), min(src_start.y, pos_col))
+			var end_p = Vector2(max(src_end.x, pos_row + 1), max(src_end.y, pos_col + 1))
+			add_autofill_border(start_p, end_p, "add")
+			return
+		if pos_row < src_start.x:
+			var start_p = Vector2(pos_row, min(src_start.y, pos_col))
+			var end_p = Vector2(src_end.x, max(src_end.y, pos_col + 1))
+			add_autofill_border(start_p, end_p, "add")
+			return
+		# Expand down
+		if pos_row >= src_end.x and local_mouse.y > cell_cy:
+			new_end.x = pos_row + 1
+		# Expand right (normal)
+		if pos_col >= src_end.y and local_mouse.x > cell_cx:
+			new_end.y = pos_col + 1
+		if new_end != src_end:
+			add_autofill_border(src_start, new_end, "add")
+
 func add_autofill_border(start_pos: Vector2, end_pos: Vector2, mode: String):
 	# Clear old dashed borders
 	autofill_info["rect"] = Rect2(start_pos, end_pos - start_pos)
@@ -1413,6 +1418,35 @@ func _commit_autofill():
 		borders_overlay.queue_redraw()
 		return
 
+	var af_start = af_rect.position
+	var af_end = af_rect.end
+
+	# Handle sub mode (shrink selection, set removed cells to defaults)
+	if autofill_info.get("mode", "") == "sub":
+		var ssel = selected_borders.front()["rect"] as Rect2 if not selected_borders.is_empty() else af_rect
+		var sub_rect = Rect2()
+		if af_rect.position == ssel.position and af_rect.end == ssel.end:
+			sub_rect = ssel
+		elif abs(af_rect.size.x - ssel.size.x) < 0.5:
+			sub_rect.position = Vector2(af_rect.position.x, af_rect.end.y)
+			sub_rect.size = Vector2(af_rect.size.x, ssel.size.y - af_rect.size.y)
+		else:
+			sub_rect.position = Vector2(af_rect.end.x, af_rect.position.y)
+			sub_rect.size = Vector2(ssel.size.x - af_rect.size.x, af_rect.size.y)
+		
+		for r2 in range(int(sub_rect.position.x), int(sub_rect.end.x)):
+			var d2 = datas_flat[r2] if r2 < datas_flat.size() else null
+			if d2 is GDSQL.DictionaryObject:
+				for c2 in range(int(sub_rect.position.y), int(sub_rect.end.y)):
+					if not (d2.get_prop_usage_by_index(c2) & PROPERTY_USAGE_READ_ONLY):
+						d2._set_default_by_index(c2)
+		
+		var sstart = Vector2i(autofill_info["start"])
+		add_border({"start": sstart, "rect": af_rect})
+		autofill_info = {}
+		borders_overlay.queue_redraw()
+		return
+
 	var src_start = Vector2i(autofill_info["start"])
 	var src_sel = selected_borders.front()["rect"] as Rect2 if not selected_borders.is_empty() else af_rect
 
@@ -1420,9 +1454,6 @@ func _commit_autofill():
 		autofill_info = {}
 		borders_overlay.queue_redraw()
 		return
-
-	var af_start = af_rect.position
-	var af_end = af_rect.end
 
 	# Downward fill: extend rows (LeastSquares)
 	if af_end.x > src_sel.end.x:
