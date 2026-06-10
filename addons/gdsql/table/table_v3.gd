@@ -592,6 +592,7 @@ func _create_row_node() -> Control:
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.custom_minimum_size.y = ROW_HEIGHT
 	row.mouse_filter = Control.MOUSE_FILTER_PASS
+	row.add_theme_stylebox_override("panel", style_box_empty)
 
 	# Build cell containers for each column + frame column
 	var hbox = HBoxContainer.new()
@@ -606,12 +607,13 @@ func _create_row_node() -> Control:
 		var cell = PanelContainer.new()
 		cell.mouse_filter = Control.MOUSE_FILTER_PASS
 		cell.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		cell.add_theme_stylebox_override("panel", style_box_empty)
 
 		var is_frame = show_frame and i == 0
 		if is_frame:
 			cell.custom_minimum_size.x = col_widths[i] if i < col_widths.size() else 48.0
 			var line_btn = Button.new()
-			line_btn.flat = true
+			line_btn.flat = false
 			line_btn.mouse_default_cursor_shape = Control.CURSOR_HELP
 			line_btn.add_theme_font_size_override("font_size", 12)
 			var arrow_right = load("res://addons/gdsql/img/arrow_right.svg")
@@ -1729,8 +1731,7 @@ func inspect_highlight_rows():
 # ── Misc ────────────────────────────────────────────────────────────────
 
 func _on_vbar_visibility_changed():
-	for btn in header_buttons:
-		btn.queue_sort()
+	header_container.queue_sort()
 	_on_table_resized()
 
 func _split_tooltip(content: String) -> String:
