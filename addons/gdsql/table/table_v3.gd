@@ -1313,28 +1313,48 @@ func _commit_autofill():
 	var af_start = af_rect.position
 	var af_end = af_rect.end
 
+	# Downward fill: extend rows (LeastSquares)
 	if af_end.x > src_sel.end.x:
-		for row in range(int(src_sel.end.x), int(af_end.x)):
-			for col in range(int(src_sel.position.y), int(src_sel.end.y)):
-				var src_row = int(src_sel.position.x) + (row - int(src_sel.position.x)) % int(max(1, src_sel.size.x))
-				if src_row < datas_flat.size() and row < datas_flat.size():
-					var src_data = datas_flat[src_row]
-					var tgt_data = datas_flat[row]
-					if src_data is GDSQL.DictionaryObject and tgt_data is GDSQL.DictionaryObject:
-						if not (tgt_data.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
-							tgt_data._set_by_index(col, src_data._get_by_index(col))
-
-	if af_end.y > src_sel.end.y:
-		for row in range(int(src_sel.position.x), int(src_sel.end.x)):
-			for col in range(int(src_sel.end.y), int(af_end.y)):
+		var add_start_x = int(src_sel.end.x)
+		var add_end_x = int(af_end.x)
+		for col in range(int(src_sel.position.y), int(src_sel.end.y)):
+			var xdata = []
+			var ydata = []
+			for r in range(int(src_sel.position.x), int(src_sel.end.x)):
+				var d = datas_flat[r]
+				if d is GDSQL.DictionaryObject:
+					xdata.push_back(r)
+					ydata.append(d._get_by_index(col))
+			if xdata.is_empty():
+				continue
+			var ls = GDSQL.LeastSquares.new(xdata, ydata)
+			for row in range(add_start_x, add_end_x):
 				if row < datas_flat.size():
-					var src_data = datas_flat[row]
-					var tgt_data = datas_flat[row]
-					var src_col = int(src_sel.position.y) + (col - int(src_sel.position.y)) % int(max(1, src_sel.size.y))
-					if src_data is GDSQL.DictionaryObject and tgt_data is GDSQL.DictionaryObject:
-						var src_val = src_data._get_by_index(src_col)
-						if not (tgt_data.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
-							tgt_data._set_by_index(col, src_val)
+					var tgt = datas_flat[row]
+					if tgt is GDSQL.DictionaryObject and not (tgt.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
+						tgt._set_by_index(col, type_convert(ls.get_y(row), tgt.get_prop_type_by_index(col)))
+
+	# Rightward fill: extend columns (LeastSquares)
+	if af_end.y > src_sel.end.y:
+		var add_start_y = int(src_sel.end.y)
+		var add_end_y = int(af_end.y)
+		for row in range(int(src_sel.position.x), int(src_sel.end.x)):
+			var d = datas_flat[row]
+			if not (d is GDSQL.DictionaryObject):
+				continue
+			var xdata = []
+			var ydata = []
+			for c in range(int(src_sel.position.y), int(src_sel.end.y)):
+				xdata.push_back(c)
+				ydata.append(d._get_by_index(c))
+			if xdata.is_empty():
+				continue
+			var ls = GDSQL.LeastSquares.new(xdata, ydata)
+			for col in range(add_start_y, add_end_y):
+				if row < datas_flat.size():
+					var tgt = datas_flat[row]
+					if tgt is GDSQL.DictionaryObject and not (tgt.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
+						tgt._set_by_index(col, type_convert(ls.get_y(col), tgt.get_prop_type_by_index(col)))
 
 	add_border({"start": src_start, "rect": af_rect})
 	autofill_info = {}
@@ -1348,13 +1368,20 @@ func commit_vertical_autofill():
 		return
 
 	for col in range(int(sel_rect.position.y), int(sel_rect.end.y)):
+		var xdata = []
+		var ydata = []
+		for r in range(int(sel_rect.position.x), int(sel_rect.end.x)):
+			var d = datas_flat[r]
+			if d is GDSQL.DictionaryObject:
+				xdata.push_back(r)
+				ydata.append(d._get_by_index(col))
+		if xdata.is_empty():
+			continue
+		var ls = GDSQL.LeastSquares.new(xdata, ydata)
 		for row in range(int(sel_rect.end.x), datas_flat.size()):
-			var src_row = int(sel_rect.position.x) + (row - int(sel_rect.position.x)) % int(max(1, sel_rect.size.x))
-			var src_data = datas_flat[src_row]
-			var tgt_data = datas_flat[row]
-			if src_data is GDSQL.DictionaryObject and tgt_data is GDSQL.DictionaryObject:
-				if not (tgt_data.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
-					tgt_data._set_by_index(col, src_data._get_by_index(col))
+			var tgt = datas_flat[row]
+			if tgt is GDSQL.DictionaryObject and not (tgt.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
+				tgt._set_by_index(col, type_convert(ls.get_y(row), tgt.get_prop_type_by_index(col)))
 
 	var new_rect = Rect2(sel_rect.position, Vector2(datas_flat.size(), sel_rect.size.y))
 	add_border({"start": sel_rect.position, "rect": new_rect})
