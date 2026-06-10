@@ -625,7 +625,7 @@ func _create_row_node() -> Control:
 			cell.custom_minimum_size.x = col_widths[i] if i < col_widths.size() else float(MIN_COL_WIDTH)
 
 		hbox.add_child(cell)
-		if is_frame:
+		if i < total_cols - 1:
 			var spacer = Control.new()
 			spacer.custom_minimum_size.x = GRABBER_WIDTH
 			hbox.add_child(spacer)
@@ -938,7 +938,7 @@ func _on_borders_overlay_draw():
 				var x0 = _get_col_x(ci)
 				var cell_rect = Rect2(x0, y0, col_widths[ci], actual_row_height)
 
-				# Background
+				# Background (per-cell for overlap counting)
 				if border.has("exclude") and border["exclude"]:
 					borders_overlay.draw_rect(cell_rect, Color(Color.DARK_BLUE, 0.25))
 				else:
@@ -946,27 +946,18 @@ func _on_borders_overlay_draw():
 					var bg = Color(DEFAULT_BORDER_BG.r, DEFAULT_BORDER_BG.g, DEFAULT_BORDER_BG.b, alpha)
 					borders_overlay.draw_rect(cell_rect, bg)
 
-				# Border edges (only at rectangle edges)
-				var is_start_row = r == start_r
-				var is_end_row = r == end_r - 1
-				var is_start_col = c == start_c
-				var is_end_col = c == end_c - 1
-				var is_selected_start = r == last_selected_pos.x and c == last_selected_pos.y
-
-				var bcol = DEFAULT_BORDER_LINE
-
-				if is_start_row:
-					borders_overlay.draw_line(
-						Vector2(x0, y0), Vector2(x0 + cell_rect.size.x, y0), bcol, 2)
-				if is_end_row:
-					borders_overlay.draw_line(
-						Vector2(x0, y0 + actual_row_height), Vector2(x0 + cell_rect.size.x, y0 + actual_row_height), bcol, 2)
-				if is_start_col:
-					borders_overlay.draw_line(
-						Vector2(x0, y0), Vector2(x0, y0 + actual_row_height), bcol, 2)
-				if is_end_col:
-					borders_overlay.draw_line(
-						Vector2(x0 + cell_rect.size.x, y0), Vector2(x0 + cell_rect.size.x, y0 + actual_row_height), bcol, 2)
+		# Draw continuous outer boundary (4 lines, once per border)
+		var fo = int(show_frame)
+		var sl = _get_col_x(start_c + fo)
+		var last_ci = end_c + fo - 1
+		var sr = _get_col_x(last_ci) + col_widths[last_ci] if last_ci >= 0 else sl
+		var st = start_r * actual_row_height - scroll_val
+		var sb = end_r * actual_row_height - scroll_val
+		var bc = DEFAULT_BORDER_LINE
+		borders_overlay.draw_line(Vector2(sl, st), Vector2(sr, st), bc, 2)
+		borders_overlay.draw_line(Vector2(sl, sb), Vector2(sr, sb), bc, 2)
+		borders_overlay.draw_line(Vector2(sl, st), Vector2(sl, sb), bc, 2)
+		borders_overlay.draw_line(Vector2(sr, st), Vector2(sr, sb), bc, 2)
 
 	# Selection start indicator (green rect background)
 	var start_pos = last_selected_pos
@@ -1069,8 +1060,8 @@ func _get_col_x(col: int) -> float:
 	var x = 0.0
 	for i in range(min(col, col_widths.size())):
 		x += col_widths[i]
-		if show_frame and i == 0:
-			x += GRABBER_WIDTH  # spacer between frame and first data col
+		if i < col_widths.size() - 1:
+			x += GRABBER_WIDTH  # spacer/grabber between columns
 	return x
 
 func _get_cell_screen_rect(data_row: int, data_col: int) -> Rect2:
@@ -1270,7 +1261,7 @@ func _on_corner_drag_moving(diff: Vector2):
 	var accum = 0.0
 	for c in range(col_widths.size()):
 		accum += col_widths[c]
-		if show_frame and c == 0:
+		if c < col_widths.size() - 1:
 			accum += GRABBER_WIDTH
 		if new_pixel_x < accum:
 			new_col = c
