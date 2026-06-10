@@ -940,14 +940,19 @@ func _on_borders_overlay_draw():
 				var x0 = _get_col_x(ci)
 				# Extend width rightward to cover the GRABBER_WIDTH gap to next cell
 				var bw = col_widths[ci]
+				var bg_x0 = x0
 				if c < end_c - 1:
 					bw += GRABBER_WIDTH + 1.0
+				# Extend leftward for the cell just right of the start cell (covers the gap)
+				if c == last_selected_pos.y + 1 and r == last_selected_pos.x:
+					bg_x0 -= GRABBER_WIDTH
+					bw += GRABBER_WIDTH
 				# Only last border's start cell has no background (draw_center=false)
 				var is_start = r == last_selected_pos.x and c == last_selected_pos.y
 				if not is_start:
 					var alpha = DEFAULT_BORDER_BG.a * _get_overlap_count(r, c) * 1.05
 					var bg = Color(DEFAULT_BORDER_BG.r, DEFAULT_BORDER_BG.g, DEFAULT_BORDER_BG.b, alpha)
-					borders_overlay.draw_rect(Rect2(x0, y0, bw, actual_row_height), bg)
+					borders_overlay.draw_rect(Rect2(bg_x0, y0, bw, actual_row_height), bg)
 
 		# Draw continuous outer boundary (4 lines)
 		var sl = _get_col_x(start_c + fo)
