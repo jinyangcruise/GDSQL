@@ -946,19 +946,19 @@ func _on_borders_overlay_draw():
 					var bg = Color(DEFAULT_BORDER_BG.r, DEFAULT_BORDER_BG.g, DEFAULT_BORDER_BG.b, alpha)
 					borders_overlay.draw_rect(cell_rect, bg)
 
-		# Draw continuous outer boundary (4 lines, once per border)
-		var fo = int(show_frame)
-		var sl = _get_col_x(start_c + fo)
-		var last_ci = end_c + fo - 1
-		var sr = _get_col_x(last_ci) + col_widths[last_ci] if last_ci >= 0 else sl
-
-		var st = start_r * actual_row_height - scroll_val
-		var sb = end_r * actual_row_height - scroll_val
-		var bc = DEFAULT_BORDER_LINE
-		borders_overlay.draw_line(Vector2(sl, st), Vector2(sr, st), bc, 2)
-		borders_overlay.draw_line(Vector2(sl, sb), Vector2(sr, sb), bc, 2)
-		borders_overlay.draw_line(Vector2(sl, st), Vector2(sl, sb), bc, 2)
-		borders_overlay.draw_line(Vector2(sr, st), Vector2(sr, sb), bc, 2)
+		# Draw continuous outer boundary (4 lines, once per border, skip exclude borders)
+		if not border.has("exclude"):
+			var fo = int(show_frame)
+			var sl = _get_col_x(start_c + fo)
+			var last_ci = end_c + fo - 1
+			var sr = _get_col_x(last_ci) + col_widths[last_ci] if last_ci >= 0 else sl
+			var st = start_r * actual_row_height - scroll_val
+			var sb = end_r * actual_row_height - scroll_val
+			var bc = DEFAULT_BORDER_LINE
+			borders_overlay.draw_line(Vector2(sl, st), Vector2(sr, st), bc, 2)
+			borders_overlay.draw_line(Vector2(sl, sb), Vector2(sr, sb), bc, 2)
+			borders_overlay.draw_line(Vector2(sl, st), Vector2(sl, sb), bc, 2)
+			borders_overlay.draw_line(Vector2(sr, st), Vector2(sr, sb), bc, 2)
 
 	# Selection start indicator (green rect background)
 	var start_pos = last_selected_pos
