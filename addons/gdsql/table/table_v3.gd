@@ -1214,6 +1214,7 @@ func _on_borders_overlay_draw():
 	# Autofill dashed border
 	if autofill_info.has("rect"):
 		var af_rect = autofill_info["rect"] as Rect2
+	
 		var af_start = af_rect.position
 		var af_end = af_rect.end
 		for r in range(int(af_start.x), int(af_end.x)):
@@ -1559,6 +1560,8 @@ func _on_corner_drag_moving(diff: Vector2):
 	if pos_row < 0 or pos_col < 0:
 		return
 
+	print("[DRAG] src_start=", src_start, " src_end=", src_end, " mouse_row=", pos_row, " mouse_col=", pos_col)
+
 	# Compute cell center for threshold
 	var ci = pos_col
 	var cell_cx = local_mouse.x
@@ -1581,6 +1584,7 @@ func _on_corner_drag_moving(diff: Vector2):
 		# Extending left: recompute full rect including new start
 		var sp = Vector2(min(src_start.x, pos_row), pos_col)
 		var ep = Vector2(max(src_end.x, pos_row + 1), src_end.y)
+		print("[DRAG] LEFT branch sp=", sp, " ep=", ep)
 		add_autofill_border(sp, ep, "add")
 		return
 	elif pos_col >= src_end.y:
@@ -1602,6 +1606,7 @@ func _on_corner_drag_moving(diff: Vector2):
 		# Extending up: recompute full rect
 		var sp = Vector2(pos_row, min(src_start.y, pos_col))
 		var ep = Vector2(src_end.x, max(src_end.y, pos_col + 1))
+		print("[DRAG] UP branch sp=", sp, " ep=", ep)
 		add_autofill_border(sp, ep, "add")
 		return
 	elif pos_row >= src_end.x:
@@ -1676,7 +1681,7 @@ func _commit_autofill():
 
 	var src_start = Vector2i(autofill_info["start"])
 	var src_sel = selected_borders.front()["rect"] as Rect2 if not selected_borders.is_empty() else af_rect
-
+	print("[COMMIT] rect=", af_rect, " sel_start=", src_sel.position, " sel_end=", src_sel.end)
 	if af_rect.position == src_sel.position and af_rect.end == src_sel.end:
 		autofill_info = {}
 		borders_overlay.queue_redraw()
@@ -1703,6 +1708,28 @@ func _commit_autofill():
 					if tgt is GDSQL.DictionaryObject and not (tgt.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
 						tgt._set_by_index(col, type_convert(ls.get_y(row), tgt.get_prop_type_by_index(col)))
 
+	# Upward fill: extend rows upward (reverse data source)
+	if af_rect.position.x < src_sel.position.x:
+		print("[FILL] UPWARD pos_x=", af_rect.position.x, " < ", src_sel.position.x, " cols=", src_sel.position.y, "-", src_sel.end.y)
+		var fill_start = int(af_rect.position.x)
+		var fill_end = int(src_sel.position.x)
+		for col in range(int(src_sel.position.y), int(src_sel.end.y)):
+			var xdata = []
+			var ydata = []
+			for r in range(int(src_sel.end.x) - 1, int(src_sel.position.x) - 1, -1):
+				var d = datas_flat[r]
+				if d is GDSQL.DictionaryObject:
+					xdata.push_back(r)
+					ydata.append(d._get_by_index(col))
+			if xdata.is_empty():
+				continue
+			var ls = GDSQL.LeastSquares.new(xdata, ydata)
+			for row in range(fill_start, fill_end):
+				if row >= 0 and row < datas_flat.size():
+					var tgt = datas_flat[row]
+					if tgt is GDSQL.DictionaryObject and not (tgt.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
+						tgt._set_by_index(col, type_convert(ls.get_y(row), tgt.get_prop_type_by_index(col)))
+
 	# Rightward fill: extend columns (LeastSquares)
 	if af_end.y > src_sel.end.y:
 		var add_start_y = int(src_sel.end.y)
@@ -1721,6 +1748,29 @@ func _commit_autofill():
 			var ls = GDSQL.LeastSquares.new(xdata, ydata)
 			for col in range(add_start_y, add_end_y):
 				if row < datas_flat.size():
+					var tgt = datas_flat[row]
+					if tgt is GDSQL.DictionaryObject and not (tgt.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
+						tgt._set_by_index(col, type_convert(ls.get_y(col), tgt.get_prop_type_by_index(col)))
+
+	# Leftward fill: extend columns leftward (reverse data source)
+	if af_rect.position.y < src_sel.position.y:
+		print("[FILL] LEFTWARD pos_y=", af_rect.position.y, " < ", src_sel.position.y, " rows=", src_sel.position.x, "-", src_sel.end.x)
+		var fill_start = int(af_rect.position.y)
+		var fill_end = int(src_sel.position.y)
+		for row in range(int(src_sel.position.x), int(src_sel.end.x)):
+			var d = datas_flat[row]
+			if not (d is GDSQL.DictionaryObject):
+				continue
+			var xdata = []
+			var ydata = []
+			for c in range(int(src_sel.end.y) - 1, int(src_sel.position.y) - 1, -1):
+				xdata.push_back(c)
+				ydata.append(d._get_by_index(c))
+			if xdata.is_empty():
+				continue
+			var ls = GDSQL.LeastSquares.new(xdata, ydata)
+			for col in range(fill_start, fill_end):
+				if col >= 0 and row < datas_flat.size():
 					var tgt = datas_flat[row]
 					if tgt is GDSQL.DictionaryObject and not (tgt.get_prop_usage_by_index(col) & PROPERTY_USAGE_READ_ONLY):
 						tgt._set_by_index(col, type_convert(ls.get_y(col), tgt.get_prop_type_by_index(col)))
