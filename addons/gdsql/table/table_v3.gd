@@ -95,7 +95,7 @@ const GRID_COLOR = Color(0.78, 0.78, 0.78, 0.35)
 
 var header_container: HBoxContainer
 var data_area: HBoxContainer
-var frame_scroll: ScrollContainer
+var frame_scroll: Control
 var data_scroll: ScrollContainer
 var frame_row_container: Control
 var data_row_container: Control
@@ -158,7 +158,6 @@ var button_delete: Button
 var button_delete_row: Button
 
 var style_box_empty: StyleBoxEmpty
-var _frame_panel_sb: StyleBoxEmpty
 
 # ── Tree construction ───────────────────────────────────────────────────────
 
@@ -195,12 +194,6 @@ func _ready() -> void:
 
 	var data_h_bar = data_scroll.get_h_scroll_bar()
 	data_h_bar.value_changed.connect(_on_data_hscroll_changed)
-	data_h_bar.visibility_changed.connect(_on_data_hbar_visibility_changed)
-	_on_data_hbar_visibility_changed()
-
-	if show_frame:
-		var frame_v_bar = frame_scroll.get_v_scroll_bar()
-		frame_v_bar.value_changed.connect(_on_frame_scroll_changed)
 
 func _construct_tree():
 	vbox_container = VBoxContainer.new()
@@ -251,15 +244,13 @@ func _construct_tree():
 	data_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox_container.add_child(data_area)
 
-	# Frame scroll (vertical only, hidden scrollbar)
-	frame_scroll = ScrollContainer.new()
+	# Frame column (Control with clip_contents, no ScrollContainer)
+	frame_scroll = Control.new()
 	frame_scroll.name = "FrameScroll"
 	frame_scroll.custom_minimum_size.x = 48
-	frame_scroll.get_v_scroll_bar().visible = false
+	frame_scroll.clip_contents = true
 	frame_scroll.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	frame_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_frame_panel_sb = StyleBoxEmpty.new()
-	frame_scroll.add_theme_stylebox_override("panel", _frame_panel_sb)
 	data_area.add_child(frame_scroll)
 
 	frame_row_container = Control.new()
@@ -629,7 +620,6 @@ func update_content_size():
 		frame_row_container.custom_minimum_size.y = total_h
 		frame_row_container.custom_minimum_size.x = frame_col_width
 		frame_scroll.custom_minimum_size.x = frame_col_width
-		frame_scroll.queue_sort()
 	# Horizontal scroll extent = sum of all data column widths
 	var total_w = 0.0
 	for w in col_widths:
@@ -669,36 +659,13 @@ func _on_scroll(value: float):
 	borders_overlay.queue_redraw()
 
 func _on_data_scroll_changed(value: float):
-	if _syncing_scroll:
-		return
-	_syncing_scroll = true
-	if show_frame and is_instance_valid(frame_scroll):
-		frame_scroll.scroll_vertical = value
-	_syncing_scroll = false
 	_on_scroll(value)
-
-func _on_frame_scroll_changed(value: float):
-	if _syncing_scroll:
-		return
-	_syncing_scroll = true
-	if is_instance_valid(data_scroll):
-		data_scroll.scroll_vertical = value
-	_syncing_scroll = false
 
 func _on_data_hscroll_changed(value: float):
 	if show_frame and is_instance_valid(data_header_hbox):
 		data_header_hbox.position.x = -value
 	_update_dragger_position()
 	borders_overlay.queue_redraw()
-
-func _on_data_hbar_visibility_changed():
-	var h_bar = data_scroll.get_h_scroll_bar()
-	if h_bar.visible:
-		_frame_panel_sb.content_margin_bottom = h_bar.size.y
-	else:
-		_frame_panel_sb.content_margin_bottom = 0
-	if is_instance_valid(frame_scroll):
-		frame_scroll.queue_sort()
 
 func _position_visible_rows():
 	var needed = last_visible_idx - first_visible_idx + 1
@@ -2459,3 +2426,13 @@ func _get_selected_cols() -> Array:
 			if not cols.has(i):
 				cols.append(i)
 	return cols
+
+
+var _last_data_scroll_v: float = -1
+
+func _process(_delta):
+	if show_frame and is_instance_valid(data_scroll) and is_instance_valid(frame_row_container):
+		var sv = data_scroll.scroll_vertical
+		if sv != _last_data_scroll_v:
+			_last_data_scroll_v = sv
+			frame_row_container.position.y = -sv
