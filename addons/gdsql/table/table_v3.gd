@@ -556,6 +556,9 @@ func _on_scroll(value: float):
 	if view_h <= 0:
 		return
 
+	# Update dragger position on every scroll, even if visible rows don't change
+	_update_dragger_position()
+
 	var new_first = max(0, floor(value / actual_row_height) - BUFFER_ROWS)
 	var new_last = min(datas_flat.size() - 1, ceil((value + view_h) / actual_row_height) + BUFFER_ROWS)
 
