@@ -387,8 +387,8 @@ func rebuild_header():
 		header_container.add_child(btn)
 		header_buttons.append(btn)
 
-		# Grabber (skip for frame/select-all column)
-		if not (show_frame and i == 0) and i < total_cols - 1:
+		# Grabber (skip for frame/select-all column) -- every data col gets one, including the last
+		if not (show_frame and i == 0):
 			var grabber = ColorRect.new()
 			grabber.custom_minimum_size.x = GRABBER_WIDTH
 			grabber.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -429,7 +429,7 @@ func update_frame_col_width_if_needed():
 
 
 func _get_header_available_width() -> float:
-	var total_grabber = max(0, columns.size() - 1) * GRABBER_WIDTH
+	var total_grabber = columns.size() * GRABBER_WIDTH
 	if show_frame:
 		total_grabber += GRABBER_WIDTH  # spacer between frame and first data col
 	return max(100, header_container.size.x - total_grabber)
