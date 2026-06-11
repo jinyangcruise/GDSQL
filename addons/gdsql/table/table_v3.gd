@@ -1150,18 +1150,6 @@ func _draw_dashed_rect(rect: Rect2, show_top: bool, show_bottom: bool, show_left
 # ── Column / cell helpers ───────────────────────────────────────────────
 
 func _get_col_x(col: int) -> float:
-	# Prefer hbox cell position for accuracy
-	if not row_pool.is_empty() and row_pool[0].visible:
-		var hbox = row_pool[0].get_child(0)
-		if hbox:
-			var pc_idx = -1
-			for child in hbox.get_children():
-				if child is PanelContainer:
-					pc_idx += 1
-					if pc_idx == col:
-						if child.position.x > 1.0:
-							return child.position.x
-						break
 	var x = 0.0
 	for i in range(min(col, col_widths.size())):
 		x += col_widths[i]
