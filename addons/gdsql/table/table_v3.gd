@@ -158,6 +158,7 @@ var button_delete: Button
 var button_delete_row: Button
 
 var style_box_empty: StyleBoxEmpty
+var _frame_panel_sb: StyleBoxEmpty
 
 # ── Tree construction ───────────────────────────────────────────────────────
 
@@ -194,6 +195,8 @@ func _ready() -> void:
 
 	var data_h_bar = data_scroll.get_h_scroll_bar()
 	data_h_bar.value_changed.connect(_on_data_hscroll_changed)
+	data_h_bar.visibility_changed.connect(_on_data_hbar_visibility_changed)
+	_on_data_hbar_visibility_changed()
 
 	if show_frame:
 		var frame_v_bar = frame_scroll.get_v_scroll_bar()
@@ -255,6 +258,8 @@ func _construct_tree():
 	frame_scroll.get_v_scroll_bar().visible = false
 	frame_scroll.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	frame_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_frame_panel_sb = StyleBoxEmpty.new()
+	frame_scroll.add_theme_stylebox_override("panel", _frame_panel_sb)
 	data_area.add_child(frame_scroll)
 
 	frame_row_container = Control.new()
@@ -685,6 +690,15 @@ func _on_data_hscroll_changed(value: float):
 		data_header_hbox.position.x = -value
 	_update_dragger_position()
 	borders_overlay.queue_redraw()
+
+func _on_data_hbar_visibility_changed():
+	var h_bar = data_scroll.get_h_scroll_bar()
+	if h_bar.visible:
+		_frame_panel_sb.content_margin_bottom = h_bar.size.y
+	else:
+		_frame_panel_sb.content_margin_bottom = 0
+	if is_instance_valid(frame_scroll):
+		frame_scroll.queue_sort()
 
 func _position_visible_rows():
 	var needed = last_visible_idx - first_visible_idx + 1
