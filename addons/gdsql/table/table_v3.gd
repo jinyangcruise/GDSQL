@@ -88,7 +88,7 @@ const MAX_POOL_SIZE := 200
 
 const HIGHTLIGHT_COLOR = Color(Color.MEDIUM_PURPLE, 0.788)
 const DEFAULT_BORDER_BG = Color(1, 1, 1, 0.05)
-const DEFAULT_BORDER_LINE = Color(0.96, 0.96, 0.96, 0.75)
+const DEFAULT_BORDER_LINE = Color(0.25, 0.45, 0.82, 0.85)
 const GRID_COLOR = Color(0.78, 0.78, 0.78, 0.35)
 
 # ── Node references ─────────────────────────────────────────────────────────
@@ -462,7 +462,7 @@ func _get_col_boundary_at_x(local_x: float) -> int:
 		if show_frame and i == 0:
 			continue  # skip frame column
 		var boundary = _get_col_x(i) + col_widths[i]
-		if abs(local_x - boundary) <= GRABBER_WIDTH * 0.5:
+		if abs(local_x - boundary) <= GRABBER_WIDTH:
 			return i
 	return -1
 
@@ -1052,7 +1052,7 @@ func _on_borders_overlay_draw():
 		var sb = end_r * actual_row_height - scroll_val
 		var bc = DEFAULT_BORDER_LINE
 		if multi:
-			bc = Color(DEFAULT_BORDER_LINE, 0.1)
+			bc = Color(DEFAULT_BORDER_LINE, 0.5)
 		borders_overlay.draw_line(Vector2(sl, st), Vector2(sr, st), bc, 2)
 		borders_overlay.draw_line(Vector2(sl, sb), Vector2(sr, sb), bc, 2)
 		borders_overlay.draw_line(Vector2(sl, st), Vector2(sl, sb), bc, 2)
