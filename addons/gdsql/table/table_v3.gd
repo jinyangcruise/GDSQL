@@ -540,6 +540,9 @@ func _input(event):
 				var header_pos = mb.position - header_container.global_position
 				var col_idx = _get_col_boundary_at_x(header_pos.x)
 				if col_idx >= 0:
+					if mb.double_click:
+						_auto_fit_column(col_idx)
+						return
 					_drag_col_idx = col_idx
 					_drag_start_x = mouse_global.x
 					_drag_start_width = col_widths[col_idx]
@@ -587,6 +590,92 @@ func _input(event):
 func _clear_drag_flag():
 	_drag_press_active = false
 	_drag_col_idx = -1
+
+## 双击列分隔线时，自动调整列宽以适应文字内容（仅文本，忽略非文本控件）
+func _auto_fit_column(col_idx: int):
+	if col_idx < 0 or col_idx >= col_widths.size():
+		return
+
+	var font = ThemeDB.fallback_font
+	var font_size = ThemeDB.fallback_font_size
+	if is_instance_valid(label_model):
+		var lf = label_model.get_theme_font("font")
+		if lf:
+			font = lf
+		var lfs = label_model.get_theme_font_size("font_size")
+		if lfs > 0:
+			font_size = lfs
+
+	var max_width = 0.0
+
+	# 测量表头文字宽度（含按钮内边距）
+	if col_idx < header_buttons.size() and is_instance_valid(header_buttons[col_idx]):
+		var btn = header_buttons[col_idx]
+		var hf = btn.get_theme_font("font")
+		if not hf:
+			hf = font
+		var hfs = btn.get_theme_font_size("font_size")
+		if hfs <= 0:
+			hfs = font_size
+		var hw = hf.get_string_size(btn.text, HORIZONTAL_ALIGNMENT_LEFT, -1, hfs).x
+		# 加上按钮 stylebox 的左右内边距
+		var btn_style = btn.get_theme_stylebox("normal")
+		if btn_style:
+			hw += btn_style.get_margin(SIDE_LEFT) + btn_style.get_margin(SIDE_RIGHT)
+		if hw > max_width:
+			max_width = hw
+
+	# 测量所有数据行的文字宽度
+	for row in datas_flat.size():
+		var d = datas_flat[row]
+		var val = _get_data_by_cell(row, col_idx)
+		if val == null:
+			continue
+		var text = str(val)
+
+		# 处理 DictionaryObject 的枚举提示（显示枚举文本而非原始值）
+		if d is GDSQL.DictionaryObject:
+			var col_prop = d.__get_index_prop(col_idx).to_snake_case()
+			var hint = d.get_meta(col_prop + "_enum_hint_string_dict", "")
+			if hint != "":
+				var pairs = hint.split(",")
+				for p_str in pairs:
+					var p = p_str.split(":")
+					if p.size() == 2 and p[1].is_valid_int() and int(p[1]) == val:
+						text = p[0]
+						break
+
+		if text.is_empty():
+			continue
+		var w = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		if w > max_width:
+			max_width = w
+
+	# 应用新宽度
+	var new_width = max(MIN_COL_WIDTH, max_width + 16.0)
+	if new_width != col_widths[col_idx]:
+		col_widths[col_idx] = new_width
+		_apply_header_widths()
+		sync_data_row_widths()
+
+		var tw = 0.0
+		for w in col_widths:
+			tw += w
+		# 通过完整 Vector2 赋值确保触发 minimum_size_changed
+		data_row_container.custom_minimum_size = Vector2(tw, data_row_container.custom_minimum_size.y)
+		# 直接更新横向滚动条范围
+		var h_bar = data_scroll.get_h_scroll_bar()
+		if h_bar:
+			var view_w = data_scroll.size.x
+			h_bar.max_value = max(0, tw - view_w)
+			h_bar.page = view_w
+			if not h_bar.visible and tw > view_w:
+				h_bar.visible = true
+			elif h_bar.visible and tw <= view_w:
+				h_bar.visible = false
+		data_scroll.queue_sort()
+		_update_dragger_position()
+		borders_overlay.queue_redraw()
 
 func sync_frame_row_widths():
 	if not show_frame:
