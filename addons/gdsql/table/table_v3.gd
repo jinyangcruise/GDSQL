@@ -109,7 +109,6 @@ var row_model: HBoxContainer
 
 var col_widths: Array[float] = []        # pixel widths per column (data cols only, no frame/empty)
 var header_buttons: Array[Button] = []    # for data columns + frame column
-var header_grabbers: Array[Control] = []
 var header_spacer: Control = null
 
 var row_pool: Array[Control] = []         # pooled row nodes
@@ -335,7 +334,6 @@ func rebuild_header():
 		header_container.remove_child(c)
 		c.queue_free()
 	header_buttons.clear()
-	header_grabbers.clear()
 
 	var col_count = columns.size()
 	var data_col_count = col_count
@@ -363,7 +361,7 @@ func rebuild_header():
 			else:
 				col_widths[i] = MIN_COL_WIDTH
 
-	# Build header: [frame_btn?, col_btn, grabber, col_btn, grabber, ..., spacer]
+	# Build header: [frame_btn?, col_btn, col_btn, ..., spacer]
 	for i in total_cols:
 		var btn = Button.new()
 		var is_frame = show_frame and i == 0
@@ -381,7 +379,6 @@ func rebuild_header():
 			btn.text = str(columns[data_idx])
 			if column_tips.size() > data_idx and not column_tips[data_idx].is_empty():
 				btn.tooltip_text = tr(column_tips[data_idx])
-			btn.mouse_default_cursor_shape = Control.CURSOR_HELP
 			var arrow_down = load("res://addons/gdsql/img/arrow_down.svg")
 			if arrow_down:
 				btn.mouse_entered.connect(DisplayServer.cursor_set_custom_image.bind(arrow_down, DisplayServer.CURSOR_HELP, Vector2(12, 12)))
@@ -393,24 +390,6 @@ func rebuild_header():
 		btn.add_theme_stylebox_override("focus", style_box_empty)
 		header_container.add_child(btn)
 		header_buttons.append(btn)
-
-		# Grabber (skip for frame/select-all column) -- every data col gets one, including the last
-		if not (show_frame and i == 0):
-			var grabber = ColorRect.new()
-			grabber.custom_minimum_size.x = GRABBER_WIDTH
-			grabber.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-			grabber.color = Color(1, 1, 1, 0.0)
-			grabber.mouse_default_cursor_shape = Control.CURSOR_HSIZE
-			grabber.mouse_filter = Control.MOUSE_FILTER_STOP
-			grabber.gui_input.connect(_on_grabber_gui_input.bind(i))
-			header_container.add_child(grabber)
-			header_grabbers.append(grabber)
-		elif show_frame and i == 0:
-			# Spacer between frame column and first data column
-			var spacer = ColorRect.new()
-			spacer.custom_minimum_size.x = GRABBER_WIDTH
-			spacer.color = Color(1, 1, 1, 0.0)
-			header_container.add_child(spacer)
 	# Spacer (fills remaining space)
 	header_spacer = Control.new()
 	header_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -436,10 +415,7 @@ func update_frame_col_width_if_needed():
 
 
 func _get_header_available_width() -> float:
-	var total_grabber = columns.size() * GRABBER_WIDTH
-	if show_frame:
-		total_grabber += GRABBER_WIDTH  # spacer between frame and first data col
-	return max(100, header_container.size.x - total_grabber)
+	return max(100, header_container.size.x)
 
 func _on_table_resized():
 	if col_widths.is_empty():
@@ -473,31 +449,78 @@ func _apply_header_widths():
 	for i in min(header_buttons.size(), col_widths.size()):
 		header_buttons[i].custom_minimum_size.x = col_widths[i]
 
-# ── Grabber drag logic ───────────────────────────────────────────────────
+# ── Header drag (position-based boundary detection) ──────────────────────
 
 var _drag_col_idx := -1
 var _drag_start_x := 0.0
 var _drag_start_width := 0.0
+var _drag_press_active := false
 
-func _on_grabber_gui_input(event: InputEvent, col_idx: int):
+func _get_col_boundary_at_x(local_x: float) -> int:
+	# Return the column index whose right edge is within GRABBER_WIDTH/2 of local_x, or -1.
+	for i in range(col_widths.size()):
+		if show_frame and i == 0:
+			continue  # skip frame column
+		var boundary = _get_col_x(i) + col_widths[i]
+		if abs(local_x - boundary) <= GRABBER_WIDTH * 0.5:
+			return i
+	return -1
+
+func _input(event):
+	if not is_node_ready() or not header_container.is_visible_in_tree():
+		return
+	var header_rect = Rect2(header_container.global_position, header_container.size)
+	var mouse_global = get_global_mouse_position()
+	var over_header = header_rect.has_point(mouse_global)
+
 	if event is InputEventMouseButton:
 		var mb = event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_LEFT:
-			if mb.pressed:
-				_drag_col_idx = col_idx
-				_drag_start_x = get_global_mouse_position().x
-				_drag_start_width = col_widths[col_idx]
-			else:
+			if mb.pressed and over_header:
+				var header_pos = mb.position - header_container.global_position
+				var col_idx = _get_col_boundary_at_x(header_pos.x)
+				if col_idx >= 0:
+					_drag_col_idx = col_idx
+					_drag_start_x = mouse_global.x
+					_drag_start_width = col_widths[col_idx]
+					_drag_press_active = true
+					return  # don't let _gui_input see this event
+			elif not mb.pressed:
+				if _drag_press_active:
+					call_deferred("_clear_drag_flag")
 				_drag_col_idx = -1
-	if event is InputEventMouseMotion and _drag_col_idx >= 0:
-		var dx = get_global_mouse_position().x - _drag_start_x
-		var new_w = max(MIN_COL_WIDTH, _drag_start_width + dx)
-		if new_w != col_widths[_drag_col_idx]:
-			col_widths[_drag_col_idx] = new_w
-			_apply_header_widths()
-			sync_row_widths()
-			_update_dragger_position()
-			borders_overlay.queue_redraw()
+
+	if event is InputEventMouseMotion:
+		if _drag_col_idx >= 0:
+			var dx = mouse_global.x - _drag_start_x
+			var new_w = max(MIN_COL_WIDTH, _drag_start_width + dx)
+			if new_w != col_widths[_drag_col_idx]:
+				col_widths[_drag_col_idx] = new_w
+				_apply_header_widths()
+				sync_row_widths()
+				_update_dragger_position()
+				borders_overlay.queue_redraw()
+		elif over_header:
+			var header_pos = mouse_global - header_container.global_position
+			var col_idx = _get_col_boundary_at_x(header_pos.x)
+			var want_hsize = col_idx >= 0
+			for btn in header_buttons:
+				if want_hsize:
+					btn.mouse_default_cursor_shape = Control.CURSOR_HSIZE
+				elif show_frame and btn == header_buttons[0]:
+					btn.mouse_default_cursor_shape = Control.CURSOR_ARROW
+				else:
+					btn.mouse_default_cursor_shape = Control.CURSOR_HELP
+		else:
+			for btn in header_buttons:
+				if show_frame and btn == header_buttons[0]:
+					btn.mouse_default_cursor_shape = Control.CURSOR_ARROW
+				else:
+					btn.mouse_default_cursor_shape = Control.CURSOR_HELP
+
+func _clear_drag_flag():
+	_drag_press_active = false
+	_drag_col_idx = -1
 
 func sync_row_widths():
 	for row_node in row_pool:
@@ -651,10 +674,6 @@ func _create_row_node() -> Control:
 			cell.custom_minimum_size.x = col_widths[i] if i < col_widths.size() else float(MIN_COL_WIDTH)
 
 		hbox.add_child(cell)
-		if i < total_cols - 1:
-			var spacer = Control.new()
-			spacer.custom_minimum_size.x = GRABBER_WIDTH
-			hbox.add_child(spacer)
 	return row
 
 func _assign_row_data(row_node: Control, data_idx: int):
@@ -1017,21 +1036,13 @@ func _on_borders_overlay_draw():
 				if ci < 0 or ci >= col_widths.size():
 					continue
 				var x0 = _get_col_x(ci)
-				# Extend width rightward to cover the GRABBER_WIDTH gap to next cell
 				var bw = col_widths[ci]
-				var bg_x0 = x0
-				if c < end_c - 1:
-					bw += GRABBER_WIDTH + 1.0
-				# Extend leftward for the cell just right of the start cell (covers the gap)
-				if c == last_selected_pos.y + 1 and r == last_selected_pos.x:
-					bg_x0 -= GRABBER_WIDTH
-					bw += GRABBER_WIDTH
 				# Only last border's start cell has no background (draw_center=false)
 				var is_start = r == last_selected_pos.x and c == last_selected_pos.y
 				if not is_start:
 					var alpha = DEFAULT_BORDER_BG.a * _get_overlap_count(r, c) * 1.05
 					var bg = Color(DEFAULT_BORDER_BG.r, DEFAULT_BORDER_BG.g, DEFAULT_BORDER_BG.b, alpha)
-					borders_overlay.draw_rect(Rect2(bg_x0, y0, bw, actual_row_height), bg)
+					borders_overlay.draw_rect(Rect2(x0, y0, bw, actual_row_height), bg)
 
 		# Draw continuous outer boundary (4 lines)
 		var sl = _get_col_x(start_c + fo)
@@ -1060,8 +1071,6 @@ func _on_borders_overlay_draw():
 					continue
 				var ex0 = _get_col_x(eci)
 				var ew = col_widths[eci]
-				if ec < int(ex_rect.end.y) - 1:
-					ew += GRABBER_WIDTH + 1.0
 				borders_overlay.draw_rect(Rect2(ex0, ey, ew, actual_row_height), Color(Color.DARK_BLUE, 0.25))
 
 	# Autofill dashed border
@@ -1156,8 +1165,6 @@ func _get_col_x(col: int) -> float:
 	var x = 0.0
 	for i in range(min(col, col_widths.size())):
 		x += col_widths[i]
-		if i < col_widths.size() - 1:
-			x += GRABBER_WIDTH  # spacer/grabber between columns
 	return x
 
 func _get_cell_screen_rect(data_row: int, data_col: int) -> Rect2:
@@ -1642,8 +1649,6 @@ func get_cell_at_pos(pos: Vector2) -> Vector2i:
 				return Vector2i(-1, -1)
 			return Vector2i(row, data_col)
 		x += w
-		if c < col_widths.size() - 1:
-			x += GRABBER_WIDTH  # spacer/grabber between columns
 	return Vector2i(-1, -1)
 
 func _on_row_container_gui_input(event: InputEvent):
@@ -1772,6 +1777,8 @@ func _on_frame_btn_pressed(data_idx: int, btn: Button):
 			inspect_highlight_rows()
 
 func _on_header_col_pressed(i: int):
+	if _drag_press_active:
+		return
 	if i < int(show_frame) or i >= header_buttons.size() or datas_flat.is_empty():
 		return
 	var dc = i - int(show_frame)  # col_widths index → data column index
