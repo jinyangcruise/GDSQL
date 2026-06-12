@@ -1952,6 +1952,8 @@ func _on_data_row_container_gui_input(event: InputEvent):
 				if cell_pos.x < datas_flat.size():
 					row_clicked.emit(cell_pos.x, mb.button_index, datas_flat[cell_pos.x])
 				if mb.button_index == MOUSE_BUTTON_RIGHT:
+					if not pos_is_selected(cell_pos):
+						_handle_normal_click(cell_pos)
 					popup_menu_text.set_item_metadata(0, [cell_pos.y, cell_pos.x])
 					popup_menu_text.set_item_metadata(1, [cell_pos.y, cell_pos.x])
 					popup_menu_text.set_item_metadata(2, [cell_pos.y, cell_pos.x])
