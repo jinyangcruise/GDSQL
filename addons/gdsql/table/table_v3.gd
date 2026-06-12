@@ -273,6 +273,7 @@ func _construct_tree():
 	data_row_container.name = "DataRowContainer"
 	data_row_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	data_row_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	data_row_container.focus_mode = Control.FOCUS_ALL
 	data_scroll.add_child(data_row_container)
 
 	# Mouse events on data_row_container for selection
@@ -315,8 +316,16 @@ func _construct_tree():
 	shortcut_layer.add_child(button_select_all)
 
 	button_edit = _make_shortcut_button(KEY_ENTER)
+	# 添加空格和小键盘 Enter 作为额外快捷键
+	var edit_sc = button_edit.shortcut
+	var ev_space = InputEventKey.new()
+	ev_space.keycode = KEY_SPACE
+	edit_sc.events.append(ev_space)
+	var ev_kp_enter = InputEventKey.new()
+	ev_kp_enter.keycode = KEY_KP_ENTER
+	edit_sc.events.append(ev_kp_enter)
 	button_edit.modulate.a = 0
-	button_edit.pressed.connect(_on_button_edit_pressed)
+	button_edit.pressed.connect(_on_button_edit_button_down)
 	shortcut_layer.add_child(button_edit)
 
 	button_copy = _make_shortcut_button(KEY_C | KEY_CTRL)
@@ -2054,6 +2063,8 @@ func _on_frame_btn_pressed(data_idx: int, btn: Button):
 		add_border(border)
 		if editable:
 			inspect_highlight_rows()
+		# 确保表格内任一节点获得焦点，这样 shortcut 才能生效
+		data_row_container.grab_focus()
 
 func _on_header_col_pressed(i: int):
 	if _drag_press_active:
