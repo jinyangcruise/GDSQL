@@ -311,28 +311,20 @@ func _construct_tree():
 	shortcut_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox_container.add_child(shortcut_layer)
 
-	button_select_all = _make_shortcut_button(KEY_A | KEY_CTRL)
+	button_select_all = _make_shortcut_button(KEY_A, true)
 	button_select_all.pressed.connect(_on_button_select_all_pressed)
 	shortcut_layer.add_child(button_select_all)
 
-	button_edit = _make_shortcut_button(KEY_ENTER)
-	# 添加空格和小键盘 Enter 作为额外快捷键
-	var edit_sc = button_edit.shortcut
-	var ev_space = InputEventKey.new()
-	ev_space.keycode = KEY_SPACE
-	edit_sc.events.append(ev_space)
-	var ev_kp_enter = InputEventKey.new()
-	ev_kp_enter.keycode = KEY_KP_ENTER
-	edit_sc.events.append(ev_kp_enter)
+	button_edit = _make_shortcut_button(KEY_ENTER, false, false, false, [KEY_SPACE, KEY_KP_ENTER])
 	button_edit.modulate.a = 0
 	button_edit.pressed.connect(_on_button_edit_button_down)
 	shortcut_layer.add_child(button_edit)
 
-	button_copy = _make_shortcut_button(KEY_C | KEY_CTRL)
+	button_copy = _make_shortcut_button(KEY_C, true)
 	button_copy.pressed.connect(_on_button_copy_pressed)
 	shortcut_layer.add_child(button_copy)
 
-	button_paste = _make_shortcut_button(KEY_V | KEY_CTRL)
+	button_paste = _make_shortcut_button(KEY_V, true)
 	button_paste.pressed.connect(_on_button_paste_pressed)
 	shortcut_layer.add_child(button_paste)
 
@@ -340,28 +332,26 @@ func _construct_tree():
 	button_delete.pressed.connect(_on_button_delete_pressed)
 	shortcut_layer.add_child(button_delete)
 
-	button_delete_row = _make_shortcut_button(KEY_DELETE | KEY_ALT)
+	button_delete_row = _make_shortcut_button(KEY_DELETE, false, true)
 	button_delete_row.pressed.connect(_on_button_delete_row_pressed)
 	shortcut_layer.add_child(button_delete_row)
 
-func _make_shortcut_button(shortcut_key: int) -> Button:
+func _make_shortcut_button(keycode: int, ctrl: bool = false, alt: bool = false, meta: bool = false, extra_keys: Array[int] = []) -> Button:
 	var btn = Button.new()
 	btn.flat = true
 	var se = StyleBoxEmpty.new()
 	btn.add_theme_stylebox_override("normal", se)
 	var sc = Shortcut.new()
 	var ev = InputEventKey.new()
-	ev.keycode = shortcut_key
-	if shortcut_key & KEY_CTRL:
-		ev.ctrl_pressed = true
-		ev.keycode = shortcut_key & ~KEY_CTRL
-	if shortcut_key & KEY_ALT:
-		ev.alt_pressed = true
-		ev.keycode = shortcut_key & ~KEY_ALT
-	if shortcut_key & KEY_META:
-		ev.meta_pressed = true
-		ev.keycode = shortcut_key & ~KEY_META
+	ev.keycode = keycode
+	ev.ctrl_pressed = ctrl
+	ev.alt_pressed = alt
+	ev.meta_pressed = meta
 	sc.events = [ev]
+	for ek in extra_keys:
+		var ek_ev = InputEventKey.new()
+		ek_ev.keycode = ek
+		sc.events.append(ek_ev)
 	btn.shortcut = sc
 	btn.shortcut_context = self
 	return btn
@@ -1987,6 +1977,12 @@ func _on_data_row_container_gui_input(event: InputEvent):
 					add_exclude_border(border)
 				else:
 					add_border(border)
+
+		elif event is InputEventKey and not selected_borders.is_empty():
+			var ke = event as InputEventKey
+			if ke.pressed and not ke.echo and editable:
+				if ke.keycode == KEY_ENTER or ke.keycode == KEY_SPACE or ke.keycode == KEY_KP_ENTER:
+					_on_button_edit_button_down()
 
 func _handle_normal_click(cell_pos: Vector2i):
 	start_drag = true
