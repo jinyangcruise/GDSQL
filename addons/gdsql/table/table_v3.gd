@@ -631,6 +631,9 @@ func _auto_fit_column(col_idx: int):
 		var val = _get_data_by_cell(row, col_idx)
 		if val == null:
 			continue
+		# 跳过非文字的对象（如自定义显示控件、Resource 等），只看基础类型文字
+		if val is Object:
+			continue
 		var text = str(val)
 
 		# 处理 DictionaryObject 的枚举提示（显示枚举文本而非原始值）
