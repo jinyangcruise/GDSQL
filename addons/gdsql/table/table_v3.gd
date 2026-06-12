@@ -296,11 +296,12 @@ func _construct_tree():
 	var icon_trash = load("res://addons/gdsql/img/trash-can.svg")
 	popup_menu_text.add_item("Copy Field", 0)
 	if icon_copy:
-		popup_menu_text.set_item_icon(0, icon_copy)
+		popup_menu_text.set_item_icon(popup_menu_text.get_item_index(0), icon_copy)
 	popup_menu_text.add_item("Copy Line", 1)
+	popup_menu_text.add_separator()
 	popup_menu_text.add_item("Delete", 2)
 	if icon_trash:
-		popup_menu_text.set_item_icon(2, icon_trash)
+		popup_menu_text.set_item_icon(popup_menu_text.get_item_index(2), icon_trash)
 	popup_menu_text.set_item_disabled(2, true)
 	popup_menu_text.index_pressed.connect(_on_popup_menu_index_pressed)
 	vbox_container.add_child(popup_menu_text)
