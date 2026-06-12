@@ -1953,9 +1953,13 @@ func _on_data_row_container_gui_input(event: InputEvent):
 					popup_menu_text.set_item_metadata(0, [cell_pos.y, cell_pos.x])
 					popup_menu_text.set_item_metadata(1, [cell_pos.y, cell_pos.x])
 					popup_menu_text.set_item_metadata(2, [cell_pos.y, cell_pos.x])
-					popup_menu_text.position = DisplayServer.mouse_get_position()
-					if not popup_menu_text.visible:
-						popup_menu_text.popup()
+					if show_menu:
+						popup_menu_text.position = DisplayServer.mouse_get_position()
+						if not popup_menu_text.visible:
+							popup_menu_text.popup()
+							popup_menu_text.set_item_disabled(2, not support_delete_row)
+					else:
+						popup_menu_text.set_item_disabled(2, true)
 		else:
 			# Mouse release
 			if exclude_mode and start_drag:
