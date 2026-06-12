@@ -2156,7 +2156,7 @@ func _on_select_all_btn_pressed():
 
 # ── Row operations ─────────────────────────────────────────────────────
 
-func highlight_row(data_idx: int):
+func highlight_row(data_idx: int, skip_await: bool = false):
 	if data_idx < 0 or data_idx >= datas_flat.size() or columns.is_empty():
 		return
 	clear_borders()
@@ -2165,6 +2165,30 @@ func highlight_row(data_idx: int):
 		"rect": Rect2(data_idx, 0, 1, columns.size())
 	}
 	add_border(border)
+	# 自动滚动到高亮行
+	if not skip_await:
+		await get_tree().create_timer(0.01).timeout
+	if data_idx >= 0 and data_idx * actual_row_height > data_scroll.scroll_vertical:
+		data_scroll.scroll_vertical = data_idx * actual_row_height
+
+func scroll_to_bottom():
+	var v_bar = data_scroll.get_v_scroll_bar()
+	await get_tree().create_timer(0.1).timeout
+	v_bar.value = v_bar.max_value
+
+func clear_rows():
+	clear_borders()
+	datas.clear()
+	datas_flat.clear()
+	for i in range(data_row_pool.size()):
+		data_row_pool[i].visible = false
+		data_pool_in_use[i] = false
+	if show_frame:
+		for i in range(frame_row_pool.size()):
+			frame_row_pool[i].visible = false
+			frame_pool_in_use[i] = false
+	update_content_size()
+	_on_scroll(data_scroll.scroll_vertical)
 
 func row_grab_focus(data_idx: int):
 	highlight_row(data_idx)
