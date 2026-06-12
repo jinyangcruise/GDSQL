@@ -81,7 +81,7 @@ signal row_deleted(datas) # {index: data}
 
 # ── Constants ───────────────────────────────────────────────────────────────
 
-const ROW_HEIGHT := 28
+@export var row_height: int = 28
 const BUFFER_ROWS := 5
 const MIN_COL_WIDTH := 30
 const GRABBER_WIDTH := 5
@@ -141,7 +141,7 @@ var exclude_mode := false
 var exclude_border: Dictionary = {}
 var exclude_border_active := false
 
-var actual_row_height := ROW_HEIGHT
+var actual_row_height := row_height
 
 # Autofill state
 var cornor_dragger: Control = null
@@ -820,11 +820,11 @@ func _position_visible_rows():
 			_assign_frame_row_data(frame_row, data_idx)
 
 	# 测量实际行高
-	actual_row_height = ROW_HEIGHT
+	actual_row_height = row_height
 	if needed > 0 and is_instance_valid(data_row_pool[0]):
 		var first_row = data_row_pool[0]
 		var min_size = first_row.get_combined_minimum_size()
-		actual_row_height = max(ROW_HEIGHT, min_size.y)
+		actual_row_height = max(row_height, min_size.y)
 
 	# 定位所有可见行
 	for i in range(needed):
@@ -909,7 +909,7 @@ func _create_data_row_node() -> Control:
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if row_expend_and_fill:
 		row.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	row.custom_minimum_size.y = ROW_HEIGHT
+	row.custom_minimum_size.y = row_height
 	row.mouse_filter = Control.MOUSE_FILTER_PASS
 	row.add_theme_stylebox_override("panel", style_box_empty)
 
@@ -918,7 +918,7 @@ func _create_data_row_node() -> Control:
 	hbox.name = "DataRowHBox"
 	hbox.add_theme_constant_override("separation", 0)
 	hbox.mouse_filter = Control.MOUSE_FILTER_PASS
-	hbox.custom_minimum_size.y = ROW_HEIGHT
+	hbox.custom_minimum_size.y = row_height
 	row.add_child(hbox)
 
 	for i in range(columns.size()):
@@ -933,7 +933,7 @@ func _create_data_row_node() -> Control:
 func _create_frame_row_node() -> Control:
 	var row = PanelContainer.new()
 	row.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	row.custom_minimum_size.y = ROW_HEIGHT
+	row.custom_minimum_size.y = row_height
 	row.add_theme_stylebox_override("panel", style_box_empty)
 	var btn = Button.new()
 	btn.flat = false
