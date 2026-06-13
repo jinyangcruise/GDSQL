@@ -165,8 +165,8 @@ var style_box_empty: StyleBoxEmpty
 func _ready() -> void:
 	_construct_tree()
 	style_box_empty = StyleBoxEmpty.new()
-	rebuild_header()
 	await get_tree().process_frame
+	rebuild_header()
 	# 初始布局完成后调整一次列宽（避免resized信号循环触发）
 	_on_table_resized()
 
