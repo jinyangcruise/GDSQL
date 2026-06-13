@@ -1772,6 +1772,7 @@ func _on_corner_drag_moving(_diff: Vector2):
 	var overlay_gpos = borders_overlay.global_position
 	var local_mouse = mouse_gpos - overlay_gpos
 	local_mouse.x += data_scroll.scroll_horizontal
+	local_mouse.y += data_scroll.scroll_vertical
 	var cell_pos = get_cell_at_pos(local_mouse)
 	var pos_row = cell_pos.x
 	var pos_col = cell_pos.y
