@@ -770,6 +770,8 @@ func _on_scroll(value: float):
 		if show_frame:
 			_hide_all_frame_pool_rows()
 		borders_overlay.queue_redraw()
+		first_visible_idx = 0
+		last_visible_idx = -1
 		return
 
 	var view_h = data_scroll.size.y
@@ -785,6 +787,9 @@ func _on_scroll(value: float):
 	if new_first == first_visible_idx and new_last == last_visible_idx:
 		borders_overlay.queue_redraw()
 		return  # no row change, still need to redraw grid/dragger/overlay
+
+	if new_first > new_last:
+		return
 
 	first_visible_idx = new_first
 	last_visible_idx = new_last
