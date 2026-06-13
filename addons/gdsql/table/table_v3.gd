@@ -789,6 +789,8 @@ func _on_scroll(value: float):
 	last_visible_idx = new_last
 
 	_position_visible_rows()
+	# actual_row_height 可能已改变，重新计算总内容尺寸
+	update_content_size()
 	_update_borders_overlay_size()
 	borders_overlay.queue_redraw()
 
