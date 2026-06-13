@@ -742,7 +742,7 @@ func _apply_data_row_widths(row_node: Control):
 			continue
 		if wi >= col_widths.size():
 			break
-		child.custom_minimum_size.x = col_widths[wi]
+		_apply_cell_width(child as PanelContainer, col_widths[wi])
 		wi += 1
 
 # ── Virtual Scrolling ─────────────────────────────────────────────────────
@@ -930,9 +930,10 @@ func _create_data_row_node() -> Control:
 	for i in range(columns.size()):
 		var cell = PanelContainer.new()
 		cell.mouse_filter = Control.MOUSE_FILTER_PASS
+		cell.clip_contents = true
 		cell.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		cell.add_theme_stylebox_override("panel", style_box_empty)
-		cell.custom_minimum_size.x = col_widths[i] if i < col_widths.size() else float(MIN_COL_WIDTH)
+		_apply_cell_width(cell, col_widths[i] if i < col_widths.size() else float(MIN_COL_WIDTH))
 		hbox.add_child(cell)
 	return row
 
@@ -972,22 +973,80 @@ func _assign_data_row_data(row_node: Control, data_idx: int):
 			data_col += 1
 			continue
 
-		# Clear existing children
-		for c in cell.get_children():
-			cell.remove_child(c)
-			if not c is Button:
+		var content_wrapper = _get_cell_content_wrapper(cell as PanelContainer)
+
+		# Clear existing cell content without letting the content minimum size affect the column width.
+		for c in content_wrapper.get_children():
+			content_wrapper.remove_child(c)
+			if not c.get_meta("_gdsql_external_cell_control", false):
 				c.queue_free()
 
 		var value = data_arr[data_col]
 		var ctl = _create_cell_control(value, data, data_col)
 		if ctl:
-			ctl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			cell.add_child(ctl)
+			_add_control_to_cell(content_wrapper, ctl, data_col)
 
 		# Assign cell meta for border lookup
-		cell.set_meta("row", data_idx)
-		cell.set_meta("col", data_col)
+		(cell as PanelContainer).set_meta("row", data_idx)
+		(cell as PanelContainer).set_meta("col", data_col)
 		data_col += 1
+
+func _get_cell_content_wrapper(cell: PanelContainer) -> Control:
+	for child in cell.get_children():
+		if child is Control and child.get_meta("_gdsql_cell_content_wrapper", false):
+			return child as Control
+
+	var wrapper = Control.new()
+	wrapper.name = "CellContentWrapper"
+	wrapper.clip_contents = true
+	wrapper.mouse_filter = Control.MOUSE_FILTER_PASS
+	wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wrapper.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	wrapper.set_meta("_gdsql_cell_content_wrapper", true)
+	wrapper.resized.connect(_on_cell_content_wrapper_resized.bind(wrapper))
+	cell.add_child(wrapper)
+	return wrapper
+
+func _apply_cell_width(cell: PanelContainer, width: float):
+	cell.custom_minimum_size.x = width
+	var wrapper = _get_cell_content_wrapper(cell)
+	wrapper.custom_minimum_size.x = width
+	wrapper.size.x = width
+	for child in wrapper.get_children():
+		if child is Control:
+			_fit_control_to_cell(child as Control, wrapper)
+
+func _add_control_to_cell(wrapper: Control, control: Control, col_idx: int):
+	control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	control.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	if control.get_parent() == null:
+		wrapper.add_child(control)
+	else:
+		control.reparent(wrapper)
+	_fit_control_to_cell(control, wrapper)
+	var min_size = control.get_combined_minimum_size()
+	wrapper.custom_minimum_size = Vector2(
+		col_widths[col_idx] if col_idx < col_widths.size() else float(MIN_COL_WIDTH),
+		max(float(row_height), min_size.y)
+	)
+
+func _fit_control_to_cell(control: Control, wrapper: Control):
+	control.anchor_left = 0.0
+	control.anchor_top = 0.0
+	control.anchor_right = 1.0
+	control.anchor_bottom = 1.0
+	control.offset_left = 0.0
+	control.offset_top = 0.0
+	control.offset_right = 0.0
+	control.offset_bottom = 0.0
+	control.size = wrapper.size
+
+func _on_cell_content_wrapper_resized(wrapper: Control):
+	if not is_instance_valid(wrapper):
+		return
+	for child in wrapper.get_children():
+		if child is Control:
+			_fit_control_to_cell(child as Control, wrapper)
 
 func _assign_frame_row_data(row_node: Control, data_idx: int):
 	var btn = row_node.get_child(0) if row_node.get_child_count() > 0 else null
@@ -1076,6 +1135,7 @@ func _create_cell_control(value, a_data, col_idx: int) -> Control:
 			elif value is Control:
 				handled = true
 				control = value
+				control.set_meta("_gdsql_external_cell_control", true)
 			elif value is GDSQL.DictionaryObject:
 				handled = true
 				var grid = GridContainer.new()
@@ -1163,7 +1223,10 @@ func _replace_control(old: Control, new_ctl: Control):
 	var parent = old.get_parent()
 	if parent:
 		new_ctl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		new_ctl.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		old.replace_by(new_ctl)
+		if parent is Control:
+			_fit_control_to_cell(new_ctl, parent as Control)
 		old.queue_free()
 
 # ── Row operations ────────────────────────────────────────────────────────
