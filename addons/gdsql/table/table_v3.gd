@@ -797,7 +797,7 @@ func _on_data_scroll_changed(value: float):
 	_on_scroll(value)
 
 func _on_data_hscroll_changed(value: float):
-	if show_frame and is_instance_valid(data_header_hbox):
+	if is_instance_valid(data_header_hbox):
 		data_header_hbox.position.x = -value
 	_update_dragger_position()
 	borders_overlay.queue_redraw()
