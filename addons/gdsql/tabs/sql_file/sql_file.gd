@@ -817,8 +817,12 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 						
 			# 弹对话框让用户选择更新哪些数据
 			var arr: Array[Array] = [["Please confirm:"]]
+			var mc2 = MarginContainer.new()
+			mc2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			mc2.size_flags_vertical = Control.SIZE_EXPAND_FILL
 			var table_2 = load("res://addons/gdsql/table/table_v3.gd").new()
-			table_2.ratios = [15.0, 0.4, 2.0, 4.0, 8.0] as Array[float]
+			mc2.add_child(table_2)
+			table_2.ratios = [0.1, 0.4, 0.2, 0.1, 0.2] as Array[float]
 			table_2.columns = ["#", tr("Action"), tr("Extra info"), tr("Do"), tr("Status")]
 			table_2.column_tips = ["", "", "If necessary.", "Only execute checked actions.", "Execute status."]
 			table_2.show_grid = true
@@ -855,6 +859,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 					else:
 						check_all_btn.set_pressed_no_signal(false)
 				)
+				cb.custom_minimum_size.y = randi_range(50, 100)
 				row.push_back(cb)
 				
 				var pb = ProgressBar.new()
@@ -864,10 +869,10 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 			table_2.datas = datas
 			table_2.show_menu = true
 			table_2.support_delete_row = false
-			table_2.ready.connect(func():
-				table_2.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
+			mc2.ready.connect(func():
+				mc2.get_parent_control().size_flags_vertical = Control.SIZE_EXPAND_FILL
 			, CONNECT_ONE_SHOT)
-			arr.push_back([table_2])
+			arr.push_back([mc2])
 			arr.push_back([check_all_btn])
 			
 			# 只执行用户勾选的项目。执行成功的项目标绿进度100%；执行失败的项目标红。
@@ -943,7 +948,7 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 				table_2.queue_free()
 				check_all_btn.queue_free()
 				
-			var dialog = mgr.create_custom_dialog(arr, confirmed, Callable(), defered, 0.5)
+			var dialog = mgr.create_custom_dialog(arr, confirmed, Callable(), defered, 0.5, true)
 			dialog_ref.push_back(dialog)
 			dialog.ok_button_text = "execute"
 			var btn_close_refresh = dialog.add_button("close and refresh", true, "close_and_refresh")
