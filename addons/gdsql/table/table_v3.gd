@@ -1064,14 +1064,12 @@ func _on_scroll(value: float):
 		_scroll_guard = false
 		return
 
-	# Update dragger position on every scroll, even if visible rows don't change
-	_update_dragger_position()
-
 	var visible_range = _get_visible_row_range(value, view_h)
 	var new_first = visible_range.x
 	var new_last = visible_range.y
 
 	if new_first == first_visible_idx and new_last == last_visible_idx and not _force_row_layout_refresh and not _has_dirty_rows_in_range(new_first, new_last):
+		_update_dragger_position()
 		borders_overlay.queue_redraw()
 		_scroll_guard = false
 		return  # no row change, still need to redraw grid/dragger/overlay
@@ -1087,6 +1085,7 @@ func _on_scroll(value: float):
 	_position_visible_rows()
 	# Row heights may have changed during visible row measurement.
 	update_content_size()
+	_update_dragger_position()
 	_update_borders_overlay_size()
 	borders_overlay.queue_redraw()
 	_scroll_guard = false
@@ -1171,6 +1170,7 @@ func _position_visible_rows():
 			if btn is Button:
 				(btn as Button).custom_minimum_size.y = row_h
 				(btn as Button).size.y = row_h
+			frame_row.queue_sort()
 
 	for i in range(needed, data_row_pool.size()):
 		data_row_pool[i].visible = false
