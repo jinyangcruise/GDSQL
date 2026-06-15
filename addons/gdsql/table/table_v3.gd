@@ -394,7 +394,8 @@ func _construct_tree():
 	row_height_spin_box.step = 1
 	row_height_spin_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row_height_dialog.add_child(row_height_spin_box)
-	row_height_dialog.confirmed.connect(_on_row_height_dialog_confirmed)
+	row_height_dialog.register_text_enter(row_height_spin_box.get_line_edit())
+	row_height_dialog.confirmed.connect(_on_row_height_dialog_confirmed, CONNECT_DEFERRED) # Must CONNECT_DEFERRED, or the value of row_height_spin_box is not latest.
 	vbox_container.add_child(row_height_dialog)
 
 	# ── Shortcut buttons (invisible) ──
@@ -2839,6 +2840,11 @@ func _open_row_height_dialog(scope: String, row: int):
 			value = float(row_height)
 	row_height_spin_box.value = value
 	row_height_dialog.popup_centered(Vector2i(220, 90))
+	# 将光标移到输入框末尾
+	var le = row_height_spin_box.get_line_edit()
+	if le:
+		le.call_deferred("grab_focus")
+		le.select_all_on_focus = true
 
 func _on_row_height_dialog_confirmed():
 	var value = maxi(1, int(row_height_spin_box.value))
