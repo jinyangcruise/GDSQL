@@ -637,8 +637,7 @@ func receive_content_and_execute(title: String, info: Dictionary):
 				"select":
 					var sql = _build_select_sql(info)
 					tab_control.code_edit.text = sql
-					tab_control.code_edit.set_caret_line(tab_control.code_edit.get_line_count() - 1)
-					tab_control.code_edit.set_caret_column(sql.length())
+					tab_control.run_sql()
 
 
 func _build_select_sql(info: Dictionary) -> String:
