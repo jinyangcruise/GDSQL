@@ -181,6 +181,7 @@ var _force_row_layout_refresh := false
 var _row_height_menu_row := -1
 var _row_height_edit_scope := ""
 var _row_height_edit_row := -1
+var _default_row_height := 28
 
 # Autofill state
 var cornor_dragger: Control = null
@@ -202,6 +203,7 @@ var style_box_empty: StyleBoxEmpty
 # ── Tree construction ───────────────────────────────────────────────────────
 
 func _ready() -> void:
+	_default_row_height = row_height
 	_construct_tree()
 	style_box_empty = StyleBoxEmpty.new()
 	await get_tree().process_frame
@@ -2689,7 +2691,7 @@ func _refresh_frame_popup_state():
 	custom_row_height_popup.set_item_disabled(custom_row_height_popup.get_item_index(FRAME_MENU_ID.RESET_SELECTED), not has_selected_rows)
 	custom_row_height_popup.set_item_disabled(custom_row_height_popup.get_item_index(FRAME_MENU_ID.CUSTOM_CURRENT), _row_height_menu_row < 0)
 	custom_row_height_popup.set_item_disabled(custom_row_height_popup.get_item_index(FRAME_MENU_ID.RESET_CURRENT), _row_height_menu_row < 0)
-	custom_row_height_popup.set_item_disabled(custom_row_height_popup.get_item_index(FRAME_MENU_ID.RESET_ALL), custom_row_heights.is_empty())
+	custom_row_height_popup.set_item_disabled(custom_row_height_popup.get_item_index(FRAME_MENU_ID.RESET_ALL), custom_row_heights.is_empty() and row_height == _default_row_height)
 
 func _on_frame_popup_id_pressed(id: int):
 	match id:
@@ -2709,6 +2711,7 @@ func _on_frame_popup_id_pressed(id: int):
 			_clear_custom_row_heights([_row_height_menu_row])
 		FRAME_MENU_ID.RESET_ALL:
 			custom_row_heights.clear()
+			row_height = _default_row_height
 			invalidate_all_row_heights()
 
 func _open_row_height_dialog(scope: String, row: int):
