@@ -96,7 +96,7 @@ signal row_deleted(datas) # {index: data}
 
 # ── Constants ───────────────────────────────────────────────────────────────
 
-@export var row_height: int = 28:
+@export var row_height: int = 44:
 	set(val):
 		row_height = maxi(1, val)
 		actual_row_height = row_height
@@ -181,7 +181,7 @@ var _force_row_layout_refresh := false
 var _row_height_menu_row := -1
 var _row_height_edit_scope := ""
 var _row_height_edit_row := -1
-var _default_row_height := 28
+var _default_row_height := 44
 
 # Autofill state
 var cornor_dragger: Control = null
