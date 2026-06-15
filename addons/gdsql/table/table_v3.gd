@@ -2750,6 +2750,8 @@ func _apply_custom_row_heights(rows: Array, height: int):
 	update_content_size()
 	_on_scroll(data_scroll.scroll_vertical)
 	borders_overlay.queue_redraw()
+	# 延迟一帧重新刷新可见行，确保延迟布局后的序号行尺寸正确
+	call_deferred("_force_refresh_visible_rows")
 
 func _clear_custom_row_heights(rows: Array):
 	for row in rows:
@@ -2765,6 +2767,18 @@ func _clear_custom_row_heights(rows: Array):
 	_force_row_layout_refresh = true
 	update_content_size()
 	_on_scroll(data_scroll.scroll_vertical)
+	borders_overlay.queue_redraw()
+	# 延迟一帧重新定位可见行，解决延迟布局覆盖序号行高度的问题
+	call_deferred("_force_refresh_visible_rows")
+
+## 延迟一帧重新定位所有可见行，确保延迟布局不会覆盖序号行高度。
+func _force_refresh_visible_rows():
+	if not is_inside_tree() or datas_flat.is_empty():
+		return
+	_position_visible_rows()
+	update_content_size()
+	_update_dragger_position()
+	_update_borders_overlay_size()
 	borders_overlay.queue_redraw()
 
 func _on_header_col_pressed(i: int):
