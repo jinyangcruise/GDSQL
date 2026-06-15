@@ -2561,6 +2561,19 @@ func _on_data_row_container_gui_input(event: InputEvent):
 	elif event is InputEventMouseMotion:
 		var mm = event as InputEventMouseMotion
 		if mm.button_mask & MOUSE_BUTTON_MASK_LEFT and start_drag:
+			# Auto-scroll when dragging beyond viewport
+			var mouse_gpos = get_global_mouse_position()
+			var ds_local = mouse_gpos - data_scroll.global_position
+			var ds_rect = Rect2(Vector2.ZERO, data_scroll.size)
+			if ds_local.x > ds_rect.size.x:
+				data_scroll.scroll_horizontal += int((ds_local.x - ds_rect.size.x) * 0.3)
+			elif ds_local.x < 0:
+				data_scroll.scroll_horizontal += int(ds_local.x * 0.3)
+			if ds_local.y > ds_rect.size.y:
+				data_scroll.scroll_vertical += int((ds_local.y - ds_rect.size.y) * 0.3)
+			elif ds_local.y < 0:
+				data_scroll.scroll_vertical += int(ds_local.y * 0.3)
+
 			var cell_pos = get_cell_at_pos(mm.position)
 			if cell_pos.x >= 0 and cell_pos.y >= 0:
 				var anchor = last_selected_pos
