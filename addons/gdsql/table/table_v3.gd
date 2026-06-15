@@ -189,6 +189,7 @@ var _frame_drag_start_row := -1
 var _frame_drag_active := false
 var _frame_drag_ctrl := false
 var _header_did_drag := false
+var _frame_did_drag := false
 
 # Autofill state
 var cornor_dragger: Control = null
@@ -674,6 +675,7 @@ func _input(event):
 				if col_idx < 0:
 					var click_col = _get_col_at_x(header_pos.x)
 					if click_col >= 0:
+						_header_did_drag = false
 						_header_drag_start_col = click_col
 						_header_drag_active = true
 						_header_drag_ctrl = Input.is_key_pressed(KEY_CTRL)
@@ -2698,6 +2700,9 @@ func _on_frame_btn_gui_input_from_button(event: InputEvent, btn: Button):
 func _on_frame_btn_pressed(data_idx: int, _btn: Button):
 	if data_idx < 0 or data_idx >= datas_flat.size():
 		return
+	if _frame_did_drag:
+		_frame_did_drag = false
+		return
 	if Input.is_key_pressed(KEY_SHIFT):
 		var anchor = last_selected_pos
 		var start_r = min(anchor.x, data_idx)
@@ -2733,11 +2738,10 @@ func _on_frame_btn_gui_input(event: InputEvent, data_idx: int):
 		var mb = event as InputEventMouseButton
 		if mb.button_index == MOUSE_BUTTON_LEFT:
 			if mb.pressed:
+				_frame_did_drag = false
 				_frame_drag_start_row = data_idx
 				_frame_drag_active = true
 				_frame_drag_ctrl = Input.is_key_pressed(KEY_CTRL)
-				_on_frame_btn_pressed(data_idx, null)
-				accept_event()
 			else:
 				_frame_drag_active = false
 				_frame_drag_start_row = -1
@@ -2751,9 +2755,10 @@ func _on_frame_btn_gui_input(event: InputEvent, data_idx: int):
 		var mm = event as InputEventMouseMotion
 		if mm.button_mask & MOUSE_BUTTON_MASK_LEFT:
 			var mouse_gpos = get_global_mouse_position()
-			var local_y = mouse_gpos.y - frame_row_container.global_position.y + data_scroll.scroll_vertical
+			var local_y = mouse_gpos.y - frame_row_container.global_position.y
 			var cur_row = _get_row_at_content_y(local_y)
 			if cur_row >= 0 and cur_row != _frame_drag_start_row:
+				_frame_did_drag = true
 				var start_r = mini(_frame_drag_start_row, cur_row)
 				var end_r = maxi(_frame_drag_start_row, cur_row) + 1
 				if _frame_drag_ctrl:
