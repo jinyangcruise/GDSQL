@@ -119,6 +119,8 @@ func _create_sql_highlighter() -> CodeHighlighter:
 	]
 	for kw in dml_keywords:
 		h.add_keyword_color(kw, keyword_color)
+		h.add_keyword_color(kw.to_upper(), keyword_color)
+		h.add_keyword_color(kw.capitalize(), keyword_color)
 
 	# DDL / 结构关键字
 	var ddl_keywords = [
@@ -129,6 +131,8 @@ func _create_sql_highlighter() -> CodeHighlighter:
 	]
 	for kw in ddl_keywords:
 		h.add_keyword_color(kw, keyword_color)
+		h.add_keyword_color(kw.to_upper(), keyword_color)
+		h.add_keyword_color(kw.capitalize(), keyword_color)
 
 	# 事务关键字
 	var txn_keywords = [
@@ -136,6 +140,8 @@ func _create_sql_highlighter() -> CodeHighlighter:
 	]
 	for kw in txn_keywords:
 		h.add_keyword_color(kw, keyword_color)
+		h.add_keyword_color(kw.to_upper(), keyword_color)
+		h.add_keyword_color(kw.capitalize(), keyword_color)
 
 	# 数据类型
 	var data_types = [
@@ -145,6 +151,8 @@ func _create_sql_highlighter() -> CodeHighlighter:
 	]
 	for kw in data_types:
 		h.add_keyword_color(kw, type_color)
+		h.add_keyword_color(kw.to_upper(), type_color)
+		h.add_keyword_color(kw.capitalize(), type_color)
 
 	# 内置函数
 	var functions = [
@@ -156,16 +164,22 @@ func _create_sql_highlighter() -> CodeHighlighter:
 	]
 	for kw in functions:
 		h.add_keyword_color(kw, function_color)
+		h.add_keyword_color(kw.to_upper(), function_color)
+		h.add_keyword_color(kw.capitalize(), function_color)
 
 	# 常量
 	var constants = ["true", "false", "null"]
 	for kw in constants:
 		h.add_keyword_color(kw, constant_color)
+		h.add_keyword_color(kw.to_upper(), constant_color)
+		h.add_keyword_color(kw.capitalize(), constant_color)
 
 	# 逻辑运算符
 	var operators = ["and", "or", "not", "is", "asc", "desc"]
 	for kw in operators:
 		h.add_keyword_color(kw, keyword_color)
+		h.add_keyword_color(kw.to_upper(), keyword_color)
+		h.add_keyword_color(kw.capitalize(), keyword_color)
 
 	return h
 
