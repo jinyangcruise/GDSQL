@@ -21,15 +21,14 @@ while read local_ref local_sha remote_ref remote_sha; do
 			while IFS= read -r f; do
 				f="${f//\"/}"
 				[ -n "$f" ] && echo "+,$VER,$f" >> "$MANIFEST"
-			done < <(git diff --name-only --diff-filter=A "$PREV_TAG"...HEAD -- addons/gdsql/ | grep -v '\.import$\|\.translation$')
+			done < <(git diff --name-only --diff-filter=A "$PREV_TAG"...HEAD -- addons/gdsql/ | grep -v '\.translation$')
 			while IFS= read -r f; do
 				f="${f//\"/}"
 				[ -n "$f" ] && echo "-,$VER,$f" >> "$MANIFEST"
-			done < <(git diff --name-only --diff-filter=D "$PREV_TAG"...HEAD -- addons/gdsql/ | grep -v '\.import$\|\.translation$')
+			done < <(git diff --name-only --diff-filter=D "$PREV_TAG"...HEAD -- addons/gdsql/ | grep -v '\.translation$')
 		else
 			echo "No previous tag. Creating initial manifest."
 			find addons/gdsql/ -type f \
-				! -name '*.import' \
 				! -name '*.translation' \
 				| sort \
 				| sed "s|^|+,$VER,|" > "$MANIFEST"

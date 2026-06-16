@@ -466,8 +466,6 @@ func _start_download() -> void:
 		var rel = fp.substr(idx)
 		var target = "res://" + rel
 		var data = reader.read_file(fp)
-		if fp.ends_with(".import"):
-			continue
 		var d = DirAccess.open("res://")
 		if d:
 			d.make_dir_recursive(target.get_base_dir())
