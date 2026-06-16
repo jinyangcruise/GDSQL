@@ -460,8 +460,11 @@ static func markdown_to_bbcode(md: String) -> String:
 	if md.is_empty():
 		return ""
 
+	# Step 0: Pre-escape bare [word] patterns before conversion
+	var result = _pre_escape_brackets(md)
+
 	# Pass 1: Convert HTML tags to BBCode (for content from GitHub that has HTML)
-	var result = _html_to_bbcode(md)
+	result = _html_to_bbcode(result)
 
 	# Pass 2: Process remaining Markdown syntax
 	# Strip upgrade_ranges metadata line
@@ -580,6 +583,43 @@ static func _is_table_row(text: String) -> bool:
 		if not p.strip_edges().is_empty():
 			non_empty += 1
 	return non_empty >= 2
+
+## Escape [word] patterns BEFORE BBCode conversion.
+## Standard Markdown has no BBCode tags, so bare [word] is literal text.
+## Uses [lb]/[rb] so Godot renders them as literal brackets.
+static func _pre_escape_brackets(text: String) -> String:
+	var result = text
+	var i = 0
+	while i < result.length():
+		if result[i] == "[":
+			var close = result.find("]", i)
+			if close == -1 or close - i > 50:
+				i += 1
+				continue
+			# Skip Markdown links: [text](url)
+			if close + 1 < result.length() and result[close + 1] == "(":
+				i = close + 1
+				continue
+			# Skip Markdown images: ![alt](url)
+			if i > 0 and result[i - 1] == "!":
+				i = close + 1
+				continue
+			var tag_content = result.substr(i + 1, close - i - 1)
+			if tag_content.is_empty():
+				i += 1
+				continue
+			# Check if first char is a letter or /
+			var check = tag_content[0]
+			if check == "/" and tag_content.length() > 1:
+				check = tag_content[1]
+			if (check >= "a" and check <= "z") or (check >= "A" and check <= "Z"):
+				# Escape: [word] -> [lb]word[rb]
+				var escaped = result.substr(i + 1, close - i - 1)
+				result = result.substr(0, i) + "[lb]" + escaped + "[rb]" + result.substr(close + 1)
+				i = close + 5
+				continue
+		i += 1
+	return result
 
 ## Convert HTML tags to BBCode equivalents.
 static func _html_to_bbcode(text: String) -> String:
