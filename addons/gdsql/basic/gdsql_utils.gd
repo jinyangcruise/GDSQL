@@ -524,6 +524,8 @@ static func markdown_to_bbcode(md: String) -> String:
 			continue
 		else:
 			if in_table:
+				if table_rows.size() > 0:
+					table_rows[0] = table_rows[0].replace("[cell border=gray]", "[cell border=gray][b]").replace("[/cell]", "[/b][/cell]")
 				var _cols = (table_rows[0].count("[cell]") + table_rows[0].count("[cell ")) if table_rows.size() > 0 else 2
 				out.append("\n[table=" + str(_cols) + "]\n" + "\n".join(table_rows) + "\n[/table]\n")
 				in_table = false
@@ -556,6 +558,8 @@ static func markdown_to_bbcode(md: String) -> String:
 	if in_code_block:
 		out.append("[/code]")
 	if in_table:
+		if table_rows.size() > 0:
+			table_rows[0] = table_rows[0].replace("[cell border=gray]", "[cell border=gray][b]").replace("[/cell]", "[/b][/cell]")
 		var _cols = (table_rows[0].count("[cell]") + table_rows[0].count("[cell ")) if table_rows.size() > 0 else 2
 		out.append("\n[table=" + str(_cols) + "]\n" + "\n".join(table_rows) + "\n[/table]\n")
 
