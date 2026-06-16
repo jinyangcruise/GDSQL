@@ -688,6 +688,28 @@ func _input(event):
 				_header_drag_active = false
 				_header_drag_start_col = -1
 
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			var redirect_scroll = false
+			if is_instance_valid(data_scroll) and data_scroll.get_global_rect().has_point(get_global_mouse_position()):
+				redirect_scroll = true
+			elif show_frame and is_instance_valid(frame_scroll) and frame_scroll.get_global_rect().has_point(get_global_mouse_position()):
+				redirect_scroll = true
+			elif is_instance_valid(header_container) and header_container.get_global_rect().has_point(get_global_mouse_position()):
+				redirect_scroll = true
+			if redirect_scroll:
+				if Input.is_key_pressed(KEY_SHIFT):
+					var h_bar = data_scroll.get_h_scroll_bar()
+					if h_bar:
+						var step = maxi(1, int(h_bar.page * 0.3))
+						data_scroll.scroll_horizontal += step if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN else -step
+				else:
+					var v_bar = data_scroll.get_v_scroll_bar()
+					if v_bar:
+						var step = maxi(1, int(v_bar.page * 0.3))
+						data_scroll.scroll_vertical += step if mb.button_index == MOUSE_BUTTON_WHEEL_DOWN else -step
+				accept_event()
+				return
+
 	if event is InputEventMouseMotion:
 		if _header_drag_active and (event as InputEventMouseMotion).button_mask & MOUSE_BUTTON_MASK_LEFT:
 			var ds_local = mouse_global - data_scroll.global_position
@@ -1152,16 +1174,7 @@ func _on_scroll(value: float):
 	borders_overlay.queue_redraw()
 	_scroll_guard = false
 
-func _gui_input(event: InputEvent):
-	if event is InputEventMouseButton:
-		var mb = event as InputEventMouseButton
-		if mb.button_index == MOUSE_BUTTON_WHEEL_UP or mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			# GUI 事件从叶子节点向根传播。ScrollContainer 已先处理完滚动，
-			# 此处捕获未消耗的滚轮事件，阻止继续传播到 GraphEdit 被解释为缩放。
-			if is_instance_valid(data_scroll) and data_scroll.get_global_rect().has_point(get_global_mouse_position()):
-				accept_event()
-			elif show_frame and is_instance_valid(frame_scroll) and frame_scroll.get_global_rect().has_point(get_global_mouse_position()):
-				accept_event()
+
 
 func _on_data_scroll_changed(value: float):
 	_on_scroll(value)
