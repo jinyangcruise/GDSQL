@@ -2337,7 +2337,7 @@ func query() -> GDSQL.QueryResult:
 					if field == __primary_key:
 						continue
 					var value = a_data.get(field)
-					if conf.get_value(primary_value, field) != value:
+					if conf._get_value(primary_value, field) != value:
 						conf._set_value(primary_value, field, value)
 						affected = true
 				if affected:
