@@ -266,13 +266,13 @@ func _construct_tree():
 
 	label_model = Label.new()
 	label_model.name = "LabelModel"
-	label_model.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label_model.mouse_filter = Control.MOUSE_FILTER_PASS
 	label_model.clip_text = true
 	models.add_child(label_model)
 
 	texture_rect_model = TextureRect.new()
 	texture_rect_model.name = "TextureRectModel"
-	texture_rect_model.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texture_rect_model.mouse_filter = Control.MOUSE_FILTER_PASS
 	models.add_child(texture_rect_model)
 
 	check_box_model = CheckBox.new()
@@ -1598,7 +1598,7 @@ func _create_cell_control(value, a_data, col_idx: int) -> Control:
 		if control is Button:
 			control.mouse_filter = Control.MOUSE_FILTER_PASS
 		elif not (value is Control):
-			control.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			control.mouse_filter = Control.MOUSE_FILTER_PASS
 
 	return control
 
