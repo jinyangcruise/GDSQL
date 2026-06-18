@@ -320,7 +320,6 @@ func _get_sql_at_cursor() -> String:
 	var caret_column = code_edit.get_caret_column(0)
 	var full_text = code_edit.text
 	var lines = full_text.split("\n")
-	
 	# 去掉注释，并建立清理后文本到原始文本的位置映射
 	var pos_map: Array[int] = []
 	var clean_text = _strip_sql_comments(full_text, pos_map)
@@ -360,13 +359,17 @@ func _get_sql_at_cursor() -> String:
 				var e = j - 1
 				while e > s and clean_text[e] in " \t\r\n":
 					e -= 1
-				if clean_cursor >= s and clean_cursor <= e + 1:
+				if clean_cursor >= s and clean_cursor < j:
 					var os = pos_map[s] if s < pos_map.size() else 0
 					var oe = pos_map[e] if e < pos_map.size() else 0
 					return full_text.substr(os, oe - os + 1).strip_edges()
 				if clean_cursor < s:
 					if prev_s >= 0:
-						# 光标在两个语句之间 → 返回上一个语句
+						# 光标在两个语句之间
+						if caret_line < lines.size() and lines[caret_line].strip_edges().is_empty():
+							push_warning("[dbg] blank@%d gap=(%d,%d) prev=(%d,%d)" % [caret_line, s, e, prev_s, prev_e])
+							return ""
+						# 光标紧跟上一条语句 → 返回上一个语句
 						var pos = pos_map[prev_s] if prev_s < pos_map.size() else 0
 						var poe = pos_map[prev_e] if prev_e < pos_map.size() else 0
 						return full_text.substr(pos, poe - pos + 1).strip_edges()
@@ -394,10 +397,19 @@ func _get_sql_at_cursor() -> String:
 			var oe = pos_map[e] if e < pos_map.size() else 0
 			return full_text.substr(os, oe - os + 1).strip_edges()
 		elif prev_s >= 0:
-			# 光标在最后一段之前、上一个语句之后 → 返回上一个语句
+			# 光标在最后一段之前
+			if caret_line < lines.size() and lines[caret_line].strip_edges().is_empty():
+				push_warning("[dbg] blank@%d last_seg start=%d prev=(%d,%d)" % [caret_line, s, prev_s, prev_e])
+				return ""
+			# 光标紧跟上一条语句 → 返回上一个语句
 			var pos = pos_map[prev_s] if prev_s < pos_map.size() else 0
 			var poe = pos_map[prev_e] if prev_e < pos_map.size() else 0
 			return full_text.substr(pos, poe - pos + 1).strip_edges()
+	else:
+		# 最后一个分号之后没有内容
+		if caret_line < lines.size() and lines[caret_line].strip_edges().is_empty():
+			return ""
+		# 光标所在行非空白（可能在 ; 同一行），走 fallback
 	# 回退：找最近的非空语句
 	var best = ""
 	var best_dist = 999999999
