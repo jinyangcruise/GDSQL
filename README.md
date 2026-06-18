@@ -234,7 +234,6 @@ Create a class extending `GBatisMapper` and point its `mapper_xml` property to t
 - **No server mode**: Local-only, file-based data store. No network access, no client-server architecture, no multi-user concurrency.
 - **No referential integrity**: Foreign key relationships exist at the application level; the storage engine itself does not enforce constraints.
 - **Limited indexing**: Indexes are maintained in memory via `ImprovedConfigFile.set_indexed_props()` — no persistent index structure.
-- **No DDL statements**: Data definition operations (creating tables, modifying columns) are currently only available through the visual interface, not through `CREATE TABLE` or `ALTER TABLE` statements.
 
 ---
 
