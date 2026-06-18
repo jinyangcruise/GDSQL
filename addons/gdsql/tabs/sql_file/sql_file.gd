@@ -332,13 +332,18 @@ func _get_sql_at_cursor() -> String:
 	cursor_offset += caret_column
 	
 	# 通过二分查找得到光标在清理后文本中的位置
-	var clean_cursor = _bisect_right(pos_map, cursor_offset)
+	var clean_cursor = _bisect_ge(pos_map, cursor_offset)
 	
 	# 在清理后的文本中扫描分号，定位语句边界
 	var stmt_start = 0
 	var in_sq = false
 	var in_dq = false
 	var j = 0
+
+	# 保存上一个完整语句的首尾位置（clean_text 索引），用于光标在两个语句之间时取上一个
+	var prev_s = -1
+	var prev_e = -1
+
 	while j < clean_text.length():
 		var ch = clean_text[j]
 		if ch == "'" and not in_dq:
@@ -360,11 +365,18 @@ func _get_sql_at_cursor() -> String:
 					var oe = pos_map[e] if e < pos_map.size() else 0
 					return full_text.substr(os, oe - os + 1).strip_edges()
 				if clean_cursor < s:
-					# 光标在当前语句之前，取最近的语句
-					if not stmt.is_empty():
-						var os = pos_map[s] if s < pos_map.size() else 0
-						var oe = pos_map[e] if e < pos_map.size() else 0
-						return full_text.substr(os, oe - os + 1).strip_edges()
+					if prev_s >= 0:
+						# 光标在两个语句之间 → 返回上一个语句
+						var pos = pos_map[prev_s] if prev_s < pos_map.size() else 0
+						var poe = pos_map[prev_e] if prev_e < pos_map.size() else 0
+						return full_text.substr(pos, poe - pos + 1).strip_edges()
+					# 光标在所有语句之前 → 返回最近的下一个语句
+					var os = pos_map[s] if s < pos_map.size() else 0
+					var oe = pos_map[e] if e < pos_map.size() else 0
+					return full_text.substr(os, oe - os + 1).strip_edges()
+				# 光标在该语句之后，记录下来，供后续跨语句判断使用
+				prev_s = s
+				prev_e = e
 			stmt_start = j + 1
 		j += 1
 		
@@ -381,7 +393,11 @@ func _get_sql_at_cursor() -> String:
 			var os = pos_map[s] if s < pos_map.size() else 0
 			var oe = pos_map[e] if e < pos_map.size() else 0
 			return full_text.substr(os, oe - os + 1).strip_edges()
-			
+		elif prev_s >= 0:
+			# 光标在最后一段之前、上一个语句之后 → 返回上一个语句
+			var pos = pos_map[prev_s] if prev_s < pos_map.size() else 0
+			var poe = pos_map[prev_e] if prev_e < pos_map.size() else 0
+			return full_text.substr(pos, poe - pos + 1).strip_edges()
 	# 回退：找最近的非空语句
 	var best = ""
 	var best_dist = 999999999
@@ -489,12 +505,12 @@ func _strip_sql_comments(text: String, pos_map: Array[int]) -> String:
 	return result
 	
 ## 类似 Python 的 bisect_right：返回 pos_map 中第一个 > val 的索引
-func _bisect_right(arr: Array[int], val: int) -> int:
+func _bisect_ge(arr: Array[int], val: int) -> int:
 	var lo = 0
 	var hi = arr.size()
 	while lo < hi:
 		var mid = (lo + hi) / 2.0
-		if arr[mid] <= val:
+		if arr[mid] < val:
 			lo = mid + 1
 		else:
 			hi = mid
