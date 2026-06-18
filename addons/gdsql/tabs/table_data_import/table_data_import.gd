@@ -206,6 +206,7 @@ func clear_columns():
 		node.queue_free()
 	
 func read_cfg(path, limit = 4) -> Array:
+	# TODO FIXME 如果某个字段是null，就获取不到了，可能还要读取定义才行
 	var conf = ConfigFile.new()
 	conf.load(path)
 	var sections = conf.get_sections()
