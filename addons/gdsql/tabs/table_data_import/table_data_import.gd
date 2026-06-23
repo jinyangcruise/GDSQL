@@ -77,7 +77,10 @@ func refresh_dest_column():
 			if i["Column Name"].to_lower().to_camel_case() == source_column_name.to_lower().to_camel_case():
 				potential_pos = pos
 		option.selected = potential_pos
-		_col_names.push_back(option.get_item_text(potential_pos))
+		if potential_pos >= 0:
+			_col_names.push_back(option.get_item_text(potential_pos))
+		else:
+			_col_names.push_back("")
 		if not option.item_selected.is_connected(refresh_col_name):
 			option.item_selected.connect(refresh_col_name.bind(option, _col_names.size()-1))
 		
@@ -401,7 +404,16 @@ func _on_button_apply_pressed() -> void:
 			var begin_time_2 = Time.get_unix_time_from_system()
 			var value = {}
 			for i in col_indexes:
-				value[_col_names[i]] = str_to_var(data[i]) if need_trans else data[i]
+				if need_trans:
+					var _parsed = str_to_var(data[i])
+					if _parsed != null:
+						value[_col_names[i]] = _parsed
+					elif data[i].to_lower() == "null":
+						value[_col_names[i]] = null
+					else:
+						value[_col_names[i]] = data[i]
+				else:
+					value[_col_names[i]] = data[i]
 			dao = GDSQL.BaseDao.new()
 			var ret = dao.auto_commit(false).use_db(db_path).insert_into(table_name).values(value).query()
 			if ret == null:
