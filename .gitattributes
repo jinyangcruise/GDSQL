@@ -70,7 +70,9 @@
 *.zip binary
 
 # Only include the addons folder when downloading from the Asset Library.
-/**        export-ignore
-/addons                   !export-ignore
-/addons/gdsql             !export-ignore
-/addons/gdsql/**          !export-ignore
+/** export-ignore
+/addons               !export-ignore
+/addons/gdsql         !export-ignore
+/addons/gdsql/**      !export-ignore
+/addons/*             export-ignore
+!/addons/gdsql
