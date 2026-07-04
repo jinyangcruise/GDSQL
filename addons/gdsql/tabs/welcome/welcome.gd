@@ -76,7 +76,7 @@ func _on_update_button_pressed() -> void:
 
 
 func _refresh_version() -> void:
-	if not _updater.visible:
+	if _updater.visible:
 		return
 	var plugin_cfg := ConfigFile.new()
 	plugin_cfg.load("res://addons/gdsql/plugin.cfg")
