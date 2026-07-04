@@ -85,6 +85,7 @@ func _init() -> void:
 
 ## Compare two semver strings. Returns -1, 0, or 1.
 func _ready() -> void:
+	set_translation_domain("GDSQL")
 	_http.request(GITHUB_API)
 
 
