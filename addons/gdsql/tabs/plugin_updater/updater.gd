@@ -30,7 +30,7 @@ var _max_upgrade: String = ""
 
 func _init() -> void:
 	set_meta("type", "updater")
-	title = "Check for Updates"
+	title = tr("Check for Updates")
 	min_size = Vector2(780, 620)
 	exclusive = true
 
@@ -47,12 +47,12 @@ func _init() -> void:
 
 	# Status
 	_status_label = Label.new()
-	_status_label.text = "Checking for updates..."
+	_status_label.text = tr("Checking for updates...")
 	_vbox.add_child(_status_label)
 
 	# Version info
 	_info_label = Label.new()
-	_info_label.text = "Installed: v%s" % _current_version
+	_info_label.text = tr("Installed: v%s") % _current_version
 	_vbox.add_child(_info_label)
 
 	# Release notes
@@ -65,7 +65,7 @@ func _init() -> void:
 
 	# Upgrade button
 	_upgrade_btn = Button.new()
-	_upgrade_btn.text = "Upgrade"
+	_upgrade_btn.text = tr("Upgrade")
 	_upgrade_btn.disabled = true
 	_upgrade_btn.pressed.connect(_on_upgrade)
 	_vbox.add_child(_upgrade_btn)
@@ -94,36 +94,36 @@ func _ready() -> void:
 ## Called when the latest-release HTTP request completes.
 func _on_request_completed(result: int, _code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	if result != HTTPRequest.RESULT_SUCCESS:
-		_status_label.text = "Failed to check for updates (network error: %d)." % result
+		_status_label.text = tr("Failed to check for updates (network error: %d).") % result
 		return
 
 	var json = JSON.new()
 	var err = json.parse(body.get_string_from_utf8())
 	if err != OK:
-		_status_label.text = "Failed to parse server response."
+		_status_label.text = tr("Failed to parse server response.")
 		return
 
 	var data = json.data
 	if not data is Dictionary:
-		_status_label.text = "Unexpected response."
+		_status_label.text = tr("Unexpected response.")
 		return
 	if data.has("message"):
-		_status_label.text = "GitHub API: %s" % data["message"]
+		_status_label.text = tr("GitHub API: %s") % data["message"]
 		return
 	if not data.has("tag_name"):
-		_status_label.text = "Unexpected response (no tag_name)."
+		_status_label.text = tr("Unexpected response (no tag_name).")
 		_notes_rt.text = str(data).substr(0, 500)
 		return
 
 	_latest_version = (data["tag_name"] as String).trim_prefix("v")
 	_release_info = data
 
-	_status_label.text = "Latest version: v%s" % _latest_version
+	_status_label.text = tr("Latest version: v%s") % _latest_version
 
 	# Release notes from latest (may be replaced if target differs)
-	var latest_notes = data.get("body", "No release notes.")
+	var latest_notes = data.get("body", tr("No release notes."))
 	if latest_notes == null:
-		latest_notes = "No release notes."
+		latest_notes = tr("No release notes.")
 	if latest_notes.length() > 10000:
 		latest_notes = latest_notes.substr(0, 10000) + "\n... (truncated)"
 
@@ -146,7 +146,7 @@ func _on_request_completed(result: int, _code: int, _headers: PackedStringArray,
 
 	# If target differs from latest, fetch target release notes
 	if not _target_version.is_empty() and _target_version != _latest_version:
-		_status_label.text = "Fetching release notes for v%s..." % _target_version
+		_status_label.text = tr("Fetching release notes for v%s...") % _target_version
 		var tag_url = "https://api.github.com/repos/jinyangcruise/GDSQL/releases/tags/v" + _target_version
 		_http_notes.request(tag_url)
 		return
@@ -158,7 +158,7 @@ func _on_request_completed(result: int, _code: int, _headers: PackedStringArray,
 ## Called when the target-version release notes HTTP request completes.
 func _on_notes_completed(result: int, _code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	if result != HTTPRequest.RESULT_SUCCESS or body.is_empty():
-		var fallback = _release_info.get("body", "No release notes.")
+		var fallback = _release_info.get("body", tr("No release notes."))
 		if fallback == null: fallback = ""
 		_finalize_version_info(fallback)
 		return
@@ -178,9 +178,9 @@ func _on_notes_completed(result: int, _code: int, _headers: PackedStringArray, b
 		_finalize_version_info(fallback)
 		return
 
-	var target_notes = data.get("body", "No release notes.")
+	var target_notes = data.get("body", tr("No release notes."))
 	if target_notes == null:
-		target_notes = "No release notes."
+		target_notes = tr("No release notes.")
 	if target_notes.length() > 10000:
 		target_notes = target_notes.substr(0, 10000) + "\n... (truncated)"
 
@@ -192,40 +192,40 @@ func _finalize_version_info(notes: String) -> void:
 	notes = GDSQL.GDSQLUtils.markdown_to_bbcode(notes)
 	var cmp = GDSQL.GDSQLUtils.cmp_version(_current_version, _latest_version)
 	if cmp > 0:
-		_status_label.text = "Your version (v%s) is ahead of the latest release (v%s)." % [_current_version, _latest_version]
+		_status_label.text = tr("Your version (v%s) is ahead of the latest release (v%s).") % [_current_version, _latest_version]
 		_upgrade_btn.disabled = true
-		_upgrade_btn.text = "Up to date"
-		_notes_rt.text = "[b]Release notes:[/b]\n" + notes
+		_upgrade_btn.text = tr("Up to date")
+		_notes_rt.text = tr("[b]Release notes:[/b]\n") + notes
 	elif cmp == 0:
-		_status_label.text = "You're up to date! (v%s)" % _current_version
+		_status_label.text = tr("You're up to date! (v%s)") % _current_version
 		_upgrade_btn.disabled = true
-		_upgrade_btn.text = "Up to date"
-		_notes_rt.text = "[b]Release notes:[/b]\n" + notes
+		_upgrade_btn.text = tr("Up to date")
+		_notes_rt.text = tr("[b]Release notes:[/b]\n") + notes
 	elif _max_upgrade == "":
-		_status_label.text = "Current version v%s is not in any upgrade path." % _current_version
-		_notes_rt.text = "[b]No upgrade path[/b]\n\nYour version (v%s) does not fall into any supported upgrade range.\n\nPlease check GitHub Releases for manual upgrade options.\n\n" % _current_version + "[b]Release notes:[/b]\n" + notes
+		_status_label.text = tr("Current version v%s is not in any upgrade path.") % _current_version
+		_notes_rt.text = tr("[b]No upgrade path[/b]\n\nYour version (v%s) does not fall into any supported upgrade range.\n\nPlease check GitHub Releases for manual upgrade options.\n\n") % _current_version + tr("[b]Release notes:[/b]\n") + notes
 		_upgrade_btn.disabled = true
-		_upgrade_btn.text = "No upgrade path"
+		_upgrade_btn.text = tr("No upgrade path")
 	elif GDSQL.GDSQLUtils.cmp_version(_latest_version, _max_upgrade) > 0:
 		if GDSQL.GDSQLUtils.cmp_version(_current_version, _max_upgrade) >= 0:
-			_status_label.text = "No compatible upgrade available for v%s." % _current_version
-			_notes_rt.text = "[b]Breaking change detected[/b]\n\nLatest version v%s has breaking changes that are incompatible with your current version (v%s).\n\nYour version has reached the maximum upgrade path. Please check GitHub Releases for any newer compatible version.\n\n" % [_latest_version, _current_version] + "[b]Release notes:[/b]\n" + notes
+			_status_label.text = tr("No compatible upgrade available for v%s.") % _current_version
+			_notes_rt.text = tr("[b]Breaking change detected[/b]\n\nLatest version v%s has breaking changes that are incompatible with your current version (v%s).\n\nYour version has reached the maximum upgrade path. Please check GitHub Releases for any newer compatible version.\n\n") % [_latest_version, _current_version] + tr("[b]Release notes:[/b]\n") + notes
 			_upgrade_btn.disabled = true
-			_upgrade_btn.text = "No upgrade path"
+			_upgrade_btn.text = tr("No upgrade path")
 		else:
 			_target_version = _max_upgrade
-			_status_label.text = "Latest v%s has breaking changes. Upgrading to compatible v%s instead." % [_latest_version, _max_upgrade]
-			_notes_rt.text = "[b]Breaking change detected[/b]\n\nLatest version v%s changes the data format and is incompatible with your current version (v%s).\n\nAuto-upgrading to v%s instead. After that, you can manually upgrade further.\n\n" % [_latest_version, _current_version, _max_upgrade] + "[b]Release notes (v%s):[/b]\n" % _target_version + notes
+			_status_label.text = tr("Latest v%s has breaking changes. Upgrading to compatible v%s instead.") % [_latest_version, _max_upgrade]
+			_notes_rt.text = tr("[b]Breaking change detected[/b]\n\nLatest version v%s changes the data format and is incompatible with your current version (v%s).\n\nAuto-upgrading to v%s instead. After that, you can manually upgrade further.\n\n") % [_latest_version, _current_version, _max_upgrade] + tr("[b]Release notes (v%s):[/b]\n") % _target_version + notes
 			_upgrade_btn.disabled = false
-			_upgrade_btn.text = "Upgrade to v%s" % _max_upgrade
+			_upgrade_btn.text = tr("Upgrade to v%s") % _max_upgrade
 	else:
 		_target_version = _latest_version
-		_status_label.text = "A new version is available: v%s" % _latest_version
-		_notes_rt.text = "[b]Release notes:[/b]\n" + notes
+		_status_label.text = tr("A new version is available: v%s") % _latest_version
+		_notes_rt.text = tr("[b]Release notes:[/b]\n") + notes
 		_upgrade_btn.disabled = false
-		_upgrade_btn.text = "Upgrade to v%s" % _latest_version
+		_upgrade_btn.text = tr("Upgrade to v%s") % _latest_version
 
-	get_ok_button().text = "Close"
+	get_ok_button().text = tr("Close")
 
 
 ## Collect files in addons/gdsql/ that were not just extracted (recursive).
@@ -336,14 +336,14 @@ func _collect_files(dir: DirAccess, prefix: String, known: Dictionary, result: A
 ## Start the upgrade process.
 func _on_upgrade() -> void:
 	_upgrade_btn.disabled = true
-	_upgrade_btn.text = "Preparing..."
+	_upgrade_btn.text = tr("Preparing...")
 	
 	# Check for user-modified files
 	var user_files = _detect_user_files(_current_version)
 	
 	if not user_files.is_empty():
 		var warn = AcceptDialog.new()
-		warn.title = "Files Not Part of GDSQL"
+		warn.title = tr("Files Not Part of GDSQL")
 		warn.min_size = Vector2(540, 420)
 		
 		var mc = MarginContainer.new()
@@ -355,7 +355,7 @@ func _on_upgrade() -> void:
 		vb.add_theme_constant_override("separation", 15)
 		mc.add_child(vb)
 		
-		var warn_text = "The following files in addons/gdsql/ are not part of the plugin.\nThey may be your custom data:"
+		var warn_text = tr("The following files in addons/gdsql/ are not part of the plugin.\nThey may be your custom data:")
 		var wl = Label.new()
 		wl.text = warn_text
 		vb.add_child(wl)
@@ -378,21 +378,21 @@ func _on_upgrade() -> void:
 		sc.add_child(il)
 		
 		var wl2 = Label.new()
-		wl2.text = "Do you want to proceed with the upgrade?\nForcing overwrite will erase existing files in the addons/gdsql/ directory."
+		wl2.text = tr("Do you want to proceed with the upgrade?\nForcing overwrite will erase existing files in the addons/gdsql/ directory.")
 		vb.add_child(wl2)
 		
 		var cp = Button.new()
 		cp.size_flags_horizontal = Control.SIZE_SHRINK_END
 		cp.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		cp.text = "Copy list"
+		cp.text = tr("Copy list")
 		cp.pressed.connect(func():
 			DisplayServer.clipboard_set("\n".join(ft))
-			cp.text = "Copied!"
+			cp.text = tr("Copied!")
 		)
 		mc2.add_child(cp)
 		
-		warn.get_ok_button().text = "Cancel"
-		warn.add_button("Ignore and force overwrite", false, "force")
+		warn.get_ok_button().text = tr("Cancel")
+		warn.add_button(tr("Ignore and force overwrite"), false, "force")
 		
 		add_child(warn)
 		
@@ -406,7 +406,7 @@ func _on_upgrade() -> void:
 		
 		if user_choice[0] != "force":
 			_upgrade_btn.disabled = false
-			_upgrade_btn.text = "Upgrade to v%s" % _latest_version
+			_upgrade_btn.text = tr("Upgrade to v%s") % _latest_version
 			return
 			
 	_start_download()
@@ -415,31 +415,31 @@ func _on_upgrade() -> void:
 func _start_download() -> void:
 	var zip_url = "https://github.com/jinyangcruise/GDSQL/releases/download/v%s/gdsql-v%s.zip" % [_target_version, _target_version]
 	if zip_url.is_empty():
-		_status_label.text = "Error: No download URL found."
+		_status_label.text = tr("Error: No download URL found.")
 		return
 
-	_status_label.text = "Preparing..."
-	_upgrade_btn.text = "Downloading..."
+	_status_label.text = tr("Preparing...")
+	_upgrade_btn.text = tr("Downloading...")
 	_upgrade_btn.disabled = true
 
 	var body = await _download_with_progress(zip_url)
 	if body.is_empty():
-		_status_label.text = "Download failed."
+		_status_label.text = tr("Download failed.")
 		_upgrade_btn.disabled = false
-		_upgrade_btn.text = "Retry"
+		_upgrade_btn.text = tr("Retry")
 		return
 
 	if not is_inside_tree():
 		return
-	_status_label.text = "Extracting..."
+	_status_label.text = tr("Extracting...")
 
 	# Save to temp file
 	var tmp_path = "user://gdsql-v%s.zip" % _target_version
 	var f = FileAccess.open(tmp_path, FileAccess.WRITE)
 	if not f:
-		_status_label.text = "Failed to write temp file."
+		_status_label.text = tr("Failed to write temp file.")
 		_upgrade_btn.disabled = false
-		_upgrade_btn.text = "Retry"
+		_upgrade_btn.text = tr("Retry")
 		return
 	f.store_buffer(body)
 	f.close()
@@ -448,9 +448,9 @@ func _start_download() -> void:
 	var reader = ZIPReader.new()
 	var open_err = reader.open(tmp_path)
 	if open_err != OK:
-		_status_label.text = "Failed to open zip."
+		_status_label.text = tr("Failed to open zip.")
 		_upgrade_btn.disabled = false
-		_upgrade_btn.text = "Retry"
+		_upgrade_btn.text = tr("Retry")
 		return
 
 	var zip_files = reader.get_files()
@@ -491,9 +491,9 @@ func _start_download() -> void:
 
 	_download_pct = -2
 	_download_size = ""
-	_status_label.text = "Upgrade complete! (%d files updated, %d cleaned up) Please restart Godot." % [extracted, cleaned]
+	_status_label.text = tr("Upgrade complete! (%d files updated, %d cleaned up) Please restart Godot.") % [extracted, cleaned]
 	_upgrade_btn.disabled = true
-	_upgrade_btn.text = "Done"
+	_upgrade_btn.text = tr("Done")
 
 
 func _download_with_progress(url: String) -> PackedByteArray:
@@ -514,7 +514,7 @@ func _download_with_progress(url: String) -> PackedByteArray:
 	if client.get_status() != HTTPClient.STATUS_CONNECTED:
 		return PackedByteArray()
 
-	_status_label.text = "Requesting..."
+	_status_label.text = tr("Requesting...")
 	client.request(HTTPClient.METHOD_GET, path, ["User-Agent: Godot"])
 	while client.get_status() == HTTPClient.STATUS_REQUESTING:
 		client.poll()
@@ -530,7 +530,7 @@ func _download_with_progress(url: String) -> PackedByteArray:
 		for h in client.get_response_headers():
 			if h.to_lower().begins_with("location:"):
 				var loc = h.substr(9).strip_edges()
-				_status_label.text = "Redirecting..."
+				_status_label.text = tr("Redirecting...")
 				client.close()
 				return await _download_with_progress(loc)
 
@@ -561,7 +561,7 @@ func _download_with_progress(url: String) -> PackedByteArray:
 		else:
 			_download_pct = -1
 			_download_size = _format_size(body.size())
-			_status_label.text = "Downloading... " + _download_size
+			_status_label.text = tr("Downloading... ") + _download_size
 			_upgrade_btn.text = _download_size
 		await get_tree().process_frame
 
@@ -579,7 +579,7 @@ func _process(_delta: float) -> void:
 			_upgrade_btn.text = str(_download_pct) + "%"
 	elif _download_pct == -1 and not _download_size.is_empty():
 		if _status_label:
-			_status_label.text = "Downloading... " + _download_size
+			_status_label.text = tr("Downloading... ") + _download_size
 		if _upgrade_btn:
 			_upgrade_btn.text = _download_size
 
