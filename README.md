@@ -25,7 +25,7 @@ Complete database operations through GDScript method chaining — no XML require
 # Select
 var result = GDSQL.BaseDao.new() \
 	.use_db("GameConfig") \
-	.select("id, name, hp, mp") \ # Or: .select("id", "name", "hp", "mp") Or: .select("*")
+	.select("id, name, hp, mp", true) \ # Or: .select("id", "name", "hp", "mp", true) Or: .select("*", true)
 	.from("c_hero") \
 	.where("hp > 100 AND mp >= 50") \
 	.order_by("hp") \
@@ -88,7 +88,7 @@ SQL keywords are case-insensitive. The parser includes an LRU cache (1024 entrie
 ```gdscript
 var result = GDSQL.BaseDao.new() \
     .use_db("GameConfig") \
-    .select("id, name, hp") \
+    .select("id, name, hp", true) \
     .from("c_hero") \
     .where("hp > 100") \
     .query()

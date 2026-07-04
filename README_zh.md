@@ -25,7 +25,7 @@
 # 查询气血大于100的英雄，按气血降序排列
 var result = GDSQL.BaseDao.new() \
 	.use_db("GameConfig") \
-	.select("id, name, hp, mp") \ # 或者 .select("id", "name", "hp", "mp") 或者 .select("*")
+	.select("id, name, hp, mp", true) \ # 或者 .select("id", "name", "hp", "mp", true) 或者 .select("*", true)
 	.from("c_hero") \
 	.where("hp > 100 AND mp >= 50") \
 	.order_by("hp") \
@@ -88,7 +88,7 @@ SQL 关键字大小写不敏感。解析器内置 LRU 缓存（1024 条），重
 ```gdscript
 var result = GDSQL.BaseDao.new() \
     .use_db("GameConfig") \
-    .select("id, name, hp") \
+    .select("id, name, hp", true) \
     .from("c_hero") \
     .where("hp > 100") \
     .query()
