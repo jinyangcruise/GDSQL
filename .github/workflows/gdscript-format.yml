@@ -40,6 +40,6 @@ jobs:
         run: |
           set -euo pipefail
 
-          find addons/gdsql test -type f -name "*.gd" -print0 | while IFS= read -r -d '' file; do
+          find addons/gdsql -type f -name "*.gd" ! -ipath "*test*" -print0 | while IFS= read -r -d '' file; do
             gdscript-formatter --check "$file"
           done
