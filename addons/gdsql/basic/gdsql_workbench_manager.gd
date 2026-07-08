@@ -8,14 +8,12 @@ signal open_add_schema_tab
 signal user_confirm_add_schema(db_name: String, path: String, id: String)
 ## 系统确认新建数据库的信号
 signal sys_confirm_add_schema(id: String)
-
 ## 打开修改数据库标签页的信号
 signal open_alter_schema_tab(db_name: String, path: String)
 ## 用户确认修改数据库的信号
 signal user_confirm_alter_schema(old_db_name: String, new_db_name: String, path: String, id: String)
 ## 系统确认修改数据库的信号
 signal sys_confirm_alter_schema(id: String)
-
 ## 打开新建数据表标签页的信号
 signal open_add_table_tab(db_name: String)
 ## 用户确认新建表的信号
@@ -30,7 +28,6 @@ signal user_confirm_add_table(
 )
 ## 系统确认新建数据表的信号
 signal sys_confirm_add_table(id: String)
-
 ## 打开修改数据表标签页的信号
 signal open_alter_table_tab(db_name: String, table_name: String)
 ## 用户确认修改数据表的信号
@@ -45,7 +42,6 @@ signal user_confirm_alter_table(
 )
 ## 系统确认修改数据表的信号
 signal sys_confirm_alter_table(id: String)
-
 ## 打开数据表检查器页签的信号
 signal open_table_inspector_tab(db_name: String, table_name: String)
 ## 打开数据表导出页签的信号
@@ -56,85 +52,75 @@ signal open_table_data_import_tab(db_name: String, table_name: String)
 signal request_user_enter_password(db_name: String, table_name: String, try_password: String, callback: Callable, fail_callback: Callable)
 ## 是否需要用户输入某个表的密码
 signal need_user_enter_password(db_name: String, table_name: String, try_password: String, result: Array)
-
 ## 打开临时数据导出页签的信号
 signal open_select_data_export_tab(columns: Array, datas: Array)
-
 ## 打开 SQL Text 文件的信号
 signal open_sql_text_file_tab(path: String)
-
 ## 打开 SQL Graph 文件的信号
 signal open_sql_graph_file_tab(path: String)
-
 ## 打开生成Mapper页签的信号
 signal open_mapper_graph_tab(info: Dictionary)
-
 ## 打开生成Mapper文件的信号
 signal open_mapper_graph_file_tab(path: String)
-
 ## 文件被打开
 signal file_tab_opened(path: String)
-
 ## 文件被关闭
 signal file_tab_closed(path: String)
-
 ## 打开设置页签的信号
 signal open_settings_tab
-
 ## 打开开源许可页签的信号
 signal open_license_tab
-
 ## 请求新建某表
 signal request_create_table(db_name: String, table_name: String, comment: String, password: String, column_infos: Array)
 ## 请求删除某表
 signal request_drop_table(db_name: String, table_name: String)
 ## 系统确认删除某表
 signal sys_confirm_drop_table(db_name: String, table_name: String)
-
 ## 发送到编辑器
 signal send_to_editor(content: String)
 ## 发送到编辑器并执行的信号
 signal send_to_editor_and_execute(title: String, info: Dictionary)
-
 ## 记录操作日志
 signal add_log_history(status: String, begin_timestamp: String, action: String, message: String, cost: float)
 
 ## 主界面引用。只有设定了该变量，才能使用run_in_plugin方法
 var main_panel: Control
-
 ## 数据库配置
-#databases = {
-#"db1": {
-#"data_path": conf.get_value(db_name, "data_path"),
-#"encrypted": conf.get_value(db_name, "encrypted"),
-#"tables": {
-#"table1": {
-#"comment": "",
-#"encrypted": "3423df23523fvsdgdfg",
-#"valid_if_not_exist": false,
-#"columns": [ # 可能为空
-#{
-#"AI": false,
-#"Column Name": "col1",
-#"Comment": "",
-#"Data Type": 4,
-#"Default(Expression)": "",
-#"Hint": 0,
-#"Hint String": "",
-#"NN": true,
-#"PK": false,
-#"UQ": false
-#}
-#]
-#}
-#},
-#"persistent": conf == _config_file, # 是否是持久化的
-#}
-#}
+##"db1": {
+##	"data_path": conf.get_value(db_name, "data_path"),
+##	"encrypted": conf.get_value(db_name, "encrypted"),
+##	"tables": {
+##		"table1": {
+##			"comment": "",
+##			"encrypted": "3423df23523fvsdgdfg",
+##			"valid_if_not_exist": false,
+##			"columns": [ # 可能为空
+##				{
+##					"AI": false,
+##					"Column Name": "col1",
+##					"Comment": "",
+##					"Data Type": 4,
+##					"Default(Expression)": "",
+##					"Hint": 0,
+##					"Hint String": "",
+##					"NN": true,
+##					"PK": false,
+##					"UQ": false
+##				}
+##			]
+##		}
+##	},
+##	"persistent": conf == _config_file, # 是否是持久化的
+##}
 var databases: Dictionary
-
 ## base_dao在query途中需要密码的情况时使用 [db_name, table_name]
 var _request_password: Array
+
+
+func _init() -> void:
+	if TranslationServer.has_domain("GDSQL"):
+		set_translation_domain("GDSQL")
+
 
 func _notification(what):
 	if what == NOTIFICATION_EXIT_TREE:
@@ -152,9 +138,6 @@ func _notification(what):
 			dialog_root.queue_free()
 			root.create_tween().tween_callback(dummy.queue_free).set_delay(2)
 
-func _init() -> void:
-	if TranslationServer.has_domain("GDSQL"):
-		set_translation_domain("GDSQL")
 
 ## 返回某个节点是否运行在插件模式中。（脚本的@tool会让它运行在编辑器编辑界面中，而不是插件中，
 ## 可能导致信号多次绑定、额外数据被写入tscn中等问题）
@@ -163,36 +146,6 @@ func run_in_plugin(node: Node) -> bool:
 		return false
 	return node == main_panel or main_panel.is_ancestor_of(node)
 
-func _add_dialog(dialog: Window):
-	var root = EditorInterface.get_base_control().get_tree().get_root()
-	var dialog_root = root.find_child("GDSQLDialogRoot", false, false)
-	if dialog_root == null:
-		dialog_root = Node.new()
-		dialog_root.name = "GDSQLDialogRoot"
-		root.add_child(dialog_root, true)
-
-	# 把新的对话框加到最深一层
-	var p = dialog_root
-	while p.get_child_count() > 0:
-		for i in p.get_children():
-			if not i is Window:
-				continue
-			if i and i.visible and not i.is_queued_for_deletion():
-				p = p.get_child(0)
-				break
-			else:
-				# 能到这里说明上一个对话框正在关闭，把独占关闭一下，免得引擎报错，例如：
-				# scene/main/window.cpp:886 - Attempting to make child window exclusive,
-				# but the parent window already has another exclusive child. This window:
-				# /root/GDSQLDialogRoot/@ConfirmationDialog@23258, parent window: /root,
-				# current exclusive child window: /root/GDSQLDialogRoot/@ConfirmationDialog@23219
-				#printt("xxxxxxxxxxxxxx", p.get_child_count())
-				#await root.create_tween().tween_interval(0.1).finished
-				#dialog_root.print_tree_pretty()
-				#printt("rrrrrrrr", dialog_root.get_root())
-				i.exclusive = false
-		break
-	p.add_child(dialog)
 
 func create_confirmation_dialog(
 		msg: String,
@@ -220,6 +173,7 @@ func create_confirmation_dialog(
 	)
 	return dialog
 
+
 func create_accept_dialog(msg) -> void:
 	if msg is Array:
 		msg = " ".join(msg)
@@ -239,14 +193,6 @@ func create_accept_dialog(msg) -> void:
 		CONNECT_DEFERRED,
 	)
 
-func _clear_custom_dialog(dialog: Window):
-	if dialog.visible:
-		dialog.hide()
-	await dialog.get_tree().create_timer(1).timeout # For safety? After encountered several crash...
-	if dialog:
-		if dialog.get_parent():
-			dialog.get_parent().remove_child(dialog)
-		dialog.queue_free()
 
 ## 创建并弹出自定义对话框。
 ## 【datas】: 构建自定义对话框的数据，类似graph_node.gd，例如：
@@ -385,7 +331,7 @@ func create_custom_dialog(
 					var plist = data._get_property_list().filter(
 						func(v):
 							return not (v["usage"] & PROPERTY_USAGE_CATEGORY or v["usage"] & PROPERTY_USAGE_GROUP \
-										or v["usage"] & PROPERTY_USAGE_SUBGROUP )
+											or v["usage"] & PROPERTY_USAGE_SUBGROUP)
 					)
 					for prop in plist:
 						var editor = EditorInspector.instantiate_property_editor(
@@ -501,6 +447,7 @@ func create_custom_dialog(
 
 	return dialog
 
+
 func get_parent_visible_window(window: Window) -> Window:
 	if not is_instance_valid(window):
 		return null
@@ -516,10 +463,12 @@ func get_parent_visible_window(window: Window) -> Window:
 		vp = vp.get_parent().get_viewport()
 	return parent_window
 
+
 func get_parent_viewport(window: Window):
 	if window.get_parent():
 		return window.get_parent().get_viewport()
 	return null
+
 
 ## 创建并弹出自定义对话框。
 ## 【datas】: 构建自定义对话框的数据，类似graph_node.gd，例如：
@@ -621,7 +570,7 @@ func create_custom_popup_panel(
 					var plist = data._get_property_list().filter(
 						func(v):
 							return not (v["usage"] & PROPERTY_USAGE_CATEGORY or v["usage"] & PROPERTY_USAGE_GROUP \
-										or v["usage"] & PROPERTY_USAGE_SUBGROUP )
+											or v["usage"] & PROPERTY_USAGE_SUBGROUP)
 					)
 
 					if plist.size() < 5:
@@ -702,26 +651,6 @@ func create_custom_popup_panel(
 	dialog.popup()
 	return dialog
 
-@warning_ignore("unused_parameter")
-func _prop_change(
-		property: StringName,
-		value: Variant,
-		field: StringName,
-		changing: bool,
-		dictionary_object: GDSQL.DictionaryObject,
-		editor: EditorProperty,
-):
-	dictionary_object.set(property, value)
-	if typeof(value) > TYPE_ARRAY:
-		editor.update_property()
-
-@warning_ignore("unused_parameter")
-func _prop_selected(path: String, focusable_idx: int, editor: EditorProperty, editor_container: Control):
-	for i in editor_container.get_children():
-		if not i is EditorProperty or i == editor:
-			continue
-		if i.is_selected():
-			i.deselect()
 
 ## 弹出用户提供的对话框或window
 ## 【confirmed_callback_before_close】：点击确定后执行的函数，必须返回一个长度为2的数组，第一个元素是布尔值，
@@ -787,6 +716,103 @@ func popup_user_dialog(
 	else:
 		dialog.popup_centered_ratio(ratio)
 
+
+func need_request_password(db_name: String, table_name: String, try_password: String) -> bool:
+	var result = []
+	need_user_enter_password.emit(db_name, table_name, try_password, result)
+	if result[0]:
+		_request_password.clear()
+		_request_password.push_back(db_name)
+		_request_password.push_back(table_name)
+	return result[0]
+
+
+func request_curr_password(result: Array):
+	request_user_enter_password.emit(
+		_request_password[0],
+		_request_password[1],
+		"",
+		func():
+			_request_password.clear()
+			result[0] = true,
+		func():
+			result[0] = false
+	)
+
+
+func has_password_request() -> bool:
+	return not _request_password.is_empty()
+
+
+func get_password_request_table():
+	return _request_password
+
+
+func _add_dialog(dialog: Window):
+	var root = EditorInterface.get_base_control().get_tree().get_root()
+	var dialog_root = root.find_child("GDSQLDialogRoot", false, false)
+	if dialog_root == null:
+		dialog_root = Node.new()
+		dialog_root.name = "GDSQLDialogRoot"
+		root.add_child(dialog_root, true)
+
+	# 把新的对话框加到最深一层
+	var p = dialog_root
+	while p.get_child_count() > 0:
+		for i in p.get_children():
+			if not i is Window:
+				continue
+			if i and i.visible and not i.is_queued_for_deletion():
+				p = p.get_child(0)
+				break
+			else:
+				# 能到这里说明上一个对话框正在关闭，把独占关闭一下，免得引擎报错，例如：
+				# scene/main/window.cpp:886 - Attempting to make child window exclusive,
+				# but the parent window already has another exclusive child. This window:
+				# /root/GDSQLDialogRoot/@ConfirmationDialog@23258, parent window: /root,
+				# current exclusive child window: /root/GDSQLDialogRoot/@ConfirmationDialog@23219
+				#printt("xxxxxxxxxxxxxx", p.get_child_count())
+				#await root.create_tween().tween_interval(0.1).finished
+				#dialog_root.print_tree_pretty()
+				#printt("rrrrrrrr", dialog_root.get_root())
+				i.exclusive = false
+		break
+	p.add_child(dialog)
+
+
+func _clear_custom_dialog(dialog: Window):
+	if dialog.visible:
+		dialog.hide()
+	await dialog.get_tree().create_timer(1).timeout # For safety? After encountered several crash...
+	if dialog:
+		if dialog.get_parent():
+			dialog.get_parent().remove_child(dialog)
+		dialog.queue_free()
+
+
+@warning_ignore("unused_parameter")
+func _prop_change(
+		property: StringName,
+		value: Variant,
+		field: StringName,
+		changing: bool,
+		dictionary_object: GDSQL.DictionaryObject,
+		editor: EditorProperty,
+):
+	dictionary_object.set(property, value)
+	if typeof(value) > TYPE_ARRAY:
+		editor.update_property()
+
+
+@warning_ignore("unused_parameter")
+func _prop_selected(path: String, focusable_idx: int, editor: EditorProperty, editor_container: Control):
+	for i in editor_container.get_children():
+		if not i is EditorProperty or i == editor:
+			continue
+		if i.is_selected():
+			i.deselect()
+
+
 func _find_editable_control(control: Node) -> Control:
 	if control is LineEdit:
 		control.select_all_on_focus = true
@@ -827,6 +853,7 @@ func _find_editable_control(control: Node) -> Control:
 			return c
 	return null
 
+
 func _find_last_line_edit(control: Node) -> Control:
 	var ret = null
 	if control is LineEdit:
@@ -837,30 +864,3 @@ func _find_last_line_edit(control: Node) -> Control:
 		if c:
 			ret = c
 	return ret
-
-func need_request_password(db_name: String, table_name: String, try_password: String) -> bool:
-	var result = []
-	need_user_enter_password.emit(db_name, table_name, try_password, result)
-	if result[0]:
-		_request_password.clear()
-		_request_password.push_back(db_name)
-		_request_password.push_back(table_name)
-	return result[0]
-
-func request_curr_password(result: Array):
-	request_user_enter_password.emit(
-		_request_password[0],
-		_request_password[1],
-		"",
-		func():
-			_request_password.clear()
-			result[0] = true,
-		func():
-			result[0] = false
-	)
-
-func has_password_request() -> bool:
-	return not _request_password.is_empty()
-
-func get_password_request_table():
-	return _request_password

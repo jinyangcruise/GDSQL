@@ -141,10 +141,10 @@ func node_close(node: GraphNode):
 						var graph_datas = t_node.datas
 						if graph_datas.size() > 1:
 							#┖╴@HBoxContainer                  get_child(-1)
-							#┖╴@HFlowContainer             get_child(0)
-							#┠╴@Button
-							#┠╴@Button
-							#┖╴@Button
+							##	┖╴@HFlowContainer             get_child(0)
+							##		┠╴@Button
+							##		┠╴@Button
+							##		┖╴@Button
 							var flow_container = t_node.get_child(-1).get_child(0)
 							for i in flow_container.get_children():
 								i.disabled = true
@@ -795,20 +795,20 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 	table.support_delete_row = single_table_query
 
 	if table.editable:
-		# 用于把修改数据按照表路径做归类
-		# return：{
-		#"res://src/config/c_skill.gsql": {
-		#"PK_key": "id",
-		#"PK_value_new": 7,
-		#"PK_value_old": 6,
-		#"modified": {
-		#"id": {
-		#"new": 7,
-		#"old": 6
-		#}
-		#}
-		#}
-		#}
+		## 用于把修改数据按照表路径做归类
+		## return：{
+		##	"res://src/config/c_skill.gsql": {
+		##		"PK_key": "id",
+		##		"PK_value_new": 7,
+		##		"PK_value_old": 6,
+		##		"modified": {
+		##			"id": {
+		##				"new": 7,
+		##				"old": 6
+		##			}
+		##		}
+		##	}
+		##}
 		var group_modified_data_call = func(data: GDSQL.DictionaryObject) -> Dictionary:
 			var tables = { } # 更新数据可能涉及多个表，所以把modified_data按表分类
 			var modified_data = data.get_modified_value()
@@ -2426,27 +2426,25 @@ func extract_table_data_call(v, columns):
 		return arr
 	return v
 
-	#func _shortcut_input(event: InputEvent) -> void:
-	#if not visible:
-	#return
-	#if SHORTCUT_COPY.matches_event(event):
-	#var selected_nodes_params = get_nodes_params(true)
-	#if selected_nodes_params.is_empty():
-	#return
-	#copied_nodes = {
-	#"data": selected_nodes_params,
-	#"connections": get_connections_only_selected(),
-	#}
-	#get_viewport().set_input_as_handled()
-	#elif SHORTCUT_PASTE.matches_event(event):
-	#if copied_nodes.is_empty():
-	#return
-	#_load_nodes(copied_nodes.data, copied_nodes.connections, Vector2(40, 40), true, true)
-	#for i in copied_nodes.data:
-	#copied_nodes.data[i].position_offset += Vector2(40, 40)
-	#get_viewport().set_input_as_handled()
 
-
+# #func _shortcut_input(event: InputEvent) -> void:
+# #if not visible:
+#	#return
+# #if SHORTCUT_COPY.matches_event(event):
+#	#var selected_nodes_params = get_nodes_params(true)
+#	#if selected_nodes_params.is_empty():
+#		#return
+#	#copied_nodes = {
+#		#"data": selected_nodes_params,
+#		#"connections": get_connections_only_selected(),
+#	#}
+#	#get_viewport().set_input_as_handled()
+#	#if copied_nodes.is_empty():
+#		#return
+#	#_load_nodes(copied_nodes.data, copied_nodes.connections, Vector2(40, 40), true, true)
+#	#for i in copied_nodes.data:
+#		#copied_nodes.data[i].position_offset += Vector2(40, 40)
+#	#get_viewport().set_input_as_handled()
 func get_connections_only_selected():
 	var ret = []
 	var conns = graph_edit.get_connection_list()
@@ -3914,10 +3912,10 @@ func _on_graph_edit_disconnection_request(from_node: StringName, from_port: int,
 					var graph_datas = t_node.datas
 					if graph_datas.size() > 1:
 						#┖╴@HBoxContainer                  get_child(-1)
-						#┖╴@HFlowContainer             get_child(0)
-						#┠╴@Button
-						#┠╴@Button
-						#┖╴@Button
+						#	#┖╴@HFlowContainer             get_child(0)
+						#		#┠╴@Button
+						#		#┠╴@Button
+						#		#┖╴@Button
 						var flow_container = t_node.get_child(-1).get_child(0)
 						for i in flow_container.get_children():
 							i.disabled = true
