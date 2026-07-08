@@ -40,7 +40,6 @@ var graph_edit: GraphEdit:
 @onready var button_auto_commit: Button = $VBoxContainer/HFlowContainer/ButtonAutoCommit
 
 
-#
 func _ready() -> void:
 	button_commit.disabled = button_auto_commit.button_pressed
 	button_rollback.disabled = button_auto_commit.button_pressed
@@ -3207,12 +3206,12 @@ func on_link_node_query(node: GraphNode):
 												var dao = GDSQL.BaseDao.new()
 												dao.auto_commit(false)
 												(
-													dao.use_db(data.get_meta("link_db", "")).set_password(data.get_meta("link_password", "")).insert_into(data.get_meta("link_table", "")).values(
-														{
-															link_prop_dict_obj._get("Left"): detail_panel.get_meta("left_id"),
-															link_prop_dict_obj._get("Right"): detail_panel.get_meta("right_id"),
-														},
-													)
+														dao.use_db(data.get_meta("link_db", "")).set_password(data.get_meta("link_password", "")).insert_into(data.get_meta("link_table", "")).values(
+															{
+																link_prop_dict_obj._get("Left"): detail_panel.get_meta("left_id"),
+																link_prop_dict_obj._get("Right"): detail_panel.get_meta("right_id"),
+															},
+														)
 												)
 												daos.push_back(dao)
 											elif change_status == "delete":
@@ -3223,14 +3222,14 @@ func on_link_node_query(node: GraphNode):
 												var dao = GDSQL.BaseDao.new()
 												dao.auto_commit(false)
 												(
-													dao.use_db(data.get_meta("link_db", "")).set_password(data.get_meta("link_password", "")).delete_from(data.get_meta("link_table", "")).where(
-														"%s == %s and %s == %s" % [
-															link_prop_dict_obj._get("Left"),
-															wrap_value.call(detail_panel.get_meta("left_id")),
-															link_prop_dict_obj._get("Right"),
-															wrap_value.call(detail_panel.get_meta("right_id")),
-														],
-													)
+														dao.use_db(data.get_meta("link_db", "")).set_password(data.get_meta("link_password", "")).delete_from(data.get_meta("link_table", "")).where(
+															"%s == %s and %s == %s" % [
+																link_prop_dict_obj._get("Left"),
+																wrap_value.call(detail_panel.get_meta("left_id")),
+																link_prop_dict_obj._get("Right"),
+																wrap_value.call(detail_panel.get_meta("right_id")),
+															],
+														)
 												)
 												daos.push_back(dao)
 										# 弹对话框
