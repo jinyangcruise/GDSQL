@@ -3504,6 +3504,13 @@ func _on_button_open_pressed() -> void:
 	)
 
 
+func _lambda_config_validade_node_name():
+	return func(v):
+		v["from_node"] = v["from_node"].validate_node_name()
+		v["to_node"] = v["to_node"].validate_node_name()
+		return v
+
+
 func _on_button_save_pressed() -> void:
 	# 本身就是一个已经保存的文件，就直接保存
 	if get_meta("is_file"):
@@ -3513,10 +3520,7 @@ func _on_button_save_pressed() -> void:
 			"data",
 			"connections",
 			graph_edit.get_connection_list().map(
-				func(v):
-					v["from_node"] = v["from_node"].validate_node_name()
-					v["to_node"] = v["to_node"].validate_node_name()
-					return v
+				_lambda_config_validade_node_name,
 			),
 		)
 
@@ -3547,10 +3551,7 @@ func _on_button_save_as_pressed():
 				"data",
 				"connections",
 				graph_edit.get_connection_list().map(
-					func(v):
-						v["from_node"] = v["from_node"].validate_node_name()
-						v["to_node"] = v["to_node"].validate_node_name()
-						return v
+					_lambda_config_validade_node_name,
 				),
 			)
 
