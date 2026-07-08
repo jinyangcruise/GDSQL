@@ -17,8 +17,16 @@ fi
 FILES=()
 
 while IFS= read -r -d '' file; do
-	[ -f "$file" ] && FILES+=("$file")
-done < <(git diff --cached --name-only -z --diff-filter=ACMR -- '*.gd')
+	[ -f "$file" ] || continue
+
+	case "$file" in
+		*test*|*expression.gd|*base_dao.gd)
+			continue
+			;;
+	esac
+
+	FILES+=("$file")
+done < <(git diff --cached --name-only -z --diff-filter=ACMR -- "*.gd")
 
 if [ "${#FILES[@]}" -eq 0 ]; then
 	exit 0
@@ -28,7 +36,10 @@ echo "Formatting staged GDScript files..."
 
 for file in "${FILES[@]}"; do
 	echo "  $file"
+
+	# Keep pre-commit conservative: format only, no reorder-code.
 	"$FORMATTER" --safe "$file"
+
 	git add "$file"
 done
 
