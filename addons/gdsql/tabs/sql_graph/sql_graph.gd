@@ -40,6 +40,7 @@ var graph_edit: GraphEdit:
 @onready var button_auto_commit: Button = $VBoxContainer/HFlowContainer/ButtonAutoCommit
 
 
+#
 func _ready() -> void:
 	button_commit.disabled = button_auto_commit.button_pressed
 	button_rollback.disabled = button_auto_commit.button_pressed
