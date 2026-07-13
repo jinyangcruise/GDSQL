@@ -3,12 +3,12 @@
 importer="svg"
 type="DPITexture"
 uid="uid://4swt8gii0lii"
-path="res://.godot/imported/floppy_disk.svg-f71d26803a9bd8037ef974426f1be5e6.dpitex"
+path="res://.godot/imported/floppy_disk.svg-13704153a3a4a47e3ed4182e9d2d2f45.dpitex"
 
 [deps]
 
-source_file="res://addons/gdsql/img/floppy_disk.svg"
-dest_files=["res://.godot/imported/floppy_disk.svg-f71d26803a9bd8037ef974426f1be5e6.dpitex"]
+source_file="res://addons/gdsql-arquive/img/floppy_disk.svg"
+dest_files=["res://.godot/imported/floppy_disk.svg-13704153a3a4a47e3ed4182e9d2d2f45.dpitex"]
 
 [params]
 

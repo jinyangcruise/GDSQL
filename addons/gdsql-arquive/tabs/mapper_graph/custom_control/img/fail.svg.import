@@ -3,12 +3,12 @@
 importer="svg"
 type="DPITexture"
 uid="uid://cncsyde268k38"
-path="res://.godot/imported/fail.svg-dc65d2cf181a3e07d077f3be156bbb12.dpitex"
+path="res://.godot/imported/fail.svg-40daf55ebe47a020dbe8fda5d3f38589.dpitex"
 
 [deps]
 
-source_file="res://addons/gdsql/tabs/mapper_graph/custom_control/img/fail.svg"
-dest_files=["res://.godot/imported/fail.svg-dc65d2cf181a3e07d077f3be156bbb12.dpitex"]
+source_file="res://addons/gdsql-arquive/tabs/mapper_graph/custom_control/img/fail.svg"
+dest_files=["res://.godot/imported/fail.svg-40daf55ebe47a020dbe8fda5d3f38589.dpitex"]
 
 [params]
 

@@ -3,12 +3,12 @@
 importer="svg"
 type="DPITexture"
 uid="uid://ds3hxargchfqy"
-path="res://.godot/imported/flash_checkmark.svg-779281cd6ffbcb0e8482f71a22a619bd.dpitex"
+path="res://.godot/imported/flash_checkmark.svg-428e30b673ce063212945aaa1178cb0c.dpitex"
 
 [deps]
 
-source_file="res://addons/gdsql/img/flash_checkmark.svg"
-dest_files=["res://.godot/imported/flash_checkmark.svg-779281cd6ffbcb0e8482f71a22a619bd.dpitex"]
+source_file="res://addons/gdsql-arquive/img/flash_checkmark.svg"
+dest_files=["res://.godot/imported/flash_checkmark.svg-428e30b673ce063212945aaa1178cb0c.dpitex"]
 
 [params]
 

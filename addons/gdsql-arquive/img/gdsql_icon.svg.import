@@ -3,12 +3,12 @@
 importer="svg"
 type="DPITexture"
 uid="uid://b28xbx1yomp8p"
-path="res://.godot/imported/gdsql_icon.svg-e5f5c1e7db2a553c0e4f483ecebe0a15.dpitex"
+path="res://.godot/imported/gdsql_icon.svg-849c998d3054e96f7873908c133236b6.dpitex"
 
 [deps]
 
-source_file="res://addons/gdsql/img/gdsql_icon.svg"
-dest_files=["res://.godot/imported/gdsql_icon.svg-e5f5c1e7db2a553c0e4f483ecebe0a15.dpitex"]
+source_file="res://addons/gdsql-arquive/img/gdsql_icon.svg"
+dest_files=["res://.godot/imported/gdsql_icon.svg-849c998d3054e96f7873908c133236b6.dpitex"]
 
 [params]
 

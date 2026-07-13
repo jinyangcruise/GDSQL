@@ -3,12 +3,12 @@
 importer="svg"
 type="DPITexture"
 uid="uid://cq6e67rcqa18o"
-path="res://.godot/imported/GBMapperGraph.svg-94b9f7e7c06246561c029acfa5586726.dpitex"
+path="res://.godot/imported/GBMapperGraph.svg-6b7b5769d1fbac0e2f37eb87c8079f3f.dpitex"
 
 [deps]
 
-source_file="res://addons/gdsql/gbatis/img/GBMapperGraph.svg"
-dest_files=["res://.godot/imported/GBMapperGraph.svg-94b9f7e7c06246561c029acfa5586726.dpitex"]
+source_file="res://addons/gdsql-arquive/gbatis/img/GBMapperGraph.svg"
+dest_files=["res://.godot/imported/GBMapperGraph.svg-6b7b5769d1fbac0e2f37eb87c8079f3f.dpitex"]
 
 [params]
 

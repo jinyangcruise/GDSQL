@@ -3,12 +3,12 @@
 importer="svg"
 type="DPITexture"
 uid="uid://b75vbu8wdk60s"
-path="res://.godot/imported/right_and_down_arrow.svg-574093f7e475e9d4499ff45f7b64f659.dpitex"
+path="res://.godot/imported/right_and_down_arrow.svg-1313328d7e3482b721df991a2269c0df.dpitex"
 
 [deps]
 
-source_file="res://addons/gdsql/img/right_and_down_arrow.svg"
-dest_files=["res://.godot/imported/right_and_down_arrow.svg-574093f7e475e9d4499ff45f7b64f659.dpitex"]
+source_file="res://addons/gdsql-arquive/img/right_and_down_arrow.svg"
+dest_files=["res://.godot/imported/right_and_down_arrow.svg-1313328d7e3482b721df991a2269c0df.dpitex"]
 
 [params]
 

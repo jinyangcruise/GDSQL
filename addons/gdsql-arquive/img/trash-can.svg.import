@@ -3,12 +3,12 @@
 importer="svg"
 type="DPITexture"
 uid="uid://b8nvrn4yyle36"
-path="res://.godot/imported/trash-can.svg-1e47ac61e0b78e45d1e42777c8a31ed0.dpitex"
+path="res://.godot/imported/trash-can.svg-86721a743a90f848a91e47cbcc497365.dpitex"
 
 [deps]
 
-source_file="res://addons/gdsql/img/trash-can.svg"
-dest_files=["res://.godot/imported/trash-can.svg-1e47ac61e0b78e45d1e42777c8a31ed0.dpitex"]
+source_file="res://addons/gdsql-arquive/img/trash-can.svg"
+dest_files=["res://.godot/imported/trash-can.svg-86721a743a90f848a91e47cbcc497365.dpitex"]
 
 [params]
 

@@ -3,12 +3,12 @@
 importer="svg"
 type="DPITexture"
 uid="uid://b27k8141hwxcu"
-path="res://.godot/imported/circle-check.svg-b35bd379f2f83fbff41a718de40fdbb5.dpitex"
+path="res://.godot/imported/circle-check.svg-70126ba2443da4eff73cfcd073f9fdaf.dpitex"
 
 [deps]
 
-source_file="res://addons/gdsql/img/circle-check.svg"
-dest_files=["res://.godot/imported/circle-check.svg-b35bd379f2f83fbff41a718de40fdbb5.dpitex"]
+source_file="res://addons/gdsql-arquive/img/circle-check.svg"
+dest_files=["res://.godot/imported/circle-check.svg-70126ba2443da4eff73cfcd073f9fdaf.dpitex"]
 
 [params]
 

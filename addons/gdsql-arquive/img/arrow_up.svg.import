@@ -3,12 +3,12 @@
 importer="svg"
 type="DPITexture"
 uid="uid://dn3w4txrj48yk"
-path="res://.godot/imported/arrow_up.svg-2482108d2303b36b02b27d0b88874737.dpitex"
+path="res://.godot/imported/arrow_up.svg-949ac60af37cc8daf43d19bf9be84933.dpitex"
 
 [deps]
 
-source_file="res://addons/gdsql/img/arrow_up.svg"
-dest_files=["res://.godot/imported/arrow_up.svg-2482108d2303b36b02b27d0b88874737.dpitex"]
+source_file="res://addons/gdsql-arquive/img/arrow_up.svg"
+dest_files=["res://.godot/imported/arrow_up.svg-949ac60af37cc8daf43d19bf9be84933.dpitex"]
 
 [params]
 

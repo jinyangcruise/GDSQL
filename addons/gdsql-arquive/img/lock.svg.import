@@ -3,12 +3,12 @@
 importer="svg"
 type="DPITexture"
 uid="uid://c4na83m3tqhv8"
-path="res://.godot/imported/lock.svg-d2d375e9fd0f3e97f1c8094f9140b8e8.dpitex"
+path="res://.godot/imported/lock.svg-a8764923f64c89609f684802291db1b6.dpitex"
 
 [deps]
 
-source_file="res://addons/gdsql/img/lock.svg"
-dest_files=["res://.godot/imported/lock.svg-d2d375e9fd0f3e97f1c8094f9140b8e8.dpitex"]
+source_file="res://addons/gdsql-arquive/img/lock.svg"
+dest_files=["res://.godot/imported/lock.svg-a8764923f64c89609f684802291db1b6.dpitex"]
 
 [params]
 
