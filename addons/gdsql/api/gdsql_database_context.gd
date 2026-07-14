@@ -32,11 +32,45 @@ func create_database(database_name: StringName) -> GDSQLCatalogOperationResult:
 	return catalog_administration.create_database(database_name)
 
 
+func rename_database(
+		current_name: StringName,
+		new_name: StringName,
+) -> GDSQLCatalogOperationResult:
+	return catalog_administration.rename_database(current_name, new_name)
+
+
+func drop_database(database_name: StringName) -> GDSQLCatalogOperationResult:
+	return catalog_administration.drop_database(database_name)
+
+
 func create_table(
 		database_name: StringName,
 		table: GDSQLTableDefinition,
 ) -> GDSQLCatalogOperationResult:
 	return catalog_administration.create_table(database_name, table)
+
+
+func rename_table(
+		database_name: StringName,
+		current_name: StringName,
+		new_name: StringName,
+) -> GDSQLCatalogOperationResult:
+	return catalog_administration.rename_table(database_name, current_name, new_name)
+
+
+func drop_table(
+		database_name: StringName,
+		table_name: StringName,
+) -> GDSQLCatalogOperationResult:
+	return catalog_administration.drop_table(database_name, table_name)
+
+
+func alter_table(
+		database_name: StringName,
+		table_name: StringName,
+		alterations: Array[GDSQLTableAlteration],
+) -> GDSQLCatalogOperationResult:
+	return catalog_administration.alter_table(database_name, table_name, alterations)
 
 
 func execute(query: GDSQLQuerySpec) -> GDSQLQueryResult:

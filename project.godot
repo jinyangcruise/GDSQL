@@ -43,3 +43,8 @@ enabled=PackedStringArray("res://addons/GDQuest_GDScript_formatter/plugin.cfg", 
 
 settings/test/test_discovery=true
 ui/toolbar/run_overall=true
+hooks/session_hooks=Dictionary[String, bool]({
+"res://addons/gdUnit4/src/core/hooks/GdUnitHtmlReporterTestSessionHook.gd": true,
+"res://addons/gdUnit4/src/core/hooks/GdUnitXMLReporterTestSessionHook.gd": true
+})
+settings/test/test_lookup_folder="tests"

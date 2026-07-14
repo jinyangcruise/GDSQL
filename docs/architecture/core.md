@@ -1104,10 +1104,29 @@ extends RefCounted
 func create_database(database_name: StringName) -> CatalogOperationResult
 
 @abstract
+func rename_database(current_name: StringName, new_name: StringName) -> CatalogOperationResult
+
+@abstract
+func drop_database(database_name: StringName) -> CatalogOperationResult
+
+@abstract
 func create_table(
     database_name: StringName,
     table: TableDefinition,
 ) -> CatalogOperationResult
+
+@abstract
+func rename_table(database_name: StringName, current_name: StringName, new_name: StringName) -> CatalogOperationResult
+
+@abstract
+func alter_table(
+    database_name: StringName,
+    table_name: StringName,
+    alterations: Array[TableAlteration],
+) -> CatalogOperationResult
+
+@abstract
+func drop_table(database_name: StringName, table_name: StringName) -> CatalogOperationResult
 ```
 
 The public API accepts typed `TableDefinition` and `ColumnDefinition` objects.
@@ -1127,6 +1146,14 @@ Row contents and later mutations remain owned by `TableStorage`. The ConfigFile
 backend may complete a missing empty table file when an existing stored schema
 exactly matches the requested definition; this repairs incomplete structures
 without overwriting a table or changing its schema.
+
+Table alterations are explicit typed intents: add column, rename column, or
+drop column. The backend updates schema and existing row files together. Adding
+a non-nullable column to a populated table requires a compatible default;
+renaming a column migrates stored row keys; dropping a column removes stored
+values. Dropping the primary key is rejected. Database and table renames move
+their complete physical structures and update catalog metadata, while drop
+operations remove both metadata and owned storage.
 
 ---
 
@@ -1399,6 +1426,7 @@ addons/gdsql/
 │   ├── catalog_operation_result.gd
 │   ├── database_definition.gd
 │   ├── table_definition.gd
+│   ├── table_alteration.gd
 │   ├── column_definition.gd
 │   └── index_definition.gd
 │

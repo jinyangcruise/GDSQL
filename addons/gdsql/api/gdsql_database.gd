@@ -60,6 +60,41 @@ func create_table(table_definition: GDSQLTableDefinition) -> GDSQLCatalogOperati
 	return context.create_table(database_name, table_definition)
 
 
+func rename(new_name: StringName) -> GDSQLDatabaseResult:
+	var catalog_result := context.rename_database(database_name, new_name)
+	var result := GDSQLDatabaseResult.new()
+	result.diagnostics.merge(catalog_result.diagnostics)
+	if catalog_result.is_successful():
+		database_name = new_name
+		result.value = self
+	return result
+
+
+func drop() -> GDSQLCatalogOperationResult:
+	var result := context.drop_database(database_name)
+	if result.is_successful():
+		database_name = &""
+	return result
+
+
+func rename_table(
+		current_name: StringName,
+		new_name: StringName,
+) -> GDSQLCatalogOperationResult:
+	return context.rename_table(database_name, current_name, new_name)
+
+
+func drop_table(table_name: StringName) -> GDSQLCatalogOperationResult:
+	return context.drop_table(database_name, table_name)
+
+
+func alter_table(
+		table_name: StringName,
+		alterations: Array[GDSQLTableAlteration],
+) -> GDSQLCatalogOperationResult:
+	return context.alter_table(database_name, table_name, alterations)
+
+
 func insert(table_name: StringName, values: Dictionary) -> GDSQLQueryResult:
 	var query_spec := query().insert().into_table(table_name).values(values).build()
 	return execute(query_spec)

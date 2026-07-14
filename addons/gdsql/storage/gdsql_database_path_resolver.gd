@@ -10,7 +10,7 @@ func _init(data_root: String = "res://data") -> void:
 
 func resolve_catalog_path(database: StringName = &"") -> String:
 	if database == &"":
-		return data_root.path_join(".gdsql/databases.cfg")
+		return data_root.path_join("databases.cfg")
 	return resolve_database_path(database).path_join("schema")
 
 

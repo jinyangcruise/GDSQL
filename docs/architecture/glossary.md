@@ -24,11 +24,11 @@ state in the same change as implementation or test work.
 
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
-| `Database` | Public API | Main user-facing entry point for creating or opening a database, managing its tables, building queries, and executing canonical query specs. | `create()`, `open()`, `create_table()`, `query()`, `execute()`, `insert()`, `execute_sql()` | 🚧 |
-| `DatabaseContext` | Runtime facade | Coordinates catalog administration, validation, binding, planning, execution, and result materialization. | `create_database()`, `create_table()`, `execute(query)`, `prepare(query)` | 🚧 |
+| `Database` | Public API | Main user-facing entry point for creating, opening, renaming, and dropping a database; managing its tables; and executing canonical query specs. | `create()`, `open()`, `rename()`, `drop()`, `create_table()`, `rename_table()`, `alter_table()`, `drop_table()`, `query()`, `execute()` | 🧪 |
+| `DatabaseContext` | Runtime facade | Coordinates catalog administration, validation, binding, planning, execution, and result materialization. | Database and table administration methods, `execute(query)`, `prepare(query)` | 🚧 |
 | `Query` | Fluent API | User-facing fluent query entry point that creates operation-specific builders. | `select()`, `insert()`, `update()`, `delete()` | 🚧 |
 | `SelectQueryBuilder` | Fluent API | Builds a `SelectQuerySpec` through a controlled fluent interface. | `from_table()`, `columns()`, `where()`, `join()`, `order_by()`, `limit()`, `offset()`, `build()` | 🚧 |
-| `InsertQueryBuilder` | Fluent API | Builds an `InsertQuerySpec` from one or more named rows. | `into_table()`, `values()`, `build()` | 🛠️ |
+| `InsertQueryBuilder` | Fluent API | Builds an `InsertQuerySpec` from one or more named rows. | `into_table()`, `values()`, `build()` | 🧪 |
 | `QueryGraph` | Graph frontend | Frontend-owned representation of query nodes and their connections. | `get_nodes()`, `get_connections()`, `validate_structure()` | 🚧 |
 | `GraphQueryCompiler` | Graph frontend | Converts a valid `QueryGraph` into a canonical `QuerySpec`. | `compile(graph)` | 🚧 |
 
@@ -38,7 +38,7 @@ state in the same change as implementation or test work.
 |---|---|---|---|---|
 | `QuerySpec` | Query model | Abstract base for canonical database-operation descriptions. | `accept(visitor)` | 🚧 |
 | `SelectQuerySpec` | Query model | Describes a read operation, including sources, projections, predicates, joins, grouping, ordering, and limits. | `accept(visitor)` | 🛠️ |
-| `InsertQuerySpec` | Query model | Describes rows to insert into a target table. | `accept(visitor)` | 🛠️ |
+| `InsertQuerySpec` | Query model | Describes rows to insert into a target table. | `accept(visitor)` | 🧪 |
 | `UpdateQuerySpec` | Query model | Describes assignments and selection criteria for an update operation. | `accept(visitor)` | 🚧 |
 | `DeleteQuerySpec` | Query model | Describes the target and selection criteria for a delete operation. | `accept(visitor)` | 🚧 |
 | `QuerySpecVisitor` | Query model | Defines type-specific operations over concrete `QuerySpec` classes. | `visit_select()`, `visit_insert()`, `visit_update()`, `visit_delete()` | 🚧 |
@@ -159,12 +159,13 @@ state in the same change as implementation or test work.
 |---|---|---|---|---|
 | `CatalogService` | Catalog | Abstract access to database, table, column, and index definitions. | `get_database()`, `get_table()`, `has_table()`, `create_snapshot()` | 🚧 |
 | `ConfigFileCatalogService` | Catalog backend | Catalog implementation backed by GDSQL configuration files. | CatalogService implementation | 🛠️ |
-| `CatalogAdministrationService` | Catalog | Abstract contract for creating and changing logical database structure without exposing storage formats to the public API. | `create_database()`, `create_table()` | 🛠️ |
-| `ConfigFileCatalogAdministrationService` | Catalog backend | Persists database registrations and creates complete ConfigFile-backed table structures, including schema and empty table files. | CatalogAdministrationService implementation | 🛠️ |
+| `CatalogAdministrationService` | Catalog | Abstract contract for database and table lifecycle changes without exposing storage formats to the public API. | `create_database()`, `rename_database()`, `drop_database()`, `create_table()`, `rename_table()`, `alter_table()`, `drop_table()` | 🧪 |
+| `ConfigFileCatalogAdministrationService` | Catalog backend | Persists database registrations and synchronizes ConfigFile-backed schemas and row storage during lifecycle changes. | CatalogAdministrationService implementation | 🧪 |
 | `CatalogSnapshot` | Catalog | Stable catalog view used during validation, binding, and planning. | `get_database()`, `get_table()` | 🚧 |
 | `DatabaseDefinition` | Catalog | Typed definition of a logical database. | Access to name and tables | 🛠️ |
 | `TableDefinition` | Catalog | Typed definition of a table, its columns, primary key, and indexes. | `get_column()`, `get_primary_key()` | 🛠️ |
 | `ColumnDefinition` | Catalog | Typed definition of one table column. | Access to name, type, nullability, uniqueness, and default | 🛠️ |
+| `TableAlteration` | Catalog | Typed intent for adding, renaming, or dropping one table column. | `add_column()`, `rename_column()`, `drop_column()` | 🧪 |
 | `IndexDefinition` | Catalog | Describes an index and the columns it covers. | `get_columns()`, `is_unique()` | 🚧 |
 
 ## Storage
@@ -185,8 +186,8 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `RowSet` | Execution results | Internal collection of rows and their result schema. | `get_rows()`, `get_schema()` | 🚧 |
-| `DatabaseResult` | Public results | Contains a database handle or structured diagnostics from `Database.create()` and `Database.open()`. | `is_successful()`, `get_database()` | 🛠️ |
-| `QueryResult` | Public results | Stable public representation of query output that inherits the composed diagnostics behavior from `OperationResult`. | `is_successful()`, `get_rows()`, `get_diagnostics()`, `get_affected_rows()`, `get_returned_rows()` | 🛠️ |
+| `DatabaseResult` | Public results | Contains a database handle or structured diagnostics from `Database.create()` and `Database.open()`. | `is_successful()`, `get_database()` | 🧪 |
+| `QueryResult` | Public results | Stable public representation of query output that inherits the composed diagnostics behavior from `OperationResult`. | `is_successful()`, `get_rows()`, `get_diagnostics()`, `get_affected_rows()`, `get_returned_rows()` | 🧪 |
 | `ResultMapping` | Mapping | Describes how result columns map into an output representation. | Mapping accessors | 🚧 |
 | `ResultMaterializer` | Mapping | Abstract contract for converting a `RowSet` into a user-facing result. | `materialize(rows, mapping)` | 🚧 |
 | `DictionaryResultMaterializer` | Mapping | Converts rows into dictionaries. | `materialize()` | 🚧 |

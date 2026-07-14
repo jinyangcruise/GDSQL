@@ -13,7 +13,7 @@ static func create_default(settings: Variant = null) -> GDSQLDatabaseContext:
 	var storage: GDSQLTableStorage = GDSQLConfigFileTableStorage.new(path_resolver, cache, codec)
 	var catalog: GDSQLCatalogService = GDSQLConfigFileCatalogService.new(path_resolver)
 	var catalog_administration: GDSQLCatalogAdministrationService = \
-		GDSQLConfigFileCatalogAdministrationService.new(path_resolver, catalog)
+		GDSQLConfigFileCatalogAdministrationService.new(path_resolver, catalog, cache)
 	var transactions := GDSQLTransactionManager.new(storage)
 	var expression_evaluator := GDSQLExpressionEvaluator.new()
 	var function_registry := GDSQLQueryFunctionRegistry.new()

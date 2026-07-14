@@ -143,6 +143,7 @@ classDef future fill:#FFFFFF,stroke:#94A3B8,stroke-width:2px,stroke-dasharray:6 
         DatabaseDefinition["DatabaseDefinition"]
         TableDefinition["TableDefinition"]
         ColumnDefinition["ColumnDefinition"]
+        TableAlteration["TableAlteration"]
         IndexDefinition["IndexDefinition"]
     end
 
@@ -370,6 +371,7 @@ classDef future fill:#FFFFFF,stroke:#94A3B8,stroke-width:2px,stroke-dasharray:6 
     Database --> DatabaseResult
     OperationResult --> DiagnosticsCollection
     OperationResult --> QueryResult
+    CatalogAdministrationService --> TableAlteration
 
 %% SQL translation: edges 0–13
 linkStyle 0,1,2,3,4,5,6,7,8,9,10,11,12,13 stroke:#8B5CF6,stroke-width:2.5px;
@@ -431,6 +433,9 @@ linkStyle 140,141 stroke:#475569,stroke-width:2px;
 %% Composed diagnostics and query result inheritance: edges 142–143
 linkStyle 142,143 stroke:#475569,stroke-width:2px;
 
+%% Typed table alteration: edge 144
+linkStyle 144 stroke:#0284C7,stroke-width:2px;
+
 
 %% Frontends
 class SQLInput,FluentAPI,GraphInput frontend;
@@ -469,7 +474,7 @@ class TransactionManager,QueryExecutionResult execution;
 %% Catalog
 class CatalogService,ConfigFileCatalogService,CatalogSnapshot catalog;
 class CatalogAdministrationService,ConfigFileCatalogAdministrationService catalog;
-class DatabaseDefinition,TableDefinition,ColumnDefinition,IndexDefinition catalog;
+class DatabaseDefinition,TableDefinition,ColumnDefinition,TableAlteration,IndexDefinition catalog;
 
 %% Storage
 class TableStorage,ConfigFileTableStorage storage;
