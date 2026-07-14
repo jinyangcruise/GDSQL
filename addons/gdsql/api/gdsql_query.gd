@@ -9,7 +9,7 @@ func _init(database_name: StringName = &"") -> void:
 
 
 func select() -> GDSQLSelectQueryBuilder:
-	return GDSQLSelectQueryBuilder.new()
+	return GDSQLSelectQueryBuilder.new(_database_name)
 
 
 func insert() -> GDSQLInsertQueryBuilder:

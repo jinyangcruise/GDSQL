@@ -23,3 +23,7 @@ func get_diagnostics() -> Array[GDSQLQueryDiagnostic]:
 
 func get_affected_rows() -> int:
 	return int(statistics.get("affected_rows", 0))
+
+
+func get_returned_rows() -> int:
+	return int(statistics.get("returned_rows", rows.size()))

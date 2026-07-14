@@ -27,7 +27,7 @@ state in the same change as implementation or test work.
 | `Database` | Public API | Main user-facing entry point for opening a database, building queries, and executing canonical query specs. | `open()`, `query()`, `execute()`, `insert()`, `execute_sql()` | 🚧 |
 | `DatabaseContext` | Runtime facade | Coordinates validation, binding, planning, execution, and result materialization. | `execute(query)`, `prepare(query)` | 🚧 |
 | `Query` | Fluent API | User-facing fluent query entry point that creates operation-specific builders. | `select()`, `insert()`, `update()`, `delete()` | 🚧 |
-| `SelectQueryBuilder` | Fluent API | Builds a `SelectQuerySpec` through a controlled fluent interface. | `from_table()`, `where()`, `join()`, `order_by()`, `limit()`, `build()` | 🚧 |
+| `SelectQueryBuilder` | Fluent API | Builds a `SelectQuerySpec` through a controlled fluent interface. | `from_table()`, `columns()`, `where()`, `join()`, `order_by()`, `limit()`, `offset()`, `build()` | 🚧 |
 | `InsertQueryBuilder` | Fluent API | Builds an `InsertQuerySpec` from one or more named rows. | `into_table()`, `values()`, `build()` | 🛠️ |
 | `QueryGraph` | Graph frontend | Frontend-owned representation of query nodes and their connections. | `get_nodes()`, `get_connections()`, `validate_structure()` | 🚧 |
 | `GraphQueryCompiler` | Graph frontend | Converts a valid `QueryGraph` into a canonical `QuerySpec`. | `compile(graph)` | 🚧 |
@@ -37,20 +37,20 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `QuerySpec` | Query model | Abstract base for canonical database-operation descriptions. | `accept(visitor)` | 🚧 |
-| `SelectQuerySpec` | Query model | Describes a read operation, including sources, projections, predicates, joins, grouping, ordering, and limits. | `accept(visitor)` | 🚧 |
+| `SelectQuerySpec` | Query model | Describes a read operation, including sources, projections, predicates, joins, grouping, ordering, and limits. | `accept(visitor)` | 🛠️ |
 | `InsertQuerySpec` | Query model | Describes rows to insert into a target table. | `accept(visitor)` | 🛠️ |
 | `UpdateQuerySpec` | Query model | Describes assignments and selection criteria for an update operation. | `accept(visitor)` | 🚧 |
 | `DeleteQuerySpec` | Query model | Describes the target and selection criteria for a delete operation. | `accept(visitor)` | 🚧 |
 | `QuerySpecVisitor` | Query model | Defines type-specific operations over concrete `QuerySpec` classes. | `visit_select()`, `visit_insert()`, `visit_update()`, `visit_delete()` | 🚧 |
 | `QuerySource` | Query model | Abstract representation of a source from which rows can be read. | Source-specific accessors | 🚧 |
-| `TableReference` | Query model | Identifies a database table and optional alias without loading it. | `get_database_name()`, `get_table_name()`, `get_alias()` | 🚧 |
+| `TableReference` | Query model | Identifies a database table and optional alias without loading it. | `get_database_name()`, `get_table_name()`, `get_alias()` | 🛠️ |
 | `JoinSpec` | Query model | Describes a join type, source, and condition. | `get_type()`, `get_source()`, `get_condition()` | 🚧 |
 | `InsertRow` | Query model | Represents one ordered or named row of values for insertion. | `get_values()` | 🛠️ |
 | `ColumnAssignment` | Query model | Associates a target column with an expression used during update. | `get_column()`, `get_expression()` | 🚧 |
 | `OrderClause` | Query model | Associates an expression with a sort direction and optional null-ordering rule. | `get_expression()`, `get_direction()` | 🚧 |
 | `SortDirection` | Query model | Enumerates ascending and descending ordering. | `ASCENDING`, `DESCENDING` | 🚧 |
-| `ComparisonOperator` | Expression model | Enumerates comparison operations. | `EQUAL`, `NOT_EQUAL`, `GREATER_THAN`, `LESS_THAN`, and related values | 🚧 |
-| `LogicalOperator` | Expression model | Enumerates logical composition operations. | `AND`, `OR`, `NOT` | 🚧 |
+| `ComparisonOperator` | Expression model | Enumerates comparison operations. | `EQUAL`, `NOT_EQUAL`, `GREATER_THAN`, `LESS_THAN`, and related values | 🛠️ |
+| `LogicalOperator` | Expression model | Enumerates logical composition operations. | `AND`, `OR`, `NOT` | 🛠️ |
 
 ## Expression model
 
@@ -58,10 +58,10 @@ state in the same change as implementation or test work.
 |---|---|---|---|---|
 | `QueryExpression` | Expression model | Abstract base for canonical expressions used throughout queries. | `accept(visitor)` | 🚧 |
 | `ExpressionVisitor` | Expression model | Performs type-specific operations over raw and bound expression nodes. | `visit_column()`, `visit_bound_column()`, `visit_literal()`, `visit_comparison()`, `visit_logical()` | 🚧 |
-| `ColumnExpression` | Expression model | Refers to a column by name and optional source alias. | `accept(visitor)` | 🚧 |
-| `LiteralExpression` | Expression model | Holds a literal Godot `Variant` value. | `accept(visitor)` | 🚧 |
-| `ComparisonExpression` | Expression model | Compares two expressions through a `ComparisonOperator`. | `accept(visitor)` | 🚧 |
-| `LogicalExpression` | Expression model | Combines expressions through logical operators. | `accept(visitor)` | 🚧 |
+| `ColumnExpression` | Expression model | Refers to a column by name and optional source alias. | `accept(visitor)` | 🛠️ |
+| `LiteralExpression` | Expression model | Holds a literal Godot `Variant` value. | `accept(visitor)` | 🛠️ |
+| `ComparisonExpression` | Expression model | Compares two expressions through a `ComparisonOperator`. | `accept(visitor)` | 🛠️ |
+| `LogicalExpression` | Expression model | Combines expressions through logical operators. | `accept(visitor)` | 🛠️ |
 | `FunctionExpression` | Expression model | Describes a scalar or aggregate function invocation. | `get_name()`, `get_arguments()`, `accept(visitor)` | 🚧 |
 
 ## SQL lexical model
@@ -116,7 +116,7 @@ state in the same change as implementation or test work.
 | `BoundSelectQuery` | Binding | Bound representation of a select operation. | Access to resolved sources, expressions, and output schema | 🚧 |
 | `BoundInsertQuery` | Binding | Bound insert operation containing a resolved target table and validated rows. | Access to target and rows | 🛠️ |
 | `BoundQueryOperation` | Binding | Abstract base for resolved query operations. | Operation-specific accessors | 🚧 |
-| `BoundColumnExpression` | Binding | Column expression resolved to stable table and column identifiers and a data type. | `get_table_id()`, `get_column_id()`, `get_data_type()` | 🚧 |
+| `BoundColumnExpression` | Binding | Column expression resolved to stable table and column identifiers and a data type. | `get_table_id()`, `get_column_id()`, `get_data_type()` | 🛠️ |
 | `TableId` | Identifiers | Stable identifier for a catalog table. | Equality and string representation | 🚧 |
 | `ColumnId` | Identifiers | Stable identifier for a catalog column. | Equality and string representation | 🚧 |
 
@@ -129,13 +129,13 @@ state in the same change as implementation or test work.
 | `QueryPlan` | Planning | Owns the root executable plan node and associated metadata. | `get_root()` | 🚧 |
 | `PlanNode` | Planning | Abstract base for executable relational operations. | `accept(visitor)` | 🚧 |
 | `PlanNodeVisitor` | Planning | Performs operations over concrete plan node types. | `visit_table_scan()`, `visit_filter()`, `visit_sort()`, and related methods | 🚧 |
-| `TableScanPlan` | Planning | Reads all rows available from a table source. | `accept(visitor)` | 🚧 |
-| `PrimaryKeyLookupPlan` | Planning | Retrieves a row through a primary-key lookup. | `accept(visitor)` | 🚧 |
-| `FilterPlan` | Planning | Filters rows from its input according to a predicate. | `accept(visitor)` | 🚧 |
-| `ProjectionPlan` | Planning | Produces selected or calculated output columns. | `accept(visitor)` | 🚧 |
+| `TableScanPlan` | Planning | Reads all rows available from a table source. | `accept(visitor)` | 🛠️ |
+| `PrimaryKeyLookupPlan` | Planning | Retrieves a row through a primary-key lookup. | `accept(visitor)` | 🛠️ |
+| `FilterPlan` | Planning | Filters rows from its input according to a predicate. | `accept(visitor)` | 🛠️ |
+| `ProjectionPlan` | Planning | Produces selected or calculated output columns. | `accept(visitor)` | 🛠️ |
 | `AggregatePlan` | Planning | Groups rows and evaluates aggregate expressions. | `accept(visitor)` | 🚧 |
 | `SortPlan` | Planning | Orders rows from its input. | `accept(visitor)` | 🚧 |
-| `LimitPlan` | Planning | Applies offset and row-count limits. | `accept(visitor)` | 🚧 |
+| `LimitPlan` | Planning | Applies offset and row-count limits. | `accept(visitor)` | 🛠️ |
 | `InsertPlan` | Planning | Stages validated rows for insertion into one resolved table. | `accept(visitor)` | 🛠️ |
 | `ResultSchema` | Planning and results | Describes the columns and types produced by a query or plan node. | `get_columns()`, `get_column()` | 🚧 |
 
@@ -181,7 +181,7 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `RowSet` | Execution results | Internal collection of rows and their result schema. | `get_rows()`, `get_schema()` | 🚧 |
-| `QueryResult` | Public results | Stable public representation of query output and diagnostics. | `is_successful()`, `get_rows()`, `get_diagnostics()` | 🛠️ |
+| `QueryResult` | Public results | Stable public representation of query output and diagnostics. | `is_successful()`, `get_rows()`, `get_diagnostics()`, `get_affected_rows()`, `get_returned_rows()` | 🛠️ |
 | `ResultMapping` | Mapping | Describes how result columns map into an output representation. | Mapping accessors | 🚧 |
 | `ResultMaterializer` | Mapping | Abstract contract for converting a `RowSet` into a user-facing result. | `materialize(rows, mapping)` | 🚧 |
 | `DictionaryResultMaterializer` | Mapping | Converts rows into dictionaries. | `materialize()` | 🚧 |

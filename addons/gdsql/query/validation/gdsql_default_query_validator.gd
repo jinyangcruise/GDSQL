@@ -11,7 +11,114 @@ func _init(p_catalog: GDSQLCatalogService = null) -> void:
 func validate(query: GDSQLQuerySpec) -> GDSQLQueryValidationResult:
 	if query is GDSQLInsertQuerySpec:
 		return _validate_insert(query as GDSQLInsertQuerySpec)
+	if query is GDSQLSelectQuerySpec:
+		return _validate_select(query as GDSQLSelectQuerySpec)
 	return _error(&"GDSQL_VALIDATION_OPERATION_UNSUPPORTED", "Missing implementation")
+
+
+func _validate_select(query: GDSQLSelectQuerySpec) -> GDSQLQueryValidationResult:
+	if not query.source is GDSQLTableReference:
+		return _error(&"GDSQL_VALIDATION_SELECT_SOURCE_REQUIRED", "Select query requires one table source.")
+	var source := query.source as GDSQLTableReference
+	var table := catalog.get_table(source.database_name, source.table_name)
+	if table == null:
+		return _error(
+			&"GDSQL_VALIDATION_UNKNOWN_TABLE",
+			"Unknown table '%s.%s'." % [source.database_name, source.table_name],
+		)
+	if query.limit < -1 or query.offset < 0:
+		return _error(&"GDSQL_VALIDATION_INVALID_LIMIT", "Limit must be -1 or greater and offset cannot be negative.")
+	if not query.joins.is_empty() or not query.grouping.is_empty() or query.having != null or not query.ordering.is_empty():
+		return _error(
+			&"GDSQL_VALIDATION_SELECT_FEATURE_UNSUPPORTED",
+			"Joins, grouping, having, and ordering are not implemented in the minimal select slice.",
+		)
+	var result := GDSQLQueryValidationResult.new()
+	var bound_select := GDSQLBoundSelectQuery.new()
+	bound_select.source = table
+	bound_select.limit = query.limit
+	bound_select.offset = query.offset
+	for projection in query.projections:
+		var bound_projection := _bind_expression(projection, table, source.alias, result)
+		if bound_projection == null:
+			return result
+		bound_select.projections.append(bound_projection)
+	if query.predicate != null:
+		bound_select.predicate = _bind_expression(query.predicate, table, source.alias, result)
+		if bound_select.predicate == null:
+			return result
+	var bound_query := GDSQLBoundQuery.new()
+	bound_query.source_query = query
+	bound_query.root_operation = bound_select
+	bound_query.referenced_tables.append(table)
+	bound_query.output_schema = GDSQLResultSchema.new()
+	if bound_select.projections.is_empty():
+		bound_query.output_schema.columns = table.columns.duplicate()
+	else:
+		for projection in bound_select.projections:
+			if projection is GDSQLBoundColumnExpression:
+				bound_query.output_schema.columns.append(table.get_column((projection as GDSQLBoundColumnExpression).column_id.column_name))
+	result.bound_query = bound_query
+	result.value = bound_query
+	return result
+
+
+func _bind_expression(
+		expression: GDSQLQueryExpression,
+		table: GDSQLTableDefinition,
+		source_alias: StringName,
+		result: GDSQLQueryValidationResult,
+) -> GDSQLQueryExpression:
+	if expression is GDSQLLiteralExpression:
+		return expression
+	if expression is GDSQLColumnExpression:
+		var column_expression := expression as GDSQLColumnExpression
+		if column_expression.table_alias != &"" and column_expression.table_alias != source_alias and column_expression.table_alias != table.name:
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_VALIDATION_UNKNOWN_ALIAS",
+					"Unknown table alias '%s'." % column_expression.table_alias,
+				),
+			)
+			return null
+		var column := table.get_column(column_expression.column_name)
+		if column == null:
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_VALIDATION_UNKNOWN_COLUMN",
+					"Unknown column '%s' in table '%s'." % [column_expression.column_name, table.name],
+				),
+			)
+			return null
+		var table_id := GDSQLTableId.new(table.database_name, table.name)
+		var bound_column := GDSQLBoundColumnExpression.new()
+		bound_column.table_id = table_id
+		bound_column.column_id = GDSQLColumnId.new(table_id, column.name)
+		bound_column.data_type = column.data_type
+		return bound_column
+	if expression is GDSQLComparisonExpression:
+		var comparison := expression as GDSQLComparisonExpression
+		var left := _bind_expression(comparison.left, table, source_alias, result)
+		var right := _bind_expression(comparison.right, table, source_alias, result)
+		if left == null or right == null:
+			return null
+		return GDSQLComparisonExpression.new(left, comparison.operator, right)
+	if expression is GDSQLLogicalExpression:
+		var logical := expression as GDSQLLogicalExpression
+		var left := _bind_expression(logical.left, table, source_alias, result)
+		var right: GDSQLQueryExpression
+		if logical.right != null:
+			right = _bind_expression(logical.right, table, source_alias, result)
+		if left == null or (logical.right != null and right == null):
+			return null
+		return GDSQLLogicalExpression.new(left, logical.operator, right)
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_VALIDATION_EXPRESSION_UNSUPPORTED",
+			"Expression type '%s' is not implemented in the minimal select slice." % expression.get_class(),
+		),
+	)
+	return null
 
 
 func _validate_insert(query: GDSQLInsertQuerySpec) -> GDSQLQueryValidationResult:

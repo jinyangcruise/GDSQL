@@ -8,5 +8,15 @@ var operator: ComparisonOperator
 var right: GDSQLQueryExpression
 
 
+func _init(
+		p_left: GDSQLQueryExpression = null,
+		p_operator: ComparisonOperator = ComparisonOperator.EQUAL,
+		p_right: GDSQLQueryExpression = null,
+) -> void:
+	left = p_left
+	operator = p_operator
+	right = p_right
+
+
 func accept(visitor: GDSQLExpressionVisitor) -> Variant:
 	return visitor.visit_comparison(self)
