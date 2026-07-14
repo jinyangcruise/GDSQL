@@ -911,6 +911,13 @@ The executor may:
 
 The executor operates on plans and runtime services. SQL syntax, graph nodes, editor controls, and physical file paths remain outside its responsibilities.
 
+The initial mutation slice supports single-table `INSERT`, `UPDATE`, and
+`DELETE`. Update assignments and mutation predicates are validated and bound
+before planning. Execution reads matching rows, stages changes through
+`TableStorage`, and commits once per query. Mutation results report affected
+row counts and include the inserted, updated, or deleted rows. Updating a
+primary key is intentionally rejected by the initial implementation.
+
 ---
 
 ## 12. Storage boundary
@@ -1383,6 +1390,10 @@ addons/gdsql/
 │   ├── database_result.gd
 │   ├── database_context.gd
 │   ├── query.gd
+│   ├── select_query_builder.gd
+│   ├── insert_query_builder.gd
+│   ├── update_query_builder.gd
+│   ├── delete_query_builder.gd
 │   └── query_result.gd
 │
 ├── query/
@@ -1407,12 +1418,16 @@ addons/gdsql/
 │   │
 │   ├── binding/
 │   │   ├── bound_query.gd
+│   │   ├── bound_select_query.gd
+│   │   ├── bound_insert_query.gd
+│   │   ├── bound_update_query.gd
+│   │   ├── bound_delete_query.gd
 │   │   └── bound_expression.gd
 │   │
 │   ├── planning/
 │   │   ├── query_planner.gd
 │   │   ├── query_plan.gd
-│   │   └── nodes/
+│   │   └── nodes/              # Includes insert, update, and delete plans
 │   │
 │   └── execution/
 │       ├── query_executor.gd

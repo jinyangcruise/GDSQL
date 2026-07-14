@@ -69,21 +69,40 @@ func stage_insert(
 
 
 func stage_update(table: GDSQLTableDefinition, key: Variant, row: GDSQLRowRecord, session: GDSQLStorageSession) -> GDSQLStorageOperationResult:
-	return _unsupported(&"update")
+	var result := GDSQLStorageOperationResult.new()
+	if find_by_primary_key(table, key, session) == null:
+		return _missing_row_result(table, key, &"update")
+	if not row.has_column(table.primary_key) or row.get_value(table.primary_key) != key:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_STORAGE_PRIMARY_KEY_UPDATE_FORBIDDEN",
+				"An update cannot remove or change the table primary key.",
+			),
+		)
+		return result
+	session.operations.append(
+		{ "type": &"update", "table": table, "key": key, "row": row.duplicate_record() },
+	)
+	session.dirty = true
+	result.value = row
+	return result
 
 
 func stage_delete(table: GDSQLTableDefinition, key: Variant, session: GDSQLStorageSession) -> GDSQLStorageOperationResult:
-	return _unsupported(&"delete")
+	if find_by_primary_key(table, key, session) == null:
+		return _missing_row_result(table, key, &"delete")
+	var result := GDSQLStorageOperationResult.new()
+	session.operations.append({ "type": &"delete", "table": table, "key": key })
+	session.dirty = true
+	result.value = true
+	return result
 
 
 func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 	var result := GDSQLStorageCommitResult.new()
 	var touched_paths: Dictionary = { }
 	for operation in session.operations:
-		if operation["type"] != &"insert":
-			continue
 		var table := operation["table"] as GDSQLTableDefinition
-		var row := operation["row"] as GDSQLRowRecord
 		var path := path_resolver.resolve_table_path(table.database_name, table.name)
 		var directory_error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path.get_base_dir()))
 		if directory_error != OK:
@@ -91,9 +110,16 @@ func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 		var config := config_cache.get_or_load(path)
 		if config == null:
 			return _commit_error(&"GDSQL_STORAGE_TABLE_UNREADABLE", "Could not load table file: %s" % path)
-		var section := str(row.get_value(table.primary_key))
-		for column: Variant in row.values.keys():
-			config.set_value(section, String(column), codec.encode(row.values[column]))
+		var operation_type := operation["type"] as StringName
+		if operation_type == &"delete":
+			config.erase_section(str(operation["key"]))
+		else:
+			var row := operation["row"] as GDSQLRowRecord
+			var section := str(row.get_value(table.primary_key))
+			if operation_type == &"update":
+				config.erase_section(section)
+			for column: Variant in row.values.keys():
+				config.set_value(section, String(column), codec.encode(row.values[column]))
 		touched_paths[path] = true
 	for path: String in touched_paths:
 		var save_error := config_cache.flush(path)
@@ -117,12 +143,16 @@ func _has_staged_key(session: GDSQLStorageSession, table: GDSQLTableDefinition, 
 	return false
 
 
-func _unsupported(operation: StringName) -> GDSQLStorageOperationResult:
+func _missing_row_result(
+		table: GDSQLTableDefinition,
+		key: Variant,
+		operation: StringName,
+) -> GDSQLStorageOperationResult:
 	var result := GDSQLStorageOperationResult.new()
 	result.add_diagnostic(
 		GDSQLQueryDiagnostic.new(
-			&"GDSQL_STORAGE_OPERATION_UNSUPPORTED",
-			"Storage operation '%s' is not implemented yet." % operation,
+			&"GDSQL_STORAGE_ROW_NOT_FOUND",
+			"Cannot %s missing primary key '%s' in %s.%s." % [operation, key, table.database_name, table.name],
 		),
 	)
 	return result

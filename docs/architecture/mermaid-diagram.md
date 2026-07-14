@@ -50,6 +50,8 @@ classDef future fill:#FFFFFF,stroke:#94A3B8,stroke-width:2px,stroke-dasharray:6 
         Query["Query"]
         SelectQueryBuilder["SelectQueryBuilder"]
         InsertQueryBuilder["InsertQueryBuilder"]
+        UpdateQueryBuilder["UpdateQueryBuilder"]
+        DeleteQueryBuilder["DeleteQueryBuilder"]
     end
 
     subgraph Graph["Graph Translation"]
@@ -98,6 +100,8 @@ classDef future fill:#FFFFFF,stroke:#94A3B8,stroke-width:2px,stroke-dasharray:6 
         BoundQuery["BoundQuery"]
         BoundSelectQuery["BoundSelectQuery"]
         BoundInsertQuery["BoundInsertQuery"]
+        BoundUpdateQuery["BoundUpdateQuery"]
+        BoundDeleteQuery["BoundDeleteQuery"]
         BoundQueryOperation["BoundQueryOperation"]
         BoundColumnExpression["BoundColumnExpression"]
 
@@ -120,6 +124,8 @@ classDef future fill:#FFFFFF,stroke:#94A3B8,stroke-width:2px,stroke-dasharray:6 
         SortPlan["SortPlan"]
         LimitPlan["LimitPlan"]
         InsertPlan["InsertPlan"]
+        UpdatePlan["UpdatePlan"]
+        DeletePlan["DeletePlan"]
     end
 
     subgraph Execution["Query Execution"]
@@ -372,6 +378,14 @@ classDef future fill:#FFFFFF,stroke:#94A3B8,stroke-width:2px,stroke-dasharray:6 
     OperationResult --> DiagnosticsCollection
     OperationResult --> QueryResult
     CatalogAdministrationService --> TableAlteration
+    Query --> UpdateQueryBuilder
+    UpdateQueryBuilder --> UpdateQuerySpec
+    Query --> DeleteQueryBuilder
+    DeleteQueryBuilder --> DeleteQuerySpec
+    BoundQueryOperation --> BoundUpdateQuery
+    BoundQueryOperation --> BoundDeleteQuery
+    PlanNode --> UpdatePlan
+    PlanNode --> DeletePlan
 
 %% SQL translation: edges 0–13
 linkStyle 0,1,2,3,4,5,6,7,8,9,10,11,12,13 stroke:#8B5CF6,stroke-width:2.5px;
@@ -436,6 +450,13 @@ linkStyle 142,143 stroke:#475569,stroke-width:2px;
 %% Typed table alteration: edge 144
 linkStyle 144 stroke:#0284C7,stroke-width:2px;
 
+%% Fluent update/delete: edges 145–148
+linkStyle 145,146,147,148 stroke:#3B82F6,stroke-width:2.5px;
+
+%% Mutation binding and planning: edges 149–152
+linkStyle 149,150 stroke:#DB2777,stroke-width:2.5px;
+linkStyle 151,152 stroke:#EA580C,stroke-width:2.5px;
+
 
 %% Frontends
 class SQLInput,FluentAPI,GraphInput frontend;
@@ -446,7 +467,7 @@ class SqlLexer,SqlToken,TokenizationResult translation;
 class SqlParser,SqlParseResult,SqlStatement,SqlSelectStatement translation;
 class SqlColumnNode,SqlTableNode,SqlBinaryExpressionNode,SqlLiteralNode translation;
 class SqlQueryCompiler,QueryCompilationResult translation;
-class Query,SelectQueryBuilder,InsertQueryBuilder,QueryGraph,GraphQueryCompiler translation;
+class Query,SelectQueryBuilder,InsertQueryBuilder,UpdateQueryBuilder,DeleteQueryBuilder,QueryGraph,GraphQueryCompiler translation;
 
 %% Canonical query and expression models
 class QuerySpec,SelectQuerySpec,InsertQuerySpec,UpdateQuerySpec,DeleteQuerySpec canonical;
@@ -458,13 +479,13 @@ class ComparisonOperator,LogicalOperator canonical;
 
 %% Validation and binding
 class QueryValidator,DefaultQueryValidator,QueryValidationResult validation;
-class BoundQuery,BoundSelectQuery,BoundInsertQuery,BoundQueryOperation validation;
+class BoundQuery,BoundSelectQuery,BoundInsertQuery,BoundUpdateQuery,BoundDeleteQuery,BoundQueryOperation validation;
 class BoundColumnExpression,TableId,ColumnId validation;
 
 %% Planning
 class QueryPlanner,QueryPlanningResult,QueryPlan planning;
 class PlanNode,PlanNodeVisitor,TableScanPlan,PrimaryKeyLookupPlan planning;
-class FilterPlan,ProjectionPlan,AggregatePlan,SortPlan,LimitPlan,InsertPlan planning;
+class FilterPlan,ProjectionPlan,AggregatePlan,SortPlan,LimitPlan,InsertPlan,UpdatePlan,DeletePlan planning;
 
 %% Execution
 class QueryExecutor,DefaultQueryExecutor,ExecutionContext execution;

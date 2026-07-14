@@ -11,8 +11,13 @@ var _limit: int = -1
 var _offset: int = 0
 
 
-func _init(database_name: StringName = &"") -> void:
+func _init(
+		database_name: StringName = &"",
+		table_name: StringName = &"",
+) -> void:
 	_database_name = database_name
+	if table_name != &"":
+		_source = GDSQLTableReference.new(table_name, _database_name)
 
 
 func from_table(table_name: StringName, alias: StringName = &"") -> GDSQLSelectQueryBuilder:

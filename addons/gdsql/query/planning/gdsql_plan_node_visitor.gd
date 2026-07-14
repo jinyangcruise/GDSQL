@@ -31,3 +31,11 @@ func visit_limit(node: GDSQLLimitPlan) -> Variant:
 
 func visit_insert(node: GDSQLInsertPlan) -> Variant:
 	return null
+
+
+func visit_update(node: GDSQLUpdatePlan) -> Variant:
+	return null
+
+
+func visit_delete(node: GDSQLDeletePlan) -> Variant:
+	return null

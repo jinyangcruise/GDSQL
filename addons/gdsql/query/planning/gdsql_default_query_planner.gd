@@ -15,6 +15,10 @@ func create_plan(query: GDSQLBoundQuery) -> GDSQLQueryPlanningResult:
 		return _plan_insert(query.root_operation as GDSQLBoundInsertQuery)
 	if query.root_operation is GDSQLBoundSelectQuery:
 		return _plan_select(query.root_operation as GDSQLBoundSelectQuery, query.output_schema)
+	if query.root_operation is GDSQLBoundUpdateQuery:
+		return _plan_update(query.root_operation as GDSQLBoundUpdateQuery)
+	if query.root_operation is GDSQLBoundDeleteQuery:
+		return _plan_delete(query.root_operation as GDSQLBoundDeleteQuery)
 	result.add_diagnostic(
 		GDSQLQueryDiagnostic.new(
 			&"GDSQL_PLANNING_OPERATION_UNSUPPORTED",
@@ -30,6 +34,27 @@ func _plan_insert(bound_insert: GDSQLBoundInsertQuery) -> GDSQLQueryPlanningResu
 	insert_plan.target = bound_insert.target
 	insert_plan.rows = bound_insert.rows.duplicate()
 	result.plan = GDSQLQueryPlan.new(insert_plan)
+	result.value = result.plan
+	return result
+
+
+func _plan_update(bound_update: GDSQLBoundUpdateQuery) -> GDSQLQueryPlanningResult:
+	var result := GDSQLQueryPlanningResult.new()
+	var update_plan := GDSQLUpdatePlan.new()
+	update_plan.target = bound_update.target
+	update_plan.assignments = bound_update.assignments.duplicate()
+	update_plan.predicate = bound_update.predicate
+	result.plan = GDSQLQueryPlan.new(update_plan)
+	result.value = result.plan
+	return result
+
+
+func _plan_delete(bound_delete: GDSQLBoundDeleteQuery) -> GDSQLQueryPlanningResult:
+	var result := GDSQLQueryPlanningResult.new()
+	var delete_plan := GDSQLDeletePlan.new()
+	delete_plan.target = bound_delete.target
+	delete_plan.predicate = bound_delete.predicate
+	result.plan = GDSQLQueryPlan.new(delete_plan)
 	result.value = result.plan
 	return result
 

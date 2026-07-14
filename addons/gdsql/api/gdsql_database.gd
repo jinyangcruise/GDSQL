@@ -49,7 +49,7 @@ func query() -> GDSQLQuery:
 
 
 func table(table_name: StringName) -> GDSQLQuery:
-	return query()
+	return query().table(table_name)
 
 
 func execute(query_spec: GDSQLQuerySpec) -> GDSQLQueryResult:

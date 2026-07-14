@@ -8,8 +8,12 @@ var _rows: Array[GDSQLInsertRow] = []
 var _built: bool = false
 
 
-func _init(database_name: StringName = &"") -> void:
+func _init(
+		database_name: StringName = &"",
+		table_name: StringName = &"",
+) -> void:
 	_database_name = database_name
+	_table_name = table_name
 
 
 func into_table(table_name: StringName) -> GDSQLInsertQueryBuilder:

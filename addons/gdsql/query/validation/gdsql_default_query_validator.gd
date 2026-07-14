@@ -13,6 +13,10 @@ func validate(query: GDSQLQuerySpec) -> GDSQLQueryValidationResult:
 		return _validate_insert(query as GDSQLInsertQuerySpec)
 	if query is GDSQLSelectQuerySpec:
 		return _validate_select(query as GDSQLSelectQuerySpec)
+	if query is GDSQLUpdateQuerySpec:
+		return _validate_update(query as GDSQLUpdateQuerySpec)
+	if query is GDSQLDeleteQuerySpec:
+		return _validate_delete(query as GDSQLDeleteQuerySpec)
 	return _error(&"GDSQL_VALIDATION_OPERATION_UNSUPPORTED", "Missing implementation")
 
 
@@ -170,6 +174,98 @@ func _validate_insert(query: GDSQLInsertQuerySpec) -> GDSQLQueryValidationResult
 	result.bound_query = bound_query
 	result.value = bound_query
 	return result
+
+
+func _validate_update(query: GDSQLUpdateQuerySpec) -> GDSQLQueryValidationResult:
+	if query.target == null:
+		return _error(&"GDSQL_VALIDATION_UPDATE_TARGET_REQUIRED", "Update query requires a target table.")
+	var table := catalog.get_table(query.target.database_name, query.target.table_name)
+	if table == null:
+		return _error(
+			&"GDSQL_VALIDATION_UNKNOWN_TABLE",
+			"Unknown table '%s.%s'." % [query.target.database_name, query.target.table_name],
+		)
+	if query.assignments.is_empty():
+		return _error(&"GDSQL_VALIDATION_UPDATE_ASSIGNMENTS_REQUIRED", "Update query requires at least one assignment.")
+	var result := GDSQLQueryValidationResult.new()
+	var bound_operation := GDSQLBoundUpdateQuery.new()
+	bound_operation.target = table
+	var seen_columns: Dictionary = { }
+	for assignment in query.assignments:
+		if assignment == null or assignment.column == &"" or assignment.expression == null:
+			return _error(&"GDSQL_VALIDATION_INVALID_ASSIGNMENT", "Update assignments require a column and expression.")
+		if seen_columns.has(assignment.column):
+			return _error(&"GDSQL_VALIDATION_DUPLICATE_COLUMN", "Column '%s' is assigned more than once." % assignment.column)
+		seen_columns[assignment.column] = true
+		var column := table.get_column(assignment.column)
+		if column == null:
+			return _error(&"GDSQL_VALIDATION_UNKNOWN_COLUMN", "Unknown column '%s' in table '%s'." % [assignment.column, table.name])
+		if assignment.column == table.primary_key:
+			return _error(&"GDSQL_VALIDATION_PRIMARY_KEY_UPDATE_FORBIDDEN", "Updating the primary key is not supported.")
+		var bound_expression := _bind_expression(assignment.expression, table, &"", result)
+		if bound_expression == null:
+			return result
+		if not _is_assignment_compatible(bound_expression, column):
+			return _error(
+				&"GDSQL_VALIDATION_TYPE_MISMATCH",
+				"Assignment for column '%s' has an incompatible type." % assignment.column,
+			)
+		bound_operation.assignments.append(GDSQLColumnAssignment.new(assignment.column, bound_expression))
+	if query.predicate != null:
+		bound_operation.predicate = _bind_expression(query.predicate, table, &"", result)
+		if bound_operation.predicate == null:
+			return result
+	return _bound_mutation_result(query, bound_operation, table)
+
+
+func _validate_delete(query: GDSQLDeleteQuerySpec) -> GDSQLQueryValidationResult:
+	if query.target == null:
+		return _error(&"GDSQL_VALIDATION_DELETE_TARGET_REQUIRED", "Delete query requires a target table.")
+	var table := catalog.get_table(query.target.database_name, query.target.table_name)
+	if table == null:
+		return _error(
+			&"GDSQL_VALIDATION_UNKNOWN_TABLE",
+			"Unknown table '%s.%s'." % [query.target.database_name, query.target.table_name],
+		)
+	var result := GDSQLQueryValidationResult.new()
+	var bound_operation := GDSQLBoundDeleteQuery.new()
+	bound_operation.target = table
+	if query.predicate != null:
+		bound_operation.predicate = _bind_expression(query.predicate, table, &"", result)
+		if bound_operation.predicate == null:
+			return result
+	return _bound_mutation_result(query, bound_operation, table)
+
+
+func _bound_mutation_result(
+		query: GDSQLQuerySpec,
+		operation: GDSQLBoundQueryOperation,
+		table: GDSQLTableDefinition,
+) -> GDSQLQueryValidationResult:
+	var bound_query := GDSQLBoundQuery.new()
+	bound_query.source_query = query
+	bound_query.root_operation = operation
+	bound_query.referenced_tables = [table]
+	var result := GDSQLQueryValidationResult.new()
+	result.bound_query = bound_query
+	result.value = bound_query
+	return result
+
+
+func _is_assignment_compatible(
+		expression: GDSQLQueryExpression,
+		column: GDSQLColumnDefinition,
+) -> bool:
+	if expression is GDSQLLiteralExpression:
+		return _is_compatible((expression as GDSQLLiteralExpression).value, column)
+	var expression_type := TYPE_NIL
+	if expression is GDSQLBoundColumnExpression:
+		expression_type = (expression as GDSQLBoundColumnExpression).data_type
+	elif expression is GDSQLComparisonExpression or expression is GDSQLLogicalExpression:
+		expression_type = TYPE_BOOL
+	if expression_type == TYPE_NIL or expression_type == column.data_type:
+		return true
+	return column.data_type == TYPE_FLOAT and expression_type == TYPE_INT
 
 
 func _is_compatible(value: Variant, column: GDSQLColumnDefinition) -> bool:
