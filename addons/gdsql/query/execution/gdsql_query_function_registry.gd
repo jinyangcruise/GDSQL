@@ -4,12 +4,12 @@ extends RefCounted
 const FunctionCatalog = preload("res://addons/gdsql/query/model/gdsql_query_function_catalog.gd")
 const FunctionDefinition = preload("res://addons/gdsql/query/model/gdsql_query_function_definition.gd")
 
-var _functions: Dictionary = { }
 var catalog: FunctionCatalog
+var _functions: Dictionary = { }
 
 
-func _init(p_catalog: FunctionCatalog = null) -> void:
-	catalog = p_catalog if p_catalog != null else FunctionCatalog.new()
+func _init(catalog: FunctionCatalog = null) -> void:
+	self.catalog = catalog if catalog != null else FunctionCatalog.new()
 	register_function(&"lower", _lower, 1, 1, TYPE_STRING)
 	register_function(&"upper", _upper, 1, 1, TYPE_STRING)
 	register_function(&"length", _length, 1, 1, TYPE_INT)

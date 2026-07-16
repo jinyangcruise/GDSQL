@@ -22,11 +22,20 @@ static func create_database(
 		table: GDSQLTableDefinition,
 		database_name: StringName = DEFAULT_DATABASE_NAME,
 ) -> GDSQLDatabase:
+	return create_database_with_tables(data_root, [table], database_name)
+
+
+static func create_database_with_tables(
+		data_root: String,
+		tables: Array[GDSQLTableDefinition],
+		database_name: StringName = DEFAULT_DATABASE_NAME,
+) -> GDSQLDatabase:
 	var database_result := GDSQLDatabase.create(database_name, data_root)
 	assert(database_result.is_successful(), "Test database creation failed.")
 	var database := database_result.get_database()
-	var table_result := database.create_table(table)
-	assert(table_result.is_successful(), "Test table creation failed.")
+	for table in tables:
+		var table_result := database.create_table(table)
+		assert(table_result.is_successful(), "Test table creation failed.")
 	return database
 
 

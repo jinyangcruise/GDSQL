@@ -67,7 +67,7 @@ QuerySpec("`**GDSQLQuerySpec**
 *Purpose:* Canonical and frontend-independent query description
 *API:* accept(visitor)
 *Parent of:* SelectQuerySpec, InsertQuerySpec, UpdateQuerySpec, DeleteQuerySpec
-*Contains:* SelectProjection, OrderClause, sources, expressions, rows and assignments`")
+*Contains:* Projections, joins, ordering, sources, expressions, rows and assignments`")
 
 Expression("`**GDSQLQueryExpression**
 
@@ -88,7 +88,7 @@ Context("`**GDSQLDatabaseContext**
 Validator("`**GDSQLQueryValidator**
 
 -
-*Purpose:* Validate query meaning and resolve catalog references
+*Purpose:* Validate query meaning and resolve single or multi-source catalog references
 *API:* validate(query)
 *Returns:* GDSQLQueryValidationResult containing GDSQLBoundQuery
 *Extended by:* GDSQLDefaultQueryValidator`")
@@ -114,7 +114,7 @@ PlanNode("`**GDSQLPlanNode**
 -
 *Purpose:* Represent one executable operation in a query plan
 *API:* accept(visitor)
-*Read nodes:* Scan, primary-key lookup, filter, sort, projection, distinct and limit
+*Read nodes:* Scan, primary-key lookup, nested-loop join, filter, sort, projection, distinct and limit
 *Mutation nodes:* Insert, update and delete`")
 
 Executor("`**GDSQLQueryExecutor**

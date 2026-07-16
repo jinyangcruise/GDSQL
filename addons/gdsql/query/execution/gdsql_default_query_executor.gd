@@ -65,7 +65,8 @@ func _execute_update(
 	var snapshot := context.storage.read_table(update_plan.target, session)
 	var updated_rows: Array[GDSQLRowRecord] = []
 	for source_row in snapshot.rows:
-		if update_plan.predicate != null and not bool(context.expression_evaluator.evaluate(update_plan.predicate, source_row)):
+		if update_plan.predicate != null \
+				and not _is_true(context.expression_evaluator.evaluate(update_plan.predicate, source_row)):
 			continue
 		var updated_row := source_row.duplicate_record()
 		for assignment in update_plan.assignments:
@@ -100,7 +101,8 @@ func _execute_delete(
 	var snapshot := context.storage.read_table(delete_plan.target, session)
 	var deleted_rows: Array[GDSQLRowRecord] = []
 	for row in snapshot.rows:
-		if delete_plan.predicate != null and not bool(context.expression_evaluator.evaluate(delete_plan.predicate, row)):
+		if delete_plan.predicate != null \
+				and not _is_true(context.expression_evaluator.evaluate(delete_plan.predicate, row)):
 			continue
 		var key: Variant = row.get_value(delete_plan.target.primary_key)
 		var stage_result := context.storage.stage_delete(delete_plan.target, key, session)
@@ -130,7 +132,15 @@ func _execute_select_node(
 		var snapshot := context.storage.read_table(scan.table, context.transactions.begin())
 		var rows := GDSQLRowSet.new()
 		rows.schema = node.output_schema
-		rows.rows = snapshot.rows.duplicate()
+		var table_id := _table_id(scan.table)
+		for stored_row in snapshot.rows:
+			var row := stored_row.duplicate_record()
+			row.set_source_values(
+				table_id,
+				stored_row.values,
+				scan.alias if scan.alias != &"" else scan.table.name,
+			)
+			rows.rows.append(row)
 		return rows
 	if node is GDSQLPrimaryKeyLookupPlan:
 		var lookup := node as GDSQLPrimaryKeyLookupPlan
@@ -139,15 +149,27 @@ func _execute_select_node(
 		var key: Variant = context.expression_evaluator.evaluate(lookup.key, null)
 		var row := context.storage.find_by_primary_key(lookup.table, key, context.transactions.begin())
 		if row != null:
-			rows.rows.append(row)
+			var qualified_row := row.duplicate_record()
+			qualified_row.set_source_values(
+				_table_id(lookup.table),
+				row.values,
+				lookup.table.name,
+			)
+			rows.rows.append(qualified_row)
 		return rows
+	if node is GDSQLNestedLoopJoinPlan:
+		return _execute_nested_loop_join(
+			node as GDSQLNestedLoopJoinPlan,
+			context,
+			result,
+		)
 	if node is GDSQLFilterPlan:
 		var filter := node as GDSQLFilterPlan
 		var input := _execute_select_node(filter.input, context, result)
 		var rows := GDSQLRowSet.new()
 		rows.schema = node.output_schema
 		for row in input.rows:
-			if bool(context.expression_evaluator.evaluate(filter.predicate, row)):
+			if _is_true(context.expression_evaluator.evaluate(filter.predicate, row)):
 				rows.rows.append(row)
 		return rows
 	if node is GDSQLProjectionPlan:
@@ -201,6 +223,57 @@ func _execute_select_node(
 		),
 	)
 	return GDSQLRowSet.new()
+
+
+func _execute_nested_loop_join(
+		join: GDSQLNestedLoopJoinPlan,
+		context: GDSQLExecutionContext,
+		result: GDSQLQueryExecutionResult,
+) -> GDSQLRowSet:
+	var left_rows := _execute_select_node(join.left, context, result)
+	var right_rows := _execute_select_node(join.right, context, result)
+	var rows := GDSQLRowSet.new()
+	rows.schema = join.output_schema
+	for left_row in left_rows.rows:
+		var matched := false
+		for right_row in right_rows.rows:
+			var combined := _combine_rows(left_row, right_row)
+			if _is_true(context.expression_evaluator.evaluate(join.condition, combined)):
+				rows.rows.append(combined)
+				matched = true
+		if not matched and join.type == GDSQLJoinSpec.JoinType.LEFT:
+			rows.rows.append(_combine_rows(left_row, _null_row(join.right_source)))
+	return rows
+
+
+func _combine_rows(left: GDSQLRowRecord, right: GDSQLRowRecord) -> GDSQLRowRecord:
+	var combined := left.duplicate_record()
+	for column in right.values:
+		if not combined.values.has(column):
+			combined.values[column] = right.values[column]
+	combined.merge_source_values(right)
+	return combined
+
+
+func _null_row(source: GDSQLBoundTableSource) -> GDSQLRowRecord:
+	var values: Dictionary = { }
+	for column in source.table.columns:
+		values[column.name] = null
+	var row := GDSQLRowRecord.new(values)
+	row.set_source_values(
+		_table_id(source.table),
+		values,
+		source.get_qualifier(),
+	)
+	return row
+
+
+func _table_id(table: GDSQLTableDefinition) -> GDSQLTableId:
+	return GDSQLTableId.new(table.database_name, table.name)
+
+
+func _is_true(value: Variant) -> bool:
+	return value is bool and value
 
 
 func _projection_name(projection: GDSQLSelectProjection, index: int) -> StringName:

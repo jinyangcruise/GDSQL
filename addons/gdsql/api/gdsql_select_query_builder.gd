@@ -5,6 +5,7 @@ var _built: bool = false
 var _database_name: StringName
 var _source: GDSQLQuerySource
 var _projections: Array[GDSQLSelectProjection] = []
+var _joins: Array[GDSQLJoinSpec] = []
 var _predicate: GDSQLQueryExpression
 var _ordering: Array[GDSQLOrderClause] = []
 var _limit: int = -1
@@ -61,7 +62,39 @@ func project(
 
 func join(join_spec: GDSQLJoinSpec) -> GDSQLSelectQueryBuilder:
 	_ensure_mutable()
+	_joins.append(join_spec)
 	return self
+
+
+func join_table(
+		table_name: StringName,
+		condition: GDSQLQueryExpression,
+		alias: StringName = &"",
+		type: GDSQLJoinSpec.JoinType = GDSQLJoinSpec.JoinType.INNER,
+) -> GDSQLSelectQueryBuilder:
+	return join(
+		GDSQLJoinSpec.new(
+			type,
+			GDSQLTableReference.new(table_name, _database_name, alias),
+			condition,
+		),
+	)
+
+
+func inner_join(
+		table_name: StringName,
+		condition: GDSQLQueryExpression,
+		alias: StringName = &"",
+) -> GDSQLSelectQueryBuilder:
+	return join_table(table_name, condition, alias, GDSQLJoinSpec.JoinType.INNER)
+
+
+func left_join(
+		table_name: StringName,
+		condition: GDSQLQueryExpression,
+		alias: StringName = &"",
+) -> GDSQLSelectQueryBuilder:
+	return join_table(table_name, condition, alias, GDSQLJoinSpec.JoinType.LEFT)
 
 
 func order_by(clause: GDSQLOrderClause) -> GDSQLSelectQueryBuilder:
@@ -103,6 +136,7 @@ func build() -> GDSQLSelectQuerySpec:
 	var spec := GDSQLSelectQuerySpec.new()
 	spec.source = _source
 	spec.projections = _projections.duplicate()
+	spec.joins = _joins.duplicate()
 	spec.predicate = _predicate
 	spec.ordering = _ordering.duplicate()
 	spec.limit = _limit

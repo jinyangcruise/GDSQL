@@ -1,7 +1,8 @@
 class_name GDSQLBoundSelectQuery
 extends GDSQLBoundQueryOperation
 
-var source: GDSQLTableDefinition
+var source: GDSQLBoundTableSource
+var joins: Array[GDSQLBoundJoin] = []
 var projections: Array[GDSQLSelectProjection] = []
 var predicate: GDSQLQueryExpression
 var ordering: Array[GDSQLOrderClause] = []

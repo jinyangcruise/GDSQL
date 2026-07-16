@@ -727,6 +727,17 @@ BoundColumnExpression
 └── data_type: TYPE_INT
 ```
 
+Multi-source binding resolves every table reference into a
+`BoundTableSource`, preserving its alias and whether an outer join can make its
+columns nullable. Join conditions are bound after the new source is added, so
+they may reference the new table and any source introduced before it.
+
+Unqualified columns are accepted only when exactly one visible source contains
+that name. A duplicate column name across sources produces an ambiguous-column
+diagnostic and requires qualification. Bound expressions use stable table IDs
+plus a source qualifier, allowing separate occurrences of the same table in a
+self-join to remain distinguishable during execution.
+
 ```gdscript
 class_name BoundQuery
 extends RefCounted
@@ -903,6 +914,17 @@ The selected plan may depend on:
 - Backend implementation.
 
 These decisions do not alter `QuerySpec`.
+
+The initial join planner emits deterministic `NestedLoopJoinPlan` nodes in the
+same order as the canonical join clauses. `INNER` and `LEFT` joins are
+executable. `RIGHT` and `FULL` remain represented by `JoinSpec`, but validation
+returns a structured unsupported diagnostic until the corresponding unmatched
+row propagation is implemented.
+
+Joined intermediate rows retain source-qualified values for bound expression
+evaluation. Explicit projections determine public output names. When a joined
+query omits projections, the binder expands all source columns using
+`qualifier.column` names to avoid collisions.
 
 ---
 

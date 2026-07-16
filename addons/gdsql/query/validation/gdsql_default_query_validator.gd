@@ -30,26 +30,75 @@ func validate(query: GDSQLQuerySpec) -> GDSQLQueryValidationResult:
 func _validate_select(query: GDSQLSelectQuerySpec) -> GDSQLQueryValidationResult:
 	if not query.source is GDSQLTableReference:
 		return _error(&"GDSQL_VALIDATION_SELECT_SOURCE_REQUIRED", "Select query requires one table source.")
-	var source := query.source as GDSQLTableReference
-	var table := catalog.get_table(source.database_name, source.table_name)
-	if table == null:
-		return _error(
-			&"GDSQL_VALIDATION_UNKNOWN_TABLE",
-			"Unknown table '%s.%s'." % [source.database_name, source.table_name],
-		)
 	if query.limit < -1 or query.offset < 0:
 		return _error(&"GDSQL_VALIDATION_INVALID_LIMIT", "Limit must be -1 or greater and offset cannot be negative.")
-	if not query.joins.is_empty() or not query.grouping.is_empty() or query.having != null:
+	if not query.grouping.is_empty() or query.having != null:
 		return _error(
 			&"GDSQL_VALIDATION_SELECT_FEATURE_UNSUPPORTED",
-			"Joins, grouping, and having are not implemented in the select pipeline.",
+			"Grouping and having are not implemented in the select pipeline.",
 		)
 	var result := GDSQLQueryValidationResult.new()
+	var source_reference := query.source as GDSQLTableReference
+	var source_table := catalog.get_table(
+		source_reference.database_name,
+		source_reference.table_name,
+	)
+	if source_table == null:
+		return _error(
+			&"GDSQL_VALIDATION_UNKNOWN_TABLE",
+			"Unknown table '%s.%s'." \
+				% [source_reference.database_name, source_reference.table_name],
+		)
+	var sources: Array[GDSQLBoundTableSource] = [
+		GDSQLBoundTableSource.new(source_table, source_reference.alias),
+	]
 	var bound_select := GDSQLBoundSelectQuery.new()
-	bound_select.source = table
+	bound_select.source = sources[0]
 	bound_select.limit = query.limit
 	bound_select.offset = query.offset
 	bound_select.distinct = query.distinct
+	for join in query.joins:
+		if join == null or not join.source is GDSQLTableReference or join.condition == null:
+			return _error(
+				&"GDSQL_VALIDATION_INVALID_JOIN",
+				"Join clauses require a table source and condition.",
+			)
+		if join.type == GDSQLJoinSpec.JoinType.RIGHT \
+				or join.type == GDSQLJoinSpec.JoinType.FULL:
+			return _error(
+				&"GDSQL_VALIDATION_JOIN_TYPE_UNSUPPORTED",
+				"RIGHT and FULL joins are scaffolded but not implemented.",
+			)
+		var join_reference := join.source as GDSQLTableReference
+		var database_name := join_reference.database_name
+		if database_name == &"":
+			database_name = source_table.database_name
+		var join_table := catalog.get_table(database_name, join_reference.table_name)
+		if join_table == null:
+			return _error(
+				&"GDSQL_VALIDATION_UNKNOWN_TABLE",
+				"Unknown table '%s.%s'." % [database_name, join_reference.table_name],
+			)
+		var bound_source := GDSQLBoundTableSource.new(
+			join_table,
+			join_reference.alias,
+			join.type == GDSQLJoinSpec.JoinType.LEFT,
+		)
+		if _has_source_qualifier(sources, bound_source.get_qualifier()):
+			return _error(
+				&"GDSQL_VALIDATION_DUPLICATE_ALIAS",
+				"Source qualifier '%s' appears more than once." % bound_source.get_qualifier(),
+			)
+		sources.append(bound_source)
+		var condition := _bind_expression(join.condition, sources, result)
+		if condition == null:
+			return result
+		if not _is_boolean_expression(condition):
+			return _error(
+				&"GDSQL_VALIDATION_JOIN_CONDITION_TYPE",
+				"Join conditions must produce a boolean value.",
+			)
+		bound_select.joins.append(GDSQLBoundJoin.new(join.type, bound_source, condition))
 	for projection_index in query.projections.size():
 		var projection := query.projections[projection_index]
 		if projection == null or projection.expression == null:
@@ -57,14 +106,30 @@ func _validate_select(query: GDSQLSelectQuerySpec) -> GDSQLQueryValidationResult
 				&"GDSQL_VALIDATION_INVALID_PROJECTION",
 				"Select projections require an expression.",
 			)
-		var bound_expression := _bind_expression(projection.expression, table, source.alias, result)
+		var bound_expression := _bind_expression(projection.expression, sources, result)
 		if bound_expression == null:
 			return result
 		bound_select.projections.append(
 			GDSQLSelectProjection.new(bound_expression, projection.alias),
 		)
+	if query.projections.is_empty() and not query.joins.is_empty():
+		for bound_source in sources:
+			for column in bound_source.table.columns:
+				var expression := GDSQLColumnExpression.new(
+					column.name,
+					bound_source.get_qualifier(),
+				)
+				var bound_expression := _bind_expression(expression, sources, result)
+				if bound_expression == null:
+					return result
+				bound_select.projections.append(
+					GDSQLSelectProjection.new(
+						bound_expression,
+						StringName("%s.%s" % [bound_source.get_qualifier(), column.name]),
+					),
+				)
 	if query.predicate != null:
-		bound_select.predicate = _bind_expression(query.predicate, table, source.alias, result)
+		bound_select.predicate = _bind_expression(query.predicate, sources, result)
 		if bound_select.predicate == null:
 			return result
 		if not _is_boolean_expression(bound_select.predicate):
@@ -78,7 +143,7 @@ func _validate_select(query: GDSQLSelectQuerySpec) -> GDSQLQueryValidationResult
 				&"GDSQL_VALIDATION_INVALID_ORDERING",
 				"Order clauses require an expression.",
 			)
-		var bound_ordering := _bind_expression(clause.expression, table, source.alias, result)
+		var bound_ordering := _bind_expression(clause.expression, sources, result)
 		if bound_ordering == null:
 			return result
 		bound_select.ordering.append(
@@ -87,10 +152,11 @@ func _validate_select(query: GDSQLSelectQuerySpec) -> GDSQLQueryValidationResult
 	var bound_query := GDSQLBoundQuery.new()
 	bound_query.source_query = query
 	bound_query.root_operation = bound_select
-	bound_query.referenced_tables.append(table)
+	for bound_source in sources:
+		bound_query.referenced_tables.append(bound_source.table)
 	bound_query.output_schema = GDSQLResultSchema.new()
 	if bound_select.projections.is_empty():
-		for column in table.columns:
+		for column in source_table.columns:
 			bound_query.output_schema.columns.append(_copy_column(column))
 	else:
 		var output_names: Dictionary = { }
@@ -104,7 +170,7 @@ func _validate_select(query: GDSQLSelectQuerySpec) -> GDSQLQueryValidationResult
 				)
 			output_names[output_name] = true
 			bound_query.output_schema.columns.append(
-				_projection_column(projection, output_name, table),
+				_projection_column(projection, output_name, sources),
 			)
 	result.bound_query = bound_query
 	result.value = bound_query
@@ -125,14 +191,17 @@ func _projection_output_name(
 func _projection_column(
 		projection: GDSQLSelectProjection,
 		output_name: StringName,
-		table: GDSQLTableDefinition,
+		sources: Array[GDSQLBoundTableSource],
 ) -> GDSQLColumnDefinition:
 	if projection.expression is GDSQLBoundColumnExpression:
-		var source_name := (projection.expression as GDSQLBoundColumnExpression).column_id.column_name
-		var source_column := table.get_column(source_name)
-		var column := _copy_column(source_column)
-		column.name = output_name
-		return column
+		var bound_column := projection.expression as GDSQLBoundColumnExpression
+		for source in sources:
+			if _matches_table_id(source.table, bound_column.table_id):
+				var source_column := source.table.get_column(bound_column.column_id.column_name)
+				var column := _copy_column(source_column)
+				column.name = output_name
+				column.nullable = bound_column.nullable
+				return column
 	var data_type := TYPE_NIL
 	var nullable := true
 	if projection.expression is GDSQLLiteralExpression:
@@ -158,15 +227,22 @@ func _copy_column(column: GDSQLColumnDefinition) -> GDSQLColumnDefinition:
 
 func _bind_expression(
 		expression: GDSQLQueryExpression,
-		table: GDSQLTableDefinition,
-		source_alias: StringName,
+		sources: Array[GDSQLBoundTableSource],
 		result: GDSQLQueryValidationResult,
 ) -> GDSQLQueryExpression:
 	if expression is GDSQLLiteralExpression:
 		return expression
 	if expression is GDSQLColumnExpression:
 		var column_expression := expression as GDSQLColumnExpression
-		if column_expression.table_alias != &"" and column_expression.table_alias != source_alias and column_expression.table_alias != table.name:
+		var matching_sources: Array[GDSQLBoundTableSource] = []
+		for source in sources:
+			if column_expression.table_alias != &"" \
+					and source.get_qualifier() != column_expression.table_alias:
+				continue
+			if source.table.has_column(column_expression.column_name):
+				matching_sources.append(source)
+		if column_expression.table_alias != &"" \
+				and not _has_source_qualifier(sources, column_expression.table_alias):
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_VALIDATION_UNKNOWN_ALIAS",
@@ -174,26 +250,40 @@ func _bind_expression(
 				),
 			)
 			return null
-		var column := table.get_column(column_expression.column_name)
-		if column == null:
+		if matching_sources.is_empty():
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_VALIDATION_UNKNOWN_COLUMN",
-					"Unknown column '%s' in table '%s'." % [column_expression.column_name, table.name],
+					"Unknown column '%s'." % column_expression.column_name,
 				),
 			)
 			return null
-		var table_id := GDSQLTableId.new(table.database_name, table.name)
+		if matching_sources.size() > 1:
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_VALIDATION_AMBIGUOUS_COLUMN",
+					"Column '%s' is ambiguous and requires a source qualifier." \
+						% column_expression.column_name,
+				),
+			)
+			return null
+		var matched_source := matching_sources[0]
+		var column := matched_source.table.get_column(column_expression.column_name)
+		var table_id := GDSQLTableId.new(
+			matched_source.table.database_name,
+			matched_source.table.name,
+		)
 		var bound_column := GDSQLBoundColumnExpression.new()
 		bound_column.table_id = table_id
 		bound_column.column_id = GDSQLColumnId.new(table_id, column.name)
+		bound_column.source_qualifier = matched_source.get_qualifier()
 		bound_column.data_type = column.data_type
-		bound_column.nullable = column.nullable
+		bound_column.nullable = column.nullable or matched_source.nullable
 		return bound_column
 	if expression is GDSQLComparisonExpression:
 		var comparison := expression as GDSQLComparisonExpression
-		var left := _bind_expression(comparison.left, table, source_alias, result)
-		var right := _bind_expression(comparison.right, table, source_alias, result)
+		var left := _bind_expression(comparison.left, sources, result)
+		var right := _bind_expression(comparison.right, sources, result)
 		if left == null or right == null:
 			return null
 		if not _validate_comparison_types(comparison.operator, left, right, result):
@@ -201,10 +291,10 @@ func _bind_expression(
 		return GDSQLComparisonExpression.new(left, comparison.operator, right)
 	if expression is GDSQLLogicalExpression:
 		var logical := expression as GDSQLLogicalExpression
-		var left := _bind_expression(logical.left, table, source_alias, result)
+		var left := _bind_expression(logical.left, sources, result)
 		var right: GDSQLQueryExpression
 		if logical.right != null:
-			right = _bind_expression(logical.right, table, source_alias, result)
+			right = _bind_expression(logical.right, sources, result)
 		if left == null or (logical.right != null and right == null):
 			return null
 		if not _is_boolean_expression(left) \
@@ -220,8 +310,8 @@ func _bind_expression(
 		return GDSQLLogicalExpression.new(left, logical.operator, right)
 	if expression is GDSQLArithmeticExpression:
 		var arithmetic := expression as GDSQLArithmeticExpression
-		var left := _bind_expression(arithmetic.left, table, source_alias, result)
-		var right := _bind_expression(arithmetic.right, table, source_alias, result)
+		var left := _bind_expression(arithmetic.left, sources, result)
+		var right := _bind_expression(arithmetic.right, sources, result)
 		if left == null or right == null:
 			return null
 		if not _validate_arithmetic_types(arithmetic.operator, left, right, result):
@@ -229,12 +319,12 @@ func _bind_expression(
 		return GDSQLArithmeticExpression.new(left, arithmetic.operator, right)
 	if expression is GDSQLNullCheckExpression:
 		var null_check := expression as GDSQLNullCheckExpression
-		var operand := _bind_expression(null_check.operand, table, source_alias, result)
+		var operand := _bind_expression(null_check.operand, sources, result)
 		if operand == null:
 			return null
 		return GDSQLNullCheckExpression.new(operand, null_check.operator)
 	if expression is GDSQLFunctionExpression:
-		return _bind_function(expression as GDSQLFunctionExpression, table, source_alias, result)
+		return _bind_function(expression as GDSQLFunctionExpression, sources, result)
 	result.add_diagnostic(
 		GDSQLQueryDiagnostic.new(
 			&"GDSQL_VALIDATION_EXPRESSION_UNSUPPORTED",
@@ -242,6 +332,22 @@ func _bind_expression(
 		),
 	)
 	return null
+
+
+func _has_source_qualifier(
+		sources: Array[GDSQLBoundTableSource],
+		qualifier: StringName,
+) -> bool:
+	for source in sources:
+		if source.get_qualifier() == qualifier:
+			return true
+	return false
+
+
+func _matches_table_id(table: GDSQLTableDefinition, table_id: GDSQLTableId) -> bool:
+	return table_id != null \
+		and table.database_name == table_id.database_name \
+		and table.name == table_id.table_name
 
 
 func _validate_insert(query: GDSQLInsertQuerySpec) -> GDSQLQueryValidationResult:
@@ -309,6 +415,7 @@ func _validate_update(query: GDSQLUpdateQuerySpec) -> GDSQLQueryValidationResult
 	var result := GDSQLQueryValidationResult.new()
 	var bound_operation := GDSQLBoundUpdateQuery.new()
 	bound_operation.target = table
+	var sources: Array[GDSQLBoundTableSource] = [GDSQLBoundTableSource.new(table)]
 	var seen_columns: Dictionary = { }
 	for assignment in query.assignments:
 		if assignment == null or assignment.column == &"" or assignment.expression == null:
@@ -321,7 +428,7 @@ func _validate_update(query: GDSQLUpdateQuerySpec) -> GDSQLQueryValidationResult
 			return _error(&"GDSQL_VALIDATION_UNKNOWN_COLUMN", "Unknown column '%s' in table '%s'." % [assignment.column, table.name])
 		if assignment.column == table.primary_key:
 			return _error(&"GDSQL_VALIDATION_PRIMARY_KEY_UPDATE_FORBIDDEN", "Updating the primary key is not supported.")
-		var bound_expression := _bind_expression(assignment.expression, table, &"", result)
+		var bound_expression := _bind_expression(assignment.expression, sources, result)
 		if bound_expression == null:
 			return result
 		if not _is_assignment_compatible(bound_expression, column):
@@ -331,7 +438,7 @@ func _validate_update(query: GDSQLUpdateQuerySpec) -> GDSQLQueryValidationResult
 			)
 		bound_operation.assignments.append(GDSQLColumnAssignment.new(assignment.column, bound_expression))
 	if query.predicate != null:
-		bound_operation.predicate = _bind_expression(query.predicate, table, &"", result)
+		bound_operation.predicate = _bind_expression(query.predicate, sources, result)
 		if bound_operation.predicate == null:
 			return result
 		if not _is_boolean_expression(bound_operation.predicate):
@@ -354,8 +461,9 @@ func _validate_delete(query: GDSQLDeleteQuerySpec) -> GDSQLQueryValidationResult
 	var result := GDSQLQueryValidationResult.new()
 	var bound_operation := GDSQLBoundDeleteQuery.new()
 	bound_operation.target = table
+	var sources: Array[GDSQLBoundTableSource] = [GDSQLBoundTableSource.new(table)]
 	if query.predicate != null:
-		bound_operation.predicate = _bind_expression(query.predicate, table, &"", result)
+		bound_operation.predicate = _bind_expression(query.predicate, sources, result)
 		if bound_operation.predicate == null:
 			return result
 		if not _is_boolean_expression(bound_operation.predicate):
@@ -395,8 +503,7 @@ func _is_assignment_compatible(
 
 func _bind_function(
 		expression: GDSQLFunctionExpression,
-		table: GDSQLTableDefinition,
-		source_alias: StringName,
+		sources: Array[GDSQLBoundTableSource],
 		result: GDSQLQueryValidationResult,
 ) -> GDSQLQueryExpression:
 	if function_catalog == null or not function_catalog.contains(expression.name):
@@ -427,7 +534,7 @@ func _bind_function(
 		return null
 	var bound_arguments: Array[GDSQLQueryExpression] = []
 	for argument in expression.arguments:
-		var bound_argument := _bind_expression(argument, table, source_alias, result)
+		var bound_argument := _bind_expression(argument, sources, result)
 		if bound_argument == null:
 			return null
 		bound_arguments.append(bound_argument)

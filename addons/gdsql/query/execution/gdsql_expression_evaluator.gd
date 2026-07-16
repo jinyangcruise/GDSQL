@@ -4,8 +4,8 @@ extends RefCounted
 var function_registry: GDSQLQueryFunctionRegistry
 
 
-func _init(p_function_registry: GDSQLQueryFunctionRegistry = null) -> void:
-	function_registry = p_function_registry
+func _init(function_registry: GDSQLQueryFunctionRegistry = null) -> void:
+	self.function_registry = function_registry
 
 
 func evaluate(expression: GDSQLQueryExpression, row_context: GDSQLRowRecord) -> Variant:
@@ -16,7 +16,12 @@ func evaluate(expression: GDSQLQueryExpression, row_context: GDSQLRowRecord) -> 
 	if expression is GDSQLBoundColumnExpression:
 		if row_context == null:
 			return null
-		return row_context.get_value((expression as GDSQLBoundColumnExpression).column_id.column_name)
+		var bound_column := expression as GDSQLBoundColumnExpression
+		return row_context.get_source_value(
+			bound_column.table_id,
+			bound_column.column_id.column_name,
+			bound_column.source_qualifier,
+		)
 	if expression is GDSQLColumnExpression:
 		if row_context == null:
 			return null

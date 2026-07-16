@@ -63,19 +63,31 @@ func _plan_select(bound_select: GDSQLBoundSelectQuery, output_schema: GDSQLResul
 	var result := GDSQLQueryPlanningResult.new()
 	var current: GDSQLPlanNode
 	var source_schema := GDSQLResultSchema.new()
-	source_schema.columns = bound_select.source.columns.duplicate()
-	var primary_key_expression := _get_primary_key_lookup(bound_select)
+	for column in bound_select.source.table.columns:
+		source_schema.columns.append(column)
+	for join in bound_select.joins:
+		for column in join.source.table.columns:
+			source_schema.columns.append(column)
+	var primary_key_expression: GDSQLQueryExpression
+	if bound_select.joins.is_empty():
+		primary_key_expression = _get_primary_key_lookup(bound_select)
 	if primary_key_expression != null:
 		var lookup := GDSQLPrimaryKeyLookupPlan.new()
-		lookup.table = bound_select.source
+		lookup.table = bound_select.source.table
 		lookup.key = primary_key_expression
 		lookup.output_schema = source_schema
 		current = lookup
 	else:
-		var scan := GDSQLTableScanPlan.new()
-		scan.table = bound_select.source
-		scan.output_schema = source_schema
-		current = scan
+		current = _scan_source(bound_select.source, source_schema)
+		for join in bound_select.joins:
+			var join_plan := GDSQLNestedLoopJoinPlan.new()
+			join_plan.left = current
+			join_plan.right = _scan_source(join.source, source_schema)
+			join_plan.type = join.type
+			join_plan.condition = join.condition
+			join_plan.right_source = join.source
+			join_plan.output_schema = source_schema
+			current = join_plan
 		if bound_select.predicate != null:
 			var filter := GDSQLFilterPlan.new()
 			filter.input = current
@@ -111,15 +123,26 @@ func _plan_select(bound_select: GDSQLBoundSelectQuery, output_schema: GDSQLResul
 	return result
 
 
+func _scan_source(
+		source: GDSQLBoundTableSource,
+		output_schema: GDSQLResultSchema,
+) -> GDSQLTableScanPlan:
+	var scan := GDSQLTableScanPlan.new()
+	scan.table = source.table
+	scan.alias = source.alias
+	scan.output_schema = output_schema
+	return scan
+
+
 func _get_primary_key_lookup(bound_select: GDSQLBoundSelectQuery) -> GDSQLQueryExpression:
 	if not bound_select.predicate is GDSQLComparisonExpression:
 		return null
 	var comparison := bound_select.predicate as GDSQLComparisonExpression
 	if comparison.operator != GDSQLComparisonExpression.ComparisonOperator.EQUAL:
 		return null
-	if _is_primary_key_column(comparison.left, bound_select.source) and comparison.right is GDSQLLiteralExpression:
+	if _is_primary_key_column(comparison.left, bound_select.source.table) and comparison.right is GDSQLLiteralExpression:
 		return comparison.right
-	if _is_primary_key_column(comparison.right, bound_select.source) and comparison.left is GDSQLLiteralExpression:
+	if _is_primary_key_column(comparison.right, bound_select.source.table) and comparison.left is GDSQLLiteralExpression:
 		return comparison.left
 	return null
 

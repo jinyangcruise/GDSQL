@@ -27,7 +27,7 @@ state in the same change as implementation or test work.
 | `Database` | Public API | Main user-facing entry point for creating, opening, renaming, and dropping a database; managing its tables; and executing canonical query specs. | `create()`, `open()`, `rename()`, `drop()`, `create_table()`, `rename_table()`, `alter_table()`, `drop_table()`, `query()`, `execute()` | 🧪 |
 | `DatabaseContext` | Runtime facade | Coordinates catalog administration, validation, binding, planning, execution, and result materialization. | Database and table administration methods, `execute(query)`, `prepare(query)` | 🚧 |
 | `Query` | Fluent API | User-facing fluent query entry point that optionally captures a table and creates operation-specific builders. | `table()`, `select()`, `insert()`, `update()`, `delete()` | 🧪 |
-| `SelectQueryBuilder` | Fluent API | Builds a `SelectQuerySpec` with projections, aliases, predicates, ordering, distinct selection, limits, and offsets. | `from_table()`, `columns()`, `column()`, `project()`, `where()`, `order_by()`, `order_by_column()`, `distinct()`, `limit()`, `offset()`, `build()` | 🧪 |
+| `SelectQueryBuilder` | Fluent API | Builds a `SelectQuerySpec` with projections, aliases, joins, predicates, ordering, distinct selection, limits, and offsets. | `from_table()`, `join()`, `join_table()`, `inner_join()`, `left_join()`, projection, ordering, pagination, and `build()` | 🧪 |
 | `InsertQueryBuilder` | Fluent API | Builds an `InsertQuerySpec` from one or more named rows. | `into_table()`, `values()`, `build()` | 🧪 |
 | `UpdateQueryBuilder` | Fluent API | Builds a single-table `UpdateQuerySpec` from typed assignments and an optional predicate. | `table()`, `set_value()`, `set_expression()`, `where()`, `build()` | 🧪 |
 | `DeleteQueryBuilder` | Fluent API | Builds a single-table `DeleteQuerySpec` with an optional predicate. | `from_table()`, `where()`, `build()` | 🧪 |
@@ -46,7 +46,7 @@ state in the same change as implementation or test work.
 | `QuerySpecVisitor` | Query model | Defines type-specific operations over concrete `QuerySpec` classes. | `visit_select()`, `visit_insert()`, `visit_update()`, `visit_delete()` | 🚧 |
 | `QuerySource` | Query model | Abstract representation of a source from which rows can be read. | Source-specific accessors | 🚧 |
 | `TableReference` | Query model | Identifies a database table and optional alias without loading it. | `get_database_name()`, `get_table_name()`, `get_alias()` | 🛠️ |
-| `JoinSpec` | Query model | Describes a join type, source, and condition. | `get_type()`, `get_source()`, `get_condition()` | 🚧 |
+| `JoinSpec` | Query model | Describes an inner, left, right, or full join source and condition; right and full execution remain scaffolded. | Constructor and access to type, source, and condition | 🧪 |
 | `InsertRow` | Query model | Represents one ordered or named row of values for insertion. | `get_values()` | 🛠️ |
 | `SelectProjection` | Query model | Associates a selected expression with an optional public result alias. | Access to expression and alias | 🧪 |
 | `ColumnAssignment` | Query model | Associates a target column with an expression used during update. | Access to column and expression | 🧪 |
@@ -124,12 +124,14 @@ state in the same change as implementation or test work.
 | `QueryValidator` | Validation | Abstract contract for validating query semantics against a catalog. | `validate(query)` | 🚧 |
 | `DefaultQueryValidator` | Validation | Default implementation of semantic validation and initial binding. | `validate(query)` | 🧪 |
 | `BoundQuery` | Binding | Catalog-resolved and type-checked representation of a query. | Access to root operation, referenced tables, and output schema | 🚧 |
-| `BoundSelectQuery` | Binding | Bound representation of a select operation, including projections, ordering, distinct selection, limit, and offset. | Access to resolved source and select clauses | 🧪 |
+| `BoundSelectQuery` | Binding | Bound representation of a select operation, including its primary source, joins, projections, ordering, distinct selection, limit, and offset. | Access to resolved sources and select clauses | 🧪 |
+| `BoundTableSource` | Binding | Associates a resolved table with its query alias and join-derived nullability. | `get_qualifier()` and source metadata | 🧪 |
+| `BoundJoin` | Binding | Associates a supported join type with its resolved source and bound condition. | Access to type, source, and condition | 🧪 |
 | `BoundInsertQuery` | Binding | Bound insert operation containing a resolved target table and validated rows. | Access to target and rows | 🛠️ |
 | `BoundUpdateQuery` | Binding | Bound update operation containing a resolved target, assignments, and predicate. | Access to target, assignments, and predicate | 🧪 |
 | `BoundDeleteQuery` | Binding | Bound delete operation containing a resolved target and predicate. | Access to target and predicate | 🧪 |
 | `BoundQueryOperation` | Binding | Abstract base for resolved query operations. | Operation-specific accessors | 🚧 |
-| `BoundColumnExpression` | Binding | Column expression resolved to stable table and column identifiers, data type, and nullability. | Access to table ID, column ID, data type, and nullability | 🛠️ |
+| `BoundColumnExpression` | Binding | Column expression resolved to stable table and column identifiers, source occurrence qualifier, data type, and nullability. | Access to table ID, column ID, source qualifier, data type, and nullability | 🧪 |
 | `TableId` | Identifiers | Stable identifier for a catalog table. | Equality and string representation | 🚧 |
 | `ColumnId` | Identifiers | Stable identifier for a catalog column. | Equality and string representation | 🚧 |
 
@@ -145,6 +147,7 @@ state in the same change as implementation or test work.
 | `TableScanPlan` | Planning | Reads all rows available from a table source. | `accept(visitor)` | 🛠️ |
 | `PrimaryKeyLookupPlan` | Planning | Retrieves a row through a primary-key lookup. | `accept(visitor)` | 🛠️ |
 | `FilterPlan` | Planning | Filters rows from its input according to a predicate. | `accept(visitor)` | 🛠️ |
+| `NestedLoopJoinPlan` | Planning | Joins two plan inputs by evaluating a bound condition for each candidate row pair. | `accept(visitor)` | 🧪 |
 | `ProjectionPlan` | Planning | Produces selected or calculated output columns. | `accept(visitor)` | 🛠️ |
 | `AggregatePlan` | Planning | Groups rows and evaluates aggregate expressions. | `accept(visitor)` | 🚧 |
 | `SortPlan` | Planning | Orders rows from its input using one or more bound order clauses. | `accept(visitor)` | 🧪 |
@@ -190,7 +193,7 @@ state in the same change as implementation or test work.
 | `ConfigFileTableStorage` | Storage backend | Implements `TableStorage` using ConfigFile-backed `.cfg` files. | TableStorage implementation | 🧪 |
 | `StorageSession` | Storage | Tracks loaded data, staged changes, and dirty state for one unit of work. | Session-specific state access | 🛠️ |
 | `TableSnapshot` | Storage | Stable collection of rows read from a table for an operation. | `get_rows()`, `find_by_primary_key()` | 🛠️ |
-| `RowRecord` | Storage and execution | Typed runtime representation of one row. | `get_value()`, `set_value()`, `has_column()` | 🛠️ |
+| `RowRecord` | Storage and execution | Typed runtime representation of one row, including source-qualified values for multi-table evaluation. | `get_value()`, `get_source_value()`, `set_source_values()`, mutation and lookup helpers | 🧪 |
 | `DatabasePathResolver` | Storage infrastructure | Resolves logical database and table identifiers into physical paths. | `resolve_catalog_path()`, `resolve_table_path()` | 🛠️ |
 | `ConfigFileCache` | Storage infrastructure | Manages loaded ConfigFile objects and their lifecycle. | `get_or_load()`, `invalidate()`, `flush()` | 🛠️ |
 | `GodotVariantCodec` | Serialization | Encodes and decodes Godot-native values at the storage boundary. | `encode()`, `decode()` | 🛠️ |

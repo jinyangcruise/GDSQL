@@ -13,6 +13,10 @@ func visit_filter(node: GDSQLFilterPlan) -> Variant:
 	return null
 
 
+func visit_nested_loop_join(node: GDSQLNestedLoopJoinPlan) -> Variant:
+	return null
+
+
 func visit_projection(node: GDSQLProjectionPlan) -> Variant:
 	return null
 
