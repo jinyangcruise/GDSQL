@@ -1,19 +1,24 @@
 class_name GDSQLConfigFileCatalogAdministrationService
 extends GDSQLCatalogAdministrationService
 
+const TABLE_METADATA_SECTION := "__gdsql_metadata__"
+
 var _path_resolver: GDSQLDatabasePathResolver
 var _catalog: GDSQLCatalogService
 var _cache: GDSQLConfigFileCache
+var _codec: GDSQLGodotVariantCodec
 
 
 func _init(
 		path_resolver: GDSQLDatabasePathResolver,
 		catalog: GDSQLCatalogService,
 		cache: GDSQLConfigFileCache,
+		codec: GDSQLGodotVariantCodec,
 ) -> void:
 	_path_resolver = path_resolver
 	_catalog = catalog
 	_cache = cache
+	_codec = codec
 
 
 func create_database(database_name: StringName) -> GDSQLCatalogOperationResult:
@@ -165,6 +170,7 @@ func create_table(
 			"Could not create table directory '%s'." % table_path.get_base_dir(),
 		)
 	var empty_table := ConfigFile.new()
+	_initialize_table_metadata(empty_table)
 	if empty_table.save(table_path) != OK:
 		return _error(
 			&"GDSQL_CATALOG_TABLE_STORAGE_CREATE_FAILED",
@@ -179,8 +185,15 @@ func create_table(
 		schema.set_value(section, "nullable", column.nullable)
 		schema.set_value(section, "unique", column.unique)
 		schema.set_value(section, "auto_increment", column.auto_increment)
-		if column.default_value != null:
-			schema.set_value(section, "default", column.default_value)
+		schema.set_value(section, "generation", column.generation)
+		if column.has_default():
+			schema.set_value(section, "default_kind", "static")
+			if column.get_default_value() != null:
+				schema.set_value(
+					section,
+					"default",
+					_codec.encode(column.get_default_value()),
+				)
 	if schema.save(schema_path) != OK:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(table_path))
 		return _error(
@@ -306,6 +319,7 @@ func _complete_missing_table_storage(
 			"Could not create table directory '%s'." % table_path.get_base_dir(),
 		)
 	var empty_table := ConfigFile.new()
+	_initialize_table_metadata(empty_table)
 	if empty_table.save(table_path) != OK:
 		return _error(
 			&"GDSQL_CATALOG_TABLE_STORAGE_CREATE_FAILED",
@@ -340,7 +354,9 @@ func _stored_schema_matches(
 				or stored_column.nullable != requested_column.nullable \
 				or stored_column.unique != requested_column.unique \
 				or stored_column.auto_increment != requested_column.auto_increment \
-				or stored_column.default_value != requested_column.default_value:
+				or stored_column.generation != requested_column.generation \
+				or stored_column.has_default() != requested_column.has_default() \
+				or stored_column.get_default_value() != requested_column.get_default_value():
 			return false
 	return true
 
@@ -371,25 +387,51 @@ func _add_column(
 		return _error(&"GDSQL_CATALOG_INVALID_COLUMN", "Added column requires a valid name and Variant type.")
 	if table.has_column(column.name):
 		return _error(&"GDSQL_CATALOG_DUPLICATE_COLUMN", "Column '%s' already exists." % column.name)
-	if column.default_value != null and typeof(column.default_value) != column.data_type:
+	if column.has_default() and not column.accepts_value(column.get_default_value()):
 		return _error(
 			&"GDSQL_CATALOG_COLUMN_DEFAULT_TYPE_MISMATCH",
 			"Default for column '%s' does not match its Variant type." % column.name,
 		)
-	var row_count := table_data.get_sections().size()
-	if row_count > 0 and not column.nullable and column.default_value == null:
+	if column.generation != GDSQLColumnDefinition.Generation.NONE:
+		if column.data_type != TYPE_INT:
+			return _error(
+				&"GDSQL_CATALOG_GENERATED_COLUMN_TYPE",
+				"Generated timestamp column '%s' must use TYPE_INT." % column.name,
+			)
+		if column.has_default():
+			return _error(
+				&"GDSQL_CATALOG_GENERATED_COLUMN_DEFAULT",
+				"Generated column '%s' cannot also declare a static default." % column.name,
+			)
+	var row_count := _get_row_sections(table_data).size()
+	if row_count > 0 and not column.nullable and not column.has_default() \
+			and column.generation == GDSQLColumnDefinition.Generation.NONE:
 		return _error(
 			&"GDSQL_CATALOG_COLUMN_DEFAULT_REQUIRED",
 			"Non-nullable column '%s' requires a default when rows already exist." % column.name,
 		)
-	if row_count > 1 and column.unique and column.default_value != null:
+	if row_count > 1 and column.unique and column.has_default() \
+			and column.get_default_value() != null:
 		return _error(
 			&"GDSQL_CATALOG_COLUMN_UNIQUE_DEFAULT_CONFLICT",
 			"Unique column '%s' cannot apply one default to multiple existing rows." % column.name,
 		)
-	if column.default_value != null:
-		for section in table_data.get_sections():
-			table_data.set_value(section, String(column.name), column.default_value)
+	if column.has_default():
+		for section in _get_row_sections(table_data):
+			table_data.set_value(
+				section,
+				String(column.name),
+				_codec.encode(column.get_default_value()),
+			)
+	elif column.generation == GDSQLColumnDefinition.Generation.CREATED_AT \
+			or column.generation == GDSQLColumnDefinition.Generation.UPDATED_AT:
+		var alteration_timestamp := int(Time.get_unix_time_from_system() * 1000.0)
+		for section in _get_row_sections(table_data):
+			table_data.set_value(
+				section,
+				String(column.name),
+				alteration_timestamp,
+			)
 	table.columns.append(column)
 	return GDSQLCatalogOperationResult.new()
 
@@ -407,7 +449,7 @@ func _rename_column(
 		return _error(&"GDSQL_CATALOG_UNKNOWN_COLUMN", "Column '%s' does not exist." % current_name)
 	if table.has_column(new_name):
 		return _error(&"GDSQL_CATALOG_DUPLICATE_COLUMN", "Column '%s' already exists." % new_name)
-	for section in table_data.get_sections():
+	for section in _get_row_sections(table_data):
 		if table_data.has_section_key(section, String(current_name)):
 			var value: Variant = table_data.get_value(section, String(current_name))
 			table_data.erase_section_key(section, String(current_name))
@@ -428,7 +470,7 @@ func _drop_column(
 	var column := table.get_column(column_name)
 	if column == null:
 		return _error(&"GDSQL_CATALOG_UNKNOWN_COLUMN", "Column '%s' does not exist." % column_name)
-	for section in table_data.get_sections():
+	for section in _get_row_sections(table_data):
 		table_data.erase_section_key(section, String(column_name))
 	table.columns.erase(column)
 	return GDSQLCatalogOperationResult.new()
@@ -444,8 +486,15 @@ func _save_schema(path: String, table: GDSQLTableDefinition) -> Error:
 		schema.set_value(section, "nullable", column.nullable)
 		schema.set_value(section, "unique", column.unique)
 		schema.set_value(section, "auto_increment", column.auto_increment)
-		if column.default_value != null:
-			schema.set_value(section, "default", column.default_value)
+		schema.set_value(section, "generation", column.generation)
+		if column.has_default():
+			schema.set_value(section, "default_kind", "static")
+			if column.get_default_value() != null:
+				schema.set_value(
+					section,
+					"default",
+					_codec.encode(column.get_default_value()),
+				)
 	return schema.save(path)
 
 
@@ -504,6 +553,7 @@ func _validate_table(
 	if table.columns.is_empty():
 		return _error(&"GDSQL_CATALOG_COLUMNS_REQUIRED", "Table '%s' requires at least one column." % table.name)
 	var column_names: Dictionary = { }
+	var auto_increment_columns := 0
 	for column in table.columns:
 		if column == null or not _path_resolver.is_valid_name(column.name):
 			return _error(&"GDSQL_CATALOG_INVALID_COLUMN_NAME", "Every column requires a valid identifier name.")
@@ -511,13 +561,59 @@ func _validate_table(
 			return _error(&"GDSQL_CATALOG_DUPLICATE_COLUMN", "Column '%s' appears more than once." % column.name)
 		if column.data_type == TYPE_NIL:
 			return _error(&"GDSQL_CATALOG_COLUMN_TYPE_REQUIRED", "Column '%s' requires a Variant type." % column.name)
+		if column.has_default() and not column.accepts_value(column.get_default_value()):
+			return _error(
+				&"GDSQL_CATALOG_COLUMN_DEFAULT_TYPE_MISMATCH",
+				"Default for column '%s' does not match its Variant type." % column.name,
+			)
+		if column.auto_increment:
+			auto_increment_columns += 1
+			if column.data_type != TYPE_INT:
+				return _error(
+					&"GDSQL_CATALOG_AUTO_INCREMENT_TYPE",
+					"Auto-increment column '%s' must use TYPE_INT." % column.name,
+				)
+		if column.generation != GDSQLColumnDefinition.Generation.NONE:
+			if column.data_type != TYPE_INT:
+				return _error(
+					&"GDSQL_CATALOG_GENERATED_COLUMN_TYPE",
+					"Generated timestamp column '%s' must use TYPE_INT." % column.name,
+				)
+			if column.has_default():
+				return _error(
+					&"GDSQL_CATALOG_GENERATED_COLUMN_DEFAULT",
+					"Generated column '%s' cannot also declare a static default." % column.name,
+				)
 		column_names[column.name] = true
 	if table.primary_key == &"" or not column_names.has(table.primary_key):
 		return _error(&"GDSQL_CATALOG_PRIMARY_KEY_REQUIRED", "Table primary key must reference a declared column.")
 	var primary_key := table.get_primary_key()
 	primary_key.nullable = false
 	primary_key.unique = true
+	if auto_increment_columns > 1:
+		return _error(
+			&"GDSQL_CATALOG_AUTO_INCREMENT_COUNT",
+			"Only one auto-increment column is supported per table.",
+		)
+	if auto_increment_columns == 1 and not primary_key.auto_increment:
+		return _error(
+			&"GDSQL_CATALOG_AUTO_INCREMENT_PRIMARY_KEY",
+			"The initial auto-increment implementation requires the primary key.",
+		)
 	return GDSQLCatalogOperationResult.new()
+
+
+func _initialize_table_metadata(table_data: ConfigFile) -> void:
+	table_data.set_value(TABLE_METADATA_SECTION, "row_count", 0)
+	table_data.set_value(TABLE_METADATA_SECTION, "next_auto_increment", 1)
+
+
+func _get_row_sections(table_data: ConfigFile) -> PackedStringArray:
+	var sections := PackedStringArray()
+	for section in table_data.get_sections():
+		if section != TABLE_METADATA_SECTION:
+			sections.append(section)
+	return sections
 
 
 func _ensure_directory(path: String) -> Error:

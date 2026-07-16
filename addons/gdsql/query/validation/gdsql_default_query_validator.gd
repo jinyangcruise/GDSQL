@@ -278,14 +278,17 @@ func _projection_column(
 
 
 func _copy_column(column: GDSQLColumnDefinition) -> GDSQLColumnDefinition:
-	return GDSQLColumnDefinition.new(
+	var copy := GDSQLColumnDefinition.new(
 		column.name,
 		column.data_type,
 		column.nullable,
 		column.unique,
 		column.auto_increment,
-		column.default_value,
 	)
+	if column.has_default():
+		copy.set_default(column.get_default_value())
+	copy.generation = column.generation
+	return copy
 
 
 func _bind_expression(
@@ -559,8 +562,17 @@ func _validate_insert(query: GDSQLInsertQuerySpec) -> GDSQLQueryValidationResult
 		seen_columns[column_name] = true
 		if not table.has_column(column_name):
 			return _error(&"GDSQL_VALIDATION_UNKNOWN_COLUMN", "Unknown column '%s' in table '%s'." % [column_name, table.name])
+		var column := table.get_column(column_name)
+		if column.generation != GDSQLColumnDefinition.Generation.NONE:
+			return _error(
+				&"GDSQL_VALIDATION_GENERATED_COLUMN_INSERT",
+				"Generated column '%s' cannot be assigned directly." % column_name,
+			)
 	for column in table.columns:
-		if not column.nullable and column.default_value == null and not column.auto_increment and not seen_columns.has(column.name):
+		if not column.nullable and not column.has_default() \
+				and not column.auto_increment \
+				and column.generation == GDSQLColumnDefinition.Generation.NONE \
+				and not seen_columns.has(column.name):
 			return _error(&"GDSQL_VALIDATION_REQUIRED_COLUMN", "Required column '%s' is missing." % column.name)
 	var bound_operation := GDSQLBoundInsertQuery.new()
 	bound_operation.target = table
@@ -579,8 +591,8 @@ func _validate_insert(query: GDSQLInsertQuerySpec) -> GDSQLQueryValidationResult
 				)
 			values[column_name] = value
 		for column in table.columns:
-			if not values.has(column.name) and column.default_value != null:
-				values[column.name] = column.default_value
+			if not values.has(column.name) and column.has_default():
+				values[column.name] = column.get_default_value()
 		bound_operation.rows.append(GDSQLRowRecord.new(values))
 	var bound_query := GDSQLBoundQuery.new()
 	bound_query.source_query = query
@@ -619,6 +631,11 @@ func _validate_update(query: GDSQLUpdateQuerySpec) -> GDSQLQueryValidationResult
 			return _error(&"GDSQL_VALIDATION_UNKNOWN_COLUMN", "Unknown column '%s' in table '%s'." % [assignment.column, table.name])
 		if assignment.column == table.primary_key:
 			return _error(&"GDSQL_VALIDATION_PRIMARY_KEY_UPDATE_FORBIDDEN", "Updating the primary key is not supported.")
+		if column.generation != GDSQLColumnDefinition.Generation.NONE:
+			return _error(
+				&"GDSQL_VALIDATION_GENERATED_COLUMN_UPDATE",
+				"Generated column '%s' cannot be assigned directly." % assignment.column,
+			)
 		var bound_expression := _bind_expression(assignment.expression, sources, result)
 		if bound_expression == null:
 			return result
@@ -932,11 +949,7 @@ func _is_numeric_type(data_type: Variant.Type) -> bool:
 
 
 func _is_compatible(value: Variant, column: GDSQLColumnDefinition) -> bool:
-	if value == null:
-		return column.nullable
-	if column.data_type == TYPE_NIL or typeof(value) == column.data_type:
-		return true
-	return column.data_type == TYPE_FLOAT and typeof(value) == TYPE_INT
+	return column.accepts_value(value)
 
 
 func _error(code: StringName, message: String) -> GDSQLQueryValidationResult:

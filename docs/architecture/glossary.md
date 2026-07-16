@@ -180,8 +180,9 @@ state in the same change as implementation or test work.
 | `ConfigFileCatalogAdministrationService` | Catalog backend | Persists database registrations and synchronizes ConfigFile-backed schemas and row storage during lifecycle changes. | CatalogAdministrationService implementation | 🧪 |
 | `CatalogSnapshot` | Catalog | Stable catalog view used during validation, binding, and planning. | `get_database()`, `get_table()` | 🚧 |
 | `DatabaseDefinition` | Catalog | Typed definition of a logical database. | Access to name and tables | 🛠️ |
-| `TableDefinition` | Catalog | Typed definition of a table, its columns, primary key, and indexes. | `get_column()`, `get_primary_key()` | 🛠️ |
-| `ColumnDefinition` | Catalog | Typed definition of one table column. | Access to name, type, nullability, uniqueness, and default | 🛠️ |
+| `TableDefinition` | Catalog | Typed definition of a table, its columns, primary key, indexes, and common timestamp helpers. | `add_column()`, `add_timestamps()`, `get_column()`, `get_primary_key()` | 🧪 |
+| `ColumnDefinition` | Catalog | Typed definition of one table column, including an optional static default, generated-value policy, integer primary-key auto-increment, and the rule that `TYPE_OBJECT` accepts Resources only. | `set_default()`, `clear_default()`, `has_default()`, `get_default_value()`, `accepts_value()`, `created_at()`, `updated_at()` | 🧪 |
+| `ColumnDefault` | Catalog | Wraps a declared static default so an explicit null value remains distinct from no default and future default metadata can evolve without parallel column state. | `value` | 🧪 |
 | `TableAlteration` | Catalog | Typed intent for adding, renaming, or dropping one table column. | `add_column()`, `rename_column()`, `drop_column()` | 🧪 |
 | `IndexDefinition` | Catalog | Describes an index and the columns it covers. | `get_columns()`, `is_unique()` | 🚧 |
 
@@ -190,13 +191,13 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `TableStorage` | Storage | Abstract row-level storage contract used by the runtime. | `read_table()`, `find_by_primary_key()`, `stage_insert()`, `stage_update()`, `stage_delete()`, `commit()`, `rollback()` | 🚧 |
-| `ConfigFileTableStorage` | Storage backend | Implements `TableStorage` using ConfigFile-backed `.cfg` files. | TableStorage implementation | 🧪 |
-| `StorageSession` | Storage | Tracks loaded data, staged changes, and dirty state for one unit of work. | Session-specific state access | 🛠️ |
+| `ConfigFileTableStorage` | Storage backend | Implements `TableStorage` using ConfigFile-backed `.cfg` files, with atomic query commits, final-state uniqueness validation, table metadata, and transactional auto-increment generation. | TableStorage implementation | 🧪 |
+| `StorageSession` | Storage | Tracks staged changes, dirty state, and uncommitted table metadata reservations for one unit of work. | Session-specific state access | 🧪 |
 | `TableSnapshot` | Storage | Stable collection of rows read from a table for an operation. | `get_rows()`, `find_by_primary_key()` | 🛠️ |
 | `RowRecord` | Storage and execution | Typed runtime representation of one row, including source-qualified values for multi-table evaluation. | `get_value()`, `get_source_value()`, `set_source_values()`, mutation and lookup helpers | 🧪 |
 | `DatabasePathResolver` | Storage infrastructure | Resolves logical database and table identifiers into physical paths. | `resolve_catalog_path()`, `resolve_table_path()` | 🛠️ |
 | `ConfigFileCache` | Storage infrastructure | Manages loaded ConfigFile objects and their lifecycle. | `get_or_load()`, `invalidate()`, `flush()` | 🛠️ |
-| `GodotVariantCodec` | Serialization | Encodes and decodes Godot-native values at the storage boundary. | `encode()`, `decode()` | 🛠️ |
+| `GodotVariantCodec` | Serialization | Encodes and decodes Godot-native values at the storage boundary, including explicit nulls and native or custom Resources. | `encode()`, `decode()` | 🧪 |
 
 ## Results and materialization
 

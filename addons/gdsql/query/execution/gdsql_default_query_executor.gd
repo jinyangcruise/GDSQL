@@ -39,19 +39,28 @@ func _execute_insert(
 		result: GDSQLQueryExecutionResult,
 ) -> GDSQLQueryExecutionResult:
 	var session := context.transactions.begin()
-	for row in insert_plan.rows:
+	var inserted_rows: Array[GDSQLRowRecord] = []
+	var statement_timestamp := _current_timestamp()
+	for source_row in insert_plan.rows:
+		var row := source_row.duplicate_record()
+		_apply_insert_generated_values(
+			insert_plan.target,
+			row,
+			statement_timestamp,
+		)
 		var stage_result := context.storage.stage_insert(insert_plan.target, row, session)
 		result.diagnostics.merge(stage_result.diagnostics)
 		if not stage_result.is_successful():
 			context.transactions.rollback(session)
 			return result
+		inserted_rows.append(row)
 	var commit_result := context.transactions.commit(session)
 	result.diagnostics.merge(commit_result.diagnostics)
 	if not commit_result.is_successful():
 		context.transactions.rollback(session)
 		return result
-	result.rows.rows = insert_plan.rows.duplicate()
-	result.statistics = { "affected_rows": insert_plan.rows.size() }
+	result.rows.rows = inserted_rows
+	result.statistics = { "affected_rows": inserted_rows.size() }
 	result.value = result.rows
 	return result
 
@@ -64,6 +73,7 @@ func _execute_update(
 	var session := context.transactions.begin()
 	var snapshot := context.storage.read_table(update_plan.target, session)
 	var updated_rows: Array[GDSQLRowRecord] = []
+	var statement_timestamp := _current_timestamp()
 	for source_row in snapshot.rows:
 		if update_plan.predicate != null \
 				and not _is_true(context.expression_evaluator.evaluate(update_plan.predicate, source_row)):
@@ -74,6 +84,11 @@ func _execute_update(
 				assignment.column,
 				context.expression_evaluator.evaluate(assignment.expression, source_row),
 			)
+		_apply_update_generated_values(
+			update_plan.target,
+			updated_row,
+			statement_timestamp,
+		)
 		var key: Variant = source_row.get_value(update_plan.target.primary_key)
 		var stage_result := context.storage.stage_update(update_plan.target, key, updated_row, session)
 		result.diagnostics.merge(stage_result.diagnostics)
@@ -90,6 +105,31 @@ func _execute_update(
 	result.statistics = { "affected_rows": updated_rows.size() }
 	result.value = result.rows
 	return result
+
+
+func _apply_insert_generated_values(
+		table: GDSQLTableDefinition,
+		row: GDSQLRowRecord,
+		statement_timestamp: int,
+) -> void:
+	for column in table.columns:
+		if column.generation == GDSQLColumnDefinition.Generation.CREATED_AT \
+				or column.generation == GDSQLColumnDefinition.Generation.UPDATED_AT:
+			row.set_value(column.name, statement_timestamp)
+
+
+func _apply_update_generated_values(
+		table: GDSQLTableDefinition,
+		row: GDSQLRowRecord,
+		statement_timestamp: int,
+) -> void:
+	for column in table.columns:
+		if column.generation == GDSQLColumnDefinition.Generation.UPDATED_AT:
+			row.set_value(column.name, statement_timestamp)
+
+
+func _current_timestamp() -> int:
+	return int(Time.get_unix_time_from_system() * 1000.0)
 
 
 func _execute_delete(

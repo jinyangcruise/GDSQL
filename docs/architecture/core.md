@@ -984,6 +984,26 @@ before planning. Execution reads matching rows, stages changes through
 `TableStorage`, and commits once per query. Mutation results report affected
 row counts and include the inserted, updated, or deleted rows. Updating a
 primary key is intentionally rejected by the initial implementation.
+ConfigFile storage validates primary-key and column-level unique constraints
+against the final staged table state before persistence. A violation rolls back
+the entire query, including multi-row inserts and updates. Nullable unique
+columns permit multiple null values. Insert validation applies declared static
+defaults, including an explicitly declared null default.
+
+Integer primary keys may declare `auto_increment`. The ConfigFile backend owns
+the mutable sequence and row count in a reserved table-file metadata section:
+
+```ini
+[__gdsql_metadata__]
+row_count=42
+next_auto_increment=58
+```
+
+Generated keys are reserved in the storage session and persisted only when the
+mutation commits. Deletion reduces `row_count` but does not reduce or reuse the
+sequence. An explicit key at or above the current sequence advances the next
+generated value. If table metadata is absent or damaged, the storage backend
+may derive a replacement high-water mark from the existing rows.
 
 ---
 
@@ -1151,13 +1171,37 @@ var indexes: Array[IndexDefinition] = []
 class_name ColumnDefinition
 extends RefCounted
 
+enum Generation {
+	NONE,
+	CREATED_AT,
+	UPDATED_AT,
+	# This policy boundary is going to allow UUID generation and more
+	# storage-independent generated values.
+}
+
 var name: StringName
 var data_type: Variant.Type
 var nullable: bool
 var unique: bool
 var auto_increment: bool
-var default_value: Variant
+var default: ColumnDefault
+var generation: Generation
 ```
+
+`ColumnDefault` distinguishes no default (`default == null`) from an explicitly
+declared null default (`default.value == null`) without adding a second boolean
+that can disagree with the value. Static defaults remain schema metadata.
+The component also gives defaults an independent extension point for future
+default metadata or policies without adding parallel state to
+`ColumnDefinition`; generated values remain a separate concern.
+Generated-value policies describe runtime behavior without embedding generators
+inside the catalog model. `created_at()` and `updated_at()` provide the initial
+timestamp policies, while `TableDefinition.add_timestamps()` adds both common
+columns. Both values use one Unix-millisecond timestamp per mutation statement:
+`created_at` is generated on insert, and `updated_at` is generated on insert and
+update. Callers cannot assign generated timestamp columns directly. Adding one
+to a populated table backfills existing rows with one alteration timestamp.
+Mutable row counts and generated-key sequences remain owned by physical storage.
 
 Rows and query execution remain outside the catalog.
 
@@ -1755,7 +1799,7 @@ Private fields and getters may be used where stronger control is required.
 - Handling arbitrary parameters.
 - Interacting with `ConfigFile`.
 - Returning compatibility-oriented results.
-- Decoding legacy metadata.
+- Repairing or importing dynamic metadata.
 
 Stable internal concepts use typed classes:
 
@@ -1923,6 +1967,13 @@ TableReference
 Godot `Variant` and resource support remain core GDSQL capabilities.
 
 Literal values and row fields may remain typed as `Variant`. Validation and serialization are delegated to appropriate services rather than converted indiscriminately to strings.
+
+`TYPE_OBJECT` has a narrower database meaning than Godot's general object
+category: it represents a `Resource`. Native and custom `Resource` instances
+are accepted and serialized by the storage backend. `Node` and other arbitrary
+`Object` instances are rejected. Nodes carry scene-tree ownership, lifecycle,
+signals, and runtime connections, making them unsafe and ambiguous as persisted
+row values.
 
 ### Abstract contracts support boundaries
 

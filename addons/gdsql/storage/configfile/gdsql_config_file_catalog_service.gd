@@ -2,10 +2,15 @@ class_name GDSQLConfigFileCatalogService
 extends GDSQLCatalogService
 
 var _path_resolver: GDSQLDatabasePathResolver
+var _codec: GDSQLGodotVariantCodec
 
 
-func _init(path_resolver: GDSQLDatabasePathResolver) -> void:
+func _init(
+		path_resolver: GDSQLDatabasePathResolver,
+		codec: GDSQLGodotVariantCodec,
+) -> void:
 	_path_resolver = path_resolver
+	_codec = codec
 
 
 func get_database(database_name: StringName) -> GDSQLDatabaseDefinition:
@@ -90,7 +95,19 @@ func _load_table(database_name: StringName, table_name: StringName) -> GDSQLTabl
 		)
 		column.unique = bool(schema.get_value(section, "unique", false))
 		column.auto_increment = bool(schema.get_value(section, "auto_increment", false))
-		if schema.has_section_key(section, "default"):
-			column.default_value = schema.get_value(section, "default")
+		column.generation = int(
+			schema.get_value(
+				section,
+				"generation",
+				GDSQLColumnDefinition.Generation.NONE,
+			),
+		)
+		if schema.has_section_key(section, "default_kind") \
+				and schema.get_value(section, "default_kind") == "static":
+			column.set_default(
+				_codec.decode(schema.get_value(section, "default")) \
+					if schema.has_section_key(section, "default") \
+					else null,
+			)
 		table.columns.append(column)
 	return table

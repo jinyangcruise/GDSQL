@@ -21,6 +21,15 @@ func add_column(column: GDSQLColumnDefinition) -> GDSQLTableDefinition:
 	return self
 
 
+func add_timestamps(
+		created_at_name: StringName = &"created_at",
+		updated_at_name: StringName = &"updated_at",
+) -> GDSQLTableDefinition:
+	add_column(GDSQLColumnDefinition.created_at(created_at_name))
+	add_column(GDSQLColumnDefinition.updated_at(updated_at_name))
+	return self
+
+
 func get_column(column_name: StringName) -> GDSQLColumnDefinition:
 	for column in columns:
 		if column.name == column_name:
