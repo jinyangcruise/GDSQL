@@ -62,11 +62,11 @@ func test_update_matching_rows() -> void:
 	_insert_heroes(database)
 	var update_result := database.execute(
 		database.query()
-				.update()
-				.table(&"heroes")
-				.set_value(&"name", "Wizard")
-				.where(_id_equals(2))
-				.build(),
+		.update()
+		.table(&"heroes")
+		.set_value(&"name", "Wizard")
+		.where(_id_equals(2))
+		.build(),
 	)
 
 	assert_bool(update_result.is_successful()).is_true()
@@ -87,10 +87,10 @@ func test_delete_matching_rows() -> void:
 	_insert_heroes(database)
 	var delete_result := database.execute(
 		database.query()
-				.delete()
-				.from_table(&"heroes")
-				.where(_id_equals(1))
-				.build(),
+		.delete()
+		.from_table(&"heroes")
+		.where(_id_equals(1))
+		.build(),
 	)
 
 	assert_bool(delete_result.is_successful()).is_true()
@@ -105,6 +105,64 @@ func test_delete_matching_rows() -> void:
 	assert_int(select_result.rows[0].get_value(&"id")).is_equal(2)
 
 
+func test_select_orders_before_offset_and_limit() -> void:
+	var database := _create_database_with_heroes()
+	_insert_named_heroes(database, ["Mage", "Knight", "Archer"])
+
+	var result := database.execute(
+		database.table(&"heroes")
+		.select()
+		.order_by_column(
+			&"name",
+			GDSQLOrderClause.SortDirection.ASCENDING,
+		)
+		.offset(1)
+		.limit(1)
+		.build(),
+	)
+
+	assert_bool(result.is_successful()).is_true()
+	assert_int(result.get_returned_rows()).is_equal(1)
+	assert_str(result.rows[0].get_value(&"name")).is_equal("Knight")
+
+
+func test_select_projection_alias_exposes_result_schema() -> void:
+	var database := _create_database_with_heroes()
+	_insert_named_heroes(database, ["Mage"])
+
+	var result := database.execute(
+		database.table(&"heroes")
+		.select()
+		.column(&"name", &"display_name")
+		.build(),
+	)
+
+	assert_bool(result.is_successful()).is_true()
+	assert_str(result.rows[0].get_value(&"display_name")).is_equal("Mage")
+	assert_bool(result.rows[0].has_column(&"name")).is_false()
+	assert_object(result.get_schema().get_column(&"display_name")).is_not_null()
+	assert_int(result.get_schema().get_column(&"display_name").data_type).is_equal(TYPE_STRING)
+
+
+func test_select_distinct_removes_duplicate_projected_rows() -> void:
+	var database := _create_database_with_heroes()
+	_insert_named_heroes(database, ["Mage", "Mage", "Knight"])
+
+	var result := database.execute(
+		database.table(&"heroes")
+		.select()
+		.column(&"name")
+		.distinct()
+		.order_by_column(&"name")
+		.build(),
+	)
+
+	assert_bool(result.is_successful()).is_true()
+	assert_int(result.get_returned_rows()).is_equal(2)
+	assert_str(result.rows[0].get_value(&"name")).is_equal("Knight")
+	assert_str(result.rows[1].get_value(&"name")).is_equal("Mage")
+
+
 func _create_database_with_heroes() -> GDSQLDatabase:
 	var database_result := GDSQLDatabase.create(&"game_config", _data_root)
 	assert_bool(database_result.is_successful()).is_true()
@@ -117,8 +175,18 @@ func _create_database_with_heroes() -> GDSQLDatabase:
 
 
 func _insert_heroes(database: GDSQLDatabase) -> void:
-	assert_bool(database.insert(&"heroes", {&"id": 1, &"name": "Knight"}).is_successful()).is_true()
-	assert_bool(database.insert(&"heroes", {&"id": 2, &"name": "Mage"}).is_successful()).is_true()
+	assert_bool(database.insert(&"heroes", { &"id": 1, &"name": "Knight" }).is_successful()).is_true()
+	assert_bool(database.insert(&"heroes", { &"id": 2, &"name": "Mage" }).is_successful()).is_true()
+
+
+func _insert_named_heroes(database: GDSQLDatabase, names: Array[String]) -> void:
+	for index in names.size():
+		assert_bool(
+			database.insert(
+				&"heroes",
+				{ &"id": index + 1, &"name": names[index] },
+			).is_successful(),
+		).is_true()
 
 
 func _id_equals(id: int) -> GDSQLComparisonExpression:

@@ -3,6 +3,7 @@ extends GDSQLOperationResult
 
 var rows: Array[GDSQLRowRecord] = []
 var statistics: Dictionary = { }
+var schema: GDSQLResultSchema
 
 
 func get_rows() -> Array[GDSQLRowRecord]:
@@ -11,6 +12,10 @@ func get_rows() -> Array[GDSQLRowRecord]:
 
 func get_diagnostics() -> Array[GDSQLQueryDiagnostic]:
 	return diagnostics.entries
+
+
+func get_schema() -> GDSQLResultSchema:
+	return schema
 
 
 func get_affected_rows() -> int:

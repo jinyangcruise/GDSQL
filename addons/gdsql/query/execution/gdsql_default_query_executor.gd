@@ -158,9 +158,31 @@ func _execute_select_node(
 		for source_row in input.rows:
 			var values: Dictionary = { }
 			for index in projection.projections.size():
-				var expression := projection.projections[index]
-				values[_projection_name(expression, index)] = context.expression_evaluator.evaluate(expression, source_row)
+				var selected := projection.projections[index]
+				values[_projection_name(selected, index)] = context.expression_evaluator.evaluate(
+					selected.expression,
+					source_row,
+				)
 			rows.rows.append(GDSQLRowRecord.new(values))
+		return rows
+	if node is GDSQLDistinctPlan:
+		var distinct := node as GDSQLDistinctPlan
+		var input := _execute_select_node(distinct.input, context, result)
+		var rows := GDSQLRowSet.new()
+		rows.schema = node.output_schema
+		for candidate in input.rows:
+			if not _contains_row(rows.rows, candidate):
+				rows.rows.append(candidate)
+		return rows
+	if node is GDSQLSortPlan:
+		var sort := node as GDSQLSortPlan
+		var input := _execute_select_node(sort.input, context, result)
+		var rows := GDSQLRowSet.new()
+		rows.schema = node.output_schema
+		rows.rows = input.rows.duplicate()
+		rows.rows.sort_custom(
+			_compare_rows.bind(sort.ordering, context.expression_evaluator),
+		)
 		return rows
 	if node is GDSQLLimitPlan:
 		var limit := node as GDSQLLimitPlan
@@ -181,9 +203,61 @@ func _execute_select_node(
 	return GDSQLRowSet.new()
 
 
-func _projection_name(expression: GDSQLQueryExpression, index: int) -> StringName:
-	if expression is GDSQLBoundColumnExpression:
-		return (expression as GDSQLBoundColumnExpression).column_id.column_name
-	if expression is GDSQLColumnExpression:
-		return (expression as GDSQLColumnExpression).column_name
+func _projection_name(projection: GDSQLSelectProjection, index: int) -> StringName:
+	if projection.alias != &"":
+		return projection.alias
+	if projection.expression is GDSQLBoundColumnExpression:
+		return (projection.expression as GDSQLBoundColumnExpression).column_id.column_name
 	return StringName("column_%d" % index)
+
+
+func _contains_row(
+		rows: Array[GDSQLRowRecord],
+		candidate: GDSQLRowRecord,
+) -> bool:
+	for row in rows:
+		if row.values == candidate.values:
+			return true
+	return false
+
+
+func _compare_rows(
+		left: GDSQLRowRecord,
+		right: GDSQLRowRecord,
+		ordering: Array[GDSQLOrderClause],
+		evaluator: GDSQLExpressionEvaluator,
+) -> bool:
+	for clause in ordering:
+		var comparison := _compare_values(
+			evaluator.evaluate(clause.expression, left),
+			evaluator.evaluate(clause.expression, right),
+		)
+		if comparison == 0:
+			continue
+		if clause.direction == GDSQLOrderClause.SortDirection.DESCENDING:
+			return comparison > 0
+		return comparison < 0
+	return false
+
+
+func _compare_values(left: Variant, right: Variant) -> int:
+	if left == right:
+		return 0
+	if left == null:
+		return -1
+	if right == null:
+		return 1
+	if (typeof(left) == TYPE_INT or typeof(left) == TYPE_FLOAT) \
+			and (typeof(right) == TYPE_INT or typeof(right) == TYPE_FLOAT):
+		return -1 if left < right else 1
+	if typeof(left) == typeof(right):
+		match typeof(left):
+			TYPE_STRING, TYPE_STRING_NAME:
+				return -1 if String(left) < String(right) else 1
+			TYPE_BOOL:
+				return -1 if not bool(left) else 1
+	var left_text := str(left)
+	var right_text := str(right)
+	if left_text == right_text:
+		return 0
+	return -1 if left_text < right_text else 1

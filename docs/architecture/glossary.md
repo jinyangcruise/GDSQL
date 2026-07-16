@@ -27,7 +27,7 @@ state in the same change as implementation or test work.
 | `Database` | Public API | Main user-facing entry point for creating, opening, renaming, and dropping a database; managing its tables; and executing canonical query specs. | `create()`, `open()`, `rename()`, `drop()`, `create_table()`, `rename_table()`, `alter_table()`, `drop_table()`, `query()`, `execute()` | 🧪 |
 | `DatabaseContext` | Runtime facade | Coordinates catalog administration, validation, binding, planning, execution, and result materialization. | Database and table administration methods, `execute(query)`, `prepare(query)` | 🚧 |
 | `Query` | Fluent API | User-facing fluent query entry point that optionally captures a table and creates operation-specific builders. | `table()`, `select()`, `insert()`, `update()`, `delete()` | 🧪 |
-| `SelectQueryBuilder` | Fluent API | Builds a `SelectQuerySpec` through a controlled fluent interface. | `from_table()`, `columns()`, `where()`, `join()`, `order_by()`, `limit()`, `offset()`, `build()` | 🚧 |
+| `SelectQueryBuilder` | Fluent API | Builds a `SelectQuerySpec` with projections, aliases, predicates, ordering, distinct selection, limits, and offsets. | `from_table()`, `columns()`, `column()`, `project()`, `where()`, `order_by()`, `order_by_column()`, `distinct()`, `limit()`, `offset()`, `build()` | 🧪 |
 | `InsertQueryBuilder` | Fluent API | Builds an `InsertQuerySpec` from one or more named rows. | `into_table()`, `values()`, `build()` | 🧪 |
 | `UpdateQueryBuilder` | Fluent API | Builds a single-table `UpdateQuerySpec` from typed assignments and an optional predicate. | `table()`, `set_value()`, `set_expression()`, `where()`, `build()` | 🧪 |
 | `DeleteQueryBuilder` | Fluent API | Builds a single-table `DeleteQuerySpec` with an optional predicate. | `from_table()`, `where()`, `build()` | 🧪 |
@@ -39,7 +39,7 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `QuerySpec` | Query model | Abstract base for canonical database-operation descriptions. | `accept(visitor)` | 🚧 |
-| `SelectQuerySpec` | Query model | Describes a read operation, including sources, projections, predicates, joins, grouping, ordering, and limits. | `accept(visitor)` | 🛠️ |
+| `SelectQuerySpec` | Query model | Describes a read operation, including sources, projections, predicates, joins, grouping, ordering, distinct selection, and limits. | `accept(visitor)` | 🧪 |
 | `InsertQuerySpec` | Query model | Describes rows to insert into a target table. | `accept(visitor)` | 🧪 |
 | `UpdateQuerySpec` | Query model | Describes assignments and selection criteria for an update operation. | `accept(visitor)` | 🧪 |
 | `DeleteQuerySpec` | Query model | Describes the target and selection criteria for a delete operation. | `accept(visitor)` | 🧪 |
@@ -48,9 +48,10 @@ state in the same change as implementation or test work.
 | `TableReference` | Query model | Identifies a database table and optional alias without loading it. | `get_database_name()`, `get_table_name()`, `get_alias()` | 🛠️ |
 | `JoinSpec` | Query model | Describes a join type, source, and condition. | `get_type()`, `get_source()`, `get_condition()` | 🚧 |
 | `InsertRow` | Query model | Represents one ordered or named row of values for insertion. | `get_values()` | 🛠️ |
+| `SelectProjection` | Query model | Associates a selected expression with an optional public result alias. | Access to expression and alias | 🧪 |
 | `ColumnAssignment` | Query model | Associates a target column with an expression used during update. | Access to column and expression | 🧪 |
-| `OrderClause` | Query model | Associates an expression with a sort direction and optional null-ordering rule. | `get_expression()`, `get_direction()` | 🚧 |
-| `SortDirection` | Query model | Enumerates ascending and descending ordering. | `ASCENDING`, `DESCENDING` | 🚧 |
+| `OrderClause` | Query model | Associates an expression with a sort direction. | Access to expression and direction | 🧪 |
+| `SortDirection` | Query model | Enumerates ascending and descending ordering. | `ASCENDING`, `DESCENDING` | 🧪 |
 | `ComparisonOperator` | Expression model | Enumerates comparison operations. | `EQUAL`, `NOT_EQUAL`, `GREATER_THAN`, `LESS_THAN`, and related values | 🛠️ |
 | `LogicalOperator` | Expression model | Enumerates logical composition operations. | `AND`, `OR`, `NOT` | 🛠️ |
 
@@ -115,9 +116,9 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `QueryValidator` | Validation | Abstract contract for validating query semantics against a catalog. | `validate(query)` | 🚧 |
-| `DefaultQueryValidator` | Validation | Default implementation of semantic validation and initial binding. | `validate(query)` | 🚧 |
+| `DefaultQueryValidator` | Validation | Default implementation of semantic validation and initial binding. | `validate(query)` | 🧪 |
 | `BoundQuery` | Binding | Catalog-resolved and type-checked representation of a query. | Access to root operation, referenced tables, and output schema | 🚧 |
-| `BoundSelectQuery` | Binding | Bound representation of a select operation. | Access to resolved sources, expressions, and output schema | 🚧 |
+| `BoundSelectQuery` | Binding | Bound representation of a select operation, including projections, ordering, distinct selection, limit, and offset. | Access to resolved source and select clauses | 🧪 |
 | `BoundInsertQuery` | Binding | Bound insert operation containing a resolved target table and validated rows. | Access to target and rows | 🛠️ |
 | `BoundUpdateQuery` | Binding | Bound update operation containing a resolved target, assignments, and predicate. | Access to target, assignments, and predicate | 🧪 |
 | `BoundDeleteQuery` | Binding | Bound delete operation containing a resolved target and predicate. | Access to target and predicate | 🧪 |
@@ -131,7 +132,7 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `QueryPlanner` | Planning | Converts a bound query into a `QueryPlan`. | `create_plan(query)` | 🚧 |
-| `DefaultQueryPlanner` | Planning | Produces deterministic plans for currently supported bound operations. | `create_plan(query)` | 🚧 |
+| `DefaultQueryPlanner` | Planning | Produces deterministic plans for currently supported bound operations. | `create_plan(query)` | 🧪 |
 | `QueryPlan` | Planning | Owns the root executable plan node and associated metadata. | `get_root()` | 🚧 |
 | `PlanNode` | Planning | Abstract base for executable relational operations. | `accept(visitor)` | 🚧 |
 | `PlanNodeVisitor` | Planning | Performs operations over concrete plan node types. | `visit_table_scan()`, `visit_filter()`, `visit_sort()`, and related methods | 🚧 |
@@ -140,19 +141,20 @@ state in the same change as implementation or test work.
 | `FilterPlan` | Planning | Filters rows from its input according to a predicate. | `accept(visitor)` | 🛠️ |
 | `ProjectionPlan` | Planning | Produces selected or calculated output columns. | `accept(visitor)` | 🛠️ |
 | `AggregatePlan` | Planning | Groups rows and evaluates aggregate expressions. | `accept(visitor)` | 🚧 |
-| `SortPlan` | Planning | Orders rows from its input. | `accept(visitor)` | 🚧 |
+| `SortPlan` | Planning | Orders rows from its input using one or more bound order clauses. | `accept(visitor)` | 🧪 |
+| `DistinctPlan` | Planning | Removes duplicate rows after projection and before limit or offset. | `accept(visitor)` | 🧪 |
 | `LimitPlan` | Planning | Applies offset and row-count limits. | `accept(visitor)` | 🛠️ |
 | `InsertPlan` | Planning | Stages validated rows for insertion into one resolved table. | `accept(visitor)` | 🛠️ |
 | `UpdatePlan` | Planning | Applies validated assignments to matching rows in one resolved table. | `accept(visitor)` | 🧪 |
 | `DeletePlan` | Planning | Deletes matching rows from one resolved table. | `accept(visitor)` | 🧪 |
-| `ResultSchema` | Planning and results | Describes the columns and types produced by a query or plan node. | `get_columns()`, `get_column()` | 🚧 |
+| `ResultSchema` | Planning and results | Describes the names and types produced by a query or plan node, including projection aliases. | `get_columns()`, `get_column()` | 🧪 |
 
 ## Execution
 
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `QueryExecutor` | Execution | Abstract contract for executing query plans. | `execute(plan, context)` | 🚧 |
-| `DefaultQueryExecutor` | Execution | Default GDScript implementation of query-plan execution. | `execute(plan, context)` | 🚧 |
+| `DefaultQueryExecutor` | Execution | Default GDScript implementation of query-plan execution. | `execute(plan, context)` | 🧪 |
 | `ExecutionContext` | Execution | Groups runtime services and per-execution state. | Service accessors | 🚧 |
 | `ExpressionEvaluator` | Execution | Evaluates canonical or bound expressions against a row context. | `evaluate(expression, row_context)` | 🚧 |
 | `QueryFunctionRegistry` | Execution | Registers and resolves scalar and aggregate query functions. | `register_function()`, `resolve()` | 🚧 |
@@ -193,7 +195,7 @@ state in the same change as implementation or test work.
 |---|---|---|---|---|
 | `RowSet` | Execution results | Internal collection of rows and their result schema. | `get_rows()`, `get_schema()` | 🚧 |
 | `DatabaseResult` | Public results | Contains a database handle or structured diagnostics from `Database.create()` and `Database.open()`. | `is_successful()`, `get_database()` | 🧪 |
-| `QueryResult` | Public results | Stable public representation of query output that inherits the composed diagnostics behavior from `OperationResult`. | `is_successful()`, `get_rows()`, `get_diagnostics()`, `get_affected_rows()`, `get_returned_rows()` | 🧪 |
+| `QueryResult` | Public results | Stable public representation of query output and schema that inherits the composed diagnostics behavior from `OperationResult`. | `is_successful()`, `get_rows()`, `get_schema()`, `get_diagnostics()`, `get_affected_rows()`, `get_returned_rows()` | 🧪 |
 | `ResultMapping` | Mapping | Describes how result columns map into an output representation. | Mapping accessors | 🚧 |
 | `ResultMaterializer` | Mapping | Abstract contract for converting a `RowSet` into a user-facing result. | `materialize(rows, mapping)` | 🚧 |
 | `DictionaryResultMaterializer` | Mapping | Converts rows into dictionaries. | `materialize()` | 🚧 |
@@ -207,7 +209,9 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `DatabaseModel` | Optional model API | Provides convenient model-oriented persistence operations above the canonical query pipeline. | `find()`, `query()`, `save()`, `delete()` | 🚧 |
+| `ModelQuery` | Optional model API | Model-oriented query frontend that translates helpers into canonical `QuerySpec` objects. | `where()`, `order_by()`, `with()`, `get()`, `to_query_spec()` | 📝 |
 | `ModelMapper` | Optional model API | Maps model metadata and operations to `QuerySpec` and result mappings. | `to_insert()`, `to_update()`, `materialize()` | 🚧 |
+| `RelationshipDefinition` | Optional model API | Typed declaration of a has-one, has-many, belongs-to, or many-to-many model relationship. | Relationship constructors and key accessors | 📝 |
 | `MapperCompiler` | Optional mapping extension | Converts an external mapping definition into `QuerySpec` and `ResultMapping`. | `compile()` | 🚧 |
 
 Optional extensions remain above the canonical runtime and do not define its internal architecture.

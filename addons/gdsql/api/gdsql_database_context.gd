@@ -87,6 +87,7 @@ func execute(query: GDSQLQuerySpec) -> GDSQLQueryResult:
 	public_result.diagnostics.merge(execution.diagnostics)
 	if execution.rows != null:
 		public_result.rows = execution.rows.rows.duplicate()
+		public_result.schema = execution.rows.schema
 	public_result.statistics = execution.statistics.duplicate()
 	return public_result
 

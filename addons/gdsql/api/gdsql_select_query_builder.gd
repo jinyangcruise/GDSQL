@@ -4,11 +4,12 @@ extends RefCounted
 var _built: bool = false
 var _database_name: StringName
 var _source: GDSQLQuerySource
-var _projections: Array[GDSQLQueryExpression] = []
+var _projections: Array[GDSQLSelectProjection] = []
 var _predicate: GDSQLQueryExpression
 var _ordering: Array[GDSQLOrderClause] = []
 var _limit: int = -1
 var _offset: int = 0
+var _distinct: bool = false
 
 
 func _init(
@@ -36,7 +37,25 @@ func columns(column_names: Array[StringName]) -> GDSQLSelectQueryBuilder:
 	_ensure_mutable()
 	_projections.clear()
 	for column_name in column_names:
-		_projections.append(GDSQLColumnExpression.new(column_name))
+		_projections.append(
+			GDSQLSelectProjection.new(GDSQLColumnExpression.new(column_name)),
+		)
+	return self
+
+
+func column(
+		column_name: StringName,
+		alias: StringName = &"",
+) -> GDSQLSelectQueryBuilder:
+	return project(GDSQLColumnExpression.new(column_name), alias)
+
+
+func project(
+		expression: GDSQLQueryExpression,
+		alias: StringName = &"",
+) -> GDSQLSelectQueryBuilder:
+	_ensure_mutable()
+	_projections.append(GDSQLSelectProjection.new(expression, alias))
 	return self
 
 
@@ -48,6 +67,21 @@ func join(join_spec: GDSQLJoinSpec) -> GDSQLSelectQueryBuilder:
 func order_by(clause: GDSQLOrderClause) -> GDSQLSelectQueryBuilder:
 	_ensure_mutable()
 	_ordering.append(clause)
+	return self
+
+
+func order_by_column(
+		column_name: StringName,
+		direction: GDSQLOrderClause.SortDirection = GDSQLOrderClause.SortDirection.ASCENDING,
+) -> GDSQLSelectQueryBuilder:
+	return order_by(
+		GDSQLOrderClause.new(GDSQLColumnExpression.new(column_name), direction),
+	)
+
+
+func distinct() -> GDSQLSelectQueryBuilder:
+	_ensure_mutable()
+	_distinct = true
 	return self
 
 
@@ -73,6 +107,7 @@ func build() -> GDSQLSelectQuerySpec:
 	spec.ordering = _ordering.duplicate()
 	spec.limit = _limit
 	spec.offset = _offset
+	spec.distinct = _distinct
 	return spec
 
 

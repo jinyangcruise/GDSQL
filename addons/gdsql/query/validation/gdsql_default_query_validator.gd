@@ -32,39 +32,117 @@ func _validate_select(query: GDSQLSelectQuerySpec) -> GDSQLQueryValidationResult
 		)
 	if query.limit < -1 or query.offset < 0:
 		return _error(&"GDSQL_VALIDATION_INVALID_LIMIT", "Limit must be -1 or greater and offset cannot be negative.")
-	if not query.joins.is_empty() or not query.grouping.is_empty() or query.having != null or not query.ordering.is_empty():
+	if not query.joins.is_empty() or not query.grouping.is_empty() or query.having != null:
 		return _error(
 			&"GDSQL_VALIDATION_SELECT_FEATURE_UNSUPPORTED",
-			"Joins, grouping, having, and ordering are not implemented in the minimal select slice.",
+			"Joins, grouping, and having are not implemented in the select pipeline.",
 		)
 	var result := GDSQLQueryValidationResult.new()
 	var bound_select := GDSQLBoundSelectQuery.new()
 	bound_select.source = table
 	bound_select.limit = query.limit
 	bound_select.offset = query.offset
-	for projection in query.projections:
-		var bound_projection := _bind_expression(projection, table, source.alias, result)
-		if bound_projection == null:
+	bound_select.distinct = query.distinct
+	for projection_index in query.projections.size():
+		var projection := query.projections[projection_index]
+		if projection == null or projection.expression == null:
+			return _error(
+				&"GDSQL_VALIDATION_INVALID_PROJECTION",
+				"Select projections require an expression.",
+			)
+		var bound_expression := _bind_expression(projection.expression, table, source.alias, result)
+		if bound_expression == null:
 			return result
-		bound_select.projections.append(bound_projection)
+		bound_select.projections.append(
+			GDSQLSelectProjection.new(bound_expression, projection.alias),
+		)
 	if query.predicate != null:
 		bound_select.predicate = _bind_expression(query.predicate, table, source.alias, result)
 		if bound_select.predicate == null:
 			return result
+	for clause in query.ordering:
+		if clause == null or clause.expression == null:
+			return _error(
+				&"GDSQL_VALIDATION_INVALID_ORDERING",
+				"Order clauses require an expression.",
+			)
+		var bound_ordering := _bind_expression(clause.expression, table, source.alias, result)
+		if bound_ordering == null:
+			return result
+		bound_select.ordering.append(
+			GDSQLOrderClause.new(bound_ordering, clause.direction),
+		)
 	var bound_query := GDSQLBoundQuery.new()
 	bound_query.source_query = query
 	bound_query.root_operation = bound_select
 	bound_query.referenced_tables.append(table)
 	bound_query.output_schema = GDSQLResultSchema.new()
 	if bound_select.projections.is_empty():
-		bound_query.output_schema.columns = table.columns.duplicate()
+		for column in table.columns:
+			bound_query.output_schema.columns.append(_copy_column(column))
 	else:
-		for projection in bound_select.projections:
-			if projection is GDSQLBoundColumnExpression:
-				bound_query.output_schema.columns.append(table.get_column((projection as GDSQLBoundColumnExpression).column_id.column_name))
+		var output_names: Dictionary = { }
+		for projection_index in bound_select.projections.size():
+			var projection := bound_select.projections[projection_index]
+			var output_name := _projection_output_name(projection, projection_index)
+			if output_names.has(output_name):
+				return _error(
+					&"GDSQL_VALIDATION_DUPLICATE_PROJECTION_NAME",
+					"Projection output name '%s' appears more than once." % output_name,
+				)
+			output_names[output_name] = true
+			bound_query.output_schema.columns.append(
+				_projection_column(projection, output_name, table),
+			)
 	result.bound_query = bound_query
 	result.value = bound_query
 	return result
+
+
+func _projection_output_name(
+		projection: GDSQLSelectProjection,
+		index: int,
+) -> StringName:
+	if projection.alias != &"":
+		return projection.alias
+	if projection.expression is GDSQLBoundColumnExpression:
+		return (projection.expression as GDSQLBoundColumnExpression).column_id.column_name
+	return StringName("column_%d" % index)
+
+
+func _projection_column(
+		projection: GDSQLSelectProjection,
+		output_name: StringName,
+		table: GDSQLTableDefinition,
+) -> GDSQLColumnDefinition:
+	if projection.expression is GDSQLBoundColumnExpression:
+		var source_name := (projection.expression as GDSQLBoundColumnExpression).column_id.column_name
+		var source_column := table.get_column(source_name)
+		var column := _copy_column(source_column)
+		column.name = output_name
+		return column
+	var data_type := TYPE_NIL
+	var nullable := true
+	if projection.expression is GDSQLLiteralExpression:
+		var value: Variant = (projection.expression as GDSQLLiteralExpression).value
+		data_type = typeof(value)
+		nullable = value == null
+	elif projection.expression is GDSQLComparisonExpression \
+			or projection.expression is GDSQLLogicalExpression:
+		data_type = TYPE_BOOL
+		nullable = false
+	return GDSQLColumnDefinition.new(output_name, data_type, nullable)
+
+
+func _copy_column(column: GDSQLColumnDefinition) -> GDSQLColumnDefinition:
+	return GDSQLColumnDefinition.new(
+		column.name,
+		column.data_type,
+		column.nullable,
+		column.unique,
+		column.auto_increment,
+		column.default_value,
+	)
 
 
 func _bind_expression(

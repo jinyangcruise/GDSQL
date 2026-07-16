@@ -17,6 +17,10 @@ func visit_projection(node: GDSQLProjectionPlan) -> Variant:
 	return null
 
 
+func visit_distinct(node: GDSQLDistinctPlan) -> Variant:
+	return null
+
+
 func visit_aggregate(node: GDSQLAggregatePlan) -> Variant:
 	return null
 

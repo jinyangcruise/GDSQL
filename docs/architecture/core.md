@@ -122,8 +122,12 @@ var query := SelectQuerySpec.new()
 
 query.source = TableReference.new(&"heroes")
 query.projections = [
-    ColumnExpression.new(&"name"),
-    ColumnExpression.new(&"health"),
+    SelectProjection.new(
+        ColumnExpression.new(&"name")
+    ),
+    SelectProjection.new(
+        ColumnExpression.new(&"health")
+    ),
 ]
 query.predicate = ComparisonExpression.new(
     ColumnExpression.new(&"health"),
@@ -219,7 +223,7 @@ class_name SelectQuerySpec
 extends QuerySpec
 
 var source: QuerySource
-var projections: Array[QueryExpression] = []
+var projections: Array[SelectProjection] = []
 var joins: Array[JoinSpec] = []
 var predicate: QueryExpression
 var grouping: Array[QueryExpression] = []
@@ -235,6 +239,11 @@ func _init() -> void:
 func accept(visitor: QuerySpecVisitor) -> Variant:
     return visitor.visit_select(self)
 ```
+
+`SelectProjection` associates an output expression with an optional result
+alias. The alias belongs to the selected output item rather than to the
+expression itself, allowing expressions to remain reusable in predicates,
+ordering, grouping, and updates.
 
 ### Insert
 
@@ -737,10 +746,11 @@ Example plan:
 
 ```text
 Limit(10)
-└── Sort(health DESC)
-    └── Project(name, health)
-        └── Filter(health > 100)
-            └── TableScan(heroes)
+└── Distinct
+    └── Project(name AS display_name, health)
+        └── Sort(health DESC)
+            └── Filter(health > 100)
+                └── TableScan(heroes)
 ```
 
 ```gdscript
@@ -800,6 +810,10 @@ func accept(visitor: PlanNodeVisitor) -> Variant:
 ```
 
 The first planner may produce deterministic plans without cost estimation.
+Ordering is applied to source rows before projection so a query may order by a
+source column that is not returned. Projection establishes public output names
+and the result schema. Distinct selection removes duplicate projected rows
+before limit and offset are applied.
 
 ```gdscript
 func plan_select(
@@ -822,16 +836,19 @@ func plan_select(
             query.projections
         )
 
-    current = ProjectionPlan.new(
-        current,
-        query.projections
-    )
-
     if not query.ordering.is_empty():
         current = SortPlan.new(
             current,
             query.ordering
         )
+
+    current = ProjectionPlan.new(
+        current,
+        query.projections
+    )
+
+    if query.distinct:
+        current = DistinctPlan.new(current)
 
     if query.limit >= 0 or query.offset > 0:
         current = LimitPlan.new(
@@ -1404,7 +1421,7 @@ addons/gdsql/
 │   │   ├── update_query_spec.gd
 │   │   ├── delete_query_spec.gd
 │   │   ├── expressions/
-│   │   └── clauses/
+│   │   └── clauses/             # Includes SelectProjection and OrderClause
 │   │
 │   ├── sql/
 │   │   ├── lexer/
