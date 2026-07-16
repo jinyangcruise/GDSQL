@@ -4,6 +4,7 @@ extends GDSQLQueryExpression
 var table_id: GDSQLTableId
 var column_id: GDSQLColumnId
 var data_type: Variant.Type = TYPE_NIL
+var nullable: bool = true
 
 
 func accept(visitor: GDSQLExpressionVisitor) -> Variant:

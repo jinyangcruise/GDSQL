@@ -54,18 +54,24 @@ state in the same change as implementation or test work.
 | `SortDirection` | Query model | Enumerates ascending and descending ordering. | `ASCENDING`, `DESCENDING` | 🧪 |
 | `ComparisonOperator` | Expression model | Enumerates comparison operations. | `EQUAL`, `NOT_EQUAL`, `GREATER_THAN`, `LESS_THAN`, and related values | 🛠️ |
 | `LogicalOperator` | Expression model | Enumerates logical composition operations. | `AND`, `OR`, `NOT` | 🛠️ |
+| `ArithmeticOperator` | Expression model | Enumerates scalar arithmetic operations. | `ADD`, `SUBTRACT`, `MULTIPLY`, `DIVIDE`, `MODULO` | 🧪 |
+| `NullCheckOperator` | Expression model | Enumerates explicit null checks. | `IS_NULL`, `IS_NOT_NULL` | 🧪 |
 
 ## Expression model
 
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `QueryExpression` | Expression model | Abstract base for canonical expressions used throughout queries. | `accept(visitor)` | 🚧 |
-| `ExpressionVisitor` | Expression model | Performs type-specific operations over raw and bound expression nodes. | `visit_column()`, `visit_bound_column()`, `visit_literal()`, `visit_comparison()`, `visit_logical()` | 🚧 |
+| `ExpressionVisitor` | Expression model | Performs type-specific operations over raw and bound expression nodes. | Visit methods for column, literal, comparison, logical, arithmetic, null-check, and function expressions | 🚧 |
 | `ColumnExpression` | Expression model | Refers to a column by name and optional source alias. | `accept(visitor)` | 🛠️ |
 | `LiteralExpression` | Expression model | Holds a literal Godot `Variant` value. | `accept(visitor)` | 🛠️ |
-| `ComparisonExpression` | Expression model | Compares two expressions through a `ComparisonOperator`. | `accept(visitor)` | 🛠️ |
-| `LogicalExpression` | Expression model | Combines expressions through logical operators. | `accept(visitor)` | 🛠️ |
-| `FunctionExpression` | Expression model | Describes a scalar or aggregate function invocation. | `get_name()`, `get_arguments()`, `accept(visitor)` | 🚧 |
+| `ComparisonExpression` | Expression model | Compares compatible expressions through a `ComparisonOperator`, propagating null as unknown. | `accept(visitor)` | 🧪 |
+| `LogicalExpression` | Expression model | Combines boolean or unknown expressions through three-valued logical operators. | `accept(visitor)` | 🧪 |
+| `ArithmeticExpression` | Expression model | Applies numeric arithmetic or string addition to two scalar expressions. | `accept(visitor)` | 🧪 |
+| `NullCheckExpression` | Expression model | Tests whether an expression evaluates to null. | `accept(visitor)` | 🧪 |
+| `FunctionExpression` | Expression model | Describes a validated scalar or aggregate function invocation. | Access to name and arguments, `accept(visitor)` | 🧪 |
+| `QueryFunctionDefinition` | Expression model | Describes a function name, arity, return type, and aggregate classification without execution behavior. | `accepts_argument_count()` and definition fields | 🧪 |
+| `QueryFunctionCatalog` | Expression model | Resolves function definitions for frontend construction and query validation. | `register_function()`, `resolve()`, `contains()` | 🧪 |
 
 ## SQL lexical model
 
@@ -123,7 +129,7 @@ state in the same change as implementation or test work.
 | `BoundUpdateQuery` | Binding | Bound update operation containing a resolved target, assignments, and predicate. | Access to target, assignments, and predicate | 🧪 |
 | `BoundDeleteQuery` | Binding | Bound delete operation containing a resolved target and predicate. | Access to target and predicate | 🧪 |
 | `BoundQueryOperation` | Binding | Abstract base for resolved query operations. | Operation-specific accessors | 🚧 |
-| `BoundColumnExpression` | Binding | Column expression resolved to stable table and column identifiers and a data type. | `get_table_id()`, `get_column_id()`, `get_data_type()` | 🛠️ |
+| `BoundColumnExpression` | Binding | Column expression resolved to stable table and column identifiers, data type, and nullability. | Access to table ID, column ID, data type, and nullability | 🛠️ |
 | `TableId` | Identifiers | Stable identifier for a catalog table. | Equality and string representation | 🚧 |
 | `ColumnId` | Identifiers | Stable identifier for a catalog column. | Equality and string representation | 🚧 |
 
@@ -156,8 +162,8 @@ state in the same change as implementation or test work.
 | `QueryExecutor` | Execution | Abstract contract for executing query plans. | `execute(plan, context)` | 🚧 |
 | `DefaultQueryExecutor` | Execution | Default GDScript implementation of query-plan execution. | `execute(plan, context)` | 🧪 |
 | `ExecutionContext` | Execution | Groups runtime services and per-execution state. | Service accessors | 🚧 |
-| `ExpressionEvaluator` | Execution | Evaluates canonical or bound expressions against a row context. | `evaluate(expression, row_context)` | 🚧 |
-| `QueryFunctionRegistry` | Execution | Registers and resolves scalar and aggregate query functions. | `register_function()`, `resolve()` | 🚧 |
+| `ExpressionEvaluator` | Execution | Evaluates canonical or bound scalar expressions against a row context with null propagation. | `evaluate(expression, row_context)` | 🧪 |
+| `QueryFunctionRegistry` | Execution | Associates query-function definitions with executable scalar and aggregate callables. | `register_function()`, `resolve()` | 🧪 |
 | `QueryCancellationToken` | Execution | Communicates cancellation requests to long-running operations. | `cancel()`, `is_cancelled()` | 🚧 |
 | `TransactionManager` | Execution | Coordinates storage sessions, commits, and rollbacks. | `begin()`, `commit()`, `rollback()` | 🚧 |
 

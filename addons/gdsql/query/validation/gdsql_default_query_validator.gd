@@ -1,11 +1,18 @@
 class_name GDSQLDefaultQueryValidator
 extends GDSQLQueryValidator
 
+const FunctionCatalog = preload("res://addons/gdsql/query/model/gdsql_query_function_catalog.gd")
+
 var catalog: GDSQLCatalogService
+var function_catalog: FunctionCatalog
 
 
-func _init(p_catalog: GDSQLCatalogService = null) -> void:
-	catalog = p_catalog
+func _init(
+		catalog: GDSQLCatalogService = null,
+		function_catalog: FunctionCatalog = null,
+) -> void:
+	self.catalog = catalog
+	self.function_catalog = function_catalog
 
 
 func validate(query: GDSQLQuerySpec) -> GDSQLQueryValidationResult:
@@ -60,6 +67,11 @@ func _validate_select(query: GDSQLSelectQuerySpec) -> GDSQLQueryValidationResult
 		bound_select.predicate = _bind_expression(query.predicate, table, source.alias, result)
 		if bound_select.predicate == null:
 			return result
+		if not _is_boolean_expression(bound_select.predicate):
+			return _error(
+				&"GDSQL_VALIDATION_PREDICATE_TYPE",
+				"Select predicate must produce a boolean value.",
+			)
 	for clause in query.ordering:
 		if clause == null or clause.expression == null:
 			return _error(
@@ -127,10 +139,9 @@ func _projection_column(
 		var value: Variant = (projection.expression as GDSQLLiteralExpression).value
 		data_type = typeof(value)
 		nullable = value == null
-	elif projection.expression is GDSQLComparisonExpression \
-			or projection.expression is GDSQLLogicalExpression:
-		data_type = TYPE_BOOL
-		nullable = false
+	else:
+		data_type = _expression_type(projection.expression)
+		nullable = _expression_nullable(projection.expression)
 	return GDSQLColumnDefinition.new(output_name, data_type, nullable)
 
 
@@ -177,12 +188,15 @@ func _bind_expression(
 		bound_column.table_id = table_id
 		bound_column.column_id = GDSQLColumnId.new(table_id, column.name)
 		bound_column.data_type = column.data_type
+		bound_column.nullable = column.nullable
 		return bound_column
 	if expression is GDSQLComparisonExpression:
 		var comparison := expression as GDSQLComparisonExpression
 		var left := _bind_expression(comparison.left, table, source_alias, result)
 		var right := _bind_expression(comparison.right, table, source_alias, result)
 		if left == null or right == null:
+			return null
+		if not _validate_comparison_types(comparison.operator, left, right, result):
 			return null
 		return GDSQLComparisonExpression.new(left, comparison.operator, right)
 	if expression is GDSQLLogicalExpression:
@@ -193,7 +207,34 @@ func _bind_expression(
 			right = _bind_expression(logical.right, table, source_alias, result)
 		if left == null or (logical.right != null and right == null):
 			return null
+		if not _is_boolean_expression(left) \
+				or (logical.operator != GDSQLLogicalExpression.LogicalOperator.NOT \
+								and not _is_boolean_expression(right)):
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_VALIDATION_LOGICAL_TYPE",
+					"Logical expressions require boolean operands.",
+				),
+			)
+			return null
 		return GDSQLLogicalExpression.new(left, logical.operator, right)
+	if expression is GDSQLArithmeticExpression:
+		var arithmetic := expression as GDSQLArithmeticExpression
+		var left := _bind_expression(arithmetic.left, table, source_alias, result)
+		var right := _bind_expression(arithmetic.right, table, source_alias, result)
+		if left == null or right == null:
+			return null
+		if not _validate_arithmetic_types(arithmetic.operator, left, right, result):
+			return null
+		return GDSQLArithmeticExpression.new(left, arithmetic.operator, right)
+	if expression is GDSQLNullCheckExpression:
+		var null_check := expression as GDSQLNullCheckExpression
+		var operand := _bind_expression(null_check.operand, table, source_alias, result)
+		if operand == null:
+			return null
+		return GDSQLNullCheckExpression.new(operand, null_check.operator)
+	if expression is GDSQLFunctionExpression:
+		return _bind_function(expression as GDSQLFunctionExpression, table, source_alias, result)
 	result.add_diagnostic(
 		GDSQLQueryDiagnostic.new(
 			&"GDSQL_VALIDATION_EXPRESSION_UNSUPPORTED",
@@ -293,6 +334,11 @@ func _validate_update(query: GDSQLUpdateQuerySpec) -> GDSQLQueryValidationResult
 		bound_operation.predicate = _bind_expression(query.predicate, table, &"", result)
 		if bound_operation.predicate == null:
 			return result
+		if not _is_boolean_expression(bound_operation.predicate):
+			return _error(
+				&"GDSQL_VALIDATION_PREDICATE_TYPE",
+				"Update predicate must produce a boolean value.",
+			)
 	return _bound_mutation_result(query, bound_operation, table)
 
 
@@ -312,6 +358,11 @@ func _validate_delete(query: GDSQLDeleteQuerySpec) -> GDSQLQueryValidationResult
 		bound_operation.predicate = _bind_expression(query.predicate, table, &"", result)
 		if bound_operation.predicate == null:
 			return result
+		if not _is_boolean_expression(bound_operation.predicate):
+			return _error(
+				&"GDSQL_VALIDATION_PREDICATE_TYPE",
+				"Delete predicate must produce a boolean value.",
+			)
 	return _bound_mutation_result(query, bound_operation, table)
 
 
@@ -336,14 +387,210 @@ func _is_assignment_compatible(
 ) -> bool:
 	if expression is GDSQLLiteralExpression:
 		return _is_compatible((expression as GDSQLLiteralExpression).value, column)
-	var expression_type := TYPE_NIL
-	if expression is GDSQLBoundColumnExpression:
-		expression_type = (expression as GDSQLBoundColumnExpression).data_type
-	elif expression is GDSQLComparisonExpression or expression is GDSQLLogicalExpression:
-		expression_type = TYPE_BOOL
+	var expression_type := _expression_type(expression)
 	if expression_type == TYPE_NIL or expression_type == column.data_type:
 		return true
 	return column.data_type == TYPE_FLOAT and expression_type == TYPE_INT
+
+
+func _bind_function(
+		expression: GDSQLFunctionExpression,
+		table: GDSQLTableDefinition,
+		source_alias: StringName,
+		result: GDSQLQueryValidationResult,
+) -> GDSQLQueryExpression:
+	if function_catalog == null or not function_catalog.contains(expression.name):
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_VALIDATION_UNKNOWN_FUNCTION",
+				"Unknown query function '%s'." % expression.name,
+			),
+		)
+		return null
+	var definition := function_catalog.resolve(expression.name)
+	if expression.aggregate or definition.aggregate:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_VALIDATION_AGGREGATE_UNSUPPORTED",
+				"Aggregate function '%s' requires the grouping pipeline, which is not implemented." % expression.name,
+			),
+		)
+		return null
+	if not definition.accepts_argument_count(expression.arguments.size()):
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_VALIDATION_FUNCTION_ARITY",
+				"Function '%s' does not accept %d arguments." \
+						% [expression.name, expression.arguments.size()],
+			),
+		)
+		return null
+	var bound_arguments: Array[GDSQLQueryExpression] = []
+	for argument in expression.arguments:
+		var bound_argument := _bind_expression(argument, table, source_alias, result)
+		if bound_argument == null:
+			return null
+		bound_arguments.append(bound_argument)
+	if not _validate_function_types(expression.name, bound_arguments, result):
+		return null
+	return GDSQLFunctionExpression.new(expression.name, bound_arguments, false)
+
+
+func _validate_comparison_types(
+		operator: GDSQLComparisonExpression.ComparisonOperator,
+		left: GDSQLQueryExpression,
+		right: GDSQLQueryExpression,
+		result: GDSQLQueryValidationResult,
+) -> bool:
+	var left_type := _expression_type(left)
+	var right_type := _expression_type(right)
+	if left_type == TYPE_NIL or right_type == TYPE_NIL \
+			or left_type == right_type \
+			or (_is_numeric_type(left_type) and _is_numeric_type(right_type)):
+		return true
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_VALIDATION_COMPARISON_TYPE",
+			"Comparison operands have incompatible types %s and %s." % [left_type, right_type],
+		),
+	)
+	return false
+
+
+func _validate_function_types(
+		name: StringName,
+		arguments: Array[GDSQLQueryExpression],
+		result: GDSQLQueryValidationResult,
+) -> bool:
+	var normalized := String(name).to_lower()
+	if normalized == "lower" or normalized == "upper" or normalized == "length":
+		var data_type := _expression_type(arguments[0])
+		if data_type != TYPE_NIL and data_type != TYPE_STRING and data_type != TYPE_STRING_NAME:
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_VALIDATION_FUNCTION_TYPE",
+					"Function '%s' requires a string argument." % name,
+				),
+			)
+			return false
+	if normalized == "abs":
+		var data_type := _expression_type(arguments[0])
+		if data_type != TYPE_NIL and not _is_numeric_type(data_type):
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_VALIDATION_FUNCTION_TYPE",
+					"Function 'abs' requires a numeric argument.",
+				),
+			)
+			return false
+	if normalized == "coalesce":
+		var resolved_type := TYPE_NIL
+		for argument in arguments:
+			var argument_type := _expression_type(argument)
+			if argument_type == TYPE_NIL:
+				continue
+			if resolved_type == TYPE_NIL:
+				resolved_type = argument_type
+			elif argument_type != resolved_type \
+					and not (_is_numeric_type(argument_type) and _is_numeric_type(resolved_type)):
+				result.add_diagnostic(
+					GDSQLQueryDiagnostic.new(
+						&"GDSQL_VALIDATION_FUNCTION_TYPE",
+						"Function 'coalesce' requires compatible argument types.",
+					),
+				)
+				return false
+	return true
+
+
+func _validate_arithmetic_types(
+		operator: GDSQLArithmeticExpression.ArithmeticOperator,
+		left: GDSQLQueryExpression,
+		right: GDSQLQueryExpression,
+		result: GDSQLQueryValidationResult,
+) -> bool:
+	var left_type := _expression_type(left)
+	var right_type := _expression_type(right)
+	if left_type == TYPE_NIL or right_type == TYPE_NIL:
+		return true
+	if operator == GDSQLArithmeticExpression.ArithmeticOperator.ADD \
+			and left_type == TYPE_STRING and right_type == TYPE_STRING:
+		return true
+	if not _is_numeric_type(left_type) or not _is_numeric_type(right_type):
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_VALIDATION_ARITHMETIC_TYPE",
+				"Arithmetic expressions require numeric operands; ADD also accepts two strings.",
+			),
+		)
+		return false
+	if operator == GDSQLArithmeticExpression.ArithmeticOperator.MODULO \
+			and (left_type != TYPE_INT or right_type != TYPE_INT):
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_VALIDATION_ARITHMETIC_TYPE",
+				"Modulo requires integer operands.",
+			),
+		)
+		return false
+	return true
+
+
+func _expression_type(expression: GDSQLQueryExpression) -> Variant.Type:
+	if expression is GDSQLLiteralExpression:
+		return typeof((expression as GDSQLLiteralExpression).value)
+	if expression is GDSQLBoundColumnExpression:
+		return (expression as GDSQLBoundColumnExpression).data_type
+	if expression is GDSQLComparisonExpression \
+			or expression is GDSQLLogicalExpression \
+			or expression is GDSQLNullCheckExpression:
+		return TYPE_BOOL
+	if expression is GDSQLFunctionExpression:
+		if function_catalog == null:
+			return TYPE_NIL
+		var function := expression as GDSQLFunctionExpression
+		var definition := function_catalog.resolve(function.name)
+		if definition == null:
+			return TYPE_NIL
+		var return_type := definition.return_type
+		if return_type == TYPE_NIL \
+				and (String(function.name).to_lower() == "coalesce" \
+								or String(function.name).to_lower() == "abs"):
+			for argument in function.arguments:
+				var argument_type := _expression_type(argument)
+				if argument_type != TYPE_NIL:
+					return argument_type
+		return return_type
+	if expression is GDSQLArithmeticExpression:
+		var arithmetic := expression as GDSQLArithmeticExpression
+		var left_type := _expression_type(arithmetic.left)
+		var right_type := _expression_type(arithmetic.right)
+		if arithmetic.operator == GDSQLArithmeticExpression.ArithmeticOperator.DIVIDE:
+			return TYPE_FLOAT
+		if left_type == TYPE_STRING and right_type == TYPE_STRING:
+			return TYPE_STRING
+		if left_type == TYPE_FLOAT or right_type == TYPE_FLOAT:
+			return TYPE_FLOAT
+		return TYPE_INT if left_type == TYPE_INT and right_type == TYPE_INT else TYPE_NIL
+	return TYPE_NIL
+
+
+func _expression_nullable(expression: GDSQLQueryExpression) -> bool:
+	if expression is GDSQLLiteralExpression:
+		return (expression as GDSQLLiteralExpression).value == null
+	if expression is GDSQLBoundColumnExpression:
+		return (expression as GDSQLBoundColumnExpression).nullable
+	if expression is GDSQLNullCheckExpression:
+		return false
+	return true
+
+
+func _is_boolean_expression(expression: GDSQLQueryExpression) -> bool:
+	return _expression_type(expression) == TYPE_BOOL
+
+
+func _is_numeric_type(data_type: Variant.Type) -> bool:
+	return data_type == TYPE_INT or data_type == TYPE_FLOAT
 
 
 func _is_compatible(value: Variant, column: GDSQLColumnDefinition) -> bool:

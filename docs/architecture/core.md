@@ -385,6 +385,29 @@ func accept(visitor: ExpressionVisitor) -> Variant:
     return visitor.visit_logical(self)
 ```
 
+### Scalar expression semantics
+
+The canonical scalar model also includes:
+
+- `ArithmeticExpression` for numeric arithmetic and string addition.
+- `NullCheckExpression` for explicit `IS NULL` and `IS NOT NULL` checks.
+- `FunctionExpression` for registered scalar or aggregate calls.
+
+Scalar evaluation follows SQL-like null propagation. Arithmetic and ordinary
+comparisons return `null` when an operand is `null`; predicates treat that
+unknown result as non-matching. Logical expressions use three-valued `AND`,
+`OR`, and `NOT` semantics. Explicit null checks always return a boolean.
+
+The query-level function catalog exposes definitions containing name, arity,
+return type, and aggregate classification. Validation depends on this metadata,
+while the execution-level registry owns the matching callables. The initial
+runtime provides `lower`, `upper`, `length`, `abs`, and `coalesce`. Function
+existence, arity, argument compatibility, and expression type compatibility
+are validated before planning. Aggregate function calls remain part of the
+model. Definitions for `count`, `sum`, `avg`, `min`, and `max` are
+scaffolded, but calls are rejected with a structured unsupported diagnostic
+until grouping and aggregate execution are available.
+
 Expression objects describe meaning. Evaluation is performed separately:
 
 ```gdscript

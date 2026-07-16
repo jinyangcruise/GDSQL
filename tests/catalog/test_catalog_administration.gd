@@ -1,6 +1,8 @@
 class_name GDSQLCatalogAdministrationTest
 extends GdUnitTestSuite
 
+const TestDatabase = preload("res://tests/utils/gdsql_test_database.gd")
+
 var _data_root: String
 var _test_index := 0
 
@@ -11,9 +13,8 @@ func before_test() -> void:
 
 
 func test_alter_table_migrates_existing_rows() -> void:
-	var database := _create_database_with_heroes()
-	assert_bool(database.insert(&"heroes", {&"id": 1, &"name": "Knight"}).is_successful()).is_true()
-	assert_bool(database.insert(&"heroes", {&"id": 2, &"name": "Mage"}).is_successful()).is_true()
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
 
 	var alterations: Array[GDSQLTableAlteration] = [
 		GDSQLTableAlteration.add_column(
@@ -48,7 +49,7 @@ func test_alter_table_migrates_existing_rows() -> void:
 
 
 func test_alter_table_rejects_primary_key_drop() -> void:
-	var database := _create_database_with_heroes()
+	var database := TestDatabase.create_heroes_database(_data_root)
 	var alterations: Array[GDSQLTableAlteration] = [
 		GDSQLTableAlteration.drop_column(&"id"),
 	]
@@ -58,8 +59,8 @@ func test_alter_table_rejects_primary_key_drop() -> void:
 
 
 func test_rename_and_drop_database_and_table() -> void:
-	var database := _create_database_with_heroes()
-	assert_bool(database.insert(&"heroes", {&"id": 1, &"name": "Knight"}).is_successful()).is_true()
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_rows(database, [{&"id": 1, &"name": "Knight"}])
 
 	assert_bool(database.rename_table(&"heroes", &"characters").is_successful()).is_true()
 	assert_bool(database.context.catalog.has_table(&"game_config", &"heroes")).is_false()
@@ -79,14 +80,3 @@ func test_rename_and_drop_database_and_table() -> void:
 	assert_bool(database.drop().is_successful()).is_true()
 	assert_bool(GDSQLDatabase.open(&"game_data", _data_root).is_successful()).is_false()
 	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(_data_root.path_join("game_data")))).is_false()
-
-
-func _create_database_with_heroes() -> GDSQLDatabase:
-	var database_result := GDSQLDatabase.create(&"game_config", _data_root)
-	assert_bool(database_result.is_successful()).is_true()
-	var database := database_result.get_database()
-	var heroes := GDSQLTableDefinition.new(&"heroes", &"id")
-	heroes.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
-	heroes.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
-	assert_bool(database.create_table(heroes).is_successful()).is_true()
-	return database

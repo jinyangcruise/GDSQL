@@ -1,23 +1,22 @@
-class_name GDSQLComparisonExpression
+class_name GDSQLArithmeticExpression
 extends GDSQLQueryExpression
 
-enum ComparisonOperator {
-	EQUAL,
-	NOT_EQUAL,
-	GREATER_THAN,
-	LESS_THAN,
-	GREATER_THAN_OR_EQUAL,
-	LESS_THAN_OR_EQUAL,
+enum ArithmeticOperator {
+	ADD,
+	SUBTRACT,
+	MULTIPLY,
+	DIVIDE,
+	MODULO,
 }
 
 var left: GDSQLQueryExpression
-var operator: ComparisonOperator
+var operator: ArithmeticOperator
 var right: GDSQLQueryExpression
 
 
 func _init(
 		left: GDSQLQueryExpression = null,
-		operator: ComparisonOperator = ComparisonOperator.EQUAL,
+		operator: ArithmeticOperator = ArithmeticOperator.ADD,
 		right: GDSQLQueryExpression = null,
 ) -> void:
 	self.left = left
@@ -26,4 +25,4 @@ func _init(
 
 
 func accept(visitor: GDSQLExpressionVisitor) -> Variant:
-	return visitor.visit_comparison(self)
+	return visitor.visit_arithmetic(self)
