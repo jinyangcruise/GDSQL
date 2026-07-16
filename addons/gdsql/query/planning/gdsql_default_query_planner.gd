@@ -94,6 +94,25 @@ func _plan_select(bound_select: GDSQLBoundSelectQuery, output_schema: GDSQLResul
 			filter.predicate = bound_select.predicate
 			filter.output_schema = source_schema
 			current = filter
+	var aggregates: Array[GDSQLFunctionExpression] = []
+	for selected in bound_select.projections:
+		_collect_aggregates(selected.expression, aggregates)
+	_collect_aggregates(bound_select.having, aggregates)
+	for clause in bound_select.ordering:
+		_collect_aggregates(clause.expression, aggregates)
+	if not bound_select.grouping.is_empty() or not aggregates.is_empty():
+		var aggregate := GDSQLAggregatePlan.new()
+		aggregate.input = current
+		aggregate.grouping = bound_select.grouping.duplicate()
+		aggregate.aggregates = aggregates
+		aggregate.output_schema = source_schema
+		current = aggregate
+		if bound_select.having != null:
+			var having_filter := GDSQLFilterPlan.new()
+			having_filter.input = current
+			having_filter.predicate = bound_select.having
+			having_filter.output_schema = source_schema
+			current = having_filter
 	if not bound_select.ordering.is_empty():
 		var sort := GDSQLSortPlan.new()
 		sort.input = current
@@ -150,3 +169,37 @@ func _get_primary_key_lookup(bound_select: GDSQLBoundSelectQuery) -> GDSQLQueryE
 func _is_primary_key_column(expression: GDSQLQueryExpression, table: GDSQLTableDefinition) -> bool:
 	return expression is GDSQLBoundColumnExpression \
 			and (expression as GDSQLBoundColumnExpression).column_id.column_name == table.primary_key
+
+
+func _collect_aggregates(
+		expression: GDSQLQueryExpression,
+		aggregates: Array[GDSQLFunctionExpression],
+) -> void:
+	if expression == null:
+		return
+	if expression is GDSQLFunctionExpression:
+		var function := expression as GDSQLFunctionExpression
+		if function.aggregate:
+			if not aggregates.has(function):
+				aggregates.append(function)
+			return
+		for argument in function.arguments:
+			_collect_aggregates(argument, aggregates)
+		return
+	if expression is GDSQLComparisonExpression:
+		var comparison := expression as GDSQLComparisonExpression
+		_collect_aggregates(comparison.left, aggregates)
+		_collect_aggregates(comparison.right, aggregates)
+	elif expression is GDSQLLogicalExpression:
+		var logical := expression as GDSQLLogicalExpression
+		_collect_aggregates(logical.left, aggregates)
+		_collect_aggregates(logical.right, aggregates)
+	elif expression is GDSQLArithmeticExpression:
+		var arithmetic := expression as GDSQLArithmeticExpression
+		_collect_aggregates(arithmetic.left, aggregates)
+		_collect_aggregates(arithmetic.right, aggregates)
+	elif expression is GDSQLNullCheckExpression:
+		_collect_aggregates(
+			(expression as GDSQLNullCheckExpression).operand,
+			aggregates,
+		)

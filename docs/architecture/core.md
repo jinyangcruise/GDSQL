@@ -400,13 +400,12 @@ unknown result as non-matching. Logical expressions use three-valued `AND`,
 
 The query-level function catalog exposes definitions containing name, arity,
 return type, and aggregate classification. Validation depends on this metadata,
-while the execution-level registry owns the matching callables. The initial
-runtime provides `lower`, `upper`, `length`, `abs`, and `coalesce`. Function
-existence, arity, argument compatibility, and expression type compatibility
-are validated before planning. Aggregate function calls remain part of the
-model. Definitions for `count`, `sum`, `avg`, `min`, and `max` are
-scaffolded, but calls are rejected with a structured unsupported diagnostic
-until grouping and aggregate execution are available.
+while the execution-level registry owns the matching scalar and aggregate
+callables. The initial runtime provides `lower`, `upper`, `length`, `abs`,
+`coalesce`, `count`, `sum`, `avg`, `min`, and `max`. Function existence,
+arity, argument compatibility, expression type compatibility, aggregate
+placement, and grouped-expression compatibility are validated before planning.
+Aggregate execution groups rows before HAVING, ordering, and projection.
 
 Expression objects describe meaning. Evaluation is performed separately:
 
@@ -863,11 +862,17 @@ func plan_select(
             query.predicate
         )
 
-    if not query.grouping.is_empty():
+    if not query.grouping.is_empty() or query.has_aggregates():
         current = AggregatePlan.new(
             current,
             query.grouping,
-            query.projections
+            query.aggregate_expressions
+        )
+
+    if query.having != null:
+        current = FilterPlan.new(
+            current,
+            query.having
         )
 
     if not query.ordering.is_empty():

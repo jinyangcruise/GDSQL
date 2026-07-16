@@ -2,7 +2,6 @@ class_name GDSQLRuntimeFactory
 extends RefCounted
 
 const FunctionCatalog = preload("res://addons/gdsql/query/model/gdsql_query_function_catalog.gd")
-const FunctionDefinition = preload("res://addons/gdsql/query/model/gdsql_query_function_definition.gd")
 
 static func create_default(settings: Variant = null) -> GDSQLDatabaseContext:
 	var data_root := "res://data"
@@ -20,21 +19,6 @@ static func create_default(settings: Variant = null) -> GDSQLDatabaseContext:
 	var transactions := GDSQLTransactionManager.new(storage)
 	var function_catalog := FunctionCatalog.new()
 	var function_registry := GDSQLQueryFunctionRegistry.new(function_catalog)
-	function_catalog.register_function(
-		FunctionDefinition.new(&"count", 0, 1, TYPE_INT, true),
-	)
-	function_catalog.register_function(
-		FunctionDefinition.new(&"sum", 1, 1, TYPE_FLOAT, true),
-	)
-	function_catalog.register_function(
-		FunctionDefinition.new(&"avg", 1, 1, TYPE_FLOAT, true),
-	)
-	function_catalog.register_function(
-		FunctionDefinition.new(&"min", 1, 1, TYPE_NIL, true),
-	)
-	function_catalog.register_function(
-		FunctionDefinition.new(&"max", 1, 1, TYPE_NIL, true),
-	)
 	var expression_evaluator := GDSQLExpressionEvaluator.new(function_registry)
 	var cancellation := GDSQLQueryCancellationToken.new()
 	var execution_context := GDSQLExecutionContext.new(

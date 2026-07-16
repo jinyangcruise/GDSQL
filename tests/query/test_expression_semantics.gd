@@ -116,22 +116,15 @@ func test_invalid_function_call_returns_validation_diagnostic() -> void:
 	)
 
 
-func test_aggregate_function_is_scaffolded_with_an_unsupported_diagnostic() -> void:
+func test_global_count_aggregate_returns_one_row() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root, true)
 	var result := database.execute(
 		database.table(&"heroes")
 		.select()
-		.project(
-			GDSQLFunctionExpression.new(
-				&"count",
-				[GDSQLColumnExpression.new(&"id")],
-				true,
-			),
-		)
+		.count(GDSQLColumnExpression.new(&"id"), &"hero_count")
 		.build(),
 	)
 
-	assert_bool(result.is_successful()).is_false()
-	assert_str(String(result.diagnostics.entries[0].code)).is_equal(
-		"GDSQL_VALIDATION_AGGREGATE_UNSUPPORTED",
-	)
+	assert_bool(result.is_successful()).is_true()
+	assert_int(result.get_returned_rows()).is_equal(1)
+	assert_int(result.rows[0].get_value(&"hero_count")).is_equal(0)

@@ -163,6 +163,12 @@ func _execute_select_node(
 			context,
 			result,
 		)
+	if node is GDSQLAggregatePlan:
+		return _execute_aggregate(
+			node as GDSQLAggregatePlan,
+			context,
+			result,
+		)
 	if node is GDSQLFilterPlan:
 		var filter := node as GDSQLFilterPlan
 		var input := _execute_select_node(filter.input, context, result)
@@ -223,6 +229,72 @@ func _execute_select_node(
 		),
 	)
 	return GDSQLRowSet.new()
+
+
+func _execute_aggregate(
+		aggregate: GDSQLAggregatePlan,
+		context: GDSQLExecutionContext,
+		result: GDSQLQueryExecutionResult,
+) -> GDSQLRowSet:
+	var input := _execute_select_node(aggregate.input, context, result)
+	var rows := GDSQLRowSet.new()
+	rows.schema = aggregate.output_schema
+	var groups: Dictionary = { }
+	if input.rows.is_empty() and aggregate.grouping.is_empty():
+		groups["global"] = []
+	for source_row in input.rows:
+		var grouping_values: Array = []
+		for expression in aggregate.grouping:
+			grouping_values.append(
+				context.expression_evaluator.evaluate(expression, source_row),
+			)
+		var group_key := "global" \
+				if aggregate.grouping.is_empty() \
+				else var_to_str(grouping_values)
+		if not groups.has(group_key):
+			groups[group_key] = []
+		(groups[group_key] as Array).append(source_row)
+	for group_key in groups:
+		var source_rows: Array = groups[group_key]
+		var aggregate_row := GDSQLRowRecord.new()
+		if not source_rows.is_empty():
+			aggregate_row = (source_rows[0] as GDSQLRowRecord).duplicate_record()
+		for expression in aggregate.aggregates:
+			aggregate_row.set_aggregate_value(
+				expression,
+				_evaluate_aggregate_function(
+					expression,
+					source_rows,
+					context.expression_evaluator,
+					context.function_registry,
+					result,
+				),
+			)
+		rows.rows.append(aggregate_row)
+	return rows
+
+
+func _evaluate_aggregate_function(
+		expression: GDSQLFunctionExpression,
+		source_rows: Array,
+		evaluator: GDSQLExpressionEvaluator,
+		function_registry: GDSQLQueryFunctionRegistry,
+		result: GDSQLQueryExecutionResult,
+) -> Variant:
+	var function := function_registry.resolve_aggregate(expression.name)
+	if function.is_valid():
+		var values: Array = []
+		if not expression.arguments.is_empty():
+			for row in source_rows:
+				values.append(evaluator.evaluate(expression.arguments[0], row))
+		return function.call(values, source_rows.size())
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_EXECUTION_AGGREGATE_UNSUPPORTED",
+			"Aggregate function '%s' is not implemented by the executor." % expression.name,
+		),
+	)
+	return null
 
 
 func _execute_nested_loop_join(

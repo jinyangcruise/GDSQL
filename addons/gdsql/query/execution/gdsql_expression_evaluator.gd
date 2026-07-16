@@ -109,6 +109,8 @@ func _evaluate_null_check(expression: GDSQLNullCheckExpression, row: GDSQLRowRec
 
 
 func _evaluate_function(expression: GDSQLFunctionExpression, row: GDSQLRowRecord) -> Variant:
+	if expression.aggregate:
+		return null if row == null else row.get_aggregate_value(expression)
 	if function_registry == null:
 		return null
 	var function := function_registry.resolve(expression.name)

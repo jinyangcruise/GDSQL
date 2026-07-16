@@ -27,7 +27,7 @@ state in the same change as implementation or test work.
 | `Database` | Public API | Main user-facing entry point for creating, opening, renaming, and dropping a database; managing its tables; and executing canonical query specs. | `create()`, `open()`, `rename()`, `drop()`, `create_table()`, `rename_table()`, `alter_table()`, `drop_table()`, `query()`, `execute()` | 🧪 |
 | `DatabaseContext` | Runtime facade | Coordinates catalog administration, validation, binding, planning, execution, and result materialization. | Database and table administration methods, `execute(query)`, `prepare(query)` | 🚧 |
 | `Query` | Fluent API | User-facing fluent query entry point that optionally captures a table and creates operation-specific builders. | `table()`, `select()`, `insert()`, `update()`, `delete()` | 🧪 |
-| `SelectQueryBuilder` | Fluent API | Builds a `SelectQuerySpec` with projections, aliases, joins, predicates, ordering, distinct selection, limits, and offsets. | `from_table()`, `join()`, `join_table()`, `inner_join()`, `left_join()`, projection, ordering, pagination, and `build()` | 🧪 |
+| `SelectQueryBuilder` | Fluent API | Builds a `SelectQuerySpec` with projections, aliases, joins, predicates, grouping, aggregate functions, ordering, distinct selection, limits, and offsets. | `from_table()`, joins, projection, `group_by()`, `having()`, aggregate helpers, ordering, pagination, and `build()` | 🧪 |
 | `InsertQueryBuilder` | Fluent API | Builds an `InsertQuerySpec` from one or more named rows. | `into_table()`, `values()`, `build()` | 🧪 |
 | `UpdateQueryBuilder` | Fluent API | Builds a single-table `UpdateQuerySpec` from typed assignments and an optional predicate. | `table()`, `set_value()`, `set_expression()`, `where()`, `build()` | 🧪 |
 | `DeleteQueryBuilder` | Fluent API | Builds a single-table `DeleteQuerySpec` with an optional predicate. | `from_table()`, `where()`, `build()` | 🧪 |
@@ -149,7 +149,7 @@ state in the same change as implementation or test work.
 | `FilterPlan` | Planning | Filters rows from its input according to a predicate. | `accept(visitor)` | 🛠️ |
 | `NestedLoopJoinPlan` | Planning | Joins two plan inputs by evaluating a bound condition for each candidate row pair. | `accept(visitor)` | 🧪 |
 | `ProjectionPlan` | Planning | Produces selected or calculated output columns. | `accept(visitor)` | 🛠️ |
-| `AggregatePlan` | Planning | Groups rows and evaluates aggregate expressions. | `accept(visitor)` | 🚧 |
+| `AggregatePlan` | Planning | Groups rows and evaluates registered aggregate expressions before HAVING, ordering, and projection. | `accept(visitor)` | 🧪 |
 | `SortPlan` | Planning | Orders rows from its input using one or more bound order clauses. | `accept(visitor)` | 🧪 |
 | `DistinctPlan` | Planning | Removes duplicate rows after projection and before limit or offset. | `accept(visitor)` | 🧪 |
 | `LimitPlan` | Planning | Applies offset and row-count limits. | `accept(visitor)` | 🛠️ |
@@ -166,7 +166,7 @@ state in the same change as implementation or test work.
 | `DefaultQueryExecutor` | Execution | Default GDScript implementation of query-plan execution. | `execute(plan, context)` | 🧪 |
 | `ExecutionContext` | Execution | Groups runtime services and per-execution state. | Service accessors | 🚧 |
 | `ExpressionEvaluator` | Execution | Evaluates canonical or bound scalar expressions against a row context with null propagation. | `evaluate(expression, row_context)` | 🧪 |
-| `QueryFunctionRegistry` | Execution | Associates query-function definitions with executable scalar and aggregate callables. | `register_function()`, `resolve()` | 🧪 |
+| `QueryFunctionRegistry` | Execution | Associates query-function definitions with executable scalar and aggregate callables. | `register_function()`, `register_aggregate_function()`, `resolve()`, `resolve_aggregate()` | 🧪 |
 | `QueryCancellationToken` | Execution | Communicates cancellation requests to long-running operations. | `cancel()`, `is_cancelled()` | 🚧 |
 | `TransactionManager` | Execution | Coordinates storage sessions, commits, and rollbacks. | `begin()`, `commit()`, `rollback()` | 🚧 |
 

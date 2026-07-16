@@ -32,11 +32,6 @@ func _validate_select(query: GDSQLSelectQuerySpec) -> GDSQLQueryValidationResult
 		return _error(&"GDSQL_VALIDATION_SELECT_SOURCE_REQUIRED", "Select query requires one table source.")
 	if query.limit < -1 or query.offset < 0:
 		return _error(&"GDSQL_VALIDATION_INVALID_LIMIT", "Limit must be -1 or greater and offset cannot be negative.")
-	if not query.grouping.is_empty() or query.having != null:
-		return _error(
-			&"GDSQL_VALIDATION_SELECT_FEATURE_UNSUPPORTED",
-			"Grouping and having are not implemented in the select pipeline.",
-		)
 	var result := GDSQLQueryValidationResult.new()
 	var source_reference := query.source as GDSQLTableReference
 	var source_table := catalog.get_table(
@@ -93,6 +88,11 @@ func _validate_select(query: GDSQLSelectQuerySpec) -> GDSQLQueryValidationResult
 		var condition := _bind_expression(join.condition, sources, result)
 		if condition == null:
 			return result
+		if _contains_aggregate(condition):
+			return _error(
+				&"GDSQL_VALIDATION_AGGREGATE_CONTEXT",
+				"Aggregate functions cannot be used in join conditions.",
+			)
 		if not _is_boolean_expression(condition):
 			return _error(
 				&"GDSQL_VALIDATION_JOIN_CONDITION_TYPE",
@@ -132,10 +132,39 @@ func _validate_select(query: GDSQLSelectQuerySpec) -> GDSQLQueryValidationResult
 		bound_select.predicate = _bind_expression(query.predicate, sources, result)
 		if bound_select.predicate == null:
 			return result
+		if _contains_aggregate(bound_select.predicate):
+			return _error(
+				&"GDSQL_VALIDATION_AGGREGATE_CONTEXT",
+				"Aggregate functions cannot be used in WHERE predicates.",
+			)
 		if not _is_boolean_expression(bound_select.predicate):
 			return _error(
 				&"GDSQL_VALIDATION_PREDICATE_TYPE",
 				"Select predicate must produce a boolean value.",
+			)
+	for expression in query.grouping:
+		if expression == null:
+			return _error(
+				&"GDSQL_VALIDATION_INVALID_GROUPING",
+				"Group clauses require an expression.",
+			)
+		var bound_grouping := _bind_expression(expression, sources, result)
+		if bound_grouping == null:
+			return result
+		if _contains_aggregate(bound_grouping):
+			return _error(
+				&"GDSQL_VALIDATION_AGGREGATE_CONTEXT",
+				"Aggregate functions cannot be used in GROUP BY expressions.",
+			)
+		bound_select.grouping.append(bound_grouping)
+	if query.having != null:
+		bound_select.having = _bind_expression(query.having, sources, result)
+		if bound_select.having == null:
+			return result
+		if not _is_boolean_expression(bound_select.having):
+			return _error(
+				&"GDSQL_VALIDATION_HAVING_TYPE",
+				"HAVING predicates must produce a boolean value.",
 			)
 	for clause in query.ordering:
 		if clause == null or clause.expression == null:
@@ -149,6 +178,40 @@ func _validate_select(query: GDSQLSelectQuerySpec) -> GDSQLQueryValidationResult
 		bound_select.ordering.append(
 			GDSQLOrderClause.new(bound_ordering, clause.direction),
 		)
+	var aggregate_query := not bound_select.grouping.is_empty() \
+			or _select_contains_aggregate(bound_select)
+	if bound_select.having != null and not aggregate_query:
+		return _error(
+			&"GDSQL_VALIDATION_HAVING_REQUIRES_GROUPING",
+			"HAVING requires GROUP BY or an aggregate function.",
+		)
+	if aggregate_query:
+		if bound_select.projections.is_empty():
+			return _error(
+				&"GDSQL_VALIDATION_AGGREGATE_PROJECTION_REQUIRED",
+				"Grouped queries require explicit projections.",
+			)
+		var grouping_signatures: Dictionary = { }
+		for expression in bound_select.grouping:
+			grouping_signatures[_expression_signature(expression)] = true
+		for projection in bound_select.projections:
+			if not _is_group_compatible(projection.expression, grouping_signatures):
+				return _error(
+					&"GDSQL_VALIDATION_UNGROUPED_EXPRESSION",
+					"Select projections must be grouped or aggregated.",
+				)
+		if bound_select.having != null \
+				and not _is_group_compatible(bound_select.having, grouping_signatures):
+			return _error(
+				&"GDSQL_VALIDATION_UNGROUPED_EXPRESSION",
+				"HAVING expressions must be grouped or aggregated.",
+			)
+		for clause in bound_select.ordering:
+			if not _is_group_compatible(clause.expression, grouping_signatures):
+				return _error(
+					&"GDSQL_VALIDATION_UNGROUPED_EXPRESSION",
+					"Order expressions must be grouped or aggregated.",
+				)
 	var bound_query := GDSQLBoundQuery.new()
 	bound_query.source_query = query
 	bound_query.root_operation = bound_select
@@ -334,6 +397,134 @@ func _bind_expression(
 	return null
 
 
+func _select_contains_aggregate(query: GDSQLBoundSelectQuery) -> bool:
+	for projection in query.projections:
+		if _contains_aggregate(projection.expression):
+			return true
+	if _contains_aggregate(query.having):
+		return true
+	for clause in query.ordering:
+		if _contains_aggregate(clause.expression):
+			return true
+	return false
+
+
+func _contains_aggregate(expression: GDSQLQueryExpression) -> bool:
+	if expression == null:
+		return false
+	if expression is GDSQLFunctionExpression:
+		var function := expression as GDSQLFunctionExpression
+		if function.aggregate:
+			return true
+		for argument in function.arguments:
+			if _contains_aggregate(argument):
+				return true
+		return false
+	if expression is GDSQLComparisonExpression:
+		var comparison := expression as GDSQLComparisonExpression
+		return _contains_aggregate(comparison.left) or _contains_aggregate(comparison.right)
+	if expression is GDSQLLogicalExpression:
+		var logical := expression as GDSQLLogicalExpression
+		return _contains_aggregate(logical.left) or _contains_aggregate(logical.right)
+	if expression is GDSQLArithmeticExpression:
+		var arithmetic := expression as GDSQLArithmeticExpression
+		return _contains_aggregate(arithmetic.left) or _contains_aggregate(arithmetic.right)
+	if expression is GDSQLNullCheckExpression:
+		return _contains_aggregate((expression as GDSQLNullCheckExpression).operand)
+	return false
+
+
+func _is_group_compatible(
+		expression: GDSQLQueryExpression,
+		grouping_signatures: Dictionary,
+) -> bool:
+	if expression == null or expression is GDSQLLiteralExpression:
+		return true
+	if grouping_signatures.has(_expression_signature(expression)):
+		return true
+	if expression is GDSQLBoundColumnExpression:
+		return false
+	if expression is GDSQLFunctionExpression:
+		var function := expression as GDSQLFunctionExpression
+		if function.aggregate:
+			return true
+		for argument in function.arguments:
+			if not _is_group_compatible(argument, grouping_signatures):
+				return false
+		return true
+	if expression is GDSQLComparisonExpression:
+		var comparison := expression as GDSQLComparisonExpression
+		return _is_group_compatible(comparison.left, grouping_signatures) \
+				and _is_group_compatible(comparison.right, grouping_signatures)
+	if expression is GDSQLLogicalExpression:
+		var logical := expression as GDSQLLogicalExpression
+		return _is_group_compatible(logical.left, grouping_signatures) \
+				and _is_group_compatible(logical.right, grouping_signatures)
+	if expression is GDSQLArithmeticExpression:
+		var arithmetic := expression as GDSQLArithmeticExpression
+		return _is_group_compatible(arithmetic.left, grouping_signatures) \
+				and _is_group_compatible(arithmetic.right, grouping_signatures)
+	if expression is GDSQLNullCheckExpression:
+		return _is_group_compatible(
+			(expression as GDSQLNullCheckExpression).operand,
+			grouping_signatures,
+		)
+	return false
+
+
+func _expression_signature(expression: GDSQLQueryExpression) -> String:
+	if expression == null:
+		return "null"
+	if expression is GDSQLLiteralExpression:
+		return "literal:%s" % var_to_str((expression as GDSQLLiteralExpression).value)
+	if expression is GDSQLBoundColumnExpression:
+		var column := expression as GDSQLBoundColumnExpression
+		return "column:%s.%s@%s.%s" % [
+			column.table_id.database_name,
+			column.table_id.table_name,
+			column.source_qualifier,
+			column.column_id.column_name,
+		]
+	if expression is GDSQLFunctionExpression:
+		var function := expression as GDSQLFunctionExpression
+		var argument_signatures: Array[String] = []
+		for argument in function.arguments:
+			argument_signatures.append(_expression_signature(argument))
+		return "function:%s:%s(%s)" % [
+			function.name,
+			function.aggregate,
+			",".join(argument_signatures),
+		]
+	if expression is GDSQLComparisonExpression:
+		var comparison := expression as GDSQLComparisonExpression
+		return "comparison:%d(%s,%s)" % [
+			comparison.operator,
+			_expression_signature(comparison.left),
+			_expression_signature(comparison.right),
+		]
+	if expression is GDSQLLogicalExpression:
+		var logical := expression as GDSQLLogicalExpression
+		return "logical:%d(%s,%s)" % [
+			logical.operator,
+			_expression_signature(logical.left),
+			_expression_signature(logical.right),
+		]
+	if expression is GDSQLArithmeticExpression:
+		var arithmetic := expression as GDSQLArithmeticExpression
+		return "arithmetic:%d(%s,%s)" % [
+			arithmetic.operator,
+			_expression_signature(arithmetic.left),
+			_expression_signature(arithmetic.right),
+		]
+	if expression is GDSQLNullCheckExpression:
+		var null_check := expression as GDSQLNullCheckExpression
+		return "null_check:%d(%s)" % [
+			null_check.operator,
+			_expression_signature(null_check.operand),
+		]
+	return "expression:%s" % expression.get_class()
+
+
 func _has_source_qualifier(
 		sources: Array[GDSQLBoundTableSource],
 		qualifier: StringName,
@@ -431,6 +622,11 @@ func _validate_update(query: GDSQLUpdateQuerySpec) -> GDSQLQueryValidationResult
 		var bound_expression := _bind_expression(assignment.expression, sources, result)
 		if bound_expression == null:
 			return result
+		if _contains_aggregate(bound_expression):
+			return _error(
+				&"GDSQL_VALIDATION_AGGREGATE_CONTEXT",
+				"Aggregate functions cannot be used in update assignments.",
+			)
 		if not _is_assignment_compatible(bound_expression, column):
 			return _error(
 				&"GDSQL_VALIDATION_TYPE_MISMATCH",
@@ -441,6 +637,11 @@ func _validate_update(query: GDSQLUpdateQuerySpec) -> GDSQLQueryValidationResult
 		bound_operation.predicate = _bind_expression(query.predicate, sources, result)
 		if bound_operation.predicate == null:
 			return result
+		if _contains_aggregate(bound_operation.predicate):
+			return _error(
+				&"GDSQL_VALIDATION_AGGREGATE_CONTEXT",
+				"Aggregate functions cannot be used in update predicates.",
+			)
 		if not _is_boolean_expression(bound_operation.predicate):
 			return _error(
 				&"GDSQL_VALIDATION_PREDICATE_TYPE",
@@ -466,6 +667,11 @@ func _validate_delete(query: GDSQLDeleteQuerySpec) -> GDSQLQueryValidationResult
 		bound_operation.predicate = _bind_expression(query.predicate, sources, result)
 		if bound_operation.predicate == null:
 			return result
+		if _contains_aggregate(bound_operation.predicate):
+			return _error(
+				&"GDSQL_VALIDATION_AGGREGATE_CONTEXT",
+				"Aggregate functions cannot be used in delete predicates.",
+			)
 		if not _is_boolean_expression(bound_operation.predicate):
 			return _error(
 				&"GDSQL_VALIDATION_PREDICATE_TYPE",
@@ -515,14 +721,6 @@ func _bind_function(
 		)
 		return null
 	var definition := function_catalog.resolve(expression.name)
-	if expression.aggregate or definition.aggregate:
-		result.add_diagnostic(
-			GDSQLQueryDiagnostic.new(
-				&"GDSQL_VALIDATION_AGGREGATE_UNSUPPORTED",
-				"Aggregate function '%s' requires the grouping pipeline, which is not implemented." % expression.name,
-			),
-		)
-		return null
 	if not definition.accepts_argument_count(expression.arguments.size()):
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
@@ -538,9 +736,23 @@ func _bind_function(
 		if bound_argument == null:
 			return null
 		bound_arguments.append(bound_argument)
+	if definition.aggregate:
+		for argument in bound_arguments:
+			if _contains_aggregate(argument):
+				result.add_diagnostic(
+					GDSQLQueryDiagnostic.new(
+						&"GDSQL_VALIDATION_NESTED_AGGREGATE",
+						"Aggregate functions cannot contain another aggregate function.",
+					),
+				)
+				return null
 	if not _validate_function_types(expression.name, bound_arguments, result):
 		return null
-	return GDSQLFunctionExpression.new(expression.name, bound_arguments, false)
+	return GDSQLFunctionExpression.new(
+		expression.name,
+		bound_arguments,
+		definition.aggregate,
+	)
 
 
 func _validate_comparison_types(
@@ -587,6 +799,16 @@ func _validate_function_types(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_VALIDATION_FUNCTION_TYPE",
 					"Function 'abs' requires a numeric argument.",
+				),
+			)
+			return false
+	if normalized == "sum" or normalized == "avg":
+		var data_type := _expression_type(arguments[0])
+		if data_type != TYPE_NIL and not _is_numeric_type(data_type):
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_VALIDATION_FUNCTION_TYPE",
+					"Function '%s' requires a numeric argument." % name,
 				),
 			)
 			return false
@@ -660,9 +882,15 @@ func _expression_type(expression: GDSQLQueryExpression) -> Variant.Type:
 		if definition == null:
 			return TYPE_NIL
 		var return_type := definition.return_type
+		var normalized_name := String(function.name).to_lower()
+		if normalized_name == "sum" \
+				or normalized_name == "min" \
+				or normalized_name == "max":
+			return TYPE_NIL \
+					if function.arguments.is_empty() \
+					else _expression_type(function.arguments[0])
 		if return_type == TYPE_NIL \
-				and (String(function.name).to_lower() == "coalesce" \
-								or String(function.name).to_lower() == "abs"):
+				and (normalized_name == "coalesce" or normalized_name == "abs"):
 			for argument in function.arguments:
 				var argument_type := _expression_type(argument)
 				if argument_type != TYPE_NIL:
@@ -689,6 +917,9 @@ func _expression_nullable(expression: GDSQLQueryExpression) -> bool:
 		return (expression as GDSQLBoundColumnExpression).nullable
 	if expression is GDSQLNullCheckExpression:
 		return false
+	if expression is GDSQLFunctionExpression:
+		var function := expression as GDSQLFunctionExpression
+		return String(function.name).to_lower() != "count"
 	return true
 
 

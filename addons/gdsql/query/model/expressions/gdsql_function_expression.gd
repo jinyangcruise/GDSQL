@@ -8,7 +8,7 @@ var aggregate: bool = false
 
 func _init(
 		name: StringName = &"",
-		arguments: Array = [],
+		arguments: Array[GDSQLQueryExpression] = [],
 		aggregate: bool = false,
 ) -> void:
 	self.name = name

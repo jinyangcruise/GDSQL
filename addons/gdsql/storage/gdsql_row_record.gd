@@ -3,6 +3,7 @@ extends RefCounted
 
 var values: Dictionary = { }
 var source_values: Dictionary = { }
+var aggregate_values: Dictionary = { }
 
 
 func _init(values: Dictionary = { }) -> void:
@@ -44,6 +45,17 @@ func set_value(column: StringName, value: Variant) -> void:
 	values[column] = value
 
 
+func get_aggregate_value(expression: GDSQLFunctionExpression) -> Variant:
+	return aggregate_values.get(expression.get_instance_id())
+
+
+func set_aggregate_value(
+		expression: GDSQLFunctionExpression,
+		value: Variant,
+) -> void:
+	aggregate_values[expression.get_instance_id()] = value
+
+
 func has_column(column: StringName) -> bool:
 	return values.has(column)
 
@@ -51,6 +63,7 @@ func has_column(column: StringName) -> bool:
 func duplicate_record() -> GDSQLRowRecord:
 	var duplicate := GDSQLRowRecord.new(values)
 	duplicate.source_values = source_values.duplicate(true)
+	duplicate.aggregate_values = aggregate_values.duplicate(true)
 	return duplicate
 
 
