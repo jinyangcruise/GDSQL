@@ -1,0 +1,5 @@
+class_name GDSQLBoundDeleteQuery
+extends GDSQLBoundQueryOperation
+
+var target: GDSQLTableDefinition
+var predicate: GDSQLQueryExpression

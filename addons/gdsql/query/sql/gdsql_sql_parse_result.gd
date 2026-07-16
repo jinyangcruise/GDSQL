@@ -1,0 +1,4 @@
+class_name GDSQLSqlParseResult
+extends GDSQLOperationResult
+
+var statement: GDSQLSqlStatement
