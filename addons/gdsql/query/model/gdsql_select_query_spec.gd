@@ -2,7 +2,7 @@ class_name GDSQLSelectQuerySpec
 extends GDSQLQuerySpec
 
 var source: GDSQLQuerySource
-var projections: Array[GDSQLQueryExpression] = []
+var projections: Array[GDSQLSelectProjection] = []
 var joins: Array[GDSQLJoinSpec] = []
 var predicate: GDSQLQueryExpression
 var grouping: Array[GDSQLQueryExpression] = []

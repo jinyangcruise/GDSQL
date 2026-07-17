@@ -35,7 +35,7 @@ This repository is undergoing an architectural rewrite. All agents must read
 9. Globally registered Godot classes use the `GDSQL` prefix. Internal helper
    scripts that are not globally registered may use shorter names.
 10. The initial scaffold may contain typed properties, enums, constructors,
-    abstract methods, and result shells, but must not invent execution logic.
+	abstract methods, and result shells, but must not invent execution logic.
 
 ## Runtime workspace boundary
 

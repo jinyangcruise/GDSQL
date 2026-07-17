@@ -62,30 +62,43 @@ func _plan_delete(bound_delete: GDSQLBoundDeleteQuery) -> GDSQLQueryPlanningResu
 func _plan_select(bound_select: GDSQLBoundSelectQuery, output_schema: GDSQLResultSchema) -> GDSQLQueryPlanningResult:
 	var result := GDSQLQueryPlanningResult.new()
 	var current: GDSQLPlanNode
+	var source_schema := GDSQLResultSchema.new()
+	source_schema.columns = bound_select.source.columns.duplicate()
 	var primary_key_expression := _get_primary_key_lookup(bound_select)
 	if primary_key_expression != null:
 		var lookup := GDSQLPrimaryKeyLookupPlan.new()
 		lookup.table = bound_select.source
 		lookup.key = primary_key_expression
-		lookup.output_schema = output_schema
+		lookup.output_schema = source_schema
 		current = lookup
 	else:
 		var scan := GDSQLTableScanPlan.new()
 		scan.table = bound_select.source
-		scan.output_schema = output_schema
+		scan.output_schema = source_schema
 		current = scan
 		if bound_select.predicate != null:
 			var filter := GDSQLFilterPlan.new()
 			filter.input = current
 			filter.predicate = bound_select.predicate
-			filter.output_schema = output_schema
+			filter.output_schema = source_schema
 			current = filter
+	if not bound_select.ordering.is_empty():
+		var sort := GDSQLSortPlan.new()
+		sort.input = current
+		sort.ordering = bound_select.ordering.duplicate()
+		sort.output_schema = source_schema
+		current = sort
 	if not bound_select.projections.is_empty():
 		var projection := GDSQLProjectionPlan.new()
 		projection.input = current
 		projection.projections = bound_select.projections.duplicate()
 		projection.output_schema = output_schema
 		current = projection
+	if bound_select.distinct:
+		var distinct := GDSQLDistinctPlan.new()
+		distinct.input = current
+		distinct.output_schema = output_schema
+		current = distinct
 	if bound_select.limit >= 0 or bound_select.offset > 0:
 		var limit := GDSQLLimitPlan.new()
 		limit.input = current
