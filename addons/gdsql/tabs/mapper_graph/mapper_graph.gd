@@ -1855,6 +1855,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			var content = '%s = #{%s},' % [i["Column Name"], props[i["Column Name"]]]
 			xml_arr.push_back('\n\t\t\t<if test="%s">%s</if>' % [test, content])
 		xml_arr.push_back('\n\t\t</set>')
+		# Add where clause using primary key columns
+		if pk_col.size() > 0:
+			var where_parts = []
+			for pk_i in pk_col.size():
+				where_parts.push_back('%s == #{%s}' % [pk_col[pk_i], pk_prop[pk_i]])
+			xml_arr.push_back('\n\t\twhere ' + ' and '.join(where_parts))
 		xml_arr.push_back('\n\t</update>\n\t')
 
 		# insert mapper
