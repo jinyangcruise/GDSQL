@@ -172,6 +172,8 @@ func add_item(
 	unselect_all_node()
 
 	data = data as Dictionary
+	data.db_name = GDSQL.RootConfig.get_database_display_name(data.db_name)
+	data.table_name = GDSQL.RootConfig.get_database_display_name(data.table_name)
 
 	var graph_node = SQLGraphNode.instantiate() as GraphNode
 	graph_node.set_meta("data", data)
