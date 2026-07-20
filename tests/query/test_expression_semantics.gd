@@ -128,3 +128,62 @@ func test_global_count_aggregate_returns_one_row() -> void:
 	assert_bool(result.is_successful()).is_true()
 	assert_int(result.get_returned_rows()).is_equal(1)
 	assert_int(result.rows[0].get_value(&"hero_count")).is_equal(0)
+
+
+func test_expr_builds_canonical_expression_nodes_and_coerces_literals() -> void:
+	var expression := GDSQLExpr.column(&"level", &"heroes").add(1).greater_than(3)
+
+	assert_object(expression).is_instanceof(GDSQLComparisonExpression)
+	assert_int(expression.operator).is_equal(
+		GDSQLComparisonExpression.ComparisonOperator.GREATER_THAN,
+	)
+	assert_object(expression.left).is_instanceof(GDSQLArithmeticExpression)
+	assert_object(expression.left.left).is_instanceof(GDSQLColumnExpression)
+	assert_str(String(expression.left.left.table_alias)).is_equal("heroes")
+	assert_object(expression.left.right).is_instanceof(GDSQLLiteralExpression)
+	assert_int(expression.left.right.value).is_equal(1)
+	assert_int(expression.right.value).is_equal(3)
+
+
+func test_expr_composes_logical_null_and_function_expressions() -> void:
+	var condition := GDSQLExpr.and_(
+		GDSQLExpr.column(&"name").equals("Mage"),
+		GDSQLExpr.column(&"nickname").is_not_null(),
+	)
+	var function := GDSQLExpr.scalar(&"coalesce", [
+		GDSQLExpr.column(&"nickname"),
+		"Unknown",
+	])
+	var aggregate := GDSQLExpr.aggregate(&"count", [GDSQLExpr.column(&"id")])
+
+	assert_object(condition).is_instanceof(GDSQLLogicalExpression)
+	assert_int(condition.operator).is_equal(GDSQLLogicalExpression.LogicalOperator.AND)
+	assert_object(condition.right).is_instanceof(GDSQLNullCheckExpression)
+	assert_int(condition.right.operator).is_equal(
+		GDSQLNullCheckExpression.NullCheckOperator.IS_NOT_NULL,
+	)
+	assert_object(function.arguments[1]).is_instanceof(GDSQLLiteralExpression)
+	assert_str(function.arguments[1].value).is_equal("Unknown")
+	assert_bool(aggregate.aggregate).is_true()
+
+
+func test_expr_executes_through_the_existing_query_pipeline() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root, true)
+	TestDatabase.insert_rows(
+		database,
+		[
+			{&"id": 1, &"name": "Mage", &"level": 3},
+			{&"id": 2, &"name": "Knight", &"level": 5},
+		],
+	)
+
+	var result := database.execute(
+		database.table(&"heroes")
+		.select()
+		.where(GDSQLExpr.column(&"level").greater_than(3))
+		.build(),
+	)
+
+	assert_bool(result.is_successful()).is_true()
+	assert_int(result.get_returned_rows()).is_equal(1)
+	assert_str(result.rows[0].get_value(&"name")).is_equal("Knight")
