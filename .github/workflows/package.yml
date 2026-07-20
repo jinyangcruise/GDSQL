@@ -5,50 +5,48 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   package:
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Run GdUnit4 tests
+        uses: godot-gdunit-labs/gdUnit4-action@v1
         with:
-          fetch-depth: 0
+          godot-version: 4.7
+          godot-status: stable
+          version: installed
+          publish-report: false
+          paths: res://tests
+          timeout: 5
 
-      - name: Update file manifest
+      - name: Validate release version
+        shell: bash
         run: |
-          MANIFEST="addons/gdsql/tabs/plugin_updater/file_manifest.txt"
           TAG="${{ github.ref_name }}"
-          VER="${TAG#v}"
+          ADDON_VERSION="$(sed -n 's/^version="\([^"]*\)"$/\1/p' addons/gdsql/plugin.cfg)"
 
-          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v' | sed -n '2p')
-
-          if [ -n "$PREV_TAG" ]; then
-            echo "Diffing $PREV_TAG → $TAG"
-
-            grep -v "^[+-],$VER," "$MANIFEST" > "${MANIFEST}.tmp" && mv "${MANIFEST}.tmp" "$MANIFEST"
-
-            while IFS= read -r f; do
-              f="${f//\"}"
-              [ -n "$f" ] && echo "+,$VER,$f" >> "$MANIFEST"
-            done < <(git diff --name-only --diff-filter=A "$PREV_TAG"...HEAD -- addons/gdsql/ | grep -v '\.import$\|\.translation$')
-            while IFS= read -r f; do
-              f="${f//\"}"
-              [ -n "$f" ] && echo "-,$VER,$f" >> "$MANIFEST"
-            done < <(git diff --name-only --diff-filter=D "$PREV_TAG"...HEAD -- addons/gdsql/ | grep -v '\.import$\|\.translation$')
-          else
-            echo "No previous tag. Creating initial manifest."
-            find addons/gdsql/ -type f \
-              ! -name '*.import' \
-              ! -name '*.translation' \
-              | sort \
-              | sed "s|^|+,$VER,|" > "$MANIFEST"
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tag must use vMAJOR.MINOR.PATCH; received: $TAG"
+            exit 1
           fi
 
-      - name: Build release body
-        run: |
-          RANGES=$(cat addons/gdsql/upgrade_ranges.txt 2>/dev/null || echo "")
-          echo "upgrade_ranges: $RANGES" > release_body.txt
-          echo "" >> release_body.txt
+          if [ -z "$ADDON_VERSION" ]; then
+            echo "Could not read one version from addons/gdsql/plugin.cfg"
+            exit 1
+          fi
+
+          if [ "$TAG" != "v$ADDON_VERSION" ]; then
+            echo "Release tag $TAG does not match plugin.cfg version v$ADDON_VERSION"
+            exit 1
+          fi
+
+          echo "Release version $ADDON_VERSION is consistent."
 
       - name: Package addon
         run: |
@@ -60,6 +58,5 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          body_path: release_body.txt
           generate_release_notes: true
           files: gdsql-${{ github.ref_name }}.zip

@@ -11,7 +11,10 @@
 
 ### Git Hooks
 
-This repository includes a `pre-push` hook in `.githooks/` that automatically updates `file_manifest.txt` when pushing version tags.
+This repository includes two Git hooks in `.githooks/`:
+
+- `pre-commit` formats staged GDScript files and stages the formatted result.
+- `pre-push` runs the complete GdUnit4 test suite and rejects the push if a test fails.
 
 Enable it once:
 
@@ -19,9 +22,7 @@ Enable it once:
 git config core.hooksPath .githooks
 ```
 
-After this, every `git push` that includes a `v*` tag will trigger the hook to diff file changes and update the manifest.
-
-> **Not required for casual contributions.** If you skip this, the CI workflow (`package.yml`) will handle the manifest when the tag is pushed to GitHub.
+Hooks provide quick local feedback. GitHub Actions runs the same test suite for pull requests and release tags, so CI remains the authoritative release gate.
 
 ### Formatter
 
@@ -32,12 +33,12 @@ It is recommended to use the formatter inside Godot Editor, for better linting m
 If you have the formatter installed locally, you can run it before committing:
 
 ```bash
-gdscript-formatter --safe addons/gdsql test
+gdscript-formatter --safe addons/gdsql tests
 ```
 
 Preferebly it is better to keep code consistent and coherent by reordering it:
 ```bash
-gdscript-formatter --reorder-code addons/gdsql test
+gdscript-formatter --reorder-code addons/gdsql tests
 ```
 
 ## Code Style
@@ -49,17 +50,36 @@ gdscript-formatter --reorder-code addons/gdsql test
 
 ## Testing
 
-Tests use the **GdUnit4** framework and live under `test/`.
+Tests use the **GdUnit4** framework and live under `tests/`.
 
 ```bash
 # Run from Godot editor: open GdUnit panel → Run All
 # Or via CLI:
-godot --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd
+godot --headless --path . -s addons/gdUnit4/bin/GdUnitCmdTool.gd \
+  --ignoreHeadlessMode -a res://tests
 ```
+
+Set `GODOT_BIN` if the executable is not named `godot` on your system.
+
+## Releases and Versioning
+
+`addons/gdsql/plugin.cfg` is the single source of truth for the addon version. The release tag must be that version prefixed with `v`; the packaging workflow rejects a mismatch.
+
+Until the first stable release, published development releases stay on the `0.9.x` line. Increment the patch component once per release, not once per commit:
+
+```bash
+./scripts/bump-version.sh patch
+git add addons/gdsql/plugin.cfg
+git commit -m "Bump version to 0.9.1"
+git tag -a v0.9.1 -m "GDSQL 0.9.1"
+git push origin HEAD v0.9.1
+```
+
+The script also accepts an explicit version such as `./scripts/bump-version.sh 1.0.0`. Release tags are immutable inputs to packaging; hooks and CI do not rewrite commits or recreate tags.
 
 ## Pull Request Process
 
 1. Ensure all tests pass before submitting.
 2. Format changed GDScript files.
-3. Update the version in `addons/gdsql/plugin.cfg` if the change warrants a release.
+3. For a release, bump `addons/gdsql/plugin.cfg` in a dedicated commit.
 4. Tag the release commit with `vX.X.X` to trigger the packaging workflow.

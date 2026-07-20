@@ -2,9 +2,9 @@ name: GDSQL Tests
 
 on:
   push:
-    branches: [main, master, develop]
+    branches: [main, v1.x, develop]
   pull_request:
-    branches: [main, master]
+    branches: [main, v1.x]
   workflow_dispatch:
 
 concurrency:
@@ -27,9 +27,5 @@ jobs:
           godot-status: stable
           version: installed
           publish-report: false
-          paths: |
-            res://test/core
-            res://test/admin
-            res://test/gbatis
-            res://test/gxml
+          paths: res://tests
           timeout: 5

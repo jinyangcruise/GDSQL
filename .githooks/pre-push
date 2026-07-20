@@ -1,61 +1,19 @@
-#!/bin/bash
-## Git pre-push hook: auto-update file_manifest.txt before pushing a tag.
+#!/usr/bin/env bash
+set -euo pipefail
 
-MANIFEST="addons/gdsql/tabs/plugin_updater/file_manifest.txt"
-CHANGED=0
+GODOT_BIN="${GODOT_BIN:-godot}"
+REPOSITORY_ROOT="$(git rev-parse --show-toplevel)"
 
-while read local_ref local_sha remote_ref remote_sha; do
-	if [[ "$local_ref" == refs/tags/v* ]]; then
-		TAG="${local_ref#refs/tags/}"
-		VER="${TAG#v}"
-
-		TAG_MSG=$(git tag -l --format='%(contents)' "$TAG" 2>/dev/null)
-
-		PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v' | sed -n '2p')
-
-		if [ -n "$PREV_TAG" ]; then
-			echo "Diffing $PREV_TAG → $TAG"
-
-			grep -v "^[+-],$VER," "$MANIFEST" > "${MANIFEST}.tmp" 2>/dev/null && mv "${MANIFEST}.tmp" "$MANIFEST"
-
-			while IFS= read -r f; do
-				f="${f//\"/}"
-				[ -n "$f" ] && echo "+,$VER,$f" >> "$MANIFEST"
-			done < <(git diff --name-only --diff-filter=A "$PREV_TAG"...HEAD -- addons/gdsql/ | grep -v '\.import$\|\.translation$')
-			while IFS= read -r f; do
-				f="${f//\"/}"
-				[ -n "$f" ] && echo "-,$VER,$f" >> "$MANIFEST"
-			done < <(git diff --name-only --diff-filter=D "$PREV_TAG"...HEAD -- addons/gdsql/ | grep -v '\.import$\|\.translation$')
-		else
-			echo "No previous tag. Creating initial manifest."
-			find addons/gdsql/ -type f \
-				! -name '*.import' \
-				! -name '*.translation' \
-				| sort \
-				| sed "s|^|+,$VER,|" > "$MANIFEST"
-		fi
-
-		if ! git diff --quiet "$MANIFEST"; then
-			CHANGED=1
-		fi
-		break
-	fi
-done
-
-if [ "$CHANGED" -eq 1 ]; then
-	git add "$MANIFEST"
-	git commit -m "Update file_manifest for $TAG"
-	git tag -d "$TAG"
-	if [ -n "$TAG_MSG" ]; then
-		git tag -a "$TAG" -m "$TAG_MSG"
-	else
-		git tag "$TAG"
-	fi
-	echo ""
-	echo "=== file_manifest.txt updated, committed, and tag recreated ==="
-	echo "Push again:"
-	echo "  git push origin $TAG"
+if ! command -v "$GODOT_BIN" >/dev/null 2>&1; then
+	echo "Error: Godot was not found in PATH."
+	echo "Set GODOT_BIN to the Godot executable before pushing."
 	exit 1
 fi
 
-exit 0
+cd "$REPOSITORY_ROOT"
+
+echo "Running GdUnit4 tests before push..."
+"$GODOT_BIN" --headless --path . -s addons/gdUnit4/bin/GdUnitCmdTool.gd \
+	--ignoreHeadlessMode -a res://tests
+
+echo "GdUnit4 tests passed."
