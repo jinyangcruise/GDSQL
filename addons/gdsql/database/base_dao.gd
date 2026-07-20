@@ -1548,6 +1548,7 @@ func _get_init_datas(
 		# "id != 1 and id == 1"
 		# "not id == 1"
 		# "1 == 1 and not id == 1"
+		# name != "A" or id == 5
 		# 分别返回：
 		# { "==": 1 }
 		# { "r==": 1 }
@@ -1557,6 +1558,7 @@ func _get_init_datas(
 		# { "and": { "left": { "!=": 1 }, "right": { "==": 1 } } }
 		# { "not": { "left": { "==": 1 } } }
 		# { "and": { "left": {  }, "right": { "not": { "left": { "==": 1 } } } } }
+		# { "or": { "left": { }, "right": { "==": 5 } }
 		var const_collection = []
 		for a_name in indexed_name:
 			var operations = { }
@@ -2386,17 +2388,18 @@ func ___select(fill_primary_key: String = ""):
 	return grouped_ret
 
 
-## 简化主表数据的逻辑是：
-## 1. 包含not的，一律不做筛选；
-## 2. 包含!=的，一律不做筛选；
-## 3. 如果遇到null（属于复杂情况），一律不做筛选
-## 4. 遇到==、r==，记录操作数
-## 5. 遇到in，记录操作数（数组）或记录操作数的键（字典）
-## constant_mode: 常数模式还是其他表字段模式
+## The logic for simplifying main table data is as follows:
+## 1. Any condition containing "not" shall not be filtered;
+## 2. Any condition containing "!=" shall not be filtered;
+## 3. Any condition containing "or" shall not be filtered;
+## 4. If null is encountered (classified as a complex case), no filtering shall be performed
+## 5. When "==" or "r==" is encountered, record the operands
+## 6. When "in" is encountered, record the operands (array) or the keys of the operands (dictionary)
+## constant_mode: Constant mode or other table field mode
 func _filter_pk_value(dict: Dictionary, collection: Array, constant_mode: bool):
 	if dict.is_empty():
 		return true
-	if dict.has("not") or dict.has("!=") or dict.values().has(null):
+	if dict.has("not") or dict.has("!=") or dict.has("or") or dict.values().has(null):
 		collection.clear()
 		return false # false表示终止递归
 	for op in ["==", "r=="]:
