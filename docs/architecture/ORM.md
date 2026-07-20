@@ -10,7 +10,7 @@ materialization without creating a second query or execution system.
 The ORM is a higher-level frontend:
 
 ```text
-DatabaseModel and ModelQuery
+GDSQLModel hierarchy and ModelQuery
     ↓
 ModelMapper
     ↓
@@ -24,19 +24,46 @@ QueryExecutor
     ↓
 ResultMaterializer
     ↓
-DatabaseModel instances
+GDSQLModel instances
 ```
 
 Model classes must not access ConfigFile, physical paths, storage sessions,
 planners, or executors directly.
 
-## Proposed model API
+## Model hierarchy and database roles
 
-A model associates one GDScript type with a database table:
+`GDSQLModel` is the common abstract root. Standard subclasses associate common
+game-data lifecycles with logical database roles:
+
+```text
+GDSQLModel
+├── GDSQLContentModel
+│   └── Logical database role: content
+├── GDSQLSaveModel
+│   └── Logical database role: save
+└── GDSQLSettingsModel
+    └── Logical database role: settings
+```
+
+The model registry resolves these roles to ordinary database handles:
+
+```text
+content → effective base-and-mod content database
+save     → currently selected save database
+settings → project-wide user settings database
+```
+
+Models declare tables but do not declare physical database paths or require a
+database argument for normal queries.
+
+### Content models
+
+`GDSQLContentModel` represents authored content after base data and enabled mod
+layers have produced the effective content database:
 
 ```gdscript
 class_name Hero
-extends GDSQLDatabaseModel
+extends GDSQLContentModel
 
 var id: int
 var name: String
@@ -51,47 +78,107 @@ static func primary_key() -> StringName:
 	return &"id"
 ```
 
-Common helpers may include:
+Content models are read-only during ordinary gameplay:
 
 ```gdscript
-var hero := Hero.find(database, 1)
+var hero := Hero.find(1)
 
-var veterans := Hero.query(database) \
-	.where(&"level", GDSQLComparisonOperator.GREATER_THAN, 10) \
-	.order_by(&"level", GDSQLSortDirection.DESCENDING) \
+var veterans := Hero.query() \
+	.where(GDSQLExpr.column(&"level").greater_than(10)) \
+	.order_by(&"level", GDSQLOrderClause.SortDirection.DESCENDING) \
 	.get()
+```
 
-hero.name = "Knight"
-hero.save()
-hero.delete()
+Content creation, overrides, and removals belong to authoring or effective-
+content construction. A content model does not expose runtime `save()` or
+`delete()` operations.
+
+### Save models
+
+`GDSQLSaveModel` represents mutable state owned by the active save slot. It is
+not responsible for selecting, loading, or checkpointing save slots:
+
+```gdscript
+class_name InventoryEntry
+extends GDSQLSaveModel
+
+var id: int
+var item_id: StringName
+var quantity: int
+
+
+static func table_name() -> StringName:
+	return &"inventory"
+```
+
+Save models expose row-persistence helpers:
+
+```gdscript
+var entry := InventoryEntry.find(1)
+
+entry.quantity += 1
+entry.save()
+entry.delete()
 ```
 
 The helpers translate into canonical operations:
 
-| Model operation | Canonical operation |
-|---|---|
-| `find()` and `query()` | `GDSQLSelectQuerySpec` |
-| Creating and saving a new model | `GDSQLInsertQuerySpec` |
-| Saving an existing model | `GDSQLUpdateQuerySpec` |
-| `delete()` | `GDSQLDeleteQuerySpec` |
+| Model operation | Available to | Canonical operation |
+|---|---|---|
+| `find()`, `query()`, and `refresh()` | All model roles | `GDSQLSelectQuerySpec` |
+| Creating and saving a new model | Mutable model roles | `GDSQLInsertQuerySpec` |
+| Saving an existing model | Mutable model roles | `GDSQLUpdateQuerySpec` |
+| `delete()` | Mutable model roles | `GDSQLDeleteQuerySpec` |
+
+### Settings and custom model roles
+
+`GDSQLSettingsModel` represents mutable user or installation state shared
+across save slots, such as audio, input, accessibility, and profile-selection
+settings. Projects may extend `GDSQLModel` directly for additional databases:
+
+```gdscript
+class_name AnalyticsEvent
+extends GDSQLModel
+
+
+static func database_role() -> StringName:
+	return &"analytics"
+
+
+static func access_mode() -> GDSQLModelAccessMode:
+	return GDSQLModelAccessMode.READ_WRITE
+
+
+static func table_name() -> StringName:
+	return &"events"
+```
+
+The runtime registry may bind `analytics` to local persistent storage, a
+temporary in-memory database, or another supported composition. Model code is
+unchanged because it depends only on the logical role.
 
 ## Model responsibilities
 
-`GDSQLDatabaseModel` would provide model-oriented convenience without owning
-database infrastructure.
+`GDSQLModel` provides shared materialization, identity, query, and relationship
+behavior without owning database infrastructure. Standard subclasses establish
+default roles and mutation policies, while custom models may declare another
+role.
 
 Potential responsibilities:
 
-- Declare the associated table and primary key.
+- Declare the associated logical role, table, and primary key.
+- Declare or inherit a read-only or read-write access mode.
 - Hold materialized attributes.
 - Track whether the model represents a persisted row.
-- Expose `find()`, `query()`, `save()`, `delete()`, and `refresh()` helpers.
+- Expose shared `find()`, `query()`, and `refresh()` helpers.
+- Expose mutations only when the model role permits them.
 - Declare relationships.
-- Retain a database handle or model session supplied during materialization.
+- Retain a model context supplied during materialization.
 
 The model should not:
 
 - Construct storage paths.
+- Select save slots or resolve mod packages.
 - Load or save ConfigFile resources.
 - Evaluate predicates.
 - Select plans.
@@ -105,11 +192,15 @@ the same `GDSQLQuerySpec` used by every other frontend.
 For example:
 
 ```gdscript
-Hero.query(database) \
-	.where(&"level", GDSQLComparisonOperator.GREATER_THAN_OR_EQUAL, 5) \
+Hero.query() \
+	.where(GDSQLExpr.column(&"level").greater_than_or_equal(5)) \
 	.limit(10) \
 	.to_query_spec()
 ```
+
+Normal model calls resolve the database from the model registry. An explicit
+`GDSQLModelContext` remains available for tests and advanced multiple-runtime
+scenarios.
 
 The model query may internally delegate to the Fluent API or construct
 canonical query objects directly. In both cases, model-specific concerns stop
@@ -123,9 +214,9 @@ result mappings.
 Potential API:
 
 ```gdscript
-func to_insert(model: GDSQLDatabaseModel) -> GDSQLInsertQuerySpec
-func to_update(model: GDSQLDatabaseModel) -> GDSQLUpdateQuerySpec
-func to_delete(model: GDSQLDatabaseModel) -> GDSQLDeleteQuerySpec
+func to_insert(model: GDSQLModel) -> GDSQLInsertQuerySpec
+func to_update(model: GDSQLModel) -> GDSQLUpdateQuerySpec
+func to_delete(model: GDSQLModel) -> GDSQLDeleteQuerySpec
 func create_result_mapping(model_type: GDScript) -> GDSQLResultMapping
 ```
 
@@ -184,12 +275,17 @@ Simple relationships can initially use separate queries. Efficient eager
 loading and many-to-many relationships will benefit from complete join and
 multi-source query support.
 
+Relationships within one logical database role may compile into joins. A
+relationship between a content model and a save model uses separate queries
+resolved through `content` and `save`, followed by ORM-level composition. This
+does not merge their transaction or planning contexts.
+
 ## Relationship loading
 
 The ORM may eventually support:
 
 - Explicit loading: `hero.load(&"skills")`
-- Eager loading: `Hero.query(database).with(&"skills").get()`
+- Eager loading: `Hero.query().with(&"skills").get()`
 - Constrained loading: relationships with an additional model query
 - Relationship existence predicates
 
@@ -208,14 +304,14 @@ GDSQLResultMapping
     ↓
 GDSQLModelResultMaterializer
     ↓
-Hero, Skill, or another GDSQLDatabaseModel
+Hero, InventoryEntry, or another GDSQLModel
 ```
 
 Materialization may:
 
 - Instantiate the requested model type.
 - Assign mapped columns to model properties.
-- Record the database handle and persisted state.
+- Record the model context, logical role, and persisted state.
 - Attach explicitly loaded relationships.
 - Preserve structured diagnostics for mapping failures.
 
@@ -256,10 +352,12 @@ The ORM should follow the canonical query capabilities it consumes:
 
 1. Complete `SELECT`, expression, join, and result-schema behavior.
 2. Implement result mappings and model materialization.
-3. Introduce `GDSQLDatabaseModel`, `GDSQLModelQuery`, and `GDSQLModelMapper`.
-4. Add `belongs_to`, `has_one`, and `has_many` using explicit loading.
-5. Add eager loading and many-to-many relationships.
-6. Optionally add external mapper compilation.
+3. Introduce `GDSQLModel`, `GDSQLContentModel`, `GDSQLSaveModel`, and
+   `GDSQLSettingsModel`.
+4. Add the role-aware model registry, context, query, mapper, and materializer.
+5. Add `belongs_to`, `has_one`, and `has_many` using explicit loading.
+6. Add eager loading and many-to-many relationships.
+7. Optionally add external mapper compilation.
 
 The ORM remains optional. Applications can continue using `GDSQLDatabase`, the
 Fluent API, SQL, or query graphs directly.
