@@ -289,8 +289,9 @@ func query():
 				if a_ret is Object:
 					if a_ret.has_meta("new_for_select"):
 						a_ret.remove_meta("new_for_select")
-					else:
-						push = false
+					# Repeated queries must return the shared identity object; only
+					# duplicate rows within this result set should be collapsed.
+					push = not ret_datas.has(a_ret)
 				if push:
 					if return_type == "Object" and not ret_datas.is_empty():
 						query_status = "err"
