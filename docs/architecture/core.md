@@ -1001,6 +1001,7 @@ var transactions: TransactionManager
 var expression_evaluator: ExpressionEvaluator
 var function_registry: QueryFunctionRegistry
 var cancellation: QueryCancellationToken
+var session: StorageSession
 ```
 
 The executor may:
@@ -1064,6 +1065,87 @@ only when every execution succeeded; otherwise the runtime rolls back. The
 transaction object cannot be reused after the callback and reads inside the
 callback must observe earlier staged writes. This avoids abandoned transactions
 and preserves ordinary `execute()` as an automatically committed operation.
+
+`Database.transaction()` returns an `OperationResult`. A statement-level
+validation, planning, execution, or staging error marks the scope as failed and
+prevents later statements from executing. Constraints that require the complete
+staged database state are validated during the final commit. A commit failure
+also rolls back the shared session and is returned through structured
+diagnostics.
+
+#### Capturing statement results
+
+Most callers only need the transaction-level result because the scope records
+any failed statement automatically:
+
+```gdscript
+var result := database.transaction(
+    func(transaction: GDSQLTransaction) -> void:
+        transaction.execute(first_query)
+        transaction.execute(second_query)
+)
+```
+
+When individual query results are needed after the callback, they must be
+stored in a shared mutable container. GDScript lambdas capture a local variable
+slot by value. Reassigning that captured slot does not reassign the outer local
+variable, even when its declared type is `GDSQLQueryResult`:
+
+```gdscript
+var first_result: GDSQLQueryResult
+
+database.transaction(
+    func(transaction: GDSQLTransaction) -> void:
+        # Rebinds the lambda's captured slot; first_result remains null outside.
+        first_result = transaction.execute(first_query)
+)
+```
+
+A typed array is the recommended representation for an ordered collection of
+statement results. Both scopes refer to the same Array object, and `append()`
+mutates that object:
+
+```gdscript
+var statement_results: Array[GDSQLQueryResult] = []
+
+var result := database.transaction(
+    func(transaction: GDSQLTransaction) -> void:
+        statement_results.append(transaction.execute(first_query))
+        statement_results.append(transaction.execute(second_query))
+)
+```
+
+A dictionary is useful when each result has a distinct meaning and named access
+is clearer than positional access:
+
+```gdscript
+var statement_results := {
+    "inventory": null,
+    "quest": null,
+}
+
+var result := database.transaction(
+    func(transaction: GDSQLTransaction) -> void:
+        statement_results.inventory = transaction.execute(inventory_query)
+        statement_results.quest = transaction.execute(quest_query)
+)
+```
+
+The container choice is not relevant to database performance. An isolated
+Godot 4.7 microbenchmark that created one callback and captured two values per
+iteration found the typed array fastest, with dictionary capture approximately
+1.36 times its cost and a newly allocated typed holder approximately 1.67 times
+its cost. That difference was below one microsecond per callback on the measured
+machine. When the same two strategies executed two real statements and one
+ConfigFile commit, their elapsed times differed by less than one percent and
+changed order between runs.
+
+These measurements are illustrative rather than an API guarantee. Query
+validation, planning, row work, and storage persistence dominate the operation.
+Choose a typed array for ordered results and a dictionary or typed holder when
+named access materially improves readability. Timing assertions do not belong
+in the behavioral transaction test suite because they would be
+platform-dependent and flaky.
 
 ---
 
@@ -1615,6 +1697,7 @@ addons/gdsql/
 │   ├── database.gd
 │   ├── database_result.gd
 │   ├── database_context.gd
+│   ├── transaction.gd
 │   ├── query.gd
 │   ├── select_query_builder.gd
 │   ├── insert_query_builder.gd

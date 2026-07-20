@@ -38,7 +38,8 @@ func _execute_insert(
 		context: GDSQLExecutionContext,
 		result: GDSQLQueryExecutionResult,
 ) -> GDSQLQueryExecutionResult:
-	var session := context.transactions.begin()
+	var session := _get_session(context)
+	var owns_session := context.session == null
 	var inserted_rows: Array[GDSQLRowRecord] = []
 	var statement_timestamp := _current_timestamp()
 	for source_row in insert_plan.rows:
@@ -51,14 +52,16 @@ func _execute_insert(
 		var stage_result := context.storage.stage_insert(insert_plan.target, row, session)
 		result.diagnostics.merge(stage_result.diagnostics)
 		if not stage_result.is_successful():
-			context.transactions.rollback(session)
+			if owns_session:
+				context.transactions.rollback(session)
 			return result
 		inserted_rows.append(row)
-	var commit_result := context.transactions.commit(session)
-	result.diagnostics.merge(commit_result.diagnostics)
-	if not commit_result.is_successful():
-		context.transactions.rollback(session)
-		return result
+	if owns_session:
+		var commit_result := context.transactions.commit(session)
+		result.diagnostics.merge(commit_result.diagnostics)
+		if not commit_result.is_successful():
+			context.transactions.rollback(session)
+			return result
 	result.rows.rows = inserted_rows
 	result.statistics = { "affected_rows": inserted_rows.size() }
 	result.value = result.rows
@@ -70,7 +73,8 @@ func _execute_update(
 		context: GDSQLExecutionContext,
 		result: GDSQLQueryExecutionResult,
 ) -> GDSQLQueryExecutionResult:
-	var session := context.transactions.begin()
+	var session := _get_session(context)
+	var owns_session := context.session == null
 	var snapshot := context.storage.read_table(update_plan.target, session)
 	var updated_rows: Array[GDSQLRowRecord] = []
 	var statement_timestamp := _current_timestamp()
@@ -93,14 +97,16 @@ func _execute_update(
 		var stage_result := context.storage.stage_update(update_plan.target, key, updated_row, session)
 		result.diagnostics.merge(stage_result.diagnostics)
 		if not stage_result.is_successful():
-			context.transactions.rollback(session)
+			if owns_session:
+				context.transactions.rollback(session)
 			return result
 		updated_rows.append(updated_row)
-	var commit_result := context.transactions.commit(session)
-	result.diagnostics.merge(commit_result.diagnostics)
-	if not commit_result.is_successful():
-		context.transactions.rollback(session)
-		return result
+	if owns_session:
+		var commit_result := context.transactions.commit(session)
+		result.diagnostics.merge(commit_result.diagnostics)
+		if not commit_result.is_successful():
+			context.transactions.rollback(session)
+			return result
 	result.rows.rows = updated_rows
 	result.statistics = { "affected_rows": updated_rows.size() }
 	result.value = result.rows
@@ -137,7 +143,8 @@ func _execute_delete(
 		context: GDSQLExecutionContext,
 		result: GDSQLQueryExecutionResult,
 ) -> GDSQLQueryExecutionResult:
-	var session := context.transactions.begin()
+	var session := _get_session(context)
+	var owns_session := context.session == null
 	var snapshot := context.storage.read_table(delete_plan.target, session)
 	var deleted_rows: Array[GDSQLRowRecord] = []
 	for row in snapshot.rows:
@@ -148,14 +155,16 @@ func _execute_delete(
 		var stage_result := context.storage.stage_delete(delete_plan.target, key, session)
 		result.diagnostics.merge(stage_result.diagnostics)
 		if not stage_result.is_successful():
-			context.transactions.rollback(session)
+			if owns_session:
+				context.transactions.rollback(session)
 			return result
 		deleted_rows.append(row.duplicate_record())
-	var commit_result := context.transactions.commit(session)
-	result.diagnostics.merge(commit_result.diagnostics)
-	if not commit_result.is_successful():
-		context.transactions.rollback(session)
-		return result
+	if owns_session:
+		var commit_result := context.transactions.commit(session)
+		result.diagnostics.merge(commit_result.diagnostics)
+		if not commit_result.is_successful():
+			context.transactions.rollback(session)
+			return result
 	result.rows.rows = deleted_rows
 	result.statistics = { "affected_rows": deleted_rows.size() }
 	result.value = result.rows
@@ -169,7 +178,7 @@ func _execute_select_node(
 ) -> GDSQLRowSet:
 	if node is GDSQLTableScanPlan:
 		var scan := node as GDSQLTableScanPlan
-		var snapshot := context.storage.read_table(scan.table, context.transactions.begin())
+		var snapshot := context.storage.read_table(scan.table, _get_session(context))
 		var rows := GDSQLRowSet.new()
 		rows.schema = node.output_schema
 		var table_id := _table_id(scan.table)
@@ -187,7 +196,7 @@ func _execute_select_node(
 		var rows := GDSQLRowSet.new()
 		rows.schema = node.output_schema
 		var key: Variant = context.expression_evaluator.evaluate(lookup.key, null)
-		var row := context.storage.find_by_primary_key(lookup.table, key, context.transactions.begin())
+		var row := context.storage.find_by_primary_key(lookup.table, key, _get_session(context))
 		if row != null:
 			var qualified_row := row.duplicate_record()
 			qualified_row.set_source_values(
@@ -207,7 +216,7 @@ func _execute_select_node(
 				lookup.table,
 				lookup.index,
 				values,
-				context.transactions.begin(),
+				_get_session(context),
 			),
 			lookup.table,
 			lookup.alias,
@@ -229,7 +238,7 @@ func _execute_select_node(
 				upper_bound,
 				lookup.include_lower,
 				lookup.include_upper,
-				context.transactions.begin(),
+				_get_session(context),
 			),
 			lookup.table,
 			lookup.alias,
@@ -307,6 +316,12 @@ func _execute_select_node(
 		),
 	)
 	return GDSQLRowSet.new()
+
+
+func _get_session(context: GDSQLExecutionContext) -> GDSQLStorageSession:
+	return context.session \
+	if context.session != null \
+	else context.transactions.begin()
 
 
 func _qualify_lookup_rows(
