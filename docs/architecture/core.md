@@ -427,10 +427,10 @@ This separation allows expressions to be:
 
 ### 4.1 Typed expression convenience frontend
 
-`GDSQLExpr` is a planned code-facing convenience frontend over the canonical
-expression classes. It does not introduce another expression representation.
-Factory methods create the existing typed expression nodes, while fluent
-combinators inherited by those nodes remove constructor and enum repetition:
+`GDSQLExpr` is the code-facing convenience frontend over the canonical
+expression classes. It directly creates the existing typed expression nodes,
+while fluent
+combinators on `GDSQLQueryExpression` remove constructor and enum repetition:
 
 ```gdscript
 GDSQLExpr.column(&"level").add(1)
@@ -439,11 +439,44 @@ GDSQLExpr.column(&"name").equals("Mage")
 GDSQLExpr.and_(condition_a, condition_b)
 ```
 
-Literal coercion is explicit in the helper implementation: values such as `1`
-and `"Mage"` become `LiteralExpression` objects. SQL expression strings must
-use a separate SQL compiler entry point so a stored string can never be
-mistaken for executable expression text. The graph frontend can construct the
-same typed nodes and later render them as copyable `GDSQLExpr` GDScript.
+Operands may also be expressions, allowing calculations between columns:
+
+```gdscript
+GDSQLExpr.column(&"damage").add(GDSQLExpr.column(&"bonus"))
+```
+
+The factories are:
+
+- `column(column_name, table_alias)` for an optionally qualified column.
+- `literal(value)` for an explicit literal.
+- `and_(left, right)`, `or_(left, right)`, and `not_(expression)` for logical
+  composition.
+- `scalar(name, arguments)` and `aggregate(name, arguments)` for function
+  expressions.
+
+Every canonical expression supports comparison combinators (`equals()`,
+`not_equals()`, `greater_than()`, `less_than()`, and their inclusive forms),
+arithmetic combinators (`add()`, `subtract()`, `multiply()`, `divide()`, and
+`modulo()`), logical chaining, and `is_null()` / `is_not_null()` checks. Each
+combinator creates a new expression node and leaves its receiver unchanged.
+
+Literal coercion is explicit in the helper implementation: an operand that is
+already a `GDSQLQueryExpression` is preserved, while any other `Variant`, such
+as `1`, `null`, or `"Mage"`, becomes a `GDSQLLiteralExpression`. A string passed
+to `equals()` or a function argument represents data. SQL expression strings
+enter through the SQL compiler. The graph frontend can construct the same typed
+nodes and later render them as copyable `GDSQLExpr` GDScript.
+
+An expression-based update remains compact and follows the canonical query
+pipeline:
+
+```gdscript
+database.table(&"heroes") \
+    .update() \
+    .set_expression(&"level", GDSQLExpr.column(&"level").add(1)) \
+    .where(GDSQLExpr.column(&"id").equals(hero_id)) \
+    .build()
+```
 
 ---
 

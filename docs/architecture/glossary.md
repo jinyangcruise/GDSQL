@@ -31,7 +31,7 @@ state in the same change as implementation or test work.
 | `InsertQueryBuilder` | Fluent API | Builds an `InsertQuerySpec` from one or more named rows. | `into_table()`, `values()`, `build()` | 🧪 |
 | `UpdateQueryBuilder` | Fluent API | Builds a single-table `UpdateQuerySpec` from typed assignments and an optional predicate. | `table()`, `set_value()`, `set_expression()`, `where()`, `build()` | 🧪 |
 | `DeleteQueryBuilder` | Fluent API | Builds a single-table `DeleteQuerySpec` with an optional predicate. | `from_table()`, `where()`, `build()` | 🧪 |
-| `Expr` | Expression convenience frontend | Creates canonical typed expressions through compact factories and fluent combinators without parsing strings. | `column()`, `literal()`, `and_()`, `or_()`, expression comparison and arithmetic helpers | 📝 |
+| `Expr` | Expression convenience frontend | Creates the existing canonical typed expressions through compact factories, literal coercion, and immutable fluent combinators without parsing strings. | `column()`, `literal()`, `and_()`, `or_()`, `not_()`, `scalar()`, `aggregate()`, comparison, arithmetic, logical, and null-check helpers | 🧪 |
 | `QueryGraph` | Graph frontend | Frontend-owned representation of query nodes and their connections. | `get_nodes()`, `get_connections()`, `validate_structure()` | 🚧 |
 | `GraphQueryCompiler` | Graph frontend | Converts a valid `QueryGraph` into a canonical `QuerySpec`. | `compile(graph)` | 🚧 |
 
@@ -62,7 +62,7 @@ state in the same change as implementation or test work.
 
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
-| `QueryExpression` | Expression model | Abstract base for canonical expressions used throughout queries. | `accept(visitor)` | 🚧 |
+| `QueryExpression` | Expression model | Abstract base for canonical expressions used throughout queries and shared host for immutable fluent expression combinators. | `accept(visitor)`, comparison, arithmetic, logical, and null-check combinators | 🚧 |
 | `ExpressionVisitor` | Expression model | Performs type-specific operations over raw and bound expression nodes. | Visit methods for column, literal, comparison, logical, arithmetic, null-check, and function expressions | 🚧 |
 | `ColumnExpression` | Expression model | Refers to a column by name and optional source alias. | `accept(visitor)` | 🛠️ |
 | `LiteralExpression` | Expression model | Holds a literal Godot `Variant` value. | `accept(visitor)` | 🛠️ |

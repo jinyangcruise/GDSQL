@@ -69,6 +69,15 @@ Frontends("`**Query Frontends**
 *Compiler API:* compile(input)
 *Produces:* GDSQLQuerySpec`")
 
+Expr("`**GDSQLExpr**
+
+-
+*Purpose:* Build canonical expressions with compact typed GDScript
+*Factory API:* column(), literal(), scalar(), aggregate()
+*Logical API:* and_(), or_(), not_()
+*Fluent API:* Comparison, arithmetic, logical and null-check combinators
+*Produces:* Existing GDSQLQueryExpression nodes`")
+
 QuerySpec("`**GDSQLQuerySpec**
 
 -
@@ -212,6 +221,8 @@ GraphInterface -->|"compile(graph)"| Frontends
 SQLText -->|"tokenize() · parse() · compile()"| Frontends
 Database -->|"query() · table()"| Frontends
 Frontends -->|"build() / compile()"| QuerySpec
+Code -->|"column() · literal() · logical and function factories"| Expr
+Expr -->|"creates canonical nodes"| Expression
 Expression -->|"contained by"| QuerySpec
 
 Database -->|"execute(query) · lifecycle methods"| Context
@@ -243,7 +254,7 @@ ConfigStorage -->|"paths · cache · codec"| ConfigInfrastructure
 Factory -.->|"create_default(data_root)"| Context
 Factory -.->|"constructs and injects"| ConfigInfrastructure
 
-class Code,GraphInterface,SQLText frontend;
+class Code,GraphInterface,SQLText,Expr frontend;
 class Database,Context,Factory,Transaction runtime;
 class Frontends translation;
 class QuerySpec,Expression canonical;
