@@ -1243,12 +1243,12 @@ SelectQueryBuilder --> SelectQuerySpec
 %% =========================================================
 subgraph MODEL_API["Optional Model API"]
     DatabaseModel["DatabaseModel<br/>Model-oriented persistence"]
-    ModelMapper["ModelMapper<br/>Model to QuerySpec"]
+    ModelQuery["ModelQuery<br/>Model-scoped query construction"]
 end
 
-DatabaseModel --> ModelMapper
-ModelMapper --> QuerySpec
-ModelMapper --> ModelResultMaterializer
+DatabaseModel --> ModelQuery
+ModelQuery --> QuerySpec
+ModelResultMaterializer --> DatabaseModel
 
 %% =========================================================
 %% QUERY MODEL
