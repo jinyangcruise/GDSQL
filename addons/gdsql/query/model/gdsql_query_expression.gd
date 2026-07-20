@@ -1,12 +1,11 @@
+@abstract
+class_name GDSQLQueryExpression
+extends RefCounted
 ## Canonical base for values, references, predicates, and calculated expressions.
 ##
 ## Fluent methods create a new canonical node. Variant operands form the
 ## literal-coercion boundary: expressions remain expression operands, while
 ## other values become [GDSQLLiteralExpression] instances.
-@abstract
-class_name GDSQLQueryExpression
-extends RefCounted
-
 
 ## Creates an equality comparison with a literal or expression operand.
 func equals(value: Variant) -> GDSQLComparisonExpression:
