@@ -2,7 +2,6 @@ class_name GDSQLTransaction
 extends RefCounted
 
 var diagnostics := GDSQLDiagnostics.new()
-
 var _context: GDSQLDatabaseContext
 var _session: GDSQLStorageSession
 var _active: bool = true
