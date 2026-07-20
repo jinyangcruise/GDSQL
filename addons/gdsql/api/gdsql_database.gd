@@ -56,6 +56,10 @@ func execute(query_spec: GDSQLQuerySpec) -> GDSQLQueryResult:
 	return context.execute(query_spec)
 
 
+func transaction(callback: Callable) -> GDSQLOperationResult:
+	return context.transaction(callback)
+
+
 func create_table(table_definition: GDSQLTableDefinition) -> GDSQLCatalogOperationResult:
 	return context.create_table(database_name, table_definition)
 

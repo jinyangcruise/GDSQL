@@ -24,8 +24,8 @@ state in the same change as implementation or test work.
 
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
-| `Database` | Public API | Main user-facing entry point for creating, opening, renaming, and dropping a database; managing its tables; and executing canonical query specs. | `create()`, `open()`, `rename()`, `drop()`, `create_table()`, `rename_table()`, `alter_table()`, `drop_table()`, `query()`, `execute()` | 🧪 |
-| `DatabaseContext` | Runtime facade | Coordinates catalog administration, validation, binding, planning, execution, and result materialization. | Database and table administration methods, `execute(query)`, `prepare(query)` | 🚧 |
+| `Database` | Public API | Main user-facing entry point for creating, opening, renaming, and dropping a database; managing its tables; executing canonical query specs; and running callback-scoped transactions. | `create()`, `open()`, `rename()`, `drop()`, table administration, `query()`, `execute()`, `transaction()` | 🧪 |
+| `DatabaseContext` | Runtime facade | Coordinates catalog administration, validation, binding, planning, execution, shared-session transactions, and result materialization. | Database and table administration methods, `execute(query)`, `transaction(callback)`, `prepare(query)` | 🚧 |
 | `Query` | Fluent API | User-facing fluent query entry point that optionally captures a table and creates operation-specific builders. | `table()`, `select()`, `insert()`, `update()`, `delete()` | 🧪 |
 | `SelectQueryBuilder` | Fluent API | Builds a `SelectQuerySpec` with projections, aliases, joins, predicates, grouping, aggregate functions, ordering, distinct selection, limits, and offsets. | `from_table()`, joins, projection, `group_by()`, `having()`, aggregate helpers, ordering, pagination, and `build()` | 🧪 |
 | `InsertQueryBuilder` | Fluent API | Builds an `InsertQuerySpec` from one or more named rows. | `into_table()`, `values()`, `build()` | 🧪 |
@@ -171,8 +171,8 @@ state in the same change as implementation or test work.
 | `ExpressionEvaluator` | Execution | Evaluates canonical or bound scalar expressions against a row context with null propagation. | `evaluate(expression, row_context)` | 🧪 |
 | `QueryFunctionRegistry` | Execution | Associates query-function definitions with executable scalar and aggregate callables. | `register_function()`, `register_aggregate_function()`, `resolve()`, `resolve_aggregate()` | 🧪 |
 | `QueryCancellationToken` | Execution | Communicates cancellation requests to long-running operations. | `cancel()`, `is_cancelled()` | 🚧 |
-| `TransactionManager` | Execution | Coordinates storage sessions, commits, and rollbacks. | `begin()`, `commit()`, `rollback()` | 🚧 |
-| `Transaction` | Public transaction scope | Executes multiple queries through one storage session and automatically commits or rolls back when its callback exits. | `execute()` within `Database.transaction(callback)` | 📝 |
+| `TransactionManager` | Execution | Coordinates storage sessions, commits, and rollbacks. | `begin()`, `commit()`, `rollback()` | 🧪 |
+| `Transaction` | Public transaction scope | Executes multiple queries through one storage session, observes earlier staged writes, and automatically commits or rolls back when its callback exits. The scope cannot be reused afterward. | `execute()` within `Database.transaction(callback)` | 🧪 |
 
 ## Catalog
 
