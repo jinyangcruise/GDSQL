@@ -114,7 +114,22 @@ func test_select_where() -> void:
 	assert_str(rows[0][1]).is_equal("High")
 
 
-## 测试: SELECT ORDER BY 排序
+## 测试: SELECT WHERE name != "A" or id == 5
+func test_select_where_not_equal_or() -> void:
+	_bd().insert_into(TEST_TABLE).values({"name": "A", "score": 10}).query()  # id=1
+	_bd().insert_into(TEST_TABLE).values({"name": "B", "score": 20}).query()  # id=2
+	_bd().insert_into(TEST_TABLE).values({"name": "A", "score": 30}).query()  # id=3
+	_bd().insert_into(TEST_TABLE).values({"name": "C", "score": 40}).query()  # id=4
+	_bd().insert_into(TEST_TABLE).values({"name": "A", "score": 50}).query()  # id=5 — name=="A"但id==5应匹配
+	# 当前数据: (1,A,10), (2,B,20), (3,A,30), (4,C,40), (5,A,50)
+	var rows = _bd().select("*", false).from(TEST_TABLE).where('name != "A" or id == 5').query().get_data()
+	# 预期: id=2(B), id=4(C) — name!="A"; id=5(A) — id==5 共3行
+	assert_int(rows.size()).is_equal(3)
+	var names = rows.map(func(r): return r[1])
+	assert_array(names).contains_same_exactly(["B", "C", "A"])
+
+
+	## 测试: SELECT ORDER BY 排序
 func test_select_order_by() -> void:
 	_bd().insert_into(TEST_TABLE).values({"name": "C", "score": 70}).query()
 	_bd().insert_into(TEST_TABLE).values({"name": "A", "score": 90}).query()
