@@ -33,21 +33,6 @@ func read_table(table: GDSQLTableDefinition, session: GDSQLStorageSession) -> GD
 	return snapshot
 
 
-func _read_persisted_rows(
-		table: GDSQLTableDefinition,
-) -> Array[GDSQLRowRecord]:
-	var rows: Array[GDSQLRowRecord] = []
-	var path := path_resolver.resolve_table_path(table.database_name, table.name)
-	var config := config_cache.get_or_load(path)
-	if config == null:
-		return rows
-	for section in config.get_sections():
-		if _is_reserved_section(section):
-			continue
-		rows.append(_read_row(config, section))
-	return rows
-
-
 func find_by_primary_key(
 		table: GDSQLTableDefinition,
 		key: Variant,
@@ -296,6 +281,21 @@ func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 
 func rollback(session: GDSQLStorageSession) -> void:
 	session.clear()
+
+
+func _read_persisted_rows(
+		table: GDSQLTableDefinition,
+) -> Array[GDSQLRowRecord]:
+	var rows: Array[GDSQLRowRecord] = []
+	var path := path_resolver.resolve_table_path(table.database_name, table.name)
+	var config := config_cache.get_or_load(path)
+	if config == null:
+		return rows
+	for section in config.get_sections():
+		if _is_reserved_section(section):
+			continue
+		rows.append(_read_row(config, section))
+	return rows
 
 
 func _validate_session_constraints(
