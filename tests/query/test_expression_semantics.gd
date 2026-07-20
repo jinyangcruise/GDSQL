@@ -14,7 +14,7 @@ func before_test() -> void:
 
 func test_select_projects_arithmetic_and_scalar_function_expressions() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root, true)
-	TestDatabase.insert_rows(database, [{&"id": 1, &"name": "Mage", &"level": 3}])
+	TestDatabase.insert_rows(database, [{ &"id": 1, &"name": "Mage", &"level": 3 }])
 
 	var result := database.execute(
 		database.table(&"heroes")
@@ -49,8 +49,8 @@ func test_update_accepts_an_arithmetic_assignment() -> void:
 	TestDatabase.insert_rows(
 		database,
 		[
-			{&"id": 1, &"name": "Mage", &"level": 3},
-			{&"id": 2, &"name": "Knight", &"level": 4},
+			{ &"id": 1, &"name": "Mage", &"level": 3 },
+			{ &"id": 2, &"name": "Knight", &"level": 4 },
 		],
 	)
 
@@ -150,10 +150,19 @@ func test_expr_composes_logical_null_and_function_expressions() -> void:
 		GDSQLExpr.column(&"name").equals("Mage"),
 		GDSQLExpr.column(&"nickname").is_not_null(),
 	)
-	var function := GDSQLExpr.scalar(&"coalesce", [
-		GDSQLExpr.column(&"nickname"),
-		"Unknown",
-	])
+
+	# Another way of writing the same code
+	#var condition := GDSQLExpr.column(&"name").equals("Mage").and_(
+	#	#GDSQLExpr.column(&"nickname").is_not_null(),
+	#)
+
+	var function := GDSQLExpr.scalar(
+		&"coalesce",
+		[
+			GDSQLExpr.column(&"nickname"),
+			"Unknown",
+		],
+	)
 	var aggregate := GDSQLExpr.aggregate(&"count", [GDSQLExpr.column(&"id")])
 
 	assert_object(condition).is_instanceof(GDSQLLogicalExpression)
@@ -172,8 +181,8 @@ func test_expr_executes_through_the_existing_query_pipeline() -> void:
 	TestDatabase.insert_rows(
 		database,
 		[
-			{&"id": 1, &"name": "Mage", &"level": 3},
-			{&"id": 2, &"name": "Knight", &"level": 5},
+			{ &"id": 1, &"name": "Mage", &"level": 3 },
+			{ &"id": 2, &"name": "Knight", &"level": 5 },
 		],
 	)
 
