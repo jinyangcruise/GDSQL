@@ -1727,6 +1727,12 @@ project-owned database content. `DatabasePathResolver` and the ConfigFile
 backend own the physical layout; query models, validators, planners, and
 executors use logical catalog and table identifiers only.
 
+Runtime placement and persistence policy are defined in
+[`databases.md`](databases.md). The recommended game structure
+keeps authored, read-only content under `res://data/` and mutable save state in
+a separate database under `user://gdsql/saves/<save_name>/`. Shared user
+settings belong outside individual save slots.
+
 ---
 
 ## 18. Editor containment

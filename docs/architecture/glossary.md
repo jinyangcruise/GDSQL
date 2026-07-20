@@ -204,6 +204,21 @@ state in the same change as implementation or test work.
 | `ConfigFileCache` | Storage infrastructure | Manages loaded ConfigFile objects and their lifecycle. | `get_or_load()`, `invalidate()`, `flush()` | 🛠️ |
 | `GodotVariantCodec` | Serialization | Encodes and decodes Godot-native values at the storage boundary, including explicit nulls and native or custom Resources. | `encode()`, `decode()` | 🧪 |
 
+## Runtime persistence
+
+| Name | Domain | Responsibility | Principal API | State |
+|---|---|---|---|---|
+| `BufferedTableStorage` | Storage composition | Keeps lazily loaded tables and indexes in memory, tracks committed dirty state, and delegates durable persistence to another storage backend. | TableStorage implementation and checkpoint participation | 📝 |
+| `InMemoryTableStorage` | Storage backend | Provides authoritative temporary table storage without requiring a persistent source. | TableStorage implementation | 📝 |
+| `RuntimeDatabaseRegistry` | Runtime database lifecycle | Registers open database handles and resolves standard or project-defined logical roles, including effective-content replacement and active save selection. | `register()`, `bind_role()`, `resolve_role()`, `unbind_role()` | 📝 |
+| `PersistenceCoordinator` | Runtime persistence | Applies persistence policies, inspects committed dirty state, and coordinates checkpoints without owning database discovery or model binding. | `checkpoint()`, `checkpoint_dirty()`, policy registration | 📝 |
+| `ContentOverlayLoader` | Runtime content loading | Validates and deterministically combines immutable base content with enabled mod layers into one reproducible effective content database. | `build_effective_database()`, cache invalidation and provenance diagnostics | 📝 |
+| `ContentCacheManifest` | Runtime content loading | Fingerprints the base content version, enabled mod versions or checksums, and deterministic load order for a disposable effective-content cache. | Compatibility inspection and cache fingerprint metadata | 📝 |
+| `ContentLoadingPolicy` | Runtime content loading | Selects complete, lazy-table, paged, or manual loading for the active effective-content working set. | `LOAD_ALL`, `LAZY_TABLES`, `PAGED`, `MANUAL` | 📝 |
+| `CheckpointPolicy` | Runtime persistence | Describes immediate, periodic, manual, or exit-time persistence behavior independently from transaction semantics. | Policy factories and interval metadata | 📝 |
+| `CheckpointResult` | Runtime persistence | Reports whether committed dirty state reached persistent storage and carries structured diagnostics. | `is_successful()`, persisted database/table metadata | 📝 |
+| `RuntimeNode` | Godot runtime adapter | Optional Node or autoload that supplies a top-level runtime API, timers, lifecycle notifications, and signals while delegating to the runtime registry, content loader, and persistence coordinator. | Database registration, role selection, rebuild/checkpoint delegation, runtime signals | 📝 |
+
 ## Results and materialization
 
 | Name | Domain | Responsibility | Principal API | State |
@@ -223,10 +238,13 @@ state in the same change as implementation or test work.
 
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
-| `Model` | Optional model API | Represents one materialized table row and provides model-scoped persistence operations. | `find()`, `query()`, `save()`, `delete()` | 📝 |
-| `ModelDefinition` | Optional model API | Associates one model script with a logical database, table, and primary key without containing physical paths. | Definition metadata | 📝 |
-| `ModelRegistry` | Optional model API | Resolves model scripts to definitions and registered database runtimes. | `register()`, `resolve()` | 📝 |
-| `ModelContext` | Optional model API | Owns an isolated model registry and runtime bindings for tests or advanced multiple-runtime use. | Context registration and lookup | 📝 |
+| `Model` | Optional model API | Shared base for role-scoped model identity, queries, refresh, relationships, and materialization without owning database infrastructure. | `find()`, `query()`, `refresh()` | 📝 |
+| `ContentModel` | Optional model API | Read-only model bound through the model registry to the effective `content` database role. | `find()`, `query()`, `refresh()` | 📝 |
+| `SaveModel` | Optional model API | Mutable model bound through the model registry to the active save-slot database; it operates on rows but does not manage save slots. | `find()`, `query()`, `save()`, `delete()`, `refresh()` | 📝 |
+| `SettingsModel` | Optional model API | Mutable model bound to project-wide user settings that remain independent from the selected save slot. | `find()`, `query()`, `save()`, `delete()`, `refresh()` | 📝 |
+| `ModelAccessMode` | Optional model API | Declares whether a standard or project-defined model role permits only reads or also permits canonical mutations. | `READ_ONLY`, `READ_WRITE` | 📝 |
+| `ModelRegistry` | Optional model API | Resolves model classes and extensible logical roles such as `content`, `save`, `settings`, or project-defined roles to active databases without exposing paths to models. | `register()`, `resolve_model()`, `resolve_role()` | 📝 |
+| `ModelContext` | Optional model API | Supplies an isolated model registry and role bindings for tests or advanced multiple-runtime use. | Context-specific model and role resolution | 📝 |
 | `ModelQuery` | Optional model API | Model-oriented query frontend that translates helpers into canonical `QuerySpec` objects. | `where()`, `order_by()`, `with()`, `get()`, `to_query_spec()` | 📝 |
 | `ModelMapper` | Optional model API | Maps model metadata and operations to `QuerySpec` and result mappings. | `to_insert()`, `to_update()`, `materialize()` | 🚧 |
 | `RelationshipDefinition` | Optional model API | Typed declaration of a has-one, has-many, belongs-to, or many-to-many model relationship. | Relationship constructors and key accessors | 📝 |
