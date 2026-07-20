@@ -20,10 +20,6 @@ config/tags=PackedStringArray("opensource")
 run/main_scene="uid://djsv3bbnpncdp"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
-[autoload]
-
-DsInspector="*uid://b53o18yx7ll1"
-
 [debug]
 
 gdscript/warnings/directory_rules={

@@ -6,7 +6,7 @@ var table_name: StringName
 var alias: StringName
 
 
-func _init(p_table: StringName = &"", p_database: StringName = &"", p_alias: StringName = &"") -> void:
-	table_name = p_table
-	database_name = p_database
-	alias = p_alias
+func _init(table: StringName = &"", database: StringName = &"", alias: StringName = &"") -> void:
+	self.table_name = table
+	self.database_name = database
+	self.alias = alias

@@ -27,10 +27,11 @@ state in the same change as implementation or test work.
 | `Database` | Public API | Main user-facing entry point for creating, opening, renaming, and dropping a database; managing its tables; and executing canonical query specs. | `create()`, `open()`, `rename()`, `drop()`, `create_table()`, `rename_table()`, `alter_table()`, `drop_table()`, `query()`, `execute()` | 🧪 |
 | `DatabaseContext` | Runtime facade | Coordinates catalog administration, validation, binding, planning, execution, and result materialization. | Database and table administration methods, `execute(query)`, `prepare(query)` | 🚧 |
 | `Query` | Fluent API | User-facing fluent query entry point that optionally captures a table and creates operation-specific builders. | `table()`, `select()`, `insert()`, `update()`, `delete()` | 🧪 |
-| `SelectQueryBuilder` | Fluent API | Builds a `SelectQuerySpec` with projections, aliases, predicates, ordering, distinct selection, limits, and offsets. | `from_table()`, `columns()`, `column()`, `project()`, `where()`, `order_by()`, `order_by_column()`, `distinct()`, `limit()`, `offset()`, `build()` | 🧪 |
+| `SelectQueryBuilder` | Fluent API | Builds a `SelectQuerySpec` with projections, aliases, joins, predicates, grouping, aggregate functions, ordering, distinct selection, limits, and offsets. | `from_table()`, joins, projection, `group_by()`, `having()`, aggregate helpers, ordering, pagination, and `build()` | 🧪 |
 | `InsertQueryBuilder` | Fluent API | Builds an `InsertQuerySpec` from one or more named rows. | `into_table()`, `values()`, `build()` | 🧪 |
 | `UpdateQueryBuilder` | Fluent API | Builds a single-table `UpdateQuerySpec` from typed assignments and an optional predicate. | `table()`, `set_value()`, `set_expression()`, `where()`, `build()` | 🧪 |
 | `DeleteQueryBuilder` | Fluent API | Builds a single-table `DeleteQuerySpec` with an optional predicate. | `from_table()`, `where()`, `build()` | 🧪 |
+| `Expr` | Expression convenience frontend | Creates canonical typed expressions through compact factories and fluent combinators without parsing strings. | `column()`, `literal()`, `and_()`, `or_()`, expression comparison and arithmetic helpers | 📝 |
 | `QueryGraph` | Graph frontend | Frontend-owned representation of query nodes and their connections. | `get_nodes()`, `get_connections()`, `validate_structure()` | 🚧 |
 | `GraphQueryCompiler` | Graph frontend | Converts a valid `QueryGraph` into a canonical `QuerySpec`. | `compile(graph)` | 🚧 |
 
@@ -46,7 +47,7 @@ state in the same change as implementation or test work.
 | `QuerySpecVisitor` | Query model | Defines type-specific operations over concrete `QuerySpec` classes. | `visit_select()`, `visit_insert()`, `visit_update()`, `visit_delete()` | 🚧 |
 | `QuerySource` | Query model | Abstract representation of a source from which rows can be read. | Source-specific accessors | 🚧 |
 | `TableReference` | Query model | Identifies a database table and optional alias without loading it. | `get_database_name()`, `get_table_name()`, `get_alias()` | 🛠️ |
-| `JoinSpec` | Query model | Describes a join type, source, and condition. | `get_type()`, `get_source()`, `get_condition()` | 🚧 |
+| `JoinSpec` | Query model | Describes an inner, left, right, or full join source and condition; right and full execution remain scaffolded. | Constructor and access to type, source, and condition | 🧪 |
 | `InsertRow` | Query model | Represents one ordered or named row of values for insertion. | `get_values()` | 🛠️ |
 | `SelectProjection` | Query model | Associates a selected expression with an optional public result alias. | Access to expression and alias | 🧪 |
 | `ColumnAssignment` | Query model | Associates a target column with an expression used during update. | Access to column and expression | 🧪 |
@@ -54,18 +55,24 @@ state in the same change as implementation or test work.
 | `SortDirection` | Query model | Enumerates ascending and descending ordering. | `ASCENDING`, `DESCENDING` | 🧪 |
 | `ComparisonOperator` | Expression model | Enumerates comparison operations. | `EQUAL`, `NOT_EQUAL`, `GREATER_THAN`, `LESS_THAN`, and related values | 🛠️ |
 | `LogicalOperator` | Expression model | Enumerates logical composition operations. | `AND`, `OR`, `NOT` | 🛠️ |
+| `ArithmeticOperator` | Expression model | Enumerates scalar arithmetic operations. | `ADD`, `SUBTRACT`, `MULTIPLY`, `DIVIDE`, `MODULO` | 🧪 |
+| `NullCheckOperator` | Expression model | Enumerates explicit null checks. | `IS_NULL`, `IS_NOT_NULL` | 🧪 |
 
 ## Expression model
 
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `QueryExpression` | Expression model | Abstract base for canonical expressions used throughout queries. | `accept(visitor)` | 🚧 |
-| `ExpressionVisitor` | Expression model | Performs type-specific operations over raw and bound expression nodes. | `visit_column()`, `visit_bound_column()`, `visit_literal()`, `visit_comparison()`, `visit_logical()` | 🚧 |
+| `ExpressionVisitor` | Expression model | Performs type-specific operations over raw and bound expression nodes. | Visit methods for column, literal, comparison, logical, arithmetic, null-check, and function expressions | 🚧 |
 | `ColumnExpression` | Expression model | Refers to a column by name and optional source alias. | `accept(visitor)` | 🛠️ |
 | `LiteralExpression` | Expression model | Holds a literal Godot `Variant` value. | `accept(visitor)` | 🛠️ |
-| `ComparisonExpression` | Expression model | Compares two expressions through a `ComparisonOperator`. | `accept(visitor)` | 🛠️ |
-| `LogicalExpression` | Expression model | Combines expressions through logical operators. | `accept(visitor)` | 🛠️ |
-| `FunctionExpression` | Expression model | Describes a scalar or aggregate function invocation. | `get_name()`, `get_arguments()`, `accept(visitor)` | 🚧 |
+| `ComparisonExpression` | Expression model | Compares compatible expressions through a `ComparisonOperator`, propagating null as unknown. | `accept(visitor)` | 🧪 |
+| `LogicalExpression` | Expression model | Combines boolean or unknown expressions through three-valued logical operators. | `accept(visitor)` | 🧪 |
+| `ArithmeticExpression` | Expression model | Applies numeric arithmetic or string addition to two scalar expressions. | `accept(visitor)` | 🧪 |
+| `NullCheckExpression` | Expression model | Tests whether an expression evaluates to null. | `accept(visitor)` | 🧪 |
+| `FunctionExpression` | Expression model | Describes a validated scalar or aggregate function invocation. | Access to name and arguments, `accept(visitor)` | 🧪 |
+| `QueryFunctionDefinition` | Expression model | Describes a function name, arity, return type, and aggregate classification without execution behavior. | `accepts_argument_count()` and definition fields | 🧪 |
+| `QueryFunctionCatalog` | Expression model | Resolves function definitions for frontend construction and query validation. | `register_function()`, `resolve()`, `contains()` | 🧪 |
 
 ## SQL lexical model
 
@@ -102,7 +109,7 @@ state in the same change as implementation or test work.
 |---|---|---|---|---|
 | `QueryDiagnostic` | Diagnostics | Represents an informational message, warning, or error from a pipeline stage. | `get_code()`, `get_severity()`, `get_message()` | 🛠️ |
 | `Diagnostics` | Diagnostics | Reusable diagnostic collection that inspects severity and performs explicitly requested debug reporting. | `add()`, `merge()`, `has_errors()`, `is_successful()`, `print_to_debug()` | 🛠️ |
-| `OperationResult` | Common results | Generic value-plus-result that composes `Diagnostics` for operations without a specialized result class. | `is_successful()` | 🛠️ |
+| `OperationResult` | Common results | Generic value-plus-result that composes `Diagnostics` for operations without a specialized result class. | `is_successful()`, `get_value()` | 🛠️ |
 | `CatalogOperationResult` | Catalog results | Contains the value and structured diagnostics produced by a catalog structure mutation. | `is_successful()`, `get_value()` | 🛠️ |
 | `QueryValidationResult` | Validation | Contains validation diagnostics and an optional bound query. | `is_valid()`, `get_bound_query()` | 🛠️ |
 | `QueryBindingResult` | Binding | Contains binding diagnostics and an optional bound query. | `is_successful()`, `get_bound_query()` | 🚧 |
@@ -118,12 +125,14 @@ state in the same change as implementation or test work.
 | `QueryValidator` | Validation | Abstract contract for validating query semantics against a catalog. | `validate(query)` | 🚧 |
 | `DefaultQueryValidator` | Validation | Default implementation of semantic validation and initial binding. | `validate(query)` | 🧪 |
 | `BoundQuery` | Binding | Catalog-resolved and type-checked representation of a query. | Access to root operation, referenced tables, and output schema | 🚧 |
-| `BoundSelectQuery` | Binding | Bound representation of a select operation, including projections, ordering, distinct selection, limit, and offset. | Access to resolved source and select clauses | 🧪 |
+| `BoundSelectQuery` | Binding | Bound representation of a select operation, including its primary source, joins, projections, ordering, distinct selection, limit, and offset. | Access to resolved sources and select clauses | 🧪 |
+| `BoundTableSource` | Binding | Associates a resolved table with its query alias and join-derived nullability. | `get_qualifier()` and source metadata | 🧪 |
+| `BoundJoin` | Binding | Associates a supported join type with its resolved source and bound condition. | Access to type, source, and condition | 🧪 |
 | `BoundInsertQuery` | Binding | Bound insert operation containing a resolved target table and validated rows. | Access to target and rows | 🛠️ |
 | `BoundUpdateQuery` | Binding | Bound update operation containing a resolved target, assignments, and predicate. | Access to target, assignments, and predicate | 🧪 |
 | `BoundDeleteQuery` | Binding | Bound delete operation containing a resolved target and predicate. | Access to target and predicate | 🧪 |
 | `BoundQueryOperation` | Binding | Abstract base for resolved query operations. | Operation-specific accessors | 🚧 |
-| `BoundColumnExpression` | Binding | Column expression resolved to stable table and column identifiers and a data type. | `get_table_id()`, `get_column_id()`, `get_data_type()` | 🛠️ |
+| `BoundColumnExpression` | Binding | Column expression resolved to stable table and column identifiers, source occurrence qualifier, data type, and nullability. | Access to table ID, column ID, source qualifier, data type, and nullability | 🧪 |
 | `TableId` | Identifiers | Stable identifier for a catalog table. | Equality and string representation | 🚧 |
 | `ColumnId` | Identifiers | Stable identifier for a catalog column. | Equality and string representation | 🚧 |
 
@@ -138,9 +147,12 @@ state in the same change as implementation or test work.
 | `PlanNodeVisitor` | Planning | Performs operations over concrete plan node types. | `visit_table_scan()`, `visit_filter()`, `visit_sort()`, and related methods | 🚧 |
 | `TableScanPlan` | Planning | Reads all rows available from a table source. | `accept(visitor)` | 🛠️ |
 | `PrimaryKeyLookupPlan` | Planning | Retrieves a row through a primary-key lookup. | `accept(visitor)` | 🛠️ |
+| `IndexLookupPlan` | Planning | Retrieves rows through an exact single-column lookup on a catalog index when supported by storage. | `accept(visitor)` | 🧪 |
+| `RangeLookupPlan` | Planning | Retrieves rows through a bounded single-column index lookup when supported by storage. | `accept(visitor)` | 🧪 |
 | `FilterPlan` | Planning | Filters rows from its input according to a predicate. | `accept(visitor)` | 🛠️ |
+| `NestedLoopJoinPlan` | Planning | Joins two plan inputs by evaluating a bound condition for each candidate row pair. | `accept(visitor)` | 🧪 |
 | `ProjectionPlan` | Planning | Produces selected or calculated output columns. | `accept(visitor)` | 🛠️ |
-| `AggregatePlan` | Planning | Groups rows and evaluates aggregate expressions. | `accept(visitor)` | 🚧 |
+| `AggregatePlan` | Planning | Groups rows and evaluates registered aggregate expressions before HAVING, ordering, and projection. | `accept(visitor)` | 🧪 |
 | `SortPlan` | Planning | Orders rows from its input using one or more bound order clauses. | `accept(visitor)` | 🧪 |
 | `DistinctPlan` | Planning | Removes duplicate rows after projection and before limit or offset. | `accept(visitor)` | 🧪 |
 | `LimitPlan` | Planning | Applies offset and row-count limits. | `accept(visitor)` | 🛠️ |
@@ -156,10 +168,11 @@ state in the same change as implementation or test work.
 | `QueryExecutor` | Execution | Abstract contract for executing query plans. | `execute(plan, context)` | 🚧 |
 | `DefaultQueryExecutor` | Execution | Default GDScript implementation of query-plan execution. | `execute(plan, context)` | 🧪 |
 | `ExecutionContext` | Execution | Groups runtime services and per-execution state. | Service accessors | 🚧 |
-| `ExpressionEvaluator` | Execution | Evaluates canonical or bound expressions against a row context. | `evaluate(expression, row_context)` | 🚧 |
-| `QueryFunctionRegistry` | Execution | Registers and resolves scalar and aggregate query functions. | `register_function()`, `resolve()` | 🚧 |
+| `ExpressionEvaluator` | Execution | Evaluates canonical or bound scalar expressions against a row context with null propagation. | `evaluate(expression, row_context)` | 🧪 |
+| `QueryFunctionRegistry` | Execution | Associates query-function definitions with executable scalar and aggregate callables. | `register_function()`, `register_aggregate_function()`, `resolve()`, `resolve_aggregate()` | 🧪 |
 | `QueryCancellationToken` | Execution | Communicates cancellation requests to long-running operations. | `cancel()`, `is_cancelled()` | 🚧 |
 | `TransactionManager` | Execution | Coordinates storage sessions, commits, and rollbacks. | `begin()`, `commit()`, `rollback()` | 🚧 |
+| `Transaction` | Public transaction scope | Executes multiple queries through one storage session and automatically commits or rolls back when its callback exits. | `execute()` within `Database.transaction(callback)` | 📝 |
 
 ## Catalog
 
@@ -171,23 +184,25 @@ state in the same change as implementation or test work.
 | `ConfigFileCatalogAdministrationService` | Catalog backend | Persists database registrations and synchronizes ConfigFile-backed schemas and row storage during lifecycle changes. | CatalogAdministrationService implementation | 🧪 |
 | `CatalogSnapshot` | Catalog | Stable catalog view used during validation, binding, and planning. | `get_database()`, `get_table()` | 🚧 |
 | `DatabaseDefinition` | Catalog | Typed definition of a logical database. | Access to name and tables | 🛠️ |
-| `TableDefinition` | Catalog | Typed definition of a table, its columns, primary key, and indexes. | `get_column()`, `get_primary_key()` | 🛠️ |
-| `ColumnDefinition` | Catalog | Typed definition of one table column. | Access to name, type, nullability, uniqueness, and default | 🛠️ |
+| `TableDefinition` | Catalog | Typed definition of a table, its columns, primary key, indexes, and common timestamp helpers. | `add_column()`, `add_index()`, `add_timestamps()`, `get_column()`, `get_primary_key()`, `get_index()` | 🧪 |
+| `ColumnDefinition` | Catalog | Typed definition of one table column, including an optional static default, generated-value policy, integer primary-key auto-increment, and the rule that `TYPE_OBJECT` accepts Resources only. | `set_default()`, `clear_default()`, `has_default()`, `get_default_value()`, `accepts_value()`, `created_at()`, `updated_at()` | 🧪 |
+| `ColumnDefault` | Catalog | Wraps a declared static default so an explicit null value remains distinct from no default and future default metadata can evolve without parallel column state. | `value` | 🧪 |
 | `TableAlteration` | Catalog | Typed intent for adding, renaming, or dropping one table column. | `add_column()`, `rename_column()`, `drop_column()` | 🧪 |
-| `IndexDefinition` | Catalog | Describes an index and the columns it covers. | `get_columns()`, `is_unique()` | 🚧 |
+| `IndexDefinition` | Catalog | Describes a named index, its ordered columns, and whether its complete value must be unique. | `get_columns()`, `is_unique()` | 🧪 |
 
 ## Storage
 
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
-| `TableStorage` | Storage | Abstract row-level storage contract used by the runtime. | `read_table()`, `find_by_primary_key()`, `stage_insert()`, `stage_update()`, `stage_delete()`, `commit()`, `rollback()` | 🚧 |
-| `ConfigFileTableStorage` | Storage backend | Implements `TableStorage` using ConfigFile-backed `.cfg` files. | TableStorage implementation | 🧪 |
-| `StorageSession` | Storage | Tracks loaded data, staged changes, and dirty state for one unit of work. | Session-specific state access | 🛠️ |
+| `TableStorage` | Storage | Abstract row-level storage contract used by the runtime. | `get_capabilities()`, `read_table()`, primary-key/index/range lookup, staged mutations, `commit()`, `rollback()` | 🚧 |
+| `StorageCapabilities` | Storage | Reports optional exact-index and range-index lookup operations supported by a storage backend without exposing its implementation. | `supports_exact_index_lookup()`, `supports_range_index_lookup()` | 🧪 |
+| `ConfigFileTableStorage` | Storage backend | Implements `TableStorage` using ConfigFile-backed `.cfg` files, with atomic query commits, maintained index entries, final-state uniqueness validation, table metadata, and transactional auto-increment generation. | TableStorage implementation | 🧪 |
+| `StorageSession` | Storage | Tracks staged changes, dirty state, and uncommitted table metadata reservations for one unit of work. | Session-specific state access | 🧪 |
 | `TableSnapshot` | Storage | Stable collection of rows read from a table for an operation. | `get_rows()`, `find_by_primary_key()` | 🛠️ |
-| `RowRecord` | Storage and execution | Typed runtime representation of one row. | `get_value()`, `set_value()`, `has_column()` | 🛠️ |
+| `RowRecord` | Storage and execution | Typed runtime representation of one row, including source-qualified values for multi-table evaluation. | `get_value()`, `get_source_value()`, `set_source_values()`, mutation and lookup helpers | 🧪 |
 | `DatabasePathResolver` | Storage infrastructure | Resolves logical database and table identifiers into physical paths. | `resolve_catalog_path()`, `resolve_table_path()` | 🛠️ |
 | `ConfigFileCache` | Storage infrastructure | Manages loaded ConfigFile objects and their lifecycle. | `get_or_load()`, `invalidate()`, `flush()` | 🛠️ |
-| `GodotVariantCodec` | Serialization | Encodes and decodes Godot-native values at the storage boundary. | `encode()`, `decode()` | 🛠️ |
+| `GodotVariantCodec` | Serialization | Encodes and decodes Godot-native values at the storage boundary, including explicit nulls and native or custom Resources. | `encode()`, `decode()` | 🧪 |
 
 ## Results and materialization
 
@@ -195,11 +210,11 @@ state in the same change as implementation or test work.
 |---|---|---|---|---|
 | `RowSet` | Execution results | Internal collection of rows and their result schema. | `get_rows()`, `get_schema()` | 🚧 |
 | `DatabaseResult` | Public results | Contains a database handle or structured diagnostics from `Database.create()` and `Database.open()`. | `is_successful()`, `get_database()` | 🧪 |
-| `QueryResult` | Public results | Stable public representation of query output and schema that inherits the composed diagnostics behavior from `OperationResult`. | `is_successful()`, `get_rows()`, `get_schema()`, `get_diagnostics()`, `get_affected_rows()`, `get_returned_rows()` | 🧪 |
-| `ResultMapping` | Mapping | Describes how result columns map into an output representation. | Mapping accessors | 🚧 |
-| `ResultMaterializer` | Mapping | Abstract contract for converting a `RowSet` into a user-facing result. | `materialize(rows, mapping)` | 🚧 |
-| `DictionaryResultMaterializer` | Mapping | Converts rows into dictionaries. | `materialize()` | 🚧 |
-| `ResourceResultMaterializer` | Mapping | Converts rows into Godot resource instances. | `materialize()` | 🚧 |
+| `QueryResult` | Public results | Stable public representation of query output and schema that inherits the composed diagnostics behavior from `OperationResult`. | `is_successful()`, `get_rows()`, `get_schema()`, `get_diagnostics()`, `get_affected_rows()`, `get_returned_rows()`, `materialize()` | 🧪 |
+| `ResultMapping` | Mapping | Selects result columns, assigns output names, and optionally identifies a target Resource script. | `map_column()`, `get_target_name()`, `get_source_columns()`, `for_resource()` | 🧪 |
+| `ResultMaterializer` | Mapping | Abstract contract for converting a `RowSet` into a user-facing value while retaining result diagnostics and metadata. | `materialize(rows, mapping)` | 🧪 |
+| `DictionaryResultMaterializer` | Mapping | Converts each selected row into an independent dictionary using optional column renaming. | `materialize()` | 🧪 |
+| `ResourceResultMaterializer` | Mapping | Instantiates one custom Resource per row and assigns mapped columns to declared properties. | `materialize()` | 🧪 |
 | `ModelResultMaterializer` | Mapping | Converts rows into optional database model objects. | `materialize()` | 🚧 |
 | `EditorTableMaterializer` | Editor mapping | Converts rows into data appropriate for the editor table interface. | `materialize()` | 🚧 |
 | `CsvExportMaterializer` | Export mapping | Converts rows into CSV output. | `materialize()` | 🚧 |
@@ -208,7 +223,10 @@ state in the same change as implementation or test work.
 
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
-| `DatabaseModel` | Optional model API | Provides convenient model-oriented persistence operations above the canonical query pipeline. | `find()`, `query()`, `save()`, `delete()` | 🚧 |
+| `Model` | Optional model API | Represents one materialized table row and provides model-scoped persistence operations. | `find()`, `query()`, `save()`, `delete()` | 📝 |
+| `ModelDefinition` | Optional model API | Associates one model script with a logical database, table, and primary key without containing physical paths. | Definition metadata | 📝 |
+| `ModelRegistry` | Optional model API | Resolves model scripts to definitions and registered database runtimes. | `register()`, `resolve()` | 📝 |
+| `ModelContext` | Optional model API | Owns an isolated model registry and runtime bindings for tests or advanced multiple-runtime use. | Context registration and lookup | 📝 |
 | `ModelQuery` | Optional model API | Model-oriented query frontend that translates helpers into canonical `QuerySpec` objects. | `where()`, `order_by()`, `with()`, `get()`, `to_query_spec()` | 📝 |
 | `ModelMapper` | Optional model API | Maps model metadata and operations to `QuerySpec` and result mappings. | `to_insert()`, `to_update()`, `materialize()` | 🚧 |
 | `RelationshipDefinition` | Optional model API | Typed declaration of a has-one, has-many, belongs-to, or many-to-many model relationship. | Relationship constructors and key accessors | 📝 |

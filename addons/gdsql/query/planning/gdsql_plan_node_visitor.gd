@@ -9,7 +9,19 @@ func visit_primary_key_lookup(node: GDSQLPrimaryKeyLookupPlan) -> Variant:
 	return null
 
 
+func visit_index_lookup(node: GDSQLIndexLookupPlan) -> Variant:
+	return null
+
+
+func visit_range_lookup(node: GDSQLRangeLookupPlan) -> Variant:
+	return null
+
+
 func visit_filter(node: GDSQLFilterPlan) -> Variant:
+	return null
+
+
+func visit_nested_loop_join(node: GDSQLNestedLoopJoinPlan) -> Variant:
 	return null
 
 

@@ -4,8 +4,8 @@ extends GDSQLQueryExpression
 var value: Variant
 
 
-func _init(p_value: Variant = null) -> void:
-	value = p_value
+func _init(value: Variant = null) -> void:
+	self.value = value
 
 
 func accept(visitor: GDSQLExpressionVisitor) -> Variant:

@@ -89,6 +89,7 @@ func execute(query: GDSQLQuerySpec) -> GDSQLQueryResult:
 		public_result.rows = execution.rows.rows.duplicate()
 		public_result.schema = execution.rows.schema
 	public_result.statistics = execution.statistics.duplicate()
+	public_result.value = public_result.rows
 	return public_result
 
 

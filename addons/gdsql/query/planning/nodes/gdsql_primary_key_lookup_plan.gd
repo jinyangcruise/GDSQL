@@ -2,6 +2,7 @@ class_name GDSQLPrimaryKeyLookupPlan
 extends GDSQLPlanNode
 
 var table: GDSQLTableDefinition
+var alias: StringName
 var key: GDSQLQueryExpression
 
 

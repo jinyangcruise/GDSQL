@@ -5,9 +5,9 @@ var table_alias: StringName
 var column_name: StringName
 
 
-func _init(p_column: StringName = &"", p_alias: StringName = &"") -> void:
-	column_name = p_column
-	table_alias = p_alias
+func _init(column: StringName = &"", alias: StringName = &"") -> void:
+	self.column_name = column
+	self.table_alias = alias
 
 
 func accept(visitor: GDSQLExpressionVisitor) -> Variant:

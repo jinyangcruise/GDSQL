@@ -21,5 +21,13 @@ func visit_logical(expression: GDSQLLogicalExpression) -> Variant:
 	return null
 
 
+func visit_arithmetic(expression: GDSQLArithmeticExpression) -> Variant:
+	return null
+
+
+func visit_null_check(expression: GDSQLNullCheckExpression) -> Variant:
+	return null
+
+
 func visit_function(expression: GDSQLFunctionExpression) -> Variant:
 	return null

@@ -1,6 +1,8 @@
 class_name GDSQLBasicFluentApiTest
 extends GdUnitTestSuite
 
+const TestDatabase = preload("res://tests/utils/gdsql_test_database.gd")
+
 var _data_root: String
 var _test_index := 0
 
@@ -11,7 +13,7 @@ func before_test() -> void:
 
 
 func test_create_table_and_open_database_again() -> void:
-	var database := _create_database_with_heroes()
+	var database := TestDatabase.create_heroes_database(_data_root)
 	var open_result := GDSQLDatabase.open(&"game_config", _data_root)
 
 	assert_bool(open_result.is_successful()).is_true()
@@ -22,7 +24,7 @@ func test_create_table_and_open_database_again() -> void:
 
 
 func test_insert_and_minimal_select_pipeline() -> void:
-	var database := _create_database_with_heroes()
+	var database := TestDatabase.create_heroes_database(_data_root)
 	var insert_result := database.execute(
 		database.query()
 		.table(&"heroes")
@@ -58,14 +60,14 @@ func test_insert_and_minimal_select_pipeline() -> void:
 
 
 func test_update_matching_rows() -> void:
-	var database := _create_database_with_heroes()
-	_insert_heroes(database)
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
 	var update_result := database.execute(
 		database.query()
 		.update()
 		.table(&"heroes")
 		.set_value(&"name", "Wizard")
-		.where(_id_equals(2))
+		.where(TestDatabase.id_equals(2))
 		.build(),
 	)
 
@@ -75,7 +77,7 @@ func test_update_matching_rows() -> void:
 
 	var reopened := GDSQLDatabase.open(&"game_config", _data_root).get_database()
 	var select_result := reopened.execute(
-		reopened.query().select().from_table(&"heroes").where(_id_equals(2)).build(),
+		reopened.query().select().from_table(&"heroes").where(TestDatabase.id_equals(2)).build(),
 	)
 	assert_bool(select_result.is_successful()).is_true()
 	assert_int(select_result.get_returned_rows()).is_equal(1)
@@ -83,13 +85,13 @@ func test_update_matching_rows() -> void:
 
 
 func test_delete_matching_rows() -> void:
-	var database := _create_database_with_heroes()
-	_insert_heroes(database)
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
 	var delete_result := database.execute(
 		database.query()
 		.delete()
 		.from_table(&"heroes")
-		.where(_id_equals(1))
+		.where(TestDatabase.id_equals(1))
 		.build(),
 	)
 
@@ -106,8 +108,8 @@ func test_delete_matching_rows() -> void:
 
 
 func test_select_orders_before_offset_and_limit() -> void:
-	var database := _create_database_with_heroes()
-	_insert_named_heroes(database, ["Mage", "Knight", "Archer"])
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_named_heroes(database, ["Mage", "Knight", "Archer"])
 
 	var result := database.execute(
 		database.table(&"heroes")
@@ -127,8 +129,8 @@ func test_select_orders_before_offset_and_limit() -> void:
 
 
 func test_select_projection_alias_exposes_result_schema() -> void:
-	var database := _create_database_with_heroes()
-	_insert_named_heroes(database, ["Mage"])
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_named_heroes(database, ["Mage"])
 
 	var result := database.execute(
 		database.table(&"heroes")
@@ -145,8 +147,8 @@ func test_select_projection_alias_exposes_result_schema() -> void:
 
 
 func test_select_distinct_removes_duplicate_projected_rows() -> void:
-	var database := _create_database_with_heroes()
-	_insert_named_heroes(database, ["Mage", "Mage", "Knight"])
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_named_heroes(database, ["Mage", "Mage", "Knight"])
 
 	var result := database.execute(
 		database.table(&"heroes")
@@ -161,37 +163,3 @@ func test_select_distinct_removes_duplicate_projected_rows() -> void:
 	assert_int(result.get_returned_rows()).is_equal(2)
 	assert_str(result.rows[0].get_value(&"name")).is_equal("Knight")
 	assert_str(result.rows[1].get_value(&"name")).is_equal("Mage")
-
-
-func _create_database_with_heroes() -> GDSQLDatabase:
-	var database_result := GDSQLDatabase.create(&"game_config", _data_root)
-	assert_bool(database_result.is_successful()).is_true()
-	var database := database_result.get_database()
-	var heroes := GDSQLTableDefinition.new(&"heroes", &"id")
-	heroes.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
-	heroes.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
-	assert_bool(database.create_table(heroes).is_successful()).is_true()
-	return database
-
-
-func _insert_heroes(database: GDSQLDatabase) -> void:
-	assert_bool(database.insert(&"heroes", { &"id": 1, &"name": "Knight" }).is_successful()).is_true()
-	assert_bool(database.insert(&"heroes", { &"id": 2, &"name": "Mage" }).is_successful()).is_true()
-
-
-func _insert_named_heroes(database: GDSQLDatabase, names: Array[String]) -> void:
-	for index in names.size():
-		assert_bool(
-			database.insert(
-				&"heroes",
-				{ &"id": index + 1, &"name": names[index] },
-			).is_successful(),
-		).is_true()
-
-
-func _id_equals(id: int) -> GDSQLComparisonExpression:
-	return GDSQLComparisonExpression.new(
-		GDSQLColumnExpression.new(&"id"),
-		GDSQLComparisonExpression.ComparisonOperator.EQUAL,
-		GDSQLLiteralExpression.new(id),
-	)

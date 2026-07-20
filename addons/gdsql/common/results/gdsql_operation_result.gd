@@ -9,5 +9,9 @@ func is_successful() -> bool:
 	return diagnostics.is_successful()
 
 
+func get_value() -> Variant:
+	return value
+
+
 func add_diagnostic(diagnostic: GDSQLQueryDiagnostic) -> void:
 	diagnostics.add(diagnostic)
