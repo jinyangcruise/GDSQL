@@ -1918,8 +1918,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 			],
 		)
 		mapper_arr.push_back(
-			'\n\treturn query("delete_%s", %s)\n\t' % [
+			'\n\treturn query("delete_%s_by_%s", %s)\n\t' % [
 				leading_table_name_snake,
+				"_".join(pk_prop_snake),
 				"_".join(pk_prop_snake),
 			],
 		)
