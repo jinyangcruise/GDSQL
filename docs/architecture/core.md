@@ -30,7 +30,7 @@ flowchart TD
         Compiler["SQL Compiler"]
         Builder["Query Builder"]
         GraphCompiler["Graph Compiler"]
-        ModelMapper["Model Mapper"]
+        ModelQuery["Model Query"]
     end
 
     subgraph Canonical["Canonical query pipeline"]
@@ -53,7 +53,7 @@ flowchart TD
     SQL --> Lexer --> Parser --> Compiler --> Spec
     Fluent --> Builder --> Spec
     Graph --> GraphCompiler --> Spec
-    Model --> ModelMapper --> Spec
+    Model --> ModelQuery --> Spec
 
     Spec --> Validator --> Bound --> Planner --> Plan --> Executor
 
@@ -1180,6 +1180,61 @@ named access materially improves readability. Timing assertions do not belong
 in the behavioral transaction test suite because they would be
 platform-dependent and flaky.
 
+### 11.2 Database registry
+
+`GDSQLDatabaseRegistry` keeps open `GDSQLDatabase` handles under registration
+names. Logical roles point to those registrations:
+
+```gdscript
+var registry := GDSQLDatabaseRegistry.new()
+registry.register(&"base_content", content_database)
+registry.register(&"slot_1", save_database)
+registry.bind_role(GDSQLDatabaseRegistry.CONTENT_ROLE, &"base_content")
+registry.bind_role(GDSQLDatabaseRegistry.SAVE_ROLE, &"slot_1")
+
+var active_save := registry.resolve_role(
+    GDSQLDatabaseRegistry.SAVE_ROLE,
+).get_database()
+```
+
+Binding a role again selects another registered handle. This supports active
+save selection, effective-content replacement, settings, analytics, and
+project-defined roles through one API. Unregistering a handle also clears each
+role that selected it. Every lifecycle and resolution operation returns a
+`GDSQLDatabaseResult` with structured diagnostics.
+
+Durable registration metadata uses `GDSQLDatabaseRegistration` and
+`GDSQLDatabaseRegistrySnapshot`. `GDSQLConfigFileDatabaseRegistryStore` stores
+the snapshot in `user://gdsql/databases.cfg`, allowing runtime startup and
+editor tools to inspect database roots, backend types, and role selections.
+Open handles remain attached to the active application context.
+
+### 11.3 Persistence semantics and checkpoints
+
+A transaction commit establishes valid, visible database state. A checkpoint
+transfers committed dirty state to durable storage. ConfigFile storage performs
+durable work during commit, while a future buffered storage participant can
+commit to memory, mark itself dirty, and persist later.
+
+`GDSQLCheckpointParticipant` exposes `is_dirty()` and `checkpoint()`.
+`GDSQLPersistenceCoordinator` associates participants with typed policies and
+coordinates explicit, dirty-set, and immediate post-commit checkpoints:
+
+```gdscript
+var persistence := GDSQLPersistenceCoordinator.new()
+persistence.register(
+    &"save_1",
+    buffered_save_storage,
+    GDSQLCheckpointPolicy.periodic(30.0),
+)
+
+var result := persistence.checkpoint(&"save_1")
+```
+
+`GDSQLCheckpointResult` records databases that reached durable storage and
+databases that remain dirty for a later retry. Periodic scheduling and graceful
+shutdown integration belong to the optional runtime Node adapter.
+
 ---
 
 ## 12. Storage boundary
@@ -1276,6 +1331,13 @@ ConfigFileTableStorage
 ```
 
 Storage representations do not propagate upward into the canonical query model.
+
+A future `GDSQLPagedBinaryTableStorage` can implement the same contract with
+one binary file per table. Each file begins with a typed header containing the
+format version, schema fingerprint, page size, row count, generated-key state,
+and root page references for rows and indexes. Independently addressable pages
+allow targeted row and index loading while preserving the current table-level
+file organization.
 
 ---
 
@@ -1492,7 +1554,8 @@ EditorTableMaterializer
 CsvExportMaterializer
 ```
 
-An optional mapper extension may later provide specialized materializers without changing the executor.
+Specialized materializers can extend this boundary while the executor remains
+row-oriented.
 
 The initial materialization boundary is available after execution:
 
@@ -1538,8 +1601,9 @@ The executor does not need to know whether rows will be:
 The model frontend will build on this boundary. A `GDSQLModel` represents one
 materialized row and is associated through `GDSQLModelDefinition` with one
 logical database and table. `GDSQLModelRegistry` resolves model definitions
-through the project runtime, while `GDSQLModelContext` permits isolated
-registries for tests. Models never store physical database paths.
+and delegates logical role selection to `GDSQLDatabaseRegistry`, while
+`GDSQLModelContext` permits isolated registries for tests. Model metadata stores
+logical roles and table names.
 
 Normal queries are model-scoped and do not require repeatedly passing a
 database handle:
@@ -1552,6 +1616,9 @@ Hero.query() \
 
 The runtime resolves `Hero` to its registered logical database and table. An
 explicit model context remains an advanced testing or multi-runtime option.
+Typed relationship definitions live on model classes. Model queries use those
+definitions for explicit or eager loading, and graphical tooling can inspect
+the same keys to display related identifiers and records.
 
 ---
 
@@ -1738,6 +1805,15 @@ addons/gdsql/
 │   ├── delete_query_builder.gd
 │   └── query_result.gd
 │
+├── runtime/
+│   ├── database_registry.gd
+│   ├── database_registration.gd
+│   ├── database_registry_store.gd
+│   ├── checkpoint_participant.gd
+│   ├── checkpoint_policy.gd
+│   ├── checkpoint_result.gd
+│   └── persistence_coordinator.gd
+│
 ├── query/
 │   ├── model/
 │   │   ├── query_spec.gd
@@ -1789,6 +1865,7 @@ addons/gdsql/
 │
 ├── storage/
 │   ├── table_storage.gd
+│   ├── storage_backend_ids.gd
 │   ├── storage_session.gd
 │   ├── table_snapshot.gd
 │   ├── row_record.gd
@@ -1796,6 +1873,7 @@ addons/gdsql/
 │       ├── config_file_table_storage.gd
 │       ├── config_file_catalog_service.gd
 │       ├── config_file_catalog_administration_service.gd
+│       ├── config_file_database_registry_store.gd
 │       ├── config_file_cache.gd
 │       └── godot_variant_codec.gd
 │
@@ -1827,14 +1905,13 @@ res://
 ├── addons/
 │   └── gdsql/                  # Plugin implementation only
 ├── .gdsql/
-│   └── settings.cfg            # Project/tool settings only
+│   ├── settings.cfg            # Project/tool settings only
+│   └── graphs/                 # Editor query graph documents
 └── data/
     ├── databases.cfg           # Database catalog
     └── <database>/
         ├── schema/              # Table definitions
-        ├── tables/              # Row data stored as .cfg files
-        ├── mappers/             # Optional mapping definitions
-        └── graphs/              # Query graph documents
+        └── tables/              # Row data stored as .cfg or binary table files
 ```
 
 `.gdsql` is a hidden project configuration directory. It is not a second

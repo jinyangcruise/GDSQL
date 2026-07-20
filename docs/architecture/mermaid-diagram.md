@@ -53,6 +53,25 @@ Transaction("`**GDSQLTransaction**
 *Lifecycle:* One callback; commit on success, rollback on failure
 *Visibility:* Reads observe earlier staged writes`")
 
+RuntimeRegistry("`**GDSQLDatabaseRegistry**
+
+-
+*Purpose:* Register database handles and select active logical roles
+*Lifecycle API:* register(), unregister(), resolve()
+*Role API:* bind_role(), resolve_role(), unbind_role()
+*Standard roles:* content, save and settings
+*Durable metadata:* user://gdsql/databases.cfg through DatabaseRegistryStore
+*Returns:* GDSQLDatabaseResult with structured diagnostics`")
+
+Persistence("`**Runtime Persistence**
+
+-
+*Purpose:* Transfer committed dirty state to durable storage
+*Coordinator API:* register(), checkpoint(), checkpoint_dirty(), transaction_committed()
+*Policy API:* immediate(), periodic(), manual(), on_exit()
+*Participant API:* is_dirty(), checkpoint()
+*Returns:* GDSQLCheckpointResult with durable and remaining-dirty databases`")
+
 Factory("`**GDSQLRuntimeFactory**
 
 -
@@ -227,6 +246,10 @@ Expression -->|"contained by"| QuerySpec
 
 Database -->|"execute(query) · lifecycle methods"| Context
 Database -->|"transaction(callback)"| Transaction
+Code -->|"register handles · select roles"| RuntimeRegistry
+RuntimeRegistry -->|"resolve() · resolve_role()"| Database
+Code -->|"checkpoint() · checkpoint_dirty()"| Persistence
+Persistence -->|"participant.checkpoint()"| TableStorage
 Transaction -->|"execute(query, shared session)"| Context
 QuerySpec -->|"execute(query) / prepare(query)"| Context
 Context -->|"validate(query)"| Validator
@@ -255,7 +278,7 @@ Factory -.->|"create_default(data_root)"| Context
 Factory -.->|"constructs and injects"| ConfigInfrastructure
 
 class Code,GraphInterface,SQLText,Expr frontend;
-class Database,Context,Factory,Transaction runtime;
+class Database,Context,Factory,Transaction,RuntimeRegistry,Persistence runtime;
 class Frontends translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;

@@ -12,8 +12,6 @@ The ORM is a higher-level frontend:
 ```text
 GDSQLModel hierarchy and ModelQuery
     ↓
-ModelMapper
-    ↓
 QuerySpec
     ↓
 Validation and binding
@@ -153,7 +151,7 @@ static func table_name() -> StringName:
 	return &"events"
 ```
 
-The runtime registry may bind `analytics` to local persistent storage, a
+The database registry may bind `analytics` to local persistent storage, a
 temporary in-memory database, or another supported composition. Model code is
 unchanged because it depends only on the logical role.
 
@@ -206,27 +204,17 @@ The model query may internally delegate to the Fluent API or construct
 canonical query objects directly. In both cases, model-specific concerns stop
 at `QuerySpec`.
 
-## Model mapping
+## Model translation
 
-`GDSQLModelMapper` translates between model metadata, canonical queries, and
-result mappings.
-
-Potential API:
-
-```gdscript
-func to_insert(model: GDSQLModel) -> GDSQLInsertQuerySpec
-func to_update(model: GDSQLModel) -> GDSQLUpdateQuerySpec
-func to_delete(model: GDSQLModel) -> GDSQLDeleteQuerySpec
-func create_result_mapping(model_type: GDScript) -> GDSQLResultMapping
-```
-
-Stable mapping concepts should use typed classes. Dictionaries remain
-appropriate only when reading dynamic external mapping formats or row data.
+`GDSQLModelQuery` translates model-scoped reads into `GDSQLQuerySpec` objects.
+Model persistence helpers create insert, update, and delete specifications from
+the model class metadata and current attributes. `GDSQLModelResultMaterializer`
+converts result rows into model instances through `GDSQLResultMapping`.
 
 ## Relationships
 
 Relationships describe how model objects navigate between tables. They belong
-to the model and mapping frontend, not to storage.
+to the model frontend.
 
 Proposed relationship kinds:
 
@@ -257,6 +245,10 @@ A relationship definition may contain:
 - Local key.
 - Foreign key.
 - Pivot table and pivot keys for many-to-many relationships.
+
+Graphical tooling can inspect these declarations, eagerly load related
+identifiers, and display relation choices through the same model metadata used
+by code.
 
 Relationship loading translates into ordinary canonical queries:
 
@@ -328,24 +320,6 @@ The ORM may infer a default relationship from catalog metadata or validate a
 declared relationship against it, but the same class should not represent both
 concepts.
 
-## External mapper formats
-
-XML or another external mapper format can remain an optional declaration
-frontend:
-
-```text
-XML mapping document
-    ↓
-GDSQLMapperCompiler
-    ↓
-Typed model, relationship, and result mapping definitions
-    ↓
-GDSQLModelMapper
-```
-
-This allows code-first and external mapping styles to share the same typed ORM
-layer. External formats must not create a separate execution path.
-
 ## Suggested implementation order
 
 The ORM should follow the canonical query capabilities it consumes:
@@ -354,10 +328,9 @@ The ORM should follow the canonical query capabilities it consumes:
 2. Implement result mappings and model materialization.
 3. Introduce `GDSQLModel`, `GDSQLContentModel`, `GDSQLSaveModel`, and
    `GDSQLSettingsModel`.
-4. Add the role-aware model registry, context, query, mapper, and materializer.
+4. Add the role-aware model registry, context, query, and materializer.
 5. Add `belongs_to`, `has_one`, and `has_many` using explicit loading.
 6. Add eager loading and many-to-many relationships.
-7. Optionally add external mapper compilation.
 
 The ORM remains optional. Applications can continue using `GDSQLDatabase`, the
 Fluent API, SQL, or query graphs directly.

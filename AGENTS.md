@@ -44,11 +44,10 @@ belongs under `res://.gdsql/` and `res://data/` (default data if not created, is
 
 ```text
 res://.gdsql/settings.cfg
+res://.gdsql/graphs/
 res://data/databases.cfg
-res://data/<database>/schema/*.cfg
-res://data/<database>/tables/*.cfg
-res://data/<database>/mappers/
-res://data/<database>/graphs/
+res://data/<database>/schema/*.cfg || *.gsql
+res://data/<database>/tables/*.cfg || *.gsql
 ```
 
 `.gdsql` is project/tool configuration, not plugin source. Database paths must
@@ -66,3 +65,7 @@ paths or depend on ConfigFile section names.
   `Planned` to `Scaffolded`, `Implemented`, `Tested`, or `Verified`.
 - Before handoff, run Godot parsing/tests available in the repository and
   report any environment limitation precisely.
+
+## Formatting 
+
+Do not worry if code was reordered, it's the formatter.
