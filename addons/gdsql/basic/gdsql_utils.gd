@@ -645,7 +645,37 @@ static func _pre_escape_brackets(text: String) -> String:
 			var check = tag_content[0]
 			if check == "/" and tag_content.length() > 1:
 				check = tag_content[1]
-			if (check >= "a" and check <= "z") or (check >= "A" and check <= "Z"):
+			# Escape any [word] that is not a known valid BBCode tag
+			var known_tags = [
+				"b",
+				"i",
+				"u",
+				"s",
+				"code",
+				"color",
+				"font_size",
+				"font",
+				"url",
+				"table",
+				"cell",
+				"tr",
+				"td",
+				"th",
+				"ul",
+				"ol",
+				"li",
+				"img",
+				"lb",
+				"rb",
+				"center",
+				"right",
+				"fill",
+				"indent",
+				"p",
+				"hint",
+			]
+			var is_known = known_tags.has(check.to_lower())
+			if not is_known:
 				# Escape: [word] -> [lb]word[rb]
 				var escaped = result.substr(i + 1, close - i - 1)
 				result = result.substr(0, i) + "[lb]" + escaped + "[rb]" + result.substr(close + 1)
@@ -907,16 +937,20 @@ static func _replace_links(text: String) -> String:
 		var start = result.find("[", i)
 		if start == -1:
 			break
-		var mid = result.find("](", start)
-		if mid == -1 or mid - start > 300:
+		# Find the matching ] that closes this [ — must be immediately followed by (
+		var close = result.find("]", start)
+		if close == -1 or close - start > 300:
 			i = start + 1
 			continue
-		var end = result.find(")", mid + 2)
-		if end == -1 or end - mid > 500:
-			i = mid + 2
+		if close + 1 >= result.length() or result[close + 1] != "(":
+			i = start + 1
 			continue
-		var link_text = result.substr(start + 1, mid - start - 1)
-		var link_url = result.substr(mid + 2, end - mid - 2)
+		var end = result.find(")", close + 2)
+		if end == -1 or end - close > 500:
+			i = close + 2
+			continue
+		var link_text = result.substr(start + 1, close - start - 1)
+		var link_url = result.substr(close + 2, end - close - 2)
 		var replacement = "[url=" + link_url + "]" + link_text + "[/url]"
 		result = result.substr(0, start) + replacement + result.substr(end + 1)
 		i = start + replacement.length()
