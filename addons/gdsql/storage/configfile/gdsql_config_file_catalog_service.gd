@@ -2,10 +2,15 @@ class_name GDSQLConfigFileCatalogService
 extends GDSQLCatalogService
 
 var _path_resolver: GDSQLDatabasePathResolver
+var _codec: GDSQLGodotVariantCodec
 
 
-func _init(path_resolver: GDSQLDatabasePathResolver) -> void:
+func _init(
+		path_resolver: GDSQLDatabasePathResolver,
+		codec: GDSQLGodotVariantCodec,
+) -> void:
 	_path_resolver = path_resolver
+	_codec = codec
 
 
 func get_database(database_name: StringName) -> GDSQLDatabaseDefinition:
@@ -80,17 +85,39 @@ func _load_table(database_name: StringName, table_name: StringName) -> GDSQLTabl
 	table.name = StringName(schema.get_value("table", "name", String(table_name)))
 	table.primary_key = StringName(schema.get_value("table", "primary_key", ""))
 	for section in schema.get_sections():
-		if not section.begins_with("column:"):
-			continue
-		var column_name := StringName(section.trim_prefix("column:"))
-		var column := GDSQLColumnDefinition.new(
-			column_name,
-			int(schema.get_value(section, "type", TYPE_NIL)) as Variant.Type,
-			bool(schema.get_value(section, "nullable", true)),
-		)
-		column.unique = bool(schema.get_value(section, "unique", false))
-		column.auto_increment = bool(schema.get_value(section, "auto_increment", false))
-		if schema.has_section_key(section, "default"):
-			column.default_value = schema.get_value(section, "default")
-		table.columns.append(column)
+		if section.begins_with("column:"):
+			var column_name := StringName(section.trim_prefix("column:"))
+			var column := GDSQLColumnDefinition.new(
+				column_name,
+				int(schema.get_value(section, "type", TYPE_NIL)) as Variant.Type,
+				bool(schema.get_value(section, "nullable", true)),
+			)
+			column.unique = bool(schema.get_value(section, "unique", false))
+			column.auto_increment = bool(schema.get_value(section, "auto_increment", false))
+			column.generation = int(
+				schema.get_value(
+					section,
+					"generation",
+					GDSQLColumnDefinition.Generation.NONE,
+				),
+			)
+			if schema.has_section_key(section, "default_kind") \
+					and schema.get_value(section, "default_kind") == "static":
+				column.set_default(
+					_codec.decode(schema.get_value(section, "default")) \
+					if schema.has_section_key(section, "default") \
+					else null,
+				)
+			table.columns.append(column)
+		elif section.begins_with("index:"):
+			var index_columns: Array[StringName] = []
+			for column_name in schema.get_value(section, "columns", PackedStringArray()):
+				index_columns.append(StringName(column_name))
+			table.indexes.append(
+				GDSQLIndexDefinition.new(
+					StringName(section.trim_prefix("index:")),
+					index_columns,
+					bool(schema.get_value(section, "unique", false)),
+				),
+			)
 	return table

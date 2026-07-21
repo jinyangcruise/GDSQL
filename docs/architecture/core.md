@@ -385,6 +385,28 @@ func accept(visitor: ExpressionVisitor) -> Variant:
     return visitor.visit_logical(self)
 ```
 
+### Scalar expression semantics
+
+The canonical scalar model also includes:
+
+- `ArithmeticExpression` for numeric arithmetic and string addition.
+- `NullCheckExpression` for explicit `IS NULL` and `IS NOT NULL` checks.
+- `FunctionExpression` for registered scalar or aggregate calls.
+
+Scalar evaluation follows SQL-like null propagation. Arithmetic and ordinary
+comparisons return `null` when an operand is `null`; predicates treat that
+unknown result as non-matching. Logical expressions use three-valued `AND`,
+`OR`, and `NOT` semantics. Explicit null checks always return a boolean.
+
+The query-level function catalog exposes definitions containing name, arity,
+return type, and aggregate classification. Validation depends on this metadata,
+while the execution-level registry owns the matching scalar and aggregate
+callables. The initial runtime provides `lower`, `upper`, `length`, `abs`,
+`coalesce`, `count`, `sum`, `avg`, `min`, and `max`. Function existence,
+arity, argument compatibility, expression type compatibility, aggregate
+placement, and grouped-expression compatibility are validated before planning.
+Aggregate execution groups rows before HAVING, ordering, and projection.
+
 Expression objects describe meaning. Evaluation is performed separately:
 
 ```gdscript
@@ -402,6 +424,26 @@ This separation allows expressions to be:
 - Serialized for debugging.
 - Evaluated against different row representations.
 - Translated into native operations later.
+
+### 4.1 Typed expression convenience frontend
+
+`GDSQLExpr` is a planned code-facing convenience frontend over the canonical
+expression classes. It does not introduce another expression representation.
+Factory methods create the existing typed expression nodes, while fluent
+combinators inherited by those nodes remove constructor and enum repetition:
+
+```gdscript
+GDSQLExpr.column(&"level").add(1)
+GDSQLExpr.column(&"health").greater_than(100)
+GDSQLExpr.column(&"name").equals("Mage")
+GDSQLExpr.and_(condition_a, condition_b)
+```
+
+Literal coercion is explicit in the helper implementation: values such as `1`
+and `"Mage"` become `LiteralExpression` objects. SQL expression strings must
+use a separate SQL compiler entry point so a stored string can never be
+mistaken for executable expression text. The graph frontend can construct the
+same typed nodes and later render them as copyable `GDSQLExpr` GDScript.
 
 ---
 
@@ -704,6 +746,17 @@ BoundColumnExpression
 └── data_type: TYPE_INT
 ```
 
+Multi-source binding resolves every table reference into a
+`BoundTableSource`, preserving its alias and whether an outer join can make its
+columns nullable. Join conditions are bound after the new source is added, so
+they may reference the new table and any source introduced before it.
+
+Unqualified columns are accepted only when exactly one visible source contains
+that name. A duplicate column name across sources produces an ambiguous-column
+diagnostic and requires qualification. Bound expressions use stable table IDs
+plus a source qualifier, allowing separate occurrences of the same table in a
+self-join to remain distinguishable during execution.
+
 ```gdscript
 class_name BoundQuery
 extends RefCounted
@@ -829,11 +882,17 @@ func plan_select(
             query.predicate
         )
 
-    if not query.grouping.is_empty():
+    if not query.grouping.is_empty() or query.has_aggregates():
         current = AggregatePlan.new(
             current,
             query.grouping,
-            query.projections
+            query.aggregate_expressions
+        )
+
+    if query.having != null:
+        current = FilterPlan.new(
+            current,
+            query.having
         )
 
     if not query.ordering.is_empty():
@@ -880,6 +939,39 @@ The selected plan may depend on:
 - Backend implementation.
 
 These decisions do not alter `QuerySpec`.
+
+### 10.1 Indexes and storage capabilities
+
+Indexes are an execution and storage capability rather than a second query
+model. `IndexDefinition` stores a stable name, an ordered column list, and a
+uniqueness policy in catalog metadata. `StorageCapabilities` reports exact and
+range lookup support without making the planner depend on a concrete backend.
+
+The deterministic planner chooses among table scan, primary-key lookup, exact
+index lookup, and range lookup based on bound predicates, index metadata, and
+reported storage capabilities. The initial optimization recognizes literal
+comparisons against single-column indexes, including indexed comparisons inside
+an `AND` predicate. It retains the complete predicate as a filter after the
+lookup, preserving semantics when other conditions are present. Composite
+indexes are represented and enforce uniqueness, while composite lookup-prefix
+planning remains a later optimization.
+
+Storage owns index maintenance and lookup execution. ConfigFile storage keeps
+index entries in reserved table sections that associate indexed values with
+primary-key sections. Entries are rebuilt as part of the same commit that
+persists row mutations. A backend that reports no index support remains valid
+and receives scan-based plans.
+
+The initial join planner emits deterministic `NestedLoopJoinPlan` nodes in the
+same order as the canonical join clauses. `INNER` and `LEFT` joins are
+executable. `RIGHT` and `FULL` remain represented by `JoinSpec`, but validation
+returns a structured unsupported diagnostic until the corresponding unmatched
+row propagation is implemented.
+
+Joined intermediate rows retain source-qualified values for bound expression
+evaluation. Explicit projections determine public output names. When a joined
+query omits projections, the binder expands all source columns using
+`qualifier.column` names to avoid collisions.
 
 ---
 
@@ -934,6 +1026,44 @@ before planning. Execution reads matching rows, stages changes through
 `TableStorage`, and commits once per query. Mutation results report affected
 row counts and include the inserted, updated, or deleted rows. Updating a
 primary key is intentionally rejected by the initial implementation.
+ConfigFile storage validates primary-key and column-level unique constraints
+against the final staged table state before persistence. A violation rolls back
+the entire query, including multi-row inserts and updates. Nullable unique
+columns permit multiple null values. Insert validation applies declared static
+defaults, including an explicitly declared null default.
+
+Integer primary keys may declare `auto_increment`. The ConfigFile backend owns
+the mutable sequence and row count in a reserved table-file metadata section:
+
+```ini
+[__gdsql_metadata__]
+row_count=42
+next_auto_increment=58
+```
+
+Generated keys are reserved in the storage session and persisted only when the
+mutation commits. Deletion reduces `row_count` but does not reduce or reuse the
+sequence. An explicit key at or above the current sequence advances the next
+generated value. If table metadata is absent or damaged, the storage backend
+may derive a replacement high-water mark from the existing rows.
+
+### 11.1 Callback-scoped transactions
+
+Explicit multi-statement transactions are planned as a callback API:
+
+```gdscript
+database.transaction(
+    func(transaction: GDSQLTransaction) -> void:
+        transaction.execute(first_query)
+        transaction.execute(second_query)
+)
+```
+
+All callback executions share one storage session. Leaving the callback commits
+only when every execution succeeded; otherwise the runtime rolls back. The
+transaction object cannot be reused after the callback and reads inside the
+callback must observe earlier staged writes. This avoids abandoned transactions
+and preserves ordinary `execute()` as an automatically committed operation.
 
 ---
 
@@ -1101,15 +1231,43 @@ var indexes: Array[IndexDefinition] = []
 class_name ColumnDefinition
 extends RefCounted
 
+enum Generation {
+	NONE,
+	CREATED_AT,
+	UPDATED_AT,
+	# This policy boundary is going to allow UUID generation and more
+	# storage-independent generated values.
+}
+
 var name: StringName
 var data_type: Variant.Type
 var nullable: bool
 var unique: bool
 var auto_increment: bool
-var default_value: Variant
+var default: ColumnDefault
+var generation: Generation
 ```
 
+`ColumnDefault` distinguishes no default (`default == null`) from an explicitly
+declared null default (`default.value == null`) without adding a second boolean
+that can disagree with the value. Static defaults remain schema metadata.
+The component also gives defaults an independent extension point for future
+default metadata or policies without adding parallel state to
+`ColumnDefinition`; generated values remain a separate concern.
+Generated-value policies describe runtime behavior without embedding generators
+inside the catalog model. `created_at()` and `updated_at()` provide the initial
+timestamp policies, while `TableDefinition.add_timestamps()` adds both common
+columns. Both values use one Unix-millisecond timestamp per mutation statement:
+`created_at` is generated on insert, and `updated_at` is generated on insert and
+update. Callers cannot assign generated timestamp columns directly. Adding one
+to a populated table backfills existing rows with one alteration timestamp.
+Mutable row counts and generated-key sequences remain owned by physical storage.
+
 Rows and query execution remain outside the catalog.
+
+A lightweight table-version field may later be added to schema metadata for
+game code to detect incompatible saved data. A general migration framework is
+outside the current scope.
 
 ### 13.1 Catalog administration
 
@@ -1221,6 +1379,37 @@ CsvExportMaterializer
 
 An optional mapper extension may later provide specialized materializers without changing the executor.
 
+The initial materialization boundary is available after execution:
+
+```gdscript
+var mapping := GDSQLResultMapping.new() \
+    .map_column(&"id", &"hero_id") \
+    .map_column(&"name", &"display_name")
+
+var materialized := query_result.materialize(
+    GDSQLDictionaryResultMaterializer.new(),
+    mapping,
+)
+var dictionaries: Array = materialized.get_value()
+```
+
+An empty mapping uses every result column with its existing name. Once mappings
+are declared, they select source columns and define their output names.
+`DictionaryResultMaterializer` creates one independent dictionary per row.
+`ResourceResultMaterializer` requires a target script extending `Resource` and
+assigns mapped result columns to existing Resource properties:
+
+```gdscript
+var mapping := GDSQLResultMapping.for_resource(HeroView) \
+    .map_column(&"name", &"display_name")
+```
+
+Materialized objects are returned through `OperationResult.value`; the result
+retains its schema, statistics, diagnostics, and source rows. Materializers
+produce structured diagnostics for missing columns, duplicate output names,
+missing Resource properties, and invalid Resource scripts. Execution remains
+row-oriented and does not depend on dictionary or Resource presentation.
+
 The executor does not need to know whether rows will be:
 
 - Displayed in the editor.
@@ -1228,6 +1417,26 @@ The executor does not need to know whether rows will be:
 - Converted to resources.
 - Converted into model objects.
 - Exported to CSV or JSON.
+
+### 14.1 Planned model materialization
+
+The model frontend will build on this boundary. A `GDSQLModel` represents one
+materialized row and is associated through `GDSQLModelDefinition` with one
+logical database and table. `GDSQLModelRegistry` resolves model definitions
+through the project runtime, while `GDSQLModelContext` permits isolated
+registries for tests. Models never store physical database paths.
+
+Normal queries are model-scoped and do not require repeatedly passing a
+database handle:
+
+```gdscript
+Hero.query() \
+    .where(GDSQLExpr.column(&"level").greater_than(3)) \
+    .get()
+```
+
+The runtime resolves `Hero` to its registered logical database and table. An
+explicit model context remains an advanced testing or multi-runtime option.
 
 ---
 
@@ -1711,7 +1920,7 @@ Private fields and getters may be used where stronger control is required.
 - Handling arbitrary parameters.
 - Interacting with `ConfigFile`.
 - Returning compatibility-oriented results.
-- Decoding legacy metadata.
+- Repairing or importing dynamic metadata.
 
 Stable internal concepts use typed classes:
 
@@ -1879,6 +2088,13 @@ TableReference
 Godot `Variant` and resource support remain core GDSQL capabilities.
 
 Literal values and row fields may remain typed as `Variant`. Validation and serialization are delegated to appropriate services rather than converted indiscriminately to strings.
+
+`TYPE_OBJECT` has a narrower database meaning than Godot's general object
+category: it represents a `Resource`. Native and custom `Resource` instances
+are accepted and serialized by the storage backend. `Node` and other arbitrary
+`Object` instances are rejected. Nodes carry scene-tree ownership, lifecycle,
+signals, and runtime connections, making them unsafe and ambiguous as persisted
+row values.
 
 ### Abstract contracts support boundaries
 

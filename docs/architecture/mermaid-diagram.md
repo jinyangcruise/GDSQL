@@ -67,7 +67,7 @@ QuerySpec("`**GDSQLQuerySpec**
 *Purpose:* Canonical and frontend-independent query description
 *API:* accept(visitor)
 *Parent of:* SelectQuerySpec, InsertQuerySpec, UpdateQuerySpec, DeleteQuerySpec
-*Contains:* SelectProjection, OrderClause, sources, expressions, rows and assignments`")
+*Contains:* Projections, joins, ordering, sources, expressions, rows and assignments`")
 
 Expression("`**GDSQLQueryExpression**
 
@@ -88,7 +88,7 @@ Context("`**GDSQLDatabaseContext**
 Validator("`**GDSQLQueryValidator**
 
 -
-*Purpose:* Validate query meaning and resolve catalog references
+*Purpose:* Validate query meaning and resolve single or multi-source catalog references
 *API:* validate(query)
 *Returns:* GDSQLQueryValidationResult containing GDSQLBoundQuery
 *Extended by:* GDSQLDefaultQueryValidator`")
@@ -114,7 +114,7 @@ PlanNode("`**GDSQLPlanNode**
 -
 *Purpose:* Represent one executable operation in a query plan
 *API:* accept(visitor)
-*Read nodes:* Scan, primary-key lookup, filter, sort, projection, distinct and limit
+*Read nodes:* Scan, primary-key, exact-index, range-index, join, filter, aggregate, sort, projection, distinct and limit
 *Mutation nodes:* Insert, update and delete`")
 
 Executor("`**GDSQLQueryExecutor**
@@ -145,7 +145,7 @@ TableStorage("`**GDSQLTableStorage**
 
 -
 *Purpose:* Isolate row persistence from query execution
-*Read API:* read_table(), find_by_primary_key()
+*Read API:* read_table(), primary-key/index/range lookup, get_capabilities()
 *Mutation API:* stage_insert(), stage_update(), stage_delete()
 *Transaction API:* commit(), rollback()
 *Extension point:* Table storage backend implementations`")
@@ -170,7 +170,8 @@ ConfigStorage("`**GDSQLConfigFileTableStorage**
 
 -
 *Purpose:* Persist table rows as ConfigFile sections and values
-*API:* Read, primary-key lookup, staged mutations, commit and rollback
+*API:* Read, primary-key/index/range lookup, staged mutations, commit and rollback
+*Maintains:* Reserved index entries during committed mutations
 *Extends:* GDSQLTableStorage
 *Uses:* Path resolver, ConfigFile cache and Variant codec`")
 
@@ -190,6 +191,14 @@ Results("`**GDSQLOperationResult**
 *Composes:* GDSQLDiagnostics and GDSQLQueryDiagnostic
 *Parent of:* Database, query, validation, planning, execution and storage results`")
 
+Materialization("`**Result Materialization**
+
+-
+*Purpose:* Convert execution rows into user-facing values
+*API:* QueryResult.materialize(), ResultMaterializer.materialize()
+*Types:* ResultMapping, DictionaryResultMaterializer, ResourceResultMaterializer
+*Returns:* QueryResult with materialized OperationResult.value`")
+
 Code -->|"create() · open() · query() · execute()"| Database
 GraphInterface -->|"compile(graph)"| Frontends
 SQLText -->|"tokenize() · parse() · compile()"| Frontends
@@ -205,6 +214,7 @@ BoundQuery -->|"create_plan(bound_query)"| Planner
 Planner -->|"GDSQLQueryPlan(root)"| PlanNode
 PlanNode -->|"execute(plan, execution_context)"| Executor
 Executor -->|"GDSQLQueryExecutionResult"| Results
+Results -->|"materialize(materializer, mapping)"| Materialization
 Context -->|"GDSQLDatabaseResult / GDSQLQueryResult"| Results
 
 Context -->|"catalog lifecycle API"| CatalogAdministration
@@ -233,4 +243,4 @@ class Executor execution;
 class CatalogService,CatalogAdministration catalog;
 class TableStorage storage;
 class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure implementation;
-class Results result;
+class Results,Materialization result;

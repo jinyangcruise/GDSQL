@@ -3,7 +3,7 @@ extends GDSQLPlanNode
 
 var input: GDSQLPlanNode
 var grouping: Array[GDSQLQueryExpression] = []
-var projections: Array[GDSQLQueryExpression] = []
+var aggregates: Array[GDSQLFunctionExpression] = []
 
 
 func accept(visitor: GDSQLPlanNodeVisitor) -> Variant:

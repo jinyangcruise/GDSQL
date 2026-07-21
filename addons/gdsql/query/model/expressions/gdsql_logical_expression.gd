@@ -9,13 +9,13 @@ var right: GDSQLQueryExpression
 
 
 func _init(
-		p_left: GDSQLQueryExpression = null,
-		p_operator: LogicalOperator = LogicalOperator.AND,
-		p_right: GDSQLQueryExpression = null,
+		left: GDSQLQueryExpression = null,
+		operator: LogicalOperator = LogicalOperator.AND,
+		right: GDSQLQueryExpression = null,
 ) -> void:
-	left = p_left
-	operator = p_operator
-	right = p_right
+	self.left = left
+	self.operator = operator
+	self.right = right
 
 
 func accept(visitor: GDSQLExpressionVisitor) -> Variant:
