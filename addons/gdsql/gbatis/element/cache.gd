@@ -80,8 +80,27 @@ func get_cache(method: String, param: Dictionary) -> Array:
 			key.push_back(param[i])
 	_refresh()
 	if _cache.has_key(key):
-		return [true, _cache.get_value(key), key]
+		return [true, _deep_copy_containers(_cache.get_value(key)), key]
 	return [false, null, key]
+
+
+## Create new Array/Dictionary containers but preserve non-container references.
+## Callers can safely modify the returned structure without affecting the cache,
+## while entity object references remain intact (for value_changed tracking).
+static func _deep_copy_containers(value):
+	if value == null:
+		return null
+	if value is Array:
+		var arr: Array = []
+		for v in value:
+			arr.push_back(_deep_copy_containers(v))
+		return arr
+	if value is Dictionary:
+		var d: Dictionary = { }
+		for k in value:
+			d[_deep_copy_containers(k)] = _deep_copy_containers(value[k])
+		return d
+	return value
 
 
 func _refresh():
