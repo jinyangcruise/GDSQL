@@ -427,16 +427,24 @@ GDSQLModel
 ```
 
 `GDSQLContentModel` resolves through the `content` role. It exposes query and
-refresh behavior but does not expose `save()` or `delete()` for runtime game
-code. Mod merging and cache construction happen before content models are
+refresh behavior, while `save()` and `delete()` return a read-only diagnostic.
+Mod merging and cache construction happen before content models are
 materialized.
 
 ```gdscript
 class_name Hero
 extends GDSQLContentModel
 
-static func table_name() -> StringName:
+func table_name() -> StringName:
 	return &"heroes"
+
+
+static func query() -> GDSQLModelQuery:
+	return GDSQLModels.query(Hero)
+
+
+static func find(identity: Variant) -> GDSQLQueryResult:
+	return GDSQLModels.find(Hero, identity)
 ```
 
 `GDSQLSaveModel` resolves through the `save` role and exposes mutable row
@@ -447,18 +455,19 @@ which save name currently satisfies that role.
 class_name InventoryEntry
 extends GDSQLSaveModel
 
-static func table_name() -> StringName:
+func table_name() -> StringName:
 	return &"inventory"
 ```
 
-Normal usage therefore does not pass database handles:
+Runtime composition configures `GDSQLModels` once. Normal usage starts from the
+model class:
 
 ```gdscript
 var heroes := Hero.query() \
 	.where(GDSQLExpr.column(&"level").greater_than(3)) \
-	.get()
+	.all()
 
-var inventory := InventoryEntry.query().get()
+var inventory := InventoryEntry.query().all()
 ```
 
 The model registry maps `Hero` to the active `content` database and
@@ -474,7 +483,7 @@ that should survive save-slot changes:
 class_name AudioSetting
 extends GDSQLSettingsModel
 
-static func table_name() -> StringName:
+func table_name() -> StringName:
 	return &"audio"
 ```
 
@@ -485,13 +494,13 @@ For example, analytics can use its own database and persistence policy:
 class_name AnalyticsEvent
 extends GDSQLModel
 
-static func database_role() -> StringName:
+func database_role() -> StringName:
 	return &"analytics"
 
-static func access_mode() -> GDSQLModelAccessMode:
-	return GDSQLModelAccessMode.READ_WRITE
+func access_mode() -> GDSQLModelAccess.Mode:
+	return GDSQLModelAccess.Mode.READ_WRITE
 
-static func table_name() -> StringName:
+func table_name() -> StringName:
 	return &"events"
 ```
 

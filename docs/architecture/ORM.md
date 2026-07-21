@@ -68,28 +68,36 @@ var name: String
 var level: int
 
 
-static func table_name() -> StringName:
+func table_name() -> StringName:
 	return &"heroes"
 
 
-static func primary_key() -> StringName:
+func primary_key() -> StringName:
 	return &"id"
+
+
+static func query() -> GDSQLModelQuery:
+	return GDSQLModels.query(Hero)
+
+
+static func find(identity: Variant) -> GDSQLQueryResult:
+	return GDSQLModels.find(Hero, identity)
 ```
 
 Content models are read-only during ordinary gameplay:
 
 ```gdscript
-var hero := Hero.find(1)
+var hero := Hero.find(1).get_value()
 
 var veterans := Hero.query() \
 	.where(GDSQLExpr.column(&"level").greater_than(10)) \
 	.order_by(&"level", GDSQLOrderClause.SortDirection.DESCENDING) \
-	.get()
+	.all()
 ```
 
 Content creation, overrides, and removals belong to authoring or effective-
-content construction. A content model does not expose runtime `save()` or
-`delete()` operations.
+content construction. Content-model `save()` and `delete()` calls return a
+read-only diagnostic.
 
 ### Save models
 
@@ -105,7 +113,7 @@ var item_id: StringName
 var quantity: int
 
 
-static func table_name() -> StringName:
+func table_name() -> StringName:
 	return &"inventory"
 ```
 
@@ -124,9 +132,12 @@ The helpers translate into canonical operations:
 | Model operation | Available to | Canonical operation |
 |---|---|---|
 | `find()`, `query()`, and `refresh()` | All model roles | `GDSQLSelectQuerySpec` |
-| Creating and saving a new model | Mutable model roles | `GDSQLInsertQuerySpec` |
 | Saving an existing model | Mutable model roles | `GDSQLUpdateQuerySpec` |
 | `delete()` | Mutable model roles | `GDSQLDeleteQuerySpec` |
+
+Current mutation helpers operate on materialized persisted models and update
+only changed fields. Creating and saving a new model will translate to
+`GDSQLInsertQuerySpec` in a later extension.
 
 ### Settings and custom model roles
 
@@ -139,15 +150,15 @@ class_name AnalyticsEvent
 extends GDSQLModel
 
 
-static func database_role() -> StringName:
+func database_role() -> StringName:
 	return &"analytics"
 
 
-static func access_mode() -> GDSQLModelAccessMode:
-	return GDSQLModelAccessMode.READ_WRITE
+func access_mode() -> GDSQLModelAccess.Mode:
+	return GDSQLModelAccess.Mode.READ_WRITE
 
 
-static func table_name() -> StringName:
+func table_name() -> StringName:
 	return &"events"
 ```
 
@@ -184,7 +195,12 @@ The model should not:
 
 ## Model query frontend
 
-`GDSQLModelQuery` would provide model-oriented query helpers while producing
+`GDSQLModels` receives the default model context once during runtime
+composition. Concrete model classes use thin static forwarding methods because
+GDScript inherited static methods do not expose the subclass that invoked them.
+The explicit context remains injectable for tests and isolated runtimes.
+
+`GDSQLModelQuery` provides model-oriented query helpers while producing
 the same `GDSQLQuerySpec` used by every other frontend.
 
 For example:
@@ -196,9 +212,9 @@ Hero.query() \
 	.to_query_spec()
 ```
 
-Normal model calls resolve the database from the model registry. An explicit
-`GDSQLModelContext` remains available for tests and advanced multiple-runtime
-scenarios.
+The static forwarding method passes the model script to `GDSQLModels`, which
+resolves the database from the configured model registry. Collection queries
+end with `all()` because `get(property)` is a native `Object` API.
 
 The model query may internally delegate to the Fluent API or construct
 canonical query objects directly. In both cases, model-specific concerns stop
@@ -277,7 +293,7 @@ does not merge their transaction or planning contexts.
 The ORM may eventually support:
 
 - Explicit loading: `hero.load(&"skills")`
-- Eager loading: `Hero.query().with(&"skills").get()`
+- Eager loading: `Hero.query().with(&"skills").all()`
 - Constrained loading: relationships with an additional model query
 - Relationship existence predicates
 
