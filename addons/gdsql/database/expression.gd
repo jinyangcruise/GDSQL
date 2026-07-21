@@ -4876,6 +4876,8 @@ func _execute(p_inputs: Array, p_sql_varying_inputs: Dictionary, p_instance: Obj
 				if named_index[0] is String or named_index[0] is StringName:
 					if named_index[0] in (base[0] as Object):
 						r_ret[0] = (base[0] as Object).get(named_index[0])
+						if is_same(r_ret[0], GDSQL.GBatisEntity.NULL):
+							r_ret[0] = null
 					else:
 						r_error_str[0] = tr("Invalid access to property or key '%s' on a base object of type '%s'.") % [
 							named_index[0], _get_var_type(base[0])]

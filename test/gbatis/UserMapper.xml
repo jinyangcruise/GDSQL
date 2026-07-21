@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="UserMapper">
+	
+	<cache eviction="LRU" flushInterval="0" size="50" />
+	
+	<resultMap id="userResult" type="UserEntity" uniqueColumn="id" autoMapping="true">
+		<association property="user_extra" column="id" select="select_user_extra_by_id"    />
+	</resultMap>
+	
+	<resultMap id="userExtraResult" type="UserExtraEntity" uniqueColumn="id" autoMapping="true" />
+	
+	<sql id="userVo">
+		select * from user
+	</sql>
+	
+	<sql id="userExtraVo">
+		select * from user_extra
+	</sql>
+	
+	<select id="select_user_by_id" resultMap="userResult" databaseId="Test">
+		<include refid="userVo"/>
+		where id == #{id}
+	</select>
+	
+	<select id="select_user" resultMap="userResult" databaseId="Test">
+		<include refid="userVo"/>
+		<where>
+			<if test="id != null">and id == #{id}</if>
+			<if test="uname != null">and uname == #{uname}</if>
+			<if test="level != null">and level == #{level}</if>
+		</where>
+	</select>
+	
+	<select id="select_user_list" resultMap="userResult" databaseId="Test">
+		<include refid="userVo"/>
+		<where>
+			<if test="id != null">and id == #{id}</if>
+			<if test="uname != null">and uname == #{uname}</if>
+			<if test="level != null">and level == #{level}</if>
+		</where>
+	</select>
+	
+	<select id="select_user_extra_by_id" resultMap="userExtraResult" databaseId="Test">
+		<include refid="userExtraVo"/>
+		where id == #{id}
+	</select>
+	
+	<update id="update_user" databaseId="Test">
+		update user
+		<set>
+			<if test="id != null">id = #{id},</if>
+			<if test="uname != null">uname = #{uname},</if>
+			<if test="level != null">level = #{level},</if>
+		</set>
+		where id == #{id}
+	</update>
+	
+	<insert id="insert_user" databaseId="Test" useGeneratedKeys="true">
+		insert into user(
+			<trim suffixOverrides=",">
+				<if test="id != null">id,</if>
+				<if test="uname != null">uname,</if>
+				<if test="level != null">level,</if>
+			</trim>
+		)values(
+			<trim suffixOverrides=",">
+				<if test="id != null">#{id},</if>
+				<if test="uname != null">#{uname},</if>
+				<if test="level != null">#{level},</if>
+			</trim>
+		)
+	</insert>
+	
+	<delete id="delete_user_by_id" databaseId="Test">
+		delete from user where id == #{id}
+	</delete>
+	
+</mapper>
