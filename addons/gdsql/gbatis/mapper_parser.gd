@@ -1266,6 +1266,16 @@ func _replace_param(s: String, param: Dictionary, depth: int) -> String:
 				if param.size() == 2:
 					if param[i] is Object:
 						obj_maybe = param[i]
+						# Extract script variable properties into names/values
+						# so expressions like <if test="prop != null"> can resolve prop
+						var plist = param[i].get_property_list()
+						for prop in plist:
+							if prop.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
+								names.push_back(prop.name)
+								if param[i].has_method("_get"):
+									values.push_back(param[i]._get(prop.name))
+								else:
+									values.push_back(param[i].get(prop.name))
 					elif param[i] is Dictionary:
 						for key in param[i]:
 							names.push_back(key)
