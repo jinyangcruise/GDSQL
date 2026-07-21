@@ -592,7 +592,7 @@ theme_override_styles/hover_mirrored = SubResource("StyleBoxFlat_m5llx")
 theme_override_styles/hover_pressed = SubResource("StyleBoxFlat_ntqe3")
 theme_override_styles/hover_pressed_mirrored = SubResource("StyleBoxFlat_ntqe3")
 theme_override_styles/disabled = SubResource("StyleBoxFlat_sxl0p")
-text = "v0.5.14"
+text = "v0.5.15"
 flat = true
 
 [connection signal="pressed" from="CenterContainer/PanelContainer/Content/Bottom/HBoxContainer/Left/MarginContainer6/HBoxContainer/ThankButton" to="." method="_on_license_button_pressed"]

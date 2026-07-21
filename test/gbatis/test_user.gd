@@ -26,7 +26,6 @@ func test_mapper_insert_with_entity() -> void:
 	assert_int(user_entity.get_id()).is_equal(1)
 
 	var user_entity2: UserEntity = user_mapper.select_user_by_id(1)
-	printt(user_entity2)
 	assert_int(user_entity2.get_id()).is_equal(1)
 	assert_str(user_entity2.get_uname()).is_equal("Jack")
 	assert_int(user_entity2.get_level()).is_equal(6)
@@ -40,7 +39,7 @@ func test_mapper_insert_with_entity() -> void:
 	assert_int(user_extra_mapper.insert_user_extra(user_extra_entity)).is_equal(1)
 	
 	var user_entity3: UserEntity = user_mapper.select_user_by_id(1)
-	printt(user_entity3)
+	assert_object(user_entity3).is_same(user_entity2)
 	assert_int(user_entity3.get_id()).is_equal(1)
 	assert_str(user_entity3.get_uname()).is_equal("Jack")
 	assert_int(user_entity3.get_level()).is_equal(6)
