@@ -63,13 +63,25 @@ RuntimeRegistry("`**GDSQLDatabaseRegistry**
 *Durable metadata:* user://gdsql/databases.cfg through DatabaseRegistryStore
 *Returns:* GDSQLDatabaseResult with structured diagnostics`")
 
+Models("`**Model API**
+
+-
+*Purpose:* Query role-scoped tables and materialize typed model objects
+*Types:* Model, ContentModel, SaveModel, SettingsModel
+*Static API:* Model.query(), Model.find(identity)
+*Query API:* where(), order_by(), all(), first(), to_query_spec()
+*Instance API:* save(), refresh(), delete()
+*Configuration:* GDSQLModels receives one default ModelContext
+*Resolution:* ModelRegistry to DatabaseRegistry roles
+*Returns:* QueryResult containing model objects in value`")
+
 Persistence("`**Runtime Persistence**
 
 -
 *Purpose:* Transfer committed dirty state to durable storage
 *Coordinator API:* register(), checkpoint(), checkpoint_dirty(), transaction_committed()
 *Policy API:* immediate(), periodic(), manual(), on_exit()
-*Participant API:* is_dirty(), checkpoint()
+*Target API:* is_dirty(), checkpoint()
 *Returns:* GDSQLCheckpointResult with durable and remaining-dirty databases`")
 
 Factory("`**GDSQLRuntimeFactory**
@@ -248,8 +260,12 @@ Database -->|"execute(query) · lifecycle methods"| Context
 Database -->|"transaction(callback)"| Transaction
 Code -->|"register handles · select roles"| RuntimeRegistry
 RuntimeRegistry -->|"resolve() · resolve_role()"| Database
+Code -->|"Model.query() · Model.find(identity)"| Models
+Models -->|"resolve_role(model)"| RuntimeRegistry
+Models -->|"to_query_spec()"| QuerySpec
+Models -->|"ModelResultMaterializer"| Materialization
 Code -->|"checkpoint() · checkpoint_dirty()"| Persistence
-Persistence -->|"participant.checkpoint()"| TableStorage
+Persistence -->|"target.checkpoint()"| TableStorage
 Transaction -->|"execute(query, shared session)"| Context
 QuerySpec -->|"execute(query) / prepare(query)"| Context
 Context -->|"validate(query)"| Validator
@@ -277,7 +293,7 @@ ConfigStorage -->|"paths · cache · codec"| ConfigInfrastructure
 Factory -.->|"create_default(data_root)"| Context
 Factory -.->|"constructs and injects"| ConfigInfrastructure
 
-class Code,GraphInterface,SQLText,Expr frontend;
+class Code,GraphInterface,SQLText,Expr,Models frontend;
 class Database,Context,Factory,Transaction,RuntimeRegistry,Persistence runtime;
 class Frontends translation;
 class QuerySpec,Expression canonical;

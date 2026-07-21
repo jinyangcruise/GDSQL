@@ -1213,11 +1213,11 @@ Open handles remain attached to the active application context.
 
 A transaction commit establishes valid, visible database state. A checkpoint
 transfers committed dirty state to durable storage. ConfigFile storage performs
-durable work during commit, while a future buffered storage participant can
+durable work during commit, while a future buffered storage target can
 commit to memory, mark itself dirty, and persist later.
 
-`GDSQLCheckpointParticipant` exposes `is_dirty()` and `checkpoint()`.
-`GDSQLPersistenceCoordinator` associates participants with typed policies and
+`GDSQLCheckpointTarget` exposes `is_dirty()` and `checkpoint()`.
+`GDSQLPersistenceCoordinator` associates targets with typed policies and
 coordinates explicit, dirty-set, and immediate post-commit checkpoints:
 
 ```gdscript
@@ -1596,7 +1596,7 @@ The executor does not need to know whether rows will be:
 - Converted into model objects.
 - Exported to CSV or JSON.
 
-### 14.1 Planned model materialization
+### 14.1 Model materialization and persisted-row operations
 
 The model frontend will build on this boundary. A `GDSQLModel` represents one
 materialized row and is associated through `GDSQLModelDefinition` with one
@@ -1605,17 +1605,35 @@ and delegates logical role selection to `GDSQLDatabaseRegistry`, while
 `GDSQLModelContext` permits isolated registries for tests. Model metadata stores
 logical roles and table names.
 
-Normal queries are model-scoped and do not require repeatedly passing a
-database handle:
+Application composition configures the default model context once. Concrete
+model classes provide thin static forwarding methods:
+
+```gdscript
+static func query() -> GDSQLModelQuery:
+    return GDSQLModels.query(Hero)
+
+static func find(identity: Variant) -> GDSQLQueryResult:
+    return GDSQLModels.find(Hero, identity)
+```
+
+Normal queries remain model-scoped and omit infrastructure arguments:
 
 ```gdscript
 Hero.query() \
     .where(GDSQLExpr.column(&"level").greater_than(3)) \
-    .get()
+    .all()
 ```
 
-The runtime resolves `Hero` to its registered logical database and table. An
-explicit model context remains an advanced testing or multi-runtime option.
+`GDSQLModels` delegates to the configured context, which resolves `Hero` to its
+registered logical role and table. The forwarding method passes `Hero`
+explicitly because GDScript inherited static methods do not expose their
+calling subclass. `all()` returns every materialized match.
+
+Materialized models retain their context and original values. `refresh()`
+reloads the row into the same object. Mutable models use changed-field UPDATEs
+for `save()` and primary-key DELETEs for `delete()`. Content models return a
+read-only diagnostic for mutation attempts. These helpers emit canonical query
+specifications and remain independent from physical storage.
 Typed relationship definitions live on model classes. Model queries use those
 definitions for explicit or eager loading, and graphical tooling can inspect
 the same keys to display related identifiers and records.
@@ -1809,10 +1827,22 @@ addons/gdsql/
 │   ├── database_registry.gd
 │   ├── database_registration.gd
 │   ├── database_registry_store.gd
-│   ├── checkpoint_participant.gd
+│   ├── checkpoint_target.gd
 │   ├── checkpoint_policy.gd
 │   ├── checkpoint_result.gd
 │   └── persistence_coordinator.gd
+│
+├── model/
+│   ├── model.gd
+│   ├── content_model.gd
+│   ├── save_model.gd
+│   ├── settings_model.gd
+│   ├── model_access_mode.gd
+│   ├── model_definition.gd
+│   ├── model_registry.gd
+│   ├── model_context.gd
+│   ├── models.gd
+│   └── model_query.gd
 │
 ├── query/
 │   ├── model/
