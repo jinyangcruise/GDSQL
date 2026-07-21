@@ -111,7 +111,7 @@ func _track_entities(value):
 				_track_entities(cell)
 		return
 	# Check if value is an Object with value_changed signal
-	if typeof(value) == TYPE_OBJECT and value.has_signal(&"value_changed"):
+	if typeof(value) == TYPE_OBJECT and value is GDSQL.GBatisEntity:
 		if not value.value_changed.is_connected(_on_cached_entity_changed):
 			value.value_changed.connect(_on_cached_entity_changed)
 		_tracked_entities.push_back(value)
