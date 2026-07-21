@@ -88,7 +88,8 @@ func query(method_id: String, param: Dictionary):
 			if _cache_manager.has(config.resource_path):
 				cache = _cache_manager[config.resource_path]
 				if element.flush_cache == "true":
-					cache.clear_cache()
+					for mapper_path in _cache_manager:
+						_cache_manager[mapper_path].clear_cache()
 
 			var ret = null
 			if cache and element.use_cache == "true":
@@ -106,9 +107,9 @@ func query(method_id: String, param: Dictionary):
 		"update", "insert", "replace", "delete":
 			var element = _deal_element(item, param, 0)
 
-			if element.flush_cache == "true" and _cache_manager.has(config.resource_path):
-				var cache = _cache_manager[config.resource_path] as GDSQL.GBatisCache
-				cache.clear_cache()
+			if element.flush_cache == "true":
+				for mapper_path in _cache_manager:
+					_cache_manager[mapper_path].clear_cache()
 
 			var ret = element.query()
 			element.clean()
