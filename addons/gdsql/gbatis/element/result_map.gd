@@ -524,28 +524,25 @@ func _automapping_obejct(data: Array) -> Object:
 		assert(false, "Error occur in _get_obj_or_generate().")
 		return null
 
-	# 不是新的obj，就不用做简单字段赋值和一对一对象赋值
-	if obj.has_meta("new"):
-		# INFO 第一部分：先给obj的简单字段赋值
-		var succ1 = _automapping_object_simple_property(data, obj)
+	# INFO 第一部分：先给obj的简单字段赋值
+	var succ1 = _automapping_object_simple_property(data, obj)
 
-		# -1 means all columns are null so the obj should be null
-		if succ1 == -1:
-			_free_obj(obj)
-			return null
+	# -1 means all columns are null so the obj should be null
+	if succ1 == -1:
+		_free_obj(obj)
+		return null
 
-		if not succ1:
-			_free_obj(obj)
-			assert(false, "Err occur in _automapping_object_simple_property().")
-			return null
+	if not succ1:
+		_free_obj(obj)
+		assert(false, "Err occur in _automapping_object_simple_property().")
+		return null
 
-		# INFO 第二部分：association，一对一对象赋值
-		var succ2 = _automapping_associations(data, obj)
-		if not succ2:
-			_free_obj(obj)
-			assert(false, "Err occur in _automapping_associations().")
-			return null
-		obj.remove_meta("new")
+	# INFO 第二部分：association，一对一对象赋值
+	var succ2 = _automapping_associations(data, obj)
+	if not succ2:
+		_free_obj(obj)
+		assert(false, "Err occur in _automapping_associations().")
+		return null
 
 	# INFO 第三部分：collection，一对多集合赋值
 	var succ3 = _automapping_collections(data, obj)
@@ -948,7 +945,6 @@ func _get_obj_or_generate(data: Array) -> Object:
 		obj = ClassDB.instantiate(object_class_name) if ClassDB.class_exists(object_class_name) \
 		else load(GDSQL.GBatisEntityDB.get_class_path(object_class_name)).new()
 		if obj:
-			obj.set_meta("new", true) # 临时存储
 			obj.set_meta("new_for_select", true) # 临时存储，给外部的select用
 	return obj
 
