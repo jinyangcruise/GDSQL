@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="UserMapper" format=3 uid="uid://b4rl843bq4v32"]
+
+[ext_resource type="Script" uid="uid://cv4a40r2ciiwd" path="res://test/gbatis/UserMapper.gd" id="1_3bg1x"]
+[ext_resource type="Resource" uid="uid://b2tnngfq4plgh" path="res://test/gbatis/UserMapper.xml" id="1_27aaq"]
+
+[resource]
+script = ExtResource("1_3bg1x")
+mapper_xml = ExtResource("1_27aaq")
+metadata/_custom_type_script = "uid://cv4a40r2ciiwd"

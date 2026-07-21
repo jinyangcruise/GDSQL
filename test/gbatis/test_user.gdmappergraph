@@ -1,0 +1,133 @@
+[data]
+
+nodes={
+"GraphNode": {
+"data": {
+"__table_item": true,
+"columns": [{
+"AI": true,
+"Column Name": "id",
+"Comment": "",
+"Data Type": 2,
+"Default(Expression)": "",
+"Hint": 0,
+"Hint String": "",
+"Index": false,
+"NN": true,
+"PK": true,
+"UQ": false
+}, {
+"AI": false,
+"Column Name": "uname",
+"Comment": "",
+"Data Type": 4,
+"Default(Expression)": "",
+"Hint": 0,
+"Hint String": "",
+"Index": false,
+"NN": false,
+"PK": false,
+"UQ": false
+}, {
+"AI": false,
+"Column Name": "level",
+"Comment": "",
+"Data Type": 2,
+"Default(Expression)": "",
+"Hint": 0,
+"Hint String": "",
+"Index": false,
+"NN": false,
+"PK": false,
+"UQ": false
+}],
+"comment": "",
+"db_name": "Test",
+"table_name": "user"
+},
+"enabled": true,
+"extra": {
+"association_class_name": "User",
+"link_prop": "",
+"link_prop_type": "",
+"link_type": 0
+},
+"position_offset": Vector2(604, 356),
+"props": {
+"id": "id",
+"level": "level",
+"uname": "uname"
+},
+"size": Vector2(650, 275)
+},
+"GraphNode2": {
+"data": {
+"__table_item": true,
+"columns": [{
+"AI": true,
+"Column Name": "id",
+"Comment": "",
+"Data Type": 2,
+"Default(Expression)": "",
+"Hint": 0,
+"Hint String": "",
+"Index": false,
+"NN": true,
+"PK": true,
+"UQ": false
+}, {
+"AI": false,
+"Column Name": "title",
+"Comment": "",
+"Data Type": 4,
+"Default(Expression)": "",
+"Hint": 0,
+"Hint String": "",
+"Index": false,
+"NN": false,
+"PK": false,
+"UQ": false
+}, {
+"AI": false,
+"Column Name": "location",
+"Comment": "",
+"Data Type": 4,
+"Default(Expression)": "",
+"Hint": 0,
+"Hint String": "",
+"Index": false,
+"NN": false,
+"PK": false,
+"UQ": false
+}],
+"comment": "",
+"db_name": "Test",
+"table_name": "user_extra"
+},
+"enabled": true,
+"extra": {
+"association_class_name": "UserExtra",
+"link_prop": "user_extra",
+"link_prop_type": "UserExtra",
+"link_type": 1
+},
+"position_offset": Vector2(1420, 500),
+"props": {
+"id": "id",
+"location": "location",
+"title": "title"
+},
+"size": Vector2(650, 275)
+}
+}
+connections=[{
+"from_node": "GraphNode",
+"from_port": 0,
+"keep_alive": false,
+"to_node": "GraphNode2",
+"to_port": 0
+}]
+include_files={}
+path=""
+result_map_mode=0
+link_type=0
