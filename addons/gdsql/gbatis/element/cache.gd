@@ -28,6 +28,8 @@ var size: int
 var _cache
 ## 上次缓存刷新时间，毫秒数
 var _last_flush_time: int
+## 已连接 value_changed 信号的实体，用于自动失效
+var _tracked_entities: Array = []
 
 
 func _init(conf: Dictionary) -> void:
@@ -45,6 +47,12 @@ func _init(conf: Dictionary) -> void:
 
 func clear_cache(now: int = 0):
 	_cache.clear()
+	# Disconnect value_changed signals from tracked entities
+	for entity in _tracked_entities:
+		if is_instance_valid(entity) and entity.has_signal(&"value_changed"):
+			if entity.value_changed.is_connected(_on_cached_entity_changed):
+				entity.value_changed.disconnect(_on_cached_entity_changed)
+	_tracked_entities.clear()
 	if now == 0:
 		now = Time.get_ticks_msec()
 	_last_flush_time = now
@@ -60,7 +68,9 @@ func set_cache(method: String, param: Dictionary, value: Variant):
 
 func set_cache_by_key(key, value: Variant):
 	_refresh()
-	_cache.put_value(key, var_to_str(value))
+	_cache.put_value(key, value)
+	# Scan cached value for entities with value_changed signal
+	_track_entities(value)
 
 
 func get_cache(method: String, param: Dictionary) -> Array:
@@ -70,8 +80,27 @@ func get_cache(method: String, param: Dictionary) -> Array:
 			key.push_back(param[i])
 	_refresh()
 	if _cache.has_key(key):
-		return [true, str_to_var(_cache.get_value(key)), key]
+		return [true, _deep_copy_containers(_cache.get_value(key)), key]
 	return [false, null, key]
+
+
+## Create new Array/Dictionary containers but preserve non-container references.
+## Callers can safely modify the returned structure without affecting the cache,
+## while entity object references remain intact (for value_changed tracking).
+static func _deep_copy_containers(value):
+	if value == null:
+		return null
+	if value is Array:
+		var arr: Array = []
+		for v in value:
+			arr.push_back(_deep_copy_containers(v))
+		return arr
+	if value is Dictionary:
+		var d: Dictionary = { }
+		for k in value:
+			d[_deep_copy_containers(k)] = _deep_copy_containers(value[k])
+		return d
+	return value
 
 
 func _refresh():
@@ -80,6 +109,37 @@ func _refresh():
 	var now = Time.get_ticks_msec()
 	if now - _last_flush_time > flush_interval:
 		clear_cache(now)
+
+
+## Scan a value recursively for entities with value_changed signal
+## and connect the signal to auto-clear cache when any property changes.
+func _track_entities(value):
+	if value == null:
+		return
+	if value is Array:
+		for v in value:
+			_track_entities(v)
+		return
+	if value is Dictionary:
+		for v in value.values():
+			_track_entities(v)
+		return
+	if value is GDSQL.QueryResult:
+		for row in value.get_data():
+			for cell in row:
+				_track_entities(cell)
+		return
+	# Check if value is an Object with value_changed signal
+	if typeof(value) == TYPE_OBJECT and value is GDSQL.GBatisEntity:
+		if not value.value_changed.is_connected(_on_cached_entity_changed):
+			value.value_changed.connect(_on_cached_entity_changed)
+		_tracked_entities.push_back(value)
+
+
+## Called when a cached entity's property is modified.
+## Clears all cached data to ensure consistency.
+func _on_cached_entity_changed(_property, _new_val):
+	clear_cache()
 
 
 class GBatisCacheNode extends RefCounted:
