@@ -17,3 +17,4 @@ func mark_checkpointed(registration_name: StringName) -> void:
 func mark_dirty(registration_name: StringName) -> void:
 	if not dirty_databases.has(registration_name):
 		dirty_databases.append(registration_name)
+	checkpointed_databases.erase(registration_name)

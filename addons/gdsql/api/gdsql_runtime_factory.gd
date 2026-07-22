@@ -5,15 +5,35 @@ const FunctionCatalog = preload("res://addons/gdsql/query/model/gdsql_query_func
 
 
 static func create_default(settings: Variant = null) -> GDSQLDatabaseContext:
-	var data_root := "res://data"
-	if settings is String:
-		data_root = settings
-	elif settings is Dictionary:
-		data_root = settings.get("data_root", data_root)
+	var data_root := _resolve_data_root(settings)
 	var path_resolver := GDSQLDatabasePathResolver.new(data_root)
 	var cache := GDSQLConfigFileCache.new()
 	var codec := GDSQLGodotVariantCodec.new()
 	var storage: GDSQLTableStorage = GDSQLConfigFileTableStorage.new(path_resolver, cache, codec)
+	return _create_context(storage, path_resolver, cache, codec)
+
+
+## Creates a runtime with ConfigFile catalog metadata and authoritative
+## in-memory table rows. The returned context owns the storage instance.
+static func create_in_memory(settings: Variant = null) -> GDSQLDatabaseContext:
+	var data_root := _resolve_data_root(settings)
+	var path_resolver := GDSQLDatabasePathResolver.new(data_root)
+	var cache := GDSQLConfigFileCache.new()
+	var codec := GDSQLGodotVariantCodec.new()
+	return _create_context(
+		GDSQLInMemoryTableStorage.new(),
+		path_resolver,
+		cache,
+		codec,
+	)
+
+
+static func _create_context(
+		storage: GDSQLTableStorage,
+		path_resolver: GDSQLDatabasePathResolver,
+		cache: GDSQLConfigFileCache,
+		codec: GDSQLGodotVariantCodec,
+) -> GDSQLDatabaseContext:
 	var catalog: GDSQLCatalogService = GDSQLConfigFileCatalogService.new(path_resolver, codec)
 	var catalog_administration: GDSQLCatalogAdministrationService = \
 			GDSQLConfigFileCatalogAdministrationService.new(
@@ -44,3 +64,12 @@ static func create_default(settings: Variant = null) -> GDSQLDatabaseContext:
 		GDSQLDefaultQueryExecutor.new(),
 		execution_context,
 	)
+
+
+static func _resolve_data_root(settings: Variant) -> String:
+	var data_root := "res://data"
+	if settings is String:
+		data_root = settings
+	elif settings is Dictionary:
+		data_root = settings.get("data_root", data_root)
+	return data_root

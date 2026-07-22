@@ -199,6 +199,7 @@ TableStorage("`**GDSQLTableStorage**
 *Transaction API:* commit(), rollback()
 *Extension point:* Table storage backend implementations`")
 
+subgraph ConfigFileBackend["ConfigFile backend"]
 ConfigCatalog("`**GDSQLConfigFileCatalogService**
 
 -
@@ -231,6 +232,25 @@ ConfigInfrastructure("`**ConfigFile Infrastructure**
 *Path API:* resolve_catalog_path(), resolve_schema_path(), resolve_table_path()
 *Cache API:* get_or_load(), invalidate(), flush()
 *Types:* GDSQLDatabasePathResolver, GDSQLConfigFileCache, GDSQLGodotVariantCodec`")
+end
+
+subgraph InMemoryBackend["In-memory backend"]
+MemoryStorage("`**GDSQLInMemoryTableStorage**
+
+-
+*Purpose:* Keep authoritative table rows in memory
+*API:* Read, lookup, staged mutations, commit and rollback
+*State:* Committed rows, table metadata and dirty versions
+*Extends:* GDSQLTableStorage`")
+
+MemoryCheckpoint("`**GDSQLInMemoryCheckpointTarget**
+
+-
+*Purpose:* Transfer dirty in-memory tables to durable storage
+*API:* is_dirty(), checkpoint()
+*Uses:* In-memory source and injected durable GDSQLTableStorage
+*Extends:* GDSQLCheckpointTarget`")
+end
 
 Results("`**GDSQLOperationResult**
 
@@ -266,7 +286,7 @@ Models -->|"resolve_role(model)"| RuntimeRegistry
 Models -->|"to_query_spec()"| QuerySpec
 Models -->|"ModelResultMaterializer"| Materialization
 Code -->|"checkpoint() · checkpoint_dirty()"| Persistence
-Persistence -->|"target.checkpoint()"| TableStorage
+Persistence -->|"target.checkpoint()"| MemoryCheckpoint
 Transaction -->|"execute(query, shared session)"| Context
 QuerySpec -->|"execute(query) / prepare(query)"| Context
 Context -->|"validate(query)"| Validator
@@ -286,6 +306,10 @@ Executor -->|"stage_*() · commit() · rollback()"| TableStorage
 CatalogService -->|"extended by"| ConfigCatalog
 CatalogAdministration -->|"extended by"| ConfigAdministration
 TableStorage -->|"extended by"| ConfigStorage
+TableStorage -->|"extended by"| MemoryStorage
+
+MemoryCheckpoint -->|"reads dirty table versions"| MemoryStorage
+MemoryCheckpoint -->|"stages and commits durable changes"| TableStorage
 
 ConfigCatalog -->|"path resolution"| ConfigInfrastructure
 ConfigAdministration -->|"paths · cache"| ConfigInfrastructure
@@ -293,6 +317,7 @@ ConfigStorage -->|"paths · cache · codec"| ConfigInfrastructure
 
 Factory -.->|"create_default(data_root)"| Context
 Factory -.->|"constructs and injects"| ConfigInfrastructure
+Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
 class Code,GraphInterface,SQLText,Expr,Models frontend;
 class Database,Context,Factory,Transaction,RuntimeRegistry,Persistence runtime;
@@ -303,5 +328,5 @@ class Planner,PlanNode planning;
 class Executor execution;
 class CatalogService,CatalogAdministration catalog;
 class TableStorage storage;
-class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure implementation;
+class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,MemoryStorage,MemoryCheckpoint implementation;
 class Results,Materialization result;

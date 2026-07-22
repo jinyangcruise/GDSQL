@@ -213,12 +213,13 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `BufferedTableStorage` | Storage composition | Keeps lazily loaded tables and indexes in memory, tracks committed dirty state, and delegates durable persistence to another storage backend. | TableStorage implementation and checkpoint participation | 📝 |
-| `InMemoryTableStorage` | Storage backend | Provides authoritative temporary table storage without requiring a persistent source. | TableStorage implementation | 📝 |
+| `InMemoryTableStorage` | Storage backend | Provides authoritative temporary table storage with transaction-local visibility, committed dirty-version tracking, constraints, and scan-backed index capabilities. | TableStorage implementation, `load_table()`, `is_dirty()`, `get_dirty_tables()`, `mark_checkpointed()` | 🧪 |
 | `DatabaseRegistry` | Database lifecycle | Registers open database handles, resolves replaceable logical roles, and delegates durable registration snapshots for runtime and editor composition. | `register()`, `resolve()`, role binding, `load_snapshot()`, `save_snapshot()` | 🧪 |
 | `DatabaseRegistration` | Database lifecycle metadata | Describes one durable registration through its public name, logical database name, data root, and validated storage backend identifier. | Typed registration fields | 🧪 |
 | `DatabaseRegistryStore` | Database lifecycle persistence | Abstract persistence boundary for complete typed registration and role-binding snapshots. | `load_snapshot()`, `save_snapshot()` | 🚧 |
 | `ConfigFileDatabaseRegistryStore` | Database lifecycle persistence | Stores editor-visible database registrations and role bindings in `user://gdsql/databases.cfg`. | DatabaseRegistryStore implementation | 🧪 |
 | `CheckpointTarget` | Runtime persistence | Contract for a storage composition that reports committed dirty state and transfers it to durable storage. | `is_dirty()`, `checkpoint()` | 🧪 |
+| `InMemoryCheckpointTarget` | Runtime persistence | Adapts authoritative in-memory storage to `CheckpointTarget` and synchronizes each dirty table into an injected durable `TableStorage` backend. | `is_dirty()`, `checkpoint()` | 🧪 |
 | `PersistenceCoordinator` | Runtime persistence | Applies persistence policies, inspects committed dirty state, and coordinates explicit or commit-triggered checkpoints. | `register()`, `checkpoint()`, `checkpoint_dirty()`, `transaction_committed()` | 🧪 |
 | `ContentOverlayLoader` | Runtime content loading | Validates and deterministically combines immutable base content with enabled mod layers into one reproducible effective content database. | `build_effective_database()`, cache invalidation and provenance diagnostics | 📝 |
 | `ContentCacheManifest` | Runtime content loading | Fingerprints the base content version, enabled mod versions or checksums, and deterministic load order for a disposable effective-content cache. | Compatibility inspection and cache fingerprint metadata | 📝 |
@@ -247,9 +248,9 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `Model` | Model API | Shared base for role-scoped metadata, materialized identity, change tracking, context retention, loaded relationships, and persisted-row operations. | metadata, `relationships()`, `get_related()`, `is_persisted()`, `save()`, `refresh()`, `delete()` | 🧪 |
-| `ContentModel` | Model API | Read-only model bound through the model registry to the effective `content` database role. | Query and refresh; mutation diagnostics | 🧪 |
-| `SaveModel` | Model API | Mutable model bound through the model registry to the active save-slot database; save-slot management remains in the database registry. | Query, refresh, save, and delete | 🧪 |
-| `SettingsModel` | Model API | Mutable model bound to project-wide user settings that remain independent from the selected save slot. | Query, refresh, save, and delete | 🧪 |
+| `ContentModel` | Model API | Read-only model bound through the model registry to the effective `content` database role. | Query and refresh; mutation diagnostics | ✅ |
+| `SaveModel` | Model API | Mutable model bound through the model registry to the active save-slot database; save-slot management remains in the database registry. | Query, refresh, save, and delete | ✅ |
+| `SettingsModel` | Model API | Mutable model bound to project-wide user settings that remain independent from the selected save slot. | Query, refresh, save, and delete | ✅ |
 | `ModelAccess` | Model metadata | Declares whether a standard or project-defined model role permits reads or canonical mutations. | `READ_ONLY`, `READ_WRITE` | 🧪 |
 | `ModelDefinition` | Model metadata | Captures a registered model script, logical role, table, primary key, access mode, and named relationships. | Typed definition fields, `get_relationship()` | 🧪 |
 | `ModelRegistry` | Model API | Registers model classes and resolves their typed metadata and logical roles through `DatabaseRegistry`. | `register()`, `resolve_model()`, `resolve_role()` | 🧪 |

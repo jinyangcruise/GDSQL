@@ -1213,8 +1213,8 @@ Open handles remain attached to the active application context.
 
 A transaction commit establishes valid, visible database state. A checkpoint
 transfers committed dirty state to durable storage. ConfigFile storage performs
-durable work during commit, while a future buffered storage target can
-commit to memory, mark itself dirty, and persist later.
+durable work during commit. In-memory storage commits authoritative rows to
+memory and records a dirty version for every affected table.
 
 `GDSQLCheckpointTarget` exposes `is_dirty()` and `checkpoint()`.
 `GDSQLPersistenceCoordinator` associates targets with typed policies and
@@ -1234,6 +1234,14 @@ var result := persistence.checkpoint(&"save_1")
 `GDSQLCheckpointResult` records databases that reached durable storage and
 databases that remain dirty for a later retry. Periodic scheduling and graceful
 shutdown integration belong to the optional runtime Node adapter.
+
+`GDSQLInMemoryCheckpointTarget` composes an `InMemoryTableStorage` source with
+an injected durable `TableStorage`. It synchronizes authoritative dirty tables
+and clears a dirty marker only when the copied version remains current. This
+adapter keeps checkpoint policy outside storage and keeps ConfigFile knowledge
+outside the in-memory backend. `load_table()` establishes a clean authoritative
+memory snapshot before runtime mutation when an existing durable dataset is
+used as the source.
 
 ---
 
@@ -1874,6 +1882,7 @@ addons/gdsql/
 │   ├── checkpoint_target.gd
 │   ├── checkpoint_policy.gd
 │   ├── checkpoint_result.gd
+│   ├── in_memory_checkpoint_target.gd
 │   └── persistence_coordinator.gd
 │
 ├── model/
@@ -1944,6 +1953,8 @@ addons/gdsql/
 │   ├── storage_session.gd
 │   ├── table_snapshot.gd
 │   ├── row_record.gd
+│   ├── memory/
+│   │   └── in_memory_table_storage.gd
 │   └── configfile/
 │       ├── config_file_table_storage.gd
 │       ├── config_file_catalog_service.gd
