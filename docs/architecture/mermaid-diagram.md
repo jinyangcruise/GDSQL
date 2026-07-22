@@ -69,8 +69,9 @@ Models("`**Model API**
 *Purpose:* Query role-scoped tables and materialize typed model objects
 *Types:* Model, ContentModel, SaveModel, SettingsModel
 *Static API:* Model.query(), Model.find(identity)
-*Query API:* where(), order_by(), all(), first(), to_query_spec()
-*Instance API:* save(), refresh(), delete()
+*Query API:* where(), with(), order_by(), all(), first(), to_query_spec()
+*Instance API:* get_related(), is_relationship_loaded(), save(), refresh(), delete()
+*Relationships:* Typed belongs-to, has-one and has-many definitions
 *Configuration:* GDSQLModels receives one default ModelContext
 *Resolution:* ModelRegistry to DatabaseRegistry roles
 *Returns:* QueryResult containing model objects in value`")

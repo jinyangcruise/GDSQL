@@ -188,6 +188,7 @@ state in the same change as implementation or test work.
 | `ColumnDefinition` | Catalog | Typed definition of one table column, including an optional static default, generated-value policy, integer primary-key auto-increment, and the rule that `TYPE_OBJECT` accepts Resources only. | `set_default()`, `clear_default()`, `has_default()`, `get_default_value()`, `accepts_value()`, `created_at()`, `updated_at()` | 🧪 |
 | `ColumnDefault` | Catalog | Wraps a declared static default so an explicit null value remains distinct from no default and future default metadata can evolve without parallel column state. | `value` | 🧪 |
 | `TableAlteration` | Catalog | Typed intent for adding, renaming, or dropping one table column. | `add_column()`, `rename_column()`, `drop_column()` | 🧪 |
+| `CatalogChangePlan` | Catalog administration | Future read-only preview of requested structural changes, their data impact, destructive classification, and source catalog fingerprint. | Preview metadata and stale-plan validation | 📝 |
 | `IndexDefinition` | Catalog | Describes a named index, its ordered columns, and whether its complete value must be unique. | `get_columns()`, `is_unique()` | 🧪 |
 
 ## Storage
@@ -237,7 +238,7 @@ state in the same change as implementation or test work.
 | `ResultMaterializer` | Mapping | Abstract contract for converting a `RowSet` into a user-facing value while retaining result diagnostics and metadata. | `materialize(rows, mapping)` | 🧪 |
 | `DictionaryResultMaterializer` | Mapping | Converts each selected row into an independent dictionary using optional column renaming. | `materialize()` | 🧪 |
 | `ResourceResultMaterializer` | Mapping | Instantiates one custom Resource per row and assigns mapped columns to declared properties. | `materialize()` | 🧪 |
-| `ModelResultMaterializer` | Mapping | Converts rows into registered model objects and attaches their model context and persisted state. | `materialize()` | 🧪 |
+| `ModelResultMaterializer` | Mapping | Converts rows into a concrete script-typed model Array and attaches model context and persisted state. | `materialize()` | 🧪 |
 | `EditorTableMaterializer` | Editor mapping | Converts rows into data appropriate for the editor table interface. | `materialize()` | 🚧 |
 | `CsvExportMaterializer` | Export mapping | Converts rows into CSV output. | `materialize()` | 🚧 |
 
@@ -245,14 +246,14 @@ state in the same change as implementation or test work.
 
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
-| `Model` | Model API | Shared base for role-scoped metadata, materialized identity, change tracking, context retention, and persisted-row operations. | metadata, `is_persisted()`, `save()`, `refresh()`, `delete()` | 🧪 |
+| `Model` | Model API | Shared base for role-scoped metadata, materialized identity, change tracking, context retention, loaded relationships, and persisted-row operations. | metadata, `relationships()`, `get_related()`, `is_persisted()`, `save()`, `refresh()`, `delete()` | 🧪 |
 | `ContentModel` | Model API | Read-only model bound through the model registry to the effective `content` database role. | Query and refresh; mutation diagnostics | 🧪 |
 | `SaveModel` | Model API | Mutable model bound through the model registry to the active save-slot database; save-slot management remains in the database registry. | Query, refresh, save, and delete | 🧪 |
 | `SettingsModel` | Model API | Mutable model bound to project-wide user settings that remain independent from the selected save slot. | Query, refresh, save, and delete | 🧪 |
 | `ModelAccess` | Model metadata | Declares whether a standard or project-defined model role permits reads or canonical mutations. | `READ_ONLY`, `READ_WRITE` | 🧪 |
-| `ModelDefinition` | Model metadata | Captures a registered model script, logical role, table, primary key, and access mode. | Typed definition fields | 🧪 |
+| `ModelDefinition` | Model metadata | Captures a registered model script, logical role, table, primary key, access mode, and named relationships. | Typed definition fields, `get_relationship()` | 🧪 |
 | `ModelRegistry` | Model API | Registers model classes and resolves their typed metadata and logical roles through `DatabaseRegistry`. | `register()`, `resolve_model()`, `resolve_role()` | 🧪 |
 | `Models` | Model API | Holds the configured default model context and supplies static model query and find forwarding. | `configure()`, `query()`, `find()`, `clear_context()` | 🧪 |
 | `ModelContext` | Model API | Supplies an injectable model registry for default runtime composition, tests, and isolated runtimes. | `register_model()`, `query()`, `find()` | 🧪 |
-| `ModelQuery` | Model API | Model-oriented SELECT frontend that translates filters, ordering, limits, offsets, and distinct selection into canonical `QuerySpec`. | `where()`, `order_by()`, `all()`, `first()`, `find()`, `to_query_spec()` | 🧪 |
-| `RelationshipDefinition` | Optional model API | Typed model-level declaration of a has-one, has-many, belongs-to, or many-to-many relationship that supports eager loading and editor display of related identifiers. | Relationship constructors, key accessors, and eager-loading metadata | 📝 |
+| `ModelQuery` | Model API | Model-oriented SELECT frontend that translates filters, ordering, limits, offsets, distinct selection, and named eager loads into canonical queries. | `where()`, `with()`, `order_by()`, `all()`, `first()`, `find()`, `to_query_spec()` | 🧪 |
+| `RelationshipDefinition` | Model API | Typed model-level declaration of a belongs-to, has-one, or has-many relationship captured by model registration for eager loading and editor inspection. | `belongs_to()`, `has_one()`, `has_many()`, typed keys | 🧪 |

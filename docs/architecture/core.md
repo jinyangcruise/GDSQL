@@ -1629,6 +1629,16 @@ registered logical role and table. The forwarding method passes `Hero`
 explicitly because GDScript inherited static methods do not expose their
 calling subclass. `all()` returns every materialized match.
 
+Model materialization creates an Array whose runtime element type is the
+concrete model script. Callers can retain typed property access directly:
+
+```gdscript
+var heroes: Array[Hero] = Hero.query().all().get_value()
+```
+
+Loaded `has_many` relationships use the related model script as their Array
+element type in the same way.
+
 Materialized models retain their context and original values. `refresh()`
 reloads the row into the same object. Mutable models use changed-field UPDATEs
 for `save()` and primary-key DELETEs for `delete()`. Content models return a
@@ -1637,6 +1647,40 @@ specifications and remain independent from physical storage.
 Typed relationship definitions live on model classes. Model queries use those
 definitions for explicit or eager loading, and graphical tooling can inspect
 the same keys to display related identifiers and records.
+
+The model method is the source of truth for user-owned model scripts:
+
+```gdscript
+func relationships() -> Array[GDSQLRelationshipDefinition]:
+    return [
+        GDSQLRelationshipDefinition.has_many(
+            &"skills",
+            Skill,
+            &"hero_id",
+        ),
+    ]
+```
+
+Registration captures and validates these definitions by relationship name.
+`with(&"skills")` performs a separate batched model query through the related
+model's logical role and attaches the result to each materialized model.
+`get_related(&"skills")` returns the loaded model, model array, or null, while
+`is_relationship_loaded(&"skills")` distinguishes an unloaded relationship
+from an empty result. Early graphical tooling may inspect this metadata while
+treating handwritten model code as read-only.
+
+The catalog remains the sole authority for database and table structure.
+`GDSQLModel` binds typed properties and high-level behavior to an existing
+logical table; it does not provide table definitions or invoke catalog
+administration. Tables remain valid without models, and multiple higher-level
+frontends may consume the same catalog structure.
+
+The graphical editor is a database and table viewer and manipulator. It depends
+on catalog definitions, catalog administration, and canonical queries.
+Registered models may provide optional materialization and relationship
+conveniences, but the editor does not rewrite model scripts or derive catalog
+mutations from them. Read-only model compatibility validation may report stale
+properties after a table change.
 
 ---
 
@@ -1839,6 +1883,7 @@ addons/gdsql/
 │   ├── settings_model.gd
 │   ├── model_access_mode.gd
 │   ├── model_definition.gd
+│   ├── relationship_definition.gd
 │   ├── model_registry.gd
 │   ├── model_context.gd
 │   ├── models.gd
@@ -1963,6 +2008,11 @@ settings belong outside individual save slots.
 The editor depends on the runtime.
 
 The runtime does not depend on the editor.
+
+Database and table editing uses catalog definitions and
+`CatalogAdministrationService`. Row editing uses canonical queries. Model
+classes are optional result and code conveniences; they are not schema inputs,
+editor documents, or catalog administration commands.
 
 The editor owns decisions such as:
 

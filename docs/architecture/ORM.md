@@ -227,6 +227,121 @@ Model persistence helpers create insert, update, and delete specifications from
 the model class metadata and current attributes. `GDSQLModelResultMaterializer`
 converts result rows into model instances through `GDSQLResultMapping`.
 
+## Model fields and script authoring
+
+The catalog is the source of truth for database and table structure. Model
+scripts bind typed GDScript properties and high-level behavior to existing
+catalog tables.
+
+Matching property and column names map directly during materialization:
+
+```gdscript
+class_name Hero
+extends GDSQLContentModel
+
+var id: int
+var name: String
+var level: int
+
+
+func table_name() -> StringName:
+	return &"heroes"
+
+
+func relationships() -> Array[GDSQLRelationshipDefinition]:
+	return [
+		GDSQLRelationshipDefinition.has_many(
+			&"skills",
+			Skill,
+			&"hero_id",
+		),
+	]
+
+
+static func query() -> GDSQLModelQuery:
+	return GDSQLModels.query(Hero)
+
+
+static func find(identity: int) -> GDSQLQueryResult:
+	return GDSQLModels.find(Hero, identity)
+```
+
+These typed properties provide completion, static property checking, and
+concrete `Array[Hero]` query results. Godot property reflection supplies their
+names and Variant types to model registration and materialization. Model
+registration may return read-only compatibility diagnostics for missing or
+incompatible mapped columns.
+
+GDScript annotations are engine-defined. Model field declarations therefore
+use ordinary typed properties. Export annotations remain available when a
+project also wants Inspector editing, while database membership follows the
+registered table mapping.
+
+Laravel can expose undeclared attributes through PHP's dynamic property
+behavior and external schema information. Equivalent dynamic access in
+GDScript would return `Variant` values and remove compile-time property access,
+so GDSQL favors declared model properties.
+
+### Editor, catalog, and model ownership
+
+The graphical editor is a database and table interface. It reads catalog
+metadata, creates or alters tables through
+`GDSQLCatalogAdministrationService`, edits row data through canonical queries,
+and displays the impact of structural changes. Its operation does not require a
+model.
+
+Models are an optional high-level code frontend. They provide model-scoped
+queries, typed materialization, relationships, and row persistence helpers. An
+editor view may use a registered model as a convenient result materialization
+or inspect its relationships, while structural ownership stays with the
+catalog.
+
+The boundary is:
+
+```text
+Editor database/table interface
+    → catalog definitions and catalog administration
+
+Model API
+    → existing table binding and QuerySpec
+```
+
+The editor does not rewrite model scripts. Models do not create, alter, drop,
+or synchronize table definitions.
+
+### Schema changes and safety
+
+Schema changes originate from the database/table API or editor. Existing typed
+alterations make intent explicit:
+
+```gdscript
+database.alter_table(
+	&"heroes",
+	[
+		GDSQLTableAlteration.add_column(new_column),
+		GDSQLTableAlteration.rename_column(&"level", &"rank"),
+		GDSQLTableAlteration.drop_column(&"legacy_value"),
+	],
+)
+```
+
+The editor must describe the effect before invoking a destructive operation:
+
+- Dropping a column removes every stored value for that column.
+- Renaming a column migrates existing row keys.
+- Adding a required column to populated data requires a compatible default.
+- Changing a type or constraint may require data validation or table rebuild.
+- Removing or replacing an index changes validation or lookup behavior.
+
+A future catalog-level `GDSQLCatalogChangePlan` may preview these effects,
+classify destructive operations, and carry a catalog fingerprint so stale plans
+are rejected before application. This protection belongs to catalog
+administration and applies equally to model-backed and manually managed tables.
+
+After a table changes, model compatibility validation can report properties
+that need a matching manual script update. It does not translate model changes
+into catalog mutations.
+
 ## Relationships
 
 Relationships describe how model objects navigate between tables. They belong
@@ -242,7 +357,7 @@ Proposed relationship kinds:
 Relationship definitions should be typed:
 
 ```gdscript
-static func relationships() -> Array[GDSQLRelationshipDefinition]:
+func relationships() -> Array[GDSQLRelationshipDefinition]:
 	return [
 		GDSQLRelationshipDefinition.has_many(
 			&"skills",
@@ -265,6 +380,11 @@ A relationship definition may contain:
 Graphical tooling can inspect these declarations, eagerly load related
 identifiers, and display relation choices through the same model metadata used
 by code.
+
+Model code is the relationship source of truth. `GDSQLModelRegistry` captures
+the declarations under their explicit names during registration. Early graph
+tooling can read and display metadata from handwritten models without rewriting
+their scripts.
 
 Relationship loading translates into ordinary canonical queries:
 
@@ -300,6 +420,19 @@ The ORM may eventually support:
 Lazy loading through ordinary property access should be treated cautiously in
 GDScript because hidden database access makes execution and failure behavior
 less visible. Explicit loading is a safer initial design.
+
+The initial eager-loading API attaches values to each materialized model:
+
+```gdscript
+var heroes := Hero.query().with(&"skills").all().get_value()
+var skills: Array = heroes[0].get_related(&"skills")
+```
+
+`with()` resolves its argument against the relationship name stored in the
+registered `GDSQLModelDefinition`. It batches the declaring-model key values
+into one related model query and groups the materialized results by the
+declared related key. `has_many` returns an array; `has_one` and `belongs_to`
+return one model or null.
 
 ## Result materialization
 

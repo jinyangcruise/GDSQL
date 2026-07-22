@@ -9,6 +9,7 @@ var _ordering: Array[GDSQLOrderClause] = []
 var _limit := -1
 var _offset := 0
 var _distinct := false
+var _relationships: Array[StringName] = []
 var _built := false
 
 
@@ -49,6 +50,14 @@ func offset(value: int) -> GDSQLModelQuery:
 func distinct() -> GDSQLModelQuery:
 	_ensure_mutable()
 	_distinct = true
+	return self
+
+
+## Eager-loads a relationship declared under the supplied model-level name.
+func with(relationship_name: StringName) -> GDSQLModelQuery:
+	_ensure_mutable()
+	if not _relationships.has(relationship_name):
+		_relationships.append(relationship_name)
 	return self
 
 
@@ -98,10 +107,13 @@ func all() -> GDSQLQueryResult:
 	var query_result := database_result.get_database().execute(spec)
 	if not query_result.is_successful():
 		return query_result
-	return query_result.materialize(
+	var materialized := query_result.materialize(
 		GDSQLModelResultMaterializer.new(_context),
 		GDSQLResultMapping.for_resource(_model_script),
 	)
+	if not materialized.is_successful() or _relationships.is_empty():
+		return materialized
+	return _load_relationships(materialized, definition_result.get_value())
 
 
 ## Selects the first matching model.
@@ -145,3 +157,85 @@ func _missing_context() -> GDSQLOperationResult:
 
 func _ensure_mutable() -> void:
 	assert(not _built, "Model query cannot be modified after to_query_spec().")
+
+
+func _load_relationships(
+		result: GDSQLQueryResult,
+		definition: GDSQLModelDefinition,
+) -> GDSQLQueryResult:
+	var models: Array = result.get_value()
+	for relationship_name in _relationships:
+		var relationship := definition.get_relationship(relationship_name)
+		if relationship == null:
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_MODEL_RELATIONSHIP_NOT_FOUND",
+					"Model relationship '%s' is not declared." % relationship_name,
+				),
+			)
+			return result
+		var loaded := _load_relationship(models, relationship)
+		if not loaded.is_successful():
+			result.diagnostics.merge(loaded.diagnostics)
+			return result
+	return result
+
+
+func _load_relationship(
+		models: Array,
+		relationship: GDSQLRelationshipDefinition,
+) -> GDSQLOperationResult:
+	var source_values: Array[Variant] = []
+	for model: GDSQLModel in models:
+		var value: Variant = model.get(relationship.local_key)
+		if value != null and not source_values.has(value):
+			source_values.append(value)
+	if source_values.is_empty():
+		_attach_empty_relationship(models, relationship)
+		return GDSQLOperationResult.new()
+	var predicate: GDSQLQueryExpression
+	for value in source_values:
+		var comparison := GDSQLExpr.column(relationship.related_key).equals(value)
+		predicate = comparison if predicate == null else predicate.or_(comparison)
+	var related_result := _context.query(relationship.related_model_script) \
+			.where(predicate) \
+			.all()
+	if not related_result.is_successful():
+		return related_result
+	var grouped: Dictionary = { }
+	for related_model: GDSQLModel in related_result.get_value():
+		var key: Variant = related_model.get(relationship.related_key)
+		if not grouped.has(key):
+			grouped[key] = []
+		grouped[key].append(related_model)
+	for model: GDSQLModel in models:
+		var local_value: Variant = model.get(relationship.local_key)
+		var matches: Array = grouped.get(local_value, [])
+		if relationship.kind == GDSQLRelationshipDefinition.Kind.HAS_MANY:
+			model._set_loaded_relationship(
+				relationship.name,
+				_create_model_array(matches, relationship.related_model_script),
+			)
+		else:
+			model._set_loaded_relationship(
+				relationship.name,
+				null if matches.is_empty() else matches[0],
+			)
+	return GDSQLOperationResult.new()
+
+
+func _attach_empty_relationship(
+		models: Array,
+		relationship: GDSQLRelationshipDefinition,
+) -> void:
+	for model: GDSQLModel in models:
+		model._set_loaded_relationship(
+			relationship.name,
+			_create_model_array([], relationship.related_model_script) \
+			if relationship.kind == GDSQLRelationshipDefinition.Kind.HAS_MANY \
+			else null,
+		)
+
+
+func _create_model_array(models: Array, model_script: Script) -> Array:
+	return Array(models, TYPE_OBJECT, &"RefCounted", model_script)
