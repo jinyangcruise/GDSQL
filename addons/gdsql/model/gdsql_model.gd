@@ -11,6 +11,7 @@ extends RefCounted
 var _model_context: GDSQLModelContext
 var _persisted := false
 var _original_values: Dictionary[StringName, Variant] = { }
+var _loaded_relationships: Dictionary[StringName, Variant] = { }
 
 
 ## Declares the logical database role used by this model.
@@ -33,6 +34,11 @@ func access_mode() -> GDSQLModelAccess.Mode:
 	return GDSQLModelAccess.Mode.READ_ONLY
 
 
+## Declares named relationships captured during model registration.
+func relationships() -> Array[GDSQLRelationshipDefinition]:
+	return []
+
+
 ## Returns the context retained during model materialization.
 func get_model_context() -> GDSQLModelContext:
 	return _model_context
@@ -41,6 +47,16 @@ func get_model_context() -> GDSQLModelContext:
 ## Reports whether this object was materialized from a persisted row.
 func is_persisted() -> bool:
 	return _persisted
+
+
+## Reports whether an explicit or eager relationship load has completed.
+func is_relationship_loaded(relationship_name: StringName) -> bool:
+	return _loaded_relationships.has(relationship_name)
+
+
+## Returns a loaded model, model array, or null for the named relationship.
+func get_related(relationship_name: StringName) -> Variant:
+	return _loaded_relationships.get(relationship_name)
 
 
 ## Persists changed fields through a canonical UPDATE operation.
@@ -127,6 +143,11 @@ func _attach_model_context(
 	_model_context = context
 	_persisted = persisted
 	_original_values = values.duplicate()
+	_loaded_relationships.clear()
+
+
+func _set_loaded_relationship(relationship_name: StringName, value: Variant) -> void:
+	_loaded_relationships[relationship_name] = value
 
 
 func _resolve_persisted() -> GDSQLQueryResult:
@@ -179,6 +200,7 @@ func _apply_values(values: Dictionary[StringName, Variant]) -> void:
 			set(property_name, values[property_name])
 	_original_values = values.duplicate()
 	_persisted = true
+	_loaded_relationships.clear()
 
 
 func _has_property(property_name: StringName) -> bool:

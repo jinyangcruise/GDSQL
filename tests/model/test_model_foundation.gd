@@ -171,6 +171,52 @@ func test_content_model_rejects_mutation() -> void:
 	)
 
 
+func test_with_eager_loads_has_many_relationships_by_declared_name() -> void:
+	var database := _create_relationship_database()
+	var context := _create_relationship_context(database)
+	GDSQLModels.configure(context)
+
+	var result := TestHero.query().order_by(&"id").with(&"skills").all()
+	var heroes: Array[TestHero] = result.get_value()
+	var knight_skills: Array[TestSkill] = heroes[0].get_related(&"skills")
+	var mage_skills: Array[TestSkill] = heroes[1].get_related(&"skills")
+
+	assert_bool(result.is_successful()).is_true()
+	assert_bool(heroes[0].is_relationship_loaded(&"skills")).is_true()
+	assert_int(knight_skills.size()).is_equal(2)
+	assert_int(mage_skills.size()).is_equal(1)
+	assert_object(knight_skills[0]).is_instanceof(TestSkill)
+
+
+func test_with_eager_loads_belongs_to_relationships() -> void:
+	var database := _create_relationship_database()
+	var context := _create_relationship_context(database)
+	GDSQLModels.configure(context)
+
+	var result := TestSkill.query().order_by(&"id").with(&"hero").all()
+	var skills: Array = result.get_value()
+	var first_hero := skills[0].get_related(&"hero") as TestHero
+	var third_hero := skills[2].get_related(&"hero") as TestHero
+
+	assert_bool(result.is_successful()).is_true()
+	assert_object(first_hero).is_instanceof(TestHero)
+	assert_int(first_hero.id).is_equal(1)
+	assert_int(third_hero.id).is_equal(2)
+
+
+func test_with_reports_an_unknown_relationship_name() -> void:
+	var database := _create_relationship_database()
+	var context := _create_relationship_context(database)
+	GDSQLModels.configure(context)
+
+	var result := TestHero.query().with(&"unknown").all()
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(String(result.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_MODEL_RELATIONSHIP_NOT_FOUND",
+	)
+
+
 func _create_context(
 		database: GDSQLDatabase,
 		model_script: Script,
@@ -187,6 +233,49 @@ func _create_context(
 	return GDSQLModelContext.new(model_registry)
 
 
+func _create_relationship_context(database: GDSQLDatabase) -> GDSQLModelContext:
+	var database_registry := GDSQLDatabaseRegistry.new()
+	database_registry.register(&"active", database)
+	database_registry.bind_role(GDSQLDatabaseRegistry.CONTENT_ROLE, &"active")
+	var model_registry := GDSQLModelRegistry.new(database_registry)
+	assert_bool(model_registry.register(TestHero).is_successful()).is_true()
+	assert_bool(model_registry.register(TestSkill).is_successful()).is_true()
+	return GDSQLModelContext.new(model_registry)
+
+
+func _create_relationship_database() -> GDSQLDatabase:
+	var heroes := GDSQLTableDefinition.new(&"heroes", &"id")
+	heroes.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	heroes.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
+	heroes.add_column(GDSQLColumnDefinition.new(&"level", TYPE_INT, false))
+	var skills := GDSQLTableDefinition.new(&"skills", &"id")
+	skills.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	skills.add_column(GDSQLColumnDefinition.new(&"hero_id", TYPE_INT, false))
+	skills.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
+	var database := TestDatabase.create_database_with_tables(
+		_data_root,
+		[heroes, skills],
+	)
+	TestDatabase.insert_rows(
+		database,
+		[
+			{ &"id": 1, &"name": "Knight", &"level": 3 },
+			{ &"id": 2, &"name": "Mage", &"level": 5 },
+		],
+		&"heroes",
+	)
+	TestDatabase.insert_rows(
+		database,
+		[
+			{ &"id": 1, &"hero_id": 1, &"name": "Sword" },
+			{ &"id": 2, &"hero_id": 1, &"name": "Shield" },
+			{ &"id": 3, &"hero_id": 2, &"name": "Fireball" },
+		],
+		&"skills",
+	)
+	return database
+
+
 class TestHero extends GDSQLContentModel:
 	var id: int
 	var name: String
@@ -197,11 +286,21 @@ class TestHero extends GDSQLContentModel:
 		return &"heroes"
 
 
+	func relationships() -> Array[GDSQLRelationshipDefinition]:
+		return [
+			GDSQLRelationshipDefinition.has_many(
+				&"skills",
+				TestSkill,
+				&"hero_id",
+			),
+		]
+
+
 	static func query() -> GDSQLModelQuery:
 		return GDSQLModels.query(TestHero)
 
 
-	static func find(identity: Variant) -> GDSQLQueryResult:
+	static func find(identity: int) -> GDSQLQueryResult:
 		return GDSQLModels.find(TestHero, identity)
 
 
@@ -214,7 +313,7 @@ class TestSaveHero extends GDSQLSaveModel:
 		return GDSQLModels.query(TestSaveHero)
 
 
-	static func find(identity: Variant) -> GDSQLQueryResult:
+	static func find(identity: int) -> GDSQLQueryResult:
 		return query().find(identity)
 
 
@@ -225,3 +324,27 @@ class TestSaveHero extends GDSQLSaveModel:
 class TestSetting extends GDSQLSettingsModel:
 	func table_name() -> StringName:
 		return &"settings"
+
+
+class TestSkill extends GDSQLContentModel:
+	var id: int
+	var hero_id: int
+	var name: String
+
+
+	func table_name() -> StringName:
+		return &"skills"
+
+
+	func relationships() -> Array[GDSQLRelationshipDefinition]:
+		return [
+			GDSQLRelationshipDefinition.belongs_to(
+				&"hero",
+				TestHero,
+				&"hero_id",
+			),
+		]
+
+
+	static func query() -> GDSQLModelQuery:
+		return GDSQLModels.query(TestSkill)

@@ -56,7 +56,12 @@ func materialize(rows: GDSQLRowSet, mapping: GDSQLResultMapping = null) -> GDSQL
 			materialized_values[property_name] = value
 		model._attach_model_context(_model_context, true, materialized_values)
 		models.append(model)
-	result.value = models
+	result.value = Array(
+		models,
+		TYPE_OBJECT,
+		&"RefCounted",
+		mapping.resource_script,
+	)
 	return result
 
 
