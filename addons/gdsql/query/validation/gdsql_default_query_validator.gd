@@ -8,11 +8,11 @@ var function_catalog: FunctionCatalog
 
 
 func _init(
-		catalog: GDSQLCatalogService = null,
-		function_catalog: FunctionCatalog = null,
+		_catalog: GDSQLCatalogService = null,
+		_function_catalog: FunctionCatalog = null,
 ) -> void:
-	self.catalog = catalog
-	self.function_catalog = function_catalog
+	catalog = _catalog
+	function_catalog = _function_catalog
 
 
 func validate(query: GDSQLQuerySpec) -> GDSQLQueryValidationResult:

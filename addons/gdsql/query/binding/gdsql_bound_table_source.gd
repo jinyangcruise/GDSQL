@@ -7,13 +7,13 @@ var nullable: bool = false
 
 
 func _init(
-		table: GDSQLTableDefinition = null,
-		alias: StringName = &"",
-		nullable: bool = false,
+		_table: GDSQLTableDefinition = null,
+		_alias: StringName = &"",
+		_nullable: bool = false,
 ) -> void:
-	self.table = table
-	self.alias = alias
-	self.nullable = nullable
+	table = _table
+	alias = _alias
+	nullable = _nullable
 
 
 func get_qualifier() -> StringName:

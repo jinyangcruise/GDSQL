@@ -8,8 +8,8 @@ var direction: SortDirection = SortDirection.ASCENDING
 
 
 func _init(
-		expression: GDSQLQueryExpression = null,
-		direction: SortDirection = SortDirection.ASCENDING,
+		_expression: GDSQLQueryExpression = null,
+		_direction: SortDirection = SortDirection.ASCENDING,
 ) -> void:
-	self.expression = expression
-	self.direction = direction
+	expression = _expression
+	direction = _direction

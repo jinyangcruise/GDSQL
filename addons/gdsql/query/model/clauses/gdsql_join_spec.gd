@@ -9,10 +9,10 @@ var condition: GDSQLQueryExpression
 
 
 func _init(
-		type: JoinType = JoinType.INNER,
-		source: GDSQLQuerySource = null,
-		condition: GDSQLQueryExpression = null,
+		_type: JoinType = JoinType.INNER,
+		_source: GDSQLQuerySource = null,
+		_condition: GDSQLQueryExpression = null,
 ) -> void:
-	self.type = type
-	self.source = source
-	self.condition = condition
+	type = _type
+	source = _source
+	condition = _condition

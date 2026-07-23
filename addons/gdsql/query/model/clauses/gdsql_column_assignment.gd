@@ -6,8 +6,8 @@ var expression: GDSQLQueryExpression
 
 
 func _init(
-		column: StringName = &"",
-		expression: GDSQLQueryExpression = null,
+		_column: StringName = &"",
+		_expression: GDSQLQueryExpression = null,
 ) -> void:
-	self.column = column
-	self.expression = expression
+	column = _column
+	expression = _expression

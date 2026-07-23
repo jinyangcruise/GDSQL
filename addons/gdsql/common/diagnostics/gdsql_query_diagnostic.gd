@@ -11,14 +11,14 @@ var related_object: Variant
 
 
 func _init(
-		code: StringName = &"",
-		message: String = "",
-		severity: Severity = Severity.ERROR,
-		source_span: GDSQLSourceSpan = null,
-		related_object: Variant = null,
+		_code: StringName = &"",
+		_message: String = "",
+		_severity: Severity = Severity.ERROR,
+		_source_span: GDSQLSourceSpan = null,
+		_related_object: Variant = null,
 ) -> void:
-	self.code = code
-	self.message = message
-	self.severity = severity
-	self.source_span = source_span
-	self.related_object = related_object
+	code = _code
+	message = _message
+	severity = _severity
+	source_span = _source_span
+	related_object = _related_object

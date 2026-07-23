@@ -6,8 +6,8 @@ var source_values: Dictionary = { }
 var aggregate_values: Dictionary = { }
 
 
-func _init(values: Dictionary = { }) -> void:
-	self.values = values.duplicate(true)
+func _init(_values: Dictionary = { }) -> void:
+	values = _values.duplicate(true)
 
 
 func get_value(column: StringName) -> Variant:
@@ -15,17 +15,17 @@ func get_value(column: StringName) -> Variant:
 
 
 func get_source_value(
-		table_id: GDSQLTableId,
-		column: StringName,
-		source_qualifier: StringName = &"",
+		_table_id: GDSQLTableId,
+		_column: StringName,
+		_source_qualifier: StringName = &"",
 ) -> Variant:
-	var source: Dictionary = self.source_values.get(
-		_source_key(table_id, source_qualifier),
+	var source: Dictionary = source_values.get(
+		_source_key(_table_id, _source_qualifier),
 		{ },
 	)
-	if source.has(column):
-		return source[column]
-	return get_value(column)
+	if source.has(_column):
+		return source[_column]
+	return get_value(_column)
 
 
 func set_source_values(
@@ -33,7 +33,7 @@ func set_source_values(
 		p_values: Dictionary,
 		source_qualifier: StringName = &"",
 ) -> void:
-	self.source_values[_source_key(table_id, source_qualifier)] = p_values.duplicate(true)
+	source_values[_source_key(table_id, source_qualifier)] = p_values.duplicate(true)
 
 
 func merge_source_values(other: GDSQLRowRecord) -> void:

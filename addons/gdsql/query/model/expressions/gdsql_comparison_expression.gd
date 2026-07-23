@@ -16,13 +16,13 @@ var right: GDSQLQueryExpression
 
 
 func _init(
-		left: GDSQLQueryExpression = null,
-		operator: ComparisonOperator = ComparisonOperator.EQUAL,
-		right: GDSQLQueryExpression = null,
+		_left: GDSQLQueryExpression = null,
+		_operator: ComparisonOperator = ComparisonOperator.EQUAL,
+		_right: GDSQLQueryExpression = null,
 ) -> void:
-	self.left = left
-	self.operator = operator
-	self.right = right
+	left = _left
+	operator = _operator
+	right = _right
 
 
 func accept(visitor: GDSQLExpressionVisitor) -> Variant:

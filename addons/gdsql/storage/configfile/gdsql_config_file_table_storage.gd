@@ -10,13 +10,13 @@ var codec: GDSQLGodotVariantCodec
 
 
 func _init(
-		path_resolver: GDSQLDatabasePathResolver,
-		config_cache: GDSQLConfigFileCache,
-		codec: GDSQLGodotVariantCodec,
+		_path_resolver: GDSQLDatabasePathResolver,
+		_config_cache: GDSQLConfigFileCache,
+		_codec: GDSQLGodotVariantCodec,
 ) -> void:
-	self.path_resolver = path_resolver
-	self.config_cache = config_cache
-	self.codec = codec
+	path_resolver = _path_resolver
+	config_cache = _config_cache
+	codec = _codec
 
 
 func get_capabilities() -> GDSQLStorageCapabilities:

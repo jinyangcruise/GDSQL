@@ -6,8 +6,8 @@ var alias: StringName
 
 
 func _init(
-		expression: GDSQLQueryExpression = null,
-		alias: StringName = &"",
+		_expression: GDSQLQueryExpression = null,
+		_alias: StringName = &"",
 ) -> void:
-	self.expression = expression
-	self.alias = alias
+	expression = _expression
+	alias = _alias

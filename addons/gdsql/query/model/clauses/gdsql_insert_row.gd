@@ -4,5 +4,5 @@ extends RefCounted
 var values: Array[Variant] = []
 
 
-func _init(values: Array[Variant] = []) -> void:
-	self.values = values.duplicate()
+func _init(_values: Array[Variant] = []) -> void:
+	values = _values.duplicate()

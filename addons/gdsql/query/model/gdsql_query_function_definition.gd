@@ -9,17 +9,17 @@ var aggregate: bool
 
 
 func _init(
-		name: StringName = &"",
-		minimum_arguments: int = 0,
-		maximum_arguments: int = -1,
-		return_type: Variant.Type = TYPE_NIL,
-		aggregate: bool = false,
+		_name: StringName = &"",
+		_minimum_arguments: int = 0,
+		_maximum_arguments: int = -1,
+		_return_type: Variant.Type = TYPE_NIL,
+		_aggregate: bool = false,
 ) -> void:
-	self.name = name
-	self.minimum_arguments = minimum_arguments
-	self.maximum_arguments = maximum_arguments
-	self.return_type = return_type
-	self.aggregate = aggregate
+	name = _name
+	minimum_arguments = _minimum_arguments
+	maximum_arguments = _maximum_arguments
+	return_type = _return_type
+	aggregate = _aggregate
 
 
 func accepts_argument_count(count: int) -> bool:

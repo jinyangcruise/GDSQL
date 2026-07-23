@@ -7,13 +7,13 @@ var unique: bool = false
 
 
 func _init(
-		name: StringName = &"",
-		columns: Array[StringName] = [],
-		unique: bool = false,
+		_name: StringName = &"",
+		_columns: Array[StringName] = [],
+		_unique: bool = false,
 ) -> void:
-	self.name = name
-	self.columns = columns.duplicate()
-	self.unique = unique
+	name = _name
+	columns = _columns.duplicate()
+	unique = _unique
 
 
 func get_columns() -> Array[StringName]:
