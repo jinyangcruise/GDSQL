@@ -37,11 +37,11 @@ static func create(
 
 
 func _init(
-		database_name: StringName = &"",
-		context: GDSQLDatabaseContext = null,
+		_database_name: StringName = &"",
+		_context: GDSQLDatabaseContext = null,
 ) -> void:
-	self.database_name = database_name
-	self.context = context
+	database_name = _database_name
+	context = _context
 
 
 func query() -> GDSQLQuery:

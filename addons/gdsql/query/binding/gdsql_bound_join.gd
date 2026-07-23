@@ -7,10 +7,10 @@ var condition: GDSQLQueryExpression
 
 
 func _init(
-		type: GDSQLJoinSpec.JoinType = GDSQLJoinSpec.JoinType.INNER,
-		source: GDSQLBoundTableSource = null,
-		condition: GDSQLQueryExpression = null,
+		_type: GDSQLJoinSpec.JoinType = GDSQLJoinSpec.JoinType.INNER,
+		_source: GDSQLBoundTableSource = null,
+		_condition: GDSQLQueryExpression = null,
 ) -> void:
-	self.type = type
-	self.source = source
-	self.condition = condition
+	type = _type
+	source = _source
+	condition = _condition

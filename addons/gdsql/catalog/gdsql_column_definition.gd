@@ -31,20 +31,20 @@ static func updated_at(column_name: StringName = &"updated_at") -> GDSQLColumnDe
 
 
 func _init(
-		name: StringName = &"",
-		type: Variant.Type = TYPE_NIL,
-		nullable: bool = true,
-		unique: bool = false,
-		auto_increment: bool = false,
-		default_value: Variant = null,
+		_name: StringName = &"",
+		_type: Variant.Type = TYPE_NIL,
+		_nullable: bool = true,
+		_unique: bool = false,
+		_auto_increment: bool = false,
+		_default_value: Variant = null,
 ) -> void:
-	self.name = name
-	self.data_type = type
-	self.nullable = nullable
-	self.unique = unique
-	self.auto_increment = auto_increment
-	if default_value != null:
-		set_default(default_value)
+	name = _name
+	data_type = _type
+	nullable = _nullable
+	unique = _unique
+	auto_increment = _auto_increment
+	if _default_value != null:
+		set_default(_default_value)
 
 
 func set_default(value: Variant) -> GDSQLColumnDefinition:

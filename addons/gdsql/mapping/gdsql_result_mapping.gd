@@ -9,8 +9,8 @@ static func for_resource(script: Script) -> GDSQLResultMapping:
 	return GDSQLResultMapping.new(script)
 
 
-func _init(resource_script: Script = null) -> void:
-	self.resource_script = resource_script
+func _init(_resource_script: Script = null) -> void:
+	resource_script = _resource_script
 
 
 func map_column(

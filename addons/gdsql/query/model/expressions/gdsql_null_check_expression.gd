@@ -11,11 +11,11 @@ var operator: NullCheckOperator
 
 
 func _init(
-		operand: GDSQLQueryExpression = null,
-		operator: NullCheckOperator = NullCheckOperator.IS_NULL,
+		_operand: GDSQLQueryExpression = null,
+		_operator: NullCheckOperator = NullCheckOperator.IS_NULL,
 ) -> void:
-	self.operand = operand
-	self.operator = operator
+	operand = _operand
+	operator = _operator
 
 
 func accept(visitor: GDSQLExpressionVisitor) -> Variant:

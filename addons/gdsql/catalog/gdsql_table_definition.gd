@@ -9,11 +9,11 @@ var indexes: Array[GDSQLIndexDefinition] = []
 
 
 func _init(
-		name: StringName = &"",
-		primary_key: StringName = &"",
+		_name: StringName = &"",
+		_primary_key: StringName = &"",
 ) -> void:
-	self.name = name
-	self.primary_key = primary_key
+	name = _name
+	primary_key = _primary_key
 
 
 func add_column(column: GDSQLColumnDefinition) -> GDSQLTableDefinition:
