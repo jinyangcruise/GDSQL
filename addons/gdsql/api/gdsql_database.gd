@@ -99,6 +99,29 @@ func alter_table(
 	return context.alter_table(database_name, table_name, alterations)
 
 
+func preview_alter_table(
+		table_name: StringName,
+		alterations: Array[GDSQLTableAlteration],
+) -> GDSQLOperationResult:
+	return context.preview_alter_table(database_name, table_name, alterations)
+
+
+func apply_change_plan(
+		plan: GDSQLCatalogChangePlan,
+) -> GDSQLCatalogOperationResult:
+	if plan != null and plan.database_name != database_name:
+		var result := GDSQLCatalogOperationResult.new()
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_CATALOG_CHANGE_PLAN_DATABASE_MISMATCH",
+				"Change plan targets database '%s', not '%s'." \
+						% [plan.database_name, database_name],
+			),
+		)
+		return result
+	return context.apply_change_plan(plan)
+
+
 func insert(table_name: StringName, values: Dictionary) -> GDSQLQueryResult:
 	var query_spec := query().insert().into_table(table_name).values(values).build()
 	return execute(query_spec)

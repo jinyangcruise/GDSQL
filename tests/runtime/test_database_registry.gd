@@ -97,6 +97,8 @@ func test_config_file_store_preserves_editor_visible_registry_metadata() -> void
 		"configfile",
 	)
 	assert_str(String(restored.role_bindings[0].role)).is_equal("save")
+	assert_int(registry.get_registrations().size()).is_equal(1)
+	assert_object(registry.get_registration(&"save_1")).is_not_null()
 
 
 func test_storage_backend_ids_supply_ui_options_and_labels() -> void:

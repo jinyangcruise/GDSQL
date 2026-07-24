@@ -346,6 +346,17 @@ logical database name, data root, and storage backend. Role bindings share the
 same file. `GDSQLConfigFileDatabaseRegistryStore` exposes this data as a typed
 snapshot for game startup, tests, and future editor management.
 
+One registration describes one logical database. The registry snapshot is the
+collection that lists project content, settings, analytics, and every known
+save database. Loading this collection does not open each database.
+
+The editor workbench may discover databases beneath explicitly configured
+roots. Project discovery inspects `res://data/databases.cfg`; save discovery
+inspects direct children such as
+`user://gdsql/saves/<save_name>/databases.cfg`. Discovery reads catalog entries,
+schema summaries, and table headers such as row count and file existence. Row
+values are loaded only after a registration and table are selected.
+
 The registry is available as a standalone `RefCounted` service:
 
 ```gdscript

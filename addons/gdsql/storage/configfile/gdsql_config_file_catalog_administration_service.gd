@@ -47,7 +47,7 @@ func create_database(database_name: StringName) -> GDSQLCatalogOperationResult:
 			&"GDSQL_CATALOG_DATABASE_EXISTS",
 			"Database '%s' is already registered." % database_name,
 		)
-	for folder in ["schema", "tables", "mappers", "graphs"]:
+	for folder in ["schema", "tables"]:
 		var folder_path := _path_resolver.resolve_database_path(database_name).path_join(folder)
 		if _ensure_directory(folder_path) != OK:
 			return _error(
@@ -276,15 +276,100 @@ func alter_table(
 		table_name: StringName,
 		alterations: Array[GDSQLTableAlteration],
 ) -> GDSQLCatalogOperationResult:
+	var preview := preview_alter_table(database_name, table_name, alterations)
+	if not preview.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(preview.diagnostics)
+		return failed
+	return apply_change_plan(preview.get_value() as GDSQLCatalogChangePlan)
+
+
+func preview_alter_table(
+		database_name: StringName,
+		table_name: StringName,
+		alterations: Array[GDSQLTableAlteration],
+) -> GDSQLOperationResult:
 	if alterations.is_empty():
-		return _error(&"GDSQL_CATALOG_ALTERATIONS_REQUIRED", "At least one table alteration is required.")
+		return _operation_error(
+			&"GDSQL_CATALOG_ALTERATIONS_REQUIRED",
+			"At least one table alteration is required.",
+		)
 	var table := _catalog.get_table(database_name, table_name)
 	if table == null:
-		return _error(&"GDSQL_CATALOG_UNKNOWN_TABLE", "Table '%s.%s' does not exist." % [database_name, table_name])
+		return _operation_error(
+			&"GDSQL_CATALOG_UNKNOWN_TABLE",
+			"Table '%s.%s' does not exist." % [database_name, table_name],
+		)
 	var table_path := _path_resolver.resolve_table_path(database_name, table_name)
 	var table_data := ConfigFile.new()
 	if table_data.load(table_path) != OK:
-		return _error(&"GDSQL_CATALOG_TABLE_UNREADABLE", "Could not read table storage '%s'." % table_path)
+		return _operation_error(
+			&"GDSQL_CATALOG_TABLE_UNREADABLE",
+			"Could not read table storage '%s'." % table_path,
+		)
+	var source_fingerprint := _catalog_fingerprint(table)
+	for alteration in alterations:
+		var alteration_result := _apply_alteration(table, table_data, alteration)
+		if not alteration_result.is_successful():
+			var failed := GDSQLOperationResult.new()
+			failed.diagnostics.merge(alteration_result.diagnostics)
+			return failed
+	var validation := _validate_table(database_name, table)
+	if not validation.is_successful():
+		var failed := GDSQLOperationResult.new()
+		failed.diagnostics.merge(validation.diagnostics)
+		return failed
+	var result := GDSQLOperationResult.new()
+	result.value = GDSQLCatalogChangePlan.new(
+		database_name,
+		table_name,
+		alterations,
+		source_fingerprint,
+		_get_row_sections(table_data).size(),
+	)
+	return result
+
+
+func apply_change_plan(
+		plan: GDSQLCatalogChangePlan,
+) -> GDSQLCatalogOperationResult:
+	if plan == null:
+		return _error(
+			&"GDSQL_CATALOG_CHANGE_PLAN_REQUIRED",
+			"A catalog change plan is required.",
+		)
+	var current_table := _catalog.get_table(plan.database_name, plan.table_name)
+	if current_table == null:
+		return _error(
+			&"GDSQL_CATALOG_UNKNOWN_TABLE",
+			"Table '%s.%s' does not exist." % [plan.database_name, plan.table_name],
+		)
+	if _catalog_fingerprint(current_table) != plan.source_catalog_fingerprint:
+		return _error(
+			&"GDSQL_CATALOG_CHANGE_PLAN_STALE",
+			"Table '%s.%s' changed after this plan was previewed." \
+					% [plan.database_name, plan.table_name],
+		)
+	return _apply_alterations(
+		plan.database_name,
+		plan.table_name,
+		plan.alterations,
+	)
+
+
+func _apply_alterations(
+		database_name: StringName,
+		table_name: StringName,
+		alterations: Array[GDSQLTableAlteration],
+) -> GDSQLCatalogOperationResult:
+	var table := _catalog.get_table(database_name, table_name)
+	var table_path := _path_resolver.resolve_table_path(database_name, table_name)
+	var table_data := ConfigFile.new()
+	if table_data.load(table_path) != OK:
+		return _error(
+			&"GDSQL_CATALOG_TABLE_UNREADABLE",
+			"Could not read table storage '%s'." % table_path,
+		)
 	var original_data := ConfigFile.new()
 	original_data.parse(table_data.encode_to_text())
 	for alteration in alterations:
@@ -298,6 +383,7 @@ func alter_table(
 	var original_schema := ConfigFile.new()
 	if original_schema.load(schema_path) != OK:
 		return _error(&"GDSQL_CATALOG_SCHEMA_UNREADABLE", "Could not read table schema '%s'." % schema_path)
+	_rebuild_indexes(table_data, table)
 	if table_data.save(table_path) != OK:
 		return _error(&"GDSQL_CATALOG_TABLE_SAVE_FAILED", "Could not save altered table storage '%s'." % table_path)
 	if _save_schema(schema_path, table) != OK:
@@ -384,6 +470,41 @@ func _apply_alteration(
 			return _rename_column(table, table_data, alteration.column_name, alteration.new_column_name)
 		GDSQLTableAlteration.Kind.DROP_COLUMN:
 			return _drop_column(table, table_data, alteration.column_name)
+		GDSQLTableAlteration.Kind.ADD_INDEX:
+			return _add_index(table, table_data, alteration.index)
+		GDSQLTableAlteration.Kind.DROP_INDEX:
+			return _drop_index(table, alteration.index_name)
+		GDSQLTableAlteration.Kind.SET_COLUMN_DEFAULT:
+			return _set_column_default(table, alteration.column_name, alteration.value)
+		GDSQLTableAlteration.Kind.CLEAR_COLUMN_DEFAULT:
+			return _clear_column_default(table, alteration.column_name)
+		GDSQLTableAlteration.Kind.SET_COLUMN_NULLABLE:
+			return _set_column_nullable(
+				table,
+				table_data,
+				alteration.column_name,
+				alteration.enabled,
+			)
+		GDSQLTableAlteration.Kind.SET_COLUMN_UNIQUE:
+			return _set_column_unique(
+				table,
+				table_data,
+				alteration.column_name,
+				alteration.enabled,
+			)
+		GDSQLTableAlteration.Kind.SET_COLUMN_AUTO_INCREMENT:
+			return _set_column_auto_increment(
+				table,
+				table_data,
+				alteration.column_name,
+				alteration.enabled,
+			)
+		GDSQLTableAlteration.Kind.SET_COLUMN_GENERATION:
+			return _set_column_generation(
+				table,
+				alteration.column_name,
+				alteration.generation,
+			)
 	return _error(&"GDSQL_CATALOG_INVALID_ALTERATION", "Unsupported table alteration kind.")
 
 
@@ -494,6 +615,229 @@ func _drop_column(
 		table_data.erase_section_key(section, String(column_name))
 	table.columns.erase(column)
 	return GDSQLCatalogOperationResult.new()
+
+
+func _add_index(
+		table: GDSQLTableDefinition,
+		table_data: ConfigFile,
+		index: GDSQLIndexDefinition,
+) -> GDSQLCatalogOperationResult:
+	if index == null:
+		return _error(&"GDSQL_CATALOG_INVALID_INDEX", "Added index cannot be null.")
+	if table.get_index(index.name) != null:
+		return _error(
+			&"GDSQL_CATALOG_DUPLICATE_INDEX",
+			"Index '%s' already exists." % index.name,
+		)
+	if index.unique:
+		var uniqueness := _validate_unique_index_data(table_data, index)
+		if not uniqueness.is_successful():
+			return uniqueness
+	table.indexes.append(index)
+	return GDSQLCatalogOperationResult.new()
+
+
+func _drop_index(
+		table: GDSQLTableDefinition,
+		index_name: StringName,
+) -> GDSQLCatalogOperationResult:
+	var index := table.get_index(index_name)
+	if index == null:
+		return _error(
+			&"GDSQL_CATALOG_UNKNOWN_INDEX",
+			"Index '%s' does not exist." % index_name,
+		)
+	table.indexes.erase(index)
+	return GDSQLCatalogOperationResult.new()
+
+
+func _set_column_default(
+		table: GDSQLTableDefinition,
+		column_name: StringName,
+		value: Variant,
+) -> GDSQLCatalogOperationResult:
+	var column := table.get_column(column_name)
+	if column == null:
+		return _unknown_column(column_name)
+	if column.generation != GDSQLColumnDefinition.Generation.NONE:
+		return _error(
+			&"GDSQL_CATALOG_GENERATED_COLUMN_DEFAULT",
+			"Generated column '%s' cannot also declare a static default." % column_name,
+		)
+	if not column.accepts_value(value):
+		return _error(
+			&"GDSQL_CATALOG_COLUMN_DEFAULT_TYPE_MISMATCH",
+			"Default for column '%s' does not match its Variant type." % column_name,
+		)
+	column.set_default(value)
+	return GDSQLCatalogOperationResult.new()
+
+
+func _clear_column_default(
+		table: GDSQLTableDefinition,
+		column_name: StringName,
+) -> GDSQLCatalogOperationResult:
+	var column := table.get_column(column_name)
+	if column == null:
+		return _unknown_column(column_name)
+	column.clear_default()
+	return GDSQLCatalogOperationResult.new()
+
+
+func _set_column_nullable(
+		table: GDSQLTableDefinition,
+		table_data: ConfigFile,
+		column_name: StringName,
+		nullable: bool,
+) -> GDSQLCatalogOperationResult:
+	var column := table.get_column(column_name)
+	if column == null:
+		return _unknown_column(column_name)
+	if column_name == table.primary_key and nullable:
+		return _error(
+			&"GDSQL_CATALOG_PRIMARY_KEY_NULLABLE_FORBIDDEN",
+			"Primary-key column '%s' cannot be nullable." % column_name,
+		)
+	if not nullable:
+		for section in _get_row_sections(table_data):
+			if not table_data.has_section_key(section, String(column_name)) \
+					or _read_value(table_data, section, column_name) == null:
+				return _error(
+					&"GDSQL_CATALOG_COLUMN_CONTAINS_NULL",
+					"Column '%s' contains null or missing values." % column_name,
+				)
+	column.nullable = nullable
+	return GDSQLCatalogOperationResult.new()
+
+
+func _set_column_unique(
+		table: GDSQLTableDefinition,
+		table_data: ConfigFile,
+		column_name: StringName,
+		unique: bool,
+) -> GDSQLCatalogOperationResult:
+	var column := table.get_column(column_name)
+	if column == null:
+		return _unknown_column(column_name)
+	if column_name == table.primary_key and not unique:
+		return _error(
+			&"GDSQL_CATALOG_PRIMARY_KEY_UNIQUE_REQUIRED",
+			"Primary-key column '%s' must remain unique." % column_name,
+		)
+	if unique:
+		var uniqueness := _validate_unique_column_data(table_data, column_name)
+		if not uniqueness.is_successful():
+			return uniqueness
+	column.unique = unique
+	return GDSQLCatalogOperationResult.new()
+
+
+func _set_column_auto_increment(
+		table: GDSQLTableDefinition,
+		table_data: ConfigFile,
+		column_name: StringName,
+		auto_increment: bool,
+) -> GDSQLCatalogOperationResult:
+	var column := table.get_column(column_name)
+	if column == null:
+		return _unknown_column(column_name)
+	column.auto_increment = auto_increment
+	if auto_increment:
+		_recalculate_auto_increment(table, table_data)
+	return GDSQLCatalogOperationResult.new()
+
+
+func _set_column_generation(
+		table: GDSQLTableDefinition,
+		column_name: StringName,
+		generation: GDSQLColumnDefinition.Generation,
+) -> GDSQLCatalogOperationResult:
+	var column := table.get_column(column_name)
+	if column == null:
+		return _unknown_column(column_name)
+	if generation < GDSQLColumnDefinition.Generation.NONE \
+			or generation > GDSQLColumnDefinition.Generation.UPDATED_AT:
+		return _error(
+			&"GDSQL_CATALOG_GENERATION_INVALID",
+			"Column '%s' received an unknown generation policy." % column_name,
+		)
+	if generation != GDSQLColumnDefinition.Generation.NONE and column.has_default():
+		return _error(
+			&"GDSQL_CATALOG_GENERATED_COLUMN_DEFAULT",
+			"Generated column '%s' cannot also declare a static default." % column_name,
+		)
+	column.generation = generation
+	return GDSQLCatalogOperationResult.new()
+
+
+func _validate_unique_column_data(
+		table_data: ConfigFile,
+		column_name: StringName,
+) -> GDSQLCatalogOperationResult:
+	var seen: Array[Variant] = []
+	for section in _get_row_sections(table_data):
+		var value: Variant = _read_value(table_data, section, column_name)
+		if value == null:
+			continue
+		if seen.has(value):
+			return _error(
+				&"GDSQL_CATALOG_DUPLICATE_UNIQUE_VALUE",
+				"Column '%s' contains duplicate value '%s'." % [column_name, value],
+			)
+		seen.append(value)
+	return GDSQLCatalogOperationResult.new()
+
+
+func _validate_unique_index_data(
+		table_data: ConfigFile,
+		index: GDSQLIndexDefinition,
+) -> GDSQLCatalogOperationResult:
+	var seen: Array[Array] = []
+	for section in _get_row_sections(table_data):
+		var values: Array = []
+		var contains_null := false
+		for column_name in index.columns:
+			var value: Variant = _read_value(table_data, section, column_name)
+			values.append(value)
+			contains_null = contains_null or value == null
+		if contains_null:
+			continue
+		if seen.has(values):
+			return _error(
+				&"GDSQL_CATALOG_DUPLICATE_INDEX_VALUE",
+				"Unique index '%s' has duplicate value '%s'." % [index.name, values],
+			)
+		seen.append(values)
+	return GDSQLCatalogOperationResult.new()
+
+
+func _read_value(
+		table_data: ConfigFile,
+		section: String,
+		column_name: StringName,
+) -> Variant:
+	if not table_data.has_section_key(section, String(column_name)):
+		return null
+	return _codec.decode(table_data.get_value(section, String(column_name)))
+
+
+func _recalculate_auto_increment(
+		table: GDSQLTableDefinition,
+		table_data: ConfigFile,
+) -> void:
+	var next_value := 1
+	for section in _get_row_sections(table_data):
+		var value: Variant = _read_value(table_data, section, table.primary_key)
+		if value is int:
+			next_value = maxi(next_value, value + 1)
+	table_data.set_value(TABLE_METADATA_SECTION, "next_auto_increment", next_value)
+
+
+func _unknown_column(column_name: StringName) -> GDSQLCatalogOperationResult:
+	return _error(
+		&"GDSQL_CATALOG_UNKNOWN_COLUMN",
+		"Column '%s' does not exist." % column_name,
+	)
 
 
 func _save_schema(path: String, table: GDSQLTableDefinition) -> Error:
@@ -691,8 +1035,98 @@ func _get_row_sections(table_data: ConfigFile) -> PackedStringArray:
 	return sections
 
 
+func _rebuild_indexes(
+		table_data: ConfigFile,
+		table: GDSQLTableDefinition,
+) -> void:
+	for section in table_data.get_sections():
+		if section.begins_with(INDEX_SECTION_PREFIX):
+			table_data.erase_section(section)
+	for index in table.indexes:
+		for row_section in _get_row_sections(table_data):
+			var values: Array[Variant] = []
+			for column_name in index.columns:
+				var value: Variant = _read_value(
+					table_data,
+					row_section,
+					column_name,
+				)
+				var column := table.get_column(column_name)
+				if value != null and column != null:
+					match column.data_type:
+						TYPE_INT:
+							value = int(value)
+						TYPE_FLOAT:
+							value = float(value)
+						TYPE_STRING:
+							value = String(value)
+						TYPE_STRING_NAME:
+							value = StringName(value)
+				values.append(value)
+			var section := "%s%s:%s" % [
+				INDEX_SECTION_PREFIX,
+				index.name,
+				var_to_bytes(values).hex_encode(),
+			]
+			if not table_data.has_section(section):
+				var encoded_values: Array = []
+				for value in values:
+					encoded_values.append(_codec.encode(value))
+				table_data.set_value(section, "values", encoded_values)
+				table_data.set_value(
+					section,
+					"rows",
+					PackedStringArray([row_section]),
+				)
+				continue
+			var rows: PackedStringArray = table_data.get_value(
+				section,
+				"rows",
+				PackedStringArray(),
+			)
+			rows.append(row_section)
+			table_data.set_value(section, "rows", rows)
+
+
+func _catalog_fingerprint(table: GDSQLTableDefinition) -> int:
+	var columns: Array = []
+	for column in table.columns:
+		columns.append(
+			[
+				column.name,
+				column.data_type,
+				column.nullable,
+				column.unique,
+				column.auto_increment,
+				column.generation,
+				column.has_default(),
+				column.get_default_value(),
+			],
+		)
+	var indexes: Array = []
+	for index in table.indexes:
+		indexes.append([index.name, index.columns, index.unique])
+	return hash(
+		var_to_str(
+			[
+				table.database_name,
+				table.name,
+				table.primary_key,
+				columns,
+				indexes,
+			],
+		),
+	)
+
+
 func _ensure_directory(path: String) -> Error:
 	return DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path))
+
+
+func _operation_error(code: StringName, message: String) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
+	return result
 
 
 func _error(code: StringName, message: String) -> GDSQLCatalogOperationResult:

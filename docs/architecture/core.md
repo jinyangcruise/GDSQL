@@ -1209,6 +1209,21 @@ the snapshot in `user://gdsql/databases.cfg`, allowing runtime startup and
 editor tools to inspect database roots, backend types, and role selections.
 Open handles remain attached to the active application context.
 
+One `DatabaseRegistration` identifies one logical database. The snapshot and
+registry form the collection that knows every registered database. Registration
+metadata can therefore be loaded without opening every database or reading its
+rows. `get_registrations()` and `get_registration()` inspect the loaded durable
+metadata independently from `resolve()`, which still resolves an open handle.
+
+`DatabaseExplorer` provides lightweight discovery for explicitly supplied
+roots. Its ConfigFile implementation reads `databases.cfg`, schema summaries,
+and reserved table metadata such as row count. It does not enumerate row
+sections or materialize `RowRecord` objects. Save discovery is bounded to a
+configured parent such as `user://gdsql/saves/`; arbitrary recursive scanning
+of `user://` is outside this responsibility. ConfigFile inspection still parses
+the physical file because `ConfigFile` has no header-only read API; only header
+metadata is returned, while a paged backend can read its header independently.
+
 ### 11.3 Persistence semantics and checkpoints
 
 A transaction commit establishes valid, visible database state. A checkpoint
@@ -1493,6 +1508,18 @@ func alter_table(
 ) -> CatalogOperationResult
 
 @abstract
+func preview_alter_table(
+    database_name: StringName,
+    table_name: StringName,
+    alterations: Array[TableAlteration],
+) -> OperationResult
+
+@abstract
+func apply_change_plan(
+    plan: CatalogChangePlan,
+) -> CatalogOperationResult
+
+@abstract
 func drop_table(database_name: StringName, table_name: StringName) -> CatalogOperationResult
 ```
 
@@ -1514,11 +1541,24 @@ backend may complete a missing empty table file when an existing stored schema
 exactly matches the requested definition; this repairs incomplete structures
 without overwriting a table or changing its schema.
 
-Table alterations are explicit typed intents: add column, rename column, or
-drop column. The backend updates schema and existing row files together. Adding
-a non-nullable column to a populated table requires a compatible default;
+Table alterations are explicit typed intents for column lifecycle, defaults,
+nullability, uniqueness, generated-value and auto-increment policies, and
+indexes. The backend updates schema and existing row files together. Adding a
+non-nullable column to a populated table requires a compatible default;
 renaming a column migrates stored row keys; dropping a column removes stored
-values. Dropping the primary key is rejected. Database and table renames move
+values. Constraint changes validate existing rows before persistence, and
+index changes rebuild backend index metadata.
+
+Direct column data-type replacement is intentionally absent. The safe workflow
+adds a column with the new type, moves or converts values through canonical
+mutations, validates the result, and then drops the old column.
+
+`preview_alter_table()` validates the complete request against an isolated copy
+and returns a `CatalogChangePlan` with affected-row count, concise summaries,
+destructive classification, and a source schema fingerprint. Applying the plan
+compares that fingerprint with the current catalog and rejects stale previews.
+`alter_table()` remains the immediate code API by previewing and applying in
+one call. Dropping the primary key is rejected. Database and table renames move
 their complete physical structures and update catalog metadata, while drop
 operations remove both metadata and owned storage.
 
@@ -1794,6 +1834,11 @@ static func create_default(
     )
 ```
 
+`open_registration()` is the registration-aware composition entry point.
+ConfigFile registrations open their durable backend directly. In-memory
+registrations use the same catalog and hydrate existing durable rows into an
+authoritative clean working set.
+
 The composition root is permitted to reference concrete implementations. Most other classes depend on abstract contracts.
 
 This supports:
@@ -1879,6 +1924,9 @@ addons/gdsql/
 │   ├── database_registry.gd
 │   ├── database_registration.gd
 │   ├── database_registry_store.gd
+│   ├── database_explorer.gd
+│   ├── database_inspection.gd
+│   ├── table_inspection.gd
 │   ├── checkpoint_target.gd
 │   ├── checkpoint_policy.gd
 │   ├── checkpoint_result.gd
@@ -1944,6 +1992,7 @@ addons/gdsql/
 │   ├── database_definition.gd
 │   ├── table_definition.gd
 │   ├── table_alteration.gd
+│   ├── catalog_change_plan.gd
 │   ├── column_definition.gd
 │   └── index_definition.gd
 │
@@ -1960,6 +2009,7 @@ addons/gdsql/
 │       ├── config_file_catalog_service.gd
 │       ├── config_file_catalog_administration_service.gd
 │       ├── config_file_database_registry_store.gd
+│       ├── config_file_database_explorer.gd
 │       ├── config_file_cache.gd
 │       └── godot_variant_codec.gd
 │
@@ -1970,6 +2020,8 @@ addons/gdsql/
 │
 ├── editor/
 │   ├── workbench/
+│   │   ├── workbench.gd
+│   │   └── workbench_session.gd
 │   ├── sql_editor/
 │   ├── query_graph/
 │   └── table_editor/
@@ -2024,6 +2076,17 @@ Database and table editing uses catalog definitions and
 `CatalogAdministrationService`. Row editing uses canonical queries. Model
 classes are optional result and code conveniences; they are not schema inputs,
 editor documents, or catalog administration commands.
+
+`Workbench` is the collection-level coordinator. It loads every durable
+registration, maintains lightweight database and table inspections, discovers
+databases only below explicit roots, and opens a registration on selection.
+Discovery does not load table rows.
+
+`WorkbenchSession` is the UI-independent coordinator for the one opened
+`DatabaseRegistration` selected in the workbench. It owns the catalog snapshot,
+selected table, loaded row page, and pending `CatalogChangePlan`. Controls bind
+to this state and present its structured results; the session performs
+operations through the same runtime and catalog contracts used by code.
 
 The editor owns decisions such as:
 

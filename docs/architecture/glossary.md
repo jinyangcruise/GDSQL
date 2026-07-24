@@ -180,15 +180,15 @@ state in the same change as implementation or test work.
 |---|---|---|---|---|
 | `CatalogService` | Catalog | Abstract access to database, table, column, and index definitions. | `get_database()`, `get_table()`, `has_table()`, `create_snapshot()` | 🚧 |
 | `ConfigFileCatalogService` | Catalog backend | Catalog implementation backed by GDSQL configuration files. | CatalogService implementation | 🛠️ |
-| `CatalogAdministrationService` | Catalog | Abstract contract for database and table lifecycle changes without exposing storage formats to the public API. | `create_database()`, `rename_database()`, `drop_database()`, `create_table()`, `rename_table()`, `alter_table()`, `drop_table()` | 🧪 |
+| `CatalogAdministrationService` | Catalog | Abstract contract for database and table lifecycle changes, including validated preview and stale-plan-safe application, without exposing storage formats to the public API. | Database and table lifecycle methods, `preview_alter_table()`, `apply_change_plan()` | 🧪 |
 | `ConfigFileCatalogAdministrationService` | Catalog backend | Persists database registrations and synchronizes ConfigFile-backed schemas and row storage during lifecycle changes. | CatalogAdministrationService implementation | 🧪 |
 | `CatalogSnapshot` | Catalog | Stable catalog view used during validation, binding, and planning. | `get_database()`, `get_table()` | 🚧 |
 | `DatabaseDefinition` | Catalog | Typed definition of a logical database. | Access to name and tables | 🛠️ |
 | `TableDefinition` | Catalog | Typed definition of a table, its columns, primary key, indexes, and common timestamp helpers. | `add_column()`, `add_index()`, `add_timestamps()`, `get_column()`, `get_primary_key()`, `get_index()` | 🧪 |
 | `ColumnDefinition` | Catalog | Typed definition of one table column, including an optional static default, generated-value policy, integer primary-key auto-increment, and the rule that `TYPE_OBJECT` accepts Resources only. | `set_default()`, `clear_default()`, `has_default()`, `get_default_value()`, `accepts_value()`, `created_at()`, `updated_at()` | 🧪 |
 | `ColumnDefault` | Catalog | Wraps a declared static default so an explicit null value remains distinct from no default and future default metadata can evolve without parallel column state. | `value` | 🧪 |
-| `TableAlteration` | Catalog | Typed intent for adding, renaming, or dropping one table column. | `add_column()`, `rename_column()`, `drop_column()` | 🧪 |
-| `CatalogChangePlan` | Catalog administration | Future read-only preview of requested structural changes, their data impact, destructive classification, and source catalog fingerprint. | Preview metadata and stale-plan validation | 📝 |
+| `TableAlteration` | Catalog | Typed intent for safe column metadata, column lifecycle, and index changes. Direct data-type replacement is expressed as add, migrate, and drop operations. | Column add/rename/drop, default, nullability, uniqueness, generation, auto-increment, and index factories | 🧪 |
+| `CatalogChangePlan` | Catalog administration | Read-only preview of validated structural changes, affected rows, destructive classification, summaries, and the source catalog fingerprint. | `requires_confirmation()` and stale-plan-safe application | 🧪 |
 | `IndexDefinition` | Catalog | Describes a named index, its ordered columns, and whether its complete value must be unique. | `get_columns()`, `is_unique()` | 🧪 |
 
 ## Storage
@@ -214,8 +214,13 @@ state in the same change as implementation or test work.
 |---|---|---|---|---|
 | `BufferedTableStorage` | Storage composition | Keeps lazily loaded tables and indexes in memory, tracks committed dirty state, and delegates durable persistence to another storage backend. | TableStorage implementation and checkpoint participation | 📝 |
 | `InMemoryTableStorage` | Storage backend | Provides authoritative temporary table storage with transaction-local visibility, committed dirty-version tracking, constraints, and scan-backed index capabilities. | TableStorage implementation, `load_table()`, `is_dirty()`, `get_dirty_tables()`, `mark_checkpointed()` | 🧪 |
-| `DatabaseRegistry` | Database lifecycle | Registers open database handles, resolves replaceable logical roles, and delegates durable registration snapshots for runtime and editor composition. | `register()`, `resolve()`, role binding, `load_snapshot()`, `save_snapshot()` | 🧪 |
+| `DatabaseRegistry` | Database lifecycle | Owns loaded durable registration metadata, registers selected open database handles, resolves replaceable logical roles, and delegates snapshot persistence. | Registration listing and lookup, `register()`, `resolve()`, role binding, `load_snapshot()`, `save_snapshot()` | 🧪 |
 | `DatabaseRegistration` | Database lifecycle metadata | Describes one durable registration through its public name, logical database name, data root, and validated storage backend identifier. | Typed registration fields | 🧪 |
+| `RuntimeFactory` | Runtime composition | Assembles storage-specific runtime graphs and opens durable registrations; in-memory registrations hydrate ConfigFile rows as a clean working set. | `create_default()`, `create_in_memory()`, `open_registration()` | 🧪 |
+| `DatabaseExplorer` | Database discovery | Abstract contract for discovering logical databases and lightweight table metadata from an explicitly supplied root without materializing rows. | `inspect_root()` | 🧪 |
+| `ConfigFileDatabaseExplorer` | Database discovery backend | Reads ConfigFile database catalogs, schema summaries, and reserved table headers. | `inspect_root()` | 🧪 |
+| `DatabaseInspection` | Database discovery metadata | Associates one discovered registration with catalog existence and lightweight table inspections. | Registration and `get_table()` | 🧪 |
+| `TableInspection` | Database discovery metadata | Reports table existence, row-count header, column count, and index count without containing row values. | Typed inspection fields | 🧪 |
 | `DatabaseRegistryStore` | Database lifecycle persistence | Abstract persistence boundary for complete typed registration and role-binding snapshots. | `load_snapshot()`, `save_snapshot()` | 🚧 |
 | `ConfigFileDatabaseRegistryStore` | Database lifecycle persistence | Stores editor-visible database registrations and role bindings in `user://gdsql/databases.cfg`. | DatabaseRegistryStore implementation | 🧪 |
 | `CheckpointTarget` | Runtime persistence | Contract for a storage composition that reports committed dirty state and transfers it to durable storage. | `is_dirty()`, `checkpoint()` | 🧪 |
@@ -227,6 +232,13 @@ state in the same change as implementation or test work.
 | `CheckpointPolicy` | Runtime persistence | Describes immediate, periodic, manual, or exit-time persistence behavior independently from transaction semantics. | `immediate()`, `periodic()`, `manual()`, `on_exit()`, interval metadata | 🧪 |
 | `CheckpointResult` | Runtime persistence | Reports checkpointed databases, remaining dirty databases, and structured persistence diagnostics. | `is_successful()`, `mark_checkpointed()`, `mark_dirty()` | 🧪 |
 | `RuntimeNode` | Godot runtime adapter | Optional Node or autoload that supplies a top-level runtime API, timers, lifecycle notifications, and signals while delegating to the database registry, content loader, and persistence coordinator. | Database registration, role selection, rebuild/checkpoint delegation, runtime signals | 📝 |
+
+## Editor
+
+| Name | Domain | Responsibility | Principal API | State |
+|---|---|---|---|---|
+| `Workbench` | Editor coordination | Loads the complete durable registration snapshot, maintains lightweight inspections, discovers databases under explicit roots, and opens only the selected registration. | `load()`, `discover_root()`, `discover_children()`, `select_registration()` | 🧪 |
+| `WorkbenchSession` | Editor coordination | Holds one opened registration, catalog snapshot, selected table, current page, and pending schema preview without depending on Controls. | `open_registration()`, `refresh_catalog()`, `select_table()`, `load_rows()`, preview and apply methods | 🧪 |
 
 ## Results and materialization
 

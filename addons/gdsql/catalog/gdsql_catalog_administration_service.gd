@@ -45,3 +45,17 @@ func alter_table(
 		table_name: StringName,
 		alterations: Array[GDSQLTableAlteration],
 ) -> GDSQLCatalogOperationResult
+
+
+@abstract
+func preview_alter_table(
+		database_name: StringName,
+		table_name: StringName,
+		alterations: Array[GDSQLTableAlteration],
+) -> GDSQLOperationResult
+
+
+@abstract
+func apply_change_plan(
+		plan: GDSQLCatalogChangePlan,
+) -> GDSQLCatalogOperationResult

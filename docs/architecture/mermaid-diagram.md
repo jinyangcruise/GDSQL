@@ -16,26 +16,57 @@ classDef result fill:#F1F5F9,stroke:#475569,stroke-width:2px,color:#0F172A;
 classDef runtime fill:#EDE9FE,stroke:#7C3AED,stroke-width:3px,color:#2E1065;
 classDef implementation fill:#FFFFFF,stroke:#64748B,stroke-width:2px,color:#0F172A;
 
-Code("`**Code API**
+subgraph FrontendLayer["Front ends"]
+direction LR
+
+Code("`**Direct Code API**
 
 -
-*Purpose:* Describe and execute database operations from GDScript
-*API:* GDSQLDatabase and GDSQLQuery
-*Routes through:* Fluent query builders`")
+*Purpose:* Manage databases and execute canonical operations from GDScript
+*Database API:* GDSQLDatabase create, open, rename, drop and table administration
+*Query API:* GDSQLQuery, fluent builders and GDSQLExpr
+*Produces:* GDSQLQuerySpec through fluent builders`")
 
-GraphInterface("`**Graph Interface**
+Models("`**Model API**
 
 -
-*Purpose:* Describe queries through graph nodes and connections
-*API:* GDSQLQueryGraph and GDSQLGraphQueryCompiler
+*Purpose:* Query role-scoped tables and materialize typed model objects
+*Types:* Model, ContentModel, SaveModel, SettingsModel
+*Static API:* Model.query(), Model.find(identity)
+*Query API:* where(), with(), order_by(), all(), first(), to_query_spec()
+*Instance API:* get_related(), save(), refresh(), delete()
+*Resolution:* ModelRegistry to DatabaseRegistry roles`")
+
+subgraph EditorFrontends["Editor workbench"]
+direction TB
+
+Workbench("`**GDSQLWorkbench**
+
+-
+*Purpose:* Explore and manipulate registered databases, tables and rows
+*Collection API:* load(), discover_root(), discover_children(), select_registration()
+*Session API:* select_table(), load_rows(), preview_table_change(), apply_pending_change()
+*Metadata:* Lightweight catalog, schema and table-header inspections
+*Rows:* Loaded only for the selected table`")
+
+GraphEditor("`**Graph Editor**
+
+-
+*Purpose:* Describe canonical queries through typed nodes and connections
+*Document API:* GDSQLQueryGraph
+*Translation:* GDSQLGraphQueryCompiler.compile(graph)
 *Produces:* GDSQLQuerySpec`")
 
-SQLText("`**SQL Text**
+SQLEditor("`**SQL Editor**
 
 -
-*Purpose:* Describe queries using SQL syntax
-*API:* tokenize(), parse(), compile()
-*Produces:* GDSQLQuerySpec`")
+*Purpose:* Describe and inspect queries using SQL text
+*Translation:* tokenize(), parse(), compile()
+*Produces:* GDSQLQuerySpec
+*Presentation:* Owned by editor tooling`")
+end
+
+end
 
 Database("`**GDSQLDatabase**
 
@@ -63,19 +94,6 @@ RuntimeRegistry("`**GDSQLDatabaseRegistry**
 *Durable metadata:* user://gdsql/databases.cfg through DatabaseRegistryStore
 *Returns:* GDSQLDatabaseResult with structured diagnostics`")
 
-Models("`**Model API**
-
--
-*Purpose:* Query role-scoped tables and materialize typed model objects
-*Types:* Model, ContentModel, SaveModel, SettingsModel
-*Static API:* Model.query(), Model.find(identity)
-*Query API:* where(), with(), order_by(), all(), first(), to_query_spec()
-*Instance API:* get_related(), is_relationship_loaded(), save(), refresh(), delete()
-*Relationships:* Typed belongs-to, has-one and has-many definitions
-*Configuration:* GDSQLModels receives one default ModelContext
-*Resolution:* ModelRegistry to DatabaseRegistry roles
-*Returns:* QueryResult containing model objects in value`")
-
 Persistence("`**Runtime Persistence**
 
 -
@@ -89,11 +107,11 @@ Factory("`**GDSQLRuntimeFactory**
 
 -
 *Purpose:* Assemble one compatible runtime object graph
-*API:* create_default(data_root)
+*API:* create_default(), create_in_memory(), open_registration()
 *Creates:* GDSQLDatabaseContext
 *Injects:* Catalog, storage, validation, planning and execution services`")
 
-Frontends("`**Query Frontends**
+Translators("`**Frontend Translators**
 
 -
 *Purpose:* Translate frontend-specific input into the canonical model
@@ -188,6 +206,7 @@ CatalogAdministration("`**GDSQLCatalogAdministrationService**
 *Purpose:* Manage database and table lifecycle without exposing storage format
 *Database API:* create_database(), rename_database(), drop_database()
 *Table API:* create_table(), rename_table(), alter_table(), drop_table()
+*Plan API:* preview_alter_table(), apply_change_plan()
 *Extension point:* Catalog administration backend implementations`")
 
 TableStorage("`**GDSQLTableStorage**
@@ -269,10 +288,10 @@ Materialization("`**Result Materialization**
 *Returns:* QueryResult with materialized OperationResult.value`")
 
 Code -->|"create() · open() · query() · execute() · transaction()"| Database
-GraphInterface -->|"compile(graph)"| Frontends
-SQLText -->|"tokenize() · parse() · compile()"| Frontends
-Database -->|"query() · table()"| Frontends
-Frontends -->|"build() / compile()"| QuerySpec
+GraphEditor -->|"compile(graph)"| Translators
+SQLEditor -->|"tokenize() · parse() · compile()"| Translators
+Database -->|"query() · table()"| Translators
+Translators -->|"build() / compile()"| QuerySpec
 Code -->|"column() · literal() · logical and function factories"| Expr
 Expr -->|"creates canonical nodes"| Expression
 Expression -->|"contained by"| QuerySpec
@@ -281,11 +300,14 @@ Database -->|"execute(query) · lifecycle methods"| Context
 Database -->|"transaction(callback)"| Transaction
 Code -->|"register handles · select roles"| RuntimeRegistry
 RuntimeRegistry -->|"resolve() · resolve_role()"| Database
-Code -->|"Model.query() · Model.find(identity)"| Models
 Models -->|"resolve_role(model)"| RuntimeRegistry
 Models -->|"to_query_spec()"| QuerySpec
 Models -->|"ModelResultMaterializer"| Materialization
 Code -->|"checkpoint() · checkpoint_dirty()"| Persistence
+Workbench -->|"open_registration()"| Factory
+Workbench -->|"load and save registration snapshot"| RuntimeRegistry
+Workbench -->|"select · load rows"| Database
+Workbench -->|"preview · apply change plan"| CatalogAdministration
 Persistence -->|"target.checkpoint()"| MemoryCheckpoint
 Transaction -->|"execute(query, shared session)"| Context
 QuerySpec -->|"execute(query) / prepare(query)"| Context
@@ -319,9 +341,9 @@ Factory -.->|"create_default(data_root)"| Context
 Factory -.->|"constructs and injects"| ConfigInfrastructure
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
-class Code,GraphInterface,SQLText,Expr,Models frontend;
+class Code,Models,Workbench,GraphEditor,SQLEditor,Expr frontend;
 class Database,Context,Factory,Transaction,RuntimeRegistry,Persistence runtime;
-class Frontends translation;
+class Translators translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
 class Planner,PlanNode planning;

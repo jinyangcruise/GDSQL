@@ -15,6 +15,7 @@ const SETTINGS_ROLE := &"settings"
 var _databases: Dictionary[StringName, GDSQLDatabase] = { }
 var _role_bindings: Dictionary[StringName, StringName] = { }
 var _store: GDSQLDatabaseRegistryStore
+var _snapshot := GDSQLDatabaseRegistrySnapshot.new()
 
 
 func _init(store: GDSQLDatabaseRegistryStore = null) -> void:
@@ -28,7 +29,10 @@ func load_snapshot() -> GDSQLOperationResult:
 			&"GDSQL_DATABASE_REGISTRY_STORE_REQUIRED",
 			"A database registry store is required for durable metadata.",
 		)
-	return _store.load_snapshot()
+	var result := _store.load_snapshot()
+	if result.is_successful():
+		_snapshot = result.get_value() as GDSQLDatabaseRegistrySnapshot
+	return result
 
 
 ## Persists complete registration metadata through the configured store.
@@ -38,7 +42,30 @@ func save_snapshot(snapshot: GDSQLDatabaseRegistrySnapshot) -> GDSQLOperationRes
 			&"GDSQL_DATABASE_REGISTRY_STORE_REQUIRED",
 			"A database registry store is required for durable metadata.",
 		)
-	return _store.save_snapshot(snapshot)
+	var result := _store.save_snapshot(snapshot)
+	if result.is_successful():
+		_snapshot = snapshot
+	return result
+
+
+## Returns the complete durable registration metadata currently loaded.
+func get_snapshot() -> GDSQLDatabaseRegistrySnapshot:
+	return _snapshot
+
+
+## Lists durable registrations without opening their database handles.
+func get_registrations() -> Array[GDSQLDatabaseRegistration]:
+	return _snapshot.registrations.duplicate()
+
+
+## Resolves durable metadata independently from an open database handle.
+func get_registration(
+		registration_name: StringName,
+) -> GDSQLDatabaseRegistration:
+	for registration in _snapshot.registrations:
+		if registration.name == registration_name:
+			return registration
+	return null
 
 
 ## Registers an open database handle under an application-local name.
