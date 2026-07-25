@@ -3,14 +3,47 @@
 extends Node
 
 var _conf_map: Dictionary = { }
-var _conf_modified_time: Dictionary = { } # 用于检测外部工具对配置的更新
+var _conf_modified_time: Dictionary = { } # detects external config file updates
 var _passwords: Dictionary = { } # {path: String|PackedByteArray}
 var _valid_if_not_exist_path = []
 
+## ── Global transaction support ──
 
-## 标记某路径在不存在时，可以当作一个空配置
+## Whether a transaction is active. When active, all save_conf_* calls are intercepted
+## and changes remain only in the _conf_map in-memory cache.
+var _transaction_active := false
+## Table paths modified during the transaction, used by commit to flush one by one
+## and by rollback to clear from cache.
+var _transaction_modified_paths: Array[String] = []
+
+
+## Start a global transaction. All subsequent DAO/mapper writes go to the
+## in-memory buffer only, without flushing to disk.
+func begin_transaction() -> void:
+	_transaction_active = true
+	_transaction_modified_paths.clear()
+
+
+## Commit the global transaction: flush all modified table files to disk.
+func commit_transaction() -> void:
+	_transaction_active = false
+	for path in _transaction_modified_paths:
+		save_conf_by_origin_password_or_dek(path)
+	_transaction_modified_paths.clear()
+
+
+## Rollback the global transaction: discard all in-memory cache changes;
+## next access will reload from disk.
+func rollback_transaction() -> void:
+	_transaction_active = false
+	for path in _transaction_modified_paths:
+		_conf_map.erase(path)
+	_transaction_modified_paths.clear()
+
+
+## Mark a path as valid even when the file does not yet exist (treat as empty config).
 func mark_valid_if_not_exit(path: String) -> void:
-	# 使用绝对路径，防止用户对同一个文件使用不同形式的路径导致获得了多个配置实例
+	# Use absolute path to prevent multiple config instances for the same file via different path forms
 	path = GDSQL.GDSQLUtils.globalize_path(path)
 	if not _valid_if_not_exist_path.has(path):
 		_valid_if_not_exist_path.push_back(path)
@@ -21,9 +54,9 @@ func mark_invalid_if_not_exist(path: String) -> void:
 	_valid_if_not_exist_path.erase(path)
 
 
-## 获取配置：前提是该配置的文件是存在的。
+## Get a config: the config file must already exist.
 func get_conf(path: String, password) -> GDSQL.ImprovedConfigFile:
-	# 使用绝对路径，防止用户对同一个文件使用不同形式的路径导致获得了多个配置实例
+	# Use absolute path to prevent multiple config instances for the same file via different path forms
 	path = GDSQL.GDSQLUtils.globalize_path(path)
 
 	if _conf_map.has(path):
@@ -74,7 +107,7 @@ func get_conf(path: String, password) -> GDSQL.ImprovedConfigFile:
 	return conf
 
 
-## 创建并获取配置：前提是该配置的文件不存在
+## Create and get a config: the config file must NOT already exist.
 func create_conf(path: String, password) -> GDSQL.ImprovedConfigFile:
 	path = GDSQL.GDSQLUtils.globalize_path(path)
 	if GDSQL.GDSQLUtils.file_exists(path):
@@ -101,6 +134,11 @@ func remove_conf(path: String):
 
 func save_conf_by_origin_password_or_dek(path: String):
 	path = GDSQL.GDSQLUtils.globalize_path(path)
+	# When a transaction is active: intercept disk writes, only record modified paths
+	if _transaction_active:
+		if not _transaction_modified_paths.has(path):
+			_transaction_modified_paths.append(path)
+		return
 	if not has_conf(path):
 		assert(false, "this conf %s is not under control" % path)
 		return
