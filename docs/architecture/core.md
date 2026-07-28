@@ -2019,6 +2019,12 @@ addons/gdsql/
 │   └── materializers/
 │
 ├── editor/
+│   ├── actions/
+│   ├── activity/
+│   ├── database_dock/
+│   ├── integration/
+│   ├── shared/
+│   ├── workspace/
 │   ├── workbench/
 │   │   ├── workbench.gd
 │   │   └── workbench_session.gd

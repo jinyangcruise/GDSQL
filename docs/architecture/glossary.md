@@ -239,6 +239,14 @@ state in the same change as implementation or test work.
 |---|---|---|---|---|
 | `Workbench` | Editor coordination | Loads the complete durable registration snapshot, maintains lightweight inspections, discovers databases under explicit roots, and opens only the selected registration. | `load()`, `discover_root()`, `discover_children()`, `select_registration()` | 🧪 |
 | `WorkbenchSession` | Editor coordination | Holds one opened registration, catalog snapshot, selected table, current page, and pending schema preview without depending on Controls. | `open_registration()`, `refresh_catalog()`, `select_table()`, `load_rows()`, preview and apply methods | 🧪 |
+| `EditorActionDefinition` | Editor actions | Describes one stable editor action independently from its presentation and behavior. | Identity, label, tooltip, icon, group, order, and kind | 🛠️ |
+| `EditorActionRegistrar` | Editor actions | Registers stable action metadata with behavior supplied by the editor coordinator. | `register_global_actions()` | 🛠️ |
+| `ContextActionHub` | Editor actions | Owns action handlers and availability for one editor surface or document context. | `add_action()`, `get_actions()`, `invoke()` | 🛠️ |
+| `EditorActionHub` | Editor actions | Resolves global and active-context actions for menus, toolbars, shortcuts, and command surfaces. | `register_context()`, `set_active_context()`, `get_actions()`, `invoke()` | 🛠️ |
+| `EditorController` | Editor integration | Registers editor actions and coordinates workbench operations with the active editor surfaces, independently from Godot dock placement. | `load_workspace()`, `ensure_workspace_loaded()`, `shutdown()` | 🛠️ |
+| `DatabaseDock` | Editor navigation | Presents lightweight registered database and table metadata and delegates discovery, refresh, and selection. | `configure()`, `render()` | 🛠️ |
+| `Workspace` | Editor workspace | Hosts the welcome page and focused database task pages in the main GDSQL editor screen. | `show_welcome()`, `show_database()`, `open_create_database_dialog()` | 🛠️ |
+| `ActivityPanel` | Editor feedback | Presents operation outcomes and structured diagnostics without owning database behavior. | `append_result()`, `append_message()`, `clear()` | 🛠️ |
 
 ## Results and materialization
 
