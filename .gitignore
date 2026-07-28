@@ -31,3 +31,12 @@ docs/.vitepress/cache/
 /.gdsql
 
 !.gitkeep
+
+# Addon creation
+project.godot
+
+# addons, ignore all personal preference addons and keep project wide relevant addons
+addons/*
+!addons/gdsql
+!addons/GDQuest_GDScript_formatter
+!addons/gdUnit4
