@@ -23,8 +23,8 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 [debug]
 
 gdscript/warnings/directory_rules={
-"res://addons": 1,
-"res://addons/gdUnit4": 0
+"res://addons": 0,
+"res://addons/gdsql": 1
 }
 
 [editor]
