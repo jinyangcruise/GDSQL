@@ -129,7 +129,7 @@ func _on_resource_changed(_resource: Resource) -> void:
 
 func _on_resource_selected(resource: Resource, _inspect: bool) -> void:
 	if resource != null:
-		EditorInterface.inspect_object(resource, "", true)
+		EditorInterface.edit_resource(resource)
 
 
 func _on_text_changed(_text: String) -> void:

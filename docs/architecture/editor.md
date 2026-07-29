@@ -251,8 +251,9 @@ the opened database. Column names and catalog types remain visible while
 entering values. A shared typed value field parses scalar, vector, transform,
 collection, and packed-array values through Godot Variant syntax. It uses the
 native editor resource picker for `TYPE_OBJECT`, with explicit access to the
-Godot Inspector by selecting the displayed resource; the picker's caret owns
-replacement and clearing. Column default editors reuse the same typed field contract.
+appropriate Godot resource editor by selecting the displayed resource; the
+picker's caret owns replacement and clearing. Column default editors reuse the
+same typed field contract.
 Generated or new auto-increment values are read-only.
 Editor controls do not read or write ConfigFile sections directly.
 
