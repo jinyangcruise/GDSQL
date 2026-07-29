@@ -24,7 +24,7 @@ state in the same change as implementation or test work.
 
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
-| `Database` | Public API | Main user-facing entry point for creating, opening, renaming, and dropping a database; managing its tables; executing canonical query specs; and running callback-scoped transactions. | `create()`, `open()`, `rename()`, `drop()`, table administration, `query()`, `execute()`, `transaction()` | 🧪 |
+| `Database` | Public API | Main user-facing entry point for creating, opening, renaming, unregistering, and destructively dropping a database; managing its tables; executing canonical query specs; and running callback-scoped transactions. | `create()`, `open()`, `rename()`, `unregister()`, `drop()`, table administration, `query()`, `execute()`, `transaction()` | 🧪 |
 | `DatabaseContext` | Runtime facade | Coordinates catalog administration, validation, binding, planning, execution, shared-session transactions, and result materialization. | Database and table administration methods, `execute(query)`, `transaction(callback)`, `prepare(query)` | 🚧 |
 | `Query` | Fluent API | User-facing fluent query entry point that optionally captures a table and creates operation-specific builders. | `table()`, `select()`, `insert()`, `update()`, `delete()` | 🧪 |
 | `SelectQueryBuilder` | Fluent API | Builds a `SelectQuerySpec` with projections, aliases, joins, predicates, grouping, aggregate functions, ordering, distinct selection, limits, and offsets. | `from_table()`, joins, projection, `group_by()`, `having()`, aggregate helpers, ordering, pagination, and `build()` | 🧪 |
@@ -180,8 +180,8 @@ state in the same change as implementation or test work.
 |---|---|---|---|---|
 | `CatalogService` | Catalog | Abstract access to database, table, column, and index definitions. | `get_database()`, `get_table()`, `has_table()`, `create_snapshot()` | 🚧 |
 | `ConfigFileCatalogService` | Catalog backend | Catalog implementation backed by GDSQL configuration files. | CatalogService implementation | 🛠️ |
-| `CatalogAdministrationService` | Catalog | Abstract contract for database and table lifecycle changes, including validated preview and stale-plan-safe application, without exposing storage formats to the public API. | Database and table lifecycle methods, `preview_alter_table()`, `apply_change_plan()` | 🧪 |
-| `ConfigFileCatalogAdministrationService` | Catalog backend | Persists database registrations and synchronizes ConfigFile-backed schemas and row storage during lifecycle changes. | CatalogAdministrationService implementation | 🧪 |
+| `CatalogAdministrationService` | Catalog | Abstract contract for database and table lifecycle changes, including non-destructive database unregistration, validated preview, and stale-plan-safe application, without exposing storage formats to the public API. | Database and table lifecycle methods, `unregister_database()`, `preview_alter_table()`, `apply_change_plan()` | 🧪 |
+| `ConfigFileCatalogAdministrationService` | Catalog backend | Persists database registrations, preserves physical files during unregistration, and synchronizes ConfigFile-backed schemas and row storage during lifecycle changes. | CatalogAdministrationService implementation | 🧪 |
 | `CatalogSnapshot` | Catalog | Stable catalog view used during validation, binding, and planning. | `get_database()`, `get_table()` | 🚧 |
 | `DatabaseDefinition` | Catalog | Typed definition of a logical database. | Access to name and tables | 🛠️ |
 | `TableDefinition` | Catalog | Typed definition of a table, its columns, primary key, indexes, and common timestamp helpers. | `add_column()`, `add_index()`, `add_timestamps()`, `get_column()`, `get_primary_key()`, `get_index()` | 🧪 |
@@ -237,16 +237,21 @@ state in the same change as implementation or test work.
 
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
-| `Workbench` | Editor coordination | Loads the complete durable registration snapshot, maintains lightweight inspections, discovers databases under explicit roots, and opens only the selected registration. | `load()`, `discover_root()`, `discover_children()`, `select_registration()` | 🧪 |
+| `Workbench` | Editor coordination | Loads the durable registration snapshot, reconciles explicit roots with logical database identity, removes stale root registrations, maintains lightweight inspections, and opens only the selected registration. | `load()`, `discover_root()`, `discover_children()`, `select_registration()`, `remove_registration()` | 🧪 |
 | `WorkbenchSession` | Editor coordination | Holds one opened registration, catalog snapshot, selected table, current page, and pending schema preview without depending on Controls. | `open_registration()`, `refresh_catalog()`, `select_table()`, `load_rows()`, preview and apply methods | 🧪 |
 | `EditorActionDefinition` | Editor actions | Describes one stable editor action independently from its presentation and behavior. | Identity, label, tooltip, icon, group, order, and kind | 🛠️ |
 | `EditorActionRegistrar` | Editor actions | Registers stable action metadata with behavior supplied by the editor coordinator. | `register_global_actions()` | 🛠️ |
 | `ContextActionHub` | Editor actions | Owns action handlers and availability for one editor surface or document context. | `add_action()`, `get_actions()`, `invoke()` | 🛠️ |
 | `EditorActionHub` | Editor actions | Resolves global and active-context actions for menus, toolbars, shortcuts, and command surfaces. | `register_context()`, `set_active_context()`, `get_actions()`, `invoke()` | 🛠️ |
-| `EditorController` | Editor integration | Registers editor actions and coordinates workbench operations with the active editor surfaces, independently from Godot dock placement. | `load_workspace()`, `ensure_workspace_loaded()`, `shutdown()` | 🛠️ |
-| `DatabaseDock` | Editor navigation | Presents lightweight registered database and table metadata and delegates discovery, refresh, and selection. | `configure()`, `render()` | 🛠️ |
-| `Workspace` | Editor workspace | Hosts the welcome page and focused database task pages in the main GDSQL editor screen. | `show_welcome()`, `show_database()`, `open_create_database_dialog()` | 🛠️ |
-| `ActivityPanel` | Editor feedback | Presents operation outcomes and structured diagnostics without owning database behavior. | `append_result()`, `append_message()`, `clear()` | 🛠️ |
+| `EditorActionButton` | Editor actions | Reusable button presentation that resolves its label, icon, tooltip, visibility, availability, and invocation through the active action hub. | `configure()`, `configure_action()` | 🛠️ |
+| `EditorController` | Editor integration | Registers editor actions and coordinates automatic discovery, create-or-load database behavior, catalog mutations, editor filesystem refresh, and selection with the active editor surfaces, independently from Godot dock placement. | `load_workspace()`, `ensure_workspace_loaded()`, `shutdown()` | 🛠️ |
+| `DatabaseDock` | Editor navigation | Presents a lightweight registration, table, and loaded-column hierarchy with deferred refresh, selection, non-destructive database removal, and confirmed table deletion delegated through the editor action hub. | `configure()`, `render()` | 🛠️ |
+| `Workspace` | Editor workspace | Hosts scene-backed documents behind editor-style menus and tabs, activates document action contexts, keeps registration identity separate from logical titles, and routes database, schema, and typed row intents to the controller. | `show_welcome()`, `show_database()`, `show_table()`, `present_table_rows()`, tab lifecycle | 🛠️ |
+| `EditorTableChange` | Editor schema intent | Groups the typed alterations drafted for one existing table before catalog preview and application. | Table identity and `alterations` | 🛠️ |
+| `TableDataDocument` | Editor table data | Presents typed row values and emits canonical insert, update, delete, and refresh intents without owning schema editing. | `configure()`, `present_rows()` and row-intent signals | 🛠️ |
+| `EditorVariantValueField` | Editor value input | Edits one catalog-typed Godot Variant value, preserves explicit null, and delegates Resource selection and inspection to native editor controls. | `configure()`, `set_value_editable()`, `get_value_result()` | 🛠️ |
+| `ActivityPanel` | Editor feedback | Presents operation outcomes and structured diagnostics through a bounded entry list with severity styling, automatic latest-entry scrolling, error focus, Unix-millisecond selection IDs, and context actions. | `append_result()`, `append_message()`, `get_entry()`, `select_entry()`, `delete_entry()`, `copy_entry_message()`, `clear()`, `log_limit` | 🛠️ |
+| `ActivityEntry` | Editor feedback | Typed, customizable presentation row carrying one activity message and its stable selection identity. | `configure()`, `context_requested`, entry fields | 🛠️ |
 
 ## Results and materialization
 

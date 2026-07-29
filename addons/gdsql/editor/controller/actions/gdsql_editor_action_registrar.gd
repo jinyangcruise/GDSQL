@@ -32,6 +32,36 @@ func register_global_actions(
 	_register(
 		context,
 		handlers,
+		GDSQLEditorActionIds.CREATE_TABLE,
+		"Create Table",
+		"Create a table in the active database.",
+		&"Add",
+		5,
+		result,
+	)
+	_register(
+		context,
+		handlers,
+		GDSQLEditorActionIds.REMOVE_REGISTRATION,
+		"Remove Database",
+		"Forget a database registration while leaving its files unchanged.",
+		&"Remove",
+		6,
+		result,
+	)
+	_register(
+		context,
+		handlers,
+		GDSQLEditorActionIds.DROP_TABLE,
+		"Delete Table",
+		"Delete a table and its stored rows.",
+		&"Remove",
+		8,
+		result,
+	)
+	_register(
+		context,
+		handlers,
 		GDSQLEditorActionIds.DISCOVER_PROJECT,
 		"Discover Project",
 		"Discover databases under res://data.",

@@ -171,3 +171,25 @@ func test_rename_and_drop_database_and_table() -> void:
 	assert_bool(database.drop().is_successful()).is_true()
 	assert_bool(GDSQLDatabase.open(&"game_data", _data_root).is_successful()).is_false()
 	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(_data_root.path_join("game_data")))).is_false()
+
+
+func test_unregister_preserves_and_reloads_existing_database_files() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_rows(database, [{&"id": 1, &"name": "Knight"}])
+	var database_path := _data_root.path_join("game_config")
+
+	assert_bool(database.unregister().is_successful()).is_true()
+	assert_bool(GDSQLDatabase.open(&"game_config", _data_root).is_successful()).is_false()
+	assert_bool(DirAccess.dir_exists_absolute(database_path)).is_true()
+	assert_bool(FileAccess.file_exists(database_path.path_join("schema/heroes.cfg"))).is_true()
+	assert_bool(FileAccess.file_exists(database_path.path_join("tables/heroes.cfg"))).is_true()
+
+	var registered_again := GDSQLDatabase.create(&"game_config", _data_root)
+	assert_bool(registered_again.is_successful()).is_true()
+	var reloaded := registered_again.get_database()
+	var selected := reloaded.execute(
+		reloaded.query().select().from_table(&"heroes").build(),
+	)
+	assert_bool(selected.is_successful()).is_true()
+	assert_int(selected.rows.size()).is_equal(1)
+	assert_str(selected.rows[0].get_value(&"name")).is_equal("Knight")

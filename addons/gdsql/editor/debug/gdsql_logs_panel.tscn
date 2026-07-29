@@ -1,0 +1,44 @@
+[gd_scene format=3 uid="uid://dt0x68rj51t28"]
+
+[ext_resource type="Script" uid="uid://cy2acfb7jkvyh" path="res://addons/gdsql/editor/debug/gdsql_logs_panel.gd" id="1_activity"]
+
+[node name="LogsPanel" type="VBoxContainer" unique_id=504377563]
+custom_minimum_size = Vector2(500, 120)
+offset_right = 500.0
+offset_bottom = 120.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 0
+script = ExtResource("1_activity")
+log_limit = 100
+
+[node name="EmptyState" type="Label" parent="." unique_id=133726242]
+layout_mode = 2
+size_flags_vertical = 3
+text = "No GDSQL activity yet."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Scroll" type="ScrollContainer" parent="." unique_id=1431271124]
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="Entries" type="VBoxContainer" parent="Scroll" unique_id=99822113]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_constants/separation = 1
+
+[node name="ContextMenu" type="PopupMenu" parent="." unique_id=749646648]
+oversampling_override = 1.0
+size = Vector2i(150, 100)
+item_count = 3
+item_0/text = "Copy Message"
+item_0/id = 1
+item_1/text = "Delete"
+item_1/id = 2
+item_2/text = "Clear All"
+item_2/id = 3

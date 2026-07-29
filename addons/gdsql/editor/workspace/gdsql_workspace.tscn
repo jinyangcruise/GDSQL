@@ -1,9 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://bfxs14rex8fj0"]
 
-[ext_resource type="Script" path="res://addons/gdsql/editor/workspace/gdsql_workspace.gd" id="1_workspace"]
-[ext_resource type="Script" path="res://addons/gdsql/editor/shared/gdsql_editor_action_strip.gd" id="2_strip"]
+[ext_resource type="Script" uid="uid://daiglem2cm4sw" path="res://addons/gdsql/editor/workspace/gdsql_workspace.gd" id="1_workspace"]
 
-[node name="GDSQLWorkspace" type="Control"]
+[node name="GDSQLWorkspace" type="Control" unique_id=644906906]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -12,7 +11,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_workspace")
 
-[node name="Layout" type="VBoxContainer" parent="."]
+[node name="Layout" type="VBoxContainer" parent="." unique_id=1785881870]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -21,163 +20,84 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
 
-[node name="Toolbar" type="PanelContainer" parent="Layout"]
-custom_minimum_size = Vector2(0, 40)
+[node name="MenuPanel" type="PanelContainer" parent="Layout" unique_id=1374512569]
+custom_minimum_size = Vector2(0, 32)
 layout_mode = 2
 
-[node name="ToolbarMargin" type="MarginContainer" parent="Layout/Toolbar"]
+[node name="MenuBar" type="MenuBar" parent="Layout/MenuPanel" unique_id=1474242601]
 layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 4
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 4
+flat = true
 
-[node name="ToolbarRow" type="HBoxContainer" parent="Layout/Toolbar/ToolbarMargin"]
+[node name="File" type="PopupMenu" parent="Layout/MenuPanel/MenuBar" unique_id=604279654]
+title = "File"
+item_count = 4
+item_0/text = "New Database…"
+item_0/id = 1
+item_1/id = -1
+item_1/separator = true
+item_2/text = "Save"
+item_2/id = 4
+item_2/disabled = true
+item_3/text = "Close"
+item_3/id = 5
+item_3/disabled = true
+
+[node name="Edit" type="PopupMenu" parent="Layout/MenuPanel/MenuBar" unique_id=1032801543]
+title = "Edit"
+item_count = 4
+item_0/text = "Undo"
+item_0/id = 10
+item_0/disabled = true
+item_1/text = "Redo"
+item_1/id = 11
+item_1/disabled = true
+item_2/id = -1
+item_2/separator = true
+item_3/text = "Editor Settings…"
+item_3/id = 12
+item_3/disabled = true
+
+[node name="Query" type="PopupMenu" parent="Layout/MenuPanel/MenuBar" unique_id=368470275]
+title = "Query"
+item_count = 2
+item_0/text = "New Query Graph"
+item_0/id = 20
+item_0/disabled = true
+item_1/text = "Run Query"
+item_1/id = 21
+item_1/disabled = true
+
+[node name="Database" type="PopupMenu" parent="Layout/MenuPanel/MenuBar" unique_id=1495313969]
+title = "Database"
+item_count = 4
+item_0/text = "Create Database…"
+item_0/id = 1
+item_1/text = "Add Table"
+item_1/id = 2
+item_1/disabled = true
+item_2/id = -1
+item_2/separator = true
+item_3/text = "Refresh"
+item_3/id = 3
+
+[node name="Help" type="PopupMenu" parent="Layout/MenuPanel/MenuBar" unique_id=661294708]
+title = "Help"
+item_count = 2
+item_0/text = "GDSQL Documentation"
+item_0/id = 30
+item_0/disabled = true
+item_1/text = "About GDSQL"
+item_1/id = 31
+item_1/disabled = true
+
+[node name="DocumentTabs" type="TabBar" parent="Layout" unique_id=41927085]
+custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
+current_tab = 0
+tab_close_display_policy = 1
+tab_count = 1
+tab_0/title = "Welcome"
 
-[node name="Title" type="Label" parent="Layout/Toolbar/ToolbarMargin/ToolbarRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "GDSQL"
-
-[node name="ActionStrip" type="HBoxContainer" parent="Layout/Toolbar/ToolbarMargin/ToolbarRow"]
-layout_mode = 2
-theme_override_constants/separation = 2
-script = ExtResource("2_strip")
-
-[node name="Content" type="Control" parent="Layout"]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="Welcome" type="CenterContainer" parent="Layout/Content"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="WelcomePanel" type="PanelContainer" parent="Layout/Content/Welcome"]
-custom_minimum_size = Vector2(560, 0)
-layout_mode = 2
-
-[node name="WelcomeMargin" type="MarginContainer" parent="Layout/Content/Welcome/WelcomePanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 40
-theme_override_constants/margin_top = 34
-theme_override_constants/margin_right = 40
-theme_override_constants/margin_bottom = 34
-
-[node name="WelcomeContent" type="VBoxContainer" parent="Layout/Content/Welcome/WelcomePanel/WelcomeMargin"]
-layout_mode = 2
-theme_override_constants/separation = 12
-
-[node name="Eyebrow" type="Label" parent="Layout/Content/Welcome/WelcomePanel/WelcomeMargin/WelcomeContent"]
-layout_mode = 2
-text = "GDSQL WORKBENCH"
-horizontal_alignment = 1
-
-[node name="WelcomeTitle" type="Label" parent="Layout/Content/Welcome/WelcomePanel/WelcomeMargin/WelcomeContent"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 26
-text = "Manage game data inside Godot"
-horizontal_alignment = 1
-
-[node name="WelcomeDescription" type="Label" parent="Layout/Content/Welcome/WelcomePanel/WelcomeMargin/WelcomeContent"]
-layout_mode = 2
-text = "Create a project database or discover existing databases under res://data. The database dock keeps navigation available while focused tasks open here."
-horizontal_alignment = 1
-autowrap_mode = 2
-
-[node name="WelcomeActions" type="HBoxContainer" parent="Layout/Content/Welcome/WelcomePanel/WelcomeMargin/WelcomeContent"]
-layout_mode = 2
-alignment = 1
-theme_override_constants/separation = 8
-script = ExtResource("2_strip")
-
-[node name="DatabaseOverview" type="MarginContainer" parent="Layout/Content"]
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_right = 24
-theme_override_constants/margin_bottom = 20
-
-[node name="OverviewMargin" type="MarginContainer" parent="Layout/Content/DatabaseOverview"]
-layout_mode = 2
-
-[node name="Overview" type="VBoxContainer" parent="Layout/Content/DatabaseOverview/OverviewMargin"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="Eyebrow" type="Label" parent="Layout/Content/DatabaseOverview/OverviewMargin/Overview"]
-layout_mode = 2
-text = "DATABASE"
-
-[node name="DatabaseTitle" type="Label" parent="Layout/Content/DatabaseOverview/OverviewMargin/Overview"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 26
-text = "Database"
-
-[node name="DatabaseDetails" type="Label" parent="Layout/Content/DatabaseOverview/OverviewMargin/Overview"]
-layout_mode = 2
-text = "Database details"
-
-[node name="Separator" type="HSeparator" parent="Layout/Content/DatabaseOverview/OverviewMargin/Overview"]
-layout_mode = 2
-
-[node name="TablesTitle" type="Label" parent="Layout/Content/DatabaseOverview/OverviewMargin/Overview"]
-layout_mode = 2
-text = "Tables"
-
-[node name="Tables" type="Tree" parent="Layout/Content/DatabaseOverview/OverviewMargin/Overview"]
-custom_minimum_size = Vector2(0, 260)
+[node name="DocumentHost" type="Control" parent="Layout" unique_id=329957159]
 layout_mode = 2
 size_flags_vertical = 3
-columns = 4
-column_titles_visible = true
-hide_root = true
-
-[node name="CreateDatabaseDialog" type="ConfirmationDialog" parent="."]
-title = "Create Database"
-size = Vector2i(480, 250)
-ok_button_text = "Create"
-
-[node name="DialogMargin" type="MarginContainer" parent="CreateDatabaseDialog"]
-offset_left = 8.0
-offset_top = 8.0
-offset_right = 472.0
-offset_bottom = 190.0
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
-
-[node name="DialogFields" type="VBoxContainer" parent="CreateDatabaseDialog/DialogMargin"]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="NameLabel" type="Label" parent="CreateDatabaseDialog/DialogMargin/DialogFields"]
-layout_mode = 2
-text = "Database name"
-
-[node name="DatabaseName" type="LineEdit" parent="CreateDatabaseDialog/DialogMargin/DialogFields"]
-layout_mode = 2
-placeholder_text = "game_config"
-
-[node name="RootLabel" type="Label" parent="CreateDatabaseDialog/DialogMargin/DialogFields"]
-layout_mode = 2
-text = "Data root"
-
-[node name="DataRoot" type="LineEdit" parent="CreateDatabaseDialog/DialogMargin/DialogFields"]
-layout_mode = 2
-text = "res://data"
-
-[node name="DialogHint" type="Label" parent="CreateDatabaseDialog/DialogMargin/DialogFields"]
-layout_mode = 2
-autowrap_mode = 2

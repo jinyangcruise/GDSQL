@@ -1,0 +1,64 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/gdsql/editor/workspace/components/gdsql_table_fold.gd" id="1"]
+
+[node name="TableFold" type="FoldableContainer"]
+layout_mode = 2
+title = "Table"
+folded = true
+script = ExtResource("1")
+
+[node name="Content" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Summary" type="Label" parent="Content"]
+layout_mode = 2
+text = "Table summary"
+
+[node name="Constraints" type="VBoxContainer" parent="Content"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="PrimaryKey" type="Label" parent="Content/Constraints"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Primary key"
+
+[node name="Indexes" type="VBoxContainer" parent="Content/Constraints"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 1
+
+[node name="ColumnsTitle" type="Label" parent="Content"]
+layout_mode = 2
+text = "Columns"
+
+[node name="Columns" type="VBoxContainer" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 1
+
+[node name="NewColumns" type="VBoxContainer" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 1
+
+[node name="Actions" type="HBoxContainer" parent="Content"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="AddColumn" type="Button" parent="Content/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Add Column"
+
+[node name="AddIndex" type="Button" parent="Content/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Add Index"
+
+[node name="NewIndexes" type="VBoxContainer" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 2

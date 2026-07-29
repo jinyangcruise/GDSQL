@@ -74,6 +74,15 @@ func rename(new_name: StringName) -> GDSQLDatabaseResult:
 	return result
 
 
+## Removes this database from its durable catalog while preserving its
+## database directory, schemas, table files, and rows.
+func unregister() -> GDSQLCatalogOperationResult:
+	var result := context.unregister_database(database_name)
+	if result.is_successful():
+		database_name = &""
+	return result
+
+
 func drop() -> GDSQLCatalogOperationResult:
 	var result := context.drop_database(database_name)
 	if result.is_successful():

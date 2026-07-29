@@ -107,6 +107,37 @@ func rename_database(
 	return result
 
 
+func unregister_database(
+		database_name: StringName,
+) -> GDSQLCatalogOperationResult:
+	if not _path_resolver.is_valid_name(database_name):
+		return _error(
+			&"GDSQL_CATALOG_INVALID_DATABASE_NAME",
+			"Invalid database name '%s'." % database_name,
+		)
+	var registry_result := _load_registry()
+	if not registry_result.is_successful():
+		return registry_result
+	var registry := registry_result.value as ConfigFile
+	if not registry.has_section(String(database_name)):
+		return _error(
+			&"GDSQL_CATALOG_UNKNOWN_DATABASE",
+			"Database '%s' is not registered." % database_name,
+		)
+	var database := _catalog.get_database(database_name)
+	registry.erase_section(String(database_name))
+	if registry.save(_path_resolver.resolve_catalog_path()) != OK:
+		return _error(
+			&"GDSQL_CATALOG_SAVE_FAILED",
+			"Could not unregister database '%s' from the catalog." \
+					% database_name,
+		)
+	_invalidate_database_tables(database, database_name)
+	var result := GDSQLCatalogOperationResult.new()
+	result.value = database
+	return result
+
+
 func drop_database(database_name: StringName) -> GDSQLCatalogOperationResult:
 	if not _path_resolver.is_valid_name(database_name):
 		return _error(&"GDSQL_CATALOG_INVALID_DATABASE_NAME", "Invalid database name '%s'." % database_name)

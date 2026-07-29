@@ -1,0 +1,84 @@
+[gd_scene format=3 uid="uid://4bkjkiqt11ym"]
+
+[ext_resource type="Script" uid="uid://dolwscmy3nhv2" path="res://addons/gdsql/editor/workspace/documents/gdsql_database_create_document.gd" id="1"]
+
+[node name="DatabaseCreateDocument" type="MarginContainer" unique_id=403392123]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 28
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 24
+script = ExtResource("1")
+
+[node name="Content" type="VBoxContainer" parent="." unique_id=1039959832]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="Content" unique_id=1115626061]
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+text = "Create Database"
+
+[node name="Description" type="Label" parent="Content" unique_id=723024851]
+layout_mode = 2
+text = "Configure the logical database and its runtime storage composition."
+
+[node name="Separator" type="HSeparator" parent="Content" unique_id=296784210]
+layout_mode = 2
+
+[node name="Form" type="VBoxContainer" parent="Content" unique_id=1685457216]
+custom_minimum_size = Vector2(520, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+theme_override_constants/separation = 8
+
+[node name="NameLabel" type="Label" parent="Content/Form" unique_id=1946157197]
+layout_mode = 2
+text = "Database name"
+
+[node name="DatabaseName" type="LineEdit" parent="Content/Form" unique_id=764342601]
+layout_mode = 2
+placeholder_text = "base_content"
+
+[node name="RootLabel" type="Label" parent="Content/Form" unique_id=1139724611]
+layout_mode = 2
+text = "Data root"
+
+[node name="DataRoot" type="LineEdit" parent="Content/Form" unique_id=832510039]
+layout_mode = 2
+text = "res://data"
+
+[node name="BackendLabel" type="Label" parent="Content/Form" unique_id=461437556]
+layout_mode = 2
+text = "Runtime storage"
+
+[node name="StorageBackend" type="OptionButton" parent="Content/Form" unique_id=1333694862]
+layout_mode = 2
+item_count = 2
+popup/item_0/text = "ConfigFile"
+popup/item_0/id = 0
+popup/item_1/text = "In memory"
+popup/item_1/id = 1
+
+[node name="Hint" type="Label" parent="Content/Form" unique_id=1901476024]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+text = "A database name and data root are required."
+autowrap_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="Content/Form" unique_id=1816131354]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Create" type="Button" parent="Content/Form/Actions" unique_id=2019110804]
+layout_mode = 2
+disabled = true
+text = "Create Database"
+
+[node name="Cancel" type="Button" parent="Content/Form/Actions" unique_id=114387933]
+layout_mode = 2
+text = "Cancel"

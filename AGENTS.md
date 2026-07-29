@@ -58,7 +58,9 @@ paths or depend on ConfigFile section names.
 
 - Inspect current status before editing; preserve unrelated user changes.
 - Keep one architectural boundary per change.
-- Add or update tests at the boundary being changed.
+- Add or update tests at the boundary being changed. Editor frontend Controls
+  and scenes are exempt while the frontend test harness is not implemented;
+  validate those changes through headless parsing and focused manual checks.
 - Update the glossary or architecture docs when introducing a new public
   concept, folder, dependency, or result type.
 - Update the glossary `State` column whenever a concept moves from

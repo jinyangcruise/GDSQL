@@ -71,7 +71,10 @@ func refresh_inspections() -> GDSQLOperationResult:
 	_inspections.clear()
 	var inspected_roots: Dictionary[String, Array] = { }
 	for registration in snapshot.registrations:
-		if registration.storage_backend_id != GDSQLStorageBackendIds.CONFIG_FILE:
+		if registration.storage_backend_id not in [
+			GDSQLStorageBackendIds.CONFIG_FILE,
+			GDSQLStorageBackendIds.IN_MEMORY,
+		]:
 			continue
 		if not inspected_roots.has(registration.data_root):
 			var root_result := _explorer.inspect_root(registration.data_root)
@@ -106,10 +109,26 @@ func discover_root(
 		return discovery
 	var result := GDSQLOperationResult.new()
 	result.diagnostics.merge(discovery.diagnostics)
+	var discovered_databases: Dictionary[StringName, bool] = { }
 	for inspection_value in discovery.get_value():
 		var inspection := inspection_value as GDSQLDatabaseInspection
-		var merged := _merge_inspection(inspection)
-		result.diagnostics.merge(merged.diagnostics)
+		discovered_databases[inspection.registration.database_name] = true
+	for registration in snapshot.registrations.duplicate():
+		if registration.data_root == data_root \
+				and not discovered_databases.has(registration.database_name):
+			_remove_registration_state(registration)
+	for inspection_value in discovery.get_value():
+		var inspection := inspection_value as GDSQLDatabaseInspection
+		var existing := _find_registration(
+			inspection.registration.database_name,
+			data_root,
+		)
+		if existing != null:
+			inspection.registration = existing
+			_inspections[existing.name] = inspection
+		else:
+			var merged := _merge_inspection(inspection)
+			result.diagnostics.merge(merged.diagnostics)
 	if result.is_successful() and persist:
 		var saved := _registry.save_snapshot(snapshot)
 		result.diagnostics.merge(saved.diagnostics)
@@ -178,18 +197,72 @@ func remove_registration(
 			&"GDSQL_WORKBENCH_REGISTRATION_NOT_FOUND",
 			"Database registration '%s' was not found." % registration_name,
 		)
-	snapshot.registrations.erase(registration)
-	_inspections.erase(registration_name)
-	for binding in snapshot.role_bindings.duplicate():
-		if binding.registration_name == registration_name:
-			snapshot.role_bindings.erase(binding)
-	if active_session != null \
-			and active_session.registration.name == registration_name:
-		active_session = null
+	_remove_registration_state(registration)
 	var result := GDSQLOperationResult.new()
 	if persist:
 		var saved := _registry.save_snapshot(snapshot)
 		result.diagnostics.merge(saved.diagnostics)
+	result.value = registration
+	return result
+
+
+func _find_registration(
+		database_name: StringName,
+		data_root: String,
+) -> GDSQLDatabaseRegistration:
+	for registration in snapshot.registrations:
+		if registration.database_name == database_name \
+				and registration.data_root == data_root:
+			return registration
+	return null
+
+
+func _remove_registration_state(
+		registration: GDSQLDatabaseRegistration,
+) -> void:
+	snapshot.registrations.erase(registration)
+	_inspections.erase(registration.name)
+	for binding in snapshot.role_bindings.duplicate():
+		if binding.registration_name == registration.name:
+			snapshot.role_bindings.erase(binding)
+	if active_session != null \
+			and active_session.registration.name == registration.name:
+		active_session = null
+
+
+func set_storage_backend(
+		registration_name: StringName,
+		backend_id: StringName,
+) -> GDSQLOperationResult:
+	if not GDSQLStorageBackendIds.is_implemented(backend_id):
+		return _error(
+			&"GDSQL_STORAGE_BACKEND_UNAVAILABLE",
+			"Storage backend '%s' is not available." % backend_id,
+		)
+	var registration := get_registration(registration_name)
+	if registration == null:
+		return _error(
+			&"GDSQL_WORKBENCH_REGISTRATION_NOT_FOUND",
+			"Database registration '%s' was not found." % registration_name,
+		)
+	registration.storage_backend_id = backend_id
+	var result := _registry.save_snapshot(snapshot)
+	result.value = registration
+	return result
+
+
+func update_database_name(
+		registration_name: StringName,
+		database_name: StringName,
+) -> GDSQLOperationResult:
+	var registration := get_registration(registration_name)
+	if registration == null:
+		return _error(
+			&"GDSQL_WORKBENCH_REGISTRATION_NOT_FOUND",
+			"Database registration '%s' was not found." % registration_name,
+		)
+	registration.database_name = database_name
+	var result := _registry.save_snapshot(snapshot)
 	result.value = registration
 	return result
 
@@ -202,7 +275,6 @@ func _merge_inspection(
 	if existing != null and (
 			existing.database_name != registration.database_name
 			or existing.data_root != registration.data_root
-			or existing.storage_backend_id != registration.storage_backend_id
 	):
 		return _error(
 			&"GDSQL_DATABASE_REGISTRATION_COLLISION",

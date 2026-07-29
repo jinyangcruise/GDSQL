@@ -1489,6 +1489,9 @@ func create_database(database_name: StringName) -> CatalogOperationResult
 func rename_database(current_name: StringName, new_name: StringName) -> CatalogOperationResult
 
 @abstract
+func unregister_database(database_name: StringName) -> CatalogOperationResult
+
+@abstract
 func drop_database(database_name: StringName) -> CatalogOperationResult
 
 @abstract
@@ -1522,6 +1525,12 @@ func apply_change_plan(
 @abstract
 func drop_table(database_name: StringName, table_name: StringName) -> CatalogOperationResult
 ```
+
+Unregistering removes a logical database from the catalog while preserving its
+physical directory, schemas, table files, and rows. Creating the same logical
+database under that data root registers and loads those existing files.
+Dropping remains the explicitly destructive operation that also removes the
+physical database directory.
 
 The public API accepts typed `TableDefinition` and `ColumnDefinition` objects.
 It does not accept ConfigFile sections or construct project paths. The concrete

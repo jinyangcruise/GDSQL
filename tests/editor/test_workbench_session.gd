@@ -189,6 +189,38 @@ func test_workbench_keeps_stale_registration_visible_as_missing() -> void:
 	assert_bool(inspection.catalog_exists).is_false()
 
 
+func test_workbench_persists_updated_logical_database_name() -> void:
+	var store := GDSQLConfigFileDatabaseRegistryStore.new(
+		_data_root.path_join("registry.cfg"),
+	)
+	var registry := GDSQLDatabaseRegistry.new(store)
+	var snapshot := GDSQLDatabaseRegistrySnapshot.new()
+	snapshot.registrations.append(
+		GDSQLDatabaseRegistration.new(
+			&"project_content",
+			&"base_content",
+			_data_root,
+		),
+	)
+	assert_bool(registry.save_snapshot(snapshot).is_successful()).is_true()
+	var workbench := GDSQLWorkbench.new(
+		registry,
+		GDSQLConfigFileDatabaseExplorer.new(),
+	)
+	assert_bool(workbench.load().is_successful()).is_true()
+	assert_bool(
+		workbench.update_database_name(
+			&"project_content",
+			&"game_content",
+		).is_successful(),
+	).is_true()
+	var restored := registry.load_snapshot().get_value() \
+			as GDSQLDatabaseRegistrySnapshot
+	assert_str(
+		String(restored.registrations[0].database_name),
+	).is_equal("game_content")
+
+
 func _find_inspection(
 		inspections: Array,
 		database_name: StringName,

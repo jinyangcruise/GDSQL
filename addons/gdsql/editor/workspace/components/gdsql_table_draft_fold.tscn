@@ -1,0 +1,76 @@
+[gd_scene format=3 uid="uid://dk08shp2h7trv"]
+
+[ext_resource type="Script" uid="uid://c68chdn3couxl" path="res://addons/gdsql/editor/workspace/components/gdsql_table_draft_fold.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://cpvugwfbubrqj" path="res://addons/gdsql/editor/workspace/components/gdsql_column_draft_row.tscn" id="2"]
+
+[node name="TableDraftFold" type="FoldableContainer" unique_id=194084698]
+title = "Draft table"
+script = ExtResource("1")
+
+[node name="Content" type="VBoxContainer" parent="." unique_id=1871698796]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Identity" type="GridContainer" parent="Content" unique_id=1675623193]
+layout_mode = 2
+columns = 2
+
+[node name="NameLabel" type="Label" parent="Content/Identity" unique_id=1461910132]
+layout_mode = 2
+text = "Table name"
+
+[node name="TableName" type="LineEdit" parent="Content/Identity" unique_id=167257889]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "heroes"
+
+[node name="PrimaryKeyLabel" type="Label" parent="Content/Identity" unique_id=1235123892]
+layout_mode = 2
+text = "Primary key"
+
+[node name="PrimaryKey" type="LineEdit" parent="Content/Identity" unique_id=37965276]
+layout_mode = 2
+text = "id"
+
+[node name="TimestampsLabel" type="Label" parent="Content/Identity" unique_id=1044003066]
+layout_mode = 2
+text = "Generated timestamps"
+
+[node name="Timestamps" type="CheckBox" parent="Content/Identity" unique_id=1911704183]
+layout_mode = 2
+text = "created_at and updated_at"
+
+[node name="ColumnsLabel" type="Label" parent="Content" unique_id=8068666]
+layout_mode = 2
+text = "Columns"
+
+[node name="Columns" type="VBoxContainer" parent="Content" unique_id=2022007793]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="PrimaryKeyColumn" parent="Content/Columns" unique_id=1388216817 instance=ExtResource("2")]
+layout_mode = 2
+
+[node name="IndexesLabel" type="Label" parent="Content"]
+layout_mode = 2
+text = "Indexes"
+
+[node name="Indexes" type="VBoxContainer" parent="Content"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Actions" type="HBoxContainer" parent="Content" unique_id=1776123759]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AddColumn" type="Button" parent="Content/Actions" unique_id=476621308]
+layout_mode = 2
+text = "Add Column"
+
+[node name="AddIndex" type="Button" parent="Content/Actions"]
+layout_mode = 2
+text = "Add Index"
+
+[node name="RemoveTable" type="Button" parent="Content/Actions" unique_id=1693327092]
+layout_mode = 2
+text = "Discard Table"

@@ -16,6 +16,16 @@ static func is_valid(backend_id: StringName) -> bool:
 	return backend_id in get_all()
 
 
+## Reports whether a backend can currently be composed by RuntimeFactory.
+static func is_implemented(backend_id: StringName) -> bool:
+	return backend_id in [CONFIG_FILE, IN_MEMORY]
+
+
+## Returns the storage choices available to runtime and editor callers.
+static func get_implemented() -> Array[StringName]:
+	return [CONFIG_FILE, IN_MEMORY]
+
+
 ## Returns a UI-facing label for a known storage backend identifier.
 static func get_display_name(backend_id: StringName) -> String:
 	match backend_id:

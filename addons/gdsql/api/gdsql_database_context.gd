@@ -39,6 +39,10 @@ func rename_database(
 	return catalog_administration.rename_database(current_name, new_name)
 
 
+func unregister_database(database_name: StringName) -> GDSQLCatalogOperationResult:
+	return catalog_administration.unregister_database(database_name)
+
+
 func drop_database(database_name: StringName) -> GDSQLCatalogOperationResult:
 	return catalog_administration.drop_database(database_name)
 
