@@ -3,17 +3,17 @@ extends PanelContainer
 ## Editable presentation row that emits typed row mutation intents.
 
 signal save_requested(
-	original_primary_key: Variant,
-	values: Dictionary,
+		original_primary_key: Variant,
+		values: Dictionary,
 )
 signal delete_requested(primary_key: Variant)
 signal discard_requested(row: Control)
 
 const VARIANT_TYPES := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_types.gd",
+	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_types.gd"
 )
 const VARIANT_FIELD := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_value_field.gd",
+	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_value_field.gd"
 )
 
 var _table: GDSQLTableDefinition
@@ -40,9 +40,9 @@ func configure(
 	_table = table
 	_source = source
 	_original_primary_key = (
-		source.get_value(table.primary_key)
-		if source != null
-		else null
+			source.get_value(table.primary_key)
+			if source != null
+			else null
 	)
 	_fields.clear()
 	for child in _values.get_children():
@@ -69,8 +69,8 @@ func configure(
 			not _is_generated(column) \
 					and not (source == null and column.auto_increment) \
 					and not (
-						source != null
-						and column.name == table.primary_key
+							source != null
+							and column.name == table.primary_key
 					),
 		)
 		field_group.add_child(field)
@@ -94,8 +94,8 @@ func _emit_delete() -> void:
 		discard_requested.emit(self)
 		return
 	%DeleteConfirmation.dialog_text = (
-		"Delete the row whose primary key is %s?"
-		% _value_text(_original_primary_key)
+			"Delete the row whose primary key is %s?"
+			% _value_text(_original_primary_key)
 	)
 	%DeleteConfirmation.popup_centered(Vector2i(420, 160))
 

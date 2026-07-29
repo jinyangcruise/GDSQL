@@ -3,7 +3,7 @@ extends EditorPlugin
 ## Godot lifecycle and native surface placement for the GDSQL editor.
 
 const DATABASE_DOCK_SCENE := preload(
-	"res://addons/gdsql/editor/database_dock/gdsql_database_dock.tscn",
+	"res://addons/gdsql/editor/database_dock/gdsql_database_dock.tscn"
 )
 const WORKSPACE_SCENE := preload("res://addons/gdsql/editor/workspace/gdsql_workspace.tscn")
 const LOGS_SCENE := preload("res://addons/gdsql/editor/debug/gdsql_logs_panel.tscn")
@@ -105,7 +105,7 @@ func _create_database_dock() -> void:
 	_database_dock.layout_key = DATABASE_DOCK_KEY
 	_database_dock.default_slot = EditorDock.DOCK_SLOT_RIGHT_BL
 	_database_dock.available_layouts = (
-		EditorDock.DOCK_LAYOUT_VERTICAL | EditorDock.DOCK_LAYOUT_FLOATING
+			EditorDock.DOCK_LAYOUT_VERTICAL | EditorDock.DOCK_LAYOUT_FLOATING
 	)
 	_database_dock.add_child(_database_dock_content)
 	add_dock(_database_dock)
@@ -120,7 +120,7 @@ func _create_logs_dock() -> void:
 	_logs_dock.layout_key = LOGS_DOCK_KEY
 	_logs_dock.default_slot = EditorDock.DOCK_SLOT_BOTTOM
 	_logs_dock.available_layouts = (
-		EditorDock.DOCK_LAYOUT_HORIZONTAL | EditorDock.DOCK_LAYOUT_FLOATING
+			EditorDock.DOCK_LAYOUT_HORIZONTAL | EditorDock.DOCK_LAYOUT_FLOATING
 	)
 	_logs_dock.add_child(_logs_panel)
 	add_dock(_logs_dock)

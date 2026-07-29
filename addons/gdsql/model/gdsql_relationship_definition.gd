@@ -11,20 +11,6 @@ var local_key: StringName
 var related_key: StringName
 
 
-func _init(
-		relationship_name: StringName = &"",
-		relationship_kind: Kind = Kind.BELONGS_TO,
-		related_model: Script = null,
-		declaring_model_key: StringName = &"",
-		related_model_key: StringName = &"",
-) -> void:
-	name = relationship_name
-	kind = relationship_kind
-	related_model_script = related_model
-	local_key = declaring_model_key
-	related_key = related_model_key
-
-
 ## Declares that this model contains a foreign key for one related model.
 static func belongs_to(
 		relationship_name: StringName,
@@ -71,3 +57,17 @@ static func has_many(
 		local_key,
 		foreign_key,
 	)
+
+
+func _init(
+		relationship_name: StringName = &"",
+		relationship_kind: Kind = Kind.BELONGS_TO,
+		related_model: Script = null,
+		declaring_model_key: StringName = &"",
+		related_model_key: StringName = &"",
+) -> void:
+	name = relationship_name
+	kind = relationship_kind
+	related_model_script = related_model
+	local_key = declaring_model_key
+	related_key = related_model_key

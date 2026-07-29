@@ -4,24 +4,24 @@ extends MarginContainer
 
 signal rows_requested(registration_name: StringName, table_name: StringName)
 signal row_insert_requested(
-	registration_name: StringName,
-	table_name: StringName,
-	values: Dictionary,
+		registration_name: StringName,
+		table_name: StringName,
+		values: Dictionary,
 )
 signal row_update_requested(
-	registration_name: StringName,
-	table_name: StringName,
-	original_primary_key: Variant,
-	values: Dictionary,
+		registration_name: StringName,
+		table_name: StringName,
+		original_primary_key: Variant,
+		values: Dictionary,
 )
 signal row_delete_requested(
-	registration_name: StringName,
-	table_name: StringName,
-	primary_key: Variant,
+		registration_name: StringName,
+		table_name: StringName,
+		primary_key: Variant,
 )
 
 const DATA_ROW_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_table_data_row.tscn",
+	"res://addons/gdsql/editor/workspace/components/gdsql_table_data_row.tscn"
 )
 
 var registration_name: StringName
@@ -59,9 +59,9 @@ func present_rows(result: GDSQLQueryResult) -> void:
 	for record in result.rows:
 		_add_data_row(record)
 	%Status.text = (
-		"No rows."
-		if result.rows.is_empty()
-		else "%d row(s) loaded." % result.rows.size()
+			"No rows."
+			if result.rows.is_empty()
+			else "%d row(s) loaded." % result.rows.size()
 	)
 
 

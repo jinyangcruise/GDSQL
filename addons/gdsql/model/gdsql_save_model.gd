@@ -1,7 +1,7 @@
-## Mutable model resolved through the active save-slot database role.
 @abstract
 class_name GDSQLSaveModel
 extends GDSQLModel
+## Mutable model resolved through the active save-slot database role.
 
 func database_role() -> StringName:
 	return GDSQLDatabaseRegistry.SAVE_ROLE

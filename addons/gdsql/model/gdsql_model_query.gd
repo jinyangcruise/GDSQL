@@ -1,6 +1,6 @@
-## Model-scoped SELECT frontend that produces canonical query specifications.
 class_name GDSQLModelQuery
 extends RefCounted
+## Model-scoped SELECT frontend that produces canonical query specifications.
 
 var _context: GDSQLModelContext
 var _model_script: Script

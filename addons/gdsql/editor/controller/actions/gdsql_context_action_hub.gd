@@ -5,7 +5,6 @@ extends RefCounted
 signal actions_changed
 
 var context_id: StringName
-
 var _definitions: Dictionary[StringName, GDSQLEditorActionDefinition] = { }
 var _handlers: Dictionary[StringName, Callable] = { }
 var _enabled: Dictionary[StringName, bool] = { }

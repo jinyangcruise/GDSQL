@@ -5,13 +5,13 @@ extends FoldableContainer
 signal changed
 
 const COLUMN_ROW_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_column_property_row.tscn",
+	"res://addons/gdsql/editor/workspace/components/gdsql_column_property_row.tscn"
 )
 const COLUMN_DRAFT_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_column_draft_row.tscn",
+	"res://addons/gdsql/editor/workspace/components/gdsql_column_draft_row.tscn"
 )
 const INDEX_DRAFT_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_index_draft_row.tscn",
+	"res://addons/gdsql/editor/workspace/components/gdsql_index_draft_row.tscn"
 )
 
 var table_name: StringName
@@ -117,6 +117,10 @@ func is_valid_draft() -> bool:
 	return true
 
 
+func focus() -> void:
+	folded = false
+
+
 func _render_indexes(table: GDSQLTableDefinition) -> void:
 	for child in %Indexes.get_children():
 		%Indexes.remove_child(child)
@@ -184,7 +188,3 @@ func _has_column(column_name: StringName) -> bool:
 		if row.call("get_column_name") == column_name:
 			return true
 	return false
-
-
-func focus() -> void:
-	folded = false

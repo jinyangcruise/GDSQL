@@ -46,6 +46,10 @@ func render() -> void:
 	call_deferred("_render_now")
 
 
+func get_database_tree() -> Tree:
+	return _tree
+
+
 func _render_now() -> void:
 	_render_pending = false
 	if not is_node_ready():
@@ -66,10 +70,6 @@ func _render_now() -> void:
 			visible_registrations += 1
 	_empty_state.visible = visible_registrations == 0
 	_tree.visible = visible_registrations > 0
-
-
-func get_database_tree() -> Tree:
-	return _tree
 
 
 func _add_registration(root: TreeItem, registration: GDSQLDatabaseRegistration) -> void:
@@ -258,28 +258,28 @@ func _request_destructive_confirmation(action_id: int) -> void:
 		_confirmation.ok_button_text = "Remove"
 		if registration != null:
 			_confirmation.dialog_text = (
-				(
-					"Remove database '%s' from GDSQL?\n\n"
-					+ "Files at '%s' will remain unchanged. Creating the same "
-					+ "database later will load these files again."
-				)
-				% [
-					registration.database_name,
-					registration.data_root.path_join(
-						String(registration.database_name),
-					),
-				]
+					(
+							"Remove database '%s' from GDSQL?\n\n"
+							+ "Files at '%s' will remain unchanged. Creating the same "
+							+ "database later will load these files again."
+					)
+					% [
+						registration.database_name,
+						registration.data_root.path_join(
+							String(registration.database_name),
+						),
+					]
 			)
 		else:
 			_confirmation.dialog_text = (
-				"Remove this database registration? Its files will remain unchanged."
+					"Remove this database registration? Its files will remain unchanged."
 			)
 	else:
 		_confirmation.title = "Delete Table"
 		_confirmation.ok_button_text = "Delete"
 		_confirmation.dialog_text = (
-			"Delete table '%s' and all of its stored rows?"
-			% _context_metadata.get("table", &"")
+				"Delete table '%s' and all of its stored rows?"
+				% _context_metadata.get("table", &"")
 		)
 	_confirmation.popup_centered(Vector2i(460, 170))
 

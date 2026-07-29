@@ -7,7 +7,6 @@ extends RefCounted
 
 var snapshot := GDSQLDatabaseRegistrySnapshot.new()
 var active_session: GDSQLWorkbenchSession
-
 var _registry: GDSQLDatabaseRegistry
 var _explorer: GDSQLDatabaseExplorer
 var _inspections: Dictionary[StringName, GDSQLDatabaseInspection] = { }
@@ -206,30 +205,6 @@ func remove_registration(
 	return result
 
 
-func _find_registration(
-		database_name: StringName,
-		data_root: String,
-) -> GDSQLDatabaseRegistration:
-	for registration in snapshot.registrations:
-		if registration.database_name == database_name \
-				and registration.data_root == data_root:
-			return registration
-	return null
-
-
-func _remove_registration_state(
-		registration: GDSQLDatabaseRegistration,
-) -> void:
-	snapshot.registrations.erase(registration)
-	_inspections.erase(registration.name)
-	for binding in snapshot.role_bindings.duplicate():
-		if binding.registration_name == registration.name:
-			snapshot.role_bindings.erase(binding)
-	if active_session != null \
-			and active_session.registration.name == registration.name:
-		active_session = null
-
-
 func set_storage_backend(
 		registration_name: StringName,
 		backend_id: StringName,
@@ -265,6 +240,30 @@ func update_database_name(
 	var result := _registry.save_snapshot(snapshot)
 	result.value = registration
 	return result
+
+
+func _find_registration(
+		database_name: StringName,
+		data_root: String,
+) -> GDSQLDatabaseRegistration:
+	for registration in snapshot.registrations:
+		if registration.database_name == database_name \
+				and registration.data_root == data_root:
+			return registration
+	return null
+
+
+func _remove_registration_state(
+		registration: GDSQLDatabaseRegistration,
+) -> void:
+	snapshot.registrations.erase(registration)
+	_inspections.erase(registration.name)
+	for binding in snapshot.role_bindings.duplicate():
+		if binding.registration_name == registration.name:
+			snapshot.role_bindings.erase(binding)
+	if active_session != null \
+			and active_session.registration.name == registration.name:
+		active_session = null
 
 
 func _merge_inspection(

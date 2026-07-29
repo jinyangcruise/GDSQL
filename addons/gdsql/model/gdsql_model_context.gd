@@ -1,6 +1,6 @@
-## Isolated entry point for model registration, role resolution, and queries.
 class_name GDSQLModelContext
 extends RefCounted
+## Isolated entry point for model registration, role resolution, and queries.
 
 var registry: GDSQLModelRegistry
 

@@ -9,7 +9,6 @@ const PROJECT_DATA_ROOT := "res://data"
 
 var action_hub: GDSQLEditorActionHub
 var workbench: GDSQLWorkbench
-
 var _workspace: GDSQLWorkspace
 var _database_dock: GDSQLDatabaseDock
 var _logs_panel: GDSQLLogsPanel
@@ -132,9 +131,9 @@ func _show_create_database() -> GDSQLOperationResult:
 
 
 func _create_database(
-	database_name: StringName,
-	data_root: String,
-	storage_backend_id: StringName,
+		database_name: StringName,
+		data_root: String,
+		storage_backend_id: StringName,
 ) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	var database_result := GDSQLDatabase.open(database_name, data_root)
@@ -190,10 +189,10 @@ func _show_create_table() -> GDSQLOperationResult:
 
 
 func _save_database(
-	registration_name: StringName,
-	database_name: StringName,
-	new_tables: Array[GDSQLTableDefinition],
-	table_changes: Array[GDSQLEditorTableChange],
+		registration_name: StringName,
+		database_name: StringName,
+		new_tables: Array[GDSQLTableDefinition],
+		table_changes: Array[GDSQLEditorTableChange],
 ) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	var durable_catalog_changed := false
@@ -244,7 +243,7 @@ func _save_database(
 		result.diagnostics.merge(refreshed.diagnostics)
 		workbench.active_session.refresh_catalog()
 	result.value = workbench.active_session.database \
-			if workbench.active_session != null else null
+	if workbench.active_session != null else null
 	_refresh_surfaces()
 	if result.is_successful():
 		_workspace.accept_database_saved(
@@ -479,8 +478,8 @@ func _refresh_databases() -> GDSQLOperationResult:
 
 
 func _open_registration(
-	registration_name: StringName,
-	record_logs: bool = true,
+		registration_name: StringName,
+		record_logs: bool = true,
 ) -> GDSQLOperationResult:
 	var result := workbench.select_registration(registration_name)
 	if result.is_successful():

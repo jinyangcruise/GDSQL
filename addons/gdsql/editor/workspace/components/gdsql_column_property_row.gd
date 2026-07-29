@@ -8,13 +8,12 @@ extends PanelContainer
 signal changed
 
 const VARIANT_FIELD := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_value_field.gd",
+	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_value_field.gd"
 )
 
 var marked_for_removal: bool:
 	get:
 		return %Remove.button_pressed
-
 var _column: GDSQLColumnDefinition
 var _is_primary_key := false
 var _configuring := false
@@ -65,14 +64,14 @@ func configure(
 	%Generation.select(column.generation)
 	%Generation.disabled = column.data_type != TYPE_INT
 	%HasDefault.disabled = (
-		column.generation != GDSQLColumnDefinition.Generation.NONE
+			column.generation != GDSQLColumnDefinition.Generation.NONE
 	)
 	%Remove.button_pressed = false
 	%Remove.disabled = is_primary_key
 	%Remove.tooltip_text = (
-		"The primary-key column cannot be removed directly."
-		if is_primary_key
-		else "Drop this column and its stored values when changes are applied."
+			"The primary-key column cannot be removed directly."
+			if is_primary_key
+			else "Drop this column and its stored values when changes are applied."
 	)
 	_configuring = false
 
@@ -86,8 +85,8 @@ func is_valid_draft() -> bool:
 		return false
 	if %Generation.selected != GDSQLColumnDefinition.Generation.NONE \
 			and (
-				%HasDefault.button_pressed
-				or %AutoIncrement.button_pressed
+					%HasDefault.button_pressed
+					or %AutoIncrement.button_pressed
 			):
 		return false
 	if %HasDefault.button_pressed:

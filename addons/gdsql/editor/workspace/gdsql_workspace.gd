@@ -9,58 +9,57 @@ signal database_create_submitted(
 		storage_backend_id: StringName,
 )
 signal database_save_submitted(
-	registration_name: StringName,
-	database_name: StringName,
-	new_tables: Array[GDSQLTableDefinition],
-	table_changes: Array[GDSQLEditorTableChange],
+		registration_name: StringName,
+		database_name: StringName,
+		new_tables: Array[GDSQLTableDefinition],
+		table_changes: Array[GDSQLEditorTableChange],
 )
 signal database_refresh_submitted(registration_name: StringName)
 signal table_rows_requested(registration_name: StringName, table_name: StringName)
 signal table_row_insert_requested(
-	registration_name: StringName,
-	table_name: StringName,
-	values: Dictionary,
+		registration_name: StringName,
+		table_name: StringName,
+		values: Dictionary,
 )
 signal table_row_update_requested(
-	registration_name: StringName,
-	table_name: StringName,
-	original_primary_key: Variant,
-	values: Dictionary,
+		registration_name: StringName,
+		table_name: StringName,
+		original_primary_key: Variant,
+		values: Dictionary,
 )
 signal table_row_delete_requested(
-	registration_name: StringName,
-	table_name: StringName,
-	primary_key: Variant,
+		registration_name: StringName,
+		table_name: StringName,
+		primary_key: Variant,
 )
 
 const WELCOME_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/documents/gdsql_welcome_document.tscn",
+	"res://addons/gdsql/editor/workspace/documents/gdsql_welcome_document.tscn"
 )
 const CREATE_DATABASE_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/documents/gdsql_database_create_document.tscn",
+	"res://addons/gdsql/editor/workspace/documents/gdsql_database_create_document.tscn"
 )
 const DATABASE_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/documents/gdsql_database_document.tscn",
+	"res://addons/gdsql/editor/workspace/documents/gdsql_database_document.tscn"
 )
 const TABLE_DATA_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn",
+	"res://addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn"
 )
-
 const WELCOME_KEY := &"welcome"
 const CREATE_DATABASE_KEY := &"database:create"
 const MENU_CREATE_DATABASE := 1
 const MENU_CREATE_TABLE := 2
 const MENU_REFRESH := 3
 
-@onready var _file_menu: PopupMenu = $Layout/MenuPanel/MenuBar/File
-@onready var _database_menu: PopupMenu = $Layout/MenuPanel/MenuBar/Database
-@onready var _tabs: TabBar = $Layout/DocumentTabs
-@onready var _document_host: Control = $Layout/DocumentHost
-
 var _action_hub: GDSQLEditorActionHub
 var _document_keys: Array[StringName] = []
 var _documents: Dictionary[StringName, Control] = { }
 var _active_registration: StringName
+
+@onready var _file_menu: PopupMenu = $Layout/MenuPanel/MenuBar/File
+@onready var _database_menu: PopupMenu = $Layout/MenuPanel/MenuBar/Database
+@onready var _tabs: TabBar = $Layout/DocumentTabs
+@onready var _document_host: Control = $Layout/DocumentHost
 
 
 func _ready() -> void:
@@ -290,9 +289,9 @@ func _show_document(index: int) -> void:
 			_active_registration = StringName(parts[1])
 	if _action_hub != null:
 		var context_id := (
-			key
-			if String(key).begins_with("database:") and key != CREATE_DATABASE_KEY
-			else GDSQLEditorActionHub.GLOBAL_CONTEXT
+				key
+				if String(key).begins_with("database:") and key != CREATE_DATABASE_KEY
+				else GDSQLEditorActionHub.GLOBAL_CONTEXT
 		)
 		_action_hub.set_active_context(context_id)
 	_set_create_table_enabled(_active_registration != &"")

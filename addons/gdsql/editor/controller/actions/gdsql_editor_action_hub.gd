@@ -14,7 +14,6 @@ signal action_invoked(
 const GLOBAL_CONTEXT := &"global"
 
 var active_context_id: StringName = GLOBAL_CONTEXT
-
 var _contexts: Dictionary[StringName, GDSQLContextActionHub] = { }
 
 

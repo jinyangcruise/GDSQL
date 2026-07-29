@@ -95,7 +95,7 @@ func copy_entry_message(entry_id: int) -> bool:
 	}
 
 	DisplayServer.clipboard_set(
-		"[{status}-T{tick}] Action: {action} | {message}]".format(clipboard_message)
+		"[{status}-T{tick}] Action: {action} | {message}]".format(clipboard_message),
 	)
 	return true
 

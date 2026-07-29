@@ -25,11 +25,11 @@ func _ready() -> void:
 
 
 func configure(
-	p_entry_id: int,
-	p_time_text: String,
-	p_status_text: String,
-	p_action_text: String,
-	p_message_text: String,
+		p_entry_id: int,
+		p_time_text: String,
+		p_status_text: String,
+		p_action_text: String,
+		p_message_text: String,
 ) -> void:
 	if not is_node_ready():
 		await ready

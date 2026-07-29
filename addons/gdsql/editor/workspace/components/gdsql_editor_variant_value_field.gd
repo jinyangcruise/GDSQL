@@ -6,12 +6,11 @@ extends HBoxContainer
 signal changed
 
 const VARIANT_TYPES := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_types.gd",
+	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_types.gd"
 )
 
 var data_type: Variant.Type = TYPE_NIL
 var nullable := true
-
 var _editable := true
 var _line_edit: LineEdit
 var _resource_picker: EditorResourcePicker
@@ -105,8 +104,8 @@ func _build_line_edit(value: Variant) -> void:
 	_line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_line_edit.placeholder_text = _example_text()
 	_line_edit.tooltip_text = (
-		"Enter a %s value using Godot Variant syntax."
-		% VARIANT_TYPES.display_name(data_type)
+			"Enter a %s value using Godot Variant syntax."
+			% VARIANT_TYPES.display_name(data_type)
 	)
 	_line_edit.text = _format_value(value) if value != null else ""
 	_line_edit.text_changed.connect(_on_text_changed)
@@ -164,9 +163,9 @@ func _mark_modified() -> void:
 
 func _resource_value() -> Resource:
 	return (
-		_resource_picker.get_edited_resource()
-		if _resource_picker != null
-		else null
+			_resource_picker.get_edited_resource()
+			if _resource_picker != null
+			else null
 	)
 
 

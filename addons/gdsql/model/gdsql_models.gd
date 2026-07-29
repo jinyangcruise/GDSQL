@@ -1,10 +1,10 @@
+class_name GDSQLModels
+extends RefCounted
 ## Configured static entry point used by model class query and find helpers.
 ##
 ## Application composition installs one default [GDSQLModelContext]. Concrete
 ## model classes forward themselves explicitly because GDScript does not expose
 ## the subclass that invoked an inherited static method.
-class_name GDSQLModels
-extends RefCounted
 
 static var _context: GDSQLModelContext
 

@@ -7,6 +7,11 @@ var action_id: StringName
 var _hub: GDSQLEditorActionHub
 
 
+func _exit_tree() -> void:
+	if _hub != null and _hub.actions_changed.is_connected(_refresh_state):
+		_hub.actions_changed.disconnect(_refresh_state)
+
+
 func configure(
 		hub: GDSQLEditorActionHub,
 		definition: GDSQLEditorActionDefinition,
@@ -37,11 +42,6 @@ func configure_action(
 	if definition == null:
 		return
 	configure(hub, definition)
-
-
-func _exit_tree() -> void:
-	if _hub != null and _hub.actions_changed.is_connected(_refresh_state):
-		_hub.actions_changed.disconnect(_refresh_state)
 
 
 func _invoke() -> void:

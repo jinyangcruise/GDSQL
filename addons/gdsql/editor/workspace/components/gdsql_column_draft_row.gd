@@ -6,11 +6,13 @@ signal changed
 signal remove_requested(row: Control)
 
 const VARIANT_TYPES := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_types.gd",
+	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_types.gd"
 )
 const VARIANT_FIELD := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_value_field.gd",
+	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_value_field.gd"
 )
+
+var _default_editor: Control
 
 @onready var _name: LineEdit = $Margin/Fields/Name
 @onready var _type: OptionButton = $Margin/Fields/Type
@@ -19,7 +21,6 @@ const VARIANT_FIELD := preload(
 @onready var _auto_increment: CheckBox = $Margin/Fields/AutoIncrement
 @onready var _has_default: CheckBox = %HasDefault
 @onready var _generation: OptionButton = %Generation
-var _default_editor: Control
 
 
 func _ready() -> void:

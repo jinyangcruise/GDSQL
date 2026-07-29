@@ -41,8 +41,8 @@ func _validate() -> void:
 		_hint.text = "A database name and data root are required."
 	elif _selected_backend() == GDSQLStorageBackendIds.IN_MEMORY:
 		_hint.text = (
-			"Runtime rows use an in-memory working set. The ConfigFile "
-			+ "catalog remains the hydration and checkpoint source."
+				"Runtime rows use an in-memory working set. The ConfigFile "
+				+ "catalog remains the hydration and checkpoint source."
 		)
 	else:
 		_hint.text = "Catalog, schema, and rows use ConfigFile storage."
