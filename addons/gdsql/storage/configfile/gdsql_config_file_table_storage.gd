@@ -26,15 +26,26 @@ func get_capabilities() -> GDSQLStorageCapabilities:
 func read_table(table: GDSQLTableDefinition, session: GDSQLStorageSession) -> GDSQLTableSnapshot:
 	var snapshot := GDSQLTableSnapshot.new()
 	snapshot.primary_key = table.primary_key
+	if session != null and session.dirty:
+		snapshot.rows = _build_effective_rows(table, session)
+	else:
+		snapshot.rows = _read_persisted_rows(table)
+	return snapshot
+
+
+func _read_persisted_rows(
+		table: GDSQLTableDefinition,
+) -> Array[GDSQLRowRecord]:
+	var rows: Array[GDSQLRowRecord] = []
 	var path := path_resolver.resolve_table_path(table.database_name, table.name)
 	var config := config_cache.get_or_load(path)
 	if config == null:
-		return snapshot
+		return rows
 	for section in config.get_sections():
 		if _is_reserved_section(section):
 			continue
-		snapshot.rows.append(_read_row(config, section))
-	return snapshot
+		rows.append(_read_row(config, section))
+	return rows
 
 
 func find_by_primary_key(
@@ -290,12 +301,12 @@ func rollback(session: GDSQLStorageSession) -> void:
 func _validate_session_constraints(
 		session: GDSQLStorageSession,
 ) -> GDSQLStorageCommitResult:
-	var tables: Array[GDSQLTableDefinition] = []
+	var tables: Dictionary = { }
 	for operation in session.operations:
 		var table := operation["table"] as GDSQLTableDefinition
-		if not tables.has(table):
-			tables.append(table)
-	for table in tables:
+		tables[_table_key(table)] = table
+	for table_value in tables.values():
+		var table := table_value as GDSQLTableDefinition
 		var rows := _build_effective_rows(table, session)
 		var values_result := _validate_row_values(table, rows)
 		if not values_result.is_successful():
@@ -390,10 +401,11 @@ func _build_effective_rows(
 		session: GDSQLStorageSession,
 ) -> Array[GDSQLRowRecord]:
 	var rows_by_key: Dictionary = { }
-	for row in read_table(table, session).rows:
+	for row in _read_persisted_rows(table):
 		rows_by_key[row.get_value(table.primary_key)] = row
 	for operation in session.operations:
-		if operation["table"] != table:
+		var operation_table := operation["table"] as GDSQLTableDefinition
+		if _table_key(operation_table) != _table_key(table):
 			continue
 		var key: Variant = operation["key"] \
 		if operation.has("key") \
@@ -659,7 +671,9 @@ func _compare_values(left: Variant, right: Variant) -> int:
 
 func _has_staged_key(session: GDSQLStorageSession, table: GDSQLTableDefinition, key: Variant) -> bool:
 	for operation in session.operations:
-		if operation["type"] == &"insert" and operation["table"] == table:
+		var operation_table := operation["table"] as GDSQLTableDefinition
+		if operation["type"] == &"insert" \
+				and _table_key(operation_table) == _table_key(table):
 			var row := operation["row"] as GDSQLRowRecord
 			if row.get_value(table.primary_key) == key:
 				return true

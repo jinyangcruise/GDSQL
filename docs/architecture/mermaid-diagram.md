@@ -41,9 +41,17 @@ Database("`**GDSQLDatabase**
 
 -
 *Purpose:* Public database-scoped facade
-*API:* create(), open(), rename(), drop(), query(), table(), execute()
+*API:* create(), open(), rename(), drop(), query(), table(), execute(), transaction()
 *Table API:* create_table(), rename_table(), alter_table(), drop_table()
 *Delegates to:* GDSQLDatabaseContext and query frontends`")
+
+Transaction("`**GDSQLTransaction**
+
+-
+*Purpose:* Scope multiple canonical queries to one storage session
+*API:* execute(query) inside Database.transaction(callback)
+*Lifecycle:* One callback; commit on success, rollback on failure
+*Visibility:* Reads observe earlier staged writes`")
 
 Factory("`**GDSQLRuntimeFactory**
 
@@ -81,7 +89,7 @@ Context("`**GDSQLDatabaseContext**
 
 -
 *Purpose:* Coordinate query and catalog operations through injected contracts
-*API:* execute(query), prepare(query), database and table lifecycle methods
+*API:* execute(query), transaction(callback), prepare(query), database and table lifecycle methods
 *Calls:* Validator → planner → executor
 *Depends on:* Abstract catalog, storage, validation, planning and execution services`")
 
@@ -199,7 +207,7 @@ Materialization("`**Result Materialization**
 *Types:* ResultMapping, DictionaryResultMaterializer, ResourceResultMaterializer
 *Returns:* QueryResult with materialized OperationResult.value`")
 
-Code -->|"create() · open() · query() · execute()"| Database
+Code -->|"create() · open() · query() · execute() · transaction()"| Database
 GraphInterface -->|"compile(graph)"| Frontends
 SQLText -->|"tokenize() · parse() · compile()"| Frontends
 Database -->|"query() · table()"| Frontends
@@ -207,6 +215,8 @@ Frontends -->|"build() / compile()"| QuerySpec
 Expression -->|"contained by"| QuerySpec
 
 Database -->|"execute(query) · lifecycle methods"| Context
+Database -->|"transaction(callback)"| Transaction
+Transaction -->|"execute(query, shared session)"| Context
 QuerySpec -->|"execute(query) / prepare(query)"| Context
 Context -->|"validate(query)"| Validator
 Validator -->|"GDSQLQueryValidationResult"| BoundQuery
@@ -234,7 +244,7 @@ Factory -.->|"create_default(data_root)"| Context
 Factory -.->|"constructs and injects"| ConfigInfrastructure
 
 class Code,GraphInterface,SQLText frontend;
-class Database,Context,Factory runtime;
+class Database,Context,Factory,Transaction runtime;
 class Frontends translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;

@@ -74,6 +74,47 @@ func alter_table(
 
 
 func execute(query: GDSQLQuerySpec) -> GDSQLQueryResult:
+	return _execute(query, execution_context)
+
+
+func execute_in_session(
+		query: GDSQLQuerySpec,
+		session: GDSQLStorageSession,
+) -> GDSQLQueryResult:
+	return _execute(query, execution_context.for_session(session))
+
+
+func transaction(callback: Callable) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	if not callback.is_valid():
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_TRANSACTION_CALLBACK_REQUIRED",
+				"A valid transaction callback is required.",
+			),
+		)
+		return result
+	var session := execution_context.transactions.begin()
+	var transaction_scope := GDSQLTransaction.new(self, session)
+	callback.call(transaction_scope)
+	transaction_scope._close()
+	result.diagnostics.merge(transaction_scope.diagnostics)
+	if transaction_scope._has_failed():
+		execution_context.transactions.rollback(session)
+		return result
+	var commit_result := execution_context.transactions.commit(session)
+	result.diagnostics.merge(commit_result.diagnostics)
+	if not commit_result.is_successful():
+		execution_context.transactions.rollback(session)
+		return result
+	result.value = true
+	return result
+
+
+func _execute(
+		query: GDSQLQuerySpec,
+		query_execution_context: GDSQLExecutionContext,
+) -> GDSQLQueryResult:
 	var public_result := GDSQLQueryResult.new()
 	var validation := validator.validate(query)
 	public_result.diagnostics.merge(validation.diagnostics)
@@ -83,7 +124,7 @@ func execute(query: GDSQLQuerySpec) -> GDSQLQueryResult:
 	public_result.diagnostics.merge(planning.diagnostics)
 	if not planning.is_successful() or planning.plan == null:
 		return public_result
-	var execution := executor.execute(planning.plan, execution_context)
+	var execution := executor.execute(planning.plan, query_execution_context)
 	public_result.diagnostics.merge(execution.diagnostics)
 	if execution.rows != null:
 		public_result.rows = execution.rows.rows.duplicate()
