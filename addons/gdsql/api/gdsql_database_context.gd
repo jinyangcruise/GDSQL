@@ -111,6 +111,15 @@ func transaction(callback: Callable) -> GDSQLOperationResult:
 	return result
 
 
+func prepare(query: GDSQLQuerySpec) -> GDSQLQueryPlanningResult:
+	var validation := validator.validate(query)
+	if not validation.is_valid():
+		var result := GDSQLQueryPlanningResult.new()
+		result.diagnostics.merge(validation.diagnostics)
+		return result
+	return planner.create_plan(validation.bound_query)
+
+
 func _execute(
 		query: GDSQLQuerySpec,
 		query_execution_context: GDSQLExecutionContext,
@@ -132,12 +141,3 @@ func _execute(
 	public_result.statistics = execution.statistics.duplicate()
 	public_result.value = public_result.rows
 	return public_result
-
-
-func prepare(query: GDSQLQuerySpec) -> GDSQLQueryPlanningResult:
-	var validation := validator.validate(query)
-	if not validation.is_valid():
-		var result := GDSQLQueryPlanningResult.new()
-		result.diagnostics.merge(validation.diagnostics)
-		return result
-	return planner.create_plan(validation.bound_query)
