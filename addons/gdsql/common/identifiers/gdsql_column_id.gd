@@ -5,6 +5,6 @@ var table_id: GDSQLTableId
 var column_name: StringName
 
 
-func _init(table: GDSQLTableId = null, column: StringName = &"") -> void:
-	self.table_id = table
-	self.column_name = column
+func _init(_table: GDSQLTableId = null, _column: StringName = &"") -> void:
+	table_id = _table
+	column_name = _column

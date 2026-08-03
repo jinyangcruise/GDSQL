@@ -69,3 +69,7 @@ paths or depend on ConfigFile section names.
 ## Formatting 
 
 Do not worry if code was reordered, it's the formatter.
+
+## Tests 
+
+Tests needs `--headless` mode in order to work

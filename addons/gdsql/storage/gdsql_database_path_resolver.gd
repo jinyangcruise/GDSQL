@@ -4,8 +4,8 @@ extends RefCounted
 var data_root: String
 
 
-func _init(data_root: String = "res://data") -> void:
-	self.data_root = data_root.trim_suffix("/")
+func _init(_data_root: String = "res://data") -> void:
+	data_root = _data_root.trim_suffix("/")
 
 
 func resolve_catalog_path(database: StringName = &"") -> String:

@@ -9,8 +9,8 @@ var _functions: Dictionary = { }
 var _aggregate_functions: Dictionary = { }
 
 
-func _init(catalog: FunctionCatalog = null) -> void:
-	self.catalog = catalog if catalog != null else FunctionCatalog.new()
+func _init(_catalog: FunctionCatalog = null) -> void:
+	catalog = _catalog if _catalog != null else FunctionCatalog.new()
 	register_function(&"lower", _lower, 1, 1, TYPE_STRING)
 	register_function(&"upper", _upper, 1, 1, TYPE_STRING)
 	register_function(&"length", _length, 1, 1, TYPE_INT)

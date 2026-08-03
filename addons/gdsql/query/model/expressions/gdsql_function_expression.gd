@@ -7,15 +7,15 @@ var aggregate: bool = false
 
 
 func _init(
-		name: StringName = &"",
-		arguments: Array[GDSQLQueryExpression] = [],
-		aggregate: bool = false,
+		_name: StringName = &"",
+		_arguments: Array[GDSQLQueryExpression] = [],
+		_aggregate: bool = false,
 ) -> void:
-	self.name = name
-	for argument in arguments:
+	name = _name
+	for argument in _arguments:
 		assert(argument is GDSQLQueryExpression, "Function arguments must be query expressions.")
-		self.arguments.append(argument)
-	self.aggregate = aggregate
+		arguments.append(argument)
+	aggregate = _aggregate
 
 
 func accept(visitor: GDSQLExpressionVisitor) -> Variant:
