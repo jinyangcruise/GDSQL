@@ -48,9 +48,6 @@ func resolve_database(model_script: Script) -> GDSQLDatabaseResult:
 func _missing_registry() -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	result.add_diagnostic(
-		GDSQLQueryDiagnostic.new(
-			&"GDSQL_MODEL_REGISTRY_REQUIRED",
-			"A model registry is required.",
-		),
+		GDSQLQueryDiagnostic.new(&"GDSQL_MODEL_REGISTRY_REQUIRED", "A model registry is required."),
 	)
 	return result
