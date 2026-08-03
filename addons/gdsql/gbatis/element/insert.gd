@@ -78,7 +78,10 @@ func query():
 		assert(false, "BaseDao's cmd is not insert.")
 		return null
 	if not database_id.is_empty():
-		dao.use_db_name(database_id)
+		# 仅当 SQL 未显式指定数据库（如 `from GameConfig.c_xxx`）时才用 databaseId 作为默认，
+		# 否则跨库表会解析到错误的配置目录。
+		if dao.get_db().is_empty():
+			dao.use_db_name(database_id)
 	var query_result = dao.query()
 	if query_result == null:
 		assert(false, "Error occur in base_dao.query().")

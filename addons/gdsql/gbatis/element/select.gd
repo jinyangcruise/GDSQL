@@ -88,7 +88,10 @@ func query():
 		assert(false, "BaseDao's cmd is not select.")
 		return null
 	if not database_id.is_empty():
-		dao.use_db_name(database_id)
+		# 只有当 SQL 没有显式指定数据库（如 `from GameConfig.c_skill_upgrade`）时才用查询的
+		# databaseId 作为默认数据库；否则显式前缀会被覆盖，导致跨库表解析到错误的配置目录。
+		if dao.get_db().is_empty():
+			dao.use_db_name(database_id)
 	var query_result = dao.query()
 	if query_result == null:
 		query_status = "err"
