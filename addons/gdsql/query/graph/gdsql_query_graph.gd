@@ -64,5 +64,13 @@ func validate_structure() -> GDSQLOperationResult:
 			),
 		)
 		return result
+	if not select_node.include_all_columns and select_node.projections.is_empty():
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_QUERY_GRAPH_SELECT_PROJECTION_REQUIRED",
+				"Select at least one result column.",
+			),
+		)
+		return result
 	result.value = self
 	return result

@@ -53,6 +53,7 @@ var _action_context: GDSQLContextActionHub
 var _action_context_id: StringName
 var _active_select_operation: GraphNode
 var _table_result: GDSQLQueryTableResultNode
+var _result_source: GraphNode
 
 @onready var _graph: GraphEdit = %Graph
 @onready var _select_operation: GraphNode = %SelectOperation
@@ -63,15 +64,11 @@ var _table_result: GDSQLQueryTableResultNode
 @onready var _add_insert: GDSQLEditorActionButton = %AddInsertNode
 @onready var _add_update: GDSQLEditorActionButton = %AddUpdateNode
 @onready var _add_delete: GDSQLEditorActionButton = %AddDeleteNode
-@onready var _run_query: GDSQLEditorActionButton = %RunQuery
 
 
 func _ready() -> void:
 	_active_select_operation = _select_operation
-	_select_operation.connect(
-		"source_changed",
-		_on_source_changed.bind(_select_operation),
-	)
+	_connect_select_node(_select_operation)
 	_graph.node_selected.connect(_on_graph_node_selected)
 
 
@@ -157,6 +154,14 @@ func configure_actions(
 		110,
 		_add_result_row,
 	)
+	_register_action(
+		GDSQLEditorActionIds.REMOVE_QUERY_GRAPH_NODE,
+		"Remove Node",
+		"Remove the selected query operation node.",
+		&"node",
+		120,
+		_remove_active_select_node,
+	)
 	for action_id in UNAVAILABLE_ACTIONS:
 		_action_context.set_action_enabled(action_id, false)
 	_action_context.set_action_enabled(
@@ -167,6 +172,7 @@ func configure_actions(
 	if not registered.is_successful():
 		return
 	_configure_action_buttons()
+	_configure_select_query_buttons()
 	_refresh_action_availability()
 
 
@@ -188,8 +194,11 @@ func configure(
 		selected_table: StringName,
 ) -> void:
 	_inspections = inspections.duplicate()
-	var target := _active_select_operation \
-			if _active_select_operation != null else _select_operation
+	var target := _active_select_operation
+	if not is_instance_valid(target):
+		target = _first_select_node()
+	if target == null:
+		return
 	target.call(
 		"configure",
 		inspections,
@@ -212,12 +221,27 @@ func get_selected_table() -> StringName:
 
 func request_query() -> GDSQLOperationResult:
 	var graph := GDSQLQueryGraph.new()
-	graph.add_node(
-		GDSQLQueryGraphSelectNode.new(
+	if not is_instance_valid(_active_select_operation):
+		return GDSQLGraphQueryCompiler.new().compile(graph)
+	var select_node := GDSQLQueryGraphSelectNode.new(
 			get_selected_database(),
 			get_selected_table(),
-		),
 	)
+	select_node.projections = _active_select_operation.call(
+		"get_selected_columns",
+	)
+	select_node.include_all_columns = bool(
+		_active_select_operation.call("are_all_columns_selected"),
+	)
+	var predicate_result := _active_select_operation.call(
+		"build_predicate",
+	) as GDSQLOperationResult
+	if not predicate_result.is_successful():
+		var failed := GDSQLQueryCompilationResult.new()
+		failed.diagnostics.merge(predicate_result.diagnostics)
+		return failed
+	select_node.predicate = predicate_result.get_value() as GDSQLQueryExpression
+	graph.add_node(select_node)
 	var compilation := GDSQLGraphQueryCompiler.new().compile(graph)
 	if compilation.is_successful():
 		query_requested.emit(
@@ -282,7 +306,6 @@ func _configure_action_buttons() -> void:
 		GDSQLEditorActionIds.ADD_INSERT_QUERY_NODE: _add_insert,
 		GDSQLEditorActionIds.ADD_UPDATE_QUERY_NODE: _add_update,
 		GDSQLEditorActionIds.ADD_DELETE_QUERY_NODE: _add_delete,
-		GDSQLEditorActionIds.RUN_QUERY_GRAPH: _run_query,
 	}
 	for action_id in buttons:
 		buttons[action_id].configure(
@@ -299,7 +322,13 @@ func _add_select_node() -> GDSQLOperationResult:
 	_graph.add_child(node)
 	_active_select_operation = node
 	node.position_offset = Vector2(96, 96) + Vector2(36, 36) * _select_node_count()
-	node.connect("source_changed", _on_source_changed.bind(node))
+	_connect_select_node(node)
+	if _action_hub != null and _action_context != null:
+		node.call(
+			"configure_query_action",
+			_action_hub,
+			_action_context.get_action(GDSQLEditorActionIds.RUN_QUERY_GRAPH),
+		)
 	node.call(
 		"configure",
 		_inspections,
@@ -349,8 +378,25 @@ func _on_source_changed(
 	_refresh_action_availability()
 
 
+func _on_query_changed(source_node: GraphNode) -> void:
+	_active_select_operation = source_node
+	_refresh_action_availability()
+
+
+func _on_query_activated(source_node: GraphNode) -> void:
+	_active_select_operation = source_node
+	_graph.set_selected(source_node)
+	_refresh_action_availability()
+
+
+func _on_remove_requested(source_node: GraphNode) -> void:
+	_on_query_activated(source_node)
+	if _action_hub != null:
+		_action_hub.invoke(GDSQLEditorActionIds.REMOVE_QUERY_GRAPH_NODE)
+
+
 func _selected_source_value(method: StringName) -> StringName:
-	if _active_select_operation == null \
+	if not is_instance_valid(_active_select_operation) \
 			or not _active_select_operation.has_method(method):
 		return &""
 	return StringName(_active_select_operation.call(method))
@@ -369,7 +415,12 @@ func _refresh_action_availability() -> void:
 		GDSQLEditorActionIds.RUN_QUERY_GRAPH,
 		get_selected_registration() != &""
 				and get_selected_database() != &""
-				and get_selected_table() != &"",
+				and get_selected_table() != &""
+				and _selected_column_count() > 0,
+	)
+	_action_context.set_action_enabled(
+		GDSQLEditorActionIds.REMOVE_QUERY_GRAPH_NODE,
+		is_instance_valid(_active_select_operation),
 	)
 
 
@@ -405,3 +456,91 @@ func _place_and_connect_result() -> void:
 				int(connection["to_port"]),
 			)
 	_graph.connect_node(_active_select_operation.name, 0, _table_result.name, 0)
+	_result_source = _active_select_operation
+
+
+func _connect_select_node(node: GraphNode) -> void:
+	node.connect("source_changed", _on_source_changed.bind(node))
+	node.connect("query_changed", _on_query_changed.bind(node))
+	node.connect("query_activated", _on_query_activated.bind(node))
+	node.connect("remove_requested", _on_remove_requested.bind(node))
+
+
+func _configure_select_query_buttons() -> void:
+	if _action_hub == null or _action_context == null:
+		return
+	for child in _graph.get_children():
+		if child is GraphNode and child.has_method("configure_query_action"):
+			child.call(
+				"configure_query_action",
+				_action_hub,
+				_action_context.get_action(GDSQLEditorActionIds.RUN_QUERY_GRAPH),
+			)
+
+
+func _remove_active_select_node() -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	var node := _active_select_operation
+	if not is_instance_valid(node):
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_QUERY_GRAPH_NODE_REQUIRED",
+				"Select a query operation node to remove.",
+			),
+		)
+		return result
+	if _result_source == node:
+		_remove_table_result()
+	_disconnect_node(node)
+	_graph.remove_child(node)
+	node.queue_free()
+	_active_select_operation = _first_select_node()
+	if _active_select_operation != null:
+		_graph.set_selected(_active_select_operation)
+	result.value = node
+	_refresh_action_availability()
+	return result
+
+
+func _remove_table_result() -> void:
+	if not is_instance_valid(_table_result):
+		return
+	_disconnect_node(_table_result)
+	_graph.remove_child(_table_result)
+	_table_result.queue_free()
+	_table_result = null
+	_result_source = null
+	if _action_context != null:
+		_action_context.set_action_enabled(
+			GDSQLEditorActionIds.ADD_QUERY_RESULT_ROW,
+			false,
+		)
+
+
+func _disconnect_node(node: GraphNode) -> void:
+	for connection in _graph.get_connection_list():
+		if StringName(connection["from_node"]) == node.name \
+				or StringName(connection["to_node"]) == node.name:
+			_graph.disconnect_node(
+				StringName(connection["from_node"]),
+				int(connection["from_port"]),
+				StringName(connection["to_node"]),
+				int(connection["to_port"]),
+			)
+
+
+func _first_select_node() -> GraphNode:
+	for child in _graph.get_children():
+		if child is GraphNode and child.has_method("get_selected_table"):
+			return child as GraphNode
+	return null
+
+
+func _selected_column_count() -> int:
+	if not is_instance_valid(_active_select_operation) \
+			or not _active_select_operation.has_method("get_selected_columns"):
+		return 0
+	var columns: Array[StringName] = _active_select_operation.call(
+		"get_selected_columns",
+	)
+	return columns.size()

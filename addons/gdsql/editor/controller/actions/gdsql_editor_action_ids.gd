@@ -22,6 +22,7 @@ const ADD_UPDATE_QUERY_NODE := &"query_graph.add_update"
 const ADD_DELETE_QUERY_NODE := &"query_graph.add_delete"
 const RUN_QUERY_GRAPH := &"query_graph.run"
 const ADD_QUERY_RESULT_ROW := &"query_graph.result.add_row"
+const REMOVE_QUERY_GRAPH_NODE := &"query_graph.remove_node"
 
 
 static func get_all() -> Array[StringName]:
@@ -46,6 +47,7 @@ static func get_all() -> Array[StringName]:
 		ADD_DELETE_QUERY_NODE,
 		RUN_QUERY_GRAPH,
 		ADD_QUERY_RESULT_ROW,
+		REMOVE_QUERY_GRAPH_NODE,
 	]
 
 

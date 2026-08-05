@@ -85,9 +85,12 @@ func _inspect_table(
 	var schema_exists := schema.load(schema_path) == OK
 	var column_count := 0
 	var index_count := 0
+	var columns: Array[GDSQLColumnDefinition] = []
 	if schema_exists:
 		for section in schema.get_sections():
-			column_count += int(section.begins_with("column:"))
+			if section.begins_with("column:"):
+				columns.append(_inspect_column(schema, section))
+				column_count += 1
 			index_count += int(section.begins_with("index:"))
 	var storage := ConfigFile.new()
 	var storage_exists := storage.load(storage_path) == OK
@@ -103,7 +106,29 @@ func _inspect_table(
 		row_count,
 		column_count,
 		index_count,
+		columns,
 	)
+
+
+func _inspect_column(
+		schema: ConfigFile,
+		section: String,
+) -> GDSQLColumnDefinition:
+	var column := GDSQLColumnDefinition.new(
+		StringName(section.trim_prefix("column:")),
+		int(schema.get_value(section, "type", TYPE_NIL)) as Variant.Type,
+		bool(schema.get_value(section, "nullable", true)),
+		bool(schema.get_value(section, "unique", false)),
+		bool(schema.get_value(section, "auto_increment", false)),
+	)
+	column.generation = int(
+		schema.get_value(
+			section,
+			"generation",
+			GDSQLColumnDefinition.Generation.NONE,
+		),
+	)
+	return column
 
 
 func _registration_name(

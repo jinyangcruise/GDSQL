@@ -6,7 +6,6 @@
 [ext_resource type="PackedScene" uid="uid://bkspdgvwe0130" path="res://addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.tscn" id="2_select"]
 [ext_resource type="Script" uid="uid://hvanlw2ev0lr" path="res://addons/gdsql/editor/controller/components/gdsql_editor_action_button.gd" id="3_fnuwe"]
 [ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="5_wsf45"]
-[ext_resource type="Texture2D" path="res://addons/gdsql/editor/workspace/icons/play.svg" id="6_play"]
 
 [node name="QueryGraphEditor" type="Control" unique_id=997697166]
 layout_mode = 3
@@ -132,22 +131,6 @@ size_flags_horizontal = 3
 tooltip_text = "Add Delete Graph Node"
 text = "DELETE"
 icon = ExtResource("5_wsf45")
-expand_icon = true
-script = ExtResource("3_fnuwe")
-metadata/_custom_type_script = "uid://hvanlw2ev0lr"
-
-[node name="VSeparator3" type="VSeparator" parent="Panel/VBoxContainer/Toolbar/HBoxContainer"]
-layout_mode = 2
-theme_override_constants/separation = 4
-
-[node name="RunQuery" type="Button" parent="Panel/VBoxContainer/Toolbar/HBoxContainer"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-tooltip_text = "Compile and run query"
-text = "QUERY"
-icon = ExtResource("6_play")
 expand_icon = true
 script = ExtResource("3_fnuwe")
 metadata/_custom_type_script = "uid://hvanlw2ev0lr"

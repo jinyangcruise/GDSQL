@@ -4,25 +4,42 @@ This document records the implementation order for visual query composition.
 The ownership and dependency rules in [`editor.md`](editor.md) and
 [`core.md`](core.md) remain authoritative.
 
-## Current slice: source SELECT and table result
+## Current slice: SELECT, projection, predicate, and table result
 
 The first executable graph path is one selected `SELECT` operation:
 
 ```text
 SELECT source node
     database registration + logical database + table
+    checked result columns + optional typed WHERE comparison
         ↓ GraphQueryCompiler
-SelectQuerySpec (implicit SELECT *)
+SelectQuerySpec (projection + optional predicate)
         ↓ Database.execute()
 QueryResult + ResultSchema
         ↓
 Table result node
 ```
 
-The Query action compiles the selected visual SELECT source into the canonical
-query model. The editor controller executes the compiled query through the
-opened database and returns the structured result to the originating graph
-document. Graph controls and result controls do not access storage.
+The Query action lives inside each SELECT node. It compiles that visual source,
+its checked columns, and its optional predicate into the canonical query model.
+The editor controller executes the compiled query through the opened database
+and returns the structured result to the originating graph document. Graph
+controls and result controls do not access storage.
+
+The Columns menu uses checkable popup items and preserves catalog order. Every
+column checked compiles as implicit `SELECT *`; a subset compiles through
+`SelectQueryBuilder.columns()`. An empty projection is rejected instead of
+silently becoming `SELECT *`.
+
+The initial WHERE control supports one typed expression. It chooses a catalog
+column, comparison or null-check operator, and a literal edited with the shared
+Variant value field. It creates the canonical expression through `GDSQLExpr`.
+Supported operators are equals, not equal, greater than, greater than or equal,
+less than, less than or equal, is null, and is not null.
+
+Right-clicking a SELECT node exposes Remove node. Removing the operation also
+removes its connected derived result, while unrelated SELECT nodes and results
+remain available.
 
 The table result derives mutation capabilities from the returned schema:
 
@@ -41,18 +58,18 @@ Only the selected SELECT node is an executable root in this slice. Multiple
 visual operations and their connections become executable after connection
 validation and output-root selection are implemented.
 
-## Next slice: selectable columns
+## Implemented slice: selectable columns
 
-Add projection editing to the SELECT node and store it on the typed graph
-SELECT node. Compilation maps the chosen columns to
-`SelectQueryBuilder.columns()` and therefore to `SelectProjection` values.
+Projection editing is stored on the typed graph SELECT node. Compilation maps
+chosen columns to `SelectQueryBuilder.columns()` and therefore to
+`SelectProjection` values.
 
 Required presentation and behavior:
 
 1. Load the selected table's ordered catalog columns without loading rows.
 2. Provide Select all, Clear, and ordered column selection.
-3. Treat no explicit selection as `SELECT *`; otherwise preserve the selected
-   projection order.
+3. Treat every selected column as `SELECT *`, reject an empty selection, and
+   otherwise preserve the selected projection order.
 4. Display projection changes in the node summary before execution.
 5. Derive result edit/insert capability from `ResultSchema`, never from the
    visual selection alone.
@@ -63,13 +80,13 @@ Expression projections, aliases, aggregates, and calculated columns follow
 named-column projection. They must use canonical `QueryExpression` and
 `SelectProjection` objects rather than editor-only expression dictionaries.
 
-## Following slice: WHERE expressions
+## Next expression slice: composed WHERE expressions
 
-The visual WHERE builder must create the same immutable expression tree exposed
-by `GDSQLExpr`. It should begin with typed comparison rows and then add logical
-composition.
+The visual WHERE builder creates the same immutable expression nodes exposed by
+`GDSQLExpr`. One typed comparison or null check is implemented. The next slice
+adds multiple expression rows and logical composition.
 
-Initial operations to create:
+Implemented operations:
 
 - Column operand: choose a column from the selected source schema.
 - Typed literal operand: reuse the editor Variant value field with the chosen
@@ -77,10 +94,14 @@ Initial operations to create:
 - Comparisons: equals, not equals, greater than, greater than or equal, less
   than, and less than or equal.
 - Null checks: is null and is not null; these do not show a value parameter.
-- Logical composition: AND, OR, and NOT with explicit nested groups.
-- Remove, duplicate, and reorder expression rows or groups.
 - Inline diagnostics for incompatible operands, incomplete expressions, and
   invalid typed values.
+
+Operations still to create:
+
+- Logical composition: AND, OR, and NOT with explicit nested groups.
+- Remove, duplicate, and reorder expression rows or groups.
+- Column-to-column comparison and reusable expression-node inputs.
 
 Compilation maps these controls to `GDSQLExpr.column()`, typed literals,
 comparison combinators, null checks, and logical combinators, then assigns the
@@ -106,4 +127,3 @@ order:
 Each increment must keep graph state descriptive, compile to `QuerySpec`, pass
 structured diagnostics across the editor boundary, and execute only through
 the public database runtime.
-

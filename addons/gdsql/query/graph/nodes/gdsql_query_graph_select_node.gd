@@ -6,6 +6,7 @@ var database_name: StringName
 var table_name: StringName
 var projections: Array[StringName] = []
 var predicate: GDSQLQueryExpression
+var include_all_columns := true
 
 
 func _init(
@@ -14,4 +15,3 @@ func _init(
 ) -> void:
 	database_name = database
 	table_name = table
-

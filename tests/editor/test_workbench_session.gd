@@ -87,6 +87,9 @@ func test_explorer_reads_catalog_schema_and_table_headers() -> void:
 	assert_bool(heroes.storage_exists).is_true()
 	assert_int(heroes.row_count).is_equal(2)
 	assert_int(heroes.column_count).is_equal(2)
+	assert_int(heroes.columns.size()).is_equal(2)
+	assert_int(heroes.get_column(&"id").data_type).is_equal(TYPE_INT)
+	assert_bool(heroes.get_column(&"name").nullable).is_false()
 
 
 func test_workbench_loads_all_registrations_without_opening_rows() -> void:

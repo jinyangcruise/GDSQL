@@ -21,7 +21,7 @@ func compile(graph: GDSQLQueryGraph) -> GDSQLQueryCompilationResult:
 		select_node.database_name,
 		select_node.table_name,
 	)
-	if not select_node.projections.is_empty():
+	if not select_node.include_all_columns:
 		builder.columns(select_node.projections)
 	if select_node.predicate != null:
 		builder.where(select_node.predicate)
