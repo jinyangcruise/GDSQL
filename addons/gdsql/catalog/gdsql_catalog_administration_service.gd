@@ -14,6 +14,10 @@ func rename_database(
 
 
 @abstract
+func unregister_database(database_name: StringName) -> GDSQLCatalogOperationResult
+
+
+@abstract
 func drop_database(database_name: StringName) -> GDSQLCatalogOperationResult
 
 
@@ -44,4 +48,18 @@ func alter_table(
 		database_name: StringName,
 		table_name: StringName,
 		alterations: Array[GDSQLTableAlteration],
+) -> GDSQLCatalogOperationResult
+
+
+@abstract
+func preview_alter_table(
+		database_name: StringName,
+		table_name: StringName,
+		alterations: Array[GDSQLTableAlteration],
+) -> GDSQLOperationResult
+
+
+@abstract
+func apply_change_plan(
+		plan: GDSQLCatalogChangePlan,
 ) -> GDSQLCatalogOperationResult

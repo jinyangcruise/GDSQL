@@ -37,11 +37,11 @@ static func create(
 
 
 func _init(
-		database_name: StringName = &"",
-		context: GDSQLDatabaseContext = null,
+		_database_name: StringName = &"",
+		_context: GDSQLDatabaseContext = null,
 ) -> void:
-	self.database_name = database_name
-	self.context = context
+	database_name = _database_name
+	context = _context
 
 
 func query() -> GDSQLQuery:
@@ -74,6 +74,15 @@ func rename(new_name: StringName) -> GDSQLDatabaseResult:
 	return result
 
 
+## Removes this database from its durable catalog while preserving its
+## database directory, schemas, table files, and rows.
+func unregister() -> GDSQLCatalogOperationResult:
+	var result := context.unregister_database(database_name)
+	if result.is_successful():
+		database_name = &""
+	return result
+
+
 func drop() -> GDSQLCatalogOperationResult:
 	var result := context.drop_database(database_name)
 	if result.is_successful():
@@ -97,6 +106,29 @@ func alter_table(
 		alterations: Array[GDSQLTableAlteration],
 ) -> GDSQLCatalogOperationResult:
 	return context.alter_table(database_name, table_name, alterations)
+
+
+func preview_alter_table(
+		table_name: StringName,
+		alterations: Array[GDSQLTableAlteration],
+) -> GDSQLOperationResult:
+	return context.preview_alter_table(database_name, table_name, alterations)
+
+
+func apply_change_plan(
+		plan: GDSQLCatalogChangePlan,
+) -> GDSQLCatalogOperationResult:
+	if plan != null and plan.database_name != database_name:
+		var result := GDSQLCatalogOperationResult.new()
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_CATALOG_CHANGE_PLAN_DATABASE_MISMATCH",
+				"Change plan targets database '%s', not '%s'." \
+						% [plan.database_name, database_name],
+			),
+		)
+		return result
+	return context.apply_change_plan(plan)
 
 
 func insert(table_name: StringName, values: Dictionary) -> GDSQLQueryResult:

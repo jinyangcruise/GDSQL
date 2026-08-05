@@ -39,6 +39,10 @@ func rename_database(
 	return catalog_administration.rename_database(current_name, new_name)
 
 
+func unregister_database(database_name: StringName) -> GDSQLCatalogOperationResult:
+	return catalog_administration.unregister_database(database_name)
+
+
 func drop_database(database_name: StringName) -> GDSQLCatalogOperationResult:
 	return catalog_administration.drop_database(database_name)
 
@@ -71,6 +75,24 @@ func alter_table(
 		alterations: Array[GDSQLTableAlteration],
 ) -> GDSQLCatalogOperationResult:
 	return catalog_administration.alter_table(database_name, table_name, alterations)
+
+
+func preview_alter_table(
+		database_name: StringName,
+		table_name: StringName,
+		alterations: Array[GDSQLTableAlteration],
+) -> GDSQLOperationResult:
+	return catalog_administration.preview_alter_table(
+		database_name,
+		table_name,
+		alterations,
+	)
+
+
+func apply_change_plan(
+		plan: GDSQLCatalogChangePlan,
+) -> GDSQLCatalogOperationResult:
+	return catalog_administration.apply_change_plan(plan)
 
 
 func execute(query: GDSQLQuerySpec) -> GDSQLQueryResult:

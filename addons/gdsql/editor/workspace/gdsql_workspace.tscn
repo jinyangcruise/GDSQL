@@ -1,0 +1,103 @@
+[gd_scene format=3 uid="uid://bfxs14rex8fj0"]
+
+[ext_resource type="Script" uid="uid://daiglem2cm4sw" path="res://addons/gdsql/editor/workspace/gdsql_workspace.gd" id="1_workspace"]
+
+[node name="GDSQLWorkspace" type="Control" unique_id=644906906]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_workspace")
+
+[node name="Layout" type="VBoxContainer" parent="." unique_id=1785881870]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="MenuPanel" type="PanelContainer" parent="Layout" unique_id=1374512569]
+custom_minimum_size = Vector2(0, 32)
+layout_mode = 2
+
+[node name="MenuBar" type="MenuBar" parent="Layout/MenuPanel" unique_id=1474242601]
+layout_mode = 2
+flat = true
+
+[node name="File" type="PopupMenu" parent="Layout/MenuPanel/MenuBar" unique_id=604279654]
+title = "File"
+item_count = 4
+item_0/text = "New Database…"
+item_0/id = 1
+item_1/id = -1
+item_1/separator = true
+item_2/text = "Save"
+item_2/id = 4
+item_2/disabled = true
+item_3/text = "Close"
+item_3/id = 5
+item_3/disabled = true
+
+[node name="Edit" type="PopupMenu" parent="Layout/MenuPanel/MenuBar" unique_id=1032801543]
+title = "Edit"
+item_count = 4
+item_0/text = "Undo"
+item_0/id = 10
+item_0/disabled = true
+item_1/text = "Redo"
+item_1/id = 11
+item_1/disabled = true
+item_2/id = -1
+item_2/separator = true
+item_3/text = "Editor Settings…"
+item_3/id = 12
+item_3/disabled = true
+
+[node name="Query" type="PopupMenu" parent="Layout/MenuPanel/MenuBar" unique_id=368470275]
+title = "Query"
+item_count = 2
+item_0/text = "New Query Graph"
+item_0/id = 20
+item_0/disabled = true
+item_1/text = "Run Query"
+item_1/id = 21
+item_1/disabled = true
+
+[node name="Database" type="PopupMenu" parent="Layout/MenuPanel/MenuBar" unique_id=1495313969]
+title = "Database"
+item_count = 4
+item_0/text = "Create Database…"
+item_0/id = 1
+item_1/text = "Add Table"
+item_1/id = 2
+item_1/disabled = true
+item_2/id = -1
+item_2/separator = true
+item_3/text = "Refresh"
+item_3/id = 3
+
+[node name="Help" type="PopupMenu" parent="Layout/MenuPanel/MenuBar" unique_id=661294708]
+title = "Help"
+item_count = 2
+item_0/text = "GDSQL Documentation"
+item_0/id = 30
+item_0/disabled = true
+item_1/text = "About GDSQL"
+item_1/id = 31
+item_1/disabled = true
+
+[node name="DocumentTabs" type="TabBar" parent="Layout" unique_id=41927085]
+custom_minimum_size = Vector2(0, 34)
+layout_mode = 2
+current_tab = 0
+tab_close_display_policy = 1
+tab_count = 1
+tab_0/title = "Welcome"
+
+[node name="DocumentHost" type="Control" parent="Layout" unique_id=329957159]
+layout_mode = 2
+size_flags_vertical = 3

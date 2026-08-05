@@ -4,8 +4,8 @@ extends RefCounted
 var function_registry: GDSQLQueryFunctionRegistry
 
 
-func _init(function_registry: GDSQLQueryFunctionRegistry = null) -> void:
-	self.function_registry = function_registry
+func _init(_function_registry: GDSQLQueryFunctionRegistry = null) -> void:
+	function_registry = _function_registry
 
 
 func evaluate(expression: GDSQLQueryExpression, row_context: GDSQLRowRecord) -> Variant:

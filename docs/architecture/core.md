@@ -30,7 +30,7 @@ flowchart TD
         Compiler["SQL Compiler"]
         Builder["Query Builder"]
         GraphCompiler["Graph Compiler"]
-        ModelMapper["Model Mapper"]
+        ModelQuery["Model Query"]
     end
 
     subgraph Canonical["Canonical query pipeline"]
@@ -53,7 +53,7 @@ flowchart TD
     SQL --> Lexer --> Parser --> Compiler --> Spec
     Fluent --> Builder --> Spec
     Graph --> GraphCompiler --> Spec
-    Model --> ModelMapper --> Spec
+    Model --> ModelQuery --> Spec
 
     Spec --> Validator --> Bound --> Planner --> Plan --> Executor
 
@@ -1180,6 +1180,84 @@ named access materially improves readability. Timing assertions do not belong
 in the behavioral transaction test suite because they would be
 platform-dependent and flaky.
 
+### 11.2 Database registry
+
+`GDSQLDatabaseRegistry` keeps open `GDSQLDatabase` handles under registration
+names. Logical roles point to those registrations:
+
+```gdscript
+var registry := GDSQLDatabaseRegistry.new()
+registry.register(&"base_content", content_database)
+registry.register(&"slot_1", save_database)
+registry.bind_role(GDSQLDatabaseRegistry.CONTENT_ROLE, &"base_content")
+registry.bind_role(GDSQLDatabaseRegistry.SAVE_ROLE, &"slot_1")
+
+var active_save := registry.resolve_role(
+    GDSQLDatabaseRegistry.SAVE_ROLE,
+).get_database()
+```
+
+Binding a role again selects another registered handle. This supports active
+save selection, effective-content replacement, settings, analytics, and
+project-defined roles through one API. Unregistering a handle also clears each
+role that selected it. Every lifecycle and resolution operation returns a
+`GDSQLDatabaseResult` with structured diagnostics.
+
+Durable registration metadata uses `GDSQLDatabaseRegistration` and
+`GDSQLDatabaseRegistrySnapshot`. `GDSQLConfigFileDatabaseRegistryStore` stores
+the snapshot in `user://gdsql/databases.cfg`, allowing runtime startup and
+editor tools to inspect database roots, backend types, and role selections.
+Open handles remain attached to the active application context.
+
+One `DatabaseRegistration` identifies one logical database. The snapshot and
+registry form the collection that knows every registered database. Registration
+metadata can therefore be loaded without opening every database or reading its
+rows. `get_registrations()` and `get_registration()` inspect the loaded durable
+metadata independently from `resolve()`, which still resolves an open handle.
+
+`DatabaseExplorer` provides lightweight discovery for explicitly supplied
+roots. Its ConfigFile implementation reads `databases.cfg`, schema summaries,
+and reserved table metadata such as row count. It does not enumerate row
+sections or materialize `RowRecord` objects. Save discovery is bounded to a
+configured parent such as `user://gdsql/saves/`; arbitrary recursive scanning
+of `user://` is outside this responsibility. ConfigFile inspection still parses
+the physical file because `ConfigFile` has no header-only read API; only header
+metadata is returned, while a paged backend can read its header independently.
+
+### 11.3 Persistence semantics and checkpoints
+
+A transaction commit establishes valid, visible database state. A checkpoint
+transfers committed dirty state to durable storage. ConfigFile storage performs
+durable work during commit. In-memory storage commits authoritative rows to
+memory and records a dirty version for every affected table.
+
+`GDSQLCheckpointTarget` exposes `is_dirty()` and `checkpoint()`.
+`GDSQLPersistenceCoordinator` associates targets with typed policies and
+coordinates explicit, dirty-set, and immediate post-commit checkpoints:
+
+```gdscript
+var persistence := GDSQLPersistenceCoordinator.new()
+persistence.register(
+    &"save_1",
+    buffered_save_storage,
+    GDSQLCheckpointPolicy.periodic(30.0),
+)
+
+var result := persistence.checkpoint(&"save_1")
+```
+
+`GDSQLCheckpointResult` records databases that reached durable storage and
+databases that remain dirty for a later retry. Periodic scheduling and graceful
+shutdown integration belong to the optional runtime Node adapter.
+
+`GDSQLInMemoryCheckpointTarget` composes an `InMemoryTableStorage` source with
+an injected durable `TableStorage`. It synchronizes authoritative dirty tables
+and clears a dirty marker only when the copied version remains current. This
+adapter keeps checkpoint policy outside storage and keeps ConfigFile knowledge
+outside the in-memory backend. `load_table()` establishes a clean authoritative
+memory snapshot before runtime mutation when an existing durable dataset is
+used as the source.
+
 ---
 
 ## 12. Storage boundary
@@ -1276,6 +1354,13 @@ ConfigFileTableStorage
 ```
 
 Storage representations do not propagate upward into the canonical query model.
+
+A future `GDSQLPagedBinaryTableStorage` can implement the same contract with
+one binary file per table. Each file begins with a typed header containing the
+format version, schema fingerprint, page size, row count, generated-key state,
+and root page references for rows and indexes. Independently addressable pages
+allow targeted row and index loading while preserving the current table-level
+file organization.
 
 ---
 
@@ -1404,6 +1489,9 @@ func create_database(database_name: StringName) -> CatalogOperationResult
 func rename_database(current_name: StringName, new_name: StringName) -> CatalogOperationResult
 
 @abstract
+func unregister_database(database_name: StringName) -> CatalogOperationResult
+
+@abstract
 func drop_database(database_name: StringName) -> CatalogOperationResult
 
 @abstract
@@ -1423,8 +1511,26 @@ func alter_table(
 ) -> CatalogOperationResult
 
 @abstract
+func preview_alter_table(
+    database_name: StringName,
+    table_name: StringName,
+    alterations: Array[TableAlteration],
+) -> OperationResult
+
+@abstract
+func apply_change_plan(
+    plan: CatalogChangePlan,
+) -> CatalogOperationResult
+
+@abstract
 func drop_table(database_name: StringName, table_name: StringName) -> CatalogOperationResult
 ```
+
+Unregistering removes a logical database from the catalog while preserving its
+physical directory, schemas, table files, and rows. Creating the same logical
+database under that data root registers and loads those existing files.
+Dropping remains the explicitly destructive operation that also removes the
+physical database directory.
 
 The public API accepts typed `TableDefinition` and `ColumnDefinition` objects.
 It does not accept ConfigFile sections or construct project paths. The concrete
@@ -1444,11 +1550,24 @@ backend may complete a missing empty table file when an existing stored schema
 exactly matches the requested definition; this repairs incomplete structures
 without overwriting a table or changing its schema.
 
-Table alterations are explicit typed intents: add column, rename column, or
-drop column. The backend updates schema and existing row files together. Adding
-a non-nullable column to a populated table requires a compatible default;
+Table alterations are explicit typed intents for column lifecycle, defaults,
+nullability, uniqueness, generated-value and auto-increment policies, and
+indexes. The backend updates schema and existing row files together. Adding a
+non-nullable column to a populated table requires a compatible default;
 renaming a column migrates stored row keys; dropping a column removes stored
-values. Dropping the primary key is rejected. Database and table renames move
+values. Constraint changes validate existing rows before persistence, and
+index changes rebuild backend index metadata.
+
+Direct column data-type replacement is intentionally absent. The safe workflow
+adds a column with the new type, moves or converts values through canonical
+mutations, validates the result, and then drops the old column.
+
+`preview_alter_table()` validates the complete request against an isolated copy
+and returns a `CatalogChangePlan` with affected-row count, concise summaries,
+destructive classification, and a source schema fingerprint. Applying the plan
+compares that fingerprint with the current catalog and rejects stale previews.
+`alter_table()` remains the immediate code API by previewing and applying in
+one call. Dropping the primary key is rejected. Database and table renames move
 their complete physical structures and update catalog metadata, while drop
 operations remove both metadata and owned storage.
 
@@ -1492,7 +1611,8 @@ EditorTableMaterializer
 CsvExportMaterializer
 ```
 
-An optional mapper extension may later provide specialized materializers without changing the executor.
+Specialized materializers can extend this boundary while the executor remains
+row-oriented.
 
 The initial materialization boundary is available after execution:
 
@@ -1533,25 +1653,91 @@ The executor does not need to know whether rows will be:
 - Converted into model objects.
 - Exported to CSV or JSON.
 
-### 14.1 Planned model materialization
+### 14.1 Model materialization and persisted-row operations
 
 The model frontend will build on this boundary. A `GDSQLModel` represents one
 materialized row and is associated through `GDSQLModelDefinition` with one
 logical database and table. `GDSQLModelRegistry` resolves model definitions
-through the project runtime, while `GDSQLModelContext` permits isolated
-registries for tests. Models never store physical database paths.
+and delegates logical role selection to `GDSQLDatabaseRegistry`, while
+`GDSQLModelContext` permits isolated registries for tests. Model metadata stores
+logical roles and table names.
 
-Normal queries are model-scoped and do not require repeatedly passing a
-database handle:
+Application composition configures the default model context once. Concrete
+model classes provide thin static forwarding methods:
+
+```gdscript
+static func query() -> GDSQLModelQuery:
+    return GDSQLModels.query(Hero)
+
+static func find(identity: Variant) -> GDSQLQueryResult:
+    return GDSQLModels.find(Hero, identity)
+```
+
+Normal queries remain model-scoped and omit infrastructure arguments:
 
 ```gdscript
 Hero.query() \
     .where(GDSQLExpr.column(&"level").greater_than(3)) \
-    .get()
+    .all()
 ```
 
-The runtime resolves `Hero` to its registered logical database and table. An
-explicit model context remains an advanced testing or multi-runtime option.
+`GDSQLModels` delegates to the configured context, which resolves `Hero` to its
+registered logical role and table. The forwarding method passes `Hero`
+explicitly because GDScript inherited static methods do not expose their
+calling subclass. `all()` returns every materialized match.
+
+Model materialization creates an Array whose runtime element type is the
+concrete model script. Callers can retain typed property access directly:
+
+```gdscript
+var heroes: Array[Hero] = Hero.query().all().get_value()
+```
+
+Loaded `has_many` relationships use the related model script as their Array
+element type in the same way.
+
+Materialized models retain their context and original values. `refresh()`
+reloads the row into the same object. Mutable models use changed-field UPDATEs
+for `save()` and primary-key DELETEs for `delete()`. Content models return a
+read-only diagnostic for mutation attempts. These helpers emit canonical query
+specifications and remain independent from physical storage.
+Typed relationship definitions live on model classes. Model queries use those
+definitions for explicit or eager loading, and graphical tooling can inspect
+the same keys to display related identifiers and records.
+
+The model method is the source of truth for user-owned model scripts:
+
+```gdscript
+func relationships() -> Array[GDSQLRelationshipDefinition]:
+    return [
+        GDSQLRelationshipDefinition.has_many(
+            &"skills",
+            Skill,
+            &"hero_id",
+        ),
+    ]
+```
+
+Registration captures and validates these definitions by relationship name.
+`with(&"skills")` performs a separate batched model query through the related
+model's logical role and attaches the result to each materialized model.
+`get_related(&"skills")` returns the loaded model, model array, or null, while
+`is_relationship_loaded(&"skills")` distinguishes an unloaded relationship
+from an empty result. Early graphical tooling may inspect this metadata while
+treating handwritten model code as read-only.
+
+The catalog remains the sole authority for database and table structure.
+`GDSQLModel` binds typed properties and high-level behavior to an existing
+logical table; it does not provide table definitions or invoke catalog
+administration. Tables remain valid without models, and multiple higher-level
+frontends may consume the same catalog structure.
+
+The graphical editor is a database and table viewer and manipulator. It depends
+on catalog definitions, catalog administration, and canonical queries.
+Registered models may provide optional materialization and relationship
+conveniences, but the editor does not rewrite model scripts or derive catalog
+mutations from them. Read-only model compatibility validation may report stale
+properties after a table change.
 
 ---
 
@@ -1657,6 +1843,11 @@ static func create_default(
     )
 ```
 
+`open_registration()` is the registration-aware composition entry point.
+ConfigFile registrations open their durable backend directly. In-memory
+registrations use the same catalog and hydrate existing durable rows into an
+authoritative clean working set.
+
 The composition root is permitted to reference concrete implementations. Most other classes depend on abstract contracts.
 
 This supports:
@@ -1738,6 +1929,32 @@ addons/gdsql/
 │   ├── delete_query_builder.gd
 │   └── query_result.gd
 │
+├── runtime/
+│   ├── database_registry.gd
+│   ├── database_registration.gd
+│   ├── database_registry_store.gd
+│   ├── database_explorer.gd
+│   ├── database_inspection.gd
+│   ├── table_inspection.gd
+│   ├── checkpoint_target.gd
+│   ├── checkpoint_policy.gd
+│   ├── checkpoint_result.gd
+│   ├── in_memory_checkpoint_target.gd
+│   └── persistence_coordinator.gd
+│
+├── model/
+│   ├── model.gd
+│   ├── content_model.gd
+│   ├── save_model.gd
+│   ├── settings_model.gd
+│   ├── model_access_mode.gd
+│   ├── model_definition.gd
+│   ├── relationship_definition.gd
+│   ├── model_registry.gd
+│   ├── model_context.gd
+│   ├── models.gd
+│   └── model_query.gd
+│
 ├── query/
 │   ├── model/
 │   │   ├── query_spec.gd
@@ -1784,18 +2001,24 @@ addons/gdsql/
 │   ├── database_definition.gd
 │   ├── table_definition.gd
 │   ├── table_alteration.gd
+│   ├── catalog_change_plan.gd
 │   ├── column_definition.gd
 │   └── index_definition.gd
 │
 ├── storage/
 │   ├── table_storage.gd
+│   ├── storage_backend_ids.gd
 │   ├── storage_session.gd
 │   ├── table_snapshot.gd
 │   ├── row_record.gd
+│   ├── memory/
+│   │   └── in_memory_table_storage.gd
 │   └── configfile/
 │       ├── config_file_table_storage.gd
 │       ├── config_file_catalog_service.gd
 │       ├── config_file_catalog_administration_service.gd
+│       ├── config_file_database_registry_store.gd
+│       ├── config_file_database_explorer.gd
 │       ├── config_file_cache.gd
 │       └── godot_variant_codec.gd
 │
@@ -1805,7 +2028,15 @@ addons/gdsql/
 │   └── materializers/
 │
 ├── editor/
+│   ├── actions/
+│   ├── activity/
+│   ├── database_dock/
+│   ├── integration/
+│   ├── shared/
+│   ├── workspace/
 │   ├── workbench/
+│   │   ├── workbench.gd
+│   │   └── workbench_session.gd
 │   ├── sql_editor/
 │   ├── query_graph/
 │   └── table_editor/
@@ -1827,14 +2058,13 @@ res://
 ├── addons/
 │   └── gdsql/                  # Plugin implementation only
 ├── .gdsql/
-│   └── settings.cfg            # Project/tool settings only
+│   ├── settings.cfg            # Project/tool settings only
+│   └── graphs/                 # Editor query graph documents
 └── data/
     ├── databases.cfg           # Database catalog
     └── <database>/
         ├── schema/              # Table definitions
-        ├── tables/              # Row data stored as .cfg files
-        ├── mappers/             # Optional mapping definitions
-        └── graphs/              # Query graph documents
+        └── tables/              # Row data stored as .cfg or binary table files
 ```
 
 `.gdsql` is a hidden project configuration directory. It is not a second
@@ -1856,6 +2086,22 @@ settings belong outside individual save slots.
 The editor depends on the runtime.
 
 The runtime does not depend on the editor.
+
+Database and table editing uses catalog definitions and
+`CatalogAdministrationService`. Row editing uses canonical queries. Model
+classes are optional result and code conveniences; they are not schema inputs,
+editor documents, or catalog administration commands.
+
+`Workbench` is the collection-level coordinator. It loads every durable
+registration, maintains lightweight database and table inspections, discovers
+databases only below explicit roots, and opens a registration on selection.
+Discovery does not load table rows.
+
+`WorkbenchSession` is the UI-independent coordinator for the one opened
+`DatabaseRegistration` selected in the workbench. It owns the catalog snapshot,
+selected table, loaded row page, and pending `CatalogChangePlan`. Controls bind
+to this state and present its structured results; the session performs
+operations through the same runtime and catalog contracts used by code.
 
 The editor owns decisions such as:
 

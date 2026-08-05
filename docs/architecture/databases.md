@@ -32,16 +32,18 @@ The project database contains data authored as part of the game:
 - Balance values and progression tables.
 - Other editor-managed reference data.
 
-It belongs under the project-owned data root:
+Editor documents and database content use separate project-owned roots:
 
 ```text
+res://.gdsql/
+├── settings.cfg
+└── graphs/
+
 res://data/
 ├── databases.cfg
 └── game_content/
     ├── schema/
-    ├── tables/
-    ├── mappers/
-    └── graphs/
+    └── tables/
 ```
 
 This database is shipped with the game and should normally be treated as
@@ -67,9 +69,7 @@ user://gdsql/saves/
 │   ├── databases.cfg
 │   └── game_state/
 │       ├── schema/
-│       ├── tables/
-│       ├── mappers/
-│       └── graphs/
+│       └── tables/
 └── new_game_plus/
     ├── databases.cfg
     └── game_state/
@@ -208,6 +208,13 @@ The practical loading unit depends on the backend:
 - A purely in-memory backend has no persistent source and is useful for tests,
   simulations, and temporary session data.
 
+The planned paged binary backend keeps the same one-file-per-table organization
+as ConfigFile storage. A table file begins with a header containing a format
+version, schema fingerprint, page size, row count, generated-key sequence, and
+root page references for rows and indexes. The remaining file contains
+independently addressable pages. A `.gsql` extension can identify this binary
+table representation while `.cfg` continues to identify the readable backend.
+
 Read-only project tables may remain cached until explicitly unloaded or until a
 memory policy evicts them. Dirty save-state data must be checkpointed before it
 can be safely evicted.
@@ -306,10 +313,10 @@ The database and persistence implementation should not itself extend `Node`.
 Storage must remain usable in unit tests, headless tools, dedicated servers,
 and code that is not attached to a scene tree.
 
-The proposed split keeps database discovery separate from persistence policy:
+The service split keeps database discovery separate from persistence policy:
 
 ```text
-RuntimeDatabaseRegistry (RefCounted service)
+DatabaseRegistry (RefCounted service)
     ├── Registered database handles
     ├── Standard and project-defined logical role bindings
     ├── Effective-content database replacement
@@ -327,11 +334,45 @@ GDSQLRuntimeNode (optional Node/autoload adapter)
     └── Delegation to registry, content loader, and persistence coordinator
 ```
 
-`RuntimeDatabaseRegistry` answers which ordinary `GDSQLDatabase` currently
+`DatabaseRegistry` answers which ordinary `GDSQLDatabase` currently
 satisfies a logical role. `PersistenceCoordinator` answers when and how dirty
 committed state becomes durable. Effective-content construction remains the
 responsibility of `ContentOverlayLoader`; the top-level runtime service only
 coordinates these focused components.
+
+Durable database registration metadata lives in
+`user://gdsql/databases.cfg`. Each registration records its public name,
+logical database name, data root, and storage backend. Role bindings share the
+same file. `GDSQLConfigFileDatabaseRegistryStore` exposes this data as a typed
+snapshot for game startup, tests, and future editor management.
+
+One registration describes one logical database. The registry snapshot is the
+collection that lists project content, settings, analytics, and every known
+save database. Loading this collection does not open each database.
+
+The editor workbench may discover databases beneath explicitly configured
+roots. Project discovery inspects `res://data/databases.cfg`; save discovery
+inspects direct children such as
+`user://gdsql/saves/<save_name>/databases.cfg`. Discovery reads catalog entries,
+schema summaries, and table headers such as row count and file existence. Row
+values are loaded only after a registration and table are selected.
+
+The registry is available as a standalone `RefCounted` service:
+
+```gdscript
+var registry := GDSQLDatabaseRegistry.new()
+registry.register(&"effective_content", content_database)
+registry.register(&"save_1", save_database)
+registry.bind_role(&"content", &"effective_content")
+registry.bind_role(&"save", &"save_1")
+
+var active_content := registry.resolve_role(&"content").get_database()
+var active_save := registry.resolve_role(&"save").get_database()
+```
+
+Calling `bind_role()` again changes the active handle while preserving every
+registered database. `unregister()` clears role bindings that selected the
+removed handle.
 
 For an ordinary Godot game, the optional node can be installed as an autoload
 and provide a small top-level API:
@@ -397,38 +438,47 @@ GDSQLModel
 ```
 
 `GDSQLContentModel` resolves through the `content` role. It exposes query and
-refresh behavior but does not expose `save()` or `delete()` for runtime game
-code. Mod merging and cache construction happen before content models are
+refresh behavior, while `save()` and `delete()` return a read-only diagnostic.
+Mod merging and cache construction happen before content models are
 materialized.
 
 ```gdscript
 class_name Hero
 extends GDSQLContentModel
 
-static func table_name() -> StringName:
+func table_name() -> StringName:
 	return &"heroes"
+
+
+static func query() -> GDSQLModelQuery:
+	return GDSQLModels.query(Hero)
+
+
+static func find(identity: Variant) -> GDSQLQueryResult:
+	return GDSQLModels.find(Hero, identity)
 ```
 
 `GDSQLSaveModel` resolves through the `save` role and exposes mutable row
-operations. It does not manage save slots; the runtime registry determines
+operations. It does not manage save slots; the database registry determines
 which save name currently satisfies that role.
 
 ```gdscript
 class_name InventoryEntry
 extends GDSQLSaveModel
 
-static func table_name() -> StringName:
+func table_name() -> StringName:
 	return &"inventory"
 ```
 
-Normal usage therefore does not pass database handles:
+Runtime composition configures `GDSQLModels` once. Normal usage starts from the
+model class:
 
 ```gdscript
 var heroes := Hero.query() \
 	.where(GDSQLExpr.column(&"level").greater_than(3)) \
-	.get()
+	.all()
 
-var inventory := InventoryEntry.query().get()
+var inventory := InventoryEntry.query().all()
 ```
 
 The model registry maps `Hero` to the active `content` database and
@@ -444,7 +494,7 @@ that should survive save-slot changes:
 class_name AudioSetting
 extends GDSQLSettingsModel
 
-static func table_name() -> StringName:
+func table_name() -> StringName:
 	return &"audio"
 ```
 
@@ -455,13 +505,13 @@ For example, analytics can use its own database and persistence policy:
 class_name AnalyticsEvent
 extends GDSQLModel
 
-static func database_role() -> StringName:
+func database_role() -> StringName:
 	return &"analytics"
 
-static func access_mode() -> GDSQLModelAccessMode:
-	return GDSQLModelAccessMode.READ_WRITE
+func access_mode() -> GDSQLModelAccess.Mode:
+	return GDSQLModelAccess.Mode.READ_WRITE
 
-static func table_name() -> StringName:
+func table_name() -> StringName:
 	return &"events"
 ```
 
@@ -635,13 +685,13 @@ This runtime persistence layer should follow the transactional API because it
 depends on clear commit and rollback semantics:
 
 1. Implement callback-scoped transactions with one shared storage session.
-2. Implement an in-memory table storage backend for isolated behavior.
-3. Implement buffered storage over a persistent backend with dirty tracking.
-4. Add explicit checkpoint results and persistence policies.
-5. Add the runtime database registry and logical role bindings.
+2. Add the database registry, durable registration metadata, and role bindings.
+3. Add explicit checkpoint results, participants, policies, and coordination.
+4. Implement an in-memory table storage backend for isolated behavior.
+5. Implement buffered storage over a persistent backend with dirty tracking.
 6. Add the optional Node/autoload adapter, timer, and signals.
 7. Add model-registry integration.
-8. Add memory limits, clean-table eviction, and binary page-level loading later.
+8. Add memory limits, clean-table eviction, and binary page-level loading.
 
 None of these stages changes `QuerySpec`, expression semantics, result
 materialization, or frontend compilation. They extend storage composition and

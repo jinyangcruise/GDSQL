@@ -5,15 +5,123 @@ const FunctionCatalog = preload("res://addons/gdsql/query/model/gdsql_query_func
 
 
 static func create_default(settings: Variant = null) -> GDSQLDatabaseContext:
-	var data_root := "res://data"
-	if settings is String:
-		data_root = settings
-	elif settings is Dictionary:
-		data_root = settings.get("data_root", data_root)
+	var data_root := _resolve_data_root(settings)
 	var path_resolver := GDSQLDatabasePathResolver.new(data_root)
 	var cache := GDSQLConfigFileCache.new()
 	var codec := GDSQLGodotVariantCodec.new()
 	var storage: GDSQLTableStorage = GDSQLConfigFileTableStorage.new(path_resolver, cache, codec)
+	return _create_context(storage, path_resolver, cache, codec)
+
+
+## Creates a runtime with ConfigFile catalog metadata and authoritative
+## in-memory table rows. The returned context owns the storage instance.
+static func create_in_memory(settings: Variant = null) -> GDSQLDatabaseContext:
+	var data_root := _resolve_data_root(settings)
+	var path_resolver := GDSQLDatabasePathResolver.new(data_root)
+	var cache := GDSQLConfigFileCache.new()
+	var codec := GDSQLGodotVariantCodec.new()
+	return _create_context(
+		GDSQLInMemoryTableStorage.new(),
+		path_resolver,
+		cache,
+		codec,
+	)
+
+
+## Opens a registered database through its selected storage composition.
+##
+## In-memory registrations hydrate their authoritative rows from the durable
+## ConfigFile representation and begin with no dirty tables.
+static func open_registration(
+		registration: GDSQLDatabaseRegistration,
+) -> GDSQLDatabaseResult:
+	var result := GDSQLDatabaseResult.new()
+	if registration == null:
+		return _database_error(
+			&"GDSQL_DATABASE_REGISTRATION_REQUIRED",
+			"A database registration is required.",
+		)
+	if registration.database_name == &"" or registration.data_root.is_empty():
+		return _database_error(
+			&"GDSQL_DATABASE_REGISTRATION_INVALID",
+			"Registration requires a database name and data root.",
+		)
+	if not GDSQLStorageBackendIds.is_valid(registration.storage_backend_id):
+		return _database_error(
+			&"GDSQL_STORAGE_BACKEND_ID_INVALID",
+			"Unknown storage backend '%s'." % registration.storage_backend_id,
+		)
+	var context: GDSQLDatabaseContext
+	match registration.storage_backend_id:
+		GDSQLStorageBackendIds.CONFIG_FILE:
+			context = create_default(registration.data_root)
+		GDSQLStorageBackendIds.IN_MEMORY:
+			context = create_in_memory(registration.data_root)
+		_:
+			return _database_error(
+				&"GDSQL_STORAGE_BACKEND_UNAVAILABLE",
+				"Storage backend '%s' is not implemented." \
+						% registration.storage_backend_id,
+			)
+	var database_definition := context.catalog.get_database(
+		registration.database_name,
+	)
+	if database_definition == null:
+		return _database_error(
+			&"GDSQL_DATABASE_NOT_FOUND",
+			"Database '%s' is not registered." % registration.database_name,
+		)
+	if registration.storage_backend_id == GDSQLStorageBackendIds.IN_MEMORY:
+		var hydration := _hydrate_in_memory(
+			context,
+			registration.data_root,
+			database_definition,
+		)
+		if not hydration.is_successful():
+			result.diagnostics.merge(hydration.diagnostics)
+			return result
+	result.value = GDSQLDatabase.new(registration.database_name, context)
+	return result
+
+
+static func _hydrate_in_memory(
+		context: GDSQLDatabaseContext,
+		data_root: String,
+		database: GDSQLDatabaseDefinition,
+) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	var resolver := GDSQLDatabasePathResolver.new(data_root)
+	var durable := GDSQLConfigFileTableStorage.new(
+		resolver,
+		GDSQLConfigFileCache.new(),
+		GDSQLGodotVariantCodec.new(),
+	)
+	var memory := context.storage as GDSQLInMemoryTableStorage
+	for table in database.tables:
+		var snapshot := durable.read_table(table, null)
+		if snapshot == null:
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_STORAGE_TABLE_UNREADABLE",
+					"Could not hydrate table '%s.%s'." \
+							% [database.name, table.name],
+				),
+			)
+			return result
+		var loaded := memory.load_table(table, snapshot.rows)
+		result.diagnostics.merge(loaded.diagnostics)
+		if not loaded.is_successful():
+			return result
+	result.value = true
+	return result
+
+
+static func _create_context(
+		storage: GDSQLTableStorage,
+		path_resolver: GDSQLDatabasePathResolver,
+		cache: GDSQLConfigFileCache,
+		codec: GDSQLGodotVariantCodec,
+) -> GDSQLDatabaseContext:
 	var catalog: GDSQLCatalogService = GDSQLConfigFileCatalogService.new(path_resolver, codec)
 	var catalog_administration: GDSQLCatalogAdministrationService = \
 			GDSQLConfigFileCatalogAdministrationService.new(
@@ -44,3 +152,21 @@ static func create_default(settings: Variant = null) -> GDSQLDatabaseContext:
 		GDSQLDefaultQueryExecutor.new(),
 		execution_context,
 	)
+
+
+static func _resolve_data_root(settings: Variant) -> String:
+	var data_root := "res://data"
+	if settings is String:
+		data_root = settings
+	elif settings is Dictionary:
+		data_root = settings.get("data_root", data_root)
+	return data_root
+
+
+static func _database_error(
+		code: StringName,
+		message: String,
+) -> GDSQLDatabaseResult:
+	var result := GDSQLDatabaseResult.new()
+	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
+	return result

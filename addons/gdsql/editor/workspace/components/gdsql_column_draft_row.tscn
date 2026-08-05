@@ -1,0 +1,69 @@
+[gd_scene format=3 uid="uid://cpvugwfbubrqj"]
+
+[ext_resource type="Script" uid="uid://rexqj0ev45l2" path="res://addons/gdsql/editor/workspace/components/gdsql_column_draft_row.gd" id="1"]
+
+[node name="ColumnDraftRow" type="PanelContainer" unique_id=710886790]
+custom_minimum_size = Vector2(0, 36)
+script = ExtResource("1")
+
+[node name="Margin" type="MarginContainer" parent="." unique_id=100388492]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 3
+
+[node name="Fields" type="HBoxContainer" parent="Margin" unique_id=740054300]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Name" type="LineEdit" parent="Margin/Fields" unique_id=1756997877]
+custom_minimum_size = Vector2(150, 0)
+custom_maximum_size = Vector2(400, -1)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "column_name"
+
+[node name="Type" type="OptionButton" parent="Margin/Fields" unique_id=987388717]
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+
+[node name="Nullable" type="CheckBox" parent="Margin/Fields" unique_id=1523148692]
+layout_mode = 2
+text = "Nullable"
+
+[node name="Unique" type="CheckBox" parent="Margin/Fields" unique_id=720259783]
+layout_mode = 2
+text = "Unique"
+
+[node name="AutoIncrement" type="CheckBox" parent="Margin/Fields" unique_id=1119590284]
+layout_mode = 2
+text = "Auto Incr"
+
+[node name="HasDefault" type="CheckBox" parent="Margin/Fields"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Default"
+
+[node name="DefaultHost" type="HBoxContainer" parent="Margin/Fields"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Generation" type="OptionButton" parent="Margin/Fields"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(105, 0)
+layout_mode = 2
+item_count = 3
+popup/item_0/text = "None"
+popup/item_0/id = 0
+popup/item_1/text = "Created At"
+popup/item_1/id = 1
+popup/item_2/text = "Updated At"
+popup/item_2/id = 2
+
+[node name="Remove" type="Button" parent="Margin/Fields" unique_id=1897125204]
+layout_mode = 2
+text = "×"
+flat = true

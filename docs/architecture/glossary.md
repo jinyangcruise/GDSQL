@@ -24,7 +24,7 @@ state in the same change as implementation or test work.
 
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
-| `Database` | Public API | Main user-facing entry point for creating, opening, renaming, and dropping a database; managing its tables; executing canonical query specs; and running callback-scoped transactions. | `create()`, `open()`, `rename()`, `drop()`, table administration, `query()`, `execute()`, `transaction()` | 🧪 |
+| `Database` | Public API | Main user-facing entry point for creating, opening, renaming, unregistering, and destructively dropping a database; managing its tables; executing canonical query specs; and running callback-scoped transactions. | `create()`, `open()`, `rename()`, `unregister()`, `drop()`, table administration, `query()`, `execute()`, `transaction()` | 🧪 |
 | `DatabaseContext` | Runtime facade | Coordinates catalog administration, validation, binding, planning, execution, shared-session transactions, and result materialization. | Database and table administration methods, `execute(query)`, `transaction(callback)`, `prepare(query)` | 🚧 |
 | `Query` | Fluent API | User-facing fluent query entry point that optionally captures a table and creates operation-specific builders. | `table()`, `select()`, `insert()`, `update()`, `delete()` | 🧪 |
 | `SelectQueryBuilder` | Fluent API | Builds a `SelectQuerySpec` with projections, aliases, joins, predicates, grouping, aggregate functions, ordering, distinct selection, limits, and offsets. | `from_table()`, joins, projection, `group_by()`, `having()`, aggregate helpers, ordering, pagination, and `build()` | 🧪 |
@@ -180,14 +180,15 @@ state in the same change as implementation or test work.
 |---|---|---|---|---|
 | `CatalogService` | Catalog | Abstract access to database, table, column, and index definitions. | `get_database()`, `get_table()`, `has_table()`, `create_snapshot()` | 🚧 |
 | `ConfigFileCatalogService` | Catalog backend | Catalog implementation backed by GDSQL configuration files. | CatalogService implementation | 🛠️ |
-| `CatalogAdministrationService` | Catalog | Abstract contract for database and table lifecycle changes without exposing storage formats to the public API. | `create_database()`, `rename_database()`, `drop_database()`, `create_table()`, `rename_table()`, `alter_table()`, `drop_table()` | 🧪 |
-| `ConfigFileCatalogAdministrationService` | Catalog backend | Persists database registrations and synchronizes ConfigFile-backed schemas and row storage during lifecycle changes. | CatalogAdministrationService implementation | 🧪 |
+| `CatalogAdministrationService` | Catalog | Abstract contract for database and table lifecycle changes, including non-destructive database unregistration, validated preview, and stale-plan-safe application, without exposing storage formats to the public API. | Database and table lifecycle methods, `unregister_database()`, `preview_alter_table()`, `apply_change_plan()` | 🧪 |
+| `ConfigFileCatalogAdministrationService` | Catalog backend | Persists database registrations, preserves physical files during unregistration, and synchronizes ConfigFile-backed schemas and row storage during lifecycle changes. | CatalogAdministrationService implementation | 🧪 |
 | `CatalogSnapshot` | Catalog | Stable catalog view used during validation, binding, and planning. | `get_database()`, `get_table()` | 🚧 |
 | `DatabaseDefinition` | Catalog | Typed definition of a logical database. | Access to name and tables | 🛠️ |
 | `TableDefinition` | Catalog | Typed definition of a table, its columns, primary key, indexes, and common timestamp helpers. | `add_column()`, `add_index()`, `add_timestamps()`, `get_column()`, `get_primary_key()`, `get_index()` | 🧪 |
 | `ColumnDefinition` | Catalog | Typed definition of one table column, including an optional static default, generated-value policy, integer primary-key auto-increment, and the rule that `TYPE_OBJECT` accepts Resources only. | `set_default()`, `clear_default()`, `has_default()`, `get_default_value()`, `accepts_value()`, `created_at()`, `updated_at()` | 🧪 |
 | `ColumnDefault` | Catalog | Wraps a declared static default so an explicit null value remains distinct from no default and future default metadata can evolve without parallel column state. | `value` | 🧪 |
-| `TableAlteration` | Catalog | Typed intent for adding, renaming, or dropping one table column. | `add_column()`, `rename_column()`, `drop_column()` | 🧪 |
+| `TableAlteration` | Catalog | Typed intent for safe column metadata, column lifecycle, and index changes. Direct data-type replacement is expressed as add, migrate, and drop operations. | Column add/rename/drop, default, nullability, uniqueness, generation, auto-increment, and index factories | 🧪 |
+| `CatalogChangePlan` | Catalog administration | Read-only preview of validated structural changes, affected rows, destructive classification, summaries, and the source catalog fingerprint. | `requires_confirmation()` and stale-plan-safe application | 🧪 |
 | `IndexDefinition` | Catalog | Describes a named index, its ordered columns, and whether its complete value must be unique. | `get_columns()`, `is_unique()` | 🧪 |
 
 ## Storage
@@ -196,7 +197,10 @@ state in the same change as implementation or test work.
 |---|---|---|---|---|
 | `TableStorage` | Storage | Abstract row-level storage contract used by the runtime. | `get_capabilities()`, `read_table()`, primary-key/index/range lookup, staged mutations, `commit()`, `rollback()` | 🚧 |
 | `StorageCapabilities` | Storage | Reports optional exact-index and range-index lookup operations supported by a storage backend without exposing its implementation. | `supports_exact_index_lookup()`, `supports_range_index_lookup()` | 🧪 |
+| `StorageBackendIds` | Storage metadata | Defines stable storage backend identifiers and their UI-facing labels. | `get_all()`, `is_valid()`, `get_display_name()` | 🧪 |
 | `ConfigFileTableStorage` | Storage backend | Implements `TableStorage` using ConfigFile-backed `.cfg` files, with atomic query commits, maintained index entries, final-state uniqueness validation, table metadata, and transactional auto-increment generation. | TableStorage implementation | 🧪 |
+| `PagedBinaryTableStorage` | Storage backend | Future backend that stores each logical table in one paged binary file and loads row or index pages independently through the shared `TableStorage` contract. | TableStorage implementation | 📝 |
+| `BinaryTableHeader` | Binary storage metadata | Future per-table header containing format version, schema fingerprint, page layout, row metadata, generated-key state, and page roots. | Header encoding and validation | 📝 |
 | `StorageSession` | Storage | Tracks staged changes, dirty state, and uncommitted table metadata reservations for one unit of work. | Session-specific state access | 🧪 |
 | `TableSnapshot` | Storage | Stable collection of rows read from a table for an operation. | `get_rows()`, `find_by_primary_key()` | 🛠️ |
 | `RowRecord` | Storage and execution | Typed runtime representation of one row, including source-qualified values for multi-table evaluation. | `get_value()`, `get_source_value()`, `set_source_values()`, mutation and lookup helpers | 🧪 |
@@ -209,15 +213,45 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `BufferedTableStorage` | Storage composition | Keeps lazily loaded tables and indexes in memory, tracks committed dirty state, and delegates durable persistence to another storage backend. | TableStorage implementation and checkpoint participation | 📝 |
-| `InMemoryTableStorage` | Storage backend | Provides authoritative temporary table storage without requiring a persistent source. | TableStorage implementation | 📝 |
-| `RuntimeDatabaseRegistry` | Runtime database lifecycle | Registers open database handles and resolves standard or project-defined logical roles, including effective-content replacement and active save selection. | `register()`, `bind_role()`, `resolve_role()`, `unbind_role()` | 📝 |
-| `PersistenceCoordinator` | Runtime persistence | Applies persistence policies, inspects committed dirty state, and coordinates checkpoints without owning database discovery or model binding. | `checkpoint()`, `checkpoint_dirty()`, policy registration | 📝 |
+| `InMemoryTableStorage` | Storage backend | Provides authoritative temporary table storage with transaction-local visibility, committed dirty-version tracking, constraints, and scan-backed index capabilities. | TableStorage implementation, `load_table()`, `is_dirty()`, `get_dirty_tables()`, `mark_checkpointed()` | 🧪 |
+| `DatabaseRegistry` | Database lifecycle | Owns loaded durable registration metadata, registers selected open database handles, resolves replaceable logical roles, and delegates snapshot persistence. | Registration listing and lookup, `register()`, `resolve()`, role binding, `load_snapshot()`, `save_snapshot()` | 🧪 |
+| `DatabaseRegistration` | Database lifecycle metadata | Describes one durable registration through its public name, logical database name, data root, and validated storage backend identifier. | Typed registration fields | 🧪 |
+| `RuntimeFactory` | Runtime composition | Assembles storage-specific runtime graphs and opens durable registrations; in-memory registrations hydrate ConfigFile rows as a clean working set. | `create_default()`, `create_in_memory()`, `open_registration()` | 🧪 |
+| `DatabaseExplorer` | Database discovery | Abstract contract for discovering logical databases and lightweight table metadata from an explicitly supplied root without materializing rows. | `inspect_root()` | 🧪 |
+| `ConfigFileDatabaseExplorer` | Database discovery backend | Reads ConfigFile database catalogs, schema summaries, and reserved table headers. | `inspect_root()` | 🧪 |
+| `DatabaseInspection` | Database discovery metadata | Associates one discovered registration with catalog existence and lightweight table inspections. | Registration and `get_table()` | 🧪 |
+| `TableInspection` | Database discovery metadata | Reports table existence, row-count header, column count, and index count without containing row values. | Typed inspection fields | 🧪 |
+| `DatabaseRegistryStore` | Database lifecycle persistence | Abstract persistence boundary for complete typed registration and role-binding snapshots. | `load_snapshot()`, `save_snapshot()` | 🚧 |
+| `ConfigFileDatabaseRegistryStore` | Database lifecycle persistence | Stores editor-visible database registrations and role bindings in `user://gdsql/databases.cfg`. | DatabaseRegistryStore implementation | 🧪 |
+| `CheckpointTarget` | Runtime persistence | Contract for a storage composition that reports committed dirty state and transfers it to durable storage. | `is_dirty()`, `checkpoint()` | 🧪 |
+| `InMemoryCheckpointTarget` | Runtime persistence | Adapts authoritative in-memory storage to `CheckpointTarget` and synchronizes each dirty table into an injected durable `TableStorage` backend. | `is_dirty()`, `checkpoint()` | 🧪 |
+| `PersistenceCoordinator` | Runtime persistence | Applies persistence policies, inspects committed dirty state, and coordinates explicit or commit-triggered checkpoints. | `register()`, `checkpoint()`, `checkpoint_dirty()`, `transaction_committed()` | 🧪 |
 | `ContentOverlayLoader` | Runtime content loading | Validates and deterministically combines immutable base content with enabled mod layers into one reproducible effective content database. | `build_effective_database()`, cache invalidation and provenance diagnostics | 📝 |
 | `ContentCacheManifest` | Runtime content loading | Fingerprints the base content version, enabled mod versions or checksums, and deterministic load order for a disposable effective-content cache. | Compatibility inspection and cache fingerprint metadata | 📝 |
 | `ContentLoadingPolicy` | Runtime content loading | Selects complete, lazy-table, paged, or manual loading for the active effective-content working set. | `LOAD_ALL`, `LAZY_TABLES`, `PAGED`, `MANUAL` | 📝 |
-| `CheckpointPolicy` | Runtime persistence | Describes immediate, periodic, manual, or exit-time persistence behavior independently from transaction semantics. | Policy factories and interval metadata | 📝 |
-| `CheckpointResult` | Runtime persistence | Reports whether committed dirty state reached persistent storage and carries structured diagnostics. | `is_successful()`, persisted database/table metadata | 📝 |
-| `RuntimeNode` | Godot runtime adapter | Optional Node or autoload that supplies a top-level runtime API, timers, lifecycle notifications, and signals while delegating to the runtime registry, content loader, and persistence coordinator. | Database registration, role selection, rebuild/checkpoint delegation, runtime signals | 📝 |
+| `CheckpointPolicy` | Runtime persistence | Describes immediate, periodic, manual, or exit-time persistence behavior independently from transaction semantics. | `immediate()`, `periodic()`, `manual()`, `on_exit()`, interval metadata | 🧪 |
+| `CheckpointResult` | Runtime persistence | Reports checkpointed databases, remaining dirty databases, and structured persistence diagnostics. | `is_successful()`, `mark_checkpointed()`, `mark_dirty()` | 🧪 |
+| `RuntimeNode` | Godot runtime adapter | Optional Node or autoload that supplies a top-level runtime API, timers, lifecycle notifications, and signals while delegating to the database registry, content loader, and persistence coordinator. | Database registration, role selection, rebuild/checkpoint delegation, runtime signals | 📝 |
+
+## Editor
+
+| Name | Domain | Responsibility | Principal API | State |
+|---|---|---|---|---|
+| `Workbench` | Editor coordination | Loads the durable registration snapshot, reconciles explicit roots with logical database identity, removes stale root registrations, maintains lightweight inspections, and opens only the selected registration. | `load()`, `discover_root()`, `discover_children()`, `select_registration()`, `remove_registration()` | 🧪 |
+| `WorkbenchSession` | Editor coordination | Holds one opened registration, catalog snapshot, selected table, current page, and pending schema preview without depending on Controls. | `open_registration()`, `refresh_catalog()`, `select_table()`, `load_rows()`, preview and apply methods | 🧪 |
+| `EditorActionDefinition` | Editor actions | Describes one stable editor action independently from its presentation and behavior. | Identity, label, tooltip, icon, group, order, and kind | 🛠️ |
+| `EditorActionRegistrar` | Editor actions | Registers stable action metadata with behavior supplied by the editor coordinator. | `register_global_actions()` | 🛠️ |
+| `ContextActionHub` | Editor actions | Owns action handlers and availability for one editor surface or document context. | `add_action()`, `get_actions()`, `invoke()` | 🛠️ |
+| `EditorActionHub` | Editor actions | Resolves global and active-context actions for menus, toolbars, shortcuts, and command surfaces. | `register_context()`, `set_active_context()`, `get_actions()`, `invoke()` | 🛠️ |
+| `EditorActionButton` | Editor actions | Reusable button presentation that resolves its label, icon, tooltip, visibility, availability, and invocation through the active action hub. | `configure()`, `configure_action()` | 🛠️ |
+| `EditorController` | Editor integration | Registers editor actions and coordinates automatic discovery, create-or-load database behavior, catalog mutations, editor filesystem refresh, and selection with the active editor surfaces, independently from Godot dock placement. | `load_workspace()`, `ensure_workspace_loaded()`, `shutdown()` | 🛠️ |
+| `DatabaseDock` | Editor navigation | Presents a lightweight registration, table, and loaded-column hierarchy with deferred refresh, selection, non-destructive database removal, and confirmed table deletion delegated through the editor action hub. | `configure()`, `render()` | 🛠️ |
+| `Workspace` | Editor workspace | Hosts scene-backed documents behind editor-style menus and tabs, activates document action contexts, keeps registration identity separate from logical titles, and routes database, schema, and typed row intents to the controller. | `show_welcome()`, `show_database()`, `show_table()`, `present_table_rows()`, tab lifecycle | 🛠️ |
+| `EditorTableChange` | Editor schema intent | Groups the typed alterations drafted for one existing table before catalog preview and application. | Table identity and `alterations` | 🛠️ |
+| `TableDataDocument` | Editor table data | Presents typed row values and emits canonical insert, update, delete, and refresh intents without owning schema editing. | `configure()`, `present_rows()` and row-intent signals | 🛠️ |
+| `EditorVariantValueField` | Editor value input | Edits one catalog-typed Godot Variant value, preserves explicit null, and delegates Resource selection and inspection to native editor controls. | `configure()`, `set_value_editable()`, `get_value_result()` | 🛠️ |
+| `ActivityPanel` | Editor feedback | Presents operation outcomes and structured diagnostics through a bounded entry list with severity styling, automatic latest-entry scrolling, error focus, Unix-millisecond selection IDs, and context actions. | `append_result()`, `append_message()`, `get_entry()`, `select_entry()`, `delete_entry()`, `copy_entry_message()`, `clear()`, `log_limit` | 🛠️ |
+| `ActivityEntry` | Editor feedback | Typed, customizable presentation row carrying one activity message and its stable selection identity. | `configure()`, `context_requested`, entry fields | 🛠️ |
 
 ## Results and materialization
 
@@ -230,24 +264,22 @@ state in the same change as implementation or test work.
 | `ResultMaterializer` | Mapping | Abstract contract for converting a `RowSet` into a user-facing value while retaining result diagnostics and metadata. | `materialize(rows, mapping)` | 🧪 |
 | `DictionaryResultMaterializer` | Mapping | Converts each selected row into an independent dictionary using optional column renaming. | `materialize()` | 🧪 |
 | `ResourceResultMaterializer` | Mapping | Instantiates one custom Resource per row and assigns mapped columns to declared properties. | `materialize()` | 🧪 |
-| `ModelResultMaterializer` | Mapping | Converts rows into optional database model objects. | `materialize()` | 🚧 |
+| `ModelResultMaterializer` | Mapping | Converts rows into a concrete script-typed model Array and attaches model context and persisted state. | `materialize()` | 🧪 |
 | `EditorTableMaterializer` | Editor mapping | Converts rows into data appropriate for the editor table interface. | `materialize()` | 🚧 |
 | `CsvExportMaterializer` | Export mapping | Converts rows into CSV output. | `materialize()` | 🚧 |
 
-## Optional extension concepts
+## Model API and relationships
 
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
-| `Model` | Optional model API | Shared base for role-scoped model identity, queries, refresh, relationships, and materialization without owning database infrastructure. | `find()`, `query()`, `refresh()` | 📝 |
-| `ContentModel` | Optional model API | Read-only model bound through the model registry to the effective `content` database role. | `find()`, `query()`, `refresh()` | 📝 |
-| `SaveModel` | Optional model API | Mutable model bound through the model registry to the active save-slot database; it operates on rows but does not manage save slots. | `find()`, `query()`, `save()`, `delete()`, `refresh()` | 📝 |
-| `SettingsModel` | Optional model API | Mutable model bound to project-wide user settings that remain independent from the selected save slot. | `find()`, `query()`, `save()`, `delete()`, `refresh()` | 📝 |
-| `ModelAccessMode` | Optional model API | Declares whether a standard or project-defined model role permits only reads or also permits canonical mutations. | `READ_ONLY`, `READ_WRITE` | 📝 |
-| `ModelRegistry` | Optional model API | Resolves model classes and extensible logical roles such as `content`, `save`, `settings`, or project-defined roles to active databases without exposing paths to models. | `register()`, `resolve_model()`, `resolve_role()` | 📝 |
-| `ModelContext` | Optional model API | Supplies an isolated model registry and role bindings for tests or advanced multiple-runtime use. | Context-specific model and role resolution | 📝 |
-| `ModelQuery` | Optional model API | Model-oriented query frontend that translates helpers into canonical `QuerySpec` objects. | `where()`, `order_by()`, `with()`, `get()`, `to_query_spec()` | 📝 |
-| `ModelMapper` | Optional model API | Maps model metadata and operations to `QuerySpec` and result mappings. | `to_insert()`, `to_update()`, `materialize()` | 🚧 |
-| `RelationshipDefinition` | Optional model API | Typed declaration of a has-one, has-many, belongs-to, or many-to-many model relationship. | Relationship constructors and key accessors | 📝 |
-| `MapperCompiler` | Optional mapping extension | Converts an external mapping definition into `QuerySpec` and `ResultMapping`. | `compile()` | 🚧 |
-
-Optional extensions remain above the canonical runtime and do not define its internal architecture.
+| `Model` | Model API | Shared base for role-scoped metadata, materialized identity, change tracking, context retention, loaded relationships, and persisted-row operations. | metadata, `relationships()`, `get_related()`, `is_persisted()`, `save()`, `refresh()`, `delete()` | 🧪 |
+| `ContentModel` | Model API | Read-only model bound through the model registry to the effective `content` database role. | Query and refresh; mutation diagnostics | ✅ |
+| `SaveModel` | Model API | Mutable model bound through the model registry to the active save-slot database; save-slot management remains in the database registry. | Query, refresh, save, and delete | ✅ |
+| `SettingsModel` | Model API | Mutable model bound to project-wide user settings that remain independent from the selected save slot. | Query, refresh, save, and delete | ✅ |
+| `ModelAccess` | Model metadata | Declares whether a standard or project-defined model role permits reads or canonical mutations. | `READ_ONLY`, `READ_WRITE` | 🧪 |
+| `ModelDefinition` | Model metadata | Captures a registered model script, logical role, table, primary key, access mode, and named relationships. | Typed definition fields, `get_relationship()` | 🧪 |
+| `ModelRegistry` | Model API | Registers model classes and resolves their typed metadata and logical roles through `DatabaseRegistry`. | `register()`, `resolve_model()`, `resolve_role()` | 🧪 |
+| `Models` | Model API | Holds the configured default model context and supplies static model query and find forwarding. | `configure()`, `query()`, `find()`, `clear_context()` | 🧪 |
+| `ModelContext` | Model API | Supplies an injectable model registry for default runtime composition, tests, and isolated runtimes. | `register_model()`, `query()`, `find()` | 🧪 |
+| `ModelQuery` | Model API | Model-oriented SELECT frontend that translates filters, ordering, limits, offsets, distinct selection, and named eager loads into canonical queries. | `where()`, `with()`, `order_by()`, `all()`, `first()`, `find()`, `to_query_spec()` | 🧪 |
+| `RelationshipDefinition` | Model API | Typed model-level declaration of a belongs-to, has-one, or has-many relationship captured by model registration for eager loading and editor inspection. | `belongs_to()`, `has_one()`, `has_many()`, typed keys | 🧪 |

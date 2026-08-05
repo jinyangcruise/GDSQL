@@ -12,8 +12,6 @@ The ORM is a higher-level frontend:
 ```text
 GDSQLModel hierarchy and ModelQuery
     ↓
-ModelMapper
-    ↓
 QuerySpec
     ↓
 Validation and binding
@@ -70,28 +68,36 @@ var name: String
 var level: int
 
 
-static func table_name() -> StringName:
+func table_name() -> StringName:
 	return &"heroes"
 
 
-static func primary_key() -> StringName:
+func primary_key() -> StringName:
 	return &"id"
+
+
+static func query() -> GDSQLModelQuery:
+	return GDSQLModels.query(Hero)
+
+
+static func find(identity: Variant) -> GDSQLQueryResult:
+	return GDSQLModels.find(Hero, identity)
 ```
 
 Content models are read-only during ordinary gameplay:
 
 ```gdscript
-var hero := Hero.find(1)
+var hero := Hero.find(1).get_value()
 
 var veterans := Hero.query() \
 	.where(GDSQLExpr.column(&"level").greater_than(10)) \
 	.order_by(&"level", GDSQLOrderClause.SortDirection.DESCENDING) \
-	.get()
+	.all()
 ```
 
 Content creation, overrides, and removals belong to authoring or effective-
-content construction. A content model does not expose runtime `save()` or
-`delete()` operations.
+content construction. Content-model `save()` and `delete()` calls return a
+read-only diagnostic.
 
 ### Save models
 
@@ -107,7 +113,7 @@ var item_id: StringName
 var quantity: int
 
 
-static func table_name() -> StringName:
+func table_name() -> StringName:
 	return &"inventory"
 ```
 
@@ -126,9 +132,12 @@ The helpers translate into canonical operations:
 | Model operation | Available to | Canonical operation |
 |---|---|---|
 | `find()`, `query()`, and `refresh()` | All model roles | `GDSQLSelectQuerySpec` |
-| Creating and saving a new model | Mutable model roles | `GDSQLInsertQuerySpec` |
 | Saving an existing model | Mutable model roles | `GDSQLUpdateQuerySpec` |
 | `delete()` | Mutable model roles | `GDSQLDeleteQuerySpec` |
+
+Current mutation helpers operate on materialized persisted models and update
+only changed fields. Creating and saving a new model will translate to
+`GDSQLInsertQuerySpec` in a later extension.
 
 ### Settings and custom model roles
 
@@ -141,19 +150,19 @@ class_name AnalyticsEvent
 extends GDSQLModel
 
 
-static func database_role() -> StringName:
+func database_role() -> StringName:
 	return &"analytics"
 
 
-static func access_mode() -> GDSQLModelAccessMode:
-	return GDSQLModelAccessMode.READ_WRITE
+func access_mode() -> GDSQLModelAccess.Mode:
+	return GDSQLModelAccess.Mode.READ_WRITE
 
 
-static func table_name() -> StringName:
+func table_name() -> StringName:
 	return &"events"
 ```
 
-The runtime registry may bind `analytics` to local persistent storage, a
+The database registry may bind `analytics` to local persistent storage, a
 temporary in-memory database, or another supported composition. Model code is
 unchanged because it depends only on the logical role.
 
@@ -186,7 +195,12 @@ The model should not:
 
 ## Model query frontend
 
-`GDSQLModelQuery` would provide model-oriented query helpers while producing
+`GDSQLModels` receives the default model context once during runtime
+composition. Concrete model classes use thin static forwarding methods because
+GDScript inherited static methods do not expose the subclass that invoked them.
+The explicit context remains injectable for tests and isolated runtimes.
+
+`GDSQLModelQuery` provides model-oriented query helpers while producing
 the same `GDSQLQuerySpec` used by every other frontend.
 
 For example:
@@ -198,35 +212,140 @@ Hero.query() \
 	.to_query_spec()
 ```
 
-Normal model calls resolve the database from the model registry. An explicit
-`GDSQLModelContext` remains available for tests and advanced multiple-runtime
-scenarios.
+The static forwarding method passes the model script to `GDSQLModels`, which
+resolves the database from the configured model registry. Collection queries
+end with `all()` because `get(property)` is a native `Object` API.
 
 The model query may internally delegate to the Fluent API or construct
 canonical query objects directly. In both cases, model-specific concerns stop
 at `QuerySpec`.
 
-## Model mapping
+## Model translation
 
-`GDSQLModelMapper` translates between model metadata, canonical queries, and
-result mappings.
+`GDSQLModelQuery` translates model-scoped reads into `GDSQLQuerySpec` objects.
+Model persistence helpers create insert, update, and delete specifications from
+the model class metadata and current attributes. `GDSQLModelResultMaterializer`
+converts result rows into model instances through `GDSQLResultMapping`.
 
-Potential API:
+## Model fields and script authoring
+
+The catalog is the source of truth for database and table structure. Model
+scripts bind typed GDScript properties and high-level behavior to existing
+catalog tables.
+
+Matching property and column names map directly during materialization:
 
 ```gdscript
-func to_insert(model: GDSQLModel) -> GDSQLInsertQuerySpec
-func to_update(model: GDSQLModel) -> GDSQLUpdateQuerySpec
-func to_delete(model: GDSQLModel) -> GDSQLDeleteQuerySpec
-func create_result_mapping(model_type: GDScript) -> GDSQLResultMapping
+class_name Hero
+extends GDSQLContentModel
+
+var id: int
+var name: String
+var level: int
+
+
+func table_name() -> StringName:
+	return &"heroes"
+
+
+func relationships() -> Array[GDSQLRelationshipDefinition]:
+	return [
+		GDSQLRelationshipDefinition.has_many(
+			&"skills",
+			Skill,
+			&"hero_id",
+		),
+	]
+
+
+static func query() -> GDSQLModelQuery:
+	return GDSQLModels.query(Hero)
+
+
+static func find(identity: int) -> GDSQLQueryResult:
+	return GDSQLModels.find(Hero, identity)
 ```
 
-Stable mapping concepts should use typed classes. Dictionaries remain
-appropriate only when reading dynamic external mapping formats or row data.
+These typed properties provide completion, static property checking, and
+concrete `Array[Hero]` query results. Godot property reflection supplies their
+names and Variant types to model registration and materialization. Model
+registration may return read-only compatibility diagnostics for missing or
+incompatible mapped columns.
+
+GDScript annotations are engine-defined. Model field declarations therefore
+use ordinary typed properties. Export annotations remain available when a
+project also wants Inspector editing, while database membership follows the
+registered table mapping.
+
+Laravel can expose undeclared attributes through PHP's dynamic property
+behavior and external schema information. Equivalent dynamic access in
+GDScript would return `Variant` values and remove compile-time property access,
+so GDSQL favors declared model properties.
+
+### Editor, catalog, and model ownership
+
+The graphical editor is a database and table interface. It reads catalog
+metadata, creates or alters tables through
+`GDSQLCatalogAdministrationService`, edits row data through canonical queries,
+and displays the impact of structural changes. Its operation does not require a
+model.
+
+Models are an optional high-level code frontend. They provide model-scoped
+queries, typed materialization, relationships, and row persistence helpers. An
+editor view may use a registered model as a convenient result materialization
+or inspect its relationships, while structural ownership stays with the
+catalog.
+
+The boundary is:
+
+```text
+Editor database/table interface
+    → catalog definitions and catalog administration
+
+Model API
+    → existing table binding and QuerySpec
+```
+
+The editor does not rewrite model scripts. Models do not create, alter, drop,
+or synchronize table definitions.
+
+### Schema changes and safety
+
+Schema changes originate from the database/table API or editor. Existing typed
+alterations make intent explicit:
+
+```gdscript
+database.alter_table(
+	&"heroes",
+	[
+		GDSQLTableAlteration.add_column(new_column),
+		GDSQLTableAlteration.rename_column(&"level", &"rank"),
+		GDSQLTableAlteration.drop_column(&"legacy_value"),
+	],
+)
+```
+
+The editor must describe the effect before invoking a destructive operation:
+
+- Dropping a column removes every stored value for that column.
+- Renaming a column migrates existing row keys.
+- Adding a required column to populated data requires a compatible default.
+- Changing a type or constraint may require data validation or table rebuild.
+- Removing or replacing an index changes validation or lookup behavior.
+
+A future catalog-level `GDSQLCatalogChangePlan` may preview these effects,
+classify destructive operations, and carry a catalog fingerprint so stale plans
+are rejected before application. This protection belongs to catalog
+administration and applies equally to model-backed and manually managed tables.
+
+After a table changes, model compatibility validation can report properties
+that need a matching manual script update. It does not translate model changes
+into catalog mutations.
 
 ## Relationships
 
 Relationships describe how model objects navigate between tables. They belong
-to the model and mapping frontend, not to storage.
+to the model frontend.
 
 Proposed relationship kinds:
 
@@ -238,7 +357,7 @@ Proposed relationship kinds:
 Relationship definitions should be typed:
 
 ```gdscript
-static func relationships() -> Array[GDSQLRelationshipDefinition]:
+func relationships() -> Array[GDSQLRelationshipDefinition]:
 	return [
 		GDSQLRelationshipDefinition.has_many(
 			&"skills",
@@ -257,6 +376,15 @@ A relationship definition may contain:
 - Local key.
 - Foreign key.
 - Pivot table and pivot keys for many-to-many relationships.
+
+Graphical tooling can inspect these declarations, eagerly load related
+identifiers, and display relation choices through the same model metadata used
+by code.
+
+Model code is the relationship source of truth. `GDSQLModelRegistry` captures
+the declarations under their explicit names during registration. Early graph
+tooling can read and display metadata from handwritten models without rewriting
+their scripts.
 
 Relationship loading translates into ordinary canonical queries:
 
@@ -285,13 +413,26 @@ does not merge their transaction or planning contexts.
 The ORM may eventually support:
 
 - Explicit loading: `hero.load(&"skills")`
-- Eager loading: `Hero.query().with(&"skills").get()`
+- Eager loading: `Hero.query().with(&"skills").all()`
 - Constrained loading: relationships with an additional model query
 - Relationship existence predicates
 
 Lazy loading through ordinary property access should be treated cautiously in
 GDScript because hidden database access makes execution and failure behavior
 less visible. Explicit loading is a safer initial design.
+
+The initial eager-loading API attaches values to each materialized model:
+
+```gdscript
+var heroes := Hero.query().with(&"skills").all().get_value()
+var skills: Array = heroes[0].get_related(&"skills")
+```
+
+`with()` resolves its argument against the relationship name stored in the
+registered `GDSQLModelDefinition`. It batches the declaring-model key values
+into one related model query and groups the materialized results by the
+declared related key. `has_many` returns an array; `has_one` and `belongs_to`
+return one model or null.
 
 ## Result materialization
 
@@ -328,24 +469,6 @@ The ORM may infer a default relationship from catalog metadata or validate a
 declared relationship against it, but the same class should not represent both
 concepts.
 
-## External mapper formats
-
-XML or another external mapper format can remain an optional declaration
-frontend:
-
-```text
-XML mapping document
-    ↓
-GDSQLMapperCompiler
-    ↓
-Typed model, relationship, and result mapping definitions
-    ↓
-GDSQLModelMapper
-```
-
-This allows code-first and external mapping styles to share the same typed ORM
-layer. External formats must not create a separate execution path.
-
 ## Suggested implementation order
 
 The ORM should follow the canonical query capabilities it consumes:
@@ -354,10 +477,9 @@ The ORM should follow the canonical query capabilities it consumes:
 2. Implement result mappings and model materialization.
 3. Introduce `GDSQLModel`, `GDSQLContentModel`, `GDSQLSaveModel`, and
    `GDSQLSettingsModel`.
-4. Add the role-aware model registry, context, query, mapper, and materializer.
+4. Add the role-aware model registry, context, query, and materializer.
 5. Add `belongs_to`, `has_one`, and `has_many` using explicit loading.
 6. Add eager loading and many-to-many relationships.
-7. Optionally add external mapper compilation.
 
 The ORM remains optional. Applications can continue using `GDSQLDatabase`, the
 Fluent API, SQL, or query graphs directly.

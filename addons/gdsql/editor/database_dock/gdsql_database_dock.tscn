@@ -1,0 +1,81 @@
+[gd_scene format=3 uid="uid://dy3kl620k5hwv"]
+
+[ext_resource type="Script" uid="uid://cw1w8rbbyiath" path="res://addons/gdsql/editor/database_dock/gdsql_database_dock.gd" id="1_dock"]
+
+[node name="Databases" type="VBoxContainer" unique_id=497743362]
+custom_minimum_size = Vector2(280, 120)
+theme_override_constants/separation = 0
+script = ExtResource("1_dock")
+
+[node name="Toolbar" type="PanelContainer" parent="." unique_id=1694710784]
+layout_mode = 2
+
+[node name="ToolbarMargin" type="MarginContainer" parent="Toolbar" unique_id=1757696072]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 4
+
+[node name="ToolbarRow" type="HBoxContainer" parent="Toolbar/ToolbarMargin" unique_id=934006270]
+layout_mode = 2
+
+[node name="Spacer" type="Control" parent="Toolbar/ToolbarMargin/ToolbarRow" unique_id=522602651]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Refresh" type="Button" parent="Toolbar/ToolbarMargin/ToolbarRow" unique_id=2085835043]
+layout_mode = 2
+text = "Refresh"
+flat = true
+
+[node name="Content" type="Control" parent="." unique_id=1212476550]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="DatabaseTree" type="Tree" parent="Content" unique_id=1805775742]
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+hide_root = true
+
+[node name="EmptyState" type="CenterContainer" parent="Content" unique_id=889418494]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="EmptyLabel" type="Label" parent="Content/EmptyState" unique_id=1115345062]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+text = "No databases registered.
+Create a database to begin."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="ContextMenu" type="PopupMenu" parent="." unique_id=1002908725]
+oversampling_override = 1.0
+item_count = 6
+item_0/text = "Open"
+item_0/id = 1
+item_1/text = "Add Table"
+item_1/id = 2
+item_2/text = "Refresh"
+item_2/id = 3
+item_3/id = -1
+item_3/separator = true
+item_4/text = "Remove Database…"
+item_4/id = 4
+item_5/text = "Delete Table…"
+item_5/id = 6
+
+[node name="DestructiveConfirmation" type="ConfirmationDialog" parent="." unique_id=1335903310]
+oversampling_override = 1.0
+ok_button_text = "Confirm"

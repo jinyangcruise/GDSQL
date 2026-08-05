@@ -1,0 +1,79 @@
+[gd_scene format=3 uid="uid://csqtlvilgxhpe"]
+
+[ext_resource type="Script" uid="uid://db2g4lb8eths7" path="res://addons/gdsql/editor/debug/gdsql_log_entry.gd" id="1_iwktw"]
+
+[node name="LogEntry" type="PanelContainer" unique_id=1156794838]
+custom_minimum_size = Vector2(0, 30)
+mouse_filter = 2
+script = ExtResource("1_iwktw")
+
+[node name="Content" type="VBoxContainer" parent="." unique_id=1996578674]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="Row" type="PanelContainer" parent="Content" unique_id=1334452277]
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Content/Row" unique_id=2046928580]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = -2
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 4
+
+[node name="Fields" type="HBoxContainer" parent="Content/Row/Margin" unique_id=1152320264]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="Time" type="Label" parent="Content/Row/Margin/Fields" unique_id=1047162877]
+custom_minimum_size = Vector2(72, 0)
+layout_mode = 2
+tooltip_text = "Time / Tick"
+mouse_filter = 1
+text = "00:00:00"
+vertical_alignment = 1
+
+[node name="Status" type="PanelContainer" parent="Content/Row/Margin/Fields" unique_id=994887975]
+custom_minimum_size = Vector2(72, 0)
+layout_mode = 2
+tooltip_text = "Status"
+mouse_filter = 1
+
+[node name="StatusMargin" type="MarginContainer" parent="Content/Row/Margin/Fields/Status" unique_id=1720256913]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_right = 6
+
+[node name="Value" type="Label" parent="Content/Row/Margin/Fields/Status/StatusMargin" unique_id=1471965595]
+layout_mode = 2
+text = "OK"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Action" type="Label" parent="Content/Row/Margin/Fields" unique_id=1024686556]
+custom_minimum_size = Vector2(130, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Action"
+mouse_filter = 1
+text = "Action"
+vertical_alignment = 1
+text_overrun_behavior = 3
+
+[node name="Message" type="Label" parent="Content/Row/Margin/Fields" unique_id=663081018]
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Message"
+mouse_filter = 1
+text = "Message"
+vertical_alignment = 1
+text_overrun_behavior = 3
+
+[node name="Separator" type="HSeparator" parent="Content" unique_id=276450363]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 2

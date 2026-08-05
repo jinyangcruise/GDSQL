@@ -4,5 +4,5 @@ extends RefCounted
 var value: Variant
 
 
-func _init(value: Variant = null) -> void:
-	self.value = value
+func _init(_value: Variant = null) -> void:
+	value = _value
