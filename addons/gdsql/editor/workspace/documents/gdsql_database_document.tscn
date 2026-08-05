@@ -44,6 +44,7 @@ layout_mode = 2
 
 [node name="DatabaseName" type="LineEdit" parent="Layout/Scroll/Content/Details/HSplitContainer" unique_id=195084300]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(400, 0)
 layout_mode = 2
 size_flags_horizontal = 0
 tooltip_text = "Database Name"
@@ -124,12 +125,13 @@ script = ExtResource("2_w62mb")
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="ValidationState" type="Label" parent="Layout/Footer"]
+[node name="ValidationState" type="Label" parent="Layout/Footer" unique_id=683544906]
 unique_name_in_owner = true
+visible = false
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(1, 0.45, 0.4, 1)
-text = "Validation message"
+text = "A database name is required."
 autowrap_mode = 2
 
 [node name="DirtyState" type="Label" parent="Layout/Footer" unique_id=1332744764]
@@ -160,7 +162,7 @@ title = "Remove Database"
 ok_button_text = "Remove"
 dialog_text = "Remove this database from GDSQL? Its files will remain unchanged."
 
-[node name="RefreshConfirmation" type="ConfirmationDialog" parent="."]
+[node name="RefreshConfirmation" type="ConfirmationDialog" parent="." unique_id=1393050904]
 title = "Discard Local Changes"
 ok_button_text = "Discard and Refresh"
 dialog_text = "Discard unsaved database drafts and reload the durable catalog?"

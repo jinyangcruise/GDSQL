@@ -80,6 +80,30 @@ func shutdown() -> void:
 	if is_instance_valid(_workspace) \
 			and _workspace.table_row_delete_requested.is_connected(_delete_table_row):
 		_workspace.table_row_delete_requested.disconnect(_delete_table_row)
+	if is_instance_valid(_workspace) \
+			and _workspace.query_graph_submitted.is_connected(_execute_query_graph):
+		_workspace.query_graph_submitted.disconnect(_execute_query_graph)
+	if is_instance_valid(_workspace) \
+			and _workspace.query_result_row_insert_requested.is_connected(
+				_insert_query_result_row,
+			):
+		_workspace.query_result_row_insert_requested.disconnect(
+			_insert_query_result_row,
+		)
+	if is_instance_valid(_workspace) \
+			and _workspace.query_result_row_update_requested.is_connected(
+				_update_query_result_row,
+			):
+		_workspace.query_result_row_update_requested.disconnect(
+			_update_query_result_row,
+		)
+	if is_instance_valid(_workspace) \
+			and _workspace.query_result_row_delete_requested.is_connected(
+				_delete_query_result_row,
+			):
+		_workspace.query_result_row_delete_requested.disconnect(
+			_delete_query_result_row,
+		)
 	_workspace = null
 	_database_dock = null
 	_logs_panel = null
@@ -120,6 +144,10 @@ func _configure_surfaces() -> void:
 	_workspace.table_row_insert_requested.connect(_insert_table_row)
 	_workspace.table_row_update_requested.connect(_update_table_row)
 	_workspace.table_row_delete_requested.connect(_delete_table_row)
+	_workspace.query_graph_submitted.connect(_execute_query_graph)
+	_workspace.query_result_row_insert_requested.connect(_insert_query_result_row)
+	_workspace.query_result_row_update_requested.connect(_update_query_result_row)
+	_workspace.query_result_row_delete_requested.connect(_delete_query_result_row)
 	_database_dock.configure(workbench, action_hub)
 
 
@@ -323,6 +351,37 @@ func _load_table_rows(
 	return result
 
 
+func _execute_query_graph(
+		document_key: StringName,
+		registration_name: StringName,
+		query: GDSQLQuerySpec,
+) -> GDSQLQueryResult:
+	var result := GDSQLQueryResult.new()
+	var activation := _ensure_active_registration(registration_name)
+	result.diagnostics.merge(activation.diagnostics)
+	var table: GDSQLTableDefinition
+	if result.is_successful():
+		var executed := workbench.active_session.database.execute(query)
+		executed.diagnostics.merge(result.diagnostics)
+		result = executed
+		if query is GDSQLSelectQuerySpec:
+			var source := (query as GDSQLSelectQuerySpec).source \
+					as GDSQLTableReference
+			if source != null:
+				table = workbench.active_session.database.context.catalog.get_table(
+					source.database_name,
+					source.table_name,
+				)
+	_workspace.present_query_graph_result(
+		document_key,
+		registration_name,
+		table,
+		result,
+	)
+	_record_result("Run query graph", result)
+	return result
+
+
 func _insert_table_row(
 		registration_name: StringName,
 		table_name: StringName,
@@ -344,21 +403,35 @@ func _update_table_row(
 		original_primary_key: Variant,
 		values: Dictionary,
 ) -> GDSQLOperationResult:
+	var result := _update_row(
+		registration_name,
+		table_name,
+		original_primary_key,
+		values,
+	)
+	_record_result("Update table row", result)
+	return result
+
+
+func _update_row(
+		registration_name: StringName,
+		table_name: StringName,
+		original_primary_key: Variant,
+		values: Dictionary,
+		query_document_key: StringName = &"",
+) -> GDSQLOperationResult:
 	var result := _ensure_active_registration(registration_name)
 	if not result.is_successful():
-		_record_result("Update table row", result)
 		return result
 	var table := workbench.active_session.database.context.catalog.get_table(
 		workbench.active_session.database.database_name,
 		table_name,
 	)
 	if table == null:
-		var missing := _error(
+		return _error(
 			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
 			"Table '%s' was not found." % table_name,
 		)
-		_record_result("Update table row", missing)
-		return missing
 	var builder := workbench.active_session.database.table(table_name).update()
 	for column_name in values:
 		var column := table.get_column(StringName(column_name))
@@ -374,8 +447,12 @@ func _update_table_row(
 	)
 	result.diagnostics.merge(updated.diagnostics)
 	result.value = updated
-	_complete_row_mutation(registration_name, table_name, result)
-	_record_result("Update table row", result)
+	_complete_row_mutation(
+		registration_name,
+		table_name,
+		result,
+		query_document_key,
+	)
 	return result
 
 
@@ -384,6 +461,17 @@ func _delete_table_row(
 		table_name: StringName,
 		primary_key: Variant,
 ) -> GDSQLOperationResult:
+	var result := _delete_row(registration_name, table_name, primary_key)
+	_record_result("Delete table row", result)
+	return result
+
+
+func _delete_row(
+		registration_name: StringName,
+		table_name: StringName,
+		primary_key: Variant,
+		query_document_key: StringName = &"",
+) -> GDSQLOperationResult:
 	var result := _ensure_active_registration(registration_name)
 	if result.is_successful():
 		var table := workbench.active_session.database.context.catalog.get_table(
@@ -391,12 +479,10 @@ func _delete_table_row(
 			table_name,
 		)
 		if table == null:
-			var missing := _error(
+			return _error(
 				&"GDSQL_EDITOR_TABLE_NOT_FOUND",
 				"Table '%s' was not found." % table_name,
 			)
-			_record_result("Delete table row", missing)
-			return missing
 		var deleted := workbench.active_session.database.execute(
 			workbench.active_session.database.table(table_name) \
 					.delete() \
@@ -407,8 +493,12 @@ func _delete_table_row(
 		)
 		result.diagnostics.merge(deleted.diagnostics)
 		result.value = deleted
-	_complete_row_mutation(registration_name, table_name, result)
-	_record_result("Delete table row", result)
+	_complete_row_mutation(
+		registration_name,
+		table_name,
+		result,
+		query_document_key,
+	)
 	return result
 
 
@@ -416,6 +506,7 @@ func _complete_row_mutation(
 		registration_name: StringName,
 		table_name: StringName,
 		result: GDSQLOperationResult,
+		query_document_key: StringName = &"",
 ) -> void:
 	if not result.is_successful():
 		return
@@ -423,7 +514,61 @@ func _complete_row_mutation(
 	result.diagnostics.merge(refreshed.diagnostics)
 	workbench.active_session.refresh_catalog()
 	_refresh_surfaces()
-	_load_table_rows(registration_name, table_name, false)
+	if query_document_key == &"":
+		_load_table_rows(registration_name, table_name, false)
+	else:
+		var query_result := _workspace.request_query_graph(query_document_key)
+		result.diagnostics.merge(query_result.diagnostics)
+
+
+func _insert_query_result_row(
+		document_key: StringName,
+		registration_name: StringName,
+		table_name: StringName,
+		values: Dictionary,
+) -> GDSQLOperationResult:
+	var result := _ensure_active_registration(registration_name)
+	if result.is_successful():
+		var inserted := workbench.active_session.database.insert(table_name, values)
+		result.diagnostics.merge(inserted.diagnostics)
+		result.value = inserted
+	_complete_row_mutation(registration_name, table_name, result, document_key)
+	_record_result("Insert query result row", result)
+	return result
+
+
+func _update_query_result_row(
+		document_key: StringName,
+		registration_name: StringName,
+		table_name: StringName,
+		original_primary_key: Variant,
+		values: Dictionary,
+) -> GDSQLOperationResult:
+	var result := _update_row(
+		registration_name,
+		table_name,
+		original_primary_key,
+		values,
+		document_key,
+	)
+	_record_result("Update query result row", result)
+	return result
+
+
+func _delete_query_result_row(
+		document_key: StringName,
+		registration_name: StringName,
+		table_name: StringName,
+		primary_key: Variant,
+) -> GDSQLOperationResult:
+	var result := _delete_row(
+		registration_name,
+		table_name,
+		primary_key,
+		document_key,
+	)
+	_record_result("Delete query result row", result)
+	return result
 
 
 func _ensure_active_registration(
@@ -504,7 +649,11 @@ func _select_table(registration_name: StringName, table_name: StringName) -> GDS
 		result.diagnostics.merge(selected.diagnostics)
 		result.value = selected.get_value()
 	if result.is_successful():
-		_workspace.show_table(workbench.get_inspection(registration_name), workbench.active_session)
+		_workspace.show_table(
+			workbench.get_inspections(),
+			workbench.get_inspection(registration_name),
+			workbench.active_session,
+		)
 	_record_result("Select table", result)
 	return result
 

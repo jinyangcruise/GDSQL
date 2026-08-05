@@ -8,6 +8,7 @@ signal save_requested(
 )
 signal delete_requested(primary_key: Variant)
 signal discard_requested(row: Control)
+signal dirty_changed(row: Control, dirty: bool)
 
 const VARIANT_TYPES := preload(
 	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_types.gd"
@@ -20,6 +21,8 @@ var _table: GDSQLTableDefinition
 var _source: GDSQLRowRecord
 var _fields: Dictionary[StringName, Control] = { }
 var _original_primary_key: Variant
+var _allow_mutation := true
+var _dirty := false
 
 @onready var _values: HBoxContainer = %Values
 @onready var _status: Label = %Status
@@ -36,9 +39,11 @@ func _ready() -> void:
 func configure(
 		table: GDSQLTableDefinition,
 		source: GDSQLRowRecord = null,
+		allow_mutation: bool = true,
 ) -> void:
 	_table = table
 	_source = source
+	_allow_mutation = allow_mutation
 	_original_primary_key = (
 			source.get_value(table.primary_key)
 			if source != null
@@ -66,21 +71,31 @@ func configure(
 			column.data_type,
 			_initial_value(column, source),
 			column.nullable,
-			not _is_generated(column) \
+			_allow_mutation \
+					and not _is_generated(column) \
 					and not (source == null and column.auto_increment) \
 					and not (
 							source != null
 							and column.name == table.primary_key
 					),
 		)
+		field.connect("changed", _mark_dirty)
 		field_group.add_child(field)
 		_values.add_child(field_group)
 		_fields[column.name] = field
 	_delete.text = "Delete" if source != null else "Discard"
+	_delete.visible = _allow_mutation
 	_status.text = ""
+	_set_dirty(source == null and _allow_mutation)
+
+
+func is_dirty() -> bool:
+	return _dirty
 
 
 func _emit_save() -> void:
+	if not _allow_mutation or not _dirty:
+		return
 	var conversion := _build_values()
 	if not conversion.valid:
 		_status.text = conversion.message
@@ -148,3 +163,14 @@ func _value_text(value: Variant) -> String:
 
 func _is_generated(column: GDSQLColumnDefinition) -> bool:
 	return column.generation != GDSQLColumnDefinition.Generation.NONE
+
+
+func _mark_dirty() -> void:
+	_set_dirty(true)
+
+
+func _set_dirty(dirty: bool) -> void:
+	_dirty = dirty
+	_save.visible = _allow_mutation
+	_save.disabled = not _allow_mutation or not dirty
+	dirty_changed.emit(self, dirty)

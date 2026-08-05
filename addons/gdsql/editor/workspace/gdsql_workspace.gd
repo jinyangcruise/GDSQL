@@ -32,6 +32,30 @@ signal table_row_delete_requested(
 		table_name: StringName,
 		primary_key: Variant,
 )
+signal query_graph_submitted(
+		document_key: StringName,
+		registration_name: StringName,
+		query: GDSQLQuerySpec,
+)
+signal query_result_row_insert_requested(
+		document_key: StringName,
+		registration_name: StringName,
+		table_name: StringName,
+		values: Dictionary,
+)
+signal query_result_row_update_requested(
+		document_key: StringName,
+		registration_name: StringName,
+		table_name: StringName,
+		original_primary_key: Variant,
+		values: Dictionary,
+)
+signal query_result_row_delete_requested(
+		document_key: StringName,
+		registration_name: StringName,
+		table_name: StringName,
+		primary_key: Variant,
+)
 
 const WELCOME_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/documents/gdsql_welcome_document.tscn"
@@ -42,8 +66,8 @@ const CREATE_DATABASE_SCENE := preload(
 const DATABASE_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/documents/gdsql_database_document.tscn"
 )
-const TABLE_DATA_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn"
+const QUERY_GRAPH_SCENE := preload(
+	"res://addons/gdsql/editor/workspace/query_graph/graph_editor.tscn"
 )
 const WELCOME_KEY := &"welcome"
 const CREATE_DATABASE_KEY := &"database:create"
@@ -55,6 +79,7 @@ var _action_hub: GDSQLEditorActionHub
 var _document_keys: Array[StringName] = []
 var _documents: Dictionary[StringName, Control] = { }
 var _active_registration: StringName
+var _database_inspections: Array[GDSQLDatabaseInspection] = []
 
 @onready var _file_menu: PopupMenu = $Layout/MenuPanel/MenuBar/File
 @onready var _database_menu: PopupMenu = $Layout/MenuPanel/MenuBar/Database
@@ -107,22 +132,36 @@ func show_database(
 
 
 func show_table(
+		inspections: Array[GDSQLDatabaseInspection],
 		inspection: GDSQLDatabaseInspection,
 		session: GDSQLWorkbenchSession,
 ) -> void:
 	if inspection == null or session == null or session.selected_table == null:
 		return
+	_database_inspections = inspections.duplicate()
 	var key := _table_key(
 		inspection.registration.name,
 		session.selected_table.name,
 	)
 	var document := _documents.get(key) as Control
 	if document == null:
-		document = TABLE_DATA_SCENE.instantiate() as Control
-		document.connect("rows_requested", _on_table_rows_requested)
-		document.connect("row_insert_requested", _on_table_row_insert_requested)
-		document.connect("row_update_requested", _on_table_row_update_requested)
-		document.connect("row_delete_requested", _on_table_row_delete_requested)
+		document = QUERY_GRAPH_SCENE.instantiate() as Control
+		document.connect(
+			"query_requested",
+			_on_query_graph_submitted.bind(key),
+		)
+		document.connect(
+			"row_insert_requested",
+			_on_query_result_row_insert_requested.bind(key),
+		)
+		document.connect(
+			"row_update_requested",
+			_on_query_result_row_update_requested.bind(key),
+		)
+		document.connect(
+			"row_delete_requested",
+			_on_query_result_row_delete_requested.bind(key),
+		)
 		_add_document(
 			key,
 			"%s · %s" % [
@@ -131,16 +170,14 @@ func show_table(
 			],
 			document,
 		)
+		document.call("configure_actions", _action_hub, key)
 	document.call(
 		"configure",
-		inspection.registration.name,
-		session.selected_table,
-	)
-	_activate_document(key)
-	table_rows_requested.emit(
+		_database_inspections,
 		inspection.registration.name,
 		session.selected_table.name,
 	)
+	_activate_document(key)
 
 
 func refresh_database(
@@ -149,6 +186,7 @@ func refresh_database(
 ) -> void:
 	if inspection == null or session == null:
 		return
+	_upsert_inspection(inspection)
 	var key := _database_key(inspection.registration.name)
 	var document := _documents.get(key) as Control
 	if document != null:
@@ -211,8 +249,35 @@ func present_table_rows(
 	var document := _documents.get(
 		_table_key(registration_name, table_name),
 	) as Control
-	if document != null:
+	if document != null and document.has_method("present_rows"):
 		document.call("present_rows", result)
+
+
+func present_query_graph_result(
+		document_key: StringName,
+		registration_name: StringName,
+		table: GDSQLTableDefinition,
+		result: GDSQLQueryResult,
+) -> void:
+	var document := _documents.get(document_key) as Control
+	if document == null:
+		return
+	document.call("present_query_result", registration_name, table, result)
+	_activate_document(document_key)
+
+
+func request_query_graph(document_key: StringName) -> GDSQLOperationResult:
+	var document := _documents.get(document_key) as Control
+	if document == null or not document.has_method("request_query"):
+		var result := GDSQLOperationResult.new()
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_EDITOR_QUERY_GRAPH_DOCUMENT_NOT_FOUND",
+				"The query graph document is no longer open.",
+			),
+		)
+		return result
+	return document.call("request_query") as GDSQLOperationResult
 
 
 func get_active_registration() -> StringName:
@@ -288,12 +353,15 @@ func _show_document(index: int) -> void:
 		if parts.size() >= 2:
 			_active_registration = StringName(parts[1])
 	if _action_hub != null:
-		var context_id := (
-				key
-				if String(key).begins_with("database:") and key != CREATE_DATABASE_KEY
-				else GDSQLEditorActionHub.GLOBAL_CONTEXT
-		)
-		_action_hub.set_active_context(context_id)
+		var context_id := GDSQLEditorActionHub.GLOBAL_CONTEXT
+		if document.has_method("get_action_context_id"):
+			context_id = StringName(document.call("get_action_context_id"))
+		elif String(key).begins_with("database:") and key != CREATE_DATABASE_KEY:
+			context_id = key
+		var activated := _action_hub.set_active_context(context_id)
+		if not activated.is_successful() \
+				and context_id != GDSQLEditorActionHub.GLOBAL_CONTEXT:
+			_action_hub.set_active_context(GDSQLEditorActionHub.GLOBAL_CONTEXT)
 	_set_create_table_enabled(_active_registration != &"")
 
 
@@ -355,9 +423,34 @@ func _refresh_table_documents(
 			continue
 		var document := _documents.get(key) as Control
 		if document != null:
-			document.call("configure", inspection.registration.name, table)
+			var selected_registration := inspection.registration.name
+			var selected_table := table.name
+			if document.has_method("get_selected_registration"):
+				selected_registration = StringName(
+					document.call("get_selected_registration"),
+				)
+			if document.has_method("get_selected_table"):
+				selected_table = StringName(
+					document.call("get_selected_table"),
+				)
+			document.call(
+				"configure",
+				_database_inspections,
+				selected_registration,
+				selected_table,
+			)
 	for key in missing_keys:
 		_close_document_by_key(key)
+
+
+func _upsert_inspection(inspection: GDSQLDatabaseInspection) -> void:
+	for index in range(_database_inspections.size()):
+		var current := _database_inspections[index]
+		if current != null and current.registration != null \
+				and current.registration.name == inspection.registration.name:
+			_database_inspections[index] = inspection
+			return
+	_database_inspections.append(inspection)
 
 
 func _set_create_table_enabled(enabled: bool) -> void:
@@ -439,6 +532,58 @@ func _on_table_row_delete_requested(
 		primary_key: Variant,
 ) -> void:
 	table_row_delete_requested.emit(
+		registration_name,
+		table_name,
+		primary_key,
+	)
+
+
+func _on_query_graph_submitted(
+		registration_name: StringName,
+		query: GDSQLQuerySpec,
+		document_key: StringName,
+) -> void:
+	query_graph_submitted.emit(document_key, registration_name, query)
+
+
+func _on_query_result_row_insert_requested(
+		registration_name: StringName,
+		table_name: StringName,
+		values: Dictionary,
+		document_key: StringName,
+) -> void:
+	query_result_row_insert_requested.emit(
+		document_key,
+		registration_name,
+		table_name,
+		values,
+	)
+
+
+func _on_query_result_row_update_requested(
+		registration_name: StringName,
+		table_name: StringName,
+		original_primary_key: Variant,
+		values: Dictionary,
+		document_key: StringName,
+) -> void:
+	query_result_row_update_requested.emit(
+		document_key,
+		registration_name,
+		table_name,
+		original_primary_key,
+		values,
+	)
+
+
+func _on_query_result_row_delete_requested(
+		registration_name: StringName,
+		table_name: StringName,
+		primary_key: Variant,
+		document_key: StringName,
+) -> void:
+	query_result_row_delete_requested.emit(
+		document_key,
 		registration_name,
 		table_name,
 		primary_key,

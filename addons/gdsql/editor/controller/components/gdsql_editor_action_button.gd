@@ -3,8 +3,14 @@ class_name GDSQLEditorActionButton
 extends Button
 ## Button presentation for an action resolved through GDSQLEditorActionHub.
 
+@export var show_action_label := true
+
 var action_id: StringName
 var _hub: GDSQLEditorActionHub
+
+
+func _enter_tree() -> void:
+	expand_icon = true
 
 
 func _exit_tree() -> void:
@@ -12,15 +18,13 @@ func _exit_tree() -> void:
 		_hub.actions_changed.disconnect(_refresh_state)
 
 
-func configure(
-		hub: GDSQLEditorActionHub,
-		definition: GDSQLEditorActionDefinition,
-) -> void:
+func configure(hub: GDSQLEditorActionHub, definition: GDSQLEditorActionDefinition) -> void:
 	if _hub != null and _hub.actions_changed.is_connected(_refresh_state):
 		_hub.actions_changed.disconnect(_refresh_state)
 	_hub = hub
 	action_id = definition.id
-	text = tr(definition.label)
+	if show_action_label:
+		text = tr(definition.label)
 	tooltip_text = tr(definition.tooltip)
 	flat = true
 	if Engine.is_editor_hint() \
@@ -34,10 +38,7 @@ func configure(
 		_hub.actions_changed.connect(_refresh_state)
 
 
-func configure_action(
-		hub: GDSQLEditorActionHub,
-		requested_action_id: StringName,
-) -> void:
+func configure_action(hub: GDSQLEditorActionHub, requested_action_id: StringName) -> void:
 	var definition := hub.get_action(requested_action_id) if hub != null else null
 	if definition == null:
 		return

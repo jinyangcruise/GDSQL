@@ -205,6 +205,10 @@ execution, and result materialization as the fluent API. Query graph documents
 may be stored under `res://.gdsql/` because they are project editor assets, not
 runtime table data.
 
+The staged query-graph operations, result mutation capability rules, selectable
+column work, and planned `GDSQLExpr` WHERE controls are recorded in
+[`query-graph-roadmap.md`](query-graph-roadmap.md).
+
 ## Database and table tasks
 
 Structure tasks use typed catalog definitions and
@@ -312,6 +316,8 @@ or user-scoped plugin data rather than project database files.
 - [`editor.md`](editor.md) defines editor ownership and communication.
 - [`editor-mermaid-diagram.md`](editor-mermaid-diagram.md) gives the compact
   editor dependency flow.
+- [`query-graph-roadmap.md`](query-graph-roadmap.md) records the ordered visual
+  query operations and table-result capability rules.
 - [`editor-ui-migration-blueprint.md`](editor-ui-migration-blueprint.md)
   records legacy capabilities and possible reassignment without prescribing
   implementation.

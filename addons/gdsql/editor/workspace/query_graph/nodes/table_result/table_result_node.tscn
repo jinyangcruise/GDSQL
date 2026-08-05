@@ -1,0 +1,64 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd" id="1_result"]
+[ext_resource type="Script" path="res://addons/gdsql/editor/controller/components/gdsql_editor_action_button.gd" id="2_action"]
+[ext_resource type="Texture2D" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="3_plus"]
+
+[node name="TableResult" type="GraphNode"]
+custom_minimum_size = Vector2(760, 360)
+scaling_menus = true
+title = "QUERY RESULT"
+script = ExtResource("1_result")
+
+[node name="Toolbar" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ResultTitle" type="Label" parent="Toolbar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "QUERY RESULT"
+
+[node name="AddRow" type="Button" parent="Toolbar"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Add row"
+text = "Add Row"
+icon = ExtResource("3_plus")
+script = ExtResource("2_action")
+metadata/_custom_type_script = "uid://hvanlw2ev0lr"
+
+[node name="Details" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Run the query to display rows."
+autowrap_mode = 2
+
+[node name="Status" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "No query result yet."
+autowrap_mode = 2
+
+[node name="Scroll" type="ScrollContainer" parent="."]
+custom_minimum_size = Vector2(0, 260)
+layout_mode = 2
+horizontal_scroll_mode = 2
+vertical_scroll_mode = 2
+
+[node name="Rows" type="VBoxContainer" parent="Scroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="Header" type="HBoxContainer" parent="Scroll/Rows"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="DataRows" type="VBoxContainer" parent="Scroll/Rows"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 2
