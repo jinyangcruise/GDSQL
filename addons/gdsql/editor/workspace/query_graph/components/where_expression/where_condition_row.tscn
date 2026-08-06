@@ -1,0 +1,75 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.gd" id="1_row"]
+[ext_resource type="Texture2D" path="res://addons/gdsql/editor/workspace/icons/trash_can.svg" id="2_trash"]
+
+[node name="WhereConditionRow" type="VBoxContainer"]
+theme_override_constants/separation = 3
+script = ExtResource("1_row")
+
+[node name="Fields" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="FirstMarker" type="Label" parent="Fields"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(72, 0)
+layout_mode = 2
+text = "IF"
+vertical_alignment = 1
+
+[node name="Connector" type="OptionButton" parent="Fields"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(72, 0)
+layout_mode = 2
+
+[node name="Invert" type="CheckButton" parent="Fields"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(58, 0)
+layout_mode = 2
+text = "NOT"
+tooltip_text = "Invert this condition"
+
+[node name="Column" type="OptionButton" parent="Fields"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Operator" type="OptionButton" parent="Fields"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(132, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ValueHost" type="HBoxContainer" parent="Fields"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MoveUp" type="Button" parent="Fields"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+tooltip_text = "Move condition up"
+text = "↑"
+
+[node name="MoveDown" type="Button" parent="Fields"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+tooltip_text = "Move condition down"
+text = "↓"
+
+[node name="Remove" type="Button" parent="Fields"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+tooltip_text = "Remove condition"
+icon = ExtResource("2_trash")
+expand_icon = true
+
+[node name="Separator" type="HSeparator" parent="."]
+layout_mode = 2

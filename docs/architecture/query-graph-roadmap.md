@@ -80,11 +80,12 @@ Expression projections, aliases, aggregates, and calculated columns follow
 named-column projection. They must use canonical `QueryExpression` and
 `SelectProjection` objects rather than editor-only expression dictionaries.
 
-## Next expression slice: composed WHERE expressions
+## Implemented slice: composed WHERE expressions
 
-The visual WHERE builder creates the same immutable expression nodes exposed by
-`GDSQLExpr`. One typed comparison or null check is implemented. The next slice
-adds multiple expression rows and logical composition.
+The reusable visual WHERE editor creates the same immutable expression nodes
+exposed by `GDSQLExpr`. It is embedded by SELECT and is the shared predicate
+surface for the future UPDATE and DELETE nodes. INSERT does not use it because
+an insert has no row-selection predicate.
 
 Implemented operations:
 
@@ -94,13 +95,19 @@ Implemented operations:
 - Comparisons: equals, not equals, greater than, greater than or equal, less
   than, and less than or equal.
 - Null checks: is null and is not null; these do not show a value parameter.
+- Append multiple conditions and compose them with `AND` or `OR`.
+- Apply `NOT` to an individual condition.
+- Remove and reorder conditions.
+- Build mixed logical chains explicitly from top to bottom. The displayed
+  summary includes parentheses so the left-associative meaning remains visible.
 - Inline diagnostics for incompatible operands, incomplete expressions, and
   invalid typed values.
 
 Operations still to create:
 
-- Logical composition: AND, OR, and NOT with explicit nested groups.
-- Remove, duplicate, and reorder expression rows or groups.
+- Explicit nested groups with their own `AND`/`OR` composition and group-level
+  `NOT`.
+- Duplicate expression rows or groups.
 - Column-to-column comparison and reusable expression-node inputs.
 
 Compilation maps these controls to `GDSQLExpr.column()`, typed literals,

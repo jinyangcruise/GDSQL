@@ -224,8 +224,8 @@ func request_query() -> GDSQLOperationResult:
 	if not is_instance_valid(_active_select_operation):
 		return GDSQLGraphQueryCompiler.new().compile(graph)
 	var select_node := GDSQLQueryGraphSelectNode.new(
-			get_selected_database(),
-			get_selected_table(),
+		get_selected_database(),
+		get_selected_table(),
 	)
 	select_node.projections = _active_select_operation.call(
 		"get_selected_columns",
@@ -414,9 +414,10 @@ func _refresh_action_availability() -> void:
 	_action_context.set_action_enabled(
 		GDSQLEditorActionIds.RUN_QUERY_GRAPH,
 		get_selected_registration() != &""
-				and get_selected_database() != &""
-				and get_selected_table() != &""
-				and _selected_column_count() > 0,
+		and get_selected_database() != &""
+		and get_selected_table() != &""
+		and _selected_column_count() > 0
+		and _active_predicate_is_valid(),
 	)
 	_action_context.set_action_enabled(
 		GDSQLEditorActionIds.REMOVE_QUERY_GRAPH_NODE,
@@ -445,7 +446,7 @@ func _place_and_connect_result() -> void:
 	if _active_select_operation == null or _table_result == null:
 		return
 	_table_result.position_offset = (
-		_active_select_operation.position_offset + Vector2(420, 0)
+			_active_select_operation.position_offset + Vector2(420, 0)
 	)
 	for connection in _graph.get_connection_list():
 		if StringName(connection["to_node"]) == _table_result.name:
@@ -544,3 +545,13 @@ func _selected_column_count() -> int:
 		"get_selected_columns",
 	)
 	return columns.size()
+
+
+func _active_predicate_is_valid() -> bool:
+	if not is_instance_valid(_active_select_operation) \
+			or not _active_select_operation.has_method("build_predicate"):
+		return false
+	var result := _active_select_operation.call(
+		"build_predicate",
+	) as GDSQLOperationResult
+	return result != null and result.is_successful()

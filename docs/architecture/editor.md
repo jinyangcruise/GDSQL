@@ -209,6 +209,12 @@ The staged query-graph operations, result mutation capability rules, selectable
 column work, and planned `GDSQLExpr` WHERE controls are recorded in
 [`query-graph-roadmap.md`](query-graph-roadmap.md).
 
+`WhereExpressionEditor` is a reusable graph presentation component shared by
+operations that accept a predicate. It receives typed catalog columns and
+returns a canonical `GDSQLQueryExpression` plus structured diagnostics. SELECT,
+UPDATE, and DELETE may embed it; INSERT does not, because insertion has no row
+selection predicate. The component does not bind or evaluate expressions.
+
 ## Database and table tasks
 
 Structure tasks use typed catalog definitions and
