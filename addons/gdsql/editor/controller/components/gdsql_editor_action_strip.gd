@@ -26,5 +26,6 @@ func _rebuild() -> void:
 		if definition == null:
 			continue
 		var button := GDSQLEditorActionButton.new()
+		button.flat = true
 		add_child(button)
 		button.configure(_hub, definition)

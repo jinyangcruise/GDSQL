@@ -2,75 +2,107 @@
 
 [ext_resource type="Script" uid="uid://c68chdn3couxl" path="res://addons/gdsql/editor/workspace/components/gdsql_table_draft_fold.gd" id="1"]
 [ext_resource type="PackedScene" uid="uid://cpvugwfbubrqj" path="res://addons/gdsql/editor/workspace/components/gdsql_column_draft_row.tscn" id="2"]
+[ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="3_ctrlm"]
+[ext_resource type="Texture2D" uid="uid://dsm6xg4gnopxu" path="res://addons/gdsql/editor/workspace/icons/reticle.svg" id="4_ksyvb"]
+[ext_resource type="Texture2D" uid="uid://da35pq8onqig4" path="res://addons/gdsql/editor/workspace/icons/trash_can.svg" id="5_dwbiq"]
 
 [node name="TableDraftFold" type="FoldableContainer" unique_id=194084698]
+offset_right = 1150.0
+offset_bottom = 302.0
 title = "Draft table"
 script = ExtResource("1")
 
-[node name="Content" type="VBoxContainer" parent="." unique_id=1871698796]
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=1544358921]
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="Content" type="VBoxContainer" parent="MarginContainer" unique_id=1871698796]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Identity" type="GridContainer" parent="Content" unique_id=1675623193]
+[node name="Identity" type="GridContainer" parent="MarginContainer/Content" unique_id=1675623193]
 layout_mode = 2
 columns = 2
 
-[node name="NameLabel" type="Label" parent="Content/Identity" unique_id=1461910132]
+[node name="NameLabel" type="Label" parent="MarginContainer/Content/Identity" unique_id=1461910132]
 layout_mode = 2
 text = "Table name"
 
-[node name="TableName" type="LineEdit" parent="Content/Identity" unique_id=167257889]
+[node name="TableName" type="LineEdit" parent="MarginContainer/Content/Identity" unique_id=167257889]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "heroes"
 
-[node name="PrimaryKeyLabel" type="Label" parent="Content/Identity" unique_id=1235123892]
+[node name="PrimaryKeyLabel" type="Button" parent="MarginContainer/Content/Identity" unique_id=1094562475]
 layout_mode = 2
+size_flags_horizontal = 0
+tooltip_text = "Primary key is automatically added as an index"
+button_mask = 0
 text = "Primary key"
+icon = ExtResource("4_ksyvb")
+flat = true
+alignment = 0
+icon_alignment = 2
 
-[node name="PrimaryKey" type="LineEdit" parent="Content/Identity" unique_id=37965276]
+[node name="PrimaryKey" type="LineEdit" parent="MarginContainer/Content/Identity" unique_id=37965276]
+unique_name_in_owner = true
 layout_mode = 2
 text = "id"
+placeholder_text = "Column name"
 
-[node name="TimestampsLabel" type="Label" parent="Content/Identity" unique_id=1044003066]
+[node name="TimestampsLabel" type="Label" parent="MarginContainer/Content/Identity" unique_id=1044003066]
 layout_mode = 2
 text = "Generated timestamps"
 
-[node name="Timestamps" type="CheckBox" parent="Content/Identity" unique_id=1911704183]
+[node name="Timestamps" type="CheckBox" parent="MarginContainer/Content/Identity" unique_id=1911704183]
+unique_name_in_owner = true
 layout_mode = 2
 text = "created_at and updated_at"
 
-[node name="ColumnsLabel" type="Label" parent="Content" unique_id=8068666]
+[node name="ColumnsLabel" type="Label" parent="MarginContainer/Content" unique_id=8068666]
 layout_mode = 2
 text = "Columns"
 
-[node name="Columns" type="VBoxContainer" parent="Content" unique_id=2022007793]
+[node name="Columns" type="VBoxContainer" parent="MarginContainer/Content" unique_id=2022007793]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="PrimaryKeyColumn" parent="Content/Columns" unique_id=1388216817 instance=ExtResource("2")]
+[node name="PrimaryKeyColumn" parent="MarginContainer/Content/Columns" unique_id=1388216817 instance=ExtResource("2")]
 layout_mode = 2
 
-[node name="IndexesLabel" type="Label" parent="Content"]
+[node name="IndexesLabel" type="Label" parent="MarginContainer/Content" unique_id=532688236]
 layout_mode = 2
 text = "Indexes"
 
-[node name="Indexes" type="VBoxContainer" parent="Content"]
+[node name="Indexes" type="VBoxContainer" parent="MarginContainer/Content" unique_id=1355192318]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="Actions" type="HBoxContainer" parent="Content" unique_id=1776123759]
+[node name="Actions" type="HBoxContainer" parent="MarginContainer/Content" unique_id=1776123759]
 layout_mode = 2
 theme_override_constants/separation = 8
+alignment = 1
 
-[node name="AddColumn" type="Button" parent="Content/Actions" unique_id=476621308]
+[node name="AddColumn" type="Button" parent="MarginContainer/Content/Actions" unique_id=476621308]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Add Column"
+icon = ExtResource("3_ctrlm")
 
-[node name="AddIndex" type="Button" parent="Content/Actions"]
+[node name="AddIndex" type="Button" parent="MarginContainer/Content/Actions" unique_id=15262762]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Add Index"
+icon = ExtResource("4_ksyvb")
 
-[node name="RemoveTable" type="Button" parent="Content/Actions" unique_id=1693327092]
+[node name="RemoveTable" type="Button" parent="MarginContainer/Content/Actions" unique_id=1693327092]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Discard Table"
+icon = ExtResource("5_dwbiq")

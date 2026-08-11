@@ -53,7 +53,7 @@ text = "Unique"
 [node name="AutoIncrement" type="CheckBox" parent="Margin/Fields" unique_id=150008713]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Define if the value can be and auto incremental number, only allowed for int/float type."
+tooltip_text = "Define if the value can be and auto incremental number, only allowed for int type."
 text = "Auto"
 
 [node name="HasDefault" type="CheckBox" parent="Margin/Fields" unique_id=1515523529]

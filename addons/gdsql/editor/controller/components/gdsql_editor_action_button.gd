@@ -3,6 +3,8 @@ class_name GDSQLEditorActionButton
 extends Button
 ## Button presentation for an action resolved through GDSQLEditorActionHub.
 
+## Uses the action label when this button has no scene-authored text.
+## Disable this for icon-only buttons.
 @export var show_action_label := true
 
 var action_id: StringName
@@ -10,7 +12,7 @@ var _hub: GDSQLEditorActionHub
 
 
 func _enter_tree() -> void:
-	expand_icon = true
+	pass
 
 
 func _exit_tree() -> void:
@@ -23,11 +25,12 @@ func configure(hub: GDSQLEditorActionHub, definition: GDSQLEditorActionDefinitio
 		_hub.actions_changed.disconnect(_refresh_state)
 	_hub = hub
 	action_id = definition.id
-	if show_action_label:
+	if show_action_label and text.is_empty():
 		text = tr(definition.label)
-	tooltip_text = tr(definition.tooltip)
-	flat = true
-	if Engine.is_editor_hint() \
+	if tooltip_text.is_empty():
+		tooltip_text = tr(definition.tooltip)
+	if icon == null \
+			and Engine.is_editor_hint() \
 			and definition.icon_name != &"" \
 			and has_theme_icon(definition.icon_name, &"EditorIcons"):
 		icon = get_theme_icon(definition.icon_name, &"EditorIcons")

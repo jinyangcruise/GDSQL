@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://d0doyado15knn"]
+[gd_scene format=3 uid="uid://2yb7qc2bcutw"]
 
 [ext_resource type="Script" uid="uid://c6k0jvljtrmto" path="res://addons/gdsql/editor/workspace/documents/gdsql_database_document.gd" id="1"]
 [ext_resource type="Texture2D" uid="uid://dmi3k8sjbya3n" path="res://addons/gdsql/editor/workspace/icons/pencil.svg" id="2_ud4x5"]
@@ -128,10 +128,7 @@ theme_override_constants/separation = 4
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
-text = "+"
 icon = ExtResource("4_3vv2g")
-flat = true
-expand_icon = true
 script = ExtResource("2_w62mb")
 
 [node name="Footer" type="HBoxContainer" parent="Layout" unique_id=711508357]
@@ -164,14 +161,12 @@ unique_name_in_owner = true
 layout_mode = 2
 disabled = true
 icon = ExtResource("5_toofw")
-expand_icon = true
 script = ExtResource("2_w62mb")
 
 [node name="Refresh" type="Button" parent="Layout/Footer" unique_id=433348911]
 unique_name_in_owner = true
 layout_mode = 2
 icon = ExtResource("6_23t64")
-expand_icon = true
 script = ExtResource("2_w62mb")
 metadata/_custom_type_script = "uid://hvanlw2ev0lr"
 

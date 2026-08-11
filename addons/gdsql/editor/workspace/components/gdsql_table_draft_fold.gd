@@ -12,26 +12,26 @@ const INDEX_DRAFT_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/components/gdsql_index_draft_row.tscn"
 )
 
-@onready var _name: LineEdit = $Content/Identity/TableName
-@onready var _primary_key: LineEdit = $Content/Identity/PrimaryKey
-@onready var _columns: VBoxContainer = $Content/Columns
-@onready var _indexes: VBoxContainer = $Content/Indexes
+@onready var _name: LineEdit = %TableName
+@onready var _primary_key: LineEdit = %PrimaryKey
+@onready var _columns: VBoxContainer = %Columns
+@onready var _indexes: VBoxContainer = %Indexes
 
 
 func _ready() -> void:
 	_name.text_changed.connect(_on_changed.unbind(1))
 	_primary_key.text_changed.connect(changed.emit.unbind(1))
-	$Content/Identity/Timestamps.toggled.connect(changed.emit.unbind(1))
-	$Content/Actions/AddColumn.pressed.connect(_add_column)
-	$Content/Actions/AddIndex.pressed.connect(_add_index)
-	$Content/Actions/RemoveTable.pressed.connect(
-		remove_requested.emit.bind(self),
-	)
+	%Timestamps.toggled.connect(changed.emit.unbind(1))
+	%AddColumn.pressed.connect(_add_column)
+	%AddIndex.pressed.connect(_add_index)
+	%RemoveTable.pressed.connect(remove_requested.emit.bind(self))
 	for row in _columns.get_children():
 		_connect_row(row)
 	for row in _indexes.get_children():
 		_connect_index(row)
 	folded = false
+	%TableName.grab_focus()
+	#%TableName.is_editing()
 
 
 func configure_new() -> void:
@@ -46,15 +46,11 @@ func build_definition() -> GDSQLTableDefinition:
 		StringName(_primary_key.text.strip_edges()),
 	)
 	for row in _columns.get_children():
-		definition.add_column(
-			row.call("build_definition") as GDSQLColumnDefinition,
-		)
-	if $Content/Identity/Timestamps.button_pressed:
+		definition.add_column(row.call("build_definition") as GDSQLColumnDefinition)
+	if %Timestamps.button_pressed:
 		definition.add_timestamps()
 	for row in _indexes.get_children():
-		definition.add_index(
-			row.call("build_definition") as GDSQLIndexDefinition,
-		)
+		definition.add_index(row.call("build_definition") as GDSQLIndexDefinition)
 	return definition
 
 
@@ -157,13 +153,13 @@ func _has_column(column_name: StringName) -> bool:
 		if row.call("get_column_name") == column_name:
 			return true
 	return column_name in [&"created_at", &"updated_at"] \
-			and $Content/Identity/Timestamps.button_pressed
+			and %Timestamps.button_pressed
 
 
 func _on_changed() -> void:
 	title = (
-			"New table: %s" % _name.text.strip_edges()
-			if not _name.text.strip_edges().is_empty()
-			else "New table"
+		"New table: %s" % _name.text.strip_edges()
+		if not _name.text.strip_edges().is_empty()
+		else "New table"
 	)
 	changed.emit()
