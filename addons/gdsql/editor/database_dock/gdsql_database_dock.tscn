@@ -1,6 +1,9 @@
 [gd_scene format=3 uid="uid://dy3kl620k5hwv"]
 
 [ext_resource type="Script" uid="uid://cw1w8rbbyiath" path="res://addons/gdsql/editor/database_dock/gdsql_database_dock.gd" id="1_dock"]
+[ext_resource type="Texture2D" uid="uid://bx0mubtcihvvr" path="res://addons/gdsql/editor/workspace/icons/arrow_clockwise.svg" id="2_4u71e"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_4u71e"]
 
 [node name="Databases" type="VBoxContainer" unique_id=497743362]
 custom_minimum_size = Vector2(280, 120)
@@ -20,13 +23,20 @@ theme_override_constants/margin_bottom = 4
 [node name="ToolbarRow" type="HBoxContainer" parent="Toolbar/ToolbarMargin" unique_id=934006270]
 layout_mode = 2
 
-[node name="Spacer" type="Control" parent="Toolbar/ToolbarMargin/ToolbarRow" unique_id=522602651]
+[node name="Label" type="Label" parent="Toolbar/ToolbarMargin/ToolbarRow" unique_id=1549705607]
+layout_mode = 2
+text = "Databases"
+
+[node name="VSeparator" type="VSeparator" parent="Toolbar/ToolbarMargin/ToolbarRow" unique_id=1361864626]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_styles/separator = SubResource("StyleBoxEmpty_4u71e")
 
 [node name="Refresh" type="Button" parent="Toolbar/ToolbarMargin/ToolbarRow" unique_id=2085835043]
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 text = "Refresh"
+icon = ExtResource("2_4u71e")
 flat = true
 
 [node name="Content" type="Control" parent="." unique_id=1212476550]
@@ -59,23 +69,3 @@ text = "No databases registered.
 Create a database to begin."
 horizontal_alignment = 1
 autowrap_mode = 2
-
-[node name="ContextMenu" type="PopupMenu" parent="." unique_id=1002908725]
-oversampling_override = 1.0
-item_count = 6
-item_0/text = "Open"
-item_0/id = 1
-item_1/text = "Add Table"
-item_1/id = 2
-item_2/text = "Refresh"
-item_2/id = 3
-item_3/id = -1
-item_3/separator = true
-item_4/text = "Remove Database…"
-item_4/id = 4
-item_5/text = "Delete Table…"
-item_5/id = 6
-
-[node name="DestructiveConfirmation" type="ConfirmationDialog" parent="." unique_id=1335903310]
-oversampling_override = 1.0
-ok_button_text = "Confirm"

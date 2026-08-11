@@ -6,6 +6,7 @@ extends RefCounted
 ## context can contribute or override actions while a document has focus.
 
 signal actions_changed
+signal main_screen_requested
 signal action_invoked(
 		action_id: StringName,
 		result: GDSQLOperationResult,
@@ -106,6 +107,7 @@ func is_action_visible(action_id: StringName) -> bool:
 func invoke(
 		action_id: StringName,
 		arguments: Array = [],
+		show_main_screen: bool = false,
 ) -> GDSQLOperationResult:
 	var context := _resolve_context(action_id)
 	var result: GDSQLOperationResult
@@ -117,6 +119,8 @@ func invoke(
 		)
 	else:
 		result = context.invoke(action_id, arguments)
+	if show_main_screen and result.is_successful():
+		main_screen_requested.emit()
 	action_invoked.emit(action_id, result)
 	return result
 

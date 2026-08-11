@@ -10,6 +10,7 @@ const LOGS_SCENE := preload("res://addons/gdsql/editor/debug/gdsql_logs_panel.ts
 const DATABASE_DOCK_KEY := "GDSQLDatabases"
 const LOGS_DOCK_KEY := "GDSQLLogs"
 const WORKSPACE_HOST_NAME := "GDSQLWorkspaceHost"
+const DATABASE = preload("res://addons/gdsql/editor/workspace/icons/database.svg")
 
 var _controller: GDSQLEditorController
 var _workspace_host: MarginContainer
@@ -30,6 +31,7 @@ func _enter_tree() -> void:
 		_logs_panel,
 		Callable(EditorInterface.get_resource_filesystem(), "scan"),
 	)
+	_controller.action_hub.main_screen_requested.connect(_show_main_screen)
 	call_deferred("_load_workspace")
 
 
@@ -71,9 +73,14 @@ func _get_plugin_name() -> String:
 
 func _get_plugin_icon() -> Texture2D:
 	var theme := EditorInterface.get_editor_theme()
+	theme.set_icon("Database", &"EditorIcons", DATABASE)
 	if theme.has_icon(&"Database", &"EditorIcons"):
 		return theme.get_icon(&"Database", &"EditorIcons")
 	return theme.get_icon(&"Script", &"EditorIcons")
+
+
+func _show_main_screen() -> void:
+	EditorInterface.set_main_screen_editor(_get_plugin_name())
 
 
 func _create_workspace() -> void:
@@ -105,7 +112,7 @@ func _create_database_dock() -> void:
 	_database_dock.layout_key = DATABASE_DOCK_KEY
 	_database_dock.default_slot = EditorDock.DOCK_SLOT_RIGHT_BL
 	_database_dock.available_layouts = (
-			EditorDock.DOCK_LAYOUT_VERTICAL | EditorDock.DOCK_LAYOUT_FLOATING
+		EditorDock.DOCK_LAYOUT_VERTICAL | EditorDock.DOCK_LAYOUT_FLOATING
 	)
 	_database_dock.add_child(_database_dock_content)
 	add_dock(_database_dock)
@@ -120,7 +127,7 @@ func _create_logs_dock() -> void:
 	_logs_dock.layout_key = LOGS_DOCK_KEY
 	_logs_dock.default_slot = EditorDock.DOCK_SLOT_BOTTOM
 	_logs_dock.available_layouts = (
-			EditorDock.DOCK_LAYOUT_HORIZONTAL | EditorDock.DOCK_LAYOUT_FLOATING
+		EditorDock.DOCK_LAYOUT_HORIZONTAL | EditorDock.DOCK_LAYOUT_FLOATING
 	)
 	_logs_dock.add_child(_logs_panel)
 	add_dock(_logs_dock)
