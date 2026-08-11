@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://dk08shp2h7trv"]
 
-[ext_resource type="Script" uid="uid://c68chdn3couxl" path="res://addons/gdsql/editor/workspace/components/gdsql_table_draft_fold.gd" id="1"]
-[ext_resource type="PackedScene" uid="uid://cpvugwfbubrqj" path="res://addons/gdsql/editor/workspace/components/gdsql_column_draft_row.tscn" id="2"]
+[ext_resource type="Script" uid="uid://c68chdn3couxl" path="res://addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.gd" id="1"]
+[ext_resource type="PackedScene" uid="uid://cpvugwfbubrqj" path="res://addons/gdsql/editor/workspace/components/column/gdsql_column_draft_row.tscn" id="2"]
 [ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="3_ctrlm"]
 [ext_resource type="Texture2D" uid="uid://dsm6xg4gnopxu" path="res://addons/gdsql/editor/workspace/icons/reticle.svg" id="4_ksyvb"]
 [ext_resource type="Texture2D" uid="uid://da35pq8onqig4" path="res://addons/gdsql/editor/workspace/icons/trash_can.svg" id="5_dwbiq"]

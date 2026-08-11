@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://4bkjkiqt11ym"]
 
-[ext_resource type="Script" uid="uid://dolwscmy3nhv2" path="res://addons/gdsql/editor/workspace/documents/gdsql_database_create_document.gd" id="1"]
+[ext_resource type="Script" uid="uid://dolwscmy3nhv2" path="res://addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd" id="1"]
 
 [node name="DatabaseCreateDocument" type="MarginContainer" unique_id=403392123]
 anchors_preset = 15

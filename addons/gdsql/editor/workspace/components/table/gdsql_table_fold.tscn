@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://bdlfqfkf6q3fy"]
 
-[ext_resource type="Script" uid="uid://ocanpn2hn0k6" path="res://addons/gdsql/editor/workspace/components/gdsql_table_fold.gd" id="1"]
+[ext_resource type="Script" uid="uid://ocanpn2hn0k6" path="res://addons/gdsql/editor/workspace/components/table/gdsql_table_fold.gd" id="1"]
 [ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="2_23edi"]
 [ext_resource type="Texture2D" uid="uid://dsm6xg4gnopxu" path="res://addons/gdsql/editor/workspace/icons/reticle.svg" id="3_hkiee"]
 

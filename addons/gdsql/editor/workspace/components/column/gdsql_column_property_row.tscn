@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://dwhinm07jk8y"]
 
-[ext_resource type="Script" uid="uid://cjvqbtxa1u55d" path="res://addons/gdsql/editor/workspace/components/gdsql_column_property_row.gd" id="1"]
+[ext_resource type="Script" uid="uid://cjvqbtxa1u55d" path="res://addons/gdsql/editor/workspace/components/column/gdsql_column_property_row.gd" id="1"]
 
 [node name="ColumnPropertyRow" type="PanelContainer" unique_id=1252759103]
 custom_minimum_size = Vector2(0, 38)
