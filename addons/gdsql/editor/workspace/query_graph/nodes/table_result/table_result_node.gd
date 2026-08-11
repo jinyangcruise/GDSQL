@@ -154,9 +154,7 @@ func _capability_summary(row_count: int) -> String:
 	var capabilities: Array[String] = ["%d row(s)" % row_count]
 	capabilities.append("editable" if _can_edit_rows else "read only")
 	capabilities.append(
-		"rows can be added"
-		if _can_add_rows
-		else "projected result; adding rows is unavailable"
+		"rows can be added" if _can_add_rows else "projected result; adding rows is unavailable",
 	)
 	return " · ".join(capabilities)
 
@@ -229,13 +227,12 @@ func _on_row_dirty_changed(row: Control, dirty: bool) -> void:
 	else:
 		_dirty_rows.erase(row)
 	_status.text = (
-		"%d unsaved row(s)." % _dirty_rows.size()
-		if not _dirty_rows.is_empty()
-		else _status.text
+			"%d unsaved row(s)." % _dirty_rows.size()
+			if not _dirty_rows.is_empty()
+			else _status.text
 	)
 	_emit_capabilities()
 
 
 func _emit_capabilities() -> void:
 	capabilities_changed.emit(_can_add_rows, has_dirty_rows())
-

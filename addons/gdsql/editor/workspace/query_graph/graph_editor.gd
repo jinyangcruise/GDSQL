@@ -6,21 +6,6 @@ extends Control
 ## This first slice presents one SELECT operation. It consumes lightweight
 ## workbench inspection metadata and does not access rows or storage.
 
-const SELECT_NODE_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.tscn"
-)
-const TABLE_RESULT_NODE_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn"
-)
-const UNAVAILABLE_ACTIONS: Array[StringName] = [
-	GDSQLEditorActionIds.OPEN_QUERY_GRAPH_FOLDER,
-	GDSQLEditorActionIds.SAVE_QUERY_GRAPH,
-	GDSQLEditorActionIds.ADD_LEFT_JOIN_QUERY_NODE,
-	GDSQLEditorActionIds.ADD_INSERT_QUERY_NODE,
-	GDSQLEditorActionIds.ADD_UPDATE_QUERY_NODE,
-	GDSQLEditorActionIds.ADD_DELETE_QUERY_NODE,
-]
-
 signal source_changed(
 		registration_name: StringName,
 		database_name: StringName,
@@ -46,6 +31,21 @@ signal row_delete_requested(
 		table_name: StringName,
 		primary_key: Variant,
 )
+
+const SELECT_NODE_SCENE := preload(
+	"res://addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.tscn"
+)
+const TABLE_RESULT_NODE_SCENE := preload(
+	"res://addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn"
+)
+const UNAVAILABLE_ACTIONS: Array[StringName] = [
+	GDSQLEditorActionIds.OPEN_QUERY_GRAPH_FOLDER,
+	GDSQLEditorActionIds.SAVE_QUERY_GRAPH,
+	GDSQLEditorActionIds.ADD_LEFT_JOIN_QUERY_NODE,
+	GDSQLEditorActionIds.ADD_INSERT_QUERY_NODE,
+	GDSQLEditorActionIds.ADD_UPDATE_QUERY_NODE,
+	GDSQLEditorActionIds.ADD_DELETE_QUERY_NODE,
+]
 
 var _inspections: Array[GDSQLDatabaseInspection] = []
 var _action_hub: GDSQLEditorActionHub

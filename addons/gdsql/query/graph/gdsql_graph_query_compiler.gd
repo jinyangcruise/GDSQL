@@ -1,7 +1,6 @@
 class_name GDSQLGraphQueryCompiler
 extends RefCounted
 
-
 func compile(graph: GDSQLQueryGraph) -> GDSQLQueryCompilationResult:
 	var result := GDSQLQueryCompilationResult.new()
 	if graph == null:
