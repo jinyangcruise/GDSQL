@@ -7,6 +7,7 @@ extends PanelContainer
 
 signal changed
 
+const KEY_ICON = preload("res://addons/gdsql/editor/workspace/icons/key.svg")
 const VARIANT_FIELD := preload(
 	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_value_field.gd"
 )
@@ -34,16 +35,15 @@ func _ready() -> void:
 	%Remove.toggled.connect(_emit_changed.unbind(1))
 
 
-func configure(
-		column: GDSQLColumnDefinition,
-		is_primary_key: bool = false,
-) -> void:
+func configure(column: GDSQLColumnDefinition, is_primary_key: bool = false) -> void:
 	_configuring = true
 	_column = column
 	_is_primary_key = is_primary_key
 	%Name.text = String(column.name)
 	%Type.text = type_string(column.data_type)
-	%PrimaryKey.text = "Primary key" if is_primary_key else ""
+	if _is_primary_key:
+		%Name.right_icon = KEY_ICON
+		%Name.tooltip_text += "\n (Primary key)"
 	%Nullable.button_pressed = column.nullable
 	%Nullable.disabled = is_primary_key
 	%Unique.button_pressed = column.unique
@@ -63,15 +63,13 @@ func configure(
 		%Generation.add_item(String(generation_name))
 	%Generation.select(column.generation)
 	%Generation.disabled = column.data_type != TYPE_INT
-	%HasDefault.disabled = (
-			column.generation != GDSQLColumnDefinition.Generation.NONE
-	)
+	%HasDefault.disabled = (column.generation != GDSQLColumnDefinition.Generation.NONE)
 	%Remove.button_pressed = false
 	%Remove.disabled = is_primary_key
 	%Remove.tooltip_text = (
-			"The primary-key column cannot be removed directly."
-			if is_primary_key
-			else "Drop this column and its stored values when changes are applied."
+		"The primary-key column cannot be removed directly."
+		if is_primary_key
+		else "Drop this column and its stored values when changes are applied."
 	)
 	_configuring = false
 
@@ -84,10 +82,7 @@ func is_valid_draft() -> bool:
 	if get_requested_name() == &"":
 		return false
 	if %Generation.selected != GDSQLColumnDefinition.Generation.NONE \
-			and (
-					%HasDefault.button_pressed
-					or %AutoIncrement.button_pressed
-			):
+			and (%HasDefault.button_pressed or %AutoIncrement.button_pressed):
 		return false
 	if %HasDefault.button_pressed:
 		var parsed: Dictionary = _default_editor.call("get_value_result")
@@ -105,17 +100,11 @@ func build_alterations() -> Array[GDSQLTableAlteration]:
 	var requested_name := get_requested_name()
 	if %Nullable.button_pressed != _column.nullable:
 		alterations.append(
-			GDSQLTableAlteration.set_column_nullable(
-				_column.name,
-				%Nullable.button_pressed,
-			),
+			GDSQLTableAlteration.set_column_nullable(_column.name, %Nullable.button_pressed),
 		)
 	if %Unique.button_pressed != _column.unique:
 		alterations.append(
-			GDSQLTableAlteration.set_column_unique(
-				_column.name,
-				%Unique.button_pressed,
-			),
+			GDSQLTableAlteration.set_column_unique(_column.name, %Unique.button_pressed),
 		)
 	if %AutoIncrement.button_pressed != _column.auto_increment:
 		alterations.append(
@@ -129,28 +118,14 @@ func build_alterations() -> Array[GDSQLTableAlteration]:
 		if bool(_default_editor.call("is_modified")) \
 				or not _column.has_default() \
 				or parsed.value != _column.get_default_value():
-			alterations.append(
-				GDSQLTableAlteration.set_column_default(
-					_column.name,
-					parsed.value,
-				),
-			)
+			alterations.append(GDSQLTableAlteration.set_column_default(_column.name, parsed.value))
 	elif _column.has_default():
-		alterations.append(
-			GDSQLTableAlteration.clear_column_default(_column.name),
-		)
+		alterations.append(GDSQLTableAlteration.clear_column_default(_column.name))
 	var generation: GDSQLColumnDefinition.Generation = %Generation.selected
 	if generation != _column.generation:
-		alterations.append(
-			GDSQLTableAlteration.set_column_generation(
-				_column.name,
-				generation,
-			),
-		)
+		alterations.append(GDSQLTableAlteration.set_column_generation(_column.name, generation))
 	if requested_name != _column.name:
-		alterations.append(
-			GDSQLTableAlteration.rename_column(_column.name, requested_name),
-		)
+		alterations.append(GDSQLTableAlteration.rename_column(_column.name, requested_name))
 	return alterations
 
 
@@ -162,10 +137,7 @@ func _on_has_default_toggled(enabled: bool) -> void:
 func _on_generation_selected(generation: int) -> void:
 	var generated := generation != GDSQLColumnDefinition.Generation.NONE
 	%HasDefault.disabled = generated
-	_default_editor.call(
-		"set_value_editable",
-		%HasDefault.button_pressed and not generated,
-	)
+	_default_editor.call("set_value_editable", %HasDefault.button_pressed and not generated)
 	_emit_changed()
 
 

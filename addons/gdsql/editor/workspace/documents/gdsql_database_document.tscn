@@ -1,13 +1,20 @@
 [gd_scene format=3 uid="uid://d0doyado15knn"]
 
 [ext_resource type="Script" uid="uid://c6k0jvljtrmto" path="res://addons/gdsql/editor/workspace/documents/gdsql_database_document.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://dmi3k8sjbya3n" path="res://addons/gdsql/editor/workspace/icons/pencil.svg" id="2_ud4x5"]
 [ext_resource type="Script" uid="uid://hvanlw2ev0lr" path="res://addons/gdsql/editor/controller/components/gdsql_editor_action_button.gd" id="2_w62mb"]
+[ext_resource type="Texture2D" uid="uid://da35pq8onqig4" path="res://addons/gdsql/editor/workspace/icons/trash_can.svg" id="3_toofw"]
+[ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="4_3vv2g"]
+[ext_resource type="Texture2D" uid="uid://cs3iterfftneq" path="res://addons/gdsql/editor/workspace/icons/floppy_disk.svg" id="5_toofw"]
+[ext_resource type="Texture2D" uid="uid://cuw72klaichks" path="res://addons/gdsql/editor/workspace/icons/arrow_uturn_up_left.svg" id="6_23t64"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_r8eu3"]
 
 [sub_resource type="StyleBoxLine" id="StyleBoxLine_xtdl2"]
 color = Color(0.59, 0.59, 0.59, 1)
 thickness = 2
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_23t64"]
 
 [node name="DatabaseDocument" type="MarginContainer" unique_id=700155203]
 anchors_preset = 15
@@ -50,6 +57,8 @@ size_flags_horizontal = 0
 tooltip_text = "Database Name"
 theme_override_font_sizes/font_size = 32
 editable = false
+expand_to_text_length = true
+flat = true
 
 [node name="Split" type="HSeparator" parent="Layout/Scroll/Content/Details/HSplitContainer" unique_id=1990173059]
 layout_mode = 2
@@ -64,13 +73,14 @@ theme_override_constants/separation = 8
 unique_name_in_owner = true
 custom_maximum_size = Vector2(-1, 30)
 layout_mode = 2
-text = "Rename"
+icon = ExtResource("2_ud4x5")
 
 [node name="Delete" type="Button" parent="Layout/Scroll/Content/Details/HSplitContainer/Actions" unique_id=513797062]
 unique_name_in_owner = true
 custom_maximum_size = Vector2(-1, 30)
 layout_mode = 2
-text = "Remove Database"
+text = "Delete"
+icon = ExtResource("3_toofw")
 
 [node name="HBoxContainer" type="HBoxContainer" parent="Layout/Scroll/Content/Details" unique_id=303850963]
 layout_mode = 2
@@ -117,7 +127,9 @@ theme_override_constants/separation = 4
 [node name="AddTable" type="Button" parent="Layout/Scroll/Content/Tables" unique_id=586690950]
 unique_name_in_owner = true
 layout_mode = 2
-text = "+ Add Table"
+size_flags_horizontal = 4
+text = "+"
+icon = ExtResource("4_3vv2g")
 flat = true
 expand_icon = true
 script = ExtResource("2_w62mb")
@@ -129,11 +141,17 @@ theme_override_constants/separation = 8
 [node name="ValidationState" type="Label" parent="Layout/Footer" unique_id=683544906]
 unique_name_in_owner = true
 visible = false
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_colors/font_color = Color(1, 0.45, 0.4, 1)
 text = "A database name is required."
 autowrap_mode = 2
+
+[node name="HSeparator" type="HSeparator" parent="Layout/Footer" unique_id=862368578]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/separator = SubResource("StyleBoxEmpty_23t64")
 
 [node name="DirtyState" type="Label" parent="Layout/Footer" unique_id=1332744764]
 unique_name_in_owner = true
@@ -145,13 +163,14 @@ vertical_alignment = 1
 unique_name_in_owner = true
 layout_mode = 2
 disabled = true
-text = "Save Changes"
+icon = ExtResource("5_toofw")
 expand_icon = true
 script = ExtResource("2_w62mb")
 
 [node name="Refresh" type="Button" parent="Layout/Footer" unique_id=433348911]
 unique_name_in_owner = true
 layout_mode = 2
+icon = ExtResource("6_23t64")
 expand_icon = true
 script = ExtResource("2_w62mb")
 metadata/_custom_type_script = "uid://hvanlw2ev0lr"

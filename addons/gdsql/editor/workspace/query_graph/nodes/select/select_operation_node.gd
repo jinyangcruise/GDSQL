@@ -3,9 +3,9 @@ extends GraphNode
 ## SELECT operation presentation backed by lightweight schema inspections.
 
 signal source_changed(
-		registration_name: StringName,
-		database_name: StringName,
-		table_name: StringName,
+	registration_name: StringName,
+	database_name: StringName,
+	table_name: StringName,
 )
 signal query_changed
 signal query_activated
@@ -37,7 +37,6 @@ func _ready() -> void:
 	_where_expression.changed.connect(_on_where_changed)
 	_query.pressed.connect(query_activated.emit)
 	gui_input.connect(_on_node_gui_input)
-	_context_menu.add_item("Remove node", CONTEXT_REMOVE)
 	_context_menu.id_pressed.connect(_on_context_action)
 	set_slot(
 		%OutputRow.get_index(),
@@ -51,16 +50,16 @@ func _ready() -> void:
 
 
 func configure_query_action(
-		hub: GDSQLEditorActionHub,
-		definition: GDSQLEditorActionDefinition,
+	hub: GDSQLEditorActionHub,
+	definition: GDSQLEditorActionDefinition,
 ) -> void:
 	_query.configure(hub, definition)
 
 
 func configure(
-		inspections: Array[GDSQLDatabaseInspection],
-		selected_registration: StringName,
-		selected_table: StringName,
+	inspections: Array[GDSQLDatabaseInspection],
+	selected_registration: StringName,
+	selected_table: StringName,
 ) -> void:
 	var previous_registration := get_selected_registration()
 	var previous_table := get_selected_table()
@@ -73,8 +72,8 @@ func configure(
 	_populate_databases(selected_registration)
 	_populate_tables(selected_table)
 	var same_source := (
-			previous_registration == get_selected_registration()
-			and previous_table == get_selected_table()
+		previous_registration == get_selected_registration()
+		and previous_table == get_selected_table()
 	)
 	_populate_columns(previous_columns, same_source)
 	_configure_where(same_source)
@@ -126,11 +125,10 @@ func _populate_databases(selected_registration: StringName) -> void:
 		_database.set_item_metadata(item_index, registration.name)
 		_database.set_item_tooltip(
 			item_index,
-			"Location: %s\nRuntime storage: %s" % [
+			"Location: %s\nRuntime storage: %s"
+			% [
 				registration.data_root,
-				GDSQLStorageBackendIds.get_display_name(
-					registration.storage_backend_id,
-				),
+				GDSQLStorageBackendIds.get_display_name(registration.storage_backend_id),
 			],
 		)
 		if registration.name == selected_registration:
@@ -154,10 +152,7 @@ func _populate_tables(selected_table: StringName = &"") -> void:
 		_table.set_item_metadata(item_index, table_inspection.name)
 		_table.set_item_tooltip(
 			item_index,
-			"%d columns · %d rows" % [
-				table_inspection.column_count,
-				table_inspection.row_count,
-			],
+			"%d columns · %d rows" % [table_inspection.column_count, table_inspection.row_count],
 		)
 		if table_inspection.name == selected_table:
 			_table.select(item_index)
@@ -167,8 +162,8 @@ func _populate_tables(selected_table: StringName = &"") -> void:
 
 
 func _populate_columns(
-		selected_columns: Array[StringName] = [],
-		preserve_selection: bool = false,
+	selected_columns: Array[StringName] = [],
+	preserve_selection: bool = false,
 ) -> void:
 	var popup := _columns.get_popup()
 	popup.clear()
@@ -223,11 +218,7 @@ func _update_selection() -> void:
 			table_name,
 			_where_summary(),
 		]
-	source_changed.emit(
-		get_selected_registration(),
-		database_name,
-		table_name,
-	)
+	source_changed.emit(get_selected_registration(), database_name, table_name)
 	query_changed.emit()
 
 
@@ -317,16 +308,10 @@ func _on_context_action(id: int) -> void:
 		remove_requested.emit()
 
 
-func _sort_inspections(
-		left: GDSQLDatabaseInspection,
-		right: GDSQLDatabaseInspection,
-) -> bool:
+func _sort_inspections(left: GDSQLDatabaseInspection, right: GDSQLDatabaseInspection) -> bool:
 	return String(left.registration.database_name) \
 			< String(right.registration.database_name)
 
 
-func _sort_tables(
-		left: GDSQLTableInspection,
-		right: GDSQLTableInspection,
-) -> bool:
+func _sort_tables(left: GDSQLTableInspection, right: GDSQLTableInspection) -> bool:
 	return String(left.name) < String(right.name)

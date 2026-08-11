@@ -4,11 +4,14 @@
 [ext_resource type="Script" uid="uid://hvanlw2ev0lr" path="res://addons/gdsql/editor/controller/components/gdsql_editor_action_button.gd" id="2_action"]
 [ext_resource type="Texture2D" uid="uid://ccvtxxf3nbmyv" path="res://addons/gdsql/editor/workspace/icons/filter.svg" id="2_jw0h5"]
 [ext_resource type="Texture2D" uid="uid://du54kws1ra3bm" path="res://addons/gdsql/editor/workspace/icons/play.svg" id="3_play"]
-[ext_resource type="PackedScene" path="res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.tscn" id="4_where"]
+[ext_resource type="PackedScene" uid="uid://cnuaxum6yxjel" path="res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.tscn" id="4_where"]
+[ext_resource type="Texture2D" uid="uid://da35pq8onqig4" path="res://addons/gdsql/editor/workspace/icons/trash_can.svg" id="6_u0eoo"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ih4hc"]
 
 [node name="SelectOperation" type="GraphNode" unique_id=555347866]
+propagate_maximum_size = false
+size_flags_vertical = 0
 scaling_menus = true
 title = "SELECT"
 slot/0/left_enabled = false
@@ -187,11 +190,15 @@ layout_mode = 2
 tooltip_text = "Compile and run this SELECT"
 text = "QUERY"
 icon = ExtResource("3_play")
+expand_icon = true
 script = ExtResource("2_action")
 metadata/_custom_type_script = "uid://hvanlw2ev0lr"
 
 [node name="NodeContextMenu" type="PopupMenu" parent="." unique_id=1721907589]
 unique_name_in_owner = true
+oversampling_override = 1.0
+size = Vector2i(146, 100)
 item_count = 1
 item_0/text = "Remove node"
+item_0/icon = ExtResource("6_u0eoo")
 item_0/id = 1

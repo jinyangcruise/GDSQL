@@ -24,20 +24,16 @@ func _ready() -> void:
 	%AddIndex.pressed.connect(_add_index)
 
 
-func configure(
-		table: GDSQLTableDefinition,
-		inspection: GDSQLTableInspection,
-) -> void:
+func configure(table: GDSQLTableDefinition, inspection: GDSQLTableInspection) -> void:
 	_table = table
 	table_name = table.name
 	_dropped_indexes.clear()
 	title = String(table.name)
-	$Content/Summary.text = "%d rows · %d columns · %d indexes" % [
+	%Summary.text = "%d rows · %d columns · %d indexes" % [
 		inspection.row_count,
 		table.columns.size(),
-		table.indexes.size(),
+		table.indexes.size() + 1,
 	]
-	%PrimaryKey.text = "Primary key: %s" % table.primary_key
 	_render_indexes(table)
 	var rows := %Columns
 	for child in rows.get_children():
@@ -66,15 +62,11 @@ func build_change() -> GDSQLEditorTableChange:
 			alterations.append(alteration)
 	for row in %NewColumns.get_children():
 		alterations.append(
-			GDSQLTableAlteration.add_column(
-				row.call("build_definition") as GDSQLColumnDefinition,
-			),
+			GDSQLTableAlteration.add_column(row.call("build_definition") as GDSQLColumnDefinition),
 		)
 	for row in %NewIndexes.get_children():
 		alterations.append(
-			GDSQLTableAlteration.add_index(
-				row.call("build_definition") as GDSQLIndexDefinition,
-			),
+			GDSQLTableAlteration.add_index(row.call("build_definition") as GDSQLIndexDefinition),
 		)
 	return GDSQLEditorTableChange.new(table_name, alterations)
 
@@ -125,11 +117,16 @@ func _render_indexes(table: GDSQLTableDefinition) -> void:
 	for child in %Indexes.get_children():
 		%Indexes.remove_child(child)
 		child.queue_free()
-	if table.indexes.is_empty():
-		var empty := Label.new()
-		empty.text = "Indexes: none"
-		%Indexes.add_child(empty)
-		return
+	var primary_row := HBoxContainer.new()
+	var primary_label := Label.new()
+	primary_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	primary_label.text = "PRIMARY (%s) · unique · automatic" % table.primary_key
+	primary_label.tooltip_text = (
+		"Primary keys use GDSQL's dedicated primary-key lookup and cannot be removed "
+		+ "as a secondary index."
+	)
+	primary_row.add_child(primary_label)
+	%Indexes.add_child(primary_row)
 	for definition in table.indexes:
 		var row := HBoxContainer.new()
 		var label := Label.new()

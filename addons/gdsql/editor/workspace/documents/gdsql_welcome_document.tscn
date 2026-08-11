@@ -50,8 +50,10 @@ layout_mode = 2
 alignment = 1
 
 [node name="CreateDatabase" type="Button" parent="WelcomePanel/WelcomeMargin/Content/HBoxContainer" unique_id=335882101]
+unique_name_in_owner = true
 custom_maximum_size = Vector2(250, -1)
 layout_mode = 2
 text = "Create Database"
 icon = ExtResource("2_fltei")
+expand_icon = true
 script = ExtResource("2")

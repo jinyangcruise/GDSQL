@@ -3,10 +3,10 @@ extends MarginContainer
 ## One editable database document containing table and column folds.
 
 signal save_requested(
-		registration_name: StringName,
-		database_name: StringName,
-		new_tables: Array[GDSQLTableDefinition],
-		table_changes: Array[GDSQLEditorTableChange],
+	registration_name: StringName,
+	database_name: StringName,
+	new_tables: Array[GDSQLTableDefinition],
+	table_changes: Array[GDSQLEditorTableChange],
 )
 signal delete_requested(registration_name: StringName)
 signal refresh_requested(registration_name: StringName)
@@ -54,16 +54,14 @@ func _ready() -> void:
 	rename_button.pressed.connect(_begin_rename)
 	delete_button.pressed.connect(_delete_confirmation.popup_centered.bind(Vector2i(460, 170)))
 	_database_name.text_changed.connect(_on_changed.unbind(1))
+	_database_name.focus_exited.connect(_on_title_lose_focus)
 	_save_confirmation.confirmed.connect(_emit_save)
 	$RefreshConfirmation.confirmed.connect(_emit_refresh)
 	_delete_confirmation.confirmed.connect(_emit_delete)
 	_update_dirty_state()
 
 
-func configure_actions(
-		action_hub: GDSQLEditorActionHub,
-		context_id: StringName,
-) -> void:
+func configure_actions(action_hub: GDSQLEditorActionHub, context_id: StringName) -> void:
 	if _action_hub == action_hub and _action_context_id == context_id:
 		return
 	release_actions()
@@ -126,25 +124,22 @@ func configure(inspection: GDSQLDatabaseInspection, session: GDSQLWorkbenchSessi
 		inspection.registration.storage_backend_id,
 	)
 	_delete_confirmation.dialog_text = (
-			(
-					"Remove database '%s' from GDSQL?\n\n"
-					+ "Files at '%s' will remain unchanged. Creating the same database "
-					+ "later will load these files again."
-			)
-			% [
-				inspection.registration.database_name,
-				inspection.registration.data_root.path_join(
-					String(inspection.registration.database_name),
-				),
-			]
+		(
+			"Remove database '%s' from GDSQL?\n\n"
+			+ "Files at '%s' will remain unchanged. Creating the same database "
+			+ "later will load these files again."
+		)
+		% [inspection.registration.database_name, inspection.registration.data_root.path_join(
+				String(inspection.registration.database_name),
+			)]
 	)
 	_render_existing_tables()
 	_update_dirty_state()
 
 
 func accept_saved_state(
-		inspection: GDSQLDatabaseInspection,
-		session: GDSQLWorkbenchSession,
+	inspection: GDSQLDatabaseInspection,
+	session: GDSQLWorkbenchSession,
 ) -> void:
 	for draft in _draft_tables.get_children():
 		_draft_tables.remove_child(draft)
@@ -169,6 +164,10 @@ func focus_table(table_name: StringName) -> void:
 			fold.call("focus")
 			fold.grab_focus()
 			return
+
+
+func _on_title_lose_focus():
+	_database_name.editable = false
 
 
 func _render_existing_tables() -> void:
@@ -218,9 +217,7 @@ func _request_save() -> GDSQLOperationResult:
 	for fold in _existing_tables.get_children():
 		var table_change := fold.call("build_change") as GDSQLEditorTableChange
 		for alteration in table_change.alterations:
-			changes.append(
-				"%s: %s" % [table_change.table_name, alteration.describe()],
-			)
+			changes.append("%s: %s" % [table_change.table_name, alteration.describe()])
 	_save_confirmation.dialog_text = "\n".join(changes)
 	_save_confirmation.popup_centered(Vector2i(520, 220))
 	result.value = self
@@ -273,11 +270,9 @@ func _update_dirty_state() -> void:
 	var validation_errors := _get_validation_errors()
 	_dirty_state.text = "Unsaved changes" if dirty else "Saved"
 	_validation_state.visible = dirty and not validation_errors.is_empty()
-	_validation_state.text = (
-			validation_errors[0]
-			if not validation_errors.is_empty()
-			else ""
-	)
+	_validation_state.text = (validation_errors[0]
+		if not validation_errors.is_empty()
+		else "")
 	if _action_context != null:
 		_action_context.set_action_enabled(
 			GDSQLEditorActionIds.SAVE_DATABASE_CHANGES,
