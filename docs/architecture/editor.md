@@ -205,8 +205,8 @@ execution, and result materialization as the fluent API. Query graph documents
 may be stored under `res://.gdsql/` because they are project editor assets, not
 runtime table data.
 
-The staged query-graph operations, result mutation capability rules, selectable
-column work, and planned `GDSQLExpr` WHERE controls are recorded in
+The query-graph operations, result mutation capability rules, selectable
+column work, `GDSQLExpr` WHERE controls, and next model-source slice are recorded in
 [`query-graph-roadmap.md`](query-graph-roadmap.md).
 
 `WhereExpressionEditor` is a reusable graph presentation component shared by
@@ -214,6 +214,23 @@ operations that accept a predicate. It receives typed catalog columns and
 returns a canonical `GDSQLQueryExpression` plus structured diagnostics. SELECT,
 UPDATE, and DELETE may embed it; INSERT does not, because insertion has no row
 selection predicate. The component does not bind or evaluate expressions.
+
+Every operation and result view derives from `QueryGraphNode`. The base extends
+Godot's native `GraphNode` titlebar through `get_titlebar_hbox()`, provides a
+close button and an operation-specific actions host, and emits removal intent.
+It does not disconnect or free graph elements. `QueryGraphEditor` owns that
+cleanup so connections and derived results remain consistent. Future raw-table
+or registered-model selectors may use the actions host without adding model
+resolution to the base presentation class.
+
+Standalone INSERT, UPDATE, and DELETE nodes reuse an inspection-backed source
+selector and typed mutation-value editor. Their controls translate only to
+typed graph nodes; `GraphQueryCompiler` produces the canonical mutation specs.
+Unfiltered UPDATE and DELETE operations require a source-reset inline
+confirmation before compilation. Successful mutation execution is coordinated
+by the editor controller, which refreshes catalog and inspection surfaces and
+presents affected-row statistics without putting runtime dependencies in graph
+controls.
 
 ## Database and table tasks
 

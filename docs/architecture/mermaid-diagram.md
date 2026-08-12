@@ -54,7 +54,10 @@ GraphEditor("`**Graph Editor**
 -
 *Purpose:* Describe canonical queries through typed nodes and connections
 *Document API:* GDSQLQueryGraph
+*Node base:* Native titlebar extension, close intent and action-control host
 *Predicate UI:* Reusable composed WHERE editor for select, update and delete
+*Operations:* Select, insert, update and delete selected roots
+*Mutation UI:* Shared source selector and typed values editor
 *Translation:* GDSQLGraphQueryCompiler.compile(graph)
 *Produces:* GDSQLQuerySpec`")
 

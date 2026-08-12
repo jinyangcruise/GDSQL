@@ -21,7 +21,7 @@ signal row_delete_requested(
 )
 
 const DATA_ROW_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_table_data_row.tscn"
+	"res://addons/gdsql/editor/workspace/components/table/gdsql_table_data_row.tscn"
 )
 
 var registration_name: StringName

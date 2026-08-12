@@ -5,12 +5,10 @@
 [ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="3_plus"]
 
 [node name="TableResult" type="GraphNode" unique_id=671518478]
-custom_minimum_size = Vector2(760, 360)
+custom_minimum_size = Vector2(300, 250)
 clip_contents = true
-anchors_preset = 10
-anchor_right = 1.0
-offset_bottom = 398.0
-grow_horizontal = 2
+offset_right = 300.0
+offset_bottom = 250.0
 size_flags_horizontal = 3
 resizable = true
 scaling_menus = true
@@ -51,6 +49,15 @@ slot/3/right_type = 0
 slot/3/right_color = Color(1, 1, 1, 1)
 slot/3/right_icon = null
 slot/3/draw_stylebox = true
+slot/4/left_enabled = false
+slot/4/left_type = 0
+slot/4/left_color = Color(1, 1, 1, 1)
+slot/4/left_icon = null
+slot/4/right_enabled = false
+slot/4/right_type = 0
+slot/4/right_color = Color(1, 1, 1, 1)
+slot/4/right_icon = null
+slot/4/draw_stylebox = true
 script = ExtResource("1_result")
 
 [node name="Toolbar" type="HBoxContainer" parent="." unique_id=2008884344]
@@ -89,21 +96,22 @@ theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
 text = "No query result yet."
 autowrap_mode = 2
 
-[node name="Scroll" type="ScrollContainer" parent="." unique_id=1205187882]
-custom_minimum_size = Vector2(0, 260)
+[node name="Header" type="HBoxContainer" parent="." unique_id=904067592]
+unique_name_in_owner = true
 layout_mode = 2
-horizontal_scroll_mode = 2
-vertical_scroll_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Scroll" type="ScrollContainer" parent="." unique_id=1205187882]
+custom_minimum_size = Vector2(0, 80)
+custom_maximum_size = Vector2(-1, 480)
+layout_mode = 2
+horizontal_scroll_mode = 5
+vertical_scroll_mode = 5
 
 [node name="Rows" type="VBoxContainer" parent="Scroll" unique_id=455045422]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 2
-
-[node name="Header" type="HBoxContainer" parent="Scroll/Rows" unique_id=904067592]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 4
 
 [node name="DataRows" type="VBoxContainer" parent="Scroll/Rows" unique_id=1614655775]
 unique_name_in_owner = true

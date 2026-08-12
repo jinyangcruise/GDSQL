@@ -5,7 +5,6 @@
 [ext_resource type="Texture2D" uid="uid://ccvtxxf3nbmyv" path="res://addons/gdsql/editor/workspace/icons/filter.svg" id="2_jw0h5"]
 [ext_resource type="Texture2D" uid="uid://du54kws1ra3bm" path="res://addons/gdsql/editor/workspace/icons/play.svg" id="3_play"]
 [ext_resource type="PackedScene" uid="uid://cnuaxum6yxjel" path="res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.tscn" id="4_where"]
-[ext_resource type="Texture2D" uid="uid://da35pq8onqig4" path="res://addons/gdsql/editor/workspace/icons/trash_can.svg" id="6_u0eoo"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ih4hc"]
 
@@ -170,20 +169,28 @@ horizontal_alignment = 2
 
 [node name="SelectionSummary" type="Label" parent="." unique_id=799244643]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
 text = "No source selected."
 autowrap_mode = 2
 
-[node name="Actions" type="HBoxContainer" parent="." unique_id=125737561]
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=308112431]
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="Actions" type="HBoxContainer" parent="MarginContainer" unique_id=125737561]
 layout_mode = 2
 
-[node name="HSeparator2" type="HSeparator" parent="Actions" unique_id=1139467635]
+[node name="HSeparator2" type="HSeparator" parent="MarginContainer/Actions" unique_id=1139467635]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_styles/separator = SubResource("StyleBoxEmpty_ih4hc")
 
-[node name="Query" type="Button" parent="Actions" unique_id=1397319067]
+[node name="Query" type="Button" parent="MarginContainer/Actions" unique_id=1397319067]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(120, 32)
 layout_mode = 2
@@ -193,12 +200,3 @@ icon = ExtResource("3_play")
 expand_icon = true
 script = ExtResource("2_action")
 metadata/_custom_type_script = "uid://hvanlw2ev0lr"
-
-[node name="NodeContextMenu" type="PopupMenu" parent="." unique_id=1721907589]
-unique_name_in_owner = true
-oversampling_override = 1.0
-size = Vector2i(146, 100)
-item_count = 1
-item_0/text = "Remove node"
-item_0/icon = ExtResource("6_u0eoo")
-item_0/id = 1

@@ -1,0 +1,48 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/gdsql/editor/workspace/query_graph/components/source/source_selector.gd" id="1_source"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_spacer"]
+
+[node name="SourceSelector" type="VBoxContainer"]
+script = ExtResource("1_source")
+
+[node name="DatabaseRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="DatabaseRow"]
+custom_minimum_size = Vector2(92, 0)
+layout_mode = 2
+text = "Database"
+
+[node name="Spacer" type="HSeparator" parent="DatabaseRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/separator = SubResource("StyleBoxEmpty_spacer")
+
+[node name="Database" type="OptionButton" parent="DatabaseRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TableRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="TableRow"]
+custom_minimum_size = Vector2(92, 0)
+layout_mode = 2
+text = "Table"
+
+[node name="Spacer" type="HSeparator" parent="TableRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/separator = SubResource("StyleBoxEmpty_spacer")
+
+[node name="Table" type="OptionButton" parent="TableRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+size_flags_horizontal = 3

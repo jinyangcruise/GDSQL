@@ -4,6 +4,12 @@ extends GDSQLDatabaseExplorer
 
 const TABLE_METADATA_SECTION := "__gdsql_metadata__"
 
+var _codec: GDSQLGodotVariantCodec
+
+
+func _init(codec: GDSQLGodotVariantCodec = null) -> void:
+	_codec = codec if codec != null else GDSQLGodotVariantCodec.new()
+
 
 func inspect_root(
 		data_root: String,
@@ -86,7 +92,9 @@ func _inspect_table(
 	var column_count := 0
 	var index_count := 0
 	var columns: Array[GDSQLColumnDefinition] = []
+	var primary_key := &""
 	if schema_exists:
+		primary_key = StringName(schema.get_value("table", "primary_key", ""))
 		for section in schema.get_sections():
 			if section.begins_with("column:"):
 				columns.append(_inspect_column(schema, section))
@@ -107,6 +115,7 @@ func _inspect_table(
 		column_count,
 		index_count,
 		columns,
+		primary_key,
 	)
 
 
@@ -128,6 +137,13 @@ func _inspect_column(
 			GDSQLColumnDefinition.Generation.NONE,
 		),
 	)
+	if schema.has_section_key(section, "default_kind") \
+			and schema.get_value(section, "default_kind") == "static":
+		column.set_default(
+			_codec.decode(schema.get_value(section, "default")) \
+			if schema.has_section_key(section, "default") \
+			else null,
+		)
 	return column
 
 

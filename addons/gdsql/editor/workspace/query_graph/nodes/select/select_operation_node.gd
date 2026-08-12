@@ -1,19 +1,17 @@
 @tool
-extends GraphNode
+extends GDSQLQueryGraphNode
 ## SELECT operation presentation backed by lightweight schema inspections.
 
 signal source_changed(
-	registration_name: StringName,
-	database_name: StringName,
-	table_name: StringName,
+		registration_name: StringName,
+		database_name: StringName,
+		table_name: StringName,
 )
 signal query_changed
 signal query_activated
-signal remove_requested
 
 const ROW_SET_PORT_TYPE := 0
 const ROW_SET_COLOR := Color("62b5e5")
-const CONTEXT_REMOVE := 1
 const COLUMN_SELECT_ALL := 10_000
 const COLUMN_CLEAR := 10_001
 
@@ -26,18 +24,16 @@ var _column_count := 0
 @onready var _where_expression: GDSQLWhereExpressionEditor = %WhereExpression
 @onready var _selection_summary: Label = %SelectionSummary
 @onready var _query: GDSQLEditorActionButton = %Query
-@onready var _context_menu: PopupMenu = %NodeContextMenu
 
 
 func _ready() -> void:
+	super._ready()
 	_database.item_selected.connect(_on_database_selected)
 	_table.item_selected.connect(_on_table_selected)
 	_columns.get_popup().id_pressed.connect(_on_column_toggled)
 	_columns.get_popup().hide_on_checkable_item_selection = false
 	_where_expression.changed.connect(_on_where_changed)
 	_query.pressed.connect(query_activated.emit)
-	gui_input.connect(_on_node_gui_input)
-	_context_menu.id_pressed.connect(_on_context_action)
 	set_slot(
 		%OutputRow.get_index(),
 		false,
@@ -50,16 +46,16 @@ func _ready() -> void:
 
 
 func configure_query_action(
-	hub: GDSQLEditorActionHub,
-	definition: GDSQLEditorActionDefinition,
+		hub: GDSQLEditorActionHub,
+		definition: GDSQLEditorActionDefinition,
 ) -> void:
 	_query.configure(hub, definition)
 
 
 func configure(
-	inspections: Array[GDSQLDatabaseInspection],
-	selected_registration: StringName,
-	selected_table: StringName,
+		inspections: Array[GDSQLDatabaseInspection],
+		selected_registration: StringName,
+		selected_table: StringName,
 ) -> void:
 	var previous_registration := get_selected_registration()
 	var previous_table := get_selected_table()
@@ -72,8 +68,8 @@ func configure(
 	_populate_databases(selected_registration)
 	_populate_tables(selected_table)
 	var same_source := (
-		previous_registration == get_selected_registration()
-		and previous_table == get_selected_table()
+			previous_registration == get_selected_registration()
+			and previous_table == get_selected_table()
 	)
 	_populate_columns(previous_columns, same_source)
 	_configure_where(same_source)
@@ -114,6 +110,21 @@ func are_all_columns_selected() -> bool:
 
 func build_predicate() -> GDSQLOperationResult:
 	return _where_expression.build_expression()
+
+
+func build_graph_node() -> GDSQLOperationResult:
+	var predicate_result := build_predicate()
+	if not predicate_result.is_successful():
+		return predicate_result
+	var node := GDSQLQueryGraphSelectNode.new(
+		get_selected_database(),
+		get_selected_table(),
+	)
+	node.projections = get_selected_columns()
+	node.include_all_columns = are_all_columns_selected()
+	node.predicate = predicate_result.get_value() as GDSQLQueryExpression
+	predicate_result.value = node
+	return predicate_result
 
 
 func _populate_databases(selected_registration: StringName) -> void:
@@ -162,8 +173,8 @@ func _populate_tables(selected_table: StringName = &"") -> void:
 
 
 func _populate_columns(
-	selected_columns: Array[StringName] = [],
-	preserve_selection: bool = false,
+		selected_columns: Array[StringName] = [],
+		preserve_selection: bool = false,
 ) -> void:
 	var popup := _columns.get_popup()
 	popup.clear()
@@ -289,23 +300,6 @@ func _on_column_toggled(id: int) -> void:
 
 func _on_where_changed() -> void:
 	_update_selection()
-
-
-func _on_node_gui_input(event: InputEvent) -> void:
-	var mouse_event := event as InputEventMouseButton
-	if mouse_event == null \
-			or mouse_event.button_index != MOUSE_BUTTON_RIGHT \
-			or not mouse_event.pressed:
-		return
-	query_activated.emit()
-	_context_menu.position = DisplayServer.mouse_get_position()
-	_context_menu.popup()
-	accept_event()
-
-
-func _on_context_action(id: int) -> void:
-	if id == CONTEXT_REMOVE:
-		remove_requested.emit()
 
 
 func _sort_inspections(left: GDSQLDatabaseInspection, right: GDSQLDatabaseInspection) -> bool:

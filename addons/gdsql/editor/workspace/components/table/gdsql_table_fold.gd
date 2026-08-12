@@ -5,13 +5,13 @@ extends FoldableContainer
 signal changed
 
 const COLUMN_ROW_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_column_property_row.tscn"
+	"res://addons/gdsql/editor/workspace/components/column/gdsql_column_property_row.tscn"
 )
 const COLUMN_DRAFT_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_column_draft_row.tscn"
+	"res://addons/gdsql/editor/workspace/components/column/gdsql_column_draft_row.tscn"
 )
 const INDEX_DRAFT_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_index_draft_row.tscn"
+	"res://addons/gdsql/editor/workspace/components/index/gdsql_index_draft_row.tscn"
 )
 
 var table_name: StringName
@@ -122,8 +122,8 @@ func _render_indexes(table: GDSQLTableDefinition) -> void:
 	primary_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	primary_label.text = "PRIMARY (%s) · unique · automatic" % table.primary_key
 	primary_label.tooltip_text = (
-		"Primary keys use GDSQL's dedicated primary-key lookup and cannot be removed "
-		+ "as a secondary index."
+			"Primary keys use GDSQL's dedicated primary-key lookup and cannot be removed "
+			+ "as a secondary index."
 	)
 	primary_row.add_child(primary_label)
 	%Indexes.add_child(primary_row)

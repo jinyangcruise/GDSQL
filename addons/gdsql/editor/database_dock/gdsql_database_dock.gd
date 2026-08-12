@@ -3,6 +3,9 @@ class_name GDSQLDatabaseDock
 extends VBoxContainer
 ## Persistent lightweight database navigation for the Godot editor.
 
+const GRID_FINE_ICON = preload("res://addons/gdsql/editor/workspace/icons/grid_fine.svg")
+const DATABASE_ICON = preload("res://addons/gdsql/editor/workspace/icons/database.svg")
+
 var _workbench: GDSQLWorkbench
 var _action_hub: GDSQLEditorActionHub
 var _render_pending := false
@@ -72,6 +75,7 @@ func _add_registration(root: TreeItem, registration: GDSQLDatabaseRegistration) 
 			GDSQLStorageBackendIds.get_display_name(registration.storage_backend_id),
 		],
 	)
+	item.set_icon(0, DATABASE_ICON)
 	item.set_metadata(0, { "kind": &"registration", "registration": registration.name })
 	item.set_tooltip_text(0, "%s\n%s" % [registration.data_root, registration.storage_backend_id])
 	item.collapsed = false
@@ -93,6 +97,7 @@ func _add_registration(root: TreeItem, registration: GDSQLDatabaseRegistration) 
 		if table_item == null:
 			continue
 		table_item.set_text(0, "%s  (%d rows)" % [table.name, table.row_count])
+		table_item.set_icon(0, GRID_FINE_ICON)
 		table_item.set_metadata(
 			0,
 			{ "kind": &"table", "registration": registration.name, "table": table.name },

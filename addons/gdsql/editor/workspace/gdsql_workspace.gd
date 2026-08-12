@@ -58,13 +58,13 @@ signal query_result_row_delete_requested(
 )
 
 const WELCOME_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/documents/gdsql_welcome_document.tscn"
+	"res://addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn"
 )
 const CREATE_DATABASE_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/documents/gdsql_database_create_document.tscn"
+	"res://addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn"
 )
 const DATABASE_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/documents/gdsql_database_document.tscn"
+	"res://addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn"
 )
 const QUERY_GRAPH_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/query_graph/graph_editor.tscn"

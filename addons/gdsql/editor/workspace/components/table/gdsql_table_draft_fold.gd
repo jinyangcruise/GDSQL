@@ -6,10 +6,10 @@ signal changed
 signal remove_requested(draft: Control)
 
 const COLUMN_DRAFT_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_column_draft_row.tscn"
+	"res://addons/gdsql/editor/workspace/components/column/gdsql_column_draft_row.tscn"
 )
 const INDEX_DRAFT_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_index_draft_row.tscn"
+	"res://addons/gdsql/editor/workspace/components/index/gdsql_index_draft_row.tscn"
 )
 
 @onready var _name: LineEdit = %TableName
@@ -158,8 +158,8 @@ func _has_column(column_name: StringName) -> bool:
 
 func _on_changed() -> void:
 	title = (
-		"New table: %s" % _name.text.strip_edges()
-		if not _name.text.strip_edges().is_empty()
-		else "New table"
+			"New table: %s" % _name.text.strip_edges()
+			if not _name.text.strip_edges().is_empty()
+			else "New table"
 	)
 	changed.emit()

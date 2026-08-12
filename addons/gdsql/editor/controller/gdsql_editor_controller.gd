@@ -372,6 +372,12 @@ func _execute_query_graph(
 					source.database_name,
 					source.table_name,
 				)
+		else:
+			var refreshed := workbench.refresh_inspections()
+			result.diagnostics.merge(refreshed.diagnostics)
+			var catalog := workbench.active_session.refresh_catalog()
+			result.diagnostics.merge(catalog.diagnostics)
+			_refresh_surfaces()
 	_workspace.present_query_graph_result(
 		document_key,
 		registration_name,

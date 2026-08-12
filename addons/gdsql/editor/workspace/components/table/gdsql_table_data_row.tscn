@@ -16,6 +16,7 @@ theme_override_constants/margin_bottom = 3
 [node name="Layout" type="VBoxContainer" parent="Margin" unique_id=1010845084]
 layout_mode = 2
 theme_override_constants/separation = 2
+alignment = 1
 
 [node name="Row" type="HBoxContainer" parent="Margin/Layout" unique_id=1137873002]
 layout_mode = 2

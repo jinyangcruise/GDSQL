@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/gdsql/editor/workspace/query_graph/components/mutation_values/mutation_values_editor.gd" id="1_values"]
+
+[node name="MutationValuesEditor" type="VBoxContainer"]
+theme_override_constants/separation = 6
+script = ExtResource("1_values")
+
+[node name="Caption" type="Label" parent="."]
+layout_mode = 2
+text = "Column values"
+
+[node name="Rows" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="EmptyStatus" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "No columns are available."

@@ -2,10 +2,7 @@
 extends PanelContainer
 ## Editable presentation row that emits typed row mutation intents.
 
-signal save_requested(
-		original_primary_key: Variant,
-		values: Dictionary,
-)
+signal save_requested(original_primary_key: Variant, values: Dictionary)
 signal delete_requested(primary_key: Variant)
 signal discard_requested(row: Control)
 signal dirty_changed(row: Control, dirty: bool)
@@ -37,18 +34,16 @@ func _ready() -> void:
 
 
 func configure(
-		table: GDSQLTableDefinition,
-		source: GDSQLRowRecord = null,
-		allow_mutation: bool = true,
+	table: GDSQLTableDefinition,
+	source: GDSQLRowRecord = null,
+	allow_mutation: bool = true,
 ) -> void:
 	_table = table
 	_source = source
 	_allow_mutation = allow_mutation
-	_original_primary_key = (
-			source.get_value(table.primary_key)
-			if source != null
-			else null
-	)
+	_original_primary_key = (source.get_value(table.primary_key)
+		if source != null
+		else null)
 	_fields.clear()
 	for child in _values.get_children():
 		_values.remove_child(child)
@@ -57,12 +52,12 @@ func configure(
 		var field_group := VBoxContainer.new()
 		field_group.custom_minimum_size = Vector2(120, 0)
 		field_group.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var field_label := Label.new()
-		field_label.text = "%s (%s)" % [
-			column.name,
-			type_string(column.data_type),
-		]
-		field_group.add_child(field_label)
+		#var field_label := Label.new()
+		#field_label.text = "%s (%s)" % [
+		#column.name,
+		#type_string(column.data_type),
+		#]
+		#field_group.add_child(field_label)
 		var field := VARIANT_FIELD.new() as Control
 		field.custom_minimum_size = Vector2(190, 0)
 		field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -74,10 +69,7 @@ func configure(
 			_allow_mutation \
 					and not _is_generated(column) \
 					and not (source == null and column.auto_increment) \
-					and not (
-							source != null
-							and column.name == table.primary_key
-					),
+					and not (source != null and column.name == table.primary_key),
 		)
 		field.connect("changed", _mark_dirty)
 		field_group.add_child(field)
@@ -109,8 +101,7 @@ func _emit_delete() -> void:
 		discard_requested.emit(self)
 		return
 	%DeleteConfirmation.dialog_text = (
-			"Delete the row whose primary key is %s?"
-			% _value_text(_original_primary_key)
+		"Delete the row whose primary key is %s?" % _value_text(_original_primary_key)
 	)
 	%DeleteConfirmation.popup_centered(Vector2i(420, 160))
 
@@ -130,20 +121,15 @@ func _build_values() -> Dictionary:
 		if not converted.valid:
 			return {
 				"valid": false,
-				"message": "%s: Expected %s." % [
-					column.name,
-					VARIANT_TYPES.display_name(column.data_type),
-				],
+				"message": "%s: Expected %s."
+				% [column.name, VARIANT_TYPES.display_name(column.data_type)],
 				"values": { },
 			}
 		values[column.name] = converted.value
 	return { "valid": true, "message": "", "values": values }
 
 
-func _initial_value(
-		column: GDSQLColumnDefinition,
-		source: GDSQLRowRecord,
-) -> Variant:
+func _initial_value(column: GDSQLColumnDefinition, source: GDSQLRowRecord) -> Variant:
 	if source != null:
 		return source.get_value(column.name)
 	if column.has_default():

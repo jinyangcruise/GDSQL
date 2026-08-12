@@ -1,31 +1,31 @@
 @tool
 class_name GDSQLQueryTableResultNode
-extends GraphNode
+extends GDSQLQueryGraphNode
 ## Reusable tabular presentation for a graph query result.
 ##
 ## It emits row mutation intents and derives editing capabilities from the
 ## returned schema. It never executes queries or accesses storage directly.
 
 signal row_insert_requested(
-		registration_name: StringName,
-		table_name: StringName,
-		values: Dictionary,
+	registration_name: StringName,
+	table_name: StringName,
+	values: Dictionary,
 )
 signal row_update_requested(
-		registration_name: StringName,
-		table_name: StringName,
-		original_primary_key: Variant,
-		values: Dictionary,
+	registration_name: StringName,
+	table_name: StringName,
+	original_primary_key: Variant,
+	values: Dictionary,
 )
 signal row_delete_requested(
-		registration_name: StringName,
-		table_name: StringName,
-		primary_key: Variant,
+	registration_name: StringName,
+	table_name: StringName,
+	primary_key: Variant,
 )
 signal capabilities_changed(can_add_rows: bool, has_dirty_rows: bool)
 
 const DATA_ROW_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_table_data_row.tscn"
+	"res://addons/gdsql/editor/workspace/components/table/gdsql_table_data_row.tscn"
 )
 const ROW_SET_PORT_TYPE := 0
 const ROW_SET_COLOR := Color("62b5e5")
@@ -46,33 +46,23 @@ var _dirty_rows: Dictionary[Control, bool] = { }
 
 
 func _ready() -> void:
-	set_slot(
-		0,
-		true,
-		ROW_SET_PORT_TYPE,
-		ROW_SET_COLOR,
-		false,
-		ROW_SET_PORT_TYPE,
-		ROW_SET_COLOR,
-	)
+	super._ready()
+	set_slot(0, true, ROW_SET_PORT_TYPE, ROW_SET_COLOR, false, ROW_SET_PORT_TYPE, ROW_SET_COLOR)
 
 
-func configure_action(
-		hub: GDSQLEditorActionHub,
-		definition: GDSQLEditorActionDefinition,
-) -> void:
+func configure_action(hub: GDSQLEditorActionHub, definition: GDSQLEditorActionDefinition) -> void:
 	_add_row.configure(hub, definition)
 
 
 func present(
-		registration_name: StringName,
-		table: GDSQLTableDefinition,
-		result: GDSQLQueryResult,
+	registration_name: StringName,
+	table: GDSQLTableDefinition,
+	result: GDSQLQueryResult,
 ) -> void:
 	_registration_name = registration_name
 	_table = table
 	_clear_rows()
-	if table == null or result == null or not result.is_successful():
+	if result == null or not result.is_successful():
 		_view_table = null
 		_can_add_rows = false
 		_can_edit_rows = false
@@ -82,21 +72,28 @@ func present(
 		_render_header()
 		_emit_capabilities()
 		return
+	if table == null:
+		_view_table = null
+		_can_add_rows = false
+		_can_edit_rows = false
+		_title.text = "MUTATION RESULT"
+		_details.text = "%d row(s) affected." % result.get_affected_rows()
+		_status.text = "Mutation completed successfully."
+		_render_header()
+		_emit_capabilities()
+		return
 	_view_table = _build_view_table(table, result.schema)
 	_can_add_rows = _has_all_columns(table, _view_table)
-	_can_edit_rows = (
-			table.primary_key != &""
-			and _view_table.has_column(table.primary_key)
-	)
+	_can_edit_rows = (table.primary_key != &"" and _view_table.has_column(table.primary_key))
 	_title.text = "QUERY RESULT · %s" % table.name
 	_details.text = _capability_summary(result.rows.size())
 	_render_header()
 	for record in result.rows:
 		_add_data_row(record)
 	_status.text = (
-			"No rows returned."
-			if result.rows.is_empty()
-			else "%d row(s) returned." % result.rows.size()
+		"No rows returned."
+		if result.rows.is_empty()
+		else "%d row(s) returned." % result.rows.size()
 	)
 	_emit_capabilities()
 
@@ -125,8 +122,8 @@ func add_empty_row() -> GDSQLOperationResult:
 
 
 func _build_view_table(
-		table: GDSQLTableDefinition,
-		schema: GDSQLResultSchema,
+	table: GDSQLTableDefinition,
+	schema: GDSQLResultSchema,
 ) -> GDSQLTableDefinition:
 	var view := GDSQLTableDefinition.new(table.name, table.primary_key)
 	view.database_name = table.database_name
@@ -138,10 +135,7 @@ func _build_view_table(
 	return view
 
 
-func _has_all_columns(
-		table: GDSQLTableDefinition,
-		view: GDSQLTableDefinition,
-) -> bool:
+func _has_all_columns(table: GDSQLTableDefinition, view: GDSQLTableDefinition) -> bool:
 	if table == null or view == null or table.columns.size() != view.columns.size():
 		return false
 	for column in table.columns:
@@ -169,7 +163,7 @@ func _render_header() -> void:
 		var label := Label.new()
 		label.custom_minimum_size = Vector2(190, 0)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		label.text = "%s\n%s" % [column.name, type_string(column.data_type)]
+		label.text = "%s (%s)" % [column.name, type_string(column.data_type)]
 		_header.add_child(label)
 	var actions := Control.new()
 	actions.custom_minimum_size = Vector2(126, 0)
@@ -195,19 +189,14 @@ func _clear_rows() -> void:
 
 
 func _on_row_save(
-		original_primary_key: Variant,
-		values: Dictionary,
-		source: GDSQLRowRecord,
+	original_primary_key: Variant,
+	values: Dictionary,
+	source: GDSQLRowRecord,
 ) -> void:
 	if source == null:
 		row_insert_requested.emit(_registration_name, _table.name, values)
 	else:
-		row_update_requested.emit(
-			_registration_name,
-			_table.name,
-			original_primary_key,
-			values,
-		)
+		row_update_requested.emit(_registration_name, _table.name, original_primary_key, values)
 
 
 func _on_row_delete(primary_key: Variant) -> void:
@@ -227,9 +216,9 @@ func _on_row_dirty_changed(row: Control, dirty: bool) -> void:
 	else:
 		_dirty_rows.erase(row)
 	_status.text = (
-			"%d unsaved row(s)." % _dirty_rows.size()
-			if not _dirty_rows.is_empty()
-			else _status.text
+		"%d unsaved row(s)." % _dirty_rows.size()
+		if not _dirty_rows.is_empty()
+		else _status.text
 	)
 	_emit_capabilities()
 
