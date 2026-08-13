@@ -229,8 +229,6 @@ func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 		else:
 			var row := operation["row"] as GDSQLRowRecord
 			var section := str(row.get_value(table.primary_key))
-			if operation_type == &"update":
-				config.erase_section(section)
 			for column: Variant in row.values.keys():
 				config.set_value(section, String(column), codec.encode(row.values[column]))
 		touched_paths[path] = true

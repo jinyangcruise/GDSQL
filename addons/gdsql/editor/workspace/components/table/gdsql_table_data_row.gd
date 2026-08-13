@@ -1,10 +1,7 @@
 @tool
 extends PanelContainer
-## Editable presentation row that emits typed row mutation intents.
+## Reusable typed row-value editor. Its parent owns mutation actions.
 
-signal save_requested(original_primary_key: Variant, values: Dictionary)
-signal delete_requested(primary_key: Variant)
-signal discard_requested(row: Control)
 signal dirty_changed(row: Control, dirty: bool)
 
 const VARIANT_TYPES := preload(
@@ -23,14 +20,6 @@ var _dirty := false
 
 @onready var _values: HBoxContainer = %Values
 @onready var _status: Label = %Status
-@onready var _save: Button = %Save
-@onready var _delete: Button = %Delete
-
-
-func _ready() -> void:
-	_save.pressed.connect(_emit_save)
-	_delete.pressed.connect(_emit_delete)
-	%DeleteConfirmation.confirmed.connect(_confirm_delete)
 
 
 func configure(
@@ -52,14 +41,10 @@ func configure(
 		var field_group := VBoxContainer.new()
 		field_group.custom_minimum_size = Vector2(120, 0)
 		field_group.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		#var field_label := Label.new()
-		#field_label.text = "%s (%s)" % [
-		#column.name,
-		#type_string(column.data_type),
-		#]
-		#field_group.add_child(field_label)
+
 		var field := VARIANT_FIELD.new() as Control
-		field.custom_minimum_size = Vector2(190, 0)
+		field.custom_minimum_size = Vector2(140, 0)
+
 		field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		field.call(
 			"configure",
@@ -75,8 +60,6 @@ func configure(
 		field_group.add_child(field)
 		_values.add_child(field_group)
 		_fields[column.name] = field
-	_delete.text = "Delete" if source != null else "Discard"
-	_delete.visible = _allow_mutation
 	_status.text = ""
 	_set_dirty(source == null and _allow_mutation)
 
@@ -85,32 +68,9 @@ func is_dirty() -> bool:
 	return _dirty
 
 
-func _emit_save() -> void:
-	if not _allow_mutation or not _dirty:
-		return
-	var conversion := _build_values()
-	if not conversion.valid:
-		_status.text = conversion.message
-		return
-	_status.text = ""
-	save_requested.emit(_original_primary_key, conversion.values)
-
-
-func _emit_delete() -> void:
-	if _source == null:
-		discard_requested.emit(self)
-		return
-	%DeleteConfirmation.dialog_text = (
-		"Delete the row whose primary key is %s?" % _value_text(_original_primary_key)
-	)
-	%DeleteConfirmation.popup_centered(Vector2i(420, 160))
-
-
-func _confirm_delete() -> void:
-	delete_requested.emit(_original_primary_key)
-
-
-func _build_values() -> Dictionary:
+func get_values_result() -> Dictionary:
+	if not _allow_mutation:
+		return { "valid": false, "message": "This query result is read only.", "values": { } }
 	var values: Dictionary = { }
 	for column in _table.columns:
 		if _is_generated(column) \
@@ -129,22 +89,24 @@ func _build_values() -> Dictionary:
 	return { "valid": true, "message": "", "values": values }
 
 
+func get_original_primary_key() -> Variant:
+	return _original_primary_key
+
+
+func can_mutate() -> bool:
+	return _allow_mutation
+
+
+func set_status(message: String) -> void:
+	_status.text = message
+
+
 func _initial_value(column: GDSQLColumnDefinition, source: GDSQLRowRecord) -> Variant:
 	if source != null:
 		return source.get_value(column.name)
 	if column.has_default():
 		return column.get_default_value()
 	return null
-
-
-func _value_text(value: Variant) -> String:
-	if value == null:
-		return "null"
-	if value is Resource:
-		return value.resource_path
-	if value is String or value is StringName:
-		return String(value)
-	return var_to_str(value)
 
 
 func _is_generated(column: GDSQLColumnDefinition) -> bool:
@@ -157,6 +119,4 @@ func _mark_dirty() -> void:
 
 func _set_dirty(dirty: bool) -> void:
 	_dirty = dirty
-	_save.visible = _allow_mutation
-	_save.disabled = not _allow_mutation or not dirty
 	dirty_changed.emit(self, dirty)

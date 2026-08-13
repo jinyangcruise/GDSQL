@@ -42,9 +42,9 @@ func is_modified() -> bool:
 func set_value_editable(enabled: bool) -> void:
 	_editable = enabled
 	if _line_edit != null:
-		_line_edit.editable = enabled and not _is_null()
+		_line_edit.editable = enabled
 	if _resource_picker != null:
-		_resource_picker.editable = enabled and not _is_null()
+		_resource_picker.editable = enabled
 	if _use_null != null:
 		_use_null.disabled = not enabled
 
@@ -109,21 +109,18 @@ func _build_line_edit(value: Variant) -> void:
 	)
 	_line_edit.text = _format_value(value) if value != null else ""
 	_line_edit.text_changed.connect(_on_text_changed)
+	_line_edit.focus_entered.connect(_on_line_edit_focus_entered)
 	add_child(_line_edit)
 
 
-func _on_null_toggled(enabled: bool) -> void:
-	if _line_edit != null:
-		_line_edit.editable = _editable and not enabled
-	if _resource_picker != null:
-		_resource_picker.editable = _editable and not enabled
+func _on_null_toggled(_enabled: bool) -> void:
 	_mark_modified()
 
 
 func _on_resource_changed(_resource: Resource) -> void:
 	_observe_resource(_resource)
 	if _use_null != null and _resource_value() != null:
-		_use_null.button_pressed = false
+		_use_null.set_pressed_no_signal(false)
 	_mark_modified()
 
 
@@ -133,7 +130,14 @@ func _on_resource_selected(resource: Resource, _inspect: bool) -> void:
 
 
 func _on_text_changed(_text: String) -> void:
+	if _use_null != null and _use_null.button_pressed:
+		_use_null.set_pressed_no_signal(false)
 	_mark_modified()
+
+
+func _on_line_edit_focus_entered() -> void:
+	if _line_edit != null and _line_edit.editable:
+		_line_edit.edit()
 
 
 func _on_observed_resource_changed() -> void:

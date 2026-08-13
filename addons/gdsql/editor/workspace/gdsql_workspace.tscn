@@ -101,3 +101,8 @@ tab_0/title = "Welcome"
 [node name="DocumentHost" type="Control" parent="Layout" unique_id=329957159]
 layout_mode = 2
 size_flags_vertical = 3
+
+[node name="DiscardDocumentConfirmation" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Discard Unsaved Changes"
+ok_button_text = "Discard and Close"

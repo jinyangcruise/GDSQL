@@ -4,7 +4,7 @@ extends HBoxContainer
 ## Reusable controls appended to Godot's native GraphNode titlebar.
 
 signal close_requested
-signal expand_request
+signal fit_requested
 
 @onready var _actions: HBoxContainer = %HeaderActions
 @onready var _close: Button = %CloseNode
@@ -13,7 +13,7 @@ signal expand_request
 
 func _ready() -> void:
 	_close.pressed.connect(close_requested.emit)
-	_expand_node.pressed.connect(expand_request.emit)
+	_expand_node.pressed.connect(fit_requested.emit)
 
 
 func get_actions_host() -> HBoxContainer:

@@ -277,6 +277,14 @@ A checkpoint should:
 ConfigFile persistence may need to rewrite an affected table file. A future
 binary backend may write only dirty pages or use a journal.
 
+Updating a ConfigFile-backed row mutates its existing primary-key section in
+place rather than erasing and recreating the section. This retains the backend's
+existing row enumeration position across non-key updates. It does not make
+unordered query output a semantic ordering guarantee: callers that require a
+defined order must use `ORDER BY`. ConfigFile save still rewrites the affected
+table file; avoiding that write amplification requires a paged or journaled
+backend.
+
 ## 5. Recommended persistence policy
 
 The recommended default for a mutable game-state database is periodic

@@ -80,7 +80,10 @@ func build_graph_node() -> GDSQLOperationResult:
 
 func _configure_values() -> void:
 	var table := _source.get_selected_table_inspection()
-	_values.configure(table.columns if table != null else [])
+	var columns: Array[GDSQLColumnDefinition] = []
+	if table != null:
+		columns = table.columns
+	_values.configure(columns)
 
 
 func _on_source_changed(

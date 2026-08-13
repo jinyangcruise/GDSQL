@@ -217,11 +217,30 @@ selection predicate. The component does not bind or evaluate expressions.
 
 Every operation and result view derives from `QueryGraphNode`. The base extends
 Godot's native `GraphNode` titlebar through `get_titlebar_hbox()`, provides a
-close button and an operation-specific actions host, and emits removal intent.
-It does not disconnect or free graph elements. `QueryGraphEditor` owns that
-cleanup so connections and derived results remain consistent. Future raw-table
-or registered-model selectors may use the actions host without adding model
-resolution to the base presentation class.
+close button, one-shot viewport-fit button, and an operation-specific actions
+host, and emits presentation intent. `QueryGraphEditor` resets the graph to
+100% zoom and resizes the requested node to the current viewport once; later
+zooming, scrolling, or viewport changes do not keep resizing the node. Future
+raw-table or registered-model selectors may use the actions host without adding
+model resolution to the base presentation class.
+
+`QueryTableResultNode` uses Godot's native multi-column `Tree` for aligned
+titles, scrollable columns, row selection, and bounded page rendering. The
+result keeps typed editing in one focused `EditorVariantValueField` row below
+the table instead of reducing arbitrary Variant and Resource values to Tree's
+string editor. Page navigation and row selection are blocked while that editor
+is dirty, preventing silent loss of an unsaved draft. The reusable row owns
+typed values and validation only; Save, Delete, and Discard controls belong to
+the result node so result-level save, discard, delete, dirty tracking, and
+future batch mutation policy have one presentation owner. Running the query
+again is rejected while the focused row is dirty, preventing a refresh from
+silently replacing that draft. Closing the query document with a dirty row
+requires explicit discard confirmation from the workspace tab lifecycle.
+
+Nullable Variant fields keep their value input interactive while the explicit
+Null checkbox is selected. Typing a value or choosing a Resource clears Null;
+checking Null again preserves an explicit null mutation. Focused editable text
+fields enter `LineEdit` edit mode immediately, including inside a GraphNode.
 
 Standalone INSERT, UPDATE, and DELETE nodes reuse an inspection-backed source
 selector and typed mutation-value editor. Their controls translate only to

@@ -37,15 +37,18 @@ comparison or null-check operator, and a literal edited with the shared Variant
 value field. It creates the canonical expression through `GDSQLExpr`.
 
 Every query operation uses the shared `QueryGraphNode` titlebar. Its X button
-emits removal intent to the graph editor. Removing a SELECT also removes its
-connected derived result, while closing only the result keeps the SELECT
-available. The titlebar action host is reserved for operation-specific controls.
+emits removal intent to the graph editor, and its fit button resets the graph
+to 100% zoom and resizes that node to the current viewport once. It is not a
+toggle and does not continuously compensate for later zooming or scrolling.
+Removing a SELECT also removes its connected derived result, while closing only
+the result keeps the SELECT available. The titlebar action host is reserved for
+operation-specific controls.
 
 The table result derives mutation capabilities from the returned schema:
 
 - Returned rows are editable only when the source table primary key is in the
   result. The primary key itself and generated values remain read-only.
-- A changed row becomes dirty and exposes its row Save action.
+- A changed row becomes dirty and enables the result-level Save Changes action.
 - A row may be added only when every source-table column is present. Defaults,
   generated values, and auto-increment behavior continue to be applied by the
   canonical insert pipeline.
@@ -53,6 +56,18 @@ The table result derives mutation capabilities from the returned schema:
   mutation so the displayed result remains authoritative.
 - A result without the primary key is read-only. A projection may still be
   displayed even when it cannot safely identify a row for mutation.
+- A native multi-column `Tree` renders pages of 10, 25, 50, or 100 rows with
+  titled, scrollable columns. Selecting one row opens the shared typed editor
+  below the table; dirty edits block selection and page changes until saved or
+  discarded.
+- The typed row component owns fields and validation only. Add, Save, Discard,
+  and Delete controls belong to the result node, establishing one owner for
+  dirty-state policy before multi-row batch mutation is introduced.
+- Query refresh is blocked while the focused row is dirty, and closing its
+  workspace document requires explicit discard confirmation.
+- Transaction-backed multi-row batch saving remains the next lifecycle slice;
+  the current controller refreshes the authoritative result after each single
+  mutation.
 
 Only one selected operation is an executable root at a time. Multiple visual
 operations and their connections become executable after connection validation

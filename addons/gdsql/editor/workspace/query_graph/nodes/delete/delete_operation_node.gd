@@ -85,7 +85,10 @@ func build_graph_node() -> GDSQLOperationResult:
 
 func _configure_where() -> void:
 	var table := _source.get_selected_table_inspection()
-	_where.configure(table.columns if table != null else [])
+	var columns: Array[GDSQLColumnDefinition] = []
+	if table != null:
+		columns = table.columns
+	_where.configure(columns)
 	_all_rows_confirmation.button_pressed = false
 	_update_safety_presentation()
 

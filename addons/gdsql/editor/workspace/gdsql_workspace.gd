@@ -80,11 +80,13 @@ var _document_keys: Array[StringName] = []
 var _documents: Dictionary[StringName, Control] = { }
 var _active_registration: StringName
 var _database_inspections: Array[GDSQLDatabaseInspection] = []
+var _pending_close_key: StringName
 
 @onready var _file_menu: PopupMenu = $Layout/MenuPanel/MenuBar/File
 @onready var _database_menu: PopupMenu = $Layout/MenuPanel/MenuBar/Database
 @onready var _tabs: TabBar = $Layout/DocumentTabs
 @onready var _document_host: Control = $Layout/DocumentHost
+@onready var _discard_document_confirmation: ConfirmationDialog = %DiscardDocumentConfirmation
 
 
 func _ready() -> void:
@@ -94,6 +96,7 @@ func _ready() -> void:
 	_tabs.tab_close_pressed.connect(_on_tab_close_pressed)
 	_file_menu.id_pressed.connect(_on_menu_pressed)
 	_database_menu.id_pressed.connect(_on_menu_pressed)
+	_discard_document_confirmation.confirmed.connect(_confirm_close_document)
 	_open_welcome_document()
 
 
@@ -609,4 +612,23 @@ func _on_tab_changed(index: int) -> void:
 func _on_tab_close_pressed(index: int) -> void:
 	if index <= 0 or index >= _document_keys.size():
 		return
-	_close_document_by_key(_document_keys[index])
+	var key := _document_keys[index]
+	var document := _documents.get(key) as Control
+	if document != null \
+			and document.has_method("has_unsaved_changes") \
+			and bool(document.call("has_unsaved_changes")):
+		_pending_close_key = key
+		_discard_document_confirmation.dialog_text = (
+				"This query result has unsaved row changes. Close it and discard the draft?"
+		)
+		_discard_document_confirmation.popup_centered(Vector2i(480, 170))
+		return
+	_close_document_by_key(key)
+
+
+func _confirm_close_document() -> void:
+	if _pending_close_key == &"":
+		return
+	var key := _pending_close_key
+	_pending_close_key = &""
+	_close_document_by_key(key)

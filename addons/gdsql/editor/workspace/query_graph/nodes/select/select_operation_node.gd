@@ -261,10 +261,10 @@ func _update_columns_label() -> void:
 
 func _configure_where(preserve_state: bool = false) -> void:
 	var table_inspection := _get_selected_table_inspection()
-	_where_expression.configure(
-		table_inspection.columns if table_inspection != null else [],
-		preserve_state,
-	)
+	var columns: Array[GDSQLColumnDefinition] = []
+	if table_inspection != null:
+		columns = table_inspection.columns
+	_where_expression.configure(columns, preserve_state)
 
 
 func _on_database_selected(_index: int) -> void:

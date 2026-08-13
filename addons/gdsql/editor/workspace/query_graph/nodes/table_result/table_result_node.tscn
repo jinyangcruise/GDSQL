@@ -3,13 +3,19 @@
 [ext_resource type="Script" uid="uid://b7r3mg8j43drp" path="res://addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd" id="1_result"]
 [ext_resource type="Script" uid="uid://hvanlw2ev0lr" path="res://addons/gdsql/editor/controller/components/gdsql_editor_action_button.gd" id="2_action"]
 [ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="3_plus"]
+[ext_resource type="Texture2D" uid="uid://cs3iterfftneq" path="res://addons/gdsql/editor/workspace/icons/floppy_disk.svg" id="4_save"]
+[ext_resource type="Texture2D" uid="uid://da35pq8onqig4" path="res://addons/gdsql/editor/workspace/icons/trash_can.svg" id="5_delete"]
+[ext_resource type="Texture2D" uid="uid://b2uu8eana73y3" path="res://addons/gdsql/editor/workspace/icons/eraser.svg" id="6_discard"]
 
-[node name="TableResult" type="GraphNode" unique_id=671518478]
-custom_minimum_size = Vector2(300, 250)
+[node name="TableResult" type="GraphNode" unique_id=285217622]
+custom_minimum_size = Vector2(720, 420)
 clip_contents = true
-offset_right = 300.0
-offset_bottom = 250.0
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 417.0
+grow_horizontal = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 resizable = true
 scaling_menus = true
 title = "QUERY RESULT"
@@ -58,62 +64,189 @@ slot/4/right_type = 0
 slot/4/right_color = Color(1, 1, 1, 1)
 slot/4/right_icon = null
 slot/4/draw_stylebox = true
+slot/5/left_enabled = false
+slot/5/left_type = 0
+slot/5/left_color = Color(1, 1, 1, 1)
+slot/5/left_icon = null
+slot/5/right_enabled = false
+slot/5/right_type = 0
+slot/5/right_color = Color(1, 1, 1, 1)
+slot/5/right_icon = null
+slot/5/draw_stylebox = true
+slot/6/left_enabled = false
+slot/6/left_type = 0
+slot/6/left_color = Color(1, 1, 1, 1)
+slot/6/left_icon = null
+slot/6/right_enabled = false
+slot/6/right_type = 0
+slot/6/right_color = Color(1, 1, 1, 1)
+slot/6/right_icon = null
+slot/6/draw_stylebox = true
 script = ExtResource("1_result")
 
-[node name="Toolbar" type="HBoxContainer" parent="." unique_id=2008884344]
+[node name="Toolbar" type="HBoxContainer" parent="." unique_id=728189293]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="ResultTitle" type="Label" parent="Toolbar" unique_id=2072696205]
+[node name="ResultTitle" type="Label" parent="Toolbar" unique_id=570897758]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "QUERY RESULT"
 
-[node name="AddRow" type="Button" parent="Toolbar" unique_id=1073636588]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(60, 0)
-custom_maximum_size = Vector2(150, -1)
-layout_mode = 2
-size_flags_horizontal = 3
-tooltip_text = "Add row"
-text = "Add Row"
-icon = ExtResource("3_plus")
-expand_icon = true
-script = ExtResource("2_action")
-metadata/_custom_type_script = "uid://hvanlw2ev0lr"
-
-[node name="Details" type="Label" parent="." unique_id=989426378]
+[node name="Details" type="Label" parent="." unique_id=1210201439]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Run the query to display rows."
 autowrap_mode = 2
 
-[node name="Status" type="Label" parent="." unique_id=1222457105]
+[node name="ScrollContainer" type="ScrollContainer" parent="." unique_id=835869410]
+layout_mode = 2
+horizontal_scroll_mode = 5
+vertical_scroll_mode = 5
+
+[node name="TableView" type="Tree" parent="ScrollContainer" unique_id=1927001949]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(680, 220)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+column_titles_visible = true
+allow_reselect = true
+hide_folding = true
+hide_root = true
+select_mode = 1
+
+[node name="Pagination" type="HBoxContainer" parent="." unique_id=1005163500]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="FirstPage" type="Button" parent="Pagination" unique_id=1073063267]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "First page"
+text = "|<"
+
+[node name="PreviousPage" type="Button" parent="Pagination" unique_id=1270550806]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Previous page"
+text = "<"
+
+[node name="PageStatus" type="Label" parent="Pagination" unique_id=842744896]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Page 1 of 1"
+horizontal_alignment = 1
+
+[node name="NextPage" type="Button" parent="Pagination" unique_id=1430011819]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Next page"
+text = ">"
+
+[node name="LastPage" type="Button" parent="Pagination" unique_id=98084889]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Last page"
+text = ">|"
+
+[node name="RowsPerPage" type="Label" parent="Pagination" unique_id=1835968553]
+layout_mode = 2
+text = "Rows"
+
+[node name="PageSize" type="OptionButton" parent="Pagination" unique_id=1515827889]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(72, 0)
+layout_mode = 2
+tooltip_text = "Rows per page"
+selected = 1
+item_count = 4
+popup/item_0/text = "10"
+popup/item_0/id = 0
+popup/item_1/text = "25"
+popup/item_1/id = 1
+popup/item_2/text = "50"
+popup/item_2/id = 2
+popup/item_3/text = "100"
+popup/item_3/id = 3
+
+[node name="EditorSection" type="VBoxContainer" parent="." unique_id=721257284]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="Separator" type="HSeparator" parent="EditorSection" unique_id=1870555069]
+layout_mode = 2
+
+[node name="EditorLabel" type="Label" parent="EditorSection" unique_id=614390720]
+layout_mode = 2
+text = "Selected row"
+
+[node name="EditorScroll" type="ScrollContainer" parent="EditorSection" unique_id=994687675]
+custom_minimum_size = Vector2(0, 92)
+layout_mode = 2
+horizontal_scroll_mode = 2
+vertical_scroll_mode = 0
+
+[node name="EditorHost" type="VBoxContainer" parent="EditorSection/EditorScroll" unique_id=1392674033]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Status" type="Label" parent="." unique_id=1900997401]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
 text = "No query result yet."
 autowrap_mode = 2
 
-[node name="Header" type="HBoxContainer" parent="." unique_id=904067592]
+[node name="ResultActions" type="HBoxContainer" parent="." unique_id=1369565239]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="Scroll" type="ScrollContainer" parent="." unique_id=1205187882]
-custom_minimum_size = Vector2(0, 80)
-custom_maximum_size = Vector2(-1, 480)
+[node name="AddRow" type="Button" parent="ResultActions" unique_id=136470456]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
-horizontal_scroll_mode = 5
-vertical_scroll_mode = 5
+tooltip_text = "Add row"
+text = "Add Row"
+icon = ExtResource("3_plus")
+expand_icon = true
+script = ExtResource("2_action")
 
-[node name="Rows" type="VBoxContainer" parent="Scroll" unique_id=455045422]
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 2
-
-[node name="DataRows" type="VBoxContainer" parent="Scroll/Rows" unique_id=1614655775]
+[node name="SaveChanges" type="Button" parent="ResultActions" unique_id=1150274962]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/separation = 2
+tooltip_text = "Save the selected row's changes"
+disabled = true
+text = "Save Changes"
+icon = ExtResource("4_save")
+
+[node name="DiscardChanges" type="Button" parent="ResultActions" unique_id=1333097747]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Discard unsaved changes"
+disabled = true
+text = "Discard Changes"
+icon = ExtResource("6_discard")
+
+[node name="DeleteRow" type="Button" parent="ResultActions" unique_id=1903246902]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Delete the selected row"
+disabled = true
+text = "Delete Row"
+icon = ExtResource("5_delete")
+
+[node name="ActionSpacer" type="Control" parent="ResultActions" unique_id=1772250634]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DeleteConfirmation" type="ConfirmationDialog" parent="." unique_id=1362109575]
+unique_name_in_owner = true
+title = "Delete Row"
+ok_button_text = "Delete"

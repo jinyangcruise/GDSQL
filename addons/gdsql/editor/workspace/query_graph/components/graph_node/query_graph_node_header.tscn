@@ -15,9 +15,14 @@ theme_override_constants/separation = 4
 
 [node name="ExpandNode" type="Button" parent="." unique_id=1583115707]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 24)
 layout_mode = 2
+tooltip_text = "Fit node to graph view at 100%"
+focus_mode = 0
+mouse_default_cursor_shape = 2
 icon = ExtResource("2_fb5fw")
 flat = true
+expand_icon = true
 
 [node name="CloseNode" type="Button" parent="." unique_id=1936936353]
 unique_name_in_owner = true

@@ -3,11 +3,12 @@ class_name GDSQLQueryGraphNode
 extends GraphNode
 ## Shared presentation base for query-graph operation and result nodes.
 ##
-## The base owns titlebar presentation and emits removal intent. The containing
-## graph editor remains responsible for disconnecting and freeing the node.
+## The base owns titlebar presentation and emits removal and fit intent. The
+## containing graph editor remains responsible for geometry, disconnection,
+## and node lifecycle.
 
 signal remove_requested
-signal expand_requested
+signal fit_requested
 
 const HEADER_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/query_graph/components/graph_node/query_graph_node_header.tscn"
@@ -62,13 +63,13 @@ func _install_header() -> void:
 	_titlebar_header.set_close_enabled(_close_enabled)
 	if not _titlebar_header.close_requested.is_connected(_on_close_requested):
 		_titlebar_header.close_requested.connect(_on_close_requested)
-	if not _titlebar_header.expand_requested.is_connected(_on_expand_requested):
-		_titlebar_header.expand_requested.connect(_on_expand_requested)
+	if not _titlebar_header.fit_requested.is_connected(_on_fit_requested):
+		_titlebar_header.fit_requested.connect(_on_fit_requested)
 
 
 func _on_close_requested() -> void:
 	remove_requested.emit()
 
 
-func _on_expand_requested() -> void:
-	expand_requested.emit()
+func _on_fit_requested() -> void:
+	fit_requested.emit()

@@ -226,7 +226,22 @@ func get_selected_table() -> StringName:
 	return _selected_source_value("get_selected_table")
 
 
+func has_unsaved_changes() -> bool:
+	return is_instance_valid(_table_result) and _table_result.has_dirty_rows()
+
+
 func request_query() -> GDSQLOperationResult:
+	if is_instance_valid(_table_result) \
+			and _table_result.has_dirty_rows() \
+			and not _table_result.is_mutation_in_flight():
+		var blocked := GDSQLQueryCompilationResult.new()
+		blocked.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_QUERY_RESULT_DIRTY_REFRESH_BLOCKED",
+				"Save or discard the selected row before refreshing the query result.",
+			),
+		)
+		return blocked
 	var graph := GDSQLQueryGraph.new()
 	if not is_instance_valid(_active_operation):
 		return GDSQLGraphQueryCompiler.new().compile(graph)
@@ -263,6 +278,9 @@ func present_query_result(
 		_table_result.row_delete_requested.connect(row_delete_requested.emit)
 		_table_result.capabilities_changed.connect(_on_result_capabilities_changed)
 		_table_result.remove_requested.connect(_on_result_remove_requested)
+		_table_result.fit_requested.connect(
+			_fit_node_to_graph_view.bind(_table_result),
+		)
 		if _action_hub != null and _action_context != null:
 			_table_result.configure_action(
 				_action_hub,
@@ -449,12 +467,12 @@ func _add_result_row() -> GDSQLOperationResult:
 
 func _on_result_capabilities_changed(
 		can_add_rows: bool,
-		_has_dirty_rows: bool,
+		has_dirty_rows: bool,
 ) -> void:
 	if _action_context != null:
 		_action_context.set_action_enabled(
 			GDSQLEditorActionIds.ADD_QUERY_RESULT_ROW,
-			can_add_rows,
+			can_add_rows and not has_dirty_rows,
 		)
 
 
@@ -486,6 +504,7 @@ func _connect_operation_node(node: GraphNode) -> void:
 	node.connect("query_changed", _on_query_changed.bind(node))
 	node.connect("query_activated", _on_query_activated.bind(node))
 	node.connect("remove_requested", _on_remove_requested.bind(node))
+	node.connect("fit_requested", _fit_node_to_graph_view.bind(node))
 
 
 func _configure_operation_query_buttons() -> void:
@@ -537,6 +556,19 @@ func _remove_table_result() -> void:
 			GDSQLEditorActionIds.ADD_QUERY_RESULT_ROW,
 			false,
 		)
+
+
+func _fit_node_to_graph_view(node: GDSQLQueryGraphNode) -> void:
+	if not is_instance_valid(node):
+		return
+	_graph.zoom = 1.0
+	var margin := Vector2(12, 12)
+	node.position_offset = _graph.scroll_offset + margin
+	node.size = Vector2(
+		maxf(320.0, _graph.size.x - margin.x * 2.0),
+		maxf(220.0, _graph.size.y - margin.y * 2.0),
+	)
+	node.move_to_front()
 
 
 func _disconnect_node(node: GraphNode) -> void:

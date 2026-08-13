@@ -98,7 +98,9 @@ func build_graph_node() -> GDSQLOperationResult:
 
 func _configure_fields() -> void:
 	var table := _source.get_selected_table_inspection()
-	var columns: Array[GDSQLColumnDefinition] = table.columns if table != null else []
+	var columns: Array[GDSQLColumnDefinition] = []
+	if table != null:
+		columns = table.columns
 	var excluded: Array[StringName] = []
 	if table != null and table.primary_key != &"":
 		excluded.append(table.primary_key)
