@@ -250,11 +250,11 @@ func _render_table() -> void:
 		var column := _view_table.columns[column_index]
 		_table_view.set_column_title(
 			column_index,
-			"%s (%s)" % [column.name, type_string(column.data_type)],
+			"%s (%s)" % [column.name, column.display_type_name()],
 		)
 		_table_view.set_column_title_tooltip_text(
 			column_index,
-			"%s · %s" % [column.name, type_string(column.data_type)],
+			"%s · %s" % [column.name, column.display_type_name()],
 		)
 		_table_view.set_column_custom_minimum_width(column_index, 140)
 		_table_view.set_column_expand(column_index, true)

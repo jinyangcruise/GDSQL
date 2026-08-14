@@ -23,7 +23,7 @@ func configure(
 		assignable: bool = true,
 ) -> void:
 	_column = column
-	_column_name.text = "%s\n%s" % [column.name, type_string(column.data_type)]
+	_column_name.text = "%s\n%s" % [column.name, column.display_type_name()]
 	_column_name.tooltip_text = _column_tooltip(column, assignable)
 	var available := (
 			assignable
@@ -37,6 +37,7 @@ func configure(
 		_initial_value(column),
 		column.nullable,
 		_include.button_pressed,
+		column.resource_type,
 	)
 
 

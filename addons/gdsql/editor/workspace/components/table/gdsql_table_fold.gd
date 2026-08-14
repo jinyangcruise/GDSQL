@@ -4,12 +4,6 @@ extends FoldableContainer
 
 signal changed
 
-const COLUMN_ROW_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/column/gdsql_column_property_row.tscn"
-)
-const COLUMN_DRAFT_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/column/gdsql_column_draft_row.tscn"
-)
 const INDEX_DRAFT_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/components/index/gdsql_index_draft_row.tscn"
 )
@@ -18,10 +12,13 @@ var table_name: StringName
 var _table: GDSQLTableDefinition
 var _dropped_indexes: Dictionary[StringName, bool] = { }
 
+@onready var _columns: GDSQLEditorColumnTree = %Columns
+
 
 func _ready() -> void:
 	%AddColumn.pressed.connect(_add_column)
 	%AddIndex.pressed.connect(_add_index)
+	_columns.changed.connect(changed.emit)
 
 
 func configure(table: GDSQLTableDefinition, inspection: GDSQLTableInspection) -> void:
@@ -35,18 +32,7 @@ func configure(table: GDSQLTableDefinition, inspection: GDSQLTableInspection) ->
 		table.indexes.size() + 1,
 	]
 	_render_indexes(table)
-	var rows := %Columns
-	for child in rows.get_children():
-		rows.remove_child(child)
-		child.queue_free()
-	for column in table.columns:
-		var row := COLUMN_ROW_SCENE.instantiate() as Control
-		rows.add_child(row)
-		row.call("configure", column, column.name == table.primary_key)
-		row.connect("changed", changed.emit)
-	for child in %NewColumns.get_children():
-		%NewColumns.remove_child(child)
-		child.queue_free()
+	_columns.configure_existing(table)
 	for child in %NewIndexes.get_children():
 		%NewIndexes.remove_child(child)
 		child.queue_free()
@@ -57,13 +43,7 @@ func build_change() -> GDSQLEditorTableChange:
 	for index_name in _dropped_indexes:
 		if _dropped_indexes[index_name]:
 			alterations.append(GDSQLTableAlteration.drop_index(index_name))
-	for row in %Columns.get_children():
-		for alteration in row.call("build_alterations"):
-			alterations.append(alteration)
-	for row in %NewColumns.get_children():
-		alterations.append(
-			GDSQLTableAlteration.add_column(row.call("build_definition") as GDSQLColumnDefinition),
-		)
+	alterations.append_array(_columns.build_alterations())
 	for row in %NewIndexes.get_children():
 		alterations.append(
 			GDSQLTableAlteration.add_index(row.call("build_definition") as GDSQLIndexDefinition),
@@ -76,23 +56,8 @@ func has_changes() -> bool:
 
 
 func is_valid_draft() -> bool:
-	var column_names: Dictionary[StringName, bool] = { }
-	for row in %Columns.get_children():
-		if not bool(row.call("is_valid_draft")):
-			return false
-		if bool(row.get("marked_for_removal")):
-			continue
-		var column_name: StringName = row.call("get_requested_name")
-		if column_names.has(column_name):
-			return false
-		column_names[column_name] = true
-	for row in %NewColumns.get_children():
-		var column_name: StringName = row.call("get_column_name")
-		if not bool(row.call("is_valid_draft")) \
-				or column_name == &"" \
-				or column_names.has(column_name):
-			return false
-		column_names[column_name] = true
+	if not _columns.get_validation_errors(_table.primary_key).is_empty():
+		return false
 	var index_names: Dictionary[StringName, bool] = { }
 	for definition in _table.indexes:
 		if not _dropped_indexes.get(definition.name, false):
@@ -155,11 +120,7 @@ func _set_index_dropped(dropped: bool, index_name: StringName) -> void:
 
 
 func _add_column() -> void:
-	var row := COLUMN_DRAFT_SCENE.instantiate() as Control
-	%NewColumns.add_child(row)
-	row.connect("changed", changed.emit)
-	row.connect("remove_requested", _remove_draft.bind(%NewColumns))
-	changed.emit()
+	_columns.add_draft_column()
 
 
 func _add_index() -> void:
@@ -177,11 +138,4 @@ func _remove_draft(row: Control, parent: Control) -> void:
 
 
 func _has_column(column_name: StringName) -> bool:
-	for row in %Columns.get_children():
-		if row.call("get_requested_name") == column_name \
-				and not bool(row.get("marked_for_removal")):
-			return true
-	for row in %NewColumns.get_children():
-		if row.call("get_column_name") == column_name:
-			return true
-	return false
+	return _columns.has_column(column_name)

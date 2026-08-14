@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://cpvugwfbubrqj"]
 
 [ext_resource type="Script" uid="uid://rexqj0ev45l2" path="res://addons/gdsql/editor/workspace/components/column/gdsql_column_draft_row.gd" id="1"]
+[ext_resource type="Script" uid="uid://bjfurbowlusto" path="res://addons/gdsql/editor/workspace/components/gdsql_editor_resource_type_field.gd" id="2_resource_type"]
 
 [node name="ColumnDraftRow" type="PanelContainer" unique_id=710886790]
 custom_minimum_size = Vector2(0, 36)
@@ -19,16 +20,18 @@ theme_override_constants/separation = 6
 
 [node name="Name" type="LineEdit" parent="Margin/Fields" unique_id=1756997877]
 custom_minimum_size = Vector2(150, 0)
-custom_maximum_size = Vector2(400, -1)
+custom_maximum_size = Vector2(180, -1)
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "column_name"
 
 [node name="Type" type="OptionButton" parent="Margin/Fields" unique_id=987388717]
-custom_minimum_size = Vector2(150, 0)
+custom_minimum_size = Vector2(80, 0)
+custom_maximum_size = Vector2(180, -1)
 layout_mode = 2
 tooltip_text = "Column types are changed through add, migrate, and drop."
 selected = 1
+search_bar_enabled = true
 item_count = 35
 popup/item_0/text = "bool"
 popup/item_0/id = 1
@@ -100,6 +103,13 @@ popup/item_33/text = "PackedVector4Array"
 popup/item_33/id = 38
 popup/item_34/text = "Resource"
 popup/item_34/id = 24
+
+[node name="ResourceType" type="HBoxContainer" parent="Margin/Fields" unique_id=19727317]
+unique_name_in_owner = true
+custom_maximum_size = Vector2(180, 36)
+layout_mode = 2
+tooltip_text = "Select any Resource prototype to define the concrete accepted type."
+script = ExtResource("2_resource_type")
 
 [node name="Nullable" type="CheckBox" parent="Margin/Fields" unique_id=1523148692]
 layout_mode = 2

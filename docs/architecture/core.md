@@ -2452,11 +2452,15 @@ Godot `Variant` and resource support remain core GDSQL capabilities.
 Literal values and row fields may remain typed as `Variant`. Validation and serialization are delegated to appropriate services rather than converted indiscriminately to strings.
 
 `TYPE_OBJECT` has a narrower database meaning than Godot's general object
-category: it represents a `Resource`. Native and custom `Resource` instances
-are accepted and serialized by the storage backend. `Node` and other arbitrary
-`Object` instances are rejected. Nodes carry scene-tree ownership, lifecycle,
-signals, and runtime connections, making them unsafe and ambiguous as persisted
-row values.
+category: it represents one concrete `Resource` family declared through a
+`ResourceTypeConstraint`. The editor derives this constraint from an actual
+Resource prototype instead of a closed class list. Native classes use their
+ClassDB identity. Project resource classes retain their script path and resolved
+`Script`, including custom scripts without `class_name`.
+Validation accepts the declared class and its subclasses; an unconstrained
+`Resource`, a different Resource family, `Node`, and other arbitrary `Object`
+instances are rejected. The constraint is catalog metadata and is enforced by
+query validation and storage, not only by editor filtering.
 
 ### Abstract contracts support boundaries
 

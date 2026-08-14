@@ -205,6 +205,13 @@ CatalogService("`**GDSQLCatalogService**
 *Returns:* Database, table and column definitions
 *Extension point:* Catalog backend implementations`")
 
+ResourceConstraint("`**GDSQLResourceTypeConstraint**
+
+-
+*Purpose:* Identify and validate the concrete Resource family of a TYPE_OBJECT column
+*Identity:* Derived from a Resource prototype as native ClassDB name or project script path
+*Used by:* Column defaults, query validation, storage validation and typed editor pickers`")
+
 CatalogAdministration("`**GDSQLCatalogAdministrationService**
 
 -
@@ -327,6 +334,7 @@ Context -->|"GDSQLDatabaseResult / GDSQLQueryResult"| Results
 
 Context -->|"catalog lifecycle API"| CatalogAdministration
 Validator -->|"get_table() · create_snapshot()"| CatalogService
+CatalogService -->|"object-column metadata"| ResourceConstraint
 Executor -->|"read_table() · find_by_primary_key()"| TableStorage
 Executor -->|"stage_*() · commit() · rollback()"| TableStorage
 
@@ -353,7 +361,7 @@ class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
 class Planner,PlanNode planning;
 class Executor execution;
-class CatalogService,CatalogAdministration catalog;
+class CatalogService,CatalogAdministration,ResourceConstraint catalog;
 class TableStorage storage;
 class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,MemoryStorage,MemoryCheckpoint implementation;
 class Results,Materialization result;

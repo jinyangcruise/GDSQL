@@ -137,6 +137,11 @@ func _inspect_column(
 			GDSQLColumnDefinition.Generation.NONE,
 		),
 	)
+	if column.data_type == TYPE_OBJECT:
+		column.resource_type = GDSQLResourceTypeConstraint.from_serialized(
+			StringName(schema.get_value(section, "resource_class", "")),
+			String(schema.get_value(section, "resource_script", "")),
+		)
 	if schema.has_section_key(section, "default_kind") \
 			and schema.get_value(section, "default_kind") == "static":
 		column.set_default(

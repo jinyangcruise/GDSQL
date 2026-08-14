@@ -40,7 +40,7 @@ func configure(column: GDSQLColumnDefinition, is_primary_key: bool = false) -> v
 	_column = column
 	_is_primary_key = is_primary_key
 	%Name.text = String(column.name)
-	%Type.text = type_string(column.data_type)
+	%Type.text = column.display_type_name()
 	if _is_primary_key:
 		%Name.right_icon = KEY_ICON
 		%Name.tooltip_text += "\n (Primary key)"
@@ -57,6 +57,7 @@ func configure(column: GDSQLColumnDefinition, is_primary_key: bool = false) -> v
 		column.get_default_value() if column.has_default() else null,
 		column.nullable,
 		column.has_default(),
+		column.resource_type,
 	)
 	%Generation.clear()
 	for generation_name in GDSQLColumnDefinition.Generation.keys():
@@ -149,6 +150,7 @@ func _on_nullable_toggled(nullable: bool) -> void:
 		current.value if current.valid else null,
 		nullable,
 		%HasDefault.button_pressed,
+		_column.resource_type,
 	)
 	_emit_changed()
 

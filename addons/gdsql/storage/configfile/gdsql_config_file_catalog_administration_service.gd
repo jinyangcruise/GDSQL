@@ -218,6 +218,7 @@ func create_table(
 		schema.set_value(section, "unique", column.unique)
 		schema.set_value(section, "auto_increment", column.auto_increment)
 		schema.set_value(section, "generation", column.generation)
+		_write_resource_type(schema, section, column)
 		if column.has_default():
 			schema.set_value(section, "default_kind", "static")
 			if column.get_default_value() != null:
@@ -471,6 +472,7 @@ func _stored_schema_matches(
 		var stored_column := stored.get_column(requested_column.name)
 		if stored_column == null \
 				or stored_column.data_type != requested_column.data_type \
+				or not _resource_types_match(stored_column, requested_column) \
 				or stored_column.nullable != requested_column.nullable \
 				or stored_column.unique != requested_column.unique \
 				or stored_column.auto_increment != requested_column.auto_increment \
@@ -546,6 +548,11 @@ func _add_column(
 ) -> GDSQLCatalogOperationResult:
 	if column == null or not _path_resolver.is_valid_name(column.name) or column.data_type == TYPE_NIL:
 		return _error(&"GDSQL_CATALOG_INVALID_COLUMN", "Added column requires a valid name and Variant type.")
+	if not column.has_valid_type_constraint():
+		return _error(
+			&"GDSQL_CATALOG_RESOURCE_TYPE_REQUIRED",
+			"Object column '%s' requires a valid concrete Resource subtype." % column.name,
+		)
 	if table.has_column(column.name):
 		return _error(&"GDSQL_CATALOG_DUPLICATE_COLUMN", "Column '%s' already exists." % column.name)
 	if column.has_default() and not column.accepts_value(column.get_default_value()):
@@ -882,6 +889,7 @@ func _save_schema(path: String, table: GDSQLTableDefinition) -> Error:
 		schema.set_value(section, "unique", column.unique)
 		schema.set_value(section, "auto_increment", column.auto_increment)
 		schema.set_value(section, "generation", column.generation)
+		_write_resource_type(schema, section, column)
 		if column.has_default():
 			schema.set_value(section, "default_kind", "static")
 			if column.get_default_value() != null:
@@ -970,6 +978,11 @@ func _validate_table(
 			return _error(&"GDSQL_CATALOG_DUPLICATE_COLUMN", "Column '%s' appears more than once." % column.name)
 		if column.data_type == TYPE_NIL:
 			return _error(&"GDSQL_CATALOG_COLUMN_TYPE_REQUIRED", "Column '%s' requires a Variant type." % column.name)
+		if not column.has_valid_type_constraint():
+			return _error(
+				&"GDSQL_CATALOG_RESOURCE_TYPE_REQUIRED",
+				"Object column '%s' requires a valid concrete Resource subtype." % column.name,
+			)
 		if column.has_default() and not column.accepts_value(column.get_default_value()):
 			return _error(
 				&"GDSQL_CATALOG_COLUMN_DEFAULT_TYPE_MISMATCH",
@@ -1132,6 +1145,8 @@ func _catalog_fingerprint(table: GDSQLTableDefinition) -> int:
 				column.generation,
 				column.has_default(),
 				column.get_default_value(),
+				column.resource_type.resource_class if column.resource_type != null else &"",
+				column.resource_type.script_path if column.resource_type != null else "",
 			],
 		)
 	var indexes: Array = []
@@ -1148,6 +1163,27 @@ func _catalog_fingerprint(table: GDSQLTableDefinition) -> int:
 			],
 		),
 	)
+
+
+func _write_resource_type(
+		schema: ConfigFile,
+		section: String,
+		column: GDSQLColumnDefinition,
+) -> void:
+	if column.data_type != TYPE_OBJECT or column.resource_type == null:
+		return
+	schema.set_value(section, "resource_class", String(column.resource_type.resource_class))
+	if not column.resource_type.script_path.is_empty():
+		schema.set_value(section, "resource_script", column.resource_type.script_path)
+
+
+func _resource_types_match(
+		left: GDSQLColumnDefinition,
+		right: GDSQLColumnDefinition,
+) -> bool:
+	if left.resource_type == null or right.resource_type == null:
+		return left.resource_type == right.resource_type
+	return left.resource_type.is_equivalent_to(right.resource_type)
 
 
 func _ensure_directory(path: String) -> Error:

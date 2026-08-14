@@ -434,9 +434,7 @@ func _validate_row_values(
 				)
 			var value: Variant = row.get_value(column.name)
 			if not column.accepts_value(value):
-				var expected := "Resource" \
-				if column.data_type == TYPE_OBJECT \
-				else "Variant type %s" % column.data_type
+				var expected := column.expected_type_name()
 				return _commit_error(
 					&"GDSQL_STORAGE_COLUMN_TYPE_MISMATCH",
 					"Column '%s' expects %s." % [column.name, expected],

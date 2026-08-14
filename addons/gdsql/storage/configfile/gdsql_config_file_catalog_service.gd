@@ -101,6 +101,7 @@ func _load_table(database_name: StringName, table_name: StringName) -> GDSQLTabl
 					GDSQLColumnDefinition.Generation.NONE,
 				),
 			)
+			column.resource_type = _load_resource_type(schema, section, column.data_type)
 			if schema.has_section_key(section, "default_kind") \
 					and schema.get_value(section, "default_kind") == "static":
 				column.set_default(
@@ -121,3 +122,16 @@ func _load_table(database_name: StringName, table_name: StringName) -> GDSQLTabl
 				),
 			)
 	return table
+
+
+func _load_resource_type(
+		schema: ConfigFile,
+		section: String,
+		data_type: Variant.Type,
+) -> GDSQLResourceTypeConstraint:
+	if data_type != TYPE_OBJECT:
+		return null
+	return GDSQLResourceTypeConstraint.from_serialized(
+		StringName(schema.get_value(section, "resource_class", "")),
+		String(schema.get_value(section, "resource_script", "")),
+	)

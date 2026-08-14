@@ -165,25 +165,17 @@ present scalar, collection, Resource, and explicit-null defaults without
 loading table rows. The canonical insert validator remains authoritative when
 a defaulted column is omitted.
 
-### Planned object-value constraints
+### Implemented object-value constraints
 
-`TYPE_OBJECT` currently means any `Resource` in catalog validation and the
-editor picker. Restricting an object column to a specific Resource class is a
-separate schema feature and should be implemented in this order:
-
-1. Add a typed Resource-class constraint to `ColumnDefinition`, defaulting to
-   the current unrestricted `Resource` behavior for existing schemas.
-2. Persist and load that constraint through catalog administration, catalog
-   loading, and lightweight inspection metadata.
-3. Resolve built-in and project-global Resource classes and reject unknown or
-   non-Resource constraints with structured catalog diagnostics.
-4. Enforce inheritance compatibility in column/default validation, query
-   binding, and decoded stored values; do not rely only on editor filtering.
-5. Configure `EditorResourcePicker.base_type` from the constraint so graph,
-   table-row, and column-default controls expose compatible resources.
-6. Add backward-compatibility, inherited-class, custom-script Resource,
-   invalid-default, and schema round-trip coverage before marking the feature
-   implemented.
+`TYPE_OBJECT` requires a typed `ResourceTypeConstraint`; generic Resource
+columns are intentionally invalid. Native and project-global Resource classes
+and custom scripts without `class_name` are selected through an unrestricted
+Resource prototype picker. The derived native class or script path round-trips
+through ConfigFile schemas, and the resolved constraint is enforced by column,
+query, and storage validation. Typed editor fields use the same constraint for
+`EditorResourcePicker.base_type`, so they do not present unrelated Resource
+families. Existing object-column constraints remain immutable and require an
+explicit add, migrate, and drop operation to replace.
 
 ## Next slice: model-backed graph queries
 

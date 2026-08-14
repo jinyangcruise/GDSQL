@@ -129,7 +129,7 @@ func _add_columns(
 		var column_item := _tree.create_item(parent)
 		if column_item == null:
 			continue
-		column_item.set_text(0, "%s : %s" % [column.name, type_string(column.data_type)])
+		column_item.set_text(0, "%s : %s" % [column.name, column.display_type_name()])
 		column_item.set_selectable(0, false)
 
 

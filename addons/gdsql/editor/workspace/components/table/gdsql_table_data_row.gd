@@ -55,6 +55,7 @@ func configure(
 					and not _is_generated(column) \
 					and not (source == null and column.auto_increment) \
 					and not (source != null and column.name == table.primary_key),
+			column.resource_type,
 		)
 		field.connect("changed", _mark_dirty)
 		field_group.add_child(field)

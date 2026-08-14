@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://dk08shp2h7trv"]
 
 [ext_resource type="Script" uid="uid://c68chdn3couxl" path="res://addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.gd" id="1"]
-[ext_resource type="PackedScene" uid="uid://cpvugwfbubrqj" path="res://addons/gdsql/editor/workspace/components/column/gdsql_column_draft_row.tscn" id="2"]
+[ext_resource type="PackedScene" uid="uid://sb1dt3u6826l" path="res://addons/gdsql/editor/workspace/components/column/gdsql_column_tree.tscn" id="2_columns"]
 [ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="3_ctrlm"]
 [ext_resource type="Texture2D" uid="uid://dsm6xg4gnopxu" path="res://addons/gdsql/editor/workspace/icons/reticle.svg" id="4_ksyvb"]
 [ext_resource type="Texture2D" uid="uid://da35pq8onqig4" path="res://addons/gdsql/editor/workspace/icons/trash_can.svg" id="5_dwbiq"]
@@ -67,12 +67,8 @@ text = "created_at and updated_at"
 layout_mode = 2
 text = "Columns"
 
-[node name="Columns" type="VBoxContainer" parent="MarginContainer/Content" unique_id=2022007793]
+[node name="Columns" parent="MarginContainer/Content" unique_id=2022007793 instance=ExtResource("2_columns")]
 unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 2
-
-[node name="PrimaryKeyColumn" parent="MarginContainer/Content/Columns" unique_id=1388216817 instance=ExtResource("2")]
 layout_mode = 2
 
 [node name="IndexesLabel" type="Label" parent="MarginContainer/Content" unique_id=532688236]

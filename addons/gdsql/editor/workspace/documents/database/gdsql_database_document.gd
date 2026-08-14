@@ -82,8 +82,8 @@ func configure_actions(action_hub: GDSQLEditorActionHub, context_id: StringName)
 	_action_context.add_action(
 		GDSQLEditorActionDefinition.new(
 			GDSQLEditorActionIds.REFRESH_DATABASE_CHANGES,
-			"Refresh",
-			"Reload the database catalog and discard local drafts.",
+			"Discard / Refresh",
+			"Discard local schema drafts and reload the durable database catalog.",
 			&"Reload",
 			&"document",
 			1,

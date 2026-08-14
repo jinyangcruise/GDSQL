@@ -77,7 +77,7 @@ func _render_header() -> void:
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		label.text = "%s\n%s" % [
 			column.name,
-			type_string(column.data_type),
+			column.display_type_name(),
 		]
 		label.tooltip_text = _column_capabilities(column)
 		%Header.add_child(label)
@@ -87,7 +87,7 @@ func _render_header() -> void:
 
 
 func _column_capabilities(column: GDSQLColumnDefinition) -> String:
-	var capabilities: Array[String] = [type_string(column.data_type)]
+	var capabilities: Array[String] = [column.display_type_name()]
 	capabilities.append("nullable" if column.nullable else "required")
 	if column.name == _table.primary_key:
 		capabilities.append("primary key")

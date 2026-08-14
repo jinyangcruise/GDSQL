@@ -232,6 +232,7 @@ func _rebuild_value(state: Dictionary = { }) -> void:
 		),
 		false,
 		true,
+		column_definition.resource_type,
 	)
 	_value_field.changed.connect(_on_value_changed)
 	_value_host.visible = true

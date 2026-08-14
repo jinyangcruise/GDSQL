@@ -11,6 +11,7 @@ const VARIANT_TYPES := preload(
 
 var data_type: Variant.Type = TYPE_NIL
 var nullable := true
+var resource_type: GDSQLResourceTypeConstraint
 var _editable := true
 var _line_edit: LineEdit
 var _resource_picker: EditorResourcePicker
@@ -25,10 +26,12 @@ func configure(
 		value: Variant = null,
 		is_nullable: bool = true,
 		is_editable: bool = true,
+		target_resource_type: GDSQLResourceTypeConstraint = null,
 ) -> void:
 	_rebuilding = true
 	data_type = target_type
 	nullable = is_nullable
+	resource_type = target_resource_type
 	_editable = is_editable
 	_rebuild(value)
 	_modified = false
@@ -39,12 +42,20 @@ func is_modified() -> bool:
 	return _modified
 
 
+func focus_value_editor() -> void:
+	if _line_edit != null and _line_edit.editable:
+		_line_edit.grab_focus()
+		_line_edit.edit()
+
+
 func set_value_editable(enabled: bool) -> void:
 	_editable = enabled
 	if _line_edit != null:
 		_line_edit.editable = enabled
 	if _resource_picker != null:
-		_resource_picker.editable = enabled
+		_resource_picker.editable = (
+			enabled and resource_type != null and resource_type.is_valid()
+		)
 	if _use_null != null:
 		_use_null.disabled = not enabled
 
@@ -52,7 +63,7 @@ func set_value_editable(enabled: bool) -> void:
 func get_value_result() -> Dictionary:
 	if data_type == TYPE_OBJECT:
 		var resource := _resource_value()
-		if resource is Resource:
+		if resource_type != null and resource_type.accepts_value(resource):
 			return { "valid": true, "value": resource }
 		if _is_null():
 			return { "valid": nullable, "value": null }
@@ -73,8 +84,10 @@ func _rebuild(value: Variant) -> void:
 	_resource_picker = null
 	_use_null = null
 	if data_type == TYPE_OBJECT:
+		custom_minimum_size = Vector2(220, 46)
 		_build_resource_picker(value)
 	else:
+		custom_minimum_size = Vector2(180, 34)
 		_build_line_edit(value)
 	if nullable:
 		_use_null = CheckBox.new()
@@ -87,9 +100,14 @@ func _rebuild(value: Variant) -> void:
 
 func _build_resource_picker(value: Variant) -> void:
 	_resource_picker = EditorResourcePicker.new()
-	_resource_picker.custom_minimum_size = Vector2(170, 0)
+	_resource_picker.custom_minimum_size = Vector2(170, 46)
 	_resource_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_resource_picker.base_type = "Resource"
+	_resource_picker.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_resource_picker.base_type = (
+		resource_type.picker_base_type()
+		if resource_type != null and resource_type.is_valid()
+		else "Resource"
+	)
 	_resource_picker.resource_changed.connect(_on_resource_changed)
 	_resource_picker.resource_selected.connect(_on_resource_selected)
 	if value is Resource:

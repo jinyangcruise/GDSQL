@@ -275,27 +275,28 @@ func test_generated_timestamps_cannot_be_assigned_directly() -> void:
 	)
 
 
-func test_object_columns_accept_resources_and_reject_nodes() -> void:
+func test_object_columns_accept_declared_resource_type_only() -> void:
 	var custom_resource := TestResource.new()
 	custom_resource.label = "custom"
 	var table := GDSQLTableDefinition.new(&"assets", &"id")
 	table.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
-	table.add_column(
-		GDSQLColumnDefinition.new(
-			&"payload",
-			TYPE_OBJECT,
-			false,
-		).set_default(custom_resource),
-	)
+	var payload := GDSQLColumnDefinition.new(&"payload", TYPE_OBJECT, false)
+	payload.resource_type = GDSQLResourceTypeConstraint.from_resource(custom_resource)
+	payload.set_default(custom_resource)
+	table.add_column(payload)
 	var database := TestDatabase.create_database(_data_root, table)
 	assert_bool(database.insert(&"assets", { &"id": 1 }).is_successful()).is_true()
 	var gradient := Gradient.new()
 	gradient.colors = PackedColorArray([Color.RED, Color.BLUE])
+	var rejected_resource := database.insert(
+		&"assets",
+		{ &"id": 2, &"payload": gradient },
+	)
+	assert_bool(rejected_resource.is_successful()).is_false()
+	var second_resource := TestResource.new()
+	second_resource.label = "second"
 	assert_bool(
-		database.insert(
-			&"assets",
-			{ &"id": 2, &"payload": gradient },
-		).is_successful(),
+		database.insert(&"assets", { &"id": 2, &"payload": second_resource }).is_successful(),
 	).is_true()
 	var node := Node.new()
 	var rejected := database.insert(
@@ -313,17 +314,12 @@ func test_object_columns_accept_resources_and_reject_nodes() -> void:
 		reopened.table(&"assets").select().order_by_column(&"id").build(),
 	)
 	var stored_custom: Resource = stored.rows[0].get_value(&"payload")
-	var stored_gradient: Resource = stored.rows[1].get_value(&"payload")
-
-	#for row in stored.rows:
-	#print(row.values)
+	var stored_second: Resource = stored.rows[1].get_value(&"payload")
 
 	assert_object(stored_custom).is_instanceof(TestResource)
 	assert_str(stored_custom.get("label")).is_equal("custom")
-	assert_object(stored_gradient).is_instanceof(Gradient)
-	assert_array(Array(stored_gradient.get("colors"))).is_equal(
-		Array([Color.RED, Color.BLUE]),
-	)
+	assert_object(stored_second).is_instanceof(TestResource)
+	assert_str(stored_second.get("label")).is_equal("second")
 
 
 func _create_accounts_database() -> GDSQLDatabase:

@@ -286,10 +286,45 @@ fields display `DatabaseRegistration.database_name`; location and storage
 backend are displayed separately.
 
 Each table fold presents its primary key, index definitions, and column
-properties supported by `ColumnDefinition`. Column types remain read-only:
-type replacement is represented as add, migrate values, and drop. Saving
-schema edits previews typed alterations and presents their descriptions before
-application.
+properties supported by `ColumnDefinition`. Its columns use one horizontally
+scrollable `Tree`: names, dropdowns, flags, generation policy, and removal state
+remain editable in their cells. Type, Resource subtype, and enabled default
+cells keep persistent editor Controls aligned inside clipped cell hosts. Static
+Tree structure and the overlay host live in `gdsql_column_tree.tscn`; exported
+column widths remain editable through that scene instead of being hidden layout
+constants. Enabling a default rebuilds only its affected row rather than
+clearing and reconstructing the entire Tree.
+Resource cells use the native `EditorResourcePicker` presentation directly, so
+texture thumbnails, audio previews, and other editor-provided Resource displays
+are retained instead of being reduced to proxy text. Resource rows grow to the
+picker's required height, while the long Variant-type popup has a bounded,
+scrolling menu. Existing column types and Resource constraints remain read-only
+because replacement is represented as add, migrate values, and drop. Newly
+added rows expose both selectors.
+The Resource constraint cell uses an unrestricted Resource prototype picker,
+not a discovered class-name list, so native, global, and anonymous custom
+Resource scripts are supported. Enabling a Resource default creates a deep
+duplicate of that prototype. The duplicate is then owned by the default field
+and can be mutated through the normal Inspector without modifying the type
+prototype. Anonymous script types use their native Resource base in the picker
+because Godot's picker accepts registered type names rather than script paths;
+kernel validation still enforces the exact resolved Script identity.
+Saving or refreshing through the database document applies or discards the
+whole local schema draft. Saving previews typed alterations and presents their
+descriptions before application.
+
+#### Column editor component inventory
+
+The schema Tree migration leaves the following explicit component status:
+
+| Component | Status | Reason |
+|---|---|---|
+| `gdsql_column_tree.gd` / `.tscn` | Active | Shared schema editor instantiated by both table-fold scenes. |
+| `gdsql_editor_resource_type_field.gd` | Active | Native Resource prototype picker used by the schema Tree and the legacy draft row. |
+| `gdsql_editor_variant_value_field.gd` | Active | Shared typed value editor used by schema defaults, table rows, predicates, and mutation values. |
+| `gdsql_column_draft_row.gd` / `.tscn` | Unreferenced candidate | Superseded by `gdsql_column_tree`; retained temporarily for deliberate cleanup. |
+| `gdsql_column_property_row.gd` / `.tscn` | Unreferenced candidate | Superseded by `gdsql_column_tree`; retained temporarily for deliberate cleanup. |
+| `gdsql_table_data_row.gd` / `.tscn` | Active | Still used by the table data document and query result node; it is not part of the schema-row migration. |
 
 A table data document owns row viewing and manipulation without schema editing.
 It uses canonical `SELECT`, `INSERT`, `UPDATE`, and `DELETE` queries through

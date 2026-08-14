@@ -5,16 +5,13 @@ extends FoldableContainer
 signal changed
 signal remove_requested(draft: Control)
 
-const COLUMN_DRAFT_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/column/gdsql_column_draft_row.tscn"
-)
 const INDEX_DRAFT_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/components/index/gdsql_index_draft_row.tscn"
 )
 
 @onready var _name: LineEdit = %TableName
 @onready var _primary_key: LineEdit = %PrimaryKey
-@onready var _columns: VBoxContainer = %Columns
+@onready var _columns: GDSQLEditorColumnTree = %Columns
 @onready var _indexes: VBoxContainer = %Indexes
 
 
@@ -25,8 +22,7 @@ func _ready() -> void:
 	%AddColumn.pressed.connect(_add_column)
 	%AddIndex.pressed.connect(_add_index)
 	%RemoveTable.pressed.connect(remove_requested.emit.bind(self))
-	for row in _columns.get_children():
-		_connect_row(row)
+	_columns.changed.connect(changed.emit)
 	for row in _indexes.get_children():
 		_connect_index(row)
 	folded = false
@@ -35,8 +31,7 @@ func _ready() -> void:
 
 
 func configure_new() -> void:
-	var first_row := _columns.get_child(0)
-	first_row.call("configure_primary_key")
+	_columns.configure_new_table()
 	_on_changed()
 
 
@@ -45,8 +40,8 @@ func build_definition() -> GDSQLTableDefinition:
 		StringName(_name.text.strip_edges()),
 		StringName(_primary_key.text.strip_edges()),
 	)
-	for row in _columns.get_children():
-		definition.add_column(row.call("build_definition") as GDSQLColumnDefinition)
+	for column in _columns.build_definitions():
+		definition.add_column(column)
 	if %Timestamps.button_pressed:
 		definition.add_timestamps()
 	for row in _indexes.get_children():
@@ -68,28 +63,7 @@ func get_validation_errors() -> Array[String]:
 	var primary_key := StringName(_primary_key.text.strip_edges())
 	if primary_key == &"":
 		errors.append("Table '%s' requires a primary key." % table_name)
-	var column_names: Dictionary[StringName, bool] = { }
-	var auto_increment_columns := 0
-	for row in _columns.get_children():
-		var column_error: String = row.call("get_validation_error")
-		if not column_error.is_empty():
-			errors.append(column_error)
-		var column_name: StringName = row.call("get_column_name")
-		if column_name != &"" and column_names.has(column_name):
-			errors.append("Column '%s' is declared more than once." % column_name)
-		column_names[column_name] = true
-		var definition := row.call("build_definition") as GDSQLColumnDefinition
-		if definition != null and definition.auto_increment:
-			auto_increment_columns += 1
-	if primary_key != &"" and not column_names.has(primary_key):
-		errors.append("Primary key '%s' must reference a declared column." % primary_key)
-	if auto_increment_columns > 1:
-		errors.append("Only one auto-increment column is supported.")
-	elif auto_increment_columns == 1:
-		for row in _columns.get_children():
-			var definition := row.call("build_definition") as GDSQLColumnDefinition
-			if definition.auto_increment and definition.name != primary_key:
-				errors.append("Auto-increment is supported only on the primary key.")
+	errors.append_array(_columns.get_validation_errors(primary_key))
 	var index_names: Dictionary[StringName, bool] = { }
 	for index_row in _indexes.get_children():
 		var index_name: StringName = index_row.call("get_index_name")
@@ -111,15 +85,7 @@ func get_validation_errors() -> Array[String]:
 
 
 func _add_column() -> void:
-	var row := COLUMN_DRAFT_SCENE.instantiate()
-	_columns.add_child(row)
-	_connect_row(row)
-	changed.emit()
-
-
-func _connect_row(row: Control) -> void:
-	row.connect("changed", changed.emit)
-	row.connect("remove_requested", _remove_column)
+	_columns.add_draft_column()
 
 
 func _add_index() -> void:
@@ -134,14 +100,6 @@ func _connect_index(row: Control) -> void:
 	row.connect("remove_requested", _remove_index)
 
 
-func _remove_column(row: Control) -> void:
-	if _columns.get_child_count() <= 1:
-		return
-	_columns.remove_child(row)
-	row.queue_free()
-	changed.emit()
-
-
 func _remove_index(row: Control) -> void:
 	_indexes.remove_child(row)
 	row.queue_free()
@@ -149,10 +107,7 @@ func _remove_index(row: Control) -> void:
 
 
 func _has_column(column_name: StringName) -> bool:
-	for row in _columns.get_children():
-		if row.call("get_column_name") == column_name:
-			return true
-	return column_name in [&"created_at", &"updated_at"] \
+	return _columns.has_column(column_name) or column_name in [&"created_at", &"updated_at"] \
 			and %Timestamps.button_pressed
 
 

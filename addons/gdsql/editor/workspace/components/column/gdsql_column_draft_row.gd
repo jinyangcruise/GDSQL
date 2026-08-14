@@ -11,11 +11,11 @@ const VARIANT_TYPES := preload(
 const VARIANT_FIELD := preload(
 	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_value_field.gd"
 )
-
 var _default_editor: Control
 
 @onready var _name: LineEdit = $Margin/Fields/Name
 @onready var _type: OptionButton = $Margin/Fields/Type
+@onready var _resource_type: GDSQLEditorResourceTypeField = %ResourceType
 @onready var _nullable: CheckBox = $Margin/Fields/Nullable
 @onready var _unique: CheckBox = $Margin/Fields/Unique
 @onready var _auto_increment: CheckBox = $Margin/Fields/AutoIncrement
@@ -26,6 +26,8 @@ var _default_editor: Control
 func _ready() -> void:
 	VARIANT_TYPES.populate(_type)
 	VARIANT_TYPES.select_type(_type, TYPE_INT)
+	_resource_type.hide()
+	_resource_type.configure()
 	_generation.select(GDSQLColumnDefinition.Generation.NONE)
 	_default_editor = VARIANT_FIELD.new()
 	_default_editor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -39,6 +41,7 @@ func _ready() -> void:
 	)
 	_name.text_changed.connect(changed.emit.unbind(1))
 	_type.item_selected.connect(_on_type_selected)
+	_resource_type.constraint_changed.connect(_on_resource_type_selected)
 	_nullable.toggled.connect(_on_nullable_toggled)
 	_unique.toggled.connect(changed.emit.unbind(1))
 	_auto_increment.toggled.connect(changed.emit.unbind(1))
@@ -70,6 +73,7 @@ func build_definition() -> GDSQLColumnDefinition:
 		_auto_increment.button_pressed,
 	)
 	definition.generation = _generation.selected
+	definition.resource_type = _selected_resource_type()
 	if _has_default.button_pressed:
 		var default_result: Dictionary = _default_editor.call("get_value_result")
 		definition.set_default(default_result.value)
@@ -87,6 +91,10 @@ func get_validation_error() -> String:
 		return "Column '%s' must be a valid identifier." % get_column_name()
 	if _type.selected < 0:
 		return "Column '%s' requires a data type." % get_column_name()
+	if _selected_type() == TYPE_OBJECT:
+		var constraint := _selected_resource_type()
+		if constraint == null or not constraint.is_valid():
+			return "Column '%s' requires a concrete Resource subtype." % get_column_name()
 	if _auto_increment.button_pressed and _selected_type() != TYPE_INT:
 		return "Auto-increment column '%s' must use TYPE_INT." % get_column_name()
 	if _generation.selected < GDSQLColumnDefinition.Generation.NONE:
@@ -112,6 +120,7 @@ func get_validation_error() -> String:
 			_selected_type(),
 			_nullable.button_pressed,
 		)
+		definition.resource_type = _selected_resource_type()
 		if not definition.accepts_value(parsed.value):
 			return "Default for column '%s' does not match its type." \
 					% get_column_name()
@@ -119,6 +128,18 @@ func get_validation_error() -> String:
 
 
 func _on_has_default_toggled(enabled: bool) -> void:
+	if enabled and _selected_type() == TYPE_OBJECT:
+		var duplicated := _resource_type.duplicate_prototype()
+		_default_editor.call(
+			"configure",
+			TYPE_OBJECT,
+			duplicated,
+			_nullable.button_pressed,
+			true,
+			_selected_resource_type(),
+		)
+		if duplicated != null:
+			EditorInterface.edit_resource(duplicated)
 	_default_editor.call("set_value_editable", enabled)
 	changed.emit()
 
@@ -135,6 +156,7 @@ func _on_generation_selected(generation: int) -> void:
 
 func _on_type_selected(_type_index: int) -> void:
 	var supports_generation := _selected_type() == TYPE_INT
+	_resource_type.visible = _selected_type() == TYPE_OBJECT
 	_generation.disabled = not supports_generation
 	_default_editor.call(
 		"configure",
@@ -142,6 +164,7 @@ func _on_type_selected(_type_index: int) -> void:
 		null,
 		_nullable.button_pressed,
 		_has_default.button_pressed,
+		_selected_resource_type(),
 	)
 	if not supports_generation and _generation.selected \
 			!= GDSQLColumnDefinition.Generation.NONE:
@@ -159,12 +182,36 @@ func _on_nullable_toggled(nullable: bool) -> void:
 		current.value if current.valid else null,
 		nullable,
 		_has_default.button_pressed,
+		_selected_resource_type(),
 	)
 	changed.emit()
 
 
 func _selected_type() -> Variant.Type:
 	return VARIANT_TYPES.selected_type(_type)
+
+
+func _selected_resource_type() -> GDSQLResourceTypeConstraint:
+	if _selected_type() != TYPE_OBJECT:
+		return null
+	return _resource_type.get_constraint()
+
+
+func _on_resource_type_selected(_constraint: GDSQLResourceTypeConstraint) -> void:
+	var default_value: Resource
+	if _has_default.button_pressed:
+		default_value = _resource_type.duplicate_prototype()
+	_default_editor.call(
+		"configure",
+		TYPE_OBJECT,
+		default_value,
+		_nullable.button_pressed,
+		_has_default.button_pressed,
+		_selected_resource_type(),
+	)
+	if default_value != null:
+		EditorInterface.edit_resource(default_value)
+	changed.emit()
 
 
 func _get_default_host() -> Control:
