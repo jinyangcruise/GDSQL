@@ -1,0 +1,91 @@
+[gd_scene format=3 uid="uid://c2t4344lrlw64"]
+
+[node name="ColumnEditorLayout" type="PanelContainer" unique_id=277581092]
+
+[node name="Margin" type="MarginContainer" parent="." unique_id=1083504078]
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 2
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 2
+
+[node name="Cells" type="HBoxContainer" parent="Margin" unique_id=924975415]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="NameCell" type="MarginContainer" parent="Margin/Cells" unique_id=1930228303]
+custom_minimum_size = Vector2(160, 0)
+custom_maximum_size = Vector2(160, -1)
+layout_mode = 2
+
+[node name="VSeparator" type="VSeparator" parent="Margin/Cells/NameCell" unique_id=1207467363]
+layout_mode = 2
+
+[node name="TypeCell" type="MarginContainer" parent="Margin/Cells" unique_id=1456469302]
+custom_minimum_size = Vector2(100, 0)
+custom_maximum_size = Vector2(100, -1)
+layout_mode = 2
+
+[node name="VSeparator2" type="VSeparator" parent="Margin/Cells/TypeCell" unique_id=1278201414]
+layout_mode = 2
+
+[node name="ResourceCell" type="MarginContainer" parent="Margin/Cells" unique_id=1340756021]
+custom_minimum_size = Vector2(160, 0)
+custom_maximum_size = Vector2(160, -1)
+layout_mode = 2
+
+[node name="VSeparator3" type="VSeparator" parent="Margin/Cells/ResourceCell" unique_id=128050015]
+layout_mode = 2
+
+[node name="NullableCell" type="MarginContainer" parent="Margin/Cells" unique_id=1120097585]
+custom_minimum_size = Vector2(90, 0)
+custom_maximum_size = Vector2(90, -1)
+layout_mode = 2
+
+[node name="VSeparator4" type="VSeparator" parent="Margin/Cells/NullableCell" unique_id=262296980]
+layout_mode = 2
+
+[node name="UniqueCell" type="MarginContainer" parent="Margin/Cells" unique_id=1538242442]
+custom_minimum_size = Vector2(90, 0)
+custom_maximum_size = Vector2(90, -1)
+layout_mode = 2
+
+[node name="VSeparator5" type="VSeparator" parent="Margin/Cells/UniqueCell" unique_id=407518927]
+layout_mode = 2
+
+[node name="AutoCell" type="MarginContainer" parent="Margin/Cells" unique_id=1678493917]
+custom_minimum_size = Vector2(90, 0)
+custom_maximum_size = Vector2(90, -1)
+layout_mode = 2
+
+[node name="VSeparator6" type="VSeparator" parent="Margin/Cells/AutoCell" unique_id=1955053888]
+layout_mode = 2
+
+[node name="DefaultCell" type="MarginContainer" parent="Margin/Cells" unique_id=756551052]
+custom_minimum_size = Vector2(100, 0)
+custom_maximum_size = Vector2(100, -1)
+layout_mode = 2
+
+[node name="VSeparator7" type="VSeparator" parent="Margin/Cells/DefaultCell" unique_id=316993858]
+layout_mode = 2
+
+[node name="DefaultValueCell" type="MarginContainer" parent="Margin/Cells" unique_id=709686308]
+custom_minimum_size = Vector2(180, 0)
+custom_maximum_size = Vector2(180, -1)
+layout_mode = 2
+
+[node name="VSeparator8" type="VSeparator" parent="Margin/Cells/DefaultValueCell" unique_id=1163343017]
+layout_mode = 2
+
+[node name="GenerationCell" type="MarginContainer" parent="Margin/Cells" unique_id=1995698610]
+custom_minimum_size = Vector2(90, 0)
+custom_maximum_size = Vector2(90, -1)
+layout_mode = 2
+
+[node name="VSeparator9" type="VSeparator" parent="Margin/Cells/GenerationCell" unique_id=517968470]
+layout_mode = 2
+
+[node name="RemoveCell" type="MarginContainer" parent="Margin/Cells" unique_id=1741365533]
+custom_minimum_size = Vector2(90, 0)
+custom_maximum_size = Vector2(90, -1)
+layout_mode = 2

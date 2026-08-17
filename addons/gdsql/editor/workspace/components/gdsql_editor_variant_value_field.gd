@@ -1,6 +1,6 @@
 @tool
 class_name GDSQLEditorVariantValueField
-extends HBoxContainer
+extends VBoxContainer
 ## Reusable editor control for one typed Variant value.
 
 signal changed
@@ -22,11 +22,11 @@ var _rebuilding := false
 
 
 func configure(
-		target_type: Variant.Type,
-		value: Variant = null,
-		is_nullable: bool = true,
-		is_editable: bool = true,
-		target_resource_type: GDSQLResourceTypeConstraint = null,
+	target_type: Variant.Type,
+	value: Variant = null,
+	is_nullable: bool = true,
+	is_editable: bool = true,
+	target_resource_type: GDSQLResourceTypeConstraint = null,
 ) -> void:
 	_rebuilding = true
 	data_type = target_type
@@ -53,9 +53,7 @@ func set_value_editable(enabled: bool) -> void:
 	if _line_edit != null:
 		_line_edit.editable = enabled
 	if _resource_picker != null:
-		_resource_picker.editable = (
-			enabled and resource_type != null and resource_type.is_valid()
-		)
+		_resource_picker.editable = (enabled and resource_type != null and resource_type.is_valid())
 	if _use_null != null:
 		_use_null.disabled = not enabled
 
@@ -122,8 +120,7 @@ func _build_line_edit(value: Variant) -> void:
 	_line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_line_edit.placeholder_text = _example_text()
 	_line_edit.tooltip_text = (
-			"Enter a %s value using Godot Variant syntax."
-			% VARIANT_TYPES.display_name(data_type)
+		"Enter a %s value using Godot Variant syntax." % VARIANT_TYPES.display_name(data_type)
 	)
 	_line_edit.text = _format_value(value) if value != null else ""
 	_line_edit.text_changed.connect(_on_text_changed)
@@ -164,15 +161,11 @@ func _on_observed_resource_changed() -> void:
 
 func _observe_resource(resource: Resource) -> void:
 	if _observed_resource != null \
-			and _observed_resource.changed.is_connected(
-				_on_observed_resource_changed,
-			):
+			and _observed_resource.changed.is_connected(_on_observed_resource_changed):
 		_observed_resource.changed.disconnect(_on_observed_resource_changed)
 	_observed_resource = resource
 	if _observed_resource != null \
-			and not _observed_resource.changed.is_connected(
-				_on_observed_resource_changed,
-			):
+			and not _observed_resource.changed.is_connected(_on_observed_resource_changed):
 		_observed_resource.changed.connect(_on_observed_resource_changed)
 
 
@@ -184,11 +177,9 @@ func _mark_modified() -> void:
 
 
 func _resource_value() -> Resource:
-	return (
-			_resource_picker.get_edited_resource()
-			if _resource_picker != null
-			else null
-	)
+	return (_resource_picker.get_edited_resource()
+		if _resource_picker != null
+		else null)
 
 
 func _is_null() -> bool:

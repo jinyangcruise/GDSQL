@@ -1,0 +1,30 @@
+[gd_scene format=3 uid="uid://dartr1gmrdgae"]
+
+[ext_resource type="Script" uid="uid://dgbrrrudaxwtx" path="res://addons/gdsql/editor/workspace/components/index/gdsql_index_property_row.gd" id="1_row"]
+
+[node name="IndexPropertyRow" type="PanelContainer"]
+custom_minimum_size = Vector2(0, 36)
+script = ExtResource("1_row")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 3
+
+[node name="Fields" type="HBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Summary" type="Label" parent="Margin/Fields"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "index_name (column)"
+vertical_alignment = 1
+
+[node name="Remove" type="CheckBox" parent="Margin/Fields"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Remove"

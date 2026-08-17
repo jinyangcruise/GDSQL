@@ -1,0 +1,235 @@
+[gd_scene format=3 uid="uid://gtb4bqo4x3w7"]
+
+[ext_resource type="Script" uid="uid://lw0b5m8dq4pr" path="res://addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.gd" id="1_row"]
+[ext_resource type="Script" uid="uid://bjfurbowlusto" path="res://addons/gdsql/editor/workspace/components/gdsql_editor_resource_type_field.gd" id="2_resource"]
+[ext_resource type="Script" uid="uid://cxkajegaa5agx" path="res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_value_field.gd" id="3_value"]
+
+[node name="ColumnEditorRow" type="PanelContainer" unique_id=809263312]
+offset_right = 1134.0
+offset_bottom = 4.0
+script = ExtResource("1_row")
+
+[node name="Margin" type="MarginContainer" parent="." unique_id=1630711979]
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 2
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 2
+
+[node name="Cells" type="HBoxContainer" parent="Margin" unique_id=482394671]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="NameCell" type="MarginContainer" parent="Margin/Cells" unique_id=1584430667]
+custom_minimum_size = Vector2(160, 0)
+custom_maximum_size = Vector2(160, -1)
+layout_mode = 2
+
+[node name="Name" type="LineEdit" parent="Margin/Cells/NameCell" unique_id=1001312721]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "column_name"
+
+[node name="VSeparator" type="VSeparator" parent="Margin/Cells" unique_id=187628259]
+layout_mode = 2
+
+[node name="TypeCell" type="MarginContainer" parent="Margin/Cells" unique_id=1875242307]
+custom_minimum_size = Vector2(100, 0)
+custom_maximum_size = Vector2(100, -1)
+layout_mode = 2
+
+[node name="Type" type="OptionButton" parent="Margin/Cells/TypeCell" unique_id=1383441109]
+unique_name_in_owner = true
+layout_mode = 2
+item_count = 35
+popup/item_0/text = "bool"
+popup/item_0/id = 1
+popup/item_1/text = "int"
+popup/item_1/id = 2
+popup/item_2/text = "float"
+popup/item_2/id = 3
+popup/item_3/text = "String"
+popup/item_3/id = 4
+popup/item_4/text = "StringName"
+popup/item_4/id = 21
+popup/item_5/text = "NodePath"
+popup/item_5/id = 22
+popup/item_6/text = "Vector2"
+popup/item_6/id = 5
+popup/item_7/text = "Vector2i"
+popup/item_7/id = 6
+popup/item_8/text = "Rect2"
+popup/item_8/id = 7
+popup/item_9/text = "Rect2i"
+popup/item_9/id = 8
+popup/item_10/text = "Vector3"
+popup/item_10/id = 9
+popup/item_11/text = "Vector3i"
+popup/item_11/id = 10
+popup/item_12/text = "Transform2D"
+popup/item_12/id = 11
+popup/item_13/text = "Vector4"
+popup/item_13/id = 12
+popup/item_14/text = "Vector4i"
+popup/item_14/id = 13
+popup/item_15/text = "Plane"
+popup/item_15/id = 14
+popup/item_16/text = "Quaternion"
+popup/item_16/id = 15
+popup/item_17/text = "AABB"
+popup/item_17/id = 16
+popup/item_18/text = "Basis"
+popup/item_18/id = 17
+popup/item_19/text = "Transform3D"
+popup/item_19/id = 18
+popup/item_20/text = "Projection"
+popup/item_20/id = 19
+popup/item_21/text = "Color"
+popup/item_21/id = 20
+popup/item_22/text = "Dictionary"
+popup/item_22/id = 27
+popup/item_23/text = "Array"
+popup/item_23/id = 28
+popup/item_24/text = "PackedByteArray"
+popup/item_24/id = 29
+popup/item_25/text = "PackedInt32Array"
+popup/item_25/id = 30
+popup/item_26/text = "PackedInt64Array"
+popup/item_26/id = 31
+popup/item_27/text = "PackedFloat32Array"
+popup/item_27/id = 32
+popup/item_28/text = "PackedFloat64Array"
+popup/item_28/id = 33
+popup/item_29/text = "PackedStringArray"
+popup/item_29/id = 34
+popup/item_30/text = "PackedVector2Array"
+popup/item_30/id = 35
+popup/item_31/text = "PackedVector3Array"
+popup/item_31/id = 36
+popup/item_32/text = "PackedColorArray"
+popup/item_32/id = 37
+popup/item_33/text = "PackedVector4Array"
+popup/item_33/id = 38
+popup/item_34/text = "Resource"
+popup/item_34/id = 24
+
+[node name="VSeparator2" type="VSeparator" parent="Margin/Cells" unique_id=1567907936]
+layout_mode = 2
+
+[node name="ResourceCell" type="MarginContainer" parent="Margin/Cells" unique_id=894898269]
+custom_minimum_size = Vector2(120, 0)
+custom_maximum_size = Vector2(120, -1)
+layout_mode = 2
+
+[node name="ResourceType" type="HBoxContainer" parent="Margin/Cells/ResourceCell" unique_id=678545944]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(190, 46)
+layout_mode = 2
+tooltip_text = "Select a Resource prototype to define the accepted subtype."
+script = ExtResource("2_resource")
+
+[node name="VSeparator3" type="VSeparator" parent="Margin/Cells" unique_id=916121464]
+layout_mode = 2
+
+[node name="NullableCell" type="MarginContainer" parent="Margin/Cells" unique_id=1967765174]
+custom_minimum_size = Vector2(90, 0)
+custom_maximum_size = Vector2(90, -1)
+layout_mode = 2
+
+[node name="Nullable" type="CheckBox" parent="Margin/Cells/NullableCell" unique_id=1039249802]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="VSeparator4" type="VSeparator" parent="Margin/Cells" unique_id=1064296684]
+layout_mode = 2
+
+[node name="UniqueCell" type="MarginContainer" parent="Margin/Cells" unique_id=326442129]
+custom_minimum_size = Vector2(90, 0)
+custom_maximum_size = Vector2(90, -1)
+layout_mode = 2
+
+[node name="Unique" type="CheckBox" parent="Margin/Cells/UniqueCell" unique_id=326017701]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="VSeparator5" type="VSeparator" parent="Margin/Cells" unique_id=1819579126]
+layout_mode = 2
+
+[node name="AutoCell" type="MarginContainer" parent="Margin/Cells" unique_id=1960601057]
+custom_minimum_size = Vector2(90, 0)
+custom_maximum_size = Vector2(90, -1)
+layout_mode = 2
+
+[node name="AutoIncrement" type="CheckBox" parent="Margin/Cells/AutoCell" unique_id=100552749]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="VSeparator6" type="VSeparator" parent="Margin/Cells" unique_id=154859400]
+layout_mode = 2
+
+[node name="DefaultCell" type="MarginContainer" parent="Margin/Cells" unique_id=1979147573]
+custom_minimum_size = Vector2(100, 0)
+custom_maximum_size = Vector2(100, -1)
+layout_mode = 2
+
+[node name="HasDefault" type="CheckBox" parent="Margin/Cells/DefaultCell" unique_id=1183126655]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="VSeparator7" type="VSeparator" parent="Margin/Cells" unique_id=1182157731]
+layout_mode = 2
+
+[node name="DefaultValueCell" type="MarginContainer" parent="Margin/Cells" unique_id=32525943]
+custom_minimum_size = Vector2(180, 0)
+custom_maximum_size = Vector2(180, -1)
+layout_mode = 2
+
+[node name="DefaultValue" type="VBoxContainer" parent="Margin/Cells/DefaultValueCell" unique_id=160296630]
+unique_name_in_owner = true
+layout_mode = 2
+script = ExtResource("3_value")
+metadata/_custom_type_script = "uid://cxkajegaa5agx"
+
+[node name="PreviewValue" type="LineEdit" parent="Margin/Cells/DefaultValueCell/DefaultValue" unique_id=923798022]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+placeholder_text = "Default value"
+editable = false
+
+[node name="VSeparator8" type="VSeparator" parent="Margin/Cells" unique_id=790242267]
+layout_mode = 2
+
+[node name="GenerationCell" type="MarginContainer" parent="Margin/Cells" unique_id=1693493571]
+custom_minimum_size = Vector2(90, 0)
+custom_maximum_size = Vector2(90, -1)
+layout_mode = 2
+
+[node name="Generation" type="OptionButton" parent="Margin/Cells/GenerationCell" unique_id=749679619]
+unique_name_in_owner = true
+layout_mode = 2
+selected = 0
+item_count = 3
+popup/item_0/text = "None"
+popup/item_0/id = 0
+popup/item_1/text = "Created At"
+popup/item_1/id = 1
+popup/item_2/text = "Updated At"
+popup/item_2/id = 2
+
+[node name="VSeparator9" type="VSeparator" parent="Margin/Cells" unique_id=2038324396]
+layout_mode = 2
+
+[node name="RemoveCell" type="MarginContainer" parent="Margin/Cells" unique_id=1457605127]
+custom_minimum_size = Vector2(90, 0)
+custom_maximum_size = Vector2(90, -1)
+layout_mode = 2
+
+[node name="Remove" type="CheckBox" parent="Margin/Cells/RemoveCell" unique_id=189020619]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4

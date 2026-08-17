@@ -286,21 +286,23 @@ fields display `DatabaseRegistration.database_name`; location and storage
 backend are displayed separately.
 
 Each table fold presents its primary key, index definitions, and column
-properties supported by `ColumnDefinition`. Its columns use one horizontally
-scrollable `Tree`: names, dropdowns, flags, generation policy, and removal state
-remain editable in their cells. Type, Resource subtype, and enabled default
-cells keep persistent editor Controls aligned inside clipped cell hosts. Static
-Tree structure and the overlay host live in `gdsql_column_tree.tscn`; exported
-column widths remain editable through that scene instead of being hidden layout
-constants. Enabling a default rebuilds only its affected row rather than
-clearing and reconstructing the entire Tree.
+properties supported by `ColumnDefinition`. The column editor is composed from
+a header scene, a reusable row scene, a typed draft model, and a small list
+coordinator under `components/table/column_editor/`. A default row instance is
+visible in the editor scene for 2D layout work and is overwritten with the first
+column draft when data is configured; additional columns instantiate the same
+row scene. Fixed cell widths and the Variant type options are scene-authored.
+
+The header and body use separate synchronized `ScrollContainer` nodes. The
+header stays above the rows, vertical scrolling cannot paint rows over it, and
+the body's horizontal scrollbar exposes the complete fixed-width row. This
+removes the overlay positioning and per-frame cell tracking previously required
+by `TreeItem`, which cannot own scene children.
 Resource cells use the native `EditorResourcePicker` presentation directly, so
 texture thumbnails, audio previews, and other editor-provided Resource displays
-are retained instead of being reduced to proxy text. Resource rows grow to the
-picker's required height, while the long Variant-type popup has a bounded,
-scrolling menu. Existing column types and Resource constraints remain read-only
-because replacement is represented as add, migrate values, and drop. Newly
-added rows expose both selectors.
+are retained instead of being reduced to proxy text. Existing column types and
+Resource constraints remain read-only because replacement is represented as
+add, migrate values, and drop. Newly added rows expose both selectors.
 The Resource constraint cell uses an unrestricted Resource prototype picker,
 not a discovered class-name list, so native, global, and anonymous custom
 Resource scripts are supported. Enabling a Resource default creates a deep
@@ -315,16 +317,22 @@ descriptions before application.
 
 #### Column editor component inventory
 
-The schema Tree migration leaves the following explicit component status:
+The scene-based schema editor has the following explicit component status:
 
 | Component | Status | Reason |
 |---|---|---|
-| `gdsql_column_tree.gd` / `.tscn` | Active | Shared schema editor instantiated by both table-fold scenes. |
-| `gdsql_editor_resource_type_field.gd` | Active | Native Resource prototype picker used by the schema Tree and the legacy draft row. |
+| `column_editor/gdsql_column_editor.gd` / `.tscn` | Active | Shared scroll and row-list coordinator instantiated by both table-fold scenes. |
+| `column_editor/gdsql_column_editor_header.tscn` | Active | Self-contained scene-authored header with directly editable labels, separators, and cell sizing. |
+| `column_editor/gdsql_column_editor_row.gd` / `.tscn` | Active | Self-contained reusable column row with a conventional directly editable node hierarchy; the editor scene keeps one instance as its visual template and first configured row. |
+| `column_editor/gdsql_column_editor_draft.gd` | Active | Typed mutable editor draft responsible for validation and conversion to catalog definitions or alterations. |
+| `gdsql_editor_resource_type_field.gd` | Active | Native Resource prototype picker used by scene-backed column rows. |
 | `gdsql_editor_variant_value_field.gd` | Active | Shared typed value editor used by schema defaults, table rows, predicates, and mutation values. |
-| `gdsql_column_draft_row.gd` / `.tscn` | Unreferenced candidate | Superseded by `gdsql_column_tree`; retained temporarily for deliberate cleanup. |
-| `gdsql_column_property_row.gd` / `.tscn` | Unreferenced candidate | Superseded by `gdsql_column_tree`; retained temporarily for deliberate cleanup. |
 | `gdsql_table_data_row.gd` / `.tscn` | Active | Still used by the table data document and query result node; it is not part of the schema-row migration. |
+| `index/gdsql_index_property_row.gd` / `.tscn` | Active | Scene-authored summary and removal control for an existing primary or secondary index. |
+
+The superseded `gdsql_column_tree`, `gdsql_column_draft_row`, and
+`gdsql_column_property_row` scripts and scenes were removed after their table
+fold references moved to the new component.
 
 A table data document owns row viewing and manipulation without schema editing.
 It uses canonical `SELECT`, `INSERT`, `UPDATE`, and `DELETE` queries through

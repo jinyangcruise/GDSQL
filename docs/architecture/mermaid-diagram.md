@@ -47,6 +47,7 @@ Workbench("`**GDSQLWorkbench**
 *Collection API:* load(), discover_root(), discover_children(), select_registration()
 *Session API:* select_table(), load_rows(), preview_table_change(), apply_pending_change()
 *Metadata:* Lightweight catalog, schema and table-header inspections
+*Schema UI:* Scene-backed fixed header and reusable rows over typed column drafts
 *Rows:* Loaded only for the selected table`")
 
 GraphEditor("`**Graph Editor**

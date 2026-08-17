@@ -7,12 +7,15 @@ signal changed
 const INDEX_DRAFT_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/components/index/gdsql_index_draft_row.tscn"
 )
+const INDEX_PROPERTY_SCENE := preload(
+	"res://addons/gdsql/editor/workspace/components/index/gdsql_index_property_row.tscn"
+)
 
 var table_name: StringName
 var _table: GDSQLTableDefinition
 var _dropped_indexes: Dictionary[StringName, bool] = { }
 
-@onready var _columns: GDSQLEditorColumnTree = %Columns
+@onready var _columns: GDSQLEditorColumnEditor = %Columns
 
 
 func _ready() -> void:
@@ -82,36 +85,14 @@ func _render_indexes(table: GDSQLTableDefinition) -> void:
 	for child in %Indexes.get_children():
 		%Indexes.remove_child(child)
 		child.queue_free()
-	var primary_row := HBoxContainer.new()
-	var primary_label := Label.new()
-	primary_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	primary_label.text = "PRIMARY (%s) · unique · automatic" % table.primary_key
-	primary_label.tooltip_text = (
-			"Primary keys use GDSQL's dedicated primary-key lookup and cannot be removed "
-			+ "as a secondary index."
-	)
-	primary_row.add_child(primary_label)
+	var primary_row := INDEX_PROPERTY_SCENE.instantiate() as GDSQLEditorIndexPropertyRow
 	%Indexes.add_child(primary_row)
+	primary_row.configure_primary(table.primary_key)
 	for definition in table.indexes:
-		var row := HBoxContainer.new()
-		var label := Label.new()
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		label.text = "%s (%s)%s" % [
-			definition.name,
-			", ".join(
-				definition.columns.map(
-					func(column_name: StringName) -> String:
-						return String(column_name),
-				),
-			),
-			" · unique" if definition.unique else "",
-		]
-		var remove := CheckBox.new()
-		remove.text = "Remove"
-		remove.toggled.connect(_set_index_dropped.bind(definition.name))
-		row.add_child(label)
-		row.add_child(remove)
+		var row := INDEX_PROPERTY_SCENE.instantiate() as GDSQLEditorIndexPropertyRow
 		%Indexes.add_child(row)
+		row.configure(definition)
+		row.dropped_changed.connect(_set_index_dropped)
 
 
 func _set_index_dropped(dropped: bool, index_name: StringName) -> void:

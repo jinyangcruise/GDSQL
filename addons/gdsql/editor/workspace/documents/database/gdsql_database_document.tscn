@@ -17,11 +17,8 @@ thickness = 2
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_23t64"]
 
 [node name="DatabaseDocument" type="MarginContainer" unique_id=700155203]
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+offset_right = 562.0
+offset_bottom = 64.0
 theme_override_constants/margin_left = 20
 theme_override_constants/margin_top = 16
 theme_override_constants/margin_right = 20

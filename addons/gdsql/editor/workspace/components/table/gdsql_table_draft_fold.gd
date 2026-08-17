@@ -11,7 +11,7 @@ const INDEX_DRAFT_SCENE := preload(
 
 @onready var _name: LineEdit = %TableName
 @onready var _primary_key: LineEdit = %PrimaryKey
-@onready var _columns: GDSQLEditorColumnTree = %Columns
+@onready var _columns: GDSQLEditorColumnEditor = %Columns
 @onready var _indexes: VBoxContainer = %Indexes
 
 
@@ -27,7 +27,6 @@ func _ready() -> void:
 		_connect_index(row)
 	folded = false
 	%TableName.grab_focus()
-	#%TableName.is_editing()
 
 
 func configure_new() -> void:

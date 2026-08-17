@@ -1,14 +1,15 @@
 [gd_scene format=3 uid="uid://dk08shp2h7trv"]
 
 [ext_resource type="Script" uid="uid://c68chdn3couxl" path="res://addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.gd" id="1"]
-[ext_resource type="PackedScene" uid="uid://sb1dt3u6826l" path="res://addons/gdsql/editor/workspace/components/column/gdsql_column_tree.tscn" id="2_columns"]
+[ext_resource type="PackedScene" uid="uid://blg3sawy0eg2j" path="res://addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor.tscn" id="2_columns"]
 [ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="3_ctrlm"]
 [ext_resource type="Texture2D" uid="uid://dsm6xg4gnopxu" path="res://addons/gdsql/editor/workspace/icons/reticle.svg" id="4_ksyvb"]
 [ext_resource type="Texture2D" uid="uid://da35pq8onqig4" path="res://addons/gdsql/editor/workspace/icons/trash_can.svg" id="5_dwbiq"]
 
 [node name="TableDraftFold" type="FoldableContainer" unique_id=194084698]
-offset_right = 1150.0
-offset_bottom = 302.0
+propagate_maximum_size = false
+offset_right = 1282.0
+offset_bottom = 482.0
 title = "Draft table"
 script = ExtResource("1")
 
