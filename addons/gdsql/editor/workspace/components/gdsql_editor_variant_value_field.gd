@@ -87,7 +87,7 @@ func _rebuild(value: Variant) -> void:
 	else:
 		custom_minimum_size = Vector2(180, 34)
 		_build_line_edit(value)
-	if nullable:
+	if nullable and not _editable:
 		_use_null = CheckBox.new()
 		_use_null.text = "Null"
 		_use_null.button_pressed = value == null
