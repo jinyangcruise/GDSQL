@@ -502,9 +502,9 @@ func create_custom_popup_panel(
 	#dialog.dialog_hide_on_ok = false
 	dialog.popup_hide.connect(
 		func():
-			# 若Quick Open正在打开（例如编辑弹窗里的资源选择器），弹窗因失焦而隐藏时
+			# 若Quick Open正在打开（例如编辑弹窗里的资源选择器），弹窗因失焦/点击外部而隐藏时
 			# 不能立即清理，否则资源选择器被释放会导致Quick Open回调无效。
-			if _find_visible_quick_open_dialog() != null:
+			if _find_visible_quick_open_dialog() != null or _dialog_has_visible_descendant_window(dialog):
 				_defer_dialog_clear_until_quick_open_closes(dialog)
 				return
 
@@ -692,7 +692,10 @@ func popup_user_dialog(
 						close = false
 
 				if close:
-					_clear_custom_dialog(dialog)
+					# 含资源选择器的弹窗可能随后打开Quick Open，给它更长的清理宽限期，
+					# 期间如果检测到Quick Open打开，就推迟到Quick Open关闭后再释放。
+					var grace := 3.0 if _dialog_has_resource_picker(dialog) else 1.0
+					_clear_custom_dialog(dialog, grace)
 					if defered_callback.is_valid():
 						defered_callback.call(true, ret[1] if ret is Array else null),
 			CONNECT_DEFERRED,
@@ -713,7 +716,10 @@ func popup_user_dialog(
 						close = false
 
 				if close:
-					_clear_custom_dialog(dialog)
+					# 含资源选择器的弹窗可能随后打开Quick Open，给它更长的清理宽限期，
+					# 期间如果检测到Quick Open打开，就推迟到Quick Open关闭后再释放。
+					var grace := 3.0 if _dialog_has_resource_picker(dialog) else 1.0
+					_clear_custom_dialog(dialog, grace)
 					if defered_callback.is_valid():
 						defered_callback.call(false, ret[1] if ret is Array else null),
 			CONNECT_DEFERRED,
@@ -788,10 +794,15 @@ func _add_dialog(dialog: Window):
 	p.add_child(dialog)
 
 
-func _clear_custom_dialog(dialog: Window):
+func _clear_custom_dialog(dialog: Window, grace_seconds: float = 1.0):
 	if dialog.visible:
 		dialog.hide()
-	await dialog.get_tree().create_timer(1).timeout # For safety? After encountered several crash...
+	await dialog.get_tree().create_timer(grace_seconds).timeout # For safety? After encountered several crash...
+	# 若在此期间打开了Quick Open（资源选择器的回调可能已绑定到该弹窗内的控件），
+	# 则不能释放弹窗，否则回调失效。
+	if _find_visible_quick_open_dialog() != null and _dialog_has_resource_picker(dialog):
+		_defer_dialog_clear_until_quick_open_closes(dialog)
+		return
 	if dialog:
 		if dialog.get_parent():
 			dialog.get_parent().remove_child(dialog)
@@ -816,19 +827,35 @@ func _find_visible_quick_open_dialog() -> Window:
 	return null
 
 
+## 检测弹窗内部是否有其他可见的子窗口（例如资源选择器的弹出菜单）。
+## 这种情况下弹窗隐藏可能是由子窗口抢占输入引起的，不能立即释放弹窗，
+## 否则子窗口绑定的回调（如Quick Open回调）会失效。
+func _dialog_has_visible_descendant_window(dialog: Window) -> bool:
+	var stack: Array[Node] = [dialog]
+	while not stack.is_empty():
+		var n = stack.pop_back()
+		if n is Window and n != dialog and n.visible:
+			return true
+		for c in n.get_children():
+			stack.push_back(c)
+	return false
+
+
 ## 延迟清理弹窗直到Quick Open关闭。
 func _defer_dialog_clear_until_quick_open_closes(dialog: Window) -> void:
 	var qo = _find_visible_quick_open_dialog()
 	if qo == null:
 		_clear_custom_dialog(dialog)
 		return
-	if is_instance_valid(dialog):
-		_dialogs_pending_clear_after_quick_open.append(dialog)
+	if not is_instance_valid(dialog):
+		return
+	if _dialogs_pending_clear_after_quick_open.has(dialog):
+		return # 已延迟过，避免重复
+	_dialogs_pending_clear_after_quick_open.append(dialog)
 	if not qo.visibility_changed.is_connected(_on_quick_open_dialog_closed):
 		qo.visibility_changed.connect(_on_quick_open_dialog_closed, CONNECT_ONE_SHOT)
 	# 兜底：万一Quick Open一直没触发visibility_changed（极端情况），也保证弹窗最终被释放
-	if dialog:
-		dialog.get_tree().create_timer(30.0).timeout.connect(_on_quick_open_dialog_closed, CONNECT_ONE_SHOT)
+	dialog.get_tree().create_timer(30.0).timeout.connect(_on_quick_open_dialog_closed, CONNECT_ONE_SHOT)
 
 
 func _on_quick_open_dialog_closed() -> void:
@@ -837,6 +864,19 @@ func _on_quick_open_dialog_closed() -> void:
 	for d in pending:
 		if is_instance_valid(d):
 			_clear_custom_dialog(d)
+
+
+## 检测弹窗内部是否包含资源选择器（EditorResourcePicker）。
+## 这类控件可能打开Quick Open，需要保留足够的清理宽限期。
+func _dialog_has_resource_picker(dialog: Window) -> bool:
+	var stack: Array[Node] = [dialog]
+	while not stack.is_empty():
+		var n = stack.pop_back()
+		if n is EditorResourcePicker:
+			return true
+		for c in n.get_children():
+			stack.push_back(c)
+	return false
 
 
 @warning_ignore("unused_parameter")
