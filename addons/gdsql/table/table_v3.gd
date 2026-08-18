@@ -2240,12 +2240,23 @@ func _create_cell_control(value, a_data, col_idx: int) -> Control:
 
 	# Set mouse filter so events pass through to data_row_container for selection
 	if control:
-		if control is Button:
+		if control is EditorResourcePicker:
+			# 资源选择器内部按钮会消费鼠标事件，导致选区/双击编辑失效，
+			# 这里让它（及子控件）完全鼠标穿透，交给data_row_container处理。
+			_set_mouse_filter_recursive(control, Control.MOUSE_FILTER_IGNORE)
+		elif control is Button:
 			control.mouse_filter = Control.MOUSE_FILTER_PASS
 		elif not (value is Control):
 			control.mouse_filter = Control.MOUSE_FILTER_PASS
 
 	return control
+
+
+func _set_mouse_filter_recursive(control: Control, filter: int):
+	control.mouse_filter = filter
+	for c in control.get_children():
+		if c is Control:
+			_set_mouse_filter_recursive(c as Control, filter)
 
 
 func _bind_update_callback(a_data: GDSQL.DictionaryObject, col_idx: int, control: Control):
