@@ -13,19 +13,13 @@ var _drafts: Array[GDSQLEditorColumnDraft] = []
 var _baseline_drafts: Array[GDSQLEditorColumnDraft] = []
 var _rows: Array[GDSQLEditorColumnEditorRow] = []
 
-@onready var _column_order: OptionButton = %ColumnOrder
-@onready var _move_up: Button = %MoveUp
-@onready var _move_down: Button = %MoveDown
 @onready var _rows_host: VBoxContainer = %Rows
 @onready var _preview_row: GDSQLEditorColumnEditorRow = %PreviewRow
 
 
 func _ready() -> void:
 	_preview_row.changed.connect(_on_row_changed)
-	_column_order.item_selected.connect(_update_order_buttons.unbind(1))
-	_move_up.pressed.connect(_move_selected_column.bind(-1))
-	_move_down.pressed.connect(_move_selected_column.bind(1))
-	_refresh_order_controls()
+	_preview_row.reorder_requested.connect(_on_row_reorder_requested)
 
 
 func configure_new_table() -> void:
@@ -53,7 +47,6 @@ func add_draft_column() -> void:
 	_drafts.append(draft)
 	_baseline_drafts.append(draft)
 	var row := _create_row(draft)
-	_refresh_order_controls(_drafts.size() - 1)
 	row.focus_name.call_deferred()
 	changed.emit()
 
@@ -128,7 +121,6 @@ func _render_rows() -> void:
 	_rows.append(_preview_row)
 	for index in range(1, _drafts.size()):
 		_create_row(_drafts[index])
-	_refresh_order_controls()
 
 
 func _create_row(draft: GDSQLEditorColumnDraft) -> GDSQLEditorColumnEditorRow:
@@ -136,6 +128,7 @@ func _create_row(draft: GDSQLEditorColumnDraft) -> GDSQLEditorColumnEditorRow:
 	_rows_host.add_child(row)
 	row.configure(draft)
 	row.changed.connect(_on_row_changed)
+	row.reorder_requested.connect(_on_row_reorder_requested)
 	_rows.append(row)
 	return row
 
@@ -153,42 +146,23 @@ func _active_column_names(drafts: Array[GDSQLEditorColumnDraft]) -> Array[String
 	return names
 
 
-func _refresh_order_controls(selected_index: int = -1) -> void:
-	if selected_index < 0:
-		selected_index = _column_order.selected
-	_column_order.clear()
-	for draft in _drafts:
-		var label := draft.name.strip_edges()
-		_column_order.add_item(label if not label.is_empty() else "Unnamed column")
-	if not _drafts.is_empty():
-		_column_order.select(clampi(selected_index, 0, _drafts.size() - 1))
-	_update_order_buttons()
-
-
-func _update_order_buttons() -> void:
-	var index := _column_order.selected
-	_move_up.disabled = index <= 0
-	_move_down.disabled = index < 0 or index >= _drafts.size() - 1
-
-
-func _move_selected_column(direction: int) -> void:
-	var index := _column_order.selected
-	if index < 0:
+func _on_row_reorder_requested(
+		source: GDSQLEditorColumnEditorRow,
+		target: GDSQLEditorColumnEditorRow,
+		insert_after: bool,
+) -> void:
+	var source_index := _rows.find(source)
+	if source_index < 0 or not _rows.has(target) or source == target:
 		return
-	var target := clampi(index + direction, 0, _drafts.size() - 1)
-	if index == target:
-		return
-	var draft: GDSQLEditorColumnDraft = _drafts[index]
-	var row: GDSQLEditorColumnEditorRow = _rows[index]
-	_drafts.remove_at(index)
-	_rows.remove_at(index)
-	_drafts.insert(target, draft)
-	_rows.insert(target, row)
-	_rows_host.move_child(row, target)
-	_refresh_order_controls(target)
+	var draft: GDSQLEditorColumnDraft = _drafts[source_index]
+	_drafts.remove_at(source_index)
+	_rows.remove_at(source_index)
+	var insertion_index := _rows.find(target) + int(insert_after)
+	_drafts.insert(insertion_index, draft)
+	_rows.insert(insertion_index, source)
+	_rows_host.move_child(source, insertion_index)
 	changed.emit()
 
 
 func _on_row_changed() -> void:
-	_refresh_order_controls()
 	changed.emit()

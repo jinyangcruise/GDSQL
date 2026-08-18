@@ -4,8 +4,14 @@ extends PanelContainer
 ## Scene-backed editor for one typed column draft.
 
 signal changed
+signal reorder_requested(
+	source: GDSQLEditorColumnEditorRow,
+	target: GDSQLEditorColumnEditorRow,
+	insert_after: bool,
+)
 
 const KEY_ICON := preload("res://addons/gdsql/editor/workspace/icons/key.svg")
+const COLUMN_ROW_DRAG_TYPE := &"gdsql_column_editor_row"
 const VARIANT_TYPES := preload(
 	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_types.gd"
 )
@@ -13,6 +19,7 @@ const VARIANT_TYPES := preload(
 var draft: GDSQLEditorColumnDraft
 var _configuring := false
 
+@onready var _drag_handle: Button = %DragHandle
 @onready var _name: LineEdit = %Name
 @onready var _type: OptionButton = %Type
 @onready var _resource_type: GDSQLEditorResourceTypeField = %ResourceType
@@ -26,6 +33,11 @@ var _configuring := false
 
 
 func _ready() -> void:
+	_drag_handle.set_drag_forwarding(
+		_get_drag_data_from_handle,
+		_can_drop_data_from_handle,
+		_drop_data_from_handle,
+	)
 	_name.text_changed.connect(_on_name_changed)
 	_type.item_selected.connect(_on_type_selected)
 	_resource_type.constraint_changed.connect(_on_resource_type_changed)
@@ -81,6 +93,45 @@ func sync_default_value() -> void:
 func focus_name() -> void:
 	_name.grab_focus()
 	_name.edit()
+
+
+func _get_drag_data_from_handle(_position: Vector2) -> Variant:
+	if draft == null:
+		return null
+	var preview := Label.new()
+	preview.text = draft.name if not draft.name.is_empty() else "Unnamed column"
+	_drag_handle.set_drag_preview(preview)
+	return {&"type": COLUMN_ROW_DRAG_TYPE, &"row": self}
+
+
+func _can_drop_data(_position: Vector2, data: Variant) -> bool:
+	return _can_accept_reorder(data)
+
+
+func _drop_data(position: Vector2, data: Variant) -> void:
+	if not _can_accept_reorder(data):
+		return
+	var drag_data := data as Dictionary
+	var source := drag_data.get(&"row") as GDSQLEditorColumnEditorRow
+	reorder_requested.emit(source, self, position.y > size.y * 0.5)
+
+
+func _can_drop_data_from_handle(_position: Vector2, data: Variant) -> bool:
+	return _can_accept_reorder(data)
+
+
+func _drop_data_from_handle(position: Vector2, data: Variant) -> void:
+	_drop_data(position, data)
+
+
+func _can_accept_reorder(data: Variant) -> bool:
+	if not data is Dictionary:
+		return false
+	var drag_data := data as Dictionary
+	if drag_data.get(&"type") != COLUMN_ROW_DRAG_TYPE:
+		return false
+	var source := drag_data.get(&"row") as GDSQLEditorColumnEditorRow
+	return source != null and source != self and source.get_parent() == get_parent()
 
 
 func _configure_default_value() -> void:

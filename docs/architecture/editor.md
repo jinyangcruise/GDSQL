@@ -292,10 +292,10 @@ coordinator under `components/table/column_editor/`. A default row instance is
 visible in the editor scene for 2D layout work and is overwritten with the first
 column draft when data is configured; additional columns instantiate the same
 row scene. Fixed cell widths and the Variant type options are scene-authored.
-The compact order selector moves draft rows and saves their names as one
-non-destructive schema-order alteration. Result tables apply that configured
-order to returned catalog columns; calculated or aliased outputs retain query
-order after them.
+Each draft row has a drag grip in its Name cell. Dropping it before or after
+another row saves the resulting names as one non-destructive schema-order
+alteration. Result tables apply that configured order to returned catalog
+columns; calculated or aliased outputs retain query order after them.
 
 The header and body use separate synchronized `ScrollContainer` nodes. The
 header stays above the rows, vertical scrolling cannot paint rows over it, and
