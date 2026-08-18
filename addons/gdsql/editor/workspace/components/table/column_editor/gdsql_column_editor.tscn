@@ -32,3 +32,36 @@ theme_override_constants/separation = 2
 [node name="PreviewRow" parent="Scroll/VBoxContainer/Rows" unique_id=566493692 instance=ExtResource("3_row")]
 unique_name_in_owner = true
 layout_mode = 2
+
+[node name="OrderBar" type="HBoxContainer" parent="." unique_id=1022592668]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="OrderLabel" type="Label" parent="OrderBar" unique_id=1147508103]
+layout_mode = 2
+text = "Column order"
+vertical_alignment = 1
+
+[node name="ColumnOrder" type="OptionButton" parent="OrderBar" unique_id=1446698673]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+custom_maximum_size = Vector2(180, -1)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Select a column to move in the editor display order"
+
+[node name="MoveUp" type="Button" parent="OrderBar" unique_id=1441121503]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+tooltip_text = "Move the selected column earlier"
+disabled = true
+text = "↑"
+
+[node name="MoveDown" type="Button" parent="OrderBar" unique_id=708925161]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(32, 0)
+layout_mode = 2
+tooltip_text = "Move the selected column later"
+disabled = true
+text = "↓"

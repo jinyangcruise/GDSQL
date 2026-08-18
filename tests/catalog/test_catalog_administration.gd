@@ -48,6 +48,25 @@ func test_alter_table_migrates_existing_rows() -> void:
 		assert_bool(row.has_column(&"level")).is_false()
 
 
+func test_reorder_columns_changes_schema_order_without_rewriting_rows() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var table_path := _data_root.path_join("game_config/tables/heroes.cfg")
+	var stored_rows := FileAccess.get_file_as_string(table_path)
+
+	var result := database.alter_table(
+		&"heroes",
+		[GDSQLTableAlteration.reorder_columns([&"name", &"id"])],
+	)
+	assert_bool(result.is_successful()).is_true()
+	assert_str(FileAccess.get_file_as_string(table_path)).is_equal(stored_rows)
+
+	var reopened := GDSQLDatabase.open(&"game_config", _data_root).get_database()
+	var table := reopened.context.catalog.get_table(&"game_config", &"heroes")
+	assert_str(String(table.columns[0].name)).is_equal("name")
+	assert_str(String(table.columns[1].name)).is_equal("id")
+
+
 func test_alter_table_rejects_primary_key_drop() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
 	var alterations: Array[GDSQLTableAlteration] = [

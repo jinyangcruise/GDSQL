@@ -111,6 +111,7 @@ custom_minimum_size = Vector2(680, 220)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+tooltip_text = "Columns follow the table's configured display order."
 column_titles_visible = true
 allow_reselect = true
 hide_folding = true

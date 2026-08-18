@@ -17,6 +17,7 @@ enum Kind {
 	SET_COLUMN_UNIQUE,
 	SET_COLUMN_AUTO_INCREMENT,
 	SET_COLUMN_GENERATION,
+	REORDER_COLUMNS,
 }
 
 var kind: Kind
@@ -28,6 +29,7 @@ var index_name: StringName
 var value: Variant
 var enabled: bool
 var generation: GDSQLColumnDefinition.Generation
+var column_names: Array[StringName] = []
 
 
 static func add_column(column_definition: GDSQLColumnDefinition) -> GDSQLTableAlteration:
@@ -131,6 +133,13 @@ static func set_column_generation(
 	return alteration
 
 
+static func reorder_columns(ordered_names: Array[StringName]) -> GDSQLTableAlteration:
+	var alteration := GDSQLTableAlteration.new()
+	alteration.kind = Kind.REORDER_COLUMNS
+	alteration.column_names = ordered_names.duplicate()
+	return alteration
+
+
 func is_destructive() -> bool:
 	return kind == Kind.DROP_COLUMN
 
@@ -159,4 +168,6 @@ func describe() -> String:
 			return "Set column '%s' auto increment to %s." % [column_name, enabled]
 		Kind.SET_COLUMN_GENERATION:
 			return "Set the generation policy for column '%s'." % column_name
+		Kind.REORDER_COLUMNS:
+			return "Set the table column display order."
 	return "Unknown table alteration."

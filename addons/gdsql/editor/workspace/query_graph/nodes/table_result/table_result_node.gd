@@ -202,9 +202,16 @@ func _build_view_table(
 	view.database_name = table.database_name
 	if schema == null:
 		return view
+	var result_columns: Dictionary[StringName, GDSQLColumnDefinition] = { }
 	for result_column in schema.columns:
-		var source_column := table.get_column(result_column.name)
-		view.add_column(source_column if source_column != null else result_column)
+		result_columns[result_column.name] = result_column
+	for table_column in table.columns:
+		if result_columns.has(table_column.name):
+			view.add_column(table_column)
+			result_columns.erase(table_column.name)
+	for result_column in schema.columns:
+		if result_columns.has(result_column.name):
+			view.add_column(result_column)
 	return view
 
 

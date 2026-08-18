@@ -1550,9 +1550,11 @@ backend may complete a missing empty table file when an existing stored schema
 exactly matches the requested definition; this repairs incomplete structures
 without overwriting a table or changing its schema.
 
-Table alterations are explicit typed intents for column lifecycle, defaults,
-nullability, uniqueness, generated-value and auto-increment policies, and
-indexes. The backend updates schema and existing row files together. Adding a
+Table alterations are explicit typed intents for column lifecycle, display
+order, defaults, nullability, uniqueness, generated-value and auto-increment
+policies, and indexes. Reordering changes schema order only and does not rewrite
+stored row values. The backend updates schema and existing row files together
+for alterations that affect both. Adding a
 non-nullable column to a populated table requires a compatible default;
 renaming a column migrates stored row keys; dropping a column removes stored
 values. Constraint changes validate existing rows before persistence, and

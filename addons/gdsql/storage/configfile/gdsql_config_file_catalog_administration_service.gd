@@ -402,8 +402,15 @@ func _apply_alterations(
 			&"GDSQL_CATALOG_TABLE_UNREADABLE",
 			"Could not read table storage '%s'." % table_path,
 		)
-	var original_data := ConfigFile.new()
-	original_data.parse(table_data.encode_to_text())
+	var changes_table_data := false
+	for alteration in alterations:
+		if alteration == null or alteration.kind != GDSQLTableAlteration.Kind.REORDER_COLUMNS:
+			changes_table_data = true
+			break
+	var original_data: ConfigFile
+	if changes_table_data:
+		original_data = ConfigFile.new()
+		original_data.parse(table_data.encode_to_text())
 	for alteration in alterations:
 		var alteration_result := _apply_alteration(table, table_data, alteration)
 		if not alteration_result.is_successful():
@@ -415,14 +422,17 @@ func _apply_alterations(
 	var original_schema := ConfigFile.new()
 	if original_schema.load(schema_path) != OK:
 		return _error(&"GDSQL_CATALOG_SCHEMA_UNREADABLE", "Could not read table schema '%s'." % schema_path)
-	_rebuild_indexes(table_data, table)
-	if table_data.save(table_path) != OK:
-		return _error(&"GDSQL_CATALOG_TABLE_SAVE_FAILED", "Could not save altered table storage '%s'." % table_path)
+	if changes_table_data:
+		_rebuild_indexes(table_data, table)
+		if table_data.save(table_path) != OK:
+			return _error(&"GDSQL_CATALOG_TABLE_SAVE_FAILED", "Could not save altered table storage '%s'." % table_path)
 	if _save_schema(schema_path, table) != OK:
-		original_data.save(table_path)
+		if changes_table_data:
+			original_data.save(table_path)
 		original_schema.save(schema_path)
 		return _error(&"GDSQL_CATALOG_SCHEMA_SAVE_FAILED", "Could not save altered table schema '%s'." % schema_path)
-	_cache.invalidate(table_path)
+	if changes_table_data:
+		_cache.invalidate(table_path)
 	var result := GDSQLCatalogOperationResult.new()
 	result.value = table
 	return result
@@ -538,6 +548,8 @@ func _apply_alteration(
 				alteration.column_name,
 				alteration.generation,
 			)
+		GDSQLTableAlteration.Kind.REORDER_COLUMNS:
+			return _reorder_columns(table, alteration.column_names)
 	return _error(&"GDSQL_CATALOG_INVALID_ALTERATION", "Unsupported table alteration kind.")
 
 
@@ -652,6 +664,30 @@ func _drop_column(
 	for section in _get_row_sections(table_data):
 		table_data.erase_section_key(section, String(column_name))
 	table.columns.erase(column)
+	return GDSQLCatalogOperationResult.new()
+
+
+func _reorder_columns(
+		table: GDSQLTableDefinition,
+		ordered_names: Array[StringName],
+) -> GDSQLCatalogOperationResult:
+	if ordered_names.size() != table.columns.size():
+		return _error(
+			&"GDSQL_CATALOG_INVALID_COLUMN_ORDER",
+			"Column order must contain every table column exactly once.",
+		)
+	var ordered: Array[GDSQLColumnDefinition] = []
+	var seen: Dictionary[StringName, bool] = { }
+	for column_name in ordered_names:
+		var column := table.get_column(column_name)
+		if column == null or seen.has(column_name):
+			return _error(
+				&"GDSQL_CATALOG_INVALID_COLUMN_ORDER",
+				"Column order must contain every table column exactly once.",
+			)
+		seen[column_name] = true
+		ordered.append(column)
+	table.columns.assign(ordered)
 	return GDSQLCatalogOperationResult.new()
 
 
