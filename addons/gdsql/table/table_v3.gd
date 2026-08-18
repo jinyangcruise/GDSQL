@@ -2131,11 +2131,13 @@ func _create_cell_control(value, a_data, col_idx: int) -> Control:
 					_bind_update_callback(a_data, col_idx, control)
 			elif value is Resource:
 				handled = true
-				var erp = EditorResourcePicker.new()
-				erp.base_type = "Resource"
-				erp.edited_resource = value
-				erp.editable = false
-				control = erp
+				# 不要用EditorResourcePicker：它会对资源生成缩略图预览，
+				# 对于Mesh等资源非常耗时（例如CylinderMesh），导致滚动卡顿。
+				# 这里用轻量的Label显示资源路径，编辑走双击弹窗。
+				control = label_model.duplicate()
+				var res_path = value.resource_path
+				control.text = res_path if not res_path.is_empty() else value.get_class()
+				control.tooltip_text = "%s\nType: %s" % [res_path, value.get_class()]
 				if a_data is GDSQL.DictionaryObject:
 					_bind_update_callback(a_data, col_idx, control)
 			elif value is Control:
@@ -2213,7 +2215,11 @@ func _bind_update_callback(a_data: GDSQL.DictionaryObject, col_idx: int, control
 				else:
 					_replace_control(ctl, _create_cell_control(new_value, a_data, col_idx))
 			TYPE_OBJECT:
-				if new_value is Resource or new_value is Control:
+				if new_value is Resource and ctl is Label:
+					var res_path = new_value.resource_path
+					ctl.text = res_path if not res_path.is_empty() else new_value.get_class()
+					ctl.tooltip_text = "%s\nType: %s" % [res_path, new_value.get_class()]
+				elif new_value is Resource or new_value is Control:
 					_replace_control(ctl, _create_cell_control(new_value, a_data, col_idx))
 				else:
 					if ctl is Label:
