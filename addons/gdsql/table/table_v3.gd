@@ -1919,7 +1919,7 @@ func _assign_data_row_data(row_node: Control, data_idx: int):
 	if data == null:
 		return
 
-	var old_data = row_node.get_meta("data", null)
+	var old_data = row_node.get_meta("data") if row_node.has_meta("data") else null
 	row_node.set_meta("data_index", data_idx)
 	row_node.set_meta("data", data)
 
