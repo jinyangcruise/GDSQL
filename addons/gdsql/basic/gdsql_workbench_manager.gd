@@ -115,6 +115,8 @@ var main_panel: Control
 var databases: Dictionary
 ## base_dao在query途中需要密码的情况时使用 [db_name, table_name]
 var _request_password: Array
+## 因Quick Open对话框打开而延迟清理的弹窗列表
+var _dialogs_pending_clear_after_quick_open: Array = []
 
 
 func _init() -> void:
@@ -500,6 +502,12 @@ func create_custom_popup_panel(
 	#dialog.dialog_hide_on_ok = false
 	dialog.popup_hide.connect(
 		func():
+			# 若Quick Open正在打开（例如编辑弹窗里的资源选择器），弹窗因失焦而隐藏时
+			# 不能立即清理，否则资源选择器被释放会导致Quick Open回调无效。
+			if _find_visible_quick_open_dialog() != null:
+				_defer_dialog_clear_until_quick_open_closes(dialog)
+				return
+
 			var close = true
 			var ret
 			if canceled_callback_before_close.is_valid():
@@ -788,6 +796,47 @@ func _clear_custom_dialog(dialog: Window):
 		if dialog.get_parent():
 			dialog.get_parent().remove_child(dialog)
 		dialog.queue_free()
+
+
+## 检测Godot编辑器的Quick Open对话框当前是否可见。
+## 当资源选择器（EditorResourcePicker）在弹窗内打开Quick Open时，弹窗会因失焦而自动隐藏，
+## 随后弹窗里的资源选择器被释放，导致Quick Open的回调失效，
+## 出现 "The callback provided to the Quick Open dialog was invalid." 错误。
+## 因此当Quick Open可见时，需要延迟清理这个弹窗，等待Quick Open完成后再释放。
+func _find_visible_quick_open_dialog() -> Window:
+	var root = EditorInterface.get_base_control().get_tree().get_root()
+	var stack: Array[Node] = [root]
+	while not stack.is_empty():
+		var n = stack.pop_back()
+		if n is Window and n.visible:
+			if n.get_class() == "EditorQuickOpenDialog" or str(n.name).contains("QuickOpen"):
+				return n
+		for c in n.get_children():
+			stack.push_back(c)
+	return null
+
+
+## 延迟清理弹窗直到Quick Open关闭。
+func _defer_dialog_clear_until_quick_open_closes(dialog: Window) -> void:
+	var qo = _find_visible_quick_open_dialog()
+	if qo == null:
+		_clear_custom_dialog(dialog)
+		return
+	if is_instance_valid(dialog):
+		_dialogs_pending_clear_after_quick_open.append(dialog)
+	if not qo.visibility_changed.is_connected(_on_quick_open_dialog_closed):
+		qo.visibility_changed.connect(_on_quick_open_dialog_closed, CONNECT_ONE_SHOT)
+	# 兜底：万一Quick Open一直没触发visibility_changed（极端情况），也保证弹窗最终被释放
+	if dialog:
+		dialog.get_tree().create_timer(30.0).timeout.connect(_on_quick_open_dialog_closed, CONNECT_ONE_SHOT)
+
+
+func _on_quick_open_dialog_closed() -> void:
+	var pending = _dialogs_pending_clear_after_quick_open.duplicate()
+	_dialogs_pending_clear_after_quick_open.clear()
+	for d in pending:
+		if is_instance_valid(d):
+			_clear_custom_dialog(d)
 
 
 @warning_ignore("unused_parameter")

@@ -1,43 +1,27 @@
 @tool
 extends Window
 
-@export
-var tree: DsNodeTree
-@export
-var exclude_list: DsExcludeList
-@export
-var select_btn: Button
-@export
-var prev_btn: Button
-@export
-var next_btn: Button
-@export
-var save_btn: Button
-@export
-var delete_btn: Button
-@export
-var hide_border_btn: Button
-@export
-var play_btn: Button
-@export
-var next_frame_btn: Button
-@export
-var file_window: FileDialog
-@export
-var put_away: Button
-@export
-var watch_btn: Button
-@export
-var confirmation: ConfirmationDialog
-@export
-var debug_tool = CanvasLayer
+@export var tree: DsNodeTree
+@export var exclude_list: DsExcludeList
+@export var select_btn: Button
+@export var prev_btn: Button
+@export var next_btn: Button
+@export var save_btn: Button
+@export var delete_btn: Button
+@export var hide_border_btn: Button
+@export var play_btn: Button
+@export var next_frame_btn: Button
+@export var file_window: FileDialog
+@export var put_away: Button
+@export var watch_btn: Button
+@export var confirmation: ConfirmationDialog
+@export var debug_tool = CanvasLayer
 
-@onready
-var play_icon: Texture2D = preload("res://addons/ds_inspector/icon/Play.svg")
-@onready
-var pause_icon: Texture2D = preload("res://addons/ds_inspector/icon/Pause.svg")
+@onready var play_icon: Texture2D = preload("res://addons/ds_inspector/icon/Play.svg")
+@onready var pause_icon: Texture2D = preload("res://addons/ds_inspector/icon/Pause.svg")
 
 var _next_frame_paused_index: int = 0
+
 
 func _ready():
 	_load_window_state()
@@ -59,7 +43,7 @@ func _ready():
 	watch_btn.pressed.connect(do_watch)
 	# focus_exited.connect(_on_focus_exited)
 	confirmation.confirmed.connect(_on_delete_confirmed) # 连接确认事件
-	
+
 	# 连接历史浏览按钮
 	if prev_btn:
 		prev_btn.pressed.connect(_on_prev_btn_pressed)
@@ -72,6 +56,7 @@ func _ready():
 	# debug_tool.inspector
 	# 访问 NodeTree
 	# debug_tool.tree
+
 
 func _on_language_changed():
 	play_btn.tooltip_text = debug_tool.local.get_str("playOrStop")
@@ -91,6 +76,7 @@ func _on_language_changed():
 	confirmation.cancel_button_text = debug_tool.local.get_str("cancel")
 	pass
 
+
 func _process(_delta):
 	if _next_frame_paused_index > 0:
 		_next_frame_paused_index -= 1
@@ -100,9 +86,11 @@ func _process(_delta):
 		refresh_icon()
 	pass
 
+
 # 当窗口失去焦点时关闭窗口
 func _on_focus_exited():
 	do_hide()
+
 
 # 显示弹窗
 func do_show():
@@ -116,6 +104,7 @@ func do_show():
 		refresh_icon()
 	pass
 
+
 # 隐藏弹窗
 func do_hide():
 	hide()
@@ -123,30 +112,36 @@ func do_hide():
 	tree.hide_tree()
 	pass
 
+
 func select_btn_click():
-	hide()
+	#hide()
 	if debug_tool:
 		debug_tool.mask.visible = true
 		debug_tool._is_open_check_ui = true
+
 
 # 删除按钮点击，弹出确认框
 func _on_delete_btn_pressed():
 	confirmation.dialog_text = debug_tool.local.get_str("are_you_sure_you_want_to_delete_the_selected_node")
 	confirmation.popup_centered()
 
+
 # 确认框确认后执行删除
 func _on_delete_confirmed():
 	tree.delete_selected()
+
 
 func hide_border_btn_click():
 	if debug_tool:
 		debug_tool.brush.set_draw_node(null)
 	pass
 
+
 func play_btn_click():
 	var p: bool = !get_tree().paused
 	get_tree().paused = p
 	refresh_icon()
+
 
 func refresh_icon():
 	var p: bool = get_tree().paused
@@ -158,6 +153,7 @@ func refresh_icon():
 		next_frame_btn.disabled = true
 	pass
 
+
 func next_frame_btn_click():
 	if !get_tree().paused:
 		print("当前未暂停，无法单步")
@@ -166,11 +162,13 @@ func next_frame_btn_click():
 	_next_frame_paused_index = 2
 	pass
 
+
 func save_btn_click():
 	if debug_tool and debug_tool.brush.get_draw_node() != null:
 		do_hide()
 		file_window.call_deferred("popup", Rect2i(position, size))
 	pass
+
 
 func on_file_selected(path: String):
 	# print("选择文件" + path)
@@ -180,15 +178,18 @@ func on_file_selected(path: String):
 			save_node_as_scene(node, path)
 	pass
 
+
 func do_put_away():
 	_each_and_put_away(tree.get_root())
 	pass
+
 
 func do_watch():
 	if debug_tool:
 		var node: Node = debug_tool.brush.get_draw_node()
 		if node != null and is_instance_valid(node):
 			EditorInterface.inspect_object(node)
+
 
 func _each_and_put_away(tree_item: TreeItem):
 	var ch := tree_item.get_children()
@@ -197,28 +198,29 @@ func _each_and_put_away(tree_item: TreeItem):
 		_each_and_put_away(item)
 	pass
 
+
 func save_node_as_scene(node: Node, path: String) -> void:
 	# 确保路径以 .tscn 结尾
 	if not path.ends_with(".tscn"):
 		path += ".tscn"
-	
+
 	var o: Node = node.owner
 	node.owner = null
 	_recursion_set_owner(node, node)
-	
+
 	var scene := PackedScene.new()
 	var result := scene.pack(node)
 	if result != OK:
 		print("打包失败，错误码：", result)
 		node.owner = o
 		return
-	
+
 	var err := ResourceSaver.save(scene, path)
 	if err == OK:
 		print("保存成功: ", path)
 	else:
 		print("保存失败，错误码：", err)
-	
+
 	node.owner = o
 
 
@@ -227,14 +229,17 @@ func _recursion_set_owner(node: Node, _owner: Node):
 		ch.owner = _owner
 		_recursion_set_owner(ch, _owner)
 
+
 # 当窗口大小改变时保存状态
 func _on_window_resized():
 	_save_window_state()
+
 
 # 保存窗口状态（位置和大小）
 func _save_window_state():
 	if debug_tool.save_config:
 		debug_tool.save_config.save_window_state(size, position)
+
 
 # 加载窗口状态（位置和大小）
 func _load_window_state():
@@ -242,10 +247,12 @@ func _load_window_state():
 		size = debug_tool.save_config.get_window_size()
 		position = debug_tool.save_config.get_window_position()
 
+
 # 上一个节点按钮点击
 func _on_prev_btn_pressed():
 	if debug_tool and debug_tool.inspector:
 		debug_tool.inspector.navigate_prev()
+
 
 # 下一个节点按钮点击
 func _on_next_btn_pressed():
