@@ -1,10 +1,8 @@
 [gd_scene format=3 uid="uid://dv5yjnux1lm14"]
 
 [node name="ColumnEditorHeader" type="PanelContainer" unique_id=244153812]
-anchors_preset = 10
-anchor_right = 1.0
+offset_right = 1105.0
 offset_bottom = 27.0
-grow_horizontal = 2
 
 [node name="Margin" type="MarginContainer" parent="." unique_id=656651767]
 layout_mode = 2
@@ -59,12 +57,14 @@ vertical_alignment = 1
 layout_mode = 2
 
 [node name="NullableCell" type="MarginContainer" parent="Margin/Cells" unique_id=2019579880]
-custom_minimum_size = Vector2(90, 0)
-custom_maximum_size = Vector2(90, -1)
+custom_minimum_size = Vector2(75, 0)
+custom_maximum_size = Vector2(75, -1)
 layout_mode = 2
+size_flags_horizontal = 4
 
 [node name="Nullable" type="Label" parent="Margin/Cells/NullableCell" unique_id=36431129]
 layout_mode = 2
+size_flags_horizontal = 4
 text = "Nullable"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -73,12 +73,14 @@ vertical_alignment = 1
 layout_mode = 2
 
 [node name="UniqueCell" type="MarginContainer" parent="Margin/Cells" unique_id=75626260]
-custom_minimum_size = Vector2(90, 0)
-custom_maximum_size = Vector2(90, -1)
+custom_minimum_size = Vector2(75, 0)
+custom_maximum_size = Vector2(75, -1)
 layout_mode = 2
+size_flags_horizontal = 4
 
 [node name="Unique" type="Label" parent="Margin/Cells/UniqueCell" unique_id=456543946]
 layout_mode = 2
+size_flags_horizontal = 4
 text = "Unique"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -87,12 +89,13 @@ vertical_alignment = 1
 layout_mode = 2
 
 [node name="AutoCell" type="MarginContainer" parent="Margin/Cells" unique_id=681886452]
-custom_minimum_size = Vector2(90, 0)
-custom_maximum_size = Vector2(90, -1)
+custom_minimum_size = Vector2(75, 0)
+custom_maximum_size = Vector2(75, -1)
 layout_mode = 2
 
 [node name="Auto" type="Label" parent="Margin/Cells/AutoCell" unique_id=315808749]
 layout_mode = 2
+size_flags_horizontal = 4
 text = "Auto Incr"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -101,12 +104,13 @@ vertical_alignment = 1
 layout_mode = 2
 
 [node name="DefaultCell" type="MarginContainer" parent="Margin/Cells" unique_id=2071826615]
-custom_minimum_size = Vector2(100, 0)
-custom_maximum_size = Vector2(100, -1)
+custom_minimum_size = Vector2(75, 0)
+custom_maximum_size = Vector2(75, -1)
 layout_mode = 2
 
 [node name="Default" type="Label" parent="Margin/Cells/DefaultCell" unique_id=414198708]
 layout_mode = 2
+size_flags_horizontal = 4
 text = "Default"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -122,6 +126,7 @@ layout_mode = 2
 [node name="DefaultValue" type="Label" parent="Margin/Cells/DefaultValueCell" unique_id=1064329235]
 layout_mode = 2
 text = "Default value"
+horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="VSeparator8" type="VSeparator" parent="Margin/Cells" unique_id=1690907241]
@@ -141,8 +146,8 @@ vertical_alignment = 1
 layout_mode = 2
 
 [node name="RemoveCell" type="MarginContainer" parent="Margin/Cells" unique_id=1423986321]
-custom_minimum_size = Vector2(90, 0)
-custom_maximum_size = Vector2(90, -1)
+custom_minimum_size = Vector2(75, 0)
+custom_maximum_size = Vector2(75, -1)
 layout_mode = 2
 
 [node name="Remove" type="Label" parent="Margin/Cells/RemoveCell" unique_id=732467659]

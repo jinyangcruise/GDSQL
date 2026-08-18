@@ -132,8 +132,8 @@ script = ExtResource("2_resource")
 layout_mode = 2
 
 [node name="NullableCell" type="MarginContainer" parent="Margin/Cells" unique_id=1967765174]
-custom_minimum_size = Vector2(90, 0)
-custom_maximum_size = Vector2(90, -1)
+custom_minimum_size = Vector2(75, 0)
+custom_maximum_size = Vector2(75, -1)
 layout_mode = 2
 
 [node name="Nullable" type="CheckBox" parent="Margin/Cells/NullableCell" unique_id=1039249802]
@@ -145,8 +145,8 @@ size_flags_horizontal = 4
 layout_mode = 2
 
 [node name="UniqueCell" type="MarginContainer" parent="Margin/Cells" unique_id=326442129]
-custom_minimum_size = Vector2(90, 0)
-custom_maximum_size = Vector2(90, -1)
+custom_minimum_size = Vector2(75, 0)
+custom_maximum_size = Vector2(75, -1)
 layout_mode = 2
 
 [node name="Unique" type="CheckBox" parent="Margin/Cells/UniqueCell" unique_id=326017701]
@@ -158,8 +158,8 @@ size_flags_horizontal = 4
 layout_mode = 2
 
 [node name="AutoCell" type="MarginContainer" parent="Margin/Cells" unique_id=1960601057]
-custom_minimum_size = Vector2(90, 0)
-custom_maximum_size = Vector2(90, -1)
+custom_minimum_size = Vector2(75, 0)
+custom_maximum_size = Vector2(75, -1)
 layout_mode = 2
 
 [node name="AutoIncrement" type="CheckBox" parent="Margin/Cells/AutoCell" unique_id=100552749]
@@ -171,8 +171,8 @@ size_flags_horizontal = 4
 layout_mode = 2
 
 [node name="DefaultCell" type="MarginContainer" parent="Margin/Cells" unique_id=1979147573]
-custom_minimum_size = Vector2(100, 0)
-custom_maximum_size = Vector2(100, -1)
+custom_minimum_size = Vector2(75, 0)
+custom_maximum_size = Vector2(75, -1)
 layout_mode = 2
 
 [node name="HasDefault" type="CheckBox" parent="Margin/Cells/DefaultCell" unique_id=1183126655]
@@ -225,8 +225,8 @@ popup/item_2/id = 2
 layout_mode = 2
 
 [node name="RemoveCell" type="MarginContainer" parent="Margin/Cells" unique_id=1457605127]
-custom_minimum_size = Vector2(90, 0)
-custom_maximum_size = Vector2(90, -1)
+custom_minimum_size = Vector2(75, 0)
+custom_maximum_size = Vector2(75, -1)
 layout_mode = 2
 
 [node name="Remove" type="CheckBox" parent="Margin/Cells/RemoveCell" unique_id=189020619]
