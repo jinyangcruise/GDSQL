@@ -1070,16 +1070,19 @@ func _construct_tree():
 	label_model.name = "LabelModel"
 	label_model.mouse_filter = Control.MOUSE_FILTER_PASS
 	label_model.clip_text = true
+	label_model.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED # 数据单元格不能翻译（例如"OK"不能变成"确定"）
 	models.add_child(label_model)
 
 	texture_rect_model = TextureRect.new()
 	texture_rect_model.name = "TextureRectModel"
 	texture_rect_model.mouse_filter = Control.MOUSE_FILTER_PASS
+	texture_rect_model.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	models.add_child(texture_rect_model)
 
 	check_box_model = CheckBox.new()
 	check_box_model.name = "CheckBoxModel"
 	check_box_model.mouse_filter = Control.MOUSE_FILTER_PASS
+	check_box_model.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	models.add_child(check_box_model)
 
 	# ── Header (rebuilt by rebuild_header) ──
