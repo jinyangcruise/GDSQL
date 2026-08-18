@@ -193,6 +193,7 @@ var _drag_start_width := 0.0
 var _drag_press_active := false
 var _saved_hover_styles: Array = []
 var _last_data_scroll_v: float = -1
+var _last_data_view_height: float = -1.0
 var _scroll_guard := false
 
 
@@ -222,7 +223,7 @@ func _ready() -> void:
 	# 调整列宽并定位overlay
 	_on_table_resized()
 	_update_borders_overlay_size()
-	data_scroll.resized.connect(_update_borders_overlay_size)
+	data_scroll.resized.connect(_on_data_scroll_resized)
 
 	# Scroll listener (built-in v_bar)
 	var data_v_bar = data_scroll.get_v_scroll_bar()
@@ -1295,6 +1296,24 @@ func _update_borders_overlay_size():
 		var min_sz = sb.get_minimum_size() if sb else Vector2()
 		borders_overlay.position = data_scroll.position + data_area.position + off
 		borders_overlay.size = data_scroll.size - min_sz
+
+
+## 数据可视区尺寸变化时（例如graph node最大化/还原），需要重新计算可见行范围，
+## 否则视口变大后行数不会增加（滚动条不变时value_changed不会触发）。
+func _on_data_scroll_resized():
+	_update_borders_overlay_size()
+	if not is_instance_valid(data_scroll):
+		return
+	var view_h = data_scroll.size.y
+	if view_h > 0 and absf(view_h - _last_data_view_height) > 0.5:
+		_last_data_view_height = view_h
+		call_deferred("_refresh_visible_rows_after_resize")
+
+
+func _refresh_visible_rows_after_resize():
+	if not is_instance_valid(data_scroll) or not is_node_ready():
+		return
+	_on_scroll(data_scroll.scroll_vertical)
 
 
 func _apply_header_widths():
