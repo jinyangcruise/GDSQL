@@ -1919,6 +1919,7 @@ func _assign_data_row_data(row_node: Control, data_idx: int):
 	if data == null:
 		return
 
+	var old_data = row_node.get_meta("data", null)
 	row_node.set_meta("data_index", data_idx)
 	row_node.set_meta("data", data)
 
@@ -1932,22 +1933,93 @@ func _assign_data_row_data(row_node: Control, data_idx: int):
 			continue
 
 		var content_wrapper = _get_cell_content_wrapper(cell as PanelContainer)
-
-		# Clear existing cell content without letting the content minimum size affect the column width.
-		for c in content_wrapper.get_children():
-			content_wrapper.remove_child(c)
-			if not c.get_meta("_gdsql_external_cell_control", false):
-				c.queue_free()
-
 		var value = data_arr[data_col]
-		var ctl = _create_cell_control(value, data, data_col)
-		if ctl:
-			_add_control_to_cell(content_wrapper, ctl, data_idx, data_col)
+
+		# 尽量复用单元格已有的控件（特别是EditorResourcePicker），
+		# 避免滚动时反复重建控件、反复生成资源预览而卡顿。
+		if not _try_reuse_cell_content(content_wrapper, value, data, data_col, old_data, data_idx):
+			# Clear existing cell content without letting the content minimum size affect the column width.
+			for c in content_wrapper.get_children():
+				content_wrapper.remove_child(c)
+				if not c.get_meta("_gdsql_external_cell_control", false):
+					c.queue_free()
+
+			var ctl = _create_cell_control(value, data, data_col)
+			if ctl:
+				_add_control_to_cell(content_wrapper, ctl, data_idx, data_col)
 
 		# Assign cell meta for border lookup
 		(cell as PanelContainer).set_meta("row", data_idx)
 		(cell as PanelContainer).set_meta("col", data_col)
 		data_col += 1
+
+
+## 尝试复用单元格已有的控件来显示新值，避免滚动时反复重建控件。
+## 重建EditorResourcePicker会生成资源预览（对Mesh等资源非常耗时），所以优先复用。
+## 返回true表示已复用成功（无需重建）。
+func _try_reuse_cell_content(wrapper: Control, value, new_data, col_idx: int, old_data, row_idx: int) -> bool:
+	var existing = wrapper.get_child(0) if wrapper.get_child_count() > 0 else null
+	if existing == null or not (existing is Control):
+		return false
+	var ctl := existing as Control
+
+	# 记录当前所属行/列，供自适应行高和选区边框查询使用
+	ctl.set_meta("_gdsql_table_row", row_idx)
+	ctl.set_meta("_gdsql_table_col", col_idx)
+
+	# 复用前解除旧数据对该属性更新回调的绑定，避免旧数据变化时误更新当前单元格
+	var unbind_old = func():
+		if old_data is GDSQL.DictionaryObject:
+			var old_prop = old_data.__get_index_prop(col_idx)
+			if old_prop != "":
+				old_data.clear_update_callback(old_prop)
+
+	var data_type = typeof(value)
+	if value is Resource and not (value is Texture2D) and ctl is EditorResourcePicker:
+		unbind_old.call()
+		var erp := ctl as EditorResourcePicker
+		erp.edited_resource = value
+		erp.base_type = value.get_class()
+		if new_data is GDSQL.DictionaryObject:
+			_bind_update_callback(new_data, col_idx, ctl)
+		return true
+	if value is Texture2D and ctl is TextureRect:
+		unbind_old.call()
+		(ctl as TextureRect).texture = value
+		(ctl as TextureRect).tooltip_text = "%s\nType: %s" % [value.resource_path, value.get_class()]
+		if new_data is GDSQL.DictionaryObject:
+			_bind_update_callback(new_data, col_idx, ctl)
+		return true
+	if data_type == TYPE_BOOL and ctl is CheckBox:
+		unbind_old.call()
+		(ctl as CheckBox).button_pressed = value
+		(ctl as CheckBox).tooltip_text = str(value)
+		if new_data is GDSQL.DictionaryObject:
+			_bind_update_callback(new_data, col_idx, ctl)
+		return true
+	if (data_type == TYPE_INT or data_type == TYPE_FLOAT or data_type == TYPE_STRING or data_type == TYPE_STRING_NAME) and ctl is Label:
+		unbind_old.call()
+		_apply_label_value(ctl as Label, value, new_data, col_idx)
+		if new_data is GDSQL.DictionaryObject:
+			_bind_update_callback(new_data, col_idx, ctl)
+		return true
+	return false
+
+
+## 设置Label的文本（含枚举提示），与_create_cell_control保持一致。
+func _apply_label_value(label: Label, value, a_data, col_idx: int):
+	label.text = str(value)
+	label.tooltip_text = _split_tooltip(label.text)
+	if a_data is GDSQL.DictionaryObject:
+		var p_name = a_data.__get_index_prop(col_idx).to_snake_case()
+		var hint = a_data.get_meta(p_name + "_enum_hint_string_dict", "")
+		if hint != "":
+			var pairs = Array(hint.split(",")).map(func(v): return v.split(":"))
+			for p in pairs:
+				if p.size() == 2 and p[1].is_valid_int() and int(p[1]) == value:
+					label.text = str(p[0])
+					label.tooltip_text = _split_tooltip(label.text)
+					break
 
 
 func _get_cell_content_wrapper(cell: PanelContainer) -> Control:
@@ -2131,13 +2203,11 @@ func _create_cell_control(value, a_data, col_idx: int) -> Control:
 					_bind_update_callback(a_data, col_idx, control)
 			elif value is Resource:
 				handled = true
-				# 不要用EditorResourcePicker：它会对资源生成缩略图预览，
-				# 对于Mesh等资源非常耗时（例如CylinderMesh），导致滚动卡顿。
-				# 这里用轻量的Label显示资源路径，编辑走双击弹窗。
-				control = label_model.duplicate()
-				var res_path = value.resource_path
-				control.text = res_path if not res_path.is_empty() else value.get_class()
-				control.tooltip_text = "%s\nType: %s" % [res_path, value.get_class()]
+				var erp = EditorResourcePicker.new()
+				erp.base_type = value.get_class()
+				erp.edited_resource = value
+				erp.editable = false
+				control = erp
 				if a_data is GDSQL.DictionaryObject:
 					_bind_update_callback(a_data, col_idx, control)
 			elif value is Control:
@@ -2215,11 +2285,7 @@ func _bind_update_callback(a_data: GDSQL.DictionaryObject, col_idx: int, control
 				else:
 					_replace_control(ctl, _create_cell_control(new_value, a_data, col_idx))
 			TYPE_OBJECT:
-				if new_value is Resource and ctl is Label:
-					var res_path = new_value.resource_path
-					ctl.text = res_path if not res_path.is_empty() else new_value.get_class()
-					ctl.tooltip_text = "%s\nType: %s" % [res_path, new_value.get_class()]
-				elif new_value is Resource or new_value is Control:
+				if new_value is Resource or new_value is Control:
 					_replace_control(ctl, _create_cell_control(new_value, a_data, col_idx))
 				else:
 					if ctl is Label:

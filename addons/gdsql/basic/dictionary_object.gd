@@ -261,6 +261,12 @@ func set_update_callback(property: String, callback: Callable) -> void:
 	_update_callback[property] = callback
 
 
+## 移除某个属性的更新回调。当显示控件被复用到其他数据上时，需要解除旧数据的回调绑定，
+## 否则旧数据的值变化会误更新当前控件。
+func clear_update_callback(property: String) -> void:
+	_update_callback.erase(property)
+
+
 ## 获取一个属性的更新回调函数。若不存在，返回一个空函数。
 func get_update_callback(property: String) -> Callable:
 	return _update_callback[property] if _update_callback.has(property) else Callable()
