@@ -17,8 +17,19 @@ var _line_edit: LineEdit
 var _resource_picker: EditorResourcePicker
 var _use_null: CheckBox
 var _observed_resource: Resource
+var _observed_resource_fingerprint := 0
+var _editor_inspector: EditorInspector
 var _modified := false
 var _rebuilding := false
+
+
+func _ready() -> void:
+	_connect_editor_inspector()
+
+
+func _exit_tree() -> void:
+	_observe_resource(null)
+	_disconnect_editor_inspector()
 
 
 func configure(
@@ -87,7 +98,7 @@ func _rebuild(value: Variant) -> void:
 	else:
 		custom_minimum_size = Vector2(180, 34)
 		_build_line_edit(value)
-	if nullable and not _editable:
+	if nullable:
 		_use_null = CheckBox.new()
 		_use_null.text = "Null"
 		_use_null.button_pressed = value == null
@@ -156,7 +167,7 @@ func _on_line_edit_focus_entered() -> void:
 
 
 func _on_observed_resource_changed() -> void:
-	_mark_modified()
+	_mark_resource_modified_if_changed()
 
 
 func _observe_resource(resource: Resource) -> void:
@@ -164,9 +175,45 @@ func _observe_resource(resource: Resource) -> void:
 			and _observed_resource.changed.is_connected(_on_observed_resource_changed):
 		_observed_resource.changed.disconnect(_on_observed_resource_changed)
 	_observed_resource = resource
+	_observed_resource_fingerprint = (
+		hash(var_to_bytes_with_objects(resource)) if resource != null else 0
+	)
 	if _observed_resource != null \
 			and not _observed_resource.changed.is_connected(_on_observed_resource_changed):
 		_observed_resource.changed.connect(_on_observed_resource_changed)
+
+
+func _mark_resource_modified_if_changed() -> void:
+	if _observed_resource == null:
+		return
+	if hash(var_to_bytes_with_objects(_observed_resource)) != _observed_resource_fingerprint:
+		_mark_modified()
+
+
+func _connect_editor_inspector() -> void:
+	if not Engine.is_editor_hint():
+		return
+	_editor_inspector = EditorInterface.get_inspector()
+	if _editor_inspector != null \
+			and not _editor_inspector.property_edited.is_connected(
+				_on_inspector_property_edited,
+			):
+		_editor_inspector.property_edited.connect(_on_inspector_property_edited)
+
+
+func _disconnect_editor_inspector() -> void:
+	if _editor_inspector != null \
+			and _editor_inspector.property_edited.is_connected(
+				_on_inspector_property_edited,
+			):
+		_editor_inspector.property_edited.disconnect(_on_inspector_property_edited)
+	_editor_inspector = null
+
+
+func _on_inspector_property_edited(_property: String) -> void:
+	if _editor_inspector != null \
+			and _editor_inspector.get_edited_object() == _observed_resource:
+		_mark_resource_modified_if_changed()
 
 
 func _mark_modified() -> void:
@@ -189,6 +236,8 @@ func _is_null() -> bool:
 func _parse_text(text: String) -> Dictionary:
 	match data_type:
 		TYPE_STRING:
+			if text.is_empty():
+				return { "valid": nullable, "value": null }
 			return { "valid": true, "value": text }
 		TYPE_STRING_NAME:
 			return { "valid": true, "value": StringName(text) }

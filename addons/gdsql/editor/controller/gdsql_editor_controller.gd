@@ -353,6 +353,7 @@ func _load_table_rows(
 
 func _execute_query_graph(
 		document_key: StringName,
+		source_node_name: StringName,
 		registration_name: StringName,
 		query: GDSQLQuerySpec,
 ) -> GDSQLQueryResult:
@@ -380,6 +381,7 @@ func _execute_query_graph(
 			_refresh_surfaces()
 	_workspace.present_query_graph_result(
 		document_key,
+		source_node_name,
 		registration_name,
 		table,
 		result,
@@ -425,6 +427,7 @@ func _update_row(
 		original_primary_key: Variant,
 		values: Dictionary,
 		query_document_key: StringName = &"",
+		query_source_name: StringName = &"",
 ) -> GDSQLOperationResult:
 	var result := _ensure_active_registration(registration_name)
 	if not result.is_successful():
@@ -458,6 +461,7 @@ func _update_row(
 		table_name,
 		result,
 		query_document_key,
+		query_source_name,
 	)
 	return result
 
@@ -477,6 +481,7 @@ func _delete_row(
 		table_name: StringName,
 		primary_key: Variant,
 		query_document_key: StringName = &"",
+		query_source_name: StringName = &"",
 ) -> GDSQLOperationResult:
 	var result := _ensure_active_registration(registration_name)
 	if result.is_successful():
@@ -504,6 +509,7 @@ func _delete_row(
 		table_name,
 		result,
 		query_document_key,
+		query_source_name,
 	)
 	return result
 
@@ -513,6 +519,7 @@ func _complete_row_mutation(
 		table_name: StringName,
 		result: GDSQLOperationResult,
 		query_document_key: StringName = &"",
+		query_source_name: StringName = &"",
 ) -> void:
 	if not result.is_successful():
 		return
@@ -523,12 +530,16 @@ func _complete_row_mutation(
 	if query_document_key == &"":
 		_load_table_rows(registration_name, table_name, false)
 	else:
-		var query_result := _workspace.request_query_graph(query_document_key)
+		var query_result := _workspace.request_query_graph(
+			query_document_key,
+			query_source_name,
+		)
 		result.diagnostics.merge(query_result.diagnostics)
 
 
 func _insert_query_result_row(
 		document_key: StringName,
+		source_node_name: StringName,
 		registration_name: StringName,
 		table_name: StringName,
 		values: Dictionary,
@@ -538,13 +549,20 @@ func _insert_query_result_row(
 		var inserted := workbench.active_session.database.insert(table_name, values)
 		result.diagnostics.merge(inserted.diagnostics)
 		result.value = inserted
-	_complete_row_mutation(registration_name, table_name, result, document_key)
+	_complete_row_mutation(
+		registration_name,
+		table_name,
+		result,
+		document_key,
+		source_node_name,
+	)
 	_record_result("Insert query result row", result)
 	return result
 
 
 func _update_query_result_row(
 		document_key: StringName,
+		source_node_name: StringName,
 		registration_name: StringName,
 		table_name: StringName,
 		original_primary_key: Variant,
@@ -556,6 +574,7 @@ func _update_query_result_row(
 		original_primary_key,
 		values,
 		document_key,
+		source_node_name,
 	)
 	_record_result("Update query result row", result)
 	return result
@@ -563,6 +582,7 @@ func _update_query_result_row(
 
 func _delete_query_result_row(
 		document_key: StringName,
+		source_node_name: StringName,
 		registration_name: StringName,
 		table_name: StringName,
 		primary_key: Variant,
@@ -572,6 +592,7 @@ func _delete_query_result_row(
 		table_name,
 		primary_key,
 		document_key,
+		source_node_name,
 	)
 	_record_result("Delete query result row", result)
 	return result

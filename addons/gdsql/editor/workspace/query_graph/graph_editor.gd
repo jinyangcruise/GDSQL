@@ -13,21 +13,25 @@ signal source_changed(
 		table_name: StringName,
 )
 signal query_requested(
+		source_node_name: StringName,
 		registration_name: StringName,
 		query: GDSQLQuerySpec,
 )
 signal row_insert_requested(
+		source_node_name: StringName,
 		registration_name: StringName,
 		table_name: StringName,
 		values: Dictionary,
 )
 signal row_update_requested(
+		source_node_name: StringName,
 		registration_name: StringName,
 		table_name: StringName,
 		original_primary_key: Variant,
 		values: Dictionary,
 )
 signal row_delete_requested(
+		source_node_name: StringName,
 		registration_name: StringName,
 		table_name: StringName,
 		primary_key: Variant,
@@ -59,8 +63,8 @@ var _action_hub: GDSQLEditorActionHub
 var _action_context: GDSQLContextActionHub
 var _action_context_id: StringName
 var _active_operation: GraphNode
-var _table_result: GDSQLQueryTableResultNode
-var _result_source: GraphNode
+var _active_result: GDSQLQueryTableResultNode
+var _table_results: Dictionary[StringName, GDSQLQueryTableResultNode] = {}
 
 @onready var _graph: GraphEdit = %Graph
 @onready var _select_operation: GraphNode = %SelectOperation
@@ -227,13 +231,18 @@ func get_selected_table() -> StringName:
 
 
 func has_unsaved_changes() -> bool:
-	return is_instance_valid(_table_result) and _table_result.has_dirty_rows()
+	for result_node in _table_results.values():
+		if is_instance_valid(result_node) and result_node.has_dirty_rows():
+			return true
+	return false
 
 
-func request_query() -> GDSQLOperationResult:
-	if is_instance_valid(_table_result) \
-			and _table_result.has_dirty_rows() \
-			and not _table_result.is_mutation_in_flight():
+func request_query(source_node_name: StringName = &"") -> GDSQLOperationResult:
+	var operation := _operation_for_query(source_node_name)
+	var result_node := _result_for_operation(operation)
+	if is_instance_valid(result_node) \
+			and result_node.has_dirty_rows() \
+			and not result_node.is_mutation_in_flight():
 		var blocked := GDSQLQueryCompilationResult.new()
 		blocked.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
@@ -243,9 +252,9 @@ func request_query() -> GDSQLOperationResult:
 		)
 		return blocked
 	var graph := GDSQLQueryGraph.new()
-	if not is_instance_valid(_active_operation):
+	if not is_instance_valid(operation):
 		return GDSQLGraphQueryCompiler.new().compile(graph)
-	var operation_result := _active_operation.call(
+	var operation_result := operation.call(
 		"build_graph_node",
 	) as GDSQLOperationResult
 	if operation_result == null or not operation_result.is_successful():
@@ -257,39 +266,61 @@ func request_query() -> GDSQLOperationResult:
 	var compilation := GDSQLGraphQueryCompiler.new().compile(graph)
 	if compilation.is_successful():
 		query_requested.emit(
-			get_selected_registration(),
+			operation.name,
+			StringName(operation.call("get_selected_registration")),
 			compilation.query,
 		)
 	return compilation
 
 
 func present_query_result(
+		source_node_name: StringName,
 		registration_name: StringName,
 		table: GDSQLTableDefinition,
 		result: GDSQLQueryResult,
 ) -> void:
-	if _table_result == null:
-		_table_result = TABLE_RESULT_NODE_SCENE.instantiate() \
+	var source := _graph.get_node_or_null(NodePath(source_node_name)) as GraphNode
+	if source == null or not source.has_method("build_graph_node"):
+		return
+	var result_node := _table_results.get(source_node_name) \
+			as GDSQLQueryTableResultNode
+	if not is_instance_valid(result_node):
+		result_node = TABLE_RESULT_NODE_SCENE.instantiate() \
 				as GDSQLQueryTableResultNode
-		_table_result.name = &"TableResult"
-		_graph.add_child(_table_result)
-		_table_result.row_insert_requested.connect(row_insert_requested.emit)
-		_table_result.row_update_requested.connect(row_update_requested.emit)
-		_table_result.row_delete_requested.connect(row_delete_requested.emit)
-		_table_result.capabilities_changed.connect(_on_result_capabilities_changed)
-		_table_result.remove_requested.connect(_on_result_remove_requested)
-		_table_result.fit_requested.connect(
-			_fit_node_to_graph_view.bind(_table_result),
+		result_node.name = _next_result_node_name(source_node_name)
+		_graph.add_child(result_node)
+		_table_results[source_node_name] = result_node
+		result_node.row_insert_requested.connect(
+			_on_result_row_insert_requested.bind(source_node_name),
+		)
+		result_node.row_update_requested.connect(
+			_on_result_row_update_requested.bind(source_node_name),
+		)
+		result_node.row_delete_requested.connect(
+			_on_result_row_delete_requested.bind(source_node_name),
+		)
+		result_node.capabilities_changed.connect(
+			_on_result_capabilities_changed.bind(result_node),
+		)
+		result_node.remove_requested.connect(
+			_on_result_remove_requested.bind(source_node_name),
+		)
+		result_node.fit_requested.connect(
+			_fit_node_to_graph_view.bind(result_node),
 		)
 		if _action_hub != null and _action_context != null:
-			_table_result.configure_action(
+			result_node.configure_action(
 				_action_hub,
 				_action_context.get_action(
 					GDSQLEditorActionIds.ADD_QUERY_RESULT_ROW,
 				),
 			)
-	_place_and_connect_result()
-	_table_result.present(registration_name, table, result)
+	_place_and_connect_result(source, result_node)
+	_active_operation = source
+	_active_result = result_node
+	result_node.present(registration_name, table, result)
+	_graph.set_selected(result_node)
+	_refresh_action_availability()
 
 
 func _register_action(
@@ -408,20 +439,17 @@ func _on_source_changed(
 		table_name: StringName,
 		source_node: GraphNode,
 ) -> void:
-	_active_operation = source_node
+	_activate_operation(source_node)
 	source_changed.emit(registration_name, database_name, table_name)
-	_refresh_action_availability()
 
 
 func _on_query_changed(source_node: GraphNode) -> void:
-	_active_operation = source_node
-	_refresh_action_availability()
+	_activate_operation(source_node)
 
 
 func _on_query_activated(source_node: GraphNode) -> void:
-	_active_operation = source_node
+	_activate_operation(source_node)
 	_graph.set_selected(source_node)
-	_refresh_action_availability()
 
 
 func _on_remove_requested(source_node: GraphNode) -> void:
@@ -439,7 +467,14 @@ func _selected_source_value(method: StringName) -> StringName:
 
 func _on_graph_node_selected(node: Node) -> void:
 	if node is GraphNode and node.has_method("build_graph_node"):
-		_active_operation = node as GraphNode
+		_activate_operation(node as GraphNode)
+		return
+	if node is GDSQLQueryTableResultNode:
+		_active_result = node as GDSQLQueryTableResultNode
+		var source_name := _source_for_result(_active_result)
+		var source := _graph.get_node_or_null(NodePath(source_name)) as GraphNode
+		if source != null:
+			_active_operation = source
 		_refresh_action_availability()
 
 
@@ -457,46 +492,48 @@ func _refresh_action_availability() -> void:
 		GDSQLEditorActionIds.REMOVE_QUERY_GRAPH_NODE,
 		is_instance_valid(_active_operation),
 	)
+	_action_context.set_action_enabled(
+		GDSQLEditorActionIds.ADD_QUERY_RESULT_ROW,
+		is_instance_valid(_active_result)
+		and _active_result.can_add_rows()
+		and not _active_result.has_dirty_rows(),
+	)
 
 
 func _add_result_row() -> GDSQLOperationResult:
-	if _table_result == null:
+	if not is_instance_valid(_active_result):
 		return _unavailable_action("Adding query-result rows")
-	return _table_result.add_empty_row()
+	return _active_result.add_empty_row()
 
 
 func _on_result_capabilities_changed(
 		can_add_rows: bool,
 		has_dirty_rows: bool,
+		result_node: GDSQLQueryTableResultNode,
 ) -> void:
-	if _action_context != null:
+	if _action_context != null and result_node == _active_result:
 		_action_context.set_action_enabled(
 			GDSQLEditorActionIds.ADD_QUERY_RESULT_ROW,
 			can_add_rows and not has_dirty_rows,
 		)
 
 
-func _on_result_remove_requested() -> void:
-	_remove_table_result()
+func _on_result_remove_requested(source_node_name: StringName) -> void:
+	_remove_table_result(source_node_name)
 	_refresh_action_availability()
 
 
-func _place_and_connect_result() -> void:
-	if _active_operation == null or _table_result == null:
+func _place_and_connect_result(
+		source: GraphNode,
+		result_node: GDSQLQueryTableResultNode,
+) -> void:
+	if source == null or result_node == null:
 		return
-	_table_result.position_offset = (
-			_active_operation.position_offset + Vector2(420, 0)
+	result_node.position_offset = (
+		source.position_offset + Vector2(420, 0)
 	)
-	for connection in _graph.get_connection_list():
-		if StringName(connection["to_node"]) == _table_result.name:
-			_graph.disconnect_node(
-				StringName(connection["from_node"]),
-				int(connection["from_port"]),
-				StringName(connection["to_node"]),
-				int(connection["to_port"]),
-			)
-	_graph.connect_node(_active_operation.name, 0, _table_result.name, 0)
-	_result_source = _active_operation
+	if not _graph.is_node_connected(source.name, 0, result_node.name, 0):
+		_graph.connect_node(source.name, 0, result_node.name, 0)
 
 
 func _connect_operation_node(node: GraphNode) -> void:
@@ -530,32 +567,117 @@ func _remove_active_operation_node() -> GDSQLOperationResult:
 			),
 		)
 		return result
-	if _result_source == node:
-		_remove_table_result()
+	_remove_table_result(node.name)
 	_disconnect_node(node)
 	_graph.remove_child(node)
 	node.queue_free()
 	_active_operation = _first_operation_node()
 	if _active_operation != null:
+		_active_result = _result_for_operation(_active_operation)
 		_graph.set_selected(_active_operation)
+	else:
+		_active_result = null
 	result.value = node
 	_refresh_action_availability()
 	return result
 
 
-func _remove_table_result() -> void:
-	if not is_instance_valid(_table_result):
+func _remove_table_result(source_node_name: StringName) -> void:
+	var result_node := _table_results.get(source_node_name) \
+			as GDSQLQueryTableResultNode
+	if not is_instance_valid(result_node):
+		_table_results.erase(source_node_name)
 		return
-	_disconnect_node(_table_result)
-	_graph.remove_child(_table_result)
-	_table_result.queue_free()
-	_table_result = null
-	_result_source = null
-	if _action_context != null:
-		_action_context.set_action_enabled(
-			GDSQLEditorActionIds.ADD_QUERY_RESULT_ROW,
-			false,
-		)
+	_disconnect_node(result_node)
+	_graph.remove_child(result_node)
+	result_node.queue_free()
+	_table_results.erase(source_node_name)
+	if result_node == _active_result:
+		_active_result = null
+
+
+func _on_result_row_insert_requested(
+		registration_name: StringName,
+		table_name: StringName,
+		values: Dictionary,
+		source_node_name: StringName,
+) -> void:
+	row_insert_requested.emit(
+		source_node_name,
+		registration_name,
+		table_name,
+		values,
+	)
+
+
+func _on_result_row_update_requested(
+		registration_name: StringName,
+		table_name: StringName,
+		original_primary_key: Variant,
+		values: Dictionary,
+		source_node_name: StringName,
+) -> void:
+	row_update_requested.emit(
+		source_node_name,
+		registration_name,
+		table_name,
+		original_primary_key,
+		values,
+	)
+
+
+func _on_result_row_delete_requested(
+		registration_name: StringName,
+		table_name: StringName,
+		primary_key: Variant,
+		source_node_name: StringName,
+) -> void:
+	row_delete_requested.emit(
+		source_node_name,
+		registration_name,
+		table_name,
+		primary_key,
+	)
+
+
+func _activate_operation(operation: GraphNode) -> void:
+	_active_operation = operation
+	_active_result = _result_for_operation(operation)
+	_refresh_action_availability()
+
+
+func _operation_for_query(source_node_name: StringName) -> GraphNode:
+	if source_node_name == &"":
+		return _active_operation
+	var node := _graph.get_node_or_null(NodePath(source_node_name)) as GraphNode
+	if node == null or not node.has_method("build_graph_node"):
+		return null
+	return node
+
+
+func _result_for_operation(
+		operation: GraphNode,
+) -> GDSQLQueryTableResultNode:
+	if not is_instance_valid(operation):
+		return null
+	return _table_results.get(operation.name) as GDSQLQueryTableResultNode
+
+
+func _source_for_result(result_node: GDSQLQueryTableResultNode) -> StringName:
+	for source_node_name in _table_results:
+		if _table_results[source_node_name] == result_node:
+			return source_node_name
+	return &""
+
+
+func _next_result_node_name(source_node_name: StringName) -> StringName:
+	var prefix := "%sResult" % source_node_name
+	var candidate := StringName(prefix)
+	var suffix := 2
+	while _graph.has_node(NodePath(candidate)):
+		candidate = StringName("%s%d" % [prefix, suffix])
+		suffix += 1
+	return candidate
 
 
 func _fit_node_to_graph_view(node: GDSQLQueryGraphNode) -> void:

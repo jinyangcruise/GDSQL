@@ -226,7 +226,8 @@ model resolution to the base presentation class.
 
 `QueryTableResultNode` uses Godot's native multi-column `Tree` for aligned
 titles, scrollable columns, row selection, and bounded page rendering. Resource
-cells show an editor type icon and Texture cells show a bounded thumbnail. Its
+cells request the same editor preview service used by Inspector-facing controls
+and retain their editor type icon when no preview can be generated. Its
 header Safe Mode keeps typed editing in one focused `EditorVariantValueField`
 row below the table. `GDSQLQueryTableResultTable` owns display rendering,
 thumbnail caching, inline validation, and pending cell state. With Safe Mode
@@ -234,9 +235,14 @@ disabled, mutable catalog cells use Tree's inline editor, are validated back
 into their declared Variant type, and remain highlighted until their row
 updates are saved as one UI batch or discarded.
 Resource cells instead use Tree's custom button mode: activation opens the
-assigned Resource in Godot's Inspector, and Resource changes mark that cell
-dirty. Safe Mode remains the assignment surface for empty or replacement
-Resource references.
+assigned Resource in Godot's Inspector. Content fingerprints filter incidental
+`Resource.changed` emissions, while Inspector property edits provide the dirty
+signal for custom Resource scripts that do not call `emit_changed()`. Scripted
+Resources display their global class name, with their script filename as the
+anonymous-class fallback. Safe Mode remains the assignment surface for empty
+or replacement Resource references and uses the same Inspector edit tracking.
+In direct mode, clearing a nullable String cell produces `null`; clearing a
+non-nullable String cell produces a validation error instead of an empty value.
 Page navigation and edit-mode switching are blocked while either surface is
 dirty, preventing silent loss of an unsaved draft. The reusable row owns typed
 values and validation only; Save, Delete, and Discard controls belong to the
@@ -245,14 +251,22 @@ owner. Running the query again is rejected while the result is dirty, and
 closing the query document requires explicit discard confirmation from the
 workspace tab lifecycle.
 
+Each executable operation owns at most one result node, keyed by the operation
+node name. Executing another SELECT creates or refreshes that SELECT's result
+without replacing existing results. Dirty state, row actions, removal, and
+post-mutation refreshes remain scoped to the originating operation/result pair;
+document close checks every open result.
+
 The direct-mode batch reuses the existing per-row mutation boundary; it is not
 an atomic database transaction. Each successful row refreshes the result, and
 updates that do not receive that success refresh remain pending and highlighted.
 
-Nullable Variant fields keep their value input interactive while the explicit
-Null checkbox is selected. Typing a value or choosing a Resource clears Null;
-checking Null again preserves an explicit null mutation. Focused editable text
-fields enter `LineEdit` edit mode immediately, including inside a GraphNode.
+Nullable Variant fields always expose an explicit Null checkbox, including
+editable compound values such as `Vector2`. Their value input remains
+interactive while Null is selected. Typing a value or choosing a Resource
+clears Null; checking Null again preserves an explicit null mutation. Focused
+editable text fields enter `LineEdit` edit mode immediately, including inside a
+GraphNode.
 
 Standalone INSERT, UPDATE, and DELETE nodes reuse an inspection-backed source
 selector and typed mutation-value editor. Their controls translate only to

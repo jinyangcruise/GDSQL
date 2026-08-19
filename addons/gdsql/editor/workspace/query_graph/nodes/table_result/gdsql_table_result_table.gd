@@ -10,6 +10,10 @@ signal inline_changes_changed(status: String)
 
 @export_range(16, 64, 1) var resource_preview_size := 28
 
+const MINIMUM_COLUMN_WIDTH := 72
+const MAXIMUM_COLUMN_WIDTH := 360
+const COLUMN_HORIZONTAL_PADDING := 24
+
 var _table: GDSQLTableDefinition
 var _view_table: GDSQLTableDefinition
 var _records: Array[GDSQLRowRecord] = []
@@ -18,17 +22,20 @@ var _safe_mode := true
 var _rendering := false
 var _updates: Dictionary[int, Dictionary] = { }
 var _errors: Dictionary[Vector2i, String] = { }
-var _texture_previews: Dictionary[int, Texture2D] = { }
 var _resource_type_icons: Dictionary[StringName, Texture2D] = { }
 var _resource_observers: Dictionary[Vector2i, Dictionary] = { }
+var _preview_generation := 0
+var _editor_inspector: EditorInspector
 
 
 func _ready() -> void:
 	item_edited.connect(_on_item_edited)
+	_connect_editor_inspector()
 
 
 func _exit_tree() -> void:
 	_clear_resource_observers()
+	_disconnect_editor_inspector()
 
 
 func configure(
@@ -43,7 +50,6 @@ func configure(
 	_records = records
 	_can_edit_rows = can_edit_rows
 	clear_pending_changes()
-	_texture_previews.clear()
 	_resource_type_icons.clear()
 
 
@@ -95,6 +101,7 @@ func restore_pending_updates(pending: Array[Dictionary]) -> void:
 
 func render_page(first_index: int, end_index: int, selected_index: int) -> void:
 	_rendering = true
+	_preview_generation += 1
 	_clear_resource_observers()
 	clear()
 	if _view_table == null:
@@ -103,15 +110,15 @@ func render_page(first_index: int, end_index: int, selected_index: int) -> void:
 	columns = maxi(1, _view_table.columns.size())
 	for column_index in range(_view_table.columns.size()):
 		var column := _view_table.columns[column_index]
-		set_column_title(column_index, "%s (%s)" % [column.name, column.display_type_name()])
+		set_column_title(column_index, "%s" % [column.name])
 		set_column_title_tooltip_text(
 			column_index,
 			"%s · %s" % [column.name, column.display_type_name()],
 		)
-		set_column_custom_minimum_width(column_index, 60)
+		var preferred_width := _preferred_column_width(column, first_index, end_index)
+		set_column_custom_minimum_width(column_index, preferred_width)
 		set_column_expand(column_index, true)
-		set_column_expand_ratio(column_index, 1)
-		set_column_clip_content(column_index, true)
+		set_column_expand_ratio(column_index, preferred_width)
 	var root := create_item()
 	for record_index in range(first_index, end_index):
 		var record := _records[record_index]
@@ -123,8 +130,10 @@ func render_page(first_index: int, end_index: int, selected_index: int) -> void:
 			_configure_cell(item, column_index, value, column.data_type == TYPE_OBJECT)
 			item.set_editable(column_index, not _safe_mode and _cell_is_editable(column))
 			var cell_key := Vector2i(record_index, column_index)
-			if not _safe_mode and value is Resource:
-				_observe_resource(cell_key, column.name, value)
+			if value is Resource:
+				_queue_resource_preview(value, record_index, column_index)
+				if not _safe_mode:
+					_observe_resource(cell_key, column.name, value)
 			if _errors.has(cell_key):
 				item.set_custom_bg_color(column_index, invalid_cell_color)
 				item.set_tooltip_text(column_index, _errors[cell_key])
@@ -190,7 +199,7 @@ func _open_resource_editor(
 		inline_changes_changed.emit("No Resource is assigned. Enable Safe Mode to select one.")
 		return
 	EditorInterface.edit_resource(resource)
-	inline_changes_changed.emit("Editing %s in the Inspector." % resource.get_class())
+	inline_changes_changed.emit("Editing %s in the Inspector." % _resource_class_name(resource))
 
 
 func _observe_resource(cell_key: Vector2i, column_name: StringName, resource: Resource) -> void:
@@ -202,7 +211,11 @@ func _observe_resource(cell_key: Vector2i, column_name: StringName, resource: Re
 	)
 	if not resource.changed.is_connected(callback):
 		resource.changed.connect(callback)
-	_resource_observers[cell_key] = { "resource": resource, "callback": callback }
+	_resource_observers[cell_key] = {
+		"resource": resource,
+		"callback": callback,
+		"fingerprint": _resource_fingerprint(resource),
+	}
 
 
 func _clear_resource_observers() -> void:
@@ -222,12 +235,60 @@ func _on_observed_resource_changed(
 ) -> void:
 	if record_index < 0 or record_index >= _records.size():
 		return
-	_set_update(record_index, column_name, resource)
-	_errors.erase(Vector2i(record_index, column_index))
+	var cell_key := Vector2i(record_index, column_index)
+	var observer: Dictionary = _resource_observers.get(cell_key, { })
+	if observer.is_empty() or observer.get("resource") != resource:
+		return
+	var resource_changed: bool = (
+		_resource_fingerprint(resource) != int(observer.get("fingerprint", 0))
+	)
+	if resource_changed:
+		_set_update(record_index, column_name, resource)
+	else:
+		_remove_update(record_index, column_name)
+	_errors.erase(cell_key)
 	var item := _visible_item(record_index)
 	if item != null:
-		item.set_custom_bg_color(column_index, dirty_cell_color)
+		if resource_changed:
+			item.set_custom_bg_color(column_index, dirty_cell_color)
+		else:
+			item.clear_custom_bg_color(column_index)
 	inline_changes_changed.emit(_dirty_status())
+
+
+func _resource_fingerprint(resource: Resource) -> int:
+	return hash(var_to_bytes_with_objects(resource))
+
+
+func _connect_editor_inspector() -> void:
+	if not Engine.is_editor_hint():
+		return
+	_editor_inspector = EditorInterface.get_inspector()
+	if _editor_inspector != null \
+			and not _editor_inspector.property_edited.is_connected(
+				_on_inspector_property_edited,
+			):
+		_editor_inspector.property_edited.connect(_on_inspector_property_edited)
+
+
+func _disconnect_editor_inspector() -> void:
+	if _editor_inspector != null \
+			and _editor_inspector.property_edited.is_connected(
+				_on_inspector_property_edited,
+			):
+		_editor_inspector.property_edited.disconnect(_on_inspector_property_edited)
+	_editor_inspector = null
+
+
+func _on_inspector_property_edited(_property: String) -> void:
+	if _editor_inspector == null:
+		return
+	var edited_resource := _editor_inspector.get_edited_object() as Resource
+	if edited_resource == null:
+		return
+	for observer: Dictionary in _resource_observers.values():
+		if observer.get("resource") == edited_resource:
+			(observer.get("callback") as Callable).call()
 
 
 func _visible_item(record_index: int) -> TreeItem:
@@ -286,6 +347,32 @@ func _dirty_status() -> String:
 	return "%d changed field(s) across %d row(s)." % [field_count, _updates.size()]
 
 
+func _preferred_column_width(
+	column: GDSQLColumnDefinition,
+	first_index: int,
+	end_index: int,
+) -> int:
+	var font := get_theme_font(&"font")
+	var font_size := get_theme_font_size(&"font_size")
+	var width := font.get_string_size(String(column.name), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	for record_index in range(first_index, end_index):
+		var value: Variant = _display_value(record_index, column.name, _records[record_index])
+		var value_width := font.get_string_size(
+			_value_text(value),
+			HORIZONTAL_ALIGNMENT_LEFT,
+			-1,
+			font_size,
+		).x
+		if value is Resource:
+			value_width += resource_preview_size + 6
+		width = maxf(width, value_width)
+	return clampi(
+		ceili(width) + COLUMN_HORIZONTAL_PADDING,
+		MINIMUM_COLUMN_WIDTH,
+		MAXIMUM_COLUMN_WIDTH,
+	)
+
+
 func _parse_value(text: String, column: GDSQLColumnDefinition) -> Dictionary:
 	var normalized := text.strip_edges()
 	if normalized == "null" \
@@ -295,7 +382,17 @@ func _parse_value(text: String, column: GDSQLColumnDefinition) -> Dictionary:
 	var value: Variant
 	match column.data_type:
 		TYPE_STRING:
-			value = text
+			if text.is_empty():
+				if column.nullable:
+					value = null
+				else:
+					return {
+						"valid": false,
+						"value": null,
+						"message": "%s cannot be empty because it is not nullable." % column.name,
+					}
+			else:
+				value = text
 		TYPE_STRING_NAME:
 			value = StringName(text)
 		TYPE_NODE_PATH:
@@ -344,7 +441,7 @@ func _configure_cell(
 	item.set_custom_as_button(column_index, resource_cell)
 	item.set_text(column_index, text)
 	item.set_tooltip_text(column_index, _resource_tooltip(value, text))
-	item.set_icon(column_index, _resource_icon(value))
+	item.set_icon(column_index, _resource_type_icon(value))
 	item.set_icon_max_width(column_index, resource_preview_size)
 
 
@@ -352,7 +449,15 @@ func _value_text(value: Variant) -> String:
 	if value == null:
 		return "null"
 	if value is Resource:
-		return value.resource_path.get_file() if not value.resource_path.is_empty() else value.get_class()
+		var resource := value as Resource
+		var script_class := _resource_script_class_name(resource)
+		if not script_class.is_empty():
+			return script_class
+		return (
+			resource.resource_path.get_file()
+			if not resource.resource_path.is_empty()
+			else resource.get_class()
+		)
 	if value is String or value is StringName or value is NodePath:
 		return String(value)
 	return var_to_str(value)
@@ -361,18 +466,36 @@ func _value_text(value: Variant) -> String:
 func _resource_tooltip(value: Variant, fallback: String) -> String:
 	if not value is Resource:
 		return fallback
-	var detail: String = value.resource_path if not value.resource_path.is_empty() else fallback
-	return "%s · %s · Click to edit in the Inspector" % [value.get_class(), detail]
+	var resource := value as Resource
+	var detail: String = (
+		resource.resource_path if not resource.resource_path.is_empty() else fallback
+	)
+	return "%s · %s · Click to edit in the Inspector" % [
+		_resource_class_name(resource),
+		detail,
+	]
 
 
-func _resource_icon(value: Variant) -> Texture2D:
-	if value is Texture2D:
-		var preview := _texture_preview(value)
-		if preview != null:
-			return preview
-	if not value is Resource:
+func _resource_class_name(resource: Resource) -> String:
+	var script_class := _resource_script_class_name(resource)
+	return script_class if not script_class.is_empty() else resource.get_class()
+
+
+func _resource_script_class_name(resource: Resource) -> String:
+	var script := resource.get_script() as Script
+	if script == null:
+		return ""
+	var global_name := script.get_global_name()
+	if global_name != &"":
+		return String(global_name)
+	return script.resource_path.get_file().get_basename()
+
+
+func _resource_type_icon(value: Variant) -> Texture2D:
+	if not value is Resource or not Engine.is_editor_hint():
 		return null
-	var resource_class := StringName(value.get_class())
+	var resource := value as Resource
+	var resource_class := StringName(_resource_class_name(resource))
 	if _resource_type_icons.has(resource_class):
 		return _resource_type_icons[resource_class]
 	var base_control := EditorInterface.get_base_control()
@@ -388,20 +511,53 @@ func _resource_icon(value: Variant) -> Texture2D:
 	return icon
 
 
-func _texture_preview(texture: Texture2D) -> Texture2D:
-	var key := texture.get_instance_id()
-	if _texture_previews.has(key):
-		return _texture_previews[key]
-	var image := texture.get_image()
-	if image == null or image.is_empty():
-		return null
-	var longest_side := maxi(image.get_width(), image.get_height())
-	if longest_side > resource_preview_size:
-		var scale := float(resource_preview_size) / float(longest_side)
-		image.resize(
-			maxi(1, roundi(image.get_width() * scale)),
-			maxi(1, roundi(image.get_height() * scale)),
-		)
-	var preview := ImageTexture.create_from_image(image)
-	_texture_previews[key] = preview
-	return preview
+func _queue_resource_preview(resource: Resource, record_index: int, column_index: int) -> void:
+	if not Engine.is_editor_hint():
+		return
+	var previewer := EditorInterface.get_resource_previewer()
+	if previewer == null:
+		return
+	previewer.queue_edited_resource_preview(
+		resource,
+		self,
+		&"_on_resource_preview_ready",
+		{
+			"generation": _preview_generation,
+			"record_index": record_index,
+			"column_index": column_index,
+			"resource_id": resource.get_instance_id(),
+		},
+	)
+
+
+func _on_resource_preview_ready(
+	_path: String,
+	preview: Texture2D,
+	thumbnail_preview: Texture2D,
+	userdata: Variant,
+) -> void:
+	if not userdata is Dictionary:
+		return
+	var preview_data := userdata as Dictionary
+	if int(preview_data.generation) != _preview_generation:
+		return
+	var record_index := int(preview_data.record_index)
+	var column_index := int(preview_data.column_index)
+	if (
+		record_index < 0 or record_index >= _records.size() \
+				or _view_table == null \
+				or column_index < 0
+		or column_index >= _view_table.columns.size()
+	):
+		return
+	var column := _view_table.columns[column_index]
+	var resource := _display_value(record_index, column.name, _records[record_index]) as Resource
+	if resource == null or resource.get_instance_id() != int(preview_data.resource_id):
+		return
+	var resolved_preview := thumbnail_preview if thumbnail_preview != null else preview
+	if resolved_preview == null:
+		return
+	var item := _visible_item(record_index)
+	if item != null:
+		item.set_icon(column_index, resolved_preview)
+		item.set_icon_max_width(column_index, resource_preview_size)

@@ -34,17 +34,20 @@ signal table_row_delete_requested(
 )
 signal query_graph_submitted(
 		document_key: StringName,
+		source_node_name: StringName,
 		registration_name: StringName,
 		query: GDSQLQuerySpec,
 )
 signal query_result_row_insert_requested(
 		document_key: StringName,
+		source_node_name: StringName,
 		registration_name: StringName,
 		table_name: StringName,
 		values: Dictionary,
 )
 signal query_result_row_update_requested(
 		document_key: StringName,
+		source_node_name: StringName,
 		registration_name: StringName,
 		table_name: StringName,
 		original_primary_key: Variant,
@@ -52,6 +55,7 @@ signal query_result_row_update_requested(
 )
 signal query_result_row_delete_requested(
 		document_key: StringName,
+		source_node_name: StringName,
 		registration_name: StringName,
 		table_name: StringName,
 		primary_key: Variant,
@@ -258,6 +262,7 @@ func present_table_rows(
 
 func present_query_graph_result(
 		document_key: StringName,
+		source_node_name: StringName,
 		registration_name: StringName,
 		table: GDSQLTableDefinition,
 		result: GDSQLQueryResult,
@@ -265,11 +270,20 @@ func present_query_graph_result(
 	var document := _documents.get(document_key) as Control
 	if document == null:
 		return
-	document.call("present_query_result", registration_name, table, result)
+	document.call(
+		"present_query_result",
+		source_node_name,
+		registration_name,
+		table,
+		result,
+	)
 	_activate_document(document_key)
 
 
-func request_query_graph(document_key: StringName) -> GDSQLOperationResult:
+func request_query_graph(
+		document_key: StringName,
+		source_node_name: StringName = &"",
+) -> GDSQLOperationResult:
 	var document := _documents.get(document_key) as Control
 	if document == null or not document.has_method("request_query"):
 		var result := GDSQLOperationResult.new()
@@ -280,7 +294,7 @@ func request_query_graph(document_key: StringName) -> GDSQLOperationResult:
 			),
 		)
 		return result
-	return document.call("request_query") as GDSQLOperationResult
+	return document.call("request_query", source_node_name) as GDSQLOperationResult
 
 
 func get_active_registration() -> StringName:
@@ -542,14 +556,21 @@ func _on_table_row_delete_requested(
 
 
 func _on_query_graph_submitted(
+		source_node_name: StringName,
 		registration_name: StringName,
 		query: GDSQLQuerySpec,
 		document_key: StringName,
 ) -> void:
-	query_graph_submitted.emit(document_key, registration_name, query)
+	query_graph_submitted.emit(
+		document_key,
+		source_node_name,
+		registration_name,
+		query,
+	)
 
 
 func _on_query_result_row_insert_requested(
+		source_node_name: StringName,
 		registration_name: StringName,
 		table_name: StringName,
 		values: Dictionary,
@@ -557,6 +578,7 @@ func _on_query_result_row_insert_requested(
 ) -> void:
 	query_result_row_insert_requested.emit(
 		document_key,
+		source_node_name,
 		registration_name,
 		table_name,
 		values,
@@ -564,6 +586,7 @@ func _on_query_result_row_insert_requested(
 
 
 func _on_query_result_row_update_requested(
+		source_node_name: StringName,
 		registration_name: StringName,
 		table_name: StringName,
 		original_primary_key: Variant,
@@ -572,6 +595,7 @@ func _on_query_result_row_update_requested(
 ) -> void:
 	query_result_row_update_requested.emit(
 		document_key,
+		source_node_name,
 		registration_name,
 		table_name,
 		original_primary_key,
@@ -580,6 +604,7 @@ func _on_query_result_row_update_requested(
 
 
 func _on_query_result_row_delete_requested(
+		source_node_name: StringName,
 		registration_name: StringName,
 		table_name: StringName,
 		primary_key: Variant,
@@ -587,6 +612,7 @@ func _on_query_result_row_delete_requested(
 ) -> void:
 	query_result_row_delete_requested.emit(
 		document_key,
+		source_node_name,
 		registration_name,
 		table_name,
 		primary_key,
