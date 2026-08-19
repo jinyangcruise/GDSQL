@@ -225,17 +225,29 @@ raw-table or registered-model selectors may use the actions host without adding
 model resolution to the base presentation class.
 
 `QueryTableResultNode` uses Godot's native multi-column `Tree` for aligned
-titles, scrollable columns, row selection, and bounded page rendering. The
-result keeps typed editing in one focused `EditorVariantValueField` row below
-the table instead of reducing arbitrary Variant and Resource values to Tree's
-string editor. Page navigation and row selection are blocked while that editor
-is dirty, preventing silent loss of an unsaved draft. The reusable row owns
-typed values and validation only; Save, Delete, and Discard controls belong to
-the result node so result-level save, discard, delete, dirty tracking, and
-future batch mutation policy have one presentation owner. Running the query
-again is rejected while the focused row is dirty, preventing a refresh from
-silently replacing that draft. Closing the query document with a dirty row
-requires explicit discard confirmation from the workspace tab lifecycle.
+titles, scrollable columns, row selection, and bounded page rendering. Resource
+cells show an editor type icon and Texture cells show a bounded thumbnail. Its
+header Safe Mode keeps typed editing in one focused `EditorVariantValueField`
+row below the table. `GDSQLQueryTableResultTable` owns display rendering,
+thumbnail caching, inline validation, and pending cell state. With Safe Mode
+disabled, mutable catalog cells use Tree's inline editor, are validated back
+into their declared Variant type, and remain highlighted until their row
+updates are saved as one UI batch or discarded.
+Resource cells instead use Tree's custom button mode: activation opens the
+assigned Resource in Godot's Inspector, and Resource changes mark that cell
+dirty. Safe Mode remains the assignment surface for empty or replacement
+Resource references.
+Page navigation and edit-mode switching are blocked while either surface is
+dirty, preventing silent loss of an unsaved draft. The reusable row owns typed
+values and validation only; Save, Delete, and Discard controls belong to the
+result node so result-level mutation and dirty tracking have one presentation
+owner. Running the query again is rejected while the result is dirty, and
+closing the query document requires explicit discard confirmation from the
+workspace tab lifecycle.
+
+The direct-mode batch reuses the existing per-row mutation boundary; it is not
+an atomic database transaction. Each successful row refreshes the result, and
+updates that do not receive that success refresh remain pending and highlighted.
 
 Nullable Variant fields keep their value input interactive while the explicit
 Null checkbox is selected. Typing a value or choosing a Resource clears Null;

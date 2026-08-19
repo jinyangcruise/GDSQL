@@ -6,6 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://cs3iterfftneq" path="res://addons/gdsql/editor/workspace/icons/floppy_disk.svg" id="4_save"]
 [ext_resource type="Texture2D" uid="uid://da35pq8onqig4" path="res://addons/gdsql/editor/workspace/icons/trash_can.svg" id="5_delete"]
 [ext_resource type="Texture2D" uid="uid://b2uu8eana73y3" path="res://addons/gdsql/editor/workspace/icons/eraser.svg" id="6_discard"]
+[ext_resource type="Script" uid="uid://b8x6gd2crbec0" path="res://addons/gdsql/editor/workspace/query_graph/nodes/table_result/gdsql_table_result_table.gd" id="7_table"]
 
 [node name="TableResult" type="GraphNode" unique_id=285217622]
 custom_minimum_size = Vector2(720, 420)
@@ -15,7 +16,6 @@ anchor_right = 1.0
 offset_bottom = 417.0
 grow_horizontal = 2
 size_flags_horizontal = 3
-size_flags_vertical = 3
 resizable = true
 scaling_menus = true
 title = "QUERY RESULT"
@@ -111,12 +111,13 @@ custom_minimum_size = Vector2(680, 220)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-tooltip_text = "Columns follow the table's configured display order."
+tooltip_text = "Columns follow the configured display order. Safe Mode uses the row editor; direct mode edits cells in place."
 column_titles_visible = true
 allow_reselect = true
 hide_folding = true
 hide_root = true
 select_mode = 1
+script = ExtResource("7_table")
 
 [node name="Pagination" type="HBoxContainer" parent="." unique_id=1005163500]
 unique_name_in_owner = true
@@ -184,6 +185,7 @@ layout_mode = 2
 
 [node name="EditorLabel" type="Label" parent="EditorSection" unique_id=614390720]
 layout_mode = 2
+tooltip_text = "Safe Mode keeps typed edits in one focused row."
 text = "Selected row"
 
 [node name="EditorScroll" type="ScrollContainer" parent="EditorSection" unique_id=994687675]
@@ -222,7 +224,7 @@ script = ExtResource("2_action")
 [node name="SaveChanges" type="Button" parent="ResultActions" unique_id=1150274962]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Save the selected row's changes"
+tooltip_text = "Save all pending row or cell changes"
 disabled = true
 text = "Save Changes"
 icon = ExtResource("4_save")
@@ -230,7 +232,7 @@ icon = ExtResource("4_save")
 [node name="DiscardChanges" type="Button" parent="ResultActions" unique_id=1333097747]
 unique_name_in_owner = true
 layout_mode = 2
-tooltip_text = "Discard unsaved changes"
+tooltip_text = "Discard all pending row or cell changes"
 disabled = true
 text = "Discard Changes"
 icon = ExtResource("6_discard")
