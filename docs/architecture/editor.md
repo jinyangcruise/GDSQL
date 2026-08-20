@@ -241,8 +241,15 @@ signal for custom Resource scripts that do not call `emit_changed()`. Scripted
 Resources display their global class name, with their script filename as the
 anonymous-class fallback. Safe Mode remains the assignment surface for empty
 or replacement Resource references and uses the same Inspector edit tracking.
-In direct mode, clearing a nullable String cell produces `null`; clearing a
-non-nullable String cell produces a validation error instead of an empty value.
+String values retain a compact single-line field with an expand action. The
+scene-backed `EditorStringValueField` opens the reusable
+`EditorTextValueDialog`, which provides a wrapping multiline `TextEdit` and a
+debounced side-by-side `RichTextLabel` BBCode preview without changing the
+stored type: the exact source remains an ordinary String supported by the
+ConfigFile backend. Its separate toolbar inserts the supported basic BBCode
+tags around the current selection or at the caret. Dialog Apply updates the
+owning draft or direct-mode pending cell; Cancel has no dirty state effect.
+Direct-mode String cells expose the same dialog action.
 Page navigation and edit-mode switching are blocked while either surface is
 dirty, preventing silent loss of an unsaved draft. The reusable row owns typed
 values and validation only; Save, Delete, and Discard controls belong to the
@@ -262,11 +269,12 @@ an atomic database transaction. Each successful row refreshes the result, and
 updates that do not receive that success refresh remain pending and highlighted.
 
 Nullable Variant fields always expose an explicit Null checkbox, including
-editable compound values such as `Vector2`. Their value input remains
-interactive while Null is selected. Typing a value or choosing a Resource
-clears Null; checking Null again preserves an explicit null mutation. Focused
-editable text fields enter `LineEdit` edit mode immediately, including inside a
-GraphNode.
+editable compound values such as `Vector2`. The checkbox is the source of truth
+for nullability: an unchecked empty String is persisted as `""`, while only a
+checked Null control produces `null`. Value input remains interactive while
+Null is selected. Typing a value or choosing a Resource clears Null; checking
+Null again preserves an explicit null mutation. Focused editable text fields
+enter `LineEdit` edit mode immediately, including inside a GraphNode.
 
 Standalone INSERT, UPDATE, and DELETE nodes reuse an inspection-backed source
 selector and typed mutation-value editor. Their controls translate only to

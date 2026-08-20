@@ -8,12 +8,16 @@ signal changed
 const VARIANT_TYPES := preload(
 	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_types.gd"
 )
+const STRING_FIELD_SCENE := preload(
+	"res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_string_value_field.tscn"
+)
 
 var data_type: Variant.Type = TYPE_NIL
 var nullable := true
 var resource_type: GDSQLResourceTypeConstraint
 var _editable := true
 var _line_edit: LineEdit
+var _string_field: GDSQLEditorStringValueField
 var _resource_picker: EditorResourcePicker
 var _use_null: CheckBox
 var _observed_resource: Resource
@@ -54,6 +58,9 @@ func is_modified() -> bool:
 
 
 func focus_value_editor() -> void:
+	if _string_field != null:
+		_string_field.focus_editor()
+		return
 	if _line_edit != null and _line_edit.editable:
 		_line_edit.grab_focus()
 		_line_edit.edit()
@@ -63,6 +70,8 @@ func set_value_editable(enabled: bool) -> void:
 	_editable = enabled
 	if _line_edit != null:
 		_line_edit.editable = enabled
+	if _string_field != null:
+		_string_field.set_value_editable(enabled)
 	if _resource_picker != null:
 		_resource_picker.editable = (enabled and resource_type != null and resource_type.is_valid())
 	if _use_null != null:
@@ -79,6 +88,8 @@ func get_value_result() -> Dictionary:
 		return { "valid": false, "value": null }
 	if _is_null():
 		return { "valid": nullable, "value": null }
+	if data_type == TYPE_STRING and _string_field != null:
+		return { "valid": true, "value": _string_field.get_text() }
 	if _line_edit == null:
 		return { "valid": false, "value": null }
 	return _parse_text(_line_edit.text)
@@ -90,11 +101,15 @@ func _rebuild(value: Variant) -> void:
 		remove_child(child)
 		child.queue_free()
 	_line_edit = null
+	_string_field = null
 	_resource_picker = null
 	_use_null = null
 	if data_type == TYPE_OBJECT:
 		custom_minimum_size = Vector2(220, 46)
 		_build_resource_picker(value)
+	elif data_type == TYPE_STRING:
+		custom_minimum_size = Vector2(220, 34)
+		_build_string_field(value)
 	else:
 		custom_minimum_size = Vector2(180, 34)
 		_build_line_edit(value)
@@ -104,6 +119,8 @@ func _rebuild(value: Variant) -> void:
 		_use_null.button_pressed = value == null
 		_use_null.toggled.connect(_on_null_toggled)
 		add_child(_use_null)
+	if _string_field != null:
+		_string_field.set_null_state(value == null)
 	set_value_editable(_editable)
 
 
@@ -139,7 +156,19 @@ func _build_line_edit(value: Variant) -> void:
 	add_child(_line_edit)
 
 
-func _on_null_toggled(_enabled: bool) -> void:
+func _build_string_field(value: Variant) -> void:
+	_string_field = STRING_FIELD_SCENE.instantiate() \
+			as GDSQLEditorStringValueField
+	_string_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	add_child(_string_field)
+	_string_field.configure(value, nullable, _editable)
+	_string_field.text_changed.connect(_on_string_text_changed)
+	_string_field.value_applied.connect(_on_string_value_applied)
+
+
+func _on_null_toggled(enabled: bool) -> void:
+	if _string_field != null:
+		_string_field.set_null_state(enabled)
 	_mark_modified()
 
 
@@ -158,6 +187,23 @@ func _on_resource_selected(resource: Resource, _inspect: bool) -> void:
 func _on_text_changed(_text: String) -> void:
 	if _use_null != null and _use_null.button_pressed:
 		_use_null.set_pressed_no_signal(false)
+	_mark_modified()
+
+
+func _on_string_text_changed(_text: String) -> void:
+	if _use_null != null and _use_null.button_pressed:
+		_use_null.set_pressed_no_signal(false)
+	_string_field.set_null_state(false)
+	_mark_modified()
+
+
+func _on_string_value_applied(value: Variant) -> void:
+	var is_null := nullable and value == null
+	if _use_null != null:
+		_use_null.set_pressed_no_signal(is_null)
+	_string_field.set_null_state(is_null)
+	if value != null:
+		_string_field.set_text(String(value))
 	_mark_modified()
 
 
@@ -236,8 +282,6 @@ func _is_null() -> bool:
 func _parse_text(text: String) -> Dictionary:
 	match data_type:
 		TYPE_STRING:
-			if text.is_empty():
-				return { "valid": nullable, "value": null }
 			return { "valid": true, "value": text }
 		TYPE_STRING_NAME:
 			return { "valid": true, "value": StringName(text) }

@@ -50,7 +50,7 @@ theme_override_constants/separation = 6
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "QUERY RESULT"
+text = "TABLE"
 
 [node name="Details" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1210201439]
 unique_name_in_owner = true

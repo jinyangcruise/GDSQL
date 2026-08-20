@@ -267,6 +267,20 @@ state in the same change as implementation or test work.
 | `ActivityPanel` | Editor feedback | Presents operation outcomes and structured diagnostics through a bounded entry list with severity styling, automatic latest-entry scrolling, error focus, Unix-millisecond selection IDs, and context actions. | `append_result()`, `append_message()`, `get_entry()`, `select_entry()`, `delete_entry()`, `copy_entry_message()`, `clear()`, `log_limit` | 🛠️ |
 | `ActivityEntry` | Editor feedback | Typed, customizable presentation row carrying one activity message and its stable selection identity. | `configure()`, `context_requested`, entry fields | 🛠️ |
 
+### Editor BBCode authoring reference
+
+Toolbar tags follow Godot's [RichTextLabel BBCode reference](https://docs.godotengine.org/en/latest/tutorials/ui/bbcode_in_richtextlabel.html#reference).
+
+| Action | Inserted BBCode | State |
+|---|---|---|
+| Bold | `[b]text[/b]` | 🛠️ |
+| Italic | `[i]text[/i]` | 🛠️ |
+| Underline | `[u]text[/u]` | 🛠️ |
+| Strikethrough | `[s]text[/s]` | 🛠️ |
+| Code | `[code]text[/code]` | 🛠️ |
+| Paragraph | `[p]text[/p]` | 🛠️ |
+| Line break | `[br]` | 🛠️ |
+
 ## Results and materialization
 
 | Name | Domain | Responsibility | Principal API | State |

@@ -5,14 +5,19 @@ extends Tree
 
 signal inline_changes_changed(status: String)
 
+const MINIMUM_COLUMN_WIDTH := 72
+const MAXIMUM_COLUMN_WIDTH := 360
+const COLUMN_HORIZONTAL_PADDING := 24
+const TEXT_EDITOR_BUTTON_ID := 1
+const TEXT_DIALOG_SCENE := preload(
+	"res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_text_value_dialog.tscn"
+)
+const EXPAND_ICON := preload("res://addons/gdsql/editor/workspace/icons/pencil.svg")
+
 @export var dirty_cell_color := Color(0.95, 0.68, 0.18, 0.24)
 @export var invalid_cell_color := Color(0.95, 0.25, 0.25, 0.28)
 
 @export_range(16, 64, 1) var resource_preview_size := 28
-
-const MINIMUM_COLUMN_WIDTH := 72
-const MAXIMUM_COLUMN_WIDTH := 360
-const COLUMN_HORIZONTAL_PADDING := 24
 
 var _table: GDSQLTableDefinition
 var _view_table: GDSQLTableDefinition
@@ -26,10 +31,16 @@ var _resource_type_icons: Dictionary[StringName, Texture2D] = { }
 var _resource_observers: Dictionary[Vector2i, Dictionary] = { }
 var _preview_generation := 0
 var _editor_inspector: EditorInspector
+var _text_dialog: GDSQLEditorTextValueDialog
+var _text_dialog_cell := Vector2i(-1, -1)
 
 
 func _ready() -> void:
 	item_edited.connect(_on_item_edited)
+	button_clicked.connect(_on_cell_button_clicked)
+	_text_dialog = TEXT_DIALOG_SCENE.instantiate() as GDSQLEditorTextValueDialog
+	add_child(_text_dialog)
+	_text_dialog.value_applied.connect(_on_text_value_applied)
 	_connect_editor_inspector()
 
 
@@ -128,6 +139,14 @@ func render_page(first_index: int, end_index: int, selected_index: int) -> void:
 			var column := _view_table.columns[column_index]
 			var value: Variant = _display_value(record_index, column.name, record)
 			_configure_cell(item, column_index, value, column.data_type == TYPE_OBJECT)
+			if column.data_type == TYPE_STRING and not _safe_mode:
+				item.add_button(
+					column_index,
+					EXPAND_ICON,
+					TEXT_EDITOR_BUTTON_ID,
+					false,
+					"Open multiline text and BBCode preview",
+				)
 			item.set_editable(column_index, not _safe_mode and _cell_is_editable(column))
 			var cell_key := Vector2i(record_index, column_index)
 			if value is Resource:
@@ -189,15 +208,91 @@ func _on_item_edited() -> void:
 	inline_changes_changed.emit(_dirty_status())
 
 
+func _on_cell_button_clicked(
+	item: TreeItem,
+	column_index: int,
+	button_id: int,
+	_mouse_button_index: int,
+) -> void:
+	if button_id != TEXT_EDITOR_BUTTON_ID \
+			or item == null \
+			or _view_table == null \
+			or column_index < 0 \
+			or column_index >= _view_table.columns.size():
+		return
+	var column := _view_table.columns[column_index]
+	if column.data_type != TYPE_STRING:
+		return
+	var record_index := int(item.get_metadata(0))
+	if record_index < 0 or record_index >= _records.size():
+		return
+	_text_dialog_cell = Vector2i(record_index, column_index)
+	_text_dialog.edit_value(
+		_display_value(record_index, column.name, _records[record_index]),
+		column.nullable,
+		not _safe_mode and _cell_is_editable(column),
+		String(column.name),
+	)
+
+
+func _on_text_value_applied(value: Variant) -> void:
+	var record_index := _text_dialog_cell.x
+	var column_index := _text_dialog_cell.y
+	if _view_table == null \
+			or record_index < 0 \
+			or record_index >= _records.size() \
+			or column_index < 0 \
+			or column_index >= _view_table.columns.size():
+		return
+	var column := _view_table.columns[column_index]
+	if column.data_type != TYPE_STRING \
+			or not _cell_is_editable(column) \
+			or (value == null and not column.nullable):
+		return
+	var original: Variant = _records[record_index].get_value(column.name)
+	if value == original:
+		_remove_update(record_index, column.name)
+	else:
+		_set_update(record_index, column.name, value)
+	var cell_key := Vector2i(record_index, column_index)
+	_errors.erase(cell_key)
+	var item := _visible_item(record_index)
+	if item != null:
+		_configure_cell(item, column_index, value, false)
+		if value == original:
+			item.clear_custom_bg_color(column_index)
+		else:
+			item.set_custom_bg_color(column_index, dirty_cell_color)
+	inline_changes_changed.emit(_dirty_status())
+
+
 func _open_resource_editor(
 	record_index: int,
-	_column_index: int,
+	column_index: int,
 	column: GDSQLColumnDefinition,
 ) -> void:
-	var resource := _display_value(record_index, column.name, _records[record_index]) as Resource
+	var value: Variant = _display_value(record_index, column.name, _records[record_index])
+	var resource: Resource = value if value is Resource else null
 	if resource == null:
-		inline_changes_changed.emit("No Resource is assigned. Enable Safe Mode to select one.")
-		return
+		resource = (
+			column.resource_type.instantiate_prototype()
+			if column.resource_type != null
+			else null
+		)
+		if resource == null:
+			inline_changes_changed.emit(
+				"Could not instantiate %s." % column.display_type_name(),
+			)
+			return
+		var cell_key := Vector2i(record_index, column_index)
+		_set_update(record_index, column.name, resource)
+		_errors.erase(cell_key)
+		_observe_resource(cell_key, column.name, resource)
+		var item := _visible_item(record_index)
+		if item != null:
+			_configure_cell(item, column_index, resource, true)
+			item.set_custom_bg_color(column_index, dirty_cell_color)
+		_queue_resource_preview(resource, record_index, column_index)
 	EditorInterface.edit_resource(resource)
 	inline_changes_changed.emit("Editing %s in the Inspector." % _resource_class_name(resource))
 
@@ -211,10 +306,19 @@ func _observe_resource(cell_key: Vector2i, column_name: StringName, resource: Re
 	)
 	if not resource.changed.is_connected(callback):
 		resource.changed.connect(callback)
+	var original: Variant = (
+		_records[cell_key.x].get_value(column_name)
+		if cell_key.x >= 0 and cell_key.x < _records.size()
+		else null
+	)
+	var reference_changed := true
+	if original is Resource:
+		reference_changed = (original as Resource) != resource
 	_resource_observers[cell_key] = {
 		"resource": resource,
 		"callback": callback,
 		"fingerprint": _resource_fingerprint(resource),
+		"reference_changed": reference_changed,
 	}
 
 
@@ -240,7 +344,8 @@ func _on_observed_resource_changed(
 	if observer.is_empty() or observer.get("resource") != resource:
 		return
 	var resource_changed: bool = (
-		_resource_fingerprint(resource) != int(observer.get("fingerprint", 0))
+		bool(observer.get("reference_changed", false))
+		or _resource_fingerprint(resource) != int(observer.get("fingerprint", 0))
 	)
 	if resource_changed:
 		_set_update(record_index, column_name, resource)
@@ -265,17 +370,13 @@ func _connect_editor_inspector() -> void:
 		return
 	_editor_inspector = EditorInterface.get_inspector()
 	if _editor_inspector != null \
-			and not _editor_inspector.property_edited.is_connected(
-				_on_inspector_property_edited,
-			):
+			and not _editor_inspector.property_edited.is_connected(_on_inspector_property_edited):
 		_editor_inspector.property_edited.connect(_on_inspector_property_edited)
 
 
 func _disconnect_editor_inspector() -> void:
 	if _editor_inspector != null \
-			and _editor_inspector.property_edited.is_connected(
-				_on_inspector_property_edited,
-			):
+			and _editor_inspector.property_edited.is_connected(_on_inspector_property_edited):
 		_editor_inspector.property_edited.disconnect(_on_inspector_property_edited)
 	_editor_inspector = null
 
@@ -357,12 +458,9 @@ func _preferred_column_width(
 	var width := font.get_string_size(String(column.name), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	for record_index in range(first_index, end_index):
 		var value: Variant = _display_value(record_index, column.name, _records[record_index])
-		var value_width := font.get_string_size(
-			_value_text(value),
-			HORIZONTAL_ALIGNMENT_LEFT,
-			-1,
-			font_size,
-		).x
+		var value_width := font \
+				.get_string_size(_value_text(value), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size) \
+				.x
 		if value is Resource:
 			value_width += resource_preview_size + 6
 		width = maxf(width, value_width)
@@ -382,17 +480,7 @@ func _parse_value(text: String, column: GDSQLColumnDefinition) -> Dictionary:
 	var value: Variant
 	match column.data_type:
 		TYPE_STRING:
-			if text.is_empty():
-				if column.nullable:
-					value = null
-				else:
-					return {
-						"valid": false,
-						"value": null,
-						"message": "%s cannot be empty because it is not nullable." % column.name,
-					}
-			else:
-				value = text
+			value = text
 		TYPE_STRING_NAME:
 			value = StringName(text)
 		TYPE_NODE_PATH:
@@ -470,10 +558,7 @@ func _resource_tooltip(value: Variant, fallback: String) -> String:
 	var detail: String = (
 		resource.resource_path if not resource.resource_path.is_empty() else fallback
 	)
-	return "%s · %s · Click to edit in the Inspector" % [
-		_resource_class_name(resource),
-		detail,
-	]
+	return "%s · %s · Click to edit in the Inspector" % [_resource_class_name(resource), detail]
 
 
 func _resource_class_name(resource: Resource) -> String:
