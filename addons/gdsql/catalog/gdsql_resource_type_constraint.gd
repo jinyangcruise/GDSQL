@@ -94,8 +94,13 @@ func picker_base_type() -> String:
 func instantiate_prototype() -> Resource:
 	if not is_valid():
 		return null
-	if resolved_script != null and resolved_script.can_instantiate():
-		return resolved_script.new() as Resource
+	if resolved_script != null:
+		if resolved_script.can_instantiate():
+			return resolved_script.new() as Resource
+		# Keep non-@tool script identity visible without executing project code.
+		var prototype := Resource.new()
+		prototype.set_script(resolved_script)
+		return prototype if accepts_value(prototype) else null
 	if ClassDB.class_exists(resource_class) and ClassDB.can_instantiate(resource_class):
 		return ClassDB.instantiate(resource_class) as Resource
 	return null
