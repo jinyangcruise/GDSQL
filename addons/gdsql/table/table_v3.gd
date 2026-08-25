@@ -196,6 +196,8 @@ var _last_data_scroll_v: float = -1
 var _last_data_view_height: float = -1.0
 var _scroll_guard := false
 var _resize_refresh_pending := false
+var _cell_size_change_guard := false
+var _invalidate_scroll_pending := false
 
 
 # ── Tree construction ───────────────────────────────────────────────────────
@@ -522,7 +524,7 @@ func sync_data_row_widths():
 			_apply_data_row_widths(row_node)
 
 
-func invalidate_row_height(row: int):
+func invalidate_row_height(row: int, defer_scroll: bool = false):
 	if row < 0 or row >= datas_flat.size():
 		return
 	if row_height_mode == RowHeightMode.ADAPTIVE and not custom_row_heights.has(row):
@@ -533,8 +535,20 @@ func invalidate_row_height(row: int):
 	_row_offsets_dirty = true
 	_force_row_layout_refresh = true
 	update_content_size()
-	_on_scroll(data_scroll.scroll_vertical)
+	if defer_scroll:
+		# 延迟刷新：避免 minimum_size_changed -> invalidate -> _on_scroll -> resize -> ... 死循环
+		if not _invalidate_scroll_pending:
+			_invalidate_scroll_pending = true
+			call_deferred("_flush_invalidate_scroll")
+	else:
+		_on_scroll(data_scroll.scroll_vertical)
 	borders_overlay.queue_redraw()
+
+
+func _flush_invalidate_scroll():
+	_invalidate_scroll_pending = false
+	if is_instance_valid(data_scroll):
+		_on_scroll(data_scroll.scroll_vertical)
 
 
 func invalidate_all_row_heights():
@@ -1665,6 +1679,11 @@ func _measure_data_row_height(row_node: Control) -> float:
 			var wrapper = _get_cell_content_wrapper(cell as PanelContainer)
 			for child in wrapper.get_children():
 				if child is Control:
+					# EditorResourcePicker的minimum_size会随资源预览异步变化，
+					# 若用它驱动行高，滚动复用picker时会引发 测量->resize->重测 的反馈死循环。
+					# 所以资源选择器单元格按默认行高处理，不参与自适应测量。
+					if child is EditorResourcePicker:
+						continue
 					measured = max(measured, (child as Control).get_combined_minimum_size().y)
 	return measured
 
@@ -2126,11 +2145,15 @@ func _on_cell_control_size_changed(control: Control):
 		return
 	# 在滚动/布局过程中忽略 minimum_size_changed 信号，
 	# 因为 _position_visible_rows 已经在测量和设置正确的行高。
-	if _scroll_guard:
+	if _scroll_guard or _cell_size_change_guard:
 		return
 	var row_idx = int(control.get_meta("_gdsql_table_row", -1))
 	if row_idx >= 0:
-		invalidate_row_height(row_idx)
+		# 复用控件时，minimum_size_changed 可能在编辑资源预览加载后触发，
+		# 通过guard避免 invalidate -> _on_scroll -> resize -> ... 的重入死循环
+		_cell_size_change_guard = true
+		invalidate_row_height(row_idx, true)
+		_cell_size_change_guard = false
 
 
 func _fit_control_to_cell(control: Control, wrapper: Control):
