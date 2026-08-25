@@ -195,6 +195,7 @@ var _saved_hover_styles: Array = []
 var _last_data_scroll_v: float = -1
 var _last_data_view_height: float = -1.0
 var _scroll_guard := false
+var _resize_refresh_pending := false
 
 
 # ── Tree construction ───────────────────────────────────────────────────────
@@ -1310,10 +1311,14 @@ func _on_data_scroll_resized():
 	var view_h = data_scroll.size.y
 	if view_h > 0 and absf(view_h - _last_data_view_height) > 0.5:
 		_last_data_view_height = view_h
-		call_deferred("_refresh_visible_rows_after_resize")
+		# 防止 resize -> 刷新 -> resize 形成死循环：同一帧内只允许一个延迟刷新
+		if not _resize_refresh_pending:
+			_resize_refresh_pending = true
+			call_deferred("_refresh_visible_rows_after_resize")
 
 
 func _refresh_visible_rows_after_resize():
+	_resize_refresh_pending = false
 	if not is_instance_valid(data_scroll) or not is_node_ready():
 		return
 	_on_scroll(data_scroll.scroll_vertical)
@@ -1665,9 +1670,15 @@ func _measure_data_row_height(row_node: Control) -> float:
 
 
 func _on_scroll(value: float):
+	# _scroll_guard 在_do_scroll前后统一复位，即使内部发生错误也不会卡死（_scroll_guard永真导致不再刷新）。
 	if _scroll_guard:
 		return
 	_scroll_guard = true
+	_do_scroll(value)
+	_scroll_guard = false
+
+
+func _do_scroll(value: float):
 	if datas_flat.is_empty():
 		_hide_all_data_pool_rows()
 		if show_frame:
@@ -1675,12 +1686,10 @@ func _on_scroll(value: float):
 		borders_overlay.queue_redraw()
 		first_visible_idx = 0
 		last_visible_idx = -1
-		_scroll_guard = false
 		return
 
 	var view_h = data_scroll.size.y
 	if view_h <= 0:
-		_scroll_guard = false
 		return
 
 	var visible_range = _get_visible_row_range(value, view_h)
@@ -1690,11 +1699,9 @@ func _on_scroll(value: float):
 	if new_first == first_visible_idx and new_last == last_visible_idx and not _force_row_layout_refresh and not _has_dirty_rows_in_range(new_first, new_last):
 		_update_dragger_position()
 		borders_overlay.queue_redraw()
-		_scroll_guard = false
 		return # no row change, still need to redraw grid/dragger/overlay
 
 	if new_first > new_last:
-		_scroll_guard = false
 		return
 
 	first_visible_idx = new_first
@@ -1707,7 +1714,6 @@ func _on_scroll(value: float):
 	_update_dragger_position()
 	_update_borders_overlay_size()
 	borders_overlay.queue_redraw()
-	_scroll_guard = false
 
 
 func _on_data_scroll_changed(value: float):
@@ -1942,10 +1948,13 @@ func _assign_data_row_data(row_node: Control, data_idx: int):
 		# 避免滚动时反复重建控件、反复生成资源预览而卡顿。
 		if not _try_reuse_cell_content(content_wrapper, value, data, data_col, old_data, data_idx):
 			# Clear existing cell content without letting the content minimum size affect the column width.
+			# 先隐藏再queue_free（queue_free会在帧末自动从父节点移除），
+			# 避免在滚动/布局处理中同步调用remove_child导致 "Parent node is busy" 错误
 			for c in content_wrapper.get_children():
-				content_wrapper.remove_child(c)
-				if not c.get_meta("_gdsql_external_cell_control", false):
-					c.queue_free()
+				if c.get_meta("_gdsql_external_cell_control", false):
+					continue
+				c.visible = false
+				c.queue_free()
 
 			var ctl = _create_cell_control(value, data, data_col)
 			if ctl:
@@ -1961,8 +1970,12 @@ func _assign_data_row_data(row_node: Control, data_idx: int):
 ## 重建EditorResourcePicker会生成资源预览（对Mesh等资源非常耗时），所以优先复用。
 ## 返回true表示已复用成功（无需重建）。
 func _try_reuse_cell_content(wrapper: Control, value, new_data, col_idx: int, old_data, row_idx: int) -> bool:
-	var existing = wrapper.get_child(0) if wrapper.get_child_count() > 0 else null
-	if existing == null or not (existing is Control):
+	var existing: Control = null
+	for c in wrapper.get_children():
+		if c is Control and not c.is_queued_for_deletion():
+			existing = c as Control
+			break
+	if existing == null:
 		return false
 	var ctl := existing as Control
 
@@ -1978,6 +1991,13 @@ func _try_reuse_cell_content(wrapper: Control, value, new_data, col_idx: int, ol
 				old_data.clear_update_callback(old_prop)
 
 	var data_type = typeof(value)
+	if value == null and ctl is EditorResourcePicker:
+		# 资源列为null时复用picker（置空），避免释放picker导致待生成的预览回调失效
+		unbind_old.call()
+		(ctl as EditorResourcePicker).edited_resource = null
+		if new_data is GDSQL.DictionaryObject:
+			_bind_update_callback(new_data, col_idx, ctl)
+		return true
 	if value is Resource and not (value is Texture2D) and ctl is EditorResourcePicker:
 		unbind_old.call()
 		var erp := ctl as EditorResourcePicker
@@ -2050,7 +2070,7 @@ func _sync_row_cell_count(hbox: HBoxContainer):
 			cells.append(c)
 	while cells.size() > target:
 		var extra = cells.pop_back()
-		hbox.remove_child(extra)
+		extra.visible = false
 		extra.queue_free()
 	while cells.size() < target:
 		var cell = PanelContainer.new()
@@ -2168,6 +2188,18 @@ func _create_cell_control(value, a_data, col_idx: int) -> Control:
 	var handled = false
 	var control: Control = null
 	var data_type = typeof(value)
+
+	# 资源类型列即使值为null也用EditorResourcePicker（而不是Label"null"），
+	# 保证滚动时单元格控件类型一致、可以被复用，不会反复释放picker
+	# （释放带待生成预览的picker会导致 "Object was deleted while awaiting a callback"）。
+	if value == null and a_data is GDSQL.DictionaryObject and a_data.get_prop_hint_by_index(col_idx) == PROPERTY_HINT_RESOURCE_TYPE:
+		handled = true
+		var null_erp = EditorResourcePicker.new()
+		null_erp.base_type = a_data.get_prop_hint_string_by_index(col_idx)
+		null_erp.edited_resource = null
+		null_erp.editable = false
+		control = null_erp
+		_bind_update_callback(a_data, col_idx, control)
 
 	match data_type:
 		TYPE_BOOL:
