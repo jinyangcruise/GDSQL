@@ -29,7 +29,9 @@ layout_mode = 2
 flat = true
 
 [node name="File" type="PopupMenu" parent="Layout/MenuPanel/MenuBar" unique_id=604279654]
+oversampling_override = 1.0
 title = "File"
+size = Vector2i(165, 100)
 item_count = 4
 item_0/text = "New Database…"
 item_0/id = 1
@@ -43,7 +45,9 @@ item_3/id = 5
 item_3/disabled = true
 
 [node name="Edit" type="PopupMenu" parent="Layout/MenuPanel/MenuBar" unique_id=1032801543]
+oversampling_override = 1.0
 title = "Edit"
+size = Vector2i(166, 100)
 item_count = 4
 item_0/text = "Undo"
 item_0/id = 10
@@ -58,7 +62,9 @@ item_3/id = 12
 item_3/disabled = true
 
 [node name="Query" type="PopupMenu" parent="Layout/MenuPanel/MenuBar" unique_id=368470275]
+oversampling_override = 1.0
 title = "Query"
+size = Vector2i(179, 100)
 item_count = 2
 item_0/text = "New Query Graph"
 item_0/id = 20
@@ -68,7 +74,9 @@ item_1/id = 21
 item_1/disabled = true
 
 [node name="Database" type="PopupMenu" parent="Layout/MenuPanel/MenuBar" unique_id=1495313969]
+oversampling_override = 1.0
 title = "Database"
+size = Vector2i(182, 100)
 item_count = 4
 item_0/text = "Create Database…"
 item_0/id = 1
@@ -81,7 +89,9 @@ item_3/text = "Refresh"
 item_3/id = 3
 
 [node name="Help" type="PopupMenu" parent="Layout/MenuPanel/MenuBar" unique_id=661294708]
+oversampling_override = 1.0
 title = "Help"
+size = Vector2i(219, 100)
 item_count = 2
 item_0/text = "GDSQL Documentation"
 item_0/id = 30
@@ -102,7 +112,7 @@ tab_0/title = "Welcome"
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="DiscardDocumentConfirmation" type="ConfirmationDialog" parent="."]
+[node name="DiscardDocumentConfirmation" type="ConfirmationDialog" parent="." unique_id=478796032]
 unique_name_in_owner = true
 title = "Discard Unsaved Changes"
 ok_button_text = "Discard and Close"

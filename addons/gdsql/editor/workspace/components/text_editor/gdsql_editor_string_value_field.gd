@@ -13,13 +13,13 @@ var _configuring := false
 
 @onready var _line_edit: LineEdit = %LineEdit
 @onready var _expand: Button = %Expand
-@onready var _dialog: GDSQLEditorTextValueDialog = %TextValueDialog
+@onready var _expanded_editor: GDSQLEditorExpandedTextEditor = %ExpandedTextEditor
 
 
 func _ready() -> void:
 	_line_edit.text_changed.connect(_on_text_changed)
 	_expand.pressed.connect(_on_expand_pressed)
-	_dialog.value_applied.connect(_on_dialog_value_applied)
+	_expanded_editor.value_applied.connect(_on_expanded_value_applied)
 
 
 func configure(value: Variant, is_nullable: bool, is_editable: bool) -> void:
@@ -35,9 +35,9 @@ func set_value_editable(enabled: bool) -> void:
 	_editable = enabled
 	_line_edit.editable = enabled
 	_expand.tooltip_text = (
-		"Open multiline text and BBCode preview"
+		"Open expanded text editor"
 		if enabled
-		else "Open multiline text and BBCode preview as read only"
+		else "Open expanded text editor as read only"
 	)
 
 
@@ -69,7 +69,7 @@ func _on_text_changed(text: String) -> void:
 
 
 func _on_expand_pressed() -> void:
-	_dialog.edit_value(
+	_expanded_editor.edit_value(
 		null if _is_null else _line_edit.text,
 		_nullable,
 		_editable,
@@ -77,7 +77,7 @@ func _on_expand_pressed() -> void:
 	)
 
 
-func _on_dialog_value_applied(value: Variant) -> void:
+func _on_expanded_value_applied(value: Variant) -> void:
 	_is_null = _nullable and value == null
 	if value != null:
 		set_text(String(value))

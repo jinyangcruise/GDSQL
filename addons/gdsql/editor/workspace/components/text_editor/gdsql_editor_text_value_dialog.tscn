@@ -1,26 +1,25 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=2 format=3]
 
 [ext_resource type="Script" path="res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_text_value_dialog.gd" id="1_script"]
-[ext_resource type="PackedScene" path="res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_bbcode_toolbar.tscn" id="2_toolbar"]
 
 [node name="TextValueDialog" type="ConfirmationDialog"]
 title = "Edit Text"
 initial_position = 1
-size = Vector2i(920, 620)
+size = Vector2i(720, 460)
 ok_button_text = "Apply"
 script = ExtResource("1_script")
 
 [node name="Content" type="VBoxContainer" parent="."]
 offset_left = 8.0
 offset_top = 8.0
-offset_right = 912.0
-offset_bottom = 571.0
+offset_right = 712.0
+offset_bottom = 411.0
 theme_override_constants/separation = 8
 
 [node name="Description" type="Label" parent="Content"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Edit the stored String directly. The preview interprets it as Godot BBCode."
+text = "Edit the stored String in a multiline field."
 autowrap_mode = 2
 
 [node name="Controls" type="HBoxContainer" parent="Content"]
@@ -32,62 +31,10 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Null"
 
-[node name="VSeparator" type="VSeparator" parent="Content/Controls"]
-layout_mode = 2
-
-[node name="BBCodeToolbar" parent="Content/Controls" instance=ExtResource("2_toolbar")]
+[node name="TextInput" type="TextEdit" parent="Content"]
 unique_name_in_owner = true
-layout_mode = 2
-
-[node name="Editors" type="HSplitContainer" parent="Content"]
-layout_mode = 2
-size_flags_vertical = 3
-split_offset = 450
-
-[node name="Source" type="VBoxContainer" parent="Content/Editors"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="SourceLabel" type="Label" parent="Content/Editors/Source"]
-layout_mode = 2
-text = "Text / BBCode"
-
-[node name="TextInput" type="TextEdit" parent="Content/Editors/Source"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-placeholder_text = "Enter plain text or RichTextLabel BBCode…"
+placeholder_text = "Enter text…"
 wrap_mode = 1
-
-[node name="PreviewPanel" type="VBoxContainer" parent="Content/Editors"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="PreviewLabel" type="Label" parent="Content/Editors/PreviewPanel"]
-layout_mode = 2
-text = "BBCode Preview"
-
-[node name="PreviewState" type="Label" parent="Content/Editors/PreviewPanel"]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-size_flags_vertical = 3
-text = "NULL value"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="Preview" type="RichTextLabel" parent="Content/Editors/PreviewPanel"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(300, 0)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-bbcode_enabled = true
-selection_enabled = true
-
-[node name="PreviewDebounce" type="Timer" parent="."]
-unique_name_in_owner = true
-wait_time = 0.2
-one_shot = true

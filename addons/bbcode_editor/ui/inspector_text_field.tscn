@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[node name="InspectorTextField" type="HBoxContainer"]
+custom_minimum_size = Vector2(0, 48)
+size_flags_horizontal = 3
+theme_override_constants/separation = 2
+
+[node name="Text" type="TextEdit" parent="."]
+custom_minimum_size = Vector2(0, 46)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Edit BBCode directly, or use the expand button for the visual editor."
+placeholder_text = "BBCode text"
+wrap_mode = 1
+
+[node name="Expand" type="Button" parent="."]
+custom_minimum_size = Vector2(30, 46)
+layout_mode = 2
+focus_mode = 0
+tooltip_text = "Open the visual BBCode editor and live preview."
+flat = true

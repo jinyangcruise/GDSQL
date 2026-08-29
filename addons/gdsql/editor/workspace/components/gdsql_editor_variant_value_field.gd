@@ -241,17 +241,13 @@ func _connect_editor_inspector() -> void:
 		return
 	_editor_inspector = EditorInterface.get_inspector()
 	if _editor_inspector != null \
-			and not _editor_inspector.property_edited.is_connected(
-				_on_inspector_property_edited,
-			):
+			and not _editor_inspector.property_edited.is_connected(_on_inspector_property_edited):
 		_editor_inspector.property_edited.connect(_on_inspector_property_edited)
 
 
 func _disconnect_editor_inspector() -> void:
 	if _editor_inspector != null \
-			and _editor_inspector.property_edited.is_connected(
-				_on_inspector_property_edited,
-			):
+			and _editor_inspector.property_edited.is_connected(_on_inspector_property_edited):
 		_editor_inspector.property_edited.disconnect(_on_inspector_property_edited)
 	_editor_inspector = null
 

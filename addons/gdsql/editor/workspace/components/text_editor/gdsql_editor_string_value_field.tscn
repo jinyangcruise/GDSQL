@@ -1,8 +1,8 @@
-[gd_scene format=3 uid="uid://dhc7mb6n8kw0q"]
+[gd_scene load_steps=4 format=3 uid="uid://dhc7mb6n8kw0q"]
 
 [ext_resource type="Script" uid="uid://03ejuce5smw4" path="res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_string_value_field.gd" id="1_script"]
 [ext_resource type="Texture2D" uid="uid://dmi3k8sjbya3n" path="res://addons/gdsql/editor/workspace/icons/pencil.svg" id="2_2oq1k"]
-[ext_resource type="PackedScene" path="res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_text_value_dialog.tscn" id="3_dialog"]
+[ext_resource type="Script" path="res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_expanded_text_editor.gd" id="3_expanded"]
 
 [node name="StringValueField" type="HBoxContainer" unique_id=1510293569]
 custom_minimum_size = Vector2(120, 0)
@@ -19,9 +19,10 @@ placeholder_text = "Text"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(30, 0)
 layout_mode = 2
-tooltip_text = "Open multiline text and BBCode preview"
+tooltip_text = "Open expanded text editor"
 icon = ExtResource("2_2oq1k")
 icon_alignment = 1
 
-[node name="TextValueDialog" parent="." unique_id=1212938917 instance=ExtResource("3_dialog")]
+[node name="ExpandedTextEditor" type="Node" parent="."]
 unique_name_in_owner = true
+script = ExtResource("3_expanded")

@@ -4,6 +4,8 @@
 [ext_resource type="Texture2D" uid="uid://da35pq8onqig4" path="res://addons/gdsql/editor/workspace/icons/trash_can.svg" id="2_trash"]
 
 [node name="WhereConditionRow" type="VBoxContainer" unique_id=705937618]
+offset_right = 545.0
+offset_bottom = 38.0
 theme_override_constants/separation = 3
 script = ExtResource("1_row")
 
@@ -39,15 +41,13 @@ text = "NOT"
 
 [node name="Column" type="OptionButton" parent="Fields" unique_id=566023614]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
-size_flags_horizontal = 3
 
 [node name="Operator" type="OptionButton" parent="Fields" unique_id=684134083]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
-size_flags_horizontal = 3
 selected = 0
 item_count = 8
 popup/item_0/text = "Equals"
@@ -69,9 +69,8 @@ popup/item_7/id = 7
 
 [node name="ValueHost" type="HBoxContainer" parent="Fields" unique_id=984204571]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(100, 0)
+custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
-size_flags_horizontal = 3
 
 [node name="VSeparator" type="VSeparator" parent="Fields" unique_id=1657546114]
 layout_mode = 2

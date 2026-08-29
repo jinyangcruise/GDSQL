@@ -10,12 +10,11 @@
 
 [node name="TableResult" type="GraphNode" unique_id=285217622]
 custom_minimum_size = Vector2(720, 420)
-clip_contents = true
-anchors_preset = 10
-anchor_right = 1.0
-offset_bottom = 239.0
-grow_horizontal = 2
+offset_right = 720.0
+offset_bottom = 420.0
 size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 1
 theme_override_constants/separation = 6
 resizable = true
 scaling_menus = true
@@ -59,6 +58,7 @@ text = "Run the query to display rows."
 autowrap_mode = 2
 
 [node name="ScrollContainer" type="ScrollContainer" parent="MarginContainer/VBoxContainer" unique_id=835869410]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 5
@@ -70,8 +70,10 @@ layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 tooltip_text = "Columns follow the configured display order. Safe Mode uses the row editor; direct mode edits cells in place."
+mouse_default_cursor_shape = 2
 column_titles_visible = true
 allow_reselect = true
+allow_rmb_select = true
 hide_folding = true
 hide_root = true
 select_mode = 1
@@ -82,32 +84,42 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="FirstPage" type="Button" parent="MarginContainer/VBoxContainer/Pagination" unique_id=1073063267]
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer/Pagination" unique_id=1505857742]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="FirstPage" type="Button" parent="MarginContainer/VBoxContainer/Pagination/HBoxContainer" unique_id=1073063267]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "First page"
 text = "|<"
 
-[node name="PreviousPage" type="Button" parent="MarginContainer/VBoxContainer/Pagination" unique_id=1270550806]
+[node name="PreviousPage" type="Button" parent="MarginContainer/VBoxContainer/Pagination/HBoxContainer" unique_id=1270550806]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Previous page"
 text = "<"
 
-[node name="PageStatus" type="Label" parent="MarginContainer/VBoxContainer/Pagination" unique_id=842744896]
+[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer/Pagination/HBoxContainer" unique_id=477553972]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+
+[node name="PageStatus" type="Label" parent="MarginContainer/VBoxContainer/Pagination/HBoxContainer/MarginContainer" unique_id=842744896]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
 text = "Page 1 of 1"
 horizontal_alignment = 1
 
-[node name="NextPage" type="Button" parent="MarginContainer/VBoxContainer/Pagination" unique_id=1430011819]
+[node name="NextPage" type="Button" parent="MarginContainer/VBoxContainer/Pagination/HBoxContainer" unique_id=1430011819]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Next page"
 text = ">"
 
-[node name="LastPage" type="Button" parent="MarginContainer/VBoxContainer/Pagination" unique_id=98084889]
+[node name="LastPage" type="Button" parent="MarginContainer/VBoxContainer/Pagination/HBoxContainer" unique_id=98084889]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Last page"
@@ -122,7 +134,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(72, 0)
 layout_mode = 2
 tooltip_text = "Rows per page"
-selected = 1
+selected = 0
 item_count = 4
 popup/item_0/text = "10"
 popup/item_0/id = 0
@@ -141,21 +153,27 @@ layout_mode = 2
 [node name="Separator" type="HSeparator" parent="MarginContainer/VBoxContainer/EditorSection" unique_id=1870555069]
 layout_mode = 2
 
-[node name="EditorLabel" type="Label" parent="MarginContainer/VBoxContainer/EditorSection" unique_id=614390720]
-layout_mode = 2
-tooltip_text = "Safe Mode keeps typed edits in one focused row."
-text = "Selected row"
-
 [node name="EditorScroll" type="ScrollContainer" parent="MarginContainer/VBoxContainer/EditorSection" unique_id=994687675]
-custom_minimum_size = Vector2(0, 92)
+custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
 horizontal_scroll_mode = 2
 vertical_scroll_mode = 0
 
-[node name="EditorHost" type="VBoxContainer" parent="MarginContainer/VBoxContainer/EditorSection/EditorScroll" unique_id=1392674033]
+[node name="EditorTable" type="Tree" parent="MarginContainer/VBoxContainer/EditorSection/EditorScroll" unique_id=1392674033]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
+tooltip_text = "The selected row uses the same typed table editor as direct mode."
+mouse_filter = 1
+column_titles_visible = true
+allow_reselect = true
+allow_rmb_select = true
+hide_folding = true
+hide_root = true
+select_mode = 1
+scroll_vertical_enabled = false
+script = ExtResource("7_table")
 
 [node name="Status" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1900997401]
 unique_name_in_owner = true

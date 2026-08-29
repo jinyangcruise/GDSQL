@@ -40,3 +40,4 @@ addons/*
 !addons/gdsql
 !addons/GDQuest_GDScript_formatter
 !addons/gdUnit4
+!addons/bbcode_editor

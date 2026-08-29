@@ -4,6 +4,8 @@
 [ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="2_plus"]
 
 [node name="WhereExpressionEditor" type="VBoxContainer" unique_id=893750693]
+offset_right = 355.0
+offset_bottom = 97.0
 theme_override_constants/separation = 4
 script = ExtResource("1_editor")
 
@@ -14,7 +16,6 @@ text = "WHERE"
 
 [node name="ExpressionBody" type="VBoxContainer" parent="." unique_id=9518024]
 unique_name_in_owner = true
-visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 

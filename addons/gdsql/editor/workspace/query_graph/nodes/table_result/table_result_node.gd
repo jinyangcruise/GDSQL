@@ -3,33 +3,30 @@ class_name GDSQLQueryTableResultNode
 extends GDSQLQueryGraphNode
 ## Paginated tabular presentation for a graph query result.
 ##
-## A native Tree owns aligned, scrollable columns. Safe Mode opens the existing
-## typed Variant editor for one row; direct mode batches validated cell edits.
+## One native table component owns both paginated display and focused editing.
 
 signal row_insert_requested(
-		registration_name: StringName,
-		table_name: StringName,
-		values: Dictionary,
+	registration_name: StringName,
+	table_name: StringName,
+	values: Dictionary,
 )
 signal row_update_requested(
-		registration_name: StringName,
-		table_name: StringName,
-		original_primary_key: Variant,
-		values: Dictionary,
+	registration_name: StringName,
+	table_name: StringName,
+	original_primary_key: Variant,
+	values: Dictionary,
 )
 signal row_delete_requested(
-		registration_name: StringName,
-		table_name: StringName,
-		primary_key: Variant,
+	registration_name: StringName,
+	table_name: StringName,
+	primary_key: Variant,
 )
 signal capabilities_changed(can_add_rows: bool, has_dirty_rows: bool)
 
-const DATA_ROW_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/table/gdsql_table_data_row.tscn"
-)
 const ROW_SET_PORT_TYPE := 0
 const ROW_SET_COLOR := Color("62b5e5")
 const PAGE_SIZES: Array[int] = [10, 25, 50, 100]
+const MINIMUM_NODE_SIZE := Vector2(720, 420)
 
 var _registration_name: StringName
 var _table: GDSQLTableDefinition
@@ -38,18 +35,25 @@ var _records: Array[GDSQLRowRecord] = []
 var _can_add_rows := false
 var _can_edit_rows := false
 var _page_index := 0
-var _page_size := 25
+var _page_size := 10
 var _selected_record_index := -1
-var _editor_row: Control
+var _editor_active := false
+var _editor_insert_draft := false
 var _editor_source: GDSQLRowRecord
 var _mutation_in_flight := false
 var _safe_mode := true
 var _safe_mode_toggle: CheckButton
 var _presentation_revision := 0
+var _resize_limits := Vector2(INF, INF)
+var _resize_chrome := Vector2.ZERO
+var _resize_chrome_measured := false
+var _page_layout_initialized := false
+var _applying_resize := false
 
 @onready var _title: Label = %ResultTitle
 @onready var _details: Label = %Details
 @onready var _status: Label = %Status
+@onready var _table_scroll: ScrollContainer = %ScrollContainer
 @onready var _table_view: GDSQLQueryTableResultTable = %TableView
 @onready var _pagination: HBoxContainer = %Pagination
 @onready var _first_page: Button = %FirstPage
@@ -59,7 +63,7 @@ var _presentation_revision := 0
 @onready var _last_page: Button = %LastPage
 @onready var _page_size_selector: OptionButton = %PageSize
 @onready var _editor_section: VBoxContainer = %EditorSection
-@onready var _editor_host: VBoxContainer = %EditorHost
+@onready var _editor_table: GDSQLQueryTableResultTable = %EditorTable
 @onready var _result_actions: HBoxContainer = %ResultActions
 @onready var _add_row: GDSQLEditorActionButton = %AddRow
 @onready var _save_changes: Button = %SaveChanges
@@ -73,23 +77,16 @@ func _ready() -> void:
 	_safe_mode_toggle = CheckButton.new()
 	_safe_mode_toggle.text = "Safe Mode"
 	_safe_mode_toggle.tooltip_text = (
-		"Edit one selected row in the dedicated typed editor. "
+		"Edit one selected row in a focused table editor. "
 		+ "Disable to edit table cells directly."
 	)
 	_safe_mode_toggle.focus_mode = Control.FOCUS_NONE
 	_safe_mode_toggle.button_pressed = true
 	add_header_action(_safe_mode_toggle)
-	set_slot(
-		0,
-		true,
-		ROW_SET_PORT_TYPE,
-		ROW_SET_COLOR,
-		false,
-		ROW_SET_PORT_TYPE,
-		ROW_SET_COLOR,
-	)
+	set_slot(0, true, ROW_SET_PORT_TYPE, ROW_SET_COLOR, false, ROW_SET_PORT_TYPE, ROW_SET_COLOR)
 	_table_view.item_selected.connect(_on_table_row_selected)
 	_table_view.inline_changes_changed.connect(_on_inline_changes_changed)
+	_editor_table.inline_changes_changed.connect(_on_editor_changes_changed)
 	_safe_mode_toggle.toggled.connect(_on_safe_mode_toggled)
 	_first_page.pressed.connect(_go_to_page.bind(0))
 	_previous_page.pressed.connect(_change_page.bind(-1))
@@ -100,21 +97,21 @@ func _ready() -> void:
 	_discard_changes.pressed.connect(_discard_changes_requested)
 	_delete_row.pressed.connect(_request_delete_editor_row)
 	_delete_confirmation.confirmed.connect(_confirm_delete_editor_row)
+	resize_request.connect(_on_resize_request)
+	resized.connect(_enforce_resize_limits)
 	_populate_page_sizes()
 	_refresh_editor_actions()
+	_initialize_resize_limits.call_deferred()
 
 
-func configure_action(
-		hub: GDSQLEditorActionHub,
-		definition: GDSQLEditorActionDefinition,
-) -> void:
+func configure_action(hub: GDSQLEditorActionHub, definition: GDSQLEditorActionDefinition) -> void:
 	_add_row.configure(hub, definition)
 
 
 func present(
-		registration_name: StringName,
-		table: GDSQLTableDefinition,
-		result: GDSQLQueryResult,
+	registration_name: StringName,
+	table: GDSQLTableDefinition,
+	result: GDSQLQueryResult,
 ) -> void:
 	_presentation_revision += 1
 	var selected_key: Variant = null
@@ -161,11 +158,11 @@ func present(
 	if _selected_record_index >= 0:
 		_page_index = floori(float(_selected_record_index) / float(_page_size))
 	_render_table()
-	_status.text = (
-		"No rows returned."
+	if not _page_layout_initialized:
+		_fit_initial_page.call_deferred()
+	_status.text = ("No rows returned."
 		if _records.is_empty()
-		else _result_status_text()
-	)
+		else _result_status_text())
 	if _safe_mode and _selected_record_index >= 0:
 		_open_record_editor(_selected_record_index)
 	_refresh_editor_actions()
@@ -178,11 +175,8 @@ func can_add_rows() -> bool:
 
 func has_dirty_rows() -> bool:
 	return (
-		(is_instance_valid(_editor_row) and bool(_editor_row.call("is_dirty")))
-		or (
-			is_instance_valid(_table_view)
-			and _table_view.has_pending_changes()
-		)
+		(_editor_active and _editor_table.has_pending_changes())
+		or (is_instance_valid(_table_view) and _table_view.has_pending_changes())
 	)
 
 
@@ -211,16 +205,19 @@ func add_empty_row() -> GDSQLOperationResult:
 	_selected_record_index = -1
 	_clear_editor()
 	_editor_source = null
-	_editor_row = _create_editor_row(null)
+	_editor_active = true
+	_editor_insert_draft = true
+	_editor_table.configure_insert_draft(_table, _view_table)
+	_editor_section.visible = true
 	_status.text = "Creating a new row."
 	_refresh_editor_actions()
-	result.value = _editor_row
+	result.value = _editor_table
 	return result
 
 
 func _build_view_table(
-		table: GDSQLTableDefinition,
-		schema: GDSQLResultSchema,
+	table: GDSQLTableDefinition,
+	schema: GDSQLResultSchema,
 ) -> GDSQLTableDefinition:
 	var view := GDSQLTableDefinition.new(table.name, table.primary_key)
 	view.database_name = table.database_name
@@ -239,10 +236,7 @@ func _build_view_table(
 	return view
 
 
-func _has_all_columns(
-		table: GDSQLTableDefinition,
-		view: GDSQLTableDefinition,
-) -> bool:
+func _has_all_columns(table: GDSQLTableDefinition, view: GDSQLTableDefinition) -> bool:
 	if table == null or view == null or table.columns.size() != view.columns.size():
 		return false
 	for column in table.columns:
@@ -264,7 +258,7 @@ func _set_table_visible(visible: bool) -> void:
 	_table_view.visible = visible
 	_pagination.visible = visible
 	_result_actions.visible = visible
-	_editor_section.visible = visible and is_instance_valid(_editor_row)
+	_editor_section.visible = visible and _editor_active
 	if not visible:
 		_table_view.clear()
 
@@ -272,8 +266,9 @@ func _set_table_visible(visible: bool) -> void:
 func _render_table() -> void:
 	var first_index := _page_index * _page_size
 	var end_index := mini(first_index + _page_size, _records.size())
-	_table_view.render_page(first_index, end_index, _selected_record_index)
+	_table_view.render_page(first_index, end_index, _selected_record_index, _page_size)
 	_update_pagination()
+	_refresh_resize_limits.call_deferred(true, false)
 
 
 func _on_table_row_selected() -> void:
@@ -303,71 +298,74 @@ func _on_inline_changes_changed(message: String) -> void:
 	_emit_capabilities()
 
 
+func _on_editor_changes_changed(message: String) -> void:
+	_status.text = message
+	_refresh_editor_actions()
+	_emit_capabilities()
+
+
 func _open_record_editor(record_index: int) -> void:
 	if record_index < 0 or record_index >= _records.size():
 		return
 	_clear_editor()
 	_selected_record_index = record_index
 	_editor_source = _records[record_index]
-	_editor_row = _create_editor_row(_editor_source)
+	_editor_active = true
+	_editor_insert_draft = false
+	var editor_records: Array[GDSQLRowRecord] = [_editor_source]
+	_editor_table.configure(_table, _view_table, editor_records, _can_edit_rows)
+	_editor_table.set_safe_mode(false)
+	_editor_table.render_page(0, 1, 0, 1)
 	_editor_section.visible = true
 	_status.text = "Editing row %d of %d." % [record_index + 1, _records.size()]
 	_refresh_editor_actions()
 
 
-func _create_editor_row(source: GDSQLRowRecord) -> Control:
-	var row := DATA_ROW_SCENE.instantiate() as Control
-	_editor_host.add_child(row)
-	row.connect("dirty_changed", _on_row_dirty_changed)
-	row.call(
-		"configure",
-		_view_table,
-		source,
-		_can_add_rows if source == null else _can_edit_rows,
-	)
-	_editor_section.visible = true
-	_refresh_editor_actions()
-	return row
-
-
 func _clear_editor() -> void:
-	if is_instance_valid(_editor_row):
-		_editor_host.remove_child(_editor_row)
-		_editor_row.queue_free()
-	_editor_row = null
+	_editor_active = false
+	_editor_insert_draft = false
 	_editor_source = null
+	if is_node_ready():
+		var empty_records: Array[GDSQLRowRecord] = []
+		_editor_table.configure(null, null, empty_records, false)
+		_editor_table.clear()
 	_editor_section.visible = false
 	_refresh_editor_actions()
+	if _safe_mode:
+		_refresh_resize_limits.call_deferred(false, true)
 
 
 func _save_changes_requested() -> void:
-	if is_instance_valid(_editor_row):
+	if _editor_active:
 		_save_editor_row()
 	else:
 		_save_inline_changes()
 
 
 func _save_editor_row() -> void:
-	if not is_instance_valid(_editor_row) or not has_dirty_rows():
+	if not _editor_active or not has_dirty_rows():
 		return
-	var conversion: Dictionary = _editor_row.call("get_values_result")
-	if not bool(conversion.get("valid", false)):
-		_editor_row.call("set_status", String(conversion.get("message", "Invalid row values.")))
+	if _editor_table.has_validation_errors():
+		_status.text = "Correct the highlighted invalid values before saving."
 		return
-	_editor_row.call("set_status", "")
 	_mutation_in_flight = true
-	if _editor_source == null:
-		row_insert_requested.emit(
-			_registration_name,
-			_table.name,
-			conversion.get("values", { }),
-		)
+	if _editor_insert_draft:
+		var conversion := _editor_table.get_insert_values_result()
+		if not bool(conversion.get("valid", false)):
+			_status.text = String(conversion.get("message", "Invalid row values."))
+			_mutation_in_flight = false
+			return
+		row_insert_requested.emit(_registration_name, _table.name, conversion.get("values", { }))
 	else:
+		var pending := _editor_table.get_pending_updates()
+		if pending.is_empty():
+			_mutation_in_flight = false
+			return
 		row_update_requested.emit(
 			_registration_name,
 			_table.name,
-			_editor_row.call("get_original_primary_key"),
-			conversion.get("values", { }),
+			_editor_source.get_value(_table.primary_key),
+			pending[0].values,
 		)
 	_mutation_in_flight = false
 
@@ -401,8 +399,7 @@ func _save_inline_changes() -> void:
 	_status.text = (
 		"Saved changes to %d row(s)." % saved_count
 		if failed.is_empty()
-		else "%d row(s) saved; %d failed update(s) remain pending."
-				% [saved_count, failed.size()]
+		else "%d row(s) saved; %d failed update(s) remain pending." % [saved_count, failed.size()]
 	)
 	_refresh_editor_actions()
 	_emit_capabilities()
@@ -411,7 +408,7 @@ func _save_inline_changes() -> void:
 func _request_delete_editor_row() -> void:
 	var source := _selected_source_record()
 	if source == null:
-		if is_instance_valid(_editor_row) and _editor_source == null:
+		if _editor_active and _editor_insert_draft:
 			_discard_editor_row()
 		return
 	_delete_confirmation.dialog_text = (
@@ -426,11 +423,7 @@ func _confirm_delete_editor_row() -> void:
 	if source == null:
 		return
 	_mutation_in_flight = true
-	row_delete_requested.emit(
-		_registration_name,
-		_table.name,
-		source.get_value(_table.primary_key),
-	)
+	row_delete_requested.emit(_registration_name, _table.name, source.get_value(_table.primary_key))
 	_mutation_in_flight = false
 
 
@@ -443,9 +436,9 @@ func _discard_editor_row() -> void:
 
 
 func _discard_editor_changes() -> void:
-	if not is_instance_valid(_editor_row) or not has_dirty_rows():
+	if not _editor_active or not has_dirty_rows():
 		return
-	if _editor_source == null:
+	if _editor_insert_draft:
 		_discard_editor_row()
 		return
 	var record_index := _selected_record_index
@@ -455,7 +448,7 @@ func _discard_editor_changes() -> void:
 
 
 func _discard_changes_requested() -> void:
-	if is_instance_valid(_editor_row):
+	if _editor_active:
 		_discard_editor_changes()
 		return
 	if not _table_view.has_pending_changes():
@@ -463,14 +456,6 @@ func _discard_changes_requested() -> void:
 	_table_view.clear_pending_changes()
 	_render_table()
 	_status.text = "Unsaved cell changes were discarded."
-	_refresh_editor_actions()
-	_emit_capabilities()
-
-
-func _on_row_dirty_changed(row: Control, dirty: bool) -> void:
-	if row != _editor_row:
-		return
-	_status.text = "The selected row has unsaved changes." if dirty else _status.text
 	_refresh_editor_actions()
 	_emit_capabilities()
 
@@ -496,15 +481,14 @@ func _on_safe_mode_toggled(enabled: bool) -> void:
 func _refresh_editor_actions() -> void:
 	if not is_node_ready():
 		return
-	var has_editor := is_instance_valid(_editor_row)
-	var editor_can_mutate := has_editor and bool(_editor_row.call("can_mutate"))
+	var has_editor := _editor_active
+	var editor_can_mutate := has_editor and _editor_table.can_mutate()
 	var inline_can_mutate := not _safe_mode and _can_edit_rows
 	var can_save := editor_can_mutate or inline_can_mutate
 	_save_changes.disabled = not can_save or not has_dirty_rows()
 	_discard_changes.disabled = not can_save or not has_dirty_rows()
 	_delete_row.disabled = (
-		_selected_source_record() == null
-		or (has_editor and not editor_can_mutate)
+		_selected_source_record() == null or (has_editor and not editor_can_mutate)
 		or (not _safe_mode and has_dirty_rows())
 	)
 
@@ -582,6 +566,8 @@ func _on_page_size_selected(index: int) -> void:
 	_selected_record_index = -1
 	_clear_editor()
 	_render_table()
+	_page_layout_initialized = true
+	_refresh_resize_limits.call_deferred(true, true)
 
 
 func _find_record_index(primary_key: Variant) -> int:
@@ -591,6 +577,94 @@ func _find_record_index(primary_key: Variant) -> int:
 		if _records[index].get_value(_table.primary_key) == primary_key:
 			return index
 	return -1
+
+
+func _initialize_resize_limits() -> void:
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	if Engine.is_editor_hint():
+		var edited_scene_root := EditorInterface.get_edited_scene_root()
+		if edited_scene_root == self \
+				or (edited_scene_root != null and edited_scene_root.is_ancestor_of(self)):
+			return
+	_measure_resize_chrome()
+
+
+func _measure_resize_chrome() -> void:
+	_resize_chrome = Vector2(
+		maxf(0.0, size.x - _table_scroll.size.x),
+		maxf(0.0, size.y - _table_scroll.size.y),
+	)
+	_resize_chrome_measured = _table_scroll.size.x > 0.0 and _table_scroll.size.y > 0.0
+
+
+func _fit_initial_page() -> void:
+	if _page_layout_initialized or _view_table == null:
+		return
+	if not _resize_chrome_measured:
+		await get_tree().process_frame
+		if not is_inside_tree() or _view_table == null:
+			return
+		_measure_resize_chrome()
+	_refresh_resize_limits(true, true)
+	_page_layout_initialized = true
+
+
+func _refresh_resize_limits(resize_width: bool, resize_height: bool) -> void:
+	if not is_node_ready():
+		return
+	if not _resize_chrome_measured:
+		return
+	var content_width := maxf(
+		MINIMUM_NODE_SIZE.x - _resize_chrome.x,
+		_table_view.get_content_width(),
+	)
+	var content_height := _table_view.estimate_height_for_rows(_page_size)
+	if _safe_mode and _editor_section.visible:
+		content_height += maxf(
+			_editor_section.size.y,
+			_editor_section.get_combined_minimum_size().y,
+		)
+		var editor_parent := _editor_section.get_parent() as VBoxContainer
+		if editor_parent != null:
+			content_height += editor_parent.get_theme_constant(&"separation")
+	_resize_limits = Vector2(
+		maxf(MINIMUM_NODE_SIZE.x, content_width + _resize_chrome.x),
+		maxf(MINIMUM_NODE_SIZE.y, content_height + _resize_chrome.y),
+	)
+	var target := Vector2(
+		(_resize_limits.x
+			if resize_width
+			else clampf(size.x, MINIMUM_NODE_SIZE.x, _resize_limits.x)),
+		(_resize_limits.y
+			if resize_height
+			else clampf(size.y, MINIMUM_NODE_SIZE.y, _resize_limits.y)),
+	)
+	_apply_node_size(target)
+
+
+func _on_resize_request(requested_size: Vector2) -> void:
+	_apply_node_size(
+		Vector2(
+			clampf(requested_size.x, MINIMUM_NODE_SIZE.x, _resize_limits.x),
+			clampf(requested_size.y, MINIMUM_NODE_SIZE.y, _resize_limits.y),
+		),
+	)
+
+
+func _enforce_resize_limits() -> void:
+	if _applying_resize or not is_node_ready():
+		return
+	_on_resize_request(size)
+
+
+func _apply_node_size(target: Vector2) -> void:
+	if size.is_equal_approx(target):
+		return
+	_applying_resize = true
+	size = target
+	_applying_resize = false
 
 
 func _value_text(value: Variant) -> String:
