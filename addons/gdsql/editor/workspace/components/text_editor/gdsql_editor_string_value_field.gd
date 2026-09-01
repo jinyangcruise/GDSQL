@@ -34,6 +34,7 @@ func configure(value: Variant, is_nullable: bool, is_editable: bool) -> void:
 func set_value_editable(enabled: bool) -> void:
 	_editable = enabled
 	_line_edit.editable = enabled
+	_expand.disabled = not _editable
 	_expand.tooltip_text = (
 		"Open expanded text editor"
 		if enabled
