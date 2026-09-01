@@ -5,16 +5,14 @@
 [ext_resource type="PackedScene" uid="uid://gtb4bqo4x3w7" path="res://addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn" id="3_row"]
 
 [node name="ColumnEditor" type="VBoxContainer" unique_id=232728838]
-offset_right = 1266.0
-offset_bottom = 217.0
+offset_right = 1151.0
+offset_bottom = 190.0
 theme_override_constants/separation = 0
 script = ExtResource("1_editor")
 
 [node name="Scroll" type="ScrollContainer" parent="." unique_id=632111518]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 190)
 layout_mode = 2
-size_flags_vertical = 3
 follow_focus = true
 vertical_scroll_mode = 5
 

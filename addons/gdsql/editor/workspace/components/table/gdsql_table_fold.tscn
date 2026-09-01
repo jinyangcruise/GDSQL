@@ -6,8 +6,10 @@
 [ext_resource type="PackedScene" uid="uid://blg3sawy0eg2j" path="res://addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor.tscn" id="4_columns"]
 
 [node name="TableFold" type="FoldableContainer" unique_id=1236517426]
-offset_right = 1282.0
-offset_bottom = 421.0
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 385.0
+grow_horizontal = 2
 title = "Table"
 script = ExtResource("1")
 
@@ -43,10 +45,32 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 1
 
-[node name="ColumnsTitle" type="Label" parent="MarginContainer/Content" unique_id=1070345048]
+[node name="NewIndexes" type="VBoxContainer" parent="MarginContainer/Content/FoldableContainer/Constraints" unique_id=604692864]
+unique_name_in_owner = true
 layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="AddIndex" type="Button" parent="MarginContainer/Content/FoldableContainer/Constraints" unique_id=1740668426]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 0
+text = "Add Index"
+icon = ExtResource("3_hkiee")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/Content" unique_id=391976705]
+layout_mode = 2
+
+[node name="ColumnsTitle" type="Label" parent="MarginContainer/Content/HBoxContainer" unique_id=1070345048]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 20
 text = "Columns"
+
+[node name="AddColumn" type="Button" parent="MarginContainer/Content/HBoxContainer" unique_id=1938388723]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Add Column"
+icon = ExtResource("2_23edi")
 
 [node name="Columns" parent="MarginContainer/Content" unique_id=1220401183 instance=ExtResource("4_columns")]
 unique_name_in_owner = true
@@ -56,20 +80,3 @@ layout_mode = 2
 layout_mode = 2
 theme_override_constants/separation = 6
 alignment = 1
-
-[node name="AddColumn" type="Button" parent="MarginContainer/Content/Actions" unique_id=1938388723]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Add Column"
-icon = ExtResource("2_23edi")
-
-[node name="AddIndex" type="Button" parent="MarginContainer/Content/Actions" unique_id=1740668426]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Add Index"
-icon = ExtResource("3_hkiee")
-
-[node name="NewIndexes" type="VBoxContainer" parent="MarginContainer/Content" unique_id=604692864]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_constants/separation = 2

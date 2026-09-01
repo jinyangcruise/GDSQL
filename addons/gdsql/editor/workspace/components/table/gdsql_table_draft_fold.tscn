@@ -8,8 +8,10 @@
 
 [node name="TableDraftFold" type="FoldableContainer" unique_id=194084698]
 propagate_maximum_size = false
-offset_right = 1282.0
-offset_bottom = 482.0
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 455.0
+grow_horizontal = 2
 title = "Draft table"
 script = ExtResource("1")
 
@@ -64,17 +66,37 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "created_at and updated_at"
 
-[node name="ColumnsLabel" type="Label" parent="MarginContainer/Content" unique_id=8068666]
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/Content" unique_id=1690015716]
 layout_mode = 2
+
+[node name="ColumnsLabel" type="Label" parent="MarginContainer/Content/HBoxContainer" unique_id=8068666]
+layout_mode = 2
+size_flags_horizontal = 3
 text = "Columns"
+
+[node name="AddColumn" type="Button" parent="MarginContainer/Content/HBoxContainer" unique_id=476621308]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Add Column"
+icon = ExtResource("3_ctrlm")
 
 [node name="Columns" parent="MarginContainer/Content" unique_id=2022007793 instance=ExtResource("2_columns")]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="IndexesLabel" type="Label" parent="MarginContainer/Content" unique_id=532688236]
+[node name="HBoxContainer2" type="HBoxContainer" parent="MarginContainer/Content" unique_id=1738950589]
 layout_mode = 2
+
+[node name="IndexesLabel" type="Label" parent="MarginContainer/Content/HBoxContainer2" unique_id=532688236]
+layout_mode = 2
+size_flags_horizontal = 3
 text = "Indexes"
+
+[node name="AddIndex" type="Button" parent="MarginContainer/Content/HBoxContainer2" unique_id=15262762]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Add Index"
+icon = ExtResource("4_ksyvb")
 
 [node name="Indexes" type="VBoxContainer" parent="MarginContainer/Content" unique_id=1355192318]
 unique_name_in_owner = true
@@ -85,18 +107,6 @@ theme_override_constants/separation = 2
 layout_mode = 2
 theme_override_constants/separation = 8
 alignment = 1
-
-[node name="AddColumn" type="Button" parent="MarginContainer/Content/Actions" unique_id=476621308]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Add Column"
-icon = ExtResource("3_ctrlm")
-
-[node name="AddIndex" type="Button" parent="MarginContainer/Content/Actions" unique_id=15262762]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Add Index"
-icon = ExtResource("4_ksyvb")
 
 [node name="RemoveTable" type="Button" parent="MarginContainer/Content/Actions" unique_id=1693327092]
 unique_name_in_owner = true
