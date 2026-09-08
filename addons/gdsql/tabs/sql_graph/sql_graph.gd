@@ -1275,6 +1275,12 @@ func gen_table_node(columns: Array, table_datas: Array, is_union_all: bool, join
 
 	graph_node.datas = graph_datas
 
+	# Godot 4.8.dev4: GraphNode 不再自动展开 SIZE_EXPAND_FILL 的子节点，导致表格高度坍缩。
+	# 通过 _gdsql_fill_node meta 让 graph_node.gd 的 _process 手动撑满表格行。
+	var fill_ctrl = graph_datas[0][0] as Control
+	if fill_ctrl:
+		fill_ctrl.set_meta("_gdsql_fill_node", true)
+
 	if v_scroll_h > 0:
 		table.set_deferred("v_scroll_height", v_scroll_h)
 

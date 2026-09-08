@@ -43,6 +43,7 @@ var enabled: bool:
 var max_btn: TextureButton
 var _redraw_queue = { }
 var _mutex: Mutex
+var _last_fill_size: Vector2 = Vector2.ZERO
 ## 修复切换到别的地方再回来的时候大小发生了变化的问题
 var _size_before_invisible: Vector2 = Vector2.ZERO
 
@@ -628,6 +629,38 @@ func disconnect_focused_selected_propagate(control: Control):
 	for child in control.get_children(true):
 		if child is Control:
 			disconnect_focused_selected_propagate(child)
+
+
+func _process(_delta) -> void:
+	# Godot 4.8.dev4: GraphNode 不再按 size_flags 自动展开 SIZE_EXPAND_FILL 的子节点。
+	# 若 datas 中包含标记 _gdsql_fill_node 的控件（如Result节点的表格），
+	# 手动把它所在行撑满节点内容区。用 _process 而非 resized 信号，
+	# 是因为在 4.8.dev4 里于 resized 处理器中设置 custom_minimum_size 会引发重入崩溃。
+	if not is_node_ready() or datas.is_empty() or size == _last_fill_size:
+		return
+	_last_fill_size = size
+	for arr in datas:
+		for data in arr:
+			if data is Control and data.get_meta("_gdsql_fill_node", false):
+				_fit_fill_row(data)
+				return
+
+
+func _fit_fill_row(fill_ctrl: Control) -> void:
+	var row = fill_ctrl.get_parent() as Control
+	if row == null:
+		return
+	var fill_top = row.position.y
+	var btn_h := 0.0
+	for arr in datas:
+		for data in arr:
+			if data is Control and data != fill_ctrl:
+				var other_row = data.get_parent() as Control
+				if other_row != null and other_row != row:
+					btn_h = max(btn_h, other_row.size.y)
+	var avail = size.y - fill_top - btn_h
+	if avail > 0:
+		fill_ctrl.custom_minimum_size.y = avail
 
 
 func _flush_redraw_queue():
