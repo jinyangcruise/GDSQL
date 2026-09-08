@@ -640,22 +640,31 @@ func _process(_delta) -> void:
 	if not is_node_ready() or datas.is_empty() or size == _last_fill_size:
 		return
 	_last_fill_size = size
+	_fit_fill_row_to(size.y)
+
+
+## 查找标记为填充行的控件（如Result节点里的表格所在的margin容器）。
+func _get_fill_ctrl() -> Control:
 	for arr in datas:
 		for data in arr:
 			if data is Control and data.get_meta("_gdsql_fill_node", false):
-				_fit_fill_row(data)
-				return
+				return data
+	return null
 
 
-func _fit_fill_row(fill_ctrl: Control) -> void:
-	# 只填充「节点当前尺寸 - 节点最小尺寸(不含fill行)」的富余空间。
-	# 若直接按节点高度设置custom_minimum_size，会撑大节点最小尺寸，
-	# 导致节点每帧增长（正反馈，高度不断变大）。
+## 把填充行的高度设置为让节点总高为target_h（= 节点最小尺寸(不含fill行) + fill高度）。
+## 注意：fill行的custom_minimum_size会成为节点的最小尺寸，
+## 所以调整节点大小前必须先按新尺寸算好fill高度，否则节点只能变大不能变小。
+func _fit_fill_row_to(target_h: float) -> void:
+	var fill_ctrl = _get_fill_ctrl()
+	if fill_ctrl == null:
+		return
 	# node_min_without_fill = 当前最小尺寸 - fill行贡献的最小尺寸
-	var node_min = get_combined_minimum_size().y
-	var slack = size.y - (node_min - fill_ctrl.custom_minimum_size.y)
-	if slack > 0:
-		fill_ctrl.custom_minimum_size.y = slack
+	var node_min_without_fill = get_combined_minimum_size().y - fill_ctrl.custom_minimum_size.y
+	var fill = target_h - node_min_without_fill
+	if fill < 0.0:
+		fill = 0.0
+	fill_ctrl.custom_minimum_size.y = fill
 
 
 func _flush_redraw_queue():
@@ -716,13 +725,18 @@ func _bind_data_control_focus_entered():
 
 
 func _on_resize_end(new_size: Vector2) -> void:
+	# 先按目标尺寸调整填充行，否则fill行会成为节点最小尺寸、阻止缩小
+	_fit_fill_row_to(new_size.y)
 	size = new_size
 	window_size = size
+	_last_fill_size = Vector2.ZERO
 
 
 func _on_resize_request(new_minsize):
+	_fit_fill_row_to(new_minsize.y)
 	size = new_minsize
 	window_size = size
+	_last_fill_size = Vector2.ZERO
 
 
 func _on_button_debug_pressed() -> void:
