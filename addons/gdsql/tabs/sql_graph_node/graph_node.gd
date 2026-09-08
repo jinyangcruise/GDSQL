@@ -353,6 +353,7 @@ func redraw():
 			#else:
 			#hb.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	connect_focused_selected_propagate(self)
+	_last_fill_size = Vector2.ZERO # 行被重建，下一帧重新计算fill行高度
 
 
 ## 把要刷新的控件推送到队列中
@@ -647,20 +648,14 @@ func _process(_delta) -> void:
 
 
 func _fit_fill_row(fill_ctrl: Control) -> void:
-	var row = fill_ctrl.get_parent() as Control
-	if row == null:
-		return
-	var fill_top = row.position.y
-	var btn_h := 0.0
-	for arr in datas:
-		for data in arr:
-			if data is Control and data != fill_ctrl:
-				var other_row = data.get_parent() as Control
-				if other_row != null and other_row != row:
-					btn_h = max(btn_h, other_row.size.y)
-	var avail = size.y - fill_top - btn_h
-	if avail > 0:
-		fill_ctrl.custom_minimum_size.y = avail
+	# 只填充「节点当前尺寸 - 节点最小尺寸(不含fill行)」的富余空间。
+	# 若直接按节点高度设置custom_minimum_size，会撑大节点最小尺寸，
+	# 导致节点每帧增长（正反馈，高度不断变大）。
+	# node_min_without_fill = 当前最小尺寸 - fill行贡献的最小尺寸
+	var node_min = get_combined_minimum_size().y
+	var slack = size.y - (node_min - fill_ctrl.custom_minimum_size.y)
+	if slack > 0:
+		fill_ctrl.custom_minimum_size.y = slack
 
 
 func _flush_redraw_queue():
