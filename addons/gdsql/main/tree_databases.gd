@@ -17,6 +17,7 @@ var disk_changed: ConfirmationDialog
 var disk_changed_list: Tree
 var _default_database_path: String = ""
 var _password_correct: Dictionary # 保存输入正确密码的表. {datapath: dek}
+var saved_collapsed: Dictionary
 
 @onready var popup_menu_database: PopupMenu = $PopupMenuDatabase
 @onready var popup_menu_table_item: PopupMenu = $PopupMenuTableItem
@@ -43,22 +44,6 @@ func _ready():
 		return
 
 	set_translation_domain("GDSQL")
-	if not mgr.user_confirm_add_schema.is_connected(add_db_to_config):
-		mgr.user_confirm_add_schema.connect(add_db_to_config, CONNECT_DEFERRED)
-	if not mgr.user_confirm_add_table.is_connected(add_table_to_config):
-		mgr.user_confirm_add_table.connect(add_table_to_config, CONNECT_DEFERRED)
-	if not mgr.user_confirm_alter_schema.is_connected(modify_db_to_config):
-		mgr.user_confirm_alter_schema.connect(modify_db_to_config, CONNECT_DEFERRED)
-	if not mgr.user_confirm_alter_table.is_connected(modify_table_to_config):
-		mgr.user_confirm_alter_table.connect(modify_table_to_config, CONNECT_DEFERRED)
-	if not mgr.request_user_enter_password.is_connected(deal_password_before_table_cmd_2):
-		mgr.request_user_enter_password.connect(deal_password_before_table_cmd_2, CONNECT_DEFERRED)
-	if not mgr.need_user_enter_password.is_connected(need_password):
-		mgr.need_user_enter_password.connect(need_password) # 不能用CONNECT_DEFERRED
-	if not mgr.request_drop_table.is_connected(drop_table_from_config):
-		mgr.request_drop_table.connect(drop_table_from_config, CONNECT_DEFERRED)
-	if not mgr.request_create_table.is_connected(add_table_to_config):
-		mgr.request_create_table.connect(add_table_to_config, CONNECT_DEFERRED)
 
 	popup_menu_database.set_item_submenu_node(2, popup_menu_copy_to)
 	popup_menu_database.set_item_submenu_node(3, popup_menu_send_to)
@@ -70,7 +55,6 @@ func _ready():
 	popup_menu_table_item.set_item_submenu_node(12, popup_menu_password_of_table)
 	popup_menu_column.set_item_submenu_node(2, popup_menu_copy_to_of_column)
 	popup_menu_column.set_item_submenu_node(3, popup_menu_send_to_of_column)
-	refresh()
 
 	# 配置变化检测
 	disk_changed = ConfirmationDialog.new()
@@ -88,6 +72,28 @@ func _ready():
 	disk_changed.confirmed.connect(_reload_modified_scenes)
 	disk_changed.ok_button_text = tr("Reload")
 	add_child(disk_changed)
+
+	refresh()
+
+
+func _enter_tree() -> void:
+	if not mgr.user_confirm_add_schema.is_connected(add_db_to_config):
+		mgr.user_confirm_add_schema.connect(add_db_to_config, CONNECT_DEFERRED)
+	if not mgr.user_confirm_add_table.is_connected(add_table_to_config):
+		mgr.user_confirm_add_table.connect(add_table_to_config, CONNECT_DEFERRED)
+	if not mgr.user_confirm_alter_schema.is_connected(modify_db_to_config):
+		mgr.user_confirm_alter_schema.connect(modify_db_to_config, CONNECT_DEFERRED)
+	if not mgr.user_confirm_alter_table.is_connected(modify_table_to_config):
+		mgr.user_confirm_alter_table.connect(modify_table_to_config, CONNECT_DEFERRED)
+	if not mgr.request_user_enter_password.is_connected(deal_password_before_table_cmd_2):
+		mgr.request_user_enter_password.connect(deal_password_before_table_cmd_2, CONNECT_DEFERRED)
+	if not mgr.need_user_enter_password.is_connected(need_password):
+		mgr.need_user_enter_password.connect(need_password) # 不能用CONNECT_DEFERRED
+	if not mgr.request_drop_table.is_connected(drop_table_from_config):
+		mgr.request_drop_table.connect(drop_table_from_config, CONNECT_DEFERRED)
+	if not mgr.request_create_table.is_connected(add_table_to_config):
+		mgr.request_create_table.connect(add_table_to_config, CONNECT_DEFERRED)
+	refresh()
 
 
 func _exit_tree():
@@ -350,9 +356,12 @@ func clear_all_tables_from_config(db_name: String) -> void:
 
 
 func refresh() -> void:
+	if not is_node_ready():
+		return
 	# 保存刷新前的折叠状态
-	var saved_collapsed = { }
-	_save_collapsed_state(root, saved_collapsed, [])
+	if root and not root.is_queued_for_deletion():
+		saved_collapsed.clear()
+		_save_collapsed_state(root, saved_collapsed, [])
 	_clear()
 	refresh_databases()
 	root = create_item()
@@ -729,8 +738,8 @@ func _save_collapsed_state(item: TreeItem, saved: Dictionary, path: Array) -> vo
 		return
 	var key = item.get_meta("type", "")
 	if key != "":
-		var name = item.get_meta("display_name", item.get_text(0))
-		path.push_back(name)
+		var a_name = item.get_meta("display_name", item.get_text(0))
+		path.push_back(a_name)
 		saved["/".join(path)] = item.collapsed
 	# collect children
 	var c = item.get_first_child()
@@ -740,12 +749,14 @@ func _save_collapsed_state(item: TreeItem, saved: Dictionary, path: Array) -> vo
 
 
 func _restore_collapsed_state(item: TreeItem, saved: Dictionary, path: Array) -> void:
+	if saved.is_empty():
+		return
 	if item == null:
 		return
 	var key = item.get_meta("type", "")
 	if key != "":
-		var name = item.get_meta("display_name", item.get_text(0))
-		path.push_back(name)
+		var a_name = item.get_meta("display_name", item.get_text(0))
+		path.push_back(a_name)
 		if saved.has("/".join(path)):
 			item.collapsed = saved["/".join(path)]
 	# restore children
@@ -758,8 +769,11 @@ func _restore_collapsed_state(item: TreeItem, saved: Dictionary, path: Array) ->
 func _clear():
 	clear()
 	database_items.clear()
-	popup_menu_create_table_like_tables.clear()
-	popup_menu_create_table_like_table_item.clear()
+	# In case tree_databases is not ready.
+	if popup_menu_create_table_like_tables:
+		popup_menu_create_table_like_tables.clear()
+	if popup_menu_create_table_like_table_item:
+		popup_menu_create_table_like_table_item.clear()
 
 
 func _on_disk_changed_list_button_clicked(item: TreeItem, _column: int, id: int, _mouse_button_index: int):

@@ -62,7 +62,7 @@ static func get_compare_result_in_bbcode(left_content: Array, right_content: Arr
 						tmp_op_index += 1
 					if tmp_op_index < diffs[3].size() \
 							and diffs[3][tmp_op_index] == GDSQL.DiffHelper.Operation.INSERT \
-							and not skipped_op_index.has(diffs[3][tmp_op_index]):
+							and not skipped_op_index.has(tmp_op_index):
 						# 连续的insert
 						var tmp_op_index2 = tmp_op_index
 						while tmp_op_index2 < diffs[3].size() and diffs[3][tmp_op_index2] == GDSQL.DiffHelper.Operation.INSERT:

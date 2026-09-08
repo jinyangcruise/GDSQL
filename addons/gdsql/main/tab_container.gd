@@ -27,7 +27,7 @@ var _tab_context_menu: PopupMenu
 @onready var new_tab_button: Control = %"➕"
 
 
-func _ready() -> void:
+func _enter_tree() -> void:
 	if mgr == null or not mgr.run_in_plugin(self):
 		return
 
@@ -75,7 +75,8 @@ func _ready() -> void:
 		mgr.send_to_editor_and_execute.connect(receive_content_and_execute, CONNECT_DEFERRED)
 
 	set_tab_icon(WELCOME_PAGE_TAB_INDEX, load("res://addons/gdsql/img/gdsql_text_icon.svg"))
-	get_tab_bar().active_tab_rearranged.connect(_on_active_tab_rearranged)
+	if not get_tab_bar().active_tab_rearranged.is_connected(_on_active_tab_rearranged):
+		get_tab_bar().active_tab_rearranged.connect(_on_active_tab_rearranged)
 	_add_tab_context_menu()
 
 
@@ -136,10 +137,10 @@ func _exit_tree():
 	# Fix files not saved to recent files.
 	_on_tab_context_menu_pressed(CLOSE_OPTION.CLOSE_ALL_TABS)
 
-	while get_child_count() > 0:
-		var child = get_child(0)
-		remove_child(child)
-		child.queue_free()
+	#while get_child_count() > 0:
+	#var child = get_child(0)
+	#remove_child(child)
+	#child.queue_free()
 
 	mgr = null
 
@@ -551,17 +552,19 @@ func _switch_to_previous_page(current_page: Node):
 
 
 func _add_tab_context_menu():
-	_tab_context_menu = PopupMenu.new()
-	_tab_context_menu.add_item(tr("Close"), CLOSE_OPTION.CLOSE_CURRENT_TAB)
-	_tab_context_menu.add_item(tr("Close Other Tabs"), CLOSE_OPTION.CLOSE_OTHER_TABS)
-	_tab_context_menu.add_item(tr("Close Tabs to the Right"), CLOSE_OPTION.CLOSE_TABS_TO_THE_RIGHT)
-	_tab_context_menu.add_item(tr("Close All Tabs"), CLOSE_OPTION.CLOSE_ALL_TABS)
-	_tab_context_menu.id_pressed.connect(_on_tab_context_menu_pressed)
-	# 注意：不能 add_child 到 TabContainer，会影响 get_child_count() 导致➕按钮下标计算错误
-	get_tree().root.add_child(_tab_context_menu)
-	get_tab_bar().gui_input.connect(_on_tab_bar_gui_input)
-	if rmb_menu:
-		set_popup(rmb_menu)
+	if _tab_context_menu == null:
+		_tab_context_menu = PopupMenu.new()
+		_tab_context_menu.add_item(tr("Close"), CLOSE_OPTION.CLOSE_CURRENT_TAB)
+		_tab_context_menu.add_item(tr("Close Other Tabs"), CLOSE_OPTION.CLOSE_OTHER_TABS)
+		_tab_context_menu.add_item(tr("Close Tabs to the Right"), CLOSE_OPTION.CLOSE_TABS_TO_THE_RIGHT)
+		_tab_context_menu.add_item(tr("Close All Tabs"), CLOSE_OPTION.CLOSE_ALL_TABS)
+		_tab_context_menu.id_pressed.connect(_on_tab_context_menu_pressed)
+		# 注意：不能 add_child 到 TabContainer，会影响 get_child_count() 导致➕按钮下标计算错误
+		get_tree().root.add_child(_tab_context_menu)
+		if not get_tab_bar().gui_input.is_connected(_on_tab_bar_gui_input):
+			get_tab_bar().gui_input.connect(_on_tab_bar_gui_input)
+		if rmb_menu:
+			set_popup(rmb_menu)
 
 
 func _on_tab_bar_gui_input(event: InputEvent):
