@@ -270,24 +270,46 @@ func _merge_inspection(
 		inspection: GDSQLDatabaseInspection,
 ) -> GDSQLOperationResult:
 	var registration := inspection.registration
+	var result := GDSQLOperationResult.new()
 	var existing := get_registration(registration.name)
 	if existing != null and (
 			existing.database_name != registration.database_name
 			or existing.data_root != registration.data_root
 	):
-		return _error(
-			&"GDSQL_DATABASE_REGISTRATION_COLLISION",
-			"Registration name '%s' already identifies another database." \
-					% registration.name,
+		var requested_name := registration.name
+		registration.name = _next_available_registration_name(registration)
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_DATABASE_REGISTRATION_DISAMBIGUATED",
+				"Registration name '%s' was already in use; registered database '%s' as '%s'." \
+						% [requested_name, registration.database_name, registration.name],
+				GDSQLQueryDiagnostic.Severity.INFO,
+			),
 		)
+		existing = null
 	if existing == null:
 		snapshot.registrations.append(registration)
 	else:
 		inspection.registration = existing
 	_inspections[registration.name] = inspection
-	var result := GDSQLOperationResult.new()
 	result.value = inspection
 	return result
+
+
+func _next_available_registration_name(
+		registration: GDSQLDatabaseRegistration,
+) -> StringName:
+	var requested_name := String(registration.name)
+	var database_name := String(registration.database_name)
+	var stem := requested_name if not requested_name.is_empty() else database_name
+	if not database_name.is_empty() and stem != database_name:
+		stem = "%s_%s" % [stem, database_name]
+	var candidate := StringName(stem)
+	var suffix := 2
+	while get_registration(candidate) != null:
+		candidate = StringName("%s_%d" % [stem, suffix])
+		suffix += 1
+	return candidate
 
 
 func _error(code: StringName, message: String) -> GDSQLOperationResult:

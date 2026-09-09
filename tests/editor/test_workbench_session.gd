@@ -99,7 +99,7 @@ func test_workbench_loads_all_registrations_without_opening_rows() -> void:
 	TestDatabase.create_database(
 		save_root,
 		GDSQLTableDefinition.new(&"inventory", &"id") \
-			.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true)),
+				.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true)),
 		&"game_state",
 	)
 	var store := GDSQLConfigFileDatabaseRegistryStore.new(
@@ -142,9 +142,9 @@ func test_workbench_discovers_and_persists_known_save_children() -> void:
 		TestDatabase.create_database(
 			saves_root.path_join(save_name),
 			GDSQLTableDefinition.new(&"state", &"id") \
-				.add_column(
-					GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true),
-				),
+					.add_column(
+						GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true),
+					),
 			&"game_state",
 		)
 	var store := GDSQLConfigFileDatabaseRegistryStore.new(
@@ -166,6 +166,72 @@ func test_workbench_discovers_and_persists_known_save_children() -> void:
 	var restored := registry.load_snapshot().get_value() \
 			as GDSQLDatabaseRegistrySnapshot
 	assert_int(restored.registrations.size()).is_equal(2)
+
+
+func test_workbench_disambiguates_new_database_registration_without_losing_it() -> void:
+	var project_root := _data_root.path_join("project")
+	var save_root := _data_root.path_join("save_1")
+	assert_bool(GDSQLDatabase.create(&"content", project_root).is_successful()).is_true()
+	assert_bool(GDSQLDatabase.create(&"game_state", save_root).is_successful()).is_true()
+	var store := GDSQLConfigFileDatabaseRegistryStore.new(
+		_data_root.path_join("registry.cfg"),
+	)
+	var registry := GDSQLDatabaseRegistry.new(store)
+	var snapshot := GDSQLDatabaseRegistrySnapshot.new()
+	snapshot.registrations.append(
+		GDSQLDatabaseRegistration.new(&"project", &"content", project_root),
+	)
+	assert_bool(registry.save_snapshot(snapshot).is_successful()).is_true()
+	var workbench := GDSQLWorkbench.new(
+		registry,
+		GDSQLConfigFileDatabaseExplorer.new(),
+	)
+	assert_bool(workbench.load().is_successful()).is_true()
+
+	var discovered := workbench.discover_root(save_root, &"project")
+
+	assert_bool(discovered.is_successful()).is_true()
+	assert_int(workbench.get_registrations().size()).is_equal(2)
+	assert_str(workbench.get_registration(&"project").data_root).is_equal(project_root)
+	var save_registration := workbench.get_registration(&"project_game_state")
+	assert_object(save_registration).is_not_null()
+	assert_str(save_registration.data_root).is_equal(save_root)
+	assert_str(String(discovered.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_DATABASE_REGISTRATION_DISAMBIGUATED",
+	)
+	var selected := workbench.select_registration(save_registration.name)
+	assert_bool(selected.is_successful()).is_true()
+	assert_str(String(selected.get_value().database.database_name)).is_equal("game_state")
+	var restored := registry.load_snapshot().get_value() \
+			as GDSQLDatabaseRegistrySnapshot
+	assert_int(restored.registrations.size()).is_equal(2)
+
+
+func test_editor_database_registration_prefix_tracks_its_ownership_root() -> void:
+	assert_str(
+		String(
+			GDSQLEditorController._registration_prefix_for_root(
+				&"content",
+				"res://data/",
+			),
+		),
+	).is_equal("project")
+	assert_str(
+		String(
+			GDSQLEditorController._registration_prefix_for_root(
+				&"game_state",
+				"user://gdsql/saves/save_1/",
+			),
+		),
+	).is_equal("save_1")
+	assert_str(
+		String(
+			GDSQLEditorController._registration_prefix_for_root(
+				&"settings",
+				"user://",
+			),
+		),
+	).is_equal("settings")
 
 
 func test_workbench_keeps_stale_registration_visible_as_missing() -> void:

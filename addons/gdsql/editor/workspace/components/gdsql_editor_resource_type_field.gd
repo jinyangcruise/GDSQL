@@ -58,6 +58,20 @@ func duplicate_prototype() -> Resource:
 	return prototype.duplicate(true) as Resource if prototype != null else null
 
 
+func _can_drop_data(_position: Vector2, data: Variant) -> bool:
+	return _editable and _resource_from_drop_data(data) != null
+
+
+func _drop_data(_position: Vector2, data: Variant) -> void:
+	if not _editable or _picker == null:
+		return
+	var resource := _resource_from_drop_data(data)
+	if resource == null:
+		return
+	_picker.set_edited_resource(resource)
+	_on_resource_changed(resource)
+
+
 func _on_resource_changed(_resource: Resource) -> void:
 	_prototype = _resource
 	_constraint = GDSQLResourceTypeConstraint.from_resource(_resource)
@@ -75,3 +89,17 @@ func _apply_configuration() -> void:
 		return
 	_picker.set_edited_resource(_prototype)
 	_picker.editable = _editable
+
+
+func _resource_from_drop_data(data: Variant) -> Resource:
+	if not data is Dictionary:
+		return null
+	var drag_data := data as Dictionary
+	match String(drag_data.get(&"type", "")):
+		"resource":
+			return drag_data.get(&"resource") as Resource
+		"files":
+			var files: PackedStringArray = drag_data.get(&"files", PackedStringArray())
+			if files.size() == 1 and ResourceLoader.exists(files[0]):
+				return ResourceLoader.load(files[0])
+	return null

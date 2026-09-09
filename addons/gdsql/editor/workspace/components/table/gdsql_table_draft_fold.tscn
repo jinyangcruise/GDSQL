@@ -74,15 +74,16 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "Columns"
 
-[node name="AddColumn" type="Button" parent="MarginContainer/Content/HBoxContainer" unique_id=476621308]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Add Column"
-icon = ExtResource("3_ctrlm")
-
 [node name="Columns" parent="MarginContainer/Content" unique_id=2022007793 instance=ExtResource("2_columns")]
 unique_name_in_owner = true
 layout_mode = 2
+
+[node name="AddColumn" type="Button" parent="MarginContainer/Content/Columns" unique_id=476621308]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 0
+text = "Add Column"
+icon = ExtResource("3_ctrlm")
 
 [node name="HBoxContainer2" type="HBoxContainer" parent="MarginContainer/Content" unique_id=1738950589]
 layout_mode = 2

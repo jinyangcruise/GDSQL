@@ -46,7 +46,6 @@ layout_mode = 2
 
 [node name="Operator" type="OptionButton" parent="Fields" unique_id=684134083]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(60, 0)
 layout_mode = 2
 selected = 0
 item_count = 8

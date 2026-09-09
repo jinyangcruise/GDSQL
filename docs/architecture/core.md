@@ -1224,6 +1224,14 @@ of `user://` is outside this responsibility. ConfigFile inspection still parses
 the physical file because `ConfigFile` has no header-only read API; only header
 metadata is returned, while a paged backend can read its header independently.
 
+The editor reserves the `project` registration name for `res://data`. A database
+created below another explicit root uses that root's final directory name, such
+as `save_1` or `settings`. If a newly discovered database still proposes a name
+owned by a different logical database and root, the workbench preserves the
+existing registration and assigns the newcomer a deterministic unique name.
+That resolved name is persisted, so later loads inspect the user database
+without recursively scanning `user://` or recreating the collision.
+
 ### 11.3 Persistence semantics and checkpoints
 
 A transaction commit establishes valid, visible database state. A checkpoint

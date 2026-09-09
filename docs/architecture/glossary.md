@@ -242,7 +242,7 @@ state in the same change as implementation or test work.
 
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
-| `Workbench` | Editor coordination | Loads the durable registration snapshot, reconciles explicit roots with logical database identity, removes stale root registrations, maintains lightweight inspections, and opens only the selected registration. | `load()`, `discover_root()`, `discover_children()`, `select_registration()`, `remove_registration()` | 🧪 |
+| `Workbench` | Editor coordination | Loads the durable registration snapshot, reconciles explicit roots with logical database identity and collision-safe registration names, removes stale root registrations, maintains lightweight inspections, and opens only the selected registration. | `load()`, `discover_root()`, `discover_children()`, `select_registration()`, `remove_registration()` | 🧪 |
 | `WorkbenchSession` | Editor coordination | Holds one opened registration, catalog snapshot, selected table, current page, and pending schema preview without depending on Controls. | `open_registration()`, `refresh_catalog()`, `select_table()`, `load_rows()`, preview and apply methods | 🧪 |
 | `EditorActionDefinition` | Editor actions | Describes one stable editor action independently from its presentation and behavior. | Identity, label, tooltip, icon, group, order, and kind | 🛠️ |
 | `EditorActionRegistrar` | Editor actions | Registers stable action metadata with behavior supplied by the editor coordinator. | `register_global_actions()` | 🛠️ |

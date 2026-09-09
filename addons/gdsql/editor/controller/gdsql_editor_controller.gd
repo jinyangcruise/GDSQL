@@ -181,7 +181,10 @@ func _create_database(
 			)
 		else:
 			_scan_project_filesystem()
-		var discovered := workbench.discover_root(data_root, &"project")
+		var discovered := workbench.discover_root(
+			data_root,
+			_registration_prefix_for_root(database_name, data_root),
+		)
 		result.diagnostics.merge(discovered.diagnostics)
 		if discovered.is_successful():
 			var registration_name := _find_registration(database_name, data_root)
@@ -698,6 +701,19 @@ func _find_registration(database_name: StringName, data_root: String) -> StringN
 				and registration.data_root == data_root:
 			return registration.name
 	return &""
+
+
+static func _registration_prefix_for_root(
+		database_name: StringName,
+		data_root: String,
+) -> StringName:
+	var normalized_root := data_root.strip_edges().simplify_path()
+	if normalized_root == PROJECT_DATA_ROOT:
+		return &"project"
+	var root_name := normalized_root.trim_suffix("/").get_file()
+	if root_name.is_empty() or root_name in [".", ".."]:
+		return database_name
+	return StringName(root_name)
 
 
 func _refresh_surfaces() -> void:
