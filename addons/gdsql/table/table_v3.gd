@@ -194,6 +194,7 @@ var _drag_press_active := false
 var _saved_hover_styles: Array = []
 var _last_data_scroll_v: float = -1
 var _last_data_view_height: float = -1.0
+var _last_polled_view_h: float = -1.0
 var _scroll_guard := false
 var _resize_refresh_pending := false
 var _cell_size_change_guard := false
@@ -256,6 +257,15 @@ func _process(_delta):
 			var bar_w = v_bar.size.x
 			var bar_left = min(visible_right, view_w - bar_w)
 			v_bar.position.x = max(0, bar_left)
+
+	# 兜底：视口高度变化时主动刷新可见行。
+	# 仅依赖 data_scroll.resized 信号在部分场景（如GraphNode填充撑高表格）会因时序问题漏掉，
+	# 导致网格画出了N行却只填充了较少行数的数据（滚动后才恢复）。这里每帧轮询保证收敛。
+	if is_node_ready() and is_instance_valid(data_scroll):
+		var view_h = data_scroll.size.y
+		if view_h > 0 and absf(view_h - _last_polled_view_h) > 0.5:
+			_last_polled_view_h = view_h
+			_on_scroll(data_scroll.scroll_vertical)
 
 
 func _input(event):
