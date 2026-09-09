@@ -91,9 +91,14 @@ static func _deep_copy_containers(value):
 	if value == null:
 		return null
 	if value is Array:
-		var arr: Array = []
-		for v in value:
-			arr.push_back(_deep_copy_containers(v))
+		# 用 duplicate() 起步而不是从空 Array 重建：typed 数组（Array[CFooEntity]）的
+		# 元素类型必须保留，否则缓存命中时 Mapper 方法（声明 Array[T] 返回值）在 return
+		# 处报 "Trying to return a value of type \"Array\" ... Array[T]" 并返回 null。
+		# 首次查询（缓存未命中）走 select.gd 的 _gen_array() 返回 typed 数组，因此只有
+		# 同一 select + 同一参数被查第二次时才会暴露。
+		var arr: Array = value.duplicate()
+		for i in arr.size():
+			arr[i] = _deep_copy_containers(arr[i])
 		return arr
 	if value is Dictionary:
 		var d: Dictionary = { }
