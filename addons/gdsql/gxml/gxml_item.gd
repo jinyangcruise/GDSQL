@@ -13,19 +13,6 @@ var end_line: int
 var content: Array
 ## CDATA在content中的索引
 var cdata_indexes: Array
-## 父
-var parent #: GDSQL.GXMLItem
-
-
-func _notification(what):
-	if what == NOTIFICATION_PREDELETE:
-		parent = null
-		attrs.clear()
-		for i in content:
-			if i is Resource and i.resource_path == resource_path:
-				i.clean()
-		content.clear()
-		cdata_indexes.clear()
 
 
 func _validate_property(property: Dictionary) -> void:
@@ -60,13 +47,3 @@ func to_dict(flags: GXML.TO_DICT_FLAG) -> Dictionary:
 		"content": a_content,
 		"cdata_indexes": cdata_indexes,
 	}
-
-
-func clean():
-	parent = null
-	attrs.clear()
-	for i in content:
-		if i is Resource and i.resource_path == resource_path:
-			i.clean()
-	content.clear()
-	cdata_indexes.clear()

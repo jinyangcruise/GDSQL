@@ -91,6 +91,9 @@ func _parse(parser: XMLParser, content: PackedByteArray) -> GDSQL.GXMLItem:
 			arr_data[i].raw = content.slice(arr_data[i].start, arr_data[i].end).get_string_from_utf8()
 
 	var curr_item: GDSQL.GXMLItem = null
+	# 解析期的祖先栈。以前用item.parent字段当栈，但parent与content会形成循环引用
+	# （RefCounted循环引用不会被释放），所以改用局部栈，节点里不再保存parent。
+	var item_stack: Array = []
 	for i in arr_data.size():
 		if i == arr_data.size() - 1 and not curr_item:
 			break
@@ -111,13 +114,13 @@ func _parse(parser: XMLParser, content: PackedByteArray) -> GDSQL.GXMLItem:
 					element.name = node.name
 					element.attrs = node.attrs
 					element.line = node.line
-					element.parent = curr_item
 					curr_item.content.push_back(element) # GXMLItem
 					if not node.is_empty: # TODO FIXME
+						item_stack.push_back(curr_item)
 						curr_item = element
 			XMLParser.NODE_ELEMENT_END:
 				curr_item.end_line = node.line
-				curr_item = curr_item.parent
+				curr_item = item_stack.pop_back() if not item_stack.is_empty() else null
 				pass
 			XMLParser.NODE_TEXT:
 				if not node.data.strip_edges().is_empty():
