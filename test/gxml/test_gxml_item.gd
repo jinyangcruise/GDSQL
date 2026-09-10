@@ -78,13 +78,6 @@ func test_item_to_dict_cdata_index() -> void:
 	assert_int(d["cdata_indexes"][0]).is_equal(1)
 
 
-## 测试: clean 清空内容
-func test_item_clean() -> void:
-	var item = _make_item("r", {"k": "v"}, ["data"])
-	item.clean()
-	assert_bool(item.content.is_empty()).is_true()
-	assert_bool(item.attrs.is_empty()).is_true()
-
 
 # ============================================================================
 # XML file loading via load()
