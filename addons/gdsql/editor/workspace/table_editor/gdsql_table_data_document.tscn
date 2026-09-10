@@ -1,74 +1,283 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://dtrbtxkx4c034"]
 
-[ext_resource type="Script" path="res://addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd" id="1"]
+[ext_resource type="Script" uid="uid://b0niajoquwsjt" path="res://addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd" id="1_document"]
+[ext_resource type="Texture2D" uid="uid://5i584b3cj6pe" path="res://addons/gdsql/editor/workspace/icons/arrows_clockwise.svg" id="2_6453w"]
+[ext_resource type="Script" uid="uid://b8x6gd2crbec0" path="res://addons/gdsql/editor/workspace/query_graph/nodes/table_result/gdsql_table_result_table.gd" id="2_table"]
+[ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="3_plus"]
+[ext_resource type="Texture2D" uid="uid://cs3iterfftneq" path="res://addons/gdsql/editor/workspace/icons/floppy_disk.svg" id="4_save"]
+[ext_resource type="Texture2D" uid="uid://da35pq8onqig4" path="res://addons/gdsql/editor/workspace/icons/trash_can.svg" id="5_delete"]
+[ext_resource type="PackedScene" uid="uid://cnuaxum6yxjel" path="res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.tscn" id="6_where"]
+[ext_resource type="Texture2D" uid="uid://b2uu8eana73y3" path="res://addons/gdsql/editor/workspace/icons/eraser.svg" id="7_cluas"]
+[ext_resource type="Texture2D" path="res://addons/gdsql/editor/workspace/icons/script.svg" id="8_script"]
 
-[node name="TableDataDocument" type="MarginContainer"]
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_r8eu3"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ih4hc"]
+
+[node name="TableDataDocument" type="MarginContainer" unique_id=133242844]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 20
-theme_override_constants/margin_bottom = 16
-script = ExtResource("1")
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+script = ExtResource("1_document")
 
-[node name="Layout" type="VBoxContainer" parent="."]
-layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="Toolbar" type="HBoxContainer" parent="Layout"]
+[node name="Layout" type="VBoxContainer" parent="." unique_id=826271766]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="Title" type="Label" parent="Layout/Toolbar"]
-unique_name_in_owner = true
+[node name="Toolbar" type="HBoxContainer" parent="Layout" unique_id=1830783658]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="HBoxContainer" type="VBoxContainer" parent="Layout/Toolbar" unique_id=159865969]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 24
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Layout/Toolbar/HBoxContainer" unique_id=174588695]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Layout/Toolbar/HBoxContainer/HBoxContainer" unique_id=14271713]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Table: "
+
+[node name="Title" type="Label" parent="Layout/Toolbar/HBoxContainer/HBoxContainer" unique_id=477481816]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
 text = "Table"
 
-[node name="Refresh" type="Button" parent="Layout/Toolbar"]
-unique_name_in_owner = true
+[node name="VSeparator" type="VSeparator" parent="Layout/Toolbar/HBoxContainer/HBoxContainer" unique_id=1774378748]
+custom_minimum_size = Vector2(12, 0)
 layout_mode = 2
-text = "Refresh"
+theme_override_styles/separator = SubResource("StyleBoxEmpty_r8eu3")
 
-[node name="AddRow" type="Button" parent="Layout/Toolbar"]
+[node name="Refresh" type="Button" parent="Layout/Toolbar/HBoxContainer/HBoxContainer" unique_id=921702454]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Add Row"
+tooltip_text = "Reload this page"
+icon = ExtResource("2_6453w")
 
-[node name="Details" type="Label" parent="Layout"]
+[node name="Model" type="Button" parent="Layout/Toolbar/HBoxContainer/HBoxContainer"]
 unique_name_in_owner = true
 layout_mode = 2
+tooltip_text = "Generate a typed model binding for this table"
+text = "Model"
+icon = ExtResource("8_script")
+
+[node name="Details" type="Label" parent="Layout/Toolbar/HBoxContainer" unique_id=1780824640]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
 text = "Table details"
 
-[node name="Status" type="Label" parent="Layout"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "Rows are loaded on demand."
-
-[node name="Scroll" type="ScrollContainer" parent="Layout"]
+[node name="TableHost" type="Control" parent="Layout" unique_id=574395264]
+clip_contents = true
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="Rows" type="VBoxContainer" parent="Layout/Scroll"]
+[node name="TableView" type="Tree" parent="Layout/TableHost" unique_id=1344057251]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+tooltip_text = "Edit cells directly. Hold Ctrl or Shift to select multiple rows."
+mouse_default_cursor_shape = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 2
+column_titles_visible = true
+allow_reselect = true
+allow_rmb_select = true
+hide_folding = true
+hide_root = true
+select_mode = 2
+script = ExtResource("2_table")
+
+[node name="ScenePreview" type="CenterContainer" parent="Layout/TableHost" unique_id=490758726]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="PreviewText" type="Label" parent="Layout/TableHost/ScenePreview" unique_id=904687661]
+layout_mode = 2
+text = "id      name              health
+1       Preview row       100
+2       Skeleton data      80
+
+Scene preview only — runtime rows replace this content."
+horizontal_alignment = 1
+
+[node name="HSeparator" type="HSeparator" parent="Layout" unique_id=1676077892]
+layout_mode = 2
+
+[node name="QueryHeader" type="PanelContainer" parent="Layout" unique_id=510670209]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 2
 
-[node name="Header" type="HBoxContainer" parent="Layout/Scroll/Rows"]
-unique_name_in_owner = true
+[node name="MarginContainer" type="MarginContainer" parent="Layout/QueryHeader" unique_id=2042933483]
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="QueryLayout" type="VBoxContainer" parent="Layout/QueryHeader/MarginContainer" unique_id=2085929238]
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="DataRows" type="VBoxContainer" parent="Layout/Scroll/Rows"]
+[node name="WhereExpression" parent="Layout/QueryHeader/MarginContainer/QueryLayout" unique_id=2089762619 instance=ExtResource("6_where")]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/separation = 2
+show_header_actions = true
 
-[node name="DeleteConfirmation" type="ConfirmationDialog" parent="."]
+[node name="InsertSection" type="VBoxContainer" parent="Layout" unique_id=212173812]
 unique_name_in_owner = true
-title = "Delete Row"
+visible = false
+custom_minimum_size = Vector2(0, 92)
+layout_mode = 2
+
+[node name="Separator" type="HSeparator" parent="Layout/InsertSection" unique_id=1694726713]
+layout_mode = 2
+
+[node name="InsertLabel" type="Label" parent="Layout/InsertSection" unique_id=1193956228]
+layout_mode = 2
+text = "New row"
+
+[node name="InsertEditor" type="Tree" parent="Layout/InsertSection" unique_id=482502098]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 2
+column_titles_visible = true
+allow_reselect = true
+hide_folding = true
+hide_root = true
+scroll_vertical_enabled = false
+script = ExtResource("2_table")
+
+[node name="Status" type="Label" parent="Layout" unique_id=172032205]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "Rows are loaded on demand."
+autowrap_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="Layout" unique_id=860692738]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="AddRow" type="Button" parent="Layout/Actions" unique_id=1130700764]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Add a row"
+text = "Add Row"
+icon = ExtResource("3_plus")
+
+[node name="SaveChanges" type="Button" parent="Layout/Actions" unique_id=1014552293]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Save all pending row changes in one transaction"
+disabled = true
+text = "Save Changes"
+icon = ExtResource("4_save")
+
+[node name="DiscardChanges" type="Button" parent="Layout/Actions" unique_id=2115318127]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Discard pending row changes"
+disabled = true
+text = "Discard Changes"
+icon = ExtResource("7_cluas")
+
+[node name="DeleteSelected" type="Button" parent="Layout/Actions" unique_id=781801038]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Delete the selected rows in one transaction"
+disabled = true
+text = "Delete Selected"
+icon = ExtResource("5_delete")
+
+[node name="HSeparator" type="HSeparator" parent="Layout/Actions" unique_id=1834254529]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/separator = SubResource("StyleBoxEmpty_ih4hc")
+
+[node name="Pagination" type="HBoxContainer" parent="Layout/Actions" unique_id=1242818417]
+layout_mode = 2
+theme_override_constants/separation = 6
+alignment = 1
+
+[node name="FirstPage" type="Button" parent="Layout/Actions/Pagination" unique_id=1345320653]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "First page"
+text = "|<"
+
+[node name="PreviousPage" type="Button" parent="Layout/Actions/Pagination" unique_id=505512076]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Previous page"
+text = "<"
+
+[node name="PageStatus" type="Label" parent="Layout/Actions/Pagination" unique_id=213922577]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+text = "Page 1 of 1 · 0 rows"
+horizontal_alignment = 1
+
+[node name="NextPage" type="Button" parent="Layout/Actions/Pagination" unique_id=128711596]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Next page"
+text = ">"
+
+[node name="LastPage" type="Button" parent="Layout/Actions/Pagination" unique_id=1350910332]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Last page"
+text = ">|"
+
+[node name="RowsLabel" type="Label" parent="Layout/Actions/Pagination" unique_id=1746505287]
+layout_mode = 2
+text = "Rows"
+
+[node name="PageSize" type="OptionButton" parent="Layout/Actions/Pagination" unique_id=337811756]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(72, 0)
+layout_mode = 2
+tooltip_text = "Rows per page"
+selected = 1
+item_count = 4
+popup/item_0/text = "10"
+popup/item_0/id = 0
+popup/item_1/text = "25"
+popup/item_1/id = 1
+popup/item_2/text = "50"
+popup/item_2/id = 2
+popup/item_3/text = "100"
+popup/item_3/id = 3
+
+[node name="DeleteConfirmation" type="ConfirmationDialog" parent="." unique_id=1871081285]
+unique_name_in_owner = true
+title = "Delete Selected Rows"
 ok_button_text = "Delete"
+
+[node name="ColumnMenu" type="PopupMenu" parent="." unique_id=977005165]
+unique_name_in_owner = true

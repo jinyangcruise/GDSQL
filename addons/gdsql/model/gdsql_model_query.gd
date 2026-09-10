@@ -108,7 +108,7 @@ func all() -> GDSQLQueryResult:
 	if not query_result.is_successful():
 		return query_result
 	var materialized := query_result.materialize(
-		GDSQLModelResultMaterializer.new(_context),
+		GDSQLModelResultMaterializer.new(_context, database_result.get_database()),
 		GDSQLResultMapping.for_resource(_model_script),
 	)
 	if not materialized.is_successful() or _relationships.is_empty():

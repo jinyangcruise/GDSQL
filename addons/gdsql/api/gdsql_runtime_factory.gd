@@ -4,6 +4,60 @@ extends RefCounted
 const FunctionCatalog = preload("res://addons/gdsql/query/model/gdsql_query_function_catalog.gd")
 
 
+## Builds the supported runtime entry point from editor-authored durable
+## registration metadata. ConfigFile registrations are durable on commit;
+## in-memory registrations receive explicit checkpoint targets.
+static func bootstrap(
+		registry_path: String = GDSQLConfigFileDatabaseRegistryStore.DEFAULT_PATH,
+		checkpoint_policies: Dictionary = { },
+) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	var registry := GDSQLDatabaseRegistry.new(
+		GDSQLConfigFileDatabaseRegistryStore.new(registry_path),
+	)
+	var loaded := registry.load_snapshot()
+	result.diagnostics.merge(loaded.diagnostics)
+	if not loaded.is_successful():
+		return result
+	var persistence := GDSQLPersistenceCoordinator.new()
+	var snapshot := loaded.get_value() as GDSQLDatabaseRegistrySnapshot
+	for registration in snapshot.registrations:
+		var opened := open_registration(registration)
+		result.diagnostics.merge(opened.diagnostics)
+		if not opened.is_successful():
+			continue
+		var registered := registry.register(registration.name, opened.get_database())
+		result.diagnostics.merge(registered.diagnostics)
+		if not registered.is_successful() \
+				or registration.storage_backend_id != GDSQLStorageBackendIds.IN_MEMORY:
+			continue
+		var target := _create_in_memory_checkpoint_target(
+			registration,
+			opened.get_database(),
+		)
+		var policy := checkpoint_policies.get(
+			registration.name,
+			GDSQLCheckpointPolicy.manual(),
+		) as GDSQLCheckpointPolicy
+		var persistence_registration := persistence.register(
+			registration.name,
+			target,
+			policy,
+		)
+		result.diagnostics.merge(persistence_registration.diagnostics)
+	for binding in snapshot.role_bindings:
+		var bound := registry.bind_role(binding.role, binding.registration_name)
+		result.diagnostics.merge(bound.diagnostics)
+	if not result.is_successful():
+		return result
+	var model_context := GDSQLModelContext.new(GDSQLModelRegistry.new(registry))
+	var configured_models := GDSQLModels.configure(model_context)
+	result.diagnostics.merge(configured_models.diagnostics)
+	if result.is_successful():
+		result.value = GDSQLRuntimeSession.new(registry, model_context, persistence)
+	return result
+
+
 static func create_default(settings: Variant = null) -> GDSQLDatabaseContext:
 	var data_root := _resolve_data_root(settings)
 	var path_resolver := GDSQLDatabasePathResolver.new(data_root)
@@ -114,6 +168,22 @@ static func _hydrate_in_memory(
 			return result
 	result.value = true
 	return result
+
+
+static func _create_in_memory_checkpoint_target(
+		registration: GDSQLDatabaseRegistration,
+		database: GDSQLDatabase,
+) -> GDSQLInMemoryCheckpointTarget:
+	var resolver := GDSQLDatabasePathResolver.new(registration.data_root)
+	var durable := GDSQLConfigFileTableStorage.new(
+		resolver,
+		GDSQLConfigFileCache.new(),
+		GDSQLGodotVariantCodec.new(),
+	)
+	return GDSQLInMemoryCheckpointTarget.new(
+		database.context.storage as GDSQLInMemoryTableStorage,
+		durable,
+	)
 
 
 static func _create_context(

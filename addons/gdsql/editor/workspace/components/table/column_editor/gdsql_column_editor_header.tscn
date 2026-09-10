@@ -43,8 +43,8 @@ vertical_alignment = 1
 layout_mode = 2
 
 [node name="ResourceCell" type="MarginContainer" parent="Margin/Cells" unique_id=613041010]
-custom_minimum_size = Vector2(120, 0)
-custom_maximum_size = Vector2(120, -1)
+custom_minimum_size = Vector2(190, 0)
+custom_maximum_size = Vector2(190, -1)
 layout_mode = 2
 
 [node name="ResourceType" type="Label" parent="Margin/Cells/ResourceCell" unique_id=1329329651]

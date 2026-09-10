@@ -9,13 +9,47 @@ offset_bottom = 97.0
 theme_override_constants/separation = 4
 script = ExtResource("1_editor")
 
-[node name="UseWhere" type="CheckButton" parent="." unique_id=1961104202]
+[node name="Header" type="HBoxContainer" parent="." unique_id=1212260627]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="UseWhere" type="CheckButton" parent="Header" unique_id=1961104202]
 unique_name_in_owner = true
 layout_mode = 2
 text = "WHERE"
 
+[node name="HeaderActions" type="HBoxContainer" parent="Header" unique_id=1419457083]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+
+[node name="HeaderSummary" type="Label" parent="Header/HeaderActions" unique_id=1420535221]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "All rows"
+text_overrun_behavior = 3
+
+[node name="Clear" type="Button" parent="Header/HeaderActions" unique_id=540883087]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Clear the current and pending WHERE filter"
+disabled = true
+text = "Clear"
+
+[node name="Apply" type="Button" parent="Header/HeaderActions" unique_id=1334668263]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Apply this WHERE filter"
+disabled = true
+text = "Apply Filter"
+
 [node name="ExpressionBody" type="VBoxContainer" parent="." unique_id=9518024]
 unique_name_in_owner = true
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 4
 

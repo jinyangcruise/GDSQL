@@ -7,6 +7,7 @@ signal database_create_submitted(
 		database_name: StringName,
 		data_root: String,
 		storage_backend_id: StringName,
+		database_role: StringName,
 )
 signal database_save_submitted(
 		registration_name: StringName,
@@ -15,22 +16,26 @@ signal database_save_submitted(
 		table_changes: Array[GDSQLEditorTableChange],
 )
 signal database_refresh_submitted(registration_name: StringName)
-signal table_rows_requested(registration_name: StringName, table_name: StringName)
+signal table_rows_requested(
+		registration_name: StringName,
+		table_name: StringName,
+		query: GDSQLSelectQuerySpec,
+		count_query: GDSQLSelectQuerySpec,
+)
 signal table_row_insert_requested(
 		registration_name: StringName,
 		table_name: StringName,
 		values: Dictionary,
 )
-signal table_row_update_requested(
+signal table_rows_update_requested(
 		registration_name: StringName,
 		table_name: StringName,
-		original_primary_key: Variant,
-		values: Dictionary,
+		updates: Array[Dictionary],
 )
-signal table_row_delete_requested(
+signal table_rows_delete_requested(
 		registration_name: StringName,
 		table_name: StringName,
-		primary_key: Variant,
+		primary_keys: Array[Variant],
 )
 signal query_graph_submitted(
 		document_key: StringName,
@@ -70,16 +75,28 @@ const CREATE_DATABASE_SCENE := preload(
 const DATABASE_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn"
 )
+const TABLE_DATA_SCENE := preload(
+	"res://addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn"
+)
+const MODEL_ASSISTANT_SCENE := preload(
+	"res://addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn"
+)
+const SAVE_SLOTS_SCENE := preload(
+	"res://addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn"
+)
 const QUERY_GRAPH_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/query_graph/graph_editor.tscn"
 )
 const WELCOME_KEY := &"welcome"
 const CREATE_DATABASE_KEY := &"database:create"
+const SAVE_SLOTS_KEY := &"save_slots"
 const MENU_CREATE_DATABASE := 1
 const MENU_CREATE_TABLE := 2
 const MENU_REFRESH := 3
+const MENU_SAVE_SLOTS := 4
 
 var _action_hub: GDSQLEditorActionHub
+var _workbench: GDSQLWorkbench
 var _document_keys: Array[StringName] = []
 var _documents: Dictionary[StringName, Control] = { }
 var _active_registration: StringName
@@ -104,15 +121,41 @@ func _ready() -> void:
 	_open_welcome_document()
 
 
-func configure(action_hub: GDSQLEditorActionHub) -> void:
+func configure(action_hub: GDSQLEditorActionHub, workbench: GDSQLWorkbench) -> void:
 	_action_hub = action_hub
+	_workbench = workbench
 	var welcome := _documents.get(WELCOME_KEY) as Control
 	if welcome != null:
-		welcome.call("configure_actions", _action_hub)
+		welcome.call("configure", _action_hub, _workbench)
+	var save_slots := _documents.get(SAVE_SLOTS_KEY) as Control
+	if save_slots != null:
+		save_slots.call("configure", _action_hub, _workbench)
+
+
+func refresh_welcome() -> void:
+	var welcome := _documents.get(WELCOME_KEY) as Control
+	if welcome != null:
+		welcome.call("refresh_status")
+
+
+func refresh_save_slots() -> void:
+	var document := _documents.get(SAVE_SLOTS_KEY) as Control
+	if document != null:
+		document.call("refresh_slots")
 
 
 func show_welcome() -> void:
 	_activate_document(WELCOME_KEY)
+
+
+func show_save_slots() -> void:
+	var document := _documents.get(SAVE_SLOTS_KEY) as Control
+	if document == null:
+		document = SAVE_SLOTS_SCENE.instantiate() as Control
+		_add_document(SAVE_SLOTS_KEY, "Save Slots", document)
+		document.call("configure", _action_hub, _workbench)
+	document.call("refresh_slots")
+	_activate_document(SAVE_SLOTS_KEY)
 
 
 func show_database(
@@ -152,22 +195,26 @@ func show_table(
 	)
 	var document := _documents.get(key) as Control
 	if document == null:
-		document = QUERY_GRAPH_SCENE.instantiate() as Control
+		document = TABLE_DATA_SCENE.instantiate() as Control
 		document.connect(
-			"query_requested",
-			_on_query_graph_submitted.bind(key),
+			"rows_requested",
+			_on_table_rows_requested,
 		)
 		document.connect(
 			"row_insert_requested",
-			_on_query_result_row_insert_requested.bind(key),
+			_on_table_row_insert_requested,
 		)
 		document.connect(
-			"row_update_requested",
-			_on_query_result_row_update_requested.bind(key),
+			"rows_update_requested",
+			_on_table_rows_update_requested,
 		)
 		document.connect(
-			"row_delete_requested",
-			_on_query_result_row_delete_requested.bind(key),
+			"rows_delete_requested",
+			_on_table_rows_delete_requested,
+		)
+		document.connect(
+			"model_assistant_requested",
+			_on_model_assistant_requested,
 		)
 		_add_document(
 			key,
@@ -177,12 +224,38 @@ func show_table(
 			],
 			document,
 		)
-		document.call("configure_actions", _action_hub, key)
+	var table_inspection := inspection.get_table(session.selected_table.name)
 	document.call(
 		"configure",
-		_database_inspections,
 		inspection.registration.name,
-		session.selected_table.name,
+		session.selected_table,
+		table_inspection.row_count if table_inspection != null else 0,
+	)
+	_activate_document(key)
+	document.call("request_rows")
+
+
+func show_model_assistant(
+		registration_name: StringName,
+		table: GDSQLTableDefinition,
+) -> void:
+	if table == null:
+		return
+	var key := _model_key(registration_name, table.name)
+	var document := _documents.get(key) as Control
+	if document == null:
+		document = MODEL_ASSISTANT_SCENE.instantiate() as Control
+		document.connect(
+			"close_requested",
+			_close_document_by_key.bind(key),
+		)
+		document.connect("scripts_generated", _on_model_scripts_generated)
+		_add_document(key, "%s model" % table.name, document)
+	document.call(
+		"configure",
+		registration_name,
+		table,
+		_role_for_registration(registration_name),
 	)
 	_activate_document(key)
 
@@ -208,6 +281,18 @@ func refresh_database(
 
 
 func open_create_database_page(default_root: String = "res://data") -> void:
+	var document := _get_create_database_document()
+	document.call("reset", default_root)
+	_activate_document(CREATE_DATABASE_KEY)
+
+
+func open_create_save_slot_page() -> void:
+	var document := _get_create_database_document()
+	document.call("reset_save_slot")
+	_activate_document(CREATE_DATABASE_KEY)
+
+
+func _get_create_database_document() -> Control:
 	var document := _documents.get(CREATE_DATABASE_KEY) as Control
 	if document == null:
 		document = CREATE_DATABASE_SCENE.instantiate() as Control
@@ -221,8 +306,7 @@ func open_create_database_page(default_root: String = "res://data") -> void:
 			"New Database",
 			document,
 		)
-	document.call("reset", default_root)
-	_activate_document(CREATE_DATABASE_KEY)
+	return document
 
 
 func close_database_create() -> void:
@@ -252,12 +336,24 @@ func present_table_rows(
 		registration_name: StringName,
 		table_name: StringName,
 		result: GDSQLQueryResult,
+		total_rows: int = -1,
 ) -> void:
 	var document := _documents.get(
 		_table_key(registration_name, table_name),
 	) as Control
 	if document != null and document.has_method("present_rows"):
-		document.call("present_rows", result)
+		document.call("present_rows", result, total_rows)
+
+
+func request_table_rows(
+		registration_name: StringName,
+		table_name: StringName,
+) -> void:
+	var document := _documents.get(
+		_table_key(registration_name, table_name),
+	) as Control
+	if document != null and document.has_method("request_rows"):
+		document.call("request_rows")
 
 
 func present_query_graph_result(
@@ -303,9 +399,11 @@ func get_active_registration() -> StringName:
 
 func close_registration(registration_name: StringName) -> void:
 	var table_prefix := "table:%s:" % registration_name
+	var model_prefix := "model:%s:" % registration_name
 	var keys_to_close: Array[StringName] = []
 	for key in _document_keys:
-		if String(key).begins_with(table_prefix):
+		if String(key).begins_with(table_prefix) \
+				or String(key).begins_with(model_prefix):
 			keys_to_close.append(key)
 	for key in keys_to_close:
 		_close_document_by_key(key)
@@ -319,13 +417,14 @@ func close_table(
 		table_name: StringName,
 ) -> void:
 	_close_document_by_key(_table_key(registration_name, table_name))
+	_close_document_by_key(_model_key(registration_name, table_name))
 
 
 func _open_welcome_document() -> void:
 	var welcome := WELCOME_SCENE.instantiate() as Control
 	_add_document(WELCOME_KEY, "Welcome", welcome)
 	if _action_hub != null:
-		welcome.call("configure_actions", _action_hub)
+		welcome.call("configure", _action_hub, _workbench)
 	_activate_document(WELCOME_KEY)
 
 
@@ -365,7 +464,7 @@ func _show_document(index: int) -> void:
 		_active_registration = StringName(
 			String(key).trim_prefix("database:"),
 		)
-	elif String(key).begins_with("table:"):
+	elif String(key).begins_with("table:") or String(key).begins_with("model:"):
 		var parts := String(key).split(":", false, 2)
 		if parts.size() >= 2:
 			_active_registration = StringName(parts[1])
@@ -416,6 +515,21 @@ func _table_key(
 	return StringName("table:%s:%s" % [registration_name, table_name])
 
 
+func _model_key(
+		registration_name: StringName,
+		table_name: StringName,
+) -> StringName:
+	return StringName("model:%s:%s" % [registration_name, table_name])
+
+
+func _role_for_registration(registration_name: StringName) -> StringName:
+	if _workbench != null:
+		for binding in _workbench.snapshot.role_bindings:
+			if binding.registration_name == registration_name:
+				return binding.role
+	return GDSQLDatabaseRegistry.CONTENT_ROLE
+
+
 func _refresh_table_documents(
 		inspection: GDSQLDatabaseInspection,
 		session: GDSQLWorkbenchSession,
@@ -440,22 +554,26 @@ func _refresh_table_documents(
 			continue
 		var document := _documents.get(key) as Control
 		if document != null:
-			var selected_registration := inspection.registration.name
-			var selected_table := table.name
-			if document.has_method("get_selected_registration"):
-				selected_registration = StringName(
-					document.call("get_selected_registration"),
-				)
-			if document.has_method("get_selected_table"):
-				selected_table = StringName(
-					document.call("get_selected_table"),
-				)
+			var table_inspection := inspection.get_table(table.name)
 			document.call(
 				"configure",
-				_database_inspections,
-				selected_registration,
-				selected_table,
+				inspection.registration.name,
+				table,
+				table_inspection.row_count if table_inspection != null else 0,
 			)
+	var model_prefix := "model:%s:" % inspection.registration.name
+	for key in _document_keys:
+		var key_text := String(key)
+		if not key_text.begins_with(model_prefix):
+			continue
+		var table_name := StringName(key_text.trim_prefix(model_prefix))
+		var table := database.get_table(table_name)
+		if table == null:
+			missing_keys.append(key)
+			continue
+		var document := _documents.get(key) as Control
+		if document != null:
+			document.call("refresh_table", table)
 	for key in missing_keys:
 		_close_document_by_key(key)
 
@@ -480,11 +598,13 @@ func _on_database_create_requested(
 		database_name: StringName,
 		data_root: String,
 		storage_backend_id: StringName,
+		database_role: StringName,
 ) -> void:
 	database_create_submitted.emit(
 		database_name,
 		data_root,
 		storage_backend_id,
+		database_role,
 	)
 
 
@@ -517,8 +637,10 @@ func _on_database_refresh_requested(registration_name: StringName) -> void:
 func _on_table_rows_requested(
 		registration_name: StringName,
 		table_name: StringName,
+		query: GDSQLSelectQuerySpec,
+		count_query: GDSQLSelectQuerySpec,
 ) -> void:
-	table_rows_requested.emit(registration_name, table_name)
+	table_rows_requested.emit(registration_name, table_name, query, count_query)
 
 
 func _on_table_row_insert_requested(
@@ -529,30 +651,39 @@ func _on_table_row_insert_requested(
 	table_row_insert_requested.emit(registration_name, table_name, values)
 
 
-func _on_table_row_update_requested(
+func _on_table_rows_update_requested(
 		registration_name: StringName,
 		table_name: StringName,
-		original_primary_key: Variant,
-		values: Dictionary,
+		updates: Array[Dictionary],
 ) -> void:
-	table_row_update_requested.emit(
+	table_rows_update_requested.emit(
 		registration_name,
 		table_name,
-		original_primary_key,
-		values,
+		updates,
 	)
 
 
-func _on_table_row_delete_requested(
+func _on_table_rows_delete_requested(
 		registration_name: StringName,
 		table_name: StringName,
-		primary_key: Variant,
+		primary_keys: Array[Variant],
 ) -> void:
-	table_row_delete_requested.emit(
+	table_rows_delete_requested.emit(
 		registration_name,
 		table_name,
-		primary_key,
+		primary_keys,
 	)
+
+
+func _on_model_assistant_requested(
+		registration_name: StringName,
+		table: GDSQLTableDefinition,
+) -> void:
+	show_model_assistant(registration_name, table)
+
+
+func _on_model_scripts_generated(_generated_path: String, _user_path: String) -> void:
+	refresh_welcome()
 
 
 func _on_query_graph_submitted(
@@ -629,6 +760,8 @@ func _on_menu_pressed(id: int) -> void:
 			_action_hub.invoke(GDSQLEditorActionIds.CREATE_TABLE)
 		MENU_REFRESH:
 			_action_hub.invoke(GDSQLEditorActionIds.REFRESH_DATABASES)
+		MENU_SAVE_SLOTS:
+			_action_hub.invoke(GDSQLEditorActionIds.SHOW_SAVE_SLOTS)
 
 
 func _on_tab_changed(index: int) -> void:

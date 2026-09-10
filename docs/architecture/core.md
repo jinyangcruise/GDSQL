@@ -1203,6 +1203,13 @@ project-defined roles through one API. Unregistering a handle also clears each
 role that selected it. Every lifecycle and resolution operation returns a
 `GDSQLDatabaseResult` with structured diagnostics.
 
+Game code changes save slots through `GDSQLRuntimeSession.select_save_slot()`.
+The session resolves the target first, checkpoints committed dirty state in the
+previous slot, and changes the role only after both operations succeed. Models
+materialized before a role change retain their source database identity and
+reject `save()`, `refresh()`, or `delete()` against the newly selected slot;
+game code must query a fresh instance after switching.
+
 Durable registration metadata uses `GDSQLDatabaseRegistration` and
 `GDSQLDatabaseRegistrySnapshot`. `GDSQLConfigFileDatabaseRegistryStore` stores
 the snapshot in `user://gdsql/databases.cfg`, allowing runtime startup and
@@ -1257,6 +1264,14 @@ var result := persistence.checkpoint(&"save_1")
 `GDSQLCheckpointResult` records databases that reached durable storage and
 databases that remain dirty for a later retry. Periodic scheduling and graceful
 shutdown integration belong to the optional runtime Node adapter.
+
+`GDSQLRuntimeFactory.bootstrap()` is the supported application composition
+path. It loads the durable registry snapshot, opens every registration through
+its selected backend, restores logical role bindings, creates one
+`GDSQLModelContext`, and registers checkpoint targets for in-memory databases.
+It returns a tested `GDSQLRuntimeSession` facade. ConfigFile registrations need
+no checkpoint target because their commits are already durable; explicit
+checkpoint calls for those roles succeed without writing again.
 
 `GDSQLInMemoryCheckpointTarget` composes an `InMemoryTableStorage` source with
 an injected durable `TableStorage`. It synchronizes authoritative dirty tables

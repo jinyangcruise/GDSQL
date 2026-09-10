@@ -158,9 +158,32 @@ documents may include:
 
 The workspace uses an editor-style category menu followed by a document tab
 bar. The stable categories are `File`, `Edit`, `Query`, `Database`, and `Help`.
-Tabs identify the welcome page, database creation, opened database documents,
-and future query-graph documents. Menu and tab controls delegate through the
-action hub and workbench session rather than owning operations.
+Tabs identify the welcome page, database creation, save-slot management, opened
+database and table documents, model assistants, and query graphs. Menu and tab
+controls delegate through the action hub and workbench session rather than
+owning operations.
+
+The welcome document presents both runtime composition profiles without
+exposing unavailable actions. Direct-content readiness requires a project-owned
+`content` binding and a writable `save` binding. Managed content remains a
+planned status until effective-content orchestration exists. This presentation
+reads typed registration and role metadata; it does not open database rows.
+
+The save-slot document discovers only direct children of the standard
+`user://gdsql/saves` boundary, while retaining an explicitly active custom-root
+registration in its list. It creates slots through the intent-based database
+wizard, persists active selection through `Workbench.bind_role()`, and opens a
+slot through the existing registration action. Selecting or refreshing never
+deletes durable player data; destructive slot deletion requires a separate
+confirmed workflow.
+
+The model assistant loads an existing user-owned model only for read-only
+inspection. `ModelCompatibilityInspector` registers its declared metadata,
+compares role, table, primary key, and reflected property types with the
+authoritative `TableDefinition`, and returns a typed report with structured
+diagnostics. Relationship summaries show `relationship → role.table` and key
+mapping, making cross-database navigation explicit without adding cross-root
+foreign keys or joins.
 
 Workspace documents and their reusable controls are separate scenes. The host
 owns tab identity, activation, and closure; each document owns only its local
@@ -301,6 +324,13 @@ selectable creation options. Successful catalog mutations request an editor
 filesystem scan so folder and file changes become visible without restarting
 the plugin.
 
+The creation document begins with database intent. Content, save-slot, and
+settings choices derive the recommended root, an implemented storage backend,
+and the corresponding durable logical role binding. Custom creation exposes no
+implicit role. Root and backend overrides remain explicit advanced fields; the
+document still emits storage inputs to the controller and does not construct or
+write backend paths itself.
+
 One database document presents the logical database name, location, runtime
 storage, and every table as a `FoldableContainer`. Its table folds manage
 schema configuration through reusable column and index controls. Selecting a
@@ -363,9 +393,9 @@ The scene-based schema editor has the following explicit component status:
 | `column_editor/gdsql_column_editor_header.tscn` | Active | Self-contained scene-authored header with directly editable labels, separators, and cell sizing. |
 | `column_editor/gdsql_column_editor_row.gd` / `.tscn` | Active | Self-contained reusable column row with a conventional directly editable node hierarchy; the editor scene keeps one instance as its visual template and first configured row. |
 | `column_editor/gdsql_column_editor_draft.gd` | Active | Typed mutable editor draft responsible for validation and conversion to catalog definitions or alterations. |
-| `gdsql_editor_resource_type_field.gd` | Active | Native Resource prototype picker used by scene-backed column rows. |
+| Native `EditorResourcePicker` in the column row scene | Active | Selects the Resource prototype; the row derives the catalog type constraint. |
 | `gdsql_editor_variant_value_field.gd` | Active | Shared typed value editor used by schema defaults, table rows, predicates, and mutation values. |
-| `gdsql_table_data_row.gd` / `.tscn` | Active | Still used by the table data document and query result node; it is not part of the schema-row migration. |
+| `query_graph/nodes/table_result/gdsql_table_result_table.gd` | Active | Shared native `Tree` grid used by graph results and the standalone table document for compact typed display, validation, Resource editing, and pending changes. |
 | `index/gdsql_index_property_row.gd` / `.tscn` | Active | Scene-authored summary and removal control for an existing primary or secondary index. |
 
 The superseded `gdsql_column_tree`, `gdsql_column_draft_row`, and
@@ -374,20 +404,26 @@ fold references moved to the new component.
 
 A table data document owns row viewing and manipulation without schema editing.
 It uses canonical `SELECT`, `INSERT`, `UPDATE`, and `DELETE` queries through
-the opened database. Column names and catalog types remain visible while
-entering values. A shared typed value field parses scalar, vector, transform,
-collection, and packed-array values through Godot Variant syntax. It uses the
-native editor resource picker for `TYPE_OBJECT`, with explicit access to the
-appropriate Godot resource editor by selecting the displayed resource; the
-picker's caret owns replacement and clearing. Column default editors reuse the
-same typed field contract.
-Generated or new auto-increment values are read-only.
-Editor controls do not read or write ConfigFile sections directly.
+the opened database. Table selection opens this document and immediately loads
+a bounded `LIMIT`/`OFFSET` page. The document and graph result reuse the same
+native `Tree` grid, so column headers, typed cell validation, Resource editing,
+and dirty-state behavior have one implementation. Generated or new
+auto-increment values are read-only. The table document submits pending updates
+and selected-row deletes as atomic transactions, then refreshes the current
+page. Its table header reuses the canonical WHERE expression editor and uses a
+separate aggregate `COUNT` query for filtered pagination totals. Editor controls
+can project visible columns and add one canonical `ORDER BY` clause through the
+native result headers. A presentation-only leading column shows stable page row
+numbers and opens the column menu. Hidden primary keys remain projected
+internally so selection and row mutations retain stable identity. Editor
+controls do not read or write ConfigFile sections directly.
 
-`EditorDataGrid` is a shared presentation component with capability profiles
-for row data, query results, schema definitions, import/export previews, and
-activity entries. A profile controls available interactions; it does not own
-query or persistence behavior.
+The table toolbar can open a model assistant for its catalog definition. A
+typed source builder converts that definition into two previews: a generated
+schema base and a user-owned subclass. The assistant may replace the generated
+base only after confirmation and creates the user script only when it is
+absent. It stores the project model root in `res://.gdsql/settings.cfg`; model
+generation remains one-way and never invokes catalog administration.
 
 ## Results and feedback
 

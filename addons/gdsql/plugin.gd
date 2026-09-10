@@ -112,7 +112,7 @@ func _create_database_dock() -> void:
 	_database_dock.layout_key = DATABASE_DOCK_KEY
 	_database_dock.default_slot = EditorDock.DOCK_SLOT_RIGHT_BL
 	_database_dock.available_layouts = (
-		EditorDock.DOCK_LAYOUT_VERTICAL | EditorDock.DOCK_LAYOUT_FLOATING
+			EditorDock.DOCK_LAYOUT_VERTICAL | EditorDock.DOCK_LAYOUT_FLOATING
 	)
 	_database_dock.add_child(_database_dock_content)
 	add_dock(_database_dock)
@@ -127,7 +127,7 @@ func _create_logs_dock() -> void:
 	_logs_dock.layout_key = LOGS_DOCK_KEY
 	_logs_dock.default_slot = EditorDock.DOCK_SLOT_BOTTOM
 	_logs_dock.available_layouts = (
-		EditorDock.DOCK_LAYOUT_HORIZONTAL | EditorDock.DOCK_LAYOUT_FLOATING
+			EditorDock.DOCK_LAYOUT_HORIZONTAL | EditorDock.DOCK_LAYOUT_FLOATING
 	)
 	_logs_dock.add_child(_logs_panel)
 	add_dock(_logs_dock)

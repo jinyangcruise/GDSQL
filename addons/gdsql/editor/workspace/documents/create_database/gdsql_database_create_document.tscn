@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://dolwscmy3nhv2" path="res://addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd" id="1"]
 
-[node name="DatabaseCreateDocument" type="MarginContainer" unique_id=403392123]
+[node name="DatabaseCreateDocument" type="MarginContainer"]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -14,71 +14,179 @@ theme_override_constants/margin_right = 28
 theme_override_constants/margin_bottom = 24
 script = ExtResource("1")
 
-[node name="Content" type="VBoxContainer" parent="." unique_id=1039959832]
+[node name="Scroll" type="ScrollContainer" parent="."]
 layout_mode = 2
-theme_override_constants/separation = 14
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
 
-[node name="Title" type="Label" parent="Content" unique_id=1115626061]
+[node name="Content" type="VBoxContainer" parent="Scroll"]
+custom_minimum_size = Vector2(680, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="Eyebrow" type="Label" parent="Scroll/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.68, 1, 1)
+text = "DATABASE SETUP"
+
+[node name="Title" type="Label" parent="Scroll/Content"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 26
-text = "Create Database"
+text = "What will this database store?"
 
-[node name="Description" type="Label" parent="Content" unique_id=723024851]
+[node name="Description" type="Label" parent="Scroll/Content"]
 layout_mode = 2
-text = "Configure the logical database and its runtime storage composition."
+theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
+text = "Choose the purpose first. GDSQL will derive a safe location, storage mode, and runtime role."
+autowrap_mode = 2
 
-[node name="Separator" type="HSeparator" parent="Content" unique_id=296784210]
+[node name="PurposeLabel" type="Label" parent="Scroll/Content"]
+layout_mode = 2
+text = "Purpose"
+
+[node name="Purpose" type="OptionButton" parent="Scroll/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+item_count = 4
+popup/item_0/text = "Authored content"
+popup/item_0/id = 0
+popup/item_1/text = "Save slot"
+popup/item_1/id = 1
+popup/item_2/text = "Shared settings"
+popup/item_2/id = 2
+popup/item_3/text = "Custom"
+popup/item_3/id = 3
+
+[node name="PurposePanel" type="PanelContainer" parent="Scroll/Content"]
 layout_mode = 2
 
-[node name="Form" type="VBoxContainer" parent="Content" unique_id=1685457216]
-custom_minimum_size = Vector2(520, 0)
+[node name="Margin" type="MarginContainer" parent="Scroll/Content/PurposePanel"]
 layout_mode = 2
-size_flags_horizontal = 0
-theme_override_constants/separation = 8
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 12
 
-[node name="NameLabel" type="Label" parent="Content/Form" unique_id=1946157197]
+[node name="PurposeLayout" type="VBoxContainer" parent="Scroll/Content/PurposePanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 9
+
+[node name="PurposeDescription" type="Label" parent="Scroll/Content/PurposePanel/Margin/PurposeLayout"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Authored game content shipped with the project. Runtime access is read-only."
+autowrap_mode = 2
+
+[node name="Summary" type="GridContainer" parent="Scroll/Content/PurposePanel/Margin/PurposeLayout"]
+layout_mode = 2
+columns = 2
+
+[node name="LocationLabel" type="Label" parent="Scroll/Content/PurposePanel/Margin/PurposeLayout/Summary"]
+custom_minimum_size = Vector2(128, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
+text = "Location"
+
+[node name="LocationValue" type="Label" parent="Scroll/Content/PurposePanel/Margin/PurposeLayout/Summary"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "res://data"
+text_overrun_behavior = 3
+
+[node name="StorageLabel" type="Label" parent="Scroll/Content/PurposePanel/Margin/PurposeLayout/Summary"]
+custom_minimum_size = Vector2(128, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
+text = "Runtime storage"
+
+[node name="StorageValue" type="Label" parent="Scroll/Content/PurposePanel/Margin/PurposeLayout/Summary"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "ConfigFile"
+
+[node name="RoleLabel" type="Label" parent="Scroll/Content/PurposePanel/Margin/PurposeLayout/Summary"]
+custom_minimum_size = Vector2(128, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
+text = "Runtime role"
+
+[node name="RoleValue" type="Label" parent="Scroll/Content/PurposePanel/Margin/PurposeLayout/Summary"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "content"
+
+[node name="Separator" type="HSeparator" parent="Scroll/Content"]
+layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="Scroll/Content"]
 layout_mode = 2
 text = "Database name"
 
-[node name="DatabaseName" type="LineEdit" parent="Content/Form" unique_id=764342601]
+[node name="DatabaseName" type="LineEdit" parent="Scroll/Content"]
+unique_name_in_owner = true
 layout_mode = 2
-placeholder_text = "base_content"
+text = "content"
+placeholder_text = "content"
 
-[node name="RootLabel" type="Label" parent="Content/Form" unique_id=1139724611]
+[node name="Advanced" type="CheckButton" parent="Scroll/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Advanced storage options"
+
+[node name="AdvancedFields" type="VBoxContainer" parent="Scroll/Content"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="RootLabel" type="Label" parent="Scroll/Content/AdvancedFields"]
 layout_mode = 2
 text = "Data root"
 
-[node name="DataRoot" type="LineEdit" parent="Content/Form" unique_id=832510039]
+[node name="DataRoot" type="LineEdit" parent="Scroll/Content/AdvancedFields"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "res://data"
 
-[node name="BackendLabel" type="Label" parent="Content/Form" unique_id=461437556]
+[node name="BackendLabel" type="Label" parent="Scroll/Content/AdvancedFields"]
 layout_mode = 2
 text = "Runtime storage"
 
-[node name="StorageBackend" type="OptionButton" parent="Content/Form" unique_id=1333694862]
+[node name="StorageBackend" type="OptionButton" parent="Scroll/Content/AdvancedFields"]
+unique_name_in_owner = true
 layout_mode = 2
 item_count = 2
-popup/item_0/text = "ConfigFile"
+popup/item_0/text = "ConfigFile — read and write durable files directly"
 popup/item_0/id = 0
-popup/item_1/text = "In memory"
+popup/item_1/text = "In memory — hydrate from ConfigFile and checkpoint changes"
 popup/item_1/id = 1
 
-[node name="Hint" type="Label" parent="Content/Form" unique_id=1901476024]
-custom_minimum_size = Vector2(200, 0)
+[node name="Hint" type="Label" parent="Scroll/Content"]
+unique_name_in_owner = true
 layout_mode = 2
-text = "A database name and data root are required."
+theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
+text = "Catalog, schema, and rows use ConfigFile storage directly."
 autowrap_mode = 2
 
-[node name="Actions" type="HBoxContainer" parent="Content/Form" unique_id=1816131354]
+[node name="ExistingBehavior" type="Label" parent="Scroll/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.58, 0.62, 0.68, 1)
+text = "If this logical database already exists at the selected root, GDSQL opens it without replacing its files."
+autowrap_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="Scroll/Content"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Create" type="Button" parent="Content/Form/Actions" unique_id=2019110804]
+[node name="Create" type="Button" parent="Scroll/Content/Actions"]
+unique_name_in_owner = true
 layout_mode = 2
-disabled = true
 text = "Create Database"
 
-[node name="Cancel" type="Button" parent="Content/Form/Actions" unique_id=114387933]
+[node name="Cancel" type="Button" parent="Scroll/Content/Actions"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Cancel"

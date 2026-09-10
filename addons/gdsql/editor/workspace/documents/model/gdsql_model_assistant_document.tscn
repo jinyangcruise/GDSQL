@@ -1,0 +1,223 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.gd" id="1_document"]
+[ext_resource type="Texture2D" path="res://addons/gdsql/editor/workspace/icons/script.svg" id="2_script"]
+
+[node name="ModelAssistantDocument" type="MarginContainer"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+script = ExtResource("1_document")
+
+[node name="Layout" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Title" type="Label" parent="Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Model binding · heroes"
+
+[node name="Boundary" type="Label" parent="Layout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "The table owns the schema. Regeneration replaces only the generated base; your model remains user-owned."
+autowrap_mode = 2
+
+[node name="Form" type="GridContainer" parent="Layout"]
+layout_mode = 2
+columns = 2
+
+[node name="TableLabel" type="Label" parent="Layout/Form"]
+layout_mode = 2
+text = "Table"
+
+[node name="TableValue" type="Label" parent="Layout/Form"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "base_content / heroes"
+
+[node name="ModelClassLabel" type="Label" parent="Layout/Form"]
+layout_mode = 2
+text = "Model class"
+
+[node name="ModelClass" type="LineEdit" parent="Layout/Form"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Hero"
+placeholder_text = "Hero"
+
+[node name="RoleLabel" type="Label" parent="Layout/Form"]
+layout_mode = 2
+text = "Database role"
+
+[node name="Role" type="OptionButton" parent="Layout/Form"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+item_count = 4
+selected = 0
+popup/item_0/text = "Content · read-only at runtime"
+popup/item_0/id = 0
+popup/item_1/text = "Save · mutable active slot"
+popup/item_1/id = 1
+popup/item_2/text = "Settings · mutable shared state"
+popup/item_2/id = 2
+popup/item_3/text = "Custom role · read-only by default"
+popup/item_3/id = 3
+
+[node name="CustomRoleRow" type="Label" parent="Layout/Form"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Custom role"
+
+[node name="CustomRole" type="LineEdit" parent="Layout/Form"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "analytics"
+
+[node name="ModelRootLabel" type="Label" parent="Layout/Form"]
+layout_mode = 2
+text = "Models folder"
+
+[node name="ModelRoot" type="LineEdit" parent="Layout/Form"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "res://models"
+placeholder_text = "res://models"
+
+[node name="Paths" type="VBoxContainer" parent="Layout"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="GeneratedPath" type="Label" parent="Layout/Paths"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Generated base: res://models/generated/hero_model_generated.gd"
+
+[node name="UserPath" type="Label" parent="Layout/Paths"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "User model: res://models/hero.gd · created once"
+
+[node name="Compatibility" type="PanelContainer" parent="Layout"]
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Layout/Compatibility"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 9
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 9
+
+[node name="Content" type="VBoxContainer" parent="Layout/Compatibility/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Header" type="HBoxContainer" parent="Layout/Compatibility/Margin/Content"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Layout/Compatibility/Margin/Content/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Existing model compatibility"
+
+[node name="CompatibilityStatus" type="Label" parent="Layout/Compatibility/Margin/Content/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.82, 0.55, 1)
+text = "COMPATIBLE"
+
+[node name="CompatibilityDetails" type="Label" parent="Layout/Compatibility/Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
+text = "All table columns match typed model properties.\nRelationships resolve through their target model roles:\n• definition · belongs to → content.heroes (hero_id → id)"
+autowrap_mode = 2
+
+[node name="PreviewSplit" type="HSplitContainer" parent="Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+split_offset = 540
+
+[node name="Generated" type="VBoxContainer" parent="Layout/PreviewSplit"]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Layout/PreviewSplit/Generated"]
+layout_mode = 2
+text = "Generated schema base · safe to regenerate"
+
+[node name="GeneratedPreview" type="CodeEdit" parent="Layout/PreviewSplit/Generated"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+editable = false
+text = "@abstract\nclass_name HeroModelGenerated\nextends GDSQLContentModel\n\nvar id: int\nvar name: String"
+gutters_draw_line_numbers = true
+
+[node name="User" type="VBoxContainer" parent="Layout/PreviewSplit"]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+
+[node name="UserPreviewTitle" type="Label" parent="Layout/PreviewSplit/User"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "User model · created once"
+
+[node name="UserPreview" type="CodeEdit" parent="Layout/PreviewSplit/User"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+editable = false
+text = "class_name Hero\nextends \"res://models/generated/hero_model_generated.gd\"\n\n# Add custom functions here."
+gutters_draw_line_numbers = true
+
+[node name="ScenePreview" type="Label" parent="Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "Scene preview only — table metadata replaces this skeleton."
+
+[node name="Status" type="Label" parent="Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "Preview ready. The table remains the schema source of truth."
+autowrap_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+
+[node name="Spacer" type="Control" parent="Layout/Actions"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Close" type="Button" parent="Layout/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Close"
+
+[node name="Generate" type="Button" parent="Layout/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Generate Scripts"
+icon = ExtResource("2_script")
+
+[node name="OverwriteConfirmation" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Regenerate Model Base"
+ok_button_text = "Replace Generated Base"

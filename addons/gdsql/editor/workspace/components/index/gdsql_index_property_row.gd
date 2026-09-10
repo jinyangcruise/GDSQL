@@ -18,8 +18,8 @@ func configure_primary(column_name: StringName) -> void:
 	index_name = &""
 	%Summary.text = "PRIMARY (%s) · unique · automatic" % column_name
 	%Summary.tooltip_text = (
-		"Primary keys use GDSQL's dedicated primary-key lookup and cannot be removed "
-		+ "as a secondary index."
+			"Primary keys use GDSQL's dedicated primary-key lookup and cannot be removed "
+			+ "as a secondary index."
 	)
 	%Remove.hide()
 	_configuring = false

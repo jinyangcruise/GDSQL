@@ -164,6 +164,11 @@ func is_role_bound(role: StringName) -> bool:
 	return _role_bindings.has(role)
 
 
+## Returns the registration currently selected for a logical role.
+func get_role_registration(role: StringName) -> StringName:
+	return _role_bindings.get(role, &"")
+
+
 func _success(database: GDSQLDatabase) -> GDSQLDatabaseResult:
 	var result := GDSQLDatabaseResult.new()
 	result.value = database

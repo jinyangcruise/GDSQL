@@ -6,7 +6,7 @@ extends Node
 signal value_applied(value: Variant)
 
 const BBCODE_EDITOR_SCENE_PATH := (
-	"res://addons/bbcode_editor/ui/bbcode_editor_dialog.tscn"
+		"res://addons/bbcode_editor/ui/bbcode_editor_dialog.tscn"
 )
 const FALLBACK_DIALOG_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_text_value_dialog.tscn"
@@ -16,10 +16,10 @@ var _fallback_dialog: GDSQLEditorTextValueDialog
 
 
 func edit_value(
-	value: Variant,
-	is_nullable: bool,
-	is_editable: bool,
-	value_label: String = "Text",
+		value: Variant,
+		is_nullable: bool,
+		is_editable: bool,
+		value_label: String = "Text",
 ) -> void:
 	if is_editable and _open_bbcode_editor(String(value) if value != null else "", value_label):
 		return
@@ -52,10 +52,10 @@ func _open_bbcode_editor(value: String, value_label: String) -> bool:
 
 
 func _open_fallback(
-	value: Variant,
-	is_nullable: bool,
-	is_editable: bool,
-	value_label: String,
+		value: Variant,
+		is_nullable: bool,
+		is_editable: bool,
+		value_label: String,
 ) -> void:
 	if _fallback_dialog == null:
 		_fallback_dialog = FALLBACK_DIALOG_SCENE.instantiate() \

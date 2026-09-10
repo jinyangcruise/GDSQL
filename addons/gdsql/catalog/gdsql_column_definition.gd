@@ -93,8 +93,8 @@ func expected_type_name() -> String:
 func display_type_name() -> String:
 	if data_type == TYPE_OBJECT:
 		return (
-			resource_type.display_name()
-			if resource_type != null
-			else "Unspecified Resource"
+				resource_type.display_name()
+				if resource_type != null
+				else "Unspecified Resource"
 		)
 	return type_string(data_type)

@@ -9,6 +9,7 @@ extends RefCounted
 ## the model layer.
 
 var _model_context: GDSQLModelContext
+var _source_database: GDSQLDatabase
 var _persisted := false
 var _original_values: Dictionary[StringName, Variant] = { }
 var _loaded_relationships: Dictionary[StringName, Variant] = { }
@@ -139,8 +140,10 @@ func _attach_model_context(
 		context: GDSQLModelContext,
 		persisted: bool,
 		values: Dictionary[StringName, Variant] = { },
+		source_database: GDSQLDatabase = null,
 ) -> void:
 	_model_context = context
+	_source_database = source_database
 	_persisted = persisted
 	_original_values = values.duplicate()
 	_loaded_relationships.clear()
@@ -164,8 +167,19 @@ func _resolve_persisted() -> GDSQLQueryResult:
 	var definition_result := _model_context.resolve_model(get_script())
 	if not definition_result.is_successful():
 		return _failure_from(definition_result)
+	var database_result := _model_context.resolve_database(get_script())
+	if not database_result.is_successful():
+		return _failure_from(database_result)
+	if _source_database != null and database_result.get_database() != _source_database:
+		return _failure(
+			&"GDSQL_MODEL_DATABASE_CHANGED",
+			"This model belongs to a database that is no longer active. Query it again after changing database roles.",
+		)
 	var result := GDSQLQueryResult.new()
-	result.value = { &"definition": definition_result.get_value() }
+	result.value = {
+		&"definition": definition_result.get_value(),
+		&"database": database_result.get_database(),
+	}
 	return result
 
 
@@ -179,10 +193,6 @@ func _resolve_mutation() -> GDSQLQueryResult:
 			&"GDSQL_MODEL_READ_ONLY",
 			"This model type permits read operations only.",
 		)
-	var database_result := _model_context.resolve_database(get_script())
-	if not database_result.is_successful():
-		return _failure_from(database_result)
-	result.value[&"database"] = database_result.get_database()
 	return result
 
 

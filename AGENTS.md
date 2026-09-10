@@ -3,6 +3,8 @@
 This repository is undergoing an architectural rewrite. All agents must read
 `docs/architecture/core.md`, `docs/architecture/glossary.md`, and
 `docs/architecture/mermaid-diagram.md` before changing `addons/gdsql`.
+Before changing editor product flow, agents must also read
+`docs/development-roadmap.md`.
 
 ## Source of truth
 

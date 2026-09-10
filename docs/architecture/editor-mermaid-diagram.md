@@ -36,6 +36,21 @@ Workspace("`**Central Workspace**
 *Owns:* Active documents and focused context
 *Uses:* Opened workbench sessions`")
 
+ModelAssistant("`**Model Assistant**
+
+-
+*Purpose:* Preview generated schema bindings and user-owned models
+*Input:* Selected catalog table and logical role
+*Inspection:* Typed compatibility diagnostics and relationship target roles
+*Safety:* One-way generation; user scripts are never replaced`")
+
+SaveSlots("`**Save Slots**
+
+-
+*Purpose:* Discover and select direct-content save databases
+*Boundary:* user://gdsql/saves direct children plus active custom root
+*Safety:* Creation and role binding only; no implicit durable deletion`")
+
 Activity("`**Activity Bottom Panel**
 
 -
@@ -82,6 +97,9 @@ Dock -->|"load · discover · select"| Workbench
 Workbench -->|"open registration"| Session
 Workspace -->|"table and catalog tasks"| Session
 Workspace -->|"edit graph document"| Graphs
+Workspace -->|"preview model binding"| ModelAssistant
+Workspace -->|"manage active save role"| SaveSlots
+SaveSlots -->|"discover · bind · open"| Workbench
 
 Graphs -->|"compile(graph) · execute(query)"| Runtime
 Session -->|"catalog and canonical query operations"| Runtime
@@ -89,7 +107,7 @@ Runtime -->|"results · diagnostics"| Activity
 
 class Integration integration;
 class Actions action;
-class Dock,Workspace surface;
+class Dock,Workspace,ModelAssistant,SaveSlots surface;
 class Workbench,Session coordination;
 class Graphs graphs;
 class Runtime runtime;

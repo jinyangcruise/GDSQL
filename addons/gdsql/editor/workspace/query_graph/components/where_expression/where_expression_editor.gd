@@ -8,15 +8,23 @@ extends VBoxContainer
 ## left-associative until nested expression groups are introduced.
 
 signal changed
+signal apply_requested
+signal clear_requested
 
 const CONDITION_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn"
 )
 
+@export var show_header_actions := false
+
 var _columns: Array[GDSQLColumnDefinition] = []
 var _rebuilding := false
 
 @onready var _use_where: CheckButton = %UseWhere
+@onready var _header_actions: HBoxContainer = %HeaderActions
+@onready var _header_summary: Label = %HeaderSummary
+@onready var _clear: Button = %Clear
+@onready var _apply: Button = %Apply
 @onready var _expression_body: VBoxContainer = %ExpressionBody
 @onready var _conditions: VBoxContainer = %Conditions
 @onready var _add_condition: Button = %AddCondition
@@ -25,8 +33,22 @@ var _rebuilding := false
 
 func _ready() -> void:
 	_use_where.toggled.connect(_on_where_toggled)
+	_clear.pressed.connect(clear_requested.emit)
+	_apply.pressed.connect(apply_requested.emit)
 	_add_condition.pressed.connect(_on_add_condition)
+	_header_actions.visible = show_header_actions
 	_update_presentation()
+
+
+func set_header_actions_state(
+		apply_enabled: bool,
+		clear_enabled: bool,
+		summary: String,
+) -> void:
+	_header_actions.visible = show_header_actions
+	_apply.disabled = not apply_enabled
+	_clear.disabled = not clear_enabled
+	_header_summary.text = summary
 
 
 func configure(

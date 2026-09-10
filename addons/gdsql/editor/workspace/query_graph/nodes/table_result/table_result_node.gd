@@ -6,20 +6,20 @@ extends GDSQLQueryGraphNode
 ## One native table component owns both paginated display and focused editing.
 
 signal row_insert_requested(
-	registration_name: StringName,
-	table_name: StringName,
-	values: Dictionary,
+		registration_name: StringName,
+		table_name: StringName,
+		values: Dictionary,
 )
 signal row_update_requested(
-	registration_name: StringName,
-	table_name: StringName,
-	original_primary_key: Variant,
-	values: Dictionary,
+		registration_name: StringName,
+		table_name: StringName,
+		original_primary_key: Variant,
+		values: Dictionary,
 )
 signal row_delete_requested(
-	registration_name: StringName,
-	table_name: StringName,
-	primary_key: Variant,
+		registration_name: StringName,
+		table_name: StringName,
+		primary_key: Variant,
 )
 signal capabilities_changed(can_add_rows: bool, has_dirty_rows: bool)
 
@@ -77,8 +77,8 @@ func _ready() -> void:
 	_safe_mode_toggle = CheckButton.new()
 	_safe_mode_toggle.text = "Safe Mode"
 	_safe_mode_toggle.tooltip_text = (
-		"Edit one selected row in a focused table editor. "
-		+ "Disable to edit table cells directly."
+			"Edit one selected row in a focused table editor. "
+			+ "Disable to edit table cells directly."
 	)
 	_safe_mode_toggle.focus_mode = Control.FOCUS_NONE
 	_safe_mode_toggle.button_pressed = true
@@ -109,9 +109,9 @@ func configure_action(hub: GDSQLEditorActionHub, definition: GDSQLEditorActionDe
 
 
 func present(
-	registration_name: StringName,
-	table: GDSQLTableDefinition,
-	result: GDSQLQueryResult,
+		registration_name: StringName,
+		table: GDSQLTableDefinition,
+		result: GDSQLQueryResult,
 ) -> void:
 	_presentation_revision += 1
 	var selected_key: Variant = null
@@ -161,8 +161,8 @@ func present(
 	if not _page_layout_initialized:
 		_fit_initial_page.call_deferred()
 	_status.text = ("No rows returned."
-		if _records.is_empty()
-		else _result_status_text())
+			if _records.is_empty()
+			else _result_status_text())
 	if _safe_mode and _selected_record_index >= 0:
 		_open_record_editor(_selected_record_index)
 	_refresh_editor_actions()
@@ -175,8 +175,8 @@ func can_add_rows() -> bool:
 
 func has_dirty_rows() -> bool:
 	return (
-		(_editor_active and _editor_table.has_pending_changes())
-		or (is_instance_valid(_table_view) and _table_view.has_pending_changes())
+			(_editor_active and _editor_table.has_pending_changes())
+			or (is_instance_valid(_table_view) and _table_view.has_pending_changes())
 	)
 
 
@@ -216,8 +216,8 @@ func add_empty_row() -> GDSQLOperationResult:
 
 
 func _build_view_table(
-	table: GDSQLTableDefinition,
-	schema: GDSQLResultSchema,
+		table: GDSQLTableDefinition,
+		schema: GDSQLResultSchema,
 ) -> GDSQLTableDefinition:
 	var view := GDSQLTableDefinition.new(table.name, table.primary_key)
 	view.database_name = table.database_name
@@ -397,9 +397,9 @@ func _save_inline_changes() -> void:
 	_table_view.restore_pending_updates(failed)
 	_render_table()
 	_status.text = (
-		"Saved changes to %d row(s)." % saved_count
-		if failed.is_empty()
-		else "%d row(s) saved; %d failed update(s) remain pending." % [saved_count, failed.size()]
+			"Saved changes to %d row(s)." % saved_count
+			if failed.is_empty()
+			else "%d row(s) saved; %d failed update(s) remain pending." % [saved_count, failed.size()]
 	)
 	_refresh_editor_actions()
 	_emit_capabilities()
@@ -412,8 +412,8 @@ func _request_delete_editor_row() -> void:
 			_discard_editor_row()
 		return
 	_delete_confirmation.dialog_text = (
-		"Delete the row whose primary key is %s?"
-		% _value_text(source.get_value(_table.primary_key))
+			"Delete the row whose primary key is %s?"
+			% _value_text(source.get_value(_table.primary_key))
 	)
 	_delete_confirmation.popup_centered(Vector2i(420, 160))
 
@@ -488,8 +488,8 @@ func _refresh_editor_actions() -> void:
 	_save_changes.disabled = not can_save or not has_dirty_rows()
 	_discard_changes.disabled = not can_save or not has_dirty_rows()
 	_delete_row.disabled = (
-		_selected_source_record() == null or (has_editor and not editor_can_mutate)
-		or (not _safe_mode and has_dirty_rows())
+			_selected_source_record() == null or (has_editor and not editor_can_mutate)
+			or (not _safe_mode and has_dirty_rows())
 	)
 
 
@@ -635,11 +635,11 @@ func _refresh_resize_limits(resize_width: bool, resize_height: bool) -> void:
 	)
 	var target := Vector2(
 		(_resize_limits.x
-			if resize_width
-			else clampf(size.x, MINIMUM_NODE_SIZE.x, _resize_limits.x)),
+				if resize_width
+				else clampf(size.x, MINIMUM_NODE_SIZE.x, _resize_limits.x)),
 		(_resize_limits.y
-			if resize_height
-			else clampf(size.y, MINIMUM_NODE_SIZE.y, _resize_limits.y)),
+				if resize_height
+				else clampf(size.y, MINIMUM_NODE_SIZE.y, _resize_limits.y)),
 	)
 	_apply_node_size(target)
 
@@ -672,9 +672,9 @@ func _value_text(value: Variant) -> String:
 		return "null"
 	if value is Resource:
 		return (
-			value.resource_path
-			if not value.resource_path.is_empty()
-			else "<%s>" % value.get_class()
+				value.resource_path
+				if not value.resource_path.is_empty()
+				else "<%s>" % value.get_class()
 		)
 	if value is String or value is StringName or value is NodePath:
 		return String(value)

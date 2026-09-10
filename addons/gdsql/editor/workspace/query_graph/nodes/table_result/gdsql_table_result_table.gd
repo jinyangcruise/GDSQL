@@ -5,7 +5,7 @@ extends Tree
 
 signal inline_changes_changed(status: String)
 
-const MINIMUM_COLUMN_WIDTH := 72
+const MINIMUM_COLUMN_WIDTH := 100
 const MINIMUM_RESOURCE_COLUMN_WIDTH := 120
 const MAXIMUM_COLUMN_WIDTH := 360
 const COLUMN_HORIZONTAL_PADDING := 24
@@ -17,11 +17,11 @@ const EXPANDED_TEXT_EDITOR_SCRIPT := preload(
 const EXPAND_ICON := preload("res://addons/gdsql/editor/workspace/icons/pencil.svg")
 const NULL_ICON := preload("res://addons/gdsql/editor/workspace/icons/eraser.svg")
 const CELL_ACTION_WIDTH := 32.0
-const RESOURCE_EDITOR_MINIMUM_ROW_HEIGHT := 72
+const RESOURCE_EDITOR_MINIMUM_ROW_HEIGHT := 44
 
 @export var dirty_cell_color := Color(0.95, 0.68, 0.18, 0.24)
 @export var invalid_cell_color := Color(0.95, 0.25, 0.25, 0.28)
-
+@export var alternate_row_color := Color(1.0, 1.0, 1.0, 0.035)
 @export_range(16, 64, 1) var resource_preview_size := 28
 
 var _table: GDSQLTableDefinition
@@ -63,10 +63,10 @@ func _exit_tree() -> void:
 
 
 func configure(
-	table: GDSQLTableDefinition,
-	view_table: GDSQLTableDefinition,
-	records: Array[GDSQLRowRecord],
-	can_edit_rows: bool,
+		table: GDSQLTableDefinition,
+		view_table: GDSQLTableDefinition,
+		records: Array[GDSQLRowRecord],
+		can_edit_rows: bool,
 ) -> void:
 	_close_resource_editor()
 	_clear_resource_observers()
@@ -81,12 +81,13 @@ func configure(
 
 
 func configure_insert_draft(table: GDSQLTableDefinition, view_table: GDSQLTableDefinition) -> void:
+	var insert_view := _build_insert_view_table(table, view_table)
 	var values: Dictionary = { }
-	if view_table != null:
-		for column in view_table.columns:
+	if insert_view != null:
+		for column in insert_view.columns:
 			values[column.name] = _draft_initial_value(column)
 	var records: Array[GDSQLRowRecord] = [GDSQLRowRecord.new(values)]
-	configure(table, view_table, records, true)
+	configure(table, insert_view, records, true)
 	_insert_draft = true
 	set_safe_mode(false)
 	render_page(0, 1, 0, 1)
@@ -109,9 +110,11 @@ func get_insert_values_result() -> Dictionary:
 			continue
 		var value: Variant = _display_value(0, column.name, _records[0])
 		if not column.accepts_value(value):
+			var message := "%s expects %s." % [column.name, column.display_type_name()]
+			_mark_insert_validation_error(column.name, message)
 			return {
 				"valid": false,
-				"message": "%s expects %s." % [column.name, column.display_type_name()],
+				"message": message,
 				"values": { },
 			}
 		values[column.name] = value
@@ -168,9 +171,22 @@ func get_pending_updates() -> Array[Dictionary]:
 				{
 					"primary_key": _records[record_index].get_value(_table.primary_key),
 					"values": values.duplicate(true),
-				}
+				},
 			)
 	return pending
+
+
+func get_selected_primary_keys() -> Array[Variant]:
+	var primary_keys: Array[Variant] = []
+	if _table == null:
+		return primary_keys
+	var item := get_next_selected(null)
+	while item != null:
+		var record_index := int(item.get_metadata(0))
+		if record_index >= 0 and record_index < _records.size():
+			primary_keys.append(_records[record_index].get_value(_table.primary_key))
+		item = get_next_selected(item)
+	return primary_keys
 
 
 func restore_pending_updates(pending: Array[Dictionary]) -> void:
@@ -183,10 +199,10 @@ func restore_pending_updates(pending: Array[Dictionary]) -> void:
 
 
 func render_page(
-	first_index: int,
-	end_index: int,
-	selected_index: int,
-	maximum_rows: int = -1,
+		first_index: int,
+		end_index: int,
+		selected_index: int,
+		maximum_rows: int = -1,
 ) -> void:
 	_rendering = true
 	_preview_generation += 1
@@ -225,6 +241,8 @@ func render_page(
 			_configure_cell(item, column_index, value, column.data_type == TYPE_OBJECT)
 			_configure_cell_actions(item, column_index, column, value)
 			item.set_editable(column_index, not _safe_mode and _cell_is_editable(column))
+			if record_index % 2 == 1:
+				item.set_custom_bg_color(column_index, alternate_row_color)
 			var cell_key := Vector2i(record_index, column_index)
 			if value is Resource:
 				_queue_resource_preview(value, record_index, column_index)
@@ -277,10 +295,10 @@ func _on_item_edited() -> void:
 
 
 func _on_cell_button_clicked(
-	item: TreeItem,
-	column_index: int,
-	button_id: int,
-	_mouse_button_index: int,
+		item: TreeItem,
+		column_index: int,
+		button_id: int,
+		_mouse_button_index: int,
 ) -> void:
 	if item == null \
 			or _view_table == null \
@@ -344,9 +362,9 @@ func _on_item_mouse_selected(mouse_position: Vector2, mouse_button_index: int) -
 
 
 func _open_resource_editor(
-	record_index: int,
-	column_index: int,
-	column: GDSQLColumnDefinition,
+		record_index: int,
+		column_index: int,
+		column: GDSQLColumnDefinition,
 ) -> void:
 	if _safe_mode \
 			or record_index < 0 \
@@ -376,9 +394,9 @@ func _open_resource_editor(
 	_resource_picker = EditorResourcePicker.new()
 	_resource_picker.editable = true
 	_resource_picker.base_type = (
-		column.resource_type.picker_base_type()
-		if column.resource_type != null and column.resource_type.is_valid()
-		else "Resource"
+			column.resource_type.picker_base_type()
+			if column.resource_type != null and column.resource_type.is_valid()
+			else "Resource"
 	)
 	_resource_picker_configuring = true
 	_resource_picker.set_edited_resource(value as Resource)
@@ -401,9 +419,9 @@ func _open_resource_editor(
 
 
 func _position_resource_editor(
-	item: TreeItem,
-	column: GDSQLColumnDefinition,
-	value: Variant,
+		item: TreeItem,
+		column: GDSQLColumnDefinition,
+		value: Variant,
 ) -> void:
 	if not is_instance_valid(_resource_editor_host) or not is_instance_valid(_resource_picker):
 		return
@@ -495,11 +513,7 @@ func _refresh_resource_editor_geometry(cell_key: Vector2i) -> void:
 	_position_resource_editor(item, column, value)
 
 
-func _edit_resource_in_inspector(
-	resource: Resource,
-	picker_id: int,
-	cell_key: Vector2i,
-) -> void:
+func _edit_resource_in_inspector(resource: Resource, picker_id: int, cell_key: Vector2i) -> void:
 	if not is_instance_valid(_resource_picker) \
 			or _resource_picker.get_instance_id() != picker_id \
 			or _resource_editor_cell != cell_key:
@@ -557,9 +571,9 @@ func _observe_resource(cell_key: Vector2i, column_name: StringName, resource: Re
 	if not resource.changed.is_connected(callback):
 		resource.changed.connect(callback)
 	var original: Variant = (
-		_records[cell_key.x].get_value(column_name)
-		if cell_key.x >= 0 and cell_key.x < _records.size()
-		else null
+			_records[cell_key.x].get_value(column_name)
+			if cell_key.x >= 0 and cell_key.x < _records.size()
+			else null
 	)
 	var reference_changed := true
 	if original is Resource:
@@ -593,10 +607,10 @@ func _clear_resource_observers() -> void:
 
 
 func _on_observed_resource_changed(
-	record_index: int,
-	column_index: int,
-	column_name: StringName,
-	resource: Resource,
+		record_index: int,
+		column_index: int,
+		column_name: StringName,
+		resource: Resource,
 ) -> void:
 	if record_index < 0 or record_index >= _records.size():
 		return
@@ -605,8 +619,8 @@ func _on_observed_resource_changed(
 	if observer.is_empty() or observer.get("resource") != resource:
 		return
 	var resource_changed: bool = (
-		bool(observer.get("reference_changed", false))
-		or _resource_fingerprint(resource) != int(observer.get("fingerprint", 0))
+			bool(observer.get("reference_changed", false))
+			or _resource_fingerprint(resource) != int(observer.get("fingerprint", 0))
 	)
 	if resource_changed:
 		_set_update(record_index, column_name, resource)
@@ -618,7 +632,7 @@ func _on_observed_resource_changed(
 		if resource_changed:
 			item.set_custom_bg_color(column_index, dirty_cell_color)
 		else:
-			item.clear_custom_bg_color(column_index)
+			_restore_row_color(item, column_index, record_index)
 	inline_changes_changed.emit(_dirty_status())
 
 
@@ -667,11 +681,46 @@ func _cell_is_editable(column: GDSQLColumnDefinition) -> bool:
 	if not _can_edit_rows or _table == null:
 		return false
 	var table_column := _table.get_column(column.name)
-	return (
-		table_column != null and table_column.generation == GDSQLColumnDefinition.Generation.NONE
-		and not (_insert_draft and table_column.auto_increment)
-		and (_insert_draft or table_column.name != _table.primary_key)
-	)
+	if _insert_draft:
+		return _column_accepts_insert_value(table_column)
+	return table_column != null \
+			and table_column.generation == GDSQLColumnDefinition.Generation.NONE \
+			and table_column.name != _table.primary_key
+
+
+func _column_accepts_insert_value(column: GDSQLColumnDefinition) -> bool:
+	return column != null \
+			and column.generation == GDSQLColumnDefinition.Generation.NONE \
+			and not column.auto_increment
+
+
+func _build_insert_view_table(
+		table: GDSQLTableDefinition,
+		view_table: GDSQLTableDefinition,
+) -> GDSQLTableDefinition:
+	if table == null or view_table == null:
+		return null
+	var insert_view := GDSQLTableDefinition.new(view_table.name, view_table.primary_key)
+	insert_view.database_name = view_table.database_name
+	for column in view_table.columns:
+		if _column_accepts_insert_value(table.get_column(column.name)):
+			insert_view.add_column(column)
+	return insert_view
+
+
+func _mark_insert_validation_error(column_name: StringName, message: String) -> void:
+	if _view_table == null:
+		return
+	for column_index in range(_view_table.columns.size()):
+		if _view_table.columns[column_index].name != column_name:
+			continue
+		var cell_key := Vector2i(0, column_index)
+		_errors[cell_key] = message
+		var item := _visible_item(0)
+		if item != null:
+			item.set_custom_bg_color(column_index, invalid_cell_color)
+			item.set_tooltip_text(column_index, message)
+		return
 
 
 func _display_value(record_index: int, column_name: StringName, record: GDSQLRowRecord) -> Variant:
@@ -702,10 +751,10 @@ func _remove_update(record_index: int, column_name: StringName) -> void:
 
 
 func _apply_cell_value(
-	record_index: int,
-	column_index: int,
-	column: GDSQLColumnDefinition,
-	value: Variant,
+		record_index: int,
+		column_index: int,
+		column: GDSQLColumnDefinition,
+		value: Variant,
 ) -> void:
 	var cell_key := Vector2i(record_index, column_index)
 	var original: Variant = _records[record_index].get_value(column.name)
@@ -724,10 +773,17 @@ func _apply_cell_value(
 		_configure_cell_actions(item, column_index, column, value)
 		_sync_resource_editor(cell_key, item, column, value)
 		if value == original:
-			item.clear_custom_bg_color(column_index)
+			_restore_row_color(item, column_index, record_index)
 		else:
 			item.set_custom_bg_color(column_index, dirty_cell_color)
 	inline_changes_changed.emit(_dirty_status())
+
+
+func _restore_row_color(item: TreeItem, column_index: int, record_index: int) -> void:
+	if record_index % 2 == 1:
+		item.set_custom_bg_color(column_index, alternate_row_color)
+	else:
+		item.clear_custom_bg_color(column_index)
 
 
 func _dirty_status() -> String:
@@ -740,13 +796,14 @@ func _dirty_status() -> String:
 
 
 func _preferred_column_width(
-	column: GDSQLColumnDefinition,
-	first_index: int,
-	end_index: int,
+		column: GDSQLColumnDefinition,
+		first_index: int,
+		end_index: int,
 ) -> int:
 	var font := get_theme_font(&"font")
 	var font_size := get_theme_font_size(&"font_size")
 	var width := font.get_string_size(String(column.name), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	var action_width := 0.0
 	for record_index in range(first_index, end_index):
 		var value: Variant = _display_value(record_index, column.name, _records[record_index])
 		var value_width := font \
@@ -755,20 +812,31 @@ func _preferred_column_width(
 		if value is Resource:
 			value_width += resource_preview_size + 6
 		width = maxf(width, value_width)
+		action_width = maxf(action_width, _cell_action_width(column, value))
 	return clampi(
 		ceili(width) + COLUMN_HORIZONTAL_PADDING,
-		MINIMUM_RESOURCE_COLUMN_WIDTH
-		if column.data_type == TYPE_OBJECT \
-				else MINIMUM_COLUMN_WIDTH,
+		MINIMUM_RESOURCE_COLUMN_WIDTH if column.data_type == TYPE_OBJECT \
+		else MINIMUM_COLUMN_WIDTH,
 		MAXIMUM_COLUMN_WIDTH,
-	)
+	) + ceili(action_width)
+
+
+func _cell_action_width(column: GDSQLColumnDefinition, value: Variant) -> float:
+	if _safe_mode:
+		return 0.0
+	var width := 0.0
+	if column.data_type == TYPE_STRING:
+		width += CELL_ACTION_WIDTH
+	if column.nullable and value != null:
+		width += CELL_ACTION_WIDTH
+	return width
 
 
 func _sync_resource_editor(
-	cell_key: Vector2i,
-	item: TreeItem,
-	column: GDSQLColumnDefinition,
-	value: Variant,
+		cell_key: Vector2i,
+		item: TreeItem,
+		column: GDSQLColumnDefinition,
+		value: Variant,
 ) -> void:
 	if cell_key != _resource_editor_cell or not is_instance_valid(_resource_picker):
 		return
@@ -827,14 +895,29 @@ func _draft_initial_value(column: GDSQLColumnDefinition) -> Variant:
 	if column.has_default():
 		var value: Variant = column.get_default_value()
 		return value.duplicate(true) if value is Resource else value
+	if column.nullable or column.data_type == TYPE_OBJECT:
+		return null
+	match column.data_type:
+		TYPE_STRING:
+			return ""
+		TYPE_STRING_NAME:
+			return &""
+		TYPE_NODE_PATH:
+			return NodePath()
+		TYPE_BOOL:
+			return false
+		TYPE_INT:
+			return 0
+		TYPE_FLOAT:
+			return 0.0
 	return null
 
 
 func _configure_cell(
-	item: TreeItem,
-	column_index: int,
-	value: Variant,
-	resource_cell: bool,
+		item: TreeItem,
+		column_index: int,
+		value: Variant,
+		resource_cell: bool,
 ) -> void:
 	var text := _value_text(value)
 	item.set_cell_mode(
@@ -849,10 +932,10 @@ func _configure_cell(
 
 
 func _configure_cell_actions(
-	item: TreeItem,
-	column_index: int,
-	column: GDSQLColumnDefinition,
-	value: Variant,
+		item: TreeItem,
+		column_index: int,
+		column: GDSQLColumnDefinition,
+		value: Variant,
 ) -> void:
 	for button_index in range(item.get_button_count(column_index) - 1, -1, -1):
 		item.erase_button(column_index, button_index)
@@ -886,9 +969,9 @@ func _value_text(value: Variant) -> String:
 		if not script_class.is_empty():
 			return script_class
 		return (
-			resource.resource_path.get_file()
-			if not resource.resource_path.is_empty()
-			else resource.get_class()
+				resource.resource_path.get_file()
+				if not resource.resource_path.is_empty()
+				else resource.get_class()
 		)
 	if value is String or value is StringName or value is NodePath:
 		return String(value)
@@ -900,7 +983,7 @@ func _resource_tooltip(value: Variant, fallback: String) -> String:
 		return fallback
 	var resource := value as Resource
 	var detail: String = (
-		resource.resource_path if not resource.resource_path.is_empty() else fallback
+			resource.resource_path if not resource.resource_path.is_empty() else fallback
 	)
 	return "%s · %s · Click to edit in the Inspector" % [_resource_class_name(resource), detail]
 
@@ -960,10 +1043,10 @@ func _queue_resource_preview(resource: Resource, record_index: int, column_index
 
 
 func _on_resource_preview_ready(
-	_path: String,
-	preview: Texture2D,
-	thumbnail_preview: Texture2D,
-	userdata: Variant,
+		_path: String,
+		preview: Texture2D,
+		thumbnail_preview: Texture2D,
+		userdata: Variant,
 ) -> void:
 	if not userdata is Dictionary:
 		return
@@ -973,10 +1056,10 @@ func _on_resource_preview_ready(
 	var record_index := int(preview_data.record_index)
 	var column_index := int(preview_data.column_index)
 	if (
-		record_index < 0 or record_index >= _records.size() \
-				or _view_table == null \
-				or column_index < 0
-		or column_index >= _view_table.columns.size()
+			record_index < 0 or record_index >= _records.size() \
+					or _view_table == null \
+					or column_index < 0
+			or column_index >= _view_table.columns.size()
 	):
 		return
 	var column := _view_table.columns[column_index]

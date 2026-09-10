@@ -36,9 +36,9 @@ func set_value_editable(enabled: bool) -> void:
 	_line_edit.editable = enabled
 	_expand.disabled = not _editable
 	_expand.tooltip_text = (
-		"Open expanded text editor"
-		if enabled
-		else "Open expanded text editor as read only"
+			"Open expanded text editor"
+			if enabled
+			else "Open expanded text editor as read only"
 	)
 
 

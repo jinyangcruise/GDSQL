@@ -5,9 +5,9 @@ extends PanelContainer
 
 signal changed
 signal reorder_requested(
-	source: GDSQLEditorColumnEditorRow,
-	target: GDSQLEditorColumnEditorRow,
-	insert_after: bool,
+		source: GDSQLEditorColumnEditorRow,
+		target: GDSQLEditorColumnEditorRow,
+		insert_after: bool,
 )
 
 const KEY_ICON := preload("res://addons/gdsql/editor/workspace/icons/key.svg")
@@ -22,7 +22,7 @@ var _configuring := false
 @onready var _drag_handle: Button = %DragHandle
 @onready var _name: LineEdit = %Name
 @onready var _type: OptionButton = %Type
-@onready var _resource_type: GDSQLEditorResourceTypeField = %ResourceType
+@onready var _resource_type: EditorResourcePicker = %ResourceType
 @onready var _nullable: CheckBox = %Nullable
 @onready var _unique: CheckBox = %Unique
 @onready var _auto_increment: CheckBox = %AutoIncrement
@@ -40,7 +40,8 @@ func _ready() -> void:
 	)
 	_name.text_changed.connect(_on_name_changed)
 	_type.item_selected.connect(_on_type_selected)
-	_resource_type.constraint_changed.connect(_on_resource_type_changed)
+	_resource_type.resource_changed.connect(_on_resource_type_changed)
+	_resource_type.resource_selected.connect(_on_resource_type_selected)
 	_nullable.toggled.connect(_on_nullable_toggled)
 	_unique.toggled.connect(_on_unique_toggled)
 	_auto_increment.toggled.connect(_on_auto_increment_toggled)
@@ -48,6 +49,18 @@ func _ready() -> void:
 	_default_value.changed.connect(_on_default_value_changed)
 	_generation.item_selected.connect(_on_generation_selected)
 	_remove.toggled.connect(_on_remove_toggled)
+
+
+func _can_drop_data(_position: Vector2, data: Variant) -> bool:
+	return _can_accept_reorder(data)
+
+
+func _drop_data(position: Vector2, data: Variant) -> void:
+	if not _can_accept_reorder(data):
+		return
+	var drag_data := data as Dictionary
+	var source := drag_data.get(&"row") as GDSQLEditorColumnEditorRow
+	reorder_requested.emit(source, self, position.y > size.y * 0.5)
 
 
 func configure(column_draft: GDSQLEditorColumnDraft) -> void:
@@ -58,11 +71,11 @@ func configure(column_draft: GDSQLEditorColumnDraft) -> void:
 	VARIANT_TYPES.select_type(_type, draft.data_type)
 	_type.disabled = draft.original != null
 	_resource_type.visible = draft.data_type == TYPE_OBJECT
-	_resource_type.configure(
-		draft.resource_type,
-		draft.resource_prototype,
-		draft.original == null,
-	)
+	var prototype := draft.resource_prototype
+	if prototype == null and draft.resource_type != null:
+		prototype = draft.resource_type.instantiate_prototype()
+	_resource_type.set_edited_resource(prototype)
+	_resource_type.editable = draft.original == null
 	_nullable.set_pressed_no_signal(draft.nullable)
 	_nullable.disabled = draft.is_primary
 	_unique.set_pressed_no_signal(draft.unique)
@@ -101,19 +114,7 @@ func _get_drag_data_from_handle(_position: Vector2) -> Variant:
 	var preview := Label.new()
 	preview.text = draft.name if not draft.name.is_empty() else "Unnamed column"
 	_drag_handle.set_drag_preview(preview)
-	return {&"type": COLUMN_ROW_DRAG_TYPE, &"row": self}
-
-
-func _can_drop_data(_position: Vector2, data: Variant) -> bool:
-	return _can_accept_reorder(data)
-
-
-func _drop_data(position: Vector2, data: Variant) -> void:
-	if not _can_accept_reorder(data):
-		return
-	var drag_data := data as Dictionary
-	var source := drag_data.get(&"row") as GDSQLEditorColumnEditorRow
-	reorder_requested.emit(source, self, position.y > size.y * 0.5)
+	return { &"type": COLUMN_ROW_DRAG_TYPE, &"row": self }
 
 
 func _can_drop_data_from_handle(_position: Vector2, data: Variant) -> bool:
@@ -159,11 +160,11 @@ func _on_type_selected(_index: int) -> void:
 	changed.emit()
 
 
-func _on_resource_type_changed(constraint: GDSQLResourceTypeConstraint) -> void:
+func _on_resource_type_changed(resource: Resource) -> void:
 	if _configuring:
 		return
-	draft.resource_type = constraint
-	draft.resource_prototype = _resource_type.get_prototype()
+	draft.resource_type = GDSQLResourceTypeConstraint.from_resource(resource)
+	draft.resource_prototype = resource
 	draft.default_valid = true
 	if draft.has_default:
 		draft.default_value = draft.duplicate_resource_prototype()
@@ -172,6 +173,11 @@ func _on_resource_type_changed(constraint: GDSQLResourceTypeConstraint) -> void:
 	if draft.default_value is Resource:
 		EditorInterface.edit_resource(draft.default_value)
 	changed.emit()
+
+
+func _on_resource_type_selected(resource: Resource, _inspect: bool) -> void:
+	if resource != null:
+		EditorInterface.edit_resource(resource)
 
 
 func _on_nullable_toggled(enabled: bool) -> void:

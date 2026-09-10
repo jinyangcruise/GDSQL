@@ -50,6 +50,15 @@ Workbench("`**GDSQLWorkbench**
 *Schema UI:* Scene-backed fixed header and reusable rows over typed column drafts
 *Rows:* Loaded only for the selected table`")
 
+ModelAssistant("`**Model Assistant**
+
+-
+*Purpose:* Preview one-way catalog-to-model bindings
+*Input:* GDSQLTableDefinition and logical database role
+*Output:* Generated schema base plus user-owned model source
+*Inspection:* Role, table, key, property types and relationship target roles
+*Safety:* Confirms generated replacement and never overwrites user behavior`")
+
 GraphEditor("`**Graph Editor**
 
 -
@@ -100,6 +109,15 @@ RuntimeRegistry("`**GDSQLDatabaseRegistry**
 *Durable metadata:* user://gdsql/databases.cfg through DatabaseRegistryStore
 *Returns:* GDSQLDatabaseResult with structured diagnostics`")
 
+RuntimeSession("`**GDSQLRuntimeSession**
+
+-
+*Purpose:* Expose one bootstrapped database, model and persistence context
+*Database API:* database(), select_role(), get_active_save_slot(), select_save_slot()
+*Model API:* register_model()
+*Persistence API:* checkpoint_role(), checkpoint_save(), checkpoint_dirty()
+*Created by:* GDSQLRuntimeFactory.bootstrap()`")
+
 Persistence("`**Runtime Persistence**
 
 -
@@ -113,8 +131,8 @@ Factory("`**GDSQLRuntimeFactory**
 
 -
 *Purpose:* Assemble one compatible runtime object graph
-*API:* create_default(), create_in_memory(), open_registration()
-*Creates:* GDSQLDatabaseContext
+*API:* create_default(), create_in_memory(), open_registration(), bootstrap()
+*Creates:* GDSQLDatabaseContext and GDSQLRuntimeSession
 *Injects:* Catalog, storage, validation, planning and execution services`")
 
 Translators("`**Frontend Translators**
@@ -312,6 +330,10 @@ Expression -->|"contained by"| QuerySpec
 Database -->|"execute(query) · lifecycle methods"| Context
 Database -->|"transaction(callback)"| Transaction
 Code -->|"register handles · select roles"| RuntimeRegistry
+Code -->|"bootstrap · role databases · checkpoints"| RuntimeSession
+RuntimeSession -->|"resolve roles"| RuntimeRegistry
+RuntimeSession -->|"default model context"| Models
+RuntimeSession -->|"checkpoint operations"| Persistence
 RuntimeRegistry -->|"resolve() · resolve_role()"| Database
 Models -->|"resolve_role(model)"| RuntimeRegistry
 Models -->|"to_query_spec()"| QuerySpec
@@ -321,6 +343,8 @@ Workbench -->|"open_registration()"| Factory
 Workbench -->|"load and save registration snapshot"| RuntimeRegistry
 Workbench -->|"select · load rows"| Database
 Workbench -->|"preview · apply change plan"| CatalogAdministration
+Workbench -->|"selected table definition"| ModelAssistant
+ModelAssistant -.->|"generates project model scripts"| Models
 Persistence -->|"target.checkpoint()"| MemoryCheckpoint
 Transaction -->|"execute(query, shared session)"| Context
 QuerySpec -->|"execute(query) / prepare(query)"| Context
@@ -353,10 +377,11 @@ ConfigStorage -->|"paths · cache · codec"| ConfigInfrastructure
 
 Factory -.->|"create_default(data_root)"| Context
 Factory -.->|"constructs and injects"| ConfigInfrastructure
+Factory -.->|"bootstrap()"| RuntimeSession
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
-class Code,Models,Workbench,GraphEditor,SQLEditor,Expr frontend;
-class Database,Context,Factory,Transaction,RuntimeRegistry,Persistence runtime;
+class Code,Models,Workbench,ModelAssistant,GraphEditor,SQLEditor,Expr frontend;
+class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;

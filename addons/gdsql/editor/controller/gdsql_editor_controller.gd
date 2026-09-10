@@ -6,6 +6,8 @@ extends RefCounted
 ## Godot plugin lifecycle and control placement remain in the EditorPlugin.
 
 const PROJECT_DATA_ROOT := "res://data"
+const SAVE_SLOTS_ROOT := "user://gdsql/saves"
+const TABLE_COUNT_ALIAS := &"row_count"
 
 var action_hub: GDSQLEditorActionHub
 var workbench: GDSQLWorkbench
@@ -14,6 +16,19 @@ var _database_dock: GDSQLDatabaseDock
 var _logs_panel: GDSQLLogsPanel
 var _workspace_loaded := false
 var _request_filesystem_scan: Callable
+
+
+static func _registration_prefix_for_root(
+		database_name: StringName,
+		data_root: String,
+) -> StringName:
+	var normalized_root := data_root.strip_edges().simplify_path()
+	if normalized_root == PROJECT_DATA_ROOT:
+		return &"project"
+	var root_name := normalized_root.trim_suffix("/").get_file()
+	if root_name.is_empty() or root_name in [".", ".."]:
+		return database_name
+	return StringName(root_name)
 
 
 func _init(
@@ -75,11 +90,11 @@ func shutdown() -> void:
 			and _workspace.table_row_insert_requested.is_connected(_insert_table_row):
 		_workspace.table_row_insert_requested.disconnect(_insert_table_row)
 	if is_instance_valid(_workspace) \
-			and _workspace.table_row_update_requested.is_connected(_update_table_row):
-		_workspace.table_row_update_requested.disconnect(_update_table_row)
+			and _workspace.table_rows_update_requested.is_connected(_update_table_rows):
+		_workspace.table_rows_update_requested.disconnect(_update_table_rows)
 	if is_instance_valid(_workspace) \
-			and _workspace.table_row_delete_requested.is_connected(_delete_table_row):
-		_workspace.table_row_delete_requested.disconnect(_delete_table_row)
+			and _workspace.table_rows_delete_requested.is_connected(_delete_table_rows):
+		_workspace.table_rows_delete_requested.disconnect(_delete_table_rows)
 	if is_instance_valid(_workspace) \
 			and _workspace.query_graph_submitted.is_connected(_execute_query_graph):
 		_workspace.query_graph_submitted.disconnect(_execute_query_graph)
@@ -129,6 +144,10 @@ func _create_actions() -> void:
 		GDSQLEditorActionIds.OPEN_REGISTRATION: _open_registration,
 		GDSQLEditorActionIds.SELECT_TABLE: _select_table,
 		GDSQLEditorActionIds.SHOW_WELCOME: _show_welcome,
+		GDSQLEditorActionIds.SHOW_SAVE_SLOTS: _show_save_slots,
+		GDSQLEditorActionIds.CREATE_SAVE_SLOT: _show_create_save_slot,
+		GDSQLEditorActionIds.SELECT_SAVE_SLOT: _select_save_slot,
+		GDSQLEditorActionIds.DELETE_SAVE_SLOT: _delete_save_slot,
 	}
 	var registered := GDSQLEditorActionRegistrar.new() \
 			.register_global_actions(action_hub, handlers)
@@ -136,14 +155,14 @@ func _create_actions() -> void:
 
 
 func _configure_surfaces() -> void:
-	_workspace.configure(action_hub)
+	_workspace.configure(action_hub, workbench)
 	_workspace.database_create_submitted.connect(_create_database)
 	_workspace.database_save_submitted.connect(_save_database)
 	_workspace.database_refresh_submitted.connect(_refresh_database_document)
 	_workspace.table_rows_requested.connect(_load_table_rows)
 	_workspace.table_row_insert_requested.connect(_insert_table_row)
-	_workspace.table_row_update_requested.connect(_update_table_row)
-	_workspace.table_row_delete_requested.connect(_delete_table_row)
+	_workspace.table_rows_update_requested.connect(_update_table_rows)
+	_workspace.table_rows_delete_requested.connect(_delete_table_rows)
 	_workspace.query_graph_submitted.connect(_execute_query_graph)
 	_workspace.query_result_row_insert_requested.connect(_insert_query_result_row)
 	_workspace.query_result_row_update_requested.connect(_update_query_result_row)
@@ -158,10 +177,18 @@ func _show_create_database() -> GDSQLOperationResult:
 	return result
 
 
+func _show_create_save_slot() -> GDSQLOperationResult:
+	_workspace.open_create_save_slot_page()
+	var result := GDSQLOperationResult.new()
+	result.value = _workspace
+	return result
+
+
 func _create_database(
 		database_name: StringName,
 		data_root: String,
 		storage_backend_id: StringName,
+		database_role: StringName,
 ) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	var database_result := GDSQLDatabase.open(database_name, data_root)
@@ -194,6 +221,9 @@ func _create_database(
 					storage_backend_id,
 				)
 				result.diagnostics.merge(selected_backend.diagnostics)
+				if result.is_successful() and database_role != &"":
+					var bound_role := workbench.bind_role(database_role, registration_name)
+					result.diagnostics.merge(bound_role.diagnostics)
 				var opened := _open_registration(registration_name, false)
 				result.diagnostics.merge(opened.diagnostics)
 				if opened.is_successful():
@@ -331,6 +361,8 @@ func _refresh_database_document(
 func _load_table_rows(
 		registration_name: StringName,
 		table_name: StringName,
+		query: GDSQLSelectQuerySpec,
+		count_query: GDSQLSelectQuerySpec,
 		record_logs: bool = true,
 ) -> GDSQLQueryResult:
 	var activation := _ensure_active_registration(registration_name)
@@ -347,8 +379,15 @@ func _load_table_rows(
 		if record_logs:
 			_record_result("Load table rows", failed)
 		return failed
-	var result := workbench.active_session.load_rows(100)
-	_workspace.present_table_rows(registration_name, table_name, result)
+	var database := workbench.active_session.database
+	var result := database.execute(query)
+	var total_rows := -1
+	if result.is_successful() and count_query != null:
+		var count_result := database.execute(count_query)
+		result.diagnostics.merge(count_result.diagnostics)
+		if count_result.is_successful() and not count_result.rows.is_empty():
+			total_rows = int(count_result.rows[0].get_value(TABLE_COUNT_ALIAS))
+	_workspace.present_table_rows(registration_name, table_name, result, total_rows)
 	if record_logs:
 		_record_result("Load table rows", result)
 	return result
@@ -408,20 +447,63 @@ func _insert_table_row(
 	return result
 
 
-func _update_table_row(
+func _update_table_rows(
 		registration_name: StringName,
 		table_name: StringName,
+		updates: Array[Dictionary],
+) -> GDSQLOperationResult:
+	var result := _ensure_active_registration(registration_name)
+	if not result.is_successful():
+		_record_result("Update table rows", result)
+		return result
+	var database := workbench.active_session.database
+	var table := database.context.catalog.get_table(database.database_name, table_name)
+	if table == null:
+		result = _error(
+			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
+			"Table '%s' was not found." % table_name,
+		)
+	else:
+		var transaction_result := database.transaction(
+			func(transaction: GDSQLTransaction) -> void:
+				for update in updates:
+					var query := _build_row_update_query(
+						database,
+						table,
+						update.get("primary_key"),
+						update.get("values", { }),
+					)
+					if query != null:
+						transaction.execute(query)
+		)
+		result.diagnostics.merge(transaction_result.diagnostics)
+		result.value = transaction_result.value
+	_complete_row_mutation(registration_name, table_name, result)
+	_record_result("Update table rows", result)
+	return result
+
+
+func _build_row_update_query(
+		database: GDSQLDatabase,
+		table: GDSQLTableDefinition,
 		original_primary_key: Variant,
 		values: Dictionary,
-) -> GDSQLOperationResult:
-	var result := _update_row(
-		registration_name,
-		table_name,
-		original_primary_key,
-		values,
-	)
-	_record_result("Update table row", result)
-	return result
+) -> GDSQLUpdateQuerySpec:
+	var builder := database.table(table.name).update()
+	var has_assignment := false
+	for column_name in values:
+		var column := table.get_column(StringName(column_name))
+		if column == null \
+				or column.name == table.primary_key \
+				or column.generation != GDSQLColumnDefinition.Generation.NONE:
+			continue
+		builder.set_value(StringName(column_name), values[column_name])
+		has_assignment = true
+	if not has_assignment:
+		return null
+	return builder.where(
+		GDSQLExpr.column(table.primary_key).equals(original_primary_key),
+	).build()
 
 
 func _update_row(
@@ -435,8 +517,9 @@ func _update_row(
 	var result := _ensure_active_registration(registration_name)
 	if not result.is_successful():
 		return result
-	var table := workbench.active_session.database.context.catalog.get_table(
-		workbench.active_session.database.database_name,
+	var database := workbench.active_session.database
+	var table := database.context.catalog.get_table(
+		database.database_name,
 		table_name,
 	)
 	if table == null:
@@ -444,19 +527,13 @@ func _update_row(
 			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
 			"Table '%s' was not found." % table_name,
 		)
-	var builder := workbench.active_session.database.table(table_name).update()
-	for column_name in values:
-		var column := table.get_column(StringName(column_name))
-		if column == null \
-				or column.name == table.primary_key \
-				or column.generation != GDSQLColumnDefinition.Generation.NONE:
-			continue
-		builder.set_value(StringName(column_name), values[column_name])
-	var updated := workbench.active_session.database.execute(
-		builder.where(
-			GDSQLExpr.column(table.primary_key).equals(original_primary_key),
-		).build(),
-	)
+	var query := _build_row_update_query(database, table, original_primary_key, values)
+	if query == null:
+		return _error(
+			&"GDSQL_EDITOR_ROW_UPDATE_EMPTY",
+			"No mutable values were provided for the row update.",
+		)
+	var updated := database.execute(query)
 	result.diagnostics.merge(updated.diagnostics)
 	result.value = updated
 	_complete_row_mutation(
@@ -469,13 +546,39 @@ func _update_row(
 	return result
 
 
-func _delete_table_row(
+func _delete_table_rows(
 		registration_name: StringName,
 		table_name: StringName,
-		primary_key: Variant,
+		primary_keys: Array[Variant],
 ) -> GDSQLOperationResult:
-	var result := _delete_row(registration_name, table_name, primary_key)
-	_record_result("Delete table row", result)
+	var result := _ensure_active_registration(registration_name)
+	if not result.is_successful():
+		_record_result("Delete table rows", result)
+		return result
+	var database := workbench.active_session.database
+	var table := database.context.catalog.get_table(database.database_name, table_name)
+	if table == null:
+		result = _error(
+			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
+			"Table '%s' was not found." % table_name,
+		)
+	else:
+		var transaction_result := database.transaction(
+			func(transaction: GDSQLTransaction) -> void:
+				for primary_key in primary_keys:
+					transaction.execute(
+						database.table(table_name) \
+								.delete() \
+								.where(
+									GDSQLExpr.column(table.primary_key).equals(primary_key),
+								) \
+								.build(),
+					)
+		)
+		result.diagnostics.merge(transaction_result.diagnostics)
+		result.value = transaction_result.value
+	_complete_row_mutation(registration_name, table_name, result)
+	_record_result("Delete table rows", result)
 	return result
 
 
@@ -531,7 +634,7 @@ func _complete_row_mutation(
 	workbench.active_session.refresh_catalog()
 	_refresh_surfaces()
 	if query_document_key == &"":
-		_load_table_rows(registration_name, table_name, false)
+		_workspace.request_table_rows(registration_name, table_name)
 	else:
 		var query_result := _workspace.request_query_graph(
 			query_document_key,
@@ -695,6 +798,63 @@ func _show_welcome() -> GDSQLOperationResult:
 	return result
 
 
+func _show_save_slots() -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	if DirAccess.open(SAVE_SLOTS_ROOT) != null:
+		var discovered := workbench.discover_children(SAVE_SLOTS_ROOT)
+		result.diagnostics.merge(discovered.diagnostics)
+	if result.is_successful():
+		_workspace.show_save_slots()
+	_refresh_surfaces()
+	result.value = _workspace
+	_record_result("Refresh save slots", result)
+	return result
+
+
+func _select_save_slot(registration_name: StringName) -> GDSQLOperationResult:
+	var result := workbench.bind_role(
+		GDSQLDatabaseRegistry.SAVE_ROLE,
+		registration_name,
+	)
+	_refresh_surfaces()
+	_record_result("Select save slot", result)
+	return result
+
+
+func _delete_save_slot(registration_name: StringName) -> GDSQLOperationResult:
+	var registration := workbench.get_registration(registration_name)
+	var planned := GDSQLSaveSlotDeletionPlan.build(
+		registration,
+		_get_role_registration(GDSQLDatabaseRegistry.SAVE_ROLE),
+	)
+	if not planned.is_successful():
+		_record_result("Delete save slot data", planned)
+		return planned
+	var plan := planned.get_value() as GDSQLSaveSlotDeletionPlan
+	var result := GDSQLOperationResult.new()
+	var opened := _ensure_active_registration(plan.registration_name)
+	result.diagnostics.merge(opened.diagnostics)
+	if result.is_successful():
+		var dropped := workbench.active_session.database.drop()
+		result.diagnostics.merge(dropped.diagnostics)
+	if result.is_successful():
+		var removed := workbench.remove_registration(plan.registration_name)
+		result.diagnostics.merge(removed.diagnostics)
+	if result.is_successful():
+		_workspace.close_registration(plan.registration_name)
+		result.value = plan
+	_refresh_surfaces()
+	_record_result("Delete save slot data", result)
+	return result
+
+
+func _get_role_registration(role: StringName) -> StringName:
+	for binding in workbench.snapshot.role_bindings:
+		if binding.role == role:
+			return binding.registration_name
+	return &""
+
+
 func _find_registration(database_name: StringName, data_root: String) -> StringName:
 	for registration in workbench.get_registrations():
 		if registration.database_name == database_name \
@@ -703,22 +863,12 @@ func _find_registration(database_name: StringName, data_root: String) -> StringN
 	return &""
 
 
-static func _registration_prefix_for_root(
-		database_name: StringName,
-		data_root: String,
-) -> StringName:
-	var normalized_root := data_root.strip_edges().simplify_path()
-	if normalized_root == PROJECT_DATA_ROOT:
-		return &"project"
-	var root_name := normalized_root.trim_suffix("/").get_file()
-	if root_name.is_empty() or root_name in [".", ".."]:
-		return database_name
-	return StringName(root_name)
-
-
 func _refresh_surfaces() -> void:
 	if is_instance_valid(_database_dock):
 		_database_dock.render()
+	if is_instance_valid(_workspace):
+		_workspace.refresh_welcome()
+		_workspace.refresh_save_slots()
 	if is_instance_valid(_workspace) and workbench.active_session != null:
 		var registration_name := workbench.active_session.registration.name
 		_workspace.refresh_database(

@@ -39,9 +39,9 @@ static func from_definition(
 	draft.data_type = column.data_type
 	draft.resource_type = column.resource_type
 	draft.resource_prototype = (
-		column.resource_type.instantiate_prototype()
-		if column.resource_type != null
-		else null
+			column.resource_type.instantiate_prototype()
+			if column.resource_type != null
+			else null
 	)
 	draft.nullable = column.nullable
 	draft.unique = column.unique

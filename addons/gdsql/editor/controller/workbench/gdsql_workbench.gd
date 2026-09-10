@@ -226,6 +226,30 @@ func set_storage_backend(
 	return result
 
 
+func bind_role(role: StringName, registration_name: StringName) -> GDSQLOperationResult:
+	if role == &"":
+		return _error(
+			&"GDSQL_DATABASE_ROLE_REQUIRED",
+			"A logical database role is required.",
+		)
+	if get_registration(registration_name) == null:
+		return _error(
+			&"GDSQL_WORKBENCH_REGISTRATION_NOT_FOUND",
+			"Database registration '%s' was not found." % registration_name,
+		)
+	for binding in snapshot.role_bindings:
+		if binding.role == role:
+			binding.registration_name = registration_name
+			var rebound := _registry.save_snapshot(snapshot)
+			rebound.value = binding
+			return rebound
+	var binding := GDSQLDatabaseRoleBinding.new(role, registration_name)
+	snapshot.role_bindings.append(binding)
+	var result := _registry.save_snapshot(snapshot)
+	result.value = binding
+	return result
+
+
 func update_database_name(
 		registration_name: StringName,
 		database_name: StringName,

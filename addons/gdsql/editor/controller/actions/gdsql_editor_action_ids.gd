@@ -11,6 +11,10 @@ const REFRESH_DATABASES := &"database.refresh"
 const OPEN_REGISTRATION := &"database.open_registration"
 const SELECT_TABLE := &"database.select_table"
 const SHOW_WELCOME := &"workspace.show_welcome"
+const SHOW_SAVE_SLOTS := &"workspace.show_save_slots"
+const CREATE_SAVE_SLOT := &"save_slot.create"
+const SELECT_SAVE_SLOT := &"save_slot.select"
+const DELETE_SAVE_SLOT := &"save_slot.delete"
 const SAVE_DATABASE_CHANGES := &"database_document.save"
 const REFRESH_DATABASE_CHANGES := &"database_document.refresh"
 const OPEN_QUERY_GRAPH_FOLDER := &"query_graph.open_folder"
@@ -36,6 +40,10 @@ static func get_all() -> Array[StringName]:
 		OPEN_REGISTRATION,
 		SELECT_TABLE,
 		SHOW_WELCOME,
+		SHOW_SAVE_SLOTS,
+		CREATE_SAVE_SLOT,
+		SELECT_SAVE_SLOT,
+		DELETE_SAVE_SLOT,
 		SAVE_DATABASE_CHANGES,
 		REFRESH_DATABASE_CHANGES,
 		OPEN_QUERY_GRAPH_FOLDER,
