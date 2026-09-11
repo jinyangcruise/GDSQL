@@ -157,7 +157,7 @@ ContentOverlay("`**Content Overlay Loader**
 *Purpose:* Build one deterministic effective-content snapshot
 *Input:* Resolved package order and typed package layers
 *Operations:* Stable-ID upsert and explicit removal
-*Returns:* Copied schemas, sorted rows and structured diagnostics`")
+*Returns:* Copied schemas, sorted rows, provenance, typed conflicts and diagnostics`")
 
 Persistence("`**Runtime Persistence**
 

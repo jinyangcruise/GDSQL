@@ -49,6 +49,20 @@ func test_ordered_layers_add_override_and_remove_without_mutating_sources() -> v
 	)
 	assert_int(items.find_by_primary_key("iron_sword").get_value(&"damage")).is_equal(18)
 	assert_object(items.find_by_primary_key("wooden_sword")).is_null()
+	var iron_history := built.get_row_history(&"items", "iron_sword")
+	assert_array(_package_ids(iron_history)).contains_exactly([&"base.game", &"arsenal"])
+	assert_str(String(built.get_effective_origin(&"items", "iron_sword").package_id)).is_equal(
+		"arsenal",
+	)
+	var removed_history := built.get_row_history(&"items", "wooden_sword")
+	assert_int(removed_history[-1].operation_kind).is_equal(
+		GDSQLContentRowOperation.Kind.REMOVE,
+	)
+	assert_object(built.get_effective_origin(&"items", "wooden_sword")).is_null()
+	assert_int(built.conflicts.size()).is_equal(1)
+	assert_str(String(built.conflicts[0].previous.package_id)).is_equal("base.game")
+	assert_str(String(built.conflicts[0].replacement.package_id)).is_equal("arsenal")
+	assert_array(_diagnostic_codes(built)).contains(["GDSQL_CONTENT_ROW_OVERRIDE"])
 	assert_int(
 		base_database
 		.execute(base_database.query().select().from_table(&"items").build())
@@ -156,6 +170,15 @@ func _row_ids(rows: Array[GDSQLRowRecord]) -> Array[String]:
 	for row in rows:
 		ids.append(row.get_value(&"id"))
 	return ids
+
+
+func _package_ids(
+		history: Array[GDSQLContentRowProvenance],
+) -> Array[StringName]:
+	var package_ids: Array[StringName] = []
+	for origin in history:
+		package_ids.append(origin.package_id)
+	return package_ids
 
 
 func _diagnostic_codes(result: GDSQLOperationResult) -> Array[String]:

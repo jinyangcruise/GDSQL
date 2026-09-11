@@ -683,11 +683,13 @@ are sorted in the output; package sources and decoded rows are copied rather
 than mutated. Cache persistence and active role replacement consume this
 snapshot in later orchestration stages.
 
-The loader records package identifiers and versions, dependencies, deterministic
-layer order, row provenance, conflicts, schema compatibility, and the base
-content version. A simple initial precedence rule is `base → declared mod load
-order`, where a later validated layer wins. Filesystem enumeration order must
-never silently determine precedence.
+Each applied operation records its package identifier, version, kind, table,
+and stable row identity. Removed rows retain their operation history even though
+they do not appear in the effective snapshot. A later upsert against an existing
+identity records a typed conflict and informational diagnostic naming both
+packages. The precedence rule remains `base → declared package load order`,
+where the later validated layer wins. Filesystem enumeration order must never
+silently determine precedence.
 
 The cache manifest fingerprints the base version, enabled package checksums or
 versions, and their order. Any mismatch invalidates the cache. The cache must

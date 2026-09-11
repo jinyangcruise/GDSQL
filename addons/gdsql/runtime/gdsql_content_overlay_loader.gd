@@ -57,6 +57,8 @@ func _compose(
 ) -> GDSQLContentOverlayResult:
 	var definitions: Dictionary[StringName, GDSQLTableDefinition] = { }
 	var rows_by_table: Dictionary[StringName, Dictionary] = { }
+	var owners_by_table: Dictionary[StringName, Dictionary] = { }
+	var schema_owners: Dictionary[StringName, StringName] = { }
 	for layer in layers:
 		if not _validate_layer(layer, result):
 			continue
@@ -66,9 +68,10 @@ func _compose(
 					_add_error(
 						result,
 						&"GDSQL_CONTENT_SCHEMA_CONFLICT",
-						"Package '%s' supplies an incompatible schema for table '%s'." % [
+						"Package '%s' supplies a schema for table '%s' that conflicts with package '%s'." % [
 							layer.source.manifest.package_id,
 							source_table.name,
+							schema_owners[source_table.name],
 						],
 					)
 				continue
@@ -77,10 +80,19 @@ func _compose(
 				effective_database_name,
 			)
 			rows_by_table[source_table.name] = { }
+			owners_by_table[source_table.name] = { }
+			schema_owners[source_table.name] = layer.source.manifest.package_id
 		if not result.is_successful():
 			continue
 		for operation in layer.operations:
-			_apply_operation(layer, operation, definitions, rows_by_table, result)
+			_apply_operation(
+				layer,
+				operation,
+				definitions,
+				rows_by_table,
+				owners_by_table,
+				result,
+			)
 	if not result.is_successful():
 		return result
 	if definitions.is_empty():
@@ -128,6 +140,7 @@ func _apply_operation(
 		operation: GDSQLContentRowOperation,
 		definitions: Dictionary[StringName, GDSQLTableDefinition],
 		rows_by_table: Dictionary[StringName, Dictionary],
+		owners_by_table: Dictionary[StringName, Dictionary],
 		result: GDSQLContentOverlayResult,
 ) -> void:
 	if operation == null or not definitions.has(operation.table_name):
@@ -152,6 +165,7 @@ func _apply_operation(
 		)
 		return
 	var rows: Dictionary = rows_by_table[table.name]
+	var owners: Dictionary = owners_by_table[table.name]
 	if operation.kind == GDSQLContentRowOperation.Kind.REMOVE:
 		if not rows.erase(operation.identity):
 			result.add_diagnostic(
@@ -165,6 +179,9 @@ func _apply_operation(
 					GDSQLQueryDiagnostic.Severity.WARNING,
 				),
 			)
+		else:
+			result.add_provenance(_origin(layer, operation))
+			owners.erase(operation.identity)
 		return
 	if operation.kind != GDSQLContentRowOperation.Kind.UPSERT or operation.row == null:
 		_add_error(
@@ -178,7 +195,45 @@ func _apply_operation(
 		return
 	if not _validate_row(table, operation, layer, result):
 		return
+	var origin := _origin(layer, operation)
+	if rows.has(operation.identity) and owners.has(operation.identity):
+		var previous := owners[operation.identity] as GDSQLContentRowProvenance
+		result.add_conflict(
+			GDSQLContentRowConflict.new(
+				table.name,
+				operation.identity,
+				previous,
+				origin,
+			),
+		)
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_CONTENT_ROW_OVERRIDE",
+				"Package '%s' replaces row '%s' in table '%s' from package '%s'." % [
+					origin.package_id,
+					operation.identity,
+					table.name,
+					previous.package_id,
+				],
+				GDSQLQueryDiagnostic.Severity.INFO,
+			),
+		)
 	rows[operation.identity] = operation.row.duplicate_record()
+	owners[operation.identity] = origin
+	result.add_provenance(origin)
+
+
+func _origin(
+		layer: GDSQLContentPackageLayer,
+		operation: GDSQLContentRowOperation,
+) -> GDSQLContentRowProvenance:
+	return GDSQLContentRowProvenance.new(
+		operation.table_name,
+		operation.identity,
+		layer.source.manifest.package_id,
+		layer.source.manifest.version,
+		operation.kind,
+	)
 
 
 func _validate_row(

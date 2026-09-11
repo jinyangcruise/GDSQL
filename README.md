@@ -152,10 +152,8 @@ Available as a dedicated main screen in the Godot Editor:
 - **Drag-to-resize columns**: Freely adjust column widths
 - **Table structure editor**: View and modify column definitions, types, defaults, and comments
 - **Schema management**: Visually create / delete / edit databases and tables
-- **Data import/export**: CSV, JSON, and CFG formats
 - **Diff view**: Compare table content with highlighted additions, deletions, and changes
 - **SQL query editor**: Write and execute SQL with automatic query history
-- **Export query results**: Export results as CSV, JSON, or CFG
 
 ### Smart Auto-Fill
 - **Least-squares fitting**: Predicts and fills subsequent data based on existing samples
@@ -335,6 +333,7 @@ Create a class extending `GBatisMapper` and point its `mapper_xml` property to t
 
 ## Future Plans
 
+- **Portable import/export**: Schema-validated CSV, JSON, and GDSQL interchange independent of the active storage backend
 - **Performance roadmap**: Identify hot paths and optimize — both GDScript-level and via GDExtension for critical sections
 - **Extended SQL syntax**: Window functions, CTEs (Common Table Expressions), full JOIN support (INNER, RIGHT, FULL)
 - **Query planner optimization**: Better execution order, LEFT JOIN predicate push-down

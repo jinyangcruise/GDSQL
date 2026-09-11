@@ -50,14 +50,14 @@ status information until their orchestration exists.
 ## Remaining delivery workstreams
 
 After the current experimental table, creation, bootstrap, and model-assistant
-slices, eight substantive workstreams remain. They are grouped by outcome;
+slices, seven substantive workstreams remain. They are grouped by outcome;
 individual workstreams may require several small changes.
 
 | Outcome | Count | Remaining workstreams |
 |---|---:|---|
 | Reliable direct-content setup | 0 | Complete for the current direct profile. |
-| Managed-content full kit | 4 | Provenance and conflict reporting; cache manifests and rebuilds; atomic effective-content role replacement; mod-aware save compatibility and setup UI. |
-| Advanced tooling and release | 4 | Advanced graph operations and saved graphs; completed SQL compiler/editor; shared import/export and batch tooling; migration, performance, and release QA. |
+| Managed-content full kit | 3 | Cache manifests and rebuilds; atomic effective-content role replacement; mod-aware save compatibility and setup UI. |
+| Advanced tooling and release | 4 | Advanced graph operations and saved graphs; completed SQL compiler/editor; shared batch tooling; migration, performance, and release QA. |
 
 ## Delivery order
 
@@ -263,8 +263,8 @@ internal class:
 
 After the table-first path is solid, resume graph work for joins, ordering,
 grouping, calculated projections, saved graph assets, and explicit result-root
-selection. Import/export and atomic batch editing should follow the shared table
-view so they benefit both table and graph workflows.
+selection. Atomic batch editing should follow the shared table view so both
+table and graph workflows can reuse it.
 
 ### 7. Build the effective-content and mod pipeline
 
@@ -279,6 +279,9 @@ with stable priority and package-ID tie-breaking. The overlay loader now reads a
 selected logical database through an injected layer-reader contract, copies
 compatible schemas, and deterministically applies stable-ID upserts and explicit
 removals into an effective-content snapshot. Provenance and conflict reporting
+now record every applied package operation, preserve removal histories,
+resolve the winning package for effective rows, and report later-package
+overrides without failing the deterministic build. Cache manifests and rebuilds
 are next.
 
 Runtime content should always be consumed through one derived
@@ -310,6 +313,22 @@ silently deleted or rewritten.
 This slice is complete when base-only and modded launches use the same content
 model queries, deterministic rebuilds produce reproducible data, and disabling
 a package cannot mutate the base sources or corrupt save rows.
+
+## Backlog — not active delivery
+
+- **GDSQL-aware MCP integration:** investigate a focused MCP surface for schema
+  inspection, safe query drafting, setup diagnostics, and editor actions. It may
+  integrate with `godot-ai`, but must remain optional and must not bypass GDSQL
+  validation or mutation safeguards.
+- **Portable database interchange:** export and import tables or query results
+  as JSON, CSV, and compatible GDSQL data. The interchange contract must remain
+  independent of ConfigFile and the future paged-binary backend, with schema
+  validation, previews, and atomic imports.
+- **Player-to-player data exchange:** use the existing
+  `docs/architecture/network.md` as the design log. The first future spike
+  should distinguish transferable data snapshots from synchronized gameplay
+  state and define authority, authentication, size limits, versioning,
+  validation, and conflict policy before selecting a transport.
 
 ## Definition of plug and play
 

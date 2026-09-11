@@ -1328,7 +1328,15 @@ The loader copies compatible schemas and rows into a deterministic
 `GDSQLContentDatabaseSnapshot`. Later packages replace rows with the same
 primary-key value, add new identities, and remove identities only through an
 explicit removal operation. Source packages remain immutable. Cache writing,
-row provenance, and registry role replacement remain separate stages.
+cache invalidation, and registry role replacement remain separate stages.
+
+Every successfully applied row operation emits a typed
+`GDSQLContentRowProvenance` entry with table identity, row identity, package ID,
+package version, and operation kind. Histories therefore retain explicit
+removals while effective rows resolve their current winning package. When a
+later upsert replaces an existing row, `GDSQLContentOverlayResult` records a
+typed `GDSQLContentRowConflict` and an informational diagnostic; deterministic
+last-layer-wins behavior remains successful rather than becoming an error.
 
 ---
 
