@@ -118,6 +118,14 @@ RuntimeSession("`**GDSQLRuntimeSession**
 *Persistence API:* checkpoint_role(), checkpoint_save(), checkpoint_dirty()
 *Created by:* GDSQLRuntimeFactory.bootstrap()`")
 
+RuntimeNode("`**GDSQLRuntimeNode**
+
+-
+*Purpose:* Optional scene-tree/autoload adapter over RuntimeSession
+*Lifecycle:* Bootstrap, periodic Timer, application-pause and tree-exit checkpoints
+*API:* database(), register_model(), select_save_slot(), checkpoint_now(), stop()
+*Signals:* Startup, checkpoint and shutdown results`")
+
 Persistence("`**Runtime Persistence**
 
 -
@@ -331,6 +339,8 @@ Database -->|"execute(query) · lifecycle methods"| Context
 Database -->|"transaction(callback)"| Transaction
 Code -->|"register handles · select roles"| RuntimeRegistry
 Code -->|"bootstrap · role databases · checkpoints"| RuntimeSession
+Code -->|"optional autoload API"| RuntimeNode
+RuntimeNode -->|"bootstrap, delegate and schedule checkpoints"| RuntimeSession
 RuntimeSession -->|"resolve roles"| RuntimeRegistry
 RuntimeSession -->|"default model context"| Models
 RuntimeSession -->|"checkpoint operations"| Persistence
@@ -381,7 +391,7 @@ Factory -.->|"bootstrap()"| RuntimeSession
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
 class Code,Models,Workbench,ModelAssistant,GraphEditor,SQLEditor,Expr frontend;
-class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,Persistence runtime;
+class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;

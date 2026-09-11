@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/gdsql/runtime/gdsql_runtime_node.gd" id="1_runtime"]
+
+[node name="GDSQLRuntime" type="Node"]
+script = ExtResource("1_runtime")
+
+[node name="CheckpointTimer" type="Timer" parent="."]
+unique_name_in_owner = true
+wait_time = 30.0

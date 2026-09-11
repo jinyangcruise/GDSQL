@@ -41,20 +41,20 @@ status information until their orchestration exists.
 - The reusable WHERE editor already creates canonical expressions.
 - Table selection opens the standalone table document; query graphs remain the
   advanced visual-query surface.
-- Database-role and model APIs are implemented, but project bootstrap remains
-  manual. The planned runtime node and content-overlay loader do not exist yet.
+- Database-role and model APIs plus the optional runtime/autoload scene are
+  implemented. The content-overlay loader does not exist yet.
 - SQL lexer/parser/compiler contracts are scaffolded, so the editor must not
   present SQL text as a complete query frontend yet.
 
 ## Remaining delivery workstreams
 
 After the current experimental table, creation, bootstrap, and model-assistant
-slices, fourteen substantive workstreams remain. They are grouped by outcome;
+slices, twelve substantive workstreams remain. They are grouped by outcome;
 individual workstreams may require several small changes.
 
 | Outcome | Count | Remaining workstreams |
 |---|---:|---|
-| Reliable direct-content setup | 3 | Runtime Node lifecycle and periodic checkpoints; complete integration examples; end-to-end setup diagnostics and hardening. |
+| Reliable direct-content setup | 1 | End-to-end setup diagnostics and hardening. |
 | Managed-content full kit | 7 | Package manifests; package discovery and dependency ordering; deterministic overlay application; provenance and conflict reporting; cache manifests and rebuilds; atomic effective-content role replacement; mod-aware save compatibility and setup UI. |
 | Advanced tooling and release | 4 | Advanced graph operations and saved graphs; completed SQL compiler/editor; shared import/export and batch tooling; migration, performance, and release QA. |
 
@@ -145,8 +145,11 @@ configures the default model context, and returns a `GDSQLRuntimeSession` with
 role resolution and explicit checkpoints. In-memory save data is verified to
 checkpoint back into its durable ConfigFile source. Save-slot selection now
 validates the target, checkpoints the previous slot, and prevents model
-instances loaded from one slot from mutating another. Periodic and application
-lifecycle scheduling remain for the optional Node adapter.
+instances loaded from one slot from mutating another. The optional scene-backed
+`GDSQLRuntimeNode` now bootstraps that session, exposes common delegates,
+schedules periodic dirty checkpoints, and flushes synchronously on application
+pause or tree exit. It retains structured startup results and emits lifecycle
+results without printing or imposing game-specific quit behavior.
 
 The editor now has a scene-backed Save Slots document. It discovers standard
 slot directories, identifies the active role binding, opens a slot, switches
@@ -190,7 +193,10 @@ confirmation before regeneration. The assistant also inspects an existing user
 model against the authoritative table, reports identity/property mismatches,
 validates relationship declarations, and displays each related model's logical
 role and table. The pure source builder and compatibility inspector have focused
-tests.
+tests. The runtime guide and executable example models now cover authored
+content lookup, a save model resolving a stable content identifier through a
+cross-role relationship, and fresh model queries after save-slot switching.
+Focused integration tests exercise all three flows against separate databases.
 
 Add a table action that previews a GDScript model skeleton. The user chooses
 `GDSQLContentModel`, `GDSQLSaveModel`, `GDSQLSettingsModel`, or a custom role.

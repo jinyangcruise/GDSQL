@@ -1265,6 +1265,13 @@ var result := persistence.checkpoint(&"save_1")
 databases that remain dirty for a later retry. Periodic scheduling and graceful
 shutdown integration belong to the optional runtime Node adapter.
 
+`GDSQLRuntimeNode` implements that scene-tree boundary without moving storage
+or model services into a Node. Its scene-owned Timer checkpoints committed
+dirty registrations on one configurable interval. Application-pause and
+tree-exit notifications may request a synchronous final checkpoint before the
+node releases its `GDSQLRuntimeSession`. The node emits results for game UI but
+does not print failures or decide whether a game may quit.
+
 `GDSQLRuntimeFactory.bootstrap()` is the supported application composition
 path. It loads the durable registry snapshot, opens every registration through
 its selected backend, restores logical role bindings, creates one
@@ -1965,7 +1972,10 @@ addons/gdsql/
 │   ├── checkpoint_policy.gd
 │   ├── checkpoint_result.gd
 │   ├── in_memory_checkpoint_target.gd
-│   └── persistence_coordinator.gd
+│   ├── persistence_coordinator.gd
+│   ├── runtime_session.gd
+│   ├── runtime_node.gd
+│   └── runtime_node.tscn
 │
 ├── model/
 │   ├── model.gd

@@ -386,29 +386,16 @@ For an ordinary Godot game, the optional node can be installed as an autoload
 and provide a small top-level API:
 
 ```gdscript
-GDSQLRuntime.register_content_database(
-	&"base_content",
-	"res://data/game_content",
-)
+var content_database := GDSQLRuntime.database(&"content").get_database()
+var save_database := GDSQLRuntime.database(&"save").get_database()
 
-GDSQLRuntime.open_save(
-	&"save_1",
-	GDSQLCheckpointPolicy.periodic(30.0),
-)
-
-GDSQLRuntime.register_database(
-	&"analytics",
-	"user://gdsql/analytics",
-	GDSQLCheckpointPolicy.periodic(60.0),
-)
-
-var content_database := GDSQLRuntime.database(&"content")
-var save_database := GDSQLRuntime.database(&"save")
-var analytics_database := GDSQLRuntime.database(&"analytics")
-
-GDSQLRuntime.rebuild_content()
-GDSQLRuntime.checkpoint_save()
+GDSQLRuntime.select_save_slot(&"save_2")
+GDSQLRuntime.checkpoint_now()
 ```
+
+The autoload uses the editor-authored durable registry rather than registering
+physical paths again in game code. Its scene-owned Timer supplies the default
+periodic policy; pause and exit notifications request a final dirty checkpoint.
 
 The logical `content` binding resolves to the current effective content
 database. The logical `save` binding resolves to the selected save slot.

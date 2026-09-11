@@ -10,6 +10,7 @@ const FunctionCatalog = preload("res://addons/gdsql/query/model/gdsql_query_func
 static func bootstrap(
 		registry_path: String = GDSQLConfigFileDatabaseRegistryStore.DEFAULT_PATH,
 		checkpoint_policies: Dictionary = { },
+		default_checkpoint_policy: GDSQLCheckpointPolicy = null,
 ) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	var registry := GDSQLDatabaseRegistry.new(
@@ -37,7 +38,9 @@ static func bootstrap(
 		)
 		var policy := checkpoint_policies.get(
 			registration.name,
-			GDSQLCheckpointPolicy.manual(),
+			default_checkpoint_policy \
+			if default_checkpoint_policy != null \
+			else GDSQLCheckpointPolicy.manual(),
 		) as GDSQLCheckpointPolicy
 		var persistence_registration := persistence.register(
 			registration.name,

@@ -237,7 +237,7 @@ state in the same change as implementation or test work.
 | `ContentLoadingPolicy` | Runtime content loading | Selects complete, lazy-table, paged, or manual loading for the active effective-content working set. | `LOAD_ALL`, `LAZY_TABLES`, `PAGED`, `MANUAL` | 📝 |
 | `CheckpointPolicy` | Runtime persistence | Describes immediate, periodic, manual, or exit-time persistence behavior independently from transaction semantics. | `immediate()`, `periodic()`, `manual()`, `on_exit()`, interval metadata | 🧪 |
 | `CheckpointResult` | Runtime persistence | Reports checkpointed databases, remaining dirty databases, and structured persistence diagnostics. | `is_successful()`, `mark_checkpointed()`, `mark_dirty()` | 🧪 |
-| `RuntimeNode` | Godot runtime adapter | Optional Node or autoload that supplies a top-level runtime API, timers, lifecycle notifications, and signals while delegating to the database registry, content loader, and persistence coordinator. | Database registration, role selection, rebuild/checkpoint delegation, runtime signals | 📝 |
+| `RuntimeNode` | Godot runtime adapter | Optional scene or autoload that bootstraps the runtime session, exposes role/model/save-slot delegates, schedules periodic dirty checkpoints, and checkpoints synchronously on pause or exit without owning database logic. | `start()`, `database()`, `register_model()`, `select_save_slot()`, `checkpoint_now()`, `stop()`, runtime signals | 🧪 |
 
 ## Editor
 
