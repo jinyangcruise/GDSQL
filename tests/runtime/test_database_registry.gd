@@ -41,6 +41,35 @@ func test_rebinding_a_role_selects_another_registered_database() -> void:
 	assert_bool(registry.is_registered(&"slot_1")).is_true()
 
 
+func test_replaces_one_role_database_without_exposing_partial_state() -> void:
+	var base := _create_database(&"base_content")
+	var effective := _create_database(&"effective_content")
+	var registry := GDSQLDatabaseRegistry.new()
+	registry.register(&"base_content", base)
+	registry.bind_role(GDSQLDatabaseRegistry.CONTENT_ROLE, &"base_content")
+
+	var rejected := registry.replace_role_database(
+		GDSQLDatabaseRegistry.CONTENT_ROLE,
+		&"effective_content",
+		null,
+	)
+	var preserved := registry.resolve_role(GDSQLDatabaseRegistry.CONTENT_ROLE) \
+			.get_database()
+	var replaced := registry.replace_role_database(
+		GDSQLDatabaseRegistry.CONTENT_ROLE,
+		&"effective_content",
+		effective,
+	)
+
+	assert_bool(rejected.is_successful()).is_false()
+	assert_object(preserved).is_same(base)
+	assert_bool(replaced.is_successful()).is_true()
+	assert_str(String(registry.get_role_registration(&"content"))).is_equal(
+		"effective_content",
+	)
+	assert_object(registry.resolve_role(&"content").get_database()).is_same(effective)
+
+
 func test_reports_invalid_lifecycle_operations_and_clears_stale_roles() -> void:
 	var database := _create_database(&"settings")
 	var registry := GDSQLDatabaseRegistry.new()

@@ -651,7 +651,7 @@ The optional generated cache uses an explicitly disposable location:
 user://gdsql/cache/effective_content/
 ├── manifest.cfg
 ├── databases.cfg
-└── game_content/
+└── effective_content/
     ├── schema/
     └── tables/
 ```
@@ -659,6 +659,21 @@ user://gdsql/cache/effective_content/
 This cache is not save state. It can be deleted and rebuilt from the shipped
 base package and enabled mods. If cache creation is disabled or fails, the
 loader may construct the active working set directly from validated sources.
+
+The cache manifest stores its format version, source/effective database names,
+resolved package order, package versions, and SHA-256 hashes of sorted package
+paths and bytes. Exact compatibility plus a readable cached database produces a
+cache hit. Otherwise the cache manager rebuilds through the overlay loader. The
+ConfigFile store writes to an adjacent staging directory before replacing the
+old cache; malformed manifests are recoverable cache misses, not source-data
+failures.
+
+After cache preparation, the runtime composition root opens the candidate
+database before changing registry state. It then installs the runtime-local
+`effective_content` registration and selects it for the `content` role in one
+registry operation. Any preparation or open failure preserves the previous
+content binding. The disposable registration is rebuilt at startup and is not
+added to durable editor-authored registry metadata.
 
 ### Stable overrides and deterministic merging
 
@@ -681,7 +696,7 @@ from each resolved package, requires compatible schemas for shared tables, and
 returns a deterministic `effective_content` snapshot. Tables and row identities
 are sorted in the output; package sources and decoded rows are copied rather
 than mutated. Cache persistence and active role replacement consume this
-snapshot in later orchestration stages.
+snapshot without exposing source registrations to gameplay queries.
 
 Each applied operation records its package identifier, version, kind, table,
 and stable row identity. Removed rows retain their operation history even though

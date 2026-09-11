@@ -42,21 +42,22 @@ status information until their orchestration exists.
 - Table selection opens the standalone table document; query graphs remain the
   advanced visual-query surface.
 - Database-role and model APIs plus the optional runtime/autoload scene are
-  implemented. Deterministic overlay application now produces a typed
-  effective-content snapshot; cache and role orchestration remain.
+  implemented. Managed content now builds deterministic snapshots, reuses
+  fingerprinted disposable caches, and activates them without exposing partial
+  runtime state.
 - SQL lexer/parser/compiler contracts are scaffolded, so the editor must not
   present SQL text as a complete query frontend yet.
 
 ## Remaining delivery workstreams
 
 After the current experimental table, creation, bootstrap, and model-assistant
-slices, seven substantive workstreams remain. They are grouped by outcome;
+slices, five substantive workstreams remain. They are grouped by outcome;
 individual workstreams may require several small changes.
 
 | Outcome | Count | Remaining workstreams |
 |---|---:|---|
 | Reliable direct-content setup | 0 | Complete for the current direct profile. |
-| Managed-content full kit | 3 | Cache manifests and rebuilds; atomic effective-content role replacement; mod-aware save compatibility and setup UI. |
+| Managed-content full kit | 1 | Mod-aware save compatibility and setup UI. |
 | Advanced tooling and release | 4 | Advanced graph operations and saved graphs; completed SQL compiler/editor; shared batch tooling; migration, performance, and release QA. |
 
 ## Delivery order
@@ -282,7 +283,11 @@ removals into an effective-content snapshot. Provenance and conflict reporting
 now record every applied package operation, preserve removal histories,
 resolve the winning package for effective rows, and report later-package
 overrides without failing the deterministic build. Cache manifests and rebuilds
-are next.
+now fingerprint package order, versions, and directory content; reuse only an
+exact compatible cache; and rebuild malformed or stale caches through a staged
+ConfigFile directory replacement. The runtime composition root now opens that
+candidate first and replaces the runtime-local `effective_content` registration
+and `content` role together. Mod-aware save compatibility and setup UI are next.
 
 Runtime content should always be consumed through one derived
 `effective_content` database bound to the `content` role. Base content and

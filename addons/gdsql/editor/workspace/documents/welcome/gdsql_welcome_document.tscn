@@ -5,7 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="3_plus"]
 [ext_resource type="Texture2D" uid="uid://5i584b3cj6pe" path="res://addons/gdsql/editor/workspace/icons/arrows_clockwise.svg" id="4_refresh"]
 
-[node name="WelcomeDocument" type="MarginContainer"]
+[node name="WelcomeDocument" type="MarginContainer" unique_id=180853761]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -17,286 +17,285 @@ theme_override_constants/margin_right = 24
 theme_override_constants/margin_bottom = 20
 script = ExtResource("1")
 
-[node name="Scroll" type="ScrollContainer" parent="."]
+[node name="Scroll" type="ScrollContainer" parent="." unique_id=237209791]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="Center" type="CenterContainer" parent="Scroll"]
+[node name="Center" type="CenterContainer" parent="Scroll" unique_id=194896316]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="Content" type="VBoxContainer" parent="Scroll/Center"]
+[node name="Content" type="VBoxContainer" parent="Scroll/Center" unique_id=1907462711]
 custom_minimum_size = Vector2(720, 0)
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Eyebrow" type="Label" parent="Scroll/Center/Content"]
+[node name="Eyebrow" type="Label" parent="Scroll/Center/Content" unique_id=2146841461]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.42, 0.68, 1, 1)
 text = "GDSQL WORKBENCH"
 
-[node name="Title" type="Label" parent="Scroll/Center/Content"]
+[node name="Title" type="Label" parent="Scroll/Center/Content" unique_id=107862332]
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
 text = "Project data setup"
 
-[node name="Summary" type="Label" parent="Scroll/Center/Content"]
+[node name="Summary" type="Label" parent="Scroll/Center/Content" unique_id=1013174790]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
 text = "No project databases detected. Create an authored content database to begin."
 autowrap_mode = 2
 
-[node name="PrimaryActions" type="HBoxContainer" parent="Scroll/Center/Content"]
+[node name="PrimaryActions" type="HBoxContainer" parent="Scroll/Center/Content" unique_id=1964747646]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="CreateDatabase" type="Button" parent="Scroll/Center/Content/PrimaryActions"]
+[node name="CreateDatabase" type="Button" parent="Scroll/Center/Content/PrimaryActions" unique_id=1349043522]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Create Database"
 icon = ExtResource("3_plus")
 script = ExtResource("2")
 
-[node name="RefreshDatabases" type="Button" parent="Scroll/Center/Content/PrimaryActions"]
+[node name="RefreshDatabases" type="Button" parent="Scroll/Center/Content/PrimaryActions" unique_id=1567040249]
 unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Refresh database discovery"
 icon = ExtResource("4_refresh")
-show_action_label = false
 script = ExtResource("2")
 
-[node name="ManageSaveSlots" type="Button" parent="Scroll/Center/Content/PrimaryActions"]
+[node name="ManageSaveSlots" type="Button" parent="Scroll/Center/Content/PrimaryActions" unique_id=883407184]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Save Slots"
 script = ExtResource("2")
 
-[node name="RuntimeProfiles" type="PanelContainer" parent="Scroll/Center/Content"]
+[node name="RuntimeProfiles" type="PanelContainer" parent="Scroll/Center/Content" unique_id=1460474266]
 layout_mode = 2
 
-[node name="Margin" type="MarginContainer" parent="Scroll/Center/Content/RuntimeProfiles"]
+[node name="Margin" type="MarginContainer" parent="Scroll/Center/Content/RuntimeProfiles" unique_id=149028968]
 layout_mode = 2
 theme_override_constants/margin_left = 14
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 12
 
-[node name="Layout" type="VBoxContainer" parent="Scroll/Center/Content/RuntimeProfiles/Margin"]
+[node name="Layout" type="VBoxContainer" parent="Scroll/Center/Content/RuntimeProfiles/Margin" unique_id=344883129]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Title" type="Label" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout"]
+[node name="Title" type="Label" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout" unique_id=1243414346]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "Runtime profiles"
 
-[node name="Profiles" type="HBoxContainer" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout"]
+[node name="Profiles" type="HBoxContainer" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout" unique_id=1945360874]
 layout_mode = 2
 theme_override_constants/separation = 20
 
-[node name="Direct" type="VBoxContainer" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout/Profiles"]
+[node name="Direct" type="VBoxContainer" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout/Profiles" unique_id=387484327]
 custom_minimum_size = Vector2(320, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="DirectProfileStatus" type="Label" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout/Profiles/Direct"]
+[node name="DirectProfileStatus" type="Label" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout/Profiles/Direct" unique_id=1798897514]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.72, 0.32, 1)
 text = "SETUP REQUIRED"
 
-[node name="Title" type="Label" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout/Profiles/Direct"]
+[node name="Title" type="Label" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout/Profiles/Direct" unique_id=421185259]
 layout_mode = 2
 text = "Direct content"
 
-[node name="DirectProfileDetail" type="Label" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout/Profiles/Direct"]
+[node name="DirectProfileDetail" type="Label" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout/Profiles/Direct" unique_id=1198838664]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
 text = "Project definitions plus a writable active save."
 autowrap_mode = 2
 
-[node name="Managed" type="VBoxContainer" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout/Profiles"]
+[node name="Managed" type="VBoxContainer" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout/Profiles" unique_id=817483440]
 custom_minimum_size = Vector2(320, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="ManagedProfileStatus" type="Label" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout/Profiles/Managed"]
+[node name="ManagedProfileStatus" type="Label" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout/Profiles/Managed" unique_id=491820233]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
 text = "PLANNED"
 
-[node name="Title" type="Label" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout/Profiles/Managed"]
+[node name="Title" type="Label" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout/Profiles/Managed" unique_id=2098362231]
 layout_mode = 2
 text = "Managed content · full kit"
 
-[node name="ManagedProfileDetail" type="Label" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout/Profiles/Managed"]
+[node name="ManagedProfileDetail" type="Label" parent="Scroll/Center/Content/RuntimeProfiles/Margin/Layout/Profiles/Managed" unique_id=230510073]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
 text = "Effective-content cache, package overlays, and mod orchestration."
 autowrap_mode = 2
 
-[node name="ChecklistPanel" type="PanelContainer" parent="Scroll/Center/Content"]
+[node name="ChecklistPanel" type="PanelContainer" parent="Scroll/Center/Content" unique_id=44796031]
 layout_mode = 2
 
-[node name="Margin" type="MarginContainer" parent="Scroll/Center/Content/ChecklistPanel"]
+[node name="Margin" type="MarginContainer" parent="Scroll/Center/Content/ChecklistPanel" unique_id=1945923205]
 layout_mode = 2
 theme_override_constants/margin_left = 14
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 12
 
-[node name="Steps" type="VBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin"]
+[node name="Steps" type="VBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin" unique_id=1479749314]
 layout_mode = 2
 theme_override_constants/separation = 7
 
-[node name="Title" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps"]
+[node name="Title" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps" unique_id=1088325850]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "Setup checklist"
 
-[node name="DatabaseStep" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps"]
+[node name="DatabaseStep" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps" unique_id=377106512]
 layout_mode = 2
 
-[node name="DatabaseStepStatus" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/DatabaseStep"]
+[node name="DatabaseStepStatus" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/DatabaseStep" unique_id=1158814932]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(24, 0)
 layout_mode = 2
 text = "→"
 horizontal_alignment = 1
 
-[node name="Label" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/DatabaseStep"]
+[node name="Label" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/DatabaseStep" unique_id=664999349]
 custom_minimum_size = Vector2(156, 0)
 layout_mode = 2
 text = "Content database"
 
-[node name="DatabaseStepDetail" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/DatabaseStep"]
+[node name="DatabaseStepDetail" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/DatabaseStep" unique_id=117393976]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Create or discover an authored content database under res://data."
 autowrap_mode = 2
 
-[node name="TableStep" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps"]
+[node name="TableStep" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps" unique_id=281651218]
 layout_mode = 2
 
-[node name="TableStepStatus" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/TableStep"]
+[node name="TableStepStatus" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/TableStep" unique_id=155432726]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(24, 0)
 layout_mode = 2
 text = "○"
 horizontal_alignment = 1
 
-[node name="Label" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/TableStep"]
+[node name="Label" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/TableStep" unique_id=736042942]
 custom_minimum_size = Vector2(156, 0)
 layout_mode = 2
 text = "First table"
 
-[node name="TableStepDetail" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/TableStep"]
+[node name="TableStepDetail" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/TableStep" unique_id=2064633055]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Open a database, then add and save its first table."
 autowrap_mode = 2
 
-[node name="RowStep" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps"]
+[node name="RowStep" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps" unique_id=248034258]
 layout_mode = 2
 
-[node name="RowStepStatus" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RowStep"]
+[node name="RowStepStatus" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RowStep" unique_id=1320251286]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(24, 0)
 layout_mode = 2
 text = "○"
 horizontal_alignment = 1
 
-[node name="Label" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RowStep"]
+[node name="Label" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RowStep" unique_id=641704434]
 custom_minimum_size = Vector2(156, 0)
 layout_mode = 2
 text = "First content row"
 
-[node name="RowStepDetail" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RowStep"]
+[node name="RowStepDetail" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RowStep" unique_id=1153287596]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Open a table and add its first row."
 autowrap_mode = 2
 
-[node name="RoleStep" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps"]
+[node name="RoleStep" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps" unique_id=1261940420]
 layout_mode = 2
 
-[node name="RoleStepStatus" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RoleStep"]
+[node name="RoleStepStatus" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RoleStep" unique_id=866468238]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(24, 0)
 layout_mode = 2
 text = "○"
 horizontal_alignment = 1
 
-[node name="Label" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RoleStep"]
+[node name="Label" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RoleStep" unique_id=149043714]
 custom_minimum_size = Vector2(156, 0)
 layout_mode = 2
 text = "Active save"
 
-[node name="RoleStepDetail" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RoleStep"]
+[node name="RoleStepDetail" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RoleStep" unique_id=1671665759]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Create or select the writable save database used at runtime."
 autowrap_mode = 2
 
-[node name="ModelStep" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps"]
+[node name="ModelStep" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps" unique_id=1651789868]
 layout_mode = 2
 
-[node name="ModelStepStatus" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/ModelStep"]
+[node name="ModelStepStatus" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/ModelStep" unique_id=1340326593]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(24, 0)
 layout_mode = 2
 text = "○"
 horizontal_alignment = 1
 
-[node name="Label" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/ModelStep"]
+[node name="Label" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/ModelStep" unique_id=1169076814]
 custom_minimum_size = Vector2(156, 0)
 layout_mode = 2
 text = "Model binding"
 
-[node name="ModelStepDetail" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/ModelStep"]
+[node name="ModelStepDetail" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/ModelStep" unique_id=3100233]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Open a table and use Model to generate its first typed binding."
 autowrap_mode = 2
 
-[node name="RuntimeStep" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps"]
+[node name="RuntimeStep" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps" unique_id=1888265085]
 layout_mode = 2
 
-[node name="RuntimeStepStatus" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RuntimeStep"]
+[node name="RuntimeStepStatus" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RuntimeStep" unique_id=789837950]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(24, 0)
 layout_mode = 2
 text = "○"
 horizontal_alignment = 1
 
-[node name="Label" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RuntimeStep"]
+[node name="Label" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RuntimeStep" unique_id=935124427]
 custom_minimum_size = Vector2(156, 0)
 layout_mode = 2
 text = "Runtime adapter"
 
-[node name="RuntimeStepDetail" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RuntimeStep"]
+[node name="RuntimeStepDetail" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RuntimeStep" unique_id=141317363]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Install the GDSQLRuntime scene as a project autoload."
 autowrap_mode = 2
 
-[node name="NextStepRow" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps"]
+[node name="NextStepRow" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps" unique_id=1091447131]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="NextStep" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/NextStepRow"]
+[node name="NextStep" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/NextStepRow" unique_id=124765603]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -304,34 +303,34 @@ theme_override_colors/font_color = Color(0.42, 0.68, 1, 1)
 text = "Next: create the project content database."
 autowrap_mode = 2
 
-[node name="NextAction" type="Button" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/NextStepRow"]
+[node name="NextAction" type="Button" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/NextStepRow" unique_id=16575070]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Set Up Content"
 
-[node name="DatabaseHeader" type="HBoxContainer" parent="Scroll/Center/Content"]
+[node name="DatabaseHeader" type="HBoxContainer" parent="Scroll/Center/Content" unique_id=1175626706]
 layout_mode = 2
 
-[node name="Title" type="Label" parent="Scroll/Center/Content/DatabaseHeader"]
+[node name="Title" type="Label" parent="Scroll/Center/Content/DatabaseHeader" unique_id=130534220]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 18
 text = "Project databases"
 
-[node name="OpenDatabase" type="Button" parent="Scroll/Center/Content/DatabaseHeader"]
+[node name="OpenDatabase" type="Button" parent="Scroll/Center/Content/DatabaseHeader" unique_id=1250502262]
 unique_name_in_owner = true
 layout_mode = 2
 disabled = true
 text = "Open Selected"
 
-[node name="DatabaseList" type="ItemList" parent="Scroll/Center/Content"]
+[node name="DatabaseList" type="ItemList" parent="Scroll/Center/Content" unique_id=215403315]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 150)
 layout_mode = 2
 allow_reselect = true
 fixed_icon_size = Vector2i(20, 20)
 
-[node name="NoDatabases" type="Label" parent="Scroll/Center/Content"]
+[node name="NoDatabases" type="Label" parent="Scroll/Center/Content" unique_id=832194753]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 72)
 layout_mode = 2

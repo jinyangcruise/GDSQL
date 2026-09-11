@@ -63,6 +63,49 @@ static func bootstrap(
 	return result
 
 
+## Builds or reuses effective content and replaces the active content role only
+## after the candidate cache database has opened successfully.
+static func activate_effective_content(
+		runtime: GDSQLRuntimeSession,
+		cache_manager: GDSQLContentCacheManager,
+		ordered_packages: Array[GDSQLContentPackageSource],
+		source_database_name: StringName = GDSQLContentOverlayLoader.DEFAULT_SOURCE_DATABASE,
+		effective_database_name: StringName = GDSQLContentOverlayLoader.DEFAULT_EFFECTIVE_DATABASE,
+		registration_name: StringName = &"effective_content",
+) -> GDSQLContentActivationResult:
+	var result := GDSQLContentActivationResult.new()
+	if runtime == null or cache_manager == null:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_CONTENT_ACTIVATION_DEPENDENCY_REQUIRED",
+				"Content activation requires a runtime session and cache manager.",
+			),
+		)
+		return result
+	var cached := cache_manager.ensure_cache(
+		ordered_packages,
+		source_database_name,
+		effective_database_name,
+	)
+	result.cache_result = cached
+	result.diagnostics.merge(cached.diagnostics)
+	if not cached.is_successful():
+		return result
+	var opened := GDSQLDatabase.open(effective_database_name, cached.cache_root)
+	result.diagnostics.merge(opened.diagnostics)
+	if not opened.is_successful():
+		return result
+	var replaced := runtime.get_database_registry().replace_role_database(
+		GDSQLDatabaseRegistry.CONTENT_ROLE,
+		registration_name,
+		opened.get_database(),
+	)
+	result.diagnostics.merge(replaced.diagnostics)
+	if result.is_successful():
+		result.complete(opened.get_database(), cached)
+	return result
+
+
 static func create_default(settings: Variant = null) -> GDSQLDatabaseContext:
 	var data_root := _resolve_data_root(settings)
 	var path_resolver := GDSQLDatabasePathResolver.new(data_root)

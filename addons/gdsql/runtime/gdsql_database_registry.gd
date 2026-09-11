@@ -135,6 +135,43 @@ func bind_role(
 	return resolved
 
 
+## Installs a database handle and selects it for a role as one synchronous
+## registry mutation. Validation completes before either mapping changes.
+func replace_role_database(
+		role: StringName,
+		registration_name: StringName,
+		database: GDSQLDatabase,
+) -> GDSQLDatabaseResult:
+	if role == &"":
+		return _failure(
+			&"GDSQL_DATABASE_ROLE_REQUIRED",
+			"A logical database role is required.",
+		)
+	if registration_name == &"":
+		return _failure(
+			&"GDSQL_REGISTRATION_NAME_REQUIRED",
+			"A database registration name is required.",
+		)
+	if database == null or database.database_name == &"" or database.context == null:
+		return _failure(
+			&"GDSQL_DATABASE_HANDLE_REQUIRED",
+			"An open database handle is required.",
+		)
+	for bound_role_value in _role_bindings:
+		var bound_role := StringName(bound_role_value)
+		if bound_role != role and _role_bindings[bound_role] == registration_name:
+			return _failure(
+				&"GDSQL_DATABASE_REGISTRATION_IN_USE",
+				"Database registration '%s' is selected by role '%s'." % [
+					registration_name,
+					bound_role,
+				],
+			)
+	_databases[registration_name] = database
+	_role_bindings[role] = registration_name
+	return _success(database)
+
+
 ## Resolves the database handle currently selected for a logical role.
 func resolve_role(role: StringName) -> GDSQLDatabaseResult:
 	if not _role_bindings.has(role):

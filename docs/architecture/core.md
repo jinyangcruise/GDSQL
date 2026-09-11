@@ -1338,6 +1338,36 @@ later upsert replaces an existing row, `GDSQLContentOverlayResult` records a
 typed `GDSQLContentRowConflict` and an informational diagnostic; deterministic
 last-layer-wins behavior remains successful rather than becoming an error.
 
+### 11.6 Effective-content cache
+
+`GDSQLContentCacheManager` computes an expected typed cache manifest through an
+injected package fingerprint provider. Cache reuse requires the same manifest
+format, source and effective database names, package order, package versions,
+and package content hashes, plus a readable cached database. A missing, stale,
+or malformed disposable cache triggers the same overlay build used without a
+cache.
+
+`GDSQLContentCacheStore` owns cache persistence. Its ConfigFile implementation
+writes the complete snapshot and manifest to a bounded staging directory, then
+replaces the previous cache directory. The manifest is written after the data,
+so incomplete output cannot be mistaken for a compatible cache. Package source
+directories remain authoritative and are never mutated or deleted.
+
+### 11.7 Effective-content activation
+
+`GDSQLRuntimeFactory.activate_effective_content()` composes cache preparation,
+candidate database opening, and runtime role replacement. It does not mutate
+the registry until the cache is compatible and the complete effective database
+can be opened. A failure in fingerprinting, overlay construction, persistence,
+or opening therefore leaves the current `content` role unchanged.
+
+`GDSQLDatabaseRegistry.replace_role_database()` validates the candidate handle
+and registration ownership before replacing the runtime-local registration and
+role binding together. The disposable `effective_content` registration is not
+written into editor-authored durable metadata. Replacing the handle invalidates
+previously materialized content models through their retained source-database
+identity; game code must query fresh models after content activation.
+
 ---
 
 ## 12. Storage boundary

@@ -159,6 +159,22 @@ ContentOverlay("`**Content Overlay Loader**
 *Operations:* Stable-ID upsert and explicit removal
 *Returns:* Copied schemas, sorted rows, provenance, typed conflicts and diagnostics`")
 
+ContentCache("`**Effective Content Cache**
+
+-
+*Purpose:* Reuse or rebuild disposable effective content
+*Identity:* Package order, versions, content hashes and database names
+*Flow:* Cache hit or overlay build followed by staged replacement
+*Returns:* Typed hit/rebuilt result and diagnostics`")
+
+ContentActivation("`**Effective Content Activation**
+
+-
+*Purpose:* Open a prepared effective database before changing runtime state
+*Mutation:* Replace the effective_content registration and content role together
+*Failure:* Preserve the previously active content database
+*Returns:* Typed activation result, cache status and diagnostics`")
+
 Persistence("`**Runtime Persistence**
 
 -
@@ -344,6 +360,13 @@ ConfigPackageLayer("`**ConfigFile Package Layer Reader**
 *Purpose:* Decode one selected package database into a typed layer
 *Reads:* Catalog schemas, table rows and overlays.cfg removals
 *Extends:* GDSQLContentPackageLayerReader`")
+
+ConfigContentCache("`**ConfigFile Content Cache Store**
+
+-
+*Purpose:* Materialize snapshots and typed cache manifests
+*Safety:* Bounded staging and previous-cache directories
+*Fingerprint:* Sorted package paths and bytes through SHA-256`")
 end
 
 subgraph InMemoryBackend["In-memory backend"]
@@ -400,6 +423,9 @@ Workbench -->|"augment setup with editor-known status"| DirectSetup
 Code -->|"declare managed content packages"| PackageManifest
 PackageManifest -->|"validated package sources"| PackageResolution
 PackageResolution -->|"ordered immutable packages"| ContentOverlay
+ContentOverlay -->|"rebuild snapshot"| ContentCache
+ContentCache -->|"compatible cache database"| ContentActivation
+ContentActivation -->|"atomic runtime-local replacement"| RuntimeRegistry
 RuntimeSession -->|"resolve roles"| RuntimeRegistry
 RuntimeSession -->|"default model context"| Models
 RuntimeSession -->|"checkpoint operations"| Persistence
@@ -447,14 +473,16 @@ ConfigPackageManifest -->|"decodes typed metadata"| PackageManifest
 ConfigPackageDiscovery -->|"discover package sources"| PackageResolution
 ConfigPackageDiscovery -->|"load manifest"| ConfigPackageManifest
 ConfigPackageLayer -->|"typed schemas and row operations"| ContentOverlay
+ConfigContentCache -->|"manifest and cached database"| ContentCache
 
 Factory -.->|"create_default(data_root)"| Context
 Factory -.->|"constructs and injects"| ConfigInfrastructure
 Factory -.->|"bootstrap()"| RuntimeSession
+Factory -.->|"activate_effective_content()"| ContentActivation
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
 class Code,Models,Workbench,ModelAssistant,GraphEditor,SQLEditor,Expr frontend;
-class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,DirectSetup,PackageManifest,PackageResolution,ContentOverlay,Persistence runtime;
+class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,DirectSetup,PackageManifest,PackageResolution,ContentOverlay,ContentCache,ContentActivation,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
@@ -462,5 +490,5 @@ class Planner,PlanNode planning;
 class Executor execution;
 class CatalogService,CatalogAdministration,ResourceConstraint catalog;
 class TableStorage storage;
-class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageDiscovery,ConfigPackageLayer,MemoryStorage,MemoryCheckpoint implementation;
+class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageDiscovery,ConfigPackageLayer,ConfigContentCache,MemoryStorage,MemoryCheckpoint implementation;
 class Results,Materialization result;
