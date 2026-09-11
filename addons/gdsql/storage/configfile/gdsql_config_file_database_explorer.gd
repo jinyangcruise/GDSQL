@@ -4,6 +4,12 @@ extends GDSQLDatabaseExplorer
 
 const TABLE_METADATA_SECTION := "__gdsql_metadata__"
 
+var _codec: GDSQLGodotVariantCodec
+
+
+func _init(codec: GDSQLGodotVariantCodec = null) -> void:
+	_codec = codec if codec != null else GDSQLGodotVariantCodec.new()
+
 
 func inspect_root(
 		data_root: String,
@@ -85,9 +91,14 @@ func _inspect_table(
 	var schema_exists := schema.load(schema_path) == OK
 	var column_count := 0
 	var index_count := 0
+	var columns: Array[GDSQLColumnDefinition] = []
+	var primary_key := &""
 	if schema_exists:
+		primary_key = StringName(schema.get_value("table", "primary_key", ""))
 		for section in schema.get_sections():
-			column_count += int(section.begins_with("column:"))
+			if section.begins_with("column:"):
+				columns.append(_inspect_column(schema, section))
+				column_count += 1
 			index_count += int(section.begins_with("index:"))
 	var storage := ConfigFile.new()
 	var storage_exists := storage.load(storage_path) == OK
@@ -103,7 +114,42 @@ func _inspect_table(
 		row_count,
 		column_count,
 		index_count,
+		columns,
+		primary_key,
 	)
+
+
+func _inspect_column(
+		schema: ConfigFile,
+		section: String,
+) -> GDSQLColumnDefinition:
+	var column := GDSQLColumnDefinition.new(
+		StringName(section.trim_prefix("column:")),
+		int(schema.get_value(section, "type", TYPE_NIL)) as Variant.Type,
+		bool(schema.get_value(section, "nullable", true)),
+		bool(schema.get_value(section, "unique", false)),
+		bool(schema.get_value(section, "auto_increment", false)),
+	)
+	column.generation = int(
+		schema.get_value(
+			section,
+			"generation",
+			GDSQLColumnDefinition.Generation.NONE,
+		),
+	)
+	if column.data_type == TYPE_OBJECT:
+		column.resource_type = GDSQLResourceTypeConstraint.from_serialized(
+			StringName(schema.get_value(section, "resource_class", "")),
+			String(schema.get_value(section, "resource_script", "")),
+		)
+	if schema.has_section_key(section, "default_kind") \
+			and schema.get_value(section, "default_kind") == "static":
+		column.set_default(
+			_codec.decode(schema.get_value(section, "default")) \
+			if schema.has_section_key(section, "default") \
+			else null,
+		)
+	return column
 
 
 func _registration_name(

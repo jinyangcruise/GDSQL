@@ -1,0 +1,151 @@
+[gd_scene format=3 uid="uid://bsd77ukofejin"]
+
+[ext_resource type="Script" uid="uid://rj85mvtn07o4" path="res://addons/gdsql/editor/workspace/query_graph/nodes/update/update_operation_node.gd" id="1_update"]
+[ext_resource type="PackedScene" path="res://addons/gdsql/editor/workspace/query_graph/components/source/source_selector.tscn" id="2_source"]
+[ext_resource type="PackedScene" uid="uid://brp0dmonbwwhv" path="res://addons/gdsql/editor/workspace/query_graph/components/mutation_values/mutation_values_editor.tscn" id="3_values"]
+[ext_resource type="PackedScene" uid="uid://cnuaxum6yxjel" path="res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.tscn" id="4_where"]
+[ext_resource type="Script" uid="uid://hvanlw2ev0lr" path="res://addons/gdsql/editor/controller/components/gdsql_editor_action_button.gd" id="5_action"]
+[ext_resource type="Texture2D" uid="uid://du54kws1ra3bm" path="res://addons/gdsql/editor/workspace/icons/play.svg" id="6_play"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_spacer"]
+
+[node name="UpdateOperation" type="GraphNode" unique_id=1341050050]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+resizable = true
+title = "UPDATE"
+slot/0/left_enabled = false
+slot/0/left_type = 0
+slot/0/left_color = Color(1, 1, 1, 1)
+slot/0/left_icon = null
+slot/0/right_enabled = false
+slot/0/right_type = 0
+slot/0/right_color = Color(1, 1, 1, 1)
+slot/0/right_icon = null
+slot/0/draw_stylebox = true
+slot/1/left_enabled = false
+slot/1/left_type = 0
+slot/1/left_color = Color(1, 1, 1, 1)
+slot/1/left_icon = null
+slot/1/right_enabled = false
+slot/1/right_type = 0
+slot/1/right_color = Color(1, 1, 1, 1)
+slot/1/right_icon = null
+slot/1/draw_stylebox = true
+slot/2/left_enabled = false
+slot/2/left_type = 0
+slot/2/left_color = Color(1, 1, 1, 1)
+slot/2/left_icon = null
+slot/2/right_enabled = false
+slot/2/right_type = 0
+slot/2/right_color = Color(1, 1, 1, 1)
+slot/2/right_icon = null
+slot/2/draw_stylebox = true
+slot/3/left_enabled = false
+slot/3/left_type = 0
+slot/3/left_color = Color(1, 1, 1, 1)
+slot/3/left_icon = null
+slot/3/right_enabled = false
+slot/3/right_type = 0
+slot/3/right_color = Color(1, 1, 1, 1)
+slot/3/right_icon = null
+slot/3/draw_stylebox = true
+slot/4/left_enabled = false
+slot/4/left_type = 0
+slot/4/left_color = Color(1, 1, 1, 1)
+slot/4/left_icon = null
+slot/4/right_enabled = false
+slot/4/right_type = 0
+slot/4/right_color = Color(1, 1, 1, 1)
+slot/4/right_icon = null
+slot/4/draw_stylebox = true
+slot/5/left_enabled = false
+slot/5/left_type = 0
+slot/5/left_color = Color(0.38431373, 0.70980394, 0.8980392, 1)
+slot/5/left_icon = null
+slot/5/right_enabled = true
+slot/5/right_type = 0
+slot/5/right_color = Color(0.38431373, 0.70980394, 0.8980392, 1)
+slot/5/right_icon = null
+slot/5/draw_stylebox = true
+slot/6/left_enabled = false
+slot/6/left_type = 0
+slot/6/left_color = Color(1, 1, 1, 1)
+slot/6/left_icon = null
+slot/6/right_enabled = false
+slot/6/right_type = 0
+slot/6/right_color = Color(1, 1, 1, 1)
+slot/6/right_icon = null
+slot/6/draw_stylebox = true
+slot/7/left_enabled = false
+slot/7/left_type = 0
+slot/7/left_color = Color(1, 1, 1, 1)
+slot/7/left_icon = null
+slot/7/right_enabled = false
+slot/7/right_type = 0
+slot/7/right_color = Color(1, 1, 1, 1)
+slot/7/right_icon = null
+slot/7/draw_stylebox = true
+script = ExtResource("1_update")
+
+[node name="Source" parent="." unique_id=950845842 instance=ExtResource("2_source")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ScrollContainer" type="ScrollContainer" parent="." unique_id=1987748368]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Values" parent="ScrollContainer" unique_id=1703857370 instance=ExtResource("3_values")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+mode = 1
+
+[node name="WhereExpression" parent="." unique_id=1009731565 instance=ExtResource("4_where")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="AllRowsConfirmation" type="CheckButton" parent="." unique_id=1464793710]
+unique_name_in_owner = true
+layout_mode = 2
+text = "I confirm updating every row"
+
+[node name="Separator" type="HSeparator" parent="." unique_id=1803600611]
+layout_mode = 2
+
+[node name="OutputRow" type="HBoxContainer" parent="." unique_id=1250182838]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Label" type="Label" parent="OutputRow" unique_id=1367700583]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Mutation result"
+horizontal_alignment = 2
+
+[node name="Summary" type="Label" parent="." unique_id=604238035]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "No source selected."
+autowrap_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="." unique_id=1860234144]
+layout_mode = 2
+
+[node name="Spacer" type="HSeparator" parent="Actions" unique_id=785633842]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/separator = SubResource("StyleBoxEmpty_spacer")
+
+[node name="Query" type="Button" parent="Actions" unique_id=342653914]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+tooltip_text = "Compile and run this UPDATE"
+text = "UPDATE"
+icon = ExtResource("6_play")
+expand_icon = true
+script = ExtResource("5_action")

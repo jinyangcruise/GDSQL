@@ -1,0 +1,40 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_text_value_dialog.gd" id="1_script"]
+
+[node name="TextValueDialog" type="ConfirmationDialog"]
+title = "Edit Text"
+initial_position = 1
+size = Vector2i(720, 460)
+ok_button_text = "Apply"
+script = ExtResource("1_script")
+
+[node name="Content" type="VBoxContainer" parent="."]
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 712.0
+offset_bottom = 411.0
+theme_override_constants/separation = 8
+
+[node name="Description" type="Label" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Edit the stored String in a multiline field."
+autowrap_mode = 2
+
+[node name="Controls" type="HBoxContainer" parent="Content"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="UseNull" type="CheckBox" parent="Content/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Null"
+
+[node name="TextInput" type="TextEdit" parent="Content"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+placeholder_text = "Enter text…"
+wrap_mode = 1

@@ -16,6 +16,7 @@ var unique: bool = false
 var auto_increment: bool = false
 var default: GDSQLColumnDefault
 var generation: Generation = Generation.NONE
+var resource_type: GDSQLResourceTypeConstraint
 
 
 static func created_at(column_name: StringName = &"created_at") -> GDSQLColumnDefinition:
@@ -37,12 +38,14 @@ func _init(
 		_unique: bool = false,
 		_auto_increment: bool = false,
 		_default_value: Variant = null,
+		_resource_type: GDSQLResourceTypeConstraint = null,
 ) -> void:
 	name = _name
 	data_type = _type
 	nullable = _nullable
 	unique = _unique
 	auto_increment = _auto_increment
+	resource_type = _resource_type
 	if _default_value != null:
 		set_default(_default_value)
 
@@ -69,7 +72,29 @@ func accepts_value(value: Variant) -> bool:
 	if value == null:
 		return nullable
 	if data_type == TYPE_OBJECT:
-		return value is Resource
+		return resource_type != null and resource_type.accepts_value(value)
 	if data_type == TYPE_NIL or typeof(value) == data_type:
 		return true
 	return data_type == TYPE_FLOAT and typeof(value) == TYPE_INT
+
+
+func has_valid_type_constraint() -> bool:
+	if data_type == TYPE_OBJECT:
+		return resource_type != null and resource_type.is_valid()
+	return resource_type == null
+
+
+func expected_type_name() -> String:
+	if data_type == TYPE_OBJECT:
+		return display_type_name()
+	return "Variant type %s" % display_type_name()
+
+
+func display_type_name() -> String:
+	if data_type == TYPE_OBJECT:
+		return (
+			resource_type.display_name()
+			if resource_type != null
+			else "Unspecified Resource"
+		)
+	return type_string(data_type)

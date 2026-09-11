@@ -1,0 +1,148 @@
+[gd_scene format=3 uid="uid://c3f3u8lumi146"]
+
+[ext_resource type="Script" uid="uid://clsbiwkphw62x" path="res://addons/bbcode_editor/ui/bbcode_editor_dialog.gd" id="1_dialog"]
+
+[node name="BBCodeEditorDialog" type="ConfirmationDialog" unique_id=477238161]
+oversampling_override = 1.0
+title = "Edit Text"
+initial_position = 1
+size = Vector2i(760, 600)
+min_size = Vector2i(760, 480)
+ok_button_text = "Apply"
+script = ExtResource("1_dialog")
+
+[node name="Margin" type="MarginContainer" parent="." unique_id=104295933]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -49.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Content" type="VBoxContainer" parent="Margin" unique_id=611885035]
+layout_mode = 2
+
+[node name="Headings" type="HBoxContainer" parent="Margin/Content" unique_id=47070940]
+layout_mode = 2
+
+[node name="Source" type="Label" parent="Margin/Content/Headings" unique_id=1213275696]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "BBCode source"
+
+[node name="Preview" type="Label" parent="Margin/Content/Headings" unique_id=222527103]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Live preview"
+
+[node name="Split" type="HSplitContainer" parent="Margin/Content" unique_id=1457756353]
+layout_mode = 2
+size_flags_vertical = 3
+collapsed = true
+
+[node name="Control" type="VBoxContainer" parent="Margin/Content/Split" unique_id=224415402]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Source" type="TextEdit" parent="Margin/Content/Split/Control" unique_id=1586406675]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+tooltip_text = "Select text before using a formatting control to wrap the selection."
+placeholder_text = "Write Godot BBCode here…"
+wrap_mode = 1
+
+[node name="ToolbarPanel" type="PanelContainer" parent="Margin/Content/Split/Control" unique_id=742788019]
+layout_mode = 2
+
+[node name="Toolbar" type="HFlowContainer" parent="Margin/Content/Split/Control/ToolbarPanel" unique_id=1338643276]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/h_separation = 4
+theme_override_constants/v_separation = 4
+
+[node name="Bold" type="Button" parent="Margin/Content/Split/Control/ToolbarPanel/Toolbar" unique_id=707598878]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Bold"
+text = "B"
+
+[node name="Italic" type="Button" parent="Margin/Content/Split/Control/ToolbarPanel/Toolbar" unique_id=1748434632]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Italic"
+text = "I"
+
+[node name="Underline" type="Button" parent="Margin/Content/Split/Control/ToolbarPanel/Toolbar" unique_id=793954687]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Underline"
+text = "U"
+
+[node name="Strikethrough" type="Button" parent="Margin/Content/Split/Control/ToolbarPanel/Toolbar" unique_id=1291195845]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Strikethrough"
+text = "S"
+
+[node name="Code" type="Button" parent="Margin/Content/Split/Control/ToolbarPanel/Toolbar" unique_id=394868090]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Monospace"
+text = "</>"
+
+[node name="Paragraph" type="MenuButton" parent="Margin/Content/Split/Control/ToolbarPanel/Toolbar" unique_id=1613435054]
+layout_mode = 2
+text = "Paragraph"
+
+[node name="Color" type="MenuButton" parent="Margin/Content/Split/Control/ToolbarPanel/Toolbar" unique_id=2014734450]
+layout_mode = 2
+text = "Color"
+
+[node name="Insert" type="MenuButton" parent="Margin/Content/Split/Control/ToolbarPanel/Toolbar" unique_id=2019194225]
+layout_mode = 2
+text = "Insert"
+
+[node name="ListsAndTable" type="MenuButton" parent="Margin/Content/Split/Control/ToolbarPanel/Toolbar" unique_id=1539160545]
+layout_mode = 2
+text = "Lists & table"
+
+[node name="Typography" type="MenuButton" parent="Margin/Content/Split/Control/ToolbarPanel/Toolbar" unique_id=805896200]
+layout_mode = 2
+text = "Typography"
+
+[node name="Special" type="MenuButton" parent="Margin/Content/Split/Control/ToolbarPanel/Toolbar" unique_id=507510254]
+layout_mode = 2
+text = "Special"
+
+[node name="Preview" type="RichTextLabel" parent="Margin/Content/Split" unique_id=610682795]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+focus_mode = 2
+theme_override_constants/text_highlight_h_padding = 0
+theme_override_constants/text_highlight_v_padding = 0
+bbcode_enabled = true
+context_menu_enabled = true
+selection_enabled = true
+
+[node name="Status" type="Label" parent="Margin/Content" unique_id=1121789215]
+unique_name_in_owner = true
+layout_mode = 2
+text = "0 characters · 1 line"
+horizontal_alignment = 2
+
+[node name="UnsavedChanges" type="ConfirmationDialog" parent="." unique_id=822854594]
+unique_name_in_owner = true
+title = "Unsaved Changes"
+initial_position = 1
+size = Vector2i(430, 160)
+min_size = Vector2i(430, 160)
+ok_button_text = "Save"
+dialog_text = "The BBCode text has unsaved changes. Save before closing?"
+cancel_button_text = "Keep Editing"

@@ -20,6 +20,10 @@ config/tags=PackedStringArray("opensource")
 run/main_scene="uid://djsv3bbnpncdp"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
+[autoload]
+
+_mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
+
 [debug]
 
 gdscript/warnings/directory_rules={
@@ -33,7 +37,7 @@ script/search_in_file_extensions=PackedStringArray("gd", "tscn", "gdshader", "cf
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/GDQuest_GDScript_formatter/plugin.cfg", "res://addons/ds_inspector/plugin.cfg", "res://addons/gdUnit4/plugin.cfg", "res://addons/gdsql/plugin.cfg")
+enabled=PackedStringArray("res://addons/GDQuest_GDScript_formatter/plugin.cfg", "res://addons/bbcode_editor/plugin.cfg", "res://addons/ds_inspector/plugin.cfg", "res://addons/gdUnit4/plugin.cfg", "res://addons/gdsql/plugin.cfg", "res://addons/godot-plugin-refresher/plugin.cfg", "res://addons/godot_ai/plugin.cfg", "res://addons/script-ide/plugin.cfg")
 
 [gdunit4]
 

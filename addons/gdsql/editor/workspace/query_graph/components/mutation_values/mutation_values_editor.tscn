@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://brp0dmonbwwhv"]
+
+[ext_resource type="Script" uid="uid://dmbwd3gulct03" path="res://addons/gdsql/editor/workspace/query_graph/components/mutation_values/mutation_values_editor.gd" id="1_values"]
+
+[node name="MutationValuesEditor" type="Tree" unique_id=634433295]
+custom_minimum_size = Vector2(360, 220)
+size_flags_horizontal = 3
+columns = 2
+column_titles_visible = true
+hide_folding = true
+hide_root = true
+select_mode = 1
+script = ExtResource("1_values")

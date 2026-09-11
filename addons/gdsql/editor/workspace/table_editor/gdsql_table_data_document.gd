@@ -21,17 +21,19 @@ signal row_delete_requested(
 )
 
 const DATA_ROW_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/gdsql_table_data_row.tscn"
+	"res://addons/gdsql/editor/workspace/components/table/gdsql_table_data_row.tscn"
 )
 
 var registration_name: StringName
 var table_name: StringName
 var _table: GDSQLTableDefinition
+var _pending_delete_key: Variant
 
 
 func _ready() -> void:
 	%Refresh.pressed.connect(_request_rows)
 	%AddRow.pressed.connect(_add_empty_row)
+	%DeleteConfirmation.confirmed.connect(_confirm_row_delete)
 
 
 func configure(
@@ -75,7 +77,7 @@ func _render_header() -> void:
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		label.text = "%s\n%s" % [
 			column.name,
-			type_string(column.data_type),
+			column.display_type_name(),
 		]
 		label.tooltip_text = _column_capabilities(column)
 		%Header.add_child(label)
@@ -85,7 +87,7 @@ func _render_header() -> void:
 
 
 func _column_capabilities(column: GDSQLColumnDefinition) -> String:
-	var capabilities: Array[String] = [type_string(column.data_type)]
+	var capabilities: Array[String] = [column.display_type_name()]
 	capabilities.append("nullable" if column.nullable else "required")
 	if column.name == _table.primary_key:
 		capabilities.append("primary key")
@@ -112,34 +114,64 @@ func _add_empty_row() -> void:
 
 
 func _add_data_row(record: GDSQLRowRecord) -> void:
+	var container := HBoxContainer.new()
+	container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	container.add_theme_constant_override("separation", 6)
+	%DataRows.add_child(container)
 	var row := DATA_ROW_SCENE.instantiate() as Control
-	%DataRows.add_child(row)
-	row.connect("save_requested", _on_row_save.bind(record))
-	row.connect("delete_requested", _on_row_delete)
-	row.connect("discard_requested", _discard_row)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	container.add_child(row)
+	var save := Button.new()
+	save.text = "Save"
+	save.custom_minimum_size = Vector2(60, 0)
+	save.pressed.connect(_save_data_row.bind(row, record))
+	container.add_child(save)
+	var remove := Button.new()
+	remove.text = "Delete" if record != null else "Discard"
+	remove.custom_minimum_size = Vector2(60, 0)
+	remove.pressed.connect(_request_row_delete.bind(container, row, record))
+	container.add_child(remove)
 	row.call("configure", _table, record)
 
 
-func _on_row_save(
-		original_primary_key: Variant,
-		values: Dictionary,
-		source: GDSQLRowRecord,
-) -> void:
+func _save_data_row(row: Control, source: GDSQLRowRecord) -> void:
+	if not bool(row.call("is_dirty")):
+		return
+	var conversion: Dictionary = row.call("get_values_result")
+	if not bool(conversion.get("valid", false)):
+		row.call("set_status", String(conversion.get("message", "Invalid row values.")))
+		return
+	row.call("set_status", "")
 	if source == null:
-		row_insert_requested.emit(registration_name, table_name, values)
+		row_insert_requested.emit(
+			registration_name,
+			table_name,
+			conversion.get("values", { }),
+		)
 	else:
 		row_update_requested.emit(
 			registration_name,
 			table_name,
-			original_primary_key,
-			values,
+			row.call("get_original_primary_key"),
+			conversion.get("values", { }),
 		)
 
 
-func _on_row_delete(primary_key: Variant) -> void:
-	row_delete_requested.emit(registration_name, table_name, primary_key)
+func _request_row_delete(
+		container: HBoxContainer,
+		row: Control,
+		source: GDSQLRowRecord,
+) -> void:
+	if source == null:
+		%DataRows.remove_child(container)
+		container.queue_free()
+		return
+	_pending_delete_key = row.call("get_original_primary_key")
+	%DeleteConfirmation.dialog_text = (
+			"Delete the row whose primary key is %s?" % var_to_str(_pending_delete_key)
+	)
+	%DeleteConfirmation.popup_centered(Vector2i(420, 160))
 
 
-func _discard_row(row: Control) -> void:
-	%DataRows.remove_child(row)
-	row.queue_free()
+func _confirm_row_delete() -> void:
+	row_delete_requested.emit(registration_name, table_name, _pending_delete_key)

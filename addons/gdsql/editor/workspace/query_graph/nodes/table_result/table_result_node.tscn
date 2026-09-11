@@ -1,0 +1,231 @@
+[gd_scene format=3 uid="uid://dd2lt32ueag2r"]
+
+[ext_resource type="Script" uid="uid://b7r3mg8j43drp" path="res://addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd" id="1_result"]
+[ext_resource type="Script" uid="uid://hvanlw2ev0lr" path="res://addons/gdsql/editor/controller/components/gdsql_editor_action_button.gd" id="2_action"]
+[ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="3_plus"]
+[ext_resource type="Texture2D" uid="uid://cs3iterfftneq" path="res://addons/gdsql/editor/workspace/icons/floppy_disk.svg" id="4_save"]
+[ext_resource type="Texture2D" uid="uid://da35pq8onqig4" path="res://addons/gdsql/editor/workspace/icons/trash_can.svg" id="5_delete"]
+[ext_resource type="Texture2D" uid="uid://b2uu8eana73y3" path="res://addons/gdsql/editor/workspace/icons/eraser.svg" id="6_discard"]
+[ext_resource type="Script" uid="uid://b8x6gd2crbec0" path="res://addons/gdsql/editor/workspace/query_graph/nodes/table_result/gdsql_table_result_table.gd" id="7_table"]
+
+[node name="TableResult" type="GraphNode" unique_id=285217622]
+custom_minimum_size = Vector2(720, 420)
+offset_right = 720.0
+offset_bottom = 420.0
+size_flags_horizontal = 3
+size_flags_vertical = 3
+mouse_filter = 1
+theme_override_constants/separation = 6
+resizable = true
+scaling_menus = true
+title = "QUERY RESULT"
+slot/0/left_enabled = true
+slot/0/left_type = 0
+slot/0/left_color = Color(0.38431373, 0.70980394, 0.8980392, 1)
+slot/0/left_icon = null
+slot/0/right_enabled = false
+slot/0/right_type = 0
+slot/0/right_color = Color(0.38431373, 0.70980394, 0.8980392, 1)
+slot/0/right_icon = null
+slot/0/draw_stylebox = true
+script = ExtResource("1_result")
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=10310707]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 6
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 6
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MarginContainer" unique_id=1051679454]
+layout_mode = 2
+
+[node name="Toolbar" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=728189293]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ResultTitle" type="Label" parent="MarginContainer/VBoxContainer/Toolbar" unique_id=570897758]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "TABLE"
+
+[node name="Details" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1210201439]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Run the query to display rows."
+autowrap_mode = 2
+
+[node name="ScrollContainer" type="ScrollContainer" parent="MarginContainer/VBoxContainer" unique_id=835869410]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 5
+vertical_scroll_mode = 5
+
+[node name="TableView" type="Tree" parent="MarginContainer/VBoxContainer/ScrollContainer" unique_id=1927001949]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+tooltip_text = "Columns follow the configured display order. Safe Mode uses the row editor; direct mode edits cells in place."
+mouse_default_cursor_shape = 2
+column_titles_visible = true
+allow_reselect = true
+allow_rmb_select = true
+hide_folding = true
+hide_root = true
+select_mode = 1
+script = ExtResource("7_table")
+
+[node name="Pagination" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1005163500]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer/Pagination" unique_id=1505857742]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
+alignment = 1
+
+[node name="FirstPage" type="Button" parent="MarginContainer/VBoxContainer/Pagination/HBoxContainer" unique_id=1073063267]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "First page"
+text = "|<"
+
+[node name="PreviousPage" type="Button" parent="MarginContainer/VBoxContainer/Pagination/HBoxContainer" unique_id=1270550806]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Previous page"
+text = "<"
+
+[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer/Pagination/HBoxContainer" unique_id=477553972]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_right = 16
+
+[node name="PageStatus" type="Label" parent="MarginContainer/VBoxContainer/Pagination/HBoxContainer/MarginContainer" unique_id=842744896]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Page 1 of 1"
+horizontal_alignment = 1
+
+[node name="NextPage" type="Button" parent="MarginContainer/VBoxContainer/Pagination/HBoxContainer" unique_id=1430011819]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Next page"
+text = ">"
+
+[node name="LastPage" type="Button" parent="MarginContainer/VBoxContainer/Pagination/HBoxContainer" unique_id=98084889]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Last page"
+text = ">|"
+
+[node name="RowsPerPage" type="Label" parent="MarginContainer/VBoxContainer/Pagination" unique_id=1835968553]
+layout_mode = 2
+text = "Rows"
+
+[node name="PageSize" type="OptionButton" parent="MarginContainer/VBoxContainer/Pagination" unique_id=1515827889]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(72, 0)
+layout_mode = 2
+tooltip_text = "Rows per page"
+selected = 0
+item_count = 4
+popup/item_0/text = "10"
+popup/item_0/id = 0
+popup/item_1/text = "25"
+popup/item_1/id = 1
+popup/item_2/text = "50"
+popup/item_2/id = 2
+popup/item_3/text = "100"
+popup/item_3/id = 3
+
+[node name="EditorSection" type="VBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=721257284]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="Separator" type="HSeparator" parent="MarginContainer/VBoxContainer/EditorSection" unique_id=1870555069]
+layout_mode = 2
+
+[node name="EditorScroll" type="ScrollContainer" parent="MarginContainer/VBoxContainer/EditorSection" unique_id=994687675]
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 2
+horizontal_scroll_mode = 2
+vertical_scroll_mode = 0
+
+[node name="EditorTable" type="Tree" parent="MarginContainer/VBoxContainer/EditorSection/EditorScroll" unique_id=1392674033]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+tooltip_text = "The selected row uses the same typed table editor as direct mode."
+mouse_filter = 1
+column_titles_visible = true
+allow_reselect = true
+allow_rmb_select = true
+hide_folding = true
+hide_root = true
+select_mode = 1
+scroll_vertical_enabled = false
+script = ExtResource("7_table")
+
+[node name="Status" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1900997401]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "No query result yet."
+autowrap_mode = 2
+
+[node name="ResultActions" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1369565239]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="AddRow" type="Button" parent="MarginContainer/VBoxContainer/ResultActions" unique_id=136470456]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+tooltip_text = "Add row"
+text = "Add Row"
+icon = ExtResource("3_plus")
+expand_icon = true
+script = ExtResource("2_action")
+
+[node name="SaveChanges" type="Button" parent="MarginContainer/VBoxContainer/ResultActions" unique_id=1150274962]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Save all pending row or cell changes"
+disabled = true
+text = "Save Changes"
+icon = ExtResource("4_save")
+
+[node name="DiscardChanges" type="Button" parent="MarginContainer/VBoxContainer/ResultActions" unique_id=1333097747]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Discard all pending row or cell changes"
+disabled = true
+text = "Discard Changes"
+icon = ExtResource("6_discard")
+
+[node name="DeleteRow" type="Button" parent="MarginContainer/VBoxContainer/ResultActions" unique_id=1903246902]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Delete the selected row"
+disabled = true
+text = "Delete Row"
+icon = ExtResource("5_delete")
+
+[node name="ActionSpacer" type="Control" parent="MarginContainer/VBoxContainer/ResultActions" unique_id=1772250634]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DeleteConfirmation" type="ConfirmationDialog" parent="." unique_id=1362109575]
+unique_name_in_owner = true
+title = "Delete Row"
+ok_button_text = "Delete"

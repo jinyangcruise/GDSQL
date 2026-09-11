@@ -1,0 +1,156 @@
+[gd_scene format=3 uid="uid://dko5a8wouygus"]
+
+[ext_resource type="Script" uid="uid://7loyy3gmg3nq" path="res://addons/gdsql/editor/workspace/query_graph/graph_editor.gd" id="1_editor"]
+[ext_resource type="Texture2D" uid="uid://gf6poc7pvp1x" path="res://addons/gdsql/editor/workspace/icons/folder_open.svg" id="2_fnuwe"]
+[ext_resource type="Texture2D" uid="uid://cs3iterfftneq" path="res://addons/gdsql/editor/workspace/icons/floppy_disk.svg" id="2_nbwaj"]
+[ext_resource type="PackedScene" uid="uid://bkspdgvwe0130" path="res://addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.tscn" id="2_select"]
+[ext_resource type="Script" uid="uid://hvanlw2ev0lr" path="res://addons/gdsql/editor/controller/components/gdsql_editor_action_button.gd" id="3_fnuwe"]
+[ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="5_wsf45"]
+
+[node name="QueryGraphEditor" type="Control" unique_id=997697166]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_editor")
+
+[node name="Panel" type="PanelContainer" parent="." unique_id=775819837]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel" unique_id=2146136116]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="Toolbar" type="MarginContainer" parent="Panel/VBoxContainer" unique_id=1042691008]
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Panel/VBoxContainer/Toolbar" unique_id=1189104815]
+custom_minimum_size = Vector2(0, 35)
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LoadGraphFolder" type="Button" parent="Panel/VBoxContainer/Toolbar/HBoxContainer" unique_id=117308350]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 0)
+layout_mode = 2
+tooltip_text = "Open Graphs Folder"
+icon = ExtResource("2_fnuwe")
+icon_alignment = 1
+expand_icon = true
+script = ExtResource("3_fnuwe")
+show_action_label = false
+metadata/_custom_type_script = "uid://hvanlw2ev0lr"
+
+[node name="SaveGraph" type="Button" parent="Panel/VBoxContainer/Toolbar/HBoxContainer" unique_id=2096878983]
+unique_name_in_owner = true
+custom_maximum_size = Vector2(40, -1)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Save graph layout"
+icon = ExtResource("2_nbwaj")
+icon_alignment = 1
+expand_icon = true
+script = ExtResource("3_fnuwe")
+show_action_label = false
+metadata/_custom_type_script = "uid://hvanlw2ev0lr"
+
+[node name="VSeparator" type="VSeparator" parent="Panel/VBoxContainer/Toolbar/HBoxContainer" unique_id=731066294]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="AddSelectNode" type="Button" parent="Panel/VBoxContainer/Toolbar/HBoxContainer" unique_id=237872325]
+unique_name_in_owner = true
+custom_maximum_size = Vector2(120, -1)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Add Select Graph Node"
+text = "SELECT"
+icon = ExtResource("5_wsf45")
+expand_icon = true
+script = ExtResource("3_fnuwe")
+metadata/_custom_type_script = "uid://hvanlw2ev0lr"
+
+[node name="AddLeftJoinNode" type="Button" parent="Panel/VBoxContainer/Toolbar/HBoxContainer" unique_id=1898844737]
+unique_name_in_owner = true
+custom_maximum_size = Vector2(120, -1)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Add Left Join Graph Node"
+text = "LEFT JOIN"
+icon = ExtResource("5_wsf45")
+expand_icon = true
+script = ExtResource("3_fnuwe")
+metadata/_custom_type_script = "uid://hvanlw2ev0lr"
+
+[node name="VSeparator2" type="VSeparator" parent="Panel/VBoxContainer/Toolbar/HBoxContainer" unique_id=1214163767]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="AddInsertNode" type="Button" parent="Panel/VBoxContainer/Toolbar/HBoxContainer" unique_id=1360978882]
+unique_name_in_owner = true
+custom_maximum_size = Vector2(120, -1)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Add Insert Graph Node"
+text = "INSERT"
+icon = ExtResource("5_wsf45")
+expand_icon = true
+script = ExtResource("3_fnuwe")
+metadata/_custom_type_script = "uid://hvanlw2ev0lr"
+
+[node name="AddUpdateNode" type="Button" parent="Panel/VBoxContainer/Toolbar/HBoxContainer" unique_id=851991699]
+unique_name_in_owner = true
+custom_maximum_size = Vector2(120, -1)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Add Update Graph Node"
+text = "UPDATE"
+icon = ExtResource("5_wsf45")
+expand_icon = true
+script = ExtResource("3_fnuwe")
+metadata/_custom_type_script = "uid://hvanlw2ev0lr"
+
+[node name="AddDeleteNode" type="Button" parent="Panel/VBoxContainer/Toolbar/HBoxContainer" unique_id=1407999923]
+unique_name_in_owner = true
+custom_maximum_size = Vector2(120, -1)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Add Delete Graph Node"
+text = "DELETE"
+icon = ExtResource("5_wsf45")
+expand_icon = true
+script = ExtResource("3_fnuwe")
+metadata/_custom_type_script = "uid://hvanlw2ev0lr"
+
+[node name="Graph" type="GraphEdit" parent="Panel/VBoxContainer" unique_id=187316290]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+type_names = {
+0: "Table rows"
+}
+minimap_enabled = false
+show_zoom_label = true
+
+[node name="SelectOperation" parent="Panel/VBoxContainer/Graph" unique_id=828086481 instance=ExtResource("2_select")]
+unique_name_in_owner = true
+layout_mode = 0
+offset_left = 96.0
+offset_top = 96.0
+offset_right = 440.0
+offset_bottom = 307.0
+mouse_filter = 1
+position_offset = Vector2(96, 96)

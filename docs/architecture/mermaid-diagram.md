@@ -47,6 +47,7 @@ Workbench("`**GDSQLWorkbench**
 *Collection API:* load(), discover_root(), discover_children(), select_registration()
 *Session API:* select_table(), load_rows(), preview_table_change(), apply_pending_change()
 *Metadata:* Lightweight catalog, schema and table-header inspections
+*Schema UI:* Scene-backed fixed header and reusable rows over typed column drafts
 *Rows:* Loaded only for the selected table`")
 
 GraphEditor("`**Graph Editor**
@@ -54,6 +55,11 @@ GraphEditor("`**Graph Editor**
 -
 *Purpose:* Describe canonical queries through typed nodes and connections
 *Document API:* GDSQLQueryGraph
+*Node base:* Native titlebar close and one-shot 100% viewport-fit intents
+*Predicate UI:* Reusable composed WHERE editor for select, update and delete
+*Operations:* Select, insert, update and delete selected roots
+*Mutation UI:* Shared source selector and typed values editor
+*Result UI:* Paginated Tree, focused typed row editor and parent-owned actions
 *Translation:* GDSQLGraphQueryCompiler.compile(graph)
 *Produces:* GDSQLQuerySpec`")
 
@@ -200,6 +206,13 @@ CatalogService("`**GDSQLCatalogService**
 *Returns:* Database, table and column definitions
 *Extension point:* Catalog backend implementations`")
 
+ResourceConstraint("`**GDSQLResourceTypeConstraint**
+
+-
+*Purpose:* Identify and validate the concrete Resource family of a TYPE_OBJECT column
+*Identity:* Derived from a Resource prototype as native ClassDB name or project script path
+*Used by:* Column defaults, query validation, storage validation and typed editor pickers`")
+
 CatalogAdministration("`**GDSQLCatalogAdministrationService**
 
 -
@@ -322,6 +335,7 @@ Context -->|"GDSQLDatabaseResult / GDSQLQueryResult"| Results
 
 Context -->|"catalog lifecycle API"| CatalogAdministration
 Validator -->|"get_table() · create_snapshot()"| CatalogService
+CatalogService -->|"object-column metadata"| ResourceConstraint
 Executor -->|"read_table() · find_by_primary_key()"| TableStorage
 Executor -->|"stage_*() · commit() · rollback()"| TableStorage
 
@@ -348,7 +362,7 @@ class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
 class Planner,PlanNode planning;
 class Executor execution;
-class CatalogService,CatalogAdministration catalog;
+class CatalogService,CatalogAdministration,ResourceConstraint catalog;
 class TableStorage storage;
 class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,MemoryStorage,MemoryCheckpoint implementation;
 class Results,Materialization result;

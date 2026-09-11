@@ -229,8 +229,6 @@ func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 		else:
 			var row := operation["row"] as GDSQLRowRecord
 			var section := str(row.get_value(table.primary_key))
-			if operation_type == &"update":
-				config.erase_section(section)
 			for column: Variant in row.values.keys():
 				config.set_value(section, String(column), codec.encode(row.values[column]))
 		touched_paths[path] = true
@@ -436,9 +434,7 @@ func _validate_row_values(
 				)
 			var value: Variant = row.get_value(column.name)
 			if not column.accepts_value(value):
-				var expected := "Resource" \
-				if column.data_type == TYPE_OBJECT \
-				else "Variant type %s" % column.data_type
+				var expected := column.expected_type_name()
 				return _commit_error(
 					&"GDSQL_STORAGE_COLUMN_TYPE_MISMATCH",
 					"Column '%s' expects %s." % [column.name, expected],

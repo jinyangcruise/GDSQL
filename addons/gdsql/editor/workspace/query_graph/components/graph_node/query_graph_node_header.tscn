@@ -1,0 +1,36 @@
+[gd_scene format=3 uid="uid://dx5c846havkp1"]
+
+[ext_resource type="Script" uid="uid://dly5wbq037fqc" path="res://addons/gdsql/editor/workspace/query_graph/components/graph_node/query_graph_node_header.gd" id="1_header"]
+[ext_resource type="Texture2D" uid="uid://ct2gtljegbia3" path="res://addons/gdsql/editor/workspace/icons/cross.svg" id="2_close"]
+[ext_resource type="Texture2D" uid="uid://beqta3h21stku" path="res://addons/gdsql/editor/workspace/icons/expand.svg" id="2_fb5fw"]
+
+[node name="QueryGraphNodeHeader" type="HBoxContainer" unique_id=1587109905]
+theme_override_constants/separation = 4
+script = ExtResource("1_header")
+
+[node name="HeaderActions" type="HBoxContainer" parent="." unique_id=2026081267]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="ExpandNode" type="Button" parent="." unique_id=1583115707]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+tooltip_text = "Fit node to graph view at 100%"
+focus_mode = 0
+mouse_default_cursor_shape = 2
+icon = ExtResource("2_fb5fw")
+flat = true
+expand_icon = true
+
+[node name="CloseNode" type="Button" parent="." unique_id=1936936353]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+tooltip_text = "Remove node"
+focus_mode = 0
+mouse_default_cursor_shape = 2
+icon = ExtResource("2_close")
+flat = true
+expand_icon = true

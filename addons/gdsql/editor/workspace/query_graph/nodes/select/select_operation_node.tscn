@@ -1,0 +1,202 @@
+[gd_scene format=3 uid="uid://bkspdgvwe0130"]
+
+[ext_resource type="Script" uid="uid://bwpm1vpddmk21" path="res://addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.gd" id="1_select"]
+[ext_resource type="Script" uid="uid://hvanlw2ev0lr" path="res://addons/gdsql/editor/controller/components/gdsql_editor_action_button.gd" id="2_action"]
+[ext_resource type="Texture2D" uid="uid://ccvtxxf3nbmyv" path="res://addons/gdsql/editor/workspace/icons/filter.svg" id="2_jw0h5"]
+[ext_resource type="Texture2D" uid="uid://du54kws1ra3bm" path="res://addons/gdsql/editor/workspace/icons/play.svg" id="3_play"]
+[ext_resource type="PackedScene" uid="uid://cnuaxum6yxjel" path="res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.tscn" id="4_where"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ih4hc"]
+
+[node name="SelectOperation" type="GraphNode" unique_id=555347866]
+propagate_maximum_size = false
+size_flags_vertical = 0
+scaling_menus = true
+title = "SELECT"
+slot/0/left_enabled = false
+slot/0/left_type = 0
+slot/0/left_color = Color(1, 1, 1, 1)
+slot/0/left_icon = null
+slot/0/right_enabled = false
+slot/0/right_type = 0
+slot/0/right_color = Color(1, 1, 1, 1)
+slot/0/right_icon = null
+slot/0/draw_stylebox = true
+slot/1/left_enabled = false
+slot/1/left_type = 0
+slot/1/left_color = Color(1, 1, 1, 1)
+slot/1/left_icon = null
+slot/1/right_enabled = false
+slot/1/right_type = 0
+slot/1/right_color = Color(1, 1, 1, 1)
+slot/1/right_icon = null
+slot/1/draw_stylebox = true
+slot/2/left_enabled = false
+slot/2/left_type = 0
+slot/2/left_color = Color(1, 1, 1, 1)
+slot/2/left_icon = null
+slot/2/right_enabled = false
+slot/2/right_type = 0
+slot/2/right_color = Color(1, 1, 1, 1)
+slot/2/right_icon = null
+slot/2/draw_stylebox = true
+slot/3/left_enabled = false
+slot/3/left_type = 0
+slot/3/left_color = Color(1, 1, 1, 1)
+slot/3/left_icon = null
+slot/3/right_enabled = false
+slot/3/right_type = 0
+slot/3/right_color = Color(1, 1, 1, 1)
+slot/3/right_icon = null
+slot/3/draw_stylebox = true
+slot/4/left_enabled = false
+slot/4/left_type = 0
+slot/4/left_color = Color(1, 1, 1, 1)
+slot/4/left_icon = null
+slot/4/right_enabled = false
+slot/4/right_type = 0
+slot/4/right_color = Color(1, 1, 1, 1)
+slot/4/right_icon = null
+slot/4/draw_stylebox = true
+slot/5/left_enabled = false
+slot/5/left_type = 0
+slot/5/left_color = Color(0.38431373, 0.70980394, 0.8980392, 1)
+slot/5/left_icon = null
+slot/5/right_enabled = true
+slot/5/right_type = 0
+slot/5/right_color = Color(0.38431373, 0.70980394, 0.8980392, 1)
+slot/5/right_icon = null
+slot/5/draw_stylebox = true
+slot/6/left_enabled = false
+slot/6/left_type = 0
+slot/6/left_color = Color(1, 1, 1, 1)
+slot/6/left_icon = null
+slot/6/right_enabled = false
+slot/6/right_type = 0
+slot/6/right_color = Color(1, 1, 1, 1)
+slot/6/right_icon = null
+slot/6/draw_stylebox = true
+slot/7/left_enabled = false
+slot/7/left_type = 0
+slot/7/left_color = Color(1, 1, 1, 1)
+slot/7/left_icon = null
+slot/7/right_enabled = false
+slot/7/right_type = 0
+slot/7/right_color = Color(1, 1, 1, 1)
+slot/7/right_icon = null
+slot/7/draw_stylebox = true
+script = ExtResource("1_select")
+
+[node name="DatabaseRow" type="HBoxContainer" parent="." unique_id=11088622]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="DatabaseRow" unique_id=1177078946]
+custom_minimum_size = Vector2(92, 0)
+layout_mode = 2
+text = "Database"
+
+[node name="HSeparator" type="HSeparator" parent="DatabaseRow" unique_id=1993356682]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/separator = SubResource("StyleBoxEmpty_ih4hc")
+
+[node name="Database" type="OptionButton" parent="DatabaseRow" unique_id=1652146815]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="TableRow" type="HBoxContainer" parent="." unique_id=1757365533]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="TableRow" unique_id=1128082183]
+custom_minimum_size = Vector2(92, 0)
+layout_mode = 2
+text = "Table"
+
+[node name="HSeparator" type="HSeparator" parent="TableRow" unique_id=2138781201]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/separator = SubResource("StyleBoxEmpty_ih4hc")
+
+[node name="Table" type="OptionButton" parent="TableRow" unique_id=1361143266]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ColumnsRow" type="HBoxContainer" parent="." unique_id=565801413]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Label" type="Label" parent="ColumnsRow" unique_id=1712090475]
+custom_minimum_size = Vector2(92, 0)
+layout_mode = 2
+text = "Columns"
+
+[node name="HSeparator" type="HSeparator" parent="ColumnsRow" unique_id=1804524467]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/separator = SubResource("StyleBoxEmpty_ih4hc")
+
+[node name="Columns" type="MenuButton" parent="ColumnsRow" unique_id=2114457785]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+tooltip_text = "Select one or more result columns"
+text = "All columns"
+icon = ExtResource("2_jw0h5")
+icon_alignment = 2
+
+[node name="WhereExpression" parent="." unique_id=251956021 instance=ExtResource("4_where")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Separator" type="HSeparator" parent="." unique_id=505594875]
+layout_mode = 2
+
+[node name="OutputRow" type="HBoxContainer" parent="." unique_id=1832272806]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Label" type="Label" parent="OutputRow" unique_id=373880]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Table rows"
+horizontal_alignment = 2
+
+[node name="SelectionSummary" type="Label" parent="." unique_id=799244643]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "No source selected."
+autowrap_mode = 2
+
+[node name="MarginContainer" type="MarginContainer" parent="." unique_id=308112431]
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 4
+
+[node name="Actions" type="HBoxContainer" parent="MarginContainer" unique_id=125737561]
+layout_mode = 2
+
+[node name="HSeparator2" type="HSeparator" parent="MarginContainer/Actions" unique_id=1139467635]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/separator = SubResource("StyleBoxEmpty_ih4hc")
+
+[node name="Query" type="Button" parent="MarginContainer/Actions" unique_id=1397319067]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 32)
+layout_mode = 2
+tooltip_text = "Compile and run this SELECT"
+text = "QUERY"
+icon = ExtResource("3_play")
+expand_icon = true
+script = ExtResource("2_action")
+metadata/_custom_type_script = "uid://hvanlw2ev0lr"

@@ -288,6 +288,7 @@ func _copy_column(column: GDSQLColumnDefinition) -> GDSQLColumnDefinition:
 	if column.has_default():
 		copy.set_default(column.get_default_value())
 	copy.generation = column.generation
+	copy.resource_type = column.resource_type
 	return copy
 
 
@@ -587,7 +588,7 @@ func _validate_insert(query: GDSQLInsertQuerySpec) -> GDSQLQueryValidationResult
 			if not _is_compatible(value, column):
 				return _error(
 					&"GDSQL_VALIDATION_TYPE_MISMATCH",
-					"Column '%s' expects Variant type %s, received %s." % [column_name, column.data_type, typeof(value)],
+					"Column '%s' expects %s, received %s." % [column_name, column.expected_type_name(), type_string(typeof(value))],
 				)
 			values[column_name] = value
 		for column in table.columns:

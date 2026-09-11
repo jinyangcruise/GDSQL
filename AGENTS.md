@@ -72,6 +72,10 @@ paths or depend on ConfigFile section names.
 
 Do not worry if code was reordered, it's the formatter.
 
+When editing interface scenes, mark important or deeply nested nodes as
+`Access as Unique Name` (`unique_name_in_owner = true` in `.tscn` files) and
+reference them with `%NodeName` instead of brittle full node paths.
+
 ## Tests 
 
 Tests needs `--headless` mode in order to work

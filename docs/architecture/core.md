@@ -1224,6 +1224,14 @@ of `user://` is outside this responsibility. ConfigFile inspection still parses
 the physical file because `ConfigFile` has no header-only read API; only header
 metadata is returned, while a paged backend can read its header independently.
 
+The editor reserves the `project` registration name for `res://data`. A database
+created below another explicit root uses that root's final directory name, such
+as `save_1` or `settings`. If a newly discovered database still proposes a name
+owned by a different logical database and root, the workbench preserves the
+existing registration and assigns the newcomer a deterministic unique name.
+That resolved name is persisted, so later loads inspect the user database
+without recursively scanning `user://` or recreating the collision.
+
 ### 11.3 Persistence semantics and checkpoints
 
 A transaction commit establishes valid, visible database state. A checkpoint
@@ -1550,9 +1558,11 @@ backend may complete a missing empty table file when an existing stored schema
 exactly matches the requested definition; this repairs incomplete structures
 without overwriting a table or changing its schema.
 
-Table alterations are explicit typed intents for column lifecycle, defaults,
-nullability, uniqueness, generated-value and auto-increment policies, and
-indexes. The backend updates schema and existing row files together. Adding a
+Table alterations are explicit typed intents for column lifecycle, display
+order, defaults, nullability, uniqueness, generated-value and auto-increment
+policies, and indexes. Reordering changes schema order only and does not rewrite
+stored row values. The backend updates schema and existing row files together
+for alterations that affect both. Adding a
 non-nullable column to a populated table requires a compatible default;
 renaming a column migrates stored row keys; dropping a column removes stored
 values. Constraint changes validate existing rows before persistence, and
@@ -2452,11 +2462,15 @@ Godot `Variant` and resource support remain core GDSQL capabilities.
 Literal values and row fields may remain typed as `Variant`. Validation and serialization are delegated to appropriate services rather than converted indiscriminately to strings.
 
 `TYPE_OBJECT` has a narrower database meaning than Godot's general object
-category: it represents a `Resource`. Native and custom `Resource` instances
-are accepted and serialized by the storage backend. `Node` and other arbitrary
-`Object` instances are rejected. Nodes carry scene-tree ownership, lifecycle,
-signals, and runtime connections, making them unsafe and ambiguous as persisted
-row values.
+category: it represents one concrete `Resource` family declared through a
+`ResourceTypeConstraint`. The editor derives this constraint from an actual
+Resource prototype instead of a closed class list. Native classes use their
+ClassDB identity. Project resource classes retain their script path and resolved
+`Script`, including custom scripts without `class_name`.
+Validation accepts the declared class and its subclasses; an unconstrained
+`Resource`, a different Resource family, `Node`, and other arbitrary `Object`
+instances are rejected. The constraint is catalog metadata and is enforced by
+query validation and storage, not only by editor filtering.
 
 ### Abstract contracts support boundaries
 

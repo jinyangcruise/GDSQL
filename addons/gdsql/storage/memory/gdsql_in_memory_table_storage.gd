@@ -327,9 +327,7 @@ func _validate_session_constraints(
 								% [column.name, table.database_name, table.name],
 					)
 				if not column.accepts_value(row.get_value(column.name)):
-					var expected := "Resource" \
-					if column.data_type == TYPE_OBJECT \
-					else "Variant type %s" % column.data_type
+					var expected := column.expected_type_name()
 					return _commit_error(
 						&"GDSQL_STORAGE_COLUMN_TYPE_MISMATCH",
 						"Column '%s' expects %s." % [column.name, expected],

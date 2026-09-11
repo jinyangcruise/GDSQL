@@ -13,6 +13,16 @@ const SELECT_TABLE := &"database.select_table"
 const SHOW_WELCOME := &"workspace.show_welcome"
 const SAVE_DATABASE_CHANGES := &"database_document.save"
 const REFRESH_DATABASE_CHANGES := &"database_document.refresh"
+const OPEN_QUERY_GRAPH_FOLDER := &"query_graph.open_folder"
+const SAVE_QUERY_GRAPH := &"query_graph.save"
+const ADD_SELECT_QUERY_NODE := &"query_graph.add_select"
+const ADD_LEFT_JOIN_QUERY_NODE := &"query_graph.add_left_join"
+const ADD_INSERT_QUERY_NODE := &"query_graph.add_insert"
+const ADD_UPDATE_QUERY_NODE := &"query_graph.add_update"
+const ADD_DELETE_QUERY_NODE := &"query_graph.add_delete"
+const RUN_QUERY_GRAPH := &"query_graph.run"
+const ADD_QUERY_RESULT_ROW := &"query_graph.result.add_row"
+const REMOVE_QUERY_GRAPH_NODE := &"query_graph.remove_node"
 
 
 static func get_all() -> Array[StringName]:
@@ -28,6 +38,16 @@ static func get_all() -> Array[StringName]:
 		SHOW_WELCOME,
 		SAVE_DATABASE_CHANGES,
 		REFRESH_DATABASE_CHANGES,
+		OPEN_QUERY_GRAPH_FOLDER,
+		SAVE_QUERY_GRAPH,
+		ADD_SELECT_QUERY_NODE,
+		ADD_LEFT_JOIN_QUERY_NODE,
+		ADD_INSERT_QUERY_NODE,
+		ADD_UPDATE_QUERY_NODE,
+		ADD_DELETE_QUERY_NODE,
+		RUN_QUERY_GRAPH,
+		ADD_QUERY_RESULT_ROW,
+		REMOVE_QUERY_GRAPH_NODE,
 	]
 
 

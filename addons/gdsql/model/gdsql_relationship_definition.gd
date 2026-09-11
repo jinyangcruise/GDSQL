@@ -2,7 +2,11 @@ class_name GDSQLRelationshipDefinition
 extends RefCounted
 ## Typed description of navigation between two registered model types.
 
-enum Kind { BELONGS_TO, HAS_ONE, HAS_MANY }
+enum Kind {
+	BELONGS_TO,
+	HAS_ONE,
+	HAS_MANY,
+}
 
 var name: StringName
 var kind: Kind

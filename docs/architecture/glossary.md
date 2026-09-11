@@ -32,8 +32,12 @@ state in the same change as implementation or test work.
 | `UpdateQueryBuilder` | Fluent API | Builds a single-table `UpdateQuerySpec` from typed assignments and an optional predicate. | `table()`, `set_value()`, `set_expression()`, `where()`, `build()` | 🧪 |
 | `DeleteQueryBuilder` | Fluent API | Builds a single-table `DeleteQuerySpec` with an optional predicate. | `from_table()`, `where()`, `build()` | 🧪 |
 | `Expr` | Expression convenience frontend | Creates the existing canonical typed expressions through compact factories, literal coercion, and immutable fluent combinators without parsing strings. | `column()`, `literal()`, `and_()`, `or_()`, `not_()`, `scalar()`, `aggregate()`, comparison, arithmetic, logical, and null-check helpers | 🧪 |
-| `QueryGraph` | Graph frontend | Frontend-owned representation of query nodes and their connections. | `get_nodes()`, `get_connections()`, `validate_structure()` | 🚧 |
-| `GraphQueryCompiler` | Graph frontend | Converts a valid `QueryGraph` into a canonical `QuerySpec`. | `compile(graph)` | 🚧 |
+| `QueryGraph` | Graph frontend | Frontend-owned representation of query nodes and their connections; the current executable structure validates one selected SELECT, INSERT, UPDATE, or DELETE root. | `add_node()`, `get_nodes()`, `get_connections()`, `validate_structure()` | 🛠️ |
+| `GraphQueryCompiler` | Graph frontend | Converts the selected typed graph operation into its canonical SELECT, INSERT, UPDATE, or DELETE `QuerySpec`. | `compile(graph)` | 🛠️ |
+| `QueryGraphSelectNode` | Graph frontend | Describes a SELECT source, explicit named projections, and an optional canonical predicate without loading rows or accessing storage. | Database/table identity, `include_all_columns`, `projections`, `predicate` | 🛠️ |
+| `QueryGraphInsertNode` | Graph frontend | Describes one INSERT target and one ordered typed row without accessing storage. | Database/table identity, `columns`, `values` | 🛠️ |
+| `QueryGraphUpdateNode` | Graph frontend | Describes an UPDATE target, canonical assignments, and an optional canonical predicate without accessing storage. | Database/table identity, `assignments`, `predicate` | 🛠️ |
+| `QueryGraphDeleteNode` | Graph frontend | Describes a DELETE target and optional canonical predicate without accessing storage. | Database/table identity, `predicate` | 🛠️ |
 
 ## Canonical query model
 
@@ -185,9 +189,10 @@ state in the same change as implementation or test work.
 | `CatalogSnapshot` | Catalog | Stable catalog view used during validation, binding, and planning. | `get_database()`, `get_table()` | 🚧 |
 | `DatabaseDefinition` | Catalog | Typed definition of a logical database. | Access to name and tables | 🛠️ |
 | `TableDefinition` | Catalog | Typed definition of a table, its columns, primary key, indexes, and common timestamp helpers. | `add_column()`, `add_index()`, `add_timestamps()`, `get_column()`, `get_primary_key()`, `get_index()` | 🧪 |
-| `ColumnDefinition` | Catalog | Typed definition of one table column, including an optional static default, generated-value policy, integer primary-key auto-increment, and the rule that `TYPE_OBJECT` accepts Resources only. | `set_default()`, `clear_default()`, `has_default()`, `get_default_value()`, `accepts_value()`, `created_at()`, `updated_at()` | 🧪 |
+| `ColumnDefinition` | Catalog | Typed definition of one table column, including an optional static default, generated-value policy, integer primary-key auto-increment, and a mandatory concrete Resource constraint for `TYPE_OBJECT`. | `set_default()`, `clear_default()`, `has_default()`, `get_default_value()`, `accepts_value()`, `has_valid_type_constraint()`, `display_type_name()`, `created_at()`, `updated_at()` | 🧪 |
+| `ResourceTypeConstraint` | Catalog | Derives from a Resource prototype, identifies its concrete native or project-script family, and validates inheritance-compatible values. Script paths support custom resources without `class_name`; generic unconstrained Resource columns are invalid. | `from_resource()`, `from_serialized()`, `instantiate_prototype()`, `is_valid()`, `accepts_value()`, `is_equivalent_to()`, `display_name()` | 🛠️ |
 | `ColumnDefault` | Catalog | Wraps a declared static default so an explicit null value remains distinct from no default and future default metadata can evolve without parallel column state. | `value` | 🧪 |
-| `TableAlteration` | Catalog | Typed intent for safe column metadata, column lifecycle, and index changes. Direct data-type replacement is expressed as add, migrate, and drop operations. | Column add/rename/drop, default, nullability, uniqueness, generation, auto-increment, and index factories | 🧪 |
+| `TableAlteration` | Catalog | Typed intent for safe column metadata, display order, column lifecycle, and index changes. Direct data-type replacement is expressed as add, migrate, and drop operations. | Column add/rename/drop/reorder, default, nullability, uniqueness, generation, auto-increment, and index factories | 🧪 |
 | `CatalogChangePlan` | Catalog administration | Read-only preview of validated structural changes, affected rows, destructive classification, summaries, and the source catalog fingerprint. | `requires_confirmation()` and stale-plan-safe application | 🧪 |
 | `IndexDefinition` | Catalog | Describes a named index, its ordered columns, and whether its complete value must be unique. | `get_columns()`, `is_unique()` | 🧪 |
 
@@ -198,7 +203,7 @@ state in the same change as implementation or test work.
 | `TableStorage` | Storage | Abstract row-level storage contract used by the runtime. | `get_capabilities()`, `read_table()`, primary-key/index/range lookup, staged mutations, `commit()`, `rollback()` | 🚧 |
 | `StorageCapabilities` | Storage | Reports optional exact-index and range-index lookup operations supported by a storage backend without exposing its implementation. | `supports_exact_index_lookup()`, `supports_range_index_lookup()` | 🧪 |
 | `StorageBackendIds` | Storage metadata | Defines stable storage backend identifiers and their UI-facing labels. | `get_all()`, `is_valid()`, `get_display_name()` | 🧪 |
-| `ConfigFileTableStorage` | Storage backend | Implements `TableStorage` using ConfigFile-backed `.cfg` files, with atomic query commits, maintained index entries, final-state uniqueness validation, table metadata, and transactional auto-increment generation. | TableStorage implementation | 🧪 |
+| `ConfigFileTableStorage` | Storage backend | Implements `TableStorage` using ConfigFile-backed `.cfg` files, with atomic query commits, maintained index entries, final-state uniqueness validation, table metadata, transactional auto-increment generation, and in-place section updates that retain existing row position. | TableStorage implementation | 🧪 |
 | `PagedBinaryTableStorage` | Storage backend | Future backend that stores each logical table in one paged binary file and loads row or index pages independently through the shared `TableStorage` contract. | TableStorage implementation | 📝 |
 | `BinaryTableHeader` | Binary storage metadata | Future per-table header containing format version, schema fingerprint, page layout, row metadata, generated-key state, and page roots. | Header encoding and validation | 📝 |
 | `StorageSession` | Storage | Tracks staged changes, dirty state, and uncommitted table metadata reservations for one unit of work. | Session-specific state access | 🧪 |
@@ -218,9 +223,9 @@ state in the same change as implementation or test work.
 | `DatabaseRegistration` | Database lifecycle metadata | Describes one durable registration through its public name, logical database name, data root, and validated storage backend identifier. | Typed registration fields | 🧪 |
 | `RuntimeFactory` | Runtime composition | Assembles storage-specific runtime graphs and opens durable registrations; in-memory registrations hydrate ConfigFile rows as a clean working set. | `create_default()`, `create_in_memory()`, `open_registration()` | 🧪 |
 | `DatabaseExplorer` | Database discovery | Abstract contract for discovering logical databases and lightweight table metadata from an explicitly supplied root without materializing rows. | `inspect_root()` | 🧪 |
-| `ConfigFileDatabaseExplorer` | Database discovery backend | Reads ConfigFile database catalogs, schema summaries, and reserved table headers. | `inspect_root()` | 🧪 |
+| `ConfigFileDatabaseExplorer` | Database discovery backend | Reads ConfigFile database catalogs, typed column schema summaries including codec-decoded static defaults, and reserved table headers without materializing rows. | `inspect_root()` | 🧪 |
 | `DatabaseInspection` | Database discovery metadata | Associates one discovered registration with catalog existence and lightweight table inspections. | Registration and `get_table()` | 🧪 |
-| `TableInspection` | Database discovery metadata | Reports table existence, row-count header, column count, and index count without containing row values. | Typed inspection fields | 🧪 |
+| `TableInspection` | Database discovery metadata | Reports table existence, row-count header, primary-key identity, typed inspected columns, and index count without containing row values. | Typed inspection fields, `get_column()` | 🧪 |
 | `DatabaseRegistryStore` | Database lifecycle persistence | Abstract persistence boundary for complete typed registration and role-binding snapshots. | `load_snapshot()`, `save_snapshot()` | 🚧 |
 | `ConfigFileDatabaseRegistryStore` | Database lifecycle persistence | Stores editor-visible database registrations and role bindings in `user://gdsql/databases.cfg`. | DatabaseRegistryStore implementation | 🧪 |
 | `CheckpointTarget` | Runtime persistence | Contract for a storage composition that reports committed dirty state and transfers it to durable storage. | `is_dirty()`, `checkpoint()` | 🧪 |
@@ -237,21 +242,44 @@ state in the same change as implementation or test work.
 
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
-| `Workbench` | Editor coordination | Loads the durable registration snapshot, reconciles explicit roots with logical database identity, removes stale root registrations, maintains lightweight inspections, and opens only the selected registration. | `load()`, `discover_root()`, `discover_children()`, `select_registration()`, `remove_registration()` | 🧪 |
+| `Workbench` | Editor coordination | Loads the durable registration snapshot, reconciles explicit roots with logical database identity and collision-safe registration names, removes stale root registrations, maintains lightweight inspections, and opens only the selected registration. | `load()`, `discover_root()`, `discover_children()`, `select_registration()`, `remove_registration()` | 🧪 |
 | `WorkbenchSession` | Editor coordination | Holds one opened registration, catalog snapshot, selected table, current page, and pending schema preview without depending on Controls. | `open_registration()`, `refresh_catalog()`, `select_table()`, `load_rows()`, preview and apply methods | 🧪 |
 | `EditorActionDefinition` | Editor actions | Describes one stable editor action independently from its presentation and behavior. | Identity, label, tooltip, icon, group, order, and kind | 🛠️ |
 | `EditorActionRegistrar` | Editor actions | Registers stable action metadata with behavior supplied by the editor coordinator. | `register_global_actions()` | 🛠️ |
 | `ContextActionHub` | Editor actions | Owns action handlers and availability for one editor surface or document context. | `add_action()`, `get_actions()`, `invoke()` | 🛠️ |
-| `EditorActionHub` | Editor actions | Resolves global and active-context actions for menus, toolbars, shortcuts, and command surfaces. | `register_context()`, `set_active_context()`, `get_actions()`, `invoke()` | 🛠️ |
-| `EditorActionButton` | Editor actions | Reusable button presentation that resolves its label, icon, tooltip, visibility, availability, and invocation through the active action hub. | `configure()`, `configure_action()` | 🛠️ |
+| `EditorActionHub` | Editor actions | Resolves global and active-context actions for menus, toolbars, shortcuts, and command surfaces, and emits opt-in main-screen focus requests without owning Godot plugin placement. | `register_context()`, `set_active_context()`, `get_actions()`, `invoke()` | 🛠️ |
+| `EditorActionButton` | Editor actions | Reusable button presentation that resolves visibility, availability, and invocation through the active action hub; scene-authored labels, icons, and tooltips take precedence over action-definition fallbacks. | `configure()`, `configure_action()` | 🛠️ |
 | `EditorController` | Editor integration | Registers editor actions and coordinates automatic discovery, create-or-load database behavior, catalog mutations, editor filesystem refresh, and selection with the active editor surfaces, independently from Godot dock placement. | `load_workspace()`, `ensure_workspace_loaded()`, `shutdown()` | 🛠️ |
-| `DatabaseDock` | Editor navigation | Presents a lightweight registration, table, and loaded-column hierarchy with deferred refresh, selection, non-destructive database removal, and confirmed table deletion delegated through the editor action hub. | `configure()`, `render()` | 🛠️ |
-| `Workspace` | Editor workspace | Hosts scene-backed documents behind editor-style menus and tabs, activates document action contexts, keeps registration identity separate from logical titles, and routes database, schema, and typed row intents to the controller. | `show_welcome()`, `show_database()`, `show_table()`, `present_table_rows()`, tab lifecycle | 🛠️ |
+| `DatabaseDock` | Editor navigation | Presents a lightweight registration, table, and loaded-column hierarchy with deferred refresh, opens the GDSQL main screen when navigating, and delegates non-destructive database removal and confirmed table deletion through the editor action hub. | `configure()`, `render()` | 🛠️ |
+| `Workspace` | Editor workspace | Hosts scene-backed documents behind editor-style menus and tabs, activates document action contexts, confirms discard before closing documents with unsaved changes, keeps registration identity separate from logical titles, and routes database, schema, and typed row intents to the controller. | `show_welcome()`, `show_database()`, `show_table()`, `present_table_rows()`, tab lifecycle | 🛠️ |
+| `QueryGraphEditor` | Editor query graph | Presents SELECT, INSERT, UPDATE, and DELETE nodes with in-node execution and titlebar removal; compiles the selected operation, reports dirty result state to the workspace, requests execution through the workspace boundary, and presents table rows or mutation statistics without accessing storage. | `configure()`, `configure_actions()`, `request_query()`, `present_query_result()`, `has_unsaved_changes()`, selected source accessors | 🛠️ |
+| `QueryGraphNode` | Editor query graph presentation | Shared `GraphNode` base that extends Godot's native titlebar with remove and one-shot viewport-fit buttons plus a host for operation-specific controls, while leaving graph geometry and lifecycle coordination to the graph editor. | `remove_requested`, `fit_requested`, header action and close methods | 🛠️ |
+| `QueryGraphSourceSelector` | Editor query graph presentation | Reusable inspection-backed registration and raw-table selector for graph operation nodes. | `configure()`, selected source accessors, selected inspections | 🛠️ |
+| `MutationValuesEditor` | Editor query graph presentation | Reusable opt-in typed column/value editor for one INSERT row or UPDATE assignments; excludes runtime-generated columns and accepts operation-specific exclusions. | `configure()`, `build_values()`, `get_included_count()` | 🛠️ |
+| `WhereExpressionEditor` | Editor query expression | Reusable predicate editor for SELECT, UPDATE, and DELETE graph operations; composes ordered typed conditions with `AND`, `OR`, and per-condition `NOT`, returns canonical expressions and structured diagnostics, and never evaluates predicates or accesses storage. | `configure()`, `build_expression()`, `get_summary()` | 🛠️ |
+| `QueryTableResultNode` | Editor query result | Presents paginated `QueryResult` rows in a native multi-column Tree, opens one selected row in the typed Variant editor, owns result-level Add/Save/Delete/Discard actions, protects dirty edits across selection/page changes, permits primary-key-safe edits and full-schema inserts, and emits row mutation intents. | `present()`, `can_add_rows()`, `has_dirty_rows()`, `add_empty_row()` | 🛠️ |
 | `EditorTableChange` | Editor schema intent | Groups the typed alterations drafted for one existing table before catalog preview and application. | Table identity and `alterations` | 🛠️ |
+| `EditorColumnEditor` | Editor schema presentation | Coordinates a fixed scene-authored header, reusable column row scenes, synchronized horizontal scrolling, and typed local drafts; produces column definitions or alterations without accessing storage. | `configure_new_table()`, `configure_existing()`, `add_draft_column()`, `build_definitions()`, `build_alterations()` | 🛠️ |
+| `EditorColumnDraft` | Editor schema state | Holds one mutable local column edit independently from Controls and converts it into validation messages, a new `ColumnDefinition`, or alterations against its original definition. | `create_new()`, `from_definition()`, `get_validation_errors()`, `build_definition()`, `build_alterations()` | 🛠️ |
+| `EditorIndexPropertyRow` | Editor schema presentation | Scene-backed summary and removal control for one existing primary or secondary index. | `configure_primary()`, `configure()`, `dropped_changed` | 🛠️ |
 | `TableDataDocument` | Editor table data | Presents typed row values and emits canonical insert, update, delete, and refresh intents without owning schema editing. | `configure()`, `present_rows()` and row-intent signals | 🛠️ |
-| `EditorVariantValueField` | Editor value input | Edits one catalog-typed Godot Variant value, preserves explicit null, and delegates Resource selection and inspection to native editor controls. | `configure()`, `set_value_editable()`, `get_value_result()` | 🛠️ |
+| `EditorVariantValueField` | Editor value input | Edits one catalog-typed Godot Variant value, keeps nullable inputs interactive while preserving explicit null, enters text edit mode on focus, and delegates Resource selection and inspection to native editor controls. | `configure()`, `set_value_editable()`, `get_value_result()` | 🛠️ |
 | `ActivityPanel` | Editor feedback | Presents operation outcomes and structured diagnostics through a bounded entry list with severity styling, automatic latest-entry scrolling, error focus, Unix-millisecond selection IDs, and context actions. | `append_result()`, `append_message()`, `get_entry()`, `select_entry()`, `delete_entry()`, `copy_entry_message()`, `clear()`, `log_limit` | 🛠️ |
 | `ActivityEntry` | Editor feedback | Typed, customizable presentation row carrying one activity message and its stable selection identity. | `configure()`, `context_requested`, entry fields | 🛠️ |
+
+### Editor BBCode authoring reference
+
+Toolbar tags follow Godot's [RichTextLabel BBCode reference](https://docs.godotengine.org/en/latest/tutorials/ui/bbcode_in_richtextlabel.html#reference).
+
+| Action | Inserted BBCode | State |
+|---|---|---|
+| Bold | `[b]text[/b]` | 🛠️ |
+| Italic | `[i]text[/i]` | 🛠️ |
+| Underline | `[u]text[/u]` | 🛠️ |
+| Strikethrough | `[s]text[/s]` | 🛠️ |
+| Code | `[code]text[/code]` | 🛠️ |
+| Paragraph | `[p]text[/p]` | 🛠️ |
+| Line break | `[br]` | 🛠️ |
 
 ## Results and materialization
 

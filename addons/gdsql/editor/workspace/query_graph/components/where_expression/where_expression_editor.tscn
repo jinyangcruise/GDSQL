@@ -1,0 +1,49 @@
+[gd_scene format=3 uid="uid://cnuaxum6yxjel"]
+
+[ext_resource type="Script" uid="uid://c5ycc30rpbqm0" path="res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.gd" id="1_editor"]
+[ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="2_plus"]
+
+[node name="WhereExpressionEditor" type="VBoxContainer" unique_id=893750693]
+offset_right = 355.0
+offset_bottom = 97.0
+theme_override_constants/separation = 4
+script = ExtResource("1_editor")
+
+[node name="UseWhere" type="CheckButton" parent="." unique_id=1961104202]
+unique_name_in_owner = true
+layout_mode = 2
+text = "WHERE"
+
+[node name="ExpressionBody" type="VBoxContainer" parent="." unique_id=9518024]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="CompositionHint" type="Label" parent="ExpressionBody" unique_id=1289476882]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "Conditions are composed from top to bottom."
+
+[node name="Conditions" type="VBoxContainer" parent="ExpressionBody" unique_id=1732785267]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Actions" type="HBoxContainer" parent="ExpressionBody" unique_id=768831629]
+layout_mode = 2
+
+[node name="AddCondition" type="Button" parent="ExpressionBody/Actions" unique_id=1160801275]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(132, 30)
+layout_mode = 2
+tooltip_text = "Append another WHERE condition"
+text = "Add condition"
+icon = ExtResource("2_plus")
+expand_icon = true
+
+[node name="ValidationStatus" type="Label" parent="." unique_id=1507371538]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.94, 0.4, 0.4, 1)
+autowrap_mode = 2
