@@ -1317,6 +1317,19 @@ load-order graph. It returns a deterministic base-first topological order using
 priority and package ID only as stable tie-breakers. Neither stage opens package
 databases or mutates source content.
 
+### 11.5 Content overlay application
+
+`GDSQLContentPackageLayerReader` translates one package's selected logical
+database into typed table definitions and `GDSQLContentRowOperation` values.
+The ConfigFile implementation owns catalog, table-file, and `overlays.cfg`
+decoding. `GDSQLContentOverlayLoader` depends only on this reader contract.
+
+The loader copies compatible schemas and rows into a deterministic
+`GDSQLContentDatabaseSnapshot`. Later packages replace rows with the same
+primary-key value, add new identities, and remove identities only through an
+explicit removal operation. Source packages remain immutable. Cache writing,
+row provenance, and registry role replacement remain separate stages.
+
 ---
 
 ## 12. Storage boundary

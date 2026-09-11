@@ -42,20 +42,21 @@ status information until their orchestration exists.
 - Table selection opens the standalone table document; query graphs remain the
   advanced visual-query surface.
 - Database-role and model APIs plus the optional runtime/autoload scene are
-  implemented. The content-overlay loader does not exist yet.
+  implemented. Deterministic overlay application now produces a typed
+  effective-content snapshot; cache and role orchestration remain.
 - SQL lexer/parser/compiler contracts are scaffolded, so the editor must not
   present SQL text as a complete query frontend yet.
 
 ## Remaining delivery workstreams
 
 After the current experimental table, creation, bootstrap, and model-assistant
-slices, nine substantive workstreams remain. They are grouped by outcome;
+slices, eight substantive workstreams remain. They are grouped by outcome;
 individual workstreams may require several small changes.
 
 | Outcome | Count | Remaining workstreams |
 |---|---:|---|
 | Reliable direct-content setup | 0 | Complete for the current direct profile. |
-| Managed-content full kit | 5 | Deterministic overlay application; provenance and conflict reporting; cache manifests and rebuilds; atomic effective-content role replacement; mod-aware save compatibility and setup UI. |
+| Managed-content full kit | 4 | Provenance and conflict reporting; cache manifests and rebuilds; atomic effective-content role replacement; mod-aware save compatibility and setup UI. |
 | Advanced tooling and release | 4 | Advanced graph operations and saved graphs; completed SQL compiler/editor; shared import/export and batch tooling; migration, performance, and release QA. |
 
 ## Delivery order
@@ -274,7 +275,11 @@ validation; and a ConfigFile reader behind a runtime store contract. Directory
 discovery now supports direct and nested `content/` packages. Resolution selects
 one mandatory base plus explicitly enabled DLC/mod packages, checks semantic
 version constraints, and topologically orders dependency and before/after edges
-with stable priority and package-ID tie-breaking. Overlay application is next.
+with stable priority and package-ID tie-breaking. The overlay loader now reads a
+selected logical database through an injected layer-reader contract, copies
+compatible schemas, and deterministically applies stable-ID upserts and explicit
+removals into an effective-content snapshot. Provenance and conflict reporting
+are next.
 
 Runtime content should always be consumed through one derived
 `effective_content` database bound to the `content` role. Base content and

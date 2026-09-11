@@ -23,6 +23,7 @@ config/features=PackedStringArray("4.7", "Forward Plus")
 [autoload]
 
 _mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
+GDSQLRuntime="res://addons/gdsql/runtime/gdsql_runtime_node.tscn"
 
 [debug]
 

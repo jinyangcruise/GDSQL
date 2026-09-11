@@ -547,6 +547,7 @@ content/
 │   └── game_content/
 │       ├── schema/
 │       └── tables/
+├── overlays.cfg
 └── manifest.cfg
 ```
 
@@ -611,6 +612,18 @@ directory, archive, or Godot resource pack, but its database content remains an
 immutable input to effective-content construction rather than independently
 mutated save state.
 
+`overlays.cfg` stores operations that are not ordinary rows. The initial
+ConfigFile representation supports explicit stable-ID removals:
+
+```ini
+[remove:game_content:items]
+ids=PackedStringArray("retired_sword", "old_shield")
+```
+
+Package table rows are typed upserts. Within one package, upserts are applied
+before its removals. A removal-only optional package may omit the selected
+database; the base package must define it.
+
 ### Effective content database
 
 At startup or after the enabled package set changes, the content loader builds
@@ -662,6 +675,13 @@ A different identifier adds a different definition. Disabling the mod then
 removes that additional definition and reveals the unchanged base row. Removing
 base content requires an explicit removal marker or equivalent typed operation;
 it must not delete the authoritative base row.
+
+The implemented overlay boundary reads one selected logical source database
+from each resolved package, requires compatible schemas for shared tables, and
+returns a deterministic `effective_content` snapshot. Tables and row identities
+are sorted in the output; package sources and decoded rows are copied rather
+than mutated. Cache persistence and active role replacement consume this
+snapshot in later orchestration stages.
 
 The loader records package identifiers and versions, dependencies, deterministic
 layer order, row provenance, conflicts, schema compatibility, and the base

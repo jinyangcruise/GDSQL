@@ -151,6 +151,14 @@ PackageResolution("`**Content Package Discovery and Resolution**
 *Ordering:* Dependency and before/after graph, then priority and package ID
 *Returns:* Deterministically ordered package sources or structured diagnostics`")
 
+ContentOverlay("`**Content Overlay Loader**
+
+-
+*Purpose:* Build one deterministic effective-content snapshot
+*Input:* Resolved package order and typed package layers
+*Operations:* Stable-ID upsert and explicit removal
+*Returns:* Copied schemas, sorted rows and structured diagnostics`")
+
 Persistence("`**Runtime Persistence**
 
 -
@@ -329,6 +337,13 @@ ConfigPackageDiscovery("`**ConfigFile Package Discovery**
 *Purpose:* Enumerate direct and nested content package directories
 *Input:* Explicit base root and optional package-container roots
 *Uses:* Injected content-package manifest store`")
+
+ConfigPackageLayer("`**ConfigFile Package Layer Reader**
+
+-
+*Purpose:* Decode one selected package database into a typed layer
+*Reads:* Catalog schemas, table rows and overlays.cfg removals
+*Extends:* GDSQLContentPackageLayerReader`")
 end
 
 subgraph InMemoryBackend["In-memory backend"]
@@ -384,6 +399,7 @@ Factory -->|"inspect direct setup before opening"| DirectSetup
 Workbench -->|"augment setup with editor-known status"| DirectSetup
 Code -->|"declare managed content packages"| PackageManifest
 PackageManifest -->|"validated package sources"| PackageResolution
+PackageResolution -->|"ordered immutable packages"| ContentOverlay
 RuntimeSession -->|"resolve roles"| RuntimeRegistry
 RuntimeSession -->|"default model context"| Models
 RuntimeSession -->|"checkpoint operations"| Persistence
@@ -430,6 +446,7 @@ ConfigStorage -->|"paths · cache · codec"| ConfigInfrastructure
 ConfigPackageManifest -->|"decodes typed metadata"| PackageManifest
 ConfigPackageDiscovery -->|"discover package sources"| PackageResolution
 ConfigPackageDiscovery -->|"load manifest"| ConfigPackageManifest
+ConfigPackageLayer -->|"typed schemas and row operations"| ContentOverlay
 
 Factory -.->|"create_default(data_root)"| Context
 Factory -.->|"constructs and injects"| ConfigInfrastructure
@@ -437,7 +454,7 @@ Factory -.->|"bootstrap()"| RuntimeSession
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
 class Code,Models,Workbench,ModelAssistant,GraphEditor,SQLEditor,Expr frontend;
-class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,DirectSetup,PackageManifest,PackageResolution,Persistence runtime;
+class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,DirectSetup,PackageManifest,PackageResolution,ContentOverlay,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
@@ -445,5 +462,5 @@ class Planner,PlanNode planning;
 class Executor execution;
 class CatalogService,CatalogAdministration,ResourceConstraint catalog;
 class TableStorage storage;
-class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageDiscovery,MemoryStorage,MemoryCheckpoint implementation;
+class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageDiscovery,ConfigPackageLayer,MemoryStorage,MemoryCheckpoint implementation;
 class Results,Materialization result;
