@@ -7,6 +7,8 @@ extends RefCounted
 
 const PROJECT_DATA_ROOT := "res://data"
 const SAVE_SLOTS_ROOT := "user://gdsql/saves"
+const RUNTIME_AUTOLOAD_SETTING := "autoload/GDSQLRuntime"
+const RUNTIME_NODE_PATH := "res://addons/gdsql/runtime/gdsql_runtime_node.tscn"
 const TABLE_COUNT_ALIAS := &"row_count"
 
 var action_hub: GDSQLEditorActionHub
@@ -148,6 +150,7 @@ func _create_actions() -> void:
 		GDSQLEditorActionIds.CREATE_SAVE_SLOT: _show_create_save_slot,
 		GDSQLEditorActionIds.SELECT_SAVE_SLOT: _select_save_slot,
 		GDSQLEditorActionIds.DELETE_SAVE_SLOT: _delete_save_slot,
+		GDSQLEditorActionIds.INSTALL_RUNTIME_ADAPTER: _install_runtime_adapter,
 	}
 	var registered := GDSQLEditorActionRegistrar.new() \
 			.register_global_actions(action_hub, handlers)
@@ -181,6 +184,39 @@ func _show_create_save_slot() -> GDSQLOperationResult:
 	_workspace.open_create_save_slot_page()
 	var result := GDSQLOperationResult.new()
 	result.value = _workspace
+	return result
+
+
+func _install_runtime_adapter() -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	var current_path := String(
+		ProjectSettings.get_setting(RUNTIME_AUTOLOAD_SETTING, ""),
+	).trim_prefix("*")
+	if not current_path.is_empty() and current_path != RUNTIME_NODE_PATH:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_RUNTIME_AUTOLOAD_NAME_IN_USE",
+				"The GDSQLRuntime autoload name is already used by '%s'." % current_path,
+			),
+		)
+		_record_result("Install runtime adapter", result)
+		return result
+	ProjectSettings.set_setting(
+		RUNTIME_AUTOLOAD_SETTING,
+		"*%s" % RUNTIME_NODE_PATH,
+	)
+	var error := ProjectSettings.save()
+	if error != OK:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_RUNTIME_AUTOLOAD_SAVE_FAILED",
+				"Could not save the GDSQLRuntime autoload setting: %s." % error_string(error),
+			),
+		)
+	else:
+		result.value = true
+		_refresh_surfaces()
+	_record_result("Install runtime adapter", result)
 	return result
 
 

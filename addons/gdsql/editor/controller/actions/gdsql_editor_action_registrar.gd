@@ -112,6 +112,16 @@ func register_global_actions(
 	_register(
 		context,
 		handlers,
+		GDSQLEditorActionIds.INSTALL_RUNTIME_ADAPTER,
+		"Install Runtime",
+		"Install the scene-backed GDSQLRuntime project autoload.",
+		&"Tools",
+		55,
+		result,
+	)
+	_register(
+		context,
+		handlers,
 		GDSQLEditorActionIds.SHOW_SAVE_SLOTS,
 		"Save Slots",
 		"Create, inspect, and select the active save slot.",

@@ -3,21 +3,26 @@ extends MarginContainer
 ## Actionable project setup status shown at the workbench root.
 
 const SETTINGS_PATH := "res://.gdsql/settings.cfg"
+const RUNTIME_AUTOLOAD_SETTING := "autoload/GDSQLRuntime"
+const RUNTIME_NODE_PATH := "res://addons/gdsql/runtime/gdsql_runtime_node.tscn"
 
 var _action_hub: GDSQLEditorActionHub
 var _workbench: GDSQLWorkbench
+var _setup_report: GDSQLDirectSetupReport
 
 @onready var _create_database_button: GDSQLEditorActionButton = %CreateDatabase
 @onready var _refresh_button: GDSQLEditorActionButton = %RefreshDatabases
 @onready var _save_slots_button: GDSQLEditorActionButton = %ManageSaveSlots
 @onready var _database_list: ItemList = %DatabaseList
 @onready var _open_database: Button = %OpenDatabase
+@onready var _next_action_button: Button = %NextAction
 
 
 func _ready() -> void:
 	_database_list.item_selected.connect(_on_database_selected)
 	_database_list.item_activated.connect(_open_database_at)
 	_open_database.pressed.connect(_open_selected_database)
+	_next_action_button.pressed.connect(_run_next_action)
 	if not _is_scene_preview():
 		refresh_status()
 
@@ -36,11 +41,11 @@ func refresh_status() -> void:
 		return
 	var registrations: Array[GDSQLDatabaseRegistration] = []
 	var inspections: Array[GDSQLDatabaseInspection] = []
-	var role_count := 0
+	var snapshot := GDSQLDatabaseRegistrySnapshot.new()
 	if _workbench != null:
 		registrations = _workbench.get_registrations()
 		inspections = _workbench.get_inspections()
-		role_count = _workbench.snapshot.role_bindings.size()
+		snapshot = _workbench.snapshot
 	registrations.sort_custom(
 		func(left: GDSQLDatabaseRegistration, right: GDSQLDatabaseRegistration) -> bool:
 			return String(left.database_name).naturalnocasecmp_to(String(right.database_name)) < 0,
@@ -48,8 +53,12 @@ func refresh_status() -> void:
 	var table_count := 0
 	var row_count := 0
 	var model_count := _count_model_scripts()
-	var direct_profile_issues := _get_direct_profile_issues()
-	var direct_profile_ready := direct_profile_issues.is_empty()
+	_setup_report = GDSQLDirectSetupInspector.inspect_editor(
+		snapshot,
+		inspections,
+		model_count,
+		_is_runtime_adapter_configured(),
+	)
 	for inspection in inspections:
 		table_count += inspection.tables.size()
 		for table in inspection.tables:
@@ -63,31 +72,13 @@ func refresh_status() -> void:
 				row_count,
 			]
 	)
-	var completed := [
-		not registrations.is_empty(),
-		table_count > 0,
-		row_count > 0,
-		direct_profile_ready,
-		model_count > 0,
-	]
-	var details := [
-		"Database available under a registered data root." if completed[0] \
-		else "Create or discover an authored content database under res://data.",
-		"At least one table is ready for content." if completed[1] \
-		else "Open a database, then add and save its first table.",
-		"The project contains editable content rows." if completed[2] \
-		else "Open a table and add its first row.",
-		"Content and save roles use the recommended runtime roots." if completed[3] \
-		else "Direct setup: %s." % ", ".join(direct_profile_issues),
-		"%d user-owned model binding(s) found." % model_count if completed[4] \
-		else "Open a table and use Model to generate its first typed binding.",
-	]
 	var statuses: Array[Label] = [
 		%DatabaseStepStatus,
 		%TableStepStatus,
 		%RowStepStatus,
 		%RoleStepStatus,
 		%ModelStepStatus,
+		%RuntimeStepStatus,
 	]
 	var detail_labels: Array[Label] = [
 		%DatabaseStepDetail,
@@ -95,19 +86,21 @@ func refresh_status() -> void:
 		%RowStepDetail,
 		%RoleStepDetail,
 		%ModelStepDetail,
+		%RuntimeStepDetail,
 	]
-	var next_step := completed.find(false)
-	for index in completed.size():
+	var next_check := _setup_report.get_next_incomplete()
+	for index in _setup_report.checks.size():
+		var check := _setup_report.checks[index]
 		_set_step_state(
 			statuses[index],
 			detail_labels[index],
-			completed[index],
-			index == next_step,
-			details[index],
+			check.complete,
+			check == next_check,
+			check.detail,
 		)
 	_populate_databases(registrations, inspections)
-	_refresh_profile_status(direct_profile_ready, direct_profile_issues, role_count)
-	%NextStep.text = _next_step_text(next_step)
+	_refresh_profile_status(_setup_report, snapshot.role_bindings.size())
+	_refresh_next_action(next_check)
 
 
 func _populate_databases(
@@ -162,50 +155,11 @@ func _set_step_state(
 	detail.modulate = Color.WHITE if complete or is_next else Color(0.7, 0.72, 0.76)
 
 
-func _next_step_text(step: int) -> String:
-	match step:
-		0:
-			return "Next: create the project content database."
-		1:
-			return "Next: open a database from the list or dock and create a table."
-		2:
-			return "Next: open a table and add its first content row."
-		3:
-			return "Next: create or bind the missing content and save databases."
-		4:
-			return "Next: open a table and generate its model binding."
-	return "Project data setup is complete."
-
-
-func _get_direct_profile_issues() -> Array[String]:
-	var issues: Array[String] = []
-	var content := _get_role_registration(GDSQLDatabaseRegistry.CONTENT_ROLE)
-	var save := _get_role_registration(GDSQLDatabaseRegistry.SAVE_ROLE)
-	if content == null:
-		issues.append("content role is missing")
-	elif not content.data_root.begins_with("res://"):
-		issues.append("content should use a res:// source")
-	if save == null:
-		issues.append("save role is missing")
-	elif not save.data_root.begins_with("user://"):
-		issues.append("save should use a writable user:// root")
-	return issues
-
-
-func _get_role_registration(role: StringName) -> GDSQLDatabaseRegistration:
-	if _workbench == null:
-		return null
-	for binding in _workbench.snapshot.role_bindings:
-		if binding.role == role:
-			return _workbench.get_registration(binding.registration_name)
-	return null
-
-
 func _refresh_profile_status(
-		direct_ready: bool,
-		direct_issues: Array[String],
+		report: GDSQLDirectSetupReport,
 		role_count: int,
 ) -> void:
+	var direct_ready := report.is_ready()
 	%DirectProfileStatus.text = "READY" if direct_ready else "SETUP REQUIRED"
 	%DirectProfileStatus.modulate = (
 			Color(0.42, 0.82, 0.55) if direct_ready else Color(1.0, 0.72, 0.32)
@@ -214,12 +168,100 @@ func _refresh_profile_status(
 			"Content definitions and the active save are ready. %d total role binding(s)."
 			% role_count
 			if direct_ready
-			else "Missing or unsafe configuration: %s." % ", ".join(direct_issues)
+			else report.get_next_incomplete().detail
 	)
 	%ManagedProfileStatus.text = "PLANNED"
 	%ManagedProfileDetail.text = (
 			"Effective-content cache, package overlays, and mod orchestration are not implemented yet."
 	)
+
+
+func _refresh_next_action(check: GDSQLDirectSetupCheck) -> void:
+	if check == null:
+		%NextStep.text = "Project data setup is complete."
+		_next_action_button.visible = false
+		return
+	%NextStep.text = "Next: %s" % check.detail
+	_next_action_button.visible = check.next_action != GDSQLDirectSetupCheck.ACTION_NONE
+	match check.next_action:
+		GDSQLDirectSetupCheck.ACTION_CREATE_DATABASE:
+			_next_action_button.text = "Set Up Content"
+		GDSQLDirectSetupCheck.ACTION_OPEN_CONTENT_DATABASE:
+			_next_action_button.text = "Open Content"
+		GDSQLDirectSetupCheck.ACTION_OPEN_CONTENT_TABLE:
+			_next_action_button.text = "Open Content Table"
+		GDSQLDirectSetupCheck.ACTION_MANAGE_SAVE_SLOTS:
+			_next_action_button.text = "Manage Saves"
+		GDSQLDirectSetupCheck.ACTION_INSTALL_RUNTIME:
+			_next_action_button.text = "Install Runtime"
+
+
+func _run_next_action() -> void:
+	if _action_hub == null or _setup_report == null:
+		return
+	var check := _setup_report.get_next_incomplete()
+	if check == null:
+		return
+	match check.next_action:
+		GDSQLDirectSetupCheck.ACTION_CREATE_DATABASE:
+			_action_hub.invoke(GDSQLEditorActionIds.CREATE_DATABASE, [], true)
+		GDSQLDirectSetupCheck.ACTION_OPEN_CONTENT_DATABASE:
+			_open_content_database()
+		GDSQLDirectSetupCheck.ACTION_OPEN_CONTENT_TABLE:
+			_open_content_table()
+		GDSQLDirectSetupCheck.ACTION_MANAGE_SAVE_SLOTS:
+			_action_hub.invoke(GDSQLEditorActionIds.SHOW_SAVE_SLOTS, [], true)
+		GDSQLDirectSetupCheck.ACTION_INSTALL_RUNTIME:
+			_action_hub.invoke(GDSQLEditorActionIds.INSTALL_RUNTIME_ADAPTER)
+			refresh_status()
+
+
+func _open_content_database() -> void:
+	var registration := _role_registration(GDSQLDatabaseRegistry.CONTENT_ROLE)
+	if registration == null:
+		_action_hub.invoke(GDSQLEditorActionIds.CREATE_DATABASE, [], true)
+		return
+	_action_hub.invoke(
+		GDSQLEditorActionIds.OPEN_REGISTRATION,
+		[registration.name],
+		true,
+	)
+
+
+func _open_content_table() -> void:
+	var registration := _role_registration(GDSQLDatabaseRegistry.CONTENT_ROLE)
+	if registration == null or _workbench == null:
+		_open_content_database()
+		return
+	var inspection := _workbench.get_inspection(registration.name)
+	if inspection == null or inspection.tables.is_empty():
+		_open_content_database()
+		return
+	var table := inspection.tables[0]
+	for candidate in inspection.tables:
+		if candidate.schema_exists and candidate.storage_exists:
+			table = candidate
+			break
+	_action_hub.invoke(
+		GDSQLEditorActionIds.SELECT_TABLE,
+		[registration.name, table.name],
+		true,
+	)
+
+
+func _role_registration(role: StringName) -> GDSQLDatabaseRegistration:
+	if _workbench == null:
+		return null
+	var selected_name := &""
+	for binding in _workbench.snapshot.role_bindings:
+		if binding.role == role:
+			selected_name = binding.registration_name
+	return _workbench.get_registration(selected_name)
+
+
+func _is_runtime_adapter_configured() -> bool:
+	var configured_path := String(ProjectSettings.get_setting(RUNTIME_AUTOLOAD_SETTING, ""))
+	return configured_path.trim_prefix("*") == RUNTIME_NODE_PATH
 
 
 func _count_model_scripts() -> int:

@@ -8,7 +8,12 @@ For the plug-and-play path, add
 `GDSQLRuntime`. It starts automatically, checkpoints dirty in-memory databases
 every 30 seconds, and checkpoints again when the application pauses or the node
 exits. These values are editable on the scene when a different policy is
-needed.
+needed. The welcome checklist can install this autoload after the content and
+save roles are configured.
+
+Startup diagnostics include warnings when the direct profile is incomplete or
+uses unsafe roots. Warnings preserve successful startup for projects that use
+custom roles; errors still prevent a partial runtime session.
 
 Check startup before using a role:
 

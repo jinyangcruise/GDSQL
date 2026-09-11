@@ -126,6 +126,15 @@ RuntimeNode("`**GDSQLRuntimeNode**
 *API:* database(), register_model(), select_save_slot(), checkpoint_now(), stop()
 *Signals:* Startup, checkpoint and shutdown results`")
 
+DirectSetup("`**Direct Setup Diagnostics**
+
+-
+*Purpose:* Evaluate the supported content plus active-save profile
+*Runtime input:* DatabaseRegistrySnapshot
+*Editor input:* Inspections, model count and runtime-autoload status
+*Returns:* Ordered typed checks plus structured warning diagnostics
+*Boundary:* No file or Control access`")
+
 Persistence("`**Runtime Persistence**
 
 -
@@ -341,6 +350,8 @@ Code -->|"register handles · select roles"| RuntimeRegistry
 Code -->|"bootstrap · role databases · checkpoints"| RuntimeSession
 Code -->|"optional autoload API"| RuntimeNode
 RuntimeNode -->|"bootstrap, delegate and schedule checkpoints"| RuntimeSession
+Factory -->|"inspect direct setup before opening"| DirectSetup
+Workbench -->|"augment setup with editor-known status"| DirectSetup
 RuntimeSession -->|"resolve roles"| RuntimeRegistry
 RuntimeSession -->|"default model context"| Models
 RuntimeSession -->|"checkpoint operations"| Persistence
@@ -391,7 +402,7 @@ Factory -.->|"bootstrap()"| RuntimeSession
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
 class Code,Models,Workbench,ModelAssistant,GraphEditor,SQLEditor,Expr frontend;
-class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,Persistence runtime;
+class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,DirectSetup,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;

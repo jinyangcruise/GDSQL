@@ -239,13 +239,13 @@ horizontal_alignment = 1
 [node name="Label" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RoleStep"]
 custom_minimum_size = Vector2(156, 0)
 layout_mode = 2
-text = "Runtime role"
+text = "Active save"
 
 [node name="RoleStepDetail" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RoleStep"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-text = "Bind content, save, or settings before runtime integration."
+text = "Create or select the writable save database used at runtime."
 autowrap_mode = 2
 
 [node name="ModelStep" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps"]
@@ -270,11 +270,44 @@ size_flags_horizontal = 3
 text = "Open a table and use Model to generate its first typed binding."
 autowrap_mode = 2
 
-[node name="NextStep" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps"]
+[node name="RuntimeStep" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps"]
+layout_mode = 2
+
+[node name="RuntimeStepStatus" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RuntimeStep"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+text = "○"
+horizontal_alignment = 1
+
+[node name="Label" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RuntimeStep"]
+custom_minimum_size = Vector2(156, 0)
+layout_mode = 2
+text = "Runtime adapter"
+
+[node name="RuntimeStepDetail" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/RuntimeStep"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
+text = "Install the GDSQLRuntime scene as a project autoload."
+autowrap_mode = 2
+
+[node name="NextStepRow" type="HBoxContainer" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="NextStep" type="Label" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/NextStepRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.42, 0.68, 1, 1)
 text = "Next: create the project content database."
+autowrap_mode = 2
+
+[node name="NextAction" type="Button" parent="Scroll/Center/Content/ChecklistPanel/Margin/Steps/NextStepRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Set Up Content"
 
 [node name="DatabaseHeader" type="HBoxContainer" parent="Scroll/Center/Content"]
 layout_mode = 2

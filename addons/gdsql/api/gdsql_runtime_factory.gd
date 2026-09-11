@@ -22,6 +22,8 @@ static func bootstrap(
 		return result
 	var persistence := GDSQLPersistenceCoordinator.new()
 	var snapshot := loaded.get_value() as GDSQLDatabaseRegistrySnapshot
+	var setup := GDSQLDirectSetupInspector.inspect_runtime(snapshot)
+	result.diagnostics.merge(setup.diagnostics)
 	for registration in snapshot.registrations:
 		var opened := open_registration(registration)
 		result.diagnostics.merge(opened.diagnostics)

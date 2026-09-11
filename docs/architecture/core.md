@@ -1280,6 +1280,13 @@ It returns a tested `GDSQLRuntimeSession` facade. ConfigFile registrations need
 no checkpoint target because their commits are already durable; explicit
 checkpoint calls for those roles succeed without writing again.
 
+Before opening registrations, bootstrap evaluates the snapshot through
+`GDSQLDirectSetupInspector`. Missing or unsafe direct-profile bindings become
+structured warnings, so games can diagnose the supported content plus active-
+save setup without preventing intentional custom-role compositions. The editor
+augments the same typed report with catalog, row, model, and runtime-autoload
+status; the inspector itself accesses neither files nor Controls.
+
 `GDSQLInMemoryCheckpointTarget` composes an `InMemoryTableStorage` source with
 an injected durable `TableStorage`. It synchronizes authoritative dirty tables
 and clears a dirty marker only when the copied version remains current. This

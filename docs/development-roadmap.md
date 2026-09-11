@@ -49,12 +49,12 @@ status information until their orchestration exists.
 ## Remaining delivery workstreams
 
 After the current experimental table, creation, bootstrap, and model-assistant
-slices, twelve substantive workstreams remain. They are grouped by outcome;
+slices, eleven substantive workstreams remain. They are grouped by outcome;
 individual workstreams may require several small changes.
 
 | Outcome | Count | Remaining workstreams |
 |---|---:|---|
-| Reliable direct-content setup | 1 | End-to-end setup diagnostics and hardening. |
+| Reliable direct-content setup | 0 | Complete for the current direct profile. |
 | Managed-content full kit | 7 | Package manifests; package discovery and dependency ordering; deterministic overlay application; provenance and conflict reporting; cache manifests and rebuilds; atomic effective-content role replacement; mod-aware save compatibility and setup UI. |
 | Advanced tooling and release | 4 | Advanced graph operations and saved graphs; completed SQL compiler/editor; shared import/export and batch tooling; migration, performance, and release QA. |
 
@@ -98,10 +98,13 @@ result component without losing its current capabilities.
 
 ### 2. Turn the welcome page into setup status
 
-Experimental status: the welcome document now summarizes discovered databases,
-tables, and stored rows; reports the first incomplete setup step; and opens a
-selected project database directly. Its scene contains representative checklist
-content so it remains understandable in the Godot scene editor.
+Experimental status: the welcome document now uses the shared typed direct-setup
+report to validate the selected content and save roles, content catalog, first
+table and row, model bindings, and runtime autoload. It reports one concrete next
+action and can install the supported runtime adapter. Runtime bootstrap reuses
+the same profile checks as non-fatal structured warnings. Its scene contains
+representative checklist content so it remains understandable in the Godot
+scene editor.
 
 The welcome document should show a short, actionable project checklist:
 
@@ -158,6 +161,11 @@ Save Slot mode. It presents unregister-and-keep-files separately from permanent
 deletion. Permanent deletion requires confirmation, shows the exact database
 path, and is rejected unless the data root is one direct child of the standard
 save directory.
+
+Runtime bootstrap and the welcome checklist now share a typed direct-setup
+report. Missing roles, unsafe roots, unavailable backends, missing content, and
+an absent runtime autoload produce actionable status without preventing custom
+runtime compositions from booting.
 
 Add a small runtime setup API or optional autoload that composes and exposes:
 

@@ -238,6 +238,9 @@ state in the same change as implementation or test work.
 | `CheckpointPolicy` | Runtime persistence | Describes immediate, periodic, manual, or exit-time persistence behavior independently from transaction semantics. | `immediate()`, `periodic()`, `manual()`, `on_exit()`, interval metadata | 🧪 |
 | `CheckpointResult` | Runtime persistence | Reports checkpointed databases, remaining dirty databases, and structured persistence diagnostics. | `is_successful()`, `mark_checkpointed()`, `mark_dirty()` | 🧪 |
 | `RuntimeNode` | Godot runtime adapter | Optional scene or autoload that bootstraps the runtime session, exposes role/model/save-slot delegates, schedules periodic dirty checkpoints, and checkpoints synchronously on pause or exit without owning database logic. | `start()`, `database()`, `register_model()`, `select_save_slot()`, `checkpoint_now()`, `stop()`, runtime signals | 🧪 |
+| `DirectSetupCheck` | Runtime setup diagnostics | Describes one ordered, actionable condition in the supported content plus active-save profile without owning UI behavior. | Typed identity, completion, detail, and semantic next action | 🧪 |
+| `DirectSetupReport` | Runtime setup diagnostics | Collects direct-profile checks and warning diagnostics so editor guidance and runtime startup interpret registration metadata consistently. | `checks`, `diagnostics`, `is_ready()`, `get_next_incomplete()` | 🧪 |
+| `DirectSetupInspector` | Runtime setup diagnostics | Evaluates content/save role bindings and roots from a registry snapshot, optionally adding editor-known catalog, row, model, and runtime-adapter checks without accessing files or Controls. | `inspect_runtime()`, `inspect_editor()` | 🧪 |
 
 ## Editor
 
