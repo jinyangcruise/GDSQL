@@ -1368,6 +1368,21 @@ written into editor-authored durable metadata. Replacing the handle invalidates
 previously materialized content models through their retained source-database
 identity; game code must query fresh models after content activation.
 
+### 11.8 Save content compatibility
+
+Managed saves may persist a `GDSQLSaveContentManifest` beside their database
+catalog. It records the effective database name and ordered package
+fingerprints that the save was created or explicitly confirmed against. The
+ConfigFile adapter stores this external metadata in the save root; it does not
+place package state inside gameplay tables.
+
+`GDSQLSaveContentCompatibilityInspector` compares that expectation with the
+active cache manifest. Its typed report separates untracked saves, missing
+packages, changed versions or bytes, changed load order, and additional active
+packages. These are diagnostics, not automatic mutations: the game must choose
+whether to refuse loading, request packages, use fallbacks, or continue with
+unresolved stable identifiers.
+
 ---
 
 ## 12. Storage boundary

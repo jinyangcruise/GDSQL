@@ -44,7 +44,8 @@ status information until their orchestration exists.
 - Database-role and model APIs plus the optional runtime/autoload scene are
   implemented. Managed content now builds deterministic snapshots, reuses
   fingerprinted disposable caches, and activates them without exposing partial
-  runtime state.
+  runtime state. Save-owned package expectations now produce typed compatibility
+  reports; recording integration and managed setup UI remain.
 - SQL lexer/parser/compiler contracts are scaffolded, so the editor must not
   present SQL text as a complete query frontend yet.
 
@@ -287,7 +288,9 @@ now fingerprint package order, versions, and directory content; reuse only an
 exact compatible cache; and rebuild malformed or stale caches through a staged
 ConfigFile directory replacement. The runtime composition root now opens that
 candidate first and replaces the runtime-local `effective_content` registration
-and `content` role together. Mod-aware save compatibility and setup UI are next.
+and `content` role together. Save compatibility now compares persisted package
+expectations with the active manifest without imposing a load policy. Managed
+setup UI and save-recording integration are next.
 
 Runtime content should always be consumed through one derived
 `effective_content` database bound to the `content` role. Base content and

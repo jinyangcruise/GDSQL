@@ -721,8 +721,12 @@ only in a disabled or removed mod, loading applies an explicit game policy:
 - Refuse to load the save until the required content is available.
 
 GDSQL reports the unresolved reference; it does not silently rewrite or delete
-player state. Save metadata may record the enabled package set so the game can
-explain incompatibilities.
+player state. Managed saves can store `content_manifest.cfg` beside their
+database catalog. It records the effective database and ordered package
+fingerprints expected by that save. Compatibility inspection reports legacy
+untracked saves, missing packages, package changes, load-order changes, and
+additional active packages so the game or editor can present an explicit
+decision before loading.
 
 ## 9. Signals and diagnostics
 
