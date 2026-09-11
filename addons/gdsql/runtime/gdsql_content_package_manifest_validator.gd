@@ -22,7 +22,7 @@ func validate(manifest: GDSQLContentPackageManifest) -> GDSQLOperationResult:
 			&"GDSQL_CONTENT_PACKAGE_NAME_REQUIRED",
 			"Package '%s' requires a display name." % manifest.package_id,
 		)
-	if not _is_valid_version(manifest.version):
+	if not GDSQLSemanticVersion.parse(manifest.version).is_successful():
 		_add_error(
 			result,
 			&"GDSQL_CONTENT_PACKAGE_VERSION_INVALID",
@@ -77,6 +77,18 @@ func _validate_dependencies(
 				result,
 				&"GDSQL_CONTENT_PACKAGE_DEPENDENCY_VERSION_REQUIRED",
 				"Dependency '%s' requires a version constraint." % dependency.package_id,
+			)
+		elif not GDSQLSemanticVersionConstraint.matches(
+			manifest.version,
+			dependency.version_constraint,
+		).is_successful():
+			_add_error(
+				result,
+				&"GDSQL_CONTENT_PACKAGE_DEPENDENCY_CONSTRAINT_INVALID",
+				"Dependency '%s' uses unsupported version constraint '%s'." % [
+					dependency.package_id,
+					dependency.version_constraint,
+				],
 			)
 
 
@@ -170,19 +182,6 @@ func _is_valid_package_id(package_id: StringName) -> bool:
 		if not valid:
 			return false
 	return value.unicode_at(0) not in [45, 46]
-
-
-func _is_valid_version(version: String) -> bool:
-	var value := version.strip_edges()
-	if value.is_empty():
-		return false
-	var pattern := (
-			r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
-			+ r"(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?"
-			+ r"(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$"
-	)
-	var expression := RegEx.new()
-	return expression.compile(pattern) == OK and expression.search(value) != null
 
 
 func _add_error(

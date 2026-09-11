@@ -581,6 +581,18 @@ code consumes `GDSQLContentPackageManifestStore`; ConfigFile parsing stays in
 the ConfigFile backend. Dependency constraint evaluation and ordering occur
 across the complete discovered package set rather than inside one manifest.
 
+Directory discovery receives an explicit base package root and zero or more
+package-container roots. Each direct child may be a package root or contain a
+`content/` package root. Missing optional containers are warnings. Resolution
+always selects the single base package and only explicitly enabled DLC/mod
+packages; an empty enabled list therefore produces a base-only build.
+
+Dependencies and explicit before/after declarations form one directed graph.
+A stable topological sort uses ascending priority and then package ID when
+multiple packages are available. The base package always precedes optional
+layers. Missing dependencies, incompatible versions, duplicate IDs, unknown
+enabled IDs, and cycles return structured errors before content is read.
+
 The base project may keep the simpler default `res://data/` layout or adopt a
 `res://content/data/` root when treating its own content as a package. A mod
 directory can mirror the complete structure:

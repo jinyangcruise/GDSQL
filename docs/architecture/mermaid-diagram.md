@@ -143,6 +143,14 @@ PackageManifest("`**Content Package Manifest**
 *Paths:* Package-relative data and asset roots
 *Validation:* Manifest-local invariants with structured diagnostics`")
 
+PackageResolution("`**Content Package Discovery and Resolution**
+
+-
+*Purpose:* Select one base plus explicitly enabled DLC/mod packages
+*Compatibility:* Semantic-version constraints and required dependencies
+*Ordering:* Dependency and before/after graph, then priority and package ID
+*Returns:* Deterministically ordered package sources or structured diagnostics`")
+
 Persistence("`**Runtime Persistence**
 
 -
@@ -314,6 +322,13 @@ ConfigPackageManifest("`**ConfigFile Package Manifest Store**
 *Purpose:* Decode manifest.cfg at the external-data boundary
 *Extends:* GDSQLContentPackageManifestStore
 *Returns:* Typed GDSQLContentPackageManifest and diagnostics`")
+
+ConfigPackageDiscovery("`**ConfigFile Package Discovery**
+
+-
+*Purpose:* Enumerate direct and nested content package directories
+*Input:* Explicit base root and optional package-container roots
+*Uses:* Injected content-package manifest store`")
 end
 
 subgraph InMemoryBackend["In-memory backend"]
@@ -368,6 +383,7 @@ RuntimeNode -->|"bootstrap, delegate and schedule checkpoints"| RuntimeSession
 Factory -->|"inspect direct setup before opening"| DirectSetup
 Workbench -->|"augment setup with editor-known status"| DirectSetup
 Code -->|"declare managed content packages"| PackageManifest
+PackageManifest -->|"validated package sources"| PackageResolution
 RuntimeSession -->|"resolve roles"| RuntimeRegistry
 RuntimeSession -->|"default model context"| Models
 RuntimeSession -->|"checkpoint operations"| Persistence
@@ -412,6 +428,8 @@ ConfigCatalog -->|"path resolution"| ConfigInfrastructure
 ConfigAdministration -->|"paths · cache"| ConfigInfrastructure
 ConfigStorage -->|"paths · cache · codec"| ConfigInfrastructure
 ConfigPackageManifest -->|"decodes typed metadata"| PackageManifest
+ConfigPackageDiscovery -->|"discover package sources"| PackageResolution
+ConfigPackageDiscovery -->|"load manifest"| ConfigPackageManifest
 
 Factory -.->|"create_default(data_root)"| Context
 Factory -.->|"constructs and injects"| ConfigInfrastructure
@@ -419,7 +437,7 @@ Factory -.->|"bootstrap()"| RuntimeSession
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
 class Code,Models,Workbench,ModelAssistant,GraphEditor,SQLEditor,Expr frontend;
-class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,DirectSetup,PackageManifest,Persistence runtime;
+class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,DirectSetup,PackageManifest,PackageResolution,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
@@ -427,5 +445,5 @@ class Planner,PlanNode planning;
 class Executor execution;
 class CatalogService,CatalogAdministration,ResourceConstraint catalog;
 class TableStorage storage;
-class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,MemoryStorage,MemoryCheckpoint implementation;
+class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageDiscovery,MemoryStorage,MemoryCheckpoint implementation;
 class Results,Materialization result;

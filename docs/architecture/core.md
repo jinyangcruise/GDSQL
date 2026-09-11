@@ -1309,6 +1309,14 @@ Runtime content services depend on `GDSQLContentPackageManifestStore`.
 and returns the typed manifest with structured diagnostics. The manifest does
 not load databases, enumerate packages, or apply overlays.
 
+`GDSQLContentPackageDiscovery` returns typed package sources from an explicit
+base location and package containers. The ConfigFile implementation owns direct
+directory enumeration and manifest decoding. `GDSQLContentPackageResolver`
+then validates the enabled set, semantic-version constraints, dependencies, and
+load-order graph. It returns a deterministic base-first topological order using
+priority and package ID only as stable tie-breakers. Neither stage opens package
+databases or mutates source content.
+
 ---
 
 ## 12. Storage boundary
