@@ -135,6 +135,14 @@ DirectSetup("`**Direct Setup Diagnostics**
 *Returns:* Ordered typed checks plus structured warning diagnostics
 *Boundary:* No file or Control access`")
 
+PackageManifest("`**Content Package Manifest**
+
+-
+*Purpose:* Describe one immutable base-game, DLC or mod package
+*Metadata:* Semantic version, priority, dependencies and before/after order
+*Paths:* Package-relative data and asset roots
+*Validation:* Manifest-local invariants with structured diagnostics`")
+
 Persistence("`**Runtime Persistence**
 
 -
@@ -299,6 +307,13 @@ ConfigInfrastructure("`**ConfigFile Infrastructure**
 *Path API:* resolve_catalog_path(), resolve_schema_path(), resolve_table_path()
 *Cache API:* get_or_load(), invalidate(), flush()
 *Types:* GDSQLDatabasePathResolver, GDSQLConfigFileCache, GDSQLGodotVariantCodec`")
+
+ConfigPackageManifest("`**ConfigFile Package Manifest Store**
+
+-
+*Purpose:* Decode manifest.cfg at the external-data boundary
+*Extends:* GDSQLContentPackageManifestStore
+*Returns:* Typed GDSQLContentPackageManifest and diagnostics`")
 end
 
 subgraph InMemoryBackend["In-memory backend"]
@@ -352,6 +367,7 @@ Code -->|"optional autoload API"| RuntimeNode
 RuntimeNode -->|"bootstrap, delegate and schedule checkpoints"| RuntimeSession
 Factory -->|"inspect direct setup before opening"| DirectSetup
 Workbench -->|"augment setup with editor-known status"| DirectSetup
+Code -->|"declare managed content packages"| PackageManifest
 RuntimeSession -->|"resolve roles"| RuntimeRegistry
 RuntimeSession -->|"default model context"| Models
 RuntimeSession -->|"checkpoint operations"| Persistence
@@ -395,6 +411,7 @@ MemoryCheckpoint -->|"stages and commits durable changes"| TableStorage
 ConfigCatalog -->|"path resolution"| ConfigInfrastructure
 ConfigAdministration -->|"paths · cache"| ConfigInfrastructure
 ConfigStorage -->|"paths · cache · codec"| ConfigInfrastructure
+ConfigPackageManifest -->|"decodes typed metadata"| PackageManifest
 
 Factory -.->|"create_default(data_root)"| Context
 Factory -.->|"constructs and injects"| ConfigInfrastructure
@@ -402,7 +419,7 @@ Factory -.->|"bootstrap()"| RuntimeSession
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
 class Code,Models,Workbench,ModelAssistant,GraphEditor,SQLEditor,Expr frontend;
-class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,DirectSetup,Persistence runtime;
+class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,DirectSetup,PackageManifest,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
@@ -410,5 +427,5 @@ class Planner,PlanNode planning;
 class Executor execution;
 class CatalogService,CatalogAdministration,ResourceConstraint catalog;
 class TableStorage storage;
-class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,MemoryStorage,MemoryCheckpoint implementation;
+class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,MemoryStorage,MemoryCheckpoint implementation;
 class Results,Materialization result;

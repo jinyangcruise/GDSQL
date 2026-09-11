@@ -1295,6 +1295,20 @@ outside the in-memory backend. `load_table()` establishes a clean authoritative
 memory snapshot before runtime mutation when an existing durable dataset is
 used as the source.
 
+### 11.4 Content package metadata
+
+Managed content begins with a typed `GDSQLContentPackageManifest`. It describes
+base-game, DLC, or mod identity, semantic version, priority, required packages,
+explicit before/after declarations, and package-relative data and asset paths.
+`GDSQLContentPackageManifestValidator` validates only one manifest's local
+invariants; discovery and cross-package graph validation remain separate.
+
+Runtime content services depend on `GDSQLContentPackageManifestStore`.
+`GDSQLConfigFileContentPackageManifestStore` is confined to
+`storage/configfile`, translates `manifest.cfg` at the external-data boundary,
+and returns the typed manifest with structured diagnostics. The manifest does
+not load databases, enumerate packages, or apply overlays.
+
 ---
 
 ## 12. Storage boundary

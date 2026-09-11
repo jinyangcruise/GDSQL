@@ -555,6 +555,32 @@ load-order requirements. `data/` contains one or more GDSQL databases. Rows in
 those databases may reference files under `assets/` through package-relative
 asset identifiers, paths, or resolved Godot resource UIDs.
 
+The initial readable manifest shape is:
+
+```ini
+[package]
+id="expanded_arsenal"
+name="Expanded Arsenal"
+version="1.2.0"
+kind="mod"
+priority=20
+data_path="data"
+assets_path="assets"
+
+[dependencies]
+base.game=">=1.0.0"
+
+[load_order]
+after=PackedStringArray("base.game")
+before=PackedStringArray("late_balance")
+```
+
+Package IDs are stable lowercase identifiers and package versions use semantic
+versioning. Data and asset paths remain relative to the package root. Runtime
+code consumes `GDSQLContentPackageManifestStore`; ConfigFile parsing stays in
+the ConfigFile backend. Dependency constraint evaluation and ordering occur
+across the complete discovered package set rather than inside one manifest.
+
 The base project may keep the simpler default `res://data/` layout or adopt a
 `res://content/data/` root when treating its own content as a package. A mod
 directory can mirror the complete structure:

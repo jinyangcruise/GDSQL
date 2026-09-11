@@ -49,13 +49,13 @@ status information until their orchestration exists.
 ## Remaining delivery workstreams
 
 After the current experimental table, creation, bootstrap, and model-assistant
-slices, eleven substantive workstreams remain. They are grouped by outcome;
+slices, ten substantive workstreams remain. They are grouped by outcome;
 individual workstreams may require several small changes.
 
 | Outcome | Count | Remaining workstreams |
 |---|---:|---|
 | Reliable direct-content setup | 0 | Complete for the current direct profile. |
-| Managed-content full kit | 7 | Package manifests; package discovery and dependency ordering; deterministic overlay application; provenance and conflict reporting; cache manifests and rebuilds; atomic effective-content role replacement; mod-aware save compatibility and setup UI. |
+| Managed-content full kit | 6 | Package discovery and dependency ordering; deterministic overlay application; provenance and conflict reporting; cache manifests and rebuilds; atomic effective-content role replacement; mod-aware save compatibility and setup UI. |
 | Advanced tooling and release | 4 | Advanced graph operations and saved graphs; completed SQL compiler/editor; shared import/export and batch tooling; migration, performance, and release QA. |
 
 ## Delivery order
@@ -266,6 +266,12 @@ selection. Import/export and atomic batch editing should follow the shared table
 view so they benefit both table and graph workflows.
 
 ### 7. Build the effective-content and mod pipeline
+
+Experimental status: package manifests now have typed base-game, DLC, and mod
+metadata; semantic versions; required-package constraints; explicit priority
+and before/after declarations; package-relative data and asset paths; structured
+validation; and a ConfigFile reader behind a runtime store contract. Discovery
+and cross-package dependency resolution are the next slice.
 
 Runtime content should always be consumed through one derived
 `effective_content` database bound to the `content` role. Base content and
