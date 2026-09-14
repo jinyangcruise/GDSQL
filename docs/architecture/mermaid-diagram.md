@@ -50,6 +50,14 @@ Workbench("`**GDSQLWorkbench**
 *Schema UI:* Scene-backed fixed header and reusable rows over typed column drafts
 *Rows:* Loaded only for the selected table`")
 
+RowBatch("`**GDSQLEditorRowBatch**
+
+-
+*Purpose:* Validate and execute table-scoped row batches
+*Input:* Edited values or selected primary keys
+*Output:* Canonical update or delete queries
+*Safety:* One public database transaction; reject empty, duplicate or read-only mutations`")
+
 ModelAssistant("`**Model Assistant**
 
 -
@@ -498,6 +506,8 @@ Workbench -->|"load and save registration snapshot"| RuntimeRegistry
 Workbench -->|"select · load rows"| Database
 Workbench -->|"preview · apply change plan"| CatalogAdministration
 Workbench -->|"selected table definition"| ModelAssistant
+Workbench -->|"build row mutations"| RowBatch
+RowBatch -->|"canonical queries in one transaction"| Database
 ModelAssistant -.->|"generates project model scripts"| Models
 Persistence -->|"target.checkpoint()"| MemoryCheckpoint
 Transaction -->|"execute(query, shared session)"| Context
@@ -543,7 +553,7 @@ Factory -.->|"bootstrap()"| RuntimeSession
 Factory -.->|"activate_effective_content()"| ContentActivation
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
-class Code,Models,Workbench,ModelAssistant,GraphEditor,SQLEditor,Expr frontend;
+class Code,Models,Workbench,RowBatch,ModelAssistant,GraphEditor,SQLEditor,Expr frontend;
 class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,SetupProfile,ManagedConfiguration,DirectSetup,ManagedSetup,PackageManifest,PackageResolution,ContentOverlay,ContentCache,ContentActivation,SaveCompatibility,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;

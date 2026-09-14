@@ -64,7 +64,7 @@ individual workstreams may require several small changes.
 |---|---:|---|
 | Reliable direct-content setup | 0 | Complete for the current direct profile. |
 | Managed-content full kit | 0 | Complete for the current managed profile. |
-| Advanced tooling and release | 3 | Completed SQL compiler/editor; shared batch tooling; migration, performance, and release QA. |
+| Advanced tooling and release | 2 | Completed SQL compiler/editor; migration, performance, and release QA. |
 
 ## Delivery order
 
@@ -73,7 +73,9 @@ individual workstreams may require several small changes.
 Experimental status: table selection opens the standalone table document, runs
 the initial SELECT automatically, and pages with canonical `LIMIT` and
 `OFFSET`. It now reuses the graph result's compact native grid and submits
-multi-row updates and selected-row deletes atomically. The first query-header
+multi-row updates and selected-row deletes through a shared validated canonical
+batch plan and one transaction. Empty, duplicate, unknown-column, and read-only
+mutations are rejected before execution. The first query-header
 slice reuses the typed WHERE editor, applies filters explicitly, and derives
 filtered page totals through a canonical `COUNT` query. Projection and ordering
 controls are active in the native result header: the leading row-number header

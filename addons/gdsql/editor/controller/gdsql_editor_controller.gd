@@ -540,46 +540,15 @@ func _update_table_rows(
 			"Table '%s' was not found." % table_name,
 		)
 	else:
-		var transaction_result := database.transaction(
-			func(transaction: GDSQLTransaction) -> void:
-				for update in updates:
-					var query := _build_row_update_query(
-						database,
-						table,
-						update.get("primary_key"),
-						update.get("values", { }),
-					)
-					if query != null:
-						transaction.execute(query)
-		)
-		result.diagnostics.merge(transaction_result.diagnostics)
-		result.value = transaction_result.value
+		var planned := GDSQLEditorRowBatch.build_updates(table, updates)
+		result.diagnostics.merge(planned.diagnostics)
+		if planned.is_successful():
+			var executed := (planned.get_value() as GDSQLEditorRowBatch).execute(database)
+			result.diagnostics.merge(executed.diagnostics)
+			result.value = executed.value
 	_complete_row_mutation(registration_name, table_name, result)
 	_record_result("Update table rows", result)
 	return result
-
-
-func _build_row_update_query(
-		database: GDSQLDatabase,
-		table: GDSQLTableDefinition,
-		original_primary_key: Variant,
-		values: Dictionary,
-) -> GDSQLUpdateQuerySpec:
-	var builder := database.table(table.name).update()
-	var has_assignment := false
-	for column_name in values:
-		var column := table.get_column(StringName(column_name))
-		if column == null \
-				or column.name == table.primary_key \
-				or column.generation != GDSQLColumnDefinition.Generation.NONE:
-			continue
-		builder.set_value(StringName(column_name), values[column_name])
-		has_assignment = true
-	if not has_assignment:
-		return null
-	return builder.where(
-		GDSQLExpr.column(table.primary_key).equals(original_primary_key),
-	).build()
 
 
 func _update_row(
@@ -603,15 +572,16 @@ func _update_row(
 			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
 			"Table '%s' was not found." % table_name,
 		)
-	var query := _build_row_update_query(database, table, original_primary_key, values)
-	if query == null:
-		return _error(
-			&"GDSQL_EDITOR_ROW_UPDATE_EMPTY",
-			"No mutable values were provided for the row update.",
-		)
-	var updated := database.execute(query)
-	result.diagnostics.merge(updated.diagnostics)
-	result.value = updated
+	var updates: Array[Dictionary] = [{
+		"primary_key": original_primary_key,
+		"values": values,
+	}]
+	var planned := GDSQLEditorRowBatch.build_updates(table, updates)
+	result.diagnostics.merge(planned.diagnostics)
+	if planned.is_successful():
+		var executed := (planned.get_value() as GDSQLEditorRowBatch).execute(database)
+		result.diagnostics.merge(executed.diagnostics)
+		result.value = executed.value
 	_complete_row_mutation(
 		registration_name,
 		table_name,
@@ -639,20 +609,12 @@ func _delete_table_rows(
 			"Table '%s' was not found." % table_name,
 		)
 	else:
-		var transaction_result := database.transaction(
-			func(transaction: GDSQLTransaction) -> void:
-				for primary_key in primary_keys:
-					transaction.execute(
-						database.table(table_name) \
-								.delete() \
-								.where(
-									GDSQLExpr.column(table.primary_key).equals(primary_key),
-								) \
-								.build(),
-					)
-		)
-		result.diagnostics.merge(transaction_result.diagnostics)
-		result.value = transaction_result.value
+		var planned := GDSQLEditorRowBatch.build_deletes(table, primary_keys)
+		result.diagnostics.merge(planned.diagnostics)
+		if planned.is_successful():
+			var executed := (planned.get_value() as GDSQLEditorRowBatch).execute(database)
+			result.diagnostics.merge(executed.diagnostics)
+			result.value = executed.value
 	_complete_row_mutation(registration_name, table_name, result)
 	_record_result("Delete table rows", result)
 	return result
@@ -667,8 +629,9 @@ func _delete_row(
 ) -> GDSQLOperationResult:
 	var result := _ensure_active_registration(registration_name)
 	if result.is_successful():
+		var database := workbench.active_session.database
 		var table := workbench.active_session.database.context.catalog.get_table(
-			workbench.active_session.database.database_name,
+			database.database_name,
 			table_name,
 		)
 		if table == null:
@@ -676,16 +639,13 @@ func _delete_row(
 				&"GDSQL_EDITOR_TABLE_NOT_FOUND",
 				"Table '%s' was not found." % table_name,
 			)
-		var deleted := workbench.active_session.database.execute(
-			workbench.active_session.database.table(table_name) \
-					.delete() \
-					.where(
-						GDSQLExpr.column(table.primary_key).equals(primary_key),
-					) \
-					.build(),
-		)
-		result.diagnostics.merge(deleted.diagnostics)
-		result.value = deleted
+		var primary_keys: Array[Variant] = [primary_key]
+		var planned := GDSQLEditorRowBatch.build_deletes(table, primary_keys)
+		result.diagnostics.merge(planned.diagnostics)
+		if planned.is_successful():
+			var executed := (planned.get_value() as GDSQLEditorRowBatch).execute(database)
+			result.diagnostics.merge(executed.diagnostics)
+			result.value = executed.value
 	_complete_row_mutation(
 		registration_name,
 		table_name,
