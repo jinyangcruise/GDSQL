@@ -44,9 +44,11 @@ rather than a profile toggle.
 - Database-role and model APIs plus the optional runtime/autoload scene are
   implemented. Managed content now builds deterministic snapshots, reuses
   fingerprinted disposable caches, and activates them without exposing partial
-  runtime state. Save-owned package expectations now produce typed compatibility
-  reports. A managed setup document now validates package inputs, builds the
-  cache, reports active-save compatibility, and confirms expectation recording.
+  runtime state. The runtime node reads the selected setup profile and activates
+  configured managed content automatically. Save-owned package expectations now
+  produce typed compatibility reports. A managed setup document validates package
+  inputs, builds the cache, reports active-save compatibility, and confirms
+  expectation recording.
 - SQL lexer/parser/compiler contracts are scaffolded, so the editor must not
   present SQL text as a complete query frontend yet.
 
@@ -59,7 +61,7 @@ individual workstreams may require several small changes.
 | Outcome | Count | Remaining workstreams |
 |---|---:|---|
 | Reliable direct-content setup | 0 | Complete for the current direct profile. |
-| Managed-content full kit | 1 | Automatic managed runtime startup and game-policy handoff. |
+| Managed-content full kit | 1 | Save-compatibility game-policy handoff. |
 | Advanced tooling and release | 4 | Advanced graph operations and saved graphs; completed SQL compiler/editor; shared batch tooling; migration, performance, and release QA. |
 
 ## Delivery order
@@ -172,6 +174,12 @@ Runtime bootstrap and the welcome checklist now share a typed direct-setup
 report. Missing roles, unsafe roots, unavailable backends, missing content, and
 an absent runtime autoload produce actionable status without preventing custom
 runtime compositions from booting.
+
+When the selected setup profile is Managed Content, `GDSQLRuntimeNode` loads
+the typed package configuration shared with the editor, resolves the selected
+package order, and builds or reuses `effective_content`. It exposes the runtime
+only after that database owns the `content` role; failed activation clears the
+partial model context and remains a structured startup failure.
 
 Add a small runtime setup API or optional autoload that composes and exposes:
 
@@ -294,8 +302,9 @@ candidate first and replaces the runtime-local `effective_content` registration
 and `content` role together. Save compatibility now compares persisted package
 expectations with the active manifest without imposing a load policy. The
 managed setup document persists package inputs, builds the cache, and records
-save expectations only after confirmation. Automatic managed runtime startup
-and game-policy handoff remain.
+save expectations only after confirmation. Managed runtime startup now consumes
+that configuration automatically; explicit game-policy handoff for incompatible
+saves remains.
 
 Runtime content should always be consumed through one derived
 `effective_content` database bound to the `content` role. Base content and
@@ -329,6 +338,12 @@ a package cannot mutate the base sources or corrupt save rows.
 
 ## Backlog — not active delivery
 
+- **Generated model nullability and type ergonomics:** keep exact GDScript
+  property types for non-null columns and make nullable scalar fallbacks
+  explicit in the model assistant. Because GDScript has no nullable scalar or
+  union syntax, do not silently generate `String`, `float`, or other value types
+  when the table permits `NULL`; investigate a typed optional representation or
+  a schema action that lets users intentionally make required columns non-null.
 - **GDSQL-aware MCP integration:** investigate a focused MCP surface for schema
   inspection, safe query drafting, setup diagnostics, and editor actions. It may
   integrate with `godot-ai`, but must remain optional and must not bypass GDSQL
