@@ -11,6 +11,7 @@ static func bootstrap(
 		registry_path: String = GDSQLConfigFileDatabaseRegistryStore.DEFAULT_PATH,
 		checkpoint_policies: Dictionary = { },
 		default_checkpoint_policy: GDSQLCheckpointPolicy = null,
+		setup_profile: GDSQLSetupProfile.Kind = GDSQLSetupProfile.Kind.DIRECT,
 ) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	var registry := GDSQLDatabaseRegistry.new(
@@ -22,8 +23,9 @@ static func bootstrap(
 		return result
 	var persistence := GDSQLPersistenceCoordinator.new()
 	var snapshot := loaded.get_value() as GDSQLDatabaseRegistrySnapshot
-	var setup := GDSQLDirectSetupInspector.inspect_runtime(snapshot)
-	result.diagnostics.merge(setup.diagnostics)
+	if setup_profile != GDSQLSetupProfile.Kind.MANAGED:
+		var setup := GDSQLDirectSetupInspector.inspect_runtime(snapshot)
+		result.diagnostics.merge(setup.diagnostics)
 	for registration in snapshot.registrations:
 		var opened := open_registration(registration)
 		result.diagnostics.merge(opened.diagnostics)
@@ -103,6 +105,49 @@ static func activate_effective_content(
 	result.diagnostics.merge(replaced.diagnostics)
 	if result.is_successful():
 		result.complete(opened.get_database(), cached)
+	return result
+
+
+## Discovers configured packages, resolves their deterministic order, and
+## activates the resulting effective database for an existing runtime session.
+static func activate_managed_content(
+		runtime: GDSQLRuntimeSession,
+		configuration: GDSQLManagedContentConfiguration,
+		discovery: GDSQLContentPackageDiscovery,
+		resolver: GDSQLContentPackageResolver,
+		cache_manager: GDSQLContentCacheManager,
+) -> GDSQLContentActivationResult:
+	var result := GDSQLContentActivationResult.new()
+	if runtime == null or configuration == null or discovery == null \
+			or resolver == null or cache_manager == null:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_MANAGED_CONTENT_DEPENDENCY_REQUIRED",
+				"Managed content activation requires runtime, configuration, discovery, resolution, and cache services.",
+			),
+		)
+		return result
+	var discovered := discovery.discover(
+		configuration.base_package_root,
+		configuration.package_container_roots,
+	)
+	result.diagnostics.merge(discovered.diagnostics)
+	if not discovered.is_successful():
+		return result
+	var packages := discovered.get_value() as Array[GDSQLContentPackageSource]
+	var resolved := resolver.resolve(packages, configuration.enabled_package_ids)
+	result.diagnostics.merge(resolved.diagnostics)
+	if not resolved.is_successful():
+		return result
+	var activated := activate_effective_content(
+		runtime,
+		cache_manager,
+		resolved.ordered_packages,
+	)
+	result.cache_result = activated.cache_result
+	result.diagnostics.merge(activated.diagnostics)
+	if result.is_successful():
+		result.complete(activated.get_database(), activated.cache_result)
 	return result
 
 

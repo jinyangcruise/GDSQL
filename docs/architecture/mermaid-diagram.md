@@ -122,9 +122,9 @@ RuntimeNode("`**GDSQLRuntimeNode**
 
 -
 *Purpose:* Optional scene-tree/autoload adapter over RuntimeSession
-*Lifecycle:* Bootstrap, periodic Timer, application-pause and tree-exit checkpoints
-*API:* database(), register_model(), select_save_slot(), checkpoint_now(), stop()
-*Signals:* Startup, checkpoint and shutdown results`")
+*Lifecycle:* Bootstrap selected profile, activate managed content, periodic Timer, pause and exit checkpoints
+*API:* get_content_activation_result(), database(), register_model(), select_save_slot(), checkpoint_now(), stop()
+*Signals:* Startup, content activation, checkpoint and shutdown results`")
 
 DirectSetup("`**Direct Setup Diagnostics**
 
@@ -141,6 +141,13 @@ SetupProfile("`**Setup Profile and Checks**
 *Selection:* Unselected, direct content or managed content
 *Reports:* Shared typed ordered checks and next actions
 *Safety:* Selection never migrates project data`")
+
+ManagedConfiguration("`**Managed Content Configuration**
+
+-
+*Purpose:* Share package roots and enabled IDs between editor and runtime
+*Boundary:* Typed data plus storage-independent load/save contract
+*Default:* res://content/base with project and user package containers`")
 
 ManagedSetup("`**Managed Setup Diagnostics**
 
@@ -210,7 +217,7 @@ Factory("`**GDSQLRuntimeFactory**
 
 -
 *Purpose:* Assemble one compatible runtime object graph
-*API:* create_default(), create_in_memory(), open_registration(), bootstrap()
+*API:* create_default(), create_in_memory(), open_registration(), bootstrap(), activate_managed_content()
 *Creates:* GDSQLDatabaseContext and GDSQLRuntimeSession
 *Injects:* Catalog, storage, validation, planning and execution services`")
 
@@ -383,6 +390,13 @@ ConfigPackageDiscovery("`**ConfigFile Package Discovery**
 *Input:* Explicit base root and optional package-container roots
 *Uses:* Injected content-package manifest store`")
 
+ConfigManagedConfiguration("`**ConfigFile Managed Configuration Store**
+
+-
+*Purpose:* Persist typed managed package roots and enabled IDs
+*Location:* res://.gdsql/settings.cfg
+*Safety:* Preserve setup profile and unrelated settings`")
+
 ConfigPackageLayer("`**ConfigFile Package Layer Reader**
 
 -
@@ -454,9 +468,12 @@ Code -->|"register handles · select roles"| RuntimeRegistry
 Code -->|"bootstrap · role databases · checkpoints"| RuntimeSession
 Code -->|"optional autoload API"| RuntimeNode
 RuntimeNode -->|"bootstrap, delegate and schedule checkpoints"| RuntimeSession
-Factory -->|"inspect direct setup before opening"| DirectSetup
+RuntimeNode -->|"load selected package inputs"| ManagedConfiguration
+RuntimeNode -->|"automatic managed activation"| ContentActivation
+Factory -->|"inspect direct or unselected setup before opening"| DirectSetup
 Workbench -->|"augment setup with editor-known status"| DirectSetup
 Workbench -->|"persist profile selection"| SetupProfile
+Workbench -->|"edit package inputs"| ManagedConfiguration
 Workbench -->|"supply managed setup state"| ManagedSetup
 ManagedSetup -->|"ordered profile checks"| SetupProfile
 DirectSetup -->|"ordered profile checks"| SetupProfile
@@ -514,6 +531,7 @@ ConfigPackageManifest -->|"decodes typed metadata"| PackageManifest
 ConfigPackageScaffolder -->|"validates typed metadata"| PackageManifest
 ConfigPackageDiscovery -->|"discover package sources"| PackageResolution
 ConfigPackageDiscovery -->|"load manifest"| ConfigPackageManifest
+ConfigManagedConfiguration -->|"implements store"| ManagedConfiguration
 ConfigPackageLayer -->|"typed schemas and row operations"| ContentOverlay
 ConfigContentCache -->|"manifest and cached database"| ContentCache
 ConfigSaveContent -->|"saved package expectations"| SaveCompatibility
@@ -525,7 +543,7 @@ Factory -.->|"activate_effective_content()"| ContentActivation
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
 class Code,Models,Workbench,ModelAssistant,GraphEditor,SQLEditor,Expr frontend;
-class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,SetupProfile,DirectSetup,ManagedSetup,PackageManifest,PackageResolution,ContentOverlay,ContentCache,ContentActivation,SaveCompatibility,Persistence runtime;
+class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,SetupProfile,ManagedConfiguration,DirectSetup,ManagedSetup,PackageManifest,PackageResolution,ContentOverlay,ContentCache,ContentActivation,SaveCompatibility,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
@@ -533,5 +551,5 @@ class Planner,PlanNode planning;
 class Executor execution;
 class CatalogService,CatalogAdministration,ResourceConstraint catalog;
 class TableStorage storage;
-class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
+class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
 class Results,Materialization result;

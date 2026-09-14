@@ -11,6 +11,14 @@ exits. These values are editable on the scene when a different policy is
 needed. The welcome checklist can install this autoload after the content and
 save roles are configured.
 
+When the selected profile is Managed Content, the autoload reads the package
+roots and enabled IDs saved by the Managed Content document, resolves their
+load order, rebuilds or reuses the cache, and binds `effective_content` to the
+`content` role before emitting `runtime_started`. Inspect
+`get_content_activation_result()` or connect `content_activation_finished` for
+cache and package diagnostics. A failed activation does not expose a partial
+runtime session.
+
 Startup diagnostics include warnings when the direct profile is incomplete or
 uses unsafe roots. Warnings preserve successful startup for projects that use
 custom roles; errors still prevent a partial runtime session.
@@ -36,8 +44,10 @@ The scene can also be added below a game-owned Node. Connect
 game needs save indicators, retries, or custom error presentation. The returned
 operation results remain authoritative.
 
-For code-owned composition without a scene tree, bootstrap the same
-configuration directly:
+For code-owned direct-profile composition without a scene tree, bootstrap the
+registry directly. Managed code-owned compositions can use
+`activate_managed_content()` with their own discovery and cache services; the
+autoload remains the supported plug-and-play composition root.
 
 ```gdscript
 var runtime: GDSQLRuntimeSession

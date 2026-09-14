@@ -4,15 +4,11 @@ extends MarginContainer
 
 signal create_base_database_requested
 
-const SETTINGS_PATH := "res://.gdsql/settings.cfg"
-const SETTINGS_SECTION := "managed_content"
-const DEFAULT_BASE_ROOT := "res://content/base"
-const DEFAULT_PACKAGE_ROOTS := "res://content/packages\nuser://gdsql/mods"
-
 var _action_hub: GDSQLEditorActionHub
 var _workbench: GDSQLWorkbench
 var _configuration_loaded := false
 var _pending_save: GDSQLDatabaseRegistration
+var _configuration_store := GDSQLConfigFileManagedContentConfigurationStore.new()
 
 @onready var _base_root: LineEdit = %BasePackageRoot
 @onready var _package_roots: TextEdit = %PackageRoots
@@ -62,57 +58,28 @@ func refresh_status() -> void:
 func _load_configuration() -> void:
 	if not is_node_ready() or _configuration_loaded:
 		return
-	var config := ConfigFile.new()
-	config.load(SETTINGS_PATH)
-	_base_root.text = String(
-		config.get_value(SETTINGS_SECTION, "base_package_root", DEFAULT_BASE_ROOT),
-	)
-	_package_roots.text = "\n".join(
-		config.get_value(
-			SETTINGS_SECTION,
-			"package_container_roots",
-			PackedStringArray(DEFAULT_PACKAGE_ROOTS.split("\n")),
-		),
-	)
-	_enabled_packages.text = "\n".join(
-		config.get_value(
-			SETTINGS_SECTION,
-			"enabled_package_ids",
-			PackedStringArray(),
-		),
-	)
+	var loaded := _configuration_store.load_configuration()
+	var configuration := loaded.get_value() as GDSQLManagedContentConfiguration
+	if configuration == null:
+		configuration = GDSQLManagedContentConfiguration.create_default()
+		%Status.text = _first_diagnostic(loaded)
+	_base_root.text = configuration.base_package_root
+	_package_roots.text = "\n".join(configuration.package_container_roots)
+	var enabled_ids: Array[String] = []
+	for package_id in configuration.enabled_package_ids:
+		enabled_ids.append(String(package_id))
+	_enabled_packages.text = "\n".join(enabled_ids)
 	_configuration_loaded = true
 
 
 func _save_configuration() -> GDSQLOperationResult:
-	var result := GDSQLOperationResult.new()
-	var config := ConfigFile.new()
-	config.load(SETTINGS_PATH)
-	config.set_value(SETTINGS_SECTION, "base_package_root", _base_root.text.strip_edges())
-	config.set_value(
-		SETTINGS_SECTION,
-		"package_container_roots",
-		PackedStringArray(_lines(_package_roots.text)),
+	return _configuration_store.save_configuration(
+		GDSQLManagedContentConfiguration.new(
+			_base_root.text.strip_edges(),
+			_lines(_package_roots.text),
+			_enabled_ids(),
+		),
 	)
-	config.set_value(
-		SETTINGS_SECTION,
-		"enabled_package_ids",
-		PackedStringArray(_lines(_enabled_packages.text)),
-	)
-	var settings_root := SETTINGS_PATH.get_base_dir()
-	var directory_error := DirAccess.make_dir_recursive_absolute(
-		ProjectSettings.globalize_path(settings_root),
-	)
-	if directory_error != OK or config.save(SETTINGS_PATH) != OK:
-		result.add_diagnostic(
-			GDSQLQueryDiagnostic.new(
-				&"GDSQL_MANAGED_CONTENT_SETTINGS_SAVE_FAILED",
-				"Could not save managed-content settings to '%s'." % SETTINGS_PATH,
-			),
-		)
-		return result
-	result.value = true
-	return result
 
 
 func _resolve_packages() -> GDSQLContentPackageResolutionResult:

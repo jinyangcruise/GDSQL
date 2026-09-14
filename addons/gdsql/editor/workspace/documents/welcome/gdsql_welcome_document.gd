@@ -3,13 +3,13 @@ extends MarginContainer
 ## Selects one setup profile, then presents only that profile's progress.
 
 const SETTINGS_PATH := "res://.gdsql/settings.cfg"
-const DEFAULT_BASE_ROOT := "res://content/base"
 const RUNTIME_AUTOLOAD_SETTING := "autoload/GDSQLRuntime"
 const RUNTIME_NODE_PATH := "res://addons/gdsql/runtime/gdsql_runtime_node.tscn"
 
 var _action_hub: GDSQLEditorActionHub
 var _workbench: GDSQLWorkbench
 var _profile_store := GDSQLConfigFileSetupProfileStore.new()
+var _managed_configuration_store := GDSQLConfigFileManagedContentConfigurationStore.new()
 var _profile := GDSQLSetupProfile.Kind.UNSELECTED
 var _pending_profile := GDSQLSetupProfile.Kind.UNSELECTED
 var _setup_report: GDSQLSetupReport
@@ -428,9 +428,13 @@ func _open_registration(registration_name: StringName) -> void:
 
 
 func _managed_base_root() -> String:
-	var config := ConfigFile.new()
-	config.load(SETTINGS_PATH)
-	return String(config.get_value("managed_content", "base_package_root", DEFAULT_BASE_ROOT))
+	var loaded := _managed_configuration_store.load_configuration()
+	var configuration := loaded.get_value() as GDSQLManagedContentConfiguration
+	return (
+		configuration.base_package_root
+		if configuration != null
+		else GDSQLManagedContentConfiguration.DEFAULT_BASE_PACKAGE_ROOT
+	)
 
 
 func _is_runtime_adapter_configured() -> bool:

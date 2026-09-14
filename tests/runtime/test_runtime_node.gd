@@ -8,6 +8,8 @@ const RUNTIME_NODE_SCENE := preload(
 var _test_root: String
 var _registry_path: String
 var _save_root: String
+var _settings_path: String
+var _cache_root: String
 var _test_index := 0
 
 
@@ -17,6 +19,8 @@ func before_test() -> void:
 	_test_root = create_temp_dir("gdsql_runtime_node_%d" % _test_index)
 	_registry_path = _test_root.path_join("registry.cfg")
 	_save_root = _test_root.path_join("save")
+	_settings_path = _test_root.path_join("settings.cfg")
+	_cache_root = _test_root.path_join("cache/effective_content")
 	_create_save_database()
 	_save_registry_snapshot()
 
@@ -44,6 +48,63 @@ func test_scene_bootstraps_the_runtime_with_periodic_policy() -> void:
 		(runtime_node.get_node("%CheckpointTimer") as Timer).time_left,
 	).is_greater(0.0)
 	runtime_node.stop(false)
+
+
+func test_managed_profile_activates_configured_effective_content_on_start() -> void:
+	var base_root := _create_managed_base()
+	assert_bool(
+		GDSQLConfigFileSetupProfileStore.new(_settings_path) \
+				.save_profile(GDSQLSetupProfile.Kind.MANAGED) \
+				.is_successful(),
+	).is_true()
+	assert_bool(
+		GDSQLConfigFileManagedContentConfigurationStore.new(_settings_path) \
+				.save_configuration(GDSQLManagedContentConfiguration.new(base_root)) \
+				.is_successful(),
+	).is_true()
+	var runtime_node := _create_runtime_node()
+
+	var started := runtime_node.start()
+	var content := runtime_node.database(GDSQLDatabaseRegistry.CONTENT_ROLE).get_database()
+	var selected := content.execute(content.table(&"items").select().build())
+
+	assert_bool(started.is_successful()).is_true()
+	assert_str(String(content.database_name)).is_equal("effective_content")
+	assert_int(selected.get_returned_rows()).is_equal(1)
+	assert_str(selected.rows[0].get_value(&"name")).is_equal("Iron Sword")
+	assert_object(runtime_node.get_content_activation_result()).is_not_null()
+	assert_bool(runtime_node.get_content_activation_result().was_rebuilt()).is_true()
+	assert_array(_diagnostic_codes(started)).not_contains(
+		["GDSQL_DIRECT_SETUP_CONTENT_DATABASE"],
+	)
+	runtime_node.stop(false)
+
+
+func test_failed_managed_activation_does_not_expose_a_partial_runtime() -> void:
+	assert_bool(
+		GDSQLConfigFileSetupProfileStore.new(_settings_path) \
+				.save_profile(GDSQLSetupProfile.Kind.MANAGED) \
+				.is_successful(),
+	).is_true()
+	assert_bool(
+		GDSQLConfigFileManagedContentConfigurationStore.new(_settings_path) \
+				.save_configuration(
+					GDSQLManagedContentConfiguration.new(_test_root.path_join("missing")),
+				) \
+				.is_successful(),
+	).is_true()
+	var runtime_node := _create_runtime_node()
+
+	var started := runtime_node.start()
+
+	assert_bool(started.is_successful()).is_false()
+	assert_bool(runtime_node.is_started()).is_false()
+	assert_object(runtime_node.get_runtime()).is_null()
+	assert_object(runtime_node.get_content_activation_result()).is_not_null()
+	assert_object(GDSQLModels.get_context()).is_null()
+	assert_array(_diagnostic_codes(started)).contains(
+		["GDSQL_CONTENT_PACKAGE_MANIFEST_NOT_FOUND"],
+	)
 
 
 func test_timer_checkpoint_transfers_committed_rows_to_durable_storage() -> void:
@@ -115,8 +176,37 @@ func _create_runtime_node() -> GDSQLRuntimeNode:
 			as GDSQLRuntimeNode
 	runtime_node.auto_start = false
 	runtime_node.registry_path = _registry_path
+	runtime_node.setup_settings_path = _settings_path
+	runtime_node.managed_cache_root = _cache_root
 	add_child(runtime_node)
 	return runtime_node
+
+
+func _create_managed_base() -> String:
+	var base_root := _test_root.path_join("content/base")
+	var scaffolded := GDSQLConfigFileContentPackageScaffolder.new().scaffold(
+		base_root,
+		GDSQLContentPackageManifest.new(
+			&"base.game",
+			"Base Game",
+			"1.0.0",
+			GDSQLContentPackageKind.Kind.BASE_GAME,
+		),
+	)
+	assert_bool(scaffolded.is_successful()).is_true()
+	var source := scaffolded.get_value() as GDSQLContentPackageSource
+	var database := GDSQLDatabase.create(&"content", source.get_data_root()).get_database()
+	var items := GDSQLTableDefinition.new(&"items", &"id")
+	items.add_column(GDSQLColumnDefinition.new(&"id", TYPE_STRING_NAME, false))
+	items.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
+	assert_bool(database.create_table(items).is_successful()).is_true()
+	assert_bool(
+		database.insert(
+			&"items",
+			{ &"id": &"iron_sword", &"name": "Iron Sword" },
+		).is_successful(),
+	).is_true()
+	return base_root
 
 
 func _create_save_database() -> void:
@@ -148,3 +238,10 @@ func _save_registry_snapshot() -> void:
 				.save_snapshot(snapshot) \
 				.is_successful(),
 	).is_true()
+
+
+func _diagnostic_codes(result: GDSQLOperationResult) -> Array[String]:
+	var codes: Array[String] = []
+	for diagnostic in result.diagnostics.entries:
+		codes.append(String(diagnostic.code))
+	return codes

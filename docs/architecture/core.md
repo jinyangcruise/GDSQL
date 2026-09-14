@@ -1281,16 +1281,33 @@ no checkpoint target because their commits are already durable; explicit
 checkpoint calls for those roles succeed without writing again.
 
 Before opening registrations, bootstrap evaluates the snapshot through
-`GDSQLDirectSetupInspector`. Missing or unsafe direct-profile bindings become
-structured warnings, so games can diagnose the supported content plus active-
-save setup without preventing intentional custom-role compositions. The editor
-augments the same typed report with catalog, row, model, and runtime-autoload
-status; the inspector itself accesses neither files nor Controls.
+`GDSQLDirectSetupInspector` for direct or unselected setup profiles. Missing or
+unsafe direct-profile bindings become structured warnings, so games can
+diagnose the supported content plus active-save setup without preventing
+intentional custom-role compositions. Managed bootstrap omits those transient
+direct-role warnings because effective content is installed after package
+activation. The editor augments the same typed report with catalog, row, model,
+and runtime-autoload status; the inspector itself accesses neither files nor
+Controls.
 
 Project onboarding persists one explicit `GDSQLSetupProfile` through a
 `GDSQLSetupProfileStore`. Direct and managed inspectors produce ordered typed
 checks for their independent workflows. Changing this selection changes setup
 guidance only; database and model migration is never implicit.
+
+Managed package locations and enabled IDs are carried by one typed
+`GDSQLManagedContentConfiguration`. Its store contract keeps the editor and
+runtime on the same configuration, while the ConfigFile implementation owns
+the `managed_content` section of `res://.gdsql/settings.cfg` and preserves other
+settings. When the managed profile is selected, `GDSQLRuntimeNode` loads that
+configuration after ordinary registry bootstrap and asks the runtime factory to
+discover, resolve, cache, and activate the effective database. The node exposes
+the session only after activation succeeds; a failure clears the partial model
+context and is returned through the normal startup result and signals.
+
+Automatic activation does not decide whether a save with changed or missing
+packages may load. Save compatibility remains a typed report consumed by an
+explicit game policy.
 
 `GDSQLInMemoryCheckpointTarget` composes an `InMemoryTableStorage` source with
 an injected durable `TableStorage`. It synchronizes authoritative dirty tables

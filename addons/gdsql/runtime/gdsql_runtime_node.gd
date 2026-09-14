@@ -8,17 +8,21 @@ extends Node
 
 signal runtime_started(runtime: GDSQLRuntimeSession)
 signal runtime_start_failed(result: GDSQLOperationResult)
+signal content_activation_finished(result: GDSQLContentActivationResult)
 signal checkpoint_finished(result: GDSQLCheckpointResult)
 signal runtime_stopped(result: GDSQLCheckpointResult)
 
 @export var auto_start := true
 @export var registry_path := GDSQLConfigFileDatabaseRegistryStore.DEFAULT_PATH
+@export var setup_settings_path := GDSQLConfigFileSetupProfileStore.DEFAULT_PATH
+@export var managed_cache_root := GDSQLConfigFileContentCacheStore.DEFAULT_CACHE_ROOT
 @export_range(0.0, 3600.0, 0.1, "or_greater") var checkpoint_interval_seconds := 30.0
 @export var checkpoint_on_application_pause := true
 @export var checkpoint_on_exit := true
 
 var _runtime: GDSQLRuntimeSession
 var _start_result: GDSQLOperationResult
+var _content_activation_result: GDSQLContentActivationResult
 var _checkpoint_timer: Timer
 
 
@@ -53,16 +57,36 @@ func _exit_tree() -> void:
 func start() -> GDSQLOperationResult:
 	if _runtime != null:
 		return _start_result
+	_content_activation_result = null
+	var loaded_profile := GDSQLConfigFileSetupProfileStore.new(
+		setup_settings_path,
+	).load_profile()
+	if not loaded_profile.is_successful():
+		_start_result = loaded_profile
+		runtime_start_failed.emit(loaded_profile)
+		return loaded_profile
 	var started := GDSQLRuntimeFactory.bootstrap(
 		registry_path,
 		{ },
 		_default_checkpoint_policy(),
+		loaded_profile.get_value() as GDSQLSetupProfile.Kind,
 	)
 	_start_result = started
 	if not started.is_successful():
 		runtime_start_failed.emit(started)
 		return started
-	_runtime = started.get_value() as GDSQLRuntimeSession
+	var runtime := started.get_value() as GDSQLRuntimeSession
+	if loaded_profile.get_value() == GDSQLSetupProfile.Kind.MANAGED:
+		var activated := _activate_managed_content(runtime)
+		_content_activation_result = activated
+		started.diagnostics.merge(activated.diagnostics)
+		content_activation_finished.emit(activated)
+		if not activated.is_successful():
+			runtime.shutdown()
+			started.value = null
+			runtime_start_failed.emit(started)
+			return started
+	_runtime = runtime
 	_configure_timer()
 	runtime_started.emit(_runtime)
 	return started
@@ -76,6 +100,11 @@ func get_runtime() -> GDSQLRuntimeSession:
 ## Returns the latest bootstrap result for startup diagnostics.
 func get_start_result() -> GDSQLOperationResult:
 	return _start_result
+
+
+## Returns managed-content activation details, or null for other profiles.
+func get_content_activation_result() -> GDSQLContentActivationResult:
+	return _content_activation_result
 
 
 func is_started() -> bool:
@@ -156,6 +185,31 @@ func _default_checkpoint_policy() -> GDSQLCheckpointPolicy:
 	if checkpoint_on_exit:
 		return GDSQLCheckpointPolicy.on_exit()
 	return GDSQLCheckpointPolicy.manual()
+
+
+func _activate_managed_content(
+		runtime: GDSQLRuntimeSession,
+) -> GDSQLContentActivationResult:
+	var loaded := GDSQLConfigFileManagedContentConfigurationStore.new(
+		setup_settings_path,
+	).load_configuration()
+	if not loaded.is_successful():
+		var failed := GDSQLContentActivationResult.new()
+		failed.diagnostics.merge(loaded.diagnostics)
+		return failed
+	return GDSQLRuntimeFactory.activate_managed_content(
+		runtime,
+		loaded.get_value() as GDSQLManagedContentConfiguration,
+		GDSQLConfigFileContentPackageDiscovery.new(),
+		GDSQLContentPackageResolver.new(),
+		GDSQLContentCacheManager.new(
+			GDSQLContentOverlayLoader.new(
+				GDSQLConfigFileContentPackageLayerReader.new(),
+			),
+			GDSQLConfigFileContentPackageFingerprintProvider.new(),
+			GDSQLConfigFileContentCacheStore.new(managed_cache_root),
+		),
+	)
 
 
 func _on_checkpoint_timeout() -> void:
