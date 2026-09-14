@@ -135,6 +135,20 @@ DirectSetup("`**Direct Setup Diagnostics**
 *Returns:* Ordered typed checks plus structured warning diagnostics
 *Boundary:* No file or Control access`")
 
+SetupProfile("`**Setup Profile and Checks**
+
+-
+*Selection:* Unselected, direct content or managed content
+*Reports:* Shared typed ordered checks and next actions
+*Safety:* Selection never migrates project data`")
+
+ManagedSetup("`**Managed Setup Diagnostics**
+
+-
+*Purpose:* Evaluate the independent managed-content workflow
+*Checks:* Base package, source data, cache, save, model and runtime
+*Boundary:* Consumes supplied typed state without Controls`")
+
 PackageManifest("`**Content Package Manifest**
 
 -
@@ -442,6 +456,10 @@ Code -->|"optional autoload API"| RuntimeNode
 RuntimeNode -->|"bootstrap, delegate and schedule checkpoints"| RuntimeSession
 Factory -->|"inspect direct setup before opening"| DirectSetup
 Workbench -->|"augment setup with editor-known status"| DirectSetup
+Workbench -->|"persist profile selection"| SetupProfile
+Workbench -->|"supply managed setup state"| ManagedSetup
+ManagedSetup -->|"ordered profile checks"| SetupProfile
+DirectSetup -->|"ordered profile checks"| SetupProfile
 Code -->|"declare managed content packages"| PackageManifest
 PackageManifest -->|"validated package sources"| PackageResolution
 PackageResolution -->|"ordered immutable packages"| ContentOverlay
@@ -507,7 +525,7 @@ Factory -.->|"activate_effective_content()"| ContentActivation
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
 class Code,Models,Workbench,ModelAssistant,GraphEditor,SQLEditor,Expr frontend;
-class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,DirectSetup,PackageManifest,PackageResolution,ContentOverlay,ContentCache,ContentActivation,SaveCompatibility,Persistence runtime;
+class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,SetupProfile,DirectSetup,ManagedSetup,PackageManifest,PackageResolution,ContentOverlay,ContentCache,ContentActivation,SaveCompatibility,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;

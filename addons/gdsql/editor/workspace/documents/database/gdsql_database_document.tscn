@@ -72,11 +72,19 @@ custom_maximum_size = Vector2(-1, 30)
 layout_mode = 2
 icon = ExtResource("2_ud4x5")
 
-[node name="Delete" type="Button" parent="Layout/Scroll/Content/Details/HSplitContainer/Actions" unique_id=513797062]
+[node name="RemoveRegistration" type="Button" parent="Layout/Scroll/Content/Details/HSplitContainer/Actions" unique_id=513797062]
 unique_name_in_owner = true
 custom_maximum_size = Vector2(-1, 30)
 layout_mode = 2
-text = "Delete"
+text = "Remove from GDSQL"
+icon = ExtResource("3_toofw")
+
+[node name="DestroyDatabase" type="Button" parent="Layout/Scroll/Content/Details/HSplitContainer/Actions"]
+unique_name_in_owner = true
+custom_maximum_size = Vector2(-1, 30)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.45, 0.4, 1)
+text = "Destroy Files…"
 icon = ExtResource("3_toofw")
 
 [node name="HBoxContainer" type="HBoxContainer" parent="Layout/Scroll/Content/Details" unique_id=303850963]
@@ -171,10 +179,17 @@ metadata/_custom_type_script = "uid://hvanlw2ev0lr"
 title = "Apply Database Changes"
 ok_button_text = "Apply"
 
-[node name="DeleteConfirmation" type="ConfirmationDialog" parent="." unique_id=1650098623]
+[node name="RemoveConfirmation" type="ConfirmationDialog" parent="." unique_id=1650098623]
+unique_name_in_owner = true
 title = "Remove Database"
 ok_button_text = "Remove"
 dialog_text = "Remove this database from GDSQL? Its files will remain unchanged."
+
+[node name="DestroyConfirmation" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Permanently Destroy Database"
+ok_button_text = "Destroy Database Files"
+dialog_text = "Permanently destroy this database and all stored rows?"
 
 [node name="RefreshConfirmation" type="ConfirmationDialog" parent="." unique_id=1393050904]
 title = "Discard Local Changes"

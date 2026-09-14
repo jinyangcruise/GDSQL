@@ -17,6 +17,7 @@ signal database_save_submitted(
 		table_changes: Array[GDSQLEditorTableChange],
 )
 signal database_refresh_submitted(registration_name: StringName)
+signal database_destroy_submitted(registration_name: StringName)
 signal table_rows_requested(
 		registration_name: StringName,
 		table_name: StringName,
@@ -198,7 +199,8 @@ func show_database(
 	if document == null:
 		document = DATABASE_SCENE.instantiate() as Control
 		document.connect("save_requested", _on_database_save_requested)
-		document.connect("delete_requested", _on_database_delete_requested)
+		document.connect("remove_requested", _on_database_remove_requested)
+		document.connect("destroy_requested", _on_database_destroy_requested)
 		document.connect("refresh_requested", _on_database_refresh_requested)
 		_add_document(
 			key,
@@ -659,12 +661,16 @@ func _on_database_save_requested(
 	)
 
 
-func _on_database_delete_requested(registration_name: StringName) -> void:
+func _on_database_remove_requested(registration_name: StringName) -> void:
 	if _action_hub != null:
 		_action_hub.invoke(
 			GDSQLEditorActionIds.REMOVE_REGISTRATION,
 			[registration_name],
 		)
+
+
+func _on_database_destroy_requested(registration_name: StringName) -> void:
+	database_destroy_submitted.emit(registration_name)
 
 
 func _on_database_refresh_requested(registration_name: StringName) -> void:

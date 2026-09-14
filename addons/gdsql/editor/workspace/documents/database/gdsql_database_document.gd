@@ -8,7 +8,8 @@ signal save_requested(
 		new_tables: Array[GDSQLTableDefinition],
 		table_changes: Array[GDSQLEditorTableChange],
 )
-signal delete_requested(registration_name: StringName)
+signal remove_requested(registration_name: StringName)
+signal destroy_requested(registration_name: StringName)
 signal refresh_requested(registration_name: StringName)
 
 const TABLE_FOLD_SCENE := preload(
@@ -28,7 +29,8 @@ var _action_context_id: StringName
 var _validation_state: Label
 
 @onready var rename_button: Button = %Rename
-@onready var delete_button: Button = %Delete
+@onready var remove_button: Button = %RemoveRegistration
+@onready var destroy_button: Button = %DestroyDatabase
 @onready var _database_name: LineEdit = %DatabaseName
 @onready var _storage: Label = %Storage
 @onready var _location: Label = %Location
@@ -39,7 +41,8 @@ var _validation_state: Label
 @onready var _draft_tables: VBoxContainer = %DraftTables
 @onready var _add_table: GDSQLEditorActionButton = %AddTable
 @onready var _save_confirmation: ConfirmationDialog = $SaveConfirmation
-@onready var _delete_confirmation: ConfirmationDialog = $DeleteConfirmation
+@onready var _remove_confirmation: ConfirmationDialog = %RemoveConfirmation
+@onready var _destroy_confirmation: ConfirmationDialog = %DestroyConfirmation
 
 
 func _ready() -> void:
@@ -52,12 +55,14 @@ func _ready() -> void:
 		$Layout/Footer.add_child(_validation_state)
 		$Layout/Footer.move_child(_validation_state, 0)
 	rename_button.pressed.connect(_begin_rename)
-	delete_button.pressed.connect(_delete_confirmation.popup_centered.bind(Vector2i(460, 170)))
+	remove_button.pressed.connect(_remove_confirmation.popup_centered.bind(Vector2i(500, 190)))
+	destroy_button.pressed.connect(_destroy_confirmation.popup_centered.bind(Vector2i(560, 230)))
 	_database_name.text_changed.connect(_on_changed.unbind(1))
 	_database_name.focus_exited.connect(_on_title_lose_focus)
 	_save_confirmation.confirmed.connect(_emit_save)
 	$RefreshConfirmation.confirmed.connect(_emit_refresh)
-	_delete_confirmation.confirmed.connect(_emit_delete)
+	_remove_confirmation.confirmed.connect(_emit_remove)
+	_destroy_confirmation.confirmed.connect(_emit_destroy)
 	_update_dirty_state()
 
 
@@ -123,7 +128,10 @@ func configure(inspection: GDSQLDatabaseInspection, session: GDSQLWorkbenchSessi
 	_storage.text = GDSQLStorageBackendIds.get_display_name(
 		inspection.registration.storage_backend_id,
 	)
-	_delete_confirmation.dialog_text = (
+	var database_path := inspection.registration.data_root.path_join(
+		String(inspection.registration.database_name),
+	)
+	_remove_confirmation.dialog_text = (
 			(
 					"Remove database '%s' from GDSQL?\n\n"
 					+ "Files at '%s' will remain unchanged. Creating the same database "
@@ -131,11 +139,14 @@ func configure(inspection: GDSQLDatabaseInspection, session: GDSQLWorkbenchSessi
 			)
 			% [
 				inspection.registration.database_name,
-				inspection.registration.data_root.path_join(
-					String(inspection.registration.database_name),
-				),
+				database_path,
 			]
 	)
+	_destroy_confirmation.dialog_text = (
+			"Permanently destroy database '%s'?\n\n"
+			+ "Catalog metadata, schemas, tables, and every stored row under:\n%s\n\n"
+			+ "This cannot be undone by GDSQL. Other databases under the same data root remain."
+	) % [inspection.registration.database_name, database_path]
 	_render_existing_tables()
 	_update_dirty_state()
 
@@ -256,8 +267,12 @@ func _emit_save() -> void:
 	)
 
 
-func _emit_delete() -> void:
-	delete_requested.emit(_inspection.registration.name)
+func _emit_remove() -> void:
+	remove_requested.emit(_inspection.registration.name)
+
+
+func _emit_destroy() -> void:
+	destroy_requested.emit(_inspection.registration.name)
 
 
 func _emit_refresh() -> void:

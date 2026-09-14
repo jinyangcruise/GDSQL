@@ -27,9 +27,9 @@ GDSQL has two composition profiles, not two query APIs:
 
 Both profiles use the same tables, models, relationships, `QuerySpec` pipeline,
 and save-role behavior. A project can move from direct to managed content
-without changing normal `GDSQLContentModel` queries. The editor must expose
-only implemented profile actions; planned managed-content controls remain
-status information until their orchestration exists.
+without changing normal `GDSQLContentModel` queries, but moving physical data,
+package metadata, resource paths, and save expectations is an explicit migration
+rather than a profile toggle.
 
 ## Current leverage and gaps
 
@@ -102,14 +102,12 @@ result component without losing its current capabilities.
 
 ### 2. Turn the welcome page into setup status
 
-Experimental status: the welcome document now uses the shared typed direct-setup
-report to validate the selected content and save roles, content catalog, first
-table and row, model bindings, and runtime autoload. It reports one concrete next
-action and can install the supported runtime adapter. Runtime bootstrap reuses
-the same profile checks as non-fatal structured warnings. Its scene contains
-representative checklist content so it remains understandable in the Godot
-scene editor. The managed profile links to its implemented setup document and
-reports whether an effective cache is available.
+Experimental status: an empty project now chooses Direct Content or Managed
+Content from two explicit cards and confirms that profile changes do not migrate
+data. The selection is persisted in project settings. The welcome page then
+shows only the chosen profile's actions, typed checklist, and next step. Direct
+checks cover the content/save roles, rows, models, and runtime; managed checks
+cover the base package, source tables, effective cache, save, models, and runtime.
 
 The welcome document should show a short, actionable project checklist:
 
@@ -130,7 +128,9 @@ Experimental status: creation now starts with Direct Content, Managed Base
 Content, Save Slot, Shared Settings, or Custom intent. Managed creation
 scaffolds a base manifest plus data/assets roots and leaves the immutable source
 unbound; the generated effective database owns the runtime content role. Other
-intents derive their recommended root, storage backend, and logical role.
+intents derive their recommended root, storage backend, and logical role. The
+database document separates recoverable unregistering from confirmed permanent
+destruction of the selected database's catalog, schemas, tables, and rows.
 
 The first choice should be the database purpose:
 

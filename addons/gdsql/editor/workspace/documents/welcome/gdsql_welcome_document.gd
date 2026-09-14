@@ -1,25 +1,38 @@
 @tool
 extends MarginContainer
-## Actionable project setup status shown at the workbench root.
+## Selects one setup profile, then presents only that profile's progress.
 
 const SETTINGS_PATH := "res://.gdsql/settings.cfg"
+const DEFAULT_BASE_ROOT := "res://content/base"
 const RUNTIME_AUTOLOAD_SETTING := "autoload/GDSQLRuntime"
 const RUNTIME_NODE_PATH := "res://addons/gdsql/runtime/gdsql_runtime_node.tscn"
 
 var _action_hub: GDSQLEditorActionHub
 var _workbench: GDSQLWorkbench
-var _setup_report: GDSQLDirectSetupReport
+var _profile_store := GDSQLConfigFileSetupProfileStore.new()
+var _profile := GDSQLSetupProfile.Kind.UNSELECTED
+var _pending_profile := GDSQLSetupProfile.Kind.UNSELECTED
+var _setup_report: GDSQLSetupReport
+var _managed_base_inspection: GDSQLDatabaseInspection
 
 @onready var _create_database_button: GDSQLEditorActionButton = %CreateDatabase
 @onready var _refresh_button: GDSQLEditorActionButton = %RefreshDatabases
+@onready var _managed_refresh_button: GDSQLEditorActionButton = %ManagedRefresh
 @onready var _save_slots_button: GDSQLEditorActionButton = %ManageSaveSlots
 @onready var _managed_content_button: GDSQLEditorActionButton = %OpenManagedContent
 @onready var _database_list: ItemList = %DatabaseList
 @onready var _open_database: Button = %OpenDatabase
 @onready var _next_action_button: Button = %NextAction
+@onready var _profile_confirmation: ConfirmationDialog = %ProfileConfirmation
+@onready var _reset_confirmation: ConfirmationDialog = %ResetProfileConfirmation
 
 
 func _ready() -> void:
+	%ChooseDirect.pressed.connect(_request_profile.bind(GDSQLSetupProfile.Kind.DIRECT))
+	%ChooseManaged.pressed.connect(_request_profile.bind(GDSQLSetupProfile.Kind.MANAGED))
+	%ChangeProfile.pressed.connect(_reset_confirmation.popup_centered.bind(Vector2i(570, 220)))
+	_profile_confirmation.confirmed.connect(_confirm_profile)
+	_reset_confirmation.confirmed.connect(_clear_profile)
 	_database_list.item_selected.connect(_on_database_selected)
 	_database_list.item_activated.connect(_open_database_at)
 	_open_database.pressed.connect(_open_selected_database)
@@ -33,6 +46,7 @@ func configure(action_hub: GDSQLEditorActionHub, workbench: GDSQLWorkbench) -> v
 	_workbench = workbench
 	_create_database_button.configure_action(action_hub, GDSQLEditorActionIds.CREATE_DATABASE)
 	_refresh_button.configure_action(action_hub, GDSQLEditorActionIds.REFRESH_DATABASES)
+	_managed_refresh_button.configure_action(action_hub, GDSQLEditorActionIds.REFRESH_DATABASES)
 	_save_slots_button.configure_action(action_hub, GDSQLEditorActionIds.SHOW_SAVE_SLOTS)
 	_managed_content_button.configure_action(
 		action_hub,
@@ -44,68 +58,133 @@ func configure(action_hub: GDSQLEditorActionHub, workbench: GDSQLWorkbench) -> v
 func refresh_status() -> void:
 	if not is_node_ready() or _is_scene_preview():
 		return
-	var registrations: Array[GDSQLDatabaseRegistration] = []
-	var inspections: Array[GDSQLDatabaseInspection] = []
-	var snapshot := GDSQLDatabaseRegistrySnapshot.new()
-	if _workbench != null:
-		registrations = _workbench.get_registrations()
-		inspections = _workbench.get_inspections()
-		snapshot = _workbench.snapshot
-	registrations.sort_custom(
-		func(left: GDSQLDatabaseRegistration, right: GDSQLDatabaseRegistration) -> bool:
-			return String(left.database_name).naturalnocasecmp_to(String(right.database_name)) < 0,
+	var loaded_profile := _profile_store.load_profile()
+	_profile = (
+		loaded_profile.get_value() as GDSQLSetupProfile.Kind
+		if loaded_profile.is_successful()
+		else GDSQLSetupProfile.Kind.UNSELECTED
 	)
-	var table_count := 0
-	var row_count := 0
-	var model_count := _count_model_scripts()
-	_setup_report = GDSQLDirectSetupInspector.inspect_editor(
-		snapshot,
+	%ProfileChoice.visible = _profile == GDSQLSetupProfile.Kind.UNSELECTED
+	%SelectedSetup.visible = _profile != GDSQLSetupProfile.Kind.UNSELECTED
+	if _profile == GDSQLSetupProfile.Kind.UNSELECTED:
+		%Title.text = "Choose your content profile"
+		%Summary.text = (
+			loaded_profile.diagnostics.entries[0].message
+			if not loaded_profile.is_successful()
+			else "Choose the workflow that matches how this project will ship and extend content."
+		)
+		return
+	var registrations := _registrations()
+	var inspections := _inspections()
+	var counts := _project_counts(inspections)
+	%Title.text = (
+		"Direct content setup"
+		if _profile == GDSQLSetupProfile.Kind.DIRECT
+		else "Managed content setup"
+	)
+	%ActiveProfile.text = (
+		"DIRECT CONTENT"
+		if _profile == GDSQLSetupProfile.Kind.DIRECT
+		else "MANAGED CONTENT"
+	)
+	%ProfileDetail.text = (
+		"Project-authored definitions are consumed directly from res://data."
+		if _profile == GDSQLSetupProfile.Kind.DIRECT
+		else "Immutable packages build one effective runtime content database."
+	)
+	%Summary.text = "%d database(s) · %d table(s) · %d stored row(s)" % [
+		registrations.size(),
+		counts.x,
+		counts.y,
+	]
+	%DirectActions.visible = _profile == GDSQLSetupProfile.Kind.DIRECT
+	%ManagedActions.visible = _profile == GDSQLSetupProfile.Kind.MANAGED
+	_setup_report = (
+		_build_direct_report(inspections)
+		if _profile == GDSQLSetupProfile.Kind.DIRECT
+		else _build_managed_report()
+	)
+	_render_checklist(_setup_report)
+	_populate_databases(registrations, inspections)
+	_refresh_next_action(_setup_report.get_next_incomplete())
+
+
+func _build_direct_report(
+		inspections: Array[GDSQLDatabaseInspection],
+) -> GDSQLDirectSetupReport:
+	return GDSQLDirectSetupInspector.inspect_editor(
+		_workbench.snapshot if _workbench != null else GDSQLDatabaseRegistrySnapshot.new(),
 		inspections,
-		model_count,
+		_count_model_scripts(),
 		_is_runtime_adapter_configured(),
 	)
-	for inspection in inspections:
-		table_count += inspection.tables.size()
-		for table in inspection.tables:
-			row_count += table.row_count
-	%Summary.text = (
-			"No project databases detected. Create an authored content database to begin."
-			if registrations.is_empty()
-			else "%d database(s) · %d table(s) · %d stored row(s)" % [
-				registrations.size(),
-				table_count,
-				row_count,
-			]
+
+
+func _build_managed_report() -> GDSQLManagedSetupReport:
+	var source: GDSQLContentPackageSource
+	var loaded := GDSQLConfigFileContentPackageManifestStore.new().load_manifest(
+		_managed_base_root(),
 	)
+	if loaded.is_successful():
+		source = GDSQLContentPackageSource.new(_managed_base_root(), loaded.get_value())
+	_managed_base_inspection = _inspect_managed_base(source)
+	var cached := GDSQLConfigFileContentCacheStore.new().load_manifest()
+	return GDSQLManagedSetupInspector.inspect_editor(
+		source,
+		_managed_base_inspection,
+		cached.get_value() as GDSQLContentCacheManifest,
+		_workbench.snapshot if _workbench != null else GDSQLDatabaseRegistrySnapshot.new(),
+		_count_model_scripts(),
+		_is_runtime_adapter_configured(),
+	)
+
+
+func _inspect_managed_base(
+		source: GDSQLContentPackageSource,
+) -> GDSQLDatabaseInspection:
+	if source == null:
+		return null
+	var inspected := GDSQLConfigFileDatabaseExplorer.new().inspect_root(source.get_data_root())
+	if not inspected.is_successful():
+		return null
+	for value in inspected.get_value():
+		var inspection := value as GDSQLDatabaseInspection
+		if inspection.registration.database_name == &"content":
+			return inspection
+	return null
+
+
+func _render_checklist(report: GDSQLSetupReport) -> void:
+	var rows: Array[Control] = [
+		%Step1, %Step2, %Step3, %Step4, %Step5, %Step6, %Step7,
+	]
 	var statuses: Array[Label] = [
-		%DatabaseStepStatus,
-		%TableStepStatus,
-		%RowStepStatus,
-		%RoleStepStatus,
-		%ModelStepStatus,
-		%RuntimeStepStatus,
+		%Step1Status, %Step2Status, %Step3Status, %Step4Status,
+		%Step5Status, %Step6Status, %Step7Status,
 	]
-	var detail_labels: Array[Label] = [
-		%DatabaseStepDetail,
-		%TableStepDetail,
-		%RowStepDetail,
-		%RoleStepDetail,
-		%ModelStepDetail,
-		%RuntimeStepDetail,
+	var labels: Array[Label] = [
+		%Step1Label, %Step2Label, %Step3Label, %Step4Label,
+		%Step5Label, %Step6Label, %Step7Label,
 	]
-	var next_check := _setup_report.get_next_incomplete()
-	for index in _setup_report.checks.size():
-		var check := _setup_report.checks[index]
+	var details: Array[Label] = [
+		%Step1Detail, %Step2Detail, %Step3Detail, %Step4Detail,
+		%Step5Detail, %Step6Detail, %Step7Detail,
+	]
+	var next_check := report.get_next_incomplete()
+	for index in rows.size():
+		var has_check := index < report.checks.size()
+		rows[index].visible = has_check
+		if not has_check:
+			continue
+		var check := report.checks[index]
+		labels[index].text = check.label
 		_set_step_state(
 			statuses[index],
-			detail_labels[index],
+			details[index],
 			check.complete,
 			check == next_check,
 			check.detail,
 		)
-	_populate_databases(registrations, inspections)
-	_refresh_profile_status(_setup_report, snapshot.role_bindings.size())
-	_refresh_next_action(next_check)
 
 
 func _populate_databases(
@@ -122,10 +201,7 @@ func _populate_databases(
 				rows += table.row_count
 		var index := _database_list.add_item(
 			"%s  —  %d table(s), %d row(s)\n%s" % [
-				registration.database_name,
-				tables,
-				rows,
-				registration.data_root,
+				registration.database_name, tables, rows, registration.data_root,
 			],
 		)
 		_database_list.set_item_metadata(index, registration.name)
@@ -136,15 +212,139 @@ func _populate_databases(
 	_open_database.disabled = registrations.is_empty()
 
 
-func _inspection_for(
-		registration_name: StringName,
-		inspections: Array[GDSQLDatabaseInspection],
-) -> GDSQLDatabaseInspection:
-	for inspection in inspections:
-		if inspection.registration != null \
-				and inspection.registration.name == registration_name:
-			return inspection
-	return null
+func _refresh_next_action(check: GDSQLSetupCheck) -> void:
+	if check == null:
+		%NextStep.text = "This profile's setup checklist is complete."
+		_next_action_button.hide()
+		return
+	%NextStep.text = "Next: %s" % check.detail
+	_next_action_button.visible = check.next_action != GDSQLSetupCheck.ACTION_NONE
+	match check.next_action:
+		GDSQLSetupCheck.ACTION_CREATE_DATABASE:
+			_next_action_button.text = "Create Content"
+		GDSQLSetupCheck.ACTION_OPEN_CONTENT_DATABASE, GDSQLSetupCheck.ACTION_OPEN_BASE_DATABASE:
+			_next_action_button.text = "Open Database"
+		GDSQLSetupCheck.ACTION_OPEN_CONTENT_TABLE, GDSQLSetupCheck.ACTION_OPEN_BASE_TABLE:
+			_next_action_button.text = "Open Table"
+		GDSQLSetupCheck.ACTION_OPEN_MANAGED_CONTENT:
+			_next_action_button.text = "Open Managed Setup"
+		GDSQLSetupCheck.ACTION_MANAGE_SAVE_SLOTS:
+			_next_action_button.text = "Manage Saves"
+		GDSQLSetupCheck.ACTION_INSTALL_RUNTIME:
+			_next_action_button.text = "Install Runtime"
+
+
+func _run_next_action() -> void:
+	if _action_hub == null or _setup_report == null:
+		return
+	var check := _setup_report.get_next_incomplete()
+	if check == null:
+		return
+	match check.next_action:
+		GDSQLSetupCheck.ACTION_CREATE_DATABASE:
+			_action_hub.invoke(GDSQLEditorActionIds.CREATE_DATABASE, [], true)
+		GDSQLSetupCheck.ACTION_OPEN_CONTENT_DATABASE:
+			_open_direct_database()
+		GDSQLSetupCheck.ACTION_OPEN_CONTENT_TABLE:
+			_open_direct_table()
+		GDSQLSetupCheck.ACTION_OPEN_MANAGED_CONTENT:
+			_action_hub.invoke(GDSQLEditorActionIds.SHOW_MANAGED_CONTENT, [], true)
+		GDSQLSetupCheck.ACTION_OPEN_BASE_DATABASE:
+			_open_managed_database()
+		GDSQLSetupCheck.ACTION_OPEN_BASE_TABLE:
+			_open_managed_table()
+		GDSQLSetupCheck.ACTION_MANAGE_SAVE_SLOTS:
+			_action_hub.invoke(GDSQLEditorActionIds.SHOW_SAVE_SLOTS, [], true)
+		GDSQLSetupCheck.ACTION_INSTALL_RUNTIME:
+			_action_hub.invoke(GDSQLEditorActionIds.INSTALL_RUNTIME_ADAPTER)
+			refresh_status()
+
+
+func _request_profile(profile: GDSQLSetupProfile.Kind) -> void:
+	_pending_profile = profile
+	var managed := profile == GDSQLSetupProfile.Kind.MANAGED
+	_profile_confirmation.title = "Choose %s Content" % ("Managed" if managed else "Direct")
+	_profile_confirmation.ok_button_text = "Choose Profile"
+	_profile_confirmation.dialog_text = (
+		("Managed content uses immutable packages and a generated effective-content database."
+		if managed else "Direct content reads project-authored definitions from res://data.")
+		+ "\n\nGDSQL will not move or rewrite existing databases. Changing profiles later "
+		+ "requires an explicit content migration."
+	)
+	_profile_confirmation.popup_centered(Vector2i(590, 230))
+
+
+func _confirm_profile() -> void:
+	var saved := _profile_store.save_profile(_pending_profile)
+	if saved.is_successful():
+		refresh_status()
+	else:
+		%Summary.text = saved.diagnostics.entries[0].message
+
+
+func _clear_profile() -> void:
+	var cleared := _profile_store.clear_profile()
+	if cleared.is_successful():
+		refresh_status()
+	else:
+		%Summary.text = cleared.diagnostics.entries[0].message
+
+
+func _open_direct_database() -> void:
+	var registration := _role_registration(GDSQLDatabaseRegistry.CONTENT_ROLE)
+	if registration == null:
+		_action_hub.invoke(GDSQLEditorActionIds.CREATE_DATABASE, [], true)
+	else:
+		_open_registration(registration.name)
+
+
+func _open_direct_table() -> void:
+	_open_first_table(_role_inspection(GDSQLDatabaseRegistry.CONTENT_ROLE))
+
+
+func _open_managed_database() -> void:
+	if _managed_base_inspection == null:
+		_action_hub.invoke(GDSQLEditorActionIds.SHOW_MANAGED_CONTENT, [], true)
+		return
+	var registration := _registration_for_database(
+		_managed_base_inspection.registration.database_name,
+		_managed_base_inspection.registration.data_root,
+	)
+	if registration == null:
+		_action_hub.invoke(GDSQLEditorActionIds.SHOW_MANAGED_CONTENT, [], true)
+	else:
+		_open_registration(registration.name)
+
+
+func _open_managed_table() -> void:
+	_open_first_table(_managed_base_inspection)
+
+
+func _open_first_table(inspection: GDSQLDatabaseInspection) -> void:
+	if inspection == null or inspection.tables.is_empty():
+		if _profile == GDSQLSetupProfile.Kind.MANAGED:
+			_open_managed_database()
+		else:
+			_open_direct_database()
+		return
+	var registration := _registration_for_database(
+		inspection.registration.database_name,
+		inspection.registration.data_root,
+	)
+	if registration == null:
+		if _profile == GDSQLSetupProfile.Kind.MANAGED:
+			_action_hub.invoke(GDSQLEditorActionIds.SHOW_MANAGED_CONTENT, [], true)
+		return
+	var table := inspection.tables[0]
+	for candidate in inspection.tables:
+		if candidate.schema_exists and candidate.storage_exists:
+			table = candidate
+			break
+	_action_hub.invoke(
+		GDSQLEditorActionIds.SELECT_TABLE,
+		[registration.name, table.name],
+		true,
+	)
 
 
 func _set_step_state(
@@ -160,115 +360,76 @@ func _set_step_state(
 	detail.modulate = Color.WHITE if complete or is_next else Color(0.7, 0.72, 0.76)
 
 
-func _refresh_profile_status(
-		report: GDSQLDirectSetupReport,
-		role_count: int,
-) -> void:
-	var direct_ready := report.is_ready()
-	%DirectProfileStatus.text = "READY" if direct_ready else "SETUP REQUIRED"
-	%DirectProfileStatus.modulate = (
-			Color(0.42, 0.82, 0.55) if direct_ready else Color(1.0, 0.72, 0.32)
+func _registrations() -> Array[GDSQLDatabaseRegistration]:
+	var registrations: Array[GDSQLDatabaseRegistration] = []
+	if _workbench != null:
+		registrations = _workbench.get_registrations()
+	registrations.sort_custom(
+		func(left: GDSQLDatabaseRegistration, right: GDSQLDatabaseRegistration) -> bool:
+			return String(left.database_name).naturalnocasecmp_to(String(right.database_name)) < 0,
 	)
-	%DirectProfileDetail.text = (
-			"Content definitions and the active save are ready. %d total role binding(s)."
-			% role_count
-			if direct_ready
-			else report.get_next_incomplete().detail
-	)
-	var cached := GDSQLConfigFileContentCacheStore.new().load_manifest()
-	var manifest := cached.get_value() as GDSQLContentCacheManifest
-	%ManagedProfileStatus.text = "CACHE READY" if manifest != null else "AVAILABLE"
-	%ManagedProfileStatus.modulate = (
-			Color(0.42, 0.82, 0.55) if manifest != null else Color(0.42, 0.68, 1.0)
-	)
-	%ManagedProfileDetail.text = (
-			"%d resolved package(s) are cached as effective content." % manifest.packages.size()
-			if manifest != null
-			else "Configure a base package and optional package directories."
-	)
+	return registrations
 
 
-func _refresh_next_action(check: GDSQLDirectSetupCheck) -> void:
-	if check == null:
-		%NextStep.text = "Project data setup is complete."
-		_next_action_button.visible = false
-		return
-	%NextStep.text = "Next: %s" % check.detail
-	_next_action_button.visible = check.next_action != GDSQLDirectSetupCheck.ACTION_NONE
-	match check.next_action:
-		GDSQLDirectSetupCheck.ACTION_CREATE_DATABASE:
-			_next_action_button.text = "Set Up Content"
-		GDSQLDirectSetupCheck.ACTION_OPEN_CONTENT_DATABASE:
-			_next_action_button.text = "Open Content"
-		GDSQLDirectSetupCheck.ACTION_OPEN_CONTENT_TABLE:
-			_next_action_button.text = "Open Content Table"
-		GDSQLDirectSetupCheck.ACTION_MANAGE_SAVE_SLOTS:
-			_next_action_button.text = "Manage Saves"
-		GDSQLDirectSetupCheck.ACTION_INSTALL_RUNTIME:
-			_next_action_button.text = "Install Runtime"
+func _inspections() -> Array[GDSQLDatabaseInspection]:
+	var inspections: Array[GDSQLDatabaseInspection] = []
+	if _workbench != null:
+		inspections = _workbench.get_inspections()
+	return inspections
 
 
-func _run_next_action() -> void:
-	if _action_hub == null or _setup_report == null:
-		return
-	var check := _setup_report.get_next_incomplete()
-	if check == null:
-		return
-	match check.next_action:
-		GDSQLDirectSetupCheck.ACTION_CREATE_DATABASE:
-			_action_hub.invoke(GDSQLEditorActionIds.CREATE_DATABASE, [], true)
-		GDSQLDirectSetupCheck.ACTION_OPEN_CONTENT_DATABASE:
-			_open_content_database()
-		GDSQLDirectSetupCheck.ACTION_OPEN_CONTENT_TABLE:
-			_open_content_table()
-		GDSQLDirectSetupCheck.ACTION_MANAGE_SAVE_SLOTS:
-			_action_hub.invoke(GDSQLEditorActionIds.SHOW_SAVE_SLOTS, [], true)
-		GDSQLDirectSetupCheck.ACTION_INSTALL_RUNTIME:
-			_action_hub.invoke(GDSQLEditorActionIds.INSTALL_RUNTIME_ADAPTER)
-			refresh_status()
+func _project_counts(inspections: Array[GDSQLDatabaseInspection]) -> Vector2i:
+	var counts := Vector2i.ZERO
+	for inspection in inspections:
+		counts.x += inspection.tables.size()
+		for table in inspection.tables:
+			counts.y += table.row_count
+	return counts
 
 
-func _open_content_database() -> void:
-	var registration := _role_registration(GDSQLDatabaseRegistry.CONTENT_ROLE)
-	if registration == null:
-		_action_hub.invoke(GDSQLEditorActionIds.CREATE_DATABASE, [], true)
-		return
-	_action_hub.invoke(
-		GDSQLEditorActionIds.OPEN_REGISTRATION,
-		[registration.name],
-		true,
-	)
-
-
-func _open_content_table() -> void:
-	var registration := _role_registration(GDSQLDatabaseRegistry.CONTENT_ROLE)
-	if registration == null or _workbench == null:
-		_open_content_database()
-		return
-	var inspection := _workbench.get_inspection(registration.name)
-	if inspection == null or inspection.tables.is_empty():
-		_open_content_database()
-		return
-	var table := inspection.tables[0]
-	for candidate in inspection.tables:
-		if candidate.schema_exists and candidate.storage_exists:
-			table = candidate
-			break
-	_action_hub.invoke(
-		GDSQLEditorActionIds.SELECT_TABLE,
-		[registration.name, table.name],
-		true,
-	)
+func _inspection_for(
+		registration_name: StringName,
+		inspections: Array[GDSQLDatabaseInspection],
+) -> GDSQLDatabaseInspection:
+	for inspection in inspections:
+		if inspection.registration != null and inspection.registration.name == registration_name:
+			return inspection
+	return null
 
 
 func _role_registration(role: StringName) -> GDSQLDatabaseRegistration:
 	if _workbench == null:
 		return null
-	var selected_name := &""
+	var selected := &""
 	for binding in _workbench.snapshot.role_bindings:
 		if binding.role == role:
-			selected_name = binding.registration_name
-	return _workbench.get_registration(selected_name)
+			selected = binding.registration_name
+	return _workbench.get_registration(selected)
+
+
+func _role_inspection(role: StringName) -> GDSQLDatabaseInspection:
+	var registration := _role_registration(role)
+	return _workbench.get_inspection(registration.name) if registration != null else null
+
+
+func _registration_for_database(
+		database_name: StringName,
+		data_root: String,
+) -> GDSQLDatabaseRegistration:
+	for registration in _registrations():
+		if registration.database_name == database_name and registration.data_root == data_root:
+			return registration
+	return null
+
+
+func _open_registration(registration_name: StringName) -> void:
+	_action_hub.invoke(GDSQLEditorActionIds.OPEN_REGISTRATION, [registration_name], true)
+
+
+func _managed_base_root() -> String:
+	var config := ConfigFile.new()
+	config.load(SETTINGS_PATH)
+	return String(config.get_value("managed_content", "base_package_root", DEFAULT_BASE_ROOT))
 
 
 func _is_runtime_adapter_configured() -> bool:
@@ -304,11 +465,7 @@ func _open_selected_database() -> void:
 func _open_database_at(index: int) -> void:
 	if _action_hub == null or index < 0 or index >= _database_list.item_count:
 		return
-	_action_hub.invoke(
-		GDSQLEditorActionIds.OPEN_REGISTRATION,
-		[_database_list.get_item_metadata(index)],
-		true,
-	)
+	_open_registration(_database_list.get_item_metadata(index))
 
 
 func _is_scene_preview() -> bool:

@@ -1287,6 +1287,11 @@ save setup without preventing intentional custom-role compositions. The editor
 augments the same typed report with catalog, row, model, and runtime-autoload
 status; the inspector itself accesses neither files nor Controls.
 
+Project onboarding persists one explicit `GDSQLSetupProfile` through a
+`GDSQLSetupProfileStore`. Direct and managed inspectors produce ordered typed
+checks for their independent workflows. Changing this selection changes setup
+guidance only; database and model migration is never implicit.
+
 `GDSQLInMemoryCheckpointTarget` composes an `InMemoryTableStorage` source with
 an injected durable `TableStorage`. It synchronizes authoritative dirty tables
 and clears a dirty marker only when the copied version remains current. This

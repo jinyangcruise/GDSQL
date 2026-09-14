@@ -36,6 +36,13 @@ Workspace("`**Central Workspace**
 *Owns:* Active documents and focused context
 *Uses:* Opened workbench sessions`")
 
+Welcome("`**Welcome and Profile Setup**
+
+-
+*First run:* Choose Direct or Managed content with migration warning
+*Selected state:* Show only the active profile's actions and checklist
+*Persistence:* Project-owned setup profile setting`")
+
 ModelAssistant("`**Model Assistant**
 
 -
@@ -106,6 +113,7 @@ Workbench -->|"open registration"| Session
 Workspace -->|"table and catalog tasks"| Session
 Workspace -->|"edit graph document"| Graphs
 Workspace -->|"preview model binding"| ModelAssistant
+Workspace -->|"choose profile and guide setup"| Welcome
 Workspace -->|"manage active save role"| SaveSlots
 Workspace -->|"configure managed content"| ManagedContent
 SaveSlots -->|"discover · bind · open"| Workbench
@@ -117,7 +125,7 @@ Runtime -->|"results · diagnostics"| Activity
 
 class Integration integration;
 class Actions action;
-class Dock,Workspace,ModelAssistant,SaveSlots,ManagedContent surface;
+class Dock,Workspace,Welcome,ModelAssistant,SaveSlots,ManagedContent surface;
 class Workbench,Session coordination;
 class Graphs graphs;
 class Runtime runtime;

@@ -86,6 +86,9 @@ func shutdown() -> void:
 			and _workspace.database_refresh_submitted.is_connected(_refresh_database_document):
 		_workspace.database_refresh_submitted.disconnect(_refresh_database_document)
 	if is_instance_valid(_workspace) \
+			and _workspace.database_destroy_submitted.is_connected(_destroy_database):
+		_workspace.database_destroy_submitted.disconnect(_destroy_database)
+	if is_instance_valid(_workspace) \
 			and _workspace.table_rows_requested.is_connected(_load_table_rows):
 		_workspace.table_rows_requested.disconnect(_load_table_rows)
 	if is_instance_valid(_workspace) \
@@ -163,6 +166,7 @@ func _configure_surfaces() -> void:
 	_workspace.database_create_submitted.connect(_create_database)
 	_workspace.database_save_submitted.connect(_save_database)
 	_workspace.database_refresh_submitted.connect(_refresh_database_document)
+	_workspace.database_destroy_submitted.connect(_destroy_database)
 	_workspace.table_rows_requested.connect(_load_table_rows)
 	_workspace.table_row_insert_requested.connect(_insert_table_row)
 	_workspace.table_rows_update_requested.connect(_update_table_rows)
@@ -388,6 +392,23 @@ func _remove_registration(registration_name: StringName) -> GDSQLOperationResult
 		_workspace.close_registration(registration_name)
 	_refresh_surfaces()
 	_record_result("Remove database", result)
+	return result
+
+
+func _destroy_database(registration_name: StringName) -> GDSQLOperationResult:
+	var result := _ensure_active_registration(registration_name)
+	if result.is_successful():
+		var dropped := workbench.active_session.database.drop()
+		result.diagnostics.merge(dropped.diagnostics)
+	if result.is_successful():
+		var removed := workbench.remove_registration(registration_name)
+		result.diagnostics.merge(removed.diagnostics)
+	if result.is_successful():
+		_scan_project_filesystem()
+		_workspace.close_registration(registration_name)
+		result.value = true
+	_refresh_surfaces()
+	_record_result("Destroy database files", result)
 	return result
 
 

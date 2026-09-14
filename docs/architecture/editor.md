@@ -142,6 +142,8 @@ Database and table items expose context actions. Removing a database unregisters
 it from the durable catalog and the editor registry while explicitly identifying
 the database folder that remains unchanged. Creating the same logical database
 under that root registers and loads the existing schemas, tables, and rows.
+Permanent destruction is a separate database-document action that confirms the
+exact database directory before deleting its catalog entry, schemas, and rows.
 Table deletion remains a confirmed catalog operation because it removes its
 schema and stored rows.
 
@@ -163,12 +165,15 @@ database and table documents, model assistants, and query graphs. Menu and tab
 controls delegate through the action hub and workbench session rather than
 owning operations.
 
-The welcome document presents both runtime composition profiles. Direct-content
-readiness requires a project-owned `content` binding and a writable `save`
-binding. Its managed-content action opens a scene-backed setup document for
-package paths, deterministic validation, disposable cache building, and active-
-save compatibility. The welcome profile itself remains a concise status rather
-than duplicating those controls.
+The welcome document first requires an explicit Direct Content or Managed
+Content profile selection. Confirmation states that changing profiles does not
+migrate databases, models, resources, or saves. After selection, only that
+profile's actions and typed checklist are visible; users may return to profile
+selection through a separate confirmed action.
+
+Direct readiness requires a project-owned `content` binding and writable `save`
+binding. Managed readiness follows base package, source data, effective cache,
+save, model, and runtime steps, delegating package work to its setup document.
 
 The managed-content document stores project inputs in
 `res://.gdsql/settings.cfg`. Building a cache delegates to the existing package
