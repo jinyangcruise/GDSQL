@@ -1,0 +1,15 @@
+[gd_scene load_steps=2 format=3 uid="uid://dj6w45unpnl66"]
+
+[ext_resource type="Script" uid="uid://b8x6gd2crbec0" path="res://addons/gdsql/editor/workspace/components/result_grid/gdsql_editor_result_grid.gd" id="1_grid"]
+
+[node name="EditorResultGrid" type="Tree"]
+tooltip_text = "Typed database rows with validated editing and Resource previews."
+mouse_default_cursor_shape = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 2
+column_titles_visible = true
+allow_reselect = true
+allow_rmb_select = true
+hide_folding = true
+hide_root = true
+script = ExtResource("1_grid")

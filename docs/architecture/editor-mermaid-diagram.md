@@ -93,6 +93,19 @@ Graphs("`**Query Graph Frontend**
 *Flow:* QueryGraph → GraphQueryCompiler
 *Produces:* QuerySpec`")
 
+TableData("`**Table Data Document**
+
+-
+*Purpose:* Browse and batch-edit one table without a graph
+*Owns:* Query header, canonical paging and row actions`")
+
+ResultGrid("`**Editor Result Grid**
+
+-
+*Purpose:* Render and validate typed rows for any editor frontend
+*Owns:* Cell presentation, pending edits and Resource controls
+*Boundary:* No query execution, pagination or graph chrome`")
+
 Runtime("`**Runtime Boundary**
 
 -
@@ -112,12 +125,15 @@ Dock -->|"load · discover · select"| Workbench
 Workbench -->|"open registration"| Session
 Workspace -->|"table and catalog tasks"| Session
 Workspace -->|"edit graph document"| Graphs
+Workspace -->|"browse table data"| TableData
 Workspace -->|"preview model binding"| ModelAssistant
 Workspace -->|"choose profile and guide setup"| Welcome
 Workspace -->|"manage active save role"| SaveSlots
 Workspace -->|"configure managed content"| ManagedContent
 SaveSlots -->|"discover · bind · open"| Workbench
 ManagedContent -->|"package and save diagnostics"| Runtime
+Graphs -->|"present query rows"| ResultGrid
+TableData -->|"present table rows"| ResultGrid
 
 Graphs -->|"compile(graph) · execute(query)"| Runtime
 Session -->|"catalog and canonical query operations"| Runtime
@@ -125,7 +141,7 @@ Runtime -->|"results · diagnostics"| Activity
 
 class Integration integration;
 class Actions action;
-class Dock,Workspace,Welcome,ModelAssistant,SaveSlots,ManagedContent surface;
+class Dock,Workspace,Welcome,ModelAssistant,SaveSlots,ManagedContent,TableData,ResultGrid surface;
 class Workbench,Session coordination;
 class Graphs graphs;
 class Runtime runtime;

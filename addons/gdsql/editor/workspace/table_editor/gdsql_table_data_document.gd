@@ -50,8 +50,8 @@ var _visible_columns: Array[StringName] = []
 var _order_column: StringName
 var _order_direction := GDSQLOrderClause.SortDirection.ASCENDING
 
-@onready var _table_view: GDSQLQueryTableResultTable = %TableView
-@onready var _insert_editor: GDSQLQueryTableResultTable = %InsertEditor
+@onready var _table_view: GDSQLEditorResultGrid = %TableView
+@onready var _insert_editor: GDSQLEditorResultGrid = %InsertEditor
 @onready var _where_expression: GDSQLWhereExpressionEditor = %WhereExpression
 @onready var _column_menu: PopupMenu = %ColumnMenu
 

@@ -1,7 +1,7 @@
 @tool
-class_name GDSQLQueryTableResultTable
+class_name GDSQLEditorResultGrid
 extends Tree
-## Paginated result display with optional validated, batched cell editing.
+## Graph-independent typed row grid with validated, batched cell editing.
 
 signal inline_changes_changed(status: String)
 
@@ -47,6 +47,9 @@ var _content_width := 0.0
 
 
 func _ready() -> void:
+	if _is_scene_preview():
+		_show_scene_preview()
+		return
 	item_edited.connect(_on_item_edited)
 	button_clicked.connect(_on_cell_button_clicked)
 	item_mouse_selected.connect(_on_item_mouse_selected)
@@ -55,6 +58,26 @@ func _ready() -> void:
 	add_child(_expanded_text_editor)
 	_expanded_text_editor.value_applied.connect(_on_text_value_applied)
 	_connect_editor_inspector()
+
+
+func _is_scene_preview() -> bool:
+	if not Engine.is_editor_hint():
+		return false
+	var edited_scene_root := EditorInterface.get_edited_scene_root()
+	return edited_scene_root == self \
+			or (edited_scene_root != null and edited_scene_root.is_ancestor_of(self))
+
+
+func _show_scene_preview() -> void:
+	columns = 3
+	set_column_title(0, "id")
+	set_column_title(1, "name")
+	set_column_title(2, "health")
+	var root := create_item()
+	for values in [["1", "Preview Hero", "100"], ["2", "Skeleton Row", "80"]]:
+		var item := create_item(root)
+		for column_index in columns:
+			item.set_text(column_index, values[column_index])
 
 
 func _exit_tree() -> void:

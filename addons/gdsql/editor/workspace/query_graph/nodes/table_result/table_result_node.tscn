@@ -6,7 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://cs3iterfftneq" path="res://addons/gdsql/editor/workspace/icons/floppy_disk.svg" id="4_save"]
 [ext_resource type="Texture2D" uid="uid://da35pq8onqig4" path="res://addons/gdsql/editor/workspace/icons/trash_can.svg" id="5_delete"]
 [ext_resource type="Texture2D" uid="uid://b2uu8eana73y3" path="res://addons/gdsql/editor/workspace/icons/eraser.svg" id="6_discard"]
-[ext_resource type="Script" uid="uid://b8x6gd2crbec0" path="res://addons/gdsql/editor/workspace/query_graph/nodes/table_result/gdsql_table_result_table.gd" id="7_table"]
+[ext_resource type="PackedScene" uid="uid://dj6w45unpnl66" path="res://addons/gdsql/editor/workspace/components/result_grid/gdsql_editor_result_grid.tscn" id="7_table"]
 
 [node name="TableResult" type="GraphNode" unique_id=285217622]
 custom_minimum_size = Vector2(720, 420)
@@ -64,20 +64,13 @@ size_flags_vertical = 3
 horizontal_scroll_mode = 5
 vertical_scroll_mode = 5
 
-[node name="TableView" type="Tree" parent="MarginContainer/VBoxContainer/ScrollContainer" unique_id=1927001949]
+[node name="TableView" parent="MarginContainer/VBoxContainer/ScrollContainer" unique_id=1927001949 instance=ExtResource("7_table")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 tooltip_text = "Columns follow the configured display order. Safe Mode uses the row editor; direct mode edits cells in place."
-mouse_default_cursor_shape = 2
-column_titles_visible = true
-allow_reselect = true
-allow_rmb_select = true
-hide_folding = true
-hide_root = true
 select_mode = 1
-script = ExtResource("7_table")
 
 [node name="Pagination" type="HBoxContainer" parent="MarginContainer/VBoxContainer" unique_id=1005163500]
 unique_name_in_owner = true
@@ -159,21 +152,15 @@ layout_mode = 2
 horizontal_scroll_mode = 2
 vertical_scroll_mode = 0
 
-[node name="EditorTable" type="Tree" parent="MarginContainer/VBoxContainer/EditorSection/EditorScroll" unique_id=1392674033]
+[node name="EditorTable" parent="MarginContainer/VBoxContainer/EditorSection/EditorScroll" unique_id=1392674033 instance=ExtResource("7_table")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 tooltip_text = "The selected row uses the same typed table editor as direct mode."
 mouse_filter = 1
-column_titles_visible = true
-allow_reselect = true
-allow_rmb_select = true
-hide_folding = true
-hide_root = true
 select_mode = 1
 scroll_vertical_enabled = false
-script = ExtResource("7_table")
 
 [node name="Status" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1900997401]
 unique_name_in_owner = true

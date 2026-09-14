@@ -77,7 +77,9 @@ filtered page totals through a canonical `COUNT` query. Projection and ordering
 controls are active in the native result header: the leading row-number header
 opens visible-column selection, while content headers cycle sort direction.
 Hidden primary keys remain in the query result for safe row mutations without
-being displayed.
+being displayed. The typed result grid now lives in a graph-independent,
+scene-backed editor component; graph chrome, table paging, and mutation actions
+remain with their owning frontends.
 
 1. Continue separating graph orchestration from the shared typed result grid.
    Keep graph ports, graph sizing, and node chrome in the graph adapter.

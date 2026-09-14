@@ -262,13 +262,15 @@ zooming, scrolling, or viewport changes do not keep resizing the node. Future
 raw-table or registered-model selectors may use the actions host without adding
 model resolution to the base presentation class.
 
-`QueryTableResultNode` uses Godot's native multi-column `Tree` for aligned
-titles, scrollable columns, row selection, and bounded page rendering. Resource
-cells request the same editor preview service used by Inspector-facing controls
-and retain their editor type icon when no preview can be generated. Its
-header Safe Mode keeps typed editing in one focused `EditorVariantValueField`
-row below the table. `GDSQLQueryTableResultTable` owns display rendering,
-thumbnail caching, inline validation, and pending cell state. With Safe Mode
+`QueryTableResultNode` uses the graph-independent `EditorResultGrid` scene for
+aligned titles, scrollable columns, row selection, and bounded page rendering.
+The standalone table document uses the same component while owning its own
+query header, pagination, and batch actions. Resource cells request the same
+editor preview service used by Inspector-facing controls and retain their
+editor type icon when no preview can be generated. Its header Safe Mode keeps
+typed editing in one focused `EditorVariantValueField` row below the table.
+`GDSQLEditorResultGrid` owns display rendering, thumbnail caching, inline
+validation, and pending cell state. With Safe Mode
 disabled, mutable catalog cells use Tree's inline editor, are validated back
 into their declared Variant type, and remain highlighted until their row
 updates are saved as one UI batch or discarded.
@@ -410,7 +412,7 @@ The scene-based schema editor has the following explicit component status:
 | `column_editor/gdsql_column_editor_draft.gd` | Active | Typed mutable editor draft responsible for validation and conversion to catalog definitions or alterations. |
 | Native `EditorResourcePicker` in the column row scene | Active | Selects the Resource prototype; the row derives the catalog type constraint. |
 | `gdsql_editor_variant_value_field.gd` | Active | Shared typed value editor used by schema defaults, table rows, predicates, and mutation values. |
-| `query_graph/nodes/table_result/gdsql_table_result_table.gd` | Active | Shared native `Tree` grid used by graph results and the standalone table document for compact typed display, validation, Resource editing, and pending changes. |
+| `components/result_grid/gdsql_editor_result_grid.gd` / `.tscn` | Active | Graph-independent native `Tree` grid used by graph results and the standalone table document for compact typed display, validation, Resource editing, and pending changes. |
 | `index/gdsql_index_property_row.gd` / `.tscn` | Active | Scene-authored summary and removal control for an existing primary or secondary index. |
 
 The superseded `gdsql_column_tree`, `gdsql_column_draft_row`, and
