@@ -19,6 +19,24 @@ load order, rebuilds or reuses the cache, and binds `effective_content` to the
 cache and package diagnostics. A failed activation does not expose a partial
 runtime session.
 
+Managed startup also compares the active save's recorded package set with the
+active cache. Read `get_save_content_compatibility_report()` from
+`runtime_started`, or connect `save_content_compatibility_checked`. A report
+that requires a policy decision does not fail startup:
+
+```gdscript
+func _on_runtime_started(_runtime: GDSQLRuntimeSession) -> void:
+    var report := GDSQLRuntime.get_save_content_compatibility_report()
+    if report != null and report.requires_policy_decision():
+        open_save_compatibility_dialog(report)
+        return
+    load_active_save()
+```
+
+The same report is refreshed after `select_save_slot()` succeeds. The game may
+refuse the save, request packages, apply a fallback, or continue; GDSQL does not
+choose among those policies.
+
 Startup diagnostics include warnings when the direct profile is incomplete or
 uses unsafe roots. Warnings preserve successful startup for projects that use
 custom roles; errors still prevent a partial runtime session.

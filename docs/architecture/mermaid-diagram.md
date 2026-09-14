@@ -123,8 +123,8 @@ RuntimeNode("`**GDSQLRuntimeNode**
 -
 *Purpose:* Optional scene-tree/autoload adapter over RuntimeSession
 *Lifecycle:* Bootstrap selected profile, activate managed content, periodic Timer, pause and exit checkpoints
-*API:* get_content_activation_result(), database(), register_model(), select_save_slot(), checkpoint_now(), stop()
-*Signals:* Startup, content activation, checkpoint and shutdown results`")
+*API:* get_content_activation_result(), get_save_content_compatibility_report(), database(), register_model(), select_save_slot(), checkpoint_now(), stop()
+*Signals:* Startup, content activation, save compatibility, checkpoint and shutdown results`")
 
 DirectSetup("`**Direct Setup Diagnostics**
 
@@ -470,6 +470,7 @@ Code -->|"optional autoload API"| RuntimeNode
 RuntimeNode -->|"bootstrap, delegate and schedule checkpoints"| RuntimeSession
 RuntimeNode -->|"load selected package inputs"| ManagedConfiguration
 RuntimeNode -->|"automatic managed activation"| ContentActivation
+RuntimeNode -->|"active-save policy handoff"| SaveCompatibility
 Factory -->|"inspect direct or unselected setup before opening"| DirectSetup
 Workbench -->|"augment setup with editor-known status"| DirectSetup
 Workbench -->|"persist profile selection"| SetupProfile

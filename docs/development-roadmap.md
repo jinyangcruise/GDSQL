@@ -55,13 +55,13 @@ rather than a profile toggle.
 ## Remaining delivery workstreams
 
 After the current experimental table, creation, bootstrap, and model-assistant
-slices, five substantive workstreams remain. They are grouped by outcome;
+slices, four substantive workstreams remain. They are grouped by outcome;
 individual workstreams may require several small changes.
 
 | Outcome | Count | Remaining workstreams |
 |---|---:|---|
 | Reliable direct-content setup | 0 | Complete for the current direct profile. |
-| Managed-content full kit | 1 | Save-compatibility game-policy handoff. |
+| Managed-content full kit | 0 | Complete for the current managed profile. |
 | Advanced tooling and release | 4 | Advanced graph operations and saved graphs; completed SQL compiler/editor; shared batch tooling; migration, performance, and release QA. |
 
 ## Delivery order
@@ -179,7 +179,11 @@ When the selected setup profile is Managed Content, `GDSQLRuntimeNode` loads
 the typed package configuration shared with the editor, resolves the selected
 package order, and builds or reuses `effective_content`. It exposes the runtime
 only after that database owns the `content` role; failed activation clears the
-partial model context and remains a structured startup failure.
+partial model context and remains a structured startup failure. It also checks
+the active save against that package set before `runtime_started`, retains the
+typed report for late consumers, and refreshes it after save-slot selection.
+Compatibility never changes whether startup succeeds; the game owns that load
+policy.
 
 Add a small runtime setup API or optional autoload that composes and exposes:
 
@@ -303,8 +307,8 @@ and `content` role together. Save compatibility now compares persisted package
 expectations with the active manifest without imposing a load policy. The
 managed setup document persists package inputs, builds the cache, and records
 save expectations only after confirmation. Managed runtime startup now consumes
-that configuration automatically; explicit game-policy handoff for incompatible
-saves remains.
+that configuration automatically and exposes the active save's report through
+the runtime node for explicit game policy.
 
 Runtime content should always be consumed through one derived
 `effective_content` database bound to the `content` role. Base content and

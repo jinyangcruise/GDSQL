@@ -338,7 +338,8 @@ PersistenceCoordinator (RefCounted service)
 GDSQLRuntimeNode (optional Node/autoload adapter)
     ├── Periodic Timer integration
     ├── Pause and shutdown notifications
-    ├── User-facing signals
+    ├── Managed save-compatibility handoff
+    ├── User-facing signals and retained typed results
     └── Delegation to registry, content loader, and persistence coordinator
 ```
 

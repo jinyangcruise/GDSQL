@@ -1305,9 +1305,12 @@ discover, resolve, cache, and activate the effective database. The node exposes
 the session only after activation succeeds; a failure clears the partial model
 context and is returned through the normal startup result and signals.
 
-Automatic activation does not decide whether a save with changed or missing
-packages may load. Save compatibility remains a typed report consumed by an
-explicit game policy.
+After automatic activation, `GDSQLRuntimeNode` loads the active save's expected
+package manifest and compares it with the active cache. It retains the typed
+compatibility report, emits it before `runtime_started`, and refreshes it after
+a successful save-slot selection. An untracked, changed, missing, or unreadable
+manifest does not turn successful runtime startup into failure; the game decides
+whether that save may load.
 
 `GDSQLInMemoryCheckpointTarget` composes an `InMemoryTableStorage` source with
 an injected durable `TableStorage`. It synchronizes authoritative dirty tables

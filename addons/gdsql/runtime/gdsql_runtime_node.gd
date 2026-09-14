@@ -9,6 +9,7 @@ extends Node
 signal runtime_started(runtime: GDSQLRuntimeSession)
 signal runtime_start_failed(result: GDSQLOperationResult)
 signal content_activation_finished(result: GDSQLContentActivationResult)
+signal save_content_compatibility_checked(report: GDSQLSaveContentCompatibilityReport)
 signal checkpoint_finished(result: GDSQLCheckpointResult)
 signal runtime_stopped(result: GDSQLCheckpointResult)
 
@@ -23,6 +24,7 @@ signal runtime_stopped(result: GDSQLCheckpointResult)
 var _runtime: GDSQLRuntimeSession
 var _start_result: GDSQLOperationResult
 var _content_activation_result: GDSQLContentActivationResult
+var _save_content_compatibility_report: GDSQLSaveContentCompatibilityReport
 var _checkpoint_timer: Timer
 
 
@@ -58,6 +60,7 @@ func start() -> GDSQLOperationResult:
 	if _runtime != null:
 		return _start_result
 	_content_activation_result = null
+	_save_content_compatibility_report = null
 	var loaded_profile := GDSQLConfigFileSetupProfileStore.new(
 		setup_settings_path,
 	).load_profile()
@@ -87,6 +90,8 @@ func start() -> GDSQLOperationResult:
 			runtime_start_failed.emit(started)
 			return started
 	_runtime = runtime
+	if _content_activation_result != null:
+		_refresh_save_content_compatibility(_runtime)
 	_configure_timer()
 	runtime_started.emit(_runtime)
 	return started
@@ -105,6 +110,11 @@ func get_start_result() -> GDSQLOperationResult:
 ## Returns managed-content activation details, or null for other profiles.
 func get_content_activation_result() -> GDSQLContentActivationResult:
 	return _content_activation_result
+
+
+## Returns the active managed save's package compatibility for game-owned policy.
+func get_save_content_compatibility_report() -> GDSQLSaveContentCompatibilityReport:
+	return _save_content_compatibility_report
 
 
 func is_started() -> bool:
@@ -138,7 +148,10 @@ func select_save_slot(registration_name: StringName) -> GDSQLDatabaseResult:
 			&"GDSQL_RUNTIME_NOT_STARTED",
 			"Start the GDSQL runtime before selecting a save slot.",
 		)
-	return _runtime.select_save_slot(registration_name)
+	var selected := _runtime.select_save_slot(registration_name)
+	if selected.is_successful() and _content_activation_result != null:
+		_refresh_save_content_compatibility(_runtime)
+	return selected
 
 
 ## Checkpoints every committed dirty in-memory registration immediately.
@@ -210,6 +223,43 @@ func _activate_managed_content(
 			GDSQLConfigFileContentCacheStore.new(managed_cache_root),
 		),
 	)
+
+
+func _refresh_save_content_compatibility(runtime: GDSQLRuntimeSession) -> void:
+	var report := GDSQLSaveContentCompatibilityReport.new()
+	var registration_name := runtime.get_active_save_slot()
+	if registration_name == &"":
+		report.diagnostics.add(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_SAVE_CONTENT_ACTIVE_SAVE_REQUIRED",
+				"Select a save slot before evaluating managed-content compatibility.",
+				GDSQLQueryDiagnostic.Severity.WARNING,
+			),
+		)
+	else:
+		var registration := runtime.get_database_registry().get_registration(
+			registration_name,
+		)
+		if registration == null:
+			report.diagnostics.add(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_SAVE_CONTENT_REGISTRATION_REQUIRED",
+					"The active save has no durable registration metadata.",
+				),
+			)
+		else:
+			var loaded := GDSQLConfigFileSaveContentManifestStore.new(
+				registration.data_root,
+			).load_manifest()
+			if loaded.is_successful():
+				report = GDSQLSaveContentCompatibilityInspector.inspect(
+					loaded.get_value() as GDSQLSaveContentManifest,
+					_content_activation_result.cache_result.manifest,
+				)
+			else:
+				report.diagnostics.merge(loaded.diagnostics)
+	_save_content_compatibility_report = report
+	save_content_compatibility_checked.emit(report)
 
 
 func _on_checkpoint_timeout() -> void:

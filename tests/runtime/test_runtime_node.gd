@@ -52,16 +52,7 @@ func test_scene_bootstraps_the_runtime_with_periodic_policy() -> void:
 
 func test_managed_profile_activates_configured_effective_content_on_start() -> void:
 	var base_root := _create_managed_base()
-	assert_bool(
-		GDSQLConfigFileSetupProfileStore.new(_settings_path) \
-				.save_profile(GDSQLSetupProfile.Kind.MANAGED) \
-				.is_successful(),
-	).is_true()
-	assert_bool(
-		GDSQLConfigFileManagedContentConfigurationStore.new(_settings_path) \
-				.save_configuration(GDSQLManagedContentConfiguration.new(base_root)) \
-				.is_successful(),
-	).is_true()
+	_configure_managed_profile(base_root)
 	var runtime_node := _create_runtime_node()
 
 	var started := runtime_node.start()
@@ -74,9 +65,80 @@ func test_managed_profile_activates_configured_effective_content_on_start() -> v
 	assert_str(selected.rows[0].get_value(&"name")).is_equal("Iron Sword")
 	assert_object(runtime_node.get_content_activation_result()).is_not_null()
 	assert_bool(runtime_node.get_content_activation_result().was_rebuilt()).is_true()
+	assert_int(runtime_node.get_save_content_compatibility_report().status).is_equal(
+		GDSQLSaveContentCompatibilityReport.Status.UNTRACKED,
+	)
+	assert_bool(
+		runtime_node.get_save_content_compatibility_report().requires_policy_decision(),
+	).is_true()
 	assert_array(_diagnostic_codes(started)).not_contains(
 		["GDSQL_DIRECT_SETUP_CONTENT_DATABASE"],
 	)
+	runtime_node.stop(false)
+
+
+func test_managed_start_exposes_exact_save_compatibility_before_runtime_started() -> void:
+	var base_root := _create_managed_base()
+	_configure_managed_profile(base_root)
+	var preparation_node := _create_runtime_node()
+	assert_bool(preparation_node.start().is_successful()).is_true()
+	var active_manifest := preparation_node.get_content_activation_result() \
+			.cache_result.manifest
+	assert_bool(
+		GDSQLConfigFileSaveContentManifestStore.new(_save_root) \
+				.save_manifest(GDSQLSaveContentManifest.from_cache_manifest(active_manifest)) \
+				.is_successful(),
+	).is_true()
+	preparation_node.stop(false)
+	var runtime_node := _create_runtime_node()
+	var reports: Array[GDSQLSaveContentCompatibilityReport] = []
+	runtime_node.save_content_compatibility_checked.connect(
+		func(report: GDSQLSaveContentCompatibilityReport) -> void:
+			reports.append(report),
+	)
+
+	var started := runtime_node.start()
+	var report := runtime_node.get_save_content_compatibility_report()
+
+	assert_bool(started.is_successful()).is_true()
+	assert_int(report.status).is_equal(GDSQLSaveContentCompatibilityReport.Status.EXACT)
+	assert_bool(report.requires_policy_decision()).is_false()
+	assert_int(reports.size()).is_equal(1)
+	assert_object(reports[0]).is_same(report)
+	runtime_node.stop(false)
+
+
+func test_managed_save_slot_selection_refreshes_compatibility_report() -> void:
+	var second_save_root := _test_root.path_join("save_2")
+	_create_save_database(&"save_2", second_save_root)
+	var registry_store := GDSQLConfigFileDatabaseRegistryStore.new(_registry_path)
+	var snapshot := registry_store.load_snapshot().get_value() \
+			as GDSQLDatabaseRegistrySnapshot
+	snapshot.registrations.append(
+		GDSQLDatabaseRegistration.new(
+			&"save_2",
+			&"save_2",
+			second_save_root,
+			GDSQLStorageBackendIds.IN_MEMORY,
+		),
+	)
+	assert_bool(registry_store.save_snapshot(snapshot).is_successful()).is_true()
+	_configure_managed_profile(_create_managed_base())
+	var runtime_node := _create_runtime_node()
+	assert_bool(runtime_node.start().is_successful()).is_true()
+	var active_manifest := runtime_node.get_content_activation_result().cache_result.manifest
+	assert_bool(
+		GDSQLConfigFileSaveContentManifestStore.new(second_save_root) \
+				.save_manifest(GDSQLSaveContentManifest.from_cache_manifest(active_manifest)) \
+				.is_successful(),
+	).is_true()
+
+	var selected := runtime_node.select_save_slot(&"save_2")
+	var report := runtime_node.get_save_content_compatibility_report()
+
+	assert_bool(selected.is_successful()).is_true()
+	assert_int(report.status).is_equal(GDSQLSaveContentCompatibilityReport.Status.EXACT)
+	assert_bool(report.requires_policy_decision()).is_false()
 	runtime_node.stop(false)
 
 
@@ -209,14 +271,31 @@ func _create_managed_base() -> String:
 	return base_root
 
 
-func _create_save_database() -> void:
-	var database := GDSQLDatabase.create(&"save_1", _save_root).get_database()
+func _create_save_database(
+		database_name: StringName = &"save_1",
+		data_root: String = "",
+) -> void:
+	var save_root := _save_root if data_root.is_empty() else data_root
+	var database := GDSQLDatabase.create(database_name, save_root).get_database()
 	var heroes := GDSQLTableDefinition.new(&"heroes", &"id")
 	heroes.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
 	heroes.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
 	assert_bool(database.create_table(heroes).is_successful()).is_true()
 	assert_bool(
 		database.insert(&"heroes", { &"id": 1, &"name": "Knight" }).is_successful(),
+	).is_true()
+
+
+func _configure_managed_profile(base_root: String) -> void:
+	assert_bool(
+		GDSQLConfigFileSetupProfileStore.new(_settings_path) \
+				.save_profile(GDSQLSetupProfile.Kind.MANAGED) \
+				.is_successful(),
+	).is_true()
+	assert_bool(
+		GDSQLConfigFileManagedContentConfigurationStore.new(_settings_path) \
+				.save_configuration(GDSQLManagedContentConfiguration.new(base_root)) \
+				.is_successful(),
 	).is_true()
 
 
