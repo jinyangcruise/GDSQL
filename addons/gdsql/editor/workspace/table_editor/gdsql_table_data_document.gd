@@ -517,6 +517,7 @@ func _refresh_actions() -> void:
 		return
 	var inserting: bool = %InsertSection.visible
 	var has_edits: bool = _table_view.has_pending_changes()
+	var edited_count: int = _table_view.get_pending_updates().size()
 	var selected_count: int = _table_view.get_selected_primary_keys().size()
 	%AddRow.disabled = _mutation_in_flight or _table == null or inserting or has_edits
 	%SaveChanges.disabled = _mutation_in_flight or (not inserting and not has_edits)
@@ -524,10 +525,24 @@ func _refresh_actions() -> void:
 	%DeleteSelected.disabled = (
 			_mutation_in_flight or inserting or has_edits or selected_count == 0
 	)
-	%DeleteSelected.text = (
-			"Delete Selected (%d)" % selected_count
+	%DeleteSelected.tooltip_text = (
+			"Delete %d selected row(s) in one transaction" % selected_count
 			if selected_count > 0
-			else "Delete Selected"
+			else "Select one or more rows to delete"
+	)
+	var action_summary := PackedStringArray()
+	if inserting:
+		action_summary.append("1 new row")
+	elif edited_count > 0:
+		action_summary.append("%d edited" % edited_count)
+	if selected_count > 0:
+		action_summary.append("%d selected" % selected_count)
+	if _table_view.has_validation_errors() or _insert_editor.has_validation_errors():
+		action_summary.append("invalid values")
+	%ActionSummary.text = (
+			"No pending changes"
+			if action_summary.is_empty()
+			else " · ".join(action_summary)
 	)
 	_refresh_filter_actions()
 

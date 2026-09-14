@@ -7,7 +7,9 @@ GDSQL should be **table-first and graph-capable**.
 Opening a table should show a familiar data workbench: a compact query header,
 the result grid, paging, and row actions. The query graph remains an advanced
 document for joins, calculated results, reusable visual queries, and users who
-benefit from spatial composition. It is not the default table browser.
+benefit from spatial composition. It is not the default table browser. Further
+graph authoring is suspended until the primary table, setup, and release flows
+are complete and the graph has a discoverable entry point.
 
 This is an editor change, not a runtime rewrite. Both surfaces must continue to
 produce `GDSQLQuerySpec` and execute through `GDSQLDatabase`.
@@ -39,8 +41,8 @@ rather than a profile toggle.
 - The graph result node and table document share the typed result grid for
   schema-aware editing, dirty-state protection, and Resource handling.
 - The reusable WHERE editor already creates canonical expressions.
-- Table selection opens the standalone table document; query graphs remain the
-  advanced visual-query surface.
+- Table selection opens the standalone table document. The existing graph code
+  is retained, but further graph work is not active delivery.
 - Database-role and model APIs plus the optional runtime/autoload scene are
   implemented. Managed content now builds deterministic snapshots, reuses
   fingerprinted disposable caches, and activates them without exposing partial
@@ -62,7 +64,7 @@ individual workstreams may require several small changes.
 |---|---:|---|
 | Reliable direct-content setup | 0 | Complete for the current direct profile. |
 | Managed-content full kit | 0 | Complete for the current managed profile. |
-| Advanced tooling and release | 4 | Advanced graph operations and saved graphs; completed SQL compiler/editor; shared batch tooling; migration, performance, and release QA. |
+| Advanced tooling and release | 3 | Completed SQL compiler/editor; shared batch tooling; migration, performance, and release QA. |
 
 ## Delivery order
 
@@ -81,12 +83,10 @@ being displayed. The typed result grid now lives in a graph-independent,
 scene-backed editor component; graph chrome, table paging, and mutation actions
 remain with their owning frontends.
 
-1. Continue separating graph orchestration from the shared typed result grid.
-   Keep graph ports, graph sizing, and node chrome in the graph adapter.
+1. Keep the shared typed result grid independent from graph orchestration.
 2. Keep standalone table actions outside the grid so row height and column
    width do not change when editing or selecting a batch.
-3. Open the table document when a table is selected. Expose query graphs through
-   an explicit `New Query Graph` action.
+3. Open the table document when a table is selected.
 4. Add a compact query header above the grid:
    - typed WHERE conditions using the existing expression editor;
    - projection/visible-column selection;
@@ -101,8 +101,7 @@ remain with their owning frontends.
    query surface.
 
 This slice is complete when browsing, filtering, paging, inserting, updating,
-and deleting a table requires no graph interaction, and the graph uses the same
-result component without losing its current capabilities.
+and deleting a table requires no graph interaction.
 
 ### 2. Turn the welcome page into setup status
 
@@ -280,10 +279,8 @@ internal class:
 | Planner, executor, storage sessions | Diagnostics only; no direct visual clone |
 | SQL text | Enable only after the SQL compiler is implemented and tested |
 
-After the table-first path is solid, resume graph work for joins, ordering,
-grouping, calculated projections, saved graph assets, and explicit result-root
-selection. Atomic batch editing should follow the shared table view so both
-table and graph workflows can reuse it.
+Atomic batch editing should follow the shared table view. The existing graph
+may reuse it later without making graph work a prerequisite.
 
 ### 7. Build the effective-content and mod pipeline
 
@@ -344,6 +341,9 @@ a package cannot mutate the base sources or corrupt save rows.
 
 ## Backlog — not active delivery
 
+- **Advanced query graph:** preserve the current implementation, but do not add
+  operations or saved graphs until it has a discoverable entry point and the
+  primary table, setup, and release workflows are complete.
 - **Generated model nullability and type ergonomics:** keep exact GDScript
   property types for non-null columns and make nullable scalar fallbacks
   explicit in the model assistant. Because GDScript has no nullable scalar or

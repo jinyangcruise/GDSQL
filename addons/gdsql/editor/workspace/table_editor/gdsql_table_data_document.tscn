@@ -191,11 +191,20 @@ icon = ExtResource("7_cluas")
 
 [node name="DeleteSelected" type="Button" parent="Layout/Actions" unique_id=781801038]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(132, 0)
 layout_mode = 2
-tooltip_text = "Delete the selected rows in one transaction"
+tooltip_text = "Select one or more rows to delete"
 disabled = true
 text = "Delete Selected"
 icon = ExtResource("5_delete")
+
+[node name="ActionSummary" type="Label" parent="Layout/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(156, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "No pending changes"
+text_overrun_behavior = 3
 
 [node name="HSeparator" type="HSeparator" parent="Layout/Actions" unique_id=1834254529]
 layout_mode = 2
