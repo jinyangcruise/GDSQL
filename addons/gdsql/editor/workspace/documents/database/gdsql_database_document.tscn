@@ -17,8 +17,9 @@ thickness = 2
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_23t64"]
 
 [node name="DatabaseDocument" type="MarginContainer" unique_id=700155203]
-offset_right = 562.0
+offset_right = 1151.0
 offset_bottom = 64.0
+size_flags_horizontal = 3
 theme_override_constants/margin_left = 20
 theme_override_constants/margin_top = 16
 theme_override_constants/margin_right = 20
@@ -46,9 +47,14 @@ theme_override_constants/separation = 8
 [node name="HSplitContainer" type="HBoxContainer" parent="Layout/Scroll/Content/Details" unique_id=583452389]
 layout_mode = 2
 
+[node name="Database" type="Label" parent="Layout/Scroll/Content/Details/HSplitContainer" unique_id=1552218774]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Database: "
+
 [node name="DatabaseName" type="LineEdit" parent="Layout/Scroll/Content/Details/HSplitContainer" unique_id=195084300]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(400, 0)
+custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
 size_flags_horizontal = 0
 tooltip_text = "Database Name"
@@ -79,7 +85,7 @@ layout_mode = 2
 text = "Remove from GDSQL"
 icon = ExtResource("3_toofw")
 
-[node name="DestroyDatabase" type="Button" parent="Layout/Scroll/Content/Details/HSplitContainer/Actions"]
+[node name="DestroyDatabase" type="Button" parent="Layout/Scroll/Content/Details/HSplitContainer/Actions" unique_id=450074627]
 unique_name_in_owner = true
 custom_maximum_size = Vector2(-1, 30)
 layout_mode = 2
@@ -118,6 +124,34 @@ unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "Tables"
+
+[node name="TableSearchBar" type="HBoxContainer" parent="Layout/Scroll/Content/Tables" unique_id=484727607]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TableSearch" type="LineEdit" parent="Layout/Scroll/Content/Tables/TableSearchBar" unique_id=346467487]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Search tables or columns…"
+clear_button_enabled = true
+
+[node name="TableSearchStatus" type="Label" parent="Layout/Scroll/Content/Tables/TableSearchBar" unique_id=2034611211]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(110, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "0 tables"
+horizontal_alignment = 2
+
+[node name="NoSearchResults" type="Label" parent="Layout/Scroll/Content/Tables" unique_id=1477474956]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "No table or column matches this search."
+horizontal_alignment = 1
 
 [node name="ExistingTables" type="VBoxContainer" parent="Layout/Scroll/Content/Tables" unique_id=1645330903]
 unique_name_in_owner = true
@@ -185,7 +219,7 @@ title = "Remove Database"
 ok_button_text = "Remove"
 dialog_text = "Remove this database from GDSQL? Its files will remain unchanged."
 
-[node name="DestroyConfirmation" type="ConfirmationDialog" parent="."]
+[node name="DestroyConfirmation" type="ConfirmationDialog" parent="." unique_id=2127309653]
 unique_name_in_owner = true
 title = "Permanently Destroy Database"
 ok_button_text = "Destroy Database Files"

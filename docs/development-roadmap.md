@@ -57,14 +57,15 @@ rather than a profile toggle.
 ## Remaining delivery workstreams
 
 After the current experimental table, creation, bootstrap, and model-assistant
-slices, four substantive workstreams remain. They are grouped by outcome;
+slices, three substantive workstreams remain. They are grouped by outcome;
 individual workstreams may require several small changes.
 
 | Outcome | Count | Remaining workstreams |
 |---|---:|---|
 | Reliable direct-content setup | 0 | Complete for the current direct profile. |
 | Managed-content full kit | 0 | Complete for the current managed profile. |
-| Advanced tooling and release | 2 | Completed SQL compiler/editor; migration, performance, and release QA. |
+| Editor navigation and schema UX | 1 | Multi-table search/navigation and selection-based schema actions. |
+| Advanced tooling and release | 2 | Finish the SQL compiler/editor; migration, performance, and release QA. |
 
 ## Delivery order
 
@@ -341,6 +342,31 @@ This slice is complete when base-only and modded launches use the same content
 model queries, deterministic rebuilds produce reproducible data, and disabling
 a package cannot mutate the base sources or corrupt save rows.
 
+### 8. Improve multi-table navigation and schema actions
+
+Experimental status: the database document filters existing table folds by
+table or column name without hiding unsaved table drafts.
+
+1. Search and filter tables within a database without loading their rows.
+2. Search table and column names across registered databases, with keyboard
+   navigation and direct open actions.
+3. Give each table direct actions for opening data and creating or updating its
+   model binding.
+4. Replace trailing per-column delete buttons with selection-based removal,
+   dependency warnings, and one explicit confirmation.
+
+### 9. Finish the SQL compiler and enable the SQL editor
+
+Complete and test the lexer, parser, and compiler for the supported SQL subset.
+Only then enable query preview and execution in the editor; SQL must produce the
+same `GDSQLQuerySpec` and diagnostics as every other frontend.
+
+### 10. Migration, performance, and release QA
+
+Version persisted formats, provide dry-run migrations and recovery guidance,
+benchmark paging and managed-content caches with large datasets, and verify
+editor/runtime behavior across supported Godot versions and exported builds.
+
 ## Backlog — not active delivery
 
 - **Advanced query graph:** preserve the current implementation, but do not add
@@ -365,6 +391,19 @@ a package cannot mutate the base sources or corrupt save rows.
   should distinguish transferable data snapshots from synchronized gameplay
   state and define authority, authentication, size limits, versioning,
   validation, and conflict policy before selecting a transport.
+- **Editor localization:** extract user-facing strings so future translations
+  can be added without changing control scripts or scenes.
+- **Configurable shortcuts:** register GDSQL actions and shortcuts in a dedicated
+  plugin section of Godot's editor settings, including conflict-safe defaults.
+- **Automatic updater:** provide opt-in release checks and safe updates only
+  after plugin, registry, database, package, and generated-model compatibility
+  policies are versioned.
+
+## Documentation transition
+
+The rewrite sources of truth are `docs/architecture/` and this roadmap. The
+remaining VitePress documentation is legacy and scheduled for replacement; the
+new end-user documentation will be developed separately.
 
 ## Definition of plug and play
 
@@ -388,3 +427,11 @@ code:
 - Do not remove the graph while it contains reusable working behavior.
 - Keep roadmap progress synchronized with tests and the glossary when stable
   concepts change implementation state.
+
+## Completed summary
+
+- Table-first browsing, filtering, ordering, paging, and atomic row editing.
+- Guided Direct Content and Managed Content setup plus safe database deletion.
+- Runtime bootstrap, roles, save-slot switching, checkpoints, and diagnostics.
+- Generated/user-owned model assistance and cross-role content references.
+- Deterministic managed-content overlays, caching, provenance, and save checks.

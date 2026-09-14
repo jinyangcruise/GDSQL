@@ -81,6 +81,16 @@ func focus() -> void:
 	folded = false
 
 
+func matches_search(query: String) -> bool:
+	if query.is_empty() or String(table_name).to_lower().contains(query):
+		return true
+	if _table != null:
+		for column in _table.columns:
+			if String(column.name).to_lower().contains(query):
+				return true
+	return false
+
+
 func _render_indexes(table: GDSQLTableDefinition) -> void:
 	for child in %Indexes.get_children():
 		%Indexes.remove_child(child)

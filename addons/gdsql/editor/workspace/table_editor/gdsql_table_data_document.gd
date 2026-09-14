@@ -49,6 +49,7 @@ var _filter_dirty := false
 var _visible_columns: Array[StringName] = []
 var _order_column: StringName
 var _order_direction := GDSQLOrderClause.SortDirection.ASCENDING
+var _pending_mutation_status := ""
 
 @onready var _table_view: GDSQLEditorResultGrid = %TableView
 @onready var _insert_editor: GDSQLEditorResultGrid = %InsertEditor
@@ -132,7 +133,12 @@ func present_rows(result: GDSQLQueryResult, total_rows: int = -1) -> void:
 	if result == null or not result.is_successful():
 		_table_view.configure(_table, _table, _records, true)
 		_table_view.clear()
-		%Status.text = "Could not load table rows."
+		%Status.text = (
+				"%s Rows could not be reloaded." % _pending_mutation_status
+				if not _pending_mutation_status.is_empty()
+				else "Could not load table rows."
+		)
+		_pending_mutation_status = ""
 		_refresh_actions()
 		return
 	_records.assign(result.rows)
@@ -144,7 +150,7 @@ func present_rows(result: GDSQLQueryResult, total_rows: int = -1) -> void:
 	_table_view.configure(_table, _build_view_table(), _records, true)
 	_table_view.set_safe_mode(false)
 	_render_table()
-	%Status.text = (
+	var page_status := (
 			"No rows on this page."
 			if _records.is_empty()
 			else "Showing rows %d–%d." % [
@@ -152,6 +158,12 @@ func present_rows(result: GDSQLQueryResult, total_rows: int = -1) -> void:
 				_page_index * _page_size + _records.size(),
 			]
 	)
+	%Status.text = (
+			_pending_mutation_status
+			if not _pending_mutation_status.is_empty()
+			else page_status
+	)
+	_pending_mutation_status = ""
 	_update_pagination()
 	_refresh_actions()
 
@@ -416,13 +428,18 @@ func _save_changes() -> void:
 	var updates := _table_view.get_pending_updates()
 	if updates.is_empty():
 		return
-	%Status.text = "Saving changes to %d row(s)…" % updates.size()
+	%Status.text = "Committing %d edited row(s) as one transaction…" % updates.size()
+	_pending_mutation_status = "%d edited row(s) committed atomically." % updates.size()
 	var previous_revision := _presentation_revision
 	_mutation_in_flight = true
 	rows_update_requested.emit(registration_name, table_name, updates)
 	_mutation_in_flight = false
 	if _presentation_revision == previous_revision:
-		%Status.text = "Could not save changes; pending edits were preserved."
+		_pending_mutation_status = ""
+		%Status.text = (
+				"The transaction failed and was rolled back; "
+				+ "pending edits were preserved."
+		)
 	_refresh_actions()
 
 
@@ -455,7 +472,7 @@ func _discard_changes() -> void:
 	else:
 		_table_view.clear_pending_changes()
 		_render_table()
-		%Status.text = "Pending changes discarded."
+		%Status.text = "Pending draft discarded; stored rows were not changed."
 	_refresh_actions()
 
 
@@ -488,13 +505,15 @@ func _confirm_rows_delete() -> void:
 		return
 	var keys := _pending_delete_keys.duplicate()
 	_pending_delete_keys.clear()
-	%Status.text = "Deleting %d row(s)…" % keys.size()
+	%Status.text = "Deleting %d row(s) as one transaction…" % keys.size()
+	_pending_mutation_status = "%d selected row(s) deleted atomically." % keys.size()
 	var previous_revision := _presentation_revision
 	_mutation_in_flight = true
 	rows_delete_requested.emit(registration_name, table_name, keys)
 	_mutation_in_flight = false
 	if _presentation_revision == previous_revision:
-		%Status.text = "Could not delete the selected rows."
+		_pending_mutation_status = ""
+		%Status.text = "The delete transaction failed and was rolled back."
 	_refresh_actions()
 
 

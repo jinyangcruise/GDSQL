@@ -3,10 +3,10 @@ extends MarginContainer
 ## One editable database document containing table and column folds.
 
 signal save_requested(
-		registration_name: StringName,
-		database_name: StringName,
-		new_tables: Array[GDSQLTableDefinition],
-		table_changes: Array[GDSQLEditorTableChange],
+	registration_name: StringName,
+	database_name: StringName,
+	new_tables: Array[GDSQLTableDefinition],
+	table_changes: Array[GDSQLEditorTableChange],
 )
 signal remove_requested(registration_name: StringName)
 signal destroy_requested(registration_name: StringName)
@@ -63,6 +63,7 @@ func _ready() -> void:
 	$RefreshConfirmation.confirmed.connect(_emit_refresh)
 	_remove_confirmation.confirmed.connect(_emit_remove)
 	_destroy_confirmation.confirmed.connect(_emit_destroy)
+	%TableSearch.text_changed.connect(_filter_tables)
 	_update_dirty_state()
 
 
@@ -132,28 +133,25 @@ func configure(inspection: GDSQLDatabaseInspection, session: GDSQLWorkbenchSessi
 		String(inspection.registration.database_name),
 	)
 	_remove_confirmation.dialog_text = (
-			(
-					"Remove database '%s' from GDSQL?\n\n"
-					+ "Files at '%s' will remain unchanged. Creating the same database "
-					+ "later will load these files again."
-			)
-			% [
-				inspection.registration.database_name,
-				database_path,
-			]
+		(
+			"Remove database '%s' from GDSQL?\n\n"
+			+ "Files at '%s' will remain unchanged. Creating the same database "
+			+ "later will load these files again."
+		)
+		% [inspection.registration.database_name, database_path]
 	)
 	_destroy_confirmation.dialog_text = (
-			"Permanently destroy database '%s'?\n\n"
-			+ "Catalog metadata, schemas, tables, and every stored row under:\n%s\n\n"
-			+ "This cannot be undone by GDSQL. Other databases under the same data root remain."
+		"Permanently destroy database '%s'?\n\n"
+		+ "Catalog metadata, schemas, tables, and every stored row under:\n%s\n\n"
+		+ "This cannot be undone by GDSQL. Other databases under the same data root remain."
 	) % [inspection.registration.database_name, database_path]
 	_render_existing_tables()
 	_update_dirty_state()
 
 
 func accept_saved_state(
-		inspection: GDSQLDatabaseInspection,
-		session: GDSQLWorkbenchSession,
+	inspection: GDSQLDatabaseInspection,
+	session: GDSQLWorkbenchSession,
 ) -> void:
 	for draft in _draft_tables.get_children():
 		_draft_tables.remove_child(draft)
@@ -173,6 +171,7 @@ func add_table_draft() -> void:
 
 
 func focus_table(table_name: StringName) -> void:
+	%TableSearch.clear()
 	for fold in _existing_tables.get_children():
 		if fold.get("table_name") == table_name:
 			fold.call("focus")
@@ -188,6 +187,7 @@ func _render_existing_tables() -> void:
 	for child in _existing_tables.get_children():
 		_existing_tables.remove_child(child)
 		child.queue_free()
+	_filter_tables(%TableSearch.text)
 	if _session == null or _session.catalog_snapshot == null:
 		return
 	var database := _session.catalog_snapshot.get_database(_inspection.registration.database_name)
@@ -201,6 +201,24 @@ func _render_existing_tables() -> void:
 		_existing_tables.add_child(fold)
 		fold.call("configure", table, table_inspection)
 		fold.connect("changed", _update_dirty_state)
+	_filter_tables(%TableSearch.text)
+
+
+func _filter_tables(search_text: String) -> void:
+	var query := search_text.strip_edges().to_lower()
+	var visible_count := 0
+	var total_count := _existing_tables.get_child_count()
+	for fold in _existing_tables.get_children():
+		var matches := query.is_empty() or bool(fold.call("matches_search", query))
+		fold.visible = matches
+		if matches:
+			visible_count += 1
+	%TableSearchStatus.text = (
+		"%d tables" % total_count
+		if query.is_empty()
+		else "%d of %d tables" % [visible_count, total_count]
+	)
+	%NoSearchResults.visible = not query.is_empty() and total_count > 0 and visible_count == 0
 
 
 func _begin_rename() -> void:
@@ -289,8 +307,8 @@ func _update_dirty_state() -> void:
 	_dirty_state.text = "Unsaved changes" if dirty else "Saved"
 	_validation_state.visible = dirty and not validation_errors.is_empty()
 	_validation_state.text = (validation_errors[0]
-			if not validation_errors.is_empty()
-			else "")
+		if not validation_errors.is_empty()
+		else "")
 	if _action_context != null:
 		_action_context.set_action_enabled(
 			GDSQLEditorActionIds.SAVE_DATABASE_CHANGES,
