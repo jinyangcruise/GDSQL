@@ -163,11 +163,21 @@ database and table documents, model assistants, and query graphs. Menu and tab
 controls delegate through the action hub and workbench session rather than
 owning operations.
 
-The welcome document presents both runtime composition profiles without
-exposing unavailable actions. Direct-content readiness requires a project-owned
-`content` binding and a writable `save` binding. Managed content remains a
-planned status until effective-content orchestration exists. This presentation
-reads typed registration and role metadata; it does not open database rows.
+The welcome document presents both runtime composition profiles. Direct-content
+readiness requires a project-owned `content` binding and a writable `save`
+binding. Its managed-content action opens a scene-backed setup document for
+package paths, deterministic validation, disposable cache building, and active-
+save compatibility. The welcome profile itself remains a concise status rather
+than duplicating those controls.
+
+The managed-content document stores project inputs in
+`res://.gdsql/settings.cfg`. Building a cache delegates to the existing package
+discovery, resolution, overlay, fingerprint, and cache services. Recording the
+current package set for an active save requires confirmation and updates only
+that save's compatibility manifest; it never changes gameplay rows.
+Its base-database action opens the intent-based creation document in managed
+mode, scaffolding `res://content/base/{manifest.cfg,data/,assets/}` while the
+database API creates the enclosed normal catalog.
 
 The save-slot document discovers only direct children of the standard
 `user://gdsql/saves` boundary, while retaining an explicitly active custom-root

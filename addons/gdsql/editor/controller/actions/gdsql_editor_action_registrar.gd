@@ -132,11 +132,21 @@ func register_global_actions(
 	_register(
 		context,
 		handlers,
+		GDSQLEditorActionIds.SHOW_MANAGED_CONTENT,
+		"Managed Content",
+		"Configure packages, build effective content, and inspect save compatibility.",
+		&"Package",
+		56,
+		result,
+	)
+	_register(
+		context,
+		handlers,
 		GDSQLEditorActionIds.CREATE_SAVE_SLOT,
 		"New Save Slot",
 		"Create a writable save database with recommended defaults.",
 		&"Add",
-		56,
+		57,
 		result,
 	)
 	_register(
@@ -146,7 +156,7 @@ func register_global_actions(
 		"Use Save Slot",
 		"Bind a registered database as the active save role.",
 		&"Favorites",
-		57,
+		58,
 		result,
 	)
 	_register(
@@ -156,7 +166,7 @@ func register_global_actions(
 		"Delete Save Slot Data",
 		"Permanently delete one validated standard save-slot database.",
 		&"Remove",
-		58,
+		59,
 		result,
 	)
 	result.value = context

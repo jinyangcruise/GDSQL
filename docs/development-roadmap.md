@@ -45,7 +45,8 @@ status information until their orchestration exists.
   implemented. Managed content now builds deterministic snapshots, reuses
   fingerprinted disposable caches, and activates them without exposing partial
   runtime state. Save-owned package expectations now produce typed compatibility
-  reports; recording integration and managed setup UI remain.
+  reports. A managed setup document now validates package inputs, builds the
+  cache, reports active-save compatibility, and confirms expectation recording.
 - SQL lexer/parser/compiler contracts are scaffolded, so the editor must not
   present SQL text as a complete query frontend yet.
 
@@ -58,7 +59,7 @@ individual workstreams may require several small changes.
 | Outcome | Count | Remaining workstreams |
 |---|---:|---|
 | Reliable direct-content setup | 0 | Complete for the current direct profile. |
-| Managed-content full kit | 1 | Mod-aware save compatibility and setup UI. |
+| Managed-content full kit | 1 | Automatic managed runtime startup and game-policy handoff. |
 | Advanced tooling and release | 4 | Advanced graph operations and saved graphs; completed SQL compiler/editor; shared batch tooling; migration, performance, and release QA. |
 
 ## Delivery order
@@ -107,7 +108,8 @@ table and row, model bindings, and runtime autoload. It reports one concrete nex
 action and can install the supported runtime adapter. Runtime bootstrap reuses
 the same profile checks as non-fatal structured warnings. Its scene contains
 representative checklist content so it remains understandable in the Godot
-scene editor.
+scene editor. The managed profile links to its implemented setup document and
+reports whether an effective cache is available.
 
 The welcome document should show a short, actionable project checklist:
 
@@ -124,17 +126,18 @@ architecture documents or long welcome-page prose.
 
 ### 3. Replace raw database creation with an intent-based wizard
 
-Experimental status: creation now starts with Content, Save Slot, Shared
-Settings, or Custom intent. The first three derive their recommended root,
-implemented storage backend, and logical runtime role; storage details remain
-available under an advanced toggle. Successful creation persists the selected
-role binding, and opening an existing logical database remains non-destructive.
+Experimental status: creation now starts with Direct Content, Managed Base
+Content, Save Slot, Shared Settings, or Custom intent. Managed creation
+scaffolds a base manifest plus data/assets roots and leaves the immutable source
+unbound; the generated effective database owns the runtime content role. Other
+intents derive their recommended root, storage backend, and logical role.
 
 The first choice should be the database purpose:
 
 | Purpose | Recommended root | Runtime policy |
 |---|---|---|
 | Authored content | `res://data` | Read-only in exported games |
+| Managed base content | `res://content/base/data` | Immutable source for generated effective content |
 | Save slot | `user://gdsql/saves/<slot>` | Mutable and checkpointed |
 | Shared settings | `user://gdsql/settings` | Mutable, independent of slots |
 | Custom | Explicit root | Explicit access and persistence choices |
@@ -289,8 +292,10 @@ exact compatible cache; and rebuild malformed or stale caches through a staged
 ConfigFile directory replacement. The runtime composition root now opens that
 candidate first and replaces the runtime-local `effective_content` registration
 and `content` role together. Save compatibility now compares persisted package
-expectations with the active manifest without imposing a load policy. Managed
-setup UI and save-recording integration are next.
+expectations with the active manifest without imposing a load policy. The
+managed setup document persists package inputs, builds the cache, and records
+save expectations only after confirmation. Automatic managed runtime startup
+and game-policy handoff remain.
 
 Runtime content should always be consumed through one derived
 `effective_content` database bound to the `content` role. Base content and

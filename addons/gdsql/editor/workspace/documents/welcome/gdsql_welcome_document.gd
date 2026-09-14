@@ -13,6 +13,7 @@ var _setup_report: GDSQLDirectSetupReport
 @onready var _create_database_button: GDSQLEditorActionButton = %CreateDatabase
 @onready var _refresh_button: GDSQLEditorActionButton = %RefreshDatabases
 @onready var _save_slots_button: GDSQLEditorActionButton = %ManageSaveSlots
+@onready var _managed_content_button: GDSQLEditorActionButton = %OpenManagedContent
 @onready var _database_list: ItemList = %DatabaseList
 @onready var _open_database: Button = %OpenDatabase
 @onready var _next_action_button: Button = %NextAction
@@ -33,6 +34,10 @@ func configure(action_hub: GDSQLEditorActionHub, workbench: GDSQLWorkbench) -> v
 	_create_database_button.configure_action(action_hub, GDSQLEditorActionIds.CREATE_DATABASE)
 	_refresh_button.configure_action(action_hub, GDSQLEditorActionIds.REFRESH_DATABASES)
 	_save_slots_button.configure_action(action_hub, GDSQLEditorActionIds.SHOW_SAVE_SLOTS)
+	_managed_content_button.configure_action(
+		action_hub,
+		GDSQLEditorActionIds.SHOW_MANAGED_CONTENT,
+	)
 	refresh_status()
 
 
@@ -170,9 +175,16 @@ func _refresh_profile_status(
 			if direct_ready
 			else report.get_next_incomplete().detail
 	)
-	%ManagedProfileStatus.text = "PLANNED"
+	var cached := GDSQLConfigFileContentCacheStore.new().load_manifest()
+	var manifest := cached.get_value() as GDSQLContentCacheManifest
+	%ManagedProfileStatus.text = "CACHE READY" if manifest != null else "AVAILABLE"
+	%ManagedProfileStatus.modulate = (
+			Color(0.42, 0.82, 0.55) if manifest != null else Color(0.42, 0.68, 1.0)
+	)
 	%ManagedProfileDetail.text = (
-			"Effective-content cache, package overlays, and mod orchestration are not implemented yet."
+			"%d resolved package(s) are cached as effective content." % manifest.packages.size()
+			if manifest != null
+			else "Configure a base package and optional package directories."
 	)
 
 

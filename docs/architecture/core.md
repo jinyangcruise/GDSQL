@@ -1309,6 +1309,11 @@ Runtime content services depend on `GDSQLContentPackageManifestStore`.
 and returns the typed manifest with structured diagnostics. The manifest does
 not load databases, enumerate packages, or apply overlays.
 
+Editor setup may use `GDSQLConfigFileContentPackageScaffolder` to create the
+base package envelope and fill only absent manifest fields. The enclosed data
+root remains an ordinary GDSQL root whose catalog is created by the database
+API; existing manifest values are never replaced implicitly.
+
 `GDSQLContentPackageDiscovery` returns typed package sources from an explicit
 base location and package containers. The ConfigFile implementation owns direct
 directory enumeration and manifest decoding. `GDSQLContentPackageResolver`

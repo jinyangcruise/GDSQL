@@ -594,9 +594,10 @@ multiple packages are available. The base package always precedes optional
 layers. Missing dependencies, incompatible versions, duplicate IDs, unknown
 enabled IDs, and cycles return structured errors before content is read.
 
-The base project may keep the simpler default `res://data/` layout or adopt a
-`res://content/data/` root when treating its own content as a package. A mod
-directory can mirror the complete structure:
+The direct profile keeps the simpler `res://data/` layout. The managed profile
+uses `res://content/base/` as its base package root and
+`res://content/base/data/` as the enclosed GDSQL data root. A mod directory can
+mirror the complete structure:
 
 ```text
 user://mods/

@@ -77,7 +77,7 @@ item_1/disabled = true
 oversampling_override = 1.0
 title = "Database"
 size = Vector2i(182, 100)
-item_count = 5
+item_count = 6
 item_0/text = "Create Database…"
 item_0/id = 1
 item_1/text = "Add Table"
@@ -85,10 +85,12 @@ item_1/id = 2
 item_1/disabled = true
 item_2/text = "Save Slots…"
 item_2/id = 4
-item_3/id = -1
-item_3/separator = true
-item_4/text = "Refresh"
-item_4/id = 3
+item_3/text = "Managed Content…"
+item_3/id = 5
+item_4/id = -1
+item_4/separator = true
+item_5/text = "Refresh"
+item_5/id = 3
 
 [node name="Help" type="PopupMenu" parent="Layout/MenuPanel/MenuBar" unique_id=661294708]
 oversampling_override = 1.0

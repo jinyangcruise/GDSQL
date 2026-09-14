@@ -147,6 +147,7 @@ func _create_actions() -> void:
 		GDSQLEditorActionIds.SELECT_TABLE: _select_table,
 		GDSQLEditorActionIds.SHOW_WELCOME: _show_welcome,
 		GDSQLEditorActionIds.SHOW_SAVE_SLOTS: _show_save_slots,
+		GDSQLEditorActionIds.SHOW_MANAGED_CONTENT: _show_managed_content,
 		GDSQLEditorActionIds.CREATE_SAVE_SLOT: _show_create_save_slot,
 		GDSQLEditorActionIds.SELECT_SAVE_SLOT: _select_save_slot,
 		GDSQLEditorActionIds.DELETE_SAVE_SLOT: _delete_save_slot,
@@ -225,8 +226,26 @@ func _create_database(
 		data_root: String,
 		storage_backend_id: StringName,
 		database_role: StringName,
+		package_root: String,
 ) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
+	if not package_root.is_empty():
+		var scaffolded := GDSQLConfigFileContentPackageScaffolder.new().scaffold(
+			package_root,
+			GDSQLContentPackageManifest.new(
+				&"base.game",
+				"Base Game",
+				"1.0.0",
+				GDSQLContentPackageKind.Kind.BASE_GAME,
+				0,
+				data_root.get_file(),
+				"assets",
+			),
+		)
+		result.diagnostics.merge(scaffolded.diagnostics)
+		if not scaffolded.is_successful():
+			_record_result("Scaffold base content package", result)
+			return result
 	var database_result := GDSQLDatabase.open(database_name, data_root)
 	var loaded_existing := database_result.is_successful()
 	if not loaded_existing:
@@ -847,6 +866,13 @@ func _show_save_slots() -> GDSQLOperationResult:
 	return result
 
 
+func _show_managed_content() -> GDSQLOperationResult:
+	_workspace.show_managed_content()
+	var result := GDSQLOperationResult.new()
+	result.value = _workspace
+	return result
+
+
 func _select_save_slot(registration_name: StringName) -> GDSQLOperationResult:
 	var result := workbench.bind_role(
 		GDSQLDatabaseRegistry.SAVE_ROLE,
@@ -905,6 +931,7 @@ func _refresh_surfaces() -> void:
 	if is_instance_valid(_workspace):
 		_workspace.refresh_welcome()
 		_workspace.refresh_save_slots()
+		_workspace.refresh_managed_content()
 	if is_instance_valid(_workspace) and workbench.active_session != null:
 		var registration_name := workbench.active_session.registration.name
 		_workspace.refresh_database(

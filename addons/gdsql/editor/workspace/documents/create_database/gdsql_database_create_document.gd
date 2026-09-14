@@ -7,11 +7,13 @@ signal create_requested(
 		data_root: String,
 		storage_backend_id: StringName,
 		database_role: StringName,
+		package_root: String,
 )
 signal cancel_requested
 
 enum Purpose {
 	CONTENT,
+	MANAGED_BASE,
 	SAVE_SLOT,
 	SETTINGS,
 	CUSTOM,
@@ -58,6 +60,11 @@ func reset_save_slot() -> void:
 	_reset_form()
 
 
+func reset_managed_base() -> void:
+	_purpose.select(Purpose.MANAGED_BASE)
+	_reset_form()
+
+
 func _reset_form() -> void:
 	_advanced.set_pressed_no_signal(false)
 	_advanced_fields.hide()
@@ -93,6 +100,10 @@ func _apply_purpose_defaults() -> void:
 			_name.text = "content"
 			_data_root.text = _content_root
 			_backend.select(0)
+		Purpose.MANAGED_BASE:
+			_name.text = "content"
+			_data_root.text = "res://content/base/data"
+			_backend.select(0)
 		Purpose.SAVE_SLOT:
 			_name.text = "save_1"
 			_data_root.text = _save_root()
@@ -105,6 +116,8 @@ func _apply_purpose_defaults() -> void:
 			_name.text = ""
 			_data_root.text = _content_root
 			_backend.select(0)
+	_name.editable = _selected_purpose() != Purpose.MANAGED_BASE
+	_backend.disabled = _selected_purpose() == Purpose.MANAGED_BASE
 	_applying_defaults = false
 	_refresh_summary()
 	_validate()
@@ -117,6 +130,10 @@ func _refresh_summary() -> void:
 		Purpose.CONTENT:
 			_purpose_description.text = (
 					"Authored game content shipped with the project. Runtime access is read-only."
+			)
+		Purpose.MANAGED_BASE:
+			_purpose_description.text = (
+					"Immutable base package source. Runtime reads a generated effective-content database."
 			)
 		Purpose.SAVE_SLOT:
 			_purpose_description.text = (
@@ -133,7 +150,11 @@ func _refresh_summary() -> void:
 	_location_value.text = _data_root.text.strip_edges()
 	_storage_value.text = GDSQLStorageBackendIds.get_display_name(_selected_backend())
 	var role := _selected_role()
-	_role_value.text = "Not assigned" if role == &"" else String(role)
+	_role_value.text = (
+		"Effective content only"
+		if _selected_purpose() == Purpose.MANAGED_BASE
+		else ("Not assigned" if role == &"" else String(role))
+	)
 
 
 func _validate() -> void:
@@ -142,18 +163,28 @@ func _validate() -> void:
 	_refresh_summary()
 	var database_name := _name.text.strip_edges()
 	var data_root := _data_root.text.strip_edges()
-	var valid := not database_name.is_empty() and not data_root.is_empty()
+	var managed_data_path_missing := (
+		_selected_purpose() == Purpose.MANAGED_BASE and data_root.get_file().is_empty()
+	)
+	var valid := not database_name.is_empty() and not data_root.is_empty() \
+			and not managed_data_path_missing
 	_create.disabled = not valid
 	if database_name.is_empty():
 		_hint.text = "Enter a database name."
 	elif data_root.is_empty():
 		_hint.text = "Choose a data root."
+	elif managed_data_path_missing:
+		_hint.text = "Managed package data must use a directory below its package root."
 	elif _selected_backend() == GDSQLStorageBackendIds.IN_MEMORY:
 		_hint.text = (
 				"Rows load into memory. ConfigFile remains the hydration and checkpoint source."
 		)
 	else:
-		_hint.text = "Catalog, schema, and rows use ConfigFile storage directly."
+		_hint.text = (
+			"Creates manifest.cfg, assets/, and the normal data/databases.cfg catalog."
+			if _selected_purpose() == Purpose.MANAGED_BASE
+			else "Catalog, schema, and rows use ConfigFile storage directly."
+		)
 
 
 func _selected_purpose() -> Purpose:
@@ -177,6 +208,12 @@ func _selected_role() -> StringName:
 	return &""
 
 
+func _selected_package_root() -> String:
+	if _selected_purpose() != Purpose.MANAGED_BASE:
+		return ""
+	return _data_root.text.strip_edges().get_base_dir()
+
+
 func _save_root() -> String:
 	var slot_name := _name.text.strip_edges()
 	if slot_name.is_empty():
@@ -192,6 +229,7 @@ func _submit() -> void:
 		_data_root.text.strip_edges(),
 		_selected_backend(),
 		_selected_role(),
+		_selected_package_root(),
 	)
 
 

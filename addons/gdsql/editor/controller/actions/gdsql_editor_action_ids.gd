@@ -12,6 +12,7 @@ const OPEN_REGISTRATION := &"database.open_registration"
 const SELECT_TABLE := &"database.select_table"
 const SHOW_WELCOME := &"workspace.show_welcome"
 const SHOW_SAVE_SLOTS := &"workspace.show_save_slots"
+const SHOW_MANAGED_CONTENT := &"workspace.show_managed_content"
 const CREATE_SAVE_SLOT := &"save_slot.create"
 const SELECT_SAVE_SLOT := &"save_slot.select"
 const DELETE_SAVE_SLOT := &"save_slot.delete"
@@ -42,6 +43,7 @@ static func get_all() -> Array[StringName]:
 		SELECT_TABLE,
 		SHOW_WELCOME,
 		SHOW_SAVE_SLOTS,
+		SHOW_MANAGED_CONTENT,
 		CREATE_SAVE_SLOT,
 		SELECT_SAVE_SLOT,
 		DELETE_SAVE_SLOT,

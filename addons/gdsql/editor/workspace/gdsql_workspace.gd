@@ -8,6 +8,7 @@ signal database_create_submitted(
 		data_root: String,
 		storage_backend_id: StringName,
 		database_role: StringName,
+		package_root: String,
 )
 signal database_save_submitted(
 		registration_name: StringName,
@@ -84,16 +85,21 @@ const MODEL_ASSISTANT_SCENE := preload(
 const SAVE_SLOTS_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn"
 )
+const MANAGED_CONTENT_SCENE := preload(
+	"res://addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn"
+)
 const QUERY_GRAPH_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/query_graph/graph_editor.tscn"
 )
 const WELCOME_KEY := &"welcome"
 const CREATE_DATABASE_KEY := &"database:create"
 const SAVE_SLOTS_KEY := &"save_slots"
+const MANAGED_CONTENT_KEY := &"managed_content"
 const MENU_CREATE_DATABASE := 1
 const MENU_CREATE_TABLE := 2
 const MENU_REFRESH := 3
 const MENU_SAVE_SLOTS := 4
+const MENU_MANAGED_CONTENT := 5
 
 var _action_hub: GDSQLEditorActionHub
 var _workbench: GDSQLWorkbench
@@ -130,6 +136,9 @@ func configure(action_hub: GDSQLEditorActionHub, workbench: GDSQLWorkbench) -> v
 	var save_slots := _documents.get(SAVE_SLOTS_KEY) as Control
 	if save_slots != null:
 		save_slots.call("configure", _action_hub, _workbench)
+	var managed_content := _documents.get(MANAGED_CONTENT_KEY) as Control
+	if managed_content != null:
+		managed_content.call("configure", _action_hub, _workbench)
 
 
 func refresh_welcome() -> void:
@@ -144,6 +153,12 @@ func refresh_save_slots() -> void:
 		document.call("refresh_slots")
 
 
+func refresh_managed_content() -> void:
+	var document := _documents.get(MANAGED_CONTENT_KEY) as Control
+	if document != null:
+		document.call("refresh_status")
+
+
 func show_welcome() -> void:
 	_activate_document(WELCOME_KEY)
 
@@ -156,6 +171,20 @@ func show_save_slots() -> void:
 		document.call("configure", _action_hub, _workbench)
 	document.call("refresh_slots")
 	_activate_document(SAVE_SLOTS_KEY)
+
+
+func show_managed_content() -> void:
+	var document := _documents.get(MANAGED_CONTENT_KEY) as Control
+	if document == null:
+		document = MANAGED_CONTENT_SCENE.instantiate() as Control
+		document.connect(
+			"create_base_database_requested",
+			open_create_managed_base_page,
+		)
+		_add_document(MANAGED_CONTENT_KEY, "Managed Content", document)
+		document.call("configure", _action_hub, _workbench)
+	document.call("refresh_status")
+	_activate_document(MANAGED_CONTENT_KEY)
 
 
 func show_database(
@@ -289,6 +318,12 @@ func open_create_database_page(default_root: String = "res://data") -> void:
 func open_create_save_slot_page() -> void:
 	var document := _get_create_database_document()
 	document.call("reset_save_slot")
+	_activate_document(CREATE_DATABASE_KEY)
+
+
+func open_create_managed_base_page() -> void:
+	var document := _get_create_database_document()
+	document.call("reset_managed_base")
 	_activate_document(CREATE_DATABASE_KEY)
 
 
@@ -599,12 +634,14 @@ func _on_database_create_requested(
 		data_root: String,
 		storage_backend_id: StringName,
 		database_role: StringName,
+		package_root: String,
 ) -> void:
 	database_create_submitted.emit(
 		database_name,
 		data_root,
 		storage_backend_id,
 		database_role,
+		package_root,
 	)
 
 
@@ -762,6 +799,8 @@ func _on_menu_pressed(id: int) -> void:
 			_action_hub.invoke(GDSQLEditorActionIds.REFRESH_DATABASES)
 		MENU_SAVE_SLOTS:
 			_action_hub.invoke(GDSQLEditorActionIds.SHOW_SAVE_SLOTS)
+		MENU_MANAGED_CONTENT:
+			_action_hub.invoke(GDSQLEditorActionIds.SHOW_MANAGED_CONTENT)
 
 
 func _on_tab_changed(index: int) -> void:

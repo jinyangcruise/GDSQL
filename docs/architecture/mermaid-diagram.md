@@ -355,6 +355,13 @@ ConfigPackageManifest("`**ConfigFile Package Manifest Store**
 *Extends:* GDSQLContentPackageManifestStore
 *Returns:* Typed GDSQLContentPackageManifest and diagnostics`")
 
+ConfigPackageScaffolder("`**ConfigFile Package Scaffolder**
+
+-
+*Purpose:* Create editable base-package data and asset roots
+*Safety:* Fill absent manifest fields without replacing authored values
+*Returns:* Validated typed package source and diagnostics`")
+
 ConfigPackageDiscovery("`**ConfigFile Package Discovery**
 
 -
@@ -486,6 +493,7 @@ ConfigCatalog -->|"path resolution"| ConfigInfrastructure
 ConfigAdministration -->|"paths · cache"| ConfigInfrastructure
 ConfigStorage -->|"paths · cache · codec"| ConfigInfrastructure
 ConfigPackageManifest -->|"decodes typed metadata"| PackageManifest
+ConfigPackageScaffolder -->|"validates typed metadata"| PackageManifest
 ConfigPackageDiscovery -->|"discover package sources"| PackageResolution
 ConfigPackageDiscovery -->|"load manifest"| ConfigPackageManifest
 ConfigPackageLayer -->|"typed schemas and row operations"| ContentOverlay
@@ -507,5 +515,5 @@ class Planner,PlanNode planning;
 class Executor execution;
 class CatalogService,CatalogAdministration,ResourceConstraint catalog;
 class TableStorage storage;
-class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageDiscovery,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
+class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
 class Results,Materialization result;

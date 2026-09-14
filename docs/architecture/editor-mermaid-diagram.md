@@ -51,6 +51,14 @@ SaveSlots("`**Save Slots**
 *Boundary:* user://gdsql/saves direct children plus active custom root
 *Safety:* Creation and role binding only; no implicit durable deletion`")
 
+ManagedContent("`**Managed Content Setup**
+
+-
+*Purpose:* Configure and validate base, DLC and mod package inputs
+*Setup:* Scaffold a base package and its first ordinary GDSQL database
+*Build:* Reuse runtime discovery, resolution, overlay and cache services
+*Save check:* Report compatibility and confirm expectation recording`")
+
 Activity("`**Activity Bottom Panel**
 
 -
@@ -99,7 +107,9 @@ Workspace -->|"table and catalog tasks"| Session
 Workspace -->|"edit graph document"| Graphs
 Workspace -->|"preview model binding"| ModelAssistant
 Workspace -->|"manage active save role"| SaveSlots
+Workspace -->|"configure managed content"| ManagedContent
 SaveSlots -->|"discover · bind · open"| Workbench
+ManagedContent -->|"package and save diagnostics"| Runtime
 
 Graphs -->|"compile(graph) · execute(query)"| Runtime
 Session -->|"catalog and canonical query operations"| Runtime
@@ -107,7 +117,7 @@ Runtime -->|"results · diagnostics"| Activity
 
 class Integration integration;
 class Actions action;
-class Dock,Workspace,ModelAssistant,SaveSlots surface;
+class Dock,Workspace,ModelAssistant,SaveSlots,ManagedContent surface;
 class Workbench,Session coordination;
 class Graphs graphs;
 class Runtime runtime;

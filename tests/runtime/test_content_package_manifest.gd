@@ -130,6 +130,55 @@ func test_config_file_store_rejects_missing_and_malformed_manifests() -> void:
 	)
 
 
+func test_config_file_scaffolder_creates_a_loadable_base_package() -> void:
+	var package_root := _package_root.path_join("base")
+	var manifest := GDSQLContentPackageManifest.new(
+		&"base.game",
+		"Base Game",
+		"1.0.0",
+		GDSQLContentPackageKind.Kind.BASE_GAME,
+	)
+
+	var scaffolded := GDSQLConfigFileContentPackageScaffolder.new().scaffold(
+		package_root,
+		manifest,
+	)
+	var source := scaffolded.get_value() as GDSQLContentPackageSource
+
+	assert_bool(scaffolded.is_successful()).is_true()
+	assert_object(source).is_not_null()
+	assert_str(String(source.manifest.package_id)).is_equal("base.game")
+	assert_bool(DirAccess.dir_exists_absolute(package_root.path_join("data"))).is_true()
+	assert_bool(DirAccess.dir_exists_absolute(package_root.path_join("assets"))).is_true()
+	var created := GDSQLDatabase.create(&"content", source.get_data_root())
+	assert_bool(created.is_successful()).is_true()
+	assert_bool(FileAccess.file_exists(package_root.path_join("data/databases.cfg"))).is_true()
+
+
+func test_config_file_scaffolder_only_fills_missing_manifest_values() -> void:
+	var config := ConfigFile.new()
+	config.set_value("package", "name", "My Existing Game")
+	assert_int(config.save(_package_root.path_join("manifest.cfg"))).is_equal(OK)
+	var manifest := GDSQLContentPackageManifest.new(
+		&"base.game",
+		"Base Game",
+		"1.0.0",
+		GDSQLContentPackageKind.Kind.BASE_GAME,
+	)
+
+	var scaffolded := GDSQLConfigFileContentPackageScaffolder.new().scaffold(
+		_package_root,
+		manifest,
+	)
+	var stored := ConfigFile.new()
+	assert_int(stored.load(_package_root.path_join("manifest.cfg"))).is_equal(OK)
+
+	assert_bool(scaffolded.is_successful()).is_true()
+	assert_str(stored.get_value("package", "name")).is_equal("My Existing Game")
+	assert_str(stored.get_value("package", "id")).is_equal("base.game")
+	assert_str(stored.get_value("package", "data_path")).is_equal("data")
+
+
 func _diagnostic_codes(result: GDSQLOperationResult) -> Array[String]:
 	var codes: Array[String] = []
 	for diagnostic in result.diagnostics.entries:

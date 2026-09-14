@@ -49,15 +49,17 @@ text = "Purpose"
 [node name="Purpose" type="OptionButton" parent="Scroll/Content"]
 unique_name_in_owner = true
 layout_mode = 2
-item_count = 4
-popup/item_0/text = "Authored content"
+item_count = 5
+popup/item_0/text = "Direct content"
 popup/item_0/id = 0
-popup/item_1/text = "Save slot"
+popup/item_1/text = "Managed base content"
 popup/item_1/id = 1
-popup/item_2/text = "Shared settings"
+popup/item_2/text = "Save slot"
 popup/item_2/id = 2
-popup/item_3/text = "Custom"
+popup/item_3/text = "Shared settings"
 popup/item_3/id = 3
+popup/item_4/text = "Custom"
+popup/item_4/id = 4
 
 [node name="PurposePanel" type="PanelContainer" parent="Scroll/Content"]
 layout_mode = 2
