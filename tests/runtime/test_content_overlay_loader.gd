@@ -135,7 +135,7 @@ func _create_package_database(
 	var database := TestDatabase.create_database(
 		source.get_data_root(),
 		table,
-		&"game_content",
+		&"content",
 	)
 	TestDatabase.insert_rows(database, rows, table.name)
 	return database
@@ -156,7 +156,7 @@ func _write_removals(
 	assert_int(DirAccess.make_dir_recursive_absolute(source.package_root)).is_equal(OK)
 	var config := ConfigFile.new()
 	config.set_value(
-		"remove:game_content:%s" % table_name,
+		"remove:content:%s" % table_name,
 		"ids",
 		identities,
 	)

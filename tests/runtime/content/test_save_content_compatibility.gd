@@ -94,7 +94,7 @@ func _cache_manifest(
 		packages: Array[GDSQLContentPackageFingerprint],
 ) -> GDSQLContentCacheManifest:
 	return GDSQLContentCacheManifest.new(
-		&"game_content",
+		&"content",
 		&"effective_content",
 		packages,
 	)

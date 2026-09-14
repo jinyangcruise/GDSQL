@@ -2,7 +2,7 @@ class_name GDSQLContentOverlayLoader
 extends RefCounted
 ## Applies ordered package layers without mutating their source definitions or rows.
 
-const DEFAULT_SOURCE_DATABASE := &"game_content"
+const DEFAULT_SOURCE_DATABASE := &"content"
 const DEFAULT_EFFECTIVE_DATABASE := &"effective_content"
 
 var _layer_reader: GDSQLContentPackageLayerReader

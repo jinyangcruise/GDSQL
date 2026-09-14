@@ -30,6 +30,7 @@ docs/.vitepress/cache/
 /data
 /models
 /.gdsql
+/content
 
 !.gitkeep
 

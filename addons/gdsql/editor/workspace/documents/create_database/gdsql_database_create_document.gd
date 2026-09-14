@@ -97,11 +97,11 @@ func _apply_purpose_defaults() -> void:
 	_applying_defaults = true
 	match _selected_purpose():
 		Purpose.CONTENT:
-			_name.text = "content"
+			_name.text = String(GDSQLDatabaseRegistry.CONTENT_ROLE)
 			_data_root.text = _content_root
 			_backend.select(0)
 		Purpose.MANAGED_BASE:
-			_name.text = "content"
+			_name.text = String(GDSQLContentOverlayLoader.DEFAULT_SOURCE_DATABASE)
 			_data_root.text = "res://content/base/data"
 			_backend.select(0)
 		Purpose.SAVE_SLOT:

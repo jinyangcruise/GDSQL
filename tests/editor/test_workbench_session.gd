@@ -280,14 +280,14 @@ func test_workbench_persists_updated_logical_database_name() -> void:
 	assert_bool(
 		workbench.update_database_name(
 			&"project_content",
-			&"game_content",
+			&"renamed_content",
 		).is_successful(),
 	).is_true()
 	var restored := registry.load_snapshot().get_value() \
 			as GDSQLDatabaseRegistrySnapshot
 	assert_str(
 		String(restored.registrations[0].database_name),
-	).is_equal("game_content")
+	).is_equal("renamed_content")
 
 
 func _find_inspection(

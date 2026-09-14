@@ -149,7 +149,8 @@ func _inspect_managed_base(
 		return null
 	for value in inspected.get_value():
 		var inspection := value as GDSQLDatabaseInspection
-		if inspection.registration.database_name == &"content":
+		if inspection.registration.database_name \
+				== GDSQLContentOverlayLoader.DEFAULT_SOURCE_DATABASE:
 			return inspection
 	return null
 

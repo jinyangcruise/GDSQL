@@ -1,8 +1,8 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://cu176g62og8kv"]
 
-[ext_resource type="Script" path="res://addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.gd" id="1"]
+[ext_resource type="Script" uid="uid://buhktr2rfpch5" path="res://addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.gd" id="1"]
 
-[node name="ManagedContentDocument" type="MarginContainer"]
+[node name="ManagedContentDocument" type="MarginContainer" unique_id=811265128]
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -14,68 +14,68 @@ theme_override_constants/margin_right = 24
 theme_override_constants/margin_bottom = 20
 script = ExtResource("1")
 
-[node name="Scroll" type="ScrollContainer" parent="."]
+[node name="Scroll" type="ScrollContainer" parent="." unique_id=330698624]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="Content" type="VBoxContainer" parent="Scroll"]
+[node name="Content" type="VBoxContainer" parent="Scroll" unique_id=225826634]
 custom_minimum_size = Vector2(760, 0)
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 12
 
-[node name="Eyebrow" type="Label" parent="Scroll/Content"]
+[node name="Eyebrow" type="Label" parent="Scroll/Content" unique_id=1660125257]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.42, 0.68, 1, 1)
 text = "RUNTIME CONTENT"
 
-[node name="Title" type="Label" parent="Scroll/Content"]
+[node name="Title" type="Label" parent="Scroll/Content" unique_id=783189335]
 layout_mode = 2
 theme_override_font_sizes/font_size = 26
 text = "Managed content setup"
 
-[node name="Description" type="Label" parent="Scroll/Content"]
+[node name="Description" type="Label" parent="Scroll/Content" unique_id=1024978849]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
 text = "Build one effective content database from an immutable base package and optional DLC or mod packages."
 autowrap_mode = 2
 
-[node name="ConfigurationPanel" type="PanelContainer" parent="Scroll/Content"]
+[node name="ConfigurationPanel" type="PanelContainer" parent="Scroll/Content" unique_id=1588736181]
 layout_mode = 2
 
-[node name="Margin" type="MarginContainer" parent="Scroll/Content/ConfigurationPanel"]
+[node name="Margin" type="MarginContainer" parent="Scroll/Content/ConfigurationPanel" unique_id=1057132104]
 layout_mode = 2
 theme_override_constants/margin_left = 14
 theme_override_constants/margin_top = 12
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 12
 
-[node name="Layout" type="VBoxContainer" parent="Scroll/Content/ConfigurationPanel/Margin"]
+[node name="Layout" type="VBoxContainer" parent="Scroll/Content/ConfigurationPanel/Margin" unique_id=1724448308]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Title" type="Label" parent="Scroll/Content/ConfigurationPanel/Margin/Layout"]
+[node name="Title" type="Label" parent="Scroll/Content/ConfigurationPanel/Margin/Layout" unique_id=315566835]
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "Package configuration"
 
-[node name="BaseLabel" type="Label" parent="Scroll/Content/ConfigurationPanel/Margin/Layout"]
+[node name="BaseLabel" type="Label" parent="Scroll/Content/ConfigurationPanel/Margin/Layout" unique_id=338696169]
 layout_mode = 2
 text = "Base package directory"
 
-[node name="BasePackageRoot" type="LineEdit" parent="Scroll/Content/ConfigurationPanel/Margin/Layout"]
+[node name="BasePackageRoot" type="LineEdit" parent="Scroll/Content/ConfigurationPanel/Margin/Layout" unique_id=315967567]
 unique_name_in_owner = true
 layout_mode = 2
 text = "res://content/base"
 placeholder_text = "Directory containing manifest.cfg"
 
-[node name="PackageRootsLabel" type="Label" parent="Scroll/Content/ConfigurationPanel/Margin/Layout"]
+[node name="PackageRootsLabel" type="Label" parent="Scroll/Content/ConfigurationPanel/Margin/Layout" unique_id=1863706630]
 layout_mode = 2
 text = "Optional package container directories · one per line"
 
-[node name="PackageRoots" type="TextEdit" parent="Scroll/Content/ConfigurationPanel/Margin/Layout"]
+[node name="PackageRoots" type="TextEdit" parent="Scroll/Content/ConfigurationPanel/Margin/Layout" unique_id=1396703149]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
@@ -84,55 +84,58 @@ user://gdsql/mods"
 placeholder_text = "Directories whose children contain package manifests"
 scroll_fit_content_height = true
 
-[node name="EnabledPackagesLabel" type="Label" parent="Scroll/Content/ConfigurationPanel/Margin/Layout"]
+[node name="EnabledPackagesLabel" type="Label" parent="Scroll/Content/ConfigurationPanel/Margin/Layout" unique_id=309036294]
 layout_mode = 2
 text = "Enabled optional package IDs · one per line"
 
-[node name="EnabledPackages" type="TextEdit" parent="Scroll/Content/ConfigurationPanel/Margin/Layout"]
+[node name="EnabledPackages" type="TextEdit" parent="Scroll/Content/ConfigurationPanel/Margin/Layout" unique_id=14875690]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
 placeholder_text = "Leave empty for base content only"
 scroll_fit_content_height = true
 
-[node name="Actions" type="HBoxContainer" parent="Scroll/Content/ConfigurationPanel/Margin/Layout"]
+[node name="Actions" type="HBoxContainer" parent="Scroll/Content/ConfigurationPanel/Margin/Layout" unique_id=622050552]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="CreateBaseDatabase" type="Button" parent="Scroll/Content/ConfigurationPanel/Margin/Layout/Actions"]
+[node name="CreateBaseDatabase" type="Button" parent="Scroll/Content/ConfigurationPanel/Margin/Layout/Actions" unique_id=1190003522]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Create Base Database"
 
-[node name="ValidatePackages" type="Button" parent="Scroll/Content/ConfigurationPanel/Margin/Layout/Actions"]
+[node name="ValidatePackages" type="Button" parent="Scroll/Content/ConfigurationPanel/Margin/Layout/Actions" unique_id=909540901]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Validate"
 
-[node name="BuildCache" type="Button" parent="Scroll/Content/ConfigurationPanel/Margin/Layout/Actions"]
+[node name="BuildCache" type="Button" parent="Scroll/Content/ConfigurationPanel/Margin/Layout/Actions" unique_id=1055321935]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Save & Build Cache"
 
-[node name="RefreshStatus" type="Button" parent="Scroll/Content/ConfigurationPanel/Margin/Layout/Actions"]
+[node name="RefreshStatus" type="Button" parent="Scroll/Content/ConfigurationPanel/Margin/Layout/Actions" unique_id=35841864]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Refresh"
 
-[node name="Status" type="Label" parent="Scroll/Content/ConfigurationPanel/Margin/Layout"]
+[node name="Status" type="RichTextLabel" parent="Scroll/Content/ConfigurationPanel/Margin/Layout" unique_id=1662780035]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
+focus_mode = 2
+bbcode_enabled = true
 text = "Configure a base package to begin."
+fit_content = true
 autowrap_mode = 2
+selection_enabled = true
 
-[node name="PackageSummary" type="Label" parent="Scroll/Content"]
+[node name="PackageSummary" type="Label" parent="Scroll/Content" unique_id=1902422104]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 18
 text = "2 package(s) discovered"
 
-[node name="PackageTree" type="Tree" parent="Scroll/Content"]
+[node name="PackageTree" type="Tree" parent="Scroll/Content" unique_id=225550444]
 unique_name_in_owner = true
 visible = false
 custom_minimum_size = Vector2(0, 180)
@@ -141,98 +144,98 @@ columns = 5
 column_titles_visible = true
 hide_root = true
 
-[node name="PackagePreview" type="VBoxContainer" parent="Scroll/Content"]
+[node name="PackagePreview" type="VBoxContainer" parent="Scroll/Content" unique_id=1800458806]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="Header" type="Label" parent="Scroll/Content/PackagePreview"]
+[node name="Header" type="Label" parent="Scroll/Content/PackagePreview" unique_id=774098403]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "Package                 Kind       Version      Selection      Source"
 
-[node name="Base" type="Label" parent="Scroll/Content/PackagePreview"]
+[node name="Base" type="Label" parent="Scroll/Content/PackagePreview" unique_id=300613130]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "base.game               BASE       1.0.0        Base           res://content/base"
 
-[node name="Mod" type="Label" parent="Scroll/Content/PackagePreview"]
+[node name="Mod" type="Label" parent="Scroll/Content/PackagePreview" unique_id=1417354394]
 custom_minimum_size = Vector2(0, 34)
 layout_mode = 2
 text = "example.cosmetics       MOD        1.1.0        Enabled        user://gdsql/mods/example"
 
-[node name="RuntimeState" type="HBoxContainer" parent="Scroll/Content"]
+[node name="RuntimeState" type="HBoxContainer" parent="Scroll/Content" unique_id=28367994]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="CachePanel" type="PanelContainer" parent="Scroll/Content/RuntimeState"]
+[node name="CachePanel" type="PanelContainer" parent="Scroll/Content/RuntimeState" unique_id=2143517197]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="Margin" type="MarginContainer" parent="Scroll/Content/RuntimeState/CachePanel"]
+[node name="Margin" type="MarginContainer" parent="Scroll/Content/RuntimeState/CachePanel" unique_id=946059036]
 layout_mode = 2
 theme_override_constants/margin_left = 14
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="Layout" type="VBoxContainer" parent="Scroll/Content/RuntimeState/CachePanel/Margin"]
+[node name="Layout" type="VBoxContainer" parent="Scroll/Content/RuntimeState/CachePanel/Margin" unique_id=1843693600]
 layout_mode = 2
 
-[node name="Title" type="Label" parent="Scroll/Content/RuntimeState/CachePanel/Margin/Layout"]
+[node name="Title" type="Label" parent="Scroll/Content/RuntimeState/CachePanel/Margin/Layout" unique_id=1618617016]
 layout_mode = 2
 text = "Effective cache"
 
-[node name="CacheStatus" type="Label" parent="Scroll/Content/RuntimeState/CachePanel/Margin/Layout"]
+[node name="CacheStatus" type="Label" parent="Scroll/Content/RuntimeState/CachePanel/Margin/Layout" unique_id=91249004]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.42, 0.82, 0.55, 1)
 text = "READY"
 
-[node name="CacheDetail" type="Label" parent="Scroll/Content/RuntimeState/CachePanel/Margin/Layout"]
+[node name="CacheDetail" type="Label" parent="Scroll/Content/RuntimeState/CachePanel/Margin/Layout" unique_id=1262733036]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
 text = "2 packages cached as effective_content."
 autowrap_mode = 2
 
-[node name="SavePanel" type="PanelContainer" parent="Scroll/Content/RuntimeState"]
+[node name="SavePanel" type="PanelContainer" parent="Scroll/Content/RuntimeState" unique_id=1552691483]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="Margin" type="MarginContainer" parent="Scroll/Content/RuntimeState/SavePanel"]
+[node name="Margin" type="MarginContainer" parent="Scroll/Content/RuntimeState/SavePanel" unique_id=1889641750]
 layout_mode = 2
 theme_override_constants/margin_left = 14
 theme_override_constants/margin_top = 10
 theme_override_constants/margin_right = 14
 theme_override_constants/margin_bottom = 10
 
-[node name="Layout" type="VBoxContainer" parent="Scroll/Content/RuntimeState/SavePanel/Margin"]
+[node name="Layout" type="VBoxContainer" parent="Scroll/Content/RuntimeState/SavePanel/Margin" unique_id=1725633771]
 layout_mode = 2
 
-[node name="Title" type="Label" parent="Scroll/Content/RuntimeState/SavePanel/Margin/Layout"]
+[node name="Title" type="Label" parent="Scroll/Content/RuntimeState/SavePanel/Margin/Layout" unique_id=1376669653]
 layout_mode = 2
 text = "Active save compatibility"
 
-[node name="SaveStatus" type="Label" parent="Scroll/Content/RuntimeState/SavePanel/Margin/Layout"]
+[node name="SaveStatus" type="Label" parent="Scroll/Content/RuntimeState/SavePanel/Margin/Layout" unique_id=876356576]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.72, 0.32, 1)
 text = "NOT RECORDED"
 
-[node name="SaveDetail" type="Label" parent="Scroll/Content/RuntimeState/SavePanel/Margin/Layout"]
+[node name="SaveDetail" type="Label" parent="Scroll/Content/RuntimeState/SavePanel/Margin/Layout" unique_id=1811313717]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
 text = "Record the current package set for this save."
 autowrap_mode = 2
 
-[node name="RecordCurrentSet" type="Button" parent="Scroll/Content/RuntimeState/SavePanel/Margin/Layout"]
+[node name="RecordCurrentSet" type="Button" parent="Scroll/Content/RuntimeState/SavePanel/Margin/Layout" unique_id=1066910145]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Record Current Package Set…"
 
-[node name="RecordConfirmation" type="ConfirmationDialog" parent="."]
+[node name="RecordConfirmation" type="ConfirmationDialog" parent="." unique_id=523524525]
 unique_name_in_owner = true
 title = "Record Save Content Set"
 ok_button_text = "Record Current Set"

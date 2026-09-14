@@ -93,7 +93,7 @@ func _create_content_database() -> void:
 	var items := GDSQLTableDefinition.new(&"items", &"id")
 	items.add_column(GDSQLColumnDefinition.new(&"id", TYPE_STRING_NAME, false))
 	items.add_column(GDSQLColumnDefinition.new(&"display_name", TYPE_STRING, false))
-	var database := GDSQLDatabase.create(&"game_content", _content_root).get_database()
+	var database := GDSQLDatabase.create(&"content", _content_root).get_database()
 	assert_bool(database.create_table(items).is_successful()).is_true()
 	assert_bool(
 		database.insert(
@@ -127,7 +127,7 @@ func _save_registry_snapshot() -> void:
 	snapshot.registrations = [
 		GDSQLDatabaseRegistration.new(
 			&"content",
-			&"game_content",
+			&"content",
 			_content_root,
 			GDSQLStorageBackendIds.CONFIG_FILE,
 		),

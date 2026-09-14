@@ -41,7 +41,7 @@ res://.gdsql/
 
 res://data/
 ├── databases.cfg
-└── game_content/
+└── content/
     ├── schema/
     └── tables/
 ```
@@ -145,7 +145,7 @@ stable identifiers without becoming one execution context. For example, a save
 row may store an `item_id` whose definition exists in the project database:
 
 ```text
-res:// game_content.items
+res:// content.items
     id = "iron_sword"
     display_name = "Iron Sword"
     base_damage = 12
@@ -544,7 +544,7 @@ content/
 │   └── scenes/
 ├── data/
 │   ├── databases.cfg
-│   └── game_content/
+│   └── content/
 │       ├── schema/
 │       └── tables/
 ├── overlays.cfg
@@ -555,6 +555,10 @@ content/
 load-order requirements. `data/` contains one or more GDSQL databases. Rows in
 those databases may reference files under `assets/` through package-relative
 asset identifiers, paths, or resolved Godot resource UIDs.
+
+The managed profile names its authored source database `content` by default and
+builds the disposable runtime result as `effective_content`. Advanced callers
+may explicitly select another source database name.
 
 The initial readable manifest shape is:
 
@@ -617,7 +621,7 @@ mutated save state.
 ConfigFile representation supports explicit stable-ID removals:
 
 ```ini
-[remove:game_content:items]
+[remove:content:items]
 ids=PackedStringArray("retired_sword", "old_shield")
 ```
 

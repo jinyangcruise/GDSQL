@@ -17,7 +17,7 @@ func test_cache_hits_until_package_content_changes() -> void:
 	var source_database := TestDatabase.create_database(
 		source.get_data_root(),
 		_items_table(),
-		&"game_content",
+		&"content",
 	)
 	TestDatabase.insert_rows(
 		source_database,
@@ -57,7 +57,7 @@ func test_invalid_manifest_is_a_recoverable_cache_miss() -> void:
 	var source_database := TestDatabase.create_database(
 		source.get_data_root(),
 		_items_table(),
-		&"game_content",
+		&"content",
 	)
 	TestDatabase.insert_rows(
 		source_database,
@@ -87,7 +87,7 @@ func test_activation_replaces_content_only_after_the_cache_opens() -> void:
 	var source_database := TestDatabase.create_database(
 		source.get_data_root(),
 		_items_table(),
-		&"game_content",
+		&"content",
 	)
 	TestDatabase.insert_rows(
 		source_database,

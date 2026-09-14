@@ -11,7 +11,7 @@ func before_test() -> void:
 
 
 func test_registers_and_resolves_database_names_and_roles() -> void:
-	var database := _create_database(&"game_content")
+	var database := _create_database(&"content")
 	var registry := GDSQLDatabaseRegistry.new()
 
 	assert_bool(registry.register(&"base_content", database).is_successful()).is_true()
