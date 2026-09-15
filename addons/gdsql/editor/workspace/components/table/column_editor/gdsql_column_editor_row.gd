@@ -12,7 +12,7 @@ signal reorder_requested(
 
 const KEY_ICON := preload("res://addons/gdsql/editor/workspace/icons/key.svg")
 const FOREIGN_KEY_ICON := preload(
-	"res://addons/gdsql/editor/workspace/icons/foreign-key.svg"
+	"res://addons/gdsql/editor/workspace/icons/foreign_key.svg"
 )
 const COLUMN_ROW_DRAG_TYPE := &"gdsql_column_editor_row"
 const VARIANT_TYPES := preload(

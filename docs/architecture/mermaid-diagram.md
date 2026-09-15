@@ -55,7 +55,7 @@ ForeignKeyAuthoring("`**Foreign Key Authoring**
 -
 *Purpose:* Draft same-database references in the table designer
 *Input:* Local table plus database catalog definitions
-*Filtering:* Supported local types and exact-type unique targets
+*Filtering:* Supported local types and exact-type unique targets in other tables
 *Output:* ForeignKeyDefinition and typed table alterations`")
 
 RowBatch("`**GDSQLEditorRowBatch**

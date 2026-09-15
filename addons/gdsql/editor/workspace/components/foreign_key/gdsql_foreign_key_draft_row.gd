@@ -121,15 +121,11 @@ func _populate_target_tables(preferred: StringName) -> void:
 		var seen: Dictionary[StringName, bool] = { }
 		if _database != null:
 			for table in _database.tables:
-				var candidate := _source_table if _source_table != null \
-						and table.name == _source_table.name else table
-				if not seen.has(candidate.name) and _has_compatible_target(candidate, local):
-					_add_named_item(_target_table, candidate.name)
-					seen[candidate.name] = true
-		if _source_table != null and _source_table.name != &"" \
-				and not seen.has(_source_table.name) \
-				and _has_compatible_target(_source_table, local):
-			_add_named_item(_target_table, _source_table.name)
+				if _source_table != null and table.name == _source_table.name:
+					continue
+				if not seen.has(table.name) and _has_compatible_target(table, local):
+					_add_named_item(_target_table, table.name)
+					seen[table.name] = true
 	_select_name(_target_table, preferred)
 	_set_empty_state(_target_table, "No compatible target tables")
 
@@ -176,7 +172,7 @@ func _find_table(table_name: StringName) -> GDSQLTableDefinition:
 	if table_name == &"":
 		return null
 	if _source_table != null and _source_table.name == table_name:
-		return _source_table
+		return null
 	return _database.get_table(table_name) if _database != null else null
 
 

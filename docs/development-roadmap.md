@@ -385,8 +385,9 @@ table/column renames and drops plus removal of the target's last uniqueness
 contract; safe self-referencing renames update their constraint metadata. The
 database table designer now creates and removes these constraints through typed
 catalog alterations. Searchable selectors expose only supported local columns
-and exact-type unique targets, new-table drafts can declare self-references, and
-foreign-key columns carry the dedicated key indicator.
+and exact-type unique targets in other tables, and foreign-key columns carry the
+dedicated key indicator. Existing self-references remain readable and removable,
+but the table designer does not offer the source table as a new target.
 
 Next, add searchable referenced-row value pickers to the data table. Keep
 cross-role `save` → `content` references as a separate logical contract resolved
