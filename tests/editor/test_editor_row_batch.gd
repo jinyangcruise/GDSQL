@@ -15,8 +15,16 @@ func test_builds_and_executes_atomic_updates() -> void:
 	TestDatabase.insert_basic_heroes(database)
 	var table := database.context.catalog.get_table(database.database_name, &"heroes")
 	var updates: Array[Dictionary] = [
-		{"primary_key": 1, "values": {&"name": "Paladin"}},
-		{"primary_key": 2, "values": {&"name": "Wizard"}},
+		{
+			"primary_key": 1,
+			"before_values": {&"name": "Knight"},
+			"values": {&"name": "Paladin"},
+		},
+		{
+			"primary_key": 2,
+			"before_values": {&"name": "Mage"},
+			"values": {&"name": "Wizard"},
+		},
 	]
 
 	var planned := GDSQLEditorRowBatch.build_updates(table, updates)
@@ -31,6 +39,36 @@ func test_builds_and_executes_atomic_updates() -> void:
 	)
 	assert_str(String(rows.rows[0].get_value(&"name"))).is_equal("Paladin")
 	assert_str(String(rows.rows[1].get_value(&"name"))).is_equal("Wizard")
+	var entry := batch.create_history_entry(&"project")
+	assert_object(entry).is_not_null()
+	assert_str(String(entry.before_rows[0].get_value(&"name"))).is_equal("Knight")
+	assert_str(String(entry.after_rows[1].get_value(&"name"))).is_equal("Wizard")
+
+	var inverse_updates: Array[Dictionary] = [
+		{"primary_key": 1, "values": {&"name": "Knight"}},
+		{"primary_key": 2, "values": {&"name": "Mage"}},
+	]
+	var inverse := GDSQLEditorRowBatch.build_updates(table, inverse_updates)
+	assert_bool(inverse.is_successful()).is_true()
+	assert_bool(
+			(inverse.get_value() as GDSQLEditorRowBatch).execute(database).is_successful(),
+	).is_true()
+	rows = database.execute(
+		database.query().select().from_table(&"heroes").order_by_column(&"id").build(),
+	)
+	assert_str(String(rows.rows[0].get_value(&"name"))).is_equal("Knight")
+	assert_str(String(rows.rows[1].get_value(&"name"))).is_equal("Mage")
+
+
+func test_update_without_before_values_is_not_recordable() -> void:
+	var updates: Array[Dictionary] = [
+		{"primary_key": 1, "values": {&"name": "Paladin"}},
+	]
+	var planned := GDSQLEditorRowBatch.build_updates(_table_definition(), updates)
+	var batch := planned.get_value() as GDSQLEditorRowBatch
+
+	assert_bool(planned.is_successful()).is_true()
+	assert_object(batch.create_history_entry(&"project")).is_null()
 
 
 func test_rejects_read_only_and_unknown_update_columns() -> void:

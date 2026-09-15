@@ -190,9 +190,13 @@ func get_pending_updates() -> Array[Dictionary]:
 	for record_index: int in _updates:
 		var values: Dictionary = _updates[record_index]
 		if not values.is_empty():
+			var before_values: Dictionary = { }
+			for column_name in values:
+				before_values[column_name] = _records[record_index].get_value(column_name)
 			pending.append(
 				{
 					"primary_key": _records[record_index].get_value(_table.primary_key),
+					"before_values": before_values,
 					"values": values.duplicate(true),
 				},
 			)

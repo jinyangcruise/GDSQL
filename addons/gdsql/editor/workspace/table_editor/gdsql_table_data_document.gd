@@ -27,6 +27,8 @@ signal model_assistant_requested(
 		registration_name: StringName,
 		table: GDSQLTableDefinition,
 )
+signal undo_requested(registration_name: StringName, table_name: StringName)
+signal redo_requested(registration_name: StringName, table_name: StringName)
 
 const PAGE_SIZES: Array[int] = [10, 25, 50, 100]
 const COLUMN_SELECT_ALL := 10_000
@@ -50,6 +52,11 @@ var _visible_columns: Array[StringName] = []
 var _order_column: StringName
 var _order_direction := GDSQLOrderClause.SortDirection.ASCENDING
 var _pending_mutation_status := ""
+var _undo_summary := ""
+var _redo_summary := ""
+var _action_hub: GDSQLEditorActionHub
+var _action_context: GDSQLContextActionHub
+var _action_context_id: StringName
 
 @onready var _table_view: GDSQLEditorResultGrid = %TableView
 @onready var _insert_editor: GDSQLEditorResultGrid = %InsertEditor
@@ -84,6 +91,72 @@ func _ready() -> void:
 	_where_expression.apply_requested.connect(_apply_filter)
 	_where_expression.clear_requested.connect(_clear_filter)
 	_refresh_actions()
+
+
+func configure_actions(action_hub: GDSQLEditorActionHub, context_id: StringName) -> void:
+	if _action_hub == action_hub and _action_context_id == context_id:
+		return
+	release_actions()
+	_action_hub = action_hub
+	_action_context_id = context_id
+	_action_context = GDSQLContextActionHub.new(context_id)
+	_action_context.add_action(
+		GDSQLEditorActionDefinition.new(
+			GDSQLEditorActionIds.UNDO_TABLE_MUTATION,
+			"Undo",
+			"Undo the latest committed row-value update.",
+			&"UndoRedo",
+			&"history",
+			0,
+		),
+		_request_undo,
+	)
+	_action_context.add_action(
+		GDSQLEditorActionDefinition.new(
+			GDSQLEditorActionIds.REDO_TABLE_MUTATION,
+			"Redo",
+			"Redo the latest undone row-value update.",
+			&"Redo",
+			&"history",
+			1,
+		),
+		_request_redo,
+	)
+	var registered := _action_hub.register_context(_action_context)
+	if not registered.is_successful():
+		return
+	%Undo.configure(
+		_action_hub,
+		_action_context.get_action(GDSQLEditorActionIds.UNDO_TABLE_MUTATION),
+	)
+	%Redo.configure(
+		_action_hub,
+		_action_context.get_action(GDSQLEditorActionIds.REDO_TABLE_MUTATION),
+	)
+	_refresh_history_actions()
+
+
+func get_action_context_id() -> StringName:
+	return _action_context_id
+
+
+func release_actions() -> void:
+	if _action_hub != null and _action_context_id != &"":
+		_action_hub.unregister_context(_action_context_id)
+	_action_hub = null
+	_action_context = null
+	_action_context_id = &""
+
+
+func set_history_state(undo_summary: String, redo_summary: String) -> void:
+	_undo_summary = undo_summary
+	_redo_summary = redo_summary
+	%HistoryNote.visible = not undo_summary.is_empty() or not redo_summary.is_empty()
+	_refresh_history_actions()
+
+
+func present_history_result(message: String) -> void:
+	%Status.text = message
 
 
 func configure(
@@ -199,6 +272,36 @@ func _is_scene_preview() -> bool:
 func _open_model_assistant() -> void:
 	if _table != null:
 		model_assistant_requested.emit(registration_name, _table)
+
+
+func _request_undo() -> GDSQLOperationResult:
+	if has_unsaved_changes():
+		return _history_blocked("Undo")
+	undo_requested.emit(registration_name, table_name)
+	var result := GDSQLOperationResult.new()
+	result.value = self
+	return result
+
+
+func _request_redo() -> GDSQLOperationResult:
+	if has_unsaved_changes():
+		return _history_blocked("Redo")
+	redo_requested.emit(registration_name, table_name)
+	var result := GDSQLOperationResult.new()
+	result.value = self
+	return result
+
+
+func _history_blocked(action_name: String) -> GDSQLOperationResult:
+	%Status.text = "%s is unavailable while the table has a pending draft." % action_name
+	var result := GDSQLOperationResult.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_EDITOR_MUTATION_HISTORY_DRAFT_PENDING",
+			%Status.text,
+		),
+	)
+	return result
 
 
 func _build_select_query(count_rows: bool = false) -> GDSQLSelectQuerySpec:
@@ -563,7 +666,32 @@ func _refresh_actions() -> void:
 			if action_summary.is_empty()
 			else " · ".join(action_summary)
 	)
+	_refresh_history_actions()
 	_refresh_filter_actions()
+
+
+func _refresh_history_actions() -> void:
+	if _action_context == null or not is_node_ready():
+		return
+	var blocked := _mutation_in_flight or has_unsaved_changes()
+	_action_context.set_action_enabled(
+		GDSQLEditorActionIds.UNDO_TABLE_MUTATION,
+		not blocked and not _undo_summary.is_empty(),
+	)
+	_action_context.set_action_enabled(
+		GDSQLEditorActionIds.REDO_TABLE_MUTATION,
+		not blocked and not _redo_summary.is_empty(),
+	)
+	%Undo.tooltip_text = (
+			"Undo %s" % _undo_summary
+			if not _undo_summary.is_empty()
+			else "No committed row update to undo"
+	)
+	%Redo.tooltip_text = (
+			"Redo %s" % _redo_summary
+			if not _redo_summary.is_empty()
+			else "No undone row update to redo"
+	)
 
 
 func _change_page(delta: int) -> void:

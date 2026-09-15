@@ -39,6 +39,8 @@ signal table_rows_delete_requested(
 		table_name: StringName,
 		primary_keys: Array[Variant],
 )
+signal table_undo_requested(registration_name: StringName, table_name: StringName)
+signal table_redo_requested(registration_name: StringName, table_name: StringName)
 signal query_graph_submitted(
 		document_key: StringName,
 		source_node_name: StringName,
@@ -247,6 +249,8 @@ func show_table(
 			"model_assistant_requested",
 			_on_model_assistant_requested,
 		)
+		document.connect("undo_requested", _on_table_undo_requested)
+		document.connect("redo_requested", _on_table_redo_requested)
 		_add_document(
 			key,
 			"%s · %s" % [
@@ -255,6 +259,7 @@ func show_table(
 			],
 			document,
 		)
+		document.call("configure_actions", _action_hub, key)
 	var table_inspection := inspection.get_table(session.selected_table.name)
 	document.call(
 		"configure",
@@ -391,6 +396,31 @@ func request_table_rows(
 	) as Control
 	if document != null and document.has_method("request_rows"):
 		document.call("request_rows")
+
+
+func set_table_history_state(
+		registration_name: StringName,
+		table_name: StringName,
+		undo_summary: String,
+		redo_summary: String,
+) -> void:
+	var document := _documents.get(
+		_table_key(registration_name, table_name),
+	) as Control
+	if document != null:
+		document.call("set_history_state", undo_summary, redo_summary)
+
+
+func present_table_history_result(
+		registration_name: StringName,
+		table_name: StringName,
+		message: String,
+) -> void:
+	var document := _documents.get(
+		_table_key(registration_name, table_name),
+	) as Control
+	if document != null:
+		document.call("present_history_result", message)
 
 
 func present_query_graph_result(
@@ -716,6 +746,20 @@ func _on_table_rows_delete_requested(
 		table_name,
 		primary_keys,
 	)
+
+
+func _on_table_undo_requested(
+		registration_name: StringName,
+		table_name: StringName,
+) -> void:
+	table_undo_requested.emit(registration_name, table_name)
+
+
+func _on_table_redo_requested(
+		registration_name: StringName,
+		table_name: StringName,
+) -> void:
+	table_redo_requested.emit(registration_name, table_name)
 
 
 func _on_model_assistant_requested(

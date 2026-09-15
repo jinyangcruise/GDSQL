@@ -12,6 +12,8 @@ var row_count: int:
 		return _queries.size()
 
 var _queries: Array[GDSQLQuerySpec] = []
+var _history_before_rows: Array[GDSQLRowRecord] = []
+var _history_after_rows: Array[GDSQLRowRecord] = []
 
 
 static func build_updates(
@@ -49,11 +51,13 @@ static func build_updates(
 		if query != null:
 			queries.append(query)
 	if result.is_successful():
-		result.value = GDSQLEditorRowBatch.new(
+		var batch := GDSQLEditorRowBatch.new(
 				table,
 				Operation.UPDATE,
 				queries,
 		)
+		batch._configure_update_history(table, updates)
+		result.value = batch
 	return result
 
 
@@ -106,6 +110,23 @@ func get_queries() -> Array[GDSQLQuerySpec]:
 	return _queries.duplicate()
 
 
+func create_history_entry(
+		registration_name: StringName,
+) -> GDSQLEditorMutationHistoryEntry:
+	if operation != Operation.UPDATE \
+			or _history_before_rows.is_empty() \
+			or _history_before_rows.size() != _history_after_rows.size():
+		return null
+	return GDSQLEditorMutationHistoryEntry.new(
+			registration_name,
+			database_name,
+			table_name,
+			GDSQLEditorMutationHistoryEntry.Operation.UPDATE,
+			_history_before_rows,
+			_history_after_rows,
+	)
+
+
 func execute(database: GDSQLDatabase) -> GDSQLOperationResult:
 	if database == null:
 		return _failed(
@@ -133,6 +154,34 @@ func execute(database: GDSQLDatabase) -> GDSQLOperationResult:
 	if result.is_successful():
 		result.value = self
 	return result
+
+
+func _configure_update_history(
+		table: GDSQLTableDefinition,
+		updates: Array[Dictionary],
+) -> void:
+	_history_before_rows.clear()
+	_history_after_rows.clear()
+	for update in updates:
+		var before_values: Dictionary = update.get("before_values", { })
+		var after_values: Dictionary = update.get("values", { })
+		if before_values.size() != after_values.size():
+			_history_before_rows.clear()
+			_history_after_rows.clear()
+			return
+		var before_snapshot := {table.primary_key: update.get("primary_key")}
+		var after_snapshot := before_snapshot.duplicate()
+		for column_name in after_values:
+			if not before_values.has(column_name) \
+					or typeof(before_values[column_name]) == TYPE_OBJECT \
+					or typeof(after_values[column_name]) == TYPE_OBJECT:
+				_history_before_rows.clear()
+				_history_after_rows.clear()
+				return
+			before_snapshot[column_name] = before_values[column_name]
+			after_snapshot[column_name] = after_values[column_name]
+		_history_before_rows.append(GDSQLRowRecord.new(before_snapshot))
+		_history_after_rows.append(GDSQLRowRecord.new(after_snapshot))
 
 
 static func _build_update_query(

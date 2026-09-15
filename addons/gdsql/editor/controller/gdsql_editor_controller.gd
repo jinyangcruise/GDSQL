@@ -18,6 +18,7 @@ var _database_dock: GDSQLDatabaseDock
 var _logs_panel: GDSQLLogsPanel
 var _workspace_loaded := false
 var _request_filesystem_scan: Callable
+var _mutation_histories: Dictionary[String, GDSQLEditorMutationHistory] = { }
 
 
 static func _registration_prefix_for_root(
@@ -101,6 +102,12 @@ func shutdown() -> void:
 			and _workspace.table_rows_delete_requested.is_connected(_delete_table_rows):
 		_workspace.table_rows_delete_requested.disconnect(_delete_table_rows)
 	if is_instance_valid(_workspace) \
+			and _workspace.table_undo_requested.is_connected(_undo_table_mutation):
+		_workspace.table_undo_requested.disconnect(_undo_table_mutation)
+	if is_instance_valid(_workspace) \
+			and _workspace.table_redo_requested.is_connected(_redo_table_mutation):
+		_workspace.table_redo_requested.disconnect(_redo_table_mutation)
+	if is_instance_valid(_workspace) \
 			and _workspace.query_graph_submitted.is_connected(_execute_query_graph):
 		_workspace.query_graph_submitted.disconnect(_execute_query_graph)
 	if is_instance_valid(_workspace) \
@@ -126,6 +133,7 @@ func shutdown() -> void:
 		)
 	_workspace = null
 	_database_dock = null
+	_mutation_histories.clear()
 	_logs_panel = null
 	action_hub = null
 	workbench = null
@@ -171,6 +179,8 @@ func _configure_surfaces() -> void:
 	_workspace.table_row_insert_requested.connect(_insert_table_row)
 	_workspace.table_rows_update_requested.connect(_update_table_rows)
 	_workspace.table_rows_delete_requested.connect(_delete_table_rows)
+	_workspace.table_undo_requested.connect(_undo_table_mutation)
+	_workspace.table_redo_requested.connect(_redo_table_mutation)
 	_workspace.query_graph_submitted.connect(_execute_query_graph)
 	_workspace.query_result_row_insert_requested.connect(_insert_query_result_row)
 	_workspace.query_result_row_update_requested.connect(_update_query_result_row)
@@ -389,6 +399,7 @@ func _remove_registration(registration_name: StringName) -> GDSQLOperationResult
 		result.diagnostics.merge(removed.diagnostics)
 	if result.is_successful():
 		_scan_project_filesystem()
+		_clear_registration_histories(registration_name)
 		_workspace.close_registration(registration_name)
 	_refresh_surfaces()
 	_record_result("Remove database", result)
@@ -405,6 +416,7 @@ func _destroy_database(registration_name: StringName) -> GDSQLOperationResult:
 		result.diagnostics.merge(removed.diagnostics)
 	if result.is_successful():
 		_scan_project_filesystem()
+		_clear_registration_histories(registration_name)
 		_workspace.close_registration(registration_name)
 		result.value = true
 	_refresh_surfaces()
@@ -518,6 +530,8 @@ func _insert_table_row(
 		var inserted := workbench.active_session.database.insert(table_name, values)
 		result.diagnostics.merge(inserted.diagnostics)
 		result.value = inserted
+	if result.is_successful():
+		_clear_table_history(registration_name, table_name)
 	_complete_row_mutation(registration_name, table_name, result)
 	_record_result("Insert table row", result)
 	return result
@@ -543,12 +557,101 @@ func _update_table_rows(
 		var planned := GDSQLEditorRowBatch.build_updates(table, updates)
 		result.diagnostics.merge(planned.diagnostics)
 		if planned.is_successful():
-			var executed := (planned.get_value() as GDSQLEditorRowBatch).execute(database)
+			var batch := planned.get_value() as GDSQLEditorRowBatch
+			var executed := batch.execute(database)
 			result.diagnostics.merge(executed.diagnostics)
 			result.value = executed.value
+			if executed.is_successful():
+				var entry := batch.create_history_entry(registration_name)
+				if entry != null:
+					result.diagnostics.merge(
+						_history_for(registration_name, table_name).record(entry).diagnostics,
+					)
+				else:
+					_clear_table_history(registration_name, table_name)
 	_complete_row_mutation(registration_name, table_name, result)
+	_refresh_table_history_state(registration_name, table_name)
 	_record_result("Update table rows", result)
 	return result
+
+
+func _undo_table_mutation(
+		registration_name: StringName,
+		table_name: StringName,
+) -> GDSQLOperationResult:
+	var result := _apply_table_history(registration_name, table_name, true)
+	_record_result("Undo table row update", result)
+	return result
+
+
+func _redo_table_mutation(
+		registration_name: StringName,
+		table_name: StringName,
+) -> GDSQLOperationResult:
+	var result := _apply_table_history(registration_name, table_name, false)
+	_record_result("Redo table row update", result)
+	return result
+
+
+func _apply_table_history(
+		registration_name: StringName,
+		table_name: StringName,
+		undo: bool,
+) -> GDSQLOperationResult:
+	var history := _get_history(registration_name, table_name)
+	var entry: GDSQLEditorMutationHistoryEntry
+	if history != null:
+		entry = history.get_undo_entry() if undo else history.get_redo_entry()
+	if entry == null:
+		return _error(
+				&"GDSQL_EDITOR_MUTATION_HISTORY_EMPTY",
+				"There is no row update to %s." % ("undo" if undo else "redo"),
+		)
+	var result := _ensure_active_registration(registration_name)
+	if not result.is_successful():
+		return result
+	var database := workbench.active_session.database
+	var table := database.context.catalog.get_table(database.database_name, table_name)
+	if table == null:
+		return _error(
+				&"GDSQL_EDITOR_TABLE_NOT_FOUND",
+				"Table '%s' was not found." % table_name,
+		)
+	var snapshots := entry.duplicate_before_rows() if undo else entry.duplicate_after_rows()
+	var planned := GDSQLEditorRowBatch.build_updates(
+			table,
+			_history_updates(table, snapshots),
+	)
+	result.diagnostics.merge(planned.diagnostics)
+	if result.is_successful():
+		var executed := (planned.get_value() as GDSQLEditorRowBatch).execute(database)
+		result.diagnostics.merge(executed.diagnostics)
+	if result.is_successful():
+		var moved := history.mark_undone(entry) if undo else history.mark_redone(entry)
+		result.diagnostics.merge(moved.diagnostics)
+		result.value = entry
+	_complete_row_mutation(registration_name, table_name, result)
+	_refresh_table_history_state(registration_name, table_name)
+	if result.is_successful():
+		_workspace.present_table_history_result(
+				registration_name,
+				table_name,
+				"%s complete: %s." % ["Undo" if undo else "Redo", entry.get_summary()],
+		)
+	return result
+
+
+func _history_updates(
+		table: GDSQLTableDefinition,
+		rows: Array[GDSQLRowRecord],
+) -> Array[Dictionary]:
+	var updates: Array[Dictionary] = []
+	for row in rows:
+		var values := row.values.duplicate(true)
+		var identity: Variant = values.get(table.primary_key)
+		values.erase(table.primary_key)
+		updates.append({"primary_key": identity, "values": values})
+	return updates
 
 
 func _update_row(
@@ -582,6 +685,8 @@ func _update_row(
 		var executed := (planned.get_value() as GDSQLEditorRowBatch).execute(database)
 		result.diagnostics.merge(executed.diagnostics)
 		result.value = executed.value
+	if result.is_successful():
+		_clear_table_history(registration_name, table_name)
 	_complete_row_mutation(
 		registration_name,
 		table_name,
@@ -615,7 +720,10 @@ func _delete_table_rows(
 			var executed := (planned.get_value() as GDSQLEditorRowBatch).execute(database)
 			result.diagnostics.merge(executed.diagnostics)
 			result.value = executed.value
+	if result.is_successful():
+		_clear_table_history(registration_name, table_name)
 	_complete_row_mutation(registration_name, table_name, result)
+	_refresh_table_history_state(registration_name, table_name)
 	_record_result("Delete table rows", result)
 	return result
 
@@ -646,6 +754,8 @@ func _delete_row(
 			var executed := (planned.get_value() as GDSQLEditorRowBatch).execute(database)
 			result.diagnostics.merge(executed.diagnostics)
 			result.value = executed.value
+	if result.is_successful():
+		_clear_table_history(registration_name, table_name)
 	_complete_row_mutation(
 		registration_name,
 		table_name,
@@ -691,6 +801,8 @@ func _insert_query_result_row(
 		var inserted := workbench.active_session.database.insert(table_name, values)
 		result.diagnostics.merge(inserted.diagnostics)
 		result.value = inserted
+	if result.is_successful():
+		_clear_table_history(registration_name, table_name)
 	_complete_row_mutation(
 		registration_name,
 		table_name,
@@ -762,6 +874,7 @@ func _drop_table(registration_name: StringName, table_name: StringName) -> GDSQL
 		result.diagnostics.merge(dropped.diagnostics)
 	if result.is_successful():
 		_scan_project_filesystem()
+		_clear_table_history(registration_name, table_name)
 		workbench.active_session.refresh_catalog()
 		workbench.active_session.selected_table = null
 		var refreshed := workbench.refresh_inspections()
@@ -823,6 +936,7 @@ func _select_table(registration_name: StringName, table_name: StringName) -> GDS
 			workbench.get_inspection(registration_name),
 			workbench.active_session,
 		)
+		_refresh_table_history_state(registration_name, table_name)
 	_record_result("Select table", result)
 	return result
 
@@ -904,6 +1018,61 @@ func _find_registration(database_name: StringName, data_root: String) -> StringN
 				and registration.data_root == data_root:
 			return registration.name
 	return &""
+
+
+func _history_key(registration_name: StringName, table_name: StringName) -> String:
+	return "%s:%s" % [registration_name, table_name]
+
+
+func _history_for(
+		registration_name: StringName,
+		table_name: StringName,
+) -> GDSQLEditorMutationHistory:
+	var key := _history_key(registration_name, table_name)
+	if not _mutation_histories.has(key):
+		_mutation_histories[key] = GDSQLEditorMutationHistory.new()
+	return _mutation_histories[key]
+
+
+func _get_history(
+		registration_name: StringName,
+		table_name: StringName,
+) -> GDSQLEditorMutationHistory:
+	return _mutation_histories.get(_history_key(registration_name, table_name))
+
+
+func _clear_table_history(registration_name: StringName, table_name: StringName) -> void:
+	var key := _history_key(registration_name, table_name)
+	var history: GDSQLEditorMutationHistory = _mutation_histories.get(key)
+	if history == null:
+		return
+	history.clear()
+	_mutation_histories.erase(key)
+	_refresh_table_history_state(registration_name, table_name)
+
+
+func _clear_registration_histories(registration_name: StringName) -> void:
+	var prefix := "%s:" % registration_name
+	for key in _mutation_histories.keys():
+		var history_key := String(key)
+		if history_key.begins_with(prefix):
+			(_mutation_histories[history_key] as GDSQLEditorMutationHistory).clear()
+			_mutation_histories.erase(history_key)
+
+
+func _refresh_table_history_state(
+		registration_name: StringName,
+		table_name: StringName,
+) -> void:
+	var history := _get_history(registration_name, table_name)
+	var undo_entry := history.get_undo_entry() if history != null else null
+	var redo_entry := history.get_redo_entry() if history != null else null
+	_workspace.set_table_history_state(
+			registration_name,
+			table_name,
+			undo_entry.get_summary() if undo_entry != null else "",
+			redo_entry.get_summary() if redo_entry != null else "",
+	)
 
 
 func _refresh_surfaces() -> void:
