@@ -1598,9 +1598,12 @@ and a primary, unique column, or single-column unique index, and rejects an
 alteration when existing local values are orphaned. Transaction commit validates
 the final effective rows of every constrained table in each touched database.
 This makes inserts, updates, and `RESTRICT` deletes atomic while allowing a
-transaction to stage related changes in either statement order. Dependency-safe
-incoming-reference schema alterations remain required before the editor exposes
-schema authoring.
+transaction to stage related changes in either statement order. Catalog
+administration rejects table or target-column lifecycle changes that would
+invalidate an incoming reference, including removal of the target's last unique
+contract. Self-referencing table and target-column renames update their own
+constraint metadata. Schema authoring can therefore expose these operations
+without permitting a silently broken catalog.
 
 ```gdscript
 class_name ColumnDefinition

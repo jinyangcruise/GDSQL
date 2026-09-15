@@ -279,6 +279,126 @@ func test_foreign_key_alteration_rejects_existing_orphans() -> void:
 	)
 
 
+func test_incoming_foreign_key_blocks_target_table_rename_and_drop() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	assert_bool(database.create_table(_referencing_table(&"skills")).is_successful()).is_true()
+
+	var renamed := database.rename_table(&"heroes", &"characters")
+	var dropped := database.drop_table(&"heroes")
+
+	assert_bool(renamed.is_successful()).is_false()
+	assert_bool(dropped.is_successful()).is_false()
+	assert_str(String(renamed.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_CATALOG_FOREIGN_KEY_DEPENDENCY",
+	)
+	assert_str(String(dropped.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_CATALOG_FOREIGN_KEY_DEPENDENCY",
+	)
+
+
+func test_incoming_foreign_key_blocks_target_column_changes() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	assert_bool(
+		database.alter_table(
+			&"heroes",
+			[GDSQLTableAlteration.set_column_unique(&"name", true)],
+		).is_successful(),
+	).is_true()
+	assert_bool(
+		database.create_table(
+			_referencing_table(&"skills", TYPE_STRING, &"heroes", &"name"),
+		).is_successful(),
+	).is_true()
+
+	var renamed := database.alter_table(
+		&"heroes",
+		[GDSQLTableAlteration.rename_column(&"name", &"code")],
+	)
+	var dropped := database.alter_table(
+		&"heroes",
+		[GDSQLTableAlteration.drop_column(&"name")],
+	)
+	var uniqueness_removed := database.alter_table(
+		&"heroes",
+		[GDSQLTableAlteration.set_column_unique(&"name", false)],
+	)
+
+	for result in [renamed, dropped, uniqueness_removed]:
+		assert_bool(result.is_successful()).is_false()
+		assert_str(String(result.diagnostics.entries[0].code)).is_equal(
+			"GDSQL_CATALOG_FOREIGN_KEY_DEPENDENCY",
+		)
+
+
+func test_incoming_foreign_key_blocks_only_the_last_unique_index() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	assert_bool(
+		database.alter_table(
+			&"heroes",
+			[
+				GDSQLTableAlteration.add_index(
+					GDSQLIndexDefinition.new(&"heroes_name", [&"name"], true),
+				),
+			],
+		).is_successful(),
+	).is_true()
+	assert_bool(
+		database.create_table(
+			_referencing_table(&"skills", TYPE_STRING, &"heroes", &"name"),
+		).is_successful(),
+	).is_true()
+
+	var blocked := database.alter_table(
+		&"heroes",
+		[GDSQLTableAlteration.drop_index(&"heroes_name")],
+	)
+	assert_bool(blocked.is_successful()).is_false()
+	assert_str(String(blocked.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_CATALOG_FOREIGN_KEY_DEPENDENCY",
+	)
+	assert_bool(
+		database.alter_table(
+			&"heroes",
+			[GDSQLTableAlteration.set_column_unique(&"name", true)],
+		).is_successful(),
+	).is_true()
+	assert_bool(
+		database.alter_table(
+			&"heroes",
+			[GDSQLTableAlteration.drop_index(&"heroes_name")],
+		).is_successful(),
+	).is_true()
+
+
+func test_self_referencing_table_and_column_renames_update_the_constraint() -> void:
+	var categories := GDSQLTableDefinition.new(&"categories", &"id")
+	categories.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	categories.add_column(GDSQLColumnDefinition.new(&"parent_id", TYPE_INT, true))
+	categories.add_foreign_key(
+		GDSQLForeignKeyDefinition.new(
+			&"categories_parent",
+			&"parent_id",
+			&"categories",
+			&"id",
+		),
+	)
+	var database := TestDatabase.create_database(_data_root, categories)
+
+	assert_bool(database.rename_table(&"categories", &"groups").is_successful()).is_true()
+	assert_bool(
+		database.alter_table(
+			&"groups",
+			[GDSQLTableAlteration.rename_column(&"id", &"group_id")],
+		).is_successful(),
+	).is_true()
+	var stored := database.context.catalog.get_table(&"game_config", &"groups")
+	var foreign_key := stored.get_foreign_key(&"categories_parent")
+
+	assert_str(String(foreign_key.referenced_table)).is_equal("groups")
+	assert_str(String(foreign_key.referenced_column)).is_equal("group_id")
+	assert_bool(database.drop_table(&"groups").is_successful()).is_true()
+
+
 func test_alter_table_rejects_constraints_violated_by_existing_rows() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
 	TestDatabase.insert_rows(

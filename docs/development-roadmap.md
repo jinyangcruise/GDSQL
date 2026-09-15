@@ -380,10 +380,11 @@ managed-content schema comparison, copying, and cache persistence preserve the
 constraints. ConfigFile and in-memory runtimes validate the final effective
 transaction state before commit, so inserts and updates cannot create orphans,
 referenced target updates/deletes use `RESTRICT`, and related changes may be
-staged in either order atomically.
+staged in either order atomically. Catalog administration blocks referenced
+table/column renames and drops plus removal of the target's last uniqueness
+contract; safe self-referencing renames update their constraint metadata.
 
-Next, protect incoming references during table, column, and uniqueness changes.
-Then expose reference creation, the foreign-key column indicator, and searchable
+Next, expose reference creation, the foreign-key column indicator, and searchable
 referenced-row pickers in the table editor. Keep cross-role `save` → `content`
 references as a separate logical contract resolved through database roles; use
 both contracts to infer default model navigation without rewriting user-owned

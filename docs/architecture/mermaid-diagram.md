@@ -356,6 +356,7 @@ CatalogAdministration("`**GDSQLCatalogAdministrationService**
 *Database API:* create_database(), rename_database(), drop_database()
 *Table API:* create_table(), rename_table(), alter_table(), drop_table()
 *Plan API:* preview_alter_table(), apply_change_plan()
+*Integrity:* Reject incoming-reference-breaking schema changes
 *Extension point:* Catalog administration backend implementations`")
 
 TableStorage("`**GDSQLTableStorage**

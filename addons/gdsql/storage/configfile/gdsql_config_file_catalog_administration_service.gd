@@ -253,6 +253,14 @@ func rename_table(
 		return _error(&"GDSQL_CATALOG_UNKNOWN_TABLE", "Table '%s.%s' does not exist." % [database_name, current_name])
 	if _catalog.has_table(database_name, new_name):
 		return _error(&"GDSQL_CATALOG_TABLE_EXISTS", "Table '%s.%s' already exists." % [database_name, new_name])
+	var dependencies := _validate_no_incoming_foreign_keys(
+		database_name,
+		current_name,
+		&"",
+		current_name,
+	)
+	if not dependencies.is_successful():
+		return dependencies
 	var old_schema_path := _path_resolver.resolve_schema_path(database_name, current_name)
 	var new_schema_path := _path_resolver.resolve_schema_path(database_name, new_name)
 	var old_table_path := _path_resolver.resolve_table_path(database_name, current_name)
@@ -264,17 +272,15 @@ func rename_table(
 	if DirAccess.rename_absolute(ProjectSettings.globalize_path(old_schema_path), ProjectSettings.globalize_path(new_schema_path)) != OK:
 		DirAccess.rename_absolute(ProjectSettings.globalize_path(new_table_path), ProjectSettings.globalize_path(old_table_path))
 		return _error(&"GDSQL_CATALOG_TABLE_RENAME_FAILED", "Could not rename table schema '%s'." % old_schema_path)
-	var schema := ConfigFile.new()
-	if schema.load(new_schema_path) != OK:
-		_rollback_table_rename(old_schema_path, new_schema_path, old_table_path, new_table_path)
-		return _error(&"GDSQL_CATALOG_SCHEMA_UNREADABLE", "Could not read renamed table schema '%s'." % new_schema_path)
-	schema.set_value("table", "name", String(new_name))
-	if schema.save(new_schema_path) != OK:
+	table.name = new_name
+	for foreign_key in table.foreign_keys:
+		if foreign_key.referenced_table == current_name:
+			foreign_key.referenced_table = new_name
+	if _save_schema(new_schema_path, table) != OK:
 		_rollback_table_rename(old_schema_path, new_schema_path, old_table_path, new_table_path)
 		return _error(&"GDSQL_CATALOG_SCHEMA_SAVE_FAILED", "Could not update renamed table schema '%s'." % new_schema_path)
 	_cache.invalidate(old_table_path)
 	_cache.invalidate(new_table_path)
-	table.name = new_name
 	var result := GDSQLCatalogOperationResult.new()
 	result.value = table
 	return result
@@ -287,6 +293,14 @@ func drop_table(
 	var table := _catalog.get_table(database_name, table_name)
 	if table == null:
 		return _error(&"GDSQL_CATALOG_UNKNOWN_TABLE", "Table '%s.%s' does not exist." % [database_name, table_name])
+	var dependencies := _validate_no_incoming_foreign_keys(
+		database_name,
+		table_name,
+		&"",
+		table_name,
+	)
+	if not dependencies.is_successful():
+		return dependencies
 	var schema_path := _path_resolver.resolve_schema_path(database_name, table_name)
 	var table_path := _path_resolver.resolve_table_path(database_name, table_name)
 	var schema := ConfigFile.new()
@@ -644,6 +658,14 @@ func _rename_column(
 		return _error(&"GDSQL_CATALOG_UNKNOWN_COLUMN", "Column '%s' does not exist." % current_name)
 	if table.has_column(new_name):
 		return _error(&"GDSQL_CATALOG_DUPLICATE_COLUMN", "Column '%s' already exists." % new_name)
+	var dependencies := _validate_no_incoming_foreign_keys(
+		table.database_name,
+		table.name,
+		current_name,
+		table.name,
+	)
+	if not dependencies.is_successful():
+		return dependencies
 	for section in _get_row_sections(table_data):
 		if table_data.has_section_key(section, String(current_name)):
 			var value: Variant = table_data.get_value(section, String(current_name))
@@ -674,6 +696,14 @@ func _drop_column(
 	var column := table.get_column(column_name)
 	if column == null:
 		return _error(&"GDSQL_CATALOG_UNKNOWN_COLUMN", "Column '%s' does not exist." % column_name)
+	var dependencies := _validate_no_incoming_foreign_keys(
+		table.database_name,
+		table.name,
+		column_name,
+		table.name,
+	)
+	if not dependencies.is_successful():
+		return dependencies
 	for index in table.indexes:
 		if index.columns.has(column_name):
 			return _error(
@@ -751,6 +781,15 @@ func _drop_index(
 			&"GDSQL_CATALOG_UNKNOWN_INDEX",
 			"Index '%s' does not exist." % index_name,
 		)
+	if index.unique and index.columns.size() == 1 \
+			and not _has_alternate_unique_key(table, index.columns[0], index):
+		var dependencies := _validate_no_incoming_foreign_keys(
+			table.database_name,
+			table.name,
+			index.columns[0],
+		)
+		if not dependencies.is_successful():
+			return dependencies
 	table.indexes.erase(index)
 	return GDSQLCatalogOperationResult.new()
 
@@ -860,6 +899,15 @@ func _set_column_unique(
 			&"GDSQL_CATALOG_PRIMARY_KEY_UNIQUE_REQUIRED",
 			"Primary-key column '%s' must remain unique." % column_name,
 		)
+	if not unique and column.unique \
+			and not _has_alternate_unique_key(table, column_name, null, true):
+		var dependencies := _validate_no_incoming_foreign_keys(
+			table.database_name,
+			table.name,
+			column_name,
+		)
+		if not dependencies.is_successful():
+			return dependencies
 	if unique:
 		var uniqueness := _validate_unique_column_data(table_data, column_name)
 		if not uniqueness.is_successful():
@@ -1077,6 +1125,58 @@ func _remove_directory_recursive(path: String) -> Error:
 		if error != OK:
 			return error
 	return DirAccess.remove_absolute(absolute_path)
+
+
+func _validate_no_incoming_foreign_keys(
+		database_name: StringName,
+		target_table: StringName,
+		target_column: StringName = &"",
+		excluded_source_table: StringName = &"",
+) -> GDSQLCatalogOperationResult:
+	var database := _catalog.get_database(database_name)
+	if database == null:
+		return _error(
+			&"GDSQL_CATALOG_UNKNOWN_DATABASE",
+			"Database '%s' does not exist." % database_name,
+		)
+	for source_table in database.tables:
+		if source_table.name == excluded_source_table:
+			continue
+		for foreign_key in source_table.foreign_keys:
+			if foreign_key.referenced_table != target_table \
+					or (
+						target_column != &"" \
+						and foreign_key.referenced_column != target_column
+					):
+				continue
+			return _error(
+				&"GDSQL_CATALOG_FOREIGN_KEY_DEPENDENCY",
+				"Foreign key '%s' on '%s.%s' depends on '%s.%s'." % [
+					foreign_key.name,
+					source_table.name,
+					foreign_key.column,
+					target_table,
+					foreign_key.referenced_column,
+				],
+			)
+	var result := GDSQLCatalogOperationResult.new()
+	result.value = true
+	return result
+
+
+func _has_alternate_unique_key(
+		table: GDSQLTableDefinition,
+		column_name: StringName,
+		ignored_index: GDSQLIndexDefinition = null,
+		ignore_column_unique: bool = false,
+) -> bool:
+	var column := table.get_column(column_name)
+	if not ignore_column_unique and column != null and column.unique:
+		return true
+	for index in table.indexes:
+		if index != ignored_index and index.unique and index.columns == [column_name]:
+			return true
+	return false
 
 
 func _validate_table(
