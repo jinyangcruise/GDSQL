@@ -3,30 +3,27 @@ extends MarginContainer
 ## Compact table-first data document backed by the shared typed result grid.
 
 signal rows_requested(
-		registration_name: StringName,
-		table_name: StringName,
-		query: GDSQLSelectQuerySpec,
-		count_query: GDSQLSelectQuerySpec,
+	registration_name: StringName,
+	table_name: StringName,
+	query: GDSQLSelectQuerySpec,
+	count_query: GDSQLSelectQuerySpec,
 )
 signal row_insert_requested(
-		registration_name: StringName,
-		table_name: StringName,
-		values: Dictionary,
+	registration_name: StringName,
+	table_name: StringName,
+	values: Dictionary,
 )
 signal rows_update_requested(
-		registration_name: StringName,
-		table_name: StringName,
-		updates: Array[Dictionary],
+	registration_name: StringName,
+	table_name: StringName,
+	updates: Array[Dictionary],
 )
 signal rows_delete_requested(
-		registration_name: StringName,
-		table_name: StringName,
-		primary_keys: Array[Variant],
+	registration_name: StringName,
+	table_name: StringName,
+	primary_keys: Array[Variant],
 )
-signal model_assistant_requested(
-		registration_name: StringName,
-		table: GDSQLTableDefinition,
-)
+signal model_assistant_requested(registration_name: StringName, table: GDSQLTableDefinition)
 signal undo_requested(registration_name: StringName, table_name: StringName)
 signal redo_requested(registration_name: StringName, table_name: StringName)
 
@@ -151,7 +148,6 @@ func release_actions() -> void:
 func set_history_state(undo_summary: String, redo_summary: String) -> void:
 	_undo_summary = undo_summary
 	_redo_summary = redo_summary
-	%HistoryNote.visible = not undo_summary.is_empty() or not redo_summary.is_empty()
 	_refresh_history_actions()
 
 
@@ -160,9 +156,9 @@ func present_history_result(message: String) -> void:
 
 
 func configure(
-		target_registration: StringName,
-		table: GDSQLTableDefinition,
-		total_rows: int = 0,
+	target_registration: StringName,
+	table: GDSQLTableDefinition,
+	total_rows: int = 0,
 ) -> void:
 	var source_changed := registration_name != target_registration \
 			or table_name != table.name
@@ -183,10 +179,7 @@ func configure(
 		_total_rows = _catalog_total_rows
 	_page_index = clampi(_page_index, 0, _page_count() - 1)
 	%Title.text = String(table.name)
-	%Details.text = "%d columns · Primary key: %s" % [
-		table.columns.size(),
-		table.primary_key,
-	]
+	%Details.text = "%d columns · Primary key: %s" % [table.columns.size(), table.primary_key]
 	_update_pagination()
 	_refresh_filter_actions()
 	_refresh_actions()
@@ -207,34 +200,29 @@ func present_rows(result: GDSQLQueryResult, total_rows: int = -1) -> void:
 		_table_view.configure(_table, _table, _records, true)
 		_table_view.clear()
 		%Status.text = (
-				"%s Rows could not be reloaded." % _pending_mutation_status
-				if not _pending_mutation_status.is_empty()
-				else "Could not load table rows."
+			"%s Rows could not be reloaded." % _pending_mutation_status
+			if not _pending_mutation_status.is_empty()
+			else "Could not load table rows."
 		)
 		_pending_mutation_status = ""
 		_refresh_actions()
 		return
 	_records.assign(result.rows)
 	for index in range(_records.size()):
-		_records[index].set_value(
-			ROW_NUMBER_COLUMN,
-			_page_index * _page_size + index + 1,
-		)
+		_records[index].set_value(ROW_NUMBER_COLUMN, _page_index * _page_size + index + 1)
 	_table_view.configure(_table, _build_view_table(), _records, true)
 	_table_view.set_safe_mode(false)
 	_render_table()
 	var page_status := (
-			"No rows on this page."
-			if _records.is_empty()
-			else "Showing rows %d–%d." % [
-				_page_index * _page_size + 1,
-				_page_index * _page_size + _records.size(),
-			]
+		"No rows on this page."
+		if _records.is_empty()
+		else "Showing rows %d–%d."
+		% [_page_index * _page_size + 1, _page_index * _page_size + _records.size()]
 	)
 	%Status.text = (
-			_pending_mutation_status
-			if not _pending_mutation_status.is_empty()
-			else page_status
+		_pending_mutation_status
+		if not _pending_mutation_status.is_empty()
+		else page_status
 	)
 	_pending_mutation_status = ""
 	_update_pagination()
@@ -253,12 +241,7 @@ func request_rows() -> void:
 	var count_query: GDSQLSelectQuerySpec
 	if _applied_predicate != null:
 		count_query = _build_select_query(true)
-	rows_requested.emit(
-		registration_name,
-		table_name,
-		_build_select_query(),
-		count_query,
-	)
+	rows_requested.emit(registration_name, table_name, _build_select_query(), count_query)
 
 
 func _is_scene_preview() -> bool:
@@ -296,10 +279,7 @@ func _history_blocked(action_name: String) -> GDSQLOperationResult:
 	%Status.text = "%s is unavailable while the table has a pending draft." % action_name
 	var result := GDSQLOperationResult.new()
 	result.add_diagnostic(
-		GDSQLQueryDiagnostic.new(
-			&"GDSQL_EDITOR_MUTATION_HISTORY_DRAFT_PENDING",
-			%Status.text,
-		),
+		GDSQLQueryDiagnostic.new(&"GDSQL_EDITOR_MUTATION_HISTORY_DRAFT_PENDING", %Status.text),
 	)
 	return result
 
@@ -426,10 +406,7 @@ func _decorate_table_headers() -> void:
 	if _table == null or _table_view.columns < 1:
 		return
 	_table_view.set_column_title(0, "# ▾")
-	_table_view.set_column_title_tooltip_text(
-		0,
-		"Row number · Click to choose visible columns",
-	)
+	_table_view.set_column_title_tooltip_text(0, "Row number · Click to choose visible columns")
 	_table_view.set_column_custom_minimum_width(0, 42)
 	_table_view.set_column_expand(0, false)
 	var view := _build_view_table()
@@ -437,16 +414,13 @@ func _decorate_table_headers() -> void:
 		var column := view.columns[index]
 		var suffix := ""
 		if column.name == _order_column:
-			suffix = (
-					" ▼"
-					if _order_direction == GDSQLOrderClause.SortDirection.DESCENDING
-					else " ▲"
-			)
+			suffix = (" ▼"
+				if _order_direction == GDSQLOrderClause.SortDirection.DESCENDING
+				else " ▲")
 		_table_view.set_column_title(index, "%s%s" % [column.name, suffix])
 		_table_view.set_column_title_tooltip_text(
 			index,
-			"%s · %s · Click to change row order"
-			% [column.name, column.display_type_name()],
+			"%s · %s · Click to change row order" % [column.name, column.display_type_name()],
 		)
 
 
@@ -457,9 +431,9 @@ func _apply_filter() -> void:
 	var predicate_result := _where_expression.build_expression()
 	if not predicate_result.is_successful():
 		%Status.text = (
-				predicate_result.diagnostics.entries[0].message
-				if not predicate_result.diagnostics.entries.is_empty()
-				else "The WHERE filter is invalid."
+			predicate_result.diagnostics.entries[0].message
+			if not predicate_result.diagnostics.entries.is_empty()
+			else "The WHERE filter is invalid."
 		)
 		return
 	_applied_predicate = predicate_result.get_value() as GDSQLQueryExpression
@@ -494,9 +468,7 @@ func _on_filter_changed() -> void:
 func _refresh_filter_actions() -> void:
 	if not is_node_ready():
 		return
-	var summary := (
-			"All rows" if _applied_filter_summary.is_empty() else _applied_filter_summary
-	)
+	var summary := ("All rows" if _applied_filter_summary.is_empty() else _applied_filter_summary)
 	if _filter_dirty:
 		summary += " · unapplied changes"
 	_where_expression.set_header_actions_state(
@@ -540,8 +512,7 @@ func _save_changes() -> void:
 	if _presentation_revision == previous_revision:
 		_pending_mutation_status = ""
 		%Status.text = (
-				"The transaction failed and was rolled back; "
-				+ "pending edits were preserved."
+			"The transaction failed and was rolled back; " + "pending edits were preserved."
 		)
 	_refresh_actions()
 
@@ -557,11 +528,7 @@ func _save_insert() -> void:
 	%Status.text = "Adding row…"
 	var previous_revision := _presentation_revision
 	_mutation_in_flight = true
-	row_insert_requested.emit(
-		registration_name,
-		table_name,
-		conversion.get("values", { }),
-	)
+	row_insert_requested.emit(registration_name, table_name, conversion.get("values", { }))
 	_mutation_in_flight = false
 	if _presentation_revision == previous_revision:
 		%Status.text = "Could not add the row; its values were preserved."
@@ -597,8 +564,7 @@ func _request_selected_rows_delete() -> void:
 	if _pending_delete_keys.is_empty():
 		return
 	%DeleteConfirmation.dialog_text = (
-			"Delete %d selected row(s)? This operation is atomic."
-			% _pending_delete_keys.size()
+		"Delete %d selected row(s)? This operation is atomic." % _pending_delete_keys.size()
 	)
 	%DeleteConfirmation.popup_centered(Vector2i(440, 160))
 
@@ -645,12 +611,12 @@ func _refresh_actions() -> void:
 	%SaveChanges.disabled = _mutation_in_flight or (not inserting and not has_edits)
 	%DiscardChanges.disabled = _mutation_in_flight or (not inserting and not has_edits)
 	%DeleteSelected.disabled = (
-			_mutation_in_flight or inserting or has_edits or selected_count == 0
+		_mutation_in_flight or inserting or has_edits or selected_count == 0
 	)
 	%DeleteSelected.tooltip_text = (
-			"Delete %d selected row(s) in one transaction" % selected_count
-			if selected_count > 0
-			else "Select one or more rows to delete"
+		"Delete %d selected row(s) in one transaction" % selected_count
+		if selected_count > 0
+		else "Select one or more rows to delete"
 	)
 	var action_summary := PackedStringArray()
 	if inserting:
@@ -662,9 +628,9 @@ func _refresh_actions() -> void:
 	if _table_view.has_validation_errors() or _insert_editor.has_validation_errors():
 		action_summary.append("invalid values")
 	%ActionSummary.text = (
-			"No pending changes"
-			if action_summary.is_empty()
-			else " · ".join(action_summary)
+		"No pending changes"
+		if action_summary.is_empty()
+		else " · ".join(action_summary)
 	)
 	_refresh_history_actions()
 	_refresh_filter_actions()
@@ -683,15 +649,22 @@ func _refresh_history_actions() -> void:
 		not blocked and not _redo_summary.is_empty(),
 	)
 	%Undo.tooltip_text = (
-			"Undo %s" % _undo_summary
-			if not _undo_summary.is_empty()
-			else "No committed row update to undo"
+		"Undo %s" % _undo_summary
+		if not _undo_summary.is_empty()
+		else "No committed row update to undo"
 	)
+	%Undo.tooltip_text += "\n\nNote: Undo restores editable values;
+	updated_at records the undo operation time. 
+	History lasts only for this editor session."
+
 	%Redo.tooltip_text = (
-			"Redo %s" % _redo_summary
-			if not _redo_summary.is_empty()
-			else "No undone row update to redo"
+		"Redo %s" % _redo_summary
+		if not _redo_summary.is_empty()
+		else "No undone row update to redo"
 	)
+	%Redo.tooltip_text += "\n\nNote: Undo restores editable values; 
+	`updated_at` records the undo operation time. 
+	History lasts only for this editor session."
 
 
 func _change_page(delta: int) -> void:
@@ -736,11 +709,7 @@ func _update_pagination() -> void:
 	if not is_node_ready():
 		return
 	var pages := _page_count()
-	%PageStatus.text = "Page %d of %d · %d rows" % [
-		_page_index + 1,
-		pages,
-		_total_rows,
-	]
+	%PageStatus.text = "Page %d of %d · %d rows" % [_page_index + 1, pages, _total_rows]
 	%FirstPage.disabled = _page_index <= 0
 	%PreviousPage.disabled = _page_index <= 0
 	%NextPage.disabled = _page_index >= pages - 1

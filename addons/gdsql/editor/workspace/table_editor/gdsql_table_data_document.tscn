@@ -286,14 +286,6 @@ popup/item_2/id = 2
 popup/item_3/text = "100"
 popup/item_3/id = 3
 
-[node name="HistoryNote" type="Label" parent="Layout" unique_id=986748010]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-theme_override_colors/font_color = Color(0.52, 0.57, 0.64, 1)
-theme_override_font_sizes/font_size = 11
-text = "Undo restores editable values; updated_at records the undo operation time. History lasts only for this editor session."
-
 [node name="DeleteConfirmation" type="ConfirmationDialog" parent="." unique_id=1871081285]
 unique_name_in_owner = true
 title = "Delete Selected Rows"
