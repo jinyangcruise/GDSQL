@@ -52,6 +52,48 @@ func test_cache_hits_until_package_content_changes() -> void:
 	).is_true()
 
 
+func test_cache_persists_foreign_keys_after_all_referenced_tables_exist() -> void:
+	var source := _source()
+	var heroes := GDSQLTableDefinition.new(&"z_heroes", &"id")
+	heroes.add_column(GDSQLColumnDefinition.new(&"id", TYPE_STRING, false, true))
+	var skills := GDSQLTableDefinition.new(&"a_skills", &"id")
+	skills.add_column(GDSQLColumnDefinition.new(&"id", TYPE_STRING, false, true))
+	skills.add_column(GDSQLColumnDefinition.new(&"hero_id", TYPE_STRING, false))
+	skills.add_foreign_key(
+		GDSQLForeignKeyDefinition.new(
+			&"skills_hero",
+			&"hero_id",
+			&"z_heroes",
+			&"id",
+		),
+	)
+	var source_database := TestDatabase.create_database(
+		source.get_data_root(),
+		heroes,
+		&"content",
+	)
+	assert_bool(source_database.create_table(skills).is_successful()).is_true()
+	TestDatabase.insert_rows(source_database, [{&"id": "hero.mage"}], &"z_heroes")
+	TestDatabase.insert_rows(
+		source_database,
+		[{&"id": "skill.fireball", &"hero_id": "hero.mage"}],
+		&"a_skills",
+	)
+	var cache_root := _test_root.path_join("cache/effective_content")
+
+	var cached := _manager(cache_root).ensure_cache([source])
+	var opened := GDSQLDatabase.open(&"effective_content", cache_root)
+
+	assert_bool(cached.is_successful()).is_true()
+	assert_bool(opened.is_successful()).is_true()
+	var stored := opened.get_database().context.catalog.get_table(
+		&"effective_content",
+		&"a_skills",
+	)
+
+	assert_object(stored.get_foreign_key(&"skills_hero")).is_not_null()
+
+
 func test_invalid_manifest_is_a_recoverable_cache_miss() -> void:
 	var source := _source()
 	var source_database := TestDatabase.create_database(

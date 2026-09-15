@@ -154,10 +154,12 @@ func _write_snapshot(
 	var database := created.get_database()
 	for index in snapshot.definition.tables.size():
 		var table := snapshot.definition.tables[index]
-		var table_created := database.create_table(table)
+		var table_created := _create_table_without_foreign_keys(database, table)
 		result.diagnostics.merge(table_created.diagnostics)
 		if not result.is_successful():
 			return result
+	for index in snapshot.definition.tables.size():
+		var table := snapshot.definition.tables[index]
 		var session := GDSQLStorageSession.new()
 		for row in snapshot.tables[index].rows:
 			var staged := database.context.storage.stage_insert(
@@ -173,8 +175,30 @@ func _write_snapshot(
 		result.diagnostics.merge(committed.diagnostics)
 		if not result.is_successful():
 			return result
+	for table in snapshot.definition.tables:
+		if table.foreign_keys.is_empty():
+			continue
+		var alterations: Array[GDSQLTableAlteration] = []
+		for foreign_key in table.foreign_keys:
+			alterations.append(GDSQLTableAlteration.add_foreign_key(foreign_key))
+		var constrained := database.alter_table(table.name, alterations)
+		result.diagnostics.merge(constrained.diagnostics)
+		if not result.is_successful():
+			return result
 	result.value = true
 	return result
+
+
+func _create_table_without_foreign_keys(
+		database: GDSQLDatabase,
+		table: GDSQLTableDefinition,
+) -> GDSQLCatalogOperationResult:
+	var foreign_keys: Array[GDSQLForeignKeyDefinition] = []
+	foreign_keys.assign(table.foreign_keys)
+	table.foreign_keys.clear()
+	var created := database.create_table(table)
+	table.foreign_keys.assign(foreign_keys)
+	return created
 
 
 func _save_manifest(

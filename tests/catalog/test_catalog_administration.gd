@@ -119,6 +119,166 @@ func test_alter_table_updates_column_metadata_and_indexes() -> void:
 	).is_true()
 
 
+func test_foreign_key_metadata_round_trips_with_the_table_schema() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	var skills := GDSQLTableDefinition.new(&"skills", &"id")
+	skills.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	skills.add_column(GDSQLColumnDefinition.new(&"hero_id", TYPE_INT, false))
+	skills.add_foreign_key(
+		GDSQLForeignKeyDefinition.new(
+			&"skills_hero",
+			&"hero_id",
+			&"heroes",
+			&"id",
+		),
+	)
+
+	assert_bool(database.create_table(skills).is_successful()).is_true()
+	var reopened := GDSQLDatabase.open(&"game_config", _data_root).get_database()
+	var stored := reopened.context.catalog.get_table(&"game_config", &"skills")
+	var foreign_key := stored.get_foreign_key(&"skills_hero")
+
+	assert_object(foreign_key).is_not_null()
+	assert_str(String(foreign_key.column)).is_equal("hero_id")
+	assert_str(String(foreign_key.referenced_table)).is_equal("heroes")
+	assert_str(String(foreign_key.referenced_column)).is_equal("id")
+	assert_int(foreign_key.on_delete).is_equal(
+		GDSQLForeignKeyDefinition.Action.RESTRICT,
+	)
+	assert_array(stored.get_foreign_keys_for_column(&"hero_id")).has_size(1)
+
+
+func test_foreign_key_metadata_rejects_an_unknown_local_column() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	var skills := GDSQLTableDefinition.new(&"skills", &"id")
+	skills.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	skills.add_foreign_key(
+		GDSQLForeignKeyDefinition.new(
+			&"skills_hero",
+			&"hero_id",
+			&"heroes",
+			&"id",
+		),
+	)
+
+	var result := database.create_table(skills)
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(String(result.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_CATALOG_FOREIGN_KEY_UNKNOWN_COLUMN",
+	)
+
+
+func test_foreign_key_requires_a_supported_matching_unique_target() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	var unsupported := _referencing_table(&"unsupported", TYPE_FLOAT, &"heroes", &"id")
+	var mismatched := _referencing_table(&"mismatched", TYPE_STRING, &"heroes", &"id")
+	var not_unique := _referencing_table(&"not_unique", TYPE_STRING, &"heroes", &"name")
+
+	var unsupported_result := database.create_table(unsupported)
+	var mismatched_result := database.create_table(mismatched)
+	var not_unique_result := database.create_table(not_unique)
+
+	assert_str(String(unsupported_result.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_CATALOG_FOREIGN_KEY_UNSUPPORTED_TYPE",
+	)
+	assert_str(String(mismatched_result.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_CATALOG_FOREIGN_KEY_TYPE_MISMATCH",
+	)
+	assert_str(String(not_unique_result.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_CATALOG_FOREIGN_KEY_TARGET_NOT_UNIQUE",
+	)
+	assert_bool(
+		database.alter_table(
+			&"heroes",
+			[
+				GDSQLTableAlteration.add_index(
+					GDSQLIndexDefinition.new(&"heroes_name", [&"name"], true),
+				),
+			],
+		).is_successful(),
+	).is_true()
+	assert_bool(
+		database.create_table(
+			_referencing_table(&"indexed_target", TYPE_STRING, &"heroes", &"name"),
+		).is_successful(),
+	).is_true()
+
+
+func test_foreign_key_rejects_an_unknown_target_table() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	var skills := _referencing_table(&"skills", TYPE_INT, &"missing", &"id")
+
+	var result := database.create_table(skills)
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(String(result.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_CATALOG_FOREIGN_KEY_UNKNOWN_TABLE",
+	)
+
+
+func test_foreign_key_alteration_validates_rows_and_round_trips() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_rows(database, [{&"id": 1, &"name": "Mage"}])
+	var skills := _referencing_table(&"skills")
+	skills.foreign_keys.clear()
+	assert_bool(database.create_table(skills).is_successful()).is_true()
+	TestDatabase.insert_rows(database, [{&"id": 10, &"reference_id": 1}], &"skills")
+	var foreign_key := GDSQLForeignKeyDefinition.new(
+		&"skills_reference",
+		&"reference_id",
+		&"heroes",
+		&"id",
+	)
+
+	var added := database.alter_table(
+		&"skills",
+		[GDSQLTableAlteration.add_foreign_key(foreign_key)],
+	)
+	var stored := database.context.catalog.get_table(&"game_config", &"skills")
+
+	assert_bool(added.is_successful()).is_true()
+	assert_object(stored.get_foreign_key(&"skills_reference")).is_not_null()
+	assert_bool(
+		database.alter_table(
+			&"skills",
+			[GDSQLTableAlteration.drop_foreign_key(&"skills_reference")],
+		).is_successful(),
+	).is_true()
+	assert_object(
+		database.context.catalog.get_table(&"game_config", &"skills") \
+				.get_foreign_key(&"skills_reference"),
+	).is_null()
+
+
+func test_foreign_key_alteration_rejects_existing_orphans() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_rows(database, [{&"id": 1, &"name": "Mage"}])
+	var skills := _referencing_table(&"skills")
+	skills.foreign_keys.clear()
+	assert_bool(database.create_table(skills).is_successful()).is_true()
+	TestDatabase.insert_rows(database, [{&"id": 10, &"reference_id": 99}], &"skills")
+
+	var result := database.alter_table(
+		&"skills",
+		[
+			GDSQLTableAlteration.add_foreign_key(
+				GDSQLForeignKeyDefinition.new(
+					&"skills_reference",
+					&"reference_id",
+					&"heroes",
+					&"id",
+				),
+			),
+		],
+	)
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(String(result.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_CATALOG_FOREIGN_KEY_ORPHAN_VALUE",
+	)
+
+
 func test_alter_table_rejects_constraints_violated_by_existing_rows() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
 	TestDatabase.insert_rows(
@@ -212,3 +372,23 @@ func test_unregister_preserves_and_reloads_existing_database_files() -> void:
 	assert_bool(selected.is_successful()).is_true()
 	assert_int(selected.rows.size()).is_equal(1)
 	assert_str(selected.rows[0].get_value(&"name")).is_equal("Knight")
+
+
+func _referencing_table(
+		table_name: StringName,
+		reference_type: Variant.Type = TYPE_INT,
+		target_table: StringName = &"heroes",
+		target_column: StringName = &"id",
+) -> GDSQLTableDefinition:
+	var table := GDSQLTableDefinition.new(table_name, &"id")
+	table.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	table.add_column(GDSQLColumnDefinition.new(&"reference_id", reference_type, false))
+	table.add_foreign_key(
+		GDSQLForeignKeyDefinition.new(
+			StringName("%s_reference" % table_name),
+			&"reference_id",
+			target_table,
+			target_column,
+		),
+	)
+	return table

@@ -300,7 +300,8 @@ func _schemas_match(
 		right: GDSQLTableDefinition,
 ) -> bool:
 	if left.primary_key != right.primary_key or left.columns.size() != right.columns.size() \
-			or left.indexes.size() != right.indexes.size():
+			or left.indexes.size() != right.indexes.size() \
+			or left.foreign_keys.size() != right.foreign_keys.size():
 		return false
 	for left_column in left.columns:
 		var right_column := right.get_column(left_column.name)
@@ -310,6 +311,11 @@ func _schemas_match(
 		var right_index := right.get_index(left_index.name)
 		if right_index == null or left_index.columns != right_index.columns \
 				or left_index.unique != right_index.unique:
+			return false
+	for left_foreign_key in left.foreign_keys:
+		var right_foreign_key := right.get_foreign_key(left_foreign_key.name)
+		if right_foreign_key == null \
+				or not left_foreign_key.is_equivalent_to(right_foreign_key):
 			return false
 	return true
 
@@ -357,6 +363,17 @@ func _copy_table(
 		copy.add_column(column_copy)
 	for index in source.indexes:
 		copy.add_index(GDSQLIndexDefinition.new(index.name, index.columns, index.unique))
+	for foreign_key in source.foreign_keys:
+		copy.add_foreign_key(
+			GDSQLForeignKeyDefinition.new(
+				foreign_key.name,
+				foreign_key.column,
+				foreign_key.referenced_table,
+				foreign_key.referenced_column,
+				foreign_key.on_delete,
+				foreign_key.on_update,
+			),
+		)
 	return copy
 
 

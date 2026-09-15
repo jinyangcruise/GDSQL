@@ -112,6 +112,36 @@ func test_removal_only_package_can_target_a_base_table() -> void:
 	assert_int(built.database.get_table(&"items").rows.size()).is_equal(0)
 
 
+func test_effective_content_preserves_foreign_key_metadata() -> void:
+	var base := _source(&"base.game", GDSQLContentPackageKind.Kind.BASE_GAME)
+	var table := _items_table(TYPE_INT)
+	table.add_column(GDSQLColumnDefinition.new(&"parent_id", TYPE_STRING, true))
+	table.add_foreign_key(
+		GDSQLForeignKeyDefinition.new(
+			&"items_parent",
+			&"parent_id",
+			&"items",
+			&"id",
+		),
+	)
+	_create_package_database(
+		base,
+		table,
+		[{&"id": "iron_sword", &"damage": 12, &"parent_id": null}],
+	)
+
+	var built := GDSQLContentOverlayLoader.new(
+		GDSQLConfigFileContentPackageLayerReader.new(),
+	).build_effective_database([base])
+
+	assert_bool(built.is_successful()).is_true()
+	var effective_table := built.database.get_table_definition(&"items")
+	assert_object(effective_table.get_foreign_key(&"items_parent")).is_not_null()
+	assert_str(
+		String(effective_table.get_foreign_key(&"items_parent").referenced_table),
+	).is_equal("items")
+
+
 func _source(
 		package_id: StringName,
 		kind: int,

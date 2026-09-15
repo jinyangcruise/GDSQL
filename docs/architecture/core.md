@@ -1556,6 +1556,7 @@ The catalog owns:
 - Column definitions.
 - Primary keys.
 - Index definitions.
+- Same-database foreign-key definitions.
 - Default values.
 - Nullability.
 - Uniqueness.
@@ -1580,7 +1581,23 @@ var name: StringName
 var columns: Array[ColumnDefinition] = []
 var primary_key: StringName
 var indexes: Array[IndexDefinition] = []
+var foreign_keys: Array[ForeignKeyDefinition] = []
 ```
+
+`ForeignKeyDefinition` describes one named local column referencing one unique
+column in another table in the same logical database. Catalog foreign keys are
+database-integrity metadata; model relationships remain navigation metadata.
+References between runtime roles such as `save` and `content` are therefore not
+catalog foreign keys because their physical databases can change independently
+and cannot share one transaction.
+
+The initial foreign-key contract supports exact `int`, `String`, and
+`StringName` keys with `RESTRICT` update and deletion policies. Catalog
+administration resolves the same-database target, requires an exact type match
+and a primary, unique column, or single-column unique index, and rejects an
+alteration when existing local values are orphaned. Mutation enforcement and
+dependency-safe incoming-reference alterations remain explicit catalog/storage
+stages before the editor exposes schema authoring.
 
 ```gdscript
 class_name ColumnDefinition

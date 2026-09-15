@@ -57,13 +57,14 @@ rather than a profile toggle.
 ## Remaining delivery workstreams
 
 After the current experimental table, creation, bootstrap, model-assistant, and
-row-history slices, five substantive workstreams remain. They are grouped by outcome;
+row-history slices, six substantive workstreams remain. They are grouped by outcome;
 individual workstreams may require several small changes.
 
 | Outcome | Count | Remaining workstreams |
 |---|---:|---|
 | Reliable direct-content setup | 0 | Complete for the current direct profile. |
 | Managed-content full kit | 0 | Complete for the current managed profile. |
+| Data integrity | 1 | Foreign-key enforcement and role-reference inference. |
 | Editor interaction | 3 | Multi-table navigation/schema actions; nested typed WHERE groups; read-only scene content preview. |
 | Agent integration | 1 | Design and implement a read-only-first MCP surface. |
 | Release | 1 | Migration, performance, compatibility, and release QA. |
@@ -368,13 +369,31 @@ mutations, and Resource edits clear the table history until generated identities
 timestamps, and object snapshots have a safe restoration policy. Undo restores
 editable values while `updated_at` records the undo operation time.
 
-### 10. Improve nested typed WHERE interactions
+### 10. Add foreign keys and role-aware reference inference
+
+Experimental status: tables can carry typed named, single-column,
+same-database foreign-key definitions with `RESTRICT` policy metadata.
+ConfigFile schemas round-trip them; catalog creation and alteration restrict
+keys to exact `int`, `String`, or `StringName` pairs; referenced tables and
+unique columns are resolved; existing rows are rejected when orphaned; and
+managed-content schema comparison, copying, and cache persistence preserve the
+constraints. This metadata is not yet presented as enforced referential
+integrity.
+
+Next, enforce inserts, updates, and deletes transactionally and protect incoming
+references during table, column, and uniqueness changes. Then expose reference
+creation and searchable referenced-row pickers in the table editor. Keep
+cross-role `save` → `content` references as a separate logical contract resolved
+through database roles; use both contracts to infer default model navigation
+without rewriting user-owned relationship methods.
+
+### 11. Improve nested typed WHERE interactions
 
 Add explicit nested groups, group-level `NOT`, clear precedence, and compact
 collapse/summary behavior to the shared WHERE editor. The result must remain a
 canonical expression tree and must not introduce SQL parsing into the control.
 
-### 11. Preview content-backed scenes in the editor
+### 12. Preview content-backed scenes in the editor
 
 Provide an opt-in `@tool` preview adapter that resolves one content-role model by
 stable identifier and applies selected fields to an explicitly assigned preview
@@ -384,14 +403,14 @@ content-row picker, manual refresh, and structured missing-role/model/row status
 so a dummy character can preview a real content definition without running the
 project.
 
-### 12. Define a GDSQL-aware MCP surface
+### 13. Define a GDSQL-aware MCP surface
 
 Create `docs/architecture/mcp.md` before implementation. Define project scope,
 capability/version negotiation, read-only resources and tools, diagnostics, and
 explicit confirmation boundaries for future mutations. Implement schema and
 setup inspection first; query drafting and guarded editor actions follow.
 
-### 13. Migration, performance, and release QA
+### 14. Migration, performance, and release QA
 
 Version persisted formats, provide dry-run migrations and recovery guidance,
 benchmark paging and managed-content caches with large datasets, and verify

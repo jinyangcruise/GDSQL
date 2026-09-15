@@ -121,6 +121,25 @@ func _load_table(database_name: StringName, table_name: StringName) -> GDSQLTabl
 					bool(schema.get_value(section, "unique", false)),
 				),
 			)
+		elif section.begins_with("foreign_key:"):
+			table.foreign_keys.append(
+				GDSQLForeignKeyDefinition.new(
+					StringName(section.trim_prefix("foreign_key:")),
+					StringName(schema.get_value(section, "column", "")),
+					StringName(schema.get_value(section, "referenced_table", "")),
+					StringName(schema.get_value(section, "referenced_column", "")),
+					int(schema.get_value(
+						section,
+						"on_delete",
+						GDSQLForeignKeyDefinition.Action.RESTRICT,
+					)) as GDSQLForeignKeyDefinition.Action,
+					int(schema.get_value(
+						section,
+						"on_update",
+						GDSQLForeignKeyDefinition.Action.RESTRICT,
+					)) as GDSQLForeignKeyDefinition.Action,
+				),
+			)
 	return table
 
 
