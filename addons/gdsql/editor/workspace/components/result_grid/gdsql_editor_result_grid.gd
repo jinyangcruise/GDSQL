@@ -145,7 +145,10 @@ func get_insert_values_result() -> Dictionary:
 
 
 func get_content_width() -> float:
-	return _content_width
+	# Preserve the width already granted by the parent when a small result set is
+	# rendered again. Expanding columns continue to divide that space using their
+	# preferred widths as ratios, while wide tables can still request scrolling.
+	return maxf(_content_width, size.x)
 
 
 func estimate_height_for_rows(row_count: int) -> float:
