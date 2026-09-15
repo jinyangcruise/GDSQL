@@ -1595,9 +1595,12 @@ The initial foreign-key contract supports exact `int`, `String`, and
 `StringName` keys with `RESTRICT` update and deletion policies. Catalog
 administration resolves the same-database target, requires an exact type match
 and a primary, unique column, or single-column unique index, and rejects an
-alteration when existing local values are orphaned. Mutation enforcement and
-dependency-safe incoming-reference alterations remain explicit catalog/storage
-stages before the editor exposes schema authoring.
+alteration when existing local values are orphaned. Transaction commit validates
+the final effective rows of every constrained table in each touched database.
+This makes inserts, updates, and `RESTRICT` deletes atomic while allowing a
+transaction to stage related changes in either statement order. Dependency-safe
+incoming-reference schema alterations remain required before the editor exposes
+schema authoring.
 
 ```gdscript
 class_name ColumnDefinition

@@ -318,6 +318,14 @@ Executor("`**GDSQLQueryExecutor**
 *Returns:* GDSQLQueryExecutionResult
 *Extended by:* GDSQLDefaultQueryExecutor`")
 
+ForeignKeyValidation("`**GDSQLForeignKeyConstraintValidator**
+
+-
+*Purpose:* Validate same-database references against final transactional rows
+*Timing:* Before storage commit
+*Policy:* Atomic insert/update enforcement and RESTRICT target changes
+*Depends on:* CatalogService and TableStorage contracts`")
+
 CatalogService("`**GDSQLCatalogService**
 
 -
@@ -339,7 +347,7 @@ ForeignKeys("`**GDSQLForeignKeyDefinition**
 *Purpose:* Describe one same-database, single-column integrity reference
 *Identity:* Name, local column, referenced table and referenced unique column
 *Boundary:* Separate from model navigation and cross-role references
-*Initial policy:* int/String/StringName, unique resolved targets, existing-row validation, RESTRICT; mutation enforcement remains staged`")
+*Initial policy:* int/String/StringName, unique resolved targets, existing-row validation, transactional RESTRICT enforcement`")
 
 CatalogAdministration("`**GDSQLCatalogAdministrationService**
 
@@ -545,6 +553,9 @@ CatalogService -->|"object-column metadata"| ResourceConstraint
 CatalogService -->|"table integrity metadata"| ForeignKeys
 Executor -->|"read_table() · find_by_primary_key()"| TableStorage
 Executor -->|"stage_*() · commit() · rollback()"| TableStorage
+Context -->|"validate final transaction state"| ForeignKeyValidation
+ForeignKeyValidation -->|"discover same-database constraints"| CatalogService
+ForeignKeyValidation -->|"read effective session rows"| TableStorage
 
 CatalogService -->|"extended by"| ConfigCatalog
 CatalogAdministration -->|"extended by"| ConfigAdministration
@@ -578,7 +589,7 @@ class Translators translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
 class Planner,PlanNode planning;
-class Executor execution;
+class Executor,ForeignKeyValidation execution;
 class CatalogService,CatalogAdministration,ResourceConstraint,ForeignKeys catalog;
 class TableStorage storage;
 class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;

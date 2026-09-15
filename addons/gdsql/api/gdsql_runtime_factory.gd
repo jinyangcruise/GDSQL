@@ -293,7 +293,10 @@ static func _create_context(
 				cache,
 				codec,
 			)
-	var transactions := GDSQLTransactionManager.new(storage)
+	var transactions := GDSQLTransactionManager.new(
+		storage,
+		GDSQLForeignKeyConstraintValidator.new(catalog, storage),
+	)
 	var function_catalog := FunctionCatalog.new()
 	var function_registry := GDSQLQueryFunctionRegistry.new(function_catalog)
 	var expression_evaluator := GDSQLExpressionEvaluator.new(function_registry)

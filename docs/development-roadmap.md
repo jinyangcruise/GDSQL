@@ -377,15 +377,17 @@ ConfigFile schemas round-trip them; catalog creation and alteration restrict
 keys to exact `int`, `String`, or `StringName` pairs; referenced tables and
 unique columns are resolved; existing rows are rejected when orphaned; and
 managed-content schema comparison, copying, and cache persistence preserve the
-constraints. This metadata is not yet presented as enforced referential
-integrity.
+constraints. ConfigFile and in-memory runtimes validate the final effective
+transaction state before commit, so inserts and updates cannot create orphans,
+referenced target updates/deletes use `RESTRICT`, and related changes may be
+staged in either order atomically.
 
-Next, enforce inserts, updates, and deletes transactionally and protect incoming
-references during table, column, and uniqueness changes. Then expose reference
-creation and searchable referenced-row pickers in the table editor. Keep
-cross-role `save` → `content` references as a separate logical contract resolved
-through database roles; use both contracts to infer default model navigation
-without rewriting user-owned relationship methods.
+Next, protect incoming references during table, column, and uniqueness changes.
+Then expose reference creation, the foreign-key column indicator, and searchable
+referenced-row pickers in the table editor. Keep cross-role `save` → `content`
+references as a separate logical contract resolved through database roles; use
+both contracts to infer default model navigation without rewriting user-owned
+relationship methods.
 
 ### 11. Improve nested typed WHERE interactions
 
