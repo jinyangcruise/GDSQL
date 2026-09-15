@@ -8,6 +8,11 @@ signal remove_requested(draft: Control)
 const INDEX_DRAFT_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/components/index/gdsql_index_draft_row.tscn"
 )
+const FOREIGN_KEY_DRAFT_SCENE := preload(
+	"res://addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.tscn"
+)
+
+var _database: GDSQLDatabaseDefinition
 
 @onready var _name: LineEdit = %TableName
 @onready var _primary_key: LineEdit = %PrimaryKey
@@ -16,22 +21,24 @@ const INDEX_DRAFT_SCENE := preload(
 
 
 func _ready() -> void:
-	_name.text_changed.connect(_on_changed.unbind(1))
-	_primary_key.text_changed.connect(changed.emit.unbind(1))
+	_name.text_changed.connect(_on_schema_changed.unbind(1))
+	_primary_key.text_changed.connect(_on_schema_changed.unbind(1))
 	%Timestamps.toggled.connect(changed.emit.unbind(1))
 	%AddColumn.pressed.connect(_add_column)
 	%AddIndex.pressed.connect(_add_index)
+	%AddForeignKey.pressed.connect(_add_foreign_key)
 	%RemoveTable.pressed.connect(remove_requested.emit.bind(self))
-	_columns.changed.connect(changed.emit)
+	_columns.changed.connect(_on_schema_changed)
 	for row in _indexes.get_children():
 		_connect_index(row)
 	folded = false
 	%TableName.grab_focus()
 
 
-func configure_new() -> void:
+func configure_new(database: GDSQLDatabaseDefinition) -> void:
+	_database = database
 	_columns.configure_new_table()
-	_on_changed()
+	_on_schema_changed()
 
 
 func build_definition() -> GDSQLTableDefinition:
@@ -45,6 +52,10 @@ func build_definition() -> GDSQLTableDefinition:
 		definition.add_timestamps()
 	for row in _indexes.get_children():
 		definition.add_index(row.call("build_definition") as GDSQLIndexDefinition)
+	for row in %ForeignKeys.get_children():
+		definition.add_foreign_key(
+			row.call("build_definition") as GDSQLForeignKeyDefinition,
+		)
 	return definition
 
 
@@ -80,6 +91,13 @@ func get_validation_errors() -> Array[String]:
 					"Index '%s' references unknown column '%s'." \
 							% [index_name, column_name],
 				)
+	var foreign_key_names: Dictionary[StringName, bool] = { }
+	for row in %ForeignKeys.get_children():
+		errors.append_array(row.call("get_validation_errors"))
+		var constraint_name: StringName = row.call("get_constraint_name")
+		if foreign_key_names.has(constraint_name):
+			errors.append("Foreign key '%s' is declared more than once." % constraint_name)
+		foreign_key_names[constraint_name] = true
 	return errors
 
 
@@ -95,13 +113,31 @@ func _add_index() -> void:
 
 
 func _connect_index(row: Control) -> void:
-	row.connect("changed", changed.emit)
+	row.connect("changed", _on_schema_changed)
 	row.connect("remove_requested", _remove_index)
 
 
 func _remove_index(row: Control) -> void:
 	_indexes.remove_child(row)
 	row.queue_free()
+	_on_schema_changed()
+
+
+func _add_foreign_key() -> void:
+	var row := FOREIGN_KEY_DRAFT_SCENE.instantiate() as GDSQLEditorForeignKeyDraftRow
+	%ForeignKeys.add_child(row)
+	row.configure(_database, _build_reference_source())
+	row.changed.connect(_on_foreign_key_changed)
+	row.remove_requested.connect(_remove_foreign_key)
+	row.focus_name.call_deferred()
+	_update_foreign_key_indicators()
+	changed.emit()
+
+
+func _remove_foreign_key(row: Control) -> void:
+	%ForeignKeys.remove_child(row)
+	row.queue_free()
+	_update_foreign_key_indicators.call_deferred()
 	changed.emit()
 
 
@@ -117,3 +153,37 @@ func _on_changed() -> void:
 			else "New table"
 	)
 	changed.emit()
+
+
+func _on_schema_changed() -> void:
+	var source := _build_reference_source()
+	for row in %ForeignKeys.get_children():
+		row.call("refresh_context", _database, source)
+	_update_foreign_key_indicators()
+	_on_changed()
+
+
+func _on_foreign_key_changed() -> void:
+	_update_foreign_key_indicators()
+	changed.emit()
+
+
+func _build_reference_source() -> GDSQLTableDefinition:
+	var source := GDSQLTableDefinition.new(
+		StringName(_name.text.strip_edges()),
+		StringName(_primary_key.text.strip_edges()),
+	)
+	for column in _columns.build_definitions():
+		source.add_column(column)
+	for row in _indexes.get_children():
+		source.add_index(row.call("build_definition") as GDSQLIndexDefinition)
+	return source
+
+
+func _update_foreign_key_indicators() -> void:
+	var columns: Array[StringName] = []
+	for row in %ForeignKeys.get_children():
+		var column_name: StringName = row.call("get_local_column_name")
+		if column_name != &"" and column_name not in columns:
+			columns.append(column_name)
+	_columns.set_foreign_key_columns(columns)

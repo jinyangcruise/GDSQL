@@ -11,6 +11,9 @@ signal reorder_requested(
 )
 
 const KEY_ICON := preload("res://addons/gdsql/editor/workspace/icons/key.svg")
+const FOREIGN_KEY_ICON := preload(
+	"res://addons/gdsql/editor/workspace/icons/foreign-key.svg"
+)
 const COLUMN_ROW_DRAG_TYPE := &"gdsql_column_editor_row"
 const VARIANT_TYPES := preload(
 	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_types.gd"
@@ -67,7 +70,11 @@ func configure(column_draft: GDSQLEditorColumnDraft) -> void:
 	_configuring = true
 	draft = column_draft
 	_name.text = draft.name
-	_name.right_icon = KEY_ICON if draft.is_primary else null
+	_name.right_icon = (
+		KEY_ICON if draft.is_primary
+		else FOREIGN_KEY_ICON if draft.is_foreign
+		else null
+	)
 	VARIANT_TYPES.select_type(_type, draft.data_type)
 	_type.disabled = draft.original != null
 	_resource_type.visible = draft.data_type == TYPE_OBJECT

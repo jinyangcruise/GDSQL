@@ -17,6 +17,7 @@ var default_modified := false
 var generation := GDSQLColumnDefinition.Generation.NONE
 var remove := false
 var is_primary := false
+var is_foreign := false
 
 
 static func create_new(primary: bool = false) -> GDSQLEditorColumnDraft:

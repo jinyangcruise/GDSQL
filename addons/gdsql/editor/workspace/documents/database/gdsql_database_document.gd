@@ -166,7 +166,10 @@ func add_table_draft() -> void:
 	_draft_tables.add_child(draft)
 	draft.connect("changed", _update_dirty_state)
 	draft.connect("remove_requested", _remove_table_draft)
-	draft.call("configure_new")
+	var database := _session.catalog_snapshot.get_database(
+		_inspection.registration.database_name,
+	) if _session != null and _session.catalog_snapshot != null else null
+	draft.call("configure_new", database)
 	_update_dirty_state()
 
 
@@ -199,7 +202,7 @@ func _render_existing_tables() -> void:
 			continue
 		var fold := TABLE_FOLD_SCENE.instantiate()
 		_existing_tables.add_child(fold)
-		fold.call("configure", table, table_inspection)
+		fold.call("configure", table, table_inspection, database)
 		fold.connect("changed", _update_dirty_state)
 	_filter_tables(%TableSearch.text)
 

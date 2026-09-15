@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bhqnhifl77414"
-path="res://.godot/imported/foreign-key.svg-7a3d2399b18c5891005bf42893f2207d.ctex"
+uid="uid://cqrp4rr1rh61i"
+path="res://.godot/imported/foreign_key.svg-605ea9c10506f6c0d37fe2dff69331bc.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://addons/gdsql/editor/workspace/icons/foreign-key.svg"
-dest_files=["res://.godot/imported/foreign-key.svg-7a3d2399b18c5891005bf42893f2207d.ctex"]
+source_file="res://addons/gdsql/editor/workspace/icons/foreign_key.svg"
+dest_files=["res://.godot/imported/foreign_key.svg-605ea9c10506f6c0d37fe2dff69331bc.ctex"]
 
 [params]
 

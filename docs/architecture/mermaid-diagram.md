@@ -50,6 +50,14 @@ Workbench("`**GDSQLWorkbench**
 *Schema UI:* Scene-backed fixed header and reusable rows over typed column drafts
 *Rows:* Loaded only for the selected table`")
 
+ForeignKeyAuthoring("`**Foreign Key Authoring**
+
+-
+*Purpose:* Draft same-database references in the table designer
+*Input:* Local table plus database catalog definitions
+*Filtering:* Supported local types and exact-type unique targets
+*Output:* ForeignKeyDefinition and typed table alterations`")
+
 RowBatch("`**GDSQLEditorRowBatch**
 
 -
@@ -530,6 +538,9 @@ Workbench -->|"open_registration()"| Factory
 Workbench -->|"load and save registration snapshot"| RuntimeRegistry
 Workbench -->|"select · load rows"| Database
 Workbench -->|"preview · apply change plan"| CatalogAdministration
+Workbench -->|"table designer context"| ForeignKeyAuthoring
+ForeignKeyAuthoring -->|"typed add/drop intent"| CatalogAdministration
+ForeignKeyAuthoring -.->|"candidate metadata"| ForeignKeys
 Workbench -->|"selected table definition"| ModelAssistant
 Workbench -->|"build row mutations"| RowBatch
 RowBatch -->|"canonical queries in one transaction"| Database
@@ -584,7 +595,7 @@ Factory -.->|"bootstrap()"| RuntimeSession
 Factory -.->|"activate_effective_content()"| ContentActivation
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
-class Code,Models,Workbench,RowBatch,MutationHistory,ModelAssistant,GraphEditor,SQLEditor,Expr frontend;
+class Code,Models,Workbench,ForeignKeyAuthoring,RowBatch,MutationHistory,ModelAssistant,GraphEditor,SQLEditor,Expr frontend;
 class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,SetupProfile,ManagedConfiguration,DirectSetup,ManagedSetup,PackageManifest,PackageResolution,ContentOverlay,ContentCache,ContentActivation,SaveCompatibility,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;

@@ -382,13 +382,16 @@ transaction state before commit, so inserts and updates cannot create orphans,
 referenced target updates/deletes use `RESTRICT`, and related changes may be
 staged in either order atomically. Catalog administration blocks referenced
 table/column renames and drops plus removal of the target's last uniqueness
-contract; safe self-referencing renames update their constraint metadata.
+contract; safe self-referencing renames update their constraint metadata. The
+database table designer now creates and removes these constraints through typed
+catalog alterations. Searchable selectors expose only supported local columns
+and exact-type unique targets, new-table drafts can declare self-references, and
+foreign-key columns carry the dedicated key indicator.
 
-Next, expose reference creation, the foreign-key column indicator, and searchable
-referenced-row pickers in the table editor. Keep cross-role `save` → `content`
-references as a separate logical contract resolved through database roles; use
-both contracts to infer default model navigation without rewriting user-owned
-relationship methods.
+Next, add searchable referenced-row value pickers to the data table. Keep
+cross-role `save` → `content` references as a separate logical contract resolved
+through database roles; use both contracts to infer default model navigation
+without rewriting user-owned relationship methods.
 
 ### 11. Improve nested typed WHERE interactions
 

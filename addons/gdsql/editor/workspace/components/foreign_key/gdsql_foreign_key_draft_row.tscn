@@ -1,0 +1,77 @@
+[gd_scene format=3 uid="uid://djleicwu2lp43"]
+
+[ext_resource type="Script" uid="uid://dt5j0r4pt2hve" path="res://addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.gd" id="1_row"]
+[ext_resource type="Texture2D" uid="uid://cqrp4rr1rh61i" path="res://addons/gdsql/editor/workspace/icons/foreign_key.svg" id="2_key"]
+
+[node name="ForeignKeyDraftRow" type="PanelContainer" unique_id=1163177551]
+custom_minimum_size = Vector2(0, 38)
+script = ExtResource("1_row")
+
+[node name="Margin" type="MarginContainer" parent="." unique_id=587417383]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 3
+
+[node name="Fields" type="HBoxContainer" parent="Margin" unique_id=257387585]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Icon" type="TextureRect" parent="Margin/Fields" unique_id=220143394]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+tooltip_text = "Constraint"
+texture = ExtResource("2_key")
+expand_mode = 3
+stretch_mode = 3
+
+[node name="Name" type="LineEdit" parent="Margin/Fields" unique_id=1994550169]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+placeholder_text = "fk_table_column"
+
+[node name="LocalColumn" type="OptionButton" parent="Margin/Fields" unique_id=1982078727]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+tooltip_text = "Local column"
+
+[node name="Arrow" type="Label" parent="Margin/Fields" unique_id=1628529725]
+layout_mode = 2
+text = "→"
+vertical_alignment = 1
+
+[node name="TargetTable" type="OptionButton" parent="Margin/Fields" unique_id=1217446340]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Referenced table"
+
+[node name="Dot" type="Label" parent="Margin/Fields" unique_id=1730290330]
+layout_mode = 2
+text = "."
+vertical_alignment = 1
+
+[node name="TargetColumn" type="OptionButton" parent="Margin/Fields" unique_id=2022151678]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Referenced unique column"
+
+[node name="Policy" type="Label" parent="Margin/Fields" unique_id=794339417]
+layout_mode = 2
+tooltip_text = "Referenced updates and deletes are restricted while dependent rows exist."
+mouse_filter = 1
+text = "RESTRICT"
+vertical_alignment = 1
+
+[node name="Remove" type="Button" parent="Margin/Fields" unique_id=79513117]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Discard foreign key draft"
+text = "×"
+flat = true

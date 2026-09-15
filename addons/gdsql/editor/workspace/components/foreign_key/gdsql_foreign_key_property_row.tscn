@@ -1,0 +1,46 @@
+[gd_scene format=3 uid="uid://bjhfb6pkiard1"]
+
+[ext_resource type="Script" uid="uid://c02gpcafnffti" path="res://addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_property_row.gd" id="1_row"]
+[ext_resource type="Texture2D" uid="uid://cqrp4rr1rh61i" path="res://addons/gdsql/editor/workspace/icons/foreign_key.svg" id="2_ixdq0"]
+
+[node name="ForeignKeyPropertyRow" type="PanelContainer" unique_id=1367770092]
+custom_minimum_size = Vector2(0, 36)
+script = ExtResource("1_row")
+
+[node name="Margin" type="MarginContainer" parent="." unique_id=1797869728]
+layout_mode = 2
+theme_override_constants/margin_left = 8
+theme_override_constants/margin_top = 3
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 3
+
+[node name="Fields" type="HBoxContainer" parent="Margin" unique_id=2112643482]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="Icon" type="TextureRect" parent="Margin/Fields" unique_id=2031412627]
+layout_mode = 2
+texture = ExtResource("2_ixdq0")
+expand_mode = 2
+stretch_mode = 3
+
+[node name="Constraint" type="Label" parent="Margin/Fields" unique_id=1159809660]
+layout_mode = 2
+text = "Constraint:"
+
+[node name="Summary" type="Label" parent="Margin/Fields" unique_id=676849774]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "constraint: column → table.column"
+vertical_alignment = 1
+
+[node name="Policy" type="Label" parent="Margin/Fields" unique_id=970443896]
+layout_mode = 2
+text = "RESTRICT"
+vertical_alignment = 1
+
+[node name="Remove" type="CheckBox" parent="Margin/Fields" unique_id=825635322]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Remove"

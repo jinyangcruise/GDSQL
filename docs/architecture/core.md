@@ -1605,6 +1605,13 @@ contract. Self-referencing table and target-column renames update their own
 constraint metadata. Schema authoring can therefore expose these operations
 without permitting a silently broken catalog.
 
+The table designer authors the same `ForeignKeyDefinition` and
+`TableAlteration` types used by the catalog. Its local-column choices include
+only supported key types; referenced table and column choices are narrowed to
+exact-type, unique targets in the same database. These controls are guidance,
+not a second validation authority: catalog administration still validates the
+completed definition before persistence.
+
 ```gdscript
 class_name ColumnDefinition
 extends RefCounted

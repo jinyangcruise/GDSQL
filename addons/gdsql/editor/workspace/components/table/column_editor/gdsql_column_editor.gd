@@ -37,6 +37,7 @@ func configure_existing(table: GDSQLTableDefinition) -> void:
 			column,
 			column.name == table.primary_key,
 		)
+		draft.is_foreign = not table.get_foreign_keys_for_column(column.name).is_empty()
 		_drafts.append(draft)
 		_baseline_drafts.append(draft)
 	_render_rows()
@@ -105,6 +106,29 @@ func has_column(column_name: StringName) -> bool:
 		if not draft.remove and draft.get_column_name() == column_name:
 			return true
 	return false
+
+
+func get_primary_key_name() -> StringName:
+	for draft in _drafts:
+		if draft.is_primary and not draft.remove:
+			return draft.get_column_name()
+	return &""
+
+
+func resolve_current_name(original_name: StringName) -> StringName:
+	for draft in _drafts:
+		if draft.original != null and draft.original.name == original_name and not draft.remove:
+			return draft.get_column_name()
+	return &""
+
+
+func set_foreign_key_columns(column_names: Array[StringName]) -> void:
+	for index in _drafts.size():
+		var is_foreign := _drafts[index].get_column_name() in column_names
+		if _drafts[index].is_foreign == is_foreign:
+			continue
+		_drafts[index].is_foreign = is_foreign
+		_rows[index].configure(_drafts[index])
 
 
 func _render_rows() -> void:
