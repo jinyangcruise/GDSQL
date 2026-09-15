@@ -19,6 +19,8 @@ const DELETE_SAVE_SLOT := &"save_slot.delete"
 const INSTALL_RUNTIME_ADAPTER := &"runtime.install_adapter"
 const SAVE_DATABASE_CHANGES := &"database_document.save"
 const REFRESH_DATABASE_CHANGES := &"database_document.refresh"
+const UNDO_TABLE_MUTATION := &"table_document.undo_mutation"
+const REDO_TABLE_MUTATION := &"table_document.redo_mutation"
 const OPEN_QUERY_GRAPH_FOLDER := &"query_graph.open_folder"
 const SAVE_QUERY_GRAPH := &"query_graph.save"
 const ADD_SELECT_QUERY_NODE := &"query_graph.add_select"
@@ -50,6 +52,8 @@ static func get_all() -> Array[StringName]:
 		INSTALL_RUNTIME_ADAPTER,
 		SAVE_DATABASE_CHANGES,
 		REFRESH_DATABASE_CHANGES,
+		UNDO_TABLE_MUTATION,
+		REDO_TABLE_MUTATION,
 		OPEN_QUERY_GRAPH_FOLDER,
 		SAVE_QUERY_GRAPH,
 		ADD_SELECT_QUERY_NODE,

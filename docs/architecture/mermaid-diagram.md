@@ -58,6 +58,14 @@ RowBatch("`**GDSQLEditorRowBatch**
 *Output:* Canonical update or delete queries
 *Safety:* One public database transaction; reject empty, duplicate or read-only mutations`")
 
+MutationHistory("`**Editor Mutation History**
+
+-
+*Purpose:* Keep bounded session-only row Undo/Redo state
+*Entry:* One committed batch with target and before/after snapshots
+*Safety:* Move stacks only after successful inverse execution
+*Scope:* Scalar updates first; controller owns execution`")
+
 ModelAssistant("`**Model Assistant**
 
 -
@@ -508,6 +516,8 @@ Workbench -->|"preview · apply change plan"| CatalogAdministration
 Workbench -->|"selected table definition"| ModelAssistant
 Workbench -->|"build row mutations"| RowBatch
 RowBatch -->|"canonical queries in one transaction"| Database
+Workbench -->|"record successful batches"| MutationHistory
+MutationHistory -->|"next inverse mutation"| RowBatch
 ModelAssistant -.->|"generates project model scripts"| Models
 Persistence -->|"target.checkpoint()"| MemoryCheckpoint
 Transaction -->|"execute(query, shared session)"| Context
@@ -553,7 +563,7 @@ Factory -.->|"bootstrap()"| RuntimeSession
 Factory -.->|"activate_effective_content()"| ContentActivation
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
-class Code,Models,Workbench,RowBatch,ModelAssistant,GraphEditor,SQLEditor,Expr frontend;
+class Code,Models,Workbench,RowBatch,MutationHistory,ModelAssistant,GraphEditor,SQLEditor,Expr frontend;
 class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,SetupProfile,ManagedConfiguration,DirectSetup,ManagedSetup,PackageManifest,PackageResolution,ContentOverlay,ContentCache,ContentActivation,SaveCompatibility,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;

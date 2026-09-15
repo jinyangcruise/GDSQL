@@ -51,21 +51,22 @@ rather than a profile toggle.
   produce typed compatibility reports. A managed setup document validates package
   inputs, builds the cache, reports active-save compatibility, and confirms
   expectation recording.
-- SQL lexer/parser/compiler contracts are scaffolded, so the editor must not
-  present SQL text as a complete query frontend yet.
+- SQL lexer/parser/compiler contracts remain scaffolded, but SQL text is not an
+  active product priority while typed query interactions have larger gaps.
 
 ## Remaining delivery workstreams
 
 After the current experimental table, creation, bootstrap, and model-assistant
-slices, three substantive workstreams remain. They are grouped by outcome;
+slices, five substantive workstreams remain. They are grouped by outcome;
 individual workstreams may require several small changes.
 
 | Outcome | Count | Remaining workstreams |
 |---|---:|---|
 | Reliable direct-content setup | 0 | Complete for the current direct profile. |
 | Managed-content full kit | 0 | Complete for the current managed profile. |
-| Editor navigation and schema UX | 1 | Multi-table search/navigation and selection-based schema actions. |
-| Advanced tooling and release | 2 | Finish the SQL compiler/editor; migration, performance, and release QA. |
+| Editor interaction | 3 | Multi-table navigation/schema actions; bounded row Undo/Redo; nested typed WHERE groups. |
+| Agent integration | 1 | Design and implement a read-only-first MCP surface. |
+| Release | 1 | Migration, performance, compatibility, and release QA. |
 
 ## Delivery order
 
@@ -355,13 +356,29 @@ table or column name without hiding unsaved table drafts.
 4. Replace trailing per-column delete buttons with selection-based removal,
    dependency warnings, and one explicit confirmation.
 
-### 9. Finish the SQL compiler and enable the SQL editor
+### 9. Add bounded row mutation history
 
-Complete and test the lexer, parser, and compiler for the supported SQL subset.
-Only then enable query preview and execution in the editor; SQL must produce the
-same `GDSQLQuerySpec` and diagnostics as every other frontend.
+Add a per-table, session-only Undo/Redo history integrated through the action
+hub. Record one entry per committed batch, cap retained entries, and move stack
+state only after a successful inverse transaction. Start with scalar update
+snapshots; add insert/delete restoration only after generated identities and
+timestamps have a safe policy. Undoing an update restores editable values while
+`updated_at` records the undo operation time.
 
-### 10. Migration, performance, and release QA
+### 10. Improve nested typed WHERE interactions
+
+Add explicit nested groups, group-level `NOT`, clear precedence, and compact
+collapse/summary behavior to the shared WHERE editor. The result must remain a
+canonical expression tree and must not introduce SQL parsing into the control.
+
+### 11. Define a GDSQL-aware MCP surface
+
+Create `docs/architecture/mcp.md` before implementation. Define project scope,
+capability/version negotiation, read-only resources and tools, diagnostics, and
+explicit confirmation boundaries for future mutations. Implement schema and
+setup inspection first; query drafting and guarded editor actions follow.
+
+### 12. Migration, performance, and release QA
 
 Version persisted formats, provide dry-run migrations and recovery guidance,
 benchmark paging and managed-content caches with large datasets, and verify
@@ -369,6 +386,8 @@ editor/runtime behavior across supported Godot versions and exported builds.
 
 ## Backlog — not active delivery
 
+- **SQL compiler and editor:** complete the supported SQL frontend only when SQL
+  text unlocks a concrete workflow beyond the typed table and expression tools.
 - **Advanced query graph:** preserve the current implementation, but do not add
   operations or saved graphs until it has a discoverable entry point and the
   primary table, setup, and release workflows are complete.
@@ -378,10 +397,6 @@ editor/runtime behavior across supported Godot versions and exported builds.
   union syntax, do not silently generate `String`, `float`, or other value types
   when the table permits `NULL`; investigate a typed optional representation or
   a schema action that lets users intentionally make required columns non-null.
-- **GDSQL-aware MCP integration:** investigate a focused MCP surface for schema
-  inspection, safe query drafting, setup diagnostics, and editor actions. It may
-  integrate with `godot-ai`, but must remain optional and must not bypass GDSQL
-  validation or mutation safeguards.
 - **Portable database interchange:** export and import tables or query results
   as JSON, CSV, and compatible GDSQL data. The interchange contract must remain
   independent of ConfigFile and the future paged-binary backend, with schema
