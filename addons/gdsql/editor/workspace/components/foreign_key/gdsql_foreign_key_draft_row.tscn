@@ -28,9 +28,11 @@ stretch_mode = 3
 
 [node name="Name" type="LineEdit" parent="Margin/Fields" unique_id=1994550169]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(180, 0)
+custom_minimum_size = Vector2(240, 0)
 layout_mode = 2
-placeholder_text = "fk_table_column"
+tooltip_text = "Generated from the source column and referenced target."
+placeholder_text = "fk_source_column_target_column"
+editable = false
 
 [node name="LocalColumn" type="OptionButton" parent="Margin/Fields" unique_id=1982078727]
 unique_name_in_owner = true

@@ -1612,7 +1612,9 @@ exact-type, unique targets in other tables in the same database. The authoring
 UI deliberately excludes the source table even though the catalog can preserve
 pre-existing self-references. These controls are guidance, not a second
 validation authority: catalog administration still validates the completed
-definition before persistence.
+definition before persistence. New constraints receive the deterministic name
+`fk_<source_table>_<local_column>_<target_table>_<target_column>`, which updates
+with the selected inputs instead of becoming stale editor state.
 
 ```gdscript
 class_name ColumnDefinition

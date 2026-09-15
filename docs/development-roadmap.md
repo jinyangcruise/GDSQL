@@ -387,7 +387,10 @@ database table designer now creates and removes these constraints through typed
 catalog alterations. Searchable selectors expose only supported local columns
 and exact-type unique targets in other tables, and foreign-key columns carry the
 dedicated key indicator. Existing self-references remain readable and removable,
-but the table designer does not offer the source table as a new target.
+but the table designer does not offer the source table as a new target. New
+constraint names follow the deterministic
+`fk_<source>_<local>_<target>_<target_column>` convention and stay synchronized
+with their selected inputs.
 
 Next, add searchable referenced-row value pickers to the data table. Keep
 cross-role `save` → `content` references as a separate logical contract resolved

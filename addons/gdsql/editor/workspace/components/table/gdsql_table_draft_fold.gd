@@ -129,7 +129,7 @@ func _add_foreign_key() -> void:
 	row.configure(_database, _build_reference_source())
 	row.changed.connect(_on_foreign_key_changed)
 	row.remove_requested.connect(_remove_foreign_key)
-	row.focus_name.call_deferred()
+	row.focus_local_column.call_deferred()
 	_update_foreign_key_indicators()
 	changed.emit()
 

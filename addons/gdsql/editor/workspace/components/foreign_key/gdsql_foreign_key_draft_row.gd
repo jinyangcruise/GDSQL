@@ -17,10 +17,9 @@ var _configuring := false
 
 
 func _ready() -> void:
-	_name.text_changed.connect(changed.emit.unbind(1))
 	_local_column.item_selected.connect(_on_local_column_selected.unbind(1))
 	_target_table.item_selected.connect(_on_target_table_selected.unbind(1))
-	_target_column.item_selected.connect(changed.emit.unbind(1))
+	_target_column.item_selected.connect(_on_target_column_selected.unbind(1))
 	%Remove.pressed.connect(remove_requested.emit.bind(self))
 	for button in [_local_column, _target_table, _target_column]:
 		button.get_popup().allow_search = true
@@ -33,7 +32,6 @@ func configure(
 	_database = database
 	_source_table = source_table
 	_rebuild_options(&"", &"", &"")
-	_suggest_constraint_name()
 
 
 func refresh_context(
@@ -86,9 +84,8 @@ func get_local_column_name() -> StringName:
 	return _selected_name(_local_column)
 
 
-func focus_name() -> void:
-	_name.grab_focus()
-	_name.edit()
+func focus_local_column() -> void:
+	_local_column.grab_focus()
 
 
 func _rebuild_options(
@@ -100,6 +97,7 @@ func _rebuild_options(
 	_populate_local_columns(local_name)
 	_populate_target_tables(table_name)
 	_populate_target_columns(column_name)
+	_update_constraint_name()
 	_configuring = false
 
 
@@ -149,7 +147,7 @@ func _on_local_column_selected() -> void:
 	_populate_target_tables(&"")
 	_populate_target_columns(&"")
 	_configuring = false
-	_suggest_constraint_name()
+	_update_constraint_name()
 	changed.emit()
 
 
@@ -158,7 +156,15 @@ func _on_target_table_selected() -> void:
 		return
 	_configuring = true
 	_populate_target_columns(&"")
+	_update_constraint_name()
 	_configuring = false
+	changed.emit()
+
+
+func _on_target_column_selected() -> void:
+	if _configuring:
+		return
+	_update_constraint_name()
 	changed.emit()
 
 
@@ -230,13 +236,16 @@ func _set_empty_state(button: OptionButton, message: String) -> void:
 	button.disabled = true
 
 
-func _suggest_constraint_name() -> void:
-	var local_name := _selected_name(_local_column)
-	if not _name.text.strip_edges().is_empty() or local_name == &"":
-		return
-	var table_name := (
-		_source_table.name
-		if _source_table != null and _source_table.name != &""
-		else &"table"
-	)
-	_name.text = "fk_%s_%s" % [table_name, local_name]
+func _update_constraint_name() -> void:
+	var parts: Array[String] = ["fk"]
+	var names: Array[StringName] = [
+		_source_table.name if _source_table != null else &"",
+		_selected_name(_local_column),
+		_selected_name(_target_table),
+		_selected_name(_target_column),
+	]
+	for value in names:
+		if value != &"":
+			parts.append(String(value))
+	_name.text = "_".join(parts)
+	_name.tooltip_text = "Generated constraint name: %s" % _name.text
