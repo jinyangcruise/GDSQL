@@ -25,11 +25,11 @@ func _ready() -> void:
 
 
 func configure(
-		p_entry_id: int,
-		p_time_text: String,
-		p_status_text: String,
-		p_action_text: String,
-		p_message_text: String,
+	p_entry_id: int,
+	p_time_text: String,
+	p_status_text: String,
+	p_action_text: String,
+	p_message_text: String,
 ) -> void:
 	if not is_node_ready():
 		await ready
@@ -40,10 +40,14 @@ func configure(
 	message_text = p_message_text
 	# [TODO] Add optional tick option
 	tick = Time.get_ticks_msec()
-	_time.text = str(time_text, str("/", tick) if true else "")
+	_time.text = "%s / %s" % [time_text, tick]
+	_time.tooltip_text += ": %s / %s" % [time_text, tick]
 	_status.text = status_text
+	_status_panel.tooltip_text += ": %s" % [status_text]
 	_action.text = action_text
+	_action.tooltip_text += ": %s" % [action_text]
 	_message.text = message_text
+	_message.tooltip_text += ": %s" % [message_text]
 	_apply_status_style(status_text)
 	tooltip_text = "#%d · %s · %s\n%s" % [entry_id, action_text, status_text, message_text]
 
