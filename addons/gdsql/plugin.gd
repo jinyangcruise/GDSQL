@@ -11,6 +11,11 @@ const DATABASE_DOCK_KEY := "GDSQLDatabases"
 const LOGS_DOCK_KEY := "GDSQLLogs"
 const WORKSPACE_HOST_NAME := "GDSQLWorkspaceHost"
 const DATABASE = preload("res://addons/gdsql/editor/workspace/icons/database.svg")
+const LOG_STATUS_ICONS := {
+	GDSQLLogsPanel.Indicator.SUCCESS: &"StatusSuccess",
+	GDSQLLogsPanel.Indicator.WARNING: &"StatusWarning",
+	GDSQLLogsPanel.Indicator.ERROR: &"StatusError",
+}
 
 var _controller: GDSQLEditorController
 var _workspace_host: MarginContainer
@@ -121,6 +126,7 @@ func _create_database_dock() -> void:
 func _create_logs_dock() -> void:
 	_remove_existing_dock(LOGS_DOCK_KEY)
 	_logs_panel = LOGS_SCENE.instantiate() as GDSQLLogsPanel
+	_logs_panel.indicator_changed.connect(_on_logs_indicator_changed)
 	_logs_dock = EditorDock.new()
 	_logs_dock.name = LOGS_DOCK_KEY
 	_logs_dock.title = "GDSQL Logs"
@@ -131,6 +137,19 @@ func _create_logs_dock() -> void:
 	)
 	_logs_dock.add_child(_logs_panel)
 	add_dock(_logs_dock)
+
+
+func _on_logs_indicator_changed(indicator: GDSQLLogsPanel.Indicator) -> void:
+	if not is_instance_valid(_logs_dock):
+		return
+	var icon_name := LOG_STATUS_ICONS.get(indicator, &"") as StringName
+	var theme := EditorInterface.get_editor_theme()
+	_logs_dock.force_show_icon = icon_name != &""
+	_logs_dock.dock_icon = (
+		theme.get_icon(icon_name, &"EditorIcons")
+		if icon_name != &"" and theme.has_icon(icon_name, &"EditorIcons")
+		else null
+	)
 
 
 func _load_workspace() -> void:
