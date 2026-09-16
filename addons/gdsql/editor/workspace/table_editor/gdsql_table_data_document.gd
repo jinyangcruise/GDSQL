@@ -19,6 +19,11 @@ signal row_insert_requested(
 		table_name: StringName,
 		values: Dictionary,
 )
+signal rows_duplicate_requested(
+		registration_name: StringName,
+		table_name: StringName,
+		rows: Array[Dictionary],
+)
 signal rows_update_requested(
 		registration_name: StringName,
 		table_name: StringName,
@@ -78,6 +83,7 @@ func _ready() -> void:
 	%AddRow.pressed.connect(_begin_insert)
 	%SaveChanges.pressed.connect(_save_changes)
 	%DiscardChanges.pressed.connect(_discard_changes)
+	%DuplicateSelected.pressed.connect(_duplicate_selected_rows)
 	%DeleteSelected.pressed.connect(_request_selected_rows_delete)
 	%FirstPage.pressed.connect(_go_to_page.bind(0))
 	%PreviousPage.pressed.connect(_change_page.bind(-1))
@@ -180,14 +186,20 @@ func configure(
 	table_name = table.name
 	_table = table
 	_catalog_total_rows = maxi(0, total_rows)
+	var filterable_columns := _filterable_columns()
 	if source_changed:
 		_page_index = 0
 		_applied_predicate = null
 		_applied_filter_summary = ""
 		_filter_dirty = false
-		_where_expression.configure(table.columns)
+		_where_expression.configure(filterable_columns)
 	else:
-		_where_expression.configure(table.columns, true)
+		_where_expression.configure(filterable_columns, true)
+	_where_expression.tooltip_text = (
+			"Resource columns are temporarily excluded from WHERE filters."
+			if filterable_columns.size() != table.columns.size()
+			else "Build a typed WHERE filter for this table."
+	)
 	_configure_query_options(not source_changed)
 	if _applied_predicate == null:
 		_total_rows = _catalog_total_rows
@@ -252,7 +264,12 @@ func present_reference_rows(
 		return
 	_reference_request_grid.present_foreign_key_options(foreign_key, target_table, result)
 	%Status.text = (
-			"Choose a referenced row. Type while the list is open to search."
+			(
+					"Showing the first %d referenced rows. Type to search this bounded page."
+					% REFERENCE_PICKER_LIMIT
+					if result.rows.size() >= REFERENCE_PICKER_LIMIT
+					else "Choose a referenced row. Type while the list is open to search."
+			)
 			if result != null and result.is_successful()
 			else "Referenced rows could not be loaded."
 	)
@@ -389,6 +406,16 @@ func _valid_visible_columns() -> Array[StringName]:
 	return valid
 
 
+func _filterable_columns() -> Array[GDSQLColumnDefinition]:
+	var filterable: Array[GDSQLColumnDefinition] = []
+	if _table == null:
+		return filterable
+	for column in _table.columns:
+		if column.data_type != TYPE_OBJECT:
+			filterable.append(column)
+	return filterable
+
+
 func _populate_columns() -> void:
 	_column_menu.clear()
 	_column_menu.add_item("Show all", COLUMN_SELECT_ALL)
@@ -503,7 +530,7 @@ func _clear_filter() -> void:
 	if has_unsaved_changes():
 		%Status.text = "Save or discard row changes before clearing the filter."
 		return
-	_where_expression.configure(_table.columns)
+	_where_expression.configure(_filterable_columns())
 	_applied_predicate = null
 	_applied_filter_summary = ""
 	_filter_dirty = false
@@ -609,6 +636,132 @@ func _close_insert_editor(restore_table: bool = true) -> void:
 		_render_table()
 
 
+func _duplicate_selected_rows() -> void:
+	if has_unsaved_changes():
+		%Status.text = "Save or discard changes before duplicating rows."
+		return
+	var selected_keys := _table_view.get_selected_primary_keys()
+	if selected_keys.is_empty():
+		return
+	if _duplicate_requires_draft(selected_keys):
+		_begin_duplicate_draft(selected_keys)
+		return
+	var rows := _duplicate_values_for(selected_keys)
+	if rows.is_empty():
+		return
+	%Status.text = "Duplicating %d selected row(s) as one transaction…" % rows.size()
+	_pending_mutation_status = "%d selected row(s) duplicated atomically." % rows.size()
+	var previous_revision := _presentation_revision
+	_mutation_in_flight = true
+	rows_duplicate_requested.emit(registration_name, table_name, rows)
+	_mutation_in_flight = false
+	if _presentation_revision == previous_revision:
+		_pending_mutation_status = ""
+		%Status.text = "The duplicate transaction failed and was rolled back."
+	_refresh_actions()
+
+
+func _begin_duplicate_draft(primary_keys: Array[Variant]) -> void:
+	var values := _draft_values_for(primary_keys[0])
+	if values.is_empty():
+		return
+	_table_view.deselect_all()
+	_table_view.set_safe_mode(true)
+	_render_table()
+	_insert_editor.configure_insert_draft(_table, _table, values)
+	%InsertSection.show()
+	var status_parts := PackedStringArray()
+	if primary_keys.size() > 1:
+		status_parts.append("Only the first selected row was copied into the draft.")
+	status_parts.append_array(_duplicate_draft_guidance(primary_keys))
+	%Status.text = " ".join(status_parts)
+	_refresh_actions()
+
+
+func _duplicate_values_for(primary_keys: Array[Variant]) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	for record in _records:
+		if not primary_keys.has(record.get_value(_table.primary_key)):
+			continue
+		var values: Dictionary = { }
+		for column in _table.columns:
+			if column.auto_increment \
+					or column.generation != GDSQLColumnDefinition.Generation.NONE \
+					or column.data_type == TYPE_OBJECT:
+				continue
+			values[column.name] = record.get_value(column.name)
+		rows.append(values)
+	return rows
+
+
+func _draft_values_for(primary_key: Variant) -> Dictionary:
+	for record in _records:
+		if record.get_value(_table.primary_key) != primary_key:
+			continue
+		var values: Dictionary = { }
+		for column in _table.columns:
+			if column.auto_increment \
+					or column.generation != GDSQLColumnDefinition.Generation.NONE:
+				continue
+			var value: Variant = record.get_value(column.name)
+			values[column.name] = value.duplicate(true) if value is Resource else value
+		return values
+	return { }
+
+
+func _duplicate_requires_draft(primary_keys: Array[Variant]) -> bool:
+	return not _duplicate_draft_guidance(primary_keys).is_empty()
+
+
+func _duplicate_draft_guidance(primary_keys: Array[Variant]) -> PackedStringArray:
+	var guidance := PackedStringArray()
+	if _table == null:
+		return guidance
+	var primary_key := _table.get_column(_table.primary_key)
+	if primary_key == null \
+			or (not primary_key.auto_increment \
+							and primary_key.generation == GDSQLColumnDefinition.Generation.NONE):
+		guidance.append("Change '%s' before saving." % _table.primary_key)
+	if _has_copied_unique_constraint():
+		guidance.append("Review the copied unique values before saving.")
+	if _selected_rows_contain_resources(primary_keys):
+		guidance.append("Resource values were deep-cloned; review them before saving.")
+	return guidance
+
+
+func _has_copied_unique_constraint() -> bool:
+	for column in _table.columns:
+		if column.name != _table.primary_key \
+				and column.generation == GDSQLColumnDefinition.Generation.NONE \
+				and not column.auto_increment \
+				and _table.has_unique_key(column.name):
+			return true
+	for index in _table.indexes:
+		if not index.unique:
+			continue
+		var copies_complete_key := true
+		for column_name in index.columns:
+			var column := _table.get_column(column_name)
+			if column == null \
+					or column.auto_increment \
+					or column.generation != GDSQLColumnDefinition.Generation.NONE:
+				copies_complete_key = false
+				break
+		if copies_complete_key:
+			return true
+	return false
+
+
+func _selected_rows_contain_resources(primary_keys: Array[Variant]) -> bool:
+	for record in _records:
+		if not primary_keys.has(record.get_value(_table.primary_key)):
+			continue
+		for column in _table.columns:
+			if column.data_type == TYPE_OBJECT and record.get_value(column.name) is Resource:
+				return true
+	return false
+
+
 func _request_selected_rows_delete() -> void:
 	if has_unsaved_changes():
 		%Status.text = "Save or discard changes before deleting rows."
@@ -659,10 +812,29 @@ func _refresh_actions() -> void:
 	var inserting: bool = %InsertSection.visible
 	var has_edits: bool = _table_view.has_pending_changes()
 	var edited_count: int = _table_view.get_pending_updates().size()
-	var selected_count: int = _table_view.get_selected_primary_keys().size()
+	var selected_keys := _table_view.get_selected_primary_keys()
+	var selected_count: int = selected_keys.size()
 	%AddRow.disabled = _mutation_in_flight or _table == null or inserting or has_edits
 	%SaveChanges.disabled = _mutation_in_flight or (not inserting and not has_edits)
 	%DiscardChanges.disabled = _mutation_in_flight or (not inserting and not has_edits)
+	%DuplicateSelected.disabled = (
+			_mutation_in_flight
+			or inserting
+			or has_edits
+			or selected_count == 0
+	)
+	%DuplicateSelected.tooltip_text = (
+			(
+					"Copy the first selected row into an editable Add Row draft"
+					if _duplicate_requires_draft(selected_keys)
+					else (
+							"Duplicate %d selected row(s) in one transaction; Resource values are omitted"
+							% selected_count
+					)
+			)
+			if selected_count > 0
+			else "Select one or more rows to duplicate"
+	)
 	%DeleteSelected.disabled = (
 			_mutation_in_flight or inserting or has_edits or selected_count == 0
 	)

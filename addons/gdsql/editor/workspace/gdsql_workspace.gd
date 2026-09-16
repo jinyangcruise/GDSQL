@@ -35,6 +35,11 @@ signal table_row_insert_requested(
 		table_name: StringName,
 		values: Dictionary,
 )
+signal table_rows_duplicate_requested(
+		registration_name: StringName,
+		table_name: StringName,
+		rows: Array[Dictionary],
+)
 signal table_rows_update_requested(
 		registration_name: StringName,
 		table_name: StringName,
@@ -246,6 +251,10 @@ func show_table(
 		document.connect(
 			"row_insert_requested",
 			_on_table_row_insert_requested,
+		)
+		document.connect(
+			"rows_duplicate_requested",
+			_on_table_rows_duplicate_requested,
 		)
 		document.connect(
 			"rows_update_requested",
@@ -760,6 +769,14 @@ func _on_table_row_insert_requested(
 		values: Dictionary,
 ) -> void:
 	table_row_insert_requested.emit(registration_name, table_name, values)
+
+
+func _on_table_rows_duplicate_requested(
+		registration_name: StringName,
+		table_name: StringName,
+		rows: Array[Dictionary],
+) -> void:
+	table_rows_duplicate_requested.emit(registration_name, table_name, rows)
 
 
 func _on_table_rows_update_requested(

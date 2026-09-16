@@ -10,6 +10,7 @@
 [ext_resource type="Texture2D" uid="uid://b2uu8eana73y3" path="res://addons/gdsql/editor/workspace/icons/eraser.svg" id="7_cluas"]
 [ext_resource type="Texture2D" uid="uid://benvx1k7my6ly" path="res://addons/gdsql/editor/workspace/icons/script.svg" id="8_script"]
 [ext_resource type="Script" uid="uid://hvanlw2ev0lr" path="res://addons/gdsql/editor/controller/components/gdsql_editor_action_button.gd" id="9_action_button"]
+[ext_resource type="Texture2D" uid="uid://bso1wcg7nxsyd" path="res://addons/gdsql/editor/workspace/icons/duplicate.svg" id="10_duplicate"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_r8eu3"]
 
@@ -197,7 +198,7 @@ unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Commit all pending edits together; any failure rolls back the complete batch"
 disabled = true
-text = "Save Changes"
+text = "Save"
 icon = ExtResource("4_save")
 
 [node name="DiscardChanges" type="Button" parent="Layout/Actions" unique_id=2115318127]
@@ -205,16 +206,25 @@ unique_name_in_owner = true
 layout_mode = 2
 tooltip_text = "Discard the local draft without changing stored rows"
 disabled = true
-text = "Discard Changes"
+text = "Discard"
 icon = ExtResource("7_cluas")
+
+[node name="DuplicateSelected" type="Button" parent="Layout/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 0)
+layout_mode = 2
+tooltip_text = "Select one or more rows to duplicate"
+disabled = true
+text = "Duplicate"
+icon = ExtResource("10_duplicate")
 
 [node name="DeleteSelected" type="Button" parent="Layout/Actions" unique_id=781801038]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(132, 0)
+custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 tooltip_text = "Select one or more rows to delete"
 disabled = true
-text = "Delete Selected"
+text = "Delete"
 icon = ExtResource("5_delete")
 
 [node name="ActionSummary" type="Label" parent="Layout/Actions" unique_id=1455774941]

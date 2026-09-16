@@ -17,13 +17,13 @@ func test_builds_and_executes_atomic_updates() -> void:
 	var updates: Array[Dictionary] = [
 		{
 			"primary_key": 1,
-			"before_values": {&"name": "Knight"},
-			"values": {&"name": "Paladin"},
+			"before_values": { &"name": "Knight" },
+			"values": { &"name": "Paladin" },
 		},
 		{
 			"primary_key": 2,
-			"before_values": {&"name": "Mage"},
-			"values": {&"name": "Wizard"},
+			"before_values": { &"name": "Mage" },
+			"values": { &"name": "Wizard" },
 		},
 	]
 
@@ -45,13 +45,13 @@ func test_builds_and_executes_atomic_updates() -> void:
 	assert_str(String(entry.after_rows[1].get_value(&"name"))).is_equal("Wizard")
 
 	var inverse_updates: Array[Dictionary] = [
-		{"primary_key": 1, "values": {&"name": "Knight"}},
-		{"primary_key": 2, "values": {&"name": "Mage"}},
+		{ "primary_key": 1, "values": { &"name": "Knight" } },
+		{ "primary_key": 2, "values": { &"name": "Mage" } },
 	]
 	var inverse := GDSQLEditorRowBatch.build_updates(table, inverse_updates)
 	assert_bool(inverse.is_successful()).is_true()
 	assert_bool(
-			(inverse.get_value() as GDSQLEditorRowBatch).execute(database).is_successful(),
+		(inverse.get_value() as GDSQLEditorRowBatch).execute(database).is_successful(),
 	).is_true()
 	rows = database.execute(
 		database.query().select().from_table(&"heroes").order_by_column(&"id").build(),
@@ -60,9 +60,43 @@ func test_builds_and_executes_atomic_updates() -> void:
 	assert_str(String(rows.rows[1].get_value(&"name"))).is_equal("Mage")
 
 
+func test_builds_and_executes_atomic_inserts() -> void:
+	var table := GDSQLTableDefinition.new(&"heroes", &"id")
+	table.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true, true))
+	table.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
+	var database := TestDatabase.create_database(_data_root, table, &"insert_batch")
+	var catalog_table := database.context.catalog.get_table(database.database_name, &"heroes")
+	var rows: Array[Dictionary] = [{ &"name": "Knight" }, { &"name": "Mage" }]
+
+	var planned := GDSQLEditorRowBatch.build_inserts(catalog_table, rows)
+	var batch := planned.get_value() as GDSQLEditorRowBatch
+
+	assert_bool(planned.is_successful()).is_true()
+	assert_int(batch.operation).is_equal(GDSQLEditorRowBatch.Operation.INSERT)
+	assert_int(batch.row_count).is_equal(2)
+	assert_bool(batch.execute(database).is_successful()).is_true()
+	var selected := database.execute(
+		database.query().select().from_table(&"heroes").order_by_column(&"id").build(),
+	)
+	assert_int(selected.rows.size()).is_equal(2)
+	assert_str(String(selected.rows[0].get_value(&"name"))).is_equal("Knight")
+	assert_str(String(selected.rows[1].get_value(&"name"))).is_equal("Mage")
+
+
+func test_rejects_generated_insert_values() -> void:
+	var rows: Array[Dictionary] = [{ &"created_at": 0, &"name": "Knight" }]
+
+	var result := GDSQLEditorRowBatch.build_inserts(_table_definition(), rows)
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(String(result.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_EDITOR_ROW_BATCH_COLUMN_READ_ONLY",
+	)
+
+
 func test_update_without_before_values_is_not_recordable() -> void:
 	var updates: Array[Dictionary] = [
-		{"primary_key": 1, "values": {&"name": "Paladin"}},
+		{ "primary_key": 1, "values": { &"name": "Paladin" } },
 	]
 	var planned := GDSQLEditorRowBatch.build_updates(_table_definition(), updates)
 	var batch := planned.get_value() as GDSQLEditorRowBatch
@@ -73,10 +107,12 @@ func test_update_without_before_values_is_not_recordable() -> void:
 
 func test_rejects_read_only_and_unknown_update_columns() -> void:
 	var table := _table_definition()
-	var updates: Array[Dictionary] = [{
-		"primary_key": 1,
-		"values": {&"id": 2, &"created_at": 0, &"missing": "value"},
-	}]
+	var updates: Array[Dictionary] = [
+		{
+			"primary_key": 1,
+			"values": { &"id": 2, &"created_at": 0, &"missing": "value" },
+		},
+	]
 
 	var result := GDSQLEditorRowBatch.build_updates(table, updates)
 

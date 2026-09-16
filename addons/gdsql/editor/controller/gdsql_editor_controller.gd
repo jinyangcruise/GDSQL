@@ -101,6 +101,11 @@ func shutdown() -> void:
 			and _workspace.table_row_insert_requested.is_connected(_insert_table_row):
 		_workspace.table_row_insert_requested.disconnect(_insert_table_row)
 	if is_instance_valid(_workspace) \
+			and _workspace.table_rows_duplicate_requested.is_connected(
+				_duplicate_table_rows,
+			):
+		_workspace.table_rows_duplicate_requested.disconnect(_duplicate_table_rows)
+	if is_instance_valid(_workspace) \
 			and _workspace.table_rows_update_requested.is_connected(_update_table_rows):
 		_workspace.table_rows_update_requested.disconnect(_update_table_rows)
 	if is_instance_valid(_workspace) \
@@ -183,6 +188,7 @@ func _configure_surfaces() -> void:
 	_workspace.table_rows_requested.connect(_load_table_rows)
 	_workspace.table_reference_rows_requested.connect(_load_table_reference_rows)
 	_workspace.table_row_insert_requested.connect(_insert_table_row)
+	_workspace.table_rows_duplicate_requested.connect(_duplicate_table_rows)
 	_workspace.table_rows_update_requested.connect(_update_table_rows)
 	_workspace.table_rows_delete_requested.connect(_delete_table_rows)
 	_workspace.table_undo_requested.connect(_undo_table_mutation)
@@ -600,6 +606,37 @@ func _insert_table_row(
 		_clear_table_history(registration_name, table_name)
 	_complete_row_mutation(registration_name, table_name, result)
 	_record_result("Insert table row", result)
+	return result
+
+
+func _duplicate_table_rows(
+		registration_name: StringName,
+		table_name: StringName,
+		rows: Array[Dictionary],
+) -> GDSQLOperationResult:
+	var result := _ensure_active_registration(registration_name)
+	if not result.is_successful():
+		_record_result("Duplicate table rows", result)
+		return result
+	var database := workbench.active_session.database
+	var table := database.context.catalog.get_table(database.database_name, table_name)
+	if table == null:
+		result = _error(
+			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
+			"Table '%s' was not found." % table_name,
+		)
+	else:
+		var planned := GDSQLEditorRowBatch.build_inserts(table, rows)
+		result.diagnostics.merge(planned.diagnostics)
+		if planned.is_successful():
+			var executed := (planned.get_value() as GDSQLEditorRowBatch).execute(database)
+			result.diagnostics.merge(executed.diagnostics)
+			result.value = executed.value
+	if result.is_successful():
+		_clear_table_history(registration_name, table_name)
+	_complete_row_mutation(registration_name, table_name, result)
+	_refresh_table_history_state(registration_name, table_name)
+	_record_result("Duplicate table rows", result)
 	return result
 
 

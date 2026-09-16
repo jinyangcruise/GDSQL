@@ -89,6 +89,14 @@ scene-backed editor component; graph chrome, table paging, and mutation actions
 remain with their owning frontends. Data columns use stable equal expansion
 with fixed minimum widths, so table and insert views fill their host consistently
 and overflow horizontally only when all columns have reached their minimum.
+Selected rows can be duplicated through one atomic insert batch when the table
+has a generated identity and copies only non-unique scalar values. Manual
+identities, copied unique constraints, or Resource values instead populate one
+editable insert draft from the first selected row. Resource values are
+deep-cloned for that draft. Resource columns remain temporarily excluded from
+typed WHERE choices.
+Tab advances through editable cells and Enter commits an inline edit before
+moving down the same column.
 
 1. Keep the shared typed result grid independent from graph orchestration.
 2. Keep standalone table actions outside the grid so row height and column
@@ -396,6 +404,8 @@ with their selected inputs. Data and insert grids expose the foreign-key action
 for columns with one unambiguous constraint, load an ordered canonical target
 query on demand, and present the first 500 rows through a searchable popup with
 context fields before applying the selected key through the normal batch draft.
+Large reference sets remain bounded: replace the loaded-page popup with debounced
+server-side search and paginated results before raising or removing that limit.
 
 Next, use catalog and cross-role `save` → `content` contracts to infer default
 model navigation without rewriting user-owned relationship methods. Cross-role

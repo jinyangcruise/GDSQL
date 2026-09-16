@@ -77,6 +77,47 @@ func _exit_tree() -> void:
 	_disconnect_editor_inspector()
 
 
+func _input(event: InputEvent) -> void:
+	var key_event := event as InputEventKey
+	if not is_visible_in_tree() \
+			or key_event == null \
+			or not key_event.pressed \
+			or key_event.echo:
+		return
+	var move_horizontal := key_event.keycode == KEY_TAB
+	var move_vertical := key_event.keycode in [KEY_ENTER, KEY_KP_ENTER]
+	if not move_horizontal and not move_vertical:
+		return
+	var focus_owner := get_viewport().gui_get_focus_owner()
+	if focus_owner == null \
+			or (focus_owner != self and not is_ancestor_of(focus_owner)):
+		return
+	if is_instance_valid(_resource_editor_host) \
+			and _resource_editor_host.is_ancestor_of(focus_owner):
+		return
+	var edited_item := get_edited()
+	var edited_column := get_edited_column()
+	if edited_item != null and edited_column >= 0:
+		if move_horizontal:
+			_move_horizontal_from.call_deferred(
+				edited_item,
+				edited_column,
+				key_event.shift_pressed,
+			)
+		else:
+			_move_vertical_from.call_deferred(edited_item, edited_column)
+		return
+	if focus_owner == self:
+		var selected_item := get_selected()
+		if move_horizontal and selected_item != null:
+			get_viewport().set_input_as_handled()
+			_move_horizontal_from(
+				selected_item,
+				get_selected_column(),
+				key_event.shift_pressed,
+			)
+
+
 func configure(
 		table: GDSQLTableDefinition,
 		view_table: GDSQLTableDefinition,
@@ -151,12 +192,20 @@ func present_foreign_key_options(
 	_show_foreign_key_picker()
 
 
-func configure_insert_draft(table: GDSQLTableDefinition, view_table: GDSQLTableDefinition) -> void:
+func configure_insert_draft(
+		table: GDSQLTableDefinition,
+		view_table: GDSQLTableDefinition,
+		initial_values: Dictionary = { },
+) -> void:
 	var insert_view := _build_insert_view_table(table, view_table)
 	var values: Dictionary = { }
 	if insert_view != null:
 		for column in insert_view.columns:
-			values[column.name] = _draft_initial_value(column)
+			values[column.name] = (
+					initial_values.get(column.name)
+					if initial_values.has(column.name)
+					else _draft_initial_value(column)
+			)
 	var records: Array[GDSQLRowRecord] = [GDSQLRowRecord.new(values)]
 	configure(table, insert_view, records, true)
 	_insert_draft = true
@@ -916,6 +965,66 @@ func _apply_column_layout() -> void:
 		set_column_custom_minimum_width(column_index, minimum_width)
 		set_column_expand(column_index, not is_row_number)
 		set_column_expand_ratio(column_index, 1)
+
+
+func _move_horizontal_from(
+		origin: TreeItem,
+		origin_column: int,
+		backward: bool,
+) -> void:
+	var rows := _visible_rows()
+	if origin == null or rows.is_empty() or _view_table == null:
+		return
+	var row_index := rows.find(origin)
+	if row_index < 0:
+		return
+	var cell_count := rows.size() * _view_table.columns.size()
+	var origin_index := row_index * _view_table.columns.size() + origin_column
+	var direction := -1 if backward else 1
+	for distance in range(1, cell_count + 1):
+		var candidate_index := posmod(origin_index + direction * distance, cell_count)
+		var candidate_column := candidate_index % _view_table.columns.size()
+		if _cell_is_editable(_view_table.columns[candidate_column]):
+			var candidate_row := floori(
+				float(candidate_index) / float(_view_table.columns.size()),
+			)
+			_select_navigation_cell(
+				rows[candidate_row],
+				candidate_column,
+			)
+			return
+
+
+func _move_vertical_from(origin: TreeItem, column_index: int) -> void:
+	var rows := _visible_rows()
+	if origin == null \
+			or _view_table == null \
+			or column_index < 0 \
+			or column_index >= _view_table.columns.size() \
+			or not _cell_is_editable(_view_table.columns[column_index]):
+		return
+	var row_index := rows.find(origin)
+	if row_index >= 0 and row_index + 1 < rows.size():
+		_select_navigation_cell(rows[row_index + 1], column_index)
+
+
+func _visible_rows() -> Array[TreeItem]:
+	var rows: Array[TreeItem] = []
+	var root := get_root()
+	if root == null:
+		return rows
+	var item := root.get_first_child()
+	while item != null:
+		rows.append(item)
+		item = item.get_next()
+	return rows
+
+
+func _select_navigation_cell(item: TreeItem, column_index: int) -> void:
+	deselect_all()
+	set_selected(item, column_index)
+	scroll_to_item(item)
+	grab_focus()
 
 
 func _sync_resource_editor(

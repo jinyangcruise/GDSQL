@@ -2,7 +2,7 @@ class_name GDSQLEditorRowBatch
 extends RefCounted
 ## Validated canonical row mutations executed through one database transaction.
 
-enum Operation { UPDATE, DELETE }
+enum Operation { INSERT, UPDATE, DELETE }
 
 var database_name: StringName
 var table_name: StringName
@@ -13,6 +13,62 @@ var row_count: int:
 var _queries: Array[GDSQLQuerySpec] = []
 var _history_before_rows: Array[GDSQLRowRecord] = []
 var _history_after_rows: Array[GDSQLRowRecord] = []
+
+
+static func build_inserts(
+		table: GDSQLTableDefinition,
+		rows: Array[Dictionary],
+) -> GDSQLOperationResult:
+	var result := _validate_request(table, rows.size(), "insert")
+	if not result.is_successful():
+		return result
+	var queries: Array[GDSQLQuerySpec] = []
+	for index in rows.size():
+		var values := rows[index]
+		for raw_column_name in values:
+			var column_name := StringName(raw_column_name)
+			var column := table.get_column(column_name)
+			if column == null:
+				result.add_diagnostic(
+					_error(
+						&"GDSQL_EDITOR_ROW_BATCH_COLUMN_NOT_FOUND",
+						"Insert %d references unknown column '%s'." % [
+							index + 1,
+							column_name,
+						],
+					),
+				)
+				continue
+			if column.auto_increment \
+					or column.generation != GDSQLColumnDefinition.Generation.NONE:
+				result.add_diagnostic(
+					_error(
+						&"GDSQL_EDITOR_ROW_BATCH_COLUMN_READ_ONLY",
+						"Column '%s' is generated and cannot be inserted explicitly." % column_name,
+					),
+				)
+				continue
+			if not column.accepts_value(values[raw_column_name]):
+				result.add_diagnostic(
+					_error(
+						&"GDSQL_EDITOR_ROW_BATCH_VALUE_INVALID",
+						"Column '%s' expects %s." % [
+							column_name,
+							column.display_type_name(),
+						],
+					),
+				)
+		if result.is_successful():
+			queries.append(
+				GDSQLQuery.new(table.database_name) \
+						.table(table.name) \
+						.insert() \
+						.values(values) \
+						.build(),
+			)
+	if result.is_successful():
+		result.value = GDSQLEditorRowBatch.new(table, Operation.INSERT, queries)
+	return result
 
 
 static func build_updates(
