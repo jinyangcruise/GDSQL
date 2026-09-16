@@ -25,10 +25,10 @@ signal table_rows_requested(
 		count_query: GDSQLSelectQuerySpec,
 )
 signal table_reference_rows_requested(
-	registration_name: StringName,
-	source_table_name: StringName,
-	constraint_name: StringName,
-	query: GDSQLSelectQuerySpec,
+		registration_name: StringName,
+		source_table_name: StringName,
+		constraint_name: StringName,
+		query: GDSQLSelectQuerySpec,
 )
 signal table_row_insert_requested(
 		registration_name: StringName,
@@ -344,23 +344,6 @@ func open_create_managed_base_page() -> void:
 	_activate_document(CREATE_DATABASE_KEY)
 
 
-func _get_create_database_document() -> Control:
-	var document := _documents.get(CREATE_DATABASE_KEY) as Control
-	if document == null:
-		document = CREATE_DATABASE_SCENE.instantiate() as Control
-		document.connect("create_requested", _on_database_create_requested)
-		document.connect(
-			"cancel_requested",
-			_close_document_by_key.bind(CREATE_DATABASE_KEY),
-		)
-		_add_document(
-			CREATE_DATABASE_KEY,
-			"New Database",
-			document,
-		)
-	return document
-
-
 func close_database_create() -> void:
 	_close_document_by_key(CREATE_DATABASE_KEY)
 
@@ -509,6 +492,23 @@ func close_table(
 ) -> void:
 	_close_document_by_key(_table_key(registration_name, table_name))
 	_close_document_by_key(_model_key(registration_name, table_name))
+
+
+func _get_create_database_document() -> Control:
+	var document := _documents.get(CREATE_DATABASE_KEY) as Control
+	if document == null:
+		document = CREATE_DATABASE_SCENE.instantiate() as Control
+		document.connect("create_requested", _on_database_create_requested)
+		document.connect(
+			"cancel_requested",
+			_close_document_by_key.bind(CREATE_DATABASE_KEY),
+		)
+		_add_document(
+			CREATE_DATABASE_KEY,
+			"New Database",
+			document,
+		)
+	return document
 
 
 func _open_welcome_document() -> void:

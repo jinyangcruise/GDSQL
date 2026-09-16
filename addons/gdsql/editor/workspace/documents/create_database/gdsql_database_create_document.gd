@@ -151,9 +151,9 @@ func _refresh_summary() -> void:
 	_storage_value.text = GDSQLStorageBackendIds.get_display_name(_selected_backend())
 	var role := _selected_role()
 	_role_value.text = (
-		"Effective content only"
-		if _selected_purpose() == Purpose.MANAGED_BASE
-		else ("Not assigned" if role == &"" else String(role))
+			"Effective content only"
+			if _selected_purpose() == Purpose.MANAGED_BASE
+			else ("Not assigned" if role == &"" else String(role))
 	)
 
 
@@ -164,7 +164,7 @@ func _validate() -> void:
 	var database_name := _name.text.strip_edges()
 	var data_root := _data_root.text.strip_edges()
 	var managed_data_path_missing := (
-		_selected_purpose() == Purpose.MANAGED_BASE and data_root.get_file().is_empty()
+			_selected_purpose() == Purpose.MANAGED_BASE and data_root.get_file().is_empty()
 	)
 	var valid := not database_name.is_empty() and not data_root.is_empty() \
 			and not managed_data_path_missing
@@ -181,9 +181,9 @@ func _validate() -> void:
 		)
 	else:
 		_hint.text = (
-			"Creates manifest.cfg, assets/, and the normal data/databases.cfg catalog."
-			if _selected_purpose() == Purpose.MANAGED_BASE
-			else "Catalog, schema, and rows use ConfigFile storage directly."
+				"Creates manifest.cfg, assets/, and the normal data/databases.cfg catalog."
+				if _selected_purpose() == Purpose.MANAGED_BASE
+				else "Catalog, schema, and rows use ConfigFile storage directly."
 		)
 
 

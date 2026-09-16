@@ -3,7 +3,6 @@ class_name GDSQLSetupProfileStore
 extends RefCounted
 ## Storage-independent boundary for the selected project setup profile.
 
-
 @abstract
 func load_profile() -> GDSQLOperationResult
 

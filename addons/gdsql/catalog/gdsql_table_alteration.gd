@@ -178,7 +178,7 @@ func describe() -> String:
 			return "Drop index '%s'." % index_name
 		Kind.ADD_FOREIGN_KEY:
 			return "Add foreign key '%s'." % (
-				foreign_key.name if foreign_key != null else &""
+					foreign_key.name if foreign_key != null else &""
 			)
 		Kind.DROP_FOREIGN_KEY:
 			return "Drop foreign key '%s'." % foreign_key_name

@@ -23,6 +23,10 @@ var on_delete: Action
 var on_update: Action
 
 
+static func supports_column_type(data_type: Variant.Type) -> bool:
+	return SUPPORTED_COLUMN_TYPES.has(data_type)
+
+
 func _init(
 		constraint_name: StringName = &"",
 		local_column: StringName = &"",
@@ -45,10 +49,6 @@ func references_local_column(column_name: StringName) -> bool:
 
 func references_target(table_name: StringName, column_name: StringName) -> bool:
 	return referenced_table == table_name and referenced_column == column_name
-
-
-static func supports_column_type(data_type: Variant.Type) -> bool:
-	return SUPPORTED_COLUMN_TYPES.has(data_type)
 
 
 func is_equivalent_to(other: GDSQLForeignKeyDefinition) -> bool:

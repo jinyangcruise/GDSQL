@@ -60,37 +60,37 @@ func refresh_status() -> void:
 		return
 	var loaded_profile := _profile_store.load_profile()
 	_profile = (
-		loaded_profile.get_value() as GDSQLSetupProfile.Kind
-		if loaded_profile.is_successful()
-		else GDSQLSetupProfile.Kind.UNSELECTED
+			loaded_profile.get_value() as GDSQLSetupProfile.Kind
+			if loaded_profile.is_successful()
+			else GDSQLSetupProfile.Kind.UNSELECTED
 	)
 	%ProfileChoice.visible = _profile == GDSQLSetupProfile.Kind.UNSELECTED
 	%SelectedSetup.visible = _profile != GDSQLSetupProfile.Kind.UNSELECTED
 	if _profile == GDSQLSetupProfile.Kind.UNSELECTED:
 		%Title.text = "Choose your content profile"
 		%Summary.text = (
-			loaded_profile.diagnostics.entries[0].message
-			if not loaded_profile.is_successful()
-			else "Choose the workflow that matches how this project will ship and extend content."
+				loaded_profile.diagnostics.entries[0].message
+				if not loaded_profile.is_successful()
+				else "Choose the workflow that matches how this project will ship and extend content."
 		)
 		return
 	var registrations := _registrations()
 	var inspections := _inspections()
 	var counts := _project_counts(inspections)
 	%Title.text = (
-		"Direct content setup"
-		if _profile == GDSQLSetupProfile.Kind.DIRECT
-		else "Managed content setup"
+			"Direct content setup"
+			if _profile == GDSQLSetupProfile.Kind.DIRECT
+			else "Managed content setup"
 	)
 	%ActiveProfile.text = (
-		"DIRECT CONTENT"
-		if _profile == GDSQLSetupProfile.Kind.DIRECT
-		else "MANAGED CONTENT"
+			"DIRECT CONTENT"
+			if _profile == GDSQLSetupProfile.Kind.DIRECT
+			else "MANAGED CONTENT"
 	)
 	%ProfileDetail.text = (
-		"Project-authored definitions are consumed directly from res://data."
-		if _profile == GDSQLSetupProfile.Kind.DIRECT
-		else "Immutable packages build one effective runtime content database."
+			"Project-authored definitions are consumed directly from res://data."
+			if _profile == GDSQLSetupProfile.Kind.DIRECT
+			else "Immutable packages build one effective runtime content database."
 	)
 	%Summary.text = "%d database(s) · %d table(s) · %d stored row(s)" % [
 		registrations.size(),
@@ -100,9 +100,9 @@ func refresh_status() -> void:
 	%DirectActions.visible = _profile == GDSQLSetupProfile.Kind.DIRECT
 	%ManagedActions.visible = _profile == GDSQLSetupProfile.Kind.MANAGED
 	_setup_report = (
-		_build_direct_report(inspections)
-		if _profile == GDSQLSetupProfile.Kind.DIRECT
-		else _build_managed_report()
+			_build_direct_report(inspections)
+			if _profile == GDSQLSetupProfile.Kind.DIRECT
+			else _build_managed_report()
 	)
 	_render_checklist(_setup_report)
 	_populate_databases(registrations, inspections)
@@ -157,19 +157,40 @@ func _inspect_managed_base(
 
 func _render_checklist(report: GDSQLSetupReport) -> void:
 	var rows: Array[Control] = [
-		%Step1, %Step2, %Step3, %Step4, %Step5, %Step6, %Step7,
+		%Step1,
+		%Step2,
+		%Step3,
+		%Step4,
+		%Step5,
+		%Step6,
+		%Step7,
 	]
 	var statuses: Array[Label] = [
-		%Step1Status, %Step2Status, %Step3Status, %Step4Status,
-		%Step5Status, %Step6Status, %Step7Status,
+		%Step1Status,
+		%Step2Status,
+		%Step3Status,
+		%Step4Status,
+		%Step5Status,
+		%Step6Status,
+		%Step7Status,
 	]
 	var labels: Array[Label] = [
-		%Step1Label, %Step2Label, %Step3Label, %Step4Label,
-		%Step5Label, %Step6Label, %Step7Label,
+		%Step1Label,
+		%Step2Label,
+		%Step3Label,
+		%Step4Label,
+		%Step5Label,
+		%Step6Label,
+		%Step7Label,
 	]
 	var details: Array[Label] = [
-		%Step1Detail, %Step2Detail, %Step3Detail, %Step4Detail,
-		%Step5Detail, %Step6Detail, %Step7Detail,
+		%Step1Detail,
+		%Step2Detail,
+		%Step3Detail,
+		%Step4Detail,
+		%Step5Detail,
+		%Step6Detail,
+		%Step7Detail,
 	]
 	var next_check := report.get_next_incomplete()
 	for index in rows.size():
@@ -202,7 +223,10 @@ func _populate_databases(
 				rows += table.row_count
 		var index := _database_list.add_item(
 			"%s  —  %d table(s), %d row(s)\n%s" % [
-				registration.database_name, tables, rows, registration.data_root,
+				registration.database_name,
+				tables,
+				rows,
+				registration.data_root,
 			],
 		)
 		_database_list.set_item_metadata(index, registration.name)
@@ -267,10 +291,10 @@ func _request_profile(profile: GDSQLSetupProfile.Kind) -> void:
 	_profile_confirmation.title = "Choose %s Content" % ("Managed" if managed else "Direct")
 	_profile_confirmation.ok_button_text = "Choose Profile"
 	_profile_confirmation.dialog_text = (
-		("Managed content uses immutable packages and a generated effective-content database."
-		if managed else "Direct content reads project-authored definitions from res://data.")
-		+ "\n\nGDSQL will not move or rewrite existing databases. Changing profiles later "
-		+ "requires an explicit content migration."
+			("Managed content uses immutable packages and a generated effective-content database."
+					if managed else "Direct content reads project-authored definitions from res://data.")
+			+ "\n\nGDSQL will not move or rewrite existing databases. Changing profiles later "
+			+ "requires an explicit content migration."
 	)
 	_profile_confirmation.popup_centered(Vector2i(590, 230))
 
@@ -431,9 +455,9 @@ func _managed_base_root() -> String:
 	var loaded := _managed_configuration_store.load_configuration()
 	var configuration := loaded.get_value() as GDSQLManagedContentConfiguration
 	return (
-		configuration.base_package_root
-		if configuration != null
-		else GDSQLManagedContentConfiguration.DEFAULT_BASE_PACKAGE_ROOT
+			configuration.base_package_root
+			if configuration != null
+			else GDSQLManagedContentConfiguration.DEFAULT_BASE_PACKAGE_ROOT
 	)
 
 

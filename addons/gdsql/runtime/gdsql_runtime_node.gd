@@ -43,16 +43,16 @@ func _ready() -> void:
 		_configure_timer()
 
 
+func _exit_tree() -> void:
+	if _runtime != null:
+		stop(checkpoint_on_exit)
+
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_PAUSED \
 			and checkpoint_on_application_pause \
 			and _runtime != null:
 		checkpoint_now()
-
-
-func _exit_tree() -> void:
-	if _runtime != null:
-		stop(checkpoint_on_exit)
 
 
 ## Bootstraps the runtime once and starts periodic checkpoint scheduling.

@@ -9,16 +9,6 @@ var effective_database_name: StringName
 var packages: Array[GDSQLContentPackageFingerprint] = []
 
 
-func _init(
-		effective_database: StringName = &"",
-		expected_packages: Array[GDSQLContentPackageFingerprint] = [],
-		manifest_format_version: int = CURRENT_FORMAT_VERSION,
-) -> void:
-	effective_database_name = effective_database
-	packages = expected_packages.duplicate()
-	format_version = manifest_format_version
-
-
 static func from_cache_manifest(
 		cache_manifest: GDSQLContentCacheManifest,
 ) -> GDSQLSaveContentManifest:
@@ -37,3 +27,13 @@ static func from_cache_manifest(
 		cache_manifest.effective_database_name,
 		fingerprints,
 	)
+
+
+func _init(
+		effective_database: StringName = &"",
+		expected_packages: Array[GDSQLContentPackageFingerprint] = [],
+		manifest_format_version: int = CURRENT_FORMAT_VERSION,
+) -> void:
+	effective_database_name = effective_database
+	packages = expected_packages.duplicate()
+	format_version = manifest_format_version

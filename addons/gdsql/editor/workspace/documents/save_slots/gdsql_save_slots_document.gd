@@ -43,17 +43,6 @@ func _ready() -> void:
 	refresh_slots()
 
 
-func _configure_tree() -> void:
-	var titles := ["Slot", "State", "Storage", "Location"]
-	for column in titles.size():
-		_tree.set_column_title(column, titles[column])
-		_tree.set_column_expand(column, column in [0, 3])
-	_tree.set_column_custom_minimum_width(0, 160)
-	_tree.set_column_custom_minimum_width(1, 90)
-	_tree.set_column_custom_minimum_width(2, 130)
-	_tree.set_column_custom_minimum_width(3, 260)
-
-
 func configure(action_hub: GDSQLEditorActionHub, workbench: GDSQLWorkbench) -> void:
 	_action_hub = action_hub
 	_workbench = workbench
@@ -100,6 +89,17 @@ func refresh_slots() -> void:
 			else "Selection changes project runtime configuration; it does not alter slot data."
 	)
 	_update_selection()
+
+
+func _configure_tree() -> void:
+	var titles := ["Slot", "State", "Storage", "Location"]
+	for column in titles.size():
+		_tree.set_column_title(column, titles[column])
+		_tree.set_column_expand(column, column in [0, 3])
+	_tree.set_column_custom_minimum_width(0, 160)
+	_tree.set_column_custom_minimum_width(1, 90)
+	_tree.set_column_custom_minimum_width(2, 130)
+	_tree.set_column_custom_minimum_width(3, 260)
 
 
 func _save_registrations(active: StringName) -> Array[GDSQLDatabaseRegistration]:

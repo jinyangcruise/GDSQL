@@ -16,8 +16,8 @@ func _init(history_limit: int = 50) -> void:
 func record(entry: GDSQLEditorMutationHistoryEntry) -> GDSQLOperationResult:
 	if entry == null or not entry.is_valid():
 		return _error(
-				&"GDSQL_EDITOR_MUTATION_HISTORY_ENTRY_INVALID",
-				"A mutation history entry requires a target and valid row snapshots.",
+			&"GDSQL_EDITOR_MUTATION_HISTORY_ENTRY_INVALID",
+			"A mutation history entry requires a target and valid row snapshots.",
 		)
 	_undo_entries.append(entry)
 	while _undo_entries.size() > max_entries:
@@ -48,8 +48,8 @@ func get_redo_entry() -> GDSQLEditorMutationHistoryEntry:
 func mark_undone(entry: GDSQLEditorMutationHistoryEntry) -> GDSQLOperationResult:
 	if not can_undo() or _undo_entries.back() != entry:
 		return _error(
-				&"GDSQL_EDITOR_MUTATION_HISTORY_ORDER_INVALID",
-				"Only the latest committed mutation can be marked as undone.",
+			&"GDSQL_EDITOR_MUTATION_HISTORY_ORDER_INVALID",
+			"Only the latest committed mutation can be marked as undone.",
 		)
 	_redo_entries.append(_undo_entries.pop_back())
 	changed.emit()
@@ -61,8 +61,8 @@ func mark_undone(entry: GDSQLEditorMutationHistoryEntry) -> GDSQLOperationResult
 func mark_redone(entry: GDSQLEditorMutationHistoryEntry) -> GDSQLOperationResult:
 	if not can_redo() or _redo_entries.back() != entry:
 		return _error(
-				&"GDSQL_EDITOR_MUTATION_HISTORY_ORDER_INVALID",
-				"Only the latest undone mutation can be marked as redone.",
+			&"GDSQL_EDITOR_MUTATION_HISTORY_ORDER_INVALID",
+			"Only the latest undone mutation can be marked as redone.",
 		)
 	_undo_entries.append(_redo_entries.pop_back())
 	changed.emit()

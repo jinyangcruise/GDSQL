@@ -15,20 +15,6 @@ var prerelease: String
 var build: String
 
 
-func _init(
-		major_version: int = 0,
-		minor_version: int = 0,
-		patch_version: int = 0,
-		prerelease_version: String = "",
-		build_metadata: String = "",
-) -> void:
-	major = major_version
-	minor = minor_version
-	patch = patch_version
-	prerelease = prerelease_version
-	build = build_metadata
-
-
 static func parse(value: String) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	var normalized := value.strip_edges()
@@ -62,6 +48,20 @@ static func parse(value: String) -> GDSQLOperationResult:
 		build_parts[1] if build_parts.size() > 1 else "",
 	)
 	return result
+
+
+func _init(
+		major_version: int = 0,
+		minor_version: int = 0,
+		patch_version: int = 0,
+		prerelease_version: String = "",
+		build_metadata: String = "",
+) -> void:
+	major = major_version
+	minor = minor_version
+	patch = patch_version
+	prerelease = prerelease_version
+	build = build_metadata
 
 
 ## Returns a negative value when this version precedes other, zero when equal.

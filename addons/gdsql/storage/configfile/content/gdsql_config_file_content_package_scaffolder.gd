@@ -66,9 +66,9 @@ func scaffold(
 	var loaded := GDSQLConfigFileContentPackageManifestStore.new().load_manifest(package_root)
 	result.diagnostics.merge(loaded.diagnostics)
 	result.value = (
-		GDSQLContentPackageSource.new(package_root, loaded.get_value())
-		if loaded.is_successful()
-		else null
+			GDSQLContentPackageSource.new(package_root, loaded.get_value())
+			if loaded.is_successful()
+			else null
 	)
 	return result
 

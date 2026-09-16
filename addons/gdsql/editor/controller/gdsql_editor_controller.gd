@@ -670,8 +670,8 @@ func _apply_table_history(
 		entry = history.get_undo_entry() if undo else history.get_redo_entry()
 	if entry == null:
 		return _error(
-				&"GDSQL_EDITOR_MUTATION_HISTORY_EMPTY",
-				"There is no row update to %s." % ("undo" if undo else "redo"),
+			&"GDSQL_EDITOR_MUTATION_HISTORY_EMPTY",
+			"There is no row update to %s." % ("undo" if undo else "redo"),
 		)
 	var result := _ensure_active_registration(registration_name)
 	if not result.is_successful():
@@ -680,13 +680,13 @@ func _apply_table_history(
 	var table := database.context.catalog.get_table(database.database_name, table_name)
 	if table == null:
 		return _error(
-				&"GDSQL_EDITOR_TABLE_NOT_FOUND",
-				"Table '%s' was not found." % table_name,
+			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
+			"Table '%s' was not found." % table_name,
 		)
 	var snapshots := entry.duplicate_before_rows() if undo else entry.duplicate_after_rows()
 	var planned := GDSQLEditorRowBatch.build_updates(
-			table,
-			_history_updates(table, snapshots),
+		table,
+		_history_updates(table, snapshots),
 	)
 	result.diagnostics.merge(planned.diagnostics)
 	if result.is_successful():
@@ -700,9 +700,9 @@ func _apply_table_history(
 	_refresh_table_history_state(registration_name, table_name)
 	if result.is_successful():
 		_workspace.present_table_history_result(
-				registration_name,
-				table_name,
-				"%s complete: %s." % ["Undo" if undo else "Redo", entry.get_summary()],
+			registration_name,
+			table_name,
+			"%s complete: %s." % ["Undo" if undo else "Redo", entry.get_summary()],
 		)
 	return result
 
@@ -716,7 +716,7 @@ func _history_updates(
 		var values := row.values.duplicate(true)
 		var identity: Variant = values.get(table.primary_key)
 		values.erase(table.primary_key)
-		updates.append({"primary_key": identity, "values": values})
+		updates.append({ "primary_key": identity, "values": values })
 	return updates
 
 
@@ -741,10 +741,12 @@ func _update_row(
 			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
 			"Table '%s' was not found." % table_name,
 		)
-	var updates: Array[Dictionary] = [{
-		"primary_key": original_primary_key,
-		"values": values,
-	}]
+	var updates: Array[Dictionary] = [
+		{
+			"primary_key": original_primary_key,
+			"values": values,
+		},
+	]
 	var planned := GDSQLEditorRowBatch.build_updates(table, updates)
 	result.diagnostics.merge(planned.diagnostics)
 	if planned.is_successful():
@@ -1134,10 +1136,10 @@ func _refresh_table_history_state(
 	var undo_entry := history.get_undo_entry() if history != null else null
 	var redo_entry := history.get_redo_entry() if history != null else null
 	_workspace.set_table_history_state(
-			registration_name,
-			table_name,
-			undo_entry.get_summary() if undo_entry != null else "",
-			redo_entry.get_summary() if redo_entry != null else "",
+		registration_name,
+		table_name,
+		undo_entry.get_summary() if undo_entry != null else "",
+		redo_entry.get_summary() if redo_entry != null else "",
 	)
 
 

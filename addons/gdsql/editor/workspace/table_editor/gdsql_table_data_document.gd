@@ -3,31 +3,31 @@ extends MarginContainer
 ## Compact table-first data document backed by the shared typed result grid.
 
 signal rows_requested(
-	registration_name: StringName,
-	table_name: StringName,
-	query: GDSQLSelectQuerySpec,
-	count_query: GDSQLSelectQuerySpec,
+		registration_name: StringName,
+		table_name: StringName,
+		query: GDSQLSelectQuerySpec,
+		count_query: GDSQLSelectQuerySpec,
 )
 signal reference_rows_requested(
-	registration_name: StringName,
-	source_table_name: StringName,
-	constraint_name: StringName,
-	query: GDSQLSelectQuerySpec,
+		registration_name: StringName,
+		source_table_name: StringName,
+		constraint_name: StringName,
+		query: GDSQLSelectQuerySpec,
 )
 signal row_insert_requested(
-	registration_name: StringName,
-	table_name: StringName,
-	values: Dictionary,
+		registration_name: StringName,
+		table_name: StringName,
+		values: Dictionary,
 )
 signal rows_update_requested(
-	registration_name: StringName,
-	table_name: StringName,
-	updates: Array[Dictionary],
+		registration_name: StringName,
+		table_name: StringName,
+		updates: Array[Dictionary],
 )
 signal rows_delete_requested(
-	registration_name: StringName,
-	table_name: StringName,
-	primary_keys: Array[Variant],
+		registration_name: StringName,
+		table_name: StringName,
+		primary_keys: Array[Variant],
 )
 signal model_assistant_requested(registration_name: StringName, table: GDSQLTableDefinition)
 signal undo_requested(registration_name: StringName, table_name: StringName)
@@ -170,9 +170,9 @@ func present_history_result(message: String) -> void:
 
 
 func configure(
-	target_registration: StringName,
-	table: GDSQLTableDefinition,
-	total_rows: int = 0,
+		target_registration: StringName,
+		table: GDSQLTableDefinition,
+		total_rows: int = 0,
 ) -> void:
 	var source_changed := registration_name != target_registration \
 			or table_name != table.name
@@ -214,9 +214,9 @@ func present_rows(result: GDSQLQueryResult, total_rows: int = -1) -> void:
 		_table_view.configure(_table, _table, _records, true)
 		_table_view.clear()
 		%Status.text = (
-			"%s Rows could not be reloaded." % _pending_mutation_status
-			if not _pending_mutation_status.is_empty()
-			else "Could not load table rows."
+				"%s Rows could not be reloaded." % _pending_mutation_status
+				if not _pending_mutation_status.is_empty()
+				else "Could not load table rows."
 		)
 		_pending_mutation_status = ""
 		_refresh_actions()
@@ -228,15 +228,15 @@ func present_rows(result: GDSQLQueryResult, total_rows: int = -1) -> void:
 	_table_view.set_safe_mode(false)
 	_render_table()
 	var page_status := (
-		"No rows on this page."
-		if _records.is_empty()
-		else "Showing rows %d–%d."
-		% [_page_index * _page_size + 1, _page_index * _page_size + _records.size()]
+			"No rows on this page."
+			if _records.is_empty()
+			else "Showing rows %d–%d."
+			% [_page_index * _page_size + 1, _page_index * _page_size + _records.size()]
 	)
 	%Status.text = (
-		_pending_mutation_status
-		if not _pending_mutation_status.is_empty()
-		else page_status
+			_pending_mutation_status
+			if not _pending_mutation_status.is_empty()
+			else page_status
 	)
 	_pending_mutation_status = ""
 	_update_pagination()
@@ -252,9 +252,9 @@ func present_reference_rows(
 		return
 	_reference_request_grid.present_foreign_key_options(foreign_key, target_table, result)
 	%Status.text = (
-		"Choose a referenced row. Type while the list is open to search."
-		if result != null and result.is_successful()
-		else "Referenced rows could not be loaded."
+			"Choose a referenced row. Type while the list is open to search."
+			if result != null and result.is_successful()
+			else "Referenced rows could not be loaded."
 	)
 
 
@@ -470,8 +470,8 @@ func _decorate_table_headers() -> void:
 		var suffix := ""
 		if column.name == _order_column:
 			suffix = (" ▼"
-				if _order_direction == GDSQLOrderClause.SortDirection.DESCENDING
-				else " ▲")
+					if _order_direction == GDSQLOrderClause.SortDirection.DESCENDING
+					else " ▲")
 		_table_view.set_column_title(index, "%s%s" % [column.name, suffix])
 		_table_view.set_column_title_tooltip_text(
 			index,
@@ -486,9 +486,9 @@ func _apply_filter() -> void:
 	var predicate_result := _where_expression.build_expression()
 	if not predicate_result.is_successful():
 		%Status.text = (
-			predicate_result.diagnostics.entries[0].message
-			if not predicate_result.diagnostics.entries.is_empty()
-			else "The WHERE filter is invalid."
+				predicate_result.diagnostics.entries[0].message
+				if not predicate_result.diagnostics.entries.is_empty()
+				else "The WHERE filter is invalid."
 		)
 		return
 	_applied_predicate = predicate_result.get_value() as GDSQLQueryExpression
@@ -567,7 +567,7 @@ func _save_changes() -> void:
 	if _presentation_revision == previous_revision:
 		_pending_mutation_status = ""
 		%Status.text = (
-			"The transaction failed and was rolled back; " + "pending edits were preserved."
+				"The transaction failed and was rolled back; " + "pending edits were preserved."
 		)
 	_refresh_actions()
 
@@ -619,7 +619,7 @@ func _request_selected_rows_delete() -> void:
 	if _pending_delete_keys.is_empty():
 		return
 	%DeleteConfirmation.dialog_text = (
-		"Delete %d selected row(s)? This operation is atomic." % _pending_delete_keys.size()
+			"Delete %d selected row(s)? This operation is atomic." % _pending_delete_keys.size()
 	)
 	%DeleteConfirmation.popup_centered(Vector2i(440, 160))
 
@@ -666,12 +666,12 @@ func _refresh_actions() -> void:
 	%SaveChanges.disabled = _mutation_in_flight or (not inserting and not has_edits)
 	%DiscardChanges.disabled = _mutation_in_flight or (not inserting and not has_edits)
 	%DeleteSelected.disabled = (
-		_mutation_in_flight or inserting or has_edits or selected_count == 0
+			_mutation_in_flight or inserting or has_edits or selected_count == 0
 	)
 	%DeleteSelected.tooltip_text = (
-		"Delete %d selected row(s) in one transaction" % selected_count
-		if selected_count > 0
-		else "Select one or more rows to delete"
+			"Delete %d selected row(s) in one transaction" % selected_count
+			if selected_count > 0
+			else "Select one or more rows to delete"
 	)
 	var action_summary := PackedStringArray()
 	if inserting:
@@ -683,9 +683,9 @@ func _refresh_actions() -> void:
 	if _table_view.has_validation_errors() or _insert_editor.has_validation_errors():
 		action_summary.append("invalid values")
 	%ActionSummary.text = (
-		"No pending changes"
-		if action_summary.is_empty()
-		else " · ".join(action_summary)
+			"No pending changes"
+			if action_summary.is_empty()
+			else " · ".join(action_summary)
 	)
 	_refresh_history_actions()
 	_refresh_filter_actions()
@@ -704,18 +704,18 @@ func _refresh_history_actions() -> void:
 		not blocked and not _redo_summary.is_empty(),
 	)
 	%Undo.tooltip_text = (
-		"Undo %s" % _undo_summary
-		if not _undo_summary.is_empty()
-		else "No committed row update to undo"
+			"Undo %s" % _undo_summary
+			if not _undo_summary.is_empty()
+			else "No committed row update to undo"
 	)
 	%Undo.tooltip_text += "\n\nNote: Undo restores editable values;
 	updated_at records the undo operation time. 
 	History lasts only for this editor session."
 
 	%Redo.tooltip_text = (
-		"Redo %s" % _redo_summary
-		if not _redo_summary.is_empty()
-		else "No undone row update to redo"
+			"Redo %s" % _redo_summary
+			if not _redo_summary.is_empty()
+			else "No undone row update to redo"
 	)
 	%Redo.tooltip_text += "\n\nNote: Undo restores editable values; 
 	`updated_at` records the undo operation time. 

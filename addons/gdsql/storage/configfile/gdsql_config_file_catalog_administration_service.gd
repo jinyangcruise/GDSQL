@@ -1145,8 +1145,8 @@ func _validate_no_incoming_foreign_keys(
 		for foreign_key in source_table.foreign_keys:
 			if foreign_key.referenced_table != target_table \
 					or (
-						target_column != &"" \
-						and foreign_key.referenced_column != target_column
+							target_column != &"" \
+									and foreign_key.referenced_column != target_column
 					):
 				continue
 			return _error(
@@ -1316,9 +1316,9 @@ func _validate_table(
 				],
 			)
 		var referenced_table := (
-			table
-			if foreign_key.referenced_table == table.name
-			else _catalog.get_table(database_name, foreign_key.referenced_table)
+				table
+				if foreign_key.referenced_table == table.name
+				else _catalog.get_table(database_name, foreign_key.referenced_table)
 		)
 		if referenced_table == null:
 			return _error(
@@ -1518,14 +1518,16 @@ func _catalog_fingerprint(table: GDSQLTableDefinition) -> int:
 		indexes.append([index.name, index.columns, index.unique])
 	var foreign_keys: Array = []
 	for foreign_key in table.foreign_keys:
-		foreign_keys.append([
-			foreign_key.name,
-			foreign_key.column,
-			foreign_key.referenced_table,
-			foreign_key.referenced_column,
-			foreign_key.on_delete,
-			foreign_key.on_update,
-		])
+		foreign_keys.append(
+			[
+				foreign_key.name,
+				foreign_key.column,
+				foreign_key.referenced_table,
+				foreign_key.referenced_column,
+				foreign_key.on_delete,
+				foreign_key.on_update,
+			],
+		)
 	return hash(
 		var_to_str(
 			[

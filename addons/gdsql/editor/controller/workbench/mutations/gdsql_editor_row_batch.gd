@@ -10,7 +10,6 @@ var operation: Operation
 var row_count: int:
 	get:
 		return _queries.size()
-
 var _queries: Array[GDSQLQuerySpec] = []
 var _history_before_rows: Array[GDSQLRowRecord] = []
 var _history_after_rows: Array[GDSQLRowRecord] = []
@@ -28,33 +27,37 @@ static func build_updates(
 	for index in updates.size():
 		var update := updates[index]
 		if not update.has("primary_key"):
-			result.add_diagnostic(_error(
+			result.add_diagnostic(
+				_error(
 					&"GDSQL_EDITOR_ROW_BATCH_IDENTITY_REQUIRED",
 					"Update %d has no primary-key identity." % (index + 1),
-			))
+				),
+			)
 			continue
 		var identity: Variant = update.get("primary_key")
 		if identities.has(identity):
-			result.add_diagnostic(_error(
+			result.add_diagnostic(
+				_error(
 					&"GDSQL_EDITOR_ROW_BATCH_DUPLICATE_IDENTITY",
 					"Primary key '%s' occurs more than once in the update batch." % identity,
-			))
+				),
+			)
 			continue
 		identities.append(identity)
 		var query := _build_update_query(
-				table,
-				identity,
-				update.get("values", { }),
-				result,
-				index,
+			table,
+			identity,
+			update.get("values", { }),
+			result,
+			index,
 		)
 		if query != null:
 			queries.append(query)
 	if result.is_successful():
 		var batch := GDSQLEditorRowBatch.new(
-				table,
-				Operation.UPDATE,
-				queries,
+			table,
+			Operation.UPDATE,
+			queries,
 		)
 		batch._configure_update_history(table, updates)
 		result.value = batch
@@ -72,26 +75,118 @@ static func build_deletes(
 	var identities: Array[Variant] = []
 	for identity in primary_keys:
 		if identities.has(identity):
-			result.add_diagnostic(_error(
+			result.add_diagnostic(
+				_error(
 					&"GDSQL_EDITOR_ROW_BATCH_DUPLICATE_IDENTITY",
 					"Primary key '%s' occurs more than once in the delete batch." % identity,
-			))
+				),
+			)
 			continue
 		identities.append(identity)
 		queries.append(
-				GDSQLQuery.new(table.database_name) \
-						.table(table.name) \
-						.delete() \
-						.where(GDSQLExpr.column(table.primary_key).equals(identity)) \
-						.build(),
+			GDSQLQuery.new(table.database_name) \
+					.table(table.name) \
+					.delete() \
+					.where(GDSQLExpr.column(table.primary_key).equals(identity)) \
+					.build(),
 		)
 	if result.is_successful():
 		result.value = GDSQLEditorRowBatch.new(
-				table,
-				Operation.DELETE,
-				queries,
+			table,
+			Operation.DELETE,
+			queries,
 		)
 	return result
+
+
+static func _build_update_query(
+		table: GDSQLTableDefinition,
+		identity: Variant,
+		values: Dictionary,
+		result: GDSQLOperationResult,
+		update_index: int,
+) -> GDSQLUpdateQuerySpec:
+	var builder := GDSQLQuery.new(table.database_name).table(table.name).update()
+	var assignment_count := 0
+	for raw_column_name in values:
+		var column_name := StringName(raw_column_name)
+		var column := table.get_column(column_name)
+		if column == null:
+			result.add_diagnostic(
+				_error(
+					&"GDSQL_EDITOR_ROW_BATCH_COLUMN_NOT_FOUND",
+					"Update %d references unknown column '%s'." % [
+						update_index + 1,
+						column_name,
+					],
+				),
+			)
+			continue
+		if column.name == table.primary_key \
+				or column.auto_increment \
+				or column.generation != GDSQLColumnDefinition.Generation.NONE:
+			result.add_diagnostic(
+				_error(
+					&"GDSQL_EDITOR_ROW_BATCH_COLUMN_READ_ONLY",
+					"Column '%s' cannot be changed through row editing." % column_name,
+				),
+			)
+			continue
+		var value: Variant = values[raw_column_name]
+		if not column.accepts_value(value):
+			result.add_diagnostic(
+				_error(
+					&"GDSQL_EDITOR_ROW_BATCH_VALUE_INVALID",
+					"Column '%s' expects %s." % [
+						column_name,
+						column.display_type_name(),
+					],
+				),
+			)
+			continue
+		builder.set_value(column_name, value)
+		assignment_count += 1
+	if assignment_count == 0 and result.is_successful():
+		result.add_diagnostic(
+			_error(
+				&"GDSQL_EDITOR_ROW_BATCH_UPDATE_EMPTY",
+				"Update %d contains no mutable values." % (update_index + 1),
+			),
+		)
+		return null
+	if not result.is_successful():
+		return null
+	return builder.where(
+		GDSQLExpr.column(table.primary_key).equals(identity),
+	).build()
+
+
+static func _validate_request(
+		table: GDSQLTableDefinition,
+		requested_rows: int,
+		operation_name: String,
+) -> GDSQLOperationResult:
+	if table == null:
+		return _failed(
+			&"GDSQL_EDITOR_ROW_BATCH_TABLE_REQUIRED",
+			"A table definition is required to build a row batch.",
+		)
+	if requested_rows <= 0:
+		return _failed(
+			&"GDSQL_EDITOR_ROW_BATCH_EMPTY",
+			"At least one row is required for a batch %s." % operation_name,
+		)
+	return GDSQLOperationResult.new()
+
+
+static func _failed(code: StringName, message: String) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	result.add_diagnostic(_error(code, message))
+	return result
+
+
+static func _error(code: StringName, message: String) -> GDSQLQueryDiagnostic:
+	return GDSQLQueryDiagnostic.new(code, message)
 
 
 func _init(
@@ -118,33 +213,33 @@ func create_history_entry(
 			or _history_before_rows.size() != _history_after_rows.size():
 		return null
 	return GDSQLEditorMutationHistoryEntry.new(
-			registration_name,
-			database_name,
-			table_name,
-			GDSQLEditorMutationHistoryEntry.Operation.UPDATE,
-			_history_before_rows,
-			_history_after_rows,
+		registration_name,
+		database_name,
+		table_name,
+		GDSQLEditorMutationHistoryEntry.Operation.UPDATE,
+		_history_before_rows,
+		_history_after_rows,
 	)
 
 
 func execute(database: GDSQLDatabase) -> GDSQLOperationResult:
 	if database == null:
 		return _failed(
-				&"GDSQL_EDITOR_ROW_BATCH_DATABASE_REQUIRED",
-				"A database is required to execute a row batch.",
+			&"GDSQL_EDITOR_ROW_BATCH_DATABASE_REQUIRED",
+			"A database is required to execute a row batch.",
 		)
 	if _queries.is_empty():
 		return _failed(
-				&"GDSQL_EDITOR_ROW_BATCH_EMPTY",
-				"An empty row batch cannot be executed.",
+			&"GDSQL_EDITOR_ROW_BATCH_EMPTY",
+			"An empty row batch cannot be executed.",
 		)
 	if database.database_name != database_name:
 		return _failed(
-				&"GDSQL_EDITOR_ROW_BATCH_DATABASE_MISMATCH",
-				"The row batch targets database '%s', not '%s'." % [
-					database_name,
-					database.database_name,
-				],
+			&"GDSQL_EDITOR_ROW_BATCH_DATABASE_MISMATCH",
+			"The row batch targets database '%s', not '%s'." % [
+				database_name,
+				database.database_name,
+			],
 		)
 	var result := database.transaction(
 		func(transaction: GDSQLTransaction) -> void:
@@ -169,7 +264,7 @@ func _configure_update_history(
 			_history_before_rows.clear()
 			_history_after_rows.clear()
 			return
-		var before_snapshot := {table.primary_key: update.get("primary_key")}
+		var before_snapshot := { table.primary_key: update.get("primary_key") }
 		var after_snapshot := before_snapshot.duplicate()
 		for column_name in after_values:
 			if not before_values.has(column_name) \
@@ -182,85 +277,3 @@ func _configure_update_history(
 			after_snapshot[column_name] = after_values[column_name]
 		_history_before_rows.append(GDSQLRowRecord.new(before_snapshot))
 		_history_after_rows.append(GDSQLRowRecord.new(after_snapshot))
-
-
-static func _build_update_query(
-		table: GDSQLTableDefinition,
-		identity: Variant,
-		values: Dictionary,
-		result: GDSQLOperationResult,
-		update_index: int,
-) -> GDSQLUpdateQuerySpec:
-	var builder := GDSQLQuery.new(table.database_name).table(table.name).update()
-	var assignment_count := 0
-	for raw_column_name in values:
-		var column_name := StringName(raw_column_name)
-		var column := table.get_column(column_name)
-		if column == null:
-			result.add_diagnostic(_error(
-					&"GDSQL_EDITOR_ROW_BATCH_COLUMN_NOT_FOUND",
-					"Update %d references unknown column '%s'." % [
-						update_index + 1,
-						column_name,
-					],
-			))
-			continue
-		if column.name == table.primary_key \
-				or column.auto_increment \
-				or column.generation != GDSQLColumnDefinition.Generation.NONE:
-			result.add_diagnostic(_error(
-					&"GDSQL_EDITOR_ROW_BATCH_COLUMN_READ_ONLY",
-					"Column '%s' cannot be changed through row editing." % column_name,
-			))
-			continue
-		var value: Variant = values[raw_column_name]
-		if not column.accepts_value(value):
-			result.add_diagnostic(_error(
-					&"GDSQL_EDITOR_ROW_BATCH_VALUE_INVALID",
-					"Column '%s' expects %s." % [
-						column_name,
-						column.display_type_name(),
-					],
-			))
-			continue
-		builder.set_value(column_name, value)
-		assignment_count += 1
-	if assignment_count == 0 and result.is_successful():
-		result.add_diagnostic(_error(
-				&"GDSQL_EDITOR_ROW_BATCH_UPDATE_EMPTY",
-				"Update %d contains no mutable values." % (update_index + 1),
-		))
-		return null
-	if not result.is_successful():
-		return null
-	return builder.where(
-		GDSQLExpr.column(table.primary_key).equals(identity),
-	).build()
-
-
-static func _validate_request(
-		table: GDSQLTableDefinition,
-		requested_rows: int,
-		operation_name: String,
-) -> GDSQLOperationResult:
-	if table == null:
-		return _failed(
-				&"GDSQL_EDITOR_ROW_BATCH_TABLE_REQUIRED",
-				"A table definition is required to build a row batch.",
-		)
-	if requested_rows <= 0:
-		return _failed(
-				&"GDSQL_EDITOR_ROW_BATCH_EMPTY",
-				"At least one row is required for a batch %s." % operation_name,
-		)
-	return GDSQLOperationResult.new()
-
-
-static func _failed(code: StringName, message: String) -> GDSQLOperationResult:
-	var result := GDSQLOperationResult.new()
-	result.add_diagnostic(_error(code, message))
-	return result
-
-
-static func _error(code: StringName, message: String) -> GDSQLQueryDiagnostic:
-	return GDSQLQueryDiagnostic.new(code, message)

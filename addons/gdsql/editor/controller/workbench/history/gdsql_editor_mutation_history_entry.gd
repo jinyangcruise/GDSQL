@@ -12,6 +12,13 @@ var before_rows: Array[GDSQLRowRecord] = []
 var after_rows: Array[GDSQLRowRecord] = []
 
 
+static func _duplicate_rows(rows: Array[GDSQLRowRecord]) -> Array[GDSQLRowRecord]:
+	var copies: Array[GDSQLRowRecord] = []
+	for row in rows:
+		copies.append(row.duplicate_record())
+	return copies
+
+
 func _init(
 		target_registration: StringName = &"",
 		target_database: StringName = &"",
@@ -63,10 +70,3 @@ func _operation_label() -> String:
 		Operation.DELETE:
 			return "Delete"
 	return "Mutate"
-
-
-static func _duplicate_rows(rows: Array[GDSQLRowRecord]) -> Array[GDSQLRowRecord]:
-	var copies: Array[GDSQLRowRecord] = []
-	for row in rows:
-		copies.append(row.duplicate_record())
-	return copies

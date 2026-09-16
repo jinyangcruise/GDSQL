@@ -71,9 +71,9 @@ func configure(column_draft: GDSQLEditorColumnDraft) -> void:
 	draft = column_draft
 	_name.text = draft.name
 	_name.right_icon = (
-		KEY_ICON if draft.is_primary
-		else FOREIGN_KEY_ICON if draft.is_foreign
-		else null
+			KEY_ICON if draft.is_primary
+			else FOREIGN_KEY_ICON if draft.is_foreign
+			else null
 	)
 	VARIANT_TYPES.select_type(_type, draft.data_type)
 	_type.disabled = draft.original != null

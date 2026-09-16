@@ -3,7 +3,6 @@ class_name GDSQLManagedContentConfigurationStore
 extends RefCounted
 ## Storage-independent boundary for managed-content project configuration.
 
-
 @abstract
 func load_configuration() -> GDSQLOperationResult
 
