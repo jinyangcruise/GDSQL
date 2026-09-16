@@ -86,7 +86,9 @@ opens visible-column selection, while content headers cycle sort direction.
 Hidden primary keys remain in the query result for safe row mutations without
 being displayed. The typed result grid now lives in a graph-independent,
 scene-backed editor component; graph chrome, table paging, and mutation actions
-remain with their owning frontends.
+remain with their owning frontends. Data columns use stable equal expansion
+with fixed minimum widths, so table and insert views fill their host consistently
+and overflow horizontally only when all columns have reached their minimum.
 
 1. Keep the shared typed result grid independent from graph orchestration.
 2. Keep standalone table actions outside the grid so row height and column

@@ -462,8 +462,6 @@ func _decorate_table_headers() -> void:
 		return
 	_table_view.set_column_title(0, "# ▾")
 	_table_view.set_column_title_tooltip_text(0, "Row number · Click to choose visible columns")
-	_table_view.set_column_custom_minimum_width(0, 42)
-	_table_view.set_column_expand(0, false)
 	var view := _build_view_table()
 	for index in range(1, view.columns.size()):
 		var column := view.columns[index]

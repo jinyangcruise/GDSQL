@@ -169,6 +169,7 @@ text = "New row"
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 columns = 3
 scroll_vertical_enabled = false

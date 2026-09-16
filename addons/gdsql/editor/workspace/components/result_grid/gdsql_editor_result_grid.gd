@@ -6,10 +6,9 @@ extends Tree
 signal inline_changes_changed(status: String)
 signal foreign_key_options_requested(constraint_name: StringName)
 
-const MINIMUM_COLUMN_WIDTH := 100
-const MINIMUM_RESOURCE_COLUMN_WIDTH := 120
-const MAXIMUM_COLUMN_WIDTH := 360
-const COLUMN_HORIZONTAL_PADDING := 24
+const DATA_COLUMN_MINIMUM_WIDTH := 160
+const ROW_NUMBER_COLUMN_MINIMUM_WIDTH := 42
+const ROW_NUMBER_COLUMN := &"__gdsql_row_number"
 const TEXT_EDITOR_BUTTON_ID := 1
 const SET_NULL_BUTTON_ID := 2
 const FOREIGN_KEY_BUTTON_ID := 3
@@ -64,6 +63,7 @@ func _ready() -> void:
 	item_edited.connect(_on_item_edited)
 	button_clicked.connect(_on_cell_button_clicked)
 	item_mouse_selected.connect(_on_item_mouse_selected)
+	resized.connect(_apply_column_layout)
 	_foreign_key_picker.id_pressed.connect(_on_foreign_key_option_selected)
 	_expanded_text_editor = EXPANDED_TEXT_EDITOR_SCRIPT.new() \
 			as GDSQLEditorExpandedTextEditor
@@ -295,7 +295,6 @@ func render_page(
 	if maximum_rows >= 0:
 		bounded_end = mini(bounded_end, bounded_first + maximum_rows)
 	columns = maxi(1, _view_table.columns.size())
-	_content_width = 0.0
 	for column_index in range(_view_table.columns.size()):
 		var column := _view_table.columns[column_index]
 		set_column_title(column_index, "%s" % [column.name])
@@ -303,11 +302,6 @@ func render_page(
 			column_index,
 			"%s · %s" % [column.name, column.display_type_name()],
 		)
-		var preferred_width := _preferred_column_width(column, bounded_first, bounded_end)
-		_content_width += preferred_width
-		set_column_custom_minimum_width(column_index, preferred_width)
-		set_column_expand(column_index, true)
-		set_column_expand_ratio(column_index, preferred_width)
 	var root := create_item()
 	for record_index in range(bounded_first, bounded_end):
 		var record := _records[record_index]
@@ -333,6 +327,7 @@ func render_page(
 				item.set_custom_bg_color(column_index, dirty_cell_color)
 		if record_index == selected_index:
 			item.select(0)
+	_apply_column_layout()
 	_rendering = false
 
 
@@ -906,43 +901,21 @@ func _dirty_status() -> String:
 	return "%d changed field(s) across %d row(s)." % [field_count, _updates.size()]
 
 
-func _preferred_column_width(
-		column: GDSQLColumnDefinition,
-		first_index: int,
-		end_index: int,
-) -> int:
-	var font := get_theme_font(&"font")
-	var font_size := get_theme_font_size(&"font_size")
-	var width := font.get_string_size(String(column.name), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-	var action_width := 0.0
-	for record_index in range(first_index, end_index):
-		var value: Variant = _display_value(record_index, column.name, _records[record_index])
-		var value_width := font \
-				.get_string_size(_value_text(value), HORIZONTAL_ALIGNMENT_LEFT, -1, font_size) \
-				.x
-		if value is Resource:
-			value_width += resource_preview_size + 6
-		width = maxf(width, value_width)
-		action_width = maxf(action_width, _cell_action_width(column, value))
-	return clampi(
-		ceili(width) + COLUMN_HORIZONTAL_PADDING,
-		MINIMUM_RESOURCE_COLUMN_WIDTH if column.data_type == TYPE_OBJECT \
-		else MINIMUM_COLUMN_WIDTH,
-		MAXIMUM_COLUMN_WIDTH,
-	) + ceili(action_width)
-
-
-func _cell_action_width(column: GDSQLColumnDefinition, value: Variant) -> float:
-	if _safe_mode:
-		return 0.0
-	var width := 0.0
-	if _foreign_key_for_column(column.name) != null:
-		width += CELL_ACTION_WIDTH
-	if column.data_type == TYPE_STRING:
-		width += CELL_ACTION_WIDTH
-	if column.nullable and value != null:
-		width += CELL_ACTION_WIDTH
-	return width
+func _apply_column_layout() -> void:
+	if _view_table == null or columns != _view_table.columns.size():
+		return
+	_content_width = 0.0
+	for column_index in range(_view_table.columns.size()):
+		var is_row_number := _view_table.columns[column_index].name == ROW_NUMBER_COLUMN
+		var minimum_width := (
+				ROW_NUMBER_COLUMN_MINIMUM_WIDTH
+				if is_row_number
+				else DATA_COLUMN_MINIMUM_WIDTH
+		)
+		_content_width += minimum_width
+		set_column_custom_minimum_width(column_index, minimum_width)
+		set_column_expand(column_index, not is_row_number)
+		set_column_expand_ratio(column_index, 1)
 
 
 func _sync_resource_editor(
