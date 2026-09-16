@@ -8,6 +8,12 @@ signal rows_requested(
 	query: GDSQLSelectQuerySpec,
 	count_query: GDSQLSelectQuerySpec,
 )
+signal reference_rows_requested(
+	registration_name: StringName,
+	source_table_name: StringName,
+	constraint_name: StringName,
+	query: GDSQLSelectQuerySpec,
+)
 signal row_insert_requested(
 	registration_name: StringName,
 	table_name: StringName,
@@ -30,6 +36,7 @@ signal redo_requested(registration_name: StringName, table_name: StringName)
 const PAGE_SIZES: Array[int] = [10, 25, 50, 100]
 const COLUMN_SELECT_ALL := 10_000
 const ROW_NUMBER_COLUMN := &"__gdsql_row_number"
+const REFERENCE_PICKER_LIMIT := 500
 
 var registration_name: StringName
 var table_name: StringName
@@ -54,6 +61,7 @@ var _redo_summary := ""
 var _action_hub: GDSQLEditorActionHub
 var _action_context: GDSQLContextActionHub
 var _action_context_id: StringName
+var _reference_request_grid: GDSQLEditorResultGrid
 
 @onready var _table_view: GDSQLEditorResultGrid = %TableView
 @onready var _insert_editor: GDSQLEditorResultGrid = %InsertEditor
@@ -80,10 +88,16 @@ func _ready() -> void:
 	_column_menu.id_pressed.connect(_on_column_toggled)
 	_column_menu.hide_on_checkable_item_selection = false
 	_table_view.inline_changes_changed.connect(_on_inline_changes_changed)
+	_table_view.foreign_key_options_requested.connect(
+		_request_reference_rows.bind(_table_view),
+	)
 	_table_view.column_title_clicked.connect(_on_column_title_clicked)
 	_table_view.item_selected.connect(_refresh_actions)
 	_table_view.multi_selected.connect(_on_multi_selected)
 	_insert_editor.inline_changes_changed.connect(_on_insert_changes_changed)
+	_insert_editor.foreign_key_options_requested.connect(
+		_request_reference_rows.bind(_insert_editor),
+	)
 	_where_expression.changed.connect(_on_filter_changed)
 	_where_expression.apply_requested.connect(_apply_filter)
 	_where_expression.clear_requested.connect(_clear_filter)
@@ -229,6 +243,21 @@ func present_rows(result: GDSQLQueryResult, total_rows: int = -1) -> void:
 	_refresh_actions()
 
 
+func present_reference_rows(
+		foreign_key: GDSQLForeignKeyDefinition,
+		target_table: GDSQLTableDefinition,
+		result: GDSQLQueryResult,
+) -> void:
+	if not is_instance_valid(_reference_request_grid):
+		return
+	_reference_request_grid.present_foreign_key_options(foreign_key, target_table, result)
+	%Status.text = (
+		"Choose a referenced row. Type while the list is open to search."
+		if result != null and result.is_successful()
+		else "Referenced rows could not be loaded."
+	)
+
+
 func has_unsaved_changes() -> bool:
 	return %InsertSection.visible or _table_view.has_pending_changes()
 
@@ -242,6 +271,32 @@ func request_rows() -> void:
 	if _applied_predicate != null:
 		count_query = _build_select_query(true)
 	rows_requested.emit(registration_name, table_name, _build_select_query(), count_query)
+
+
+func _request_reference_rows(
+		constraint_name: StringName,
+		request_grid: GDSQLEditorResultGrid,
+) -> void:
+	if _table == null:
+		return
+	var foreign_key := _table.get_foreign_key(constraint_name)
+	if foreign_key == null:
+		%Status.text = "The selected foreign-key constraint no longer exists."
+		return
+	_reference_request_grid = request_grid
+	%Status.text = "Loading referenced rows…"
+	var query := GDSQLQuery.new(_table.database_name) \
+			.select() \
+			.from_table(foreign_key.referenced_table) \
+			.order_by_column(foreign_key.referenced_column) \
+			.limit(REFERENCE_PICKER_LIMIT) \
+			.build()
+	reference_rows_requested.emit(
+		registration_name,
+		table_name,
+		constraint_name,
+		query,
+	)
 
 
 func _is_scene_preview() -> bool:

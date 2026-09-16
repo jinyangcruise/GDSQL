@@ -1616,6 +1616,16 @@ definition before persistence. New constraints receive the deterministic name
 `fk_<source_table>_<local_column>_<target_table>_<target_column>`, which updates
 with the selected inputs instead of becoming stale editor state.
 
+For row editing, a column with exactly one foreign-key definition exposes an
+optional referenced-row picker. The result grid emits a lookup intent; the
+editor coordinator executes a canonical, ordered `SELECT` against the target
+table and returns typed rows to the grid. The grid never reads storage or the
+catalog directly. The initial popup is deliberately bounded to 500 rows,
+supports Godot's built-in type search, displays the referenced value with up to
+two contextual fields, and applies the chosen key through the existing pending
+cell-update path. Direct typed editing remains available when a target is
+outside that bound or a local column has multiple constraints.
+
 ```gdscript
 class_name ColumnDefinition
 extends RefCounted

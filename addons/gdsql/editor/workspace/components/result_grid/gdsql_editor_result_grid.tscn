@@ -13,3 +13,7 @@ allow_rmb_select = true
 hide_folding = true
 hide_root = true
 script = ExtResource("1_grid")
+
+[node name="ForeignKeyPicker" type="PopupMenu" parent="."]
+unique_name_in_owner = true
+allow_search = true

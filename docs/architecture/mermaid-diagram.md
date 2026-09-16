@@ -48,6 +48,7 @@ Workbench("`**GDSQLWorkbench**
 *Session API:* select_table(), load_rows(), preview_table_change(), apply_pending_change()
 *Metadata:* Lightweight catalog, schema and table-header inspections
 *Schema UI:* Scene-backed fixed header and reusable rows over typed column drafts
+*Reference UI:* Bounded canonical target-row lookup and searchable key picker
 *Rows:* Loaded only for the selected table`")
 
 ForeignKeyAuthoring("`**Foreign Key Authoring**

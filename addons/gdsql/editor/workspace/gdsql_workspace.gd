@@ -24,6 +24,12 @@ signal table_rows_requested(
 		query: GDSQLSelectQuerySpec,
 		count_query: GDSQLSelectQuerySpec,
 )
+signal table_reference_rows_requested(
+	registration_name: StringName,
+	source_table_name: StringName,
+	constraint_name: StringName,
+	query: GDSQLSelectQuerySpec,
+)
 signal table_row_insert_requested(
 		registration_name: StringName,
 		table_name: StringName,
@@ -234,6 +240,10 @@ func show_table(
 			_on_table_rows_requested,
 		)
 		document.connect(
+			"reference_rows_requested",
+			_on_table_reference_rows_requested,
+		)
+		document.connect(
 			"row_insert_requested",
 			_on_table_row_insert_requested,
 		)
@@ -385,6 +395,20 @@ func present_table_rows(
 	) as Control
 	if document != null and document.has_method("present_rows"):
 		document.call("present_rows", result, total_rows)
+
+
+func present_table_reference_rows(
+		registration_name: StringName,
+		source_table_name: StringName,
+		foreign_key: GDSQLForeignKeyDefinition,
+		target_table: GDSQLTableDefinition,
+		result: GDSQLQueryResult,
+) -> void:
+	var document := _documents.get(
+		_table_key(registration_name, source_table_name),
+	) as Control
+	if document != null and document.has_method("present_reference_rows"):
+		document.call("present_reference_rows", foreign_key, target_table, result)
 
 
 func request_table_rows(
@@ -714,6 +738,20 @@ func _on_table_rows_requested(
 		count_query: GDSQLSelectQuerySpec,
 ) -> void:
 	table_rows_requested.emit(registration_name, table_name, query, count_query)
+
+
+func _on_table_reference_rows_requested(
+		registration_name: StringName,
+		source_table_name: StringName,
+		constraint_name: StringName,
+		query: GDSQLSelectQuerySpec,
+) -> void:
+	table_reference_rows_requested.emit(
+		registration_name,
+		source_table_name,
+		constraint_name,
+		query,
+	)
 
 
 func _on_table_row_insert_requested(

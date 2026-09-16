@@ -93,6 +93,11 @@ func shutdown() -> void:
 			and _workspace.table_rows_requested.is_connected(_load_table_rows):
 		_workspace.table_rows_requested.disconnect(_load_table_rows)
 	if is_instance_valid(_workspace) \
+			and _workspace.table_reference_rows_requested.is_connected(
+				_load_table_reference_rows,
+			):
+		_workspace.table_reference_rows_requested.disconnect(_load_table_reference_rows)
+	if is_instance_valid(_workspace) \
 			and _workspace.table_row_insert_requested.is_connected(_insert_table_row):
 		_workspace.table_row_insert_requested.disconnect(_insert_table_row)
 	if is_instance_valid(_workspace) \
@@ -176,6 +181,7 @@ func _configure_surfaces() -> void:
 	_workspace.database_refresh_submitted.connect(_refresh_database_document)
 	_workspace.database_destroy_submitted.connect(_destroy_database)
 	_workspace.table_rows_requested.connect(_load_table_rows)
+	_workspace.table_reference_rows_requested.connect(_load_table_reference_rows)
 	_workspace.table_row_insert_requested.connect(_insert_table_row)
 	_workspace.table_rows_update_requested.connect(_update_table_rows)
 	_workspace.table_rows_delete_requested.connect(_delete_table_rows)
@@ -478,6 +484,66 @@ func _load_table_rows(
 	_workspace.present_table_rows(registration_name, table_name, result, total_rows)
 	if record_logs:
 		_record_result("Load table rows", result)
+	return result
+
+
+func _load_table_reference_rows(
+		registration_name: StringName,
+		source_table_name: StringName,
+		constraint_name: StringName,
+		query: GDSQLSelectQuerySpec,
+) -> GDSQLQueryResult:
+	var result := GDSQLQueryResult.new()
+	var activation := _ensure_active_registration(registration_name)
+	result.diagnostics.merge(activation.diagnostics)
+	var foreign_key: GDSQLForeignKeyDefinition
+	var target_table: GDSQLTableDefinition
+	if result.is_successful():
+		var database := workbench.active_session.database
+		var source_table := database.context.catalog.get_table(
+			database.database_name,
+			source_table_name,
+		)
+		if source_table == null:
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_EDITOR_REFERENCE_SOURCE_NOT_FOUND",
+					"Source table '%s' was not found." % source_table_name,
+				),
+			)
+		else:
+			foreign_key = source_table.get_foreign_key(constraint_name)
+			if foreign_key == null:
+				result.add_diagnostic(
+					GDSQLQueryDiagnostic.new(
+						&"GDSQL_EDITOR_FOREIGN_KEY_NOT_FOUND",
+						"Foreign key '%s' was not found." % constraint_name,
+					),
+				)
+			else:
+				target_table = database.context.catalog.get_table(
+					database.database_name,
+					foreign_key.referenced_table,
+				)
+				if target_table == null:
+					result.add_diagnostic(
+						GDSQLQueryDiagnostic.new(
+							&"GDSQL_EDITOR_REFERENCE_TARGET_NOT_FOUND",
+							"Referenced table '%s' was not found." \
+									% foreign_key.referenced_table,
+						),
+					)
+				else:
+					result = database.execute(query)
+	_workspace.present_table_reference_rows(
+		registration_name,
+		source_table_name,
+		foreign_key,
+		target_table,
+		result,
+	)
+	if not result.is_successful():
+		_record_result("Load foreign key references", result)
 	return result
 
 

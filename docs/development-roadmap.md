@@ -390,12 +390,14 @@ dedicated key indicator. Existing self-references remain readable and removable,
 but the table designer does not offer the source table as a new target. New
 constraint names follow the deterministic
 `fk_<source>_<local>_<target>_<target_column>` convention and stay synchronized
-with their selected inputs.
+with their selected inputs. Data and insert grids expose the foreign-key action
+for columns with one unambiguous constraint, load an ordered canonical target
+query on demand, and present the first 500 rows through a searchable popup with
+context fields before applying the selected key through the normal batch draft.
 
-Next, add searchable referenced-row value pickers to the data table. Keep
-cross-role `save` → `content` references as a separate logical contract resolved
-through database roles; use both contracts to infer default model navigation
-without rewriting user-owned relationship methods.
+Next, use catalog and cross-role `save` → `content` contracts to infer default
+model navigation without rewriting user-owned relationship methods. Cross-role
+references remain a separate logical contract resolved through database roles.
 
 ### 11. Improve nested typed WHERE interactions
 

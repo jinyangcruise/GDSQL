@@ -7,6 +7,7 @@
 [ext_resource type="Texture2D" uid="uid://cqrp4rr1rh61i" path="res://addons/gdsql/editor/workspace/icons/foreign_key.svg" id="5_foreign"]
 
 [node name="TableFold" type="FoldableContainer" unique_id=1236517426]
+anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 385.0
 grow_horizontal = 2
@@ -59,9 +60,11 @@ icon = ExtResource("3_hkiee")
 
 [node name="ForeignKeyFold" type="FoldableContainer" parent="MarginContainer/Content" unique_id=949645144]
 layout_mode = 2
+folded = true
 title = "Foreign Keys"
 
 [node name="ForeignKeyContent" type="VBoxContainer" parent="MarginContainer/Content/ForeignKeyFold" unique_id=515809886]
+visible = false
 layout_mode = 2
 theme_override_constants/separation = 2
 

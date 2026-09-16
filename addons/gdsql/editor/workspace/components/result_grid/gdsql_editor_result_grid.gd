@@ -4,6 +4,7 @@ extends Tree
 ## Graph-independent typed row grid with validated, batched cell editing.
 
 signal inline_changes_changed(status: String)
+signal foreign_key_options_requested(constraint_name: StringName)
 
 const MINIMUM_COLUMN_WIDTH := 100
 const MINIMUM_RESOURCE_COLUMN_WIDTH := 120
@@ -11,11 +12,17 @@ const MAXIMUM_COLUMN_WIDTH := 360
 const COLUMN_HORIZONTAL_PADDING := 24
 const TEXT_EDITOR_BUTTON_ID := 1
 const SET_NULL_BUTTON_ID := 2
+const FOREIGN_KEY_BUTTON_ID := 3
+const FOREIGN_KEY_NULL_ITEM_ID := 30_000
+const FOREIGN_KEY_ITEM_ID_OFFSET := 30_001
 const EXPANDED_TEXT_EDITOR_SCRIPT := preload(
 	"res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_expanded_text_editor.gd"
 )
 const EXPAND_ICON := preload("res://addons/gdsql/editor/workspace/icons/pencil.svg")
 const NULL_ICON := preload("res://addons/gdsql/editor/workspace/icons/eraser.svg")
+const FOREIGN_KEY_ICON := preload(
+	"res://addons/gdsql/editor/workspace/icons/foreign_key.svg"
+)
 const CELL_ACTION_WIDTH := 32.0
 const RESOURCE_EDITOR_MINIMUM_ROW_HEIGHT := 44
 
@@ -44,6 +51,10 @@ var _resource_picker: EditorResourcePicker
 var _resource_editor_cell := Vector2i(-1, -1)
 var _resource_picker_configuring := false
 var _content_width := 0.0
+var _foreign_key_cell := Vector2i(-1, -1)
+var _foreign_key_name: StringName
+
+@onready var _foreign_key_picker: PopupMenu = %ForeignKeyPicker
 
 
 func _ready() -> void:
@@ -53,6 +64,7 @@ func _ready() -> void:
 	item_edited.connect(_on_item_edited)
 	button_clicked.connect(_on_cell_button_clicked)
 	item_mouse_selected.connect(_on_item_mouse_selected)
+	_foreign_key_picker.id_pressed.connect(_on_foreign_key_option_selected)
 	_expanded_text_editor = EXPANDED_TEXT_EDITOR_SCRIPT.new() \
 			as GDSQLEditorExpandedTextEditor
 	add_child(_expanded_text_editor)
@@ -101,6 +113,62 @@ func configure(
 	clear_pending_changes()
 	_resource_type_icons.clear()
 	_content_width = 0.0
+	_foreign_key_cell = Vector2i(-1, -1)
+	_foreign_key_name = &""
+	_foreign_key_picker.hide()
+
+
+func present_foreign_key_options(
+		foreign_key: GDSQLForeignKeyDefinition,
+		target_table: GDSQLTableDefinition,
+		result: GDSQLQueryResult,
+) -> void:
+	if foreign_key == null \
+			or target_table == null \
+			or foreign_key.name != _foreign_key_name \
+			or not _valid_foreign_key_cell():
+		return
+	_foreign_key_picker.clear()
+	_foreign_key_picker.add_item(
+		"Select %s.%s · first %d rows" % [
+			target_table.name,
+			foreign_key.referenced_column,
+			result.rows.size() if result != null and result.is_successful() else 0,
+		],
+	)
+	_foreign_key_picker.set_item_disabled(0, true)
+	_foreign_key_picker.add_separator()
+	var column := _view_table.columns[_foreign_key_cell.y]
+	var current: Variant = _display_value(
+		_foreign_key_cell.x,
+		column.name,
+		_records[_foreign_key_cell.x],
+	)
+	if column.nullable:
+		_foreign_key_picker.add_check_item("NULL", FOREIGN_KEY_NULL_ITEM_ID)
+		_foreign_key_picker.set_item_checked(
+			_foreign_key_picker.item_count - 1,
+			current == null,
+		)
+	if result == null or not result.is_successful():
+		_foreign_key_picker.add_item("Referenced rows could not be loaded.")
+		_foreign_key_picker.set_item_disabled(_foreign_key_picker.item_count - 1, true)
+		inline_changes_changed.emit("Referenced rows could not be loaded.")
+	elif result.rows.is_empty():
+		_foreign_key_picker.add_item("No referenced rows are available.")
+		_foreign_key_picker.set_item_disabled(_foreign_key_picker.item_count - 1, true)
+	else:
+		for row_index in result.rows.size():
+			var row := result.rows[row_index]
+			var value: Variant = row.get_value(foreign_key.referenced_column)
+			_foreign_key_picker.add_check_item(
+				_reference_row_label(target_table, foreign_key, row),
+				FOREIGN_KEY_ITEM_ID_OFFSET + row_index,
+			)
+			var item_index := _foreign_key_picker.item_count - 1
+			_foreign_key_picker.set_item_metadata(item_index, value)
+			_foreign_key_picker.set_item_checked(item_index, value == current)
+	_show_foreign_key_picker()
 
 
 func configure_insert_draft(table: GDSQLTableDefinition, view_table: GDSQLTableDefinition) -> void:
@@ -340,6 +408,19 @@ func _on_cell_button_clicked(
 	if record_index < 0 or record_index >= _records.size():
 		return
 	match button_id:
+		FOREIGN_KEY_BUTTON_ID:
+			var foreign_key := _foreign_key_for_column(column.name)
+			if foreign_key == null or not _cell_is_editable(column):
+				return
+			_foreign_key_cell = Vector2i(record_index, column_index)
+			_foreign_key_name = foreign_key.name
+			inline_changes_changed.emit(
+				"Loading references from %s.%s…" % [
+					foreign_key.referenced_table,
+					foreign_key.referenced_column,
+				],
+			)
+			foreign_key_options_requested.emit(foreign_key.name)
 		TEXT_EDITOR_BUTTON_ID:
 			if column.data_type != TYPE_STRING:
 				return
@@ -855,6 +936,8 @@ func _cell_action_width(column: GDSQLColumnDefinition, value: Variant) -> float:
 	if _safe_mode:
 		return 0.0
 	var width := 0.0
+	if _foreign_key_for_column(column.name) != null:
+		width += CELL_ACTION_WIDTH
 	if column.data_type == TYPE_STRING:
 		width += CELL_ACTION_WIDTH
 	if column.nullable and value != null:
@@ -972,6 +1055,18 @@ func _configure_cell_actions(
 	if _safe_mode:
 		return
 	var editable := _cell_is_editable(column)
+	var foreign_key := _foreign_key_for_column(column.name)
+	if foreign_key != null:
+		item.add_button(
+			column_index,
+			FOREIGN_KEY_ICON,
+			FOREIGN_KEY_BUTTON_ID,
+			not editable,
+			"Choose a row from %s.%s" % [
+				foreign_key.referenced_table,
+				foreign_key.referenced_column,
+			],
+		)
 	if column.data_type == TYPE_STRING:
 		item.add_button(
 			column_index,
@@ -1006,6 +1101,74 @@ func _value_text(value: Variant) -> String:
 	if value is String or value is StringName or value is NodePath:
 		return String(value)
 	return var_to_str(value)
+
+
+func _foreign_key_for_column(column_name: StringName) -> GDSQLForeignKeyDefinition:
+	if _table == null:
+		return null
+	var matches := _table.get_foreign_keys_for_column(column_name)
+	return matches[0] if matches.size() == 1 else null
+
+
+func _valid_foreign_key_cell() -> bool:
+	return _view_table != null \
+			and _foreign_key_cell.x >= 0 \
+			and _foreign_key_cell.x < _records.size() \
+			and _foreign_key_cell.y >= 0 \
+			and _foreign_key_cell.y < _view_table.columns.size()
+
+
+func _show_foreign_key_picker() -> void:
+	var item := _visible_item(_foreign_key_cell.x)
+	if item == null:
+		return
+	var cell_rect := get_item_area_rect(item, _foreign_key_cell.y)
+	var screen_position := get_screen_position() + cell_rect.position \
+			+ Vector2(0, cell_rect.size.y)
+	var popup_height := mini(420, 38 + _foreign_key_picker.item_count * 28)
+	_foreign_key_picker.popup(
+		Rect2i(Vector2i(screen_position), Vector2i(maxi(420, int(cell_rect.size.x)), popup_height)),
+	)
+
+
+func _on_foreign_key_option_selected(id: int) -> void:
+	if not _valid_foreign_key_cell():
+		return
+	var value: Variant = null
+	if id != FOREIGN_KEY_NULL_ITEM_ID:
+		var item_index := _foreign_key_picker.get_item_index(id)
+		if item_index < 0:
+			return
+		value = _foreign_key_picker.get_item_metadata(item_index)
+	var column := _view_table.columns[_foreign_key_cell.y]
+	if value == null and not column.nullable:
+		return
+	_apply_cell_value(
+		_foreign_key_cell.x,
+		_foreign_key_cell.y,
+		column,
+		value,
+	)
+
+
+func _reference_row_label(
+		table: GDSQLTableDefinition,
+		foreign_key: GDSQLForeignKeyDefinition,
+		row: GDSQLRowRecord,
+) -> String:
+	var key_text := _value_text(row.get_value(foreign_key.referenced_column))
+	var details: Array[String] = []
+	for column in table.columns:
+		if column.name == foreign_key.referenced_column \
+				or column.generation != GDSQLColumnDefinition.Generation.NONE:
+			continue
+		var text := _value_text(row.get_value(column.name)).replace("\n", " ")
+		if text.length() > 36:
+			text = text.left(33) + "…"
+		details.append("%s: %s" % [column.name, text])
+		if details.size() == 2:
+			break
+	return key_text if details.is_empty() else "%s — %s" % [key_text, ", ".join(details)]
 
 
 func _resource_tooltip(value: Variant, fallback: String) -> String:
