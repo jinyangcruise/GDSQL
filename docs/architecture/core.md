@@ -1858,8 +1858,9 @@ The executor does not need to know whether rows will be:
 
 The model frontend will build on this boundary. A `GDSQLModel` represents one
 materialized row and is associated through `GDSQLModelDefinition` with one
-logical database and table. `GDSQLModelRegistry` resolves model definitions
-and delegates logical role selection to `GDSQLDatabaseRegistry`, while
+logical database and table. `GDSQLModelRegistry` resolves model definitions,
+adds catalog-derived same-database relationships, and delegates logical role
+selection to `GDSQLDatabaseRegistry`, while
 `GDSQLModelContext` permits isolated registries for tests. Model metadata stores
 logical roles and table names.
 
@@ -1902,11 +1903,15 @@ reloads the row into the same object. Mutable models use changed-field UPDATEs
 for `save()` and primary-key DELETEs for `delete()`. Content models return a
 read-only diagnostic for mutation attempts. These helpers emit canonical query
 specifications and remain independent from physical storage.
-Typed relationship definitions live on model classes. Model queries use those
-definitions for explicit or eager loading, and graphical tooling can inspect
-the same keys to display related identifiers and records.
+Same-database foreign keys provide default model navigation when both table
+models are registered. A normal foreign key produces `belongs_to` on its owning
+model and `has_many` on the referenced model; uniqueness on the foreign-key
+column changes the inverse to `has_one`. Model queries use the resulting typed
+definitions for explicit or eager loading, and graphical tooling can preview
+the same keys from catalog metadata.
 
-The model method is the source of truth for user-owned model scripts:
+The model method remains the source of truth for custom or cross-role
+relationships:
 
 ```gdscript
 func relationships() -> Array[GDSQLRelationshipDefinition]:
@@ -1920,6 +1925,9 @@ func relationships() -> Array[GDSQLRelationshipDefinition]:
 ```
 
 Registration captures and validates these definitions by relationship name.
+Declared names take precedence over inferred names, so user behavior remains
+stable and generated or user-owned scripts do not need to be rewritten when a
+catalog relationship is added.
 `with(&"skills")` performs a separate batched model query through the related
 model's logical role and attaches the result to each materialized model.
 `get_related(&"skills")` returns the loaded model, model array, or null, while

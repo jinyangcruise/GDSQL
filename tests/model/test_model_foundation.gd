@@ -217,6 +217,49 @@ func test_with_reports_an_unknown_relationship_name() -> void:
 	)
 
 
+func test_registry_infers_belongs_to_and_has_many_from_foreign_key() -> void:
+	var database := _create_inferred_relationship_database(false)
+	var context := _create_inferred_relationship_context(database, false)
+	GDSQLModels.configure(context)
+
+	var hero_definition := context.resolve_model(InferredHero).get_value() \
+			as GDSQLModelDefinition
+	var skill_definition := context.resolve_model(InferredSkill).get_value() \
+			as GDSQLModelDefinition
+	var heroes: Array = InferredHero.query().with(&"skills").all().get_value()
+	var skills: Array = InferredSkill.query().with(&"hero").all().get_value()
+	var catalog_database := database.context.catalog.get_database(database.database_name)
+	var hero_descriptions := GDSQLModelRelationshipInferrer.describe(
+		catalog_database.get_table(&"heroes"),
+		catalog_database,
+	)
+
+	assert_int(hero_definition.get_relationship(&"skills").kind).is_equal(
+		GDSQLRelationshipDefinition.Kind.HAS_MANY,
+	)
+	assert_int(skill_definition.get_relationship(&"hero").kind).is_equal(
+		GDSQLRelationshipDefinition.Kind.BELONGS_TO,
+	)
+	assert_int(heroes[0].get_related(&"skills").size()).is_equal(2)
+	assert_object(skills[0].get_related(&"hero")).is_instanceof(InferredHero)
+	assert_bool(hero_descriptions.has("has_many skills · id → skills.hero_id")).is_true()
+
+
+func test_registry_infers_has_one_when_foreign_key_is_unique() -> void:
+	var database := _create_inferred_relationship_database(true)
+	var context := _create_inferred_relationship_context(database, true)
+	GDSQLModels.configure(context)
+
+	var definition := context.resolve_model(InferredHero).get_value() \
+			as GDSQLModelDefinition
+	var relationship := definition.get_relationship(&"profile")
+	var hero := InferredHero.query().with(&"profile").first().get_value() \
+			as InferredHero
+
+	assert_int(relationship.kind).is_equal(GDSQLRelationshipDefinition.Kind.HAS_ONE)
+	assert_object(hero.get_related(&"profile")).is_instanceof(InferredProfile)
+
+
 func _create_context(
 		database: GDSQLDatabase,
 		model_script: Script,
@@ -240,6 +283,21 @@ func _create_relationship_context(database: GDSQLDatabase) -> GDSQLModelContext:
 	var model_registry := GDSQLModelRegistry.new(database_registry)
 	assert_bool(model_registry.register(TestHero).is_successful()).is_true()
 	assert_bool(model_registry.register(TestSkill).is_successful()).is_true()
+	return GDSQLModelContext.new(model_registry)
+
+
+func _create_inferred_relationship_context(
+		database: GDSQLDatabase,
+		include_profile: bool,
+) -> GDSQLModelContext:
+	var database_registry := GDSQLDatabaseRegistry.new()
+	database_registry.register(&"active", database)
+	database_registry.bind_role(GDSQLDatabaseRegistry.CONTENT_ROLE, &"active")
+	var model_registry := GDSQLModelRegistry.new(database_registry)
+	assert_bool(model_registry.register(InferredHero).is_successful()).is_true()
+	assert_bool(model_registry.register(InferredSkill).is_successful()).is_true()
+	if include_profile:
+		assert_bool(model_registry.register(InferredProfile).is_successful()).is_true()
 	return GDSQLModelContext.new(model_registry)
 
 
@@ -276,6 +334,51 @@ func _create_relationship_database() -> GDSQLDatabase:
 	return database
 
 
+func _create_inferred_relationship_database(include_profile: bool) -> GDSQLDatabase:
+	var heroes := GDSQLTableDefinition.new(&"heroes", &"id")
+	heroes.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	heroes.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
+	var skills := GDSQLTableDefinition.new(&"skills", &"id")
+	skills.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	skills.add_column(GDSQLColumnDefinition.new(&"hero_id", TYPE_INT, false))
+	skills.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
+	skills.add_foreign_key(
+		GDSQLForeignKeyDefinition.new(&"fk_skills_hero", &"hero_id", &"heroes", &"id"),
+	)
+	var tables: Array[GDSQLTableDefinition] = [heroes, skills]
+	if include_profile:
+		var profiles := GDSQLTableDefinition.new(&"profiles", &"id")
+		profiles.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+		profiles.add_column(GDSQLColumnDefinition.new(&"hero_id", TYPE_INT, false, true))
+		profiles.add_column(GDSQLColumnDefinition.new(&"title", TYPE_STRING, false))
+		profiles.add_foreign_key(
+			GDSQLForeignKeyDefinition.new(
+				&"fk_profiles_hero",
+				&"hero_id",
+				&"heroes",
+				&"id",
+			),
+		)
+		tables.append(profiles)
+	var database := TestDatabase.create_database_with_tables(_data_root, tables)
+	TestDatabase.insert_rows(database, [{ &"id": 1, &"name": "Knight" }], &"heroes")
+	TestDatabase.insert_rows(
+		database,
+		[
+			{ &"id": 1, &"hero_id": 1, &"name": "Sword" },
+			{ &"id": 2, &"hero_id": 1, &"name": "Shield" },
+		],
+		&"skills",
+	)
+	if include_profile:
+		TestDatabase.insert_rows(
+			database,
+			[{ &"id": 1, &"hero_id": 1, &"title": "Champion" }],
+			&"profiles",
+		)
+	return database
+
+
 class TestHero extends GDSQLContentModel:
 	var id: int
 	var name: String
@@ -302,6 +405,47 @@ class TestHero extends GDSQLContentModel:
 
 	static func find(identity: int) -> GDSQLQueryResult:
 		return GDSQLModels.find(TestHero, identity)
+
+
+class InferredHero extends GDSQLContentModel:
+	var id: int
+	var name: String
+
+
+	func table_name() -> StringName:
+		return &"heroes"
+
+
+	static func query() -> GDSQLModelQuery:
+		return GDSQLModels.query(InferredHero)
+
+
+class InferredSkill extends GDSQLContentModel:
+	var id: int
+	var hero_id: int
+	var name: String
+
+
+	func table_name() -> StringName:
+		return &"skills"
+
+
+	static func query() -> GDSQLModelQuery:
+		return GDSQLModels.query(InferredSkill)
+
+
+class InferredProfile extends GDSQLContentModel:
+	var id: int
+	var hero_id: int
+	var title: String
+
+
+	func table_name() -> StringName:
+		return &"profiles"
+
+
+	static func query() -> GDSQLModelQuery:
+		return GDSQLModels.query(InferredProfile)
 
 
 class TestSaveHero extends GDSQLSaveModel:

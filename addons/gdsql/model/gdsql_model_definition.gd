@@ -7,7 +7,8 @@ var database_role: StringName
 var table_name: StringName
 var primary_key: StringName
 var access_mode: GDSQLModelAccess.Mode
-var _relationships: Dictionary[StringName, GDSQLRelationshipDefinition] = { }
+var _declared_relationships: Dictionary[StringName, GDSQLRelationshipDefinition] = { }
+var _inferred_relationships: Dictionary[StringName, GDSQLRelationshipDefinition] = { }
 
 
 func _init(
@@ -24,19 +25,35 @@ func _init(
 	primary_key = key
 	access_mode = mode
 	for relationship in relationships:
-		_relationships[relationship.name] = relationship
+		_declared_relationships[relationship.name] = relationship
 
 
 func has_relationship(relationship_name: StringName) -> bool:
-	return _relationships.has(relationship_name)
+	return _declared_relationships.has(relationship_name) \
+			or _inferred_relationships.has(relationship_name)
 
 
 func get_relationship(relationship_name: StringName) -> GDSQLRelationshipDefinition:
-	return _relationships.get(relationship_name)
+	if _declared_relationships.has(relationship_name):
+		return _declared_relationships[relationship_name]
+	return _inferred_relationships.get(relationship_name)
 
 
 func get_relationships() -> Array[GDSQLRelationshipDefinition]:
 	var result: Array[GDSQLRelationshipDefinition] = []
-	for relationship in _relationships.values():
+	for relationship in _declared_relationships.values():
+		result.append(relationship)
+	for relationship in _inferred_relationships.values():
 		result.append(relationship)
 	return result
+
+
+func replace_inferred_relationships(
+		relationships: Array[GDSQLRelationshipDefinition],
+) -> void:
+	_inferred_relationships.clear()
+	for relationship in relationships:
+		if relationship != null \
+				and not _declared_relationships.has(relationship.name) \
+				and not _inferred_relationships.has(relationship.name):
+			_inferred_relationships[relationship.name] = relationship

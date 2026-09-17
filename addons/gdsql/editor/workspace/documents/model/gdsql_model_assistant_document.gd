@@ -10,6 +10,7 @@ const SETTINGS_SECTION := "models"
 const SETTINGS_ROOT_KEY := "root"
 
 var _table: GDSQLTableDefinition
+var _database: GDSQLDatabaseDefinition
 var _source: GDSQLModelSource
 var _generator := GDSQLModelSourceGenerator.new()
 var _compatibility_inspector := GDSQLModelCompatibilityInspector.new()
@@ -43,8 +44,10 @@ func configure(
 		_registration_name: StringName,
 		table: GDSQLTableDefinition,
 		database_role: StringName = GDSQLDatabaseRegistry.CONTENT_ROLE,
+		database: GDSQLDatabaseDefinition = null,
 ) -> void:
 	_table = table
+	_database = database
 	%Title.text = "Model binding · %s" % table.name
 	%TableValue.text = _table_identity(table)
 	_model_class.text = _suggest_class_name(String(table.name))
@@ -53,10 +56,14 @@ func configure(
 	_refresh_preview()
 
 
-func refresh_table(table: GDSQLTableDefinition) -> void:
+func refresh_table(
+		table: GDSQLTableDefinition,
+		database: GDSQLDatabaseDefinition = null,
+) -> void:
 	if table == null:
 		return
 	_table = table
+	_database = database
 	%Title.text = "Model binding · %s" % table.name
 	%TableValue.text = _table_identity(table)
 	_refresh_preview()
@@ -187,19 +194,37 @@ func _refresh_compatibility(user_exists: bool) -> void:
 	var lines: Array[String] = []
 	for diagnostic in report.diagnostics.entries:
 		lines.append("• %s" % diagnostic.message)
-	if report.relationship_summaries.is_empty():
-		lines.append("No relationships declared.")
-	else:
-		lines.append("Relationships resolve through their target model roles:")
+	if not report.relationship_summaries.is_empty():
+		lines.append("Custom model relationships:")
 		for summary in report.relationship_summaries:
 			lines.append("• %s" % summary)
+	lines.append_array(_catalog_relationship_lines())
 	%CompatibilityDetails.text = "\n".join(lines)
 
 
 func _set_compatibility_unavailable(message: String) -> void:
 	%CompatibilityStatus.text = "NOT INSPECTED"
 	%CompatibilityStatus.modulate = Color(0.62, 0.67, 0.74)
-	%CompatibilityDetails.text = message
+	var lines: Array[String] = [message]
+	lines.append_array(_catalog_relationship_lines())
+	%CompatibilityDetails.text = "\n".join(lines)
+
+
+func _catalog_relationship_lines() -> Array[String]:
+	var lines: Array[String] = []
+	var relationships := GDSQLModelRelationshipInferrer.describe(
+		_table,
+		_database,
+	)
+	if relationships.is_empty():
+		lines.append("No same-database relationships inferred from foreign keys.")
+		return lines
+	lines.append(
+		"Catalog relationships · active when both model types are registered:",
+	)
+	for relationship in relationships:
+		lines.append("• %s" % relationship)
+	return lines
 
 
 func _request_generation() -> void:

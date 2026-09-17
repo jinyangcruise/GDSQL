@@ -407,9 +407,14 @@ context fields before applying the selected key through the normal batch draft.
 Large reference sets remain bounded: replace the loaded-page popup with debounced
 server-side search and paginated results before raising or removing that limit.
 
-Next, use catalog and cross-role `save` → `content` contracts to infer default
-model navigation without rewriting user-owned relationship methods. Cross-role
-references remain a separate logical contract resolved through database roles.
+The model registry now infers default same-database navigation when both model
+types are registered. The foreign-key owner receives `belongs_to`; its inverse
+is `has_one` when the local foreign key is unique and `has_many` otherwise.
+Declared user relationships take precedence by name, no model script is
+rewritten, and the model assistant previews the inferred edges directly from
+the catalog. Next, add an explicit many-to-many/through contract and cross-role
+`save` → `content` references; cross-role references remain logical contracts
+resolved through database roles.
 
 ### 11. Improve nested typed WHERE interactions
 

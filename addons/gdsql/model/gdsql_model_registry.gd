@@ -4,6 +4,7 @@ extends RefCounted
 
 var _database_registry: GDSQLDatabaseRegistry
 var _definitions: Dictionary[Script, GDSQLModelDefinition] = { }
+var _relationship_inferrer := GDSQLModelRelationshipInferrer.new()
 
 
 func _init(database_registry: GDSQLDatabaseRegistry = null) -> void:
@@ -64,6 +65,7 @@ func register(model_script: Script) -> GDSQLOperationResult:
 		relationships,
 	)
 	_definitions[model_script] = definition
+	_refresh_inferred_relationships()
 	var result := GDSQLOperationResult.new()
 	result.value = definition
 	return result
@@ -76,6 +78,7 @@ func resolve_model(model_script: Script) -> GDSQLOperationResult:
 			&"GDSQL_MODEL_NOT_REGISTERED",
 			"The model script is not registered.",
 		)
+	_refresh_inferred_relationships()
 	var result := GDSQLOperationResult.new()
 	result.value = _definitions[model_script]
 	return result
@@ -168,3 +171,26 @@ func _has_property(model: GDSQLModel, property_name: StringName) -> bool:
 		if StringName(property.get("name", "")) == property_name:
 			return true
 	return false
+
+
+func _refresh_inferred_relationships() -> void:
+	var no_relationships: Array[GDSQLRelationshipDefinition] = []
+	var definitions: Array[GDSQLModelDefinition] = []
+	for definition in _definitions.values():
+		definition.replace_inferred_relationships(no_relationships)
+		definitions.append(definition)
+	if _database_registry == null:
+		return
+	for definition in definitions:
+		var database_result := _database_registry.resolve_role(definition.database_role)
+		if not database_result.is_successful():
+			continue
+		var database := database_result.get_database()
+		if database == null or database.context == null or database.context.catalog == null:
+			continue
+		var catalog_database := database.context.catalog.get_database(database.database_name)
+		if catalog_database == null:
+			continue
+		definition.replace_inferred_relationships(
+			_relationship_inferrer.infer(definition, definitions, catalog_database),
+		)

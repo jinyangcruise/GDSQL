@@ -311,6 +311,7 @@ func show_model_assistant(
 		registration_name,
 		table,
 		_role_for_registration(registration_name),
+		_model_database_definition(registration_name, table.database_name),
 	)
 	_activate_document(key)
 
@@ -630,6 +631,23 @@ func _role_for_registration(registration_name: StringName) -> StringName:
 	return GDSQLDatabaseRegistry.CONTENT_ROLE
 
 
+func _model_database_definition(
+		registration_name: StringName,
+		database_name: StringName,
+) -> GDSQLDatabaseDefinition:
+	if _workbench == null or _workbench.active_session == null:
+		return null
+	var session := _workbench.active_session
+	if session.registration == null \
+			or session.registration.name != registration_name \
+			or session.catalog_snapshot == null:
+		return null
+	var resolved_name := database_name
+	if resolved_name == &"" and session.database != null:
+		resolved_name = session.database.database_name
+	return session.catalog_snapshot.get_database(resolved_name)
+
+
 func _refresh_table_documents(
 		inspection: GDSQLDatabaseInspection,
 		session: GDSQLWorkbenchSession,
@@ -673,7 +691,7 @@ func _refresh_table_documents(
 			continue
 		var document := _documents.get(key) as Control
 		if document != null:
-			document.call("refresh_table", table)
+			document.call("refresh_table", table, database)
 	for key in missing_keys:
 		_close_document_by_key(key)
 

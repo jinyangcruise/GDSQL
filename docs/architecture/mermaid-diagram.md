@@ -35,7 +35,8 @@ Models("`**Model API**
 *Static API:* Model.query(), Model.find(identity)
 *Query API:* where(), with(), order_by(), all(), first(), to_query_spec()
 *Instance API:* get_related(), save(), refresh(), delete()
-*Resolution:* ModelRegistry to DatabaseRegistry roles`")
+*Resolution:* ModelRegistry to DatabaseRegistry roles
+*Relationships:* Same-database foreign keys infer default navigation`")
 
 subgraph EditorFrontends["Editor workbench"]
 direction TB
@@ -547,7 +548,7 @@ Workbench -->|"build row mutations"| RowBatch
 RowBatch -->|"canonical queries in one transaction"| Database
 Workbench -->|"record successful batches"| MutationHistory
 MutationHistory -->|"next inverse mutation"| RowBatch
-ModelAssistant -.->|"generates project model scripts"| Models
+ModelAssistant -.->|"generates scripts · previews inferred relationships"| Models
 Persistence -->|"target.checkpoint()"| MemoryCheckpoint
 Transaction -->|"execute(query, shared session)"| Context
 QuerySpec -->|"execute(query) / prepare(query)"| Context
