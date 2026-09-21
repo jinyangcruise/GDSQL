@@ -162,8 +162,16 @@ func _refresh_snippet(_value: String = "") -> void:
 		_snippet.text = ""
 		%CopyRelationship.disabled = true
 		return
+	if not relationship_name.is_valid_identifier() \
+			or relationship_name != relationship_name.to_snake_case():
+		_snippet.text = ""
+		%RelationshipHelperStatus.text = (
+			"Use a snake_case reference name such as hero_content."
+		)
+		%CopyRelationship.disabled = true
+		return
 	_snippet.text = "\n".join([
-		"GDSQLRelationshipDefinition.belongs_to(",
+		"GDSQLRelationshipDefinition.references_one(",
 		"\t&\"%s\"," % relationship_name.c_escape(),
 		"\t%s," % target.model_class,
 		"\t&\"%s\"," % source_column.name,

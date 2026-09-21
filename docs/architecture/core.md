@@ -1910,6 +1910,12 @@ column changes the inverse to `has_one`. Model queries use the resulting typed
 definitions for explicit or eager loading, and graphical tooling can preview
 the same keys from catalog metadata.
 
+Cross-role navigation uses `references_one()` instead. The declaring model
+stores a stable identifier and the target model resolves it through its own
+logical role. The name deliberately describes navigation rather than ownership:
+it creates neither a physical cross-database foreign key nor an inverse
+relationship from immutable content into saved state.
+
 The model method remains the source of truth for custom or cross-role
 relationships:
 

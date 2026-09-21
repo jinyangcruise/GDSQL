@@ -68,7 +68,7 @@ selected = 0
 item_count = 4
 popup/item_0/text = "Content · read-only at runtime"
 popup/item_0/id = 0
-popup/item_1/text = "Save · mutable active slot"
+popup/item_1/text = "Saved state · mutable active slot"
 popup/item_1/id = 1
 popup/item_2/text = "Settings · mutable shared state"
 popup/item_2/id = 2
@@ -165,7 +165,7 @@ Relationships resolve through their target model roles:
 • definition · belongs to → content.heroes (hero_id → id)"
 autowrap_mode = 2
 
-[node name="CrossRoleHelper" parent="Layout/VScrollBar/VBoxContainer" instance=ExtResource("3_relationship_helper")]
+[node name="CrossRoleHelper" parent="Layout/VScrollBar/VBoxContainer" unique_id=815792181 instance=ExtResource("3_relationship_helper")]
 unique_name_in_owner = true
 layout_mode = 2
 

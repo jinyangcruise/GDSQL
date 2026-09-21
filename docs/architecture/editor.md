@@ -204,7 +204,7 @@ a shared setting, while each registration/database/table binding remembers its
 explicit user-model class name. A new binding starts empty and provides only a
 singular-name example; the editor does not silently choose a public class name.
 For save models, the assistant matches supported local identifier columns to
-typed content-model primary keys and produces a copyable `belongs_to()` entry.
+typed content-model primary keys and produces a copyable `references_one()` entry.
 This is model navigation only and never creates a cross-database catalog
 constraint.
 

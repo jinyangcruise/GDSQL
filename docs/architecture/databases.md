@@ -456,7 +456,10 @@ static func find(identity: Variant) -> GDSQLQueryResult:
 
 `GDSQLSaveModel` resolves through the `save` role and exposes mutable row
 operations. It does not manage save slots; the database registry determines
-which save name currently satisfies that role.
+which save name currently satisfies that role. The name means durable,
+slot-scoped saved state; transient scene, animation, physics, and combat state
+remain ordinary runtime objects unless the game explicitly needs to persist
+them.
 
 ```gdscript
 class_name InventoryEntry

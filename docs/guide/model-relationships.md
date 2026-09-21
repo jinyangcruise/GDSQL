@@ -98,7 +98,7 @@ save model that stores a content identifier declares only its own direction:
 ```gdscript
 func relationships() -> Array[GDSQLRelationshipDefinition]:
     return [
-        GDSQLRelationshipDefinition.belongs_to(
+        GDSQLRelationshipDefinition.references_one(
             &"hero",
             HeroContent,
             &"hero_id", # local save-model column
@@ -106,6 +106,11 @@ func relationships() -> Array[GDSQLRelationshipDefinition]:
     ]
 ```
 
-The third argument to `belongs_to()` is the local foreign-key property, not the
-content model's primary key. See [Content and Save Models](./content-save-models)
-for the complete role-separated example.
+The third argument to `references_one()` is the local stable-identifier
+property, not the content model's primary key. `belongs_to()` remains the
+conventional name for a database relationship where the declaring row owns the
+foreign-key column; `references_one()` avoids implying domain ownership across
+runtime roles. Neither declaration creates a cross-database constraint or an
+inverse relationship from content back to save data. See
+[Content and Save Models](./content-save-models) for the complete role-separated
+example and guidance for choosing a model role.

@@ -12,6 +12,35 @@ display_name = "Iron Sword"           quantity = 1
 The save stores a stable content identifier. It does not copy the item
 definition or its Resource references.
 
+## Choosing where data belongs
+
+A table owns stored schema and rows. A model adds typed behavior and selects a
+logical database role; it does not create, own, or synchronize a second copy of
+the table.
+
+| Data responsibility | Place it in | Model base |
+|---|---|---|
+| Authored definitions shared by every player, such as classes, items, base statistics, dialogue, and asset references | Content database | `GDSQLContentModel` |
+| Mutable state that belongs to one playthrough and must survive restarting the game, such as progression, inventory, customization, and quest choices | Active save database | `GDSQLSaveModel` |
+| Mutable preferences shared across save slots, such as audio, controls, accessibility, and language | Settings database | `GDSQLSettingsModel` |
+| Short-lived state that can be rebuilt, such as velocity, current animation, navigation targets, open menus, and temporary combat calculations | Scene nodes, resources, or other in-memory runtime objects | No database model by default |
+
+Use content when the answer is part of the game definition. Use a save model
+when the answer can differ by playthrough and must be restored later. Persisted
+state refers to content through stable identifiers; it does not duplicate the
+content row or its assets.
+
+For a character, `HeroContent` can contain the base class, allowed body types,
+default statistics, and visual definitions. `HeroSave` can contain the chosen
+body type ID, colors, progression, and equipped item IDs. The live character
+node still owns transient movement, animation, and combat state.
+
+`GDSQLSaveModel` is intentionally not named `StateModel`. Save data is one
+specific kind of state: mutable, slot-scoped, and durable. “State” also includes
+large amounts of transient runtime information that should not automatically be
+written to a database. In user-facing explanations, **saved state** is the
+clearest description; the API name preserves the persistence boundary.
+
 ## Model files
 
 The complete model scripts are available under
@@ -53,13 +82,13 @@ content database rather than calling `save()` on a materialized content model.
 
 ## Resolve content from save data
 
-The user-owned inventory model declares that its `item_id` belongs to the
+The user-owned inventory model declares that its `item_id` references the
 content item model:
 
 ```gdscript
 func relationships() -> Array[GDSQLRelationshipDefinition]:
     return [
-        GDSQLRelationshipDefinition.belongs_to(
+        GDSQLRelationshipDefinition.references_one(
             &"item",
             GDSQLExampleContentItem,
             &"item_id",
@@ -79,14 +108,17 @@ if result.is_successful():
 
 This is two role-scoped queries coordinated by the model layer, not a storage
 join or a transaction spanning two databases. The relationship target declares
-its own `content` role, so `belongs_to()` does not need a physical database path.
+its own `content` role, so `references_one()` does not need a physical database
+path. Unlike `belongs_to`, the name describes stable navigation without implying
+domain ownership or an inverse content-to-save relationship.
 
 For a generated save model, the Model Assistant exposes a **Save → content
 reference** helper. Choose the local identifier and a compatible content-model
-binding, then copy the generated `belongs_to()` entry into the user-owned
+binding, then copy the generated `references_one()` entry into the user-owned
 `relationships()` array. Only `int`, `String`, and `StringName` identifiers with
 matching target primary-key types are offered. The helper never creates a
-cross-database foreign key.
+cross-database foreign key. Reference names use snake_case, such as
+`item_content`; dots and display paths are not relationship names.
 
 Character customization follows the same pattern: store stable identifiers for
 base class, body type, or equipped definitions, and keep player-specific colors,

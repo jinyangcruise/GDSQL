@@ -12,7 +12,7 @@ static func find(identity: Variant) -> GDSQLQueryResult:
 
 func relationships() -> Array[GDSQLRelationshipDefinition]:
 	return [
-		GDSQLRelationshipDefinition.belongs_to(
+		GDSQLRelationshipDefinition.references_one(
 			&"item",
 			GDSQLExampleContentItem,
 			&"item_id",

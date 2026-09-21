@@ -422,7 +422,7 @@ through a registered junction model, validate every participating key, preserve
 junction associations while batching eager loads, and return typed related-model arrays.
 Cross-role references remain logical contracts resolved through database roles.
 For save models, the Model Assistant now matches supported local identifiers to
-content-model primary keys and copies the corresponding `belongs_to()` entry;
+content-model primary keys and copies the corresponding `references_one()` entry;
 it does not create a catalog constraint across databases.
 
 | Relationship delivery step | State |

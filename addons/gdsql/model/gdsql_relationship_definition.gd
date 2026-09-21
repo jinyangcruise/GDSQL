@@ -7,6 +7,7 @@ enum Kind {
 	HAS_ONE,
 	HAS_MANY,
 	MANY_TO_MANY,
+	REFERENCES_ONE,
 }
 
 var name: StringName
@@ -32,6 +33,22 @@ static func belongs_to(
 		related_model,
 		foreign_key,
 		owner_key,
+	)
+
+
+## Declares one stable reference resolved through the target model's role.
+static func references_one(
+		reference_name: StringName,
+		related_model: Script,
+		local_reference_key: StringName,
+		related_identity_key: StringName = &"id",
+) -> GDSQLRelationshipDefinition:
+	return GDSQLRelationshipDefinition.new(
+		reference_name,
+		Kind.REFERENCES_ONE,
+		related_model,
+		local_reference_key,
+		related_identity_key,
 	)
 
 

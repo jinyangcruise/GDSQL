@@ -243,7 +243,7 @@ func test_registry_rejects_an_unknown_many_to_many_junction_key() -> void:
 	)
 
 
-func test_belongs_to_eager_loads_a_model_from_another_database_role() -> void:
+func test_references_one_eager_loads_a_model_from_another_database_role() -> void:
 	var items := GDSQLTableDefinition.new(&"items", &"id")
 	items.add_column(GDSQLColumnDefinition.new(&"id", TYPE_STRING_NAME, false))
 	items.add_column(GDSQLColumnDefinition.new(&"display_name", TYPE_STRING, false))
@@ -283,9 +283,14 @@ func test_belongs_to_eager_loads_a_model_from_another_database_role() -> void:
 	var result := CrossRoleInventoryEntry.query().with(&"item").first()
 	var entry := result.get_value() as CrossRoleInventoryEntry
 	var item := entry.get_related(&"item") as CrossRoleContentItem
+	var definition := models.resolve_model(CrossRoleInventoryEntry).get_value() \
+			as GDSQLModelDefinition
 
 	assert_bool(result.is_successful()).is_true()
 	assert_str(item.display_name).is_equal("Iron Sword")
+	assert_int(definition.get_relationship(&"item").kind).is_equal(
+		GDSQLRelationshipDefinition.Kind.REFERENCES_ONE,
+	)
 
 
 func test_with_reports_an_unknown_relationship_name() -> void:
@@ -686,7 +691,7 @@ class CrossRoleInventoryEntry extends GDSQLSaveModel:
 
 	func relationships() -> Array[GDSQLRelationshipDefinition]:
 		return [
-			GDSQLRelationshipDefinition.belongs_to(
+			GDSQLRelationshipDefinition.references_one(
 				&"item",
 				CrossRoleContentItem,
 				&"item_id",
