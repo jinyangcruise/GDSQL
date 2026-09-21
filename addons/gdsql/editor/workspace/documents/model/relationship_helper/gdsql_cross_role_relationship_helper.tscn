@@ -1,0 +1,90 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.gd" id="1_helper"]
+
+[node name="CrossRoleHelper" type="PanelContainer"]
+script = ExtResource("1_helper")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 9
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 9
+
+[node name="Content" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="Margin/Content"]
+layout_mode = 2
+text = "Save → content reference"
+
+[node name="Description" type="Label" parent="Margin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
+text = "Keep the stable content identifier in the save table. This creates model navigation, not a cross-database constraint."
+autowrap_mode = 2
+
+[node name="Form" type="GridContainer" parent="Margin/Content"]
+layout_mode = 2
+columns = 2
+
+[node name="LocalColumnLabel" type="Label" parent="Margin/Content/Form"]
+layout_mode = 2
+text = "Save column"
+
+[node name="LocalReferenceColumn" type="OptionButton" parent="Margin/Content/Form"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+item_count = 1
+popup/item_0/text = "hero_id · int"
+popup/item_0/id = 0
+
+[node name="ContentTargetLabel" type="Label" parent="Margin/Content/Form"]
+layout_mode = 2
+text = "Content model"
+
+[node name="ContentTarget" type="OptionButton" parent="Margin/Content/Form"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+item_count = 1
+popup/item_0/text = "content / heroes · HeroContent"
+popup/item_0/id = 0
+
+[node name="RelationshipNameLabel" type="Label" parent="Margin/Content/Form"]
+layout_mode = 2
+text = "Relationship name"
+
+[node name="RelationshipName" type="LineEdit" parent="Margin/Content/Form"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "hero"
+placeholder_text = "hero"
+
+[node name="RelationshipSnippet" type="CodeEdit" parent="Margin/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 145)
+layout_mode = 2
+text = "GDSQLRelationshipDefinition.belongs_to(\n\t&\"hero\",\n\tHeroContent,\n\t&\"hero_id\",\n\t&\"id\",\n),"
+editable = false
+gutters_draw_line_numbers = true
+
+[node name="Actions" type="HBoxContainer" parent="Margin/Content"]
+layout_mode = 2
+
+[node name="RelationshipHelperStatus" type="Label" parent="Margin/Content/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "Paste this entry inside the save model's relationships() return array."
+autowrap_mode = 2
+
+[node name="CopyRelationship" type="Button" parent="Margin/Content/Actions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Copy Relationship"

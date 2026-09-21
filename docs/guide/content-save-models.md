@@ -81,6 +81,13 @@ This is two role-scoped queries coordinated by the model layer, not a storage
 join or a transaction spanning two databases. The relationship target declares
 its own `content` role, so `belongs_to()` does not need a physical database path.
 
+For a generated save model, the Model Assistant exposes a **Save → content
+reference** helper. Choose the local identifier and a compatible content-model
+binding, then copy the generated `belongs_to()` entry into the user-owned
+`relationships()` array. Only `int`, `String`, and `StringName` identifiers with
+matching target primary-key types are offered. The helper never creates a
+cross-database foreign key.
+
 Character customization follows the same pattern: store stable identifiers for
 base class, body type, or equipped definitions, and keep player-specific colors,
 sliders, names, and choices in save-model columns.

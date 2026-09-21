@@ -203,6 +203,10 @@ without adding cross-root foreign keys or joins. The project model root remains
 a shared setting, while each registration/database/table binding remembers its
 explicit user-model class name. A new binding starts empty and provides only a
 singular-name example; the editor does not silently choose a public class name.
+For save models, the assistant matches supported local identifier columns to
+typed content-model primary keys and produces a copyable `belongs_to()` entry.
+This is model navigation only and never creates a cross-database catalog
+constraint.
 
 Workspace documents and their reusable controls are separate scenes. The host
 owns tab identity, activation, and closure; each document owns only its local

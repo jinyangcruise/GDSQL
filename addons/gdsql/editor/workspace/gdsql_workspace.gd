@@ -306,12 +306,17 @@ func show_model_assistant(
 		)
 		document.connect("scripts_generated", _on_model_scripts_generated)
 		_add_document(key, "%s model" % table.name, document)
+	var role_bindings: Array[GDSQLDatabaseRoleBinding] = []
+	if _workbench != null:
+		role_bindings = _workbench.snapshot.role_bindings.duplicate()
 	document.call(
 		"configure",
 		registration_name,
 		table,
 		_role_for_registration(registration_name),
 		_model_database_definition(registration_name, table.database_name),
+		_database_inspections,
+		role_bindings,
 	)
 	_activate_document(key)
 
