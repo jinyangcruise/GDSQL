@@ -8,7 +8,10 @@ signal scripts_generated(generated_path: String, user_path: String)
 const SETTINGS_PATH := "res://.gdsql/settings.cfg"
 const SETTINGS_SECTION := "models"
 const SETTINGS_ROOT_KEY := "root"
+const SETTINGS_BINDING_PREFIX := "model_binding:"
+const SETTINGS_CLASS_KEY := "class_name"
 
+var _registration_name: StringName
 var _table: GDSQLTableDefinition
 var _database: GDSQLDatabaseDefinition
 var _source: GDSQLModelSource
@@ -36,11 +39,13 @@ func _ready() -> void:
 	_role.set_item_metadata(3, &"")
 	_model_class.text_changed.connect(_on_text_changed)
 	_model_root.text_changed.connect(_on_text_changed)
+	_model_class.focus_exited.connect(_save_preferences_if_valid)
+	_model_root.focus_exited.connect(_save_preferences_if_valid)
 	_custom_role.text_changed.connect(_on_text_changed)
 	_role.item_selected.connect(_on_role_selected)
 	%Generate.pressed.connect(_request_generation)
 	%CopyScaffold.pressed.connect(_copy_scaffold)
-	%Close.pressed.connect(close_requested.emit)
+	%Close.pressed.connect(_request_close)
 	%OverwriteConfirmation.confirmed.connect(_write_sources)
 	var filesystem := EditorInterface.get_resource_filesystem()
 	if not filesystem.filesystem_changed.is_connected(_on_filesystem_changed):
@@ -50,18 +55,20 @@ func _ready() -> void:
 
 
 func configure(
-		_registration_name: StringName,
+		registration_name: StringName,
 		table: GDSQLTableDefinition,
 		database_role: StringName = GDSQLDatabaseRegistry.CONTENT_ROLE,
 		database: GDSQLDatabaseDefinition = null,
 ) -> void:
+	_registration_name = registration_name
 	_table = table
 	_database = database
 	%Title.text = "Model binding · %s" % table.name
 	%TableValue.text = _table_identity(table)
-	_model_class.text = _suggest_class_name(String(table.name))
 	_model_root.text = _load_model_root()
 	_select_role(database_role)
+	_update_model_class_placeholder()
+	_model_class.text = _load_model_class()
 	_refresh_preview()
 
 
@@ -122,6 +129,7 @@ func _select_role(database_role: StringName) -> void:
 func _on_role_selected(index: int) -> void:
 	%CustomRoleRow.visible = index == 3
 	_custom_role.visible = index == 3
+	_update_model_class_placeholder()
 	_refresh_preview()
 
 
@@ -133,6 +141,25 @@ func _selected_role() -> StringName:
 	if _role.selected == 3:
 		return StringName(_custom_role.text.strip_edges())
 	return StringName(_role.get_item_metadata(_role.selected))
+
+
+func _update_model_class_placeholder() -> void:
+	if _table == null:
+		return
+	var example := _suggest_class_name(String(_table.name)) + _role_class_suffix()
+	_model_class.placeholder_text = "Use a singular class name, e.g. %s" % example
+
+
+func _role_class_suffix() -> String:
+	match _selected_role():
+		GDSQLDatabaseRegistry.CONTENT_ROLE:
+			return "Content"
+		GDSQLDatabaseRegistry.SAVE_ROLE:
+			return "Save"
+		GDSQLDatabaseRegistry.SETTINGS_ROLE:
+			return "Settings"
+		_:
+			return "Model"
 
 
 func _refresh_preview() -> void:
@@ -271,6 +298,20 @@ func _request_generation() -> void:
 	_write_sources()
 
 
+func _request_close() -> void:
+	_save_preferences_if_valid()
+	close_requested.emit()
+
+
+func _save_preferences_if_valid() -> void:
+	if _source == null:
+		return
+	var settings_error := _save_model_settings()
+	if settings_error != OK:
+		%Status.text = "The model settings could not be saved (error %d)." \
+				% settings_error
+
+
 func _write_sources() -> void:
 	if _source == null:
 		return
@@ -298,14 +339,14 @@ func _write_sources() -> void:
 					% user_error
 			return
 		user_created = true
-	var settings_error := _save_model_root(_model_root.text)
+	var settings_error := _save_model_settings()
 	var message := (
 			"Generated the schema base and created the user model."
 			if user_created
 			else "Regenerated the schema base. The user model was preserved."
 	)
 	if settings_error != OK:
-		message += " The models-folder setting could not be saved (error %d)." \
+		message += " The model settings could not be saved (error %d)." \
 				% settings_error
 	%Status.text = message
 	scripts_generated.emit(_source.generated_path, _source.user_path)
@@ -373,7 +414,29 @@ func _load_model_root() -> String:
 	)
 
 
-func _save_model_root(root: String) -> Error:
+func _load_model_class() -> String:
+	var config := ConfigFile.new()
+	if config.load(SETTINGS_PATH) != OK:
+		return ""
+	return String(
+		config.get_value(
+			_binding_section(),
+			SETTINGS_CLASS_KEY,
+			"",
+		),
+	)
+
+
+func _binding_section() -> String:
+	return "%s%s:%s:%s" % [
+		SETTINGS_BINDING_PREFIX,
+		_registration_name,
+		_table.database_name,
+		_table.name,
+	]
+
+
+func _save_model_settings() -> Error:
 	var directory_error := DirAccess.make_dir_recursive_absolute(
 		ProjectSettings.globalize_path(SETTINGS_PATH.get_base_dir()),
 	)
@@ -381,7 +444,12 @@ func _save_model_root(root: String) -> Error:
 		return directory_error
 	var config := ConfigFile.new()
 	config.load(SETTINGS_PATH)
-	config.set_value(SETTINGS_SECTION, SETTINGS_ROOT_KEY, root.strip_edges())
+	config.set_value(SETTINGS_SECTION, SETTINGS_ROOT_KEY, _model_root.text.strip_edges())
+	config.set_value(
+		_binding_section(),
+		SETTINGS_CLASS_KEY,
+		_model_class.text.strip_edges(),
+	)
 	return config.save(SETTINGS_PATH)
 
 

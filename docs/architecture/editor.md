@@ -199,7 +199,10 @@ authoritative `TableDefinition`. It never instantiates the project-owned model
 or executes its methods in the editor. Runtime registration remains responsible
 for executable metadata and explicit relationship validation. The assistant
 shows catalog-inferred relationships separately, making navigation explicit
-without adding cross-root foreign keys or joins.
+without adding cross-root foreign keys or joins. The project model root remains
+a shared setting, while each registration/database/table binding remembers its
+explicit user-model class name. A new binding starts empty and provides only a
+singular-name example; the editor does not silently choose a public class name.
 
 Workspace documents and their reusable controls are separate scenes. The host
 owns tab identity, activation, and closure; each document owns only its local

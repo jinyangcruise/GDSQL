@@ -236,7 +236,9 @@ model against the authoritative table and reports generated-base, role, and
 property mismatches through static script metadata. It never instantiates the
 user model or executes `relationships()` in the editor; the runtime registry
 validates executable metadata and explicit relationships. The assistant displays
-catalog-inferred relationships separately. The pure source builder and static
+catalog-inferred relationships separately. New bindings require an explicit
+singular class name, remember it per registration/database/table, and share the
+project-wide model root. The pure source builder and static
 compatibility inspector have focused tests. The runtime guide and executable
 example models now cover authored
 content lookup, a save model resolving a stable content identifier through a
