@@ -14,6 +14,9 @@ var _database: GDSQLDatabaseDefinition
 var _source: GDSQLModelSource
 var _generator := GDSQLModelSourceGenerator.new()
 var _compatibility_inspector := GDSQLModelCompatibilityInspector.new()
+var _refresh_after_filesystem_scan := false
+var _filesystem_retry_active := false
+var _last_reported_script_error := ""
 
 @onready var _model_class: LineEdit = %ModelClass
 @onready var _role: OptionButton = %Role
@@ -36,8 +39,14 @@ func _ready() -> void:
 	_custom_role.text_changed.connect(_on_text_changed)
 	_role.item_selected.connect(_on_role_selected)
 	%Generate.pressed.connect(_request_generation)
+	%CopyScaffold.pressed.connect(_copy_scaffold)
 	%Close.pressed.connect(close_requested.emit)
 	%OverwriteConfirmation.confirmed.connect(_write_sources)
+	var filesystem := EditorInterface.get_resource_filesystem()
+	if not filesystem.filesystem_changed.is_connected(_on_filesystem_changed):
+		filesystem.filesystem_changed.connect(_on_filesystem_changed)
+	if not filesystem.script_classes_updated.is_connected(_on_filesystem_changed):
+		filesystem.script_classes_updated.connect(_on_filesystem_changed)
 
 
 func configure(
@@ -186,20 +195,39 @@ func _refresh_compatibility(user_exists: bool) -> void:
 		model_script,
 		_table,
 		_selected_role(),
+		_source.generated_path,
 	)
-	%CompatibilityStatus.text = "COMPATIBLE" if report.is_compatible() else "NEEDS UPDATE"
+	var script_error := _has_diagnostic(
+		report,
+		&"GDSQL_MODEL_COMPATIBILITY_SCRIPT_UNAVAILABLE",
+	)
+	%CompatibilityStatus.text = (
+		"COMPATIBLE"
+		if report.is_compatible()
+		else "SCRIPT ERROR" if script_error else "NEEDS UPDATE"
+	)
 	%CompatibilityStatus.modulate = (
-			Color(0.42, 0.82, 0.55) if report.is_compatible() else Color(1.0, 0.55, 0.42)
+		Color(0.42, 0.82, 0.55)
+		if report.is_compatible()
+		else Color(1.0, 0.4, 0.4) if script_error else Color(1.0, 0.68, 0.32)
 	)
+	_report_script_error(report, script_error)
 	var lines: Array[String] = []
 	for diagnostic in report.diagnostics.entries:
 		lines.append("• %s" % diagnostic.message)
-	if not report.relationship_summaries.is_empty():
-		lines.append("Custom model relationships:")
-		for summary in report.relationship_summaries:
-			lines.append("• %s" % summary)
+	if script_error:
+		lines.append("See Godot Output for the reported script error and source path.")
 	lines.append_array(_catalog_relationship_lines())
 	%CompatibilityDetails.text = "\n".join(lines)
+
+
+func _copy_scaffold() -> void:
+	if _source == null:
+		return
+	DisplayServer.clipboard_set(_source.user_source)
+	%Status.text = (
+		"Copied a clean user-model scaffold. The existing model file was not changed."
+	)
 
 
 func _set_compatibility_unavailable(message: String) -> void:
@@ -220,7 +248,10 @@ func _catalog_relationship_lines() -> Array[String]:
 		lines.append("No same-database relationships inferred from foreign keys.")
 		return lines
 	lines.append(
-		"Catalog relationships · active when both model types are registered:",
+		"Catalog relationships · inferred when both model types are registered; no relationship code is written:",
+	)
+	lines.append(
+		"No relationship code is required for these edges; an empty relationships() method avoids duplicate declarations.",
 	)
 	for relationship in relationships:
 		lines.append("• %s" % relationship)
@@ -268,7 +299,6 @@ func _write_sources() -> void:
 			return
 		user_created = true
 	var settings_error := _save_model_root(_model_root.text)
-	EditorInterface.get_resource_filesystem().scan()
 	var message := (
 			"Generated the schema base and created the user model."
 			if user_created
@@ -279,6 +309,41 @@ func _write_sources() -> void:
 				% settings_error
 	%Status.text = message
 	scripts_generated.emit(_source.generated_path, _source.user_path)
+	_refresh_after_filesystem_scan = true
+	%CompatibilityStatus.text = "UPDATING"
+	%CompatibilityStatus.modulate = Color(0.62, 0.67, 0.74)
+	%CompatibilityDetails.text = "Waiting for Godot to import the generated scripts."
+	EditorInterface.get_resource_filesystem().scan()
+	_on_filesystem_changed()
+
+
+func _on_filesystem_changed() -> void:
+	if _filesystem_retry_active:
+		return
+	if _refresh_after_filesystem_scan:
+		_filesystem_retry_active = true
+		_finish_filesystem_refresh()
+		return
+	if is_node_ready() and _table != null:
+		_refresh_preview()
+
+
+func _finish_filesystem_refresh() -> void:
+	for _attempt in 30:
+		await get_tree().create_timer(0.1).timeout
+		if not _refresh_after_filesystem_scan:
+			break
+		var model_script := ResourceLoader.load(
+			_source.user_path,
+			"Script",
+			ResourceLoader.CACHE_MODE_REPLACE,
+		) as Script
+		if model_script != null:
+			_refresh_after_filesystem_scan = false
+			break
+	_filesystem_retry_active = false
+	if _refresh_after_filesystem_scan:
+		_refresh_after_filesystem_scan = false
 	_refresh_preview()
 
 
@@ -324,3 +389,31 @@ func _first_diagnostic(result: GDSQLOperationResult, fallback: String) -> String
 	if result != null and not result.diagnostics.entries.is_empty():
 		return result.diagnostics.entries[0].message
 	return fallback
+
+
+func _has_diagnostic(
+		report: GDSQLModelCompatibilityReport,
+		code: StringName,
+) -> bool:
+	for diagnostic in report.diagnostics.entries:
+		if diagnostic.code == code:
+			return true
+	return false
+
+
+func _report_script_error(
+		report: GDSQLModelCompatibilityReport,
+		is_script_error: bool,
+) -> void:
+	if not is_script_error:
+		_last_reported_script_error = ""
+		return
+	var messages: Array[String] = []
+	for diagnostic in report.diagnostics.entries:
+		if diagnostic.severity == GDSQLQueryDiagnostic.Severity.ERROR:
+			messages.append("[%s] %s" % [diagnostic.code, diagnostic.message])
+	var error_text := "%s: %s" % [_source.user_path, " ".join(messages)]
+	if error_text == _last_reported_script_error:
+		return
+	_last_reported_script_error = error_text
+	push_error("[GDSQL] Model compatibility script error · %s" % error_text)

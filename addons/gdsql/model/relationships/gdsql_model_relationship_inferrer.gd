@@ -17,6 +17,10 @@ func infer(
 		return inferred
 
 	for foreign_key in table.foreign_keys:
+		var matching_target_count := _foreign_keys_to(
+			table,
+			foreign_key.referenced_table,
+		).size()
 		var related := _find_model(
 			definitions,
 			definition.database_role,
@@ -30,7 +34,7 @@ func infer(
 		):
 			inferred.append(
 				GDSQLRelationshipDefinition.belongs_to(
-					_belongs_to_name(foreign_key),
+					_belongs_to_name(foreign_key, matching_target_count),
 					related.model_script,
 					foreign_key.column,
 					foreign_key.referenced_column,
@@ -81,9 +85,13 @@ static func describe(
 	if table == null or database == null:
 		return descriptions
 	for foreign_key in table.foreign_keys:
+		var matching_target_count := _foreign_keys_to(
+			table,
+			foreign_key.referenced_table,
+		).size()
 		descriptions.append(
 			"belongs_to %s · %s → %s.%s" % [
-				_belongs_to_name(foreign_key),
+				_belongs_to_name(foreign_key, matching_target_count),
 				foreign_key.column,
 				foreign_key.referenced_table,
 				foreign_key.referenced_column,
@@ -150,7 +158,12 @@ static func _foreign_keys_to(
 	return matches
 
 
-static func _belongs_to_name(foreign_key: GDSQLForeignKeyDefinition) -> StringName:
+static func _belongs_to_name(
+		foreign_key: GDSQLForeignKeyDefinition,
+		matching_target_count: int = 1,
+) -> StringName:
+	if matching_target_count <= 1:
+		return StringName(_singularize(String(foreign_key.referenced_table)))
 	var local_name := String(foreign_key.column)
 	if local_name.ends_with("_id"):
 		local_name = local_name.trim_suffix("_id")
@@ -171,7 +184,7 @@ static func _inverse_name(
 	)
 	if matching_key_count <= 1:
 		return StringName(table_name)
-	return StringName("%s_%s" % [_belongs_to_name(foreign_key), table_name])
+	return StringName("%s_%s" % [_belongs_to_name(foreign_key, 2), table_name])
 
 
 static func _singularize(value: String) -> String:

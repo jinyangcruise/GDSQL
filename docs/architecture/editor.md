@@ -193,12 +193,13 @@ deletes durable player data; destructive slot deletion requires a separate
 confirmed workflow.
 
 The model assistant loads an existing user-owned model only for read-only
-inspection. `ModelCompatibilityInspector` registers its declared metadata,
-compares role, table, primary key, and reflected property types with the
-authoritative `TableDefinition`, and returns a typed report with structured
-diagnostics. Relationship summaries show `relationship → role.table` and key
-mapping, making cross-database navigation explicit without adding cross-root
-foreign keys or joins.
+inspection. `ModelCompatibilityInspector` uses static Script metadata to compare
+the generated-base path, role inheritance, and property types with the
+authoritative `TableDefinition`. It never instantiates the project-owned model
+or executes its methods in the editor. Runtime registration remains responsible
+for executable metadata and explicit relationship validation. The assistant
+shows catalog-inferred relationships separately, making navigation explicit
+without adding cross-root foreign keys or joins.
 
 Workspace documents and their reusable controls are separate scenes. The host
 owns tab identity, activation, and closure; each document owns only its local

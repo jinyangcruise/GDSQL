@@ -1,7 +1,7 @@
 class_name GDSQLModelCompatibilityInspectorTest
 extends GdUnitTestSuite
 
-func test_compatible_model_matches_table_identity_and_properties() -> void:
+func test_compatible_model_matches_role_and_properties_without_instantiation() -> void:
 	var report := GDSQLModelCompatibilityInspector.new().inspect(
 		CompatibleHero,
 		_hero_table(),
@@ -9,8 +9,6 @@ func test_compatible_model_matches_table_identity_and_properties() -> void:
 	)
 
 	assert_bool(report.is_compatible()).is_true()
-	assert_object(report.definition).is_not_null()
-	assert_array(report.relationship_summaries).is_empty()
 
 
 func test_reports_missing_and_incompatible_properties() -> void:
@@ -30,7 +28,7 @@ func test_reports_missing_and_incompatible_properties() -> void:
 	)
 
 
-func test_reports_model_identity_mismatches() -> void:
+func test_reports_role_inheritance_mismatch() -> void:
 	var report := GDSQLModelCompatibilityInspector.new().inspect(
 		WrongIdentityHero,
 		_hero_table(),
@@ -39,24 +37,31 @@ func test_reports_model_identity_mismatches() -> void:
 	var codes := _diagnostic_codes(report)
 
 	assert_array(codes).contains(
-		[
-			&"GDSQL_MODEL_COMPATIBILITY_ROLE_MISMATCH",
-			&"GDSQL_MODEL_COMPATIBILITY_TABLE_MISMATCH",
-			&"GDSQL_MODEL_COMPATIBILITY_PRIMARY_KEY_MISMATCH",
-		],
+		[&"GDSQL_MODEL_COMPATIBILITY_ROLE_MISMATCH"],
 	)
 
 
-func test_relationship_summary_exposes_the_related_database_role() -> void:
+func test_does_not_execute_user_relationship_declarations() -> void:
 	var report := GDSQLModelCompatibilityInspector.new().inspect(
-		SaveHero,
-		_save_hero_table(),
-		GDSQLDatabaseRegistry.SAVE_ROLE,
+		RelationshipDeclarationIsRuntimeOnly,
+		_hero_table(),
+		GDSQLDatabaseRegistry.CONTENT_ROLE,
 	)
 
 	assert_bool(report.is_compatible()).is_true()
-	assert_str(report.relationship_summaries[0]).contains("content.heroes")
-	assert_str(report.relationship_summaries[0]).contains("hero_id → id")
+
+
+func test_reports_a_specific_error_when_the_script_is_unavailable() -> void:
+	var report := GDSQLModelCompatibilityInspector.new().inspect(
+		null,
+		_hero_table(),
+		GDSQLDatabaseRegistry.CONTENT_ROLE,
+	)
+
+	assert_bool(report.is_compatible()).is_false()
+	assert_array(_diagnostic_codes(report)).contains(
+		[&"GDSQL_MODEL_COMPATIBILITY_SCRIPT_UNAVAILABLE"],
+	)
 
 
 func _diagnostic_codes(report: GDSQLModelCompatibilityReport) -> Array[StringName]:
@@ -71,13 +76,6 @@ func _hero_table() -> GDSQLTableDefinition:
 	table.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false))
 	table.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
 	table.add_column(GDSQLColumnDefinition.new(&"level", TYPE_INT, false))
-	return table
-
-
-func _save_hero_table() -> GDSQLTableDefinition:
-	var table := GDSQLTableDefinition.new(&"hero_state", &"id")
-	table.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false))
-	table.add_column(GDSQLColumnDefinition.new(&"hero_id", TYPE_INT, false))
 	return table
 
 
@@ -114,20 +112,16 @@ class WrongIdentityHero extends GDSQLSaveModel:
 		return &"uuid"
 
 
-class SaveHero extends GDSQLSaveModel:
+class RelationshipDeclarationIsRuntimeOnly extends GDSQLContentModel:
 	var id: int
-	var hero_id: int
+	var name: String
+	var level: int
 
 
 	func table_name() -> StringName:
-		return &"hero_state"
+		return &"heroes"
 
 
 	func relationships() -> Array[GDSQLRelationshipDefinition]:
-		return [
-			GDSQLRelationshipDefinition.belongs_to(
-				&"definition",
-				CompatibleHero,
-				&"hero_id",
-			),
-		]
+		assert(false, "Editor compatibility must not execute user model methods.")
+		return []

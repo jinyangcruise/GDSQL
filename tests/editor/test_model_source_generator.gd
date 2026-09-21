@@ -27,6 +27,11 @@ func test_builds_separate_generated_and_user_owned_content_scripts() -> void:
 	assert_str(source.user_source).contains(
 		"extends \"res://models/generated/hero_model_generated.gd\"",
 	)
+	assert_str(source.user_source).contains(
+		"func relationships() -> Array[GDSQLRelationshipDefinition]:\n"
+		+ "\t# Same-database foreign-key relationships are inferred at registration.\n"
+		+ "\treturn []",
+	)
 	assert_str(source.user_source).contains("GDSQLModels.query(Hero)")
 
 

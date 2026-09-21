@@ -232,10 +232,13 @@ assistant. It previews a generated schema base and a user-owned subclass,
 infers the registration's bound role, permits an explicit custom role and model
 root, and never replaces the user script. Existing generated bases require
 confirmation before regeneration. The assistant also inspects an existing user
-model against the authoritative table, reports identity/property mismatches,
-validates relationship declarations, and displays each related model's logical
-role and table. The pure source builder and compatibility inspector have focused
-tests. The runtime guide and executable example models now cover authored
+model against the authoritative table and reports generated-base, role, and
+property mismatches through static script metadata. It never instantiates the
+user model or executes `relationships()` in the editor; the runtime registry
+validates executable metadata and explicit relationships. The assistant displays
+catalog-inferred relationships separately. The pure source builder and static
+compatibility inspector have focused tests. The runtime guide and executable
+example models now cover authored
 content lookup, a save model resolving a stable content identifier through a
 cross-role relationship, and fresh model queries after save-slot switching.
 Focused integration tests exercise all three flows against separate databases.
@@ -267,9 +270,9 @@ model script -X-> catalog mutation
 ```
 
 Before writing a script, show its destination and generated source. Never
-overwrite a user script without explicit confirmation. Add read-only
-compatibility diagnostics for missing properties, incompatible types, primary
-key mismatches, and invalid relationships.
+overwrite a user script without explicit confirmation. Keep editor compatibility
+inspection static: check the generated base, role inheritance, and typed
+properties without executing project-owned model code.
 
 The first integration guide should contain three complete examples:
 
@@ -415,6 +418,15 @@ rewritten, and the model assistant previews the inferred edges directly from
 the catalog. Next, add an explicit many-to-many/through contract and cross-role
 `save` → `content` references; cross-role references remain logical contracts
 resolved through database roles.
+
+| Relationship delivery step | State |
+|---|---|
+| Same-role `belongs_to`, `has_one`, and `has_many` catalog inference | Implemented |
+| Empty relationship scaffold, compatibility guidance, and copyable clean model scaffold | Implemented |
+| Same-role registration and eager-loading micro guide | Implemented |
+| Explicit many-to-many/through contract | Next |
+| Assisted cross-role `save` → `content` declarations | Planned |
+| Relationship-aware editor content preview | Planned |
 
 ### 11. Improve nested typed WHERE interactions
 

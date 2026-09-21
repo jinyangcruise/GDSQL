@@ -23,7 +23,7 @@ var is_foreign := false
 static func create_new(primary: bool = false) -> GDSQLEditorColumnDraft:
 	var draft := GDSQLEditorColumnDraft.new()
 	draft.name = "id" if primary else ""
-	draft.nullable = not primary
+	draft.nullable = false
 	draft.unique = primary
 	draft.auto_increment = primary
 	draft.is_primary = primary
@@ -31,8 +31,8 @@ static func create_new(primary: bool = false) -> GDSQLEditorColumnDraft:
 
 
 static func from_definition(
-		column: GDSQLColumnDefinition,
-		primary: bool = false,
+	column: GDSQLColumnDefinition,
+	primary: bool = false,
 ) -> GDSQLEditorColumnDraft:
 	var draft := GDSQLEditorColumnDraft.new()
 	draft.original = column
@@ -40,9 +40,9 @@ static func from_definition(
 	draft.data_type = column.data_type
 	draft.resource_type = column.resource_type
 	draft.resource_prototype = (
-			column.resource_type.instantiate_prototype()
-			if column.resource_type != null
-			else null
+		column.resource_type.instantiate_prototype()
+		if column.resource_type != null
+		else null
 	)
 	draft.nullable = column.nullable
 	draft.unique = column.unique
@@ -117,13 +117,9 @@ func build_alterations() -> Array[GDSQLTableAlteration]:
 	elif original.has_default():
 		alterations.append(GDSQLTableAlteration.clear_column_default(original.name))
 	if generation != original.generation:
-		alterations.append(
-			GDSQLTableAlteration.set_column_generation(original.name, generation),
-		)
+		alterations.append(GDSQLTableAlteration.set_column_generation(original.name, generation))
 	if get_column_name() != original.name:
-		alterations.append(
-			GDSQLTableAlteration.rename_column(original.name, get_column_name()),
-		)
+		alterations.append(GDSQLTableAlteration.rename_column(original.name, get_column_name()))
 	return alterations
 
 

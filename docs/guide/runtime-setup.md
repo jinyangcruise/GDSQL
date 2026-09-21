@@ -119,5 +119,6 @@ explicit checkpoint result succeeds without an additional write. Call
 context. When using `GDSQLRuntimeNode`, `checkpoint_now()` performs an explicit
 dirty checkpoint and `stop()` checkpoints before releasing the session.
 
-Continue with [Content and Save Models](./content-save-models) for the complete
+Continue with [Model Relationships](./model-relationships) for catalog-inferred
+navigation and [Content and Save Models](./content-save-models) for the complete
 role-separated model and save-slot example.

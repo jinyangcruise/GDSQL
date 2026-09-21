@@ -260,6 +260,27 @@ func test_registry_infers_has_one_when_foreign_key_is_unique() -> void:
 	assert_object(hero.get_related(&"profile")).is_instanceof(InferredProfile)
 
 
+func test_inferred_belongs_to_name_uses_unambiguous_target_table() -> void:
+	var heroes := GDSQLTableDefinition.new(&"heroes", &"id")
+	var something := GDSQLTableDefinition.new(&"something", &"id")
+	something.add_foreign_key(
+		GDSQLForeignKeyDefinition.new(
+			&"fk_something_heroe",
+			&"heroe_id",
+			&"heroes",
+			&"id",
+		),
+	)
+	var database := GDSQLDatabaseDefinition.new()
+	database.tables.assign([heroes, something])
+
+	var descriptions := GDSQLModelRelationshipInferrer.describe(something, database)
+
+	assert_bool(
+		descriptions.has("belongs_to hero · heroe_id → heroes.id"),
+	).is_true()
+
+
 func _create_context(
 		database: GDSQLDatabase,
 		model_script: Script,
