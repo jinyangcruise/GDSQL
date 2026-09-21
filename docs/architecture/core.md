@@ -1921,15 +1921,33 @@ func relationships() -> Array[GDSQLRelationshipDefinition]:
             Skill,
             &"hero_id",
         ),
-    ]
+]
 ```
+
+Many-to-many navigation is also explicit. It names a registered junction model
+and the two junction properties that connect the source and target identities:
+
+```gdscript
+GDSQLRelationshipDefinition.many_to_many(
+    &"tags",
+    TagContent,
+    HeroTagContent,
+    &"hero_id",
+    &"tag_id",
+)
+```
+
+Eager loading resolves the source, junction, and related models independently
+through their logical roles. The junction remains a normal model so projects
+can query relationship-owned fields directly when needed. Registration validates
+the source, target, and two junction properties without changing catalog structure.
 
 Registration captures and validates these definitions by relationship name.
 Declared names take precedence over inferred names, so user behavior remains
 stable and generated or user-owned scripts do not need to be rewritten when a
 catalog relationship is added.
-`with(&"skills")` performs a separate batched model query through the related
-model's logical role and attaches the result to each materialized model.
+`with(&"skills")` performs separate batched model queries through the related
+models' logical roles and attaches the result to each materialized model.
 `get_related(&"skills")` returns the loaded model, model array, or null, while
 `is_relationship_loaded(&"skills")` distinguishes an unloaded relationship
 from an empty result. Early graphical tooling may inspect this metadata while

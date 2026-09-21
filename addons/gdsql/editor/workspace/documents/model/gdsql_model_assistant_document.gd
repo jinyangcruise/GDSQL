@@ -10,10 +10,13 @@ const SETTINGS_SECTION := "models"
 const SETTINGS_ROOT_KEY := "root"
 const SETTINGS_BINDING_PREFIX := "model_binding:"
 const SETTINGS_CLASS_KEY := "class_name"
+const SETTINGS_ROLE_KEY := "role"
 
 var _registration_name: StringName
 var _table: GDSQLTableDefinition
 var _database: GDSQLDatabaseDefinition
+var _inspections: Array[GDSQLDatabaseInspection] = []
+var _role_bindings: Array[GDSQLDatabaseRoleBinding] = []
 var _source: GDSQLModelSource
 var _generator := GDSQLModelSourceGenerator.new()
 var _compatibility_inspector := GDSQLModelCompatibilityInspector.new()
@@ -59,10 +62,14 @@ func configure(
 		table: GDSQLTableDefinition,
 		database_role: StringName = GDSQLDatabaseRegistry.CONTENT_ROLE,
 		database: GDSQLDatabaseDefinition = null,
+		inspections: Array[GDSQLDatabaseInspection] = [],
+		role_bindings: Array[GDSQLDatabaseRoleBinding] = [],
 ) -> void:
 	_registration_name = registration_name
 	_table = table
 	_database = database
+	_inspections = inspections.duplicate()
+	_role_bindings = role_bindings.duplicate()
 	%Title.text = "Model binding · %s" % table.name
 	%TableValue.text = _table_identity(table)
 	_model_root.text = _load_model_root()
@@ -70,6 +77,7 @@ func configure(
 	_update_model_class_placeholder()
 	_model_class.text = _load_model_class()
 	_refresh_preview()
+	_refresh_cross_role_helper()
 
 
 func refresh_table(
@@ -83,6 +91,7 @@ func refresh_table(
 	%Title.text = "Model binding · %s" % table.name
 	%TableValue.text = _table_identity(table)
 	_refresh_preview()
+	_refresh_cross_role_helper()
 
 
 func _table_identity(table: GDSQLTableDefinition) -> String:
@@ -131,6 +140,7 @@ func _on_role_selected(index: int) -> void:
 	_custom_role.visible = index == 3
 	_update_model_class_placeholder()
 	_refresh_preview()
+	_refresh_cross_role_helper()
 
 
 func _on_text_changed(_value: String) -> void:
@@ -160,6 +170,14 @@ func _role_class_suffix() -> String:
 			return "Settings"
 		_:
 			return "Model"
+
+
+func _refresh_cross_role_helper() -> void:
+	if not is_node_ready():
+		return
+	%CrossRoleHelper.visible = _selected_role() == GDSQLDatabaseRegistry.SAVE_ROLE
+	if %CrossRoleHelper.visible:
+		%CrossRoleHelper.configure(_table, _inspections, _role_bindings)
 
 
 func _refresh_preview() -> void:
@@ -273,15 +291,18 @@ func _catalog_relationship_lines() -> Array[String]:
 	)
 	if relationships.is_empty():
 		lines.append("No same-database relationships inferred from foreign keys.")
-		return lines
+	else:
+		lines.append(
+			"Catalog relationships · inferred when both model types are registered; no relationship code is written:",
+		)
+		lines.append(
+			"No relationship code is required for these edges; an empty relationships() method avoids duplicate declarations.",
+		)
+		for relationship in relationships:
+			lines.append("• %s" % relationship)
 	lines.append(
-		"Catalog relationships · inferred when both model types are registered; no relationship code is written:",
+		"Many-to-many and cross-role relationships are declared explicitly in relationships().",
 	)
-	lines.append(
-		"No relationship code is required for these edges; an empty relationships() method avoids duplicate declarations.",
-	)
-	for relationship in relationships:
-		lines.append("• %s" % relationship)
 	return lines
 
 
@@ -415,24 +436,42 @@ func _load_model_root() -> String:
 
 
 func _load_model_class() -> String:
+	return _load_binding_value(
+		_registration_name,
+		_table.database_name,
+		_table.name,
+		SETTINGS_CLASS_KEY,
+	)
+
+
+func _load_binding_value(
+		registration_name: StringName,
+		database_name: StringName,
+		table_name: StringName,
+		key: String,
+) -> String:
 	var config := ConfigFile.new()
 	if config.load(SETTINGS_PATH) != OK:
 		return ""
 	return String(
 		config.get_value(
-			_binding_section(),
-			SETTINGS_CLASS_KEY,
+			_binding_section(registration_name, database_name, table_name),
+			key,
 			"",
 		),
 	)
 
 
-func _binding_section() -> String:
+func _binding_section(
+		registration_name: StringName,
+		database_name: StringName,
+		table_name: StringName,
+) -> String:
 	return "%s%s:%s:%s" % [
 		SETTINGS_BINDING_PREFIX,
-		_registration_name,
-		_table.database_name,
-		_table.name,
+		registration_name,
+		database_name,
+		table_name,
 	]
 
 
@@ -445,11 +484,17 @@ func _save_model_settings() -> Error:
 	var config := ConfigFile.new()
 	config.load(SETTINGS_PATH)
 	config.set_value(SETTINGS_SECTION, SETTINGS_ROOT_KEY, _model_root.text.strip_edges())
+	var binding_section := _binding_section(
+		_registration_name,
+		_table.database_name,
+		_table.name,
+	)
 	config.set_value(
-		_binding_section(),
+		binding_section,
 		SETTINGS_CLASS_KEY,
 		_model_class.text.strip_edges(),
 	)
+	config.set_value(binding_section, SETTINGS_ROLE_KEY, _selected_role())
 	return config.save(SETTINGS_PATH)
 
 

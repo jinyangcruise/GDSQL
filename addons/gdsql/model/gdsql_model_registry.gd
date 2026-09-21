@@ -163,6 +163,45 @@ func _validate_relationship(
 				relationship.related_key,
 			],
 		)
+	if relationship.kind == GDSQLRelationshipDefinition.Kind.MANY_TO_MANY:
+		return _validate_through_relationship(relationship)
+	return GDSQLOperationResult.new()
+
+
+func _validate_through_relationship(
+		relationship: GDSQLRelationshipDefinition,
+) -> GDSQLOperationResult:
+	if relationship.through_local_key == &"" \
+			or relationship.through_related_key == &"":
+		return _failure(
+			&"GDSQL_MODEL_RELATIONSHIP_THROUGH_KEY_REQUIRED",
+			"Many-to-many relationship '%s' must declare both junction keys." \
+					% relationship.name,
+		)
+	var through_script := relationship.through_model_script
+	if through_script == null or not through_script.can_instantiate():
+		return _failure(
+			&"GDSQL_MODEL_RELATIONSHIP_THROUGH_MODEL_REQUIRED",
+			"Many-to-many relationship '%s' requires a concrete junction model." \
+					% relationship.name,
+		)
+	var candidate: Variant = through_script.new()
+	if not candidate is GDSQLModel:
+		return _failure(
+			&"GDSQL_MODEL_RELATIONSHIP_THROUGH_MODEL_REQUIRED",
+			"The junction script for '%s' must extend GDSQLModel." \
+					% relationship.name,
+		)
+	var through_model := candidate as GDSQLModel
+	for key in [relationship.through_local_key, relationship.through_related_key]:
+		if not _has_property(through_model, key):
+			return _failure(
+				&"GDSQL_MODEL_RELATIONSHIP_THROUGH_KEY_UNKNOWN",
+				"Many-to-many relationship '%s' references unknown junction key '%s'." % [
+					relationship.name,
+					key,
+				],
+			)
 	return GDSQLOperationResult.new()
 
 

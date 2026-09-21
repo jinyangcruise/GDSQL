@@ -204,6 +204,90 @@ func test_with_eager_loads_belongs_to_relationships() -> void:
 	assert_int(third_hero.id).is_equal(2)
 
 
+func test_with_eager_loads_many_to_many_relationships_through_a_model() -> void:
+	var database := _create_many_to_many_database()
+	var context := _create_many_to_many_context(database)
+	GDSQLModels.configure(context)
+
+	var result := ManyToManyHero.query().order_by(&"id").with(&"tags").all()
+	var heroes: Array = result.get_value()
+	var knight_tags: Array = heroes[0].get_related(&"tags")
+	var mage_tags: Array = heroes[1].get_related(&"tags")
+	var rogue_tags: Array = heroes[2].get_related(&"tags")
+	var knight_labels := knight_tags.map(
+		func(tag: ManyToManyTag) -> String: return tag.label,
+	)
+	var definition := context.resolve_model(ManyToManyHero).get_value() \
+			as GDSQLModelDefinition
+	var relationship := definition.get_relationship(&"tags")
+
+	assert_bool(result.is_successful()).is_true()
+	assert_int(relationship.kind).is_equal(
+		GDSQLRelationshipDefinition.Kind.MANY_TO_MANY,
+	)
+	assert_bool(heroes[0].is_relationship_loaded(&"tags")).is_true()
+	assert_int(knight_tags.size()).is_equal(2)
+	assert_bool(knight_labels.has("Melee")).is_true()
+	assert_bool(knight_labels.has("Rare")).is_true()
+	assert_int(mage_tags.size()).is_equal(1)
+	assert_str(mage_tags[0].label).is_equal("Magic")
+	assert_bool(rogue_tags.is_empty()).is_true()
+
+
+func test_registry_rejects_an_unknown_many_to_many_junction_key() -> void:
+	var result := GDSQLModelRegistry.new().register(InvalidManyToManyHero)
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(String(result.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_MODEL_RELATIONSHIP_THROUGH_KEY_UNKNOWN",
+	)
+
+
+func test_belongs_to_eager_loads_a_model_from_another_database_role() -> void:
+	var items := GDSQLTableDefinition.new(&"items", &"id")
+	items.add_column(GDSQLColumnDefinition.new(&"id", TYPE_STRING_NAME, false))
+	items.add_column(GDSQLColumnDefinition.new(&"display_name", TYPE_STRING, false))
+	var inventory := GDSQLTableDefinition.new(&"inventory", &"id")
+	inventory.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	inventory.add_column(GDSQLColumnDefinition.new(&"item_id", TYPE_STRING_NAME, false))
+	var content_database := TestDatabase.create_database(
+		_data_root.path_join("content"),
+		items,
+		&"content",
+	)
+	var save_database := TestDatabase.create_database(
+		_data_root.path_join("save"),
+		inventory,
+		&"save",
+	)
+	TestDatabase.insert_rows(
+		content_database,
+		[{ &"id": &"iron_sword", &"display_name": "Iron Sword" }],
+		&"items",
+	)
+	TestDatabase.insert_rows(
+		save_database,
+		[{ &"id": 1, &"item_id": &"iron_sword" }],
+		&"inventory",
+	)
+	var databases := GDSQLDatabaseRegistry.new()
+	databases.register(&"content", content_database)
+	databases.register(&"save", save_database)
+	databases.bind_role(GDSQLDatabaseRegistry.CONTENT_ROLE, &"content")
+	databases.bind_role(GDSQLDatabaseRegistry.SAVE_ROLE, &"save")
+	var models := GDSQLModelRegistry.new(databases)
+	assert_bool(models.register(CrossRoleContentItem).is_successful()).is_true()
+	assert_bool(models.register(CrossRoleInventoryEntry).is_successful()).is_true()
+	GDSQLModels.configure(GDSQLModelContext.new(models))
+
+	var result := CrossRoleInventoryEntry.query().with(&"item").first()
+	var entry := result.get_value() as CrossRoleInventoryEntry
+	var item := entry.get_related(&"item") as CrossRoleContentItem
+
+	assert_bool(result.is_successful()).is_true()
+	assert_str(item.display_name).is_equal("Iron Sword")
+
+
 func test_with_reports_an_unknown_relationship_name() -> void:
 	var database := _create_relationship_database()
 	var context := _create_relationship_context(database)
@@ -322,6 +406,17 @@ func _create_inferred_relationship_context(
 	return GDSQLModelContext.new(model_registry)
 
 
+func _create_many_to_many_context(database: GDSQLDatabase) -> GDSQLModelContext:
+	var database_registry := GDSQLDatabaseRegistry.new()
+	database_registry.register(&"active", database)
+	database_registry.bind_role(GDSQLDatabaseRegistry.CONTENT_ROLE, &"active")
+	var model_registry := GDSQLModelRegistry.new(database_registry)
+	assert_bool(model_registry.register(ManyToManyHero).is_successful()).is_true()
+	assert_bool(model_registry.register(ManyToManyHeroTag).is_successful()).is_true()
+	assert_bool(model_registry.register(ManyToManyTag).is_successful()).is_true()
+	return GDSQLModelContext.new(model_registry)
+
+
 func _create_relationship_database() -> GDSQLDatabase:
 	var heroes := GDSQLTableDefinition.new(&"heroes", &"id")
 	heroes.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
@@ -351,6 +446,51 @@ func _create_relationship_database() -> GDSQLDatabase:
 			{ &"id": 3, &"hero_id": 2, &"name": "Fireball" },
 		],
 		&"skills",
+	)
+	return database
+
+
+func _create_many_to_many_database() -> GDSQLDatabase:
+	var heroes := GDSQLTableDefinition.new(&"heroes", &"id")
+	heroes.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	heroes.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
+	var tags := GDSQLTableDefinition.new(&"tags", &"id")
+	tags.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	tags.add_column(GDSQLColumnDefinition.new(&"label", TYPE_STRING, false))
+	var hero_tags := GDSQLTableDefinition.new(&"hero_tags", &"id")
+	hero_tags.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	hero_tags.add_column(GDSQLColumnDefinition.new(&"hero_id", TYPE_INT, false))
+	hero_tags.add_column(GDSQLColumnDefinition.new(&"tag_id", TYPE_INT, false))
+	var database := TestDatabase.create_database_with_tables(
+		_data_root,
+		[heroes, tags, hero_tags],
+	)
+	TestDatabase.insert_rows(
+		database,
+		[
+			{ &"id": 1, &"name": "Knight" },
+			{ &"id": 2, &"name": "Mage" },
+			{ &"id": 3, &"name": "Rogue" },
+		],
+		&"heroes",
+	)
+	TestDatabase.insert_rows(
+		database,
+		[
+			{ &"id": 10, &"label": "Melee" },
+			{ &"id": 20, &"label": "Magic" },
+			{ &"id": 30, &"label": "Rare" },
+		],
+		&"tags",
+	)
+	TestDatabase.insert_rows(
+		database,
+		[
+			{ &"id": 1, &"hero_id": 1, &"tag_id": 10 },
+			{ &"id": 2, &"hero_id": 1, &"tag_id": 30 },
+			{ &"id": 3, &"hero_id": 2, &"tag_id": 20 },
+		],
+		&"hero_tags",
 	)
 	return database
 
@@ -467,6 +607,95 @@ class InferredProfile extends GDSQLContentModel:
 
 	static func query() -> GDSQLModelQuery:
 		return GDSQLModels.query(InferredProfile)
+
+
+class ManyToManyHero extends GDSQLContentModel:
+	var id: int
+	var name: String
+
+
+	func table_name() -> StringName:
+		return &"heroes"
+
+
+	func relationships() -> Array[GDSQLRelationshipDefinition]:
+		return [
+			GDSQLRelationshipDefinition.many_to_many(
+				&"tags",
+				ManyToManyTag,
+				ManyToManyHeroTag,
+				&"hero_id",
+				&"tag_id",
+			),
+		]
+
+
+	static func query() -> GDSQLModelQuery:
+		return GDSQLModels.query(ManyToManyHero)
+
+
+class InvalidManyToManyHero extends ManyToManyHero:
+	func relationships() -> Array[GDSQLRelationshipDefinition]:
+		return [
+			GDSQLRelationshipDefinition.many_to_many(
+				&"tags",
+				ManyToManyTag,
+				ManyToManyHeroTag,
+				&"missing_id",
+				&"tag_id",
+			),
+		]
+
+
+class ManyToManyTag extends GDSQLContentModel:
+	var id: int
+	var label: String
+
+
+	func table_name() -> StringName:
+		return &"tags"
+
+
+class ManyToManyHeroTag extends GDSQLContentModel:
+	var id: int
+	var hero_id: int
+	var tag_id: int
+
+
+	func table_name() -> StringName:
+		return &"hero_tags"
+
+
+class CrossRoleContentItem extends GDSQLContentModel:
+	var id: StringName
+	var display_name: String
+
+
+	func table_name() -> StringName:
+		return &"items"
+
+
+class CrossRoleInventoryEntry extends GDSQLSaveModel:
+	var id: int
+	var item_id: StringName
+
+
+	func table_name() -> StringName:
+		return &"inventory"
+
+
+	func relationships() -> Array[GDSQLRelationshipDefinition]:
+		return [
+			GDSQLRelationshipDefinition.belongs_to(
+				&"item",
+				CrossRoleContentItem,
+				&"item_id",
+			),
+		]
+
+
+	static func query() -> GDSQLModelQuery:
+		return GDSQLModels.query(CrossRoleInventoryEntry)
 
 
 class TestSaveHero extends GDSQLSaveModel:

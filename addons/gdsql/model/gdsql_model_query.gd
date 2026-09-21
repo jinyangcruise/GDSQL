@@ -185,20 +185,14 @@ func _load_relationship(
 		models: Array,
 		relationship: GDSQLRelationshipDefinition,
 ) -> GDSQLOperationResult:
-	var source_values: Array[Variant] = []
-	for model: GDSQLModel in models:
-		var value: Variant = model.get(relationship.local_key)
-		if value != null and not source_values.has(value):
-			source_values.append(value)
+	if relationship.kind == GDSQLRelationshipDefinition.Kind.MANY_TO_MANY:
+		return _load_many_to_many(models, relationship)
+	var source_values := _unique_model_values(models, relationship.local_key)
 	if source_values.is_empty():
 		_attach_empty_relationship(models, relationship)
 		return GDSQLOperationResult.new()
-	var predicate: GDSQLQueryExpression
-	for value in source_values:
-		var comparison := GDSQLExpr.column(relationship.related_key).equals(value)
-		predicate = comparison if predicate == null else predicate.or_(comparison)
 	var related_result := _context.query(relationship.related_model_script) \
-			.where(predicate) \
+			.where(_values_predicate(relationship.related_key, source_values)) \
 			.all()
 	if not related_result.is_successful():
 		return related_result
@@ -224,6 +218,78 @@ func _load_relationship(
 	return GDSQLOperationResult.new()
 
 
+func _load_many_to_many(
+		models: Array,
+		relationship: GDSQLRelationshipDefinition,
+) -> GDSQLOperationResult:
+	var source_values := _unique_model_values(models, relationship.local_key)
+	if source_values.is_empty():
+		_attach_empty_relationship(models, relationship)
+		return GDSQLOperationResult.new()
+	var through_result := _context.query(relationship.through_model_script) \
+			.where(_values_predicate(relationship.through_local_key, source_values)) \
+			.all()
+	if not through_result.is_successful():
+		return through_result
+	var through_models: Array = through_result.get_value()
+	var related_values := _unique_model_values(
+		through_models,
+		relationship.through_related_key,
+	)
+	if related_values.is_empty():
+		_attach_empty_relationship(models, relationship)
+		return GDSQLOperationResult.new()
+	var related_result := _context.query(relationship.related_model_script) \
+			.where(_values_predicate(relationship.related_key, related_values)) \
+			.all()
+	if not related_result.is_successful():
+		return related_result
+	var related_by_key: Dictionary = { }
+	for related_model: GDSQLModel in related_result.get_value():
+		related_by_key[related_model.get(relationship.related_key)] = related_model
+	var related_keys_by_source: Dictionary = { }
+	for through_model: GDSQLModel in through_models:
+		var source_key: Variant = through_model.get(relationship.through_local_key)
+		if not related_keys_by_source.has(source_key):
+			related_keys_by_source[source_key] = []
+		var related_key: Variant = through_model.get(relationship.through_related_key)
+		if not related_keys_by_source[source_key].has(related_key):
+			related_keys_by_source[source_key].append(related_key)
+	for model: GDSQLModel in models:
+		var matches: Array = []
+		for related_key: Variant in related_keys_by_source.get(
+				model.get(relationship.local_key),
+				[],
+		):
+			if related_by_key.has(related_key):
+				matches.append(related_by_key[related_key])
+		model._set_loaded_relationship(
+			relationship.name,
+			_create_model_array(matches, relationship.related_model_script),
+		)
+	return GDSQLOperationResult.new()
+
+
+func _unique_model_values(models: Array, key: StringName) -> Array[Variant]:
+	var values: Array[Variant] = []
+	for model: GDSQLModel in models:
+		var value: Variant = model.get(key)
+		if value != null and not values.has(value):
+			values.append(value)
+	return values
+
+
+func _values_predicate(
+		column: StringName,
+		values: Array[Variant],
+) -> GDSQLQueryExpression:
+	var predicate: GDSQLQueryExpression
+	for value in values:
+		var comparison := GDSQLExpr.column(column).equals(value)
+		predicate = comparison if predicate == null else predicate.or_(comparison)
+	return predicate
+
+
 func _attach_empty_relationship(
 		models: Array,
 		relationship: GDSQLRelationshipDefinition,
@@ -232,7 +298,10 @@ func _attach_empty_relationship(
 		model._set_loaded_relationship(
 			relationship.name,
 			_create_model_array([], relationship.related_model_script) \
-			if relationship.kind == GDSQLRelationshipDefinition.Kind.HAS_MANY \
+			if relationship.kind in [
+				GDSQLRelationshipDefinition.Kind.HAS_MANY,
+				GDSQLRelationshipDefinition.Kind.MANY_TO_MANY,
+			] \
 			else null,
 		)
 

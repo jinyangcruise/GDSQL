@@ -30,6 +30,7 @@ func test_builds_separate_generated_and_user_owned_content_scripts() -> void:
 	assert_str(source.user_source).contains(
 		"func relationships() -> Array[GDSQLRelationshipDefinition]:\n"
 		+ "\t# Same-database foreign-key relationships are inferred at registration.\n"
+		+ "\t# Declare many-to-many and cross-role relationships explicitly here.\n"
 		+ "\treturn []",
 	)
 	assert_str(source.user_source).contains("GDSQLModels.query(Hero)")

@@ -66,6 +66,30 @@ print(summary)
 `with()` performs model-level eager loading. The returned hero stores the
 loaded `has_one` model and `has_many` array under their relationship names.
 
+## Many-to-many through a junction model
+
+Create models for the source, target, and junction tables. Declare the
+relationship only in the user-owned model that needs the navigation:
+
+```gdscript
+func relationships() -> Array[GDSQLRelationshipDefinition]:
+    return [
+        GDSQLRelationshipDefinition.many_to_many(
+            &"tags",
+            TagContent,
+            HeroTagContent,
+            &"hero_id", # HeroTagContent property pointing to this hero
+            &"tag_id",  # HeroTagContent property pointing to TagContent
+        ),
+    ]
+```
+
+Register all three models. `HeroContent.query().with(&"tags")` then returns a
+typed `Array[TagContent]` from `get_related(&"tags")`. The optional final two
+arguments select non-default source and target identity properties; both default
+to `id`. The junction is a normal model, so relationship-specific fields such as
+unlock time or equipment slot remain directly queryable instead of being hidden.
+
 ## Explicit cross-role relationships
 
 Catalog inference is limited to models in the same logical database role. A

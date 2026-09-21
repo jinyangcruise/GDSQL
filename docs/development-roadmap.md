@@ -57,14 +57,14 @@ rather than a profile toggle.
 ## Remaining delivery workstreams
 
 After the current experimental table, creation, bootstrap, model-assistant, and
-row-history slices, six substantive workstreams remain. They are grouped by outcome;
+row-history slices, five substantive workstreams remain. They are grouped by outcome;
 individual workstreams may require several small changes.
 
 | Outcome | Count | Remaining workstreams |
 |---|---:|---|
 | Reliable direct-content setup | 0 | Complete for the current direct profile. |
 | Managed-content full kit | 0 | Complete for the current managed profile. |
-| Data integrity | 1 | Foreign-key enforcement and role-reference inference. |
+| Data integrity | 0 | Foreign-key enforcement and role-reference inference complete for the current contract. |
 | Editor interaction | 3 | Multi-table navigation/schema actions; nested typed WHERE groups; read-only scene content preview. |
 | Agent integration | 1 | Design and implement a read-only-first MCP surface. |
 | Release | 1 | Migration, performance, compatibility, and release QA. |
@@ -417,18 +417,22 @@ types are registered. The foreign-key owner receives `belongs_to`; its inverse
 is `has_one` when the local foreign key is unique and `has_many` otherwise.
 Declared user relationships take precedence by name, no model script is
 rewritten, and the model assistant previews the inferred edges directly from
-the catalog. Next, add an explicit many-to-many/through contract and cross-role
-`save` → `content` references; cross-role references remain logical contracts
-resolved through database roles.
+the catalog. Explicit `many_to_many()` relationships now resolve source models
+through a registered junction model, validate every participating key, preserve
+junction associations while batching eager loads, and return typed related-model arrays.
+Cross-role references remain logical contracts resolved through database roles.
+For save models, the Model Assistant now matches supported local identifiers to
+content-model primary keys and copies the corresponding `belongs_to()` entry;
+it does not create a catalog constraint across databases.
 
 | Relationship delivery step | State |
 |---|---|
 | Same-role `belongs_to`, `has_one`, and `has_many` catalog inference | Implemented |
 | Empty relationship scaffold, compatibility guidance, and copyable clean model scaffold | Implemented |
 | Same-role registration and eager-loading micro guide | Implemented |
-| Explicit many-to-many/through contract | Next |
-| Assisted cross-role `save` → `content` declarations | Planned |
-| Relationship-aware editor content preview | Planned |
+| Explicit many-to-many/through contract | Implemented |
+| Assisted cross-role `save` → `content` declarations | Implemented |
+| Relationship-aware editor content preview | Next |
 
 ### 11. Improve nested typed WHERE interactions
 

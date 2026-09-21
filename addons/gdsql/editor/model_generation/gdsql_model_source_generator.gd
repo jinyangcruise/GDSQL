@@ -116,6 +116,7 @@ func build(
 		"",
 		"func relationships() -> Array[GDSQLRelationshipDefinition]:",
 		"\t# Same-database foreign-key relationships are inferred at registration.",
+		"\t# Declare many-to-many and cross-role relationships explicitly here.",
 		"\treturn []",
 		"",
 		"",

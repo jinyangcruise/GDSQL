@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://ebss043rum5m" path="res://addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.gd" id="1_document"]
 [ext_resource type="Texture2D" uid="uid://benvx1k7my6ly" path="res://addons/gdsql/editor/workspace/icons/script.svg" id="2_script"]
+[ext_resource type="PackedScene" path="res://addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn" id="3_relationship_helper"]
 
 [node name="ModelAssistantDocument" type="MarginContainer" unique_id=370803]
 anchors_preset = 15
@@ -163,6 +164,10 @@ text = "All table columns match typed model properties.
 Relationships resolve through their target model roles:
 • definition · belongs to → content.heroes (hero_id → id)"
 autowrap_mode = 2
+
+[node name="CrossRoleHelper" parent="Layout/VScrollBar/VBoxContainer" instance=ExtResource("3_relationship_helper")]
+unique_name_in_owner = true
+layout_mode = 2
 
 [node name="PreviewSplit" type="HSplitContainer" parent="Layout/VScrollBar/VBoxContainer" unique_id=790822377]
 layout_mode = 2
