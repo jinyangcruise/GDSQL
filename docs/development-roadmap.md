@@ -57,7 +57,7 @@ rather than a profile toggle.
 ## Remaining delivery workstreams
 
 After the current experimental table, creation, bootstrap, model-assistant, and
-row-history slices, five substantive workstreams remain. They are grouped by outcome;
+row-history slices, four substantive workstreams remain. They are grouped by outcome;
 individual workstreams may require several small changes.
 
 | Outcome | Count | Remaining workstreams |
@@ -65,7 +65,7 @@ individual workstreams may require several small changes.
 | Reliable direct-content setup | 0 | Complete for the current direct profile. |
 | Managed-content full kit | 0 | Complete for the current managed profile. |
 | Data integrity | 0 | Foreign-key enforcement and role-reference inference complete for the current contract. |
-| Editor interaction | 3 | Multi-table navigation/schema actions; nested typed WHERE groups; read-only scene content preview. |
+| Editor interaction | 2 | Multi-table navigation/schema actions; nested typed WHERE groups. |
 | Agent integration | 1 | Design and implement a read-only-first MCP surface. |
 | Release | 1 | Migration, performance, compatibility, and release QA. |
 
@@ -432,6 +432,15 @@ For save models, the Model Assistant now matches supported local identifiers to
 content-model primary keys and copies the corresponding `references_one()` entry;
 it does not create a catalog constraint across databases.
 
+Save-table cells reuse the bounded reference selector for Model
+Assistant-registered `references_one()` navigation. The assistant stores typed
+editor metadata while copying the runtime declaration; the selector reads the
+target content registration without synthesizing a cross-database catalog
+foreign key. Registered bindings are listed with copy and remove actions so an
+accidental picker mapping is reversible without touching user model code.
+Server-side search and paging beyond the bounded first result set remain future
+work for this authoring picker.
+
 | Relationship delivery step | State |
 |---|---|
 | Same-role `belongs_to`, `has_one`, and `has_many` catalog inference | Implemented |
@@ -439,7 +448,6 @@ it does not create a catalog constraint across databases.
 | Same-role registration and eager-loading micro guide | Implemented |
 | Explicit many-to-many/through contract | Implemented |
 | Assisted cross-role `save` → `content` declarations | Implemented |
-| Relationship-aware editor content preview | In progress: safe adapter implemented; row picker next |
 
 ### 11. Improve nested typed WHERE interactions
 
@@ -447,39 +455,14 @@ Add explicit nested groups, group-level `NOT`, clear precedence, and compact
 collapse/summary behavior to the shared WHERE editor. The result must remain a
 canonical expression tree and must not introduce SQL parsing into the control.
 
-### 12. Preview content-backed scenes in the editor
-
-Provide an opt-in `@tool` preview adapter that resolves one content-role model by
-stable identifier and applies selected fields to an explicitly assigned preview
-target. It must never open the save role for writes, serialize fetched values
-into the authored scene, or pretend to reproduce runtime-owned state. Expose a
-content-row picker, manual refresh, and structured missing-role/model/row status
-so a dummy character can preview a real content definition without running the
-project.
-
-The first slice is implemented: a reusable adapter scene performs manual
-Direct/Managed content lookup, rejects non-content models, converts supported
-primary-key text, reports structured diagnostics, and applies explicit typed
-bindings only to an internal ownerless preview-scene instance. A searchable
-content-row picker remains before this item is complete.
-
-Save-table cells can now reuse the bounded reference selector for Model
-Assistant-registered `references_one()` navigation. The assistant stores typed
-editor metadata while copying the runtime declaration; the selector reads the
-target content registration without synthesizing a cross-database catalog
-foreign key. Registered bindings are listed with copy and remove actions so an
-accidental picker mapping is reversible without touching user model code.
-Search/paging beyond the bounded first result set remains future work shared
-with the content-preview picker.
-
-### 13. Define a GDSQL-aware MCP surface
+### 12. Define a GDSQL-aware MCP surface
 
 Create `docs/architecture/mcp.md` before implementation. Define project scope,
 capability/version negotiation, read-only resources and tools, diagnostics, and
 explicit confirmation boundaries for future mutations. Implement schema and
 setup inspection first; query drafting and guarded editor actions follow.
 
-### 14. Migration, performance, and release QA
+### 13. Migration, performance, and release QA
 
 Version persisted formats, provide dry-run migrations and recovery guidance,
 benchmark paging and managed-content caches with large datasets, and verify
@@ -492,6 +475,9 @@ editor/runtime behavior across supported Godot versions and exported builds.
 - **Advanced query graph:** preserve the current implementation, but do not add
   operations or saved graphs until it has a discoverable entry point and the
   primary table, setup, and release workflows are complete.
+- **Dynamic editor content preview:** defer model-backed scene previews. Use
+  normal authored placeholders in editor scenes and load content models through
+  the runtime. Reconsider only if a core workflow cannot be served by placeholders.
 - **Generated model nullability and type ergonomics:** keep exact GDScript
   property types for non-null columns and make nullable scalar fallbacks
   explicit in the model assistant. Because GDScript has no nullable scalar or
@@ -551,4 +537,3 @@ code:
 - Runtime bootstrap, roles, save-slot switching, checkpoints, and diagnostics.
 - Generated/user-owned model assistance and cross-role content references.
 - Deterministic managed-content overlays, caching, provenance, and save checks.
-- Manual, non-serializing content-model scene previews with explicit bindings.

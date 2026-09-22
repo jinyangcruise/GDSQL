@@ -128,59 +128,9 @@ Character customization follows the same pattern: store stable identifiers for
 base class, body type, or equipped definitions, and keep player-specific colors,
 sliders, names, and choices in save-model columns.
 
-## Preview content in an authored scene
-
-Add
-`res://addons/gdsql/editor/content_preview/gdsql_content_preview_adapter.tscn`
-to a scene when an authored content definition should be visible without
-running the game. In its Inspector:
-
-1. Assign a user-owned script that extends `GDSQLContentModel`.
-2. Enter the row's stable primary-key value.
-3. Assign the `PackedScene` used as the visual preview.
-4. Add `GDSQLContentPreviewBinding` resources. Each binding maps a model
-   property to a property on the preview root or one of its child nodes.
-5. Press **Refresh Content Preview**.
-
-The Inspector values have these sources:
-
-| Adapter field | Value to provide |
-|---|---|
-| Content Model | User-owned content model, such as `HeroContent` |
-| Stable Identifier | Primary-key **value**, such as `1`; do not enter the column name `id` |
-| Preview Scene | Visual scene to instantiate temporarily |
-| Preview Host | Scene node that receives the temporary instance; the path is relative to the adapter |
-| Binding → Model Property | Property from the content model, such as `name`, `health`, or `texture` |
-| Binding → Target Node | Node inside the preview scene, relative to its root; use `.` for the root |
-| Binding → Target Property | Type-compatible property on that target, such as `hero_name` or `texture` |
-
-Bindings copy values directly and do not convert types. For example, map a
-model `float` to a preview `float`, then let the preview tool script format that
-value for a Label.
-
-The Model Assistant now places `@tool` on both new generated bases and new
-user-owned models because Godot otherwise creates placeholder instances in the
-editor. For an older model, add `@tool` to both scripts or regenerate the base
-and add it to the preserved user script. This does not query automatically;
-model construction occurs only after pressing the preview's Refresh button.
-
-The adapter uses the project's selected Direct or Managed profile. It rejects
-save and settings models and releases its temporary model context after the
-lookup. The preview scene is added as an internal node with no owner, so the
-fetched values are not serialized into the authored scene. Press **Clear
-Content Preview** to remove it. The Inspector status and node warning expose the
-first structured diagnostic when setup, model registration, or row lookup
-fails.
-
-This is a content-definition preview, not a simulation of a running character.
-Saved customization and transient animation, physics, combat, or AI state still
-belong to their normal runtime owners.
-
-The development-only `local/examples/ContentPreview/main.tscn` example previews
-`HeroContent` id `1` in the editor. At runtime, its `main.gd` loads `HeroSave`
-row `1` with `with(&"hero_content")` and shows that its `hero_content_id`
-resolves to the same content model. It can move into the distributed examples
-later if this workflow becomes part of the supported onboarding path.
+For editor-only visualization, use a normal authored placeholder scene. Runtime
+code remains responsible for replacing placeholder values with content and save
+models; the plugin does not execute project models to mutate authored scenes.
 
 ## Change save slots
 
