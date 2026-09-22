@@ -208,6 +208,17 @@ typed content-model primary keys and produces a copyable `references_one()` entr
 This is model navigation only and never creates a cross-database catalog
 constraint.
 
+Scene previews are a separate, explicitly executable editor path. An opt-in
+`GDSQLContentPreviewAdapter` opens the configured project profile long enough to
+register one `GDSQLContentModel` and find one row by primary key. Unlike static
+model compatibility inspection, this operation intentionally instantiates the
+selected project model; it is therefore manual and visible in the Inspector.
+Selected fields are applied through typed bindings to an internal, ownerless
+instance of a configured `PackedScene`. The adapter never applies fetched values
+to an authored node, opens a mutation API, or retains the temporary runtime
+session after refresh. Failures remain structured diagnostics and are surfaced
+as adapter status and scene configuration warnings.
+
 Workspace documents and their reusable controls are separate scenes. The host
 owns tab identity, activation, and closure; each document owns only its local
 presentation and draft state. Popup menu entries are declared in scenes so

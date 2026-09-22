@@ -124,6 +124,32 @@ Character customization follows the same pattern: store stable identifiers for
 base class, body type, or equipped definitions, and keep player-specific colors,
 sliders, names, and choices in save-model columns.
 
+## Preview content in an authored scene
+
+Add
+`res://addons/gdsql/editor/content_preview/gdsql_content_preview_adapter.tscn`
+to a scene when an authored content definition should be visible without
+running the game. In its Inspector:
+
+1. Assign a user-owned script that extends `GDSQLContentModel`.
+2. Enter the row's stable primary-key value.
+3. Assign the `PackedScene` used as the visual preview.
+4. Add `GDSQLContentPreviewBinding` resources. Each binding maps a model
+   property to a property on the preview root or one of its child nodes.
+5. Press **Refresh Content Preview**.
+
+The adapter uses the project's selected Direct or Managed profile. It rejects
+save and settings models and releases its temporary model context after the
+lookup. The preview scene is added as an internal node with no owner, so the
+fetched values are not serialized into the authored scene. Press **Clear
+Content Preview** to remove it. The Inspector status and node warning expose the
+first structured diagnostic when setup, model registration, or row lookup
+fails.
+
+This is a content-definition preview, not a simulation of a running character.
+Saved customization and transient animation, physics, combat, or AI state still
+belong to their normal runtime owners.
+
 ## Change save slots
 
 Switch through the runtime rather than changing registry bindings directly:

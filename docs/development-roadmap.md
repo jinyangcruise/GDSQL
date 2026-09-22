@@ -432,7 +432,7 @@ it does not create a catalog constraint across databases.
 | Same-role registration and eager-loading micro guide | Implemented |
 | Explicit many-to-many/through contract | Implemented |
 | Assisted cross-role `save` → `content` declarations | Implemented |
-| Relationship-aware editor content preview | Next |
+| Relationship-aware editor content preview | In progress: safe adapter implemented; row picker next |
 
 ### 11. Improve nested typed WHERE interactions
 
@@ -449,6 +449,12 @@ into the authored scene, or pretend to reproduce runtime-owned state. Expose a
 content-row picker, manual refresh, and structured missing-role/model/row status
 so a dummy character can preview a real content definition without running the
 project.
+
+The first slice is implemented: a reusable adapter scene performs manual
+Direct/Managed content lookup, rejects non-content models, converts supported
+primary-key text, reports structured diagnostics, and applies explicit typed
+bindings only to an internal ownerless preview-scene instance. A searchable
+content-row picker remains before this item is complete.
 
 ### 13. Define a GDSQL-aware MCP surface
 
@@ -529,3 +535,4 @@ code:
 - Runtime bootstrap, roles, save-slot switching, checkpoints, and diagnostics.
 - Generated/user-owned model assistance and cross-role content references.
 - Deterministic managed-content overlays, caching, provenance, and save checks.
+- Manual, non-serializing content-model scene previews with explicit bindings.

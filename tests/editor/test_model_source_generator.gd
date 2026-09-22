@@ -19,13 +19,15 @@ func test_builds_separate_generated_and_user_owned_content_scripts() -> void:
 		"res://models/generated/hero_model_generated.gd",
 	)
 	assert_str(source.user_path).is_equal("res://models/hero.gd")
+	assert_str(source.generated_source).contains("@tool\n@abstract")
 	assert_str(source.generated_source).contains("extends GDSQLContentModel")
 	assert_str(source.generated_source).contains("var id: int")
 	assert_str(source.generated_source).contains("var name: String")
 	assert_str(source.generated_source).contains("var nickname: Variant # String or null")
 	assert_str(source.generated_source).contains("return &\"heroes\"")
 	assert_str(source.user_source).contains(
-		"extends \"res://models/generated/hero_model_generated.gd\"",
+		"@tool\nclass_name Hero\n"
+		+ "extends \"res://models/generated/hero_model_generated.gd\"",
 	)
 	assert_str(source.user_source).contains(
 		"func relationships() -> Array[GDSQLRelationshipDefinition]:\n"

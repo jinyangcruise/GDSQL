@@ -1972,6 +1972,13 @@ conveniences, but the editor does not rewrite model scripts or derive catalog
 mutations from them. Read-only model compatibility validation may report stale
 properties after a table change.
 
+An editor content preview may execute a user-selected `ContentModel` only after
+an explicit refresh request. It resolves the normal content role, materializes
+one row by stable primary key, and copies configured properties into an
+ownerless transient scene instance. This is a read-only frontend operation: the
+preview does not expose model mutation, apply database values to authored scene
+nodes, or serialize those values into the scene resource.
+
 ---
 
 ## 15. Dependency injection
