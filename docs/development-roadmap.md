@@ -463,10 +463,14 @@ primary-key text, reports structured diagnostics, and applies explicit typed
 bindings only to an internal ownerless preview-scene instance. A searchable
 content-row picker remains before this item is complete.
 
-The same model-aware selector should later be reusable by save-table cells that
-participate in `references_one()` navigation. It must present rows from the
-target content role without misrepresenting the cross-database reference as a
-catalog foreign key.
+Save-table cells can now reuse the bounded reference selector for Model
+Assistant-registered `references_one()` navigation. The assistant stores typed
+editor metadata while copying the runtime declaration; the selector reads the
+target content registration without synthesizing a cross-database catalog
+foreign key. Registered bindings are listed with copy and remove actions so an
+accidental picker mapping is reversible without touching user model code.
+Search/paging beyond the bounded first result set remains future work shared
+with the content-preview picker.
 
 ### 13. Define a GDSQL-aware MCP surface
 

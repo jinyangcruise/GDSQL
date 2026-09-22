@@ -5,6 +5,7 @@ extends Tree
 
 signal inline_changes_changed(status: String)
 signal foreign_key_options_requested(constraint_name: StringName)
+signal content_reference_options_requested(reference: GDSQLEditorContentReference)
 
 const DATA_COLUMN_MINIMUM_WIDTH := 160
 const ROW_NUMBER_COLUMN_MINIMUM_WIDTH := 42
@@ -50,8 +51,10 @@ var _resource_picker: EditorResourcePicker
 var _resource_editor_cell := Vector2i(-1, -1)
 var _resource_picker_configuring := false
 var _content_width := 0.0
+var _content_references: Dictionary[StringName, GDSQLEditorContentReference] = { }
 var _foreign_key_cell := Vector2i(-1, -1)
 var _foreign_key_name: StringName
+var _content_reference: GDSQLEditorContentReference
 
 @onready var _foreign_key_picker: PopupMenu = %ForeignKeyPicker
 
@@ -123,6 +126,7 @@ func configure(
 		view_table: GDSQLTableDefinition,
 		records: Array[GDSQLRowRecord],
 		can_edit_rows: bool,
+		content_references: Array[GDSQLEditorContentReference] = [],
 ) -> void:
 	_close_resource_editor()
 	_clear_resource_observers()
@@ -133,10 +137,21 @@ func configure(
 	_insert_draft = false
 	clear_pending_changes()
 	_resource_type_icons.clear()
+	set_content_references(content_references)
 	_content_width = 0.0
 	_foreign_key_cell = Vector2i(-1, -1)
 	_foreign_key_name = &""
+	_content_reference = null
 	_foreign_key_picker.hide()
+
+
+func set_content_references(
+		content_references: Array[GDSQLEditorContentReference],
+) -> void:
+	_content_references.clear()
+	for reference in content_references:
+		if reference != null:
+			_content_references[reference.source_column_name] = reference
 
 
 func present_foreign_key_options(
@@ -149,11 +164,44 @@ func present_foreign_key_options(
 			or foreign_key.name != _foreign_key_name \
 			or not _valid_foreign_key_cell():
 		return
+	_present_reference_options(
+		target_table,
+		foreign_key.referenced_column,
+		result,
+		"Referenced rows",
+	)
+
+
+func present_content_reference_options(
+		reference: GDSQLEditorContentReference,
+		target_table: GDSQLTableDefinition,
+		result: GDSQLQueryResult,
+) -> void:
+	if reference == null \
+			or target_table == null \
+			or _content_reference == null \
+			or reference.source_column_name != _content_reference.source_column_name \
+			or not _valid_foreign_key_cell():
+		return
+	_present_reference_options(
+		target_table,
+		reference.target_column_name,
+		result,
+		"Content rows",
+	)
+
+
+func _present_reference_options(
+		target_table: GDSQLTableDefinition,
+		key_column: StringName,
+		result: GDSQLQueryResult,
+		row_kind: String,
+) -> void:
 	_foreign_key_picker.clear()
 	_foreign_key_picker.add_item(
 		"Select %s.%s · first %d rows" % [
 			target_table.name,
-			foreign_key.referenced_column,
+			key_column,
 			result.rows.size() if result != null and result.is_successful() else 0,
 		],
 	)
@@ -172,18 +220,19 @@ func present_foreign_key_options(
 			current == null,
 		)
 	if result == null or not result.is_successful():
-		_foreign_key_picker.add_item("Referenced rows could not be loaded.")
+		var message := "%s could not be loaded." % row_kind
+		_foreign_key_picker.add_item(message)
 		_foreign_key_picker.set_item_disabled(_foreign_key_picker.item_count - 1, true)
-		inline_changes_changed.emit("Referenced rows could not be loaded.")
+		inline_changes_changed.emit(message)
 	elif result.rows.is_empty():
-		_foreign_key_picker.add_item("No referenced rows are available.")
+		_foreign_key_picker.add_item("No %s are available." % row_kind.to_lower())
 		_foreign_key_picker.set_item_disabled(_foreign_key_picker.item_count - 1, true)
 	else:
 		for row_index in result.rows.size():
 			var row := result.rows[row_index]
-			var value: Variant = row.get_value(foreign_key.referenced_column)
+			var value: Variant = row.get_value(key_column)
 			_foreign_key_picker.add_check_item(
-				_reference_row_label(target_table, foreign_key, row),
+				_reference_row_label(target_table, key_column, row),
 				FOREIGN_KEY_ITEM_ID_OFFSET + row_index,
 			)
 			var item_index := _foreign_key_picker.item_count - 1
@@ -196,6 +245,7 @@ func configure_insert_draft(
 		table: GDSQLTableDefinition,
 		view_table: GDSQLTableDefinition,
 		initial_values: Dictionary = { },
+		content_references: Array[GDSQLEditorContentReference] = [],
 ) -> void:
 	var insert_view := _build_insert_view_table(table, view_table)
 	var values: Dictionary = { }
@@ -207,7 +257,7 @@ func configure_insert_draft(
 					else _draft_initial_value(column)
 			)
 	var records: Array[GDSQLRowRecord] = [GDSQLRowRecord.new(values)]
-	configure(table, insert_view, records, true)
+	configure(table, insert_view, records, true, content_references)
 	_insert_draft = true
 	set_safe_mode(false)
 	render_page(0, 1, 0, 1)
@@ -454,17 +504,31 @@ func _on_cell_button_clicked(
 	match button_id:
 		FOREIGN_KEY_BUTTON_ID:
 			var foreign_key := _foreign_key_for_column(column.name)
-			if foreign_key == null or not _cell_is_editable(column):
+			var content_reference := _content_reference_for_column(column.name)
+			if (foreign_key == null and content_reference == null) \
+					or not _cell_is_editable(column):
 				return
 			_foreign_key_cell = Vector2i(record_index, column_index)
-			_foreign_key_name = foreign_key.name
-			inline_changes_changed.emit(
-				"Loading references from %s.%s…" % [
-					foreign_key.referenced_table,
-					foreign_key.referenced_column,
-				],
-			)
-			foreign_key_options_requested.emit(foreign_key.name)
+			if foreign_key != null:
+				_content_reference = null
+				_foreign_key_name = foreign_key.name
+				inline_changes_changed.emit(
+					"Loading references from %s.%s…" % [
+						foreign_key.referenced_table,
+						foreign_key.referenced_column,
+					],
+				)
+				foreign_key_options_requested.emit(foreign_key.name)
+			else:
+				_foreign_key_name = &""
+				_content_reference = content_reference
+				inline_changes_changed.emit(
+					"Loading content from %s.%s…" % [
+						content_reference.target_table_name,
+						content_reference.target_column_name,
+					],
+				)
+				content_reference_options_requested.emit(content_reference)
 		TEXT_EDITOR_BUTTON_ID:
 			if column.data_type != TYPE_STRING:
 				return
@@ -1138,16 +1202,22 @@ func _configure_cell_actions(
 		return
 	var editable := _cell_is_editable(column)
 	var foreign_key := _foreign_key_for_column(column.name)
-	if foreign_key != null:
+	var content_reference := _content_reference_for_column(column.name)
+	if foreign_key != null or content_reference != null:
+		var target_description := (
+				"%s.%s" % [foreign_key.referenced_table, foreign_key.referenced_column]
+				if foreign_key != null
+				else "%s.%s" % [
+					content_reference.target_table_name,
+					content_reference.target_column_name,
+				]
+		)
 		item.add_button(
 			column_index,
 			FOREIGN_KEY_ICON,
 			FOREIGN_KEY_BUTTON_ID,
 			not editable,
-			"Choose a row from %s.%s" % [
-				foreign_key.referenced_table,
-				foreign_key.referenced_column,
-			],
+			"Choose a row from %s" % target_description,
 		)
 	if column.data_type == TYPE_STRING:
 		item.add_button(
@@ -1190,6 +1260,12 @@ func _foreign_key_for_column(column_name: StringName) -> GDSQLForeignKeyDefiniti
 		return null
 	var matches := _table.get_foreign_keys_for_column(column_name)
 	return matches[0] if matches.size() == 1 else null
+
+
+func _content_reference_for_column(
+		column_name: StringName,
+) -> GDSQLEditorContentReference:
+	return _content_references.get(column_name)
 
 
 func _valid_foreign_key_cell() -> bool:
@@ -1235,13 +1311,13 @@ func _on_foreign_key_option_selected(id: int) -> void:
 
 func _reference_row_label(
 		table: GDSQLTableDefinition,
-		foreign_key: GDSQLForeignKeyDefinition,
+		key_column: StringName,
 		row: GDSQLRowRecord,
 ) -> String:
-	var key_text := _value_text(row.get_value(foreign_key.referenced_column))
+	var key_text := _value_text(row.get_value(key_column))
 	var details: Array[String] = []
 	for column in table.columns:
-		if column.name == foreign_key.referenced_column \
+		if column.name == key_column \
 				or column.generation != GDSQLColumnDefinition.Generation.NONE:
 			continue
 		var text := _value_text(row.get_value(column.name)).replace("\n", " ")

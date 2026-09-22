@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://ebss043rum5m" path="res://addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.gd" id="1_document"]
 [ext_resource type="Texture2D" uid="uid://benvx1k7my6ly" path="res://addons/gdsql/editor/workspace/icons/script.svg" id="2_script"]
 [ext_resource type="PackedScene" path="res://addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn" id="3_relationship_helper"]
+[ext_resource type="Texture2D" path="res://addons/gdsql/editor/workspace/icons/help.svg" id="4_help"]
 
 [node name="ModelAssistantDocument" type="MarginContainer" unique_id=370803]
 anchors_preset = 15
@@ -20,17 +21,23 @@ script = ExtResource("1_document")
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="Title" type="Label" parent="Layout" unique_id=1691267529]
+[node name="Header" type="HBoxContainer" parent="Layout"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Layout/Header" unique_id=1691267529]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 22
 text = "Model binding · heroes"
 
-[node name="Boundary" type="Label" parent="Layout" unique_id=182761420]
+[node name="Help" type="TextureButton" parent="Layout/Header"]
+custom_minimum_size = Vector2(26, 26)
 layout_mode = 2
-theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
-text = "The table owns the schema. Regeneration replaces only the generated base; your model remains user-owned."
-autowrap_mode = 2
+tooltip_text = "The table owns the schema. Regeneration replaces only the generated base; the user model and its custom functions remain user-owned."
+texture_normal = ExtResource("4_help")
+ignore_texture_size = true
+stretch_mode = 5
 
 [node name="Form" type="GridContainer" parent="Layout" unique_id=563586671]
 layout_mode = 2
@@ -144,6 +151,15 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "Existing model compatibility"
 
+[node name="CompatibilityHelp" type="TextureButton" parent="Layout/VScrollBar/VBoxContainer/Compatibility/Margin/Content/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+tooltip_text = "Same-database relationships are inferred from catalog foreign keys when both model types are registered. Many-to-many and cross-role relationships remain explicit in relationships()."
+texture_normal = ExtResource("4_help")
+ignore_texture_size = true
+stretch_mode = 5
+
 [node name="CopyScaffold" type="Button" parent="Layout/VScrollBar/VBoxContainer/Compatibility/Margin/Content/Header" unique_id=2011690781]
 unique_name_in_owner = true
 layout_mode = 2
@@ -158,11 +174,10 @@ text = "COMPATIBLE"
 
 [node name="CompatibilityDetails" type="Label" parent="Layout/VScrollBar/VBoxContainer/Compatibility/Margin/Content" unique_id=568541849]
 unique_name_in_owner = true
+visible = false
 layout_mode = 2
 theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
-text = "All table columns match typed model properties.
-Relationships resolve through their target model roles:
-• definition · belongs to → content.heroes (hero_id → id)"
+text = "Column 'name' has no matching model property."
 autowrap_mode = 2
 
 [node name="CrossRoleHelper" parent="Layout/VScrollBar/VBoxContainer" unique_id=815792181 instance=ExtResource("3_relationship_helper")]

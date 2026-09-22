@@ -4,6 +4,7 @@ extends MarginContainer
 
 signal close_requested
 signal scripts_generated(generated_path: String, user_path: String)
+signal content_reference_registered(registration_name: StringName, table_name: StringName)
 
 const SETTINGS_PATH := "res://.gdsql/settings.cfg"
 const SETTINGS_SECTION := "models"
@@ -48,6 +49,9 @@ func _ready() -> void:
 	_role.item_selected.connect(_on_role_selected)
 	%Generate.pressed.connect(_request_generation)
 	%CopyScaffold.pressed.connect(_copy_scaffold)
+	%CrossRoleHelper.reference_registered.connect(
+		_on_content_reference_registered,
+	)
 	%Close.pressed.connect(_request_close)
 	%OverwriteConfirmation.confirmed.connect(_write_sources)
 	var filesystem := EditorInterface.get_resource_filesystem()
@@ -177,12 +181,18 @@ func _refresh_cross_role_helper() -> void:
 		return
 	%CrossRoleHelper.visible = _selected_role() == GDSQLDatabaseRegistry.SAVE_ROLE
 	if %CrossRoleHelper.visible:
-		%CrossRoleHelper.configure(_table, _inspections, _role_bindings)
+		%CrossRoleHelper.configure(
+			_registration_name,
+			_table,
+			_inspections,
+			_role_bindings,
+		)
 
 
 func _refresh_preview() -> void:
 	if _table == null or not is_node_ready():
 		return
+	_refresh_relationship_help()
 	var result := _generator.build(
 		_table,
 		StringName(_model_class.text.strip_edges()),
@@ -247,14 +257,14 @@ func _refresh_compatibility(user_exists: bool) -> void:
 		&"GDSQL_MODEL_COMPATIBILITY_SCRIPT_UNAVAILABLE",
 	)
 	%CompatibilityStatus.text = (
-		"COMPATIBLE"
-		if report.is_compatible()
-		else "SCRIPT ERROR" if script_error else "NEEDS UPDATE"
+			"COMPATIBLE"
+			if report.is_compatible()
+			else "SCRIPT ERROR" if script_error else "NEEDS UPDATE"
 	)
 	%CompatibilityStatus.modulate = (
-		Color(0.42, 0.82, 0.55)
-		if report.is_compatible()
-		else Color(1.0, 0.4, 0.4) if script_error else Color(1.0, 0.68, 0.32)
+			Color(0.42, 0.82, 0.55)
+			if report.is_compatible()
+			else Color(1.0, 0.4, 0.4) if script_error else Color(1.0, 0.68, 0.32)
 	)
 	_report_script_error(report, script_error)
 	var lines: Array[String] = []
@@ -262,8 +272,8 @@ func _refresh_compatibility(user_exists: bool) -> void:
 		lines.append("• %s" % diagnostic.message)
 	if script_error:
 		lines.append("See Godot Output for the reported script error and source path.")
-	lines.append_array(_catalog_relationship_lines())
 	%CompatibilityDetails.text = "\n".join(lines)
+	%CompatibilityDetails.visible = not lines.is_empty()
 
 
 func _copy_scaffold() -> void:
@@ -271,16 +281,26 @@ func _copy_scaffold() -> void:
 		return
 	DisplayServer.clipboard_set(_source.user_source)
 	%Status.text = (
-		"Copied a clean user-model scaffold. The existing model file was not changed."
+			"Copied a clean user-model scaffold. The existing model file was not changed."
 	)
+
+
+func _on_content_reference_registered(
+		registration_name: StringName,
+		table_name: StringName,
+) -> void:
+	content_reference_registered.emit(registration_name, table_name)
 
 
 func _set_compatibility_unavailable(message: String) -> void:
 	%CompatibilityStatus.text = "NOT INSPECTED"
 	%CompatibilityStatus.modulate = Color(0.62, 0.67, 0.74)
-	var lines: Array[String] = [message]
-	lines.append_array(_catalog_relationship_lines())
-	%CompatibilityDetails.text = "\n".join(lines)
+	%CompatibilityDetails.text = message
+	%CompatibilityDetails.show()
+
+
+func _refresh_relationship_help() -> void:
+	%CompatibilityHelp.tooltip_text = "\n".join(_catalog_relationship_lines())
 
 
 func _catalog_relationship_lines() -> Array[String]:

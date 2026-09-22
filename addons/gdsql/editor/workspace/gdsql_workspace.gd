@@ -30,6 +30,12 @@ signal table_reference_rows_requested(
 		constraint_name: StringName,
 		query: GDSQLSelectQuerySpec,
 )
+signal table_content_reference_rows_requested(
+		source_registration_name: StringName,
+		source_table_name: StringName,
+		reference: GDSQLEditorContentReference,
+		query: GDSQLSelectQuerySpec,
+)
 signal table_row_insert_requested(
 		registration_name: StringName,
 		table_name: StringName,
@@ -249,6 +255,10 @@ func show_table(
 			_on_table_reference_rows_requested,
 		)
 		document.connect(
+			"content_reference_rows_requested",
+			_on_table_content_reference_rows_requested,
+		)
+		document.connect(
 			"row_insert_requested",
 			_on_table_row_insert_requested,
 		)
@@ -305,6 +315,10 @@ func show_model_assistant(
 			_close_document_by_key.bind(key),
 		)
 		document.connect("scripts_generated", _on_model_scripts_generated)
+		document.connect(
+			"content_reference_registered",
+			_on_content_reference_registered,
+		)
 		_add_document(key, "%s model" % table.name, document)
 	var role_bindings: Array[GDSQLDatabaseRoleBinding] = []
 	if _workbench != null:
@@ -407,6 +421,25 @@ func present_table_reference_rows(
 	) as Control
 	if document != null and document.has_method("present_reference_rows"):
 		document.call("present_reference_rows", foreign_key, target_table, result)
+
+
+func present_table_content_reference_rows(
+		source_registration_name: StringName,
+		source_table_name: StringName,
+		reference: GDSQLEditorContentReference,
+		target_table: GDSQLTableDefinition,
+		result: GDSQLQueryResult,
+) -> void:
+	var document := _documents.get(
+		_table_key(source_registration_name, source_table_name),
+	) as Control
+	if document != null and document.has_method("present_content_reference_rows"):
+		document.call(
+			"present_content_reference_rows",
+			reference,
+			target_table,
+			result,
+		)
 
 
 func request_table_rows(
@@ -786,6 +819,20 @@ func _on_table_reference_rows_requested(
 	)
 
 
+func _on_table_content_reference_rows_requested(
+		source_registration_name: StringName,
+		source_table_name: StringName,
+		reference: GDSQLEditorContentReference,
+		query: GDSQLSelectQuerySpec,
+) -> void:
+	table_content_reference_rows_requested.emit(
+		source_registration_name,
+		source_table_name,
+		reference,
+		query,
+	)
+
+
 func _on_table_row_insert_requested(
 		registration_name: StringName,
 		table_name: StringName,
@@ -849,6 +896,17 @@ func _on_model_assistant_requested(
 
 func _on_model_scripts_generated(_generated_path: String, _user_path: String) -> void:
 	refresh_welcome()
+
+
+func _on_content_reference_registered(
+		registration_name: StringName,
+		table_name: StringName,
+) -> void:
+	var document := _documents.get(
+		_table_key(registration_name, table_name),
+	) as Control
+	if document != null and document.has_method("reload_content_references"):
+		document.call("reload_content_references")
 
 
 func _on_query_graph_submitted(

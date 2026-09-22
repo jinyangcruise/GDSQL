@@ -1916,6 +1916,11 @@ logical role. The name deliberately describes navigation rather than ownership:
 it creates neither a physical cross-database foreign key nor an inverse
 relationship from immutable content into saved state.
 
+The editor may persist a parallel project-tool binding for this declaration.
+That binding only lets a save-table cell query and select identifiers from the
+target content registration; runtime navigation remains defined by the model's
+`references_one()` entry, and no catalog constraint is synthesized.
+
 The model method remains the source of truth for custom or cross-role
 relationships:
 

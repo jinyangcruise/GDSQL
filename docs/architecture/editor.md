@@ -212,8 +212,13 @@ explicit user-model class name. A new binding starts empty and provides only a
 singular-name example; the editor does not silently choose a public class name.
 For save models, the assistant matches supported local identifier columns to
 typed content-model primary keys and produces a copyable `references_one()` entry.
-This is model navigation only and never creates a cross-database catalog
-constraint.
+Registering that entry also stores editor-only picker metadata in project tool
+settings. The table document can then select a stable identifier from the
+target content registration through the shared bounded row picker. Runtime
+navigation remains model-owned; no cross-database catalog constraint is created.
+The assistant lists registered picker bindings separately so their runtime
+declarations can be copied again or mistaken editor metadata can be removed
+without rewriting user model code.
 
 Scene previews are a separate, explicitly executable editor path. An opt-in
 `GDSQLContentPreviewAdapter` opens the configured project profile long enough to

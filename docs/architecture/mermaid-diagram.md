@@ -85,6 +85,13 @@ ModelAssistant("`**Model Assistant**
 *Inspection:* Role, table, key, property types and relationship target roles
 *Safety:* Confirms generated replacement and never overwrites user behavior`")
 
+ContentReference("`**Editor Content Reference**
+
+-
+*Purpose:* Bind one save identifier cell to a content-role row picker
+*Storage:* Project tool settings
+*Safety:* Editor lookup metadata only; never a catalog foreign key`")
+
 GraphEditor("`**Graph Editor**
 
 -
@@ -549,6 +556,8 @@ RowBatch -->|"canonical queries in one transaction"| Database
 Workbench -->|"record successful batches"| MutationHistory
 MutationHistory -->|"next inverse mutation"| RowBatch
 ModelAssistant -.->|"generates scripts · previews inferred relationships"| Models
+ModelAssistant -->|"register picker metadata"| ContentReference
+ContentReference -.->|"bounded target-role row lookup"| Workbench
 Persistence -->|"target.checkpoint()"| MemoryCheckpoint
 Transaction -->|"execute(query, shared session)"| Context
 QuerySpec -->|"execute(query) / prepare(query)"| Context
@@ -597,7 +606,7 @@ Factory -.->|"bootstrap()"| RuntimeSession
 Factory -.->|"activate_effective_content()"| ContentActivation
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
-class Code,Models,Workbench,ForeignKeyAuthoring,RowBatch,MutationHistory,ModelAssistant,GraphEditor,SQLEditor,Expr frontend;
+class Code,Models,Workbench,ForeignKeyAuthoring,RowBatch,MutationHistory,ModelAssistant,ContentReference,GraphEditor,SQLEditor,Expr frontend;
 class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,SetupProfile,ManagedConfiguration,DirectSetup,ManagedSetup,PackageManifest,PackageResolution,ContentOverlay,ContentCache,ContentActivation,SaveCompatibility,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;

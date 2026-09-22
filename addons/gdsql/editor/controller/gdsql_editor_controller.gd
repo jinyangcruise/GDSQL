@@ -98,6 +98,13 @@ func shutdown() -> void:
 			):
 		_workspace.table_reference_rows_requested.disconnect(_load_table_reference_rows)
 	if is_instance_valid(_workspace) \
+			and _workspace.table_content_reference_rows_requested.is_connected(
+				_load_table_content_reference_rows,
+			):
+		_workspace.table_content_reference_rows_requested.disconnect(
+			_load_table_content_reference_rows,
+		)
+	if is_instance_valid(_workspace) \
 			and _workspace.table_row_insert_requested.is_connected(_insert_table_row):
 		_workspace.table_row_insert_requested.disconnect(_insert_table_row)
 	if is_instance_valid(_workspace) \
@@ -187,6 +194,9 @@ func _configure_surfaces() -> void:
 	_workspace.database_destroy_submitted.connect(_destroy_database)
 	_workspace.table_rows_requested.connect(_load_table_rows)
 	_workspace.table_reference_rows_requested.connect(_load_table_reference_rows)
+	_workspace.table_content_reference_rows_requested.connect(
+		_load_table_content_reference_rows,
+	)
 	_workspace.table_row_insert_requested.connect(_insert_table_row)
 	_workspace.table_rows_duplicate_requested.connect(_duplicate_table_rows)
 	_workspace.table_rows_update_requested.connect(_update_table_rows)
@@ -550,6 +560,54 @@ func _load_table_reference_rows(
 	)
 	if not result.is_successful():
 		_record_result("Load foreign key references", result)
+	return result
+
+
+func _load_table_content_reference_rows(
+		source_registration_name: StringName,
+		source_table_name: StringName,
+		reference: GDSQLEditorContentReference,
+		query: GDSQLSelectQuerySpec,
+) -> GDSQLQueryResult:
+	var result := GDSQLQueryResult.new()
+	var target_table: GDSQLTableDefinition
+	var registration := workbench.get_registration(reference.target_registration_name)
+	if registration == null:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_EDITOR_CONTENT_REFERENCE_REGISTRATION_NOT_FOUND",
+				"Content registration '%s' was not found." \
+						% reference.target_registration_name,
+			),
+		)
+	else:
+		var opened := GDSQLRuntimeFactory.open_authoring_registration(registration)
+		result.diagnostics.merge(opened.diagnostics)
+		if opened.is_successful():
+			var database := opened.get_database()
+			target_table = database.context.catalog.get_table(
+				reference.target_database_name,
+				reference.target_table_name,
+			)
+			if target_table == null:
+				result.add_diagnostic(
+					GDSQLQueryDiagnostic.new(
+						&"GDSQL_EDITOR_CONTENT_REFERENCE_TARGET_NOT_FOUND",
+						"Content table '%s' was not found." \
+								% reference.target_table_name,
+					),
+				)
+			else:
+				result = database.execute(query)
+	_workspace.present_table_content_reference_rows(
+		source_registration_name,
+		source_table_name,
+		reference,
+		target_table,
+		result,
+	)
+	if not result.is_successful():
+		_record_result("Load content references", result)
 	return result
 
 

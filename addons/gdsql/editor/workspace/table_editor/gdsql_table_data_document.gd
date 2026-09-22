@@ -14,6 +14,12 @@ signal reference_rows_requested(
 		constraint_name: StringName,
 		query: GDSQLSelectQuerySpec,
 )
+signal content_reference_rows_requested(
+		source_registration_name: StringName,
+		source_table_name: StringName,
+		reference: GDSQLEditorContentReference,
+		query: GDSQLSelectQuerySpec,
+)
 signal row_insert_requested(
 		registration_name: StringName,
 		table_name: StringName,
@@ -67,6 +73,7 @@ var _action_hub: GDSQLEditorActionHub
 var _action_context: GDSQLContextActionHub
 var _action_context_id: StringName
 var _reference_request_grid: GDSQLEditorResultGrid
+var _content_references: Array[GDSQLEditorContentReference] = []
 
 @onready var _table_view: GDSQLEditorResultGrid = %TableView
 @onready var _insert_editor: GDSQLEditorResultGrid = %InsertEditor
@@ -97,12 +104,18 @@ func _ready() -> void:
 	_table_view.foreign_key_options_requested.connect(
 		_request_reference_rows.bind(_table_view),
 	)
+	_table_view.content_reference_options_requested.connect(
+		_request_content_reference_rows.bind(_table_view),
+	)
 	_table_view.column_title_clicked.connect(_on_column_title_clicked)
 	_table_view.item_selected.connect(_refresh_actions)
 	_table_view.multi_selected.connect(_on_multi_selected)
 	_insert_editor.inline_changes_changed.connect(_on_insert_changes_changed)
 	_insert_editor.foreign_key_options_requested.connect(
 		_request_reference_rows.bind(_insert_editor),
+	)
+	_insert_editor.content_reference_options_requested.connect(
+		_request_content_reference_rows.bind(_insert_editor),
 	)
 	_where_expression.changed.connect(_on_filter_changed)
 	_where_expression.apply_requested.connect(_apply_filter)
@@ -185,6 +198,11 @@ func configure(
 	registration_name = target_registration
 	table_name = table.name
 	_table = table
+	_content_references = GDSQLEditorContentReferenceStore.new().load_for_table(
+		registration_name,
+		table.database_name,
+		table.name,
+	)
 	_catalog_total_rows = maxi(0, total_rows)
 	var filterable_columns := _filterable_columns()
 	if source_changed:
@@ -211,6 +229,20 @@ func configure(
 	_refresh_actions()
 
 
+func reload_content_references() -> void:
+	if _table == null:
+		return
+	_content_references = GDSQLEditorContentReferenceStore.new().load_for_table(
+		registration_name,
+		_table.database_name,
+		_table.name,
+	)
+	_table_view.set_content_references(_content_references)
+	_insert_editor.set_content_references(_content_references)
+	if not has_unsaved_changes():
+		_render_table()
+
+
 func present_rows(result: GDSQLQueryResult, total_rows: int = -1) -> void:
 	_presentation_revision += 1
 	_close_insert_editor(false)
@@ -223,7 +255,7 @@ func present_rows(result: GDSQLQueryResult, total_rows: int = -1) -> void:
 			return
 	_records.clear()
 	if result == null or not result.is_successful():
-		_table_view.configure(_table, _table, _records, true)
+		_table_view.configure(_table, _table, _records, true, _content_references)
 		_table_view.clear()
 		%Status.text = (
 				"%s Rows could not be reloaded." % _pending_mutation_status
@@ -236,7 +268,13 @@ func present_rows(result: GDSQLQueryResult, total_rows: int = -1) -> void:
 	_records.assign(result.rows)
 	for index in range(_records.size()):
 		_records[index].set_value(ROW_NUMBER_COLUMN, _page_index * _page_size + index + 1)
-	_table_view.configure(_table, _build_view_table(), _records, true)
+	_table_view.configure(
+		_table,
+		_build_view_table(),
+		_records,
+		true,
+		_content_references,
+	)
 	_table_view.set_safe_mode(false)
 	_render_table()
 	var page_status := (
@@ -272,6 +310,30 @@ func present_reference_rows(
 			)
 			if result != null and result.is_successful()
 			else "Referenced rows could not be loaded."
+	)
+
+
+func present_content_reference_rows(
+		reference: GDSQLEditorContentReference,
+		target_table: GDSQLTableDefinition,
+		result: GDSQLQueryResult,
+) -> void:
+	if not is_instance_valid(_reference_request_grid):
+		return
+	_reference_request_grid.present_content_reference_options(
+		reference,
+		target_table,
+		result,
+	)
+	%Status.text = (
+			(
+					"Showing the first %d content rows. Type to search this bounded page."
+					% REFERENCE_PICKER_LIMIT
+					if result.rows.size() >= REFERENCE_PICKER_LIMIT
+					else "Choose a content row. Type while the list is open to search."
+			)
+			if result != null and result.is_successful()
+			else "Content rows could not be loaded."
 	)
 
 
@@ -312,6 +374,29 @@ func _request_reference_rows(
 		registration_name,
 		table_name,
 		constraint_name,
+		query,
+	)
+
+
+func _request_content_reference_rows(
+		reference: GDSQLEditorContentReference,
+		request_grid: GDSQLEditorResultGrid,
+) -> void:
+	if reference == null or not reference.is_valid():
+		%Status.text = "The selected content reference is invalid."
+		return
+	_reference_request_grid = request_grid
+	%Status.text = "Loading content rows…"
+	var query := GDSQLQuery.new(reference.target_database_name) \
+			.select() \
+			.from_table(reference.target_table_name) \
+			.order_by_column(reference.target_column_name) \
+			.limit(REFERENCE_PICKER_LIMIT) \
+			.build()
+	content_reference_rows_requested.emit(
+		registration_name,
+		table_name,
+		reference,
 		query,
 	)
 
@@ -567,7 +652,12 @@ func _begin_insert() -> void:
 	_table_view.deselect_all()
 	_table_view.set_safe_mode(true)
 	_render_table()
-	_insert_editor.configure_insert_draft(_table, _table)
+	_insert_editor.configure_insert_draft(
+		_table,
+		_table,
+		{ },
+		_content_references,
+	)
 	%InsertSection.show()
 	%Status.text = "Enter the new row, then save it from the action bar."
 	_refresh_actions()
@@ -668,7 +758,12 @@ func _begin_duplicate_draft(primary_keys: Array[Variant]) -> void:
 	_table_view.deselect_all()
 	_table_view.set_safe_mode(true)
 	_render_table()
-	_insert_editor.configure_insert_draft(_table, _table, values)
+	_insert_editor.configure_insert_draft(
+		_table,
+		_table,
+		values,
+		_content_references,
+	)
 	%InsertSection.show()
 	var status_parts := PackedStringArray()
 	if primary_keys.size() > 1:

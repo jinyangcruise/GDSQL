@@ -114,11 +114,15 @@ domain ownership or an inverse content-to-save relationship.
 
 For a generated save model, the Model Assistant exposes a **Save → content
 reference** helper. Choose the local identifier and a compatible content-model
-binding, then copy the generated `references_one()` entry into the user-owned
-`relationships()` array. Only `int`, `String`, and `StringName` identifiers with
-matching target primary-key types are offered. The helper never creates a
-cross-database foreign key. Reference names use snake_case, such as
-`item_content`; dots and display paths are not relationship names.
+binding, then select **Register & Copy** and paste the generated
+`references_one()` entry into the user-owned `relationships()` array.
+Registration also enables the content-row picker beside that save-table column.
+Only `int`, `String`, and `StringName` identifiers with matching target
+primary-key types are offered. The helper never creates a cross-database foreign
+key. Reference names use snake_case, such as `item_content`; dots and display
+paths are not relationship names. The registered-reference list can copy the
+declaration again or remove an accidental editor picker binding. Removing it
+does not modify the user-owned `relationships()` method.
 
 Character customization follows the same pattern: store stable identifiers for
 base class, body type, or equipped definitions, and keep player-specific colors,
