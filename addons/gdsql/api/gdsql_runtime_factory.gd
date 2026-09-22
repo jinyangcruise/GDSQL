@@ -231,6 +231,28 @@ static func open_registration(
 	return result
 
 
+## Opens the durable authoring source for an editor-selected registration.
+##
+## In-memory is a runtime policy: runtime sessions hydrate from ConfigFile and
+## checkpoint back to it. Editor authoring writes that ConfigFile source
+## directly so a separately launched game observes successful row mutations.
+## The durable registration metadata and selected runtime backend are unchanged.
+static func open_authoring_registration(
+		registration: GDSQLDatabaseRegistration,
+) -> GDSQLDatabaseResult:
+	if registration == null \
+			or registration.storage_backend_id != GDSQLStorageBackendIds.IN_MEMORY:
+		return open_registration(registration)
+	return open_registration(
+		GDSQLDatabaseRegistration.new(
+			registration.name,
+			registration.database_name,
+			registration.data_root,
+			GDSQLStorageBackendIds.CONFIG_FILE,
+		),
+	)
+
+
 static func _hydrate_in_memory(
 		context: GDSQLDatabaseContext,
 		data_root: String,

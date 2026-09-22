@@ -2088,6 +2088,13 @@ ConfigFile registrations open their durable backend directly. In-memory
 registrations use the same catalog and hydrate existing durable rows into an
 authoritative clean working set.
 
+`open_authoring_registration()` is the editor-authoring composition entry
+point. It opens ConfigFile registrations normally and opens the durable
+ConfigFile source of an in-memory registration without changing its stored
+runtime backend. The workbench therefore commits authored rows directly to the
+source that a later runtime session hydrates; runtime mutation and checkpoint
+semantics remain unchanged.
+
 The composition root is permitted to reference concrete implementations. Most other classes depend on abstract contracts.
 
 This supports:

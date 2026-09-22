@@ -243,7 +243,7 @@ Factory("`**GDSQLRuntimeFactory**
 
 -
 *Purpose:* Assemble one compatible runtime object graph
-*API:* create_default(), create_in_memory(), open_registration(), bootstrap(), activate_managed_content()
+*API:* create_default(), create_in_memory(), open_registration(), open_authoring_registration(), bootstrap(), activate_managed_content()
 *Creates:* GDSQLDatabaseContext and GDSQLRuntimeSession
 *Injects:* Catalog, storage, validation, planning and execution services`")
 
@@ -536,7 +536,7 @@ Models -->|"resolve_role(model)"| RuntimeRegistry
 Models -->|"to_query_spec()"| QuerySpec
 Models -->|"ModelResultMaterializer"| Materialization
 Code -->|"checkpoint() · checkpoint_dirty()"| Persistence
-Workbench -->|"open_registration()"| Factory
+Workbench -->|"open_authoring_registration()"| Factory
 Workbench -->|"load and save registration snapshot"| RuntimeRegistry
 Workbench -->|"select · load rows"| Database
 Workbench -->|"preview · apply change plan"| CatalogAdministration

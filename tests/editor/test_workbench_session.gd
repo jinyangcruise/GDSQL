@@ -45,6 +45,34 @@ func test_in_memory_registration_hydrates_durable_rows_as_clean() -> void:
 	assert_bool((database.context.storage as GDSQLInMemoryTableStorage).is_dirty()).is_false()
 
 
+func test_workbench_authors_in_memory_registration_through_its_durable_source() -> void:
+	TestDatabase.create_heroes_database(_data_root)
+	var registration := GDSQLDatabaseRegistration.new(
+		&"save_1",
+		&"game_config",
+		_data_root,
+		GDSQLStorageBackendIds.IN_MEMORY,
+	)
+	var session := GDSQLWorkbenchSession.new()
+
+	assert_bool(session.open_registration(registration).is_successful()).is_true()
+	assert_object(session.database.context.storage).is_instanceof(
+		GDSQLConfigFileTableStorage,
+	)
+	assert_bool(
+		session.database.insert(
+			&"heroes",
+			{ &"id": 1, &"name": "Knight" },
+		).is_successful(),
+	).is_true()
+
+	var durable := GDSQLDatabase.open(&"game_config", _data_root).get_database()
+	var rows := durable.execute(durable.table(&"heroes").select().build())
+	assert_int(rows.get_returned_rows()).is_equal(1)
+	assert_str(rows.rows[0].get_value(&"name")).is_equal("Knight")
+	assert_str(String(registration.storage_backend_id)).is_equal("memory")
+
+
 func test_workbench_selects_pages_and_applies_previewed_change() -> void:
 	var durable := TestDatabase.create_heroes_database(_data_root)
 	TestDatabase.insert_basic_heroes(durable)

@@ -110,6 +110,13 @@ second database may create another session or replace the active one according
 to the workspace document policy; controls do not store authoritative database
 state themselves.
 
+The workbench opens a registration through the runtime factory's authoring
+composition. ConfigFile registrations are unchanged. For an in-memory runtime
+registration, the session edits its durable ConfigFile hydration/checkpoint
+source directly, while retaining the original registration and backend choice
+for display and runtime startup. This prevents editor-created save rows from
+remaining visible only inside one workbench process.
+
 Project-root discovery runs when the editor workbench loads. The database dock
 therefore exposes refresh as its persistent toolbar operation; database
 creation and other structural operations are opened as workspace tasks.

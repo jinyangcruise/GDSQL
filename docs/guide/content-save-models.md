@@ -172,10 +172,11 @@ This is a content-definition preview, not a simulation of a running character.
 Saved customization and transient animation, physics, combat, or AI state still
 belong to their normal runtime owners.
 
-The runnable `local/main.tscn` example previews `HeroContent` id `1` in the
-editor. At runtime, `local/main.gd` loads `HeroSave` row `1` with
-`with(&"hero_content")` and shows that its `hero_content_id` resolves to the
-same content model.
+The development-only `local/examples/ContentPreview/main.tscn` example previews
+`HeroContent` id `1` in the editor. At runtime, its `main.gd` loads `HeroSave`
+row `1` with `with(&"hero_content")` and shows that its `hero_content_id`
+resolves to the same content model. It can move into the distributed examples
+later if this workflow becomes part of the supported onboarding path.
 
 ## Change save slots
 

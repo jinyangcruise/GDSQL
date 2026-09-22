@@ -186,11 +186,12 @@ deletion. Permanent deletion requires confirmation, shows the exact database
 path, and is rejected unless the data root is one direct child of the standard
 save directory.
 
-Known editor gap: row authoring against an in-memory save registration can
-remain only in the workbench's open memory database. The workbench must persist
-successful save-table authoring to the registration's durable checkpoint source
-before editor-created rows can be relied on by a separately launched game. Fix
-this before completing the cross-role content-reference cell selector.
+The workbench now treats an in-memory backend as a runtime policy and opens its
+durable ConfigFile source for editor authoring. Successful table edits are
+therefore visible when a separately launched runtime hydrates the registration;
+the stored backend selection remains in-memory and runtime checkpoint behavior
+is unchanged. This removes the persistence blocker for the cross-role
+content-reference cell selector.
 
 Runtime bootstrap and the welcome checklist now share a typed direct-setup
 report. Missing roles, unsafe roots, unavailable backends, missing content, and
