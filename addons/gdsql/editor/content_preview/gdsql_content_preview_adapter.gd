@@ -2,6 +2,11 @@
 class_name GDSQLContentPreviewAdapter
 extends Node
 ## Opt-in editor adapter that applies one content row to a transient scene.
+##
+## Assign a user model extending [GDSQLContentModel], enter the value of that
+## model's primary key, choose a visual [PackedScene], and map model properties
+## to compatible properties on the preview scene. Refreshing reads content only;
+## the instantiated preview and fetched values are never saved into this scene.
 
 signal preview_refreshed(result: GDSQLOperationResult)
 
@@ -9,21 +14,35 @@ const PREVIEW_NODE_NAME := &"GDSQLContentPreview"
 const STATUS_PROPERTY := &"preview_status"
 
 @export_category("Content Row")
+## User-owned model script for the content table, such as `HeroContent`.
+## Save and settings models are rejected because this preview is read-only.
 @export var content_model: Script
-@export var stable_identifier := ""
+## Primary-key value of the content row, not the column name. For example, use
+## `1` for integer row id 1 or `iron_sword` for a String/StringName identifier.
+@export_placeholder("Example: 1 or iron_sword") var stable_identifier := ""
 
 @export_category("Transient Preview")
+## Visual scene instantiated temporarily to display the selected content row.
 @export var preview_scene: PackedScene
+## Node that temporarily receives the preview instance. The path is relative to
+## this adapter; `.` places it below the adapter. Fetched values never modify it.
 @export_node_path("Node") var preview_host: NodePath = NodePath(".")
+## Explicit model-to-scene property mappings. Source values come from the
+## selected content model. Targets belong to the instantiated preview scene.
 @export var bindings: Array[GDSQLContentPreviewBinding] = []
 
-@export_category("Project Paths")
+@export_category("Advanced Project Paths")
+## Durable database registry. Keep the default unless the project moved it.
 @export_file("*.cfg") var registry_path := GDSQLConfigFileDatabaseRegistryStore.DEFAULT_PATH
+## Direct/Managed profile settings. Keep the default unless the project moved it.
 @export_file("*.cfg") var setup_settings_path := GDSQLConfigFileSetupProfileStore.DEFAULT_PATH
+## Disposable Managed Content cache root. Direct Content does not use it.
 @export_dir var managed_cache_root := GDSQLConfigFileContentCacheStore.DEFAULT_CACHE_ROOT
 
 @export_category("Actions")
+## Reloads the configured row and rebuilds the transient preview instance.
 @export_tool_button("Refresh Content Preview", "Reload") var refresh_action := refresh_preview
+## Removes the transient preview without changing database or authored data.
 @export_tool_button("Clear Content Preview", "Clear") var clear_action := clear_preview
 
 var _preview_instance: Node

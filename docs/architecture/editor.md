@@ -217,7 +217,10 @@ Selected fields are applied through typed bindings to an internal, ownerless
 instance of a configured `PackedScene`. The adapter never applies fetched values
 to an authored node, opens a mutation API, or retains the temporary runtime
 session after refresh. Failures remain structured diagnostics and are surfaced
-as adapter status and scene configuration warnings.
+as adapter status and scene configuration warnings. Generated and newly
+scaffolded user models include `@tool` so an explicitly selected content model
+can be instantiated during this editor-only operation; existing model pairs
+must add `@tool` to both scripts or be regenerated before previewing.
 
 Workspace documents and their reusable controls are separate scenes. The host
 owns tab identity, activation, and closure; each document owns only its local

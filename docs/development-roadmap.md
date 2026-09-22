@@ -186,6 +186,12 @@ deletion. Permanent deletion requires confirmation, shows the exact database
 path, and is rejected unless the data root is one direct child of the standard
 save directory.
 
+Known editor gap: row authoring against an in-memory save registration can
+remain only in the workbench's open memory database. The workbench must persist
+successful save-table authoring to the registration's durable checkpoint source
+before editor-created rows can be relied on by a separately launched game. Fix
+this before completing the cross-role content-reference cell selector.
+
 Runtime bootstrap and the welcome checklist now share a typed direct-setup
 report. Missing roles, unsafe roots, unavailable backends, missing content, and
 an absent runtime autoload produce actionable status without preventing custom
@@ -455,6 +461,11 @@ Direct/Managed content lookup, rejects non-content models, converts supported
 primary-key text, reports structured diagnostics, and applies explicit typed
 bindings only to an internal ownerless preview-scene instance. A searchable
 content-row picker remains before this item is complete.
+
+The same model-aware selector should later be reusable by save-table cells that
+participate in `references_one()` navigation. It must present rows from the
+target content role without misrepresenting the cross-database reference as a
+catalog foreign key.
 
 ### 13. Define a GDSQL-aware MCP surface
 

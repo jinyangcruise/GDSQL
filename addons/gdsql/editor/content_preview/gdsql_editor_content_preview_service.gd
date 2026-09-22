@@ -11,10 +11,15 @@ func _init(model_context: GDSQLModelContext) -> void:
 
 
 func load(model_script: Script, identifier_text: String) -> GDSQLOperationResult:
-	if model_script == null or not model_script.can_instantiate():
+	if model_script == null:
 		return _failure(
 			&"GDSQL_CONTENT_PREVIEW_MODEL_REQUIRED",
-			"Choose a content model script that can be instantiated.",
+			"Choose a user-owned content model script.",
+		)
+	if not model_script.can_instantiate():
+		return _failure(
+			&"GDSQL_CONTENT_PREVIEW_MODEL_NOT_EDITOR_EXECUTABLE",
+			"The selected model cannot run in the editor. Add @tool to its user and generated scripts, then check parser and dependency errors.",
 		)
 	var candidate: Variant = model_script.new()
 	if not candidate is GDSQLContentModel:

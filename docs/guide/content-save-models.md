@@ -138,6 +138,28 @@ running the game. In its Inspector:
    property to a property on the preview root or one of its child nodes.
 5. Press **Refresh Content Preview**.
 
+The Inspector values have these sources:
+
+| Adapter field | Value to provide |
+|---|---|
+| Content Model | User-owned content model, such as `HeroContent` |
+| Stable Identifier | Primary-key **value**, such as `1`; do not enter the column name `id` |
+| Preview Scene | Visual scene to instantiate temporarily |
+| Preview Host | Scene node that receives the temporary instance; the path is relative to the adapter |
+| Binding → Model Property | Property from the content model, such as `name`, `health`, or `texture` |
+| Binding → Target Node | Node inside the preview scene, relative to its root; use `.` for the root |
+| Binding → Target Property | Type-compatible property on that target, such as `hero_name` or `texture` |
+
+Bindings copy values directly and do not convert types. For example, map a
+model `float` to a preview `float`, then let the preview tool script format that
+value for a Label.
+
+The Model Assistant now places `@tool` on both new generated bases and new
+user-owned models because Godot otherwise creates placeholder instances in the
+editor. For an older model, add `@tool` to both scripts or regenerate the base
+and add it to the preserved user script. This does not query automatically;
+model construction occurs only after pressing the preview's Refresh button.
+
 The adapter uses the project's selected Direct or Managed profile. It rejects
 save and settings models and releases its temporary model context after the
 lookup. The preview scene is added as an internal node with no owner, so the
@@ -149,6 +171,11 @@ fails.
 This is a content-definition preview, not a simulation of a running character.
 Saved customization and transient animation, physics, combat, or AI state still
 belong to their normal runtime owners.
+
+The runnable `local/main.tscn` example previews `HeroContent` id `1` in the
+editor. At runtime, `local/main.gd` loads `HeroSave` row `1` with
+`with(&"hero_content")` and shows that its `hero_content_id` resolves to the
+same content model.
 
 ## Change save slots
 
