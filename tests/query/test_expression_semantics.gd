@@ -196,3 +196,63 @@ func test_expr_executes_through_the_existing_query_pipeline() -> void:
 	assert_bool(result.is_successful()).is_true()
 	assert_int(result.get_returned_rows()).is_equal(1)
 	assert_str(result.rows[0].get_value(&"name")).is_equal("Knight")
+
+
+func test_resource_property_filter_executes_only_on_scalar_leaf() -> void:
+	var table := GDSQLTableDefinition.new(&"mesh_heroes", &"id")
+	table.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	var mesh_column := GDSQLColumnDefinition.new(&"mesh", TYPE_OBJECT, false)
+	mesh_column.resource_type = GDSQLResourceTypeConstraint.from_resource(BoxMesh.new())
+	table.add_column(mesh_column)
+	var database := TestDatabase.create_database(_data_root, table)
+	var small_mesh := BoxMesh.new()
+	small_mesh.size = Vector3(1.0, 2.0, 3.0)
+	var large_mesh := BoxMesh.new()
+	large_mesh.size = Vector3(4.0, 5.0, 6.0)
+	TestDatabase.insert_rows(
+		database,
+		[
+			{ &"id": 1, &"mesh": small_mesh },
+			{ &"id": 2, &"mesh": large_mesh },
+		],
+		&"mesh_heroes",
+	)
+
+	var result := database.execute(
+		database.table(&"mesh_heroes")
+		.select()
+		.where(
+			GDSQLExpr.resource_property(&"mesh", [&"size", &"x"]).greater_than(2.0),
+		)
+		.build(),
+	)
+
+	assert_bool(result.is_successful()).is_true()
+	assert_int(result.get_returned_rows()).is_equal(1)
+	assert_int(result.rows[0].get_value(&"id")).is_equal(2)
+
+
+func test_resource_property_filter_rejects_compound_value() -> void:
+	var table := GDSQLTableDefinition.new(&"mesh_heroes", &"id")
+	table.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	var mesh_column := GDSQLColumnDefinition.new(&"mesh", TYPE_OBJECT, false)
+	mesh_column.resource_type = GDSQLResourceTypeConstraint.from_resource(BoxMesh.new())
+	table.add_column(mesh_column)
+	var database := TestDatabase.create_database(_data_root, table)
+
+	var result := database.execute(
+		database.table(&"mesh_heroes")
+		.select()
+		.where(
+			GDSQLExpr.scalar(
+				&"resource_property",
+				[GDSQLExpr.column(&"mesh"), "size"],
+			).equals(Vector3.ONE),
+		)
+		.build(),
+	)
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(String(result.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_VALIDATION_RESOURCE_PROPERTY_LEAF",
+	)

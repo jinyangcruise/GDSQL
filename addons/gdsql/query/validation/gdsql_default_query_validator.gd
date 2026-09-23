@@ -5,14 +5,21 @@ const FunctionCatalog = preload("res://addons/gdsql/query/model/gdsql_query_func
 
 var catalog: GDSQLCatalogService
 var function_catalog: FunctionCatalog
+var _resource_properties: GDSQLResourcePropertyCatalog
 
 
 func _init(
 		_catalog: GDSQLCatalogService = null,
 		_function_catalog: FunctionCatalog = null,
+		resource_properties: GDSQLResourcePropertyCatalog = null,
 ) -> void:
 	catalog = _catalog
 	function_catalog = _function_catalog
+	_resource_properties = (
+			resource_properties
+			if resource_properties != null
+			else GDSQLResourcePropertyCatalog.new()
+	)
 
 
 func validate(query: GDSQLQuerySpec) -> GDSQLQueryValidationResult:
@@ -346,6 +353,7 @@ func _bind_expression(
 		bound_column.source_qualifier = matched_source.get_qualifier()
 		bound_column.data_type = column.data_type
 		bound_column.nullable = column.nullable or matched_source.nullable
+		bound_column.resource_type = column.resource_type
 		return bound_column
 	if expression is GDSQLComparisonExpression:
 		var comparison := expression as GDSQLComparisonExpression
@@ -766,10 +774,14 @@ func _bind_function(
 				return null
 	if not _validate_function_types(expression.name, bound_arguments, result):
 		return null
+	var resolved_return_type := definition.return_type
+	if String(expression.name).to_lower() == "resource_property":
+		resolved_return_type = _resource_property_type(bound_arguments)
 	return GDSQLFunctionExpression.new(
 		expression.name,
 		bound_arguments,
 		definition.aggregate,
+		resolved_return_type,
 	)
 
 
@@ -800,6 +812,8 @@ func _validate_function_types(
 		result: GDSQLQueryValidationResult,
 ) -> bool:
 	var normalized := String(name).to_lower()
+	if normalized == "resource_property":
+		return _validate_resource_property(arguments, result)
 	if normalized == "lower" or normalized == "upper" or normalized == "length":
 		var data_type := _expression_type(arguments[0])
 		if data_type != TYPE_NIL and data_type != TYPE_STRING and data_type != TYPE_STRING_NAME:
@@ -850,6 +864,58 @@ func _validate_function_types(
 	return true
 
 
+func _validate_resource_property(
+		arguments: Array[GDSQLQueryExpression],
+		result: GDSQLQueryValidationResult,
+) -> bool:
+	var column := arguments[0] as GDSQLBoundColumnExpression
+	if column == null or column.data_type != TYPE_OBJECT or column.resource_type == null:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_VALIDATION_RESOURCE_PROPERTY_COLUMN",
+				"Resource property filters require a constrained Resource column.",
+			),
+		)
+		return false
+	var path_literal := arguments[1] as GDSQLLiteralExpression
+	if path_literal == null \
+			or typeof(path_literal.value) not in [TYPE_STRING, TYPE_STRING_NAME] \
+			or String(path_literal.value).is_empty():
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_VALIDATION_RESOURCE_PROPERTY_PATH",
+				"Resource property filters require one non-empty literal property path.",
+			),
+		)
+		return false
+	var definition := _resource_properties.resolve_filterable_leaf(
+		column.resource_type,
+		String(path_literal.value),
+	)
+	if definition == null:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_VALIDATION_RESOURCE_PROPERTY_LEAF",
+				"Resource property '%s' is not an Inspector-visible scalar leaf." \
+						% path_literal.value,
+			),
+		)
+		return false
+	return true
+
+
+func _resource_property_type(arguments: Array[GDSQLQueryExpression]) -> Variant.Type:
+	var column := arguments[0] as GDSQLBoundColumnExpression
+	var path_literal := arguments[1] as GDSQLLiteralExpression
+	if column == null or path_literal == null:
+		return TYPE_NIL
+	var definition := _resource_properties.resolve_filterable_leaf(
+		column.resource_type,
+		String(path_literal.value),
+	)
+	return definition.data_type if definition != null else TYPE_NIL
+
+
 func _validate_arithmetic_types(
 		operator: GDSQLArithmeticExpression.ArithmeticOperator,
 		left: GDSQLQueryExpression,
@@ -896,6 +962,8 @@ func _expression_type(expression: GDSQLQueryExpression) -> Variant.Type:
 		if function_catalog == null:
 			return TYPE_NIL
 		var function := expression as GDSQLFunctionExpression
+		if function.resolved_return_type != TYPE_NIL:
+			return function.resolved_return_type
 		var definition := function_catalog.resolve(function.name)
 		if definition == null:
 			return TYPE_NIL

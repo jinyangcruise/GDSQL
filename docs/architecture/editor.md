@@ -271,7 +271,11 @@ column work, `GDSQLExpr` WHERE controls, and next model-source slice are recorde
 operations that accept a predicate. It receives typed catalog columns and
 returns a canonical `GDSQLQueryExpression` plus structured diagnostics. SELECT,
 UPDATE, and DELETE may embed it; INSERT does not, because insertion has no row
-selection predicate. The component does not bind or evaluate expressions.
+selection predicate. Constrained Resource columns expand through the shared
+Resource-property catalog into Inspector-visible scalar leaves. Supported
+compound Variant properties expose only their components, such as
+`mesh → size → x`; `mesh → size` is not selectable because `Vector3` is not a
+filter leaf. The component does not bind or evaluate expressions.
 
 Every operation and result view derives from `QueryGraphNode`. The base extends
 Godot's native `GraphNode` titlebar through `get_titlebar_hbox()`, provides a

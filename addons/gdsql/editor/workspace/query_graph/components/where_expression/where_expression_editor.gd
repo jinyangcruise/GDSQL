@@ -17,8 +17,9 @@ const CONDITION_SCENE := preload(
 
 @export var show_header_actions := false
 
-var _columns: Array[GDSQLColumnDefinition] = []
+var _fields: Array[GDSQLEditorWhereField] = []
 var _rebuilding := false
+var _field_catalog := GDSQLEditorWhereFieldCatalog.new()
 
 @onready var _use_where: CheckButton = %UseWhere
 @onready var _header_actions: HBoxContainer = %HeaderActions
@@ -56,16 +57,16 @@ func configure(
 		preserve_state: bool = false,
 ) -> void:
 	_rebuilding = true
-	_columns = columns.duplicate()
+	_fields = _field_catalog.build(columns)
 	if not preserve_state:
 		_clear_conditions()
 		_use_where.button_pressed = false
 	for row in _get_conditions():
-		row.configure(_columns, preserve_state)
-	if _conditions.get_child_count() == 0 and not _columns.is_empty():
+		row.configure(_fields, preserve_state)
+	if _conditions.get_child_count() == 0 and not _fields.is_empty():
 		_create_condition()
-	_use_where.disabled = _columns.is_empty()
-	if _columns.is_empty():
+	_use_where.disabled = _fields.is_empty()
+	if _fields.is_empty():
 		_use_where.button_pressed = false
 	_rebuilding = false
 	_update_condition_positions()
@@ -131,7 +132,7 @@ func _create_condition() -> GDSQLWhereConditionRow:
 	row.changed.connect(_on_condition_changed)
 	row.remove_requested.connect(_on_remove_condition)
 	row.move_requested.connect(_on_move_condition)
-	row.configure(_columns)
+	row.configure(_fields)
 	return row
 
 
@@ -157,7 +158,7 @@ func _update_condition_positions() -> void:
 
 
 func _update_presentation() -> void:
-	_expression_body.visible = _use_where.button_pressed and not _columns.is_empty()
+	_expression_body.visible = _use_where.button_pressed and not _fields.is_empty()
 	_validation_status.visible = false
 	_validation_status.text = ""
 	if not _use_where.button_pressed:

@@ -6,6 +6,7 @@ var column_id: GDSQLColumnId
 var source_qualifier: StringName
 var data_type: Variant.Type = TYPE_NIL
 var nullable: bool = true
+var resource_type: GDSQLResourceTypeConstraint
 
 
 func accept(visitor: GDSQLExpressionVisitor) -> Variant:

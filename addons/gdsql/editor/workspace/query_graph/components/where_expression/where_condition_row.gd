@@ -10,7 +10,7 @@ signal move_requested(row: GDSQLWhereConditionRow, direction: int)
 const WHERE_IS_NULL := 100
 const WHERE_IS_NOT_NULL := 101
 
-var _columns: Array[GDSQLColumnDefinition] = []
+var _fields: Array[GDSQLEditorWhereField] = []
 var _value_field: GDSQLEditorVariantValueField
 var _rebuilding := false
 
@@ -38,17 +38,17 @@ func _ready() -> void:
 
 
 func configure(
-		columns: Array[GDSQLColumnDefinition],
+		fields: Array[GDSQLEditorWhereField],
 		preserve_state: bool = false,
 ) -> void:
-	var selected_column := get_selected_column_name()
+	var selected_field := get_selected_field_key()
 	var selected_operator := get_operator_id()
 	var selected_connector := get_connector()
 	var was_inverted := _invert.button_pressed
 	var value_state := _capture_value()
 	_rebuilding = true
-	_columns = columns.duplicate()
-	_populate_columns(selected_column if preserve_state else &"")
+	_fields = fields.duplicate()
+	_populate_fields(selected_field if preserve_state else "")
 	_select_metadata(
 		_operator,
 		selected_operator if preserve_state else (
@@ -84,9 +84,14 @@ func get_connector() -> GDSQLLogicalExpression.LogicalOperator:
 
 
 func get_selected_column_name() -> StringName:
+	var field := _get_selected_field()
+	return field.column_name if field != null else &""
+
+
+func get_selected_field_key() -> String:
 	if _column == null or _column.selected < 0:
-		return &""
-	return StringName(_column.get_item_metadata(_column.selected))
+		return ""
+	return String(_column.get_item_metadata(_column.selected))
 
 
 func get_operator_id() -> int:
@@ -97,13 +102,13 @@ func get_operator_id() -> int:
 
 func build_expression() -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
-	var column_definition := _get_selected_column()
-	if column_definition == null:
+	var field := _get_selected_field()
+	if field == null:
 		return _error(
 			&"GDSQL_QUERY_GRAPH_WHERE_COLUMN_REQUIRED",
 			"Choose a column for this WHERE condition.",
 		)
-	var left := GDSQLExpr.column(column_definition.name)
+	var left := field.expression()
 	var operator_id := get_operator_id()
 	var expression: GDSQLQueryExpression
 	if operator_id == WHERE_IS_NULL:
@@ -121,8 +126,8 @@ func build_expression() -> GDSQLOperationResult:
 			return _error(
 				&"GDSQL_QUERY_GRAPH_WHERE_VALUE_INVALID",
 				"WHERE value for '%s' must be %s." % [
-					column_definition.name,
-					type_string(column_definition.data_type),
+					field.display_name(),
+					type_string(field.data_type),
 				],
 			)
 		expression = _build_comparison(left, operator_id, converted.value)
@@ -136,10 +141,10 @@ func build_expression() -> GDSQLOperationResult:
 
 
 func get_summary() -> String:
-	var column_name := String(get_selected_column_name())
-	if column_name.is_empty() or _operator.selected < 0:
+	var field := _get_selected_field()
+	if field == null or _operator.selected < 0:
 		return "<incomplete condition>"
-	var summary := "%s %s" % [column_name, _operator.get_item_text(_operator.selected)]
+	var summary := "%s %s" % [field.display_name(), _operator.get_item_text(_operator.selected)]
 	if get_operator_id() not in [WHERE_IS_NULL, WHERE_IS_NOT_NULL]:
 		var converted := _value_field.get_value_result() if _value_field != null else { }
 		summary += " %s" % (
@@ -179,13 +184,14 @@ func _populate_operators() -> void:
 		_operator.set_item_metadata(_operator.item_count - 1, definition[1])
 
 
-func _populate_columns(selected_column: StringName) -> void:
+func _populate_fields(selected_field: String) -> void:
 	_column.clear()
-	for definition in _columns:
-		_column.add_item(String(definition.name))
+	for field in _fields:
+		_column.add_item(field.display_name())
 		var index := _column.item_count - 1
-		_column.set_item_metadata(index, definition.name)
-		if definition.name == selected_column:
+		_column.set_item_metadata(index, field.key())
+		_column.set_item_tooltip(index, field.display_name())
+		if field.key() == selected_field:
 			_column.select(index)
 	_column.disabled = _column.item_count == 0
 	if _column.item_count > 0 and _column.selected < 0:
@@ -218,31 +224,30 @@ func _rebuild_value(state: Dictionary = { }) -> void:
 	if get_operator_id() in [WHERE_IS_NULL, WHERE_IS_NOT_NULL]:
 		_value_host.visible = false
 		return
-	var column_definition := _get_selected_column()
-	if column_definition == null:
+	var field := _get_selected_field()
+	if field == null:
 		_value_host.visible = false
 		return
 	_value_field = GDSQLEditorVariantValueField.new()
 	_value_field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_value_host.add_child(_value_field)
 	_value_field.configure(
-		column_definition.data_type,
+		field.data_type,
 		state.get("value") if state.get("has_value", false) else (
-				_default_value(column_definition.data_type)
+				_default_value(field.data_type)
 		),
 		false,
 		true,
-		column_definition.resource_type,
 	)
 	_value_field.changed.connect(_on_value_changed)
 	_value_host.visible = true
 
 
-func _get_selected_column() -> GDSQLColumnDefinition:
-	var selected_name := get_selected_column_name()
-	for definition in _columns:
-		if definition.name == selected_name:
-			return definition
+func _get_selected_field() -> GDSQLEditorWhereField:
+	var selected_key := get_selected_field_key()
+	for field in _fields:
+		if field.key() == selected_key:
+			return field
 	return null
 
 

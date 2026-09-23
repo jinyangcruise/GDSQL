@@ -93,8 +93,9 @@ Selected rows can be duplicated through one atomic insert batch when the table
 has a generated identity and copies only non-unique scalar values. Manual
 identities, copied unique constraints, or Resource values instead populate one
 editable insert draft from the first selected row. Resource values are
-deep-cloned for that draft. Resource columns remain temporarily excluded from
-typed WHERE choices.
+deep-cloned for that draft. Constrained Resource columns expose only validated
+Inspector-visible scalar leaves to typed WHERE choices; compound values such as
+`Vector3` expose their scalar components instead of the container.
 Tab advances through editable cells and Enter commits an inline edit before
 moving down the same column.
 
@@ -450,6 +451,11 @@ work for this authoring picker.
 | Assisted cross-role `save` → `content` declarations | Implemented |
 
 ### 11. Improve nested typed WHERE interactions
+
+The first bounded nesting slice is implemented: Resource columns expand to
+Inspector-visible scalar leaves, including supported Vector and Color
+components. Validation rejects unknown paths and intermediate compound values,
+and execution remains a canonical typed query rather than editor-side filtering.
 
 Add explicit nested groups, group-level `NOT`, clear precedence, and compact
 collapse/summary behavior to the shared WHERE editor. The result must remain a

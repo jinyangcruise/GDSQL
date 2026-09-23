@@ -16,6 +16,7 @@ func _init(_catalog: FunctionCatalog = null) -> void:
 	register_function(&"length", _length, 1, 1, TYPE_INT)
 	register_function(&"abs", _absolute, 1, 1, TYPE_NIL)
 	register_function(&"coalesce", _coalesce, 1, -1, TYPE_NIL)
+	register_function(&"resource_property", _resource_property, 2, 2, TYPE_NIL)
 	register_aggregate_function(&"count", _count, 0, 1, TYPE_INT)
 	register_aggregate_function(&"sum", _sum, 1, 1, TYPE_FLOAT)
 	register_aggregate_function(&"avg", _average, 1, 1, TYPE_FLOAT)
@@ -106,6 +107,14 @@ func _coalesce(arguments: Array) -> Variant:
 		if value != null:
 			return value
 	return null
+
+
+func _resource_property(arguments: Array) -> Variant:
+	var resource: Variant = arguments[0]
+	var serialized_path := String(arguments[1])
+	if not resource is Resource or serialized_path.is_empty():
+		return null
+	return (resource as Resource).get_indexed(NodePath(serialized_path))
 
 
 func _count(values: Array, row_count: int) -> int:

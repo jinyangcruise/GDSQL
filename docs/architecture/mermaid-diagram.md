@@ -358,6 +358,13 @@ ResourceConstraint("`**GDSQLResourceTypeConstraint**
 *Identity:* Derived from a Resource prototype as native ClassDB name or project script path
 *Used by:* Column defaults, query validation, storage validation and typed editor pickers`")
 
+ResourceProperties("`**GDSQLResourcePropertyCatalog**
+
+-
+*Purpose:* Resolve Inspector-visible scalar leaves for constrained Resource columns
+*Compound values:* Expose supported scalar components, never the container
+*Used by:* WHERE authoring and semantic validation`")
+
 ForeignKeys("`**GDSQLForeignKeyDefinition**
 
 -
@@ -573,6 +580,9 @@ Context -->|"GDSQLDatabaseResult / GDSQLQueryResult"| Results
 Context -->|"catalog lifecycle API"| CatalogAdministration
 Validator -->|"get_table() · create_snapshot()"| CatalogService
 CatalogService -->|"object-column metadata"| ResourceConstraint
+ResourceConstraint -->|"static property metadata"| ResourceProperties
+Validator -->|"validate scalar leaf path"| ResourceProperties
+Workbench -.->|"Resource WHERE field choices"| ResourceProperties
 CatalogService -->|"table integrity metadata"| ForeignKeys
 Executor -->|"read_table() · find_by_primary_key()"| TableStorage
 Executor -->|"stage_*() · commit() · rollback()"| TableStorage
@@ -613,7 +623,7 @@ class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
 class Planner,PlanNode planning;
 class Executor,ForeignKeyValidation execution;
-class CatalogService,CatalogAdministration,ResourceConstraint,ForeignKeys catalog;
+class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys catalog;
 class TableStorage storage;
 class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
 class Results,Materialization result;

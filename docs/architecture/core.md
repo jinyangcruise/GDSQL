@@ -402,8 +402,13 @@ The query-level function catalog exposes definitions containing name, arity,
 return type, and aggregate classification. Validation depends on this metadata,
 while the execution-level registry owns the matching scalar and aggregate
 callables. The initial runtime provides `lower`, `upper`, `length`, `abs`,
-`coalesce`, `count`, `sum`, `avg`, `min`, and `max`. Function existence,
-arity, argument compatibility, expression type compatibility, aggregate
+`coalesce`, `resource_property`, `count`, `sum`, `avg`, `min`, and `max`.
+`resource_property` accepts only a constrained Resource column and a literal
+Inspector-visible scalar-leaf path validated against catalog metadata. Compound
+values such as `Vector3` are not valid leaves; their supported scalar
+components are. Bound functions retain a resolved return type when their type
+depends on validated arguments. Function existence, arity, argument
+compatibility, expression type compatibility, aggregate
 placement, and grouped-expression compatibility are validated before planning.
 Aggregate execution groups rows before HAVING, ordering, and projection.
 
@@ -448,6 +453,8 @@ GDSQLExpr.column(&"damage").add(GDSQLExpr.column(&"bonus"))
 The factories are:
 
 - `column(column_name, table_alias)` for an optionally qualified column.
+- `resource_property(column_name, property_path, table_alias)` for a validated
+  scalar leaf of a constrained Resource column.
 - `literal(value)` for an explicit literal.
 - `and_(left, right)`, `or_(left, right)`, and `not_(expression)` for logical
   composition.

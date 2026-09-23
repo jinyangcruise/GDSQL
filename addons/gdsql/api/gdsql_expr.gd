@@ -27,6 +27,28 @@ static func column(
 	return GDSQLColumnExpression.new(column_name, table_alias)
 
 
+## Reads one validated scalar leaf from a Resource column. Property paths use
+## Inspector-style nesting; compound values must end at a scalar component.
+## [codeblock]
+## GDSQLExpr.resource_property(&"mesh", [&"size", &"x"]).greater_than(1.0)
+## [/codeblock]
+static func resource_property(
+		column_name: StringName,
+		property_path: Array[StringName],
+		table_alias: StringName = &"",
+) -> GDSQLFunctionExpression:
+	var parts := PackedStringArray()
+	for part in property_path:
+		parts.append(String(part))
+	return GDSQLFunctionExpression.new(
+		&"resource_property",
+		[
+			GDSQLColumnExpression.new(column_name, table_alias),
+			GDSQLLiteralExpression.new(":".join(parts)),
+		],
+	)
+
+
 ## Wraps a value as an explicit literal node for direct construction, generated
 ## code, or APIs that require a [GDSQLQueryExpression].
 ## [codeblock]

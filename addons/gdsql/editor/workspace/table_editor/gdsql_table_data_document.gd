@@ -204,19 +204,16 @@ func configure(
 		table.name,
 	)
 	_catalog_total_rows = maxi(0, total_rows)
-	var filterable_columns := _filterable_columns()
 	if source_changed:
 		_page_index = 0
 		_applied_predicate = null
 		_applied_filter_summary = ""
 		_filter_dirty = false
-		_where_expression.configure(filterable_columns)
+		_where_expression.configure(table.columns)
 	else:
-		_where_expression.configure(filterable_columns, true)
+		_where_expression.configure(table.columns, true)
 	_where_expression.tooltip_text = (
-			"Resource columns are temporarily excluded from WHERE filters."
-			if filterable_columns.size() != table.columns.size()
-			else "Build a typed WHERE filter for this table."
+			"Build a typed WHERE filter. Resource columns expose supported scalar property leaves."
 	)
 	_configure_query_options(not source_changed)
 	if _applied_predicate == null:
@@ -491,16 +488,6 @@ func _valid_visible_columns() -> Array[StringName]:
 	return valid
 
 
-func _filterable_columns() -> Array[GDSQLColumnDefinition]:
-	var filterable: Array[GDSQLColumnDefinition] = []
-	if _table == null:
-		return filterable
-	for column in _table.columns:
-		if column.data_type != TYPE_OBJECT:
-			filterable.append(column)
-	return filterable
-
-
 func _populate_columns() -> void:
 	_column_menu.clear()
 	_column_menu.add_item("Show all", COLUMN_SELECT_ALL)
@@ -615,7 +602,7 @@ func _clear_filter() -> void:
 	if has_unsaved_changes():
 		%Status.text = "Save or discard row changes before clearing the filter."
 		return
-	_where_expression.configure(_filterable_columns())
+	_where_expression.configure(_table.columns)
 	_applied_predicate = null
 	_applied_filter_summary = ""
 	_filter_dirty = false
