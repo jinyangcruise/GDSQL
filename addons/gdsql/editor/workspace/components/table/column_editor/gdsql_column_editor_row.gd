@@ -18,6 +18,9 @@ const COLUMN_ROW_DRAG_TYPE := &"gdsql_column_editor_row"
 const VARIANT_TYPES := preload(
 	"res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_types.gd"
 )
+const RESOURCE_PICKER_SCRIPT := preload(
+	"res://addons/gdsql/editor/workspace/components/resource/gdsql_editor_resource_picker.gd"
+)
 
 var draft: GDSQLEditorColumnDraft
 var _configuring := false
@@ -26,6 +29,7 @@ var _configuring := false
 @onready var _name: LineEdit = %Name
 @onready var _type: OptionButton = %Type
 @onready var _resource_type: EditorResourcePicker = %ResourceType
+@onready var _resource_type_name: Label = %ResourceTypeName
 @onready var _nullable: CheckBox = %Nullable
 @onready var _unique: CheckBox = %Unique
 @onready var _auto_increment: CheckBox = %AutoIncrement
@@ -77,11 +81,17 @@ func configure(column_draft: GDSQLEditorColumnDraft) -> void:
 	)
 	VARIANT_TYPES.select_type(_type, draft.data_type)
 	_type.disabled = draft.original != null
-	_resource_type.visible = draft.data_type == TYPE_OBJECT
-	var prototype := draft.resource_prototype
-	if prototype == null and draft.resource_type != null:
-		prototype = draft.resource_type.instantiate_prototype()
-	_resource_type.set_edited_resource(prototype)
+	var shows_resource_type := draft.data_type == TYPE_OBJECT
+	var shows_stored_type := shows_resource_type and draft.original != null
+	_resource_type.visible = shows_resource_type and not shows_stored_type
+	_resource_type_name.visible = shows_stored_type
+	_resource_type_name.text = (
+			draft.resource_type.display_name()
+			if draft.resource_type != null
+			else "Unspecified Resource"
+	)
+	_resource_type_name.tooltip_text = "Accepted Resource type: %s" % _resource_type_name.text
+	_resource_type.set_edited_resource(draft.resource_prototype)
 	_resource_type.editable = draft.original == null
 	_nullable.set_pressed_no_signal(draft.nullable)
 	_nullable.disabled = draft.is_primary
@@ -169,6 +179,9 @@ func _on_type_selected(_index: int) -> void:
 
 func _on_resource_type_changed(resource: Resource) -> void:
 	if _configuring:
+		return
+	if not RESOURCE_PICKER_SCRIPT.can_present(resource):
+		_resource_type.set_edited_resource(null)
 		return
 	draft.resource_type = GDSQLResourceTypeConstraint.from_resource(resource)
 	draft.resource_prototype = resource

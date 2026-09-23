@@ -173,8 +173,9 @@ a defaulted column is omitted.
 
 `TYPE_OBJECT` requires a typed `ResourceTypeConstraint`; generic Resource
 columns are intentionally invalid. Native and project-global Resource classes
-and custom scripts without `class_name` are selected through an unrestricted
-Resource prototype picker. The derived native class or script path round-trips
+and custom scripts without `class_name` are selected through a bounded Resource
+picker; imported MP3 and Ogg Vorbis values must be loaded instead of constructed
+empty. The derived native class or script path round-trips
 through ConfigFile schemas, and the resolved constraint is enforced by column,
 query, and storage validation. Typed editor fields use the same constraint for
 `EditorResourcePicker.base_type`, so they do not present unrelated Resource

@@ -31,19 +31,14 @@ static func create_new(primary: bool = false) -> GDSQLEditorColumnDraft:
 
 
 static func from_definition(
-	column: GDSQLColumnDefinition,
-	primary: bool = false,
+		column: GDSQLColumnDefinition,
+		primary: bool = false,
 ) -> GDSQLEditorColumnDraft:
 	var draft := GDSQLEditorColumnDraft.new()
 	draft.original = column
 	draft.name = String(column.name)
 	draft.data_type = column.data_type
 	draft.resource_type = column.resource_type
-	draft.resource_prototype = (
-		column.resource_type.instantiate_prototype()
-		if column.resource_type != null
-		else null
-	)
 	draft.nullable = column.nullable
 	draft.unique = column.unique
 	draft.auto_increment = column.auto_increment
@@ -70,10 +65,7 @@ func reset_for_type(selected_type: Variant.Type) -> void:
 
 
 func duplicate_resource_prototype() -> Resource:
-	var prototype := resource_prototype
-	if prototype == null and resource_type != null:
-		prototype = resource_type.instantiate_prototype()
-	return prototype.duplicate(true) as Resource if prototype != null else null
+	return resource_prototype.duplicate(true) as Resource if resource_prototype != null else null
 
 
 func build_definition() -> GDSQLColumnDefinition:

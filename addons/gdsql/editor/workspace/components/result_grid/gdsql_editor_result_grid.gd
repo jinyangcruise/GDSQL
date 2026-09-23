@@ -18,6 +18,9 @@ const FOREIGN_KEY_ITEM_ID_OFFSET := 30_001
 const EXPANDED_TEXT_EDITOR_SCRIPT := preload(
 	"res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_expanded_text_editor.gd"
 )
+const RESOURCE_PICKER_SCRIPT := preload(
+	"res://addons/gdsql/editor/workspace/components/resource/gdsql_editor_resource_picker.gd"
+)
 const EXPAND_ICON := preload("res://addons/gdsql/editor/workspace/icons/pencil.svg")
 const NULL_ICON := preload("res://addons/gdsql/editor/workspace/icons/eraser.svg")
 const FOREIGN_KEY_ICON := preload(
@@ -610,7 +613,7 @@ func _open_resource_editor(
 	background.add_theme_stylebox_override(&"panel", get_theme_stylebox(&"panel", &"Tree"))
 	_resource_editor_host.add_child(background)
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_resource_picker = EditorResourcePicker.new()
+	_resource_picker = RESOURCE_PICKER_SCRIPT.new() as EditorResourcePicker
 	_resource_picker.editable = true
 	_resource_picker.base_type = (
 			column.resource_type.picker_base_type()
@@ -618,7 +621,10 @@ func _open_resource_editor(
 			else "Resource"
 	)
 	_resource_picker_configuring = true
-	_resource_picker.set_edited_resource(value as Resource)
+	var picker_value := value as Resource
+	_resource_picker.set_edited_resource(
+		picker_value if RESOURCE_PICKER_SCRIPT.can_present(picker_value) else null,
+	)
 	_resource_picker_configuring = false
 	_resource_picker.resource_changed.connect(_on_resource_picker_changed)
 	_resource_picker.resource_selected.connect(_on_resource_picker_selected)
@@ -737,6 +743,11 @@ func _edit_resource_in_inspector(resource: Resource, picker_id: int, cell_key: V
 			or _resource_picker.get_instance_id() != picker_id \
 			or _resource_editor_cell != cell_key:
 		return
+	if not RESOURCE_PICKER_SCRIPT.can_present(resource):
+		inline_changes_changed.emit(
+			"%s has no loadable data; replace it with a loaded Resource." % resource.get_class(),
+		)
+		return
 	EditorInterface.edit_resource(resource)
 	inline_changes_changed.emit("Editing %s in the Inspector." % _resource_class_name(resource))
 
@@ -753,11 +764,14 @@ func _on_resource_picker_changed(resource: Resource) -> void:
 		return
 	var column := _view_table.columns[column_index]
 	if (resource == null and not column.nullable) \
-			or (resource != null and not column.accepts_value(resource)):
+			or (resource != null and not column.accepts_value(resource)) \
+			or not RESOURCE_PICKER_SCRIPT.can_present(resource):
 		var current := _display_value(record_index, column.name, _records[record_index]) \
 				as Resource
 		_resource_picker_configuring = true
-		_resource_picker.set_edited_resource(current)
+		_resource_picker.set_edited_resource(
+			current if RESOURCE_PICKER_SCRIPT.can_present(current) else null,
+		)
 		_resource_picker_configuring = false
 		inline_changes_changed.emit("%s expects %s." % [column.name, column.display_type_name()])
 		return
@@ -826,6 +840,20 @@ func _clear_resource_observers() -> void:
 
 
 func _on_observed_resource_changed(
+		record_index: int,
+		column_index: int,
+		column_name: StringName,
+		resource: Resource,
+) -> void:
+	_apply_observed_resource_changed.call_deferred(
+		record_index,
+		column_index,
+		column_name,
+		resource,
+	)
+
+
+func _apply_observed_resource_changed(
 		record_index: int,
 		column_index: int,
 		column_name: StringName,
@@ -1100,7 +1128,10 @@ func _sync_resource_editor(
 	if cell_key != _resource_editor_cell or not is_instance_valid(_resource_picker):
 		return
 	_resource_picker_configuring = true
-	_resource_picker.set_edited_resource(value as Resource)
+	var resource := value as Resource
+	_resource_picker.set_edited_resource(
+		resource if RESOURCE_PICKER_SCRIPT.can_present(resource) else null,
+	)
 	_resource_picker_configuring = false
 	_position_resource_editor(item, column, value)
 	_hide_resource_cell_display(item, cell_key.y)
@@ -1375,7 +1406,7 @@ func _resource_type_icon(value: Variant) -> Texture2D:
 
 
 func _queue_resource_preview(resource: Resource, record_index: int, column_index: int) -> void:
-	if not Engine.is_editor_hint():
+	if not Engine.is_editor_hint() or not _supports_resource_preview(resource):
 		return
 	var previewer := EditorInterface.get_resource_previewer()
 	if previewer == null:
@@ -1395,6 +1426,14 @@ func _queue_resource_preview(resource: Resource, record_index: int, column_index
 
 func _on_resource_preview_ready(
 		_path: String,
+		preview: Texture2D,
+		thumbnail_preview: Texture2D,
+		userdata: Variant,
+) -> void:
+	_apply_resource_preview.call_deferred(preview, thumbnail_preview, userdata)
+
+
+func _apply_resource_preview(
 		preview: Texture2D,
 		thumbnail_preview: Texture2D,
 		userdata: Variant,
@@ -1424,3 +1463,7 @@ func _on_resource_preview_ready(
 	if item != null:
 		item.set_icon(column_index, resolved_preview)
 		item.set_icon_max_width(column_index, resource_preview_size)
+
+
+func _supports_resource_preview(resource: Resource) -> bool:
+	return resource is Texture2D or resource is Mesh or resource is Material

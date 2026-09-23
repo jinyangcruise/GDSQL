@@ -11,6 +11,9 @@ const VARIANT_TYPES := preload(
 const STRING_FIELD_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_string_value_field.tscn"
 )
+const RESOURCE_PICKER_SCRIPT := preload(
+	"res://addons/gdsql/editor/workspace/components/resource/gdsql_editor_resource_picker.gd"
+)
 
 var data_type: Variant.Type = TYPE_NIL
 var nullable := true
@@ -125,7 +128,7 @@ func _rebuild(value: Variant) -> void:
 
 
 func _build_resource_picker(value: Variant) -> void:
-	_resource_picker = EditorResourcePicker.new()
+	_resource_picker = RESOURCE_PICKER_SCRIPT.new() as EditorResourcePicker
 	_resource_picker.custom_minimum_size = Vector2(170, 46)
 	_resource_picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_resource_picker.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -136,7 +139,7 @@ func _build_resource_picker(value: Variant) -> void:
 	)
 	_resource_picker.resource_changed.connect(_on_resource_changed)
 	_resource_picker.resource_selected.connect(_on_resource_selected)
-	if value is Resource:
+	if value is Resource and RESOURCE_PICKER_SCRIPT.can_present(value):
 		_resource_picker.set_edited_resource(value)
 		_observe_resource(value)
 	add_child(_resource_picker)
@@ -173,6 +176,11 @@ func _on_null_toggled(enabled: bool) -> void:
 
 
 func _on_resource_changed(_resource: Resource) -> void:
+	if not RESOURCE_PICKER_SCRIPT.can_present(_resource):
+		_resource_picker.set_edited_resource(null)
+		_observe_resource(null)
+		_mark_modified()
+		return
 	_observe_resource(_resource)
 	if _use_null != null and _resource_value() != null:
 		_use_null.set_pressed_no_signal(false)
@@ -180,7 +188,7 @@ func _on_resource_changed(_resource: Resource) -> void:
 
 
 func _on_resource_selected(resource: Resource, _inspect: bool) -> void:
-	if resource != null:
+	if resource != null and RESOURCE_PICKER_SCRIPT.can_present(resource):
 		EditorInterface.edit_resource(resource)
 
 

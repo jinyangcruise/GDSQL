@@ -289,9 +289,12 @@ model resolution to the base presentation class.
 `QueryTableResultNode` uses the graph-independent `EditorResultGrid` scene for
 aligned titles, scrollable columns, row selection, and bounded page rendering.
 The standalone table document uses the same component while owning its own
-query header, pagination, and batch actions. Resource cells request the same
-editor preview service used by Inspector-facing controls and retain their
-editor type icon when no preview can be generated. Its header Safe Mode keeps
+query header, pagination, and batch actions. Visual Resource cells (`Texture2D`,
+`Mesh`, and `Material`) request the same editor preview service used by
+Inspector-facing controls. Non-visual or unsupported Resources retain their
+editor type icon instead of invoking an incompatible preview plugin. Preview
+results and observed Resource changes defer Tree mutations to the editor thread.
+Its header Safe Mode keeps
 typed editing in one focused `EditorVariantValueField` row below the table.
 `GDSQLEditorResultGrid` owns display rendering, thumbnail caching, inline
 validation, and pending cell state. With Safe Mode
@@ -407,19 +410,25 @@ header stays above the rows, vertical scrolling cannot paint rows over it, and
 the body's horizontal scrollbar exposes the complete fixed-width row. This
 removes the overlay positioning and per-frame cell tracking previously required
 by `TreeItem`, which cannot own scene children.
-Resource cells use the native `EditorResourcePicker` presentation directly, so
+Resource cells use a bounded `EditorResourcePicker` presentation, so valid
 texture thumbnails, audio previews, and other editor-provided Resource displays
-are retained instead of being reduced to proxy text. Existing column types and
-Resource constraints remain read-only because replacement is represented as
-add, migrate values, and drop. Newly added rows expose both selectors.
-The Resource constraint cell uses an unrestricted Resource prototype picker,
-not a discovered class-name list, so native, global, and anonymous custom
-Resource scripts are supported. Enabling a Resource default creates a deep
-duplicate of that prototype. The duplicate is then owned by the default field
-and can be mutated through the normal Inspector without modifying the type
-prototype. Anonymous script types use their native Resource base in the picker
-because Godot's picker accepts registered type names rather than script paths;
-kernel validation still enforces the exact resolved Script identity.
+are retained instead of being reduced to proxy text. The picker suppresses
+empty construction for imported audio formats that Godot requires to be loaded
+from a file. Existing column types and Resource constraints remain read-only
+because replacement is represented as add, migrate values, and drop. Their
+stored catalog type is shown directly instead of reconstructing an artificial
+Resource prototype whenever the schema document opens. Newly added rows expose
+both selectors.
+The Resource constraint cell accepts native, global, and anonymous custom
+Resource scripts without relying on a discovered class-name list. Enabling a
+Resource default creates a deep duplicate only when the newly-authored column
+has an explicit prototype; existing imported-asset constraints require the
+actual default Resource to be selected. The duplicate is then owned by the
+default field and can be mutated through the normal Inspector without modifying
+the type prototype. Anonymous script types use their native Resource base in
+the picker because Godot's picker accepts registered type names rather than
+script paths; kernel validation still enforces the exact resolved Script
+identity.
 Saving or refreshing through the database document applies or discards the
 whole local schema draft. Saving previews typed alterations and presents their
 descriptions before application.
@@ -434,7 +443,7 @@ The scene-based schema editor has the following explicit component status:
 | `column_editor/gdsql_column_editor_header.tscn` | Active | Self-contained scene-authored header with directly editable labels, separators, and cell sizing. |
 | `column_editor/gdsql_column_editor_row.gd` / `.tscn` | Active | Self-contained reusable column row with a conventional directly editable node hierarchy; the editor scene keeps one instance as its visual template and first configured row. |
 | `column_editor/gdsql_column_editor_draft.gd` | Active | Typed mutable editor draft responsible for validation and conversion to catalog definitions or alterations. |
-| Native `EditorResourcePicker` in the column row scene | Active | Selects the Resource prototype; the row derives the catalog type constraint. |
+| `components/resource/gdsql_editor_resource_picker.gd` | Active | Bounded `EditorResourcePicker` used by typed editor fields and the column row; it keeps MP3 and Ogg Vorbis formats load-only and rejects empty encoded-audio values before Godot queues a preview. Existing constraints render their stored type without creating an empty prototype. |
 | `gdsql_editor_variant_value_field.gd` | Active | Shared typed value editor used by schema defaults, table rows, predicates, and mutation values. |
 | `components/result_grid/gdsql_editor_result_grid.gd` / `.tscn` | Active | Graph-independent native `Tree` grid used by graph results and the standalone table document for compact typed display, validation, Resource editing, and pending changes. |
 | `index/gdsql_index_property_row.gd` / `.tscn` | Active | Scene-authored summary and removal control for an existing primary or secondary index. |

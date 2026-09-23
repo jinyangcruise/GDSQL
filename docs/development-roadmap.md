@@ -96,6 +96,11 @@ editable insert draft from the first selected row. Resource values are
 deep-cloned for that draft. Constrained Resource columns expose only validated
 Inspector-visible scalar leaves to typed WHERE choices; compound values such as
 `Vector3` expose their scalar components instead of the container.
+Visual Resource thumbnails are applied through deferred editor-thread updates;
+non-visual Resources keep their editor type icon and do not invoke preview
+plugins that cannot safely represent them.
+Schema reopening reads stored Resource type metadata without constructing empty
+prototypes, and imported MP3/Ogg Vorbis picker entries are load-only.
 Tab advances through editable cells and Enter commits an inline edit before
 moving down the same column.
 
