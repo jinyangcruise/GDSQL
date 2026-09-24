@@ -171,6 +171,7 @@ func _create_actions() -> void:
 		GDSQLEditorActionIds.CREATE_TABLE: _show_create_table,
 		GDSQLEditorActionIds.REMOVE_REGISTRATION: _remove_registration,
 		GDSQLEditorActionIds.DROP_TABLE: _drop_table,
+		GDSQLEditorActionIds.TRUNCATE_TABLE: _truncate_table,
 		GDSQLEditorActionIds.DISCOVER_PROJECT: _discover_project,
 		GDSQLEditorActionIds.REFRESH_DATABASES: _refresh_databases,
 		GDSQLEditorActionIds.OPEN_REGISTRATION: _open_registration,
@@ -1054,6 +1055,27 @@ func _drop_table(registration_name: StringName, table_name: StringName) -> GDSQL
 			workbench.active_session,
 		)
 	_record_result("Delete table", result)
+	return result
+
+
+func _truncate_table(
+		registration_name: StringName,
+		table_name: StringName,
+) -> GDSQLOperationResult:
+	var result := _ensure_active_registration(registration_name)
+	if result.is_successful():
+		var truncated := workbench.active_session.database.truncate_table(table_name)
+		result.diagnostics.merge(truncated.diagnostics)
+		result.value = truncated.get_value()
+	if result.is_successful():
+		_clear_table_history(registration_name, table_name)
+		workbench.active_session.current_rows = null
+		var refreshed := workbench.refresh_inspections()
+		result.diagnostics.merge(refreshed.diagnostics)
+	if result.is_successful():
+		_refresh_surfaces()
+		_workspace.request_table_rows(registration_name, table_name)
+	_record_result("Reset table data", result)
 	return result
 
 

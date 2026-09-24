@@ -95,6 +95,35 @@ func apply_change_plan(
 	return catalog_administration.apply_change_plan(plan)
 
 
+func truncate_table(
+		database_name: StringName,
+		table_name: StringName,
+) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	var table := catalog.get_table(database_name, table_name)
+	if table == null:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_DATABASE_TABLE_NOT_FOUND",
+				"Table '%s.%s' does not exist." % [database_name, table_name],
+			),
+		)
+		return result
+	var session := execution_context.transactions.begin()
+	var staged := storage.stage_truncate(table, session)
+	result.diagnostics.merge(staged.diagnostics)
+	if not staged.is_successful():
+		execution_context.transactions.rollback(session)
+		return result
+	var committed := execution_context.transactions.commit(session)
+	result.diagnostics.merge(committed.diagnostics)
+	if not committed.is_successful():
+		execution_context.transactions.rollback(session)
+		return result
+	result.value = staged.get_value()
+	return result
+
+
 func execute(query: GDSQLQuerySpec) -> GDSQLQueryResult:
 	return _execute(query, execution_context)
 

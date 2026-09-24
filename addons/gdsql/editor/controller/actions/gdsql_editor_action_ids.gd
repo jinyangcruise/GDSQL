@@ -6,6 +6,7 @@ const CREATE_DATABASE := &"database.create"
 const CREATE_TABLE := &"table.create"
 const REMOVE_REGISTRATION := &"database.remove_registration"
 const DROP_TABLE := &"table.drop"
+const TRUNCATE_TABLE := &"table.truncate"
 const DISCOVER_PROJECT := &"database.discover_project"
 const REFRESH_DATABASES := &"database.refresh"
 const OPEN_REGISTRATION := &"database.open_registration"
@@ -40,6 +41,7 @@ static func get_all() -> Array[StringName]:
 		CREATE_TABLE,
 		REMOVE_REGISTRATION,
 		DROP_TABLE,
+		TRUNCATE_TABLE,
 		DISCOVER_PROJECT,
 		REFRESH_DATABASES,
 		OPEN_REGISTRATION,

@@ -95,10 +95,73 @@ func test_checkpoint_copies_dirty_memory_state_to_configfile_storage() -> void:
 	assert_str(selected.rows[0].get_value(&"name")).is_equal("Knight")
 
 
+func test_hydration_and_checkpoint_preserve_truncated_generated_key_state() -> void:
+	var disk_database := TestDatabase.create_database(
+		_data_root,
+		_auto_increment_heroes_table(),
+	)
+	assert_bool(
+		disk_database.execute(
+			disk_database.table(&"heroes")
+			.insert()
+			.values({&"name": "Knight"})
+			.values({&"name": "Mage"})
+			.build(),
+		).is_successful(),
+	).is_true()
+	assert_bool(
+		disk_database.execute(
+			disk_database.table(&"heroes")
+			.delete()
+			.where(TestDatabase.id_equals(2))
+			.build(),
+		).is_successful(),
+	).is_true()
+	var opened := GDSQLRuntimeFactory.open_registration(
+		GDSQLDatabaseRegistration.new(
+			&"runtime",
+			disk_database.database_name,
+			_data_root,
+			GDSQLStorageBackendIds.IN_MEMORY,
+		),
+	)
+	assert_bool(opened.is_successful()).is_true()
+	var database := opened.get_database()
+	var context := database.context
+	var memory := context.storage as GDSQLInMemoryTableStorage
+	var durable := GDSQLConfigFileTableStorage.new(
+		GDSQLDatabasePathResolver.new(_data_root),
+		GDSQLConfigFileCache.new(),
+		GDSQLGodotVariantCodec.new(),
+	)
+	var hydrated_insert := database.insert(&"heroes", {&"name": "Ranger"})
+	assert_bool(database.truncate_table(&"heroes").is_successful()).is_true()
+	var inserted := database.insert(&"heroes", {&"name": "Rogue"})
+	var checkpoint := GDSQLInMemoryCheckpointTarget.new(memory, durable).checkpoint()
+	var reopened := GDSQLDatabase.open(
+		disk_database.database_name,
+		_data_root,
+	).get_database()
+	var next_insert := reopened.insert(&"heroes", {&"name": "Cleric"})
+
+	assert_int(hydrated_insert.rows[0].get_value(&"id")).is_equal(3)
+	assert_int(inserted.rows[0].get_value(&"id")).is_equal(1)
+	assert_bool(checkpoint.is_successful()).is_true()
+	assert_int(next_insert.rows[0].get_value(&"id")).is_equal(2)
+
+
 func _heroes_table() -> GDSQLTableDefinition:
 	var table := GDSQLTableDefinition.new(&"heroes", &"id")
 	table.database_name = &"game_config"
 	table.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	table.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
+	return table
+
+
+func _auto_increment_heroes_table() -> GDSQLTableDefinition:
+	var table := GDSQLTableDefinition.new(&"heroes", &"id")
+	table.database_name = &"game_config"
+	table.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true, true))
 	table.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
 	return table
 

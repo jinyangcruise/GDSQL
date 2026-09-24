@@ -101,6 +101,12 @@ func drop_table(table_name: StringName) -> GDSQLCatalogOperationResult:
 	return context.drop_table(database_name, table_name)
 
 
+## Removes every row and resets the table's generated integer key sequence.
+## Ordinary DELETE queries intentionally do not reset generated-key state.
+func truncate_table(table_name: StringName) -> GDSQLOperationResult:
+	return context.truncate_table(database_name, table_name)
+
+
 func alter_table(
 		table_name: StringName,
 		alterations: Array[GDSQLTableAlteration],

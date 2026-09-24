@@ -47,7 +47,8 @@ func _stage_table(
 		table: GDSQLTableDefinition,
 		session: GDSQLStorageSession,
 ) -> GDSQLStorageOperationResult:
-	var source := _rows_by_key(_memory.read_table(table, null), table)
+	var source_snapshot := _memory.read_table(table, null)
+	var source := _rows_by_key(source_snapshot, table)
 	var destination := _rows_by_key(_durable.read_table(table, session), table)
 	for key in destination:
 		if not source.has(key):
@@ -65,9 +66,11 @@ func _stage_table(
 			continue
 		if not staged.is_successful():
 			return staged
-	var result := GDSQLStorageOperationResult.new()
-	result.value = true
-	return result
+	return _durable.stage_next_auto_increment(
+		table,
+		source_snapshot.next_auto_increment,
+		session,
+	)
 
 
 func _rows_by_key(

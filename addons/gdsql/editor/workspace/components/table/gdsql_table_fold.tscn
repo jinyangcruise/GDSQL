@@ -7,6 +7,7 @@
 [ext_resource type="Texture2D" uid="uid://cqrp4rr1rh61i" path="res://addons/gdsql/editor/workspace/icons/foreign_key.svg" id="5_foreign"]
 [ext_resource type="Texture2D" uid="uid://bnvxdlrytsmrv" path="res://addons/gdsql/editor/workspace/icons/grid_fine.svg" id="6_grid"]
 [ext_resource type="Texture2D" uid="uid://benvx1k7my6ly" path="res://addons/gdsql/editor/workspace/icons/script.svg" id="7_script"]
+[ext_resource type="Texture2D" path="res://addons/gdsql/editor/workspace/icons/eraser.svg" id="8_eraser"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ih4hc"]
 
@@ -55,6 +56,14 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Model"
 icon = ExtResource("7_script")
+
+[node name="ResetData" type="Button" parent="MarginContainer/Content/QuickActions"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.45, 0.4, 1)
+tooltip_text = "Delete every row and reset the generated-key sequence."
+text = "Reset Data…"
+icon = ExtResource("8_eraser")
 
 [node name="FoldableContainer" type="FoldableContainer" parent="MarginContainer/Content" unique_id=1194308614]
 layout_mode = 2

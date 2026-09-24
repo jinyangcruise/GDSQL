@@ -1088,6 +1088,15 @@ sequence. An explicit key at or above the current sequence advances the next
 generated value. If table metadata is absent or damaged, the storage backend
 may derive a replacement high-water mark from the existing rows.
 
+`Database.truncate_table()` is a distinct administrative operation. It stages
+removal of every row together with `row_count = 0` and
+`next_auto_increment = 1`, then commits through the same transaction manager
+and final-state foreign-key validation as query mutations. It is not compiled
+into a `DELETE`, because ordinary deletion must preserve the sequence.
+`TableSnapshot` carries generated-key state so in-memory hydration and durable
+checkpoints reproduce the authoritative sequence rather than deriving it only
+from the surviving rows.
+
 ### 11.1 Callback-scoped transactions
 
 Explicit multi-statement transactions are planned as a callback API:

@@ -277,7 +277,11 @@ static func _hydrate_in_memory(
 				),
 			)
 			return result
-		var loaded := memory.load_table(table, snapshot.rows)
+		var loaded := memory.load_table(
+			table,
+			snapshot.rows,
+			snapshot.next_auto_increment,
+		)
 		result.diagnostics.merge(loaded.diagnostics)
 		if not loaded.is_successful():
 			return result

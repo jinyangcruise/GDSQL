@@ -30,6 +30,9 @@ func read_table(table: GDSQLTableDefinition, session: GDSQLStorageSession) -> GD
 		snapshot.rows = _build_effective_rows(table, session)
 	else:
 		snapshot.rows = _read_persisted_rows(table)
+	var metadata := _effective_metadata(table, session)
+	snapshot.row_count = int(metadata["row_count"])
+	snapshot.next_auto_increment = int(metadata["next_auto_increment"])
 	return snapshot
 
 
@@ -216,6 +219,37 @@ func stage_delete(table: GDSQLTableDefinition, key: Variant, session: GDSQLStora
 	return result
 
 
+func stage_truncate(
+		table: GDSQLTableDefinition,
+		session: GDSQLStorageSession,
+) -> GDSQLStorageOperationResult:
+	var result := GDSQLStorageOperationResult.new()
+	var removed_rows := _build_effective_rows(table, session).size()
+	var metadata := _get_session_table_metadata(table, session)
+	metadata["row_count"] = 0
+	metadata["next_auto_increment"] = 1
+	session.operations.append({"type": &"truncate", "table": table})
+	session.dirty = true
+	result.value = removed_rows
+	return result
+
+
+func stage_next_auto_increment(
+		table: GDSQLTableDefinition,
+		next_value: int,
+		session: GDSQLStorageSession,
+) -> GDSQLStorageOperationResult:
+	var result := _validate_next_auto_increment(table, next_value, session)
+	if not result.is_successful():
+		return result
+	var metadata := _get_session_table_metadata(table, session)
+	metadata["next_auto_increment"] = next_value
+	session.operations.append({"type": &"metadata", "table": table})
+	session.dirty = true
+	result.value = next_value
+	return result
+
+
 func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 	var constraint_result := _validate_session_constraints(session)
 	if not constraint_result.is_successful():
@@ -232,7 +266,12 @@ func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 		if config == null:
 			return _commit_error(&"GDSQL_STORAGE_TABLE_UNREADABLE", "Could not load table file: %s" % path)
 		var operation_type := operation["type"] as StringName
-		if operation_type == &"delete":
+		if operation_type == &"truncate":
+			for section in _get_row_sections(config):
+				config.erase_section(section)
+		elif operation_type == &"metadata":
+			pass
+		elif operation_type == &"delete":
 			config.erase_section(str(operation["key"]))
 		else:
 			var row := operation["row"] as GDSQLRowRecord
@@ -403,6 +442,16 @@ func _load_table_metadata(table: GDSQLTableDefinition) -> Dictionary:
 	}
 
 
+func _effective_metadata(
+		table: GDSQLTableDefinition,
+		session: GDSQLStorageSession,
+) -> Dictionary:
+	var table_key := _table_key(table)
+	if session != null and session.table_metadata.has(table_key):
+		return session.table_metadata[table_key]
+	return _load_table_metadata(table)
+
+
 func _table_key(table: GDSQLTableDefinition) -> String:
 	return "%s.%s" % [table.database_name, table.name]
 
@@ -417,6 +466,11 @@ func _build_effective_rows(
 	for operation in session.operations:
 		var operation_table := operation["table"] as GDSQLTableDefinition
 		if _table_key(operation_table) != _table_key(table):
+			continue
+		if operation["type"] == &"truncate":
+			rows_by_key.clear()
+			continue
+		if operation["type"] == &"metadata":
 			continue
 		var key: Variant = operation["key"] \
 		if operation.has("key") \
@@ -706,14 +760,44 @@ func _compare_values(left: Variant, right: Variant) -> int:
 
 
 func _has_staged_key(session: GDSQLStorageSession, table: GDSQLTableDefinition, key: Variant) -> bool:
+	var staged := false
 	for operation in session.operations:
 		var operation_table := operation["table"] as GDSQLTableDefinition
-		if operation["type"] == &"insert" \
-				and _table_key(operation_table) == _table_key(table):
+		if _table_key(operation_table) != _table_key(table):
+			continue
+		if operation["type"] == &"truncate":
+			staged = false
+		elif operation["type"] == &"insert":
 			var row := operation["row"] as GDSQLRowRecord
 			if row.get_value(table.primary_key) == key:
-				return true
-	return false
+				staged = true
+		elif operation["type"] == &"delete" and operation["key"] == key:
+			staged = false
+	return staged
+
+
+func _validate_next_auto_increment(
+		table: GDSQLTableDefinition,
+		next_value: int,
+		session: GDSQLStorageSession,
+) -> GDSQLStorageOperationResult:
+	var result := GDSQLStorageOperationResult.new()
+	var minimum := 1
+	var primary_key := table.get_primary_key()
+	if primary_key != null and primary_key.auto_increment:
+		for row in _build_effective_rows(table, session):
+			var key: Variant = row.get_value(table.primary_key)
+			if key is int:
+				minimum = maxi(minimum, key + 1)
+	if next_value < minimum:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_STORAGE_AUTO_INCREMENT_INVALID",
+				"Next generated key %d is below the required value %d for %s.%s." \
+						% [next_value, minimum, table.database_name, table.name],
+			),
+		)
+	return result
 
 
 func _missing_row_result(

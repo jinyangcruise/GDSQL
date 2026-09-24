@@ -62,6 +62,16 @@ func register_global_actions(
 	_register(
 		context,
 		handlers,
+		GDSQLEditorActionIds.TRUNCATE_TABLE,
+		"Reset Table Data",
+		"Delete every row and reset the generated-key sequence.",
+		&"Clear",
+		9,
+		result,
+	)
+	_register(
+		context,
+		handlers,
 		GDSQLEditorActionIds.DISCOVER_PROJECT,
 		"Discover Project",
 		"Discover databases under res://data.",

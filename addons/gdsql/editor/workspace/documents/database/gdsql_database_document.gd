@@ -27,6 +27,7 @@ var _action_hub: GDSQLEditorActionHub
 var _action_context: GDSQLContextActionHub
 var _action_context_id: StringName
 var _validation_state: Label
+var _pending_reset_table: StringName
 
 @onready var rename_button: Button = %Rename
 @onready var remove_button: Button = %RemoveRegistration
@@ -43,6 +44,7 @@ var _validation_state: Label
 @onready var _save_confirmation: ConfirmationDialog = $SaveConfirmation
 @onready var _remove_confirmation: ConfirmationDialog = %RemoveConfirmation
 @onready var _destroy_confirmation: ConfirmationDialog = %DestroyConfirmation
+@onready var _reset_table_confirmation: ConfirmationDialog = %ResetTableConfirmation
 
 
 func _ready() -> void:
@@ -63,6 +65,7 @@ func _ready() -> void:
 	$RefreshConfirmation.confirmed.connect(_emit_refresh)
 	_remove_confirmation.confirmed.connect(_emit_remove)
 	_destroy_confirmation.confirmed.connect(_emit_destroy)
+	_reset_table_confirmation.confirmed.connect(_confirm_table_reset)
 	%TableSearch.text_changed.connect(_filter_tables)
 	_update_dirty_state()
 
@@ -206,6 +209,7 @@ func _render_existing_tables() -> void:
 		fold.connect("changed", _update_dirty_state)
 		fold.connect("data_requested", _open_table_data)
 		fold.connect("model_requested", _open_table_model)
+		fold.connect("reset_requested", _request_table_reset)
 	_filter_tables(%TableSearch.text)
 
 
@@ -223,6 +227,31 @@ func _open_table_model(table_name: StringName) -> void:
 		return
 	_action_hub.invoke(
 		GDSQLEditorActionIds.OPEN_MODEL_ASSISTANT,
+		[_inspection.registration.name, table_name],
+	)
+
+
+func _request_table_reset(table_name: StringName) -> void:
+	if _inspection == null:
+		return
+	_pending_reset_table = table_name
+	var table := _inspection.get_table(table_name)
+	var row_count := table.row_count if table != null else 0
+	_reset_table_confirmation.dialog_text = (
+		"Permanently delete all %d row(s) from '%s.%s'?\n\n"
+		+ "The table schema remains, but the next generated integer key resets to 1. "
+		+ "This operation cannot be undone."
+	) % [row_count, _inspection.registration.database_name, table_name]
+	_reset_table_confirmation.popup_centered(Vector2i(570, 230))
+
+
+func _confirm_table_reset() -> void:
+	if _action_hub == null or _inspection == null or _pending_reset_table == &"":
+		return
+	var table_name := _pending_reset_table
+	_pending_reset_table = &""
+	_action_hub.invoke(
+		GDSQLEditorActionIds.TRUNCATE_TABLE,
 		[_inspection.registration.name, table_name],
 	)
 

@@ -69,6 +69,19 @@ func test_delete_restricts_a_referenced_target() -> void:
 	assert_int(_count(database, &"heroes")).is_equal(1)
 
 
+func test_truncate_restricts_a_referenced_target_atomically() -> void:
+	var database := _create_database_with_rows()
+
+	var truncated := database.truncate_table(&"heroes")
+
+	assert_bool(truncated.is_successful()).is_false()
+	assert_str(String(truncated.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_STORAGE_FOREIGN_KEY_VIOLATION",
+	)
+	assert_int(_count(database, &"heroes")).is_equal(1)
+	assert_int(_count(database, &"skills")).is_equal(1)
+
+
 func test_transaction_can_delete_reference_before_its_target() -> void:
 	var database := _create_database_with_rows()
 

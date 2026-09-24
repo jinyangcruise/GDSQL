@@ -225,6 +225,11 @@ title = "Permanently Destroy Database"
 ok_button_text = "Destroy Database Files"
 dialog_text = "Permanently destroy this database and all stored rows?"
 
+[node name="ResetTableConfirmation" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Reset Table Data"
+ok_button_text = "Delete All and Reset"
+
 [node name="RefreshConfirmation" type="ConfirmationDialog" parent="." unique_id=1393050904]
 title = "Discard Local Changes"
 ok_button_text = "Discard and Refresh"
