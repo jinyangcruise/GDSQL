@@ -204,7 +204,27 @@ func _render_existing_tables() -> void:
 		_existing_tables.add_child(fold)
 		fold.call("configure", table, table_inspection, database)
 		fold.connect("changed", _update_dirty_state)
+		fold.connect("data_requested", _open_table_data)
+		fold.connect("model_requested", _open_table_model)
 	_filter_tables(%TableSearch.text)
+
+
+func _open_table_data(table_name: StringName) -> void:
+	if _action_hub == null or _inspection == null:
+		return
+	_action_hub.invoke(
+		GDSQLEditorActionIds.SELECT_TABLE,
+		[_inspection.registration.name, table_name],
+	)
+
+
+func _open_table_model(table_name: StringName) -> void:
+	if _action_hub == null or _inspection == null:
+		return
+	_action_hub.invoke(
+		GDSQLEditorActionIds.OPEN_MODEL_ASSISTANT,
+		[_inspection.registration.name, table_name],
+	)
 
 
 func _filter_tables(search_text: String) -> void:

@@ -376,14 +376,23 @@ a package cannot mutate the base sources or corrupt save rows.
 ### 8. Improve multi-table navigation and schema actions
 
 Experimental status: the database document filters existing table folds by
-table or column name without hiding unsaved table drafts.
+table or column name without hiding unsaved table drafts. Registered databases
+and tables are also exposed through Godot's existing command palette
+(`Ctrl+Shift+P` by default), so GDSQL does not claim a competing editor
+shortcut.
 
 1. Search and filter tables within a database without loading their rows.
 2. Search table and column names across registered databases, with keyboard
-   navigation and direct open actions.
-3. Give each table direct actions for opening data and creating or updating its
-   model binding.
-4. Replace trailing per-column delete buttons with selection-based removal,
+   navigation and direct open actions. Keep the command-palette inventory in
+   sync after discovery and schema changes.
+3. Give each database-document table direct actions for opening its data and
+   creating or updating its model binding.
+4. Let the model-binding assistant open the user-owned model directly in the
+   Script editor when that file exists.
+5. Add one confirmed table-reset macro that atomically deletes every row and
+   resets generated-key metadata through a storage-neutral administrative
+   contract. Do not mutate ConfigFile sections from editor Controls.
+6. Replace trailing per-column delete buttons with selection-based removal,
    dependency warnings, and one explicit confirmation.
 
 ### 9. Add bounded row mutation history

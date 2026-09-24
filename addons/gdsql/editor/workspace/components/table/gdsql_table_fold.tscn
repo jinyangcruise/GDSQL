@@ -5,6 +5,10 @@
 [ext_resource type="Texture2D" uid="uid://dsm6xg4gnopxu" path="res://addons/gdsql/editor/workspace/icons/reticle.svg" id="3_hkiee"]
 [ext_resource type="PackedScene" uid="uid://blg3sawy0eg2j" path="res://addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor.tscn" id="4_columns"]
 [ext_resource type="Texture2D" uid="uid://cqrp4rr1rh61i" path="res://addons/gdsql/editor/workspace/icons/foreign_key.svg" id="5_foreign"]
+[ext_resource type="Texture2D" uid="uid://bnvxdlrytsmrv" path="res://addons/gdsql/editor/workspace/icons/grid_fine.svg" id="6_grid"]
+[ext_resource type="Texture2D" uid="uid://benvx1k7my6ly" path="res://addons/gdsql/editor/workspace/icons/script.svg" id="7_script"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ih4hc"]
 
 [node name="TableFold" type="FoldableContainer" unique_id=1236517426]
 anchors_preset = 10
@@ -25,11 +29,32 @@ theme_override_constants/margin_bottom = 4
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="Summary" type="Label" parent="MarginContainer/Content" unique_id=1384555598]
+[node name="QuickActions" type="HBoxContainer" parent="MarginContainer/Content" unique_id=419442243]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Summary" type="Label" parent="MarginContainer/Content/QuickActions" unique_id=1384555598]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "Table summary"
+
+[node name="HSeparator" type="HSeparator" parent="MarginContainer/Content/QuickActions" unique_id=713322811]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/separator = SubResource("StyleBoxEmpty_ih4hc")
+
+[node name="OpenData" type="Button" parent="MarginContainer/Content/QuickActions" unique_id=1625172406]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Open Data"
+icon = ExtResource("6_grid")
+
+[node name="OpenModel" type="Button" parent="MarginContainer/Content/QuickActions" unique_id=2128722326]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Model"
+icon = ExtResource("7_script")
 
 [node name="FoldableContainer" type="FoldableContainer" parent="MarginContainer/Content" unique_id=1194308614]
 layout_mode = 2

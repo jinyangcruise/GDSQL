@@ -102,6 +102,16 @@ func register_global_actions(
 	_register(
 		context,
 		handlers,
+		GDSQLEditorActionIds.OPEN_MODEL_ASSISTANT,
+		"Open Table Model",
+		"Open the model-binding assistant for a table.",
+		&"Script",
+		45,
+		result,
+	)
+	_register(
+		context,
+		handlers,
 		GDSQLEditorActionIds.SHOW_WELCOME,
 		"Welcome",
 		"Show the GDSQL welcome page.",

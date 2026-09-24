@@ -48,6 +48,7 @@ func _ready() -> void:
 	_custom_role.text_changed.connect(_on_text_changed)
 	_role.item_selected.connect(_on_role_selected)
 	%Generate.pressed.connect(_request_generation)
+	%OpenUserScript.pressed.connect(_open_user_script)
 	%CopyScaffold.pressed.connect(_copy_scaffold)
 	%CrossRoleHelper.reference_registered.connect(
 		_on_content_reference_registered,
@@ -208,6 +209,7 @@ func _refresh_preview() -> void:
 		%Status.text = _first_diagnostic(result, "The model preview is invalid.")
 		_set_compatibility_unavailable("Resolve the preview errors before inspecting the model.")
 		%Generate.disabled = true
+		%OpenUserScript.disabled = true
 		return
 	%GeneratedPath.text = "Generated base: %s%s" % [
 		_source.generated_path,
@@ -233,6 +235,22 @@ func _refresh_preview() -> void:
 		"Preview ready. The table remains the schema source of truth.",
 	)
 	%Generate.disabled = false
+	%OpenUserScript.disabled = not user_exists
+
+
+func _open_user_script() -> void:
+	if _source == null or not FileAccess.file_exists(_source.user_path):
+		%Status.text = "Generate the user-owned model before opening its script."
+		return
+	var script := ResourceLoader.load(
+		_source.user_path,
+		"Script",
+		ResourceLoader.CACHE_MODE_REPLACE,
+	) as Script
+	if script == null:
+		%Status.text = "Godot could not load the user model script. Check the Output panel."
+		return
+	EditorInterface.edit_script(script)
 
 
 func _refresh_compatibility(user_exists: bool) -> void:
@@ -391,6 +409,7 @@ func _write_sources() -> void:
 				% settings_error
 	%Status.text = message
 	scripts_generated.emit(_source.generated_path, _source.user_path)
+	%OpenUserScript.disabled = false
 	_refresh_after_filesystem_scan = true
 	%CompatibilityStatus.text = "UPDATING"
 	%CompatibilityStatus.modulate = Color(0.62, 0.67, 0.74)

@@ -24,6 +24,7 @@ var _database_dock: EditorDock
 var _database_dock_content: GDSQLDatabaseDock
 var _logs_dock: EditorDock
 var _logs_panel: GDSQLLogsPanel
+var _command_palette: GDSQLEditorCommandPalette
 
 
 func _enter_tree() -> void:
@@ -37,10 +38,19 @@ func _enter_tree() -> void:
 		Callable(EditorInterface.get_resource_filesystem(), "scan"),
 	)
 	_controller.action_hub.main_screen_requested.connect(_show_main_screen)
+	_command_palette = GDSQLEditorCommandPalette.new(
+		EditorInterface.get_command_palette(),
+		_controller.workbench,
+		_controller.action_hub,
+	)
+	_controller.navigation_catalog_changed.connect(_command_palette.refresh)
 	call_deferred("_load_workspace")
 
 
 func _exit_tree() -> void:
+	if _command_palette != null:
+		_command_palette.clear()
+		_command_palette = null
 	if _controller != null:
 		_controller.shutdown()
 		_controller = null

@@ -3,6 +3,8 @@ extends FoldableContainer
 ## Foldable editor for one existing table definition.
 
 signal changed
+signal data_requested(table_name: StringName)
+signal model_requested(table_name: StringName)
 
 const INDEX_DRAFT_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/components/index/gdsql_index_draft_row.tscn"
@@ -27,6 +29,8 @@ var _dropped_foreign_keys: Dictionary[StringName, bool] = { }
 
 
 func _ready() -> void:
+	%OpenData.pressed.connect(_request_data)
+	%OpenModel.pressed.connect(_request_model)
 	%AddColumn.pressed.connect(_add_column)
 	%AddIndex.pressed.connect(_add_index)
 	%AddForeignKey.pressed.connect(_add_foreign_key)
@@ -119,6 +123,14 @@ func is_valid_draft() -> bool:
 
 func focus() -> void:
 	folded = false
+
+
+func _request_data() -> void:
+	data_requested.emit(table_name)
+
+
+func _request_model() -> void:
+	model_requested.emit(table_name)
 
 
 func matches_search(query: String) -> bool:

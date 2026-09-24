@@ -10,6 +10,7 @@ const DISCOVER_PROJECT := &"database.discover_project"
 const REFRESH_DATABASES := &"database.refresh"
 const OPEN_REGISTRATION := &"database.open_registration"
 const SELECT_TABLE := &"database.select_table"
+const OPEN_MODEL_ASSISTANT := &"table.open_model_assistant"
 const SHOW_WELCOME := &"workspace.show_welcome"
 const SHOW_SAVE_SLOTS := &"workspace.show_save_slots"
 const SHOW_MANAGED_CONTENT := &"workspace.show_managed_content"
@@ -43,6 +44,7 @@ static func get_all() -> Array[StringName]:
 		REFRESH_DATABASES,
 		OPEN_REGISTRATION,
 		SELECT_TABLE,
+		OPEN_MODEL_ASSISTANT,
 		SHOW_WELCOME,
 		SHOW_SAVE_SLOTS,
 		SHOW_MANAGED_CONTENT,

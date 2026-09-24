@@ -5,6 +5,8 @@ extends RefCounted
 ##
 ## Godot plugin lifecycle and control placement remain in the EditorPlugin.
 
+signal navigation_catalog_changed
+
 const PROJECT_DATA_ROOT := "res://data"
 const SAVE_SLOTS_ROOT := "user://gdsql/saves"
 const RUNTIME_AUTOLOAD_SETTING := "autoload/GDSQLRuntime"
@@ -173,6 +175,7 @@ func _create_actions() -> void:
 		GDSQLEditorActionIds.REFRESH_DATABASES: _refresh_databases,
 		GDSQLEditorActionIds.OPEN_REGISTRATION: _open_registration,
 		GDSQLEditorActionIds.SELECT_TABLE: _select_table,
+		GDSQLEditorActionIds.OPEN_MODEL_ASSISTANT: _open_model_assistant,
 		GDSQLEditorActionIds.SHOW_WELCOME: _show_welcome,
 		GDSQLEditorActionIds.SHOW_SAVE_SLOTS: _show_save_slots,
 		GDSQLEditorActionIds.SHOW_MANAGED_CONTENT: _show_managed_content,
@@ -463,6 +466,7 @@ func _refresh_database_document(
 			workbench.active_session,
 		)
 		_database_dock.render()
+		navigation_catalog_changed.emit()
 	result.value = workbench.active_session
 	_record_result("Refresh database", result)
 	return result
@@ -1104,6 +1108,33 @@ func _select_table(registration_name: StringName, table_name: StringName) -> GDS
 	return result
 
 
+func _open_model_assistant(
+		registration_name: StringName,
+		table_name: StringName,
+) -> GDSQLOperationResult:
+	var result := _ensure_active_registration(registration_name)
+	var table: GDSQLTableDefinition
+	if result.is_successful():
+		var database := workbench.active_session.catalog_snapshot.get_database(
+			workbench.active_session.registration.database_name,
+		)
+		if database != null:
+			table = database.get_table(table_name)
+		if table == null:
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_EDITOR_TABLE_NOT_FOUND",
+					"Table '%s' is not available in registration '%s'." \
+							% [table_name, registration_name],
+				),
+			)
+	if result.is_successful():
+		_workspace.show_model_assistant(registration_name, table)
+		result.value = table
+	_record_result("Open table model", result)
+	return result
+
+
 func _show_welcome() -> GDSQLOperationResult:
 	_workspace.show_welcome()
 	var result := GDSQLOperationResult.new()
@@ -1255,6 +1286,7 @@ func _refresh_surfaces() -> void:
 			and _workspace.get_active_registration() != &"" \
 			and workbench.get_registration(_workspace.get_active_registration()) == null:
 		_workspace.show_welcome()
+	navigation_catalog_changed.emit()
 
 
 func _scan_project_filesystem() -> void:
