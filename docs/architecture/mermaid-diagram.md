@@ -98,7 +98,7 @@ GraphEditor("`**Graph Editor**
 *Purpose:* Describe canonical queries through typed nodes and connections
 *Document API:* GDSQLQueryGraph
 *Node base:* Native titlebar close and one-shot 100% viewport-fit intents
-*Predicate UI:* Reusable composed WHERE editor for select, update and delete
+*Predicate UI:* Reusable WHERE editor with recursive typed groups, explicit precedence, group-level NOT and compact summaries for table filters, select, update and delete
 *Operations:* Select, insert, update and delete selected roots
 *Mutation UI:* Shared source selector and typed values editor
 *Result UI:* Paginated Tree, focused typed row editor and parent-owned actions

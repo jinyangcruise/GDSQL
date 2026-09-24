@@ -479,9 +479,11 @@ Inspector-visible scalar leaves, including supported Vector and Color
 components. Validation rejects unknown paths and intermediate compound values,
 and execution remains a canonical typed query rather than editor-side filtering.
 
-Add explicit nested groups, group-level `NOT`, clear precedence, and compact
-collapse/summary behavior to the shared WHERE editor. The result must remain a
-canonical expression tree and must not introduce SQL parsing into the control.
+The shared WHERE editor now provides explicit scene-backed nested groups with
+group-level `NOT`, bounded nesting depth, visible precedence boundaries,
+reordering, and compact collapse summaries. Conditions remain left-associative
+inside their owning group, and recursive composition produces only canonical
+logical-expression trees without introducing SQL parsing into the control.
 
 ### 12. Define a GDSQL-aware MCP surface
 
@@ -574,3 +576,5 @@ code:
   transactional table reset with generated-key restart.
 - Context-menu column removal with local constraint cleanup, cross-table
   dependency warnings, and pre-save restoration.
+- Nested typed WHERE groups with group-level inversion, visible precedence, and
+  compact summaries across table and graph consumers.

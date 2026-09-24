@@ -1,0 +1,142 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.gd" id="1_group"]
+[ext_resource type="PackedScene" path="res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn" id="2_condition"]
+[ext_resource type="Texture2D" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="3_plus"]
+[ext_resource type="Texture2D" path="res://addons/gdsql/editor/workspace/icons/trash_can.svg" id="4_trash"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_group"]
+bg_color = Color(0.12, 0.13, 0.15, 0.45)
+border_width_left = 2
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.32, 0.38, 0.48, 0.8)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[node name="WhereExpressionGroup" type="PanelContainer"]
+custom_minimum_size = Vector2(0, 42)
+theme_override_styles/panel = SubResource("StyleBoxFlat_group")
+script = ExtResource("1_group")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 6
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 6
+theme_override_constants/margin_bottom = 6
+
+[node name="Layout" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Header" type="HBoxContainer" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="FirstMarker" type="Label" parent="Margin/Layout/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+text = "IF"
+vertical_alignment = 1
+
+[node name="Connector" type="OptionButton" parent="Margin/Layout/Header"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+
+[node name="Collapse" type="Button" parent="Margin/Layout/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+tooltip_text = "Collapse group"
+text = "▼"
+flat = true
+
+[node name="GroupLabel" type="Label" parent="Margin/Layout/Header"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.72, 0.76, 0.84, 1)
+text = "GROUP"
+vertical_alignment = 1
+
+[node name="Invert" type="CheckButton" parent="Margin/Layout/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+tooltip_text = "Invert this entire group"
+text = "NOT"
+
+[node name="Summary" type="Label" parent="Margin/Layout/Header"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "(<group summary>)"
+text_overrun_behavior = 3
+
+[node name="HeaderSpacer" type="Control" parent="Margin/Layout/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MoveUp" type="Button" parent="Margin/Layout/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+tooltip_text = "Move group up"
+text = "↑"
+
+[node name="MoveDown" type="Button" parent="Margin/Layout/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+tooltip_text = "Move group down"
+text = "↓"
+
+[node name="Remove" type="Button" parent="Margin/Layout/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+tooltip_text = "Remove group"
+icon = ExtResource("4_trash")
+icon_alignment = 1
+
+[node name="Body" type="VBoxContainer" parent="Margin/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="Items" type="VBoxContainer" parent="Margin/Layout/Body"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="PreviewCondition" parent="Margin/Layout/Body/Items" instance=ExtResource("2_condition")]
+layout_mode = 2
+
+[node name="Actions" type="HBoxContainer" parent="Margin/Layout/Body"]
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="AddCondition" type="Button" parent="Margin/Layout/Body/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(132, 30)
+layout_mode = 2
+tooltip_text = "Append a condition to this group"
+text = "Add condition"
+icon = ExtResource("3_plus")
+expand_icon = true
+
+[node name="AddGroup" type="Button" parent="Margin/Layout/Body/Actions"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(112, 30)
+layout_mode = 2
+tooltip_text = "Add a nested precedence group"
+text = "Add group"
+icon = ExtResource("3_plus")
+expand_icon = true
