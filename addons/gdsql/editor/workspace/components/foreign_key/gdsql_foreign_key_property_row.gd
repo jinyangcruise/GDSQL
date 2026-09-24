@@ -13,7 +13,11 @@ func _ready() -> void:
 	%Remove.toggled.connect(_on_remove_toggled)
 
 
-func configure(definition: GDSQLForeignKeyDefinition) -> void:
+func configure(
+		definition: GDSQLForeignKeyDefinition,
+		dropped: bool = false,
+		locked: bool = false,
+) -> void:
 	_configuring = true
 	constraint_name = definition.name
 	%Summary.text = "%s: %s → %s.%s" % [
@@ -23,7 +27,12 @@ func configure(definition: GDSQLForeignKeyDefinition) -> void:
 		definition.referenced_column,
 	]
 	%Summary.tooltip_text = "Updates and deletes use RESTRICT while dependent rows exist."
-	%Remove.set_pressed_no_signal(false)
+	%Remove.set_pressed_no_signal(dropped)
+	%Remove.disabled = locked
+	%Remove.tooltip_text = (
+		"This foreign key must be removed with its selected column."
+		if locked else ""
+	)
 	_configuring = false
 
 

@@ -149,3 +149,12 @@ icon = ExtResource("2_23edi")
 layout_mode = 2
 theme_override_constants/separation = 6
 alignment = 1
+
+[node name="ColumnRemovalConfirmation" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Remove Column"
+initial_position = 1
+ok_button_text = "Stage Removal"
+
+[node name="ColumnActions" type="PopupMenu" parent="."]
+unique_name_in_owner = true

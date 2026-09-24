@@ -19,12 +19,18 @@ const FOREIGN_KEY_DRAFT_SCENE := preload(
 const FOREIGN_KEY_PROPERTY_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_property_row.tscn"
 )
+const COLUMN_ACTION_REMOVE := 0
+const COLUMN_ACTION_RESTORE := 1
 
 var table_name: StringName
 var _table: GDSQLTableDefinition
 var _database: GDSQLDatabaseDefinition
+var _row_count := 0
 var _dropped_indexes: Dictionary[StringName, bool] = { }
 var _dropped_foreign_keys: Dictionary[StringName, bool] = { }
+var _column_dropped_indexes: Dictionary[StringName, bool] = { }
+var _column_dropped_foreign_keys: Dictionary[StringName, bool] = { }
+var _context_column: GDSQLEditorColumnDraft
 
 @onready var _columns: GDSQLEditorColumnEditor = %Columns
 
@@ -34,9 +40,12 @@ func _ready() -> void:
 	%OpenModel.pressed.connect(_request_model)
 	%ResetData.pressed.connect(_request_reset)
 	%AddColumn.pressed.connect(_add_column)
+	%ColumnActions.id_pressed.connect(_on_column_context_action)
+	%ColumnRemovalConfirmation.confirmed.connect(_confirm_column_removal)
 	%AddIndex.pressed.connect(_add_index)
 	%AddForeignKey.pressed.connect(_add_foreign_key)
 	_columns.changed.connect(_on_columns_changed)
+	_columns.column_context_requested.connect(_show_column_context)
 
 
 func configure(
@@ -46,9 +55,12 @@ func configure(
 ) -> void:
 	_table = table
 	_database = database
+	_row_count = inspection.row_count
 	table_name = table.name
 	_dropped_indexes.clear()
 	_dropped_foreign_keys.clear()
+	_column_dropped_indexes.clear()
+	_column_dropped_foreign_keys.clear()
 	title = String(table.name)
 	%Summary.text = "%d rows · %d columns · %d indexes" % [
 		inspection.row_count,
@@ -72,8 +84,16 @@ func build_change() -> GDSQLEditorTableChange:
 	for constraint_name in _dropped_foreign_keys:
 		if _dropped_foreign_keys[constraint_name]:
 			alterations.append(GDSQLTableAlteration.drop_foreign_key(constraint_name))
+	for constraint_name in _column_dropped_foreign_keys:
+		if _column_dropped_foreign_keys[constraint_name] \
+				and not _dropped_foreign_keys.get(constraint_name, false):
+			alterations.append(GDSQLTableAlteration.drop_foreign_key(constraint_name))
 	for index_name in _dropped_indexes:
 		if _dropped_indexes[index_name]:
+			alterations.append(GDSQLTableAlteration.drop_index(index_name))
+	for index_name in _column_dropped_indexes:
+		if _column_dropped_indexes[index_name] \
+				and not _dropped_indexes.get(index_name, false):
 			alterations.append(GDSQLTableAlteration.drop_index(index_name))
 	alterations.append_array(_columns.build_alterations())
 	for row in %NewIndexes.get_children():
@@ -98,7 +118,7 @@ func is_valid_draft() -> bool:
 		return false
 	var index_names: Dictionary[StringName, bool] = { }
 	for definition in _table.indexes:
-		if not _dropped_indexes.get(definition.name, false):
+		if not _is_index_dropped(definition.name):
 			index_names[definition.name] = true
 	for row in %NewIndexes.get_children():
 		var columns: Array[StringName] = row.call("get_columns")
@@ -111,7 +131,7 @@ func is_valid_draft() -> bool:
 				return false
 	var foreign_key_names: Dictionary[StringName, bool] = { }
 	for definition in _table.foreign_keys:
-		if not _dropped_foreign_keys.get(definition.name, false):
+		if not _is_foreign_key_dropped(definition.name):
 			foreign_key_names[definition.name] = true
 	for row in %NewForeignKeys.get_children():
 		if not row.call("get_validation_errors").is_empty():
@@ -159,7 +179,11 @@ func _render_indexes(table: GDSQLTableDefinition) -> void:
 	for definition in table.indexes:
 		var row := INDEX_PROPERTY_SCENE.instantiate() as GDSQLEditorIndexPropertyRow
 		%Indexes.add_child(row)
-		row.configure(definition)
+		row.configure(
+			definition,
+			_is_index_dropped(definition.name),
+			bool(_column_dropped_indexes.get(definition.name, false)),
+		)
 		row.dropped_changed.connect(_set_index_dropped)
 
 
@@ -171,7 +195,11 @@ func _render_foreign_keys(table: GDSQLTableDefinition) -> void:
 		var row := FOREIGN_KEY_PROPERTY_SCENE.instantiate() \
 				as GDSQLEditorForeignKeyPropertyRow
 		%ForeignKeys.add_child(row)
-		row.configure(definition)
+		row.configure(
+			definition,
+			_is_foreign_key_dropped(definition.name),
+			bool(_column_dropped_foreign_keys.get(definition.name, false)),
+		)
 		row.dropped_changed.connect(_set_foreign_key_dropped)
 
 
@@ -189,6 +217,206 @@ func _set_foreign_key_dropped(dropped: bool, constraint_name: StringName) -> voi
 
 func _add_column() -> void:
 	_columns.add_draft_column()
+
+
+func _show_column_context(column_draft: GDSQLEditorColumnDraft) -> void:
+	_context_column = column_draft
+	%ColumnActions.clear()
+	if column_draft.is_primary:
+		%ColumnActions.add_item("Primary key cannot be removed", COLUMN_ACTION_REMOVE)
+		%ColumnActions.set_item_disabled(0, true)
+	elif column_draft.remove:
+		%ColumnActions.add_item("Restore Column", COLUMN_ACTION_RESTORE)
+	else:
+		%ColumnActions.add_item("Remove Column…", COLUMN_ACTION_REMOVE)
+	%ColumnActions.position = DisplayServer.mouse_get_position()
+	%ColumnActions.popup()
+
+
+func _on_column_context_action(action_id: int) -> void:
+	if _context_column == null or _context_column.is_primary:
+		return
+	if action_id == COLUMN_ACTION_RESTORE:
+		_columns.set_column_removal(_context_column, false, false)
+		_sync_column_drop_dependencies()
+		_refresh_dependency_rows()
+		changed.emit()
+		return
+	if action_id != COLUMN_ACTION_REMOVE:
+		return
+	var drafts: Array[GDSQLEditorColumnDraft] = [_context_column]
+	var incoming := _incoming_foreign_key_dependencies(_original_column_names(drafts))
+	%ColumnRemovalConfirmation.dialog_text = _column_removal_message(_context_column)
+	%ColumnRemovalConfirmation.title = (
+		"Cannot Remove Column"
+		if not incoming.is_empty() else "Remove Column"
+	)
+	%ColumnRemovalConfirmation.get_ok_button().disabled = not incoming.is_empty()
+	%ColumnRemovalConfirmation.get_ok_button().tooltip_text = (
+		"Remove and save the listed foreign keys first."
+		if not incoming.is_empty() else ""
+	)
+	%ColumnRemovalConfirmation.popup_centered(Vector2i(620, 330))
+
+
+func _confirm_column_removal() -> void:
+	if _context_column == null or _context_column.is_primary:
+		return
+	_columns.set_column_removal(_context_column, true, false)
+	_discard_dependent_constraint_drafts([_context_column.get_column_name()])
+	_sync_column_drop_dependencies()
+	_refresh_dependency_rows()
+	changed.emit()
+
+
+func _column_removal_message(draft: GDSQLEditorColumnDraft) -> String:
+	var original_names: Array[StringName] = []
+	var current_names: Array[StringName] = [draft.get_column_name()]
+	if draft.original != null:
+		original_names.append(draft.original.name)
+	var lines: Array[String] = [
+		"Stage removal of column '%s' from '%s'?" % [draft.get_column_name(), table_name],
+	]
+	if not original_names.is_empty():
+		lines.append(
+			"Saving will permanently delete its values from %d stored row(s)." % _row_count,
+		)
+	var local_indexes := _dependent_index_names(original_names)
+	if not local_indexes.is_empty():
+		lines.append("Dependent indexes also staged for removal: %s." % _join_names(local_indexes))
+	var local_keys := _dependent_foreign_key_names(original_names)
+	if not local_keys.is_empty():
+		lines.append("Local foreign keys also staged for removal: %s." % _join_names(local_keys))
+	var draft_dependencies := _dependent_draft_names(current_names)
+	if not draft_dependencies.is_empty():
+		lines.append("Unsaved dependent constraints will be discarded: %s." % ", ".join(draft_dependencies))
+	var incoming := _incoming_foreign_key_dependencies(original_names)
+	if not incoming.is_empty():
+		lines.append(
+			"Blocked by foreign keys in other tables: %s. Remove and save those constraints first." \
+					% ", ".join(incoming),
+		)
+	lines.append("Right-click the column again to restore it before Save Changes.")
+	return "\n\n".join(lines)
+
+
+func _original_column_names(
+		drafts: Array[GDSQLEditorColumnDraft],
+) -> Array[StringName]:
+	var names: Array[StringName] = []
+	for draft in drafts:
+		if draft.original != null:
+			names.append(draft.original.name)
+	return names
+
+
+func _sync_column_drop_dependencies() -> void:
+	_column_dropped_indexes.clear()
+	_column_dropped_foreign_keys.clear()
+	var removed := _columns.get_removed_original_columns()
+	for name in _dependent_index_names(removed):
+		_column_dropped_indexes[name] = true
+	for name in _dependent_foreign_key_names(removed):
+		_column_dropped_foreign_keys[name] = true
+
+
+func _dependent_index_names(column_names: Array[StringName]) -> Array[StringName]:
+	var names: Array[StringName] = []
+	for definition in _table.indexes:
+		for column_name in column_names:
+			if definition.columns.has(column_name):
+				names.append(definition.name)
+				break
+	return names
+
+
+func _dependent_foreign_key_names(column_names: Array[StringName]) -> Array[StringName]:
+	var names: Array[StringName] = []
+	for definition in _table.foreign_keys:
+		if definition.column in column_names \
+				or (
+						definition.referenced_table == table_name \
+						and definition.referenced_column in column_names
+				):
+			names.append(definition.name)
+	return names
+
+
+func _incoming_foreign_key_dependencies(column_names: Array[StringName]) -> Array[String]:
+	var dependencies: Array[String] = []
+	for source_table in _database.tables:
+		if source_table.name == table_name:
+			continue
+		for definition in source_table.foreign_keys:
+			if definition.referenced_table == table_name \
+					and definition.referenced_column in column_names:
+				dependencies.append("%s.%s (%s)" % [
+					source_table.name,
+					definition.column,
+					definition.name,
+				])
+	return dependencies
+
+
+func _dependent_draft_names(column_names: Array[StringName]) -> Array[String]:
+	var names: Array[String] = []
+	for row in %NewIndexes.get_children():
+		for column_name in row.call("get_columns") as Array[StringName]:
+			if column_name in column_names:
+				names.append("index %s" % row.call("get_index_name"))
+				break
+	for row in %NewForeignKeys.get_children():
+		var definition := row.call("build_definition") as GDSQLForeignKeyDefinition
+		if definition.column in column_names \
+				or (
+						definition.referenced_table == table_name \
+						and definition.referenced_column in column_names
+				):
+			names.append("foreign key %s" % definition.name)
+	return names
+
+
+func _discard_dependent_constraint_drafts(removed_current: Array[StringName]) -> void:
+	for row in %NewIndexes.get_children():
+		var remove := false
+		for column_name in row.call("get_columns") as Array[StringName]:
+			remove = remove or column_name in removed_current
+		if remove:
+			%NewIndexes.remove_child(row)
+			row.queue_free()
+	for row in %NewForeignKeys.get_children():
+		var definition := row.call("build_definition") as GDSQLForeignKeyDefinition
+		if definition.column in removed_current \
+				or (
+						definition.referenced_table == table_name \
+						and definition.referenced_column in removed_current
+				):
+			%NewForeignKeys.remove_child(row)
+			row.queue_free()
+
+
+func _refresh_dependency_rows() -> void:
+	_render_indexes(_table)
+	_render_foreign_keys(_table)
+	_refresh_foreign_key_context()
+	_update_foreign_key_indicators()
+
+
+func _is_index_dropped(index_name: StringName) -> bool:
+	return bool(_dropped_indexes.get(index_name, false)) \
+			or bool(_column_dropped_indexes.get(index_name, false))
+
+
+func _is_foreign_key_dropped(constraint_name: StringName) -> bool:
+	return bool(_dropped_foreign_keys.get(constraint_name, false)) \
+			or bool(_column_dropped_foreign_keys.get(constraint_name, false))
+
+
+func _join_names(names: Array[StringName]) -> String:
+	var values: Array[String] = []
+	for name in names:
+		values.append(String(name))
+	return ", ".join(values)
 
 
 func _add_index() -> void:
@@ -253,7 +481,7 @@ func _build_draft_table() -> GDSQLTableDefinition:
 	for column in _columns.build_definitions():
 		draft.add_column(column)
 	for index in _table.indexes:
-		if not _dropped_indexes.get(index.name, false):
+		if not _is_index_dropped(index.name):
 			draft.add_index(index)
 	for row in %NewIndexes.get_children():
 		draft.add_index(row.call("build_definition") as GDSQLIndexDefinition)
@@ -263,7 +491,7 @@ func _build_draft_table() -> GDSQLTableDefinition:
 func _update_foreign_key_indicators() -> void:
 	var columns: Array[StringName] = []
 	for definition in _table.foreign_keys:
-		if _dropped_foreign_keys.get(definition.name, false):
+		if _is_foreign_key_dropped(definition.name):
 			continue
 		var current_name := _columns.resolve_current_name(definition.column)
 		if current_name != &"" and current_name not in columns:

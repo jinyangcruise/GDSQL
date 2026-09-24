@@ -157,24 +157,3 @@ layout_mode = 2
 layout_mode = 2
 text = "Generation"
 vertical_alignment = 1
-
-[node name="VSeparator9" type="VSeparator" parent="Margin/Cells" unique_id=1520985701]
-layout_mode = 2
-
-[node name="RemoveCell" type="CenterContainer" parent="Margin/Cells" unique_id=738720966]
-custom_minimum_size = Vector2(35, 0)
-custom_maximum_size = Vector2(75, -1)
-layout_mode = 2
-
-[node name="Remove2" type="Label" parent="Margin/Cells/RemoveCell" unique_id=732467659]
-visible = false
-layout_mode = 2
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="Remove" type="RichTextLabel" parent="Margin/Cells/RemoveCell" unique_id=1274455264]
-layout_mode = 2
-tooltip_text = "Delete"
-bbcode_enabled = true
-text = "[img=16x16]res://addons/gdsql/editor/workspace/icons/trash_can.svg[/img]"
-fit_content = true

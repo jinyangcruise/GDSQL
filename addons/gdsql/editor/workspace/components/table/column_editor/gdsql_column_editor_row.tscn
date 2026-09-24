@@ -8,6 +8,7 @@
 [node name="ColumnEditorRow" type="PanelContainer" unique_id=809263312]
 offset_right = 1134.0
 offset_bottom = 4.0
+tooltip_text = "Right-click for column actions."
 script = ExtResource("1_row")
 
 [node name="Margin" type="MarginContainer" parent="." unique_id=1630711979]
@@ -260,16 +261,3 @@ popup/item_1/text = "Created At"
 popup/item_1/id = 1
 popup/item_2/text = "Updated At"
 popup/item_2/id = 2
-
-[node name="VSeparator9" type="VSeparator" parent="Margin/Cells" unique_id=2038324396]
-layout_mode = 2
-
-[node name="RemoveCell" type="MarginContainer" parent="Margin/Cells" unique_id=1457605127]
-custom_minimum_size = Vector2(35, 0)
-custom_maximum_size = Vector2(75, -1)
-layout_mode = 2
-
-[node name="Remove" type="CheckBox" parent="Margin/Cells/RemoveCell" unique_id=189020619]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 4

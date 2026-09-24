@@ -383,6 +383,11 @@ shortcut. Existing table folds provide direct data and model actions plus a
 confirmed Reset Data macro. Reset Data stages transactional truncation through
 the shared storage contract, respects final-state foreign-key restrictions,
 and resets generated-key metadata without ConfigFile access from Controls.
+Column rows expose an extensible right-click action menu without adding a
+per-row action cluster. Removal previews stored-value loss, automatically
+stages dependent local index and foreign-key removal, discards dependent
+unsaved constraints, blocks on named cross-table foreign keys, and remains
+restorable from the same menu until Save Changes.
 
 1. Search and filter tables within a database without loading their rows.
 2. Search table and column names across registered databases, with keyboard
@@ -394,8 +399,8 @@ and resets generated-key metadata without ConfigFile access from Controls.
    Script editor when that file exists.
 5. Keep table reset as an explicit confirmed administrative operation,
    distinct from ordinary row deletion and independent of storage format.
-6. Replace trailing per-column delete buttons with selection-based removal,
-   dependency warnings, and one explicit confirmation.
+6. Keep column deletion in the row context menu and reversible before save,
+   with one explicit confirmation and visible dependency handling.
 
 ### 9. Add bounded row mutation history
 
@@ -567,3 +572,5 @@ code:
   asset locators and native owned-Resource serialization.
 - Command-palette database/table navigation, direct table/model actions, and
   transactional table reset with generated-key restart.
+- Context-menu column removal with local constraint cleanup, cross-table
+  dependency warnings, and pre-save restoration.

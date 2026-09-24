@@ -4,6 +4,7 @@ extends PanelContainer
 ## Scene-backed editor for one typed column draft.
 
 signal changed
+signal context_requested(column_draft: GDSQLEditorColumnDraft)
 signal reorder_requested(
 		source: GDSQLEditorColumnEditorRow,
 		target: GDSQLEditorColumnEditorRow,
@@ -37,7 +38,6 @@ var _configuring := false
 @onready var _has_default: CheckBox = %HasDefault
 @onready var _default_value: GDSQLEditorVariantValueField = %DefaultValue
 @onready var _generation: OptionButton = %Generation
-@onready var _remove: CheckBox = %Remove
 
 
 func _ready() -> void:
@@ -57,7 +57,19 @@ func _ready() -> void:
 	_has_default.toggled.connect(_on_has_default_toggled)
 	_default_value.changed.connect(_on_default_value_changed)
 	_generation.item_selected.connect(_on_generation_selected)
-	_remove.toggled.connect(_on_remove_toggled)
+
+
+func _input(event: InputEvent) -> void:
+	if not is_visible_in_tree() or draft == null:
+		return
+	var mouse_event := event as InputEventMouseButton
+	if mouse_event == null \
+			or mouse_event.button_index != MOUSE_BUTTON_RIGHT \
+			or not mouse_event.pressed \
+			or not get_global_rect().has_point(get_global_mouse_position()):
+		return
+	context_requested.emit(draft)
+	get_viewport().set_input_as_handled()
 
 
 func _can_drop_data(_position: Vector2, data: Variant) -> bool:
@@ -112,10 +124,15 @@ func configure(column_draft: GDSQLEditorColumnDraft) -> void:
 	_configure_default_value()
 	_generation.select(draft.generation)
 	_generation.disabled = draft.data_type != TYPE_INT
-	_remove.set_pressed_no_signal(draft.remove)
-	_remove.disabled = draft.is_primary
 	modulate = Color(0.72, 0.72, 0.72) if draft.remove else Color.WHITE
 	_configuring = false
+
+
+func set_removal_staged(enabled: bool) -> void:
+	if draft == null or draft.is_primary:
+		return
+	draft.remove = enabled
+	modulate = Color(0.72, 0.72, 0.72) if enabled else Color.WHITE
 
 
 func sync_default_value() -> void:
@@ -282,14 +299,6 @@ func _on_generation_selected(index: int) -> void:
 	if draft.generation != GDSQLColumnDefinition.Generation.NONE:
 		draft.has_default = false
 	configure(draft)
-	changed.emit()
-
-
-func _on_remove_toggled(enabled: bool) -> void:
-	if _configuring:
-		return
-	draft.remove = enabled
-	modulate = Color(0.72, 0.72, 0.72) if enabled else Color.WHITE
 	changed.emit()
 
 
