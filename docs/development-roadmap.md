@@ -90,10 +90,11 @@ remain with their owning frontends. Data columns use stable equal expansion
 with fixed minimum widths, so table and insert views fill their host consistently
 and overflow horizontally only when all columns have reached their minimum.
 Selected rows can be duplicated through one atomic insert batch when the table
-has a generated identity and copies only non-unique scalar values. Manual
-identities, copied unique constraints, or Resource values instead populate one
-editable insert draft from the first selected row. Resource values are
-deep-cloned for that draft. Constrained Resource columns expose only validated
+has a generated identity and copies only non-unique scalar or referenced
+Resource values. Manual identities, copied unique constraints, or owned
+Resource values instead populate one editable insert draft from the first
+selected row. Owned Resource values are deep-cloned; referenced values preserve
+their asset identity. Constrained Resource columns expose only validated
 Inspector-visible scalar leaves to typed WHERE choices; compound values such as
 `Vector3` expose their scalar components instead of the container.
 Visual Resource thumbnails are applied through deferred editor-thread updates;
@@ -478,6 +479,9 @@ setup inspection first; query drafting and guarded editor actions follow.
 Version persisted formats, provide dry-run migrations and recovery guidance,
 benchmark paging and managed-content caches with large datasets, and verify
 editor/runtime behavior across supported Godot versions and exported builds.
+Before release, add diagnostic-bearing storage read results so a missing or
+type-mismatched referenced Resource is reported with its table, row, column,
+and locator instead of being exposed only as a null value.
 
 ## Backlog — not active delivery
 
@@ -548,3 +552,5 @@ code:
 - Runtime bootstrap, roles, save-slot switching, checkpoints, and diagnostics.
 - Generated/user-owned model assistance and cross-role content references.
 - Deterministic managed-content overlays, caching, provenance, and save checks.
+- Explicit owned/reference Resource-column semantics with compact ConfigFile
+  asset locators and native owned-Resource serialization.

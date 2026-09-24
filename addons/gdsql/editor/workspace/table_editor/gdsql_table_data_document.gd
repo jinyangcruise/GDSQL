@@ -769,7 +769,10 @@ func _duplicate_values_for(primary_keys: Array[Variant]) -> Array[Dictionary]:
 		for column in _table.columns:
 			if column.auto_increment \
 					or column.generation != GDSQLColumnDefinition.Generation.NONE \
-					or column.data_type == TYPE_OBJECT:
+					or (
+						column.data_type == TYPE_OBJECT \
+								and column.resource_ownership == GDSQLResourceOwnership.Mode.OWNED
+					):
 				continue
 			values[column.name] = record.get_value(column.name)
 		rows.append(values)
@@ -786,7 +789,12 @@ func _draft_values_for(primary_key: Variant) -> Dictionary:
 					or column.generation != GDSQLColumnDefinition.Generation.NONE:
 				continue
 			var value: Variant = record.get_value(column.name)
-			values[column.name] = value.duplicate(true) if value is Resource else value
+			values[column.name] = (
+				value.duplicate(true)
+				if value is Resource \
+						and column.resource_ownership == GDSQLResourceOwnership.Mode.OWNED
+				else value
+			)
 		return values
 	return { }
 
@@ -806,8 +814,8 @@ func _duplicate_draft_guidance(primary_keys: Array[Variant]) -> PackedStringArra
 		guidance.append("Change '%s' before saving." % _table.primary_key)
 	if _has_copied_unique_constraint():
 		guidance.append("Review the copied unique values before saving.")
-	if _selected_rows_contain_resources(primary_keys):
-		guidance.append("Resource values were deep-cloned; review them before saving.")
+	if _selected_rows_contain_owned_resources(primary_keys):
+		guidance.append("Owned Resource values were deep-cloned; review them before saving.")
 	return guidance
 
 
@@ -834,12 +842,14 @@ func _has_copied_unique_constraint() -> bool:
 	return false
 
 
-func _selected_rows_contain_resources(primary_keys: Array[Variant]) -> bool:
+func _selected_rows_contain_owned_resources(primary_keys: Array[Variant]) -> bool:
 	for record in _records:
 		if not primary_keys.has(record.get_value(_table.primary_key)):
 			continue
 		for column in _table.columns:
-			if column.data_type == TYPE_OBJECT and record.get_value(column.name) is Resource:
+			if column.data_type == TYPE_OBJECT \
+					and column.resource_ownership == GDSQLResourceOwnership.Mode.OWNED \
+					and record.get_value(column.name) is Resource:
 				return true
 	return false
 
@@ -910,7 +920,7 @@ func _refresh_actions() -> void:
 					"Copy the first selected row into an editable Add Row draft"
 					if _duplicate_requires_draft(selected_keys)
 					else (
-							"Duplicate %d selected row(s) in one transaction; Resource values are omitted"
+							"Duplicate %d selected row(s) in one transaction; owned Resource values are omitted"
 							% selected_count
 					)
 			)

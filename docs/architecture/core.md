@@ -1652,6 +1652,8 @@ var unique: bool
 var auto_increment: bool
 var default: ColumnDefault
 var generation: Generation
+var resource_type: ResourceTypeConstraint
+var resource_ownership: ResourceOwnership.Mode
 ```
 
 `ColumnDefault` distinguishes no default (`default == null`) from an explicitly
@@ -2716,6 +2718,16 @@ Validation accepts the declared class and its subclasses; an unconstrained
 `Resource`, a different Resource family, `Node`, and other arbitrary `Object`
 instances are rejected. The constraint is catalog metadata and is enforced by
 query validation and storage, not only by editor filtering.
+
+Every Resource column also declares ownership independently from its physical
+backend layout. `OWNED` means the database owns an independent Resource value;
+editing its properties mutates row data and duplication deep-copies it.
+`REFERENCED` means the Resource remains an external project asset; the database
+stores a versioned UID plus fallback path and only replacing the reference
+mutates the row. ConfigFile persists owned values through native Resource
+serialization and referenced values through `GDSQLResourceLocator`. Future
+backends must preserve these semantics but may choose a different physical
+representation.
 
 ### Abstract contracts support boundaries
 

@@ -30,6 +30,7 @@ var _configuring := false
 @onready var _type: OptionButton = %Type
 @onready var _resource_type: EditorResourcePicker = %ResourceType
 @onready var _resource_type_name: Label = %ResourceTypeName
+@onready var _resource_ownership: OptionButton = %ResourceOwnership
 @onready var _nullable: CheckBox = %Nullable
 @onready var _unique: CheckBox = %Unique
 @onready var _auto_increment: CheckBox = %AutoIncrement
@@ -49,6 +50,7 @@ func _ready() -> void:
 	_type.item_selected.connect(_on_type_selected)
 	_resource_type.resource_changed.connect(_on_resource_type_changed)
 	_resource_type.resource_selected.connect(_on_resource_type_selected)
+	_resource_ownership.item_selected.connect(_on_resource_ownership_selected)
 	_nullable.toggled.connect(_on_nullable_toggled)
 	_unique.toggled.connect(_on_unique_toggled)
 	_auto_increment.toggled.connect(_on_auto_increment_toggled)
@@ -93,6 +95,12 @@ func configure(column_draft: GDSQLEditorColumnDraft) -> void:
 	_resource_type_name.tooltip_text = "Accepted Resource type: %s" % _resource_type_name.text
 	_resource_type.set_edited_resource(draft.resource_prototype)
 	_resource_type.editable = draft.original == null
+	_resource_ownership.visible = shows_resource_type
+	_resource_ownership.select(draft.resource_ownership)
+	_resource_ownership.tooltip_text = (
+		"Owned: store an independent Resource value in this database.\n"
+		+ "Referenced: store a UID/path locator to an existing asset."
+	)
 	_nullable.set_pressed_no_signal(draft.nullable)
 	_nullable.disabled = draft.is_primary
 	_unique.set_pressed_no_signal(draft.unique)
@@ -159,6 +167,7 @@ func _configure_default_value() -> void:
 		draft.nullable,
 		draft.has_default and draft.generation == GDSQLColumnDefinition.Generation.NONE,
 		draft.resource_type,
+		draft.resource_ownership,
 	)
 
 
@@ -185,13 +194,29 @@ func _on_resource_type_changed(resource: Resource) -> void:
 		return
 	draft.resource_type = GDSQLResourceTypeConstraint.from_resource(resource)
 	draft.resource_prototype = resource
+	draft.resource_ownership = (
+		GDSQLResourceOwnership.Mode.REFERENCED
+		if not resource.resource_path.is_empty()
+		else GDSQLResourceOwnership.Mode.OWNED
+	)
 	draft.default_valid = true
 	if draft.has_default:
-		draft.default_value = draft.duplicate_resource_prototype()
+		draft.default_value = _resource_default_value()
 		draft.default_modified = true
 	_configure_default_value()
 	if draft.default_value is Resource:
 		EditorInterface.edit_resource(draft.default_value)
+	changed.emit()
+
+
+func _on_resource_ownership_selected(index: int) -> void:
+	if _configuring:
+		return
+	draft.resource_ownership = index as GDSQLResourceOwnership.Mode
+	if draft.has_default and draft.data_type == TYPE_OBJECT:
+		draft.default_value = _resource_default_value()
+		draft.default_modified = true
+	_configure_default_value()
 	changed.emit()
 
 
@@ -227,7 +252,7 @@ func _on_has_default_toggled(enabled: bool) -> void:
 	draft.has_default = enabled
 	if enabled:
 		if draft.data_type == TYPE_OBJECT:
-			draft.default_value = draft.duplicate_resource_prototype()
+			draft.default_value = _resource_default_value()
 		elif draft.default_value == null and not draft.nullable:
 			draft.default_value = _initial_value(draft.data_type)
 		if draft.default_value is Resource:
@@ -235,6 +260,12 @@ func _on_has_default_toggled(enabled: bool) -> void:
 	draft.default_modified = true
 	_configure_default_value()
 	changed.emit()
+
+
+func _resource_default_value() -> Resource:
+	if draft.resource_ownership == GDSQLResourceOwnership.Mode.REFERENCED:
+		return draft.resource_prototype
+	return draft.duplicate_resource_prototype()
 
 
 func _on_default_value_changed() -> void:

@@ -424,7 +424,7 @@ ConfigInfrastructure("`**ConfigFile Infrastructure**
 *Purpose:* Contain ConfigFile-specific paths, caching and serialization
 *Path API:* resolve_catalog_path(), resolve_schema_path(), resolve_table_path()
 *Cache API:* get_or_load(), invalidate(), flush()
-*Types:* GDSQLDatabasePathResolver, GDSQLConfigFileCache, GDSQLGodotVariantCodec`")
+*Types:* GDSQLDatabasePathResolver, GDSQLConfigFileCache, GDSQLGodotVariantCodec, GDSQLResourceLocator`")
 
 ConfigPackageManifest("`**ConfigFile Package Manifest Store**
 

@@ -19,6 +19,7 @@ enum Kind {
 	SET_COLUMN_UNIQUE,
 	SET_COLUMN_AUTO_INCREMENT,
 	SET_COLUMN_GENERATION,
+	SET_RESOURCE_OWNERSHIP,
 	REORDER_COLUMNS,
 }
 
@@ -33,6 +34,7 @@ var foreign_key_name: StringName
 var value: Variant
 var enabled: bool
 var generation: GDSQLColumnDefinition.Generation
+var resource_ownership := GDSQLResourceOwnership.Mode.OWNED
 var column_names: Array[StringName] = []
 
 
@@ -153,6 +155,17 @@ static func set_column_generation(
 	return alteration
 
 
+static func set_resource_ownership(
+		target_column: StringName,
+		ownership: GDSQLResourceOwnership.Mode,
+) -> GDSQLTableAlteration:
+	var alteration := GDSQLTableAlteration.new()
+	alteration.kind = Kind.SET_RESOURCE_OWNERSHIP
+	alteration.column_name = target_column
+	alteration.resource_ownership = ownership
+	return alteration
+
+
 static func reorder_columns(ordered_names: Array[StringName]) -> GDSQLTableAlteration:
 	var alteration := GDSQLTableAlteration.new()
 	alteration.kind = Kind.REORDER_COLUMNS
@@ -194,6 +207,11 @@ func describe() -> String:
 			return "Set column '%s' auto increment to %s." % [column_name, enabled]
 		Kind.SET_COLUMN_GENERATION:
 			return "Set the generation policy for column '%s'." % column_name
+		Kind.SET_RESOURCE_OWNERSHIP:
+			return "Set Resource ownership for column '%s' to %s." % [
+				column_name,
+				GDSQLResourceOwnership.display_name(resource_ownership),
+			]
 		Kind.REORDER_COLUMNS:
 			return "Set the table column display order."
 	return "Unknown table alteration."

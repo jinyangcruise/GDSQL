@@ -102,10 +102,13 @@ func _load_table(database_name: StringName, table_name: StringName) -> GDSQLTabl
 				),
 			)
 			column.resource_type = _load_resource_type(schema, section, column.data_type)
+			column.resource_ownership = GDSQLResourceOwnership.from_id(
+				StringName(schema.get_value(section, "resource_ownership", "owned")),
+			)
 			if schema.has_section_key(section, "default_kind") \
 					and schema.get_value(section, "default_kind") == "static":
 				column.set_default(
-					_codec.decode(schema.get_value(section, "default")) \
+					_codec.decode(schema.get_value(section, "default"), column) \
 					if schema.has_section_key(section, "default") \
 					else null,
 				)

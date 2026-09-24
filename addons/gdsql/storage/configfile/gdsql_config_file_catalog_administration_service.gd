@@ -225,7 +225,7 @@ func create_table(
 				schema.set_value(
 					section,
 					"default",
-					_codec.encode(column.get_default_value()),
+					_codec.encode(column.get_default_value(), column),
 				)
 	_write_index_schema(schema, table)
 	_write_foreign_key_schema(schema, table)
@@ -503,6 +503,7 @@ func _stored_schema_matches(
 		if stored_column == null \
 				or stored_column.data_type != requested_column.data_type \
 				or not _resource_types_match(stored_column, requested_column) \
+				or stored_column.resource_ownership != requested_column.resource_ownership \
 				or stored_column.nullable != requested_column.nullable \
 				or stored_column.unique != requested_column.unique \
 				or stored_column.auto_increment != requested_column.auto_increment \
@@ -577,6 +578,13 @@ func _apply_alteration(
 				alteration.column_name,
 				alteration.generation,
 			)
+		GDSQLTableAlteration.Kind.SET_RESOURCE_OWNERSHIP:
+			return _set_resource_ownership(
+				table,
+				table_data,
+				alteration.column_name,
+				alteration.resource_ownership,
+			)
 		GDSQLTableAlteration.Kind.REORDER_COLUMNS:
 			return _reorder_columns(table, alteration.column_names)
 	return _error(&"GDSQL_CATALOG_INVALID_ALTERATION", "Unsupported table alteration kind.")
@@ -600,6 +608,11 @@ func _add_column(
 		return _error(
 			&"GDSQL_CATALOG_COLUMN_DEFAULT_TYPE_MISMATCH",
 			"Default for column '%s' does not match its Variant type." % column.name,
+		)
+	if column.has_default() and not _codec.can_encode(column.get_default_value(), column):
+		return _error(
+			&"GDSQL_CATALOG_RESOURCE_REFERENCE_PATH_REQUIRED",
+			"Default for referenced Resource column '%s' must be a saved asset." % column.name,
 		)
 	if column.generation != GDSQLColumnDefinition.Generation.NONE:
 		if column.data_type != TYPE_INT:
@@ -630,7 +643,7 @@ func _add_column(
 			table_data.set_value(
 				section,
 				String(column.name),
-				_codec.encode(column.get_default_value()),
+				_codec.encode(column.get_default_value(), column),
 			)
 	elif column.generation == GDSQLColumnDefinition.Generation.CREATED_AT \
 			or column.generation == GDSQLColumnDefinition.Generation.UPDATED_AT:
@@ -764,7 +777,7 @@ func _add_index(
 			"Index '%s' already exists." % index.name,
 		)
 	if index.unique:
-		var uniqueness := _validate_unique_index_data(table_data, index)
+		var uniqueness := _validate_unique_index_data(table, table_data, index)
 		if not uniqueness.is_successful():
 			return uniqueness
 	table.indexes.append(index)
@@ -844,6 +857,11 @@ func _set_column_default(
 			&"GDSQL_CATALOG_COLUMN_DEFAULT_TYPE_MISMATCH",
 			"Default for column '%s' does not match its Variant type." % column_name,
 		)
+	if not _codec.can_encode(value, column):
+		return _error(
+			&"GDSQL_CATALOG_RESOURCE_REFERENCE_PATH_REQUIRED",
+			"Default for referenced Resource column '%s' must be a saved asset." % column_name,
+		)
 	column.set_default(value)
 	return GDSQLCatalogOperationResult.new()
 
@@ -876,7 +894,7 @@ func _set_column_nullable(
 	if not nullable:
 		for section in _get_row_sections(table_data):
 			if not table_data.has_section_key(section, String(column_name)) \
-					or _read_value(table_data, section, column_name) == null:
+					or _read_value(table_data, section, column_name, column) == null:
 				return _error(
 					&"GDSQL_CATALOG_COLUMN_CONTAINS_NULL",
 					"Column '%s' contains null or missing values." % column_name,
@@ -909,7 +927,7 @@ func _set_column_unique(
 		if not dependencies.is_successful():
 			return dependencies
 	if unique:
-		var uniqueness := _validate_unique_column_data(table_data, column_name)
+		var uniqueness := _validate_unique_column_data(table, table_data, column_name)
 		if not uniqueness.is_successful():
 			return uniqueness
 	column.unique = unique
@@ -954,13 +972,79 @@ func _set_column_generation(
 	return GDSQLCatalogOperationResult.new()
 
 
+func _set_resource_ownership(
+		table: GDSQLTableDefinition,
+		table_data: ConfigFile,
+		column_name: StringName,
+		ownership: GDSQLResourceOwnership.Mode,
+) -> GDSQLCatalogOperationResult:
+	var column := table.get_column(column_name)
+	if column == null:
+		return _unknown_column(column_name)
+	if column.data_type != TYPE_OBJECT or not GDSQLResourceOwnership.is_valid(ownership):
+		return _error(
+			&"GDSQL_CATALOG_RESOURCE_OWNERSHIP_INVALID",
+			"Column '%s' requires a valid Resource ownership mode." % column_name,
+		)
+	if column.resource_ownership == ownership:
+		return GDSQLCatalogOperationResult.new()
+	var changed_column := _column_with_ownership(column, ownership)
+	if column.has_default() and not _codec.can_encode(column.get_default_value(), changed_column):
+		return _error(
+			&"GDSQL_CATALOG_RESOURCE_REFERENCE_PATH_REQUIRED",
+			"Default for referenced Resource column '%s' must be a saved asset." % column_name,
+		)
+	var values: Dictionary[String, Variant] = { }
+	for section in _get_row_sections(table_data):
+		if not table_data.has_section_key(section, String(column_name)):
+			continue
+		var value: Variant = _read_value(table_data, section, column_name, column)
+		if ownership == GDSQLResourceOwnership.Mode.REFERENCED \
+				and not _codec.can_encode(value, changed_column):
+			return _error(
+				&"GDSQL_CATALOG_RESOURCE_REFERENCE_PATH_REQUIRED",
+				"Column '%s' contains an owned Resource without a saved asset path." % column_name,
+			)
+		values[section] = value
+	column.resource_ownership = ownership
+	for section in values:
+		table_data.set_value(
+			section,
+			String(column_name),
+			_codec.encode(values[section], column),
+		)
+	return GDSQLCatalogOperationResult.new()
+
+
+func _column_with_ownership(
+		column: GDSQLColumnDefinition,
+		ownership: GDSQLResourceOwnership.Mode,
+) -> GDSQLColumnDefinition:
+	var copy := GDSQLColumnDefinition.new(
+		column.name,
+		column.data_type,
+		column.nullable,
+		column.unique,
+		column.auto_increment,
+	)
+	copy.resource_type = column.resource_type
+	copy.resource_ownership = ownership
+	return copy
+
+
 func _validate_unique_column_data(
+		table: GDSQLTableDefinition,
 		table_data: ConfigFile,
 		column_name: StringName,
 ) -> GDSQLCatalogOperationResult:
 	var seen: Array[Variant] = []
 	for section in _get_row_sections(table_data):
-		var value: Variant = _read_value(table_data, section, column_name)
+		var value: Variant = _read_value(
+			table_data,
+			section,
+			column_name,
+			table.get_column(column_name),
+		)
 		if value == null:
 			continue
 		if seen.has(value):
@@ -973,6 +1057,7 @@ func _validate_unique_column_data(
 
 
 func _validate_unique_index_data(
+		table: GDSQLTableDefinition,
 		table_data: ConfigFile,
 		index: GDSQLIndexDefinition,
 ) -> GDSQLCatalogOperationResult:
@@ -981,7 +1066,12 @@ func _validate_unique_index_data(
 		var values: Array = []
 		var contains_null := false
 		for column_name in index.columns:
-			var value: Variant = _read_value(table_data, section, column_name)
+			var value: Variant = _read_value(
+				table_data,
+				section,
+				column_name,
+				table.get_column(column_name),
+			)
 			values.append(value)
 			contains_null = contains_null or value == null
 		if contains_null:
@@ -999,10 +1089,11 @@ func _read_value(
 		table_data: ConfigFile,
 		section: String,
 		column_name: StringName,
+		column: GDSQLColumnDefinition = null,
 ) -> Variant:
 	if not table_data.has_section_key(section, String(column_name)):
 		return null
-	return _codec.decode(table_data.get_value(section, String(column_name)))
+	return _codec.decode(table_data.get_value(section, String(column_name)), column)
 
 
 func _recalculate_auto_increment(
@@ -1011,7 +1102,12 @@ func _recalculate_auto_increment(
 ) -> void:
 	var next_value := 1
 	for section in _get_row_sections(table_data):
-		var value: Variant = _read_value(table_data, section, table.primary_key)
+		var value: Variant = _read_value(
+			table_data,
+			section,
+			table.primary_key,
+			table.get_primary_key(),
+		)
 		if value is int:
 			next_value = maxi(next_value, value + 1)
 	table_data.set_value(TABLE_METADATA_SECTION, "next_auto_increment", next_value)
@@ -1042,7 +1138,7 @@ func _save_schema(path: String, table: GDSQLTableDefinition) -> Error:
 				schema.set_value(
 					section,
 					"default",
-					_codec.encode(column.get_default_value()),
+					_codec.encode(column.get_default_value(), column),
 				)
 	_write_index_schema(schema, table)
 	_write_foreign_key_schema(schema, table)
@@ -1208,6 +1304,11 @@ func _validate_table(
 			return _error(
 				&"GDSQL_CATALOG_COLUMN_DEFAULT_TYPE_MISMATCH",
 				"Default for column '%s' does not match its Variant type." % column.name,
+			)
+		if column.has_default() and not _codec.can_encode(column.get_default_value(), column):
+			return _error(
+				&"GDSQL_CATALOG_RESOURCE_REFERENCE_PATH_REQUIRED",
+				"Default for referenced Resource column '%s' must be a saved asset." % column.name,
 			)
 		if column.auto_increment:
 			auto_increment_columns += 1
@@ -1407,6 +1508,7 @@ func _validate_foreign_key_rows(
 			referenced_data,
 			section,
 			foreign_key.referenced_column,
+			referenced_table.get_column(foreign_key.referenced_column),
 		)
 		if target_value != null:
 			target_values[target_value] = true
@@ -1415,6 +1517,7 @@ func _validate_foreign_key_rows(
 			table_data,
 			section,
 			foreign_key.column,
+			table.get_column(foreign_key.column),
 		)
 		if local_value != null and not target_values.has(local_value):
 			return _error(
@@ -1458,6 +1561,7 @@ func _rebuild_indexes(
 					table_data,
 					row_section,
 					column_name,
+					table.get_column(column_name),
 				)
 				var column := table.get_column(column_name)
 				if value != null and column != null:
@@ -1478,8 +1582,13 @@ func _rebuild_indexes(
 			]
 			if not table_data.has_section(section):
 				var encoded_values: Array = []
-				for value in values:
-					encoded_values.append(_codec.encode(value))
+				for value_index in values.size():
+					encoded_values.append(
+						_codec.encode(
+							values[value_index],
+							table.get_column(index.columns[value_index]),
+						),
+					)
 				table_data.set_value(section, "values", encoded_values)
 				table_data.set_value(
 					section,
@@ -1507,6 +1616,7 @@ func _catalog_fingerprint(table: GDSQLTableDefinition) -> int:
 				column.unique,
 				column.auto_increment,
 				column.generation,
+				column.resource_ownership,
 				column.has_default(),
 				column.get_default_value(),
 				column.resource_type.resource_class if column.resource_type != null else &"",
@@ -1550,6 +1660,11 @@ func _write_resource_type(
 	if column.data_type != TYPE_OBJECT or column.resource_type == null:
 		return
 	schema.set_value(section, "resource_class", String(column.resource_type.resource_class))
+	schema.set_value(
+		section,
+		"resource_ownership",
+		String(GDSQLResourceOwnership.to_id(column.resource_ownership)),
+	)
 	if not column.resource_type.script_path.is_empty():
 		schema.set_value(section, "resource_script", column.resource_type.script_path)
 

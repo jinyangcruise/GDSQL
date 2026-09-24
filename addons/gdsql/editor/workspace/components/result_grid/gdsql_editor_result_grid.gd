@@ -420,7 +420,8 @@ func render_page(
 			var cell_key := Vector2i(record_index, column_index)
 			if value is Resource:
 				_queue_resource_preview(value, record_index, column_index)
-				if not _safe_mode:
+				if not _safe_mode \
+						and column.resource_ownership == GDSQLResourceOwnership.Mode.OWNED:
 					_observe_resource(cell_key, column.name, value)
 			if _errors.has(cell_key):
 				item.set_custom_bg_color(column_index, invalid_cell_color)
@@ -775,10 +776,14 @@ func _on_resource_picker_changed(resource: Resource) -> void:
 		_resource_picker_configuring = false
 		inline_changes_changed.emit("%s expects %s." % [column.name, column.display_type_name()])
 		return
-	_apply_cell_value(record_index, column_index, column, resource)
-	if resource != null:
+	var stored_resource := resource
+	if resource != null \
+			and column.resource_ownership == GDSQLResourceOwnership.Mode.OWNED:
+		stored_resource = resource.duplicate(true)
+	_apply_cell_value(record_index, column_index, column, stored_resource)
+	if stored_resource != null:
 		_edit_resource_in_inspector.call_deferred(
-			resource,
+			stored_resource,
 			_resource_picker.get_instance_id(),
 			_resource_editor_cell,
 		)
@@ -1012,7 +1017,8 @@ func _apply_cell_value(
 		_set_update(record_index, column.name, value)
 	_unobserve_resource(cell_key)
 	if value is Resource:
-		_observe_resource(cell_key, column.name, value)
+		if column.resource_ownership == GDSQLResourceOwnership.Mode.OWNED:
+			_observe_resource(cell_key, column.name, value)
 		_queue_resource_preview(value, record_index, column_index)
 	var item := _visible_item(record_index)
 	if item != null:
@@ -1184,7 +1190,12 @@ func _invalid_value(column: GDSQLColumnDefinition) -> Dictionary:
 func _draft_initial_value(column: GDSQLColumnDefinition) -> Variant:
 	if column.has_default():
 		var value: Variant = column.get_default_value()
-		return value.duplicate(true) if value is Resource else value
+		return (
+			value.duplicate(true)
+			if value is Resource \
+					and column.resource_ownership == GDSQLResourceOwnership.Mode.OWNED
+			else value
+		)
 	if column.nullable or column.data_type == TYPE_OBJECT:
 		return null
 	match column.data_type:

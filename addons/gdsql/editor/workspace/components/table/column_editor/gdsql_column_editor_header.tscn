@@ -55,6 +55,20 @@ vertical_alignment = 1
 [node name="VSeparator3" type="VSeparator" parent="Margin/Cells" unique_id=413905432]
 layout_mode = 2
 
+[node name="OwnershipCell" type="MarginContainer" parent="Margin/Cells"]
+custom_minimum_size = Vector2(115, 0)
+custom_maximum_size = Vector2(115, -1)
+layout_mode = 2
+
+[node name="Ownership" type="Label" parent="Margin/Cells/OwnershipCell"]
+layout_mode = 2
+text = "Storage"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="VSeparatorOwnership" type="VSeparator" parent="Margin/Cells"]
+layout_mode = 2
+
 [node name="NullableCell" type="MarginContainer" parent="Margin/Cells" unique_id=2019579880]
 custom_minimum_size = Vector2(50, 0)
 custom_maximum_size = Vector2(75, -1)

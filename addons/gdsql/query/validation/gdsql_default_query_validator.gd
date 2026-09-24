@@ -296,6 +296,7 @@ func _copy_column(column: GDSQLColumnDefinition) -> GDSQLColumnDefinition:
 		copy.set_default(column.get_default_value())
 	copy.generation = column.generation
 	copy.resource_type = column.resource_type
+	copy.resource_ownership = column.resource_ownership
 	return copy
 
 

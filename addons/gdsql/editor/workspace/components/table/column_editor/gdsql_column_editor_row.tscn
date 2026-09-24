@@ -154,6 +154,23 @@ text_overrun_behavior = 3
 [node name="VSeparator3" type="VSeparator" parent="Margin/Cells" unique_id=916121464]
 layout_mode = 2
 
+[node name="OwnershipCell" type="MarginContainer" parent="Margin/Cells"]
+custom_minimum_size = Vector2(115, 0)
+custom_maximum_size = Vector2(115, -1)
+layout_mode = 2
+
+[node name="ResourceOwnership" type="OptionButton" parent="Margin/Cells/OwnershipCell"]
+unique_name_in_owner = true
+layout_mode = 2
+item_count = 2
+popup/item_0/text = "Owned"
+popup/item_0/id = 0
+popup/item_1/text = "Referenced"
+popup/item_1/id = 1
+
+[node name="VSeparatorOwnership" type="VSeparator" parent="Margin/Cells"]
+layout_mode = 2
+
 [node name="NullableCell" type="MarginContainer" parent="Margin/Cells" unique_id=1967765174]
 custom_minimum_size = Vector2(50, 0)
 custom_maximum_size = Vector2(75, -1)

@@ -142,10 +142,13 @@ func _inspect_column(
 			StringName(schema.get_value(section, "resource_class", "")),
 			String(schema.get_value(section, "resource_script", "")),
 		)
+		column.resource_ownership = GDSQLResourceOwnership.from_id(
+			StringName(schema.get_value(section, "resource_ownership", "owned")),
+		)
 	if schema.has_section_key(section, "default_kind") \
 			and schema.get_value(section, "default_kind") == "static":
 		column.set_default(
-			_codec.decode(schema.get_value(section, "default")) \
+			_codec.decode(schema.get_value(section, "default"), column) \
 			if schema.has_section_key(section, "default") \
 			else null,
 		)

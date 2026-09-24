@@ -18,6 +18,7 @@ const RESOURCE_PICKER_SCRIPT := preload(
 var data_type: Variant.Type = TYPE_NIL
 var nullable := true
 var resource_type: GDSQLResourceTypeConstraint
+var resource_ownership := GDSQLResourceOwnership.Mode.OWNED
 var _editable := true
 var _line_edit: LineEdit
 var _string_field: GDSQLEditorStringValueField
@@ -45,11 +46,13 @@ func configure(
 		is_nullable: bool = true,
 		is_editable: bool = true,
 		target_resource_type: GDSQLResourceTypeConstraint = null,
+		target_resource_ownership: GDSQLResourceOwnership.Mode = GDSQLResourceOwnership.Mode.OWNED,
 ) -> void:
 	_rebuilding = true
 	data_type = target_type
 	nullable = is_nullable
 	resource_type = target_resource_type
+	resource_ownership = target_resource_ownership
 	_editable = is_editable
 	_rebuild(value)
 	_modified = false
@@ -141,7 +144,8 @@ func _build_resource_picker(value: Variant) -> void:
 	_resource_picker.resource_selected.connect(_on_resource_selected)
 	if value is Resource and RESOURCE_PICKER_SCRIPT.can_present(value):
 		_resource_picker.set_edited_resource(value)
-		_observe_resource(value)
+		if resource_ownership == GDSQLResourceOwnership.Mode.OWNED:
+			_observe_resource(value)
 	add_child(_resource_picker)
 
 
@@ -175,19 +179,29 @@ func _on_null_toggled(enabled: bool) -> void:
 	_mark_modified()
 
 
-func _on_resource_changed(_resource: Resource) -> void:
-	if not RESOURCE_PICKER_SCRIPT.can_present(_resource):
+func _on_resource_changed(resource: Resource) -> void:
+	if _rebuilding:
+		return
+	if not RESOURCE_PICKER_SCRIPT.can_present(resource):
 		_resource_picker.set_edited_resource(null)
 		_observe_resource(null)
 		_mark_modified()
 		return
-	_observe_resource(_resource)
+	if resource_ownership == GDSQLResourceOwnership.Mode.OWNED:
+		resource = resource.duplicate(true)
+		_rebuilding = true
+		_resource_picker.set_edited_resource(resource)
+		_rebuilding = false
+		_observe_resource(resource)
+	else:
+		_observe_resource(null)
 	if _use_null != null and _resource_value() != null:
 		_use_null.set_pressed_no_signal(false)
 	_mark_modified()
 
 
-func _on_resource_selected(resource: Resource, _inspect: bool) -> void:
+func _on_resource_selected(_resource: Resource, _inspect: bool) -> void:
+	var resource := _resource_value()
 	if resource != null and RESOURCE_PICKER_SCRIPT.can_present(resource):
 		EditorInterface.edit_resource(resource)
 

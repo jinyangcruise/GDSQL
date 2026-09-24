@@ -326,7 +326,9 @@ func _columns_match(
 ) -> bool:
 	if left.data_type != right.data_type or left.nullable != right.nullable \
 			or left.unique != right.unique or left.auto_increment != right.auto_increment \
-			or left.generation != right.generation or left.has_default() != right.has_default():
+			or left.generation != right.generation \
+			or left.resource_ownership != right.resource_ownership \
+			or left.has_default() != right.has_default():
 		return false
 	if left.has_default() and left.get_default_value() != right.get_default_value():
 		return false
@@ -358,6 +360,7 @@ func _copy_table(
 			resource_type,
 		)
 		column_copy.generation = column.generation
+		column_copy.resource_ownership = column.resource_ownership
 		if column.has_default():
 			column_copy.set_default(column.get_default_value())
 		copy.add_column(column_copy)

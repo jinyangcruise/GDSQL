@@ -45,7 +45,7 @@ func find_by_primary_key(
 	var section := str(key)
 	if config == null or _is_reserved_section(section) or not config.has_section(section):
 		return null
-	return _read_row(config, section)
+	return _read_row(config, section, table)
 
 
 func find_by_index(
@@ -65,10 +65,13 @@ func find_by_index(
 	var section := _index_section(index, normalized_values)
 	if config.has_section(section) and _decode_index_values(
 		config.get_value(section, "values", []),
+		table,
+		index,
 	) == normalized_values:
 		return _rows_for_sections(
 			config,
 			config.get_value(section, "rows", PackedStringArray()),
+			table,
 		)
 	return []
 
@@ -111,7 +114,11 @@ func find_by_index_range(
 	for section in config.get_sections():
 		if not section.begins_with(_index_prefix(index)):
 			continue
-		var values := _decode_index_values(config.get_value(section, "values", []))
+		var values := _decode_index_values(
+			config.get_value(section, "values", []),
+			table,
+			index,
+		)
 		if not values.is_empty() and _value_in_range(
 			values[0],
 			lower_bound,
@@ -123,6 +130,7 @@ func find_by_index_range(
 				_rows_for_sections(
 					config,
 					config.get_value(section, "rows", PackedStringArray()),
+					table,
 				),
 			)
 	return matching
@@ -230,7 +238,11 @@ func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 			var row := operation["row"] as GDSQLRowRecord
 			var section := str(row.get_value(table.primary_key))
 			for column: Variant in row.values.keys():
-				config.set_value(section, String(column), codec.encode(row.values[column]))
+				config.set_value(
+					section,
+					String(column),
+					codec.encode(row.values[column], table.get_column(column)),
+				)
 		touched_paths[path] = true
 	for table_key in session.table_metadata:
 		var metadata: Dictionary = session.table_metadata[table_key]
@@ -292,7 +304,7 @@ func _read_persisted_rows(
 	for section in config.get_sections():
 		if _is_reserved_section(section):
 			continue
-		rows.append(_read_row(config, section))
+		rows.append(_read_row(config, section, table))
 	return rows
 
 
@@ -381,6 +393,7 @@ func _load_table_metadata(table: GDSQLTableDefinition) -> Dictionary:
 		if config.has_section_key(section, String(table.primary_key)):
 			var key: Variant = codec.decode(
 				config.get_value(section, String(table.primary_key)),
+				table.get_primary_key(),
 			)
 			if key is int:
 				next_auto_increment = maxi(next_auto_increment, key + 1)
@@ -438,6 +451,11 @@ func _validate_row_values(
 				return _commit_error(
 					&"GDSQL_STORAGE_COLUMN_TYPE_MISMATCH",
 					"Column '%s' expects %s." % [column.name, expected],
+				)
+			if not codec.can_encode(value, column):
+				return _commit_error(
+					&"GDSQL_STORAGE_RESOURCE_REFERENCE_PATH_REQUIRED",
+					"Referenced Resource column '%s' requires a saved asset." % column.name,
 				)
 	var result := GDSQLStorageCommitResult.new()
 	result.value = true
@@ -504,7 +522,7 @@ func _rebuild_indexes(config: ConfigFile, table: GDSQLTableDefinition) -> void:
 			config.erase_section(section)
 	for index in table.indexes:
 		for row_section in _get_row_sections(config):
-			var row := _read_row(config, row_section)
+			var row := _read_row(config, row_section, table)
 			var values := _normalize_index_values(
 				table,
 				index,
@@ -513,8 +531,13 @@ func _rebuild_indexes(config: ConfigFile, table: GDSQLTableDefinition) -> void:
 			var section := _index_section(index, values)
 			if not config.has_section(section):
 				var encoded_values: Array = []
-				for value in values:
-					encoded_values.append(codec.encode(value))
+				for value_index in values.size():
+					encoded_values.append(
+						codec.encode(
+							values[value_index],
+							table.get_column(index.columns[value_index]),
+						),
+					)
 				config.set_value(section, "values", encoded_values)
 				config.set_value(
 					section,
@@ -531,10 +554,19 @@ func _rebuild_indexes(config: ConfigFile, table: GDSQLTableDefinition) -> void:
 			config.set_value(section, "rows", row_sections)
 
 
-func _decode_index_values(encoded_values: Array) -> Array[Variant]:
+func _decode_index_values(
+		encoded_values: Array,
+		table: GDSQLTableDefinition,
+		index: GDSQLIndexDefinition,
+) -> Array[Variant]:
 	var values: Array[Variant] = []
-	for value in encoded_values:
-		values.append(codec.decode(value))
+	for value_index in encoded_values.size():
+		values.append(
+			codec.decode(
+				encoded_values[value_index],
+				table.get_column(index.columns[value_index]),
+			),
+		)
 	return values
 
 
@@ -600,18 +632,26 @@ func _find_effective_row(
 func _rows_for_sections(
 		config: ConfigFile,
 		sections: PackedStringArray,
+		table: GDSQLTableDefinition,
 ) -> Array[GDSQLRowRecord]:
 	var rows: Array[GDSQLRowRecord] = []
 	for section in sections:
 		if config.has_section(section) and not _is_reserved_section(section):
-			rows.append(_read_row(config, section))
+			rows.append(_read_row(config, section, table))
 	return rows
 
 
-func _read_row(config: ConfigFile, section: String) -> GDSQLRowRecord:
+func _read_row(
+		config: ConfigFile,
+		section: String,
+		table: GDSQLTableDefinition,
+) -> GDSQLRowRecord:
 	var values: Dictionary = { }
 	for key in config.get_section_keys(section):
-		values[StringName(key)] = codec.decode(config.get_value(section, key))
+		values[StringName(key)] = codec.decode(
+			config.get_value(section, key),
+			table.get_column(StringName(key)),
+		)
 	return GDSQLRowRecord.new(values)
 
 
