@@ -2297,7 +2297,12 @@ addons/gdsql/
 │   ├── actions/
 │   ├── activity/
 │   ├── database_dock/
-│   ├── integration/
+│   ├── integrations/
+│   │   └── mcp/
+│   │       ├── gdsql_mcp_inspection_service.gd
+│   │       ├── gdsql_mcp_bridge_context.gd
+│   │       ├── gdsql_godot_ai_mcp_handler.gd
+│   │       └── gdsql_godot_ai_mcp_adapter.gd
 │   ├── shared/
 │   ├── workspace/
 │   ├── workbench/

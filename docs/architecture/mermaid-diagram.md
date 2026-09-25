@@ -92,6 +92,16 @@ ContentReference("`**Editor Content Reference**
 *Storage:* Project tool settings
 *Safety:* Editor lookup metadata only; never a catalog foreign key`")
 
+McpAdapter("`**Optional Godot-AI MCP Adapter**
+
+-
+*Purpose:* Register project-scoped GDSQL inspection tools
+*Transport:* Owned by Godot-AI; optional to GDSQL
+*Tools:* Promoted capabilities, setup and bounded schema inspection
+*Discovery:* Godot-AI custom tools resource and `custom_manage`
+*Safety:* No rows, Controls, arbitrary paths or ConfigFile access
+*Future writes:* Separate preview and confirmation calls`")
+
 GraphEditor("`**Graph Editor**
 
 -
@@ -553,6 +563,9 @@ Code -->|"checkpoint() · checkpoint_dirty()"| Persistence
 Workbench -->|"open_authoring_registration()"| Factory
 Workbench -->|"load and save registration snapshot"| RuntimeRegistry
 Workbench -->|"select · load rows"| Database
+McpAdapter -.->|"read-only inspection state"| Workbench
+McpAdapter -.->|"profile readiness"| DirectSetup
+McpAdapter -.->|"managed readiness"| ManagedSetup
 Workbench -->|"preview · apply change plan"| CatalogAdministration
 Workbench -->|"table designer context"| ForeignKeyAuthoring
 ForeignKeyAuthoring -->|"typed add/drop intent"| CatalogAdministration
@@ -616,7 +629,7 @@ Factory -.->|"bootstrap()"| RuntimeSession
 Factory -.->|"activate_effective_content()"| ContentActivation
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
-class Code,Models,Workbench,ForeignKeyAuthoring,RowBatch,MutationHistory,ModelAssistant,ContentReference,GraphEditor,SQLEditor,Expr frontend;
+class Code,Models,Workbench,ForeignKeyAuthoring,RowBatch,MutationHistory,ModelAssistant,ContentReference,McpAdapter,GraphEditor,SQLEditor,Expr frontend;
 class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,SetupProfile,ManagedConfiguration,DirectSetup,ManagedSetup,PackageManifest,PackageResolution,ContentOverlay,ContentCache,ContentActivation,SaveCompatibility,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;

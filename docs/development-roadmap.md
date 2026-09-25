@@ -66,7 +66,7 @@ individual workstreams may require several small changes.
 | Managed-content full kit | 0 | Complete for the current managed profile. |
 | Data integrity | 0 | Foreign-key enforcement and role-reference inference complete for the current contract. |
 | Editor interaction | 2 | Multi-table navigation/schema actions; nested typed WHERE groups. |
-| Agent integration | 1 | Design and implement a read-only-first MCP surface. |
+| Agent integration | 1 | Live-editor verification of the implemented read-only Godot-AI MCP surface. |
 | Release | 1 | Migration, performance, compatibility, and release QA. |
 
 ## Delivery order
@@ -487,10 +487,16 @@ logical-expression trees without introducing SQL parsing into the control.
 
 ### 12. Define a GDSQL-aware MCP surface
 
-Create `docs/architecture/mcp.md` before implementation. Define project scope,
-capability/version negotiation, read-only resources and tools, diagnostics, and
-explicit confirmation boundaries for future mutations. Implement schema and
-setup inspection first; query drafting and guarded editor actions follow.
+Experimental status: the architecture contract and first implementation slice
+are complete. GDSQL delegates transport and protocol negotiation to the optional
+Godot-AI bridge, while its versioned inspection service stays project-scoped and
+independent from editor Controls and ConfigFile. Capabilities, setup inspection,
+and bounded schema inspection are promoted read-only tools, with deterministic
+JSON contract coverage and optional-plugin lifecycle handling. Live editor
+reload, disable, and Tools-panel behavior remain to be verified manually.
+Query drafting and two-step confirmed editor actions follow only after this
+read-only contract is stable; a separate GDSQL resource namespace is not active
+work because Godot-AI already provides custom-tool discovery.
 
 ### 13. Migration, performance, and release QA
 
@@ -578,3 +584,6 @@ code:
   dependency warnings, and pre-save restoration.
 - Nested typed WHERE groups with group-level inversion, visible precedence, and
   compact summaries across table and graph consumers.
+- Read-only Godot-AI MCP integration with promoted capabilities, setup, and
+  bounded schema tools, project-scoped inspection contracts, and explicit
+  future mutation boundaries.
