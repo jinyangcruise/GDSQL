@@ -492,11 +492,13 @@ are complete. GDSQL delegates transport and protocol negotiation to the optional
 Godot-AI bridge, while its versioned inspection service stays project-scoped and
 independent from editor Controls and ConfigFile. Capabilities, setup inspection,
 and bounded schema inspection are promoted read-only tools, with deterministic
-JSON contract coverage and optional-plugin lifecycle handling. Live editor
-reload, disable, and Tools-panel behavior remain to be verified manually.
-Query drafting and two-step confirmed editor actions follow only after this
-read-only contract is stable; a separate GDSQL resource namespace is not active
-work because Godot-AI already provides custom-tool discovery.
+JSON contract coverage and optional-plugin lifecycle handling. Godot-AI has
+accepted the tools in the live editor; reload, disable, and teardown behavior
+remain to be verified manually. The next read-only tool should inspect model
+bindings and relationships without loading row values. Query drafting and
+two-step confirmed editor actions follow only after the inspection contract is
+stable; a separate GDSQL resource namespace is not active work because Godot-AI
+already provides custom-tool discovery.
 
 ### 13. Migration, performance, and release QA
 

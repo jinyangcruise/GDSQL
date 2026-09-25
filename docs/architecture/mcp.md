@@ -221,7 +221,9 @@ ConfigFile services.
 |---|---|
 | Pure inspection projector and JSON contract tests | Tested |
 | Optional Godot-AI handler, promoted specs, registration, and teardown | Implemented; specification contract tested |
-| Live editor reload, disable, and Tools-panel verification | Pending manual verification |
+| Live editor discovery, registration, and Tools-panel acceptance | Verified with Godot-AI |
+| Live reload, disable, and teardown verification | Pending manual verification |
+| Bounded model-binding and relationship inspection | Planned next read-only tool |
 | Structured query drafting | Planned after the inspection contract is stable |
 | Preview-and-confirm mutation families | Planned separately |
 
