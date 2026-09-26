@@ -71,8 +71,8 @@ Godot-AI owns MCP protocol negotiation. GDSQL must not reproduce transport
 capability logic or infer authorization from client or server display metadata.
 
 GDSQL owns an independent `surface_version` for its tool and result contract.
-The initial implementation started at `1.0.0`; model inspection extends the
-current surface to `1.1.0`. Every successful GDSQL response
+The unpublished inspection surface remains at `1.0.0` while its initial tool
+set is still being established. Every successful GDSQL response
 includes this version. Compatibility rules are:
 
 - Patch: diagnostic text or additive implementation fixes without shape changes.
@@ -133,7 +133,7 @@ field. The GDSQL payload has this stable envelope:
 
 ```json
 {
-  "surface_version": "1.1.0",
+  "surface_version": "1.0.0",
   "ok": true,
   "data": {},
   "diagnostics": [],

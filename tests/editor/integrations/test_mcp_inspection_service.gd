@@ -33,7 +33,7 @@ func test_capabilities_are_bounded_and_versioned() -> void:
 
 	assert_bool(result.is_successful()).is_true()
 	var payload := result.get_value() as Dictionary
-	assert_str(payload["surface_version"]).is_equal("1.1.0")
+	assert_str(payload["surface_version"]).is_equal("1.0.0")
 	assert_bool(payload["ok"]).is_true()
 	assert_bool(payload["data"]["limits"]["row_values_exposed"]).is_false()
 	assert_int(payload["data"]["tools"].size()).is_equal(4)
@@ -133,7 +133,7 @@ func test_lazy_handler_uses_attached_inspection_service() -> void:
 	var invalid := handler.inspect_setup({ "unknown": true }, null)
 
 	assert_str(response["status"] if response.has("status") else "ok").is_equal("ok")
-	assert_str(response["data"]["surface_version"]).is_equal("1.1.0")
+	assert_str(response["data"]["surface_version"]).is_equal("1.0.0")
 	assert_str(models["data"]["data"]["kind"]).is_equal("model_bindings")
 	assert_str(invalid["status"]).is_equal("error")
 	assert_str(invalid["error"]["code"]).is_equal("INVALID_PARAMS")
