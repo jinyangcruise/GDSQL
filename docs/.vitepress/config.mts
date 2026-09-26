@@ -22,7 +22,7 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
-      { text: 'Architecture', link: '/architecture/core' },
+      { text: 'Architecture', link: '/architecture/overview' },
     ],
     sidebar: {
       '/guide/': [
@@ -70,6 +70,8 @@ export default defineConfig({
         {
           text: 'Architecture',
           items: [
+            { text: 'Overview', link: '/architecture/overview' },
+            { text: 'Project philosophy', link: '/architecture/philosophy' },
             { text: 'Core boundaries', link: '/architecture/core' },
             { text: 'Glossary', link: '/architecture/glossary' },
             { text: 'MCP integration', link: '/architecture/mcp' },
