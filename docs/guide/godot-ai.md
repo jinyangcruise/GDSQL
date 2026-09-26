@@ -27,3 +27,14 @@ many-to-many or other custom code remains outside static inspection.
 
 The MCP transport, connection, discovery, and per-project enablement are owned
 by Godot-AI. GDSQL owns only its versioned inspection results.
+
+## Current scope and later extensions
+
+The four inspection tools are the complete `1.0.0` read-only surface. Remaining
+work for this version is editor lifecycle verification: reload, disable, and
+teardown behavior with Godot-AI installed.
+
+Structured query drafting may follow after the inspection contract is stable.
+Query execution and mutations require separate bounded contracts; mutations
+must preview their exact effect and require an explicit confirmation handle.
+They are not part of the current tool set.

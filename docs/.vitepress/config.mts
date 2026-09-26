@@ -7,17 +7,6 @@ export default defineConfig({
   srcExclude: [
     'api/**',
     'zh/**',
-    'guide/auto-fill.md',
-    'guide/dao-api.md',
-    'guide/encryption.md',
-    'guide/faq.md',
-    'guide/gbatis.md',
-    'guide/import-export.md',
-    'guide/limitations.md',
-    'guide/mapper-graph.md',
-    'guide/sql-engine.md',
-    'guide/workbench.md',
-    'guide/xml-editor.md',
   ],
 
   head: [
@@ -47,11 +36,19 @@ export default defineConfig({
           ],
         },
         {
-          text: 'Use your data',
+          text: 'Author data',
           items: [
-            { text: 'Runtime setup', link: '/guide/runtime-setup' },
-            { text: 'Content and save models', link: '/guide/content-save-models' },
-            { text: 'Model relationships', link: '/guide/model-relationships' },
+            { text: 'Table workbench', link: '/guide/table-workbench' },
+            { text: 'Schemas and constraints', link: '/guide/schema-and-constraints' },
+            { text: 'Resource columns', link: '/guide/resource-columns' },
+          ],
+        },
+        {
+          text: 'Use data at runtime',
+          items: [
+            { text: 'Runtime and models', link: '/guide/runtime-and-models' },
+            { text: 'Relationships', link: '/guide/relationships' },
+            { text: 'Troubleshooting', link: '/guide/troubleshooting' },
           ],
         },
         {

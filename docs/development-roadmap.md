@@ -552,10 +552,10 @@ new end-user documentation will be developed separately.
 
 Transition status: the public VitePress home and navigation now use the current
 product language and expose the rewritten introduction, installation, profile
-choice, first-project workflow, runtime/model guides, and Godot-AI integration.
-Legacy API, SQL, GBatis, encryption, mapper, XML, and untranslated pages remain
-in source temporarily but are excluded from generated documentation. Replace or
-remove them only when their current equivalents are ready.
+choice, first-project workflow, table workbench, schema constraints, Resource
+storage, runtime/model relationships, troubleshooting, and Godot-AI integration.
+Legacy sources may remain outside the public navigation until they are removed
+or replaced; they are not presented as supported product documentation.
 
 ## Definition of plug and play
 

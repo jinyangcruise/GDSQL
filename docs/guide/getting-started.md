@@ -84,5 +84,5 @@ func _ready() -> void:
 ```
 
 The welcome checklist should now be complete. Continue with
-[Content and save models](./content-save-models) before adding inventory,
+[Runtime and models](./runtime-and-models) before adding inventory,
 progression, or character customization.
