@@ -76,3 +76,6 @@ checkpoint leaves the previous slot active.
 Editor table changes and runtime save checkpoints are separate workflows. The
 table workbench's **Save** commits its editor transaction; runtime checkpointing
 persists committed in-memory game state.
+
+Continue with the [Model API](./model-api) or use the lower-level
+[Typed query API](./query-api) when a model is not the right boundary.

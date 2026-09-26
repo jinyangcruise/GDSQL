@@ -33,6 +33,7 @@ export default defineConfig({
             { text: 'Installation', link: '/guide/installation' },
             { text: 'Create your first project', link: '/guide/getting-started' },
             { text: 'Choose a content profile', link: '/guide/content-profiles' },
+            { text: 'Managed content packages', link: '/guide/managed-content' },
           ],
         },
         {
@@ -55,6 +56,13 @@ export default defineConfig({
           text: 'Integrations',
           items: [
             { text: 'Godot-AI tools', link: '/guide/godot-ai' },
+          ],
+        },
+        {
+          text: 'Reference',
+          items: [
+            { text: 'Typed query API', link: '/guide/query-api' },
+            { text: 'Model API', link: '/guide/model-api' },
           ],
         },
       ],

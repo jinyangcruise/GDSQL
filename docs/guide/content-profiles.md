@@ -40,6 +40,9 @@ database to the `content` role.
 Games decide what to do when a save expects missing or changed packages. GDSQL
 reports compatibility but does not silently delete or rewrite player data.
 
+See [Managed content packages](./managed-content) for package layout, manifests,
+overlays, cache rebuilding, and save compatibility.
+
 ## Switching profiles
 
 **Reset / Change Profile** returns to profile selection and changes onboarding
