@@ -2,65 +2,37 @@
 
 ## Requirements
 
-- **Godot Engine** 4.x
-- No additional dependencies or plugins required
+- Godot 4.x
+- The `addons/gdsql` directory from this repository
 
-## Step 1: Download the Plugin
+Godot-AI is optional and is needed only for the agent tools described in
+[Godot-AI tools](./godot-ai).
 
-### Option A: Git Clone (Recommended)
+## Install and enable
 
-Clone the repository directly into your project's `addons/` directory:
+1. Copy `addons/gdsql` into the project's `addons` directory.
+2. Open **Project → Project Settings → Plugins**.
+3. Enable **GDSQL**.
+4. Select **GDSQL** from Godot's main-screen buttons.
 
-```bash
-cd your_godot_project/addons/
-git clone https://github.com/jinyangcruise/GDSQL.git gdsql
+The welcome page should ask you to choose **Direct Content** or
+**Managed Content**. That profile choice is project tool configuration; it does
+not create or move a database until you confirm the next setup action.
+
+## Project-owned files
+
+GDSQL keeps plugin code and project data separate:
+
+```text
+res://addons/gdsql/       plugin implementation
+res://.gdsql/             project tool configuration
+res://data/               default Direct Content data root
+res://content/            conventional Managed Content package roots
+user://gdsql/             registry, saves, cache, and user-installed mods
 ```
 
-### Option B: Download ZIP
+Use the editor workflow to create these files. Do not copy sample databases
+into a production project as a substitute for choosing a profile and creating
+its registrations.
 
-1. Download the latest release ZIP from [GitHub Releases](https://github.com/jinyangcruise/GDSQL/releases)
-2. Extract the `addons/gdsql` folder into your project's `addons/` directory
-
-Your project structure should look like:
-
-```
-your_godot_project/
-├── addons/
-│   └── gdsql/
-│       ├── plugin.cfg
-│       ├── basic/
-│       ├── database/
-│       ├── gbatis/
-│       └── ...
-├── project.godot
-└── ...
-```
-
-## Step 2: Enable the Plugin
-
-1. Open your project in the Godot Editor
-2. Go to **Project → Project Settings → Plugins**
-3. Find **GDSQL** in the list
-4. Change its status to **Enabled**
-
-## Step 3: Access the Workbench
-
-After enabling, a **GDSQL** button appears at the top of the Godot editor. Click it to switch to the GDSQL main screen — the visual database workbench.
-
-## Verifying Installation
-
-To verify GDSQL is working, try this in any GDScript file:
-
-```gdscript
-func _ready():
-    var dao = GDSQL.BaseDao.new()
-    print("GDSQL loaded successfully!")
-```
-
-If the project runs without errors, GDSQL is ready to use.
-
-## Next Steps
-
-- [Quick Start](./getting-started) — Create your first database and run a query
-- [Visual Workbench](./workbench) — Explore the editor interface
-- [Fluent DAO API](./dao-api) — Start writing database queries in code
+Continue with [Create your first project](./getting-started).

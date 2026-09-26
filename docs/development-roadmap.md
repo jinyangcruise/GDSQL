@@ -550,6 +550,13 @@ The rewrite sources of truth are `docs/architecture/` and this roadmap. The
 remaining VitePress documentation is legacy and scheduled for replacement; the
 new end-user documentation will be developed separately.
 
+Transition status: the public VitePress home and navigation now use the current
+product language and expose the rewritten introduction, installation, profile
+choice, first-project workflow, runtime/model guides, and Godot-AI integration.
+Legacy API, SQL, GBatis, encryption, mapper, XML, and untranslated pages remain
+in source temporarily but are excluded from generated documentation. Replace or
+remove them only when their current equivalents are ready.
+
 ## Definition of plug and play
 
 A new user should be able to install the plugin and, without reading source
