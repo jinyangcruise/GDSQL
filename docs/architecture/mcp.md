@@ -51,12 +51,15 @@ Phase-one inspection may expose:
   diagnosis; never expanded host paths.
 - Table names, readiness, row counts from storage headers, column definitions,
   primary and secondary indexes, and foreign-key definitions.
+- Persisted model bindings, static compatibility, catalog-inferred relationships,
+  and registered cross-role content references.
 - Stable GDSQL diagnostic codes, severities, messages, and bounded context.
 
 Phase one does not expose:
 
 - Table row values or query results.
 - Resource contents, imported artifacts, binary blobs, or previews.
+- User script source or relationships that require executing user model code.
 - Arbitrary filesystem paths or files outside registered GDSQL roots.
 - Credentials, environment variables, editor metadata owned by other plugins,
   or connection details.
@@ -68,7 +71,8 @@ Godot-AI owns MCP protocol negotiation. GDSQL must not reproduce transport
 capability logic or infer authorization from client or server display metadata.
 
 GDSQL owns an independent `surface_version` for its tool and result contract.
-The initial implementation starts at `1.0.0`. Every successful GDSQL response
+The initial implementation started at `1.0.0`; model inspection extends the
+current surface to `1.1.0`. Every successful GDSQL response
 includes this version. Compatibility rules are:
 
 - Patch: diagnostic text or additive implementation fixes without shape changes.
@@ -80,9 +84,9 @@ not assume support from the plugin version. The response includes tool names,
 feature flags, limits, mutation availability, and the currently selected setup
 profile. Capability entries are sorted by stable identifier.
 
-## Phase-one tools
+## Read-only tools
 
-All three tools are promoted through Godot-AI. Compatible MCP clients normally
+All four tools are promoted through Godot-AI. Compatible MCP clients normally
 see them as `custom_gdsql_*`; they remain available through `custom_manage` if a
 bridge promotion limit is reached. The promotion prefix is a bridge detail and
 is not part of the GDSQL surface version.
@@ -92,6 +96,7 @@ is not part of the GDSQL surface version.
 | `gdsql_capabilities` | Empty object | Surface version, project scope, supported features, limits, and tool inventory. |
 | `gdsql_inspect_setup` | Optional `profile`: `selected`, `direct`, or `managed` | Selected profile, readiness, ordered checks, next semantic action, and diagnostics. |
 | `gdsql_inspect_schema` | Optional `registration`, `table`, `cursor`, and bounded `limit` | Registration summaries, table summaries, or one full table definition. |
+| `gdsql_inspect_models` | Optional `registration`, `table`, `cursor`, and bounded `limit` | Binding summaries or one binding's static compatibility, inferred relationships, and registered cross-role references. |
 
 Input schemas reject unknown fields. Registration and table parameters are
 logical identifiers, never paths. Lists use opaque cursors and bounded limits;
@@ -100,6 +105,11 @@ the default and maximum limits are declared by `gdsql_capabilities`.
 `gdsql_inspect_setup` reporting an incomplete project is a successful
 inspection, not a tool failure. Missing requested identifiers, malformed input,
 or an unavailable inspection service are failures.
+
+`gdsql_inspect_models` never instantiates a user model or calls
+`relationships()`. It reports same-database relationships inferred from catalog
+foreign keys and cross-role references registered by the editor. Explicit
+many-to-many or custom relationships remain marked as not statically inspected.
 
 All tools are read-only, idempotent, and closed to external systems. The adapter
 sets the equivalent tool annotations when the active bridge supports them;
@@ -123,7 +133,7 @@ field. The GDSQL payload has this stable envelope:
 
 ```json
 {
-  "surface_version": "1.0.0",
+  "surface_version": "1.1.0",
   "ok": true,
   "data": {},
   "diagnostics": [],
@@ -223,7 +233,7 @@ ConfigFile services.
 | Optional Godot-AI handler, promoted specs, registration, and teardown | Implemented; specification contract tested |
 | Live editor discovery, registration, and Tools-panel acceptance | Verified with Godot-AI |
 | Live reload, disable, and teardown verification | Pending manual verification |
-| Bounded model-binding and relationship inspection | Planned next read-only tool |
+| Bounded model-binding and relationship inspection | Tested |
 | Structured query drafting | Planned after the inspection contract is stable |
 | Preview-and-confirm mutation families | Planned separately |
 

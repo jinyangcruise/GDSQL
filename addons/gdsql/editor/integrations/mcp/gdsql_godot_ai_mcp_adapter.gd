@@ -118,6 +118,26 @@ func _build_specs() -> Array:
 				},
 			),
 			_spec(
+				"gdsql_inspect_models",
+				"List GDSQL model bindings or inspect one binding's static compatibility and relationships without executing user code.",
+				&"inspect_models",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"properties": {
+						"registration": { "type": "string" },
+						"table": { "type": "string" },
+						"cursor": { "type": "string" },
+						"limit": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": GDSQLMcpInspectionService.MAX_LIMIT,
+							"default": GDSQLMcpInspectionService.DEFAULT_LIMIT,
+						},
+					},
+				},
+			),
+			_spec(
 				"gdsql_inspect_schema",
 				"List registered GDSQL databases and tables or inspect one table schema. Row values are never returned.",
 				&"inspect_schema",

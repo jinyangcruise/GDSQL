@@ -10,10 +10,14 @@ const LOGS_SCENE := preload("res://addons/gdsql/editor/debug/gdsql_logs_panel.ts
 const GODOT_AI_MCP_ADAPTER := preload(
 	"res://addons/gdsql/editor/integrations/mcp/gdsql_godot_ai_mcp_adapter.gd"
 )
+const MCP_MODEL_INSPECTION := preload(
+	"res://addons/gdsql/editor/integrations/mcp/gdsql_mcp_model_inspection_service.gd"
+)
 const DATABASE_DOCK_KEY := "GDSQLDatabases"
 const LOGS_DOCK_KEY := "GDSQLLogs"
 const WORKSPACE_HOST_NAME := "GDSQLWorkspaceHost"
 const SETTINGS_PATH := "res://.gdsql/settings.cfg"
+const MODEL_BINDING_PREFIX := "model_binding:"
 const RUNTIME_AUTOLOAD_SETTING := "autoload/GDSQLRuntime"
 const RUNTIME_NODE_PATH := "res://addons/gdsql/runtime/gdsql_runtime_node.tscn"
 const DATABASE = preload("res://addons/gdsql/editor/workspace/icons/database.svg")
@@ -180,6 +184,11 @@ func _load_workspace() -> void:
 
 
 func _create_mcp_adapter() -> void:
+	var model_inspection := MCP_MODEL_INSPECTION.new(
+		_controller.workbench,
+		_mcp_model_bindings,
+		_mcp_content_references,
+	)
 	var service := GDSQLMcpInspectionService.new(
 		_controller.workbench,
 		GDSQLConfigFileSetupProfileStore.new(),
@@ -189,6 +198,7 @@ func _create_mcp_adapter() -> void:
 		GDSQLConfigFileDatabaseExplorer.new(),
 		_mcp_model_count,
 		_mcp_runtime_adapter_configured,
+		model_inspection,
 	)
 	_mcp_adapter = GODOT_AI_MCP_ADAPTER.new(service)
 	add_child(_mcp_adapter)
@@ -212,6 +222,48 @@ func _mcp_model_count() -> int:
 func _mcp_runtime_adapter_configured() -> bool:
 	var configured_path := String(ProjectSettings.get_setting(RUNTIME_AUTOLOAD_SETTING, ""))
 	return configured_path.trim_prefix("*") == RUNTIME_NODE_PATH
+
+
+func _mcp_model_bindings() -> Array[Dictionary]:
+	var bindings: Array[Dictionary] = []
+	var config := ConfigFile.new()
+	if config.load(SETTINGS_PATH) != OK:
+		return bindings
+	var model_root := String(
+		config.get_value("models", "root", GDSQLModelSourceGenerator.DEFAULT_ROOT),
+	)
+	for section in config.get_sections():
+		if not section.begins_with(MODEL_BINDING_PREFIX):
+			continue
+		var identity := section.trim_prefix(MODEL_BINDING_PREFIX).split(":", false, 2)
+		if identity.size() != 3:
+			continue
+		var class_name_value := String(config.get_value(section, "class_name", ""))
+		if class_name_value.is_empty():
+			continue
+		bindings.append(
+			{
+				"registration": identity[0],
+				"database": identity[1],
+				"table": identity[2],
+				"class_name": class_name_value,
+				"role": String(config.get_value(section, "role", "")),
+				"model_root": model_root,
+			},
+		)
+	return bindings
+
+
+func _mcp_content_references(
+		registration_name: StringName,
+		database_name: StringName,
+		table_name: StringName,
+) -> Array[GDSQLEditorContentReference]:
+	return GDSQLEditorContentReferenceStore.new().load_for_table(
+		registration_name,
+		database_name,
+		table_name,
+	)
 
 
 func _remove_existing_dock(layout_key: String) -> void:

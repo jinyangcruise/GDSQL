@@ -11,6 +11,9 @@ const Handler = preload(
 const Adapter = preload(
 	"res://addons/gdsql/editor/integrations/mcp/gdsql_godot_ai_mcp_adapter.gd"
 )
+const ModelInspection = preload(
+	"res://addons/gdsql/editor/integrations/mcp/gdsql_mcp_model_inspection_service.gd"
+)
 
 var _root: String
 var _settings_path: String
@@ -30,10 +33,10 @@ func test_capabilities_are_bounded_and_versioned() -> void:
 
 	assert_bool(result.is_successful()).is_true()
 	var payload := result.get_value() as Dictionary
-	assert_str(payload["surface_version"]).is_equal("1.0.0")
+	assert_str(payload["surface_version"]).is_equal("1.1.0")
 	assert_bool(payload["ok"]).is_true()
 	assert_bool(payload["data"]["limits"]["row_values_exposed"]).is_false()
-	assert_int(payload["data"]["tools"].size()).is_equal(3)
+	assert_int(payload["data"]["tools"].size()).is_equal(4)
 	assert_str(payload["data"]["selected_profile"]).is_equal("direct")
 	assert_str(JSON.stringify(payload)).is_not_empty()
 
@@ -82,6 +85,28 @@ func test_setup_inspection_projects_ordered_checks() -> void:
 	assert_str(payload["data"]["checks"][0]["id"]).is_equal("content_database")
 
 
+func test_model_inspection_projects_bindings_and_static_relationships() -> void:
+	var service := _service()
+
+	var listed := service.inspect_models()
+	var detailed := service.inspect_models(&"content", &"loadouts")
+
+	assert_bool(listed.is_successful()).is_true()
+	assert_int(listed.get_value()["data"]["items"].size()).is_equal(2)
+	assert_bool(detailed.is_successful()).is_true()
+	var binding := detailed.get_value()["data"]["binding"] as Dictionary
+	assert_str(binding["class_name"]).is_equal("LoadoutContent")
+	assert_str(binding["compatibility"]["status"]).is_equal("not_generated")
+	assert_array(binding["catalog_relationships"]).contains_exactly(
+		["belongs_to hero · hero_id → heroes.id"],
+	)
+	assert_int(binding["registered_cross_role_references"].size()).is_equal(1)
+	assert_bool(
+		binding["relationship_coverage"]["explicit_user_relationships_inspected"],
+	).is_false()
+	assert_str(JSON.stringify(detailed.get_value())).not_contains("Sword")
+
+
 func test_schema_inspection_rejects_unknown_targets_and_bad_limits() -> void:
 	var service := _service()
 
@@ -104,10 +129,12 @@ func test_lazy_handler_uses_attached_inspection_service() -> void:
 	var handler := Handler.new()
 
 	var response := handler.capabilities({ }, null)
+	var models := handler.inspect_models({ "registration": "content" }, null)
 	var invalid := handler.inspect_setup({ "unknown": true }, null)
 
 	assert_str(response["status"] if response.has("status") else "ok").is_equal("ok")
-	assert_str(response["data"]["surface_version"]).is_equal("1.0.0")
+	assert_str(response["data"]["surface_version"]).is_equal("1.1.0")
+	assert_str(models["data"]["data"]["kind"]).is_equal("model_bindings")
 	assert_str(invalid["status"]).is_equal("error")
 	assert_str(invalid["error"]["code"]).is_equal("INVALID_PARAMS")
 	BridgeContext.detach(service)
@@ -121,7 +148,7 @@ func test_godot_ai_specs_follow_the_published_contract() -> void:
 	var specs := adapter.call("_build_specs") as Array
 
 	assert_bool(specs.is_typed()).is_true()
-	assert_int(specs.size()).is_equal(3)
+	assert_int(specs.size()).is_equal(4)
 	for spec in specs:
 		assert_bool((spec.call("validate") as Array).is_empty()).is_true()
 		assert_bool(spec.get("promoted")).is_true()
@@ -194,6 +221,11 @@ func _service() -> GDSQLMcpInspectionService:
 	assert_bool(
 		profile_store.save_profile(GDSQLSetupProfile.Kind.DIRECT).is_successful(),
 	).is_true()
+	var model_inspection := ModelInspection.new(
+		workbench,
+		_test_model_bindings,
+		_test_content_references,
+	)
 	return GDSQLMcpInspectionService.new(
 		workbench,
 		profile_store,
@@ -203,4 +235,49 @@ func _service() -> GDSQLMcpInspectionService:
 		GDSQLConfigFileDatabaseExplorer.new(),
 		func() -> int: return 1,
 		func() -> bool: return true,
+		model_inspection,
 	)
+
+
+func _test_model_bindings() -> Array[Dictionary]:
+	return [
+		{
+			"registration": "content",
+			"database": "content",
+			"table": "heroes",
+			"class_name": "HeroContent",
+			"role": "content",
+			"model_root": "res://tests/.generated-mcp-models",
+		},
+		{
+			"registration": "content",
+			"database": "content",
+			"table": "loadouts",
+			"class_name": "LoadoutContent",
+			"role": "content",
+			"model_root": "res://tests/.generated-mcp-models",
+		},
+	]
+
+
+func _test_content_references(
+		registration_name: StringName,
+		database_name: StringName,
+		table_name: StringName,
+) -> Array[GDSQLEditorContentReference]:
+	if registration_name != &"content" or table_name != &"loadouts":
+		return []
+	return [
+		GDSQLEditorContentReference.new(
+			&"hero_content",
+			registration_name,
+			database_name,
+			table_name,
+			&"hero_id",
+			&"content",
+			&"content",
+			&"heroes",
+			&"id",
+			&"HeroContent",
+		),
+	]

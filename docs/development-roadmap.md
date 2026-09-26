@@ -493,12 +493,14 @@ Godot-AI bridge, while its versioned inspection service stays project-scoped and
 independent from editor Controls and ConfigFile. Capabilities, setup inspection,
 and bounded schema inspection are promoted read-only tools, with deterministic
 JSON contract coverage and optional-plugin lifecycle handling. Godot-AI has
-accepted the tools in the live editor; reload, disable, and teardown behavior
-remain to be verified manually. The next read-only tool should inspect model
-bindings and relationships without loading row values. Query drafting and
-two-step confirmed editor actions follow only after the inspection contract is
-stable; a separate GDSQL resource namespace is not active work because Godot-AI
-already provides custom-tool discovery.
+accepted the initial tools in the live editor; reload, disable, and teardown
+behavior remain to be verified manually. Bounded model-binding inspection is
+also implemented: it reports static compatibility, catalog-inferred
+relationships, and registered cross-role references without loading row values
+or executing user model code. Query drafting and two-step confirmed editor
+actions follow only after the inspection contract is stable; a separate GDSQL
+resource namespace is not active work because Godot-AI already provides
+custom-tool discovery.
 
 ### 13. Migration, performance, and release QA
 
@@ -587,5 +589,5 @@ code:
 - Nested typed WHERE groups with group-level inversion, visible precedence, and
   compact summaries across table and graph consumers.
 - Read-only Godot-AI MCP integration with promoted capabilities, setup, and
-  bounded schema tools, project-scoped inspection contracts, and explicit
+  bounded schema/model tools, project-scoped inspection contracts, and explicit
   future mutation boundaries.

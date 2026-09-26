@@ -46,6 +46,31 @@ func inspect_schema(params: Dictionary, _context: Variant) -> Dictionary:
 	)
 
 
+func inspect_models(params: Dictionary, _context: Variant) -> Dictionary:
+	var invalid := _unknown_parameter(
+		params,
+		["registration", "table", "cursor", "limit"],
+	)
+	if not invalid.is_empty():
+		return _invalid(invalid)
+	for key in ["registration", "table", "cursor"]:
+		if params.has(key) and not params[key] is String:
+			return _invalid("%s must be a string." % key)
+	if params.has("limit") and not params["limit"] is int and not params["limit"] is float:
+		return _invalid("limit must be an integer.")
+	var raw_limit: Variant = params.get("limit", GDSQLMcpInspectionService.DEFAULT_LIMIT)
+	if raw_limit is float and raw_limit != floorf(raw_limit):
+		return _invalid("limit must be an integer.")
+	return _invoke(
+		Callable(_service(), "inspect_models").bind(
+			StringName(params.get("registration", "")),
+			StringName(params.get("table", "")),
+			String(params.get("cursor", "")),
+			int(raw_limit),
+		),
+	)
+
+
 func _invoke(operation: Callable) -> Dictionary:
 	if not operation.is_valid():
 		return _error("INTERNAL_ERROR", "The GDSQL MCP inspection service is unavailable.")

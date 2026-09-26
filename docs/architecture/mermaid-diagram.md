@@ -97,7 +97,7 @@ McpAdapter("`**Optional Godot-AI MCP Adapter**
 -
 *Purpose:* Register project-scoped GDSQL inspection tools
 *Transport:* Owned by Godot-AI; optional to GDSQL
-*Tools:* Promoted capabilities, setup and bounded schema inspection
+*Tools:* Promoted capabilities, setup, schema and model-binding inspection
 *Discovery:* Godot-AI custom tools resource and `custom_manage`
 *Safety:* No rows, Controls, arbitrary paths or ConfigFile access
 *Future writes:* Separate preview and confirmation calls`")

@@ -15,6 +15,7 @@ var _cache_store: GDSQLContentCacheStore
 var _explorer: GDSQLDatabaseExplorer
 var _model_count_provider: Callable
 var _runtime_adapter_provider: Callable
+var _model_inspection_service: RefCounted
 
 
 func _init(
@@ -26,6 +27,7 @@ func _init(
 		explorer: GDSQLDatabaseExplorer,
 		model_count_provider: Callable = Callable(),
 		runtime_adapter_provider: Callable = Callable(),
+		model_inspection_service: RefCounted = null,
 ) -> void:
 	_workbench = workbench
 	_profile_store = profile_store
@@ -35,6 +37,7 @@ func _init(
 	_explorer = explorer
 	_model_count_provider = model_count_provider
 	_runtime_adapter_provider = runtime_adapter_provider
+	_model_inspection_service = model_inspection_service
 
 
 func get_capabilities() -> GDSQLOperationResult:
@@ -50,10 +53,11 @@ func get_capabilities() -> GDSQLOperationResult:
 			"selected_profile": _profile_id(loaded_profile.get_value()),
 			"features": [
 				{ "id": "capabilities", "enabled": true },
+				{ "id": "model_inspection", "enabled": true },
+				{ "id": "mutations", "enabled": false },
+				{ "id": "query_drafting", "enabled": false },
 				{ "id": "schema_inspection", "enabled": true },
 				{ "id": "setup_inspection", "enabled": true },
-				{ "id": "query_drafting", "enabled": false },
-				{ "id": "mutations", "enabled": false },
 			],
 			"limits": {
 				"default_items": DEFAULT_LIMIT,
@@ -62,10 +66,47 @@ func get_capabilities() -> GDSQLOperationResult:
 			},
 			"tools": [
 				{ "name": "gdsql_capabilities", "read_only": true },
+				{ "name": "gdsql_inspect_models", "read_only": true },
 				{ "name": "gdsql_inspect_schema", "read_only": true },
 				{ "name": "gdsql_inspect_setup", "read_only": true },
 			],
 		},
+	)
+
+
+func inspect_models(
+		registration_name: StringName = &"",
+		table_name: StringName = &"",
+		cursor: String = "",
+		limit: int = DEFAULT_LIMIT,
+) -> GDSQLOperationResult:
+	var dependencies := _require_dependencies(false)
+	if not dependencies.is_successful():
+		return dependencies
+	if _model_inspection_service == null:
+		return _error(
+			&"GDSQL_MCP_MODEL_INSPECTION_UNAVAILABLE",
+			"Model binding inspection is unavailable.",
+		)
+	if limit < 1 or limit > MAX_LIMIT:
+		return _error(
+			&"GDSQL_MCP_LIMIT_INVALID",
+			"Limit must be between 1 and %d." % MAX_LIMIT,
+		)
+	var inspected := _model_inspection_service.call(
+		"inspect",
+		registration_name,
+		table_name,
+		cursor,
+		limit,
+	) as GDSQLOperationResult
+	if not inspected.is_successful():
+		return inspected
+	var projection := inspected.get_value() as Dictionary
+	return _success(
+		projection.get("data", { }),
+		[],
+		projection.get("meta", { }),
 	)
 
 
