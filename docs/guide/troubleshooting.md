@@ -46,6 +46,20 @@ Resource subtype, and the column is **Referenced** when it points to a saved
 asset. Imported audio should be selected from an existing audio file, not
 created as an empty `AudioStreamMP3` or `AudioStreamOggVorbis` Resource.
 
+## Referenced Resources use too much memory
+
+Referenced Resources are compact on disk, but they are not yet lazily
+materialized per field. A table scan currently decodes all columns before
+projection and pagination, so it can load heavy assets that are absent from the
+visible result.
+
+Separate frequently queried metadata from meshes, textures, audio, and scenes,
+then retrieve the heavy row through a primary-key or indexed lookup only when
+needed. Release scene, result, model, and array references when the asset is no
+longer used. In-memory table storage may continue retaining it until GDSQL gains
+explicit working-set eviction. See [Resource columns](./resource-columns#runtime-loading-and-memory)
+for the current behavior and recommended table layout.
+
 ## Undo is unavailable
 
 Editor Undo/Redo is bounded to committed non-Resource update batches in the

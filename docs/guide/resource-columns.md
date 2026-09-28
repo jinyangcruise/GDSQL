@@ -22,6 +22,55 @@ Use Owned when the Resource value itself is row data. Owned Resources use
 Godot's native Resource serialization, so complex values can still be larger
 than scalar columns.
 
+## Runtime loading and memory
+
+**Referenced describes persistence ownership; it does not currently guarantee
+lazy loading.** The table stores only a compact UID/path locator, but GDSQL
+resolves that locator with `ResourceLoader.load()` when the row is decoded.
+
+Opening a ConfigFile database normally loads its catalog without reading every
+row. However, a table scan currently decodes every stored column before query
+projection, filtering, or pagination. A query that returns only NPC names can
+therefore still load mesh, texture, audio, or scene references from every
+scanned row. A primary-key or index lookup narrows the affected rows, but still
+decodes every column in each matching row. In-memory hydration and a Managed
+Content cache rebuild may decode complete tables.
+
+For a large asset catalog, keep frequently queried metadata separate from heavy
+assets:
+
+```text
+npc_definitions
+- id
+- name
+- stats
+- dialogue_id
+
+npc_assets
+- npc_id
+- mesh
+- texture
+- voice
+```
+
+Browse or query `npc_definitions`, then look up one indexed `npc_assets` row
+when the NPC is needed. This is the reliable lazy-loading boundary in the
+current release; selecting fewer columns alone does not prevent referenced
+Resources from loading.
+
+Godot Resources are reference-counted. To make a loaded asset eligible for
+release, clear it from scene properties and release every result, model, array,
+or other object that still references it. An in-memory GDSQL table can itself
+retain the Resource, so GDSQL does not currently provide a deterministic
+per-table or per-row unload operation. See Godot's
+[`Resource`](https://docs.godotengine.org/en/stable/classes/class_resource.html)
+and
+[`ResourceLoader`](https://docs.godotengine.org/en/stable/classes/class_resourceloader.html)
+documentation for engine caching and reference-count behavior.
+
+Deferred Resource handles, selective column decoding, threaded materialization,
+and explicit content loading/eviction policies are active roadmap work.
+
 ## Editing behavior
 
 The table editor validates the selected Resource against the schema subtype.

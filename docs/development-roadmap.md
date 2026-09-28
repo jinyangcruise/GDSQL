@@ -48,7 +48,7 @@ tracks only product direction, active work, and deliberately deferred work.
 | Priority | Outcome | State |
 |---|---|---|
 | High | Versioned database migrations and compatibility policy | Architecture decision and implementation required |
-| High | Bounded Resource materialization and runtime loading policies | Current eager decode behavior must be replaced |
+| High | Bounded Resource materialization and runtime loading policies | Roadmap contract defined; architecture contract required |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
@@ -90,32 +90,224 @@ lossless.
 Referenced Resource columns persist compact UID/path locators, but persistence
 size and runtime memory behavior are separate concerns.
 
-Current ConfigFile decoding resolves a locator with `ResourceLoader.load()`.
-Opening a ConfigFile registration does not by itself read every row, but a
-table scan currently decodes every stored column before filtering, projection,
-or `LIMIT`. Consequently, a query for inexpensive NPC fields may synchronously
-load referenced meshes, audio, textures, or scenes that the result does not
-use. Managed-content rebuilds and in-memory hydration can also materialize full
-tables.
+### Why this is a foundation concern
 
-The target contract is:
+Referenced storage solves database size: the row contains a small, versioned
+UID/path locator instead of serialized mesh, texture, scene, or audio bytes. It
+does not by itself solve runtime loading. The locator becomes inexpensive only
+if it can remain a locator until game code actually needs the asset.
 
-1. Storage reads preserve referenced-asset locators until a query or
-   materializer explicitly requires the Resource value.
-2. Projection and index lookup avoid decoding unrequested columns.
-3. Resource materialization supports synchronous and threaded requests without
-   placing Godot loading details in `QuerySpec`.
-4. Runtime content selects an explicit `LOAD_ALL`, `LAZY_TABLES`, `PAGED`, or
-   `MANUAL` policy, as defined in `docs/architecture/databases.md`.
-5. Manual and eviction-capable policies expose safe release boundaries for
-   clean content. Dirty save data must checkpoint before eviction.
-6. Missing or type-mismatched assets return table, row, column, and locator
-   diagnostics rather than only becoming `null`.
+Current ConfigFile decoding resolves every referenced locator with
+`ResourceLoader.load()`. Opening a ConfigFile registration does not itself read
+every row, but a table scan currently decodes every column before filtering,
+projection, or `LIMIT`. As a result:
 
-True deferred Resource fields require an explicit handle or materialization
-contract; a transparent proxy cannot satisfy arbitrary concrete Godot types
-such as `Mesh` or `AudioStream`. The design must preserve typed model behavior
-without pretending a locator is already a loaded Resource.
+- selecting only NPC names may still load every NPC mesh and voice;
+- editor pagination can display 25 rows after loading Resources from the full
+  scanned table;
+- `COUNT` and other operations that do not return Resource values can still pay
+  Resource-loading cost;
+- in-memory hydration can retain Resources for the database lifetime; and
+- a Managed Content rebuild can resolve assets while it is only copying rows
+  into a disposable cache.
+
+An asset that is loaded but never rendered avoids draw calls and normal
+per-frame rendering cost, but it can still consume RAM or VRAM, load
+dependencies, compile or upload rendering data, and create a synchronous load
+spike. This matters first for asset-heavy 3D, audio-heavy, mobile, web, VR, or
+modded projects, but the database contract must not make it impossible to solve
+later.
+
+Preloading remains a valid policy. Small games with a bounded content set
+should not be forced to use handles, streaming, or eviction. The concern is
+that GDSQL currently chooses eager loading as a side effect of reading storage,
+rather than as an explicit application policy.
+
+### Separate performance dimensions
+
+Resource loading and table paging are related but independent:
+
+| Dimension | Current limitation | Primary solution |
+|---|---|---|
+| Asset materialization | Decoding a locator loads the external asset | Preserve a reference value and resolve it only when required |
+| Column selection | A row read decodes all stored columns | Push required-column information into storage reads |
+| Table I/O | ConfigFile parses a complete table file on first access | Future paged binary storage and indexed page reads |
+| Query working set | Scan operators materialize complete snapshots | Batch/cursor reads and limit/index-aware execution |
+| Asset lifetime | Results and in-memory rows may retain loaded Resources | Explicit ownership, prefetch scopes, and optional eviction |
+
+A paged binary backend cannot fix eager Resource loading if it returns rows
+through the current eager decoder. Conversely, deferred Resource references can
+provide a large memory and loading improvement while ConfigFile remains the
+storage backend. Binary paging becomes necessary when row count, table-file
+parsing, or database working-set size is itself the problem.
+
+### Supported strategies
+
+The future design should support increasingly advanced choices without making
+them mandatory:
+
+| Strategy | Intended use | Tradeoff |
+|---|---|---|
+| Eager materialization | Small bounded content sets | Simplest typed API; assets remain loaded while referenced |
+| Separate metadata and asset tables | Available now for medium projects | Explicit extra lookup; clear and backend-independent |
+| Deferred Resource reference | Asset-heavy rows | Requires an explicit load/materialization API |
+| Prefetch scope | Areas, encounters, menus, or upcoming characters | Game must predict a useful loading boundary |
+| Manual release | Deterministic scene or area ownership | Game code owns lifecycle discipline |
+| Budgeted working-set eviction | Large dynamic or modded content | More runtime complexity and platform-specific tuning |
+| Paged binary rows | Very large tables and saves | New backend and cursor/page execution; does not load assets itself |
+
+Separating lightweight definitions from heavy assets is the stable authoring
+pattern available today:
+
+```text
+npc_definitions
+    id, name, stats, dialogue_id
+
+npc_assets
+    npc_id, mesh, textures, voice
+```
+
+The game can browse `npc_definitions` broadly and retrieve one indexed
+`npc_assets` row when it prepares that NPC. This pattern remains useful after
+deferred references and binary paging are implemented.
+
+### Required invariants
+
+The architecture work must preserve these rules:
+
+1. A referenced asset locator is authoritative persisted data. A loaded Godot
+   `Resource` is a runtime materialization of that value, not storage state.
+2. Resource loading remains outside `QuerySpec`; canonical queries describe
+   data intent without depending on `ResourceLoader` or cache state.
+3. Storage backends expose the same referenced-asset semantics. ConfigFile and
+   paged binary formats may encode locators differently, but neither changes
+   query or model meaning.
+4. Existing eager Resource fields remain the simple default until a user opts
+   into a deferred contract. A compatibility change must not silently replace a
+   concrete `Mesh` model property with an unrelated object.
+5. A transparent lazy proxy must not pretend to be every concrete Resource
+   subtype. Deferred fields expose an explicit reference/handle and validate
+   their expected subtype before returning a loaded Resource.
+6. Referenced Resources may be shared through Godot's cache. GDSQL must release
+   only references it owns and must not claim it can forcibly unload an asset
+   still used by a scene, model, result, or another system.
+7. Owned Resource columns remain row-owned values. They are not converted into
+   external lazy references implicitly.
+8. Dirty mutable data checkpoints before working-set eviction. Immutable
+   content and disposable caches may be reloaded or rebuilt.
+9. Filtering a referenced Resource property explicitly requires that Resource
+   to be resolved unless the backend has equivalent indexed metadata. This
+   cost must be visible rather than hidden.
+10. Missing, unreadable, or type-mismatched assets return diagnostics carrying
+    database, table, row, column, locator, and expected type.
+
+### Contract evolution before binary storage
+
+Exact class names belong in the architecture proposal, but the runtime needs
+four capabilities before a paged backend can deliver meaningful gains:
+
+1. **Storage-neutral references.** Decoding must be able to return validated
+   asset identity without loading the asset. The current locator concept must
+   not remain an implementation detail usable only by ConfigFile storage.
+2. **Bounded read requests.** Storage reads need required columns, lookup or
+   scan range, batching/page information, and Resource materialization intent.
+   A backend that cannot optimize a request may fall back to a full read while
+   preserving semantics.
+3. **Column dependency analysis.** Planning/execution must identify columns
+   required by predicates, joins, grouping, ordering, projection, identity, and
+   mutation safety. Projection alone is not sufficient because an unreturned
+   column may still be needed to filter or order rows.
+4. **Explicit materialization.** Result and model materializers decide whether
+   a projected reference becomes a concrete Resource, remains a deferred
+   handle, or is prefetched asynchronously. Storage decoding does not make this
+   presentation decision.
+
+The first implementation can preserve current public behavior by eagerly
+materializing projected Resource fields while avoiding loads for fields that
+the operation never needs. Deferred handles become an explicit later API.
+Generated models continue to use concrete Resource properties for eager fields;
+a deferred field requires separately generated reference access and a typed
+load helper.
+
+### Delivery stages
+
+#### Stage A — avoid accidental loads
+
+- Keep referenced locators unresolved through generic storage decoding.
+- Determine the columns required by a planned operation.
+- Do not resolve referenced assets for `COUNT`, unrelated projections, or
+  metadata-only cache copying.
+- Materialize required Resource result values synchronously for compatibility.
+- Add contextual diagnostics and an injectable resolver so behavior can be
+  tested without loading real assets.
+
+This stage is backend-independent and provides the main benefit for ordinary
+small and medium projects.
+
+#### Stage B — explicit deferred loading
+
+- Add opt-in deferred Resource fields or result materialization.
+- Provide synchronous load, threaded request, status, and completion behavior
+  without blocking ordinary query construction.
+- Provide bounded prefetch scopes suitable for a scene, area, encounter, or UI
+  screen.
+- Document how consumers release scene, model, result, and cache references.
+
+This stage is for asset-heavy projects and should not complicate the default
+workflow.
+
+#### Stage C — bounded table reads
+
+- Extend storage capabilities with batch/page reads and ordered indexed access.
+- Let scan execution consume bounded batches instead of requiring one complete
+  `TableSnapshot`.
+- Push `LIMIT`/`OFFSET` only when doing so preserves filter, sort, aggregate,
+  distinct, and join semantics.
+- Measure row bytes/pages read separately from Resources materialized.
+
+ConfigFile may continue parsing a whole table file while implementing this
+contract through a compatibility adapter.
+
+#### Stage D — paged binary backend
+
+- Store versioned table headers, schema fingerprints, generated-key state,
+  row/index roots, and independently addressable pages.
+- Read only the row and index pages required by the bounded storage request.
+- Preserve the same external Resource locator and materialization rules.
+- Add clean-page eviction and crash-safe persistence without exposing binary
+  details above storage infrastructure.
+
+#### Stage E — optional working-set policy
+
+- Implement `LOAD_ALL`, `LAZY_TABLES`, `PAGED`, and `MANUAL` policies described
+  in `docs/architecture/databases.md` only after their underlying capabilities
+  exist.
+- Add explicit clean-table/page release and optional budgeted eviction.
+- Keep automatic asset eviction opt-in; project code may already own a more
+  appropriate scene, area, or asset lifecycle.
+
+### Verification criteria
+
+The foundation is successful when tests and profiling can demonstrate that:
+
+- selecting or counting scalar NPC fields performs zero Resource resolutions;
+- a primary-key asset lookup resolves only the requested row's projected asset;
+- pagination does not resolve assets discarded only by the final page limit
+  when filtering and ordering do not require those assets;
+- Managed Content cache copying preserves locators without loading the assets;
+- in-memory hydration can retain reference identities without retaining every
+  concrete Resource;
+- a Resource-property predicate documents and measures its required loads;
+- eager and deferred model fields retain their declared type behavior;
+- releasing all GDSQL-owned references permits Godot to reclaim an otherwise
+  unused asset; and
+- ConfigFile and future paged binary backends pass the same semantic tests while
+  reporting different I/O and working-set statistics.
+
+Profile Resource-resolution count, synchronous load time, peak RAM/VRAM,
+retained GDSQL references, scanned rows, bytes/pages read, and cache hit rate.
+Optimization decisions should follow measurements on supported target hardware,
+not project-size labels alone.
 
 ## 3. Release and compatibility QA
 
