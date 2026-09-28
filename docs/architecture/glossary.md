@@ -216,8 +216,10 @@ state in the same change as implementation or test work.
 | `RowRecord` | Storage and execution | Typed runtime representation of one row, including source-qualified values for multi-table evaluation. | `get_value()`, `get_source_value()`, `set_source_values()`, mutation and lookup helpers | 🧪 |
 | `DatabasePathResolver` | Storage infrastructure | Resolves logical database and table identifiers into physical paths. | `resolve_catalog_path()`, `resolve_table_path()` | 🛠️ |
 | `ConfigFileCache` | Storage infrastructure | Manages loaded ConfigFile objects and their lifecycle. | `get_or_load()`, `invalidate()`, `flush()` | 🛠️ |
-| `GodotVariantCodec` | Serialization | Encodes and decodes Godot-native values at the ConfigFile boundary: explicit nulls, native owned Resources, and versioned referenced-asset locators. | `encode()`, `decode()`, `can_encode()` | 🧪 |
-| `ResourceLocator` | ConfigFile serialization | Versioned project/package/external scope, UID, fallback path, and expected type metadata for a referenced Resource asset. | `from_resource()`, `from_dictionary()`, `to_dictionary()`, `resolve()` | 🧪 |
+| `GodotVariantCodec` | Serialization | Encodes Godot-native ConfigFile values, decodes referenced identity without materialization, and preserves eager compatibility through an injected resolver. | `encode()`, `decode()`, `decode_reference()`, `can_encode()` | 🧪 |
+| `ResourceReference` | Storage value | Inert, backend-neutral project/package/external identity for a referenced Resource, including UID, fallback path, and expected type. Parsing it never loads an asset. | `from_resource()`, `from_dictionary()`, `to_dictionary()`, `is_valid()` | 🧪 |
+| `ResourceResolver` | Resource materialization | Abstract injected policy that turns a `ResourceReference` into a concrete Resource and structured diagnostics. | `resolve()` | 🧪 |
+| `GodotResourceResolver` | Resource materialization | Default UID/path resolver that materializes through Godot's `ResourceLoader` and reports invalid, missing, or failed references without printing. | `resolve()` | 🧪 |
 
 ## Runtime persistence
 

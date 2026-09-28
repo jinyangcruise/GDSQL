@@ -47,7 +47,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Bounded Resource Stage A: prevent accidental loading | Roadmap contract defined; architecture contract required |
+| High — first | Bounded Resource Stage A: prevent accidental loading | Reference/resolver boundary implemented; required-column reads and contextual materialization pending |
 | High — second | Versioned migration v1 and compatibility policy | Architecture decision and implementation required |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |

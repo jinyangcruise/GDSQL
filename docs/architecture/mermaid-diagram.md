@@ -434,7 +434,15 @@ ConfigInfrastructure("`**ConfigFile Infrastructure**
 *Purpose:* Contain ConfigFile-specific paths, caching and serialization
 *Path API:* resolve_catalog_path(), resolve_schema_path(), resolve_table_path()
 *Cache API:* get_or_load(), invalidate(), flush()
-*Types:* GDSQLDatabasePathResolver, GDSQLConfigFileCache, GDSQLGodotVariantCodec, GDSQLResourceLocator`")
+*Types:* GDSQLDatabasePathResolver, GDSQLConfigFileCache, GDSQLGodotVariantCodec`")
+
+ResourceMaterialization("`**Resource Materialization**
+
+-
+*Purpose:* Preserve inert referenced-asset identity and materialize it only through explicit policy
+*Identity:* GDSQLResourceReference
+*Contract:* GDSQLResourceResolver
+*Default:* GDSQLGodotResourceResolver`")
 
 ConfigPackageManifest("`**ConfigFile Package Manifest Store**
 
@@ -614,6 +622,7 @@ MemoryCheckpoint -->|"stages and commits durable changes"| TableStorage
 ConfigCatalog -->|"path resolution"| ConfigInfrastructure
 ConfigAdministration -->|"paths · cache"| ConfigInfrastructure
 ConfigStorage -->|"paths · cache · codec"| ConfigInfrastructure
+ConfigInfrastructure -->|"reference identity · resolver"| ResourceMaterialization
 ConfigPackageManifest -->|"decodes typed metadata"| PackageManifest
 ConfigPackageScaffolder -->|"validates typed metadata"| PackageManifest
 ConfigPackageDiscovery -->|"discover package sources"| PackageResolution
@@ -639,4 +648,5 @@ class Executor,ForeignKeyValidation execution;
 class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys catalog;
 class TableStorage storage;
 class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
+class ResourceMaterialization storage;
 class Results,Materialization result;

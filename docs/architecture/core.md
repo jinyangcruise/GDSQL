@@ -2279,6 +2279,10 @@ addons/gdsql/
 │   ├── row_record.gd
 │   ├── memory/
 │   │   └── in_memory_table_storage.gd
+│   ├── resources/
+│   │   ├── gdsql_resource_reference.gd
+│   │   ├── gdsql_resource_resolver.gd
+│   │   └── gdsql_godot_resource_resolver.gd
 │   └── configfile/
 │       ├── config_file_table_storage.gd
 │       ├── config_file_catalog_service.gd
@@ -2740,9 +2744,12 @@ editing its properties mutates row data and duplication deep-copies it.
 `REFERENCED` means the Resource remains an external project asset; the database
 stores a versioned UID plus fallback path and only replacing the reference
 mutates the row. ConfigFile persists owned values through native Resource
-serialization and referenced values through `GDSQLResourceLocator`. Future
-backends must preserve these semantics but may choose a different physical
-representation.
+serialization and referenced values through a `GDSQLResourceReference`.
+References are inert storage values: parsing one never loads its asset. An
+injected `GDSQLResourceResolver` owns materialization, with
+`GDSQLGodotResourceResolver` providing the default UID/path and
+`ResourceLoader` policy. Future backends must preserve these semantics but may
+choose a different physical representation.
 
 ### Abstract contracts support boundaries
 
