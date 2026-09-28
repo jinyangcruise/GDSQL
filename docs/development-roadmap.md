@@ -47,45 +47,43 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High | Versioned database migrations and compatibility policy | Architecture decision and implementation required |
-| High | Bounded Resource materialization and runtime loading policies | Roadmap contract defined; architecture contract required |
+| High — first | Bounded Resource Stage A: prevent accidental loading | Roadmap contract defined; architecture contract required |
+| High — second | Versioned migration v1 and compatibility policy | Architecture decision and implementation required |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
 
-## 1. Versioned migrations
+## Committed delivery sequence
 
-Models remain bindings, not migrations. A migration is project-owned,
-version-controlled history describing how an older catalog and its data reach
-the current catalog.
+The order below is intentional and should remain stable across development
+sessions unless new evidence changes an architectural dependency:
 
-Before implementation, update the architecture documents that currently place
-a general migration framework outside scope. The first supported slice should
-provide:
+1. **Resource Stage A — avoid accidental loads.** Stabilize referenced-asset
+   identity, required-column reads, explicit materialization, and contextual
+   diagnostics. Preserve the existing eager public behavior only for Resource
+   values an operation actually needs.
+2. **Migration v1 — durable schema history.** Build ordered forward schema
+   migrations, checksums, an applied ledger, dry runs, backups, recovery, and
+   headless validation on top of the stable stored-value boundary.
+3. **Migration data/save phases.** Add bounded data transformations,
+   multi-table orchestration, and migration of older `user://` saves after the
+   schema-only path is reliable.
+4. **Resource Stage B — explicit deferred loading.** Add opt-in handles,
+   threaded loading, and prefetch scopes only when the simple eager path and
+   migrations are stable.
+5. **Bounded reads and paged binary storage.** Add cursor/page execution before
+   implementing the binary backend so paging does not inherit full-snapshot
+   behavior.
+6. **Optional working-set eviction.** Add manual or budgeted release policies
+   only after profiling demonstrates that projects need them.
 
-1. Stable ordered migration IDs, descriptions, checksums, and target database
-   registrations or roles.
-2. Forward-only typed schema steps built from the existing
-   `GDSQLTableAlteration` vocabulary.
-3. A persisted applied-migration ledger and schema fingerprint.
-4. Dry-run planning with affected objects, destructive classification, and
-   structured diagnostics.
-5. Backup and recovery behavior for ConfigFile databases.
-6. Headless validation suitable for professional-team CI.
+Do not expand Resource Stage A into a complete asset-streaming subsystem before
+migration v1. Do not start migration value copying while storage decoding still
+loads referenced assets as an implicit side effect. The two high-priority
+tracks are sequential for this reason, not competing parallel rewrites.
 
-Later slices add canonical data transformations, multi-table orchestration,
-and migration of older `user://` saves. Fresh databases and saves start at the
-current schema; existing durable data applies only pending migrations. Managed
-content sources migrate during authoring, while disposable effective-content
-caches are rebuilt rather than migrated.
-
-Applied migration files are immutable. Editing an applied file must produce a
-checksum or schema-drift diagnostic instead of silently changing history.
-Downgrades are optional and supported only when a migration is genuinely
-lossless.
-
-## 2. Resource materialization and memory policy
+## 1. Resource materialization and memory policy
 
 Referenced Resource columns persist compact UID/path locators, but persistence
 size and runtime memory behavior are separate concerns.
@@ -308,6 +306,41 @@ Profile Resource-resolution count, synchronous load time, peak RAM/VRAM,
 retained GDSQL references, scanned rows, bytes/pages read, and cache hit rate.
 Optimization decisions should follow measurements on supported target hardware,
 not project-size labels alone.
+
+## 2. Versioned migrations
+
+Models remain bindings, not migrations. A migration is project-owned,
+version-controlled history describing how an older catalog and its data reach
+the current catalog.
+
+Resource Stage A precedes this work because migrations, dry runs, backups, and
+cache rebuilds must copy referenced-asset identity without loading the assets.
+Migration v1 begins after that stored-value/materialization boundary is stable.
+
+Before implementation, update the architecture documents that currently place
+a general migration framework outside scope. The first supported slice should
+provide:
+
+1. Stable ordered migration IDs, descriptions, checksums, and target database
+   registrations or roles.
+2. Forward-only typed schema steps built from the existing
+   `GDSQLTableAlteration` vocabulary.
+3. A persisted applied-migration ledger and schema fingerprint.
+4. Dry-run planning with affected objects, destructive classification, and
+   structured diagnostics.
+5. Backup and recovery behavior for ConfigFile databases.
+6. Headless validation suitable for professional-team CI.
+
+Later slices add canonical data transformations, multi-table orchestration,
+and migration of older `user://` saves. Fresh databases and saves start at the
+current schema; existing durable data applies only pending migrations. Managed
+content sources migrate during authoring, while disposable effective-content
+caches are rebuilt rather than migrated.
+
+Applied migration files are immutable. Editing an applied file must produce a
+checksum or schema-drift diagnostic instead of silently changing history.
+Downgrades are optional and supported only when a migration is genuinely
+lossless.
 
 ## 3. Release and compatibility QA
 
