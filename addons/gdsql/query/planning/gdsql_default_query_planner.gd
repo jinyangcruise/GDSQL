@@ -77,14 +77,19 @@ func _plan_select(bound_select: GDSQLBoundSelectQuery, output_schema: GDSQLResul
 	for join in bound_select.joins:
 		for column in join.source.table.columns:
 			source_schema.columns.append(column)
+	var source_required := _required_columns_for_source(bound_select, bound_select.source)
 	if bound_select.joins.is_empty():
-		current = _get_lookup_plan(bound_select, source_schema)
+		current = _get_lookup_plan(bound_select, source_schema, source_required)
 	if current == null:
-		current = _scan_source(bound_select.source, source_schema)
+		current = _scan_source(bound_select.source, source_schema, source_required)
 		for join in bound_select.joins:
 			var join_plan := GDSQLNestedLoopJoinPlan.new()
 			join_plan.left = current
-			join_plan.right = _scan_source(join.source, source_schema)
+			join_plan.right = _scan_source(
+				join.source,
+				source_schema,
+				_required_columns_for_source(bound_select, join.source),
+			)
 			join_plan.type = join.type
 			join_plan.condition = join.condition
 			join_plan.right_source = join.source
@@ -147,11 +152,13 @@ func _plan_select(bound_select: GDSQLBoundSelectQuery, output_schema: GDSQLResul
 func _scan_source(
 		source: GDSQLBoundTableSource,
 		output_schema: GDSQLResultSchema,
+		required_columns: Array[StringName],
 ) -> GDSQLTableScanPlan:
 	var scan := GDSQLTableScanPlan.new()
 	scan.table = source.table
 	scan.alias = source.alias
 	scan.output_schema = output_schema
+	scan.required_columns = required_columns
 	return scan
 
 
@@ -171,6 +178,7 @@ func _get_primary_key_lookup(bound_select: GDSQLBoundSelectQuery) -> GDSQLQueryE
 func _get_lookup_plan(
 		bound_select: GDSQLBoundSelectQuery,
 		output_schema: GDSQLResultSchema,
+		required_columns: Array[StringName],
 ) -> GDSQLPlanNode:
 	var primary_key_expression := _get_primary_key_lookup(bound_select)
 	if primary_key_expression != null:
@@ -179,6 +187,7 @@ func _get_lookup_plan(
 		primary_lookup.alias = bound_select.source.alias
 		primary_lookup.key = primary_key_expression
 		primary_lookup.output_schema = output_schema
+		primary_lookup.required_columns = required_columns
 		return primary_lookup
 	if _storage_capabilities.supports_exact_index_lookup():
 		var exact_match := _find_index_comparison(
@@ -193,6 +202,7 @@ func _get_lookup_plan(
 			index_lookup.index = exact_match["index"]
 			index_lookup.values = [exact_match["literal"]]
 			index_lookup.output_schema = output_schema
+			index_lookup.required_columns = required_columns
 			return index_lookup
 	if _storage_capabilities.supports_range_index_lookup():
 		var range_match := _find_index_comparison(
@@ -206,6 +216,7 @@ func _get_lookup_plan(
 			range_lookup.alias = bound_select.source.alias
 			range_lookup.index = range_match["index"]
 			range_lookup.output_schema = output_schema
+			range_lookup.required_columns = required_columns
 			_apply_range_bound(
 				range_lookup,
 				range_match["operator"],
@@ -213,6 +224,80 @@ func _get_lookup_plan(
 			)
 			return range_lookup
 	return null
+
+
+func _required_columns_for_source(
+	query: GDSQLBoundSelectQuery,
+	source: GDSQLBoundTableSource,
+) -> Array[StringName]:
+	var columns: Array[StringName] = []
+	if query.projections.is_empty():
+		for column in source.table.columns:
+			columns.append(column.name)
+	else:
+		for projection in query.projections:
+			_collect_required_columns(projection.expression, source, columns)
+	_collect_required_columns(query.predicate, source, columns)
+	for join in query.joins:
+		_collect_required_columns(join.condition, source, columns)
+	for expression in query.grouping:
+		_collect_required_columns(expression, source, columns)
+	_collect_required_columns(query.having, source, columns)
+	for clause in query.ordering:
+		_collect_required_columns(clause.expression, source, columns)
+	if source.table.primary_key != &"" and not columns.has(source.table.primary_key):
+		columns.append(source.table.primary_key)
+	return columns
+
+
+func _collect_required_columns(
+	expression: GDSQLQueryExpression,
+	source: GDSQLBoundTableSource,
+	columns: Array[StringName],
+) -> void:
+	if expression == null:
+		return
+	if expression is GDSQLBoundColumnExpression:
+		var bound := expression as GDSQLBoundColumnExpression
+		if _bound_column_matches_source(bound, source) \
+				and not columns.has(bound.column_id.column_name):
+			columns.append(bound.column_id.column_name)
+		return
+	if expression is GDSQLComparisonExpression:
+		var comparison := expression as GDSQLComparisonExpression
+		_collect_required_columns(comparison.left, source, columns)
+		_collect_required_columns(comparison.right, source, columns)
+		return
+	if expression is GDSQLLogicalExpression:
+		var logical := expression as GDSQLLogicalExpression
+		_collect_required_columns(logical.left, source, columns)
+		_collect_required_columns(logical.right, source, columns)
+		return
+	if expression is GDSQLArithmeticExpression:
+		var arithmetic := expression as GDSQLArithmeticExpression
+		_collect_required_columns(arithmetic.left, source, columns)
+		_collect_required_columns(arithmetic.right, source, columns)
+		return
+	if expression is GDSQLNullCheckExpression:
+		_collect_required_columns(
+			(expression as GDSQLNullCheckExpression).operand,
+			source,
+			columns,
+		)
+		return
+	if expression is GDSQLFunctionExpression:
+		for argument in (expression as GDSQLFunctionExpression).arguments:
+			_collect_required_columns(argument, source, columns)
+
+
+func _bound_column_matches_source(
+	column: GDSQLBoundColumnExpression,
+	source: GDSQLBoundTableSource,
+) -> bool:
+	return column.table_id != null \
+			and column.table_id.database_name == source.table.database_name \
+			and column.table_id.table_name == source.table.name \
+			and column.source_qualifier == source.get_qualifier()
 
 
 func _find_index_comparison(

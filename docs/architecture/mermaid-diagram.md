@@ -327,6 +327,7 @@ Planner("`**GDSQLQueryPlanner**
 *Purpose:* Choose executable operations for a bound query
 *API:* create_plan(bound_query)
 *Returns:* GDSQLQueryPlanningResult containing GDSQLQueryPlan
+*Derives:* Required columns for each table access
 *Extended by:* GDSQLDefaultQueryPlanner`")
 
 PlanNode("`**GDSQLPlanNode**
@@ -343,6 +344,7 @@ Executor("`**GDSQLQueryExecutor**
 *Purpose:* Execute a query plan using runtime service contracts
 *API:* execute(plan, execution_context)
 *Returns:* GDSQLQueryExecutionResult
+*Resources:* Materializes only required references through an injected resolver
 *Extended by:* GDSQLDefaultQueryExecutor`")
 
 ForeignKeyValidation("`**GDSQLForeignKeyConstraintValidator**
@@ -398,6 +400,7 @@ TableStorage("`**GDSQLTableStorage**
 -
 *Purpose:* Isolate row persistence from query execution
 *Read API:* read_table(), primary-key/index/range lookup, get_capabilities()
+*Read input:* GDSQLStorageReadRequest with required columns and reference policy
 *Mutation API:* stage_insert(), stage_update(), stage_delete()
 *Transaction API:* commit(), rollback()
 *Extension point:* Table storage backend implementations`")
@@ -606,6 +609,7 @@ Validator -->|"validate scalar leaf path"| ResourceProperties
 Workbench -.->|"Resource WHERE field choices"| ResourceProperties
 CatalogService -->|"table integrity metadata"| ForeignKeys
 Executor -->|"read_table() · find_by_primary_key()"| TableStorage
+Executor -->|"materialize required references"| ResourceMaterialization
 Executor -->|"stage_*() · commit() · rollback()"| TableStorage
 Context -->|"validate final transaction state"| ForeignKeyValidation
 ForeignKeyValidation -->|"discover same-database constraints"| CatalogService

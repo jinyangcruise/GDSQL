@@ -1443,14 +1443,16 @@ extends RefCounted
 @abstract
 func read_table(
     table: TableDefinition,
-    session: StorageSession
+    session: StorageSession,
+    request: StorageReadRequest = null
 ) -> TableSnapshot
 
 @abstract
 func find_by_primary_key(
     table: TableDefinition,
     key: Variant,
-    session: StorageSession
+    session: StorageSession,
+    request: StorageReadRequest = null
 ) -> RowRecord
 
 @abstract
@@ -1525,6 +1527,17 @@ ConfigFileTableStorage
 ```
 
 Storage representations do not propagate upward into the canonical query model.
+
+`GDSQLStorageReadRequest` is descriptive storage input, not query syntax. It
+identifies the columns required by one planned table access and whether
+referenced Resource values must remain inert. The planner derives required
+columns from projection, predicates, joins, grouping, ordering, aggregates,
+and row identity. ConfigFile storage can then skip unrelated keys and return
+`GDSQLResourceReference` values without invoking `ResourceLoader`. The executor
+materializes only required references through its injected resolver before
+expression evaluation, preserving concrete Resource values in ordinary public
+results. Resolver failures become query diagnostics containing database,
+table, row, and column context.
 
 A future `GDSQLPagedBinaryTableStorage` can implement the same contract with
 one binary file per table. Each file begins with a typed header containing the
@@ -2273,6 +2286,7 @@ addons/gdsql/
 │
 ├── storage/
 │   ├── table_storage.gd
+│   ├── gdsql_storage_read_request.gd
 │   ├── storage_backend_ids.gd
 │   ├── storage_session.gd
 │   ├── table_snapshot.gd

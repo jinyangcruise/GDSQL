@@ -145,14 +145,14 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `QueryPlanner` | Planning | Converts a bound query into a `QueryPlan`. | `create_plan(query)` | 🚧 |
-| `DefaultQueryPlanner` | Planning | Produces deterministic plans for currently supported bound operations. | `create_plan(query)` | 🧪 |
+| `DefaultQueryPlanner` | Planning | Produces deterministic plans and derives per-source column dependencies from every expression-bearing select clause. | `create_plan(query)` | 🧪 |
 | `QueryPlan` | Planning | Owns the root executable plan node and associated metadata. | `get_root()` | 🚧 |
 | `PlanNode` | Planning | Abstract base for executable relational operations. | `accept(visitor)` | 🚧 |
 | `PlanNodeVisitor` | Planning | Performs operations over concrete plan node types. | `visit_table_scan()`, `visit_filter()`, `visit_sort()`, and related methods | 🚧 |
-| `TableScanPlan` | Planning | Reads all rows available from a table source. | `accept(visitor)` | 🛠️ |
-| `PrimaryKeyLookupPlan` | Planning | Retrieves a row through a primary-key lookup. | `accept(visitor)` | 🛠️ |
-| `IndexLookupPlan` | Planning | Retrieves rows through an exact single-column lookup on a catalog index when supported by storage. | `accept(visitor)` | 🧪 |
-| `RangeLookupPlan` | Planning | Retrieves rows through a bounded single-column index lookup when supported by storage. | `accept(visitor)` | 🧪 |
+| `TableScanPlan` | Planning | Reads rows from a table source with the columns required by downstream expressions. | `required_columns`, `accept(visitor)` | 🧪 |
+| `PrimaryKeyLookupPlan` | Planning | Retrieves a row through a primary-key lookup with the columns required downstream. | `required_columns`, `accept(visitor)` | 🧪 |
+| `IndexLookupPlan` | Planning | Retrieves rows through an exact single-column lookup with the columns required downstream. | `required_columns`, `accept(visitor)` | 🧪 |
+| `RangeLookupPlan` | Planning | Retrieves rows through a bounded single-column index lookup with the columns required downstream. | `required_columns`, `accept(visitor)` | 🧪 |
 | `FilterPlan` | Planning | Filters rows from its input according to a predicate. | `accept(visitor)` | 🛠️ |
 | `NestedLoopJoinPlan` | Planning | Joins two plan inputs by evaluating a bound condition for each candidate row pair. | `accept(visitor)` | 🧪 |
 | `ProjectionPlan` | Planning | Produces selected or calculated output columns. | `accept(visitor)` | 🛠️ |
@@ -170,7 +170,7 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `QueryExecutor` | Execution | Abstract contract for executing query plans. | `execute(plan, context)` | 🚧 |
-| `DefaultQueryExecutor` | Execution | Default GDScript implementation of query-plan execution. | `execute(plan, context)` | 🧪 |
+| `DefaultQueryExecutor` | Execution | Executes plans, requests only planned columns, and materializes required Resource references through an injected resolver with contextual diagnostics. | `execute(plan, context)` | 🧪 |
 | `ExecutionContext` | Execution | Groups runtime services and per-execution state. | Service accessors | 🚧 |
 | `ExpressionEvaluator` | Execution | Evaluates canonical or bound scalar expressions against a row context with null propagation. | `evaluate(expression, row_context)` | 🧪 |
 | `QueryFunctionRegistry` | Execution | Associates query-function definitions with executable scalar and aggregate callables. | `register_function()`, `register_aggregate_function()`, `resolve()`, `resolve_aggregate()` | 🧪 |
@@ -206,6 +206,7 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `TableStorage` | Storage | Abstract row-level storage contract used by the runtime, including distinct staged truncation and generated-key-state transfer. | `get_capabilities()`, `read_table()`, primary-key/index/range lookup, staged mutations, `stage_truncate()`, `stage_next_auto_increment()`, `commit()`, `rollback()` | 🧪 |
+| `StorageReadRequest` | Storage input | Describes required columns and whether referenced Resource identity must remain unresolved for one storage read. A null request preserves full eager compatibility. | `for_columns()`, `includes_column()` | 🧪 |
 | `StorageCapabilities` | Storage | Reports optional exact-index and range-index lookup operations supported by a storage backend without exposing its implementation. | `supports_exact_index_lookup()`, `supports_range_index_lookup()` | 🧪 |
 | `StorageBackendIds` | Storage metadata | Defines stable storage backend identifiers and their UI-facing labels. | `get_all()`, `is_valid()`, `get_display_name()` | 🧪 |
 | `ConfigFileTableStorage` | Storage backend | Implements `TableStorage` using ConfigFile-backed `.cfg` files, with atomic query and truncate commits, maintained index entries, final-state uniqueness validation, table metadata, transactional auto-increment generation, and in-place section updates that retain existing row position. | TableStorage implementation | 🧪 |

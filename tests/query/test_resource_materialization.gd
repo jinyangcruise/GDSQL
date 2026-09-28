@@ -1,0 +1,116 @@
+class_name GDSQLResourceMaterializationTest
+extends GdUnitTestSuite
+
+const TestDatabase = preload("res://tests/utils/gdsql_test_database.gd")
+const REFERENCED_ICON_PATH := "res://addons/gdsql/editor/workspace/icons/key.svg"
+
+var _data_root: String
+var _test_index := 0
+
+
+class CountingResolver:
+	extends GDSQLResourceResolver
+
+	var calls := 0
+	var resolved_resource: Resource
+	var failure_code: StringName
+
+
+	func _init(resource: Resource, error_code: StringName = &"") -> void:
+		resolved_resource = resource
+		failure_code = error_code
+
+
+	func resolve(reference: GDSQLResourceReference) -> GDSQLOperationResult:
+		calls += 1
+		var result := GDSQLOperationResult.new()
+		if failure_code != &"":
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					failure_code,
+					"The test asset could not be loaded.",
+					GDSQLQueryDiagnostic.Severity.ERROR,
+					null,
+					reference,
+				),
+			)
+			return result
+		result.value = resolved_resource
+		return result
+
+
+func before_test() -> void:
+	_test_index += 1
+	_data_root = create_temp_dir("gdsql_resource_materialization_%d" % _test_index)
+
+
+func test_unrelated_projection_and_count_do_not_materialize_reference() -> void:
+	var icon := load(REFERENCED_ICON_PATH) as Resource
+	var database := _create_database(icon)
+	var resolver := CountingResolver.new(icon)
+	database.context.executor = GDSQLDefaultQueryExecutor.new(resolver)
+
+	var names := database.execute(
+		database.table(&"assets").select().column(&"name").build(),
+	)
+	var count := database.execute(
+		database.table(&"assets").select().count(null, &"total").build(),
+	)
+
+	assert_bool(names.is_successful()).is_true()
+	assert_str(names.rows[0].get_value(&"name")).is_equal("Key")
+	assert_bool(count.is_successful()).is_true()
+	assert_int(count.rows[0].get_value(&"total")).is_equal(1)
+	assert_int(resolver.calls).is_zero()
+
+
+func test_projected_reference_materializes_once_and_remains_a_resource() -> void:
+	var icon := load(REFERENCED_ICON_PATH) as Resource
+	var database := _create_database(icon)
+	var resolver := CountingResolver.new(icon)
+	database.context.executor = GDSQLDefaultQueryExecutor.new(resolver)
+
+	var selected := database.execute(
+		database.table(&"assets").select().column(&"icon").build(),
+	)
+
+	assert_bool(selected.is_successful()).is_true()
+	assert_object(selected.rows[0].get_value(&"icon")).is_same(icon)
+	assert_int(selected.statistics.get("resources_materialized", 0)).is_equal(1)
+	assert_int(resolver.calls).is_equal(1)
+
+
+func test_failed_materialization_reports_row_and_column_context() -> void:
+	var icon := load(REFERENCED_ICON_PATH) as Resource
+	var database := _create_database(icon)
+	var resolver := CountingResolver.new(null, &"TEST_RESOURCE_MISSING")
+	database.context.executor = GDSQLDefaultQueryExecutor.new(resolver)
+
+	var selected := database.execute(
+		database.table(&"assets").select().column(&"icon").build(),
+	)
+
+	assert_bool(selected.is_successful()).is_false()
+	assert_str(String(selected.diagnostics.entries[0].code)).is_equal(
+		"TEST_RESOURCE_MISSING",
+	)
+	assert_str(selected.diagnostics.entries[0].message).contains(
+		"game_config.assets row '1' column 'icon'",
+	)
+
+
+func _create_database(icon: Resource) -> GDSQLDatabase:
+	var table := GDSQLTableDefinition.new(&"assets", &"id")
+	table.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	table.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
+	var icon_column := GDSQLColumnDefinition.new(&"icon", TYPE_OBJECT, false)
+	icon_column.resource_type = GDSQLResourceTypeConstraint.from_resource(icon)
+	icon_column.resource_ownership = GDSQLResourceOwnership.Mode.REFERENCED
+	table.add_column(icon_column)
+	var database := TestDatabase.create_database(_data_root, table)
+	var inserted := database.insert(
+		&"assets",
+		{&"id": 1, &"name": "Key", &"icon": icon},
+	)
+	assert_bool(inserted.is_successful()).is_true()
+	return database

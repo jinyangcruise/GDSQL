@@ -6,19 +6,29 @@ func get_capabilities() -> GDSQLStorageCapabilities:
 	return GDSQLStorageCapabilities.new()
 
 
-func read_table(table: GDSQLTableDefinition, session: GDSQLStorageSession) -> GDSQLTableSnapshot:
+func read_table(
+	table: GDSQLTableDefinition,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
+) -> GDSQLTableSnapshot:
 	return null
 
 
-func find_by_primary_key(table: GDSQLTableDefinition, key: Variant, session: GDSQLStorageSession) -> GDSQLRowRecord:
+func find_by_primary_key(
+	table: GDSQLTableDefinition,
+	key: Variant,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
+) -> GDSQLRowRecord:
 	return null
 
 
 func find_by_index(
 		table: GDSQLTableDefinition,
-		index: GDSQLIndexDefinition,
-		values: Array[Variant],
-		session: GDSQLStorageSession,
+	index: GDSQLIndexDefinition,
+	values: Array[Variant],
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
 	return []
 
@@ -28,9 +38,10 @@ func find_by_index_range(
 		index: GDSQLIndexDefinition,
 		lower_bound: Variant,
 		upper_bound: Variant,
-		include_lower: bool,
-		include_upper: bool,
-		session: GDSQLStorageSession,
+	include_lower: bool,
+	include_upper: bool,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
 	return []
 

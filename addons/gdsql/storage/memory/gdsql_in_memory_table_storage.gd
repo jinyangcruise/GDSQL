@@ -19,12 +19,13 @@ func get_capabilities() -> GDSQLStorageCapabilities:
 
 
 func read_table(
-		table: GDSQLTableDefinition,
-		session: GDSQLStorageSession,
+	table: GDSQLTableDefinition,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> GDSQLTableSnapshot:
 	var snapshot := GDSQLTableSnapshot.new()
 	snapshot.primary_key = table.primary_key
-	snapshot.rows = _effective_rows(table, session)
+	snapshot.rows = _apply_read_request(_effective_rows(table, session), request)
 	var metadata := _effective_metadata(table, session)
 	snapshot.row_count = int(metadata["row_count"])
 	snapshot.next_auto_increment = int(metadata["next_auto_increment"])
@@ -32,27 +33,29 @@ func read_table(
 
 
 func find_by_primary_key(
-		table: GDSQLTableDefinition,
-		key: Variant,
-		session: GDSQLStorageSession,
+	table: GDSQLTableDefinition,
+	key: Variant,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> GDSQLRowRecord:
 	for row in _effective_rows(table, session):
 		if row.get_value(table.primary_key) == key:
-			return row
+			return _project_row(row, request)
 	return null
 
 
 func find_by_index(
 		table: GDSQLTableDefinition,
-		index: GDSQLIndexDefinition,
-		values: Array[Variant],
-		session: GDSQLStorageSession,
+	index: GDSQLIndexDefinition,
+	values: Array[Variant],
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
 	var matching: Array[GDSQLRowRecord] = []
 	var expected := _normalize_index_values(table, index, values)
 	for row in _effective_rows(table, session):
 		if _normalize_index_values(table, index, _index_values(row, index)) == expected:
-			matching.append(row)
+			matching.append(_project_row(row, request))
 	return matching
 
 
@@ -61,9 +64,10 @@ func find_by_index_range(
 		index: GDSQLIndexDefinition,
 		lower_bound: Variant,
 		upper_bound: Variant,
-		include_lower: bool,
-		include_upper: bool,
-		session: GDSQLStorageSession,
+	include_lower: bool,
+	include_upper: bool,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
 	var matching: Array[GDSQLRowRecord] = []
 	if index.columns.size() != 1:
@@ -75,7 +79,7 @@ func find_by_index_range(
 	for row in _effective_rows(table, session):
 		var value: Variant = row.get_value(index.columns[0])
 		if _value_in_range(value, lower_bound, upper_bound, include_lower, include_upper):
-			matching.append(row)
+			matching.append(_project_row(row, request))
 	return matching
 
 
@@ -333,6 +337,29 @@ func _effective_rows(
 	for row in rows_by_key.values():
 		rows.append(row)
 	return rows
+
+
+func _apply_read_request(
+	rows: Array[GDSQLRowRecord],
+	request: GDSQLStorageReadRequest,
+) -> Array[GDSQLRowRecord]:
+	var projected: Array[GDSQLRowRecord] = []
+	for row in rows:
+		projected.append(_project_row(row, request))
+	return projected
+
+
+func _project_row(
+	row: GDSQLRowRecord,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLRowRecord:
+	if request == null or request.all_columns:
+		return row.duplicate_record()
+	var values: Dictionary = { }
+	for column_name in request.required_columns:
+		if row.has_column(column_name):
+			values[column_name] = row.get_value(column_name)
+	return GDSQLRowRecord.new(values)
 
 
 func _effective_metadata(

@@ -8,6 +8,7 @@ var lower_bound: GDSQLQueryExpression
 var upper_bound: GDSQLQueryExpression
 var include_lower: bool = true
 var include_upper: bool = true
+var required_columns: Array[StringName] = []
 
 
 func accept(visitor: GDSQLPlanNodeVisitor) -> Variant:

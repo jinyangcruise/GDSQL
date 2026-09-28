@@ -1,6 +1,17 @@
 class_name GDSQLDefaultQueryExecutor
 extends GDSQLQueryExecutor
 
+var _resource_resolver: GDSQLResourceResolver
+
+
+func _init(resource_resolver: GDSQLResourceResolver = null) -> void:
+	_resource_resolver = (
+		resource_resolver
+		if resource_resolver != null
+		else GDSQLGodotResourceResolver.new()
+	)
+
+
 func execute(plan: GDSQLQueryPlan, context: GDSQLExecutionContext) -> GDSQLQueryExecutionResult:
 	var result := GDSQLQueryExecutionResult.new()
 	result.rows = GDSQLRowSet.new()
@@ -28,7 +39,7 @@ func execute(plan: GDSQLQueryPlan, context: GDSQLExecutionContext) -> GDSQLQuery
 		return _execute_delete(plan.root as GDSQLDeletePlan, context, result)
 	result.rows = _execute_select_node(plan.root, context, result)
 	if result.is_successful():
-		result.statistics = { "returned_rows": result.rows.rows.size() }
+		result.statistics["returned_rows"] = result.rows.rows.size()
 		result.value = result.rows
 	return result
 
@@ -178,15 +189,24 @@ func _execute_select_node(
 ) -> GDSQLRowSet:
 	if node is GDSQLTableScanPlan:
 		var scan := node as GDSQLTableScanPlan
-		var snapshot := context.storage.read_table(scan.table, _get_session(context))
+		var snapshot := context.storage.read_table(
+			scan.table,
+			_get_session(context),
+			_read_request(scan.required_columns),
+		)
 		var rows := GDSQLRowSet.new()
 		rows.schema = node.output_schema
 		var table_id := _table_id(scan.table)
 		for stored_row in snapshot.rows:
-			var row := stored_row.duplicate_record()
+			var row := _materialize_row(
+				stored_row,
+				scan.table,
+				scan.required_columns,
+				result,
+			)
 			row.set_source_values(
 				table_id,
-				stored_row.values,
+				row.values,
 				scan.alias if scan.alias != &"" else scan.table.name,
 			)
 			rows.rows.append(row)
@@ -196,12 +216,22 @@ func _execute_select_node(
 		var rows := GDSQLRowSet.new()
 		rows.schema = node.output_schema
 		var key: Variant = context.expression_evaluator.evaluate(lookup.key, null)
-		var row := context.storage.find_by_primary_key(lookup.table, key, _get_session(context))
+		var row := context.storage.find_by_primary_key(
+			lookup.table,
+			key,
+			_get_session(context),
+			_read_request(lookup.required_columns),
+		)
 		if row != null:
-			var qualified_row := row.duplicate_record()
+			var qualified_row := _materialize_row(
+				row,
+				lookup.table,
+				lookup.required_columns,
+				result,
+			)
 			qualified_row.set_source_values(
 				_table_id(lookup.table),
-				row.values,
+				qualified_row.values,
 				lookup.alias if lookup.alias != &"" else lookup.table.name,
 			)
 			rows.rows.append(qualified_row)
@@ -217,10 +247,13 @@ func _execute_select_node(
 				lookup.index,
 				values,
 				_get_session(context),
+				_read_request(lookup.required_columns),
 			),
 			lookup.table,
 			lookup.alias,
 			node.output_schema,
+			lookup.required_columns,
+			result,
 		)
 	if node is GDSQLRangeLookupPlan:
 		var lookup := node as GDSQLRangeLookupPlan
@@ -239,10 +272,13 @@ func _execute_select_node(
 				lookup.include_lower,
 				lookup.include_upper,
 				_get_session(context),
+				_read_request(lookup.required_columns),
 			),
 			lookup.table,
 			lookup.alias,
 			node.output_schema,
+			lookup.required_columns,
+			result,
 		)
 	if node is GDSQLNestedLoopJoinPlan:
 		return _execute_nested_loop_join(
@@ -327,20 +363,106 @@ func _get_session(context: GDSQLExecutionContext) -> GDSQLStorageSession:
 func _qualify_lookup_rows(
 		stored_rows: Array[GDSQLRowRecord],
 		table: GDSQLTableDefinition,
-		alias: StringName,
-		output_schema: GDSQLResultSchema,
+	alias: StringName,
+	output_schema: GDSQLResultSchema,
+	required_columns: Array[StringName],
+	result: GDSQLQueryExecutionResult,
 ) -> GDSQLRowSet:
 	var rows := GDSQLRowSet.new()
 	rows.schema = output_schema
 	for stored_row in stored_rows:
-		var row := stored_row.duplicate_record()
+		var row := _materialize_row(
+			stored_row,
+			table,
+			required_columns,
+			result,
+		)
 		row.set_source_values(
 			_table_id(table),
-			stored_row.values,
+			row.values,
 			alias if alias != &"" else table.name,
 		)
 		rows.rows.append(row)
 	return rows
+
+
+func _read_request(required_columns: Array[StringName]) -> GDSQLStorageReadRequest:
+	return GDSQLStorageReadRequest.for_columns(required_columns, true)
+
+
+func _materialize_row(
+	stored_row: GDSQLRowRecord,
+	table: GDSQLTableDefinition,
+	required_columns: Array[StringName],
+	result: GDSQLQueryExecutionResult,
+) -> GDSQLRowRecord:
+	var row := stored_row.duplicate_record()
+	for column_name in required_columns:
+		var value: Variant = row.get_value(column_name)
+		if not value is GDSQLResourceReference:
+			continue
+		var reference := value as GDSQLResourceReference
+		var resolution := _resource_resolver.resolve(reference)
+		if not resolution.is_successful():
+			_add_resource_diagnostics(
+				resolution,
+				table,
+				row,
+				column_name,
+				result,
+			)
+			row.set_value(column_name, null)
+			continue
+		var resource := resolution.get_value() as Resource
+		var column := table.get_column(column_name)
+		if resource == null or column == null or not column.accepts_value(resource):
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_RESOURCE_REFERENCE_TYPE_MISMATCH",
+					"Referenced Resource for %s.%s row '%s' column '%s' does not match %s." % [
+						table.database_name,
+						table.name,
+						row.get_value(table.primary_key),
+						column_name,
+						column.expected_type_name() if column != null else "the declared type",
+					],
+					GDSQLQueryDiagnostic.Severity.ERROR,
+					null,
+					reference,
+				),
+			)
+			row.set_value(column_name, null)
+			continue
+		row.set_value(column_name, resource)
+		result.statistics["resources_materialized"] = int(
+			result.statistics.get("resources_materialized", 0),
+		) + 1
+	return row
+
+
+func _add_resource_diagnostics(
+	resolution: GDSQLOperationResult,
+	table: GDSQLTableDefinition,
+	row: GDSQLRowRecord,
+	column_name: StringName,
+	result: GDSQLQueryExecutionResult,
+) -> void:
+	for entry in resolution.diagnostics.entries:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				entry.code,
+				"%s.%s row '%s' column '%s': %s" % [
+					table.database_name,
+					table.name,
+					row.get_value(table.primary_key),
+					column_name,
+					entry.message,
+				],
+				entry.severity,
+				null,
+				entry.related_object,
+			),
+		)
 
 
 func _execute_aggregate(

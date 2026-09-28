@@ -40,7 +40,11 @@ func encode(value: Variant, column: GDSQLColumnDefinition = null) -> Variant:
 	return value
 
 
-func decode(value: Variant, column: GDSQLColumnDefinition = null) -> Variant:
+func decode(
+	value: Variant,
+	column: GDSQLColumnDefinition = null,
+	preserve_resource_reference: bool = false,
+) -> Variant:
 	if value is Dictionary \
 			and value.size() == 1 \
 			and value.get(ENCODED_TYPE_KEY) == NULL_TYPE:
@@ -50,6 +54,8 @@ func decode(value: Variant, column: GDSQLColumnDefinition = null) -> Variant:
 		var reference := decode_reference(value)
 		if reference == null:
 			return null
+		if preserve_resource_reference:
+			return reference
 		var resolution := _resource_resolver.resolve(reference)
 		var resource := resolution.get_value() as Resource if resolution.is_successful() else null
 		if resource != null and column != null and not column.accepts_value(resource):
