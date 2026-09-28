@@ -169,6 +169,116 @@ The game can browse `npc_definitions` broadly and retrieve one indexed
 `npc_assets` row when it prepares that NPC. This pattern remains useful after
 deferred references and binary paging are implemented.
 
+### Schema authoring and editor presentation
+
+Resource ownership and Resource loading answer different questions and must not
+be collapsed into one ambiguous option:
+
+- **Ownership** chooses `OWNED` or `REFERENCED`. It determines whether the row
+  contains an independent Resource value or a locator to an external asset.
+- **Materialization** chooses when a referenced locator becomes a loaded Godot
+  Resource. It does not change which value is authoritative in storage.
+
+The current table designer's **Storage** column is sufficient for ownership but
+will not scale well if materialization, prefetching, diagnostics, and future
+backend hints are added as more permanent row columns. Preserve stable table-row
+width with one compact Resource configuration entry:
+
+```text
+Mesh · Referenced · On materialize                 [gear]
+```
+
+The gear action should open a focused popover or dialog for Resource-only
+settings. The exact scene belongs to the editor implementation, but the
+configuration should eventually distinguish:
+
+- concrete accepted Resource subtype;
+- Owned or Referenced storage;
+- default eager-on-materialize or explicit deferred-handle behavior;
+- whether a query or model is allowed to override that default;
+- missing/type-mismatch policy and diagnostic preview; and
+- future prefetch grouping only when that runtime capability exists.
+
+Do not expose settings that the runtime cannot enforce. Stage A needs only a
+clear ownership summary and the guarantee that unneeded referenced columns do
+not load. Deferred and prefetch controls appear only with Stage B.
+
+For new Resource columns, selecting an existing saved asset should continue to
+recommend **Referenced**, while an unsaved inline Resource should recommend
+**Owned**. Referenced is the normal choice for meshes, textures, scenes, and
+audio already stored in the project or a package, but it cannot be a universal
+forced default because row-owned configuration Resources remain valid.
+
+The simple compatibility default is **eager when actually materialized**, not
+eager during storage decoding. This keeps generated concrete properties such as
+`Mesh` understandable while avoiding loads for unselected fields. A true
+deferred handle is opt-in because it changes the model/result access contract.
+
+The Resource summary and gear must be scene-backed, visible in the table
+designer's debug skeleton, and available only when the column type is Resource.
+Changing options produces typed column alterations and uses the normal catalog
+preview; the Control must not mutate schema or storage directly.
+
+### Resource-aware WHERE and expression costs
+
+Nested WHERE groups are not inherently unsafe. They become expensive when a
+condition reads a property inside a referenced Resource, because evaluating the
+predicate requires materializing that asset unless equivalent searchable
+metadata exists in ordinary columns.
+
+For example:
+
+```text
+WHERE faction = "forest"
+  AND mesh.material.albedo_color.r > 0.5
+```
+
+The scalar `faction` comparison is inexpensive. The Resource-property condition
+may load the mesh, its material, and dependencies for every candidate row that
+reaches it. Pagination cannot safely apply `LIMIT` before this filter because
+the runtime does not yet know which rows match. Similar costs apply to Resource
+properties used by `ORDER BY`, grouping, aggregates, distinct selection, join
+conditions, and calculated projections.
+
+The query and editor contracts must therefore preserve these rules:
+
+1. Resource-property expressions remain explicit canonical expressions; the
+   table editor must not perform a hidden editor-side filter.
+2. Only validated, Inspector-visible scalar leaf paths are filterable. Do not
+   expose intermediate compound values, arbitrary methods, unbounded
+   collections, or paths that execute project code.
+3. Nested groups retain their logical meaning and SQL-style null behavior.
+   Loading optimization must not change `AND`, `OR`, or `NOT` semantics.
+4. Resolve a given referenced value at most once per row and execution, even
+   when several nested conditions inspect it. Reuse the resolved value and its
+   failure diagnostic within that bounded execution.
+5. Short-circuit conditions when canonical three-valued logic permits it. Cheap
+   scalar predicates may narrow candidates before Resource-property predicates
+   only when reordering is semantically equivalent and diagnostics remain
+   deterministic.
+6. A missing or incompatible referenced asset evaluates through the defined
+   null/error policy and produces one contextual diagnostic, not repeated
+   failures for every nested condition.
+7. A Resource-property predicate makes the load intentional. `COUNT`, paging,
+   or a scalar projection cannot promise zero Resource loads when their filter,
+   ordering, grouping, or join depends on that property.
+8. Ordinary table indexes cannot accelerate an arbitrary property inside an
+   external Resource. Frequently searched asset metadata should be copied into
+   typed scalar columns and indexed there.
+9. The WHERE editor should mark Resource-property fields with an asset/load
+   indicator and concise tooltip. For a potentially broad scan, show a warning
+   or plan summary instead of silently presenting the condition as equivalent
+   to a scalar column.
+10. Long Resource-dependent scans need cancellation, progress, and measured
+    Resource-resolution counts before GDSQL considers background or parallel
+    evaluation. Do not load arbitrary Godot Resources from worker threads
+    without following engine-supported loading boundaries.
+
+The safest authoring recommendation is to query stable scalar metadata and use
+the resulting identity to load the heavy asset. Resource-property WHERE support
+remains valuable for small datasets and editor discovery, but it is not a
+replacement for deliberately modeled, indexed metadata.
+
 ### Required invariants
 
 The architecture work must preserve these rules:
