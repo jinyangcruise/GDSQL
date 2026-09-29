@@ -49,7 +49,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Versioned migration v1 and compatibility policy | Ordered definitions, checksums, history planner, ConfigFile ledger, and next-migration catalog dry-run implemented; backup, recovery, and execution pending |
+| High — first | Versioned migration v1 and compatibility policy | Definitions, checksums, history planning, ConfigFile ledger, catalog dry-run, and fingerprinted whole-database recovery implemented; execution pending |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
@@ -331,7 +331,9 @@ slice provides:
    structured diagnostics. Implemented for the next pending migration under
    the v1 one-table-step-per-migration rule; later multi-table orchestration
    remains separate.
-5. Backup and recovery behavior for ConfigFile databases.
+5. Backup and recovery behavior for ConfigFile databases. Implemented with
+   fingerprinted whole-database snapshots, staged restore, rollback, durable
+   reload, explicit cleanup, and cache invalidation.
 6. Headless validation suitable for professional-team CI.
 
 Later slices add canonical data transformations, multi-table orchestration,

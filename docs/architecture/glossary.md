@@ -216,6 +216,9 @@ state in the same change as implementation or test work.
 | `MigrationPlan` | Migration planning | Reports the applied count, pending suffix, and destructive classification before catalog-specific dry-run plans are built. | `is_up_to_date()` | 🧪 |
 | `MigrationCatalogPlanner` | Migration planning | Non-mutating composer that previews the next pending, single-table-step migration through injected catalog administration and returns structured diagnostics for unsupported shapes. | `preview_next()` | 🧪 |
 | `MigrationCatalogPlan` | Migration planning | Carries the pending migration identity, stale-safe catalog change plan, affected rows, summaries, destructive status, and expected ledger count into the later recovery-safe runner. | `affected_rows()`, `summaries()`, `requires_confirmation()` | 🧪 |
+| `MigrationBackup` | Migration recovery | Durable identity and SHA-256 integrity evidence for one complete pre-migration database snapshot. | Typed fields, `is_valid()` | 🧪 |
+| `MigrationRecoveryStore` | Migration recovery | Backend-neutral boundary for creating, reloading, restoring, and explicitly discarding pre-migration snapshots. | `create_backup()`, `load_backup()`, `restore()`, `discard()` | 🧪 |
+| `ConfigFileMigrationRecoveryStore` | Migration backend | Creates fingerprinted whole-database snapshots and restores them with a staged directory swap and cache invalidation. | MigrationRecoveryStore implementation | 🧪 |
 
 ## Storage
 
@@ -231,8 +234,8 @@ state in the same change as implementation or test work.
 | `StorageSession` | Storage | Tracks staged changes, dirty state, and uncommitted table metadata reservations for one unit of work. | Session-specific state access | 🧪 |
 | `TableSnapshot` | Storage | Stable collection of rows plus row-count and next-generated-key state read from a table for an operation or backend transfer. | `rows`, `row_count`, `next_auto_increment`, `find_by_primary_key()` | 🧪 |
 | `RowRecord` | Storage and execution | Typed runtime representation of one row, including source-qualified values for multi-table evaluation. | `get_value()`, `get_source_value()`, `set_source_values()`, mutation and lookup helpers | 🧪 |
-| `DatabasePathResolver` | Storage infrastructure | Resolves logical database, table, and applied-migration ledger identifiers into physical paths. | `resolve_catalog_path()`, `resolve_table_path()`, `resolve_migration_ledger_path()` | 🛠️ |
-| `ConfigFileCache` | Storage infrastructure | Manages loaded ConfigFile objects and their lifecycle. | `get_or_load()`, `invalidate()`, `flush()` | 🛠️ |
+| `DatabasePathResolver` | Storage infrastructure | Resolves logical database, table, applied-migration ledger, and recovery identifiers into physical paths. | `resolve_catalog_path()`, `resolve_table_path()`, `resolve_migration_ledger_path()`, `resolve_migration_backup_path()` | 🛠️ |
+| `ConfigFileCache` | Storage infrastructure | Manages loaded ConfigFile objects and their lifecycle, including database-wide invalidation after physical recovery. | `get_or_load()`, `invalidate()`, `invalidate_prefix()`, `flush()` | 🛠️ |
 | `GodotVariantCodec` | Serialization | Encodes Godot-native ConfigFile values, decodes referenced identity without materialization, and preserves eager compatibility through an injected resolver. | `encode()`, `decode()`, `decode_reference()`, `can_encode()` | 🧪 |
 | `ResourceReference` | Storage value | Inert, backend-neutral project/package/external identity for a referenced Resource, including UID, fallback path, expected class, and project-script identity. Parsing it never loads an asset, and internal row transfers validate it against the destination column. | `from_resource()`, `from_dictionary()`, `to_dictionary()`, `is_valid()`, `matches_column()` | 🧪 |
 | `ResourceResolver` | Resource materialization | Abstract injected policy that turns a `ResourceReference` into a concrete Resource and structured diagnostics. | `resolve()` | 🧪 |

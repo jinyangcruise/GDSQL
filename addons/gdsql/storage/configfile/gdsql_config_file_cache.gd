@@ -19,6 +19,13 @@ func invalidate(path: String) -> void:
 	_entries.erase(path)
 
 
+func invalidate_prefix(path_prefix: String) -> void:
+	var normalized := path_prefix.trim_suffix("/") + "/"
+	for path: String in _entries.keys():
+		if path == path_prefix or path.begins_with(normalized):
+			_entries.erase(path)
+
+
 func flush(path: String) -> Error:
 	if not _entries.has(path):
 		return OK

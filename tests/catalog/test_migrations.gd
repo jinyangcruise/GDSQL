@@ -223,6 +223,135 @@ func test_catalog_planner_rejects_multi_step_preview_without_mutation() -> void:
 	).is_null()
 
 
+func test_config_file_recovery_restores_database_rows_schema_and_ledger() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var resolver := GDSQLDatabasePathResolver.new(_data_root)
+	var cache := GDSQLConfigFileCache.new()
+	var recovery := GDSQLConfigFileMigrationRecoveryStore.new(resolver, cache)
+	var ledger := GDSQLConfigFileMigrationLedger.new(resolver)
+	var previous_definition := _migration("202609280000_previous")
+	var previous_record := GDSQLAppliedMigration.new(
+		previous_definition.migration_id,
+		previous_definition.checksum,
+		1,
+		"before-backup",
+	)
+	assert_bool(
+		ledger.append(database.database_name, previous_record, 0).is_successful(),
+	).is_true()
+
+	var created := recovery.create_backup(
+		database.database_name,
+		"202609280001_add_level",
+	)
+
+	assert_bool(created.is_successful()).is_true()
+	var backup := created.get_value() as GDSQLMigrationBackup
+	assert_bool(backup.is_valid()).is_true()
+	var alterations: Array[GDSQLTableAlteration] = [
+		GDSQLTableAlteration.add_column(
+			GDSQLColumnDefinition.new(&"level", TYPE_INT, false, false, false, 1),
+		),
+	]
+	assert_bool(database.alter_table(&"heroes", alterations).is_successful()).is_true()
+	assert_bool(
+		database.insert(
+			&"heroes",
+			{&"id": 3, &"name": "Rogue", &"level": 3},
+		).is_successful(),
+	).is_true()
+	var applied_definition := _migration("202609280001_add_level")
+	assert_bool(
+		ledger.append(
+			database.database_name,
+			GDSQLAppliedMigration.new(
+				applied_definition.migration_id,
+				applied_definition.checksum,
+				2,
+				"after-migration",
+			),
+			1,
+		).is_successful(),
+	).is_true()
+	var table_path := resolver.resolve_table_path(database.database_name, &"heroes")
+	assert_bool(cache.get_or_load(table_path).has_section("3")).is_true()
+	var reopened_recovery := GDSQLConfigFileMigrationRecoveryStore.new(resolver, cache)
+	var loaded := reopened_recovery.load_backup(
+		database.database_name,
+		backup.migration_id,
+	)
+	assert_bool(loaded.is_successful()).is_true()
+
+	var restored := reopened_recovery.restore(loaded.get_value())
+
+	assert_bool(restored.is_successful()).is_true()
+	assert_bool(cache.get_or_load(table_path).has_section("3")).is_false()
+	var reopened := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	assert_object(
+		reopened.context.catalog.get_table(database.database_name, &"heroes") \
+				.get_column(&"level"),
+	).is_null()
+	var rows := reopened.execute(
+		reopened.query().select().from_table(&"heroes").build(),
+	)
+	assert_int(rows.rows.size()).is_equal(2)
+	var restored_ledger := ledger.load(database.database_name).get_value() \
+			as GDSQLMigrationLedgerSnapshot
+	assert_int(restored_ledger.records.size()).is_equal(1)
+	assert_str(restored_ledger.records[0].migration_id).is_equal(
+		previous_record.migration_id,
+	)
+	assert_bool(
+		reopened_recovery.discard(database.database_name, backup.migration_id) \
+				.is_successful(),
+	).is_true()
+	var missing := reopened_recovery.load_backup(
+		database.database_name,
+		backup.migration_id,
+	)
+	assert_str(_first_code(missing)).is_equal("GDSQL_MIGRATION_BACKUP_NOT_FOUND")
+
+
+func test_config_file_recovery_rejects_a_corrupted_snapshot_without_mutation() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	var resolver := GDSQLDatabasePathResolver.new(_data_root)
+	var recovery := GDSQLConfigFileMigrationRecoveryStore.new(
+		resolver,
+		GDSQLConfigFileCache.new(),
+	)
+	var created := recovery.create_backup(
+		database.database_name,
+		"202609280001_add_level",
+	)
+	var backup := created.get_value() as GDSQLMigrationBackup
+	var alterations: Array[GDSQLTableAlteration] = [
+		GDSQLTableAlteration.add_column(
+			GDSQLColumnDefinition.new(&"level", TYPE_INT, false, false, false, 1),
+		),
+	]
+	assert_bool(database.alter_table(&"heroes", alterations).is_successful()).is_true()
+	var snapshot_table_path := resolver.resolve_migration_backup_path(
+		database.database_name,
+		backup.migration_id,
+	).path_join("snapshot/tables/heroes.cfg")
+	var corrupted := ConfigFile.new()
+	assert_int(corrupted.load(snapshot_table_path)).is_equal(OK)
+	corrupted.set_value("tampered", "value", true)
+	assert_int(corrupted.save(snapshot_table_path)).is_equal(OK)
+
+	var restored := recovery.restore(backup)
+
+	assert_bool(restored.is_successful()).is_false()
+	assert_str(_first_code(restored)).is_equal(
+		"GDSQL_MIGRATION_BACKUP_FINGERPRINT_MISMATCH",
+	)
+	assert_object(
+		database.context.catalog.get_table(database.database_name, &"heroes") \
+				.get_column(&"level"),
+	).is_not_null()
+
+
 func _migration(
 		migration_id: String,
 		alteration: GDSQLTableAlteration = null,

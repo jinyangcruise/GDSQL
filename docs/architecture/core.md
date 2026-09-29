@@ -1858,10 +1858,28 @@ steps receives a structured unsupported-preview diagnostic. Cross-table atomic
 simulation remains part of later multi-table migration orchestration rather
 than approximating dependent steps against stale schema.
 
-This boundary still does not execute changes. The next migration slice adds
-ConfigFile backup/recovery before applying the catalog plan and appending its
-ledger record. Catalog execution remains the sole schema validation and
-persistence authority.
+`GDSQLMigrationRecoveryStore` is the backend-neutral durable recovery contract.
+It creates, reloads, restores, and discards a pre-migration database snapshot.
+`GDSQLMigrationBackup` identifies that snapshot and carries its SHA-256 content
+fingerprint and creation time. A backup is not a query transaction or a
+long-term version archive; it is recovery evidence retained until its migration
+finishes safely.
+
+`GDSQLConfigFileMigrationRecoveryStore` copies the complete database directory,
+including schemas, table rows and metadata, indexes, generated-key state, and
+the applied ledger. Completed snapshots are activated from a staging directory
+under `<data_root>/.gdsql_migration_recovery/<database>/<migration_id>` and are
+verified before every restore. Restore copies into separate staging, moves the
+current database aside, activates the verified snapshot with a directory swap,
+and rolls the old directory back if activation fails. Cached ConfigFile table
+entries are invalidated after successful recovery. Corrupt snapshots never
+touch the active database, and identity-based discard permits explicit cleanup
+even when a manifest or snapshot cannot be loaded.
+
+This boundary still does not execute migrations. The next slice composes the
+catalog plan, recovery store, catalog application, resulting schema
+fingerprint, and ledger append into one runner. Catalog execution remains the
+sole schema validation and persistence authority.
 
 ---
 

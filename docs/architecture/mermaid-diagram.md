@@ -419,6 +419,14 @@ MigrationLedger("`**GDSQLMigrationLedger**
 *Concurrency:* Append requires the expected record count
 *Extension point:* Migration ledger backend implementations`")
 
+MigrationRecovery("`**GDSQLMigrationRecoveryStore**
+
+-
+*Purpose:* Preserve and restore complete pre-migration database state
+*Evidence:* GDSQLMigrationBackup identity, creation time and SHA-256 fingerprint
+*API:* create_backup(), load_backup(), restore(), discard()
+*Boundary:* Durable recovery, not query transactions or long-term archives`")
+
 TableStorage("`**GDSQLTableStorage**
 
 -
@@ -453,6 +461,14 @@ ConfigMigrationLedger("`**GDSQLConfigFileMigrationLedger**
 *Location:* &lt;data_root&gt;/&lt;database&gt;/migrations.cfg
 *Extends:* GDSQLMigrationLedger
 *Uses:* GDSQLDatabasePathResolver`")
+
+ConfigMigrationRecovery("`**GDSQLConfigFileMigrationRecoveryStore**
+
+-
+*Purpose:* Fingerprint and restore whole ConfigFile database directories
+*Location:* &lt;data_root&gt;/.gdsql_migration_recovery/&lt;database&gt;/&lt;migration&gt;
+*Safety:* Verified staging copy, directory swap, rollback and cache invalidation
+*Extends:* GDSQLMigrationRecoveryStore`")
 
 ConfigStorage("`**GDSQLConfigFileTableStorage**
 
@@ -614,6 +630,7 @@ Workbench -->|"preview · apply change plan"| CatalogAdministration
 MigrationHistory -->|"compare authored and applied prefix"| MigrationLedger
 MigrationHistory -->|"preview next pending entry"| MigrationCatalogPlanning
 MigrationCatalogPlanning -->|"preview_alter_table()"| CatalogAdministration
+MigrationCatalogPlanning -->|"requires pre-apply recovery snapshot"| MigrationRecovery
 Workbench -->|"table designer context"| ForeignKeyAuthoring
 ForeignKeyAuthoring -->|"typed add/drop intent"| CatalogAdministration
 ForeignKeyAuthoring -.->|"candidate metadata"| ForeignKeys
@@ -654,6 +671,7 @@ ForeignKeyValidation -->|"read effective session rows"| TableStorage
 CatalogService -->|"extended by"| ConfigCatalog
 CatalogAdministration -->|"extended by"| ConfigAdministration
 MigrationLedger -->|"extended by"| ConfigMigrationLedger
+MigrationRecovery -->|"extended by"| ConfigMigrationRecovery
 TableStorage -->|"extended by"| ConfigStorage
 TableStorage -->|"extended by"| MemoryStorage
 
@@ -663,6 +681,7 @@ MemoryCheckpoint -->|"stages and commits durable changes"| TableStorage
 ConfigCatalog -->|"path resolution"| ConfigInfrastructure
 ConfigAdministration -->|"paths · cache"| ConfigInfrastructure
 ConfigMigrationLedger -->|"ledger path"| ConfigInfrastructure
+ConfigMigrationRecovery -->|"recovery paths · cache invalidation"| ConfigInfrastructure
 ConfigStorage -->|"paths · cache · codec"| ConfigInfrastructure
 ConfigInfrastructure -->|"reference identity · resolver"| ResourceMaterialization
 ConfigPackageManifest -->|"decodes typed metadata"| PackageManifest
@@ -687,8 +706,8 @@ class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
 class Planner,PlanNode planning;
 class Executor,ForeignKeyValidation execution;
-class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationCatalogPlanning,MigrationLedger catalog;
+class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationCatalogPlanning,MigrationLedger,MigrationRecovery catalog;
 class TableStorage storage;
-class ConfigCatalog,ConfigAdministration,ConfigMigrationLedger,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
+class ConfigCatalog,ConfigAdministration,ConfigMigrationLedger,ConfigMigrationRecovery,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
 class ResourceMaterialization storage;
 class Results,Materialization result;
