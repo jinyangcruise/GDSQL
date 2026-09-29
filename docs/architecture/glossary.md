@@ -201,6 +201,20 @@ state in the same change as implementation or test work.
 | `CatalogChangePlan` | Catalog administration | Read-only preview of validated structural changes, affected rows, destructive classification, summaries, and the source catalog fingerprint. | `requires_confirmation()` and stale-plan-safe application | 🧪 |
 | `IndexDefinition` | Catalog | Describes a named index, its ordered columns, and whether its complete value must be unique. | `get_columns()`, `is_unique()` | 🧪 |
 
+## Schema migration
+
+| Name | Domain | Responsibility | Principal API | State |
+|---|---|---|---|---|
+| `SchemaMigrationStep` | Migration input | Groups one ordered set of existing `TableAlteration` intents for a target table. | `is_valid()`, `is_destructive()` | 🧪 |
+| `MigrationDefinition` | Migration input | Describes one stable, ordered, forward-only project migration and retains its authored checksum so later edits are detectable. | `is_valid()`, `has_valid_checksum()`, `is_destructive()`, `is_valid_id()` | 🧪 |
+| `MigrationChecksum` | Migration integrity | Produces deterministic SHA-256 identity from migration metadata and normalized alteration values. | `compute()` | 🧪 |
+| `AppliedMigration` | Migration history | Records the exact applied ID and checksum, application time, and resulting schema fingerprint. | Typed fields, `is_valid()` | 🧪 |
+| `MigrationLedgerSnapshot` | Migration history | Holds ordered applied records and supports identity lookup without persistence knowledge. | `find()`, `last_id()` | 🧪 |
+| `MigrationLedger` | Migration persistence | Abstract append-only boundary for loading and extending one database's applied history with stale-count protection. | `load()`, `append()` | 🧪 |
+| `ConfigFileMigrationLedger` | Migration backend | Persists and validates the ordered applied ledger beside a ConfigFile database. | MigrationLedger implementation | 🧪 |
+| `MigrationPlanner` | Migration planning | Validates that applied history is an exact checksum-matching prefix of authored history and returns only pending definitions. | `plan()` | 🧪 |
+| `MigrationPlan` | Migration planning | Reports the applied count, pending suffix, and destructive classification before catalog-specific dry-run plans are built. | `is_up_to_date()` | 🧪 |
+
 ## Storage
 
 | Name | Domain | Responsibility | Principal API | State |
@@ -215,7 +229,7 @@ state in the same change as implementation or test work.
 | `StorageSession` | Storage | Tracks staged changes, dirty state, and uncommitted table metadata reservations for one unit of work. | Session-specific state access | 🧪 |
 | `TableSnapshot` | Storage | Stable collection of rows plus row-count and next-generated-key state read from a table for an operation or backend transfer. | `rows`, `row_count`, `next_auto_increment`, `find_by_primary_key()` | 🧪 |
 | `RowRecord` | Storage and execution | Typed runtime representation of one row, including source-qualified values for multi-table evaluation. | `get_value()`, `get_source_value()`, `set_source_values()`, mutation and lookup helpers | 🧪 |
-| `DatabasePathResolver` | Storage infrastructure | Resolves logical database and table identifiers into physical paths. | `resolve_catalog_path()`, `resolve_table_path()` | 🛠️ |
+| `DatabasePathResolver` | Storage infrastructure | Resolves logical database, table, and applied-migration ledger identifiers into physical paths. | `resolve_catalog_path()`, `resolve_table_path()`, `resolve_migration_ledger_path()` | 🛠️ |
 | `ConfigFileCache` | Storage infrastructure | Manages loaded ConfigFile objects and their lifecycle. | `get_or_load()`, `invalidate()`, `flush()` | 🛠️ |
 | `GodotVariantCodec` | Serialization | Encodes Godot-native ConfigFile values, decodes referenced identity without materialization, and preserves eager compatibility through an injected resolver. | `encode()`, `decode()`, `decode_reference()`, `can_encode()` | 🧪 |
 | `ResourceReference` | Storage value | Inert, backend-neutral project/package/external identity for a referenced Resource, including UID, fallback path, expected class, and project-script identity. Parsing it never loads an asset, and internal row transfers validate it against the destination column. | `from_resource()`, `from_dictionary()`, `to_dictionary()`, `is_valid()`, `matches_column()` | 🧪 |

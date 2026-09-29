@@ -1706,9 +1706,9 @@ Mutable row counts and generated-key sequences remain owned by physical storage.
 
 Rows and query execution remain outside the catalog.
 
-A lightweight table-version field may later be added to schema metadata for
-game code to detect incompatible saved data. A general migration framework is
-outside the current scope.
+Database schema compatibility is tracked by the ordered migration history and
+applied ledger described in section 13.2. Models remain bindings and never act
+as schema or migration authorities.
 
 ### 13.1 Catalog administration
 
@@ -1813,6 +1813,41 @@ compares that fingerprint with the current catalog and rejects stale previews.
 one call. Dropping the primary key is rejected. Database and table renames move
 their complete physical structures and update catalog metadata, while drop
 operations remove both metadata and owned storage.
+
+### 13.2 Versioned schema migration
+
+Migration history is project-authored, forward-only input above catalog
+administration. `GDSQLMigrationDefinition` owns one stable sortable ID, a
+description, an ordered list of `GDSQLSchemaMigrationStep` values, and a
+deterministic SHA-256 checksum. Each initial step targets one table and reuses
+the existing `GDSQLTableAlteration` vocabulary. A definition recalculates its
+checksum during validation, so changing an already recorded description,
+step, column, index, default, or foreign key is rejected as edited history.
+
+IDs use only letters, digits, `_`, `-`, and `.`, and must be strictly increasing
+under ordinal comparison. Timestamp-prefixed, fixed-width IDs are the
+recommended authoring convention. Array order is authoritative; migrations
+are never reordered automatically.
+
+`GDSQLMigrationLedger` is the persistence contract for append-only applied
+history. `GDSQLAppliedMigration` records the exact migration ID and checksum,
+application time, and resulting whole-schema fingerprint.
+`GDSQLConfigFileMigrationLedger` stores the ordered ledger at
+`<data_root>/<database>/migrations.cfg`; the path remains owned by
+`GDSQLDatabasePathResolver`. Appends carry an expected record count so stale
+planners cannot silently extend a changed ledger.
+
+`GDSQLMigrationPlanner` compares authored definitions with the applied ledger.
+Applied records must be an exact prefix: absent authored history, reordered
+IDs, checksum changes, malformed records, and divergent IDs return structured
+diagnostics. A successful `GDSQLMigrationPlan` contains only the pending suffix
+and reports whether it contains destructive alterations.
+
+This foundation does not execute changes. The next migration slice composes
+pending steps with `preview_alter_table()` and stale-safe catalog change plans,
+then adds ConfigFile backup/recovery before applying a migration and appending
+its ledger record. Catalog execution remains the sole schema validation and
+persistence authority.
 
 ---
 

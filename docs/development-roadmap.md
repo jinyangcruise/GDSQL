@@ -49,7 +49,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Versioned migration v1 and compatibility policy | Architecture decision and implementation required |
+| High — first | Versioned migration v1 and compatibility policy | Ordered definitions, checksums, history planner, and ConfigFile ledger implemented; catalog dry-run, backup, recovery, and execution pending |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
@@ -318,15 +318,15 @@ Resource Stage A precedes this work because migrations, dry runs, backups, and
 cache rebuilds must copy referenced-asset identity without loading the assets.
 Migration v1 begins after that stored-value/materialization boundary is stable.
 
-Before implementation, update the architecture documents that currently place
-a general migration framework outside scope. The first supported slice should
-provide:
+The architecture now includes the initial migration boundary. The complete v1
+slice provides:
 
-1. Stable ordered migration IDs, descriptions, checksums, and target database
-   registrations or roles.
+1. Stable ordered migration IDs, descriptions, checksums, and an explicit
+   target database composition. IDs, checksums, and history planning are
+   implemented; runner targeting remains.
 2. Forward-only typed schema steps built from the existing
-   `GDSQLTableAlteration` vocabulary.
-3. A persisted applied-migration ledger and schema fingerprint.
+   `GDSQLTableAlteration` vocabulary. Implemented.
+3. A persisted applied-migration ledger and schema fingerprint. Implemented.
 4. Dry-run planning with affected objects, destructive classification, and
    structured diagnostics.
 5. Backup and recovery behavior for ConfigFile databases.

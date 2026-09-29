@@ -395,6 +395,22 @@ CatalogAdministration("`**GDSQLCatalogAdministrationService**
 *Integrity:* Reject incoming-reference-breaking schema changes
 *Extension point:* Catalog administration backend implementations`")
 
+MigrationHistory("`**Schema Migration History**
+
+-
+*Input:* Ordered GDSQLMigrationDefinition values and table alteration steps
+*Integrity:* Deterministic checksums; applied history must be an exact prefix
+*Plan:* GDSQLMigrationPlanner returns pending definitions and destructive status
+*Boundary:* Models never create or infer migrations`")
+
+MigrationLedger("`**GDSQLMigrationLedger**
+
+-
+*Purpose:* Persist append-only applied migration evidence
+*Records:* ID, checksum, application time and resulting schema fingerprint
+*Concurrency:* Append requires the expected record count
+*Extension point:* Migration ledger backend implementations`")
+
 TableStorage("`**GDSQLTableStorage**
 
 -
@@ -421,6 +437,14 @@ ConfigAdministration("`**GDSQLConfigFileCatalogAdministrationService**
 *API:* create, rename, alter and drop database or table structures
 *Extends:* GDSQLCatalogAdministrationService
 *Uses:* Catalog reader, path resolver and ConfigFile cache`")
+
+ConfigMigrationLedger("`**GDSQLConfigFileMigrationLedger**
+
+-
+*Purpose:* Validate and persist one database's ordered applied history
+*Location:* &lt;data_root&gt;/&lt;database&gt;/migrations.cfg
+*Extends:* GDSQLMigrationLedger
+*Uses:* GDSQLDatabasePathResolver`")
 
 ConfigStorage("`**GDSQLConfigFileTableStorage**
 
@@ -537,6 +561,7 @@ SQLEditor -->|"tokenize() · parse() · compile()"| Translators
 Database -->|"query() · table()"| Translators
 Translators -->|"build() / compile()"| QuerySpec
 Code -->|"column() · literal() · logical and function factories"| Expr
+Code -->|"author ordered forward schema history"| MigrationHistory
 Expr -->|"creates canonical nodes"| Expression
 Expression -->|"contained by"| QuerySpec
 
@@ -578,6 +603,7 @@ McpAdapter -.->|"read-only inspection state"| Workbench
 McpAdapter -.->|"profile readiness"| DirectSetup
 McpAdapter -.->|"managed readiness"| ManagedSetup
 Workbench -->|"preview · apply change plan"| CatalogAdministration
+MigrationHistory -->|"compare authored and applied prefix"| MigrationLedger
 Workbench -->|"table designer context"| ForeignKeyAuthoring
 ForeignKeyAuthoring -->|"typed add/drop intent"| CatalogAdministration
 ForeignKeyAuthoring -.->|"candidate metadata"| ForeignKeys
@@ -617,6 +643,7 @@ ForeignKeyValidation -->|"read effective session rows"| TableStorage
 
 CatalogService -->|"extended by"| ConfigCatalog
 CatalogAdministration -->|"extended by"| ConfigAdministration
+MigrationLedger -->|"extended by"| ConfigMigrationLedger
 TableStorage -->|"extended by"| ConfigStorage
 TableStorage -->|"extended by"| MemoryStorage
 
@@ -625,6 +652,7 @@ MemoryCheckpoint -->|"stages and commits durable changes"| TableStorage
 
 ConfigCatalog -->|"path resolution"| ConfigInfrastructure
 ConfigAdministration -->|"paths · cache"| ConfigInfrastructure
+ConfigMigrationLedger -->|"ledger path"| ConfigInfrastructure
 ConfigStorage -->|"paths · cache · codec"| ConfigInfrastructure
 ConfigInfrastructure -->|"reference identity · resolver"| ResourceMaterialization
 ConfigPackageManifest -->|"decodes typed metadata"| PackageManifest
@@ -649,8 +677,8 @@ class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
 class Planner,PlanNode planning;
 class Executor,ForeignKeyValidation execution;
-class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys catalog;
+class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationLedger catalog;
 class TableStorage storage;
-class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
+class ConfigCatalog,ConfigAdministration,ConfigMigrationLedger,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
 class ResourceMaterialization storage;
 class Results,Materialization result;

@@ -29,5 +29,9 @@ func resolve_table_path(database: StringName = &"", table: StringName = &"") -> 
 	return resolve_database_path(database).path_join("tables").path_join(String(table) + ".cfg")
 
 
+func resolve_migration_ledger_path(database: StringName) -> String:
+	return resolve_database_path(database).path_join("migrations.cfg")
+
+
 func is_valid_name(value: StringName) -> bool:
 	return value != &"" and String(value).is_valid_identifier()
