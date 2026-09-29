@@ -41,5 +41,6 @@ typed canonical queries. The graph and SQL frontends are secondary to the
 table, model, and runtime workflows documented here.
 
 For the design behind these choices, read the
+[Why GDSQL?](./why-gdsql) comparison, the
 [Project philosophy](../architecture/philosophy) and the
 [Architecture overview](../architecture/overview).

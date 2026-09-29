@@ -21,6 +21,7 @@ export default defineConfig({
 
   themeConfig: {
     nav: [
+      { text: 'Why GDSQL?', link: '/guide/why-gdsql' },
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'Architecture', link: '/architecture/overview' },
     ],
@@ -30,6 +31,7 @@ export default defineConfig({
           text: 'Start here',
           items: [
             { text: 'Introduction', link: '/guide/introduction' },
+            { text: 'Why GDSQL?', link: '/guide/why-gdsql' },
             { text: 'Installation', link: '/guide/installation' },
             { text: 'Create your first project', link: '/guide/getting-started' },
             { text: 'Choose a content profile', link: '/guide/content-profiles' },
