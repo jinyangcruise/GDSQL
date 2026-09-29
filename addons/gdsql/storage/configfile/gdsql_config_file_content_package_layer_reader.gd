@@ -5,6 +5,12 @@ extends GDSQLContentPackageLayerReader
 const OVERLAYS_FILE := "overlays.cfg"
 const REMOVE_PREFIX := "remove:"
 
+var _codec: GDSQLGodotVariantCodec
+
+
+func _init(codec: GDSQLGodotVariantCodec = null) -> void:
+	_codec = codec if codec != null else GDSQLGodotVariantCodec.new()
+
 
 func read_layer(
 		source: GDSQLContentPackageSource,
@@ -22,8 +28,7 @@ func read_layer(
 	var layer := GDSQLContentPackageLayer.new(source, database_name)
 	result.value = layer
 	var resolver := GDSQLDatabasePathResolver.new(source.get_data_root())
-	var codec := GDSQLGodotVariantCodec.new()
-	var catalog := GDSQLConfigFileCatalogService.new(resolver, codec)
+	var catalog := GDSQLConfigFileCatalogService.new(resolver, _codec)
 	var database := catalog.get_database(database_name)
 	if database == null:
 		if source.manifest.kind == GDSQLContentPackageKind.Kind.BASE_GAME:
@@ -37,7 +42,7 @@ func read_layer(
 				),
 			)
 	else:
-		_read_database(layer, database, resolver, codec)
+		_read_database(layer, database, resolver, _codec)
 	_read_removals(layer, result)
 	return result
 
@@ -59,7 +64,11 @@ func _read_database(
 	)
 	for table in database.tables:
 		layer.table_definitions.append(table)
-		var snapshot := storage.read_table(table, null)
+		var snapshot := storage.read_table(
+			table,
+			null,
+			GDSQLStorageReadRequest.all(true),
+		)
 		for row in snapshot.rows:
 			layer.add_upsert(table.name, row.get_value(table.primary_key), row)
 

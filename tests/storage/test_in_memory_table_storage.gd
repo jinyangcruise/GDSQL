@@ -2,6 +2,7 @@ class_name GDSQLInMemoryTableStorageTest
 extends GdUnitTestSuite
 
 const TestDatabase = preload("res://tests/utils/gdsql_test_database.gd")
+const REFERENCED_ICON_PATH := "res://addons/gdsql/editor/workspace/icons/key.svg"
 
 var _data_root: String
 var _test_index := 0
@@ -148,6 +149,62 @@ func test_hydration_and_checkpoint_preserve_truncated_generated_key_state() -> v
 	assert_int(inserted.rows[0].get_value(&"id")).is_equal(1)
 	assert_bool(checkpoint.is_successful()).is_true()
 	assert_int(next_insert.rows[0].get_value(&"id")).is_equal(2)
+
+
+func test_hydration_keeps_referenced_assets_inert_in_memory() -> void:
+	var icon := load(REFERENCED_ICON_PATH) as Resource
+	var table := GDSQLTableDefinition.new(&"assets", &"id")
+	table.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	table.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
+	var icon_column := GDSQLColumnDefinition.new(&"icon", TYPE_OBJECT, false)
+	icon_column.resource_type = GDSQLResourceTypeConstraint.from_resource(icon)
+	icon_column.resource_ownership = GDSQLResourceOwnership.Mode.REFERENCED
+	table.add_column(icon_column)
+	var disk_database := TestDatabase.create_database(_data_root, table)
+	assert_bool(
+		disk_database.insert(
+			&"assets",
+			{&"id": 1, &"name": "Key", &"icon": icon},
+		).is_successful(),
+	).is_true()
+	var opened := GDSQLRuntimeFactory.open_registration(
+		GDSQLDatabaseRegistration.new(
+			&"runtime",
+			disk_database.database_name,
+			_data_root,
+			GDSQLStorageBackendIds.IN_MEMORY,
+		),
+	)
+
+	assert_bool(opened.is_successful()).is_true()
+	var memory := opened.get_database().context.storage as GDSQLInMemoryTableStorage
+	var stored := memory.read_table(
+		table,
+		null,
+		GDSQLStorageReadRequest.all(true),
+	)
+	assert_object(stored.rows[0].get_value(&"icon")) \
+			.is_instanceof(GDSQLResourceReference)
+	var changed_row := stored.rows[0].duplicate_record()
+	changed_row.set_value(&"name", "Updated key")
+	var session := GDSQLStorageSession.new()
+	assert_bool(memory.stage_update(table, 1, changed_row, session).is_successful()).is_true()
+	assert_bool(memory.commit(session).is_successful()).is_true()
+	var durable := GDSQLConfigFileTableStorage.new(
+		GDSQLDatabasePathResolver.new(_data_root),
+		GDSQLConfigFileCache.new(),
+		GDSQLGodotVariantCodec.new(),
+	)
+	assert_bool(GDSQLInMemoryCheckpointTarget.new(memory, durable).checkpoint().is_successful()) \
+			.is_true()
+	var checkpointed := durable.read_table(
+		table,
+		null,
+		GDSQLStorageReadRequest.all(true),
+	)
+	assert_str(checkpointed.rows[0].get_value(&"name")).is_equal("Updated key")
+	assert_object(checkpointed.rows[0].get_value(&"icon")) \
+			.is_instanceof(GDSQLResourceReference)
 
 
 func _heroes_table() -> GDSQLTableDefinition:

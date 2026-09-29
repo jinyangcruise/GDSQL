@@ -440,7 +440,11 @@ func _validate_session_constraints(
 						"Column '%s' is required in %s.%s." \
 								% [column.name, table.database_name, table.name],
 					)
-				if not column.accepts_value(row.get_value(column.name)):
+				var value: Variant = row.get_value(column.name)
+				if not column.accepts_value(value) and not (
+						value is GDSQLResourceReference
+						and (value as GDSQLResourceReference).matches_column(column)
+				):
 					var expected := column.expected_type_name()
 					return _commit_error(
 						&"GDSQL_STORAGE_COLUMN_TYPE_MISMATCH",
@@ -471,8 +475,9 @@ func _validate_unique_column(
 		primary_key: bool,
 ) -> GDSQLStorageCommitResult:
 	var seen: Array[Variant] = []
+	var column := table.get_column(column_name)
 	for row in rows:
-		var value: Variant = row.get_value(column_name)
+		var value: Variant = _comparable_value(row.get_value(column_name), column)
 		if value == null and not primary_key:
 			continue
 		if seen.has(value):
@@ -496,7 +501,14 @@ func _validate_unique_index(
 ) -> GDSQLStorageCommitResult:
 	var seen: Array[Array] = []
 	for row in rows:
-		var values := _index_values(row, index)
+		var values: Array = []
+		for column_name in index.columns:
+			values.append(
+				_comparable_value(
+					row.get_value(column_name),
+					table.get_column(column_name),
+				),
+			)
 		if values.has(null):
 			continue
 		if seen.has(values):
@@ -509,6 +521,17 @@ func _validate_unique_index(
 	var result := GDSQLStorageCommitResult.new()
 	result.value = true
 	return result
+
+
+func _comparable_value(value: Variant, column: GDSQLColumnDefinition) -> Variant:
+	if value is GDSQLResourceReference:
+		return (value as GDSQLResourceReference).to_dictionary()
+	if value is Resource and column != null \
+			and column.resource_ownership == GDSQLResourceOwnership.Mode.REFERENCED:
+		var reference := GDSQLResourceReference.from_resource(value, column.resource_type)
+		if reference != null:
+			return reference.to_dictionary()
+	return value
 
 
 func _index_values(

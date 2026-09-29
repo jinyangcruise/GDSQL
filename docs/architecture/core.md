@@ -1334,7 +1334,8 @@ and clears a dirty marker only when the copied version remains current. This
 adapter keeps checkpoint policy outside storage and keeps ConfigFile knowledge
 outside the in-memory backend. `load_table()` establishes a clean authoritative
 memory snapshot before runtime mutation when an existing durable dataset is
-used as the source.
+used as the source. Hydration and checkpoint reads preserve Resource locators;
+neither operation loads an external asset merely to transfer or compare rows.
 
 ### 11.4 Content package metadata
 
@@ -1368,7 +1369,9 @@ databases or mutates source content.
 `GDSQLContentPackageLayerReader` translates one package's selected logical
 database into typed table definitions and `GDSQLContentRowOperation` values.
 The ConfigFile implementation owns catalog, table-file, and `overlays.cfg`
-decoding. `GDSQLContentOverlayLoader` depends only on this reader contract.
+decoding and preserves referenced-asset identity while copying rows.
+`GDSQLContentOverlayLoader` depends only on this reader contract and validates
+those inert references against the copied column definition.
 
 The loader copies compatible schemas and rows into a deterministic
 `GDSQLContentDatabaseSnapshot`. Later packages replace rows with the same
@@ -1538,6 +1541,14 @@ materializes only required references through its injected resolver before
 expression evaluation, preserving concrete Resource values in ordinary public
 results. Resolver failures become query diagnostics containing database,
 table, row, and column context.
+
+Internal row transfers use a full-column read request with reference
+preservation. Managed package composition, effective-cache writes, in-memory
+hydration, checkpoint comparison, constraint validation, and index rebuilding
+therefore copy validated locator identity without materializing an asset. A
+`GDSQLResourceReference` is accepted as an internal stored value only when its
+ownership mode, expected Resource class, and project-script path match the
+column. It is not exposed as an ordinary eager query result.
 
 A future `GDSQLPagedBinaryTableStorage` can implement the same contract with
 one binary file per table. Each file begins with a typed header containing the

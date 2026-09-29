@@ -38,6 +38,8 @@ The current implementation provides:
 - Generated/user-owned model bindings, inferred same-database navigation,
   explicit many-to-many relationships, and cross-role content references.
 - Multi-table navigation and read-only Godot-AI MCP inspection tools.
+- Resource Stage A: required-column reads, inert locator transfer through
+  managed caches and in-memory checkpoints, and contextual materialization.
 
 Implementation detail belongs in `docs/architecture/`, public usage belongs in
 the VitePress guides, and completed change history belongs in Git. This file
@@ -47,8 +49,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Bounded Resource Stage A: prevent accidental loading | SELECT dependency reads and contextual materialization implemented; reference-preserving cache copies pending |
-| High — second | Versioned migration v1 and compatibility policy | Architecture decision and implementation required |
+| High — first | Versioned migration v1 and compatibility policy | Architecture decision and implementation required |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
@@ -59,7 +60,7 @@ tracks only product direction, active work, and deliberately deferred work.
 The order below is intentional and should remain stable across development
 sessions unless new evidence changes an architectural dependency:
 
-1. **Resource Stage A — avoid accidental loads.** Stabilize referenced-asset
+1. **Resource Stage A — avoid accidental loads (implemented and tested).** Stabilize referenced-asset
    identity, required-column reads, explicit materialization, and contextual
    diagnostics. Preserve the existing eager public behavior only for Resource
    values an operation actually needs.

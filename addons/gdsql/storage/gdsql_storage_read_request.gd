@@ -8,6 +8,12 @@ var all_columns := true
 var preserve_resource_references := false
 
 
+static func all(preserve_references: bool = false) -> GDSQLStorageReadRequest:
+	var request := GDSQLStorageReadRequest.new()
+	request.preserve_resource_references = preserve_references
+	return request
+
+
 static func for_columns(
 	columns: Array[StringName],
 	preserve_references: bool = false,

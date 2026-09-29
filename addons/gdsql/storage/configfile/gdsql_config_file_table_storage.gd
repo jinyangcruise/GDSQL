@@ -177,7 +177,8 @@ func stage_insert(
 			),
 		)
 		return result
-	if find_by_primary_key(table, key, session) != null or _has_staged_key(session, table, key):
+	if find_by_primary_key(table, key, session, _identity_request(table)) != null \
+			or _has_staged_key(session, table, key):
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_STORAGE_DUPLICATE_PRIMARY_KEY",
@@ -198,7 +199,7 @@ func stage_insert(
 
 func stage_update(table: GDSQLTableDefinition, key: Variant, row: GDSQLRowRecord, session: GDSQLStorageSession) -> GDSQLStorageOperationResult:
 	var result := GDSQLStorageOperationResult.new()
-	if find_by_primary_key(table, key, session) == null:
+	if find_by_primary_key(table, key, session, _identity_request(table)) == null:
 		return _missing_row_result(table, key, &"update")
 	if not row.has_column(table.primary_key) or row.get_value(table.primary_key) != key:
 		result.add_diagnostic(
@@ -217,7 +218,7 @@ func stage_update(table: GDSQLTableDefinition, key: Variant, row: GDSQLRowRecord
 
 
 func stage_delete(table: GDSQLTableDefinition, key: Variant, session: GDSQLStorageSession) -> GDSQLStorageOperationResult:
-	if find_by_primary_key(table, key, session) == null:
+	if find_by_primary_key(table, key, session, _identity_request(table)) == null:
 		return _missing_row_result(table, key, &"delete")
 	var result := GDSQLStorageOperationResult.new()
 	var metadata := _get_session_table_metadata(table, session)
@@ -233,7 +234,11 @@ func stage_truncate(
 		session: GDSQLStorageSession,
 ) -> GDSQLStorageOperationResult:
 	var result := GDSQLStorageOperationResult.new()
-	var removed_rows := _build_effective_rows(table, session).size()
+	var removed_rows := _build_effective_rows(
+		table,
+		session,
+		_identity_request(table),
+	).size()
 	var metadata := _get_session_table_metadata(table, session)
 	metadata["row_count"] = 0
 	metadata["next_auto_increment"] = 1
@@ -366,7 +371,11 @@ func _validate_session_constraints(
 		tables[_table_key(table)] = table
 	for table_value in tables.values():
 		var table := table_value as GDSQLTableDefinition
-		var rows := _build_effective_rows(table, session)
+		var rows := _build_effective_rows(
+			table,
+			session,
+			GDSQLStorageReadRequest.all(true),
+		)
 		var values_result := _validate_row_values(table, rows)
 		if not values_result.is_successful():
 			return values_result
@@ -514,7 +523,10 @@ func _validate_row_values(
 							% [column.name, table.database_name, table.name],
 				)
 			var value: Variant = row.get_value(column.name)
-			if not column.accepts_value(value):
+			if not column.accepts_value(value) and not (
+					value is GDSQLResourceReference
+					and (value as GDSQLResourceReference).matches_column(column)
+			):
 				var expected := column.expected_type_name()
 				return _commit_error(
 					&"GDSQL_STORAGE_COLUMN_TYPE_MISMATCH",
@@ -537,8 +549,9 @@ func _validate_unique_column(
 		primary_key: bool,
 ) -> GDSQLStorageCommitResult:
 	var seen_values: Array[Variant] = []
+	var column := table.get_column(column_name)
 	for row in rows:
-		var value: Variant = row.get_value(column_name)
+		var value: Variant = _comparable_value(row.get_value(column_name), column)
 		if value == null and not primary_key:
 			continue
 		if seen_values.has(value):
@@ -567,7 +580,10 @@ func _validate_unique_index(
 		var values: Array = []
 		var contains_null := false
 		for column_name in index.columns:
-			var value: Variant = row.get_value(column_name)
+			var value: Variant = _comparable_value(
+				row.get_value(column_name),
+				table.get_column(column_name),
+			)
 			values.append(value)
 			contains_null = contains_null or value == null
 		if contains_null:
@@ -589,8 +605,10 @@ func _rebuild_indexes(config: ConfigFile, table: GDSQLTableDefinition) -> void:
 		if section.begins_with(INDEX_SECTION_PREFIX):
 			config.erase_section(section)
 	for index in table.indexes:
+		var index_columns: Array[StringName] = index.columns.duplicate()
+		var request := GDSQLStorageReadRequest.for_columns(index_columns, true)
 		for row_section in _get_row_sections(config):
-			var row := _read_row(config, row_section, table)
+			var row := _read_row(config, row_section, table, request)
 			var values := _normalize_index_values(
 				table,
 				index,
@@ -620,6 +638,22 @@ func _rebuild_indexes(config: ConfigFile, table: GDSQLTableDefinition) -> void:
 			)
 			row_sections.append(row_section)
 			config.set_value(section, "rows", row_sections)
+
+
+func _identity_request(table: GDSQLTableDefinition) -> GDSQLStorageReadRequest:
+	var columns: Array[StringName] = [table.primary_key]
+	return GDSQLStorageReadRequest.for_columns(columns, true)
+
+
+func _comparable_value(value: Variant, column: GDSQLColumnDefinition) -> Variant:
+	if value is GDSQLResourceReference:
+		return (value as GDSQLResourceReference).to_dictionary()
+	if value is Resource and column != null \
+			and column.resource_ownership == GDSQLResourceOwnership.Mode.REFERENCED:
+		var reference := GDSQLResourceReference.from_resource(value, column.resource_type)
+		if reference != null:
+			return reference.to_dictionary()
+	return value
 
 
 func _decode_index_values(

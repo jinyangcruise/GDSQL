@@ -267,7 +267,11 @@ static func _hydrate_in_memory(
 	)
 	var memory := context.storage as GDSQLInMemoryTableStorage
 	for table in database.tables:
-		var snapshot := durable.read_table(table, null)
+		var snapshot := durable.read_table(
+			table,
+			null,
+			GDSQLStorageReadRequest.all(true),
+		)
 		if snapshot == null:
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(

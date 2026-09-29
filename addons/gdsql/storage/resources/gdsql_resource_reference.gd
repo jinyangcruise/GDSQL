@@ -15,6 +15,7 @@ var scope := PROJECT_SCOPE
 var uid := ""
 var fallback_path := ""
 var expected_type := &"Resource"
+var expected_script_path := ""
 
 
 static func from_resource(
@@ -31,9 +32,14 @@ static func from_resource(
 		else EXTERNAL_SCOPE
 	)
 	reference.expected_type = (
-		resource_type.picker_base_type()
+		resource_type.resource_class
 		if resource_type != null and resource_type.is_valid()
 		else &"Resource"
+	)
+	reference.expected_script_path = (
+		resource_type.script_path
+		if resource_type != null and resource_type.is_valid()
+		else ""
 	)
 	var resource_uid := ResourceLoader.get_resource_uid(reference.fallback_path)
 	if resource_uid != ResourceUID.INVALID_ID:
@@ -49,12 +55,24 @@ static func from_dictionary(data: Dictionary) -> GDSQLResourceReference:
 	reference.uid = String(data.get("uid", ""))
 	reference.fallback_path = String(data.get("path", ""))
 	reference.expected_type = StringName(data.get("expected_type", "Resource"))
+	reference.expected_script_path = String(data.get("expected_script_path", ""))
 	return reference if reference.is_valid() else null
 
 
 func is_valid() -> bool:
 	return scope in [PROJECT_SCOPE, PACKAGE_SCOPE, EXTERNAL_SCOPE] \
+			and expected_type != &"" \
 			and (not uid.is_empty() or not fallback_path.is_empty())
+
+
+func matches_column(column: GDSQLColumnDefinition) -> bool:
+	return is_valid() \
+			and column != null \
+			and column.resource_ownership == GDSQLResourceOwnership.Mode.REFERENCED \
+			and column.resource_type != null \
+			and column.resource_type.is_valid() \
+			and expected_type == column.resource_type.resource_class \
+			and expected_script_path == column.resource_type.script_path
 
 
 func to_dictionary() -> Dictionary:
@@ -64,4 +82,5 @@ func to_dictionary() -> Dictionary:
 		"uid": uid,
 		"path": fallback_path,
 		"expected_type": String(expected_type),
+		"expected_script_path": expected_script_path,
 	}
