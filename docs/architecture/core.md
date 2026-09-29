@@ -1831,7 +1831,10 @@ are never reordered automatically.
 
 `GDSQLMigrationLedger` is the persistence contract for append-only applied
 history. `GDSQLAppliedMigration` records the exact migration ID and checksum,
-application time, and resulting whole-schema fingerprint.
+application time, and resulting whole-schema fingerprint. Both checksums are
+validated SHA-256 values. `GDSQLSchemaFingerprint` deterministically hashes the
+database name and sorted tables, indexes, and foreign keys while preserving
+semantic column and key order.
 `GDSQLConfigFileMigrationLedger` stores the ordered ledger at
 `<data_root>/<database>/migrations.cfg`; the path remains owned by
 `GDSQLDatabasePathResolver`. Appends carry an expected record count so stale
@@ -1876,10 +1879,26 @@ entries are invalidated after successful recovery. Corrupt snapshots never
 touch the active database, and identity-based discard permits explicit cleanup
 even when a manifest or snapshot cannot be loaded.
 
-This boundary still does not execute migrations. The next slice composes the
-catalog plan, recovery store, catalog application, resulting schema
-fingerprint, and ledger append into one runner. Catalog execution remains the
-sole schema validation and persistence authority.
+`GDSQLMigrationRunner` composes the catalog, catalog administration, ledger,
+and recovery contracts through constructor injection. `apply()` accepts only a
+validated `GDSQLMigrationCatalogPlan`, reloads the ledger to reject stale
+history, and compares the current whole-schema fingerprint with the last
+applied record before creating a backup. The plan's database, table, authored
+checksum, and catalog alterations must describe the same migration.
+
+After those preconditions pass, the runner creates a durable backup, applies
+the stale-safe catalog plan, fingerprints the resulting schema, and appends one
+`GDSQLAppliedMigration` with the plan's expected ledger count. A catalog,
+fingerprint, or ledger failure restores the complete backup automatically. The
+backup is discarded only after successful ledger persistence or successful
+recovery. Cleanup failure retains the backup and reports a warning without
+misreporting an otherwise committed migration as failed.
+
+`GDSQLMigrationRunResult` exposes the applied record, backup identity,
+automatic-recovery status, and whether recovery files remain. The runner does
+not infer migrations, apply multiple pending entries at once, or bypass catalog
+validation. Public composition and editor authoring remain separate product
+flows over this execution boundary.
 
 ---
 

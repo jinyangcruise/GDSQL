@@ -427,6 +427,14 @@ MigrationRecovery("`**GDSQLMigrationRecoveryStore**
 *API:* create_backup(), load_backup(), restore(), discard()
 *Boundary:* Durable recovery, not query transactions or long-term archives`")
 
+MigrationRunner("`**GDSQLMigrationRunner**
+
+-
+*Input:* One validated GDSQLMigrationCatalogPlan
+*Preconditions:* Current ledger count and whole-schema fingerprint
+*Success:* Apply catalog plan, fingerprint result, append ledger, discard backup
+*Failure:* Restore complete backup and retain structured diagnostics`")
+
 TableStorage("`**GDSQLTableStorage**
 
 -
@@ -630,7 +638,11 @@ Workbench -->|"preview · apply change plan"| CatalogAdministration
 MigrationHistory -->|"compare authored and applied prefix"| MigrationLedger
 MigrationHistory -->|"preview next pending entry"| MigrationCatalogPlanning
 MigrationCatalogPlanning -->|"preview_alter_table()"| CatalogAdministration
-MigrationCatalogPlanning -->|"requires pre-apply recovery snapshot"| MigrationRecovery
+MigrationCatalogPlanning -->|"validated next plan"| MigrationRunner
+MigrationRunner -->|"create · restore · discard"| MigrationRecovery
+MigrationRunner -->|"apply_change_plan()"| CatalogAdministration
+MigrationRunner -->|"load · append applied record"| MigrationLedger
+MigrationRunner -->|"read schema for drift and result fingerprints"| CatalogService
 Workbench -->|"table designer context"| ForeignKeyAuthoring
 ForeignKeyAuthoring -->|"typed add/drop intent"| CatalogAdministration
 ForeignKeyAuthoring -.->|"candidate metadata"| ForeignKeys
@@ -705,7 +717,7 @@ class Translators translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
 class Planner,PlanNode planning;
-class Executor,ForeignKeyValidation execution;
+class Executor,ForeignKeyValidation,MigrationRunner execution;
 class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationCatalogPlanning,MigrationLedger,MigrationRecovery catalog;
 class TableStorage storage;
 class ConfigCatalog,ConfigAdministration,ConfigMigrationLedger,ConfigMigrationRecovery,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;

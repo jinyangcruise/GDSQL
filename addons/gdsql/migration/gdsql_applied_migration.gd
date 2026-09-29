@@ -2,8 +2,6 @@ class_name GDSQLAppliedMigration
 extends RefCounted
 ## Durable evidence that one exact migration reached one database schema.
 
-const HEX_CHARACTERS := "0123456789abcdef"
-
 var migration_id: String
 var checksum: String
 var applied_at_unix_ms: int
@@ -24,15 +22,6 @@ func _init(
 
 func is_valid() -> bool:
 	return GDSQLMigrationDefinition.is_valid_id(migration_id) \
-			and _is_sha256(checksum) \
+			and GDSQLMigrationChecksum.is_valid(checksum) \
 			and applied_at_unix_ms > 0 \
-			and not schema_fingerprint.is_empty()
-
-
-func _is_sha256(value: String) -> bool:
-	if value.length() != 64:
-		return false
-	for character in value.to_lower():
-		if not HEX_CHARACTERS.contains(character):
-			return false
-	return true
+			and GDSQLSchemaFingerprint.is_valid(schema_fingerprint)

@@ -2,6 +2,11 @@ class_name GDSQLMigrationChecksum
 extends RefCounted
 ## Produces a deterministic SHA-256 identity for one authored migration.
 
+const CanonicalValue = preload(
+	"res://addons/gdsql/migration/gdsql_migration_canonical_value.gd"
+)
+const HEX_CHARACTERS := "0123456789abcdef"
+
 
 static func compute(migration: GDSQLMigrationDefinition) -> String:
 	if migration == null:
@@ -21,6 +26,15 @@ static func compute(migration: GDSQLMigrationDefinition) -> String:
 			or hashing.update(payload) != OK:
 		return ""
 	return hashing.finish().hex_encode()
+
+
+static func is_valid(value: String) -> bool:
+	if value.length() != 64:
+		return false
+	for character in value.to_lower():
+		if not HEX_CHARACTERS.contains(character):
+			return false
+	return true
 
 
 static func _serialize_step(step: GDSQLSchemaMigrationStep) -> Array:
@@ -44,7 +58,7 @@ static func _serialize_alteration(alteration: GDSQLTableAlteration) -> Array:
 		String(alteration.index_name),
 		_serialize_foreign_key(alteration.foreign_key),
 		String(alteration.foreign_key_name),
-		_serialize_value(alteration.value),
+		CanonicalValue.serialize(alteration.value),
 		alteration.enabled,
 		alteration.generation,
 		alteration.resource_ownership,
@@ -64,7 +78,7 @@ static func _serialize_column(column: GDSQLColumnDefinition) -> Array:
 		column.generation,
 		column.resource_ownership,
 		column.has_default(),
-		_serialize_value(column.get_default_value()) if column.has_default() else null,
+		CanonicalValue.serialize(column.get_default_value()) if column.has_default() else null,
 		String(column.resource_type.resource_class) if column.resource_type != null else "",
 		column.resource_type.script_path if column.resource_type != null else "",
 	]
@@ -87,30 +101,3 @@ static func _serialize_foreign_key(foreign_key: GDSQLForeignKeyDefinition) -> Ar
 		foreign_key.on_delete,
 		foreign_key.on_update,
 	]
-
-
-static func _serialize_value(value: Variant) -> Variant:
-	if value is Dictionary:
-		var entries: Array = []
-		var keys: Array = value.keys()
-		keys.sort_custom(
-			func(left: Variant, right: Variant) -> bool:
-				return var_to_str(left) < var_to_str(right),
-		)
-		for key in keys:
-			entries.append([_serialize_value(key), _serialize_value(value[key])])
-		return [TYPE_DICTIONARY, entries]
-	if value is Array:
-		var items: Array = []
-		for item in value:
-			items.append(_serialize_value(item))
-		return [TYPE_ARRAY, items]
-	if value is Resource:
-		var resource := value as Resource
-		return [
-			TYPE_OBJECT,
-			resource.get_class(),
-			resource.resource_path,
-			var_to_str(resource),
-		]
-	return [typeof(value), var_to_str(value)]

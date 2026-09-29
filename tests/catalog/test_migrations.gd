@@ -7,6 +7,83 @@ var _data_root: String
 var _test_index := 0
 
 
+class FailingAppendLedger:
+	extends GDSQLMigrationLedger
+
+	var snapshot := GDSQLMigrationLedgerSnapshot.new()
+
+
+	func load(_database_name: StringName) -> GDSQLOperationResult:
+		var result := GDSQLOperationResult.new()
+		result.value = snapshot
+		return result
+
+
+	func append(
+			_database_name: StringName,
+			_record: GDSQLAppliedMigration,
+			_expected_record_count: int,
+	) -> GDSQLOperationResult:
+		var result := GDSQLOperationResult.new()
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_TEST_LEDGER_APPEND_FAILED",
+				"Forced ledger append failure.",
+			),
+		)
+		return result
+
+
+class ConfigMigrationHarness:
+	extends RefCounted
+
+	var catalog: GDSQLCatalogService
+	var administration: GDSQLCatalogAdministrationService
+	var ledger: GDSQLMigrationLedger
+	var recovery: GDSQLMigrationRecoveryStore
+	var runner: GDSQLMigrationRunner
+
+
+	func _init(data_root: String) -> void:
+		var resolver := GDSQLDatabasePathResolver.new(data_root)
+		var cache := GDSQLConfigFileCache.new()
+		var codec := GDSQLGodotVariantCodec.new()
+		catalog = GDSQLConfigFileCatalogService.new(resolver, codec)
+		administration = GDSQLConfigFileCatalogAdministrationService.new(
+			resolver,
+			catalog,
+			cache,
+			codec,
+		)
+		ledger = GDSQLConfigFileMigrationLedger.new(resolver)
+		recovery = GDSQLConfigFileMigrationRecoveryStore.new(resolver, cache)
+		runner = GDSQLMigrationRunner.new(
+			catalog,
+			administration,
+			ledger,
+			recovery,
+		)
+
+
+	func preview(
+			database_name: StringName,
+			history: Array[GDSQLMigrationDefinition],
+	) -> GDSQLMigrationCatalogPlan:
+		var loaded := ledger.load(database_name)
+		assert(loaded.is_successful())
+		var planned := GDSQLMigrationPlanner.new().plan(
+			history,
+			loaded.get_value(),
+		)
+		assert(planned.is_successful())
+		var previewed := GDSQLMigrationCatalogPlanner.new(administration).preview_next(
+			database_name,
+			planned.get_value(),
+		)
+		assert(previewed.is_successful())
+		return previewed.get_value() as GDSQLMigrationCatalogPlan
+
+
 func before_test() -> void:
 	_test_index += 1
 	_data_root = create_temp_dir("gdsql_migrations_%d" % _test_index)
@@ -38,7 +115,7 @@ func test_planner_returns_only_the_unapplied_ordered_suffix() -> void:
 				first.migration_id,
 				first.checksum,
 				1,
-				"schema-first",
+				_valid_fingerprint("a"),
 			),
 		],
 	)
@@ -63,7 +140,7 @@ func test_planner_rejects_changed_divergent_and_missing_history() -> void:
 		original.migration_id,
 		original.checksum,
 		1,
-		"schema-first",
+		_valid_fingerprint("a"),
 	)
 	var planner := GDSQLMigrationPlanner.new()
 
@@ -94,17 +171,20 @@ func test_config_file_ledger_round_trips_and_rejects_stale_append() -> void:
 	)
 	var first_definition := _migration("202609280001_add_level")
 	var second_definition := _migration("202609280002_add_rank")
+	var schema_fingerprint := GDSQLSchemaFingerprint.compute(
+		database.context.catalog.get_database(database.database_name),
+	)
 	var first := GDSQLAppliedMigration.new(
 		first_definition.migration_id,
 		first_definition.checksum,
 		1,
-		"schema-first",
+		schema_fingerprint,
 	)
 	var second := GDSQLAppliedMigration.new(
 		second_definition.migration_id,
 		second_definition.checksum,
 		2,
-		"schema-second",
+		schema_fingerprint,
 	)
 
 	assert_bool(ledger.append(database.database_name, first, 0).is_successful()).is_true()
@@ -117,7 +197,7 @@ func test_config_file_ledger_round_trips_and_rejects_stale_append() -> void:
 	var snapshot := loaded.get_value() as GDSQLMigrationLedgerSnapshot
 	assert_int(snapshot.records.size()).is_equal(2)
 	assert_str(snapshot.records[0].migration_id).is_equal(first.migration_id)
-	assert_str(snapshot.records[1].schema_fingerprint).is_equal("schema-second")
+	assert_str(snapshot.records[1].schema_fingerprint).is_equal(schema_fingerprint)
 
 
 func test_catalog_planner_previews_next_migration_without_mutation() -> void:
@@ -235,7 +315,9 @@ func test_config_file_recovery_restores_database_rows_schema_and_ledger() -> voi
 		previous_definition.migration_id,
 		previous_definition.checksum,
 		1,
-		"before-backup",
+		GDSQLSchemaFingerprint.compute(
+			database.context.catalog.get_database(database.database_name),
+		),
 	)
 	assert_bool(
 		ledger.append(database.database_name, previous_record, 0).is_successful(),
@@ -262,6 +344,9 @@ func test_config_file_recovery_restores_database_rows_schema_and_ledger() -> voi
 		).is_successful(),
 	).is_true()
 	var applied_definition := _migration("202609280001_add_level")
+	var applied_fingerprint := GDSQLSchemaFingerprint.compute(
+		database.context.catalog.get_database(database.database_name),
+	)
 	assert_bool(
 		ledger.append(
 			database.database_name,
@@ -269,7 +354,7 @@ func test_config_file_recovery_restores_database_rows_schema_and_ledger() -> voi
 				applied_definition.migration_id,
 				applied_definition.checksum,
 				2,
-				"after-migration",
+				applied_fingerprint,
 			),
 			1,
 		).is_successful(),
@@ -352,6 +437,140 @@ func test_config_file_recovery_rejects_a_corrupted_snapshot_without_mutation() -
 	).is_not_null()
 
 
+func test_runner_applies_catalog_change_and_records_schema_fingerprint() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var harness := ConfigMigrationHarness.new(_data_root)
+	var migration := _migration("202609280001_add_level")
+	var plan := harness.preview(database.database_name, [migration])
+
+	var result := harness.runner.apply(plan)
+
+	assert_bool(result.is_successful()).is_true()
+	assert_object(result.applied_migration).is_not_null()
+	assert_bool(result.applied_migration.is_valid()).is_true()
+	assert_bool(result.recovered).is_false()
+	assert_bool(result.backup_retained).is_false()
+	var reopened := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	assert_object(
+		reopened.context.catalog.get_table(database.database_name, &"heroes") \
+				.get_column(&"level"),
+	).is_not_null()
+	var rows := reopened.execute(
+		reopened.query().select().from_table(&"heroes").build(),
+	)
+	assert_int(rows.rows.size()).is_equal(2)
+	for row in rows.rows:
+		assert_int(row.get_value(&"level")).is_equal(1)
+	var ledger := harness.ledger.load(database.database_name).get_value() \
+			as GDSQLMigrationLedgerSnapshot
+	assert_int(ledger.records.size()).is_equal(1)
+	assert_str(ledger.records[0].schema_fingerprint).is_equal(
+		GDSQLSchemaFingerprint.compute(
+			harness.catalog.get_database(database.database_name),
+		),
+	)
+	var missing_backup := harness.recovery.load_backup(
+		database.database_name,
+		migration.migration_id,
+	)
+	assert_str(_first_code(missing_backup)).is_equal(
+		"GDSQL_MIGRATION_BACKUP_NOT_FOUND",
+	)
+
+
+func test_runner_restores_backup_when_ledger_append_fails() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var harness := ConfigMigrationHarness.new(_data_root)
+	var migration := _migration("202609280001_add_level")
+	var history := GDSQLMigrationPlanner.new().plan(
+		[migration],
+		GDSQLMigrationLedgerSnapshot.new(),
+	)
+	var preview := GDSQLMigrationCatalogPlanner.new(
+		harness.administration,
+	).preview_next(database.database_name, history.get_value())
+	var runner := GDSQLMigrationRunner.new(
+		harness.catalog,
+		harness.administration,
+		FailingAppendLedger.new(),
+		harness.recovery,
+	)
+
+	var result := runner.apply(preview.get_value())
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(_first_code(result)).is_equal("GDSQL_TEST_LEDGER_APPEND_FAILED")
+	assert_bool(result.recovered).is_true()
+	assert_bool(result.backup_retained).is_false()
+	var reopened := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	assert_object(
+		reopened.context.catalog.get_table(database.database_name, &"heroes") \
+				.get_column(&"level"),
+	).is_null()
+	var rows := reopened.execute(
+		reopened.query().select().from_table(&"heroes").build(),
+	)
+	assert_int(rows.rows.size()).is_equal(2)
+
+
+func test_runner_restores_preexisting_state_when_catalog_plan_is_stale() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	var harness := ConfigMigrationHarness.new(_data_root)
+	var migration := _migration("202609280001_add_level")
+	var plan := harness.preview(database.database_name, [migration])
+	var unrelated: Array[GDSQLTableAlteration] = [
+		GDSQLTableAlteration.add_column(
+			GDSQLColumnDefinition.new(&"rank", TYPE_INT, false, false, false, 1),
+		),
+	]
+	assert_bool(database.alter_table(&"heroes", unrelated).is_successful()).is_true()
+
+	var result := harness.runner.apply(plan)
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(_first_code(result)).is_equal("GDSQL_CATALOG_CHANGE_PLAN_STALE")
+	assert_bool(result.recovered).is_true()
+	var reopened := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	var table := reopened.context.catalog.get_table(database.database_name, &"heroes")
+	assert_object(table.get_column(&"rank")).is_not_null()
+	assert_object(table.get_column(&"level")).is_null()
+
+
+func test_runner_rejects_schema_drift_before_creating_a_backup() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	var harness := ConfigMigrationHarness.new(_data_root)
+	var first := _migration("202609280001_add_level")
+	assert_bool(
+		harness.runner.apply(
+			harness.preview(database.database_name, [first]),
+		).is_successful(),
+	).is_true()
+	var drift: Array[GDSQLTableAlteration] = [
+		GDSQLTableAlteration.add_column(
+			GDSQLColumnDefinition.new(&"rank", TYPE_INT, false, false, false, 1),
+		),
+	]
+	assert_bool(database.alter_table(&"heroes", drift).is_successful()).is_true()
+	var second := _migration(
+		"202609280002_add_mana",
+		GDSQLTableAlteration.add_column(
+			GDSQLColumnDefinition.new(&"mana", TYPE_INT, false, false, false, 0),
+		),
+	)
+	var plan := harness.preview(database.database_name, [first, second])
+
+	var result := harness.runner.apply(plan)
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(_first_code(result)).is_equal("GDSQL_MIGRATION_SCHEMA_DRIFT")
+	assert_object(result.backup).is_null()
+	var table := harness.catalog.get_table(database.database_name, &"heroes")
+	assert_object(table.get_column(&"rank")).is_not_null()
+	assert_object(table.get_column(&"mana")).is_null()
+
+
 func _migration(
 		migration_id: String,
 		alteration: GDSQLTableAlteration = null,
@@ -369,3 +588,7 @@ func _migration(
 
 func _first_code(result: GDSQLOperationResult) -> String:
 	return String(result.diagnostics.entries[0].code)
+
+
+func _valid_fingerprint(character: String) -> String:
+	return character.repeat(64)

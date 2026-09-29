@@ -207,8 +207,9 @@ state in the same change as implementation or test work.
 |---|---|---|---|---|
 | `SchemaMigrationStep` | Migration input | Groups one ordered set of existing `TableAlteration` intents for a target table. | `is_valid()`, `is_destructive()` | 🧪 |
 | `MigrationDefinition` | Migration input | Describes one stable, ordered, forward-only project migration and retains its authored checksum so later edits are detectable. | `is_valid()`, `has_valid_checksum()`, `is_destructive()`, `is_valid_id()` | 🧪 |
-| `MigrationChecksum` | Migration integrity | Produces deterministic SHA-256 identity from migration metadata and normalized alteration values. | `compute()` | 🧪 |
-| `AppliedMigration` | Migration history | Records the exact applied ID and checksum, application time, and resulting schema fingerprint. | Typed fields, `is_valid()` | 🧪 |
+| `MigrationChecksum` | Migration integrity | Produces and validates deterministic SHA-256 identity from migration metadata and normalized alteration values. | `compute()`, `is_valid()` | 🧪 |
+| `SchemaFingerprint` | Migration integrity | Produces deterministic SHA-256 identity from a complete database catalog definition for drift detection and applied-history evidence. | `compute()`, `is_valid()` | 🧪 |
+| `AppliedMigration` | Migration history | Records the exact applied ID and SHA-256 checksum, application time, and validated resulting whole-schema fingerprint. | Typed fields, `is_valid()` | 🧪 |
 | `MigrationLedgerSnapshot` | Migration history | Holds ordered applied records and supports identity lookup without persistence knowledge. | `find()`, `last_id()` | 🧪 |
 | `MigrationLedger` | Migration persistence | Abstract append-only boundary for loading and extending one database's applied history with stale-count protection. | `load()`, `append()` | 🧪 |
 | `ConfigFileMigrationLedger` | Migration backend | Persists and validates the ordered applied ledger beside a ConfigFile database. | MigrationLedger implementation | 🧪 |
@@ -219,6 +220,8 @@ state in the same change as implementation or test work.
 | `MigrationBackup` | Migration recovery | Durable identity and SHA-256 integrity evidence for one complete pre-migration database snapshot. | Typed fields, `is_valid()` | 🧪 |
 | `MigrationRecoveryStore` | Migration recovery | Backend-neutral boundary for creating, reloading, restoring, and explicitly discarding pre-migration snapshots. | `create_backup()`, `load_backup()`, `restore()`, `discard()` | 🧪 |
 | `ConfigFileMigrationRecoveryStore` | Migration backend | Creates fingerprinted whole-database snapshots and restores them with a staged directory swap and cache invalidation. | MigrationRecoveryStore implementation | 🧪 |
+| `MigrationRunner` | Migration execution | Validates a catalog preview against current history and schema, creates recovery state, applies one catalog plan, fingerprints the result, appends the ledger, and automatically restores on failure. | `apply()` | 🧪 |
+| `MigrationRunResult` | Migration result | Reports the applied record, backup identity, automatic recovery outcome, and retained-cleanup state without hiding stage diagnostics. | `complete()`, typed outcome fields | 🧪 |
 
 ## Storage
 
