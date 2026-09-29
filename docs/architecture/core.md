@@ -1843,10 +1843,24 @@ IDs, checksum changes, malformed records, and divergent IDs return structured
 diagnostics. A successful `GDSQLMigrationPlan` contains only the pending suffix
 and reports whether it contains destructive alterations.
 
-This foundation does not execute changes. The next migration slice composes
-pending steps with `preview_alter_table()` and stale-safe catalog change plans,
-then adds ConfigFile backup/recovery before applying a migration and appending
-its ledger record. Catalog execution remains the sole schema validation and
+`GDSQLMigrationCatalogPlanner` receives catalog administration through
+constructor injection and previews only the next pending history entry.
+`preview_next()` delegates schema validation to `preview_alter_table()` and
+returns a `GDSQLMigrationCatalogPlan` containing the migration identity, its
+stale-safe `GDSQLCatalogChangePlan`, affected rows and summaries, and the
+expected applied-ledger count. Previewing does not mutate schema, rows, or the
+ledger.
+
+Migration v1 authors one table step per migration. This makes every preview
+accurate against the current catalog and permits later migrations to be
+replanned after each successful application. A definition containing multiple
+steps receives a structured unsupported-preview diagnostic. Cross-table atomic
+simulation remains part of later multi-table migration orchestration rather
+than approximating dependent steps against stale schema.
+
+This boundary still does not execute changes. The next migration slice adds
+ConfigFile backup/recovery before applying the catalog plan and appending its
+ledger record. Catalog execution remains the sole schema validation and
 persistence authority.
 
 ---

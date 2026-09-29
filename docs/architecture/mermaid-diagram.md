@@ -403,6 +403,14 @@ MigrationHistory("`**Schema Migration History**
 *Plan:* GDSQLMigrationPlanner returns pending definitions and destructive status
 *Boundary:* Models never create or infer migrations`")
 
+MigrationCatalogPlanning("`**Migration Catalog Planning**
+
+-
+*Input:* Target database and next pending migration
+*API:* GDSQLMigrationCatalogPlanner.preview_next()
+*Output:* GDSQLMigrationCatalogPlan wrapping a stale-safe catalog change plan
+*Initial scope:* One table step per migration; no mutation`")
+
 MigrationLedger("`**GDSQLMigrationLedger**
 
 -
@@ -604,6 +612,8 @@ McpAdapter -.->|"profile readiness"| DirectSetup
 McpAdapter -.->|"managed readiness"| ManagedSetup
 Workbench -->|"preview · apply change plan"| CatalogAdministration
 MigrationHistory -->|"compare authored and applied prefix"| MigrationLedger
+MigrationHistory -->|"preview next pending entry"| MigrationCatalogPlanning
+MigrationCatalogPlanning -->|"preview_alter_table()"| CatalogAdministration
 Workbench -->|"table designer context"| ForeignKeyAuthoring
 ForeignKeyAuthoring -->|"typed add/drop intent"| CatalogAdministration
 ForeignKeyAuthoring -.->|"candidate metadata"| ForeignKeys
@@ -677,7 +687,7 @@ class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
 class Planner,PlanNode planning;
 class Executor,ForeignKeyValidation execution;
-class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationLedger catalog;
+class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationCatalogPlanning,MigrationLedger catalog;
 class TableStorage storage;
 class ConfigCatalog,ConfigAdministration,ConfigMigrationLedger,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
 class ResourceMaterialization storage;

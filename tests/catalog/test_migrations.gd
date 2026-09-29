@@ -120,6 +120,109 @@ func test_config_file_ledger_round_trips_and_rejects_stale_append() -> void:
 	assert_str(snapshot.records[1].schema_fingerprint).is_equal("schema-second")
 
 
+func test_catalog_planner_previews_next_migration_without_mutation() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var migration := _migration("202609280001_add_level")
+	var history_result := GDSQLMigrationPlanner.new().plan(
+		[migration],
+		GDSQLMigrationLedgerSnapshot.new(),
+	)
+	var planner := GDSQLMigrationCatalogPlanner.new(
+		database.context.catalog_administration,
+	)
+
+	var result := planner.preview_next(database.database_name, history_result.get_value())
+
+	assert_bool(result.is_successful()).is_true()
+	var plan := result.get_value() as GDSQLMigrationCatalogPlan
+	assert_str(plan.migration.migration_id).is_equal(migration.migration_id)
+	assert_int(plan.expected_ledger_count).is_equal(0)
+	assert_int(plan.affected_rows()).is_equal(2)
+	assert_bool(plan.requires_confirmation()).is_false()
+	assert_array(plan.summaries()).has_size(1)
+	assert_object(
+		database.context.catalog.get_table(database.database_name, &"heroes") \
+				.get_column(&"level"),
+	).is_null()
+
+
+func test_catalog_migration_preview_retains_stale_schema_protection() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	var migration := _migration("202609280001_add_level")
+	var history_result := GDSQLMigrationPlanner.new().plan(
+		[migration],
+		GDSQLMigrationLedgerSnapshot.new(),
+	)
+	var planner := GDSQLMigrationCatalogPlanner.new(
+		database.context.catalog_administration,
+	)
+	var preview := planner.preview_next(
+		database.database_name,
+		history_result.get_value(),
+	)
+	var plan := preview.get_value() as GDSQLMigrationCatalogPlan
+	var unrelated: Array[GDSQLTableAlteration] = [
+		GDSQLTableAlteration.add_column(
+			GDSQLColumnDefinition.new(&"rank", TYPE_INT, false, false, false, 1),
+		),
+	]
+	assert_bool(database.alter_table(&"heroes", unrelated).is_successful()).is_true()
+
+	var apply_result := database.context.apply_change_plan(plan.change_plan)
+
+	assert_bool(apply_result.is_successful()).is_false()
+	assert_str(_first_code(apply_result)).is_equal("GDSQL_CATALOG_CHANGE_PLAN_STALE")
+
+
+func test_catalog_planner_rejects_multi_step_preview_without_mutation() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	var steps: Array[GDSQLSchemaMigrationStep] = [
+		GDSQLSchemaMigrationStep.new(
+			&"heroes",
+			[
+				GDSQLTableAlteration.add_column(
+					GDSQLColumnDefinition.new(
+						&"level",
+						TYPE_INT,
+						false,
+						false,
+						false,
+						1,
+					),
+				),
+			],
+		),
+		GDSQLSchemaMigrationStep.new(
+			&"heroes",
+			[GDSQLTableAlteration.set_column_unique(&"name", true)],
+		),
+	]
+	var migration := GDSQLMigrationDefinition.new(
+		"202609280001_multiple_steps",
+		"Unsupported initial dry run",
+		steps,
+	)
+	var history_result := GDSQLMigrationPlanner.new().plan(
+		[migration],
+		GDSQLMigrationLedgerSnapshot.new(),
+	)
+	var planner := GDSQLMigrationCatalogPlanner.new(
+		database.context.catalog_administration,
+	)
+
+	var result := planner.preview_next(database.database_name, history_result.get_value())
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(_first_code(result)).is_equal(
+		"GDSQL_MIGRATION_MULTI_STEP_PREVIEW_UNSUPPORTED",
+	)
+	assert_object(
+		database.context.catalog.get_table(database.database_name, &"heroes") \
+				.get_column(&"level"),
+	).is_null()
+
+
 func _migration(
 		migration_id: String,
 		alteration: GDSQLTableAlteration = null,

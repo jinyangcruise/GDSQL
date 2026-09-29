@@ -49,7 +49,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Versioned migration v1 and compatibility policy | Ordered definitions, checksums, history planner, and ConfigFile ledger implemented; catalog dry-run, backup, recovery, and execution pending |
+| High — first | Versioned migration v1 and compatibility policy | Ordered definitions, checksums, history planner, ConfigFile ledger, and next-migration catalog dry-run implemented; backup, recovery, and execution pending |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
@@ -328,7 +328,9 @@ slice provides:
    `GDSQLTableAlteration` vocabulary. Implemented.
 3. A persisted applied-migration ledger and schema fingerprint. Implemented.
 4. Dry-run planning with affected objects, destructive classification, and
-   structured diagnostics.
+   structured diagnostics. Implemented for the next pending migration under
+   the v1 one-table-step-per-migration rule; later multi-table orchestration
+   remains separate.
 5. Backup and recovery behavior for ConfigFile databases.
 6. Headless validation suitable for professional-team CI.
 

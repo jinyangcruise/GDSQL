@@ -214,6 +214,8 @@ state in the same change as implementation or test work.
 | `ConfigFileMigrationLedger` | Migration backend | Persists and validates the ordered applied ledger beside a ConfigFile database. | MigrationLedger implementation | 🧪 |
 | `MigrationPlanner` | Migration planning | Validates that applied history is an exact checksum-matching prefix of authored history and returns only pending definitions. | `plan()` | 🧪 |
 | `MigrationPlan` | Migration planning | Reports the applied count, pending suffix, and destructive classification before catalog-specific dry-run plans are built. | `is_up_to_date()` | 🧪 |
+| `MigrationCatalogPlanner` | Migration planning | Non-mutating composer that previews the next pending, single-table-step migration through injected catalog administration and returns structured diagnostics for unsupported shapes. | `preview_next()` | 🧪 |
+| `MigrationCatalogPlan` | Migration planning | Carries the pending migration identity, stale-safe catalog change plan, affected rows, summaries, destructive status, and expected ledger count into the later recovery-safe runner. | `affected_rows()`, `summaries()`, `requires_confirmation()` | 🧪 |
 
 ## Storage
 
