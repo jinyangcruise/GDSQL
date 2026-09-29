@@ -5,7 +5,13 @@ extends RefCounted
 ##
 ## Godot plugin lifecycle and control placement remain in the EditorPlugin.
 
+signal navigation_catalog_changed
+
 const PROJECT_DATA_ROOT := "res://data"
+const SAVE_SLOTS_ROOT := "user://gdsql/saves"
+const RUNTIME_AUTOLOAD_SETTING := "autoload/GDSQLRuntime"
+const RUNTIME_NODE_PATH := "res://addons/gdsql/runtime/gdsql_runtime_node.tscn"
+const TABLE_COUNT_ALIAS := &"row_count"
 
 var action_hub: GDSQLEditorActionHub
 var workbench: GDSQLWorkbench
@@ -14,6 +20,20 @@ var _database_dock: GDSQLDatabaseDock
 var _logs_panel: GDSQLLogsPanel
 var _workspace_loaded := false
 var _request_filesystem_scan: Callable
+var _mutation_histories: Dictionary[String, GDSQLEditorMutationHistory] = { }
+
+
+static func _registration_prefix_for_root(
+		database_name: StringName,
+		data_root: String,
+) -> StringName:
+	var normalized_root := data_root.strip_edges().simplify_path()
+	if normalized_root == PROJECT_DATA_ROOT:
+		return &"project"
+	var root_name := normalized_root.trim_suffix("/").get_file()
+	if root_name.is_empty() or root_name in [".", ".."]:
+		return database_name
+	return StringName(root_name)
 
 
 func _init(
@@ -69,17 +89,43 @@ func shutdown() -> void:
 			and _workspace.database_refresh_submitted.is_connected(_refresh_database_document):
 		_workspace.database_refresh_submitted.disconnect(_refresh_database_document)
 	if is_instance_valid(_workspace) \
+			and _workspace.database_destroy_submitted.is_connected(_destroy_database):
+		_workspace.database_destroy_submitted.disconnect(_destroy_database)
+	if is_instance_valid(_workspace) \
 			and _workspace.table_rows_requested.is_connected(_load_table_rows):
 		_workspace.table_rows_requested.disconnect(_load_table_rows)
+	if is_instance_valid(_workspace) \
+			and _workspace.table_reference_rows_requested.is_connected(
+				_load_table_reference_rows,
+			):
+		_workspace.table_reference_rows_requested.disconnect(_load_table_reference_rows)
+	if is_instance_valid(_workspace) \
+			and _workspace.table_content_reference_rows_requested.is_connected(
+				_load_table_content_reference_rows,
+			):
+		_workspace.table_content_reference_rows_requested.disconnect(
+			_load_table_content_reference_rows,
+		)
 	if is_instance_valid(_workspace) \
 			and _workspace.table_row_insert_requested.is_connected(_insert_table_row):
 		_workspace.table_row_insert_requested.disconnect(_insert_table_row)
 	if is_instance_valid(_workspace) \
-			and _workspace.table_row_update_requested.is_connected(_update_table_row):
-		_workspace.table_row_update_requested.disconnect(_update_table_row)
+			and _workspace.table_rows_duplicate_requested.is_connected(
+				_duplicate_table_rows,
+			):
+		_workspace.table_rows_duplicate_requested.disconnect(_duplicate_table_rows)
 	if is_instance_valid(_workspace) \
-			and _workspace.table_row_delete_requested.is_connected(_delete_table_row):
-		_workspace.table_row_delete_requested.disconnect(_delete_table_row)
+			and _workspace.table_rows_update_requested.is_connected(_update_table_rows):
+		_workspace.table_rows_update_requested.disconnect(_update_table_rows)
+	if is_instance_valid(_workspace) \
+			and _workspace.table_rows_delete_requested.is_connected(_delete_table_rows):
+		_workspace.table_rows_delete_requested.disconnect(_delete_table_rows)
+	if is_instance_valid(_workspace) \
+			and _workspace.table_undo_requested.is_connected(_undo_table_mutation):
+		_workspace.table_undo_requested.disconnect(_undo_table_mutation)
+	if is_instance_valid(_workspace) \
+			and _workspace.table_redo_requested.is_connected(_redo_table_mutation):
+		_workspace.table_redo_requested.disconnect(_redo_table_mutation)
 	if is_instance_valid(_workspace) \
 			and _workspace.query_graph_submitted.is_connected(_execute_query_graph):
 		_workspace.query_graph_submitted.disconnect(_execute_query_graph)
@@ -106,6 +152,7 @@ func shutdown() -> void:
 		)
 	_workspace = null
 	_database_dock = null
+	_mutation_histories.clear()
 	_logs_panel = null
 	action_hub = null
 	workbench = null
@@ -124,11 +171,19 @@ func _create_actions() -> void:
 		GDSQLEditorActionIds.CREATE_TABLE: _show_create_table,
 		GDSQLEditorActionIds.REMOVE_REGISTRATION: _remove_registration,
 		GDSQLEditorActionIds.DROP_TABLE: _drop_table,
+		GDSQLEditorActionIds.TRUNCATE_TABLE: _truncate_table,
 		GDSQLEditorActionIds.DISCOVER_PROJECT: _discover_project,
 		GDSQLEditorActionIds.REFRESH_DATABASES: _refresh_databases,
 		GDSQLEditorActionIds.OPEN_REGISTRATION: _open_registration,
 		GDSQLEditorActionIds.SELECT_TABLE: _select_table,
+		GDSQLEditorActionIds.OPEN_MODEL_ASSISTANT: _open_model_assistant,
 		GDSQLEditorActionIds.SHOW_WELCOME: _show_welcome,
+		GDSQLEditorActionIds.SHOW_SAVE_SLOTS: _show_save_slots,
+		GDSQLEditorActionIds.SHOW_MANAGED_CONTENT: _show_managed_content,
+		GDSQLEditorActionIds.CREATE_SAVE_SLOT: _show_create_save_slot,
+		GDSQLEditorActionIds.SELECT_SAVE_SLOT: _select_save_slot,
+		GDSQLEditorActionIds.DELETE_SAVE_SLOT: _delete_save_slot,
+		GDSQLEditorActionIds.INSTALL_RUNTIME_ADAPTER: _install_runtime_adapter,
 	}
 	var registered := GDSQLEditorActionRegistrar.new() \
 			.register_global_actions(action_hub, handlers)
@@ -136,14 +191,22 @@ func _create_actions() -> void:
 
 
 func _configure_surfaces() -> void:
-	_workspace.configure(action_hub)
+	_workspace.configure(action_hub, workbench)
 	_workspace.database_create_submitted.connect(_create_database)
 	_workspace.database_save_submitted.connect(_save_database)
 	_workspace.database_refresh_submitted.connect(_refresh_database_document)
+	_workspace.database_destroy_submitted.connect(_destroy_database)
 	_workspace.table_rows_requested.connect(_load_table_rows)
+	_workspace.table_reference_rows_requested.connect(_load_table_reference_rows)
+	_workspace.table_content_reference_rows_requested.connect(
+		_load_table_content_reference_rows,
+	)
 	_workspace.table_row_insert_requested.connect(_insert_table_row)
-	_workspace.table_row_update_requested.connect(_update_table_row)
-	_workspace.table_row_delete_requested.connect(_delete_table_row)
+	_workspace.table_rows_duplicate_requested.connect(_duplicate_table_rows)
+	_workspace.table_rows_update_requested.connect(_update_table_rows)
+	_workspace.table_rows_delete_requested.connect(_delete_table_rows)
+	_workspace.table_undo_requested.connect(_undo_table_mutation)
+	_workspace.table_redo_requested.connect(_redo_table_mutation)
 	_workspace.query_graph_submitted.connect(_execute_query_graph)
 	_workspace.query_result_row_insert_requested.connect(_insert_query_result_row)
 	_workspace.query_result_row_update_requested.connect(_update_query_result_row)
@@ -158,12 +221,71 @@ func _show_create_database() -> GDSQLOperationResult:
 	return result
 
 
+func _show_create_save_slot() -> GDSQLOperationResult:
+	_workspace.open_create_save_slot_page()
+	var result := GDSQLOperationResult.new()
+	result.value = _workspace
+	return result
+
+
+func _install_runtime_adapter() -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	var current_path := String(
+		ProjectSettings.get_setting(RUNTIME_AUTOLOAD_SETTING, ""),
+	).trim_prefix("*")
+	if not current_path.is_empty() and current_path != RUNTIME_NODE_PATH:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_RUNTIME_AUTOLOAD_NAME_IN_USE",
+				"The GDSQLRuntime autoload name is already used by '%s'." % current_path,
+			),
+		)
+		_record_result("Install runtime adapter", result)
+		return result
+	ProjectSettings.set_setting(
+		RUNTIME_AUTOLOAD_SETTING,
+		"*%s" % RUNTIME_NODE_PATH,
+	)
+	var error := ProjectSettings.save()
+	if error != OK:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_RUNTIME_AUTOLOAD_SAVE_FAILED",
+				"Could not save the GDSQLRuntime autoload setting: %s." % error_string(error),
+			),
+		)
+	else:
+		result.value = true
+		_refresh_surfaces()
+	_record_result("Install runtime adapter", result)
+	return result
+
+
 func _create_database(
 		database_name: StringName,
 		data_root: String,
 		storage_backend_id: StringName,
+		database_role: StringName,
+		package_root: String,
 ) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
+	if not package_root.is_empty():
+		var scaffolded := GDSQLConfigFileContentPackageScaffolder.new().scaffold(
+			package_root,
+			GDSQLContentPackageManifest.new(
+				&"base.game",
+				"Base Game",
+				"1.0.0",
+				GDSQLContentPackageKind.Kind.BASE_GAME,
+				0,
+				data_root.get_file(),
+				"assets",
+			),
+		)
+		result.diagnostics.merge(scaffolded.diagnostics)
+		if not scaffolded.is_successful():
+			_record_result("Scaffold base content package", result)
+			return result
 	var database_result := GDSQLDatabase.open(database_name, data_root)
 	var loaded_existing := database_result.is_successful()
 	if not loaded_existing:
@@ -194,6 +316,9 @@ func _create_database(
 					storage_backend_id,
 				)
 				result.diagnostics.merge(selected_backend.diagnostics)
+				if result.is_successful() and database_role != &"":
+					var bound_role := workbench.bind_role(database_role, registration_name)
+					result.diagnostics.merge(bound_role.diagnostics)
 				var opened := _open_registration(registration_name, false)
 				result.diagnostics.merge(opened.diagnostics)
 				if opened.is_successful():
@@ -300,9 +425,28 @@ func _remove_registration(registration_name: StringName) -> GDSQLOperationResult
 		result.diagnostics.merge(removed.diagnostics)
 	if result.is_successful():
 		_scan_project_filesystem()
+		_clear_registration_histories(registration_name)
 		_workspace.close_registration(registration_name)
 	_refresh_surfaces()
 	_record_result("Remove database", result)
+	return result
+
+
+func _destroy_database(registration_name: StringName) -> GDSQLOperationResult:
+	var result := _ensure_active_registration(registration_name)
+	if result.is_successful():
+		var dropped := workbench.active_session.database.drop()
+		result.diagnostics.merge(dropped.diagnostics)
+	if result.is_successful():
+		var removed := workbench.remove_registration(registration_name)
+		result.diagnostics.merge(removed.diagnostics)
+	if result.is_successful():
+		_scan_project_filesystem()
+		_clear_registration_histories(registration_name)
+		_workspace.close_registration(registration_name)
+		result.value = true
+	_refresh_surfaces()
+	_record_result("Destroy database files", result)
 	return result
 
 
@@ -323,6 +467,7 @@ func _refresh_database_document(
 			workbench.active_session,
 		)
 		_database_dock.render()
+		navigation_catalog_changed.emit()
 	result.value = workbench.active_session
 	_record_result("Refresh database", result)
 	return result
@@ -331,6 +476,8 @@ func _refresh_database_document(
 func _load_table_rows(
 		registration_name: StringName,
 		table_name: StringName,
+		query: GDSQLSelectQuerySpec,
+		count_query: GDSQLSelectQuerySpec,
 		record_logs: bool = true,
 ) -> GDSQLQueryResult:
 	var activation := _ensure_active_registration(registration_name)
@@ -347,10 +494,125 @@ func _load_table_rows(
 		if record_logs:
 			_record_result("Load table rows", failed)
 		return failed
-	var result := workbench.active_session.load_rows(100)
-	_workspace.present_table_rows(registration_name, table_name, result)
+	var database := workbench.active_session.database
+	var result := database.execute(query)
+	var total_rows := -1
+	if result.is_successful() and count_query != null:
+		var count_result := database.execute(count_query)
+		result.diagnostics.merge(count_result.diagnostics)
+		if count_result.is_successful() and not count_result.rows.is_empty():
+			total_rows = int(count_result.rows[0].get_value(TABLE_COUNT_ALIAS))
+	_workspace.present_table_rows(registration_name, table_name, result, total_rows)
 	if record_logs:
 		_record_result("Load table rows", result)
+	return result
+
+
+func _load_table_reference_rows(
+		registration_name: StringName,
+		source_table_name: StringName,
+		constraint_name: StringName,
+		query: GDSQLSelectQuerySpec,
+) -> GDSQLQueryResult:
+	var result := GDSQLQueryResult.new()
+	var activation := _ensure_active_registration(registration_name)
+	result.diagnostics.merge(activation.diagnostics)
+	var foreign_key: GDSQLForeignKeyDefinition
+	var target_table: GDSQLTableDefinition
+	if result.is_successful():
+		var database := workbench.active_session.database
+		var source_table := database.context.catalog.get_table(
+			database.database_name,
+			source_table_name,
+		)
+		if source_table == null:
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_EDITOR_REFERENCE_SOURCE_NOT_FOUND",
+					"Source table '%s' was not found." % source_table_name,
+				),
+			)
+		else:
+			foreign_key = source_table.get_foreign_key(constraint_name)
+			if foreign_key == null:
+				result.add_diagnostic(
+					GDSQLQueryDiagnostic.new(
+						&"GDSQL_EDITOR_FOREIGN_KEY_NOT_FOUND",
+						"Foreign key '%s' was not found." % constraint_name,
+					),
+				)
+			else:
+				target_table = database.context.catalog.get_table(
+					database.database_name,
+					foreign_key.referenced_table,
+				)
+				if target_table == null:
+					result.add_diagnostic(
+						GDSQLQueryDiagnostic.new(
+							&"GDSQL_EDITOR_REFERENCE_TARGET_NOT_FOUND",
+							"Referenced table '%s' was not found." \
+									% foreign_key.referenced_table,
+						),
+					)
+				else:
+					result = database.execute(query)
+	_workspace.present_table_reference_rows(
+		registration_name,
+		source_table_name,
+		foreign_key,
+		target_table,
+		result,
+	)
+	if not result.is_successful():
+		_record_result("Load foreign key references", result)
+	return result
+
+
+func _load_table_content_reference_rows(
+		source_registration_name: StringName,
+		source_table_name: StringName,
+		reference: GDSQLEditorContentReference,
+		query: GDSQLSelectQuerySpec,
+) -> GDSQLQueryResult:
+	var result := GDSQLQueryResult.new()
+	var target_table: GDSQLTableDefinition
+	var registration := workbench.get_registration(reference.target_registration_name)
+	if registration == null:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_EDITOR_CONTENT_REFERENCE_REGISTRATION_NOT_FOUND",
+				"Content registration '%s' was not found." \
+						% reference.target_registration_name,
+			),
+		)
+	else:
+		var opened := GDSQLRuntimeFactory.open_authoring_registration(registration)
+		result.diagnostics.merge(opened.diagnostics)
+		if opened.is_successful():
+			var database := opened.get_database()
+			target_table = database.context.catalog.get_table(
+				reference.target_database_name,
+				reference.target_table_name,
+			)
+			if target_table == null:
+				result.add_diagnostic(
+					GDSQLQueryDiagnostic.new(
+						&"GDSQL_EDITOR_CONTENT_REFERENCE_TARGET_NOT_FOUND",
+						"Content table '%s' was not found." \
+								% reference.target_table_name,
+					),
+				)
+			else:
+				result = database.execute(query)
+	_workspace.present_table_content_reference_rows(
+		source_registration_name,
+		source_table_name,
+		reference,
+		target_table,
+		result,
+	)
+	if not result.is_successful():
+		_record_result("Load content references", result)
 	return result
 
 
@@ -403,25 +665,159 @@ func _insert_table_row(
 		var inserted := workbench.active_session.database.insert(table_name, values)
 		result.diagnostics.merge(inserted.diagnostics)
 		result.value = inserted
+	if result.is_successful():
+		_clear_table_history(registration_name, table_name)
 	_complete_row_mutation(registration_name, table_name, result)
 	_record_result("Insert table row", result)
 	return result
 
 
-func _update_table_row(
+func _duplicate_table_rows(
 		registration_name: StringName,
 		table_name: StringName,
-		original_primary_key: Variant,
-		values: Dictionary,
+		rows: Array[Dictionary],
 ) -> GDSQLOperationResult:
-	var result := _update_row(
-		registration_name,
-		table_name,
-		original_primary_key,
-		values,
-	)
-	_record_result("Update table row", result)
+	var result := _ensure_active_registration(registration_name)
+	if not result.is_successful():
+		_record_result("Duplicate table rows", result)
+		return result
+	var database := workbench.active_session.database
+	var table := database.context.catalog.get_table(database.database_name, table_name)
+	if table == null:
+		result = _error(
+			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
+			"Table '%s' was not found." % table_name,
+		)
+	else:
+		var planned := GDSQLEditorRowBatch.build_inserts(table, rows)
+		result.diagnostics.merge(planned.diagnostics)
+		if planned.is_successful():
+			var executed := (planned.get_value() as GDSQLEditorRowBatch).execute(database)
+			result.diagnostics.merge(executed.diagnostics)
+			result.value = executed.value
+	if result.is_successful():
+		_clear_table_history(registration_name, table_name)
+	_complete_row_mutation(registration_name, table_name, result)
+	_refresh_table_history_state(registration_name, table_name)
+	_record_result("Duplicate table rows", result)
 	return result
+
+
+func _update_table_rows(
+		registration_name: StringName,
+		table_name: StringName,
+		updates: Array[Dictionary],
+) -> GDSQLOperationResult:
+	var result := _ensure_active_registration(registration_name)
+	if not result.is_successful():
+		_record_result("Update table rows", result)
+		return result
+	var database := workbench.active_session.database
+	var table := database.context.catalog.get_table(database.database_name, table_name)
+	if table == null:
+		result = _error(
+			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
+			"Table '%s' was not found." % table_name,
+		)
+	else:
+		var planned := GDSQLEditorRowBatch.build_updates(table, updates)
+		result.diagnostics.merge(planned.diagnostics)
+		if planned.is_successful():
+			var batch := planned.get_value() as GDSQLEditorRowBatch
+			var executed := batch.execute(database)
+			result.diagnostics.merge(executed.diagnostics)
+			result.value = executed.value
+			if executed.is_successful():
+				var entry := batch.create_history_entry(registration_name)
+				if entry != null:
+					result.diagnostics.merge(
+						_history_for(registration_name, table_name).record(entry).diagnostics,
+					)
+				else:
+					_clear_table_history(registration_name, table_name)
+	_complete_row_mutation(registration_name, table_name, result)
+	_refresh_table_history_state(registration_name, table_name)
+	_record_result("Update table rows", result)
+	return result
+
+
+func _undo_table_mutation(
+		registration_name: StringName,
+		table_name: StringName,
+) -> GDSQLOperationResult:
+	var result := _apply_table_history(registration_name, table_name, true)
+	_record_result("Undo table row update", result)
+	return result
+
+
+func _redo_table_mutation(
+		registration_name: StringName,
+		table_name: StringName,
+) -> GDSQLOperationResult:
+	var result := _apply_table_history(registration_name, table_name, false)
+	_record_result("Redo table row update", result)
+	return result
+
+
+func _apply_table_history(
+		registration_name: StringName,
+		table_name: StringName,
+		undo: bool,
+) -> GDSQLOperationResult:
+	var history := _get_history(registration_name, table_name)
+	var entry: GDSQLEditorMutationHistoryEntry
+	if history != null:
+		entry = history.get_undo_entry() if undo else history.get_redo_entry()
+	if entry == null:
+		return _error(
+			&"GDSQL_EDITOR_MUTATION_HISTORY_EMPTY",
+			"There is no row update to %s." % ("undo" if undo else "redo"),
+		)
+	var result := _ensure_active_registration(registration_name)
+	if not result.is_successful():
+		return result
+	var database := workbench.active_session.database
+	var table := database.context.catalog.get_table(database.database_name, table_name)
+	if table == null:
+		return _error(
+			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
+			"Table '%s' was not found." % table_name,
+		)
+	var snapshots := entry.duplicate_before_rows() if undo else entry.duplicate_after_rows()
+	var planned := GDSQLEditorRowBatch.build_updates(
+		table,
+		_history_updates(table, snapshots),
+	)
+	result.diagnostics.merge(planned.diagnostics)
+	if result.is_successful():
+		var executed := (planned.get_value() as GDSQLEditorRowBatch).execute(database)
+		result.diagnostics.merge(executed.diagnostics)
+	if result.is_successful():
+		var moved := history.mark_undone(entry) if undo else history.mark_redone(entry)
+		result.diagnostics.merge(moved.diagnostics)
+		result.value = entry
+	_complete_row_mutation(registration_name, table_name, result)
+	_refresh_table_history_state(registration_name, table_name)
+	if result.is_successful():
+		_workspace.present_table_history_result(
+			registration_name,
+			table_name,
+			"%s complete: %s." % ["Undo" if undo else "Redo", entry.get_summary()],
+		)
+	return result
+
+
+func _history_updates(
+		table: GDSQLTableDefinition,
+		rows: Array[GDSQLRowRecord],
+) -> Array[Dictionary]:
+	var updates: Array[Dictionary] = []
+	for row in rows:
+		var values := row.values.duplicate(true)
+		var identity: Variant = values.get(table.primary_key)
+		values.erase(table.primary_key)
+		updates.append({ "primary_key": identity, "values": values })
+	return updates
 
 
 func _update_row(
@@ -435,8 +831,9 @@ func _update_row(
 	var result := _ensure_active_registration(registration_name)
 	if not result.is_successful():
 		return result
-	var table := workbench.active_session.database.context.catalog.get_table(
-		workbench.active_session.database.database_name,
+	var database := workbench.active_session.database
+	var table := database.context.catalog.get_table(
+		database.database_name,
 		table_name,
 	)
 	if table == null:
@@ -444,21 +841,20 @@ func _update_row(
 			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
 			"Table '%s' was not found." % table_name,
 		)
-	var builder := workbench.active_session.database.table(table_name).update()
-	for column_name in values:
-		var column := table.get_column(StringName(column_name))
-		if column == null \
-				or column.name == table.primary_key \
-				or column.generation != GDSQLColumnDefinition.Generation.NONE:
-			continue
-		builder.set_value(StringName(column_name), values[column_name])
-	var updated := workbench.active_session.database.execute(
-		builder.where(
-			GDSQLExpr.column(table.primary_key).equals(original_primary_key),
-		).build(),
-	)
-	result.diagnostics.merge(updated.diagnostics)
-	result.value = updated
+	var updates: Array[Dictionary] = [
+		{
+			"primary_key": original_primary_key,
+			"values": values,
+		},
+	]
+	var planned := GDSQLEditorRowBatch.build_updates(table, updates)
+	result.diagnostics.merge(planned.diagnostics)
+	if planned.is_successful():
+		var executed := (planned.get_value() as GDSQLEditorRowBatch).execute(database)
+		result.diagnostics.merge(executed.diagnostics)
+		result.value = executed.value
+	if result.is_successful():
+		_clear_table_history(registration_name, table_name)
 	_complete_row_mutation(
 		registration_name,
 		table_name,
@@ -469,13 +865,34 @@ func _update_row(
 	return result
 
 
-func _delete_table_row(
+func _delete_table_rows(
 		registration_name: StringName,
 		table_name: StringName,
-		primary_key: Variant,
+		primary_keys: Array[Variant],
 ) -> GDSQLOperationResult:
-	var result := _delete_row(registration_name, table_name, primary_key)
-	_record_result("Delete table row", result)
+	var result := _ensure_active_registration(registration_name)
+	if not result.is_successful():
+		_record_result("Delete table rows", result)
+		return result
+	var database := workbench.active_session.database
+	var table := database.context.catalog.get_table(database.database_name, table_name)
+	if table == null:
+		result = _error(
+			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
+			"Table '%s' was not found." % table_name,
+		)
+	else:
+		var planned := GDSQLEditorRowBatch.build_deletes(table, primary_keys)
+		result.diagnostics.merge(planned.diagnostics)
+		if planned.is_successful():
+			var executed := (planned.get_value() as GDSQLEditorRowBatch).execute(database)
+			result.diagnostics.merge(executed.diagnostics)
+			result.value = executed.value
+	if result.is_successful():
+		_clear_table_history(registration_name, table_name)
+	_complete_row_mutation(registration_name, table_name, result)
+	_refresh_table_history_state(registration_name, table_name)
+	_record_result("Delete table rows", result)
 	return result
 
 
@@ -488,8 +905,9 @@ func _delete_row(
 ) -> GDSQLOperationResult:
 	var result := _ensure_active_registration(registration_name)
 	if result.is_successful():
+		var database := workbench.active_session.database
 		var table := workbench.active_session.database.context.catalog.get_table(
-			workbench.active_session.database.database_name,
+			database.database_name,
 			table_name,
 		)
 		if table == null:
@@ -497,16 +915,15 @@ func _delete_row(
 				&"GDSQL_EDITOR_TABLE_NOT_FOUND",
 				"Table '%s' was not found." % table_name,
 			)
-		var deleted := workbench.active_session.database.execute(
-			workbench.active_session.database.table(table_name) \
-					.delete() \
-					.where(
-						GDSQLExpr.column(table.primary_key).equals(primary_key),
-					) \
-					.build(),
-		)
-		result.diagnostics.merge(deleted.diagnostics)
-		result.value = deleted
+		var primary_keys: Array[Variant] = [primary_key]
+		var planned := GDSQLEditorRowBatch.build_deletes(table, primary_keys)
+		result.diagnostics.merge(planned.diagnostics)
+		if planned.is_successful():
+			var executed := (planned.get_value() as GDSQLEditorRowBatch).execute(database)
+			result.diagnostics.merge(executed.diagnostics)
+			result.value = executed.value
+	if result.is_successful():
+		_clear_table_history(registration_name, table_name)
 	_complete_row_mutation(
 		registration_name,
 		table_name,
@@ -531,7 +948,7 @@ func _complete_row_mutation(
 	workbench.active_session.refresh_catalog()
 	_refresh_surfaces()
 	if query_document_key == &"":
-		_load_table_rows(registration_name, table_name, false)
+		_workspace.request_table_rows(registration_name, table_name)
 	else:
 		var query_result := _workspace.request_query_graph(
 			query_document_key,
@@ -552,6 +969,8 @@ func _insert_query_result_row(
 		var inserted := workbench.active_session.database.insert(table_name, values)
 		result.diagnostics.merge(inserted.diagnostics)
 		result.value = inserted
+	if result.is_successful():
+		_clear_table_history(registration_name, table_name)
 	_complete_row_mutation(
 		registration_name,
 		table_name,
@@ -623,6 +1042,7 @@ func _drop_table(registration_name: StringName, table_name: StringName) -> GDSQL
 		result.diagnostics.merge(dropped.diagnostics)
 	if result.is_successful():
 		_scan_project_filesystem()
+		_clear_table_history(registration_name, table_name)
 		workbench.active_session.refresh_catalog()
 		workbench.active_session.selected_table = null
 		var refreshed := workbench.refresh_inspections()
@@ -635,6 +1055,27 @@ func _drop_table(registration_name: StringName, table_name: StringName) -> GDSQL
 			workbench.active_session,
 		)
 	_record_result("Delete table", result)
+	return result
+
+
+func _truncate_table(
+		registration_name: StringName,
+		table_name: StringName,
+) -> GDSQLOperationResult:
+	var result := _ensure_active_registration(registration_name)
+	if result.is_successful():
+		var truncated := workbench.active_session.database.truncate_table(table_name)
+		result.diagnostics.merge(truncated.diagnostics)
+		result.value = truncated.get_value()
+	if result.is_successful():
+		_clear_table_history(registration_name, table_name)
+		workbench.active_session.current_rows = null
+		var refreshed := workbench.refresh_inspections()
+		result.diagnostics.merge(refreshed.diagnostics)
+	if result.is_successful():
+		_refresh_surfaces()
+		_workspace.request_table_rows(registration_name, table_name)
+	_record_result("Reset table data", result)
 	return result
 
 
@@ -684,7 +1125,35 @@ func _select_table(registration_name: StringName, table_name: StringName) -> GDS
 			workbench.get_inspection(registration_name),
 			workbench.active_session,
 		)
+		_refresh_table_history_state(registration_name, table_name)
 	_record_result("Select table", result)
+	return result
+
+
+func _open_model_assistant(
+		registration_name: StringName,
+		table_name: StringName,
+) -> GDSQLOperationResult:
+	var result := _ensure_active_registration(registration_name)
+	var table: GDSQLTableDefinition
+	if result.is_successful():
+		var database := workbench.active_session.catalog_snapshot.get_database(
+			workbench.active_session.registration.database_name,
+		)
+		if database != null:
+			table = database.get_table(table_name)
+		if table == null:
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_EDITOR_TABLE_NOT_FOUND",
+					"Table '%s' is not available in registration '%s'." \
+							% [table_name, registration_name],
+				),
+			)
+	if result.is_successful():
+		_workspace.show_model_assistant(registration_name, table)
+		result.value = table
+	_record_result("Open table model", result)
 	return result
 
 
@@ -695,6 +1164,70 @@ func _show_welcome() -> GDSQLOperationResult:
 	return result
 
 
+func _show_save_slots() -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	if DirAccess.open(SAVE_SLOTS_ROOT) != null:
+		var discovered := workbench.discover_children(SAVE_SLOTS_ROOT)
+		result.diagnostics.merge(discovered.diagnostics)
+	if result.is_successful():
+		_workspace.show_save_slots()
+	_refresh_surfaces()
+	result.value = _workspace
+	_record_result("Refresh save slots", result)
+	return result
+
+
+func _show_managed_content() -> GDSQLOperationResult:
+	_workspace.show_managed_content()
+	var result := GDSQLOperationResult.new()
+	result.value = _workspace
+	return result
+
+
+func _select_save_slot(registration_name: StringName) -> GDSQLOperationResult:
+	var result := workbench.bind_role(
+		GDSQLDatabaseRegistry.SAVE_ROLE,
+		registration_name,
+	)
+	_refresh_surfaces()
+	_record_result("Select save slot", result)
+	return result
+
+
+func _delete_save_slot(registration_name: StringName) -> GDSQLOperationResult:
+	var registration := workbench.get_registration(registration_name)
+	var planned := GDSQLSaveSlotDeletionPlan.build(
+		registration,
+		_get_role_registration(GDSQLDatabaseRegistry.SAVE_ROLE),
+	)
+	if not planned.is_successful():
+		_record_result("Delete save slot data", planned)
+		return planned
+	var plan := planned.get_value() as GDSQLSaveSlotDeletionPlan
+	var result := GDSQLOperationResult.new()
+	var opened := _ensure_active_registration(plan.registration_name)
+	result.diagnostics.merge(opened.diagnostics)
+	if result.is_successful():
+		var dropped := workbench.active_session.database.drop()
+		result.diagnostics.merge(dropped.diagnostics)
+	if result.is_successful():
+		var removed := workbench.remove_registration(plan.registration_name)
+		result.diagnostics.merge(removed.diagnostics)
+	if result.is_successful():
+		_workspace.close_registration(plan.registration_name)
+		result.value = plan
+	_refresh_surfaces()
+	_record_result("Delete save slot data", result)
+	return result
+
+
+func _get_role_registration(role: StringName) -> StringName:
+	for binding in workbench.snapshot.role_bindings:
+		if binding.role == role:
+			return binding.registration_name
+	return &""
+
+
 func _find_registration(database_name: StringName, data_root: String) -> StringName:
 	for registration in workbench.get_registrations():
 		if registration.database_name == database_name \
@@ -703,22 +1236,68 @@ func _find_registration(database_name: StringName, data_root: String) -> StringN
 	return &""
 
 
-static func _registration_prefix_for_root(
-		database_name: StringName,
-		data_root: String,
-) -> StringName:
-	var normalized_root := data_root.strip_edges().simplify_path()
-	if normalized_root == PROJECT_DATA_ROOT:
-		return &"project"
-	var root_name := normalized_root.trim_suffix("/").get_file()
-	if root_name.is_empty() or root_name in [".", ".."]:
-		return database_name
-	return StringName(root_name)
+func _history_key(registration_name: StringName, table_name: StringName) -> String:
+	return "%s:%s" % [registration_name, table_name]
+
+
+func _history_for(
+		registration_name: StringName,
+		table_name: StringName,
+) -> GDSQLEditorMutationHistory:
+	var key := _history_key(registration_name, table_name)
+	if not _mutation_histories.has(key):
+		_mutation_histories[key] = GDSQLEditorMutationHistory.new()
+	return _mutation_histories[key]
+
+
+func _get_history(
+		registration_name: StringName,
+		table_name: StringName,
+) -> GDSQLEditorMutationHistory:
+	return _mutation_histories.get(_history_key(registration_name, table_name))
+
+
+func _clear_table_history(registration_name: StringName, table_name: StringName) -> void:
+	var key := _history_key(registration_name, table_name)
+	var history: GDSQLEditorMutationHistory = _mutation_histories.get(key)
+	if history == null:
+		return
+	history.clear()
+	_mutation_histories.erase(key)
+	_refresh_table_history_state(registration_name, table_name)
+
+
+func _clear_registration_histories(registration_name: StringName) -> void:
+	var prefix := "%s:" % registration_name
+	for key in _mutation_histories.keys():
+		var history_key := String(key)
+		if history_key.begins_with(prefix):
+			(_mutation_histories[history_key] as GDSQLEditorMutationHistory).clear()
+			_mutation_histories.erase(history_key)
+
+
+func _refresh_table_history_state(
+		registration_name: StringName,
+		table_name: StringName,
+) -> void:
+	var history := _get_history(registration_name, table_name)
+	var undo_entry := history.get_undo_entry() if history != null else null
+	var redo_entry := history.get_redo_entry() if history != null else null
+	_workspace.set_table_history_state(
+		registration_name,
+		table_name,
+		undo_entry.get_summary() if undo_entry != null else "",
+		redo_entry.get_summary() if redo_entry != null else "",
+	)
 
 
 func _refresh_surfaces() -> void:
 	if is_instance_valid(_database_dock):
 		_database_dock.render()
+	if is_instance_valid(_workspace):
+		_workspace.refresh_welcome()
+		_workspace.refresh_save_slots()
+		_workspace.refresh_managed_content()
 	if is_instance_valid(_workspace) and workbench.active_session != null:
 		var registration_name := workbench.active_session.registration.name
 		_workspace.refresh_database(
@@ -729,6 +1308,7 @@ func _refresh_surfaces() -> void:
 			and _workspace.get_active_registration() != &"" \
 			and workbench.get_registration(_workspace.get_active_registration()) == null:
 		_workspace.show_welcome()
+	navigation_catalog_changed.emit()
 
 
 func _scan_project_filesystem() -> void:

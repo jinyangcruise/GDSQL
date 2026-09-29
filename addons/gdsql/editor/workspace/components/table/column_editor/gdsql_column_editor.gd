@@ -4,6 +4,7 @@ extends VBoxContainer
 ## Scene-backed, scrollable table-column editor.
 
 signal changed
+signal column_context_requested(column_draft: GDSQLEditorColumnDraft)
 
 const ROW_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn"
@@ -19,6 +20,7 @@ var _rows: Array[GDSQLEditorColumnEditorRow] = []
 
 func _ready() -> void:
 	_preview_row.changed.connect(_on_row_changed)
+	_preview_row.context_requested.connect(_on_column_context_requested)
 	_preview_row.reorder_requested.connect(_on_row_reorder_requested)
 
 
@@ -37,6 +39,7 @@ func configure_existing(table: GDSQLTableDefinition) -> void:
 			column,
 			column.name == table.primary_key,
 		)
+		draft.is_foreign = not table.get_foreign_keys_for_column(column.name).is_empty()
 		_drafts.append(draft)
 		_baseline_drafts.append(draft)
 	_render_rows()
@@ -49,6 +52,27 @@ func add_draft_column() -> void:
 	var row := _create_row(draft)
 	row.focus_name.call_deferred()
 	changed.emit()
+
+
+func set_column_removal(
+		column_draft: GDSQLEditorColumnDraft,
+		enabled: bool,
+		notify: bool = true,
+) -> void:
+	for row in _rows:
+		if row.draft == column_draft:
+			row.set_removal_staged(enabled)
+			break
+	if notify:
+		changed.emit()
+
+
+func get_removed_original_columns() -> Array[StringName]:
+	var names: Array[StringName] = []
+	for draft in _drafts:
+		if draft.remove and draft.original != null:
+			names.append(draft.original.name)
+	return names
 
 
 func build_definitions() -> Array[GDSQLColumnDefinition]:
@@ -107,6 +131,29 @@ func has_column(column_name: StringName) -> bool:
 	return false
 
 
+func get_primary_key_name() -> StringName:
+	for draft in _drafts:
+		if draft.is_primary and not draft.remove:
+			return draft.get_column_name()
+	return &""
+
+
+func resolve_current_name(original_name: StringName) -> StringName:
+	for draft in _drafts:
+		if draft.original != null and draft.original.name == original_name and not draft.remove:
+			return draft.get_column_name()
+	return &""
+
+
+func set_foreign_key_columns(column_names: Array[StringName]) -> void:
+	for index in _drafts.size():
+		var is_foreign := _drafts[index].get_column_name() in column_names
+		if _drafts[index].is_foreign == is_foreign:
+			continue
+		_drafts[index].is_foreign = is_foreign
+		_rows[index].configure(_drafts[index])
+
+
 func _render_rows() -> void:
 	for row in _rows:
 		if row != _preview_row:
@@ -128,6 +175,7 @@ func _create_row(draft: GDSQLEditorColumnDraft) -> GDSQLEditorColumnEditorRow:
 	_rows_host.add_child(row)
 	row.configure(draft)
 	row.changed.connect(_on_row_changed)
+	row.context_requested.connect(_on_column_context_requested)
 	row.reorder_requested.connect(_on_row_reorder_requested)
 	_rows.append(row)
 	return row
@@ -166,3 +214,7 @@ func _on_row_reorder_requested(
 
 func _on_row_changed() -> void:
 	changed.emit()
+
+
+func _on_column_context_requested(column_draft: GDSQLEditorColumnDraft) -> void:
+	column_context_requested.emit(column_draft)

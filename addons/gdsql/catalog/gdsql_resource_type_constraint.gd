@@ -11,16 +11,6 @@ var script_path: String
 var resolved_script: Script
 
 
-func _init(
-		target_class_name: StringName = &"",
-		target_script_path: String = "",
-		target_script: Script = null,
-) -> void:
-	resource_class = target_class_name
-	script_path = target_script_path
-	resolved_script = target_script
-
-
 static func from_serialized(
 		target_class_name: StringName,
 		target_script_path: String = "",
@@ -45,6 +35,23 @@ static func from_resource(prototype: Resource) -> GDSQLResourceTypeConstraint:
 		var identity := global_name if global_name != &"" else StringName(path)
 		return GDSQLResourceTypeConstraint.new(identity, path, prototype_script)
 	return GDSQLResourceTypeConstraint.new(StringName(prototype.get_class()))
+
+
+static func _is_resource_class(candidate: StringName) -> bool:
+	return candidate == &"Resource" or (
+			ClassDB.class_exists(candidate)
+			and ClassDB.is_parent_class(candidate, &"Resource")
+	)
+
+
+func _init(
+		target_class_name: StringName = &"",
+		target_script_path: String = "",
+		target_script: Script = null,
+) -> void:
+	resource_class = target_class_name
+	script_path = target_script_path
+	resolved_script = target_script
 
 
 func is_valid() -> bool:
@@ -84,9 +91,9 @@ func picker_base_type() -> String:
 	if resolved_script != null:
 		var global_name := resolved_script.get_global_name()
 		return (
-			String(global_name)
-			if global_name != &""
-			else String(resolved_script.get_instance_base_type())
+				String(global_name)
+				if global_name != &""
+				else String(resolved_script.get_instance_base_type())
 		)
 	return String(resource_class)
 
@@ -104,10 +111,3 @@ func instantiate_prototype() -> Resource:
 	if ClassDB.class_exists(resource_class) and ClassDB.can_instantiate(resource_class):
 		return ClassDB.instantiate(resource_class) as Resource
 	return null
-
-
-static func _is_resource_class(candidate: StringName) -> bool:
-	return candidate == &"Resource" or (
-		ClassDB.class_exists(candidate)
-		and ClassDB.is_parent_class(candidate, &"Resource")
-	)

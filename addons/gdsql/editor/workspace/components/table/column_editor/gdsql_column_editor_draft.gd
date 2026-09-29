@@ -7,6 +7,7 @@ var name := ""
 var data_type: Variant.Type = TYPE_INT
 var resource_type: GDSQLResourceTypeConstraint
 var resource_prototype: Resource
+var resource_ownership := GDSQLResourceOwnership.Mode.OWNED
 var nullable := true
 var unique := false
 var auto_increment := false
@@ -17,12 +18,13 @@ var default_modified := false
 var generation := GDSQLColumnDefinition.Generation.NONE
 var remove := false
 var is_primary := false
+var is_foreign := false
 
 
 static func create_new(primary: bool = false) -> GDSQLEditorColumnDraft:
 	var draft := GDSQLEditorColumnDraft.new()
 	draft.name = "id" if primary else ""
-	draft.nullable = not primary
+	draft.nullable = false
 	draft.unique = primary
 	draft.auto_increment = primary
 	draft.is_primary = primary
@@ -39,10 +41,11 @@ static func from_definition(
 	draft.data_type = column.data_type
 	draft.resource_type = column.resource_type
 	draft.resource_prototype = (
-		column.resource_type.instantiate_prototype()
-		if column.resource_type != null
+		column.get_default_value() as Resource
+		if column.has_default() and column.get_default_value() is Resource
 		else null
 	)
+	draft.resource_ownership = column.resource_ownership
 	draft.nullable = column.nullable
 	draft.unique = column.unique
 	draft.auto_increment = column.auto_increment
@@ -61,6 +64,7 @@ func reset_for_type(selected_type: Variant.Type) -> void:
 	data_type = selected_type
 	resource_type = null
 	resource_prototype = null
+	resource_ownership = GDSQLResourceOwnership.Mode.OWNED
 	has_default = false
 	default_value = null
 	default_valid = true
@@ -69,10 +73,7 @@ func reset_for_type(selected_type: Variant.Type) -> void:
 
 
 func duplicate_resource_prototype() -> Resource:
-	var prototype := resource_prototype
-	if prototype == null and resource_type != null:
-		prototype = resource_type.instantiate_prototype()
-	return prototype.duplicate(true) as Resource if prototype != null else null
+	return resource_prototype.duplicate(true) as Resource if resource_prototype != null else null
 
 
 func build_definition() -> GDSQLColumnDefinition:
@@ -84,6 +85,7 @@ func build_definition() -> GDSQLColumnDefinition:
 		auto_increment,
 	)
 	definition.resource_type = resource_type
+	definition.resource_ownership = resource_ownership
 	definition.generation = generation
 	if has_default:
 		definition.set_default(default_value)
@@ -107,6 +109,10 @@ func build_alterations() -> Array[GDSQLTableAlteration]:
 		alterations.append(
 			GDSQLTableAlteration.set_column_auto_increment(original.name, auto_increment),
 		)
+	if data_type == TYPE_OBJECT and resource_ownership != original.resource_ownership:
+		alterations.append(
+			GDSQLTableAlteration.set_resource_ownership(original.name, resource_ownership),
+		)
 	if has_default:
 		if not original.has_default() or default_modified \
 				or default_value != original.get_default_value():
@@ -116,13 +122,9 @@ func build_alterations() -> Array[GDSQLTableAlteration]:
 	elif original.has_default():
 		alterations.append(GDSQLTableAlteration.clear_column_default(original.name))
 	if generation != original.generation:
-		alterations.append(
-			GDSQLTableAlteration.set_column_generation(original.name, generation),
-		)
+		alterations.append(GDSQLTableAlteration.set_column_generation(original.name, generation))
 	if get_column_name() != original.name:
-		alterations.append(
-			GDSQLTableAlteration.rename_column(original.name, get_column_name()),
-		)
+		alterations.append(GDSQLTableAlteration.rename_column(original.name, get_column_name()))
 	return alterations
 
 

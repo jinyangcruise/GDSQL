@@ -64,7 +64,7 @@ var _action_context: GDSQLContextActionHub
 var _action_context_id: StringName
 var _active_operation: GraphNode
 var _active_result: GDSQLQueryTableResultNode
-var _table_results: Dictionary[StringName, GDSQLQueryTableResultNode] = {}
+var _table_results: Dictionary[StringName, GDSQLQueryTableResultNode] = { }
 
 @onready var _graph: GraphEdit = %Graph
 @onready var _select_operation: GraphNode = %SelectOperation
@@ -530,7 +530,7 @@ func _place_and_connect_result(
 	if source == null or result_node == null:
 		return
 	result_node.position_offset = (
-		source.position_offset + Vector2(420, 0)
+			source.position_offset + Vector2(420, 0)
 	)
 	if not _graph.is_node_connected(source.name, 0, result_node.name, 0):
 		_graph.connect_node(source.name, 0, result_node.name, 0)

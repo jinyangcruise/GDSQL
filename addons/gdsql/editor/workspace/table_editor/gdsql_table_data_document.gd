@@ -1,177 +1,1033 @@
 @tool
 extends MarginContainer
-## Data-only table document. Schema changes remain in the database document.
+## Compact table-first data document backed by the shared typed result grid.
 
-signal rows_requested(registration_name: StringName, table_name: StringName)
+signal rows_requested(
+		registration_name: StringName,
+		table_name: StringName,
+		query: GDSQLSelectQuerySpec,
+		count_query: GDSQLSelectQuerySpec,
+)
+signal reference_rows_requested(
+		registration_name: StringName,
+		source_table_name: StringName,
+		constraint_name: StringName,
+		query: GDSQLSelectQuerySpec,
+)
+signal content_reference_rows_requested(
+		source_registration_name: StringName,
+		source_table_name: StringName,
+		reference: GDSQLEditorContentReference,
+		query: GDSQLSelectQuerySpec,
+)
 signal row_insert_requested(
 		registration_name: StringName,
 		table_name: StringName,
 		values: Dictionary,
 )
-signal row_update_requested(
+signal rows_duplicate_requested(
 		registration_name: StringName,
 		table_name: StringName,
-		original_primary_key: Variant,
-		values: Dictionary,
+		rows: Array[Dictionary],
 )
-signal row_delete_requested(
+signal rows_update_requested(
 		registration_name: StringName,
 		table_name: StringName,
-		primary_key: Variant,
+		updates: Array[Dictionary],
 )
+signal rows_delete_requested(
+		registration_name: StringName,
+		table_name: StringName,
+		primary_keys: Array[Variant],
+)
+signal model_assistant_requested(registration_name: StringName, table: GDSQLTableDefinition)
+signal undo_requested(registration_name: StringName, table_name: StringName)
+signal redo_requested(registration_name: StringName, table_name: StringName)
 
-const DATA_ROW_SCENE := preload(
-	"res://addons/gdsql/editor/workspace/components/table/gdsql_table_data_row.tscn"
-)
+const PAGE_SIZES: Array[int] = [10, 25, 50, 100]
+const COLUMN_SELECT_ALL := 10_000
+const ROW_NUMBER_COLUMN := &"__gdsql_row_number"
+const REFERENCE_PICKER_LIMIT := 500
 
 var registration_name: StringName
 var table_name: StringName
 var _table: GDSQLTableDefinition
-var _pending_delete_key: Variant
+var _records: Array[GDSQLRowRecord] = []
+var _pending_delete_keys: Array[Variant] = []
+var _page_index := 0
+var _page_size := 25
+var _total_rows := 0
+var _catalog_total_rows := 0
+var _presentation_revision := 0
+var _mutation_in_flight := false
+var _applied_predicate: GDSQLQueryExpression
+var _applied_filter_summary := ""
+var _filter_dirty := false
+var _visible_columns: Array[StringName] = []
+var _order_column: StringName
+var _order_direction := GDSQLOrderClause.SortDirection.ASCENDING
+var _pending_mutation_status := ""
+var _undo_summary := ""
+var _redo_summary := ""
+var _action_hub: GDSQLEditorActionHub
+var _action_context: GDSQLContextActionHub
+var _action_context_id: StringName
+var _reference_request_grid: GDSQLEditorResultGrid
+var _content_references: Array[GDSQLEditorContentReference] = []
+
+@onready var _table_view: GDSQLEditorResultGrid = %TableView
+@onready var _insert_editor: GDSQLEditorResultGrid = %InsertEditor
+@onready var _where_expression: GDSQLWhereExpressionEditor = %WhereExpression
+@onready var _column_menu: PopupMenu = %ColumnMenu
 
 
 func _ready() -> void:
-	%Refresh.pressed.connect(_request_rows)
-	%AddRow.pressed.connect(_add_empty_row)
-	%DeleteConfirmation.confirmed.connect(_confirm_row_delete)
+	if _is_scene_preview():
+		return
+	%ScenePreview.hide()
+	%Refresh.pressed.connect(request_rows)
+	%Model.pressed.connect(_open_model_assistant)
+	%AddRow.pressed.connect(_begin_insert)
+	%SaveChanges.pressed.connect(_save_changes)
+	%DiscardChanges.pressed.connect(_discard_changes)
+	%DuplicateSelected.pressed.connect(_duplicate_selected_rows)
+	%DeleteSelected.pressed.connect(_request_selected_rows_delete)
+	%FirstPage.pressed.connect(_go_to_page.bind(0))
+	%PreviousPage.pressed.connect(_change_page.bind(-1))
+	%NextPage.pressed.connect(_change_page.bind(1))
+	%LastPage.pressed.connect(_go_to_last_page)
+	%PageSize.item_selected.connect(_on_page_size_selected)
+	%DeleteConfirmation.confirmed.connect(_confirm_rows_delete)
+	_column_menu.id_pressed.connect(_on_column_toggled)
+	_column_menu.hide_on_checkable_item_selection = false
+	_table_view.inline_changes_changed.connect(_on_inline_changes_changed)
+	_table_view.foreign_key_options_requested.connect(
+		_request_reference_rows.bind(_table_view),
+	)
+	_table_view.content_reference_options_requested.connect(
+		_request_content_reference_rows.bind(_table_view),
+	)
+	_table_view.column_title_clicked.connect(_on_column_title_clicked)
+	_table_view.item_selected.connect(_refresh_actions)
+	_table_view.multi_selected.connect(_on_multi_selected)
+	_insert_editor.inline_changes_changed.connect(_on_insert_changes_changed)
+	_insert_editor.foreign_key_options_requested.connect(
+		_request_reference_rows.bind(_insert_editor),
+	)
+	_insert_editor.content_reference_options_requested.connect(
+		_request_content_reference_rows.bind(_insert_editor),
+	)
+	_where_expression.changed.connect(_on_filter_changed)
+	_where_expression.apply_requested.connect(_apply_filter)
+	_where_expression.clear_requested.connect(_clear_filter)
+	_refresh_actions()
+
+
+func configure_actions(action_hub: GDSQLEditorActionHub, context_id: StringName) -> void:
+	if _action_hub == action_hub and _action_context_id == context_id:
+		return
+	release_actions()
+	_action_hub = action_hub
+	_action_context_id = context_id
+	_action_context = GDSQLContextActionHub.new(context_id)
+	_action_context.add_action(
+		GDSQLEditorActionDefinition.new(
+			GDSQLEditorActionIds.UNDO_TABLE_MUTATION,
+			"Undo",
+			"Undo the latest committed row-value update.",
+			&"UndoRedo",
+			&"history",
+			0,
+		),
+		_request_undo,
+	)
+	_action_context.add_action(
+		GDSQLEditorActionDefinition.new(
+			GDSQLEditorActionIds.REDO_TABLE_MUTATION,
+			"Redo",
+			"Redo the latest undone row-value update.",
+			&"Redo",
+			&"history",
+			1,
+		),
+		_request_redo,
+	)
+	var registered := _action_hub.register_context(_action_context)
+	if not registered.is_successful():
+		return
+	%Undo.configure(
+		_action_hub,
+		_action_context.get_action(GDSQLEditorActionIds.UNDO_TABLE_MUTATION),
+	)
+	%Redo.configure(
+		_action_hub,
+		_action_context.get_action(GDSQLEditorActionIds.REDO_TABLE_MUTATION),
+	)
+	_refresh_history_actions()
+
+
+func get_action_context_id() -> StringName:
+	return _action_context_id
+
+
+func release_actions() -> void:
+	if _action_hub != null and _action_context_id != &"":
+		_action_hub.unregister_context(_action_context_id)
+	_action_hub = null
+	_action_context = null
+	_action_context_id = &""
+
+
+func set_history_state(undo_summary: String, redo_summary: String) -> void:
+	_undo_summary = undo_summary
+	_redo_summary = redo_summary
+	_refresh_history_actions()
+
+
+func present_history_result(message: String) -> void:
+	%Status.text = message
 
 
 func configure(
 		target_registration: StringName,
 		table: GDSQLTableDefinition,
+		total_rows: int = 0,
 ) -> void:
+	var source_changed := registration_name != target_registration \
+			or table_name != table.name
 	registration_name = target_registration
 	table_name = table.name
 	_table = table
-	%Title.text = String(table.name)
-	%Details.text = "%d columns · Primary key: %s" % [
-		table.columns.size(),
-		table.primary_key,
-	]
-	_render_header()
-
-
-func present_rows(result: GDSQLQueryResult) -> void:
-	for child in %DataRows.get_children():
-		%DataRows.remove_child(child)
-		child.queue_free()
-	if result == null or not result.is_successful():
-		%Status.text = "Could not load table rows."
-		return
-	for record in result.rows:
-		_add_data_row(record)
-	%Status.text = (
-			"No rows."
-			if result.rows.is_empty()
-			else "%d row(s) loaded." % result.rows.size()
+	_content_references = GDSQLEditorContentReferenceStore.new().load_for_table(
+		registration_name,
+		table.database_name,
+		table.name,
 	)
-
-
-func _render_header() -> void:
-	for child in %Header.get_children():
-		%Header.remove_child(child)
-		child.queue_free()
-	for column in _table.columns:
-		var label := Label.new()
-		label.custom_minimum_size = Vector2(120, 0)
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		label.text = "%s\n%s" % [
-			column.name,
-			column.display_type_name(),
-		]
-		label.tooltip_text = _column_capabilities(column)
-		%Header.add_child(label)
-	var actions := Control.new()
-	actions.custom_minimum_size = Vector2(126, 0)
-	%Header.add_child(actions)
-
-
-func _column_capabilities(column: GDSQLColumnDefinition) -> String:
-	var capabilities: Array[String] = [column.display_type_name()]
-	capabilities.append("nullable" if column.nullable else "required")
-	if column.name == _table.primary_key:
-		capabilities.append("primary key")
-	if column.unique:
-		capabilities.append("unique")
-	if column.auto_increment:
-		capabilities.append("auto increment")
-	if column.has_default():
-		capabilities.append("default: %s" % var_to_str(column.get_default_value()))
-	if column.generation != GDSQLColumnDefinition.Generation.NONE:
-		capabilities.append(
-			String(GDSQLColumnDefinition.Generation.keys()[column.generation]),
-		)
-	return " · ".join(capabilities)
-
-
-func _request_rows() -> void:
-	%Status.text = "Loading rows…"
-	rows_requested.emit(registration_name, table_name)
-
-
-func _add_empty_row() -> void:
-	_add_data_row(null)
-
-
-func _add_data_row(record: GDSQLRowRecord) -> void:
-	var container := HBoxContainer.new()
-	container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	container.add_theme_constant_override("separation", 6)
-	%DataRows.add_child(container)
-	var row := DATA_ROW_SCENE.instantiate() as Control
-	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	container.add_child(row)
-	var save := Button.new()
-	save.text = "Save"
-	save.custom_minimum_size = Vector2(60, 0)
-	save.pressed.connect(_save_data_row.bind(row, record))
-	container.add_child(save)
-	var remove := Button.new()
-	remove.text = "Delete" if record != null else "Discard"
-	remove.custom_minimum_size = Vector2(60, 0)
-	remove.pressed.connect(_request_row_delete.bind(container, row, record))
-	container.add_child(remove)
-	row.call("configure", _table, record)
-
-
-func _save_data_row(row: Control, source: GDSQLRowRecord) -> void:
-	if not bool(row.call("is_dirty")):
-		return
-	var conversion: Dictionary = row.call("get_values_result")
-	if not bool(conversion.get("valid", false)):
-		row.call("set_status", String(conversion.get("message", "Invalid row values.")))
-		return
-	row.call("set_status", "")
-	if source == null:
-		row_insert_requested.emit(
-			registration_name,
-			table_name,
-			conversion.get("values", { }),
-		)
+	_catalog_total_rows = maxi(0, total_rows)
+	if source_changed:
+		_page_index = 0
+		_applied_predicate = null
+		_applied_filter_summary = ""
+		_filter_dirty = false
+		_where_expression.configure(table.columns)
 	else:
-		row_update_requested.emit(
-			registration_name,
-			table_name,
-			row.call("get_original_primary_key"),
-			conversion.get("values", { }),
+		_where_expression.configure(table.columns, true)
+	_where_expression.tooltip_text = (
+			"Build a typed WHERE filter. Resource columns expose supported scalar property leaves."
+	)
+	_configure_query_options(not source_changed)
+	if _applied_predicate == null:
+		_total_rows = _catalog_total_rows
+	_page_index = clampi(_page_index, 0, _page_count() - 1)
+	%Title.text = String(table.name)
+	%Details.text = "%d columns · Primary key: %s" % [table.columns.size(), table.primary_key]
+	_update_pagination()
+	_refresh_filter_actions()
+	_refresh_actions()
+
+
+func reload_content_references() -> void:
+	if _table == null:
+		return
+	_content_references = GDSQLEditorContentReferenceStore.new().load_for_table(
+		registration_name,
+		_table.database_name,
+		_table.name,
+	)
+	_table_view.set_content_references(_content_references)
+	_insert_editor.set_content_references(_content_references)
+	if not has_unsaved_changes():
+		_render_table()
+
+
+func present_rows(result: GDSQLQueryResult, total_rows: int = -1) -> void:
+	_presentation_revision += 1
+	_close_insert_editor(false)
+	if total_rows >= 0:
+		_total_rows = total_rows
+		var previous_page := _page_index
+		_page_index = clampi(_page_index, 0, _page_count() - 1)
+		if _page_index != previous_page:
+			request_rows()
+			return
+	_records.clear()
+	if result == null or not result.is_successful():
+		_table_view.configure(_table, _table, _records, true, _content_references)
+		_table_view.clear()
+		%Status.text = (
+				"%s Rows could not be reloaded." % _pending_mutation_status
+				if not _pending_mutation_status.is_empty()
+				else "Could not load table rows."
+		)
+		_pending_mutation_status = ""
+		_refresh_actions()
+		return
+	_records.assign(result.rows)
+	for index in range(_records.size()):
+		_records[index].set_value(ROW_NUMBER_COLUMN, _page_index * _page_size + index + 1)
+	_table_view.configure(
+		_table,
+		_build_view_table(),
+		_records,
+		true,
+		_content_references,
+	)
+	_table_view.set_safe_mode(false)
+	_render_table()
+	var page_status := (
+			"No rows on this page."
+			if _records.is_empty()
+			else "Showing rows %d–%d."
+			% [_page_index * _page_size + 1, _page_index * _page_size + _records.size()]
+	)
+	%Status.text = (
+			_pending_mutation_status
+			if not _pending_mutation_status.is_empty()
+			else page_status
+	)
+	_pending_mutation_status = ""
+	_update_pagination()
+	_refresh_actions()
+
+
+func present_reference_rows(
+		foreign_key: GDSQLForeignKeyDefinition,
+		target_table: GDSQLTableDefinition,
+		result: GDSQLQueryResult,
+) -> void:
+	if not is_instance_valid(_reference_request_grid):
+		return
+	_reference_request_grid.present_foreign_key_options(foreign_key, target_table, result)
+	%Status.text = (
+			(
+					"Showing the first %d referenced rows. Type to search this bounded page."
+					% REFERENCE_PICKER_LIMIT
+					if result.rows.size() >= REFERENCE_PICKER_LIMIT
+					else "Choose a referenced row. Type while the list is open to search."
+			)
+			if result != null and result.is_successful()
+			else "Referenced rows could not be loaded."
+	)
+
+
+func present_content_reference_rows(
+		reference: GDSQLEditorContentReference,
+		target_table: GDSQLTableDefinition,
+		result: GDSQLQueryResult,
+) -> void:
+	if not is_instance_valid(_reference_request_grid):
+		return
+	_reference_request_grid.present_content_reference_options(
+		reference,
+		target_table,
+		result,
+	)
+	%Status.text = (
+			(
+					"Showing the first %d content rows. Type to search this bounded page."
+					% REFERENCE_PICKER_LIMIT
+					if result.rows.size() >= REFERENCE_PICKER_LIMIT
+					else "Choose a content row. Type while the list is open to search."
+			)
+			if result != null and result.is_successful()
+			else "Content rows could not be loaded."
+	)
+
+
+func has_unsaved_changes() -> bool:
+	return %InsertSection.visible or _table_view.has_pending_changes()
+
+
+func request_rows() -> void:
+	if has_unsaved_changes() and not _mutation_in_flight:
+		%Status.text = "Save or discard changes before loading another page."
+		return
+	%Status.text = "Loading rows…"
+	var count_query: GDSQLSelectQuerySpec
+	if _applied_predicate != null:
+		count_query = _build_select_query(true)
+	rows_requested.emit(registration_name, table_name, _build_select_query(), count_query)
+
+
+func _request_reference_rows(
+		constraint_name: StringName,
+		request_grid: GDSQLEditorResultGrid,
+) -> void:
+	if _table == null:
+		return
+	var foreign_key := _table.get_foreign_key(constraint_name)
+	if foreign_key == null:
+		%Status.text = "The selected foreign-key constraint no longer exists."
+		return
+	_reference_request_grid = request_grid
+	%Status.text = "Loading referenced rows…"
+	var query := GDSQLQuery.new(_table.database_name) \
+			.select() \
+			.from_table(foreign_key.referenced_table) \
+			.order_by_column(foreign_key.referenced_column) \
+			.limit(REFERENCE_PICKER_LIMIT) \
+			.build()
+	reference_rows_requested.emit(
+		registration_name,
+		table_name,
+		constraint_name,
+		query,
+	)
+
+
+func _request_content_reference_rows(
+		reference: GDSQLEditorContentReference,
+		request_grid: GDSQLEditorResultGrid,
+) -> void:
+	if reference == null or not reference.is_valid():
+		%Status.text = "The selected content reference is invalid."
+		return
+	_reference_request_grid = request_grid
+	%Status.text = "Loading content rows…"
+	var query := GDSQLQuery.new(reference.target_database_name) \
+			.select() \
+			.from_table(reference.target_table_name) \
+			.order_by_column(reference.target_column_name) \
+			.limit(REFERENCE_PICKER_LIMIT) \
+			.build()
+	content_reference_rows_requested.emit(
+		registration_name,
+		table_name,
+		reference,
+		query,
+	)
+
+
+func _is_scene_preview() -> bool:
+	if not Engine.is_editor_hint():
+		return false
+	var edited_scene_root := EditorInterface.get_edited_scene_root()
+	return edited_scene_root == self \
+			or (edited_scene_root != null and edited_scene_root.is_ancestor_of(self))
+
+
+func _open_model_assistant() -> void:
+	if _table != null:
+		model_assistant_requested.emit(registration_name, _table)
+
+
+func _request_undo() -> GDSQLOperationResult:
+	if has_unsaved_changes():
+		return _history_blocked("Undo")
+	undo_requested.emit(registration_name, table_name)
+	var result := GDSQLOperationResult.new()
+	result.value = self
+	return result
+
+
+func _request_redo() -> GDSQLOperationResult:
+	if has_unsaved_changes():
+		return _history_blocked("Redo")
+	redo_requested.emit(registration_name, table_name)
+	var result := GDSQLOperationResult.new()
+	result.value = self
+	return result
+
+
+func _history_blocked(action_name: String) -> GDSQLOperationResult:
+	%Status.text = "%s is unavailable while the table has a pending draft." % action_name
+	var result := GDSQLOperationResult.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(&"GDSQL_EDITOR_MUTATION_HISTORY_DRAFT_PENDING", %Status.text),
+	)
+	return result
+
+
+func _build_select_query(count_rows: bool = false) -> GDSQLSelectQuerySpec:
+	var builder := GDSQLQuery.new(_table.database_name).select().from_table(table_name)
+	if _applied_predicate != null:
+		builder.where(_applied_predicate)
+	if count_rows:
+		builder.count(null, &"row_count")
+	else:
+		var projected_columns := _visible_columns.duplicate()
+		if not projected_columns.has(_table.primary_key):
+			projected_columns.append(_table.primary_key)
+		builder.columns(projected_columns)
+		if _order_column != &"":
+			builder.order_by_column(_order_column, _order_direction)
+		builder.limit(_page_size).offset(_page_index * _page_size)
+	return builder.build()
+
+
+func _build_view_table() -> GDSQLTableDefinition:
+	var view := GDSQLTableDefinition.new(_table.name, _table.primary_key)
+	view.database_name = _table.database_name
+	view.add_column(GDSQLColumnDefinition.new(ROW_NUMBER_COLUMN, TYPE_INT, false))
+	for column in _table.columns:
+		if _visible_columns.has(column.name):
+			view.add_column(column)
+	return view
+
+
+func _configure_query_options(preserve_state: bool) -> void:
+	if not preserve_state:
+		_visible_columns.clear()
+		_order_column = &""
+		_order_direction = GDSQLOrderClause.SortDirection.ASCENDING
+	else:
+		_visible_columns = _valid_visible_columns()
+		if _table.get_column(_order_column) == null:
+			_order_column = &""
+	if _visible_columns.is_empty():
+		for column in _table.columns:
+			_visible_columns.append(column.name)
+	_populate_columns()
+
+
+func _valid_visible_columns() -> Array[StringName]:
+	var valid: Array[StringName] = []
+	for column in _table.columns:
+		if _visible_columns.has(column.name):
+			valid.append(column.name)
+	return valid
+
+
+func _populate_columns() -> void:
+	_column_menu.clear()
+	_column_menu.add_item("Show all", COLUMN_SELECT_ALL)
+	_column_menu.add_separator()
+	for column in _table.columns:
+		_column_menu.add_check_item(String(column.name), _column_menu.item_count)
+		var index := _column_menu.item_count - 1
+		_column_menu.set_item_metadata(index, column.name)
+		_column_menu.set_item_checked(index, _visible_columns.has(column.name))
+
+
+func _on_column_toggled(id: int) -> void:
+	if has_unsaved_changes():
+		%Status.text = "Save or discard row changes before changing visible columns."
+		return
+	if id == COLUMN_SELECT_ALL:
+		_visible_columns.clear()
+		for column in _table.columns:
+			_visible_columns.append(column.name)
+	else:
+		var index := _column_menu.get_item_index(id)
+		if index < 0 or not _column_menu.is_item_checkable(index):
+			return
+		var column_name := StringName(_column_menu.get_item_metadata(index))
+		if _visible_columns.has(column_name):
+			if _visible_columns.size() == 1:
+				%Status.text = "At least one column must remain visible."
+				return
+			_visible_columns.erase(column_name)
+		else:
+			_visible_columns.append(column_name)
+	_populate_columns()
+	_page_index = 0
+	request_rows()
+
+
+func _on_column_title_clicked(column_index: int, mouse_button_index: int) -> void:
+	if mouse_button_index != MOUSE_BUTTON_LEFT:
+		return
+	if column_index == 0:
+		_column_menu.position = DisplayServer.mouse_get_position()
+		_column_menu.popup()
+		return
+	if has_unsaved_changes():
+		%Status.text = "Save or discard row changes before changing row order."
+		return
+	var view := _build_view_table()
+	if column_index < 1 or column_index >= view.columns.size():
+		return
+	var selected_column := view.columns[column_index].name
+	if selected_column != _order_column:
+		_order_column = selected_column
+		_order_direction = GDSQLOrderClause.SortDirection.ASCENDING
+	elif _order_direction == GDSQLOrderClause.SortDirection.ASCENDING:
+		_order_direction = GDSQLOrderClause.SortDirection.DESCENDING
+	else:
+		_order_column = &""
+		_order_direction = GDSQLOrderClause.SortDirection.ASCENDING
+	_decorate_table_headers()
+	_page_index = 0
+	request_rows()
+
+
+func _render_table() -> void:
+	_table_view.render_page(0, _records.size(), -1, _page_size)
+	_decorate_table_headers()
+
+
+func _decorate_table_headers() -> void:
+	if _table == null or _table_view.columns < 1:
+		return
+	_table_view.set_column_title(0, "# ▾")
+	_table_view.set_column_title_tooltip_text(0, "Row number · Click to choose visible columns")
+	var view := _build_view_table()
+	for index in range(1, view.columns.size()):
+		var column := view.columns[index]
+		var suffix := ""
+		if column.name == _order_column:
+			suffix = (" ▼"
+					if _order_direction == GDSQLOrderClause.SortDirection.DESCENDING
+					else " ▲")
+		_table_view.set_column_title(index, "%s%s" % [column.name, suffix])
+		_table_view.set_column_title_tooltip_text(
+			index,
+			"%s · %s · Click to change row order" % [column.name, column.display_type_name()],
 		)
 
 
-func _request_row_delete(
-		container: HBoxContainer,
-		row: Control,
-		source: GDSQLRowRecord,
-) -> void:
-	if source == null:
-		%DataRows.remove_child(container)
-		container.queue_free()
+func _apply_filter() -> void:
+	if has_unsaved_changes():
+		%Status.text = "Save or discard row changes before applying a filter."
 		return
-	_pending_delete_key = row.call("get_original_primary_key")
-	%DeleteConfirmation.dialog_text = (
-			"Delete the row whose primary key is %s?" % var_to_str(_pending_delete_key)
+	var predicate_result := _where_expression.build_expression()
+	if not predicate_result.is_successful():
+		%Status.text = (
+				predicate_result.diagnostics.entries[0].message
+				if not predicate_result.diagnostics.entries.is_empty()
+				else "The WHERE filter is invalid."
+		)
+		return
+	_applied_predicate = predicate_result.get_value() as GDSQLQueryExpression
+	_applied_filter_summary = _where_expression.get_summary().strip_edges()
+	_filter_dirty = false
+	_page_index = 0
+	if _applied_predicate == null:
+		_total_rows = _catalog_total_rows
+	request_rows()
+	_refresh_filter_actions()
+
+
+func _clear_filter() -> void:
+	if has_unsaved_changes():
+		%Status.text = "Save or discard row changes before clearing the filter."
+		return
+	_where_expression.configure(_table.columns)
+	_applied_predicate = null
+	_applied_filter_summary = ""
+	_filter_dirty = false
+	_page_index = 0
+	_total_rows = _catalog_total_rows
+	request_rows()
+	_refresh_filter_actions()
+
+
+func _on_filter_changed() -> void:
+	_filter_dirty = true
+	_refresh_filter_actions()
+
+
+func _refresh_filter_actions() -> void:
+	if not is_node_ready():
+		return
+	var summary := ("All rows" if _applied_filter_summary.is_empty() else _applied_filter_summary)
+	if _filter_dirty:
+		summary += " · unapplied changes"
+	_where_expression.set_header_actions_state(
+		not _mutation_in_flight and _filter_dirty,
+		not _mutation_in_flight and (_filter_dirty or _applied_predicate != null),
+		summary,
 	)
-	%DeleteConfirmation.popup_centered(Vector2i(420, 160))
 
 
-func _confirm_row_delete() -> void:
-	row_delete_requested.emit(registration_name, table_name, _pending_delete_key)
+func _begin_insert() -> void:
+	if _table == null:
+		return
+	if _table_view.has_pending_changes():
+		%Status.text = "Save or discard edited rows before adding a row."
+		return
+	_table_view.deselect_all()
+	_table_view.set_safe_mode(true)
+	_render_table()
+	_insert_editor.configure_insert_draft(
+		_table,
+		_table,
+		{ },
+		_content_references,
+	)
+	%InsertSection.show()
+	%Status.text = "Enter the new row, then save it from the action bar."
+	_refresh_actions()
+
+
+func _save_changes() -> void:
+	if %InsertSection.visible:
+		_save_insert()
+		return
+	if _table_view.has_validation_errors():
+		%Status.text = "Correct the highlighted invalid values before saving."
+		return
+	var updates := _table_view.get_pending_updates()
+	if updates.is_empty():
+		return
+	%Status.text = "Committing %d edited row(s) as one transaction…" % updates.size()
+	_pending_mutation_status = "%d edited row(s) committed atomically." % updates.size()
+	var previous_revision := _presentation_revision
+	_mutation_in_flight = true
+	rows_update_requested.emit(registration_name, table_name, updates)
+	_mutation_in_flight = false
+	if _presentation_revision == previous_revision:
+		_pending_mutation_status = ""
+		%Status.text = (
+				"The transaction failed and was rolled back; " + "pending edits were preserved."
+		)
+	_refresh_actions()
+
+
+func _save_insert() -> void:
+	if _insert_editor.has_validation_errors():
+		%Status.text = "Correct the highlighted invalid values before saving."
+		return
+	var conversion := _insert_editor.get_insert_values_result()
+	if not bool(conversion.get("valid", false)):
+		%Status.text = String(conversion.get("message", "Invalid row values."))
+		return
+	%Status.text = "Adding row…"
+	var previous_revision := _presentation_revision
+	_mutation_in_flight = true
+	row_insert_requested.emit(registration_name, table_name, conversion.get("values", { }))
+	_mutation_in_flight = false
+	if _presentation_revision == previous_revision:
+		%Status.text = "Could not add the row; its values were preserved."
+	_refresh_actions()
+
+
+func _discard_changes() -> void:
+	if %InsertSection.visible:
+		_close_insert_editor()
+		%Status.text = "New row discarded."
+	else:
+		_table_view.clear_pending_changes()
+		_render_table()
+		%Status.text = "Pending draft discarded; stored rows were not changed."
+	_refresh_actions()
+
+
+func _close_insert_editor(restore_table: bool = true) -> void:
+	var empty_records: Array[GDSQLRowRecord] = []
+	_insert_editor.configure(null, null, empty_records, false)
+	_insert_editor.clear()
+	%InsertSection.hide()
+	if restore_table and _table != null:
+		_table_view.set_safe_mode(false)
+		_render_table()
+
+
+func _duplicate_selected_rows() -> void:
+	if has_unsaved_changes():
+		%Status.text = "Save or discard changes before duplicating rows."
+		return
+	var selected_keys := _table_view.get_selected_primary_keys()
+	if selected_keys.is_empty():
+		return
+	if _duplicate_requires_draft(selected_keys):
+		_begin_duplicate_draft(selected_keys)
+		return
+	var rows := _duplicate_values_for(selected_keys)
+	if rows.is_empty():
+		return
+	%Status.text = "Duplicating %d selected row(s) as one transaction…" % rows.size()
+	_pending_mutation_status = "%d selected row(s) duplicated atomically." % rows.size()
+	var previous_revision := _presentation_revision
+	_mutation_in_flight = true
+	rows_duplicate_requested.emit(registration_name, table_name, rows)
+	_mutation_in_flight = false
+	if _presentation_revision == previous_revision:
+		_pending_mutation_status = ""
+		%Status.text = "The duplicate transaction failed and was rolled back."
+	_refresh_actions()
+
+
+func _begin_duplicate_draft(primary_keys: Array[Variant]) -> void:
+	var values := _draft_values_for(primary_keys[0])
+	if values.is_empty():
+		return
+	_table_view.deselect_all()
+	_table_view.set_safe_mode(true)
+	_render_table()
+	_insert_editor.configure_insert_draft(
+		_table,
+		_table,
+		values,
+		_content_references,
+	)
+	%InsertSection.show()
+	var status_parts := PackedStringArray()
+	if primary_keys.size() > 1:
+		status_parts.append("Only the first selected row was copied into the draft.")
+	status_parts.append_array(_duplicate_draft_guidance(primary_keys))
+	%Status.text = " ".join(status_parts)
+	_refresh_actions()
+
+
+func _duplicate_values_for(primary_keys: Array[Variant]) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	for record in _records:
+		if not primary_keys.has(record.get_value(_table.primary_key)):
+			continue
+		var values: Dictionary = { }
+		for column in _table.columns:
+			if column.auto_increment \
+					or column.generation != GDSQLColumnDefinition.Generation.NONE \
+					or (
+						column.data_type == TYPE_OBJECT \
+								and column.resource_ownership == GDSQLResourceOwnership.Mode.OWNED
+					):
+				continue
+			values[column.name] = record.get_value(column.name)
+		rows.append(values)
+	return rows
+
+
+func _draft_values_for(primary_key: Variant) -> Dictionary:
+	for record in _records:
+		if record.get_value(_table.primary_key) != primary_key:
+			continue
+		var values: Dictionary = { }
+		for column in _table.columns:
+			if column.auto_increment \
+					or column.generation != GDSQLColumnDefinition.Generation.NONE:
+				continue
+			var value: Variant = record.get_value(column.name)
+			values[column.name] = (
+				value.duplicate(true)
+				if value is Resource \
+						and column.resource_ownership == GDSQLResourceOwnership.Mode.OWNED
+				else value
+			)
+		return values
+	return { }
+
+
+func _duplicate_requires_draft(primary_keys: Array[Variant]) -> bool:
+	return not _duplicate_draft_guidance(primary_keys).is_empty()
+
+
+func _duplicate_draft_guidance(primary_keys: Array[Variant]) -> PackedStringArray:
+	var guidance := PackedStringArray()
+	if _table == null:
+		return guidance
+	var primary_key := _table.get_column(_table.primary_key)
+	if primary_key == null \
+			or (not primary_key.auto_increment \
+							and primary_key.generation == GDSQLColumnDefinition.Generation.NONE):
+		guidance.append("Change '%s' before saving." % _table.primary_key)
+	if _has_copied_unique_constraint():
+		guidance.append("Review the copied unique values before saving.")
+	if _selected_rows_contain_owned_resources(primary_keys):
+		guidance.append("Owned Resource values were deep-cloned; review them before saving.")
+	return guidance
+
+
+func _has_copied_unique_constraint() -> bool:
+	for column in _table.columns:
+		if column.name != _table.primary_key \
+				and column.generation == GDSQLColumnDefinition.Generation.NONE \
+				and not column.auto_increment \
+				and _table.has_unique_key(column.name):
+			return true
+	for index in _table.indexes:
+		if not index.unique:
+			continue
+		var copies_complete_key := true
+		for column_name in index.columns:
+			var column := _table.get_column(column_name)
+			if column == null \
+					or column.auto_increment \
+					or column.generation != GDSQLColumnDefinition.Generation.NONE:
+				copies_complete_key = false
+				break
+		if copies_complete_key:
+			return true
+	return false
+
+
+func _selected_rows_contain_owned_resources(primary_keys: Array[Variant]) -> bool:
+	for record in _records:
+		if not primary_keys.has(record.get_value(_table.primary_key)):
+			continue
+		for column in _table.columns:
+			if column.data_type == TYPE_OBJECT \
+					and column.resource_ownership == GDSQLResourceOwnership.Mode.OWNED \
+					and record.get_value(column.name) is Resource:
+				return true
+	return false
+
+
+func _request_selected_rows_delete() -> void:
+	if has_unsaved_changes():
+		%Status.text = "Save or discard changes before deleting rows."
+		return
+	_pending_delete_keys = _table_view.get_selected_primary_keys()
+	if _pending_delete_keys.is_empty():
+		return
+	%DeleteConfirmation.dialog_text = (
+			"Delete %d selected row(s)? This operation is atomic." % _pending_delete_keys.size()
+	)
+	%DeleteConfirmation.popup_centered(Vector2i(440, 160))
+
+
+func _confirm_rows_delete() -> void:
+	if _pending_delete_keys.is_empty():
+		return
+	var keys := _pending_delete_keys.duplicate()
+	_pending_delete_keys.clear()
+	%Status.text = "Deleting %d row(s) as one transaction…" % keys.size()
+	_pending_mutation_status = "%d selected row(s) deleted atomically." % keys.size()
+	var previous_revision := _presentation_revision
+	_mutation_in_flight = true
+	rows_delete_requested.emit(registration_name, table_name, keys)
+	_mutation_in_flight = false
+	if _presentation_revision == previous_revision:
+		_pending_mutation_status = ""
+		%Status.text = "The delete transaction failed and was rolled back."
+	_refresh_actions()
+
+
+func _on_inline_changes_changed(status: String) -> void:
+	%Status.text = status
+	_refresh_actions()
+
+
+func _on_insert_changes_changed(status: String) -> void:
+	%Status.text = status
+	_refresh_actions()
+
+
+func _on_multi_selected(_item: TreeItem, _column: int, _selected: bool) -> void:
+	_refresh_actions()
+
+
+func _refresh_actions() -> void:
+	if not is_node_ready():
+		return
+	var inserting: bool = %InsertSection.visible
+	var has_edits: bool = _table_view.has_pending_changes()
+	var edited_count: int = _table_view.get_pending_updates().size()
+	var selected_keys := _table_view.get_selected_primary_keys()
+	var selected_count: int = selected_keys.size()
+	%AddRow.disabled = _mutation_in_flight or _table == null or inserting or has_edits
+	%SaveChanges.disabled = _mutation_in_flight or (not inserting and not has_edits)
+	%DiscardChanges.disabled = _mutation_in_flight or (not inserting and not has_edits)
+	%DuplicateSelected.disabled = (
+			_mutation_in_flight
+			or inserting
+			or has_edits
+			or selected_count == 0
+	)
+	%DuplicateSelected.tooltip_text = (
+			(
+					"Copy the first selected row into an editable Add Row draft"
+					if _duplicate_requires_draft(selected_keys)
+					else (
+							"Duplicate %d selected row(s) in one transaction; owned Resource values are omitted"
+							% selected_count
+					)
+			)
+			if selected_count > 0
+			else "Select one or more rows to duplicate"
+	)
+	%DeleteSelected.disabled = (
+			_mutation_in_flight or inserting or has_edits or selected_count == 0
+	)
+	%DeleteSelected.tooltip_text = (
+			"Delete %d selected row(s) in one transaction" % selected_count
+			if selected_count > 0
+			else "Select one or more rows to delete"
+	)
+	var action_summary := PackedStringArray()
+	if inserting:
+		action_summary.append("1 new row")
+	elif edited_count > 0:
+		action_summary.append("%d edited" % edited_count)
+	if selected_count > 0:
+		action_summary.append("%d selected" % selected_count)
+	if _table_view.has_validation_errors() or _insert_editor.has_validation_errors():
+		action_summary.append("invalid values")
+	%ActionSummary.text = (
+			"No pending changes"
+			if action_summary.is_empty()
+			else " · ".join(action_summary)
+	)
+	_refresh_history_actions()
+	_refresh_filter_actions()
+
+
+func _refresh_history_actions() -> void:
+	if _action_context == null or not is_node_ready():
+		return
+	var blocked := _mutation_in_flight or has_unsaved_changes()
+	_action_context.set_action_enabled(
+		GDSQLEditorActionIds.UNDO_TABLE_MUTATION,
+		not blocked and not _undo_summary.is_empty(),
+	)
+	_action_context.set_action_enabled(
+		GDSQLEditorActionIds.REDO_TABLE_MUTATION,
+		not blocked and not _redo_summary.is_empty(),
+	)
+	%Undo.tooltip_text = (
+			"Undo %s" % _undo_summary
+			if not _undo_summary.is_empty()
+			else "No committed row update to undo"
+	)
+	%Undo.tooltip_text += "\n\nNote: Undo restores editable values;
+	updated_at records the undo operation time. 
+	History lasts only for this editor session."
+
+	%Redo.tooltip_text = (
+			"Redo %s" % _redo_summary
+			if not _redo_summary.is_empty()
+			else "No undone row update to redo"
+	)
+	%Redo.tooltip_text += "\n\nNote: Undo restores editable values; 
+	`updated_at` records the undo operation time. 
+	History lasts only for this editor session."
+
+
+func _change_page(delta: int) -> void:
+	_go_to_page(_page_index + delta)
+
+
+func _go_to_last_page() -> void:
+	_go_to_page(_page_count() - 1)
+
+
+func _go_to_page(index: int) -> void:
+	var target := clampi(index, 0, _page_count() - 1)
+	if target == _page_index:
+		return
+	if has_unsaved_changes():
+		%Status.text = "Save or discard changes before changing pages."
+		return
+	_page_index = target
+	_update_pagination()
+	request_rows()
+
+
+func _on_page_size_selected(index: int) -> void:
+	if index < 0 or index >= PAGE_SIZES.size():
+		return
+	if has_unsaved_changes():
+		%PageSize.select(PAGE_SIZES.find(_page_size))
+		%Status.text = "Save or discard changes before changing page size."
+		return
+	var first_row := _page_index * _page_size
+	_page_size = PAGE_SIZES[index]
+	_page_index = floori(float(first_row) / float(_page_size))
+	_update_pagination()
+	request_rows()
+
+
+func _page_count() -> int:
+	return maxi(1, ceili(float(_total_rows) / float(_page_size)))
+
+
+func _update_pagination() -> void:
+	if not is_node_ready():
+		return
+	var pages := _page_count()
+	%PageStatus.text = "Page %d of %d · %d rows" % [_page_index + 1, pages, _total_rows]
+	%FirstPage.disabled = _page_index <= 0
+	%PreviousPage.disabled = _page_index <= 0
+	%NextPage.disabled = _page_index >= pages - 1
+	%LastPage.disabled = _page_index >= pages - 1

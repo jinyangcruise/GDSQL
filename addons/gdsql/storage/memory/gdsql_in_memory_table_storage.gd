@@ -25,6 +25,9 @@ func read_table(
 	var snapshot := GDSQLTableSnapshot.new()
 	snapshot.primary_key = table.primary_key
 	snapshot.rows = _effective_rows(table, session)
+	var metadata := _effective_metadata(table, session)
+	snapshot.row_count = int(metadata["row_count"])
+	snapshot.next_auto_increment = int(metadata["next_auto_increment"])
 	return snapshot
 
 
@@ -160,6 +163,37 @@ func stage_delete(
 	return result
 
 
+func stage_truncate(
+		table: GDSQLTableDefinition,
+		session: GDSQLStorageSession,
+) -> GDSQLStorageOperationResult:
+	var result := GDSQLStorageOperationResult.new()
+	var removed_rows := _effective_rows(table, session).size()
+	var metadata := _session_metadata(table, session)
+	metadata["row_count"] = 0
+	metadata["next_auto_increment"] = 1
+	session.operations.append({"type": &"truncate", "table": table})
+	session.dirty = true
+	result.value = removed_rows
+	return result
+
+
+func stage_next_auto_increment(
+		table: GDSQLTableDefinition,
+		next_value: int,
+		session: GDSQLStorageSession,
+) -> GDSQLStorageOperationResult:
+	var result := _validate_next_auto_increment(table, next_value, session)
+	if not result.is_successful():
+		return result
+	var metadata := _session_metadata(table, session)
+	metadata["next_auto_increment"] = next_value
+	session.operations.append({"type": &"metadata", "table": table})
+	session.dirty = true
+	result.value = next_value
+	return result
+
+
 func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 	var touched := _touched_tables(session)
 	var validation := _validate_session_constraints(session, touched)
@@ -169,6 +203,11 @@ func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 		var table := operation["table"] as GDSQLTableDefinition
 		var rows := _table_rows(table)
 		var operation_type := operation["type"] as StringName
+		if operation_type == &"truncate":
+			rows.clear()
+			continue
+		if operation_type == &"metadata":
+			continue
 		var key: Variant = operation["key"] \
 		if operation.has("key") \
 		else (operation["row"] as GDSQLRowRecord).get_value(table.primary_key)
@@ -202,6 +241,7 @@ func rollback(session: GDSQLStorageSession) -> void:
 func load_table(
 		table: GDSQLTableDefinition,
 		rows: Array[GDSQLRowRecord],
+		next_auto_increment: int = -1,
 ) -> GDSQLStorageOperationResult:
 	var loading := GDSQLInMemoryTableStorage.new()
 	var session := GDSQLStorageSession.new()
@@ -221,6 +261,11 @@ func load_table(
 		table_key,
 		{ "row_count": rows.size(), "next_auto_increment": 1 },
 	).duplicate()
+	if next_auto_increment >= 1:
+		_metadata[table_key]["next_auto_increment"] = maxi(
+			int(_metadata[table_key]["next_auto_increment"]),
+			next_auto_increment,
+		)
 	_definitions[table_key] = table
 	_versions[table_key] = int(_versions.get(table_key, 0)) + 1
 	_dirty_versions.erase(table_key)
@@ -272,6 +317,11 @@ func _effective_rows(
 			var operation_table := operation["table"] as GDSQLTableDefinition
 			if _table_key(operation_table) != _table_key(table):
 				continue
+			if operation["type"] == &"truncate":
+				rows_by_key.clear()
+				continue
+			if operation["type"] == &"metadata":
+				continue
 			var key: Variant = operation["key"] \
 			if operation.has("key") \
 			else (operation["row"] as GDSQLRowRecord).get_value(table.primary_key)
@@ -283,6 +333,19 @@ func _effective_rows(
 	for row in rows_by_key.values():
 		rows.append(row)
 	return rows
+
+
+func _effective_metadata(
+		table: GDSQLTableDefinition,
+		session: GDSQLStorageSession,
+) -> Dictionary:
+	var table_key := _table_key(table)
+	if session != null and session.table_metadata.has(table_key):
+		return session.table_metadata[table_key]
+	return _metadata.get(
+		table_key,
+		{"row_count": _table_rows(table).size(), "next_auto_increment": 1},
+	)
 
 
 func _session_metadata(
@@ -299,6 +362,30 @@ func _session_metadata(
 		metadata["table"] = table
 		session.table_metadata[table_key] = metadata
 	return session.table_metadata[table_key]
+
+
+func _validate_next_auto_increment(
+		table: GDSQLTableDefinition,
+		next_value: int,
+		session: GDSQLStorageSession,
+) -> GDSQLStorageOperationResult:
+	var result := GDSQLStorageOperationResult.new()
+	var minimum := 1
+	var primary_key := table.get_primary_key()
+	if primary_key != null and primary_key.auto_increment:
+		for row in _effective_rows(table, session):
+			var key: Variant = row.get_value(table.primary_key)
+			if key is int:
+				minimum = maxi(minimum, key + 1)
+	if next_value < minimum:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_STORAGE_AUTO_INCREMENT_INVALID",
+				"Next generated key %d is below the required value %d for %s.%s." \
+						% [next_value, minimum, table.database_name, table.name],
+			),
+		)
+	return result
 
 
 func _touched_tables(session: GDSQLStorageSession) -> Dictionary:

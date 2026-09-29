@@ -1,92 +1,25 @@
-# Import & Export
+# Import and Export — Planned
 
-GDSQL supports importing and exporting data in multiple formats for interoperability with other tools.
+Portable database interchange is backlog work and is not available in the
+current editor.
 
-## Export Formats
+The planned feature will import or export tables and query results without
+depending on the active storage backend. A ConfigFile database and a future
+paged-binary database should therefore use the same interchange contracts.
 
-### CSV
+Initial formats:
 
-Export table data as Comma-Separated Values:
+- CSV for spreadsheet workflows and scalar table data.
+- JSON for structured data exchange.
+- GDSQL-native interchange for Godot Variant values that JSON and CSV cannot
+  represent losslessly.
 
-```csv
-id,name,hp,mp
-1,Warrior,200,50
-2,Mage,80,300
-```
+Imports must provide schema mapping and validation, a change preview, explicit
+append/replace/upsert behavior, structured diagnostics, and one atomic mutation
+boundary. Export must define Resource handling, null encoding, stable column
+order, and format/version metadata where required.
 
-- Standard CSV format with header row
-- Compatible with Excel, Google Sheets, and most spreadsheet tools
-- Useful for bulk data editing outside Godot
-
-### JSON
-
-Export as JSON arrays:
-
-```json
-[
-  {"id": 1, "name": "Warrior", "hp": 200, "mp": 50},
-  {"id": 2, "name": "Mage", "hp": 80, "mp": 300}
-]
-```
-
-- Machine-readable format
-- Good for API integration and data exchange
-- Preserves data types
-
-### CFG
-
-Export in Godot's native ConfigFile format:
-
-```ini
-[0]
-id=1
-name="Warrior"
-hp=200
-
-[1]
-id=2
-name="Mage"
-hp=80
-```
-
-- Native Godot format
-- Human-readable
-- Preserves all Godot data types (Vector2, Color, etc.)
-
-## Import Formats
-
-### From CSV
-
-1. Open the target table in the workbench
-2. Click **Import** → **CSV**
-3. Select your CSV file
-4. The importer maps columns by header name
-
-### From JSON
-
-1. Open the target table
-2. Click **Import** → **JSON**
-3. Select your JSON file
-4. Data is appended or merged based on primary key
-
-### From CFG
-
-1. Open the target table
-2. Click **Import** → **CFG**
-3. Select your `.cfg` file
-
-## Exporting Query Results
-
-You can also export the results of SQL queries:
-
-1. Write and execute a query in the SQL editor
-2. In the results panel, click **Export**
-3. Choose the format (CSV, JSON, or CFG)
-4. Save to your desired location
-
-## Tips
-
-- Export to CSV when sharing data with designers who use spreadsheet tools
-- Export to JSON when integrating with web services or external tools
-- Export to CFG when backing up data or transferring between GDSQL projects
-- Always verify imported data — column types should match the target table schema
+Network replication is a separate concern. An exported file or snapshot may be
+transferred between players in the future, but receiving it must not grant
+permission to execute arbitrary queries or overwrite authoritative runtime
+state.

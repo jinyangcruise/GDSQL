@@ -111,9 +111,9 @@ func _add_registration(root: TreeItem, registration: GDSQLDatabaseRegistration) 
 
 
 func _add_columns(
-	registration: GDSQLDatabaseRegistration,
-	table_name: StringName,
-	parent: TreeItem,
+		registration: GDSQLDatabaseRegistration,
+		table_name: StringName,
+		parent: TreeItem,
 ) -> void:
 	var session := _workbench.active_session
 	if session == null or session.registration.name != registration.name \

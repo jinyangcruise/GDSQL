@@ -225,9 +225,10 @@ func create_table(
 				schema.set_value(
 					section,
 					"default",
-					_codec.encode(column.get_default_value()),
+					_codec.encode(column.get_default_value(), column),
 				)
 	_write_index_schema(schema, table)
+	_write_foreign_key_schema(schema, table)
 	if schema.save(schema_path) != OK:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(table_path))
 		return _error(
@@ -252,6 +253,14 @@ func rename_table(
 		return _error(&"GDSQL_CATALOG_UNKNOWN_TABLE", "Table '%s.%s' does not exist." % [database_name, current_name])
 	if _catalog.has_table(database_name, new_name):
 		return _error(&"GDSQL_CATALOG_TABLE_EXISTS", "Table '%s.%s' already exists." % [database_name, new_name])
+	var dependencies := _validate_no_incoming_foreign_keys(
+		database_name,
+		current_name,
+		&"",
+		current_name,
+	)
+	if not dependencies.is_successful():
+		return dependencies
 	var old_schema_path := _path_resolver.resolve_schema_path(database_name, current_name)
 	var new_schema_path := _path_resolver.resolve_schema_path(database_name, new_name)
 	var old_table_path := _path_resolver.resolve_table_path(database_name, current_name)
@@ -263,17 +272,15 @@ func rename_table(
 	if DirAccess.rename_absolute(ProjectSettings.globalize_path(old_schema_path), ProjectSettings.globalize_path(new_schema_path)) != OK:
 		DirAccess.rename_absolute(ProjectSettings.globalize_path(new_table_path), ProjectSettings.globalize_path(old_table_path))
 		return _error(&"GDSQL_CATALOG_TABLE_RENAME_FAILED", "Could not rename table schema '%s'." % old_schema_path)
-	var schema := ConfigFile.new()
-	if schema.load(new_schema_path) != OK:
-		_rollback_table_rename(old_schema_path, new_schema_path, old_table_path, new_table_path)
-		return _error(&"GDSQL_CATALOG_SCHEMA_UNREADABLE", "Could not read renamed table schema '%s'." % new_schema_path)
-	schema.set_value("table", "name", String(new_name))
-	if schema.save(new_schema_path) != OK:
+	table.name = new_name
+	for foreign_key in table.foreign_keys:
+		if foreign_key.referenced_table == current_name:
+			foreign_key.referenced_table = new_name
+	if _save_schema(new_schema_path, table) != OK:
 		_rollback_table_rename(old_schema_path, new_schema_path, old_table_path, new_table_path)
 		return _error(&"GDSQL_CATALOG_SCHEMA_SAVE_FAILED", "Could not update renamed table schema '%s'." % new_schema_path)
 	_cache.invalidate(old_table_path)
 	_cache.invalidate(new_table_path)
-	table.name = new_name
 	var result := GDSQLCatalogOperationResult.new()
 	result.value = table
 	return result
@@ -286,6 +293,14 @@ func drop_table(
 	var table := _catalog.get_table(database_name, table_name)
 	if table == null:
 		return _error(&"GDSQL_CATALOG_UNKNOWN_TABLE", "Table '%s.%s' does not exist." % [database_name, table_name])
+	var dependencies := _validate_no_incoming_foreign_keys(
+		database_name,
+		table_name,
+		&"",
+		table_name,
+	)
+	if not dependencies.is_successful():
+		return dependencies
 	var schema_path := _path_resolver.resolve_schema_path(database_name, table_name)
 	var table_path := _path_resolver.resolve_table_path(database_name, table_name)
 	var schema := ConfigFile.new()
@@ -346,7 +361,7 @@ func preview_alter_table(
 			var failed := GDSQLOperationResult.new()
 			failed.diagnostics.merge(alteration_result.diagnostics)
 			return failed
-	var validation := _validate_table(database_name, table)
+	var validation := _validate_table(database_name, table, table_data)
 	if not validation.is_successful():
 		var failed := GDSQLOperationResult.new()
 		failed.diagnostics.merge(validation.diagnostics)
@@ -404,7 +419,11 @@ func _apply_alterations(
 		)
 	var changes_table_data := false
 	for alteration in alterations:
-		if alteration == null or alteration.kind != GDSQLTableAlteration.Kind.REORDER_COLUMNS:
+		if alteration == null or alteration.kind not in [
+			GDSQLTableAlteration.Kind.REORDER_COLUMNS,
+			GDSQLTableAlteration.Kind.ADD_FOREIGN_KEY,
+			GDSQLTableAlteration.Kind.DROP_FOREIGN_KEY,
+		]:
 			changes_table_data = true
 			break
 	var original_data: ConfigFile
@@ -415,7 +434,7 @@ func _apply_alterations(
 		var alteration_result := _apply_alteration(table, table_data, alteration)
 		if not alteration_result.is_successful():
 			return alteration_result
-	var validation := _validate_table(database_name, table)
+	var validation := _validate_table(database_name, table, table_data)
 	if not validation.is_successful():
 		return validation
 	var schema_path := _path_resolver.resolve_schema_path(database_name, table_name)
@@ -476,13 +495,15 @@ func _stored_schema_matches(
 	if stored == null \
 			or stored.primary_key != requested.primary_key \
 			or stored.columns.size() != requested.columns.size() \
-			or stored.indexes.size() != requested.indexes.size():
+			or stored.indexes.size() != requested.indexes.size() \
+			or stored.foreign_keys.size() != requested.foreign_keys.size():
 		return false
 	for requested_column in requested.columns:
 		var stored_column := stored.get_column(requested_column.name)
 		if stored_column == null \
 				or stored_column.data_type != requested_column.data_type \
 				or not _resource_types_match(stored_column, requested_column) \
+				or stored_column.resource_ownership != requested_column.resource_ownership \
 				or stored_column.nullable != requested_column.nullable \
 				or stored_column.unique != requested_column.unique \
 				or stored_column.auto_increment != requested_column.auto_increment \
@@ -495,6 +516,11 @@ func _stored_schema_matches(
 		if stored_index == null \
 				or stored_index.columns != requested_index.columns \
 				or stored_index.unique != requested_index.unique:
+			return false
+	for requested_foreign_key in requested.foreign_keys:
+		var stored_foreign_key := stored.get_foreign_key(requested_foreign_key.name)
+		if stored_foreign_key == null \
+				or not stored_foreign_key.is_equivalent_to(requested_foreign_key):
 			return false
 	return true
 
@@ -517,6 +543,10 @@ func _apply_alteration(
 			return _add_index(table, table_data, alteration.index)
 		GDSQLTableAlteration.Kind.DROP_INDEX:
 			return _drop_index(table, alteration.index_name)
+		GDSQLTableAlteration.Kind.ADD_FOREIGN_KEY:
+			return _add_foreign_key(table, alteration.foreign_key)
+		GDSQLTableAlteration.Kind.DROP_FOREIGN_KEY:
+			return _drop_foreign_key(table, alteration.foreign_key_name)
 		GDSQLTableAlteration.Kind.SET_COLUMN_DEFAULT:
 			return _set_column_default(table, alteration.column_name, alteration.value)
 		GDSQLTableAlteration.Kind.CLEAR_COLUMN_DEFAULT:
@@ -548,6 +578,13 @@ func _apply_alteration(
 				alteration.column_name,
 				alteration.generation,
 			)
+		GDSQLTableAlteration.Kind.SET_RESOURCE_OWNERSHIP:
+			return _set_resource_ownership(
+				table,
+				table_data,
+				alteration.column_name,
+				alteration.resource_ownership,
+			)
 		GDSQLTableAlteration.Kind.REORDER_COLUMNS:
 			return _reorder_columns(table, alteration.column_names)
 	return _error(&"GDSQL_CATALOG_INVALID_ALTERATION", "Unsupported table alteration kind.")
@@ -571,6 +608,11 @@ func _add_column(
 		return _error(
 			&"GDSQL_CATALOG_COLUMN_DEFAULT_TYPE_MISMATCH",
 			"Default for column '%s' does not match its Variant type." % column.name,
+		)
+	if column.has_default() and not _codec.can_encode(column.get_default_value(), column):
+		return _error(
+			&"GDSQL_CATALOG_RESOURCE_REFERENCE_PATH_REQUIRED",
+			"Default for referenced Resource column '%s' must be a saved asset." % column.name,
 		)
 	if column.generation != GDSQLColumnDefinition.Generation.NONE:
 		if column.data_type != TYPE_INT:
@@ -601,7 +643,7 @@ func _add_column(
 			table_data.set_value(
 				section,
 				String(column.name),
-				_codec.encode(column.get_default_value()),
+				_codec.encode(column.get_default_value(), column),
 			)
 	elif column.generation == GDSQLColumnDefinition.Generation.CREATED_AT \
 			or column.generation == GDSQLColumnDefinition.Generation.UPDATED_AT:
@@ -629,6 +671,14 @@ func _rename_column(
 		return _error(&"GDSQL_CATALOG_UNKNOWN_COLUMN", "Column '%s' does not exist." % current_name)
 	if table.has_column(new_name):
 		return _error(&"GDSQL_CATALOG_DUPLICATE_COLUMN", "Column '%s' already exists." % new_name)
+	var dependencies := _validate_no_incoming_foreign_keys(
+		table.database_name,
+		table.name,
+		current_name,
+		table.name,
+	)
+	if not dependencies.is_successful():
+		return dependencies
 	for section in _get_row_sections(table_data):
 		if table_data.has_section_key(section, String(current_name)):
 			var value: Variant = table_data.get_value(section, String(current_name))
@@ -641,6 +691,11 @@ func _rename_column(
 		for column_index in index.columns.size():
 			if index.columns[column_index] == current_name:
 				index.columns[column_index] = new_name
+	for foreign_key in table.foreign_keys:
+		if foreign_key.column == current_name:
+			foreign_key.column = new_name
+		if foreign_key.references_target(table.name, current_name):
+			foreign_key.referenced_column = new_name
 	return GDSQLCatalogOperationResult.new()
 
 
@@ -654,12 +709,30 @@ func _drop_column(
 	var column := table.get_column(column_name)
 	if column == null:
 		return _error(&"GDSQL_CATALOG_UNKNOWN_COLUMN", "Column '%s' does not exist." % column_name)
+	var dependencies := _validate_no_incoming_foreign_keys(
+		table.database_name,
+		table.name,
+		column_name,
+		table.name,
+	)
+	if not dependencies.is_successful():
+		return dependencies
 	for index in table.indexes:
 		if index.columns.has(column_name):
 			return _error(
 				&"GDSQL_CATALOG_INDEXED_COLUMN_DROP_FORBIDDEN",
 				"Column '%s' cannot be dropped while index '%s' references it." \
 						% [column_name, index.name],
+			)
+	for foreign_key in table.foreign_keys:
+		if foreign_key.column == column_name \
+				or foreign_key.references_target(table.name, column_name):
+			return _error(
+				&"GDSQL_CATALOG_FOREIGN_KEY_COLUMN_DROP_FORBIDDEN",
+				"Column '%s' cannot be dropped while foreign key '%s' references it." % [
+					column_name,
+					foreign_key.name,
+				],
 			)
 	for section in _get_row_sections(table_data):
 		table_data.erase_section_key(section, String(column_name))
@@ -704,7 +777,7 @@ func _add_index(
 			"Index '%s' already exists." % index.name,
 		)
 	if index.unique:
-		var uniqueness := _validate_unique_index_data(table_data, index)
+		var uniqueness := _validate_unique_index_data(table, table_data, index)
 		if not uniqueness.is_successful():
 			return uniqueness
 	table.indexes.append(index)
@@ -721,7 +794,48 @@ func _drop_index(
 			&"GDSQL_CATALOG_UNKNOWN_INDEX",
 			"Index '%s' does not exist." % index_name,
 		)
+	if index.unique and index.columns.size() == 1 \
+			and not _has_alternate_unique_key(table, index.columns[0], index):
+		var dependencies := _validate_no_incoming_foreign_keys(
+			table.database_name,
+			table.name,
+			index.columns[0],
+		)
+		if not dependencies.is_successful():
+			return dependencies
 	table.indexes.erase(index)
+	return GDSQLCatalogOperationResult.new()
+
+
+func _add_foreign_key(
+		table: GDSQLTableDefinition,
+		foreign_key: GDSQLForeignKeyDefinition,
+) -> GDSQLCatalogOperationResult:
+	if foreign_key == null:
+		return _error(
+			&"GDSQL_CATALOG_INVALID_FOREIGN_KEY",
+			"Added foreign key cannot be null.",
+		)
+	if table.get_foreign_key(foreign_key.name) != null:
+		return _error(
+			&"GDSQL_CATALOG_DUPLICATE_FOREIGN_KEY",
+			"Foreign key '%s' already exists." % foreign_key.name,
+		)
+	table.foreign_keys.append(foreign_key)
+	return GDSQLCatalogOperationResult.new()
+
+
+func _drop_foreign_key(
+		table: GDSQLTableDefinition,
+		foreign_key_name: StringName,
+) -> GDSQLCatalogOperationResult:
+	var foreign_key := table.get_foreign_key(foreign_key_name)
+	if foreign_key == null:
+		return _error(
+			&"GDSQL_CATALOG_UNKNOWN_FOREIGN_KEY",
+			"Foreign key '%s' does not exist." % foreign_key_name,
+		)
+	table.foreign_keys.erase(foreign_key)
 	return GDSQLCatalogOperationResult.new()
 
 
@@ -742,6 +856,11 @@ func _set_column_default(
 		return _error(
 			&"GDSQL_CATALOG_COLUMN_DEFAULT_TYPE_MISMATCH",
 			"Default for column '%s' does not match its Variant type." % column_name,
+		)
+	if not _codec.can_encode(value, column):
+		return _error(
+			&"GDSQL_CATALOG_RESOURCE_REFERENCE_PATH_REQUIRED",
+			"Default for referenced Resource column '%s' must be a saved asset." % column_name,
 		)
 	column.set_default(value)
 	return GDSQLCatalogOperationResult.new()
@@ -775,7 +894,7 @@ func _set_column_nullable(
 	if not nullable:
 		for section in _get_row_sections(table_data):
 			if not table_data.has_section_key(section, String(column_name)) \
-					or _read_value(table_data, section, column_name) == null:
+					or _read_value(table_data, section, column_name, column) == null:
 				return _error(
 					&"GDSQL_CATALOG_COLUMN_CONTAINS_NULL",
 					"Column '%s' contains null or missing values." % column_name,
@@ -798,8 +917,17 @@ func _set_column_unique(
 			&"GDSQL_CATALOG_PRIMARY_KEY_UNIQUE_REQUIRED",
 			"Primary-key column '%s' must remain unique." % column_name,
 		)
+	if not unique and column.unique \
+			and not _has_alternate_unique_key(table, column_name, null, true):
+		var dependencies := _validate_no_incoming_foreign_keys(
+			table.database_name,
+			table.name,
+			column_name,
+		)
+		if not dependencies.is_successful():
+			return dependencies
 	if unique:
-		var uniqueness := _validate_unique_column_data(table_data, column_name)
+		var uniqueness := _validate_unique_column_data(table, table_data, column_name)
 		if not uniqueness.is_successful():
 			return uniqueness
 	column.unique = unique
@@ -844,13 +972,79 @@ func _set_column_generation(
 	return GDSQLCatalogOperationResult.new()
 
 
+func _set_resource_ownership(
+		table: GDSQLTableDefinition,
+		table_data: ConfigFile,
+		column_name: StringName,
+		ownership: GDSQLResourceOwnership.Mode,
+) -> GDSQLCatalogOperationResult:
+	var column := table.get_column(column_name)
+	if column == null:
+		return _unknown_column(column_name)
+	if column.data_type != TYPE_OBJECT or not GDSQLResourceOwnership.is_valid(ownership):
+		return _error(
+			&"GDSQL_CATALOG_RESOURCE_OWNERSHIP_INVALID",
+			"Column '%s' requires a valid Resource ownership mode." % column_name,
+		)
+	if column.resource_ownership == ownership:
+		return GDSQLCatalogOperationResult.new()
+	var changed_column := _column_with_ownership(column, ownership)
+	if column.has_default() and not _codec.can_encode(column.get_default_value(), changed_column):
+		return _error(
+			&"GDSQL_CATALOG_RESOURCE_REFERENCE_PATH_REQUIRED",
+			"Default for referenced Resource column '%s' must be a saved asset." % column_name,
+		)
+	var values: Dictionary[String, Variant] = { }
+	for section in _get_row_sections(table_data):
+		if not table_data.has_section_key(section, String(column_name)):
+			continue
+		var value: Variant = _read_value(table_data, section, column_name, column)
+		if ownership == GDSQLResourceOwnership.Mode.REFERENCED \
+				and not _codec.can_encode(value, changed_column):
+			return _error(
+				&"GDSQL_CATALOG_RESOURCE_REFERENCE_PATH_REQUIRED",
+				"Column '%s' contains an owned Resource without a saved asset path." % column_name,
+			)
+		values[section] = value
+	column.resource_ownership = ownership
+	for section in values:
+		table_data.set_value(
+			section,
+			String(column_name),
+			_codec.encode(values[section], column),
+		)
+	return GDSQLCatalogOperationResult.new()
+
+
+func _column_with_ownership(
+		column: GDSQLColumnDefinition,
+		ownership: GDSQLResourceOwnership.Mode,
+) -> GDSQLColumnDefinition:
+	var copy := GDSQLColumnDefinition.new(
+		column.name,
+		column.data_type,
+		column.nullable,
+		column.unique,
+		column.auto_increment,
+	)
+	copy.resource_type = column.resource_type
+	copy.resource_ownership = ownership
+	return copy
+
+
 func _validate_unique_column_data(
+		table: GDSQLTableDefinition,
 		table_data: ConfigFile,
 		column_name: StringName,
 ) -> GDSQLCatalogOperationResult:
 	var seen: Array[Variant] = []
 	for section in _get_row_sections(table_data):
-		var value: Variant = _read_value(table_data, section, column_name)
+		var value: Variant = _read_value(
+			table_data,
+			section,
+			column_name,
+			table.get_column(column_name),
+		)
 		if value == null:
 			continue
 		if seen.has(value):
@@ -863,6 +1057,7 @@ func _validate_unique_column_data(
 
 
 func _validate_unique_index_data(
+		table: GDSQLTableDefinition,
 		table_data: ConfigFile,
 		index: GDSQLIndexDefinition,
 ) -> GDSQLCatalogOperationResult:
@@ -871,7 +1066,12 @@ func _validate_unique_index_data(
 		var values: Array = []
 		var contains_null := false
 		for column_name in index.columns:
-			var value: Variant = _read_value(table_data, section, column_name)
+			var value: Variant = _read_value(
+				table_data,
+				section,
+				column_name,
+				table.get_column(column_name),
+			)
 			values.append(value)
 			contains_null = contains_null or value == null
 		if contains_null:
@@ -889,10 +1089,11 @@ func _read_value(
 		table_data: ConfigFile,
 		section: String,
 		column_name: StringName,
+		column: GDSQLColumnDefinition = null,
 ) -> Variant:
 	if not table_data.has_section_key(section, String(column_name)):
 		return null
-	return _codec.decode(table_data.get_value(section, String(column_name)))
+	return _codec.decode(table_data.get_value(section, String(column_name)), column)
 
 
 func _recalculate_auto_increment(
@@ -901,7 +1102,12 @@ func _recalculate_auto_increment(
 ) -> void:
 	var next_value := 1
 	for section in _get_row_sections(table_data):
-		var value: Variant = _read_value(table_data, section, table.primary_key)
+		var value: Variant = _read_value(
+			table_data,
+			section,
+			table.primary_key,
+			table.get_primary_key(),
+		)
 		if value is int:
 			next_value = maxi(next_value, value + 1)
 	table_data.set_value(TABLE_METADATA_SECTION, "next_auto_increment", next_value)
@@ -932,9 +1138,10 @@ func _save_schema(path: String, table: GDSQLTableDefinition) -> Error:
 				schema.set_value(
 					section,
 					"default",
-					_codec.encode(column.get_default_value()),
+					_codec.encode(column.get_default_value(), column),
 				)
 	_write_index_schema(schema, table)
+	_write_foreign_key_schema(schema, table)
 	return schema.save(path)
 
 
@@ -949,6 +1156,27 @@ func _write_index_schema(
 			columns.append(String(column_name))
 		schema.set_value(section, "columns", columns)
 		schema.set_value(section, "unique", index.unique)
+
+
+func _write_foreign_key_schema(
+		schema: ConfigFile,
+		table: GDSQLTableDefinition,
+) -> void:
+	for foreign_key in table.foreign_keys:
+		var section := "foreign_key:%s" % foreign_key.name
+		schema.set_value(section, "column", String(foreign_key.column))
+		schema.set_value(
+			section,
+			"referenced_table",
+			String(foreign_key.referenced_table),
+		)
+		schema.set_value(
+			section,
+			"referenced_column",
+			String(foreign_key.referenced_column),
+		)
+		schema.set_value(section, "on_delete", foreign_key.on_delete)
+		schema.set_value(section, "on_update", foreign_key.on_update)
 
 
 func _load_registry() -> GDSQLCatalogOperationResult:
@@ -995,9 +1223,62 @@ func _remove_directory_recursive(path: String) -> Error:
 	return DirAccess.remove_absolute(absolute_path)
 
 
+func _validate_no_incoming_foreign_keys(
+		database_name: StringName,
+		target_table: StringName,
+		target_column: StringName = &"",
+		excluded_source_table: StringName = &"",
+) -> GDSQLCatalogOperationResult:
+	var database := _catalog.get_database(database_name)
+	if database == null:
+		return _error(
+			&"GDSQL_CATALOG_UNKNOWN_DATABASE",
+			"Database '%s' does not exist." % database_name,
+		)
+	for source_table in database.tables:
+		if source_table.name == excluded_source_table:
+			continue
+		for foreign_key in source_table.foreign_keys:
+			if foreign_key.referenced_table != target_table \
+					or (
+							target_column != &"" \
+									and foreign_key.referenced_column != target_column
+					):
+				continue
+			return _error(
+				&"GDSQL_CATALOG_FOREIGN_KEY_DEPENDENCY",
+				"Foreign key '%s' on '%s.%s' depends on '%s.%s'." % [
+					foreign_key.name,
+					source_table.name,
+					foreign_key.column,
+					target_table,
+					foreign_key.referenced_column,
+				],
+			)
+	var result := GDSQLCatalogOperationResult.new()
+	result.value = true
+	return result
+
+
+func _has_alternate_unique_key(
+		table: GDSQLTableDefinition,
+		column_name: StringName,
+		ignored_index: GDSQLIndexDefinition = null,
+		ignore_column_unique: bool = false,
+) -> bool:
+	var column := table.get_column(column_name)
+	if not ignore_column_unique and column != null and column.unique:
+		return true
+	for index in table.indexes:
+		if index != ignored_index and index.unique and index.columns == [column_name]:
+			return true
+	return false
+
+
 func _validate_table(
 		database_name: StringName,
 		table: GDSQLTableDefinition,
+		table_data: ConfigFile = null,
 ) -> GDSQLCatalogOperationResult:
 	if not _path_resolver.is_valid_name(database_name):
 		return _error(&"GDSQL_CATALOG_INVALID_DATABASE_NAME", "Invalid database name '%s'." % database_name)
@@ -1023,6 +1304,11 @@ func _validate_table(
 			return _error(
 				&"GDSQL_CATALOG_COLUMN_DEFAULT_TYPE_MISMATCH",
 				"Default for column '%s' does not match its Variant type." % column.name,
+			)
+		if column.has_default() and not _codec.can_encode(column.get_default_value(), column):
+			return _error(
+				&"GDSQL_CATALOG_RESOURCE_REFERENCE_PATH_REQUIRED",
+				"Default for referenced Resource column '%s' must be a saved asset." % column.name,
 			)
 		if column.auto_increment:
 			auto_increment_columns += 1
@@ -1098,6 +1384,151 @@ func _validate_table(
 				)
 			indexed_columns[column_name] = true
 		index_names[index.name] = true
+	var foreign_key_names: Dictionary[StringName, bool] = { }
+	for foreign_key in table.foreign_keys:
+		if foreign_key == null \
+				or not _path_resolver.is_valid_name(foreign_key.name) \
+				or not _path_resolver.is_valid_name(foreign_key.referenced_table) \
+				or not _path_resolver.is_valid_name(foreign_key.referenced_column):
+			return _error(
+				&"GDSQL_CATALOG_INVALID_FOREIGN_KEY",
+				"Every foreign key requires valid constraint, table, and column names.",
+			)
+		if foreign_key_names.has(foreign_key.name):
+			return _error(
+				&"GDSQL_CATALOG_DUPLICATE_FOREIGN_KEY",
+				"Foreign key '%s' appears more than once." % foreign_key.name,
+			)
+		if not column_names.has(foreign_key.column):
+			return _error(
+				&"GDSQL_CATALOG_FOREIGN_KEY_UNKNOWN_COLUMN",
+				"Foreign key '%s' references unknown local column '%s'." % [
+					foreign_key.name,
+					foreign_key.column,
+				],
+			)
+		var local_column := table.get_column(foreign_key.column)
+		if not GDSQLForeignKeyDefinition.supports_column_type(local_column.data_type):
+			return _error(
+				&"GDSQL_CATALOG_FOREIGN_KEY_UNSUPPORTED_TYPE",
+				"Foreign key '%s' column '%s' must use int, String, or StringName." % [
+					foreign_key.name,
+					foreign_key.column,
+				],
+			)
+		var referenced_table := (
+				table
+				if foreign_key.referenced_table == table.name
+				else _catalog.get_table(database_name, foreign_key.referenced_table)
+		)
+		if referenced_table == null:
+			return _error(
+				&"GDSQL_CATALOG_FOREIGN_KEY_UNKNOWN_TABLE",
+				"Foreign key '%s' references unknown table '%s'." % [
+					foreign_key.name,
+					foreign_key.referenced_table,
+				],
+			)
+		var referenced_column := referenced_table.get_column(
+			foreign_key.referenced_column,
+		)
+		if referenced_column == null:
+			return _error(
+				&"GDSQL_CATALOG_FOREIGN_KEY_UNKNOWN_TARGET_COLUMN",
+				"Foreign key '%s' references unknown column '%s.%s'." % [
+					foreign_key.name,
+					foreign_key.referenced_table,
+					foreign_key.referenced_column,
+				],
+			)
+		if local_column.data_type != referenced_column.data_type:
+			return _error(
+				&"GDSQL_CATALOG_FOREIGN_KEY_TYPE_MISMATCH",
+				"Foreign key '%s' column types do not match (%s and %s)." % [
+					foreign_key.name,
+					local_column.display_type_name(),
+					referenced_column.display_type_name(),
+				],
+			)
+		if not referenced_table.has_unique_key(foreign_key.referenced_column):
+			return _error(
+				&"GDSQL_CATALOG_FOREIGN_KEY_TARGET_NOT_UNIQUE",
+				"Foreign key '%s' target '%s.%s' must be unique." % [
+					foreign_key.name,
+					foreign_key.referenced_table,
+					foreign_key.referenced_column,
+				],
+			)
+		if foreign_key.on_delete != GDSQLForeignKeyDefinition.Action.RESTRICT \
+				or foreign_key.on_update != GDSQLForeignKeyDefinition.Action.RESTRICT:
+			return _error(
+				&"GDSQL_CATALOG_FOREIGN_KEY_ACTION_UNSUPPORTED",
+				"Foreign key '%s' uses an unsupported action." % foreign_key.name,
+			)
+		var row_validation := _validate_foreign_key_rows(
+			database_name,
+			table,
+			table_data,
+			foreign_key,
+			referenced_table,
+		)
+		if not row_validation.is_successful():
+			return row_validation
+		foreign_key_names[foreign_key.name] = true
+	return GDSQLCatalogOperationResult.new()
+
+
+func _validate_foreign_key_rows(
+		database_name: StringName,
+		table: GDSQLTableDefinition,
+		table_data: ConfigFile,
+		foreign_key: GDSQLForeignKeyDefinition,
+		referenced_table: GDSQLTableDefinition,
+) -> GDSQLCatalogOperationResult:
+	if table_data == null:
+		return GDSQLCatalogOperationResult.new()
+	var referenced_data := table_data
+	if referenced_table.name != table.name:
+		referenced_data = ConfigFile.new()
+		var referenced_path := _path_resolver.resolve_table_path(
+			database_name,
+			referenced_table.name,
+		)
+		if referenced_data.load(referenced_path) != OK:
+			return _error(
+				&"GDSQL_CATALOG_FOREIGN_KEY_TARGET_UNREADABLE",
+				"Could not read referenced table '%s.%s'." % [
+					database_name,
+					referenced_table.name,
+				],
+			)
+	var target_values: Dictionary = { }
+	for section in _get_row_sections(referenced_data):
+		var target_value: Variant = _read_value(
+			referenced_data,
+			section,
+			foreign_key.referenced_column,
+			referenced_table.get_column(foreign_key.referenced_column),
+		)
+		if target_value != null:
+			target_values[target_value] = true
+	for section in _get_row_sections(table_data):
+		var local_value: Variant = _read_value(
+			table_data,
+			section,
+			foreign_key.column,
+			table.get_column(foreign_key.column),
+		)
+		if local_value != null and not target_values.has(local_value):
+			return _error(
+				&"GDSQL_CATALOG_FOREIGN_KEY_ORPHAN_VALUE",
+				"Foreign key '%s' has value '%s' without a matching '%s.%s' row." % [
+					foreign_key.name,
+					local_value,
+					foreign_key.referenced_table,
+					foreign_key.referenced_column,
+				],
+			)
 	return GDSQLCatalogOperationResult.new()
 
 
@@ -1130,6 +1561,7 @@ func _rebuild_indexes(
 					table_data,
 					row_section,
 					column_name,
+					table.get_column(column_name),
 				)
 				var column := table.get_column(column_name)
 				if value != null and column != null:
@@ -1150,8 +1582,13 @@ func _rebuild_indexes(
 			]
 			if not table_data.has_section(section):
 				var encoded_values: Array = []
-				for value in values:
-					encoded_values.append(_codec.encode(value))
+				for value_index in values.size():
+					encoded_values.append(
+						_codec.encode(
+							values[value_index],
+							table.get_column(index.columns[value_index]),
+						),
+					)
 				table_data.set_value(section, "values", encoded_values)
 				table_data.set_value(
 					section,
@@ -1179,6 +1616,7 @@ func _catalog_fingerprint(table: GDSQLTableDefinition) -> int:
 				column.unique,
 				column.auto_increment,
 				column.generation,
+				column.resource_ownership,
 				column.has_default(),
 				column.get_default_value(),
 				column.resource_type.resource_class if column.resource_type != null else &"",
@@ -1188,6 +1626,18 @@ func _catalog_fingerprint(table: GDSQLTableDefinition) -> int:
 	var indexes: Array = []
 	for index in table.indexes:
 		indexes.append([index.name, index.columns, index.unique])
+	var foreign_keys: Array = []
+	for foreign_key in table.foreign_keys:
+		foreign_keys.append(
+			[
+				foreign_key.name,
+				foreign_key.column,
+				foreign_key.referenced_table,
+				foreign_key.referenced_column,
+				foreign_key.on_delete,
+				foreign_key.on_update,
+			],
+		)
 	return hash(
 		var_to_str(
 			[
@@ -1196,6 +1646,7 @@ func _catalog_fingerprint(table: GDSQLTableDefinition) -> int:
 				table.primary_key,
 				columns,
 				indexes,
+				foreign_keys,
 			],
 		),
 	)
@@ -1209,6 +1660,11 @@ func _write_resource_type(
 	if column.data_type != TYPE_OBJECT or column.resource_type == null:
 		return
 	schema.set_value(section, "resource_class", String(column.resource_type.resource_class))
+	schema.set_value(
+		section,
+		"resource_ownership",
+		String(GDSQLResourceOwnership.to_id(column.resource_ownership)),
+	)
 	if not column.resource_type.script_path.is_empty():
 		schema.set_value(section, "resource_script", column.resource_type.script_path)
 

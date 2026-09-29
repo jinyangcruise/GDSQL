@@ -6,13 +6,23 @@ const CREATE_DATABASE := &"database.create"
 const CREATE_TABLE := &"table.create"
 const REMOVE_REGISTRATION := &"database.remove_registration"
 const DROP_TABLE := &"table.drop"
+const TRUNCATE_TABLE := &"table.truncate"
 const DISCOVER_PROJECT := &"database.discover_project"
 const REFRESH_DATABASES := &"database.refresh"
 const OPEN_REGISTRATION := &"database.open_registration"
 const SELECT_TABLE := &"database.select_table"
+const OPEN_MODEL_ASSISTANT := &"table.open_model_assistant"
 const SHOW_WELCOME := &"workspace.show_welcome"
+const SHOW_SAVE_SLOTS := &"workspace.show_save_slots"
+const SHOW_MANAGED_CONTENT := &"workspace.show_managed_content"
+const CREATE_SAVE_SLOT := &"save_slot.create"
+const SELECT_SAVE_SLOT := &"save_slot.select"
+const DELETE_SAVE_SLOT := &"save_slot.delete"
+const INSTALL_RUNTIME_ADAPTER := &"runtime.install_adapter"
 const SAVE_DATABASE_CHANGES := &"database_document.save"
 const REFRESH_DATABASE_CHANGES := &"database_document.refresh"
+const UNDO_TABLE_MUTATION := &"table_document.undo_mutation"
+const REDO_TABLE_MUTATION := &"table_document.redo_mutation"
 const OPEN_QUERY_GRAPH_FOLDER := &"query_graph.open_folder"
 const SAVE_QUERY_GRAPH := &"query_graph.save"
 const ADD_SELECT_QUERY_NODE := &"query_graph.add_select"
@@ -31,13 +41,23 @@ static func get_all() -> Array[StringName]:
 		CREATE_TABLE,
 		REMOVE_REGISTRATION,
 		DROP_TABLE,
+		TRUNCATE_TABLE,
 		DISCOVER_PROJECT,
 		REFRESH_DATABASES,
 		OPEN_REGISTRATION,
 		SELECT_TABLE,
+		OPEN_MODEL_ASSISTANT,
 		SHOW_WELCOME,
+		SHOW_SAVE_SLOTS,
+		SHOW_MANAGED_CONTENT,
+		CREATE_SAVE_SLOT,
+		SELECT_SAVE_SLOT,
+		DELETE_SAVE_SLOT,
+		INSTALL_RUNTIME_ADAPTER,
 		SAVE_DATABASE_CHANGES,
 		REFRESH_DATABASE_CHANGES,
+		UNDO_TABLE_MUTATION,
+		REDO_TABLE_MUTATION,
 		OPEN_QUERY_GRAPH_FOLDER,
 		SAVE_QUERY_GRAPH,
 		ADD_SELECT_QUERY_NODE,

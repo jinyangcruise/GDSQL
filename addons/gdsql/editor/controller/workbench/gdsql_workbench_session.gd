@@ -14,7 +14,7 @@ var pending_change_plan: GDSQLCatalogChangePlan
 func open_registration(
 		target: GDSQLDatabaseRegistration,
 ) -> GDSQLDatabaseResult:
-	var result := GDSQLRuntimeFactory.open_registration(target)
+	var result := GDSQLRuntimeFactory.open_authoring_registration(target)
 	if not result.is_successful():
 		return result
 	registration = target

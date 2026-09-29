@@ -8,7 +8,8 @@ signal save_requested(
 		new_tables: Array[GDSQLTableDefinition],
 		table_changes: Array[GDSQLEditorTableChange],
 )
-signal delete_requested(registration_name: StringName)
+signal remove_requested(registration_name: StringName)
+signal destroy_requested(registration_name: StringName)
 signal refresh_requested(registration_name: StringName)
 
 const TABLE_FOLD_SCENE := preload(
@@ -26,9 +27,11 @@ var _action_hub: GDSQLEditorActionHub
 var _action_context: GDSQLContextActionHub
 var _action_context_id: StringName
 var _validation_state: Label
+var _pending_reset_table: StringName
 
 @onready var rename_button: Button = %Rename
-@onready var delete_button: Button = %Delete
+@onready var remove_button: Button = %RemoveRegistration
+@onready var destroy_button: Button = %DestroyDatabase
 @onready var _database_name: LineEdit = %DatabaseName
 @onready var _storage: Label = %Storage
 @onready var _location: Label = %Location
@@ -39,7 +42,9 @@ var _validation_state: Label
 @onready var _draft_tables: VBoxContainer = %DraftTables
 @onready var _add_table: GDSQLEditorActionButton = %AddTable
 @onready var _save_confirmation: ConfirmationDialog = $SaveConfirmation
-@onready var _delete_confirmation: ConfirmationDialog = $DeleteConfirmation
+@onready var _remove_confirmation: ConfirmationDialog = %RemoveConfirmation
+@onready var _destroy_confirmation: ConfirmationDialog = %DestroyConfirmation
+@onready var _reset_table_confirmation: ConfirmationDialog = %ResetTableConfirmation
 
 
 func _ready() -> void:
@@ -52,12 +57,16 @@ func _ready() -> void:
 		$Layout/Footer.add_child(_validation_state)
 		$Layout/Footer.move_child(_validation_state, 0)
 	rename_button.pressed.connect(_begin_rename)
-	delete_button.pressed.connect(_delete_confirmation.popup_centered.bind(Vector2i(460, 170)))
+	remove_button.pressed.connect(_remove_confirmation.popup_centered.bind(Vector2i(500, 190)))
+	destroy_button.pressed.connect(_destroy_confirmation.popup_centered.bind(Vector2i(560, 230)))
 	_database_name.text_changed.connect(_on_changed.unbind(1))
 	_database_name.focus_exited.connect(_on_title_lose_focus)
 	_save_confirmation.confirmed.connect(_emit_save)
 	$RefreshConfirmation.confirmed.connect(_emit_refresh)
-	_delete_confirmation.confirmed.connect(_emit_delete)
+	_remove_confirmation.confirmed.connect(_emit_remove)
+	_destroy_confirmation.confirmed.connect(_emit_destroy)
+	_reset_table_confirmation.confirmed.connect(_confirm_table_reset)
+	%TableSearch.text_changed.connect(_filter_tables)
 	_update_dirty_state()
 
 
@@ -123,19 +132,22 @@ func configure(inspection: GDSQLDatabaseInspection, session: GDSQLWorkbenchSessi
 	_storage.text = GDSQLStorageBackendIds.get_display_name(
 		inspection.registration.storage_backend_id,
 	)
-	_delete_confirmation.dialog_text = (
+	var database_path := inspection.registration.data_root.path_join(
+		String(inspection.registration.database_name),
+	)
+	_remove_confirmation.dialog_text = (
 			(
 					"Remove database '%s' from GDSQL?\n\n"
 					+ "Files at '%s' will remain unchanged. Creating the same database "
 					+ "later will load these files again."
 			)
-			% [
-				inspection.registration.database_name,
-				inspection.registration.data_root.path_join(
-					String(inspection.registration.database_name),
-				),
-			]
+			% [inspection.registration.database_name, database_path]
 	)
+	_destroy_confirmation.dialog_text = (
+			"Permanently destroy database '%s'?\n\n"
+			+ "Catalog metadata, schemas, tables, and every stored row under:\n%s\n\n"
+			+ "This cannot be undone by GDSQL. Other databases under the same data root remain."
+	) % [inspection.registration.database_name, database_path]
 	_render_existing_tables()
 	_update_dirty_state()
 
@@ -157,11 +169,15 @@ func add_table_draft() -> void:
 	_draft_tables.add_child(draft)
 	draft.connect("changed", _update_dirty_state)
 	draft.connect("remove_requested", _remove_table_draft)
-	draft.call("configure_new")
+	var database := _session.catalog_snapshot.get_database(
+		_inspection.registration.database_name,
+	) if _session != null and _session.catalog_snapshot != null else null
+	draft.call("configure_new", database)
 	_update_dirty_state()
 
 
 func focus_table(table_name: StringName) -> void:
+	%TableSearch.clear()
 	for fold in _existing_tables.get_children():
 		if fold.get("table_name") == table_name:
 			fold.call("focus")
@@ -177,6 +193,7 @@ func _render_existing_tables() -> void:
 	for child in _existing_tables.get_children():
 		_existing_tables.remove_child(child)
 		child.queue_free()
+	_filter_tables(%TableSearch.text)
 	if _session == null or _session.catalog_snapshot == null:
 		return
 	var database := _session.catalog_snapshot.get_database(_inspection.registration.database_name)
@@ -188,8 +205,72 @@ func _render_existing_tables() -> void:
 			continue
 		var fold := TABLE_FOLD_SCENE.instantiate()
 		_existing_tables.add_child(fold)
-		fold.call("configure", table, table_inspection)
+		fold.call("configure", table, table_inspection, database)
 		fold.connect("changed", _update_dirty_state)
+		fold.connect("data_requested", _open_table_data)
+		fold.connect("model_requested", _open_table_model)
+		fold.connect("reset_requested", _request_table_reset)
+	_filter_tables(%TableSearch.text)
+
+
+func _open_table_data(table_name: StringName) -> void:
+	if _action_hub == null or _inspection == null:
+		return
+	_action_hub.invoke(
+		GDSQLEditorActionIds.SELECT_TABLE,
+		[_inspection.registration.name, table_name],
+	)
+
+
+func _open_table_model(table_name: StringName) -> void:
+	if _action_hub == null or _inspection == null:
+		return
+	_action_hub.invoke(
+		GDSQLEditorActionIds.OPEN_MODEL_ASSISTANT,
+		[_inspection.registration.name, table_name],
+	)
+
+
+func _request_table_reset(table_name: StringName) -> void:
+	if _inspection == null:
+		return
+	_pending_reset_table = table_name
+	var table := _inspection.get_table(table_name)
+	var row_count := table.row_count if table != null else 0
+	_reset_table_confirmation.dialog_text = (
+		"Permanently delete all %d row(s) from '%s.%s'?\n\n"
+		+ "The table schema remains, but the next generated integer key resets to 1. "
+		+ "This operation cannot be undone."
+	) % [row_count, _inspection.registration.database_name, table_name]
+	_reset_table_confirmation.popup_centered(Vector2i(570, 230))
+
+
+func _confirm_table_reset() -> void:
+	if _action_hub == null or _inspection == null or _pending_reset_table == &"":
+		return
+	var table_name := _pending_reset_table
+	_pending_reset_table = &""
+	_action_hub.invoke(
+		GDSQLEditorActionIds.TRUNCATE_TABLE,
+		[_inspection.registration.name, table_name],
+	)
+
+
+func _filter_tables(search_text: String) -> void:
+	var query := search_text.strip_edges().to_lower()
+	var visible_count := 0
+	var total_count := _existing_tables.get_child_count()
+	for fold in _existing_tables.get_children():
+		var matches := query.is_empty() or bool(fold.call("matches_search", query))
+		fold.visible = matches
+		if matches:
+			visible_count += 1
+	%TableSearchStatus.text = (
+			"%d tables" % total_count
+			if query.is_empty()
+			else "%d of %d tables" % [visible_count, total_count]
+	)
+	%NoSearchResults.visible = not query.is_empty() and total_count > 0 and visible_count == 0
 
 
 func _begin_rename() -> void:
@@ -256,8 +337,12 @@ func _emit_save() -> void:
 	)
 
 
-func _emit_delete() -> void:
-	delete_requested.emit(_inspection.registration.name)
+func _emit_remove() -> void:
+	remove_requested.emit(_inspection.registration.name)
+
+
+func _emit_destroy() -> void:
+	destroy_requested.emit(_inspection.registration.name)
 
 
 func _emit_refresh() -> void:

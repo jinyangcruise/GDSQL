@@ -4,6 +4,14 @@ extends VBoxContainer
 ## Bounded, resizable editor log feed for operations and diagnostics.
 
 signal entry_selected(entry_id: int)
+signal indicator_changed(indicator: Indicator)
+
+enum Indicator {
+	CLEAR,
+	SUCCESS,
+	WARNING,
+	ERROR,
+}
 
 const LOG_ENTRY_SCENE := preload("res://addons/gdsql/editor/debug/gdsql_log_entry.tscn")
 const CONTEXT_COPY_MESSAGE := 1
@@ -14,6 +22,7 @@ const CONTEXT_CLEAR_ALL := 3
 
 var selected_entry_id: int = -1
 var _last_entry_id: int = -1
+var _indicator := Indicator.CLEAR
 
 @onready var _empty_state: Label = $EmptyState
 @onready var _scroll: ScrollContainer = $Scroll
@@ -134,6 +143,27 @@ func _update_empty_state() -> void:
 	var is_empty := _entries.get_child_count() == 0
 	_empty_state.visible = is_empty
 	_scroll.visible = not is_empty
+	_update_indicator()
+
+
+func _update_indicator() -> void:
+	var next_indicator := Indicator.CLEAR
+	for child in _entries.get_children():
+		var entry := child as GDSQLLogEntry
+		if entry == null:
+			continue
+		match entry.status_text:
+			"Error":
+				next_indicator = Indicator.ERROR
+				break
+			"Warning":
+				next_indicator = maxi(next_indicator, Indicator.WARNING)
+			_:
+				next_indicator = maxi(next_indicator, Indicator.SUCCESS)
+	if next_indicator == _indicator:
+		return
+	_indicator = next_indicator
+	indicator_changed.emit(_indicator)
 
 
 func _focus_log_dock() -> void:

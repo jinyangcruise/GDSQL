@@ -44,8 +44,8 @@ func _ready() -> void:
 
 
 func configure(
-	columns_to_edit: Array[GDSQLColumnDefinition],
-	excluded_columns: Array[StringName] = [],
+		columns_to_edit: Array[GDSQLColumnDefinition],
+		excluded_columns: Array[StringName] = [],
 ) -> void:
 	_rendering = true
 	clear()
@@ -54,9 +54,9 @@ func configure(
 	var root := create_item()
 	for column in columns_to_edit:
 		var assignable := (
-			column.name not in excluded_columns
-			and column.generation == GDSQLColumnDefinition.Generation.NONE
-			and not column.auto_increment
+				column.name not in excluded_columns
+				and column.generation == GDSQLColumnDefinition.Generation.NONE
+				and not column.auto_increment
 		)
 		var item := create_item(root)
 		var state := {
@@ -151,10 +151,10 @@ func _on_item_edited() -> void:
 
 
 func _on_button_clicked(
-	item: TreeItem,
-	column_index: int,
-	button_id: int,
-	_mouse_button_index: int,
+		item: TreeItem,
+		column_index: int,
+		button_id: int,
+		_mouse_button_index: int,
 ) -> void:
 	if item == null or column_index != VALUE_COLUMN or not _states.has(item):
 		return
@@ -331,12 +331,12 @@ func _value_text(value: Variant) -> String:
 		if script != null:
 			var global_name := script.get_global_name()
 			return (
-				String(global_name)
-				if global_name != &""
-				else script \
-						.resource_path \
-						.get_file() \
-						.get_basename()
+					String(global_name)
+					if global_name != &""
+					else script \
+							.resource_path \
+							.get_file() \
+							.get_basename()
 			)
 		return resource.get_class()
 	if value is String or value is StringName or value is NodePath:
@@ -360,9 +360,9 @@ func _resource_icon(value: Variant) -> Texture2D:
 	if not base.has_theme_icon(icon_name, &"EditorIcons"):
 		icon_name = &"Resource"
 	return (
-		base.get_theme_icon(icon_name, &"EditorIcons")
-		if base.has_theme_icon(icon_name, &"EditorIcons")
-		else null
+			base.get_theme_icon(icon_name, &"EditorIcons")
+			if base.has_theme_icon(icon_name, &"EditorIcons")
+			else null
 	)
 
 

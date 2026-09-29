@@ -11,6 +11,11 @@ const DATABASE_DOCK_KEY := "GDSQLDatabases"
 const LOGS_DOCK_KEY := "GDSQLLogs"
 const WORKSPACE_HOST_NAME := "GDSQLWorkspaceHost"
 const DATABASE = preload("res://addons/gdsql/editor/workspace/icons/database.svg")
+const LOG_STATUS_ICONS := {
+	GDSQLLogsPanel.Indicator.SUCCESS: &"StatusSuccess",
+	GDSQLLogsPanel.Indicator.WARNING: &"StatusWarning",
+	GDSQLLogsPanel.Indicator.ERROR: &"StatusError",
+}
 
 var _controller: GDSQLEditorController
 var _workspace_host: MarginContainer
@@ -19,6 +24,7 @@ var _database_dock: EditorDock
 var _database_dock_content: GDSQLDatabaseDock
 var _logs_dock: EditorDock
 var _logs_panel: GDSQLLogsPanel
+var _command_palette: GDSQLEditorCommandPalette
 
 
 func _enter_tree() -> void:
@@ -32,10 +38,19 @@ func _enter_tree() -> void:
 		Callable(EditorInterface.get_resource_filesystem(), "scan"),
 	)
 	_controller.action_hub.main_screen_requested.connect(_show_main_screen)
+	_command_palette = GDSQLEditorCommandPalette.new(
+		EditorInterface.get_command_palette(),
+		_controller.workbench,
+		_controller.action_hub,
+	)
+	_controller.navigation_catalog_changed.connect(_command_palette.refresh)
 	call_deferred("_load_workspace")
 
 
 func _exit_tree() -> void:
+	if _command_palette != null:
+		_command_palette.clear()
+		_command_palette = null
 	if _controller != null:
 		_controller.shutdown()
 		_controller = null
@@ -112,7 +127,7 @@ func _create_database_dock() -> void:
 	_database_dock.layout_key = DATABASE_DOCK_KEY
 	_database_dock.default_slot = EditorDock.DOCK_SLOT_RIGHT_BL
 	_database_dock.available_layouts = (
-		EditorDock.DOCK_LAYOUT_VERTICAL | EditorDock.DOCK_LAYOUT_FLOATING
+			EditorDock.DOCK_LAYOUT_VERTICAL | EditorDock.DOCK_LAYOUT_FLOATING
 	)
 	_database_dock.add_child(_database_dock_content)
 	add_dock(_database_dock)
@@ -121,16 +136,30 @@ func _create_database_dock() -> void:
 func _create_logs_dock() -> void:
 	_remove_existing_dock(LOGS_DOCK_KEY)
 	_logs_panel = LOGS_SCENE.instantiate() as GDSQLLogsPanel
+	_logs_panel.indicator_changed.connect(_on_logs_indicator_changed)
 	_logs_dock = EditorDock.new()
 	_logs_dock.name = LOGS_DOCK_KEY
 	_logs_dock.title = "GDSQL Logs"
 	_logs_dock.layout_key = LOGS_DOCK_KEY
 	_logs_dock.default_slot = EditorDock.DOCK_SLOT_BOTTOM
 	_logs_dock.available_layouts = (
-		EditorDock.DOCK_LAYOUT_HORIZONTAL | EditorDock.DOCK_LAYOUT_FLOATING
+			EditorDock.DOCK_LAYOUT_HORIZONTAL | EditorDock.DOCK_LAYOUT_FLOATING
 	)
 	_logs_dock.add_child(_logs_panel)
 	add_dock(_logs_dock)
+
+
+func _on_logs_indicator_changed(indicator: GDSQLLogsPanel.Indicator) -> void:
+	if not is_instance_valid(_logs_dock):
+		return
+	var icon_name := LOG_STATUS_ICONS.get(indicator, &"") as StringName
+	var theme := EditorInterface.get_editor_theme()
+	_logs_dock.force_show_icon = icon_name != &""
+	_logs_dock.dock_icon = (
+		theme.get_icon(icon_name, &"EditorIcons")
+		if icon_name != &"" and theme.has_icon(icon_name, &"EditorIcons")
+		else null
+	)
 
 
 func _load_workspace() -> void:

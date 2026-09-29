@@ -41,7 +41,7 @@ res://.gdsql/
 
 res://data/
 ├── databases.cfg
-└── game_content/
+└── content/
     ├── schema/
     └── tables/
 ```
@@ -145,7 +145,7 @@ stable identifiers without becoming one execution context. For example, a save
 row may store an `item_id` whose definition exists in the project database:
 
 ```text
-res:// game_content.items
+res:// content.items
     id = "iron_sword"
     display_name = "Iron Sword"
     base_damage = 12
@@ -338,7 +338,8 @@ PersistenceCoordinator (RefCounted service)
 GDSQLRuntimeNode (optional Node/autoload adapter)
     ├── Periodic Timer integration
     ├── Pause and shutdown notifications
-    ├── User-facing signals
+    ├── Managed save-compatibility handoff
+    ├── User-facing signals and retained typed results
     └── Delegation to registry, content loader, and persistence coordinator
 ```
 
@@ -386,29 +387,16 @@ For an ordinary Godot game, the optional node can be installed as an autoload
 and provide a small top-level API:
 
 ```gdscript
-GDSQLRuntime.register_content_database(
-	&"base_content",
-	"res://data/game_content",
-)
+var content_database := GDSQLRuntime.database(&"content").get_database()
+var save_database := GDSQLRuntime.database(&"save").get_database()
 
-GDSQLRuntime.open_save(
-	&"save_1",
-	GDSQLCheckpointPolicy.periodic(30.0),
-)
-
-GDSQLRuntime.register_database(
-	&"analytics",
-	"user://gdsql/analytics",
-	GDSQLCheckpointPolicy.periodic(60.0),
-)
-
-var content_database := GDSQLRuntime.database(&"content")
-var save_database := GDSQLRuntime.database(&"save")
-var analytics_database := GDSQLRuntime.database(&"analytics")
-
-GDSQLRuntime.rebuild_content()
-GDSQLRuntime.checkpoint_save()
+GDSQLRuntime.select_save_slot(&"save_2")
+GDSQLRuntime.checkpoint_now()
 ```
+
+The autoload uses the editor-authored durable registry rather than registering
+physical paths again in game code. Its scene-owned Timer supplies the default
+periodic policy; pause and exit notifications request a final dirty checkpoint.
 
 The logical `content` binding resolves to the current effective content
 database. The logical `save` binding resolves to the selected save slot.
@@ -468,7 +456,10 @@ static func find(identity: Variant) -> GDSQLQueryResult:
 
 `GDSQLSaveModel` resolves through the `save` role and exposes mutable row
 operations. It does not manage save slots; the database registry determines
-which save name currently satisfies that role.
+which save name currently satisfies that role. The name means durable,
+slot-scoped saved state; transient scene, animation, physics, and combat state
+remain ordinary runtime objects unless the game explicitly needs to persist
+them.
 
 ```gdscript
 class_name InventoryEntry
@@ -557,9 +548,10 @@ content/
 │   └── scenes/
 ├── data/
 │   ├── databases.cfg
-│   └── game_content/
+│   └── content/
 │       ├── schema/
 │       └── tables/
+├── overlays.cfg
 └── manifest.cfg
 ```
 
@@ -568,9 +560,52 @@ load-order requirements. `data/` contains one or more GDSQL databases. Rows in
 those databases may reference files under `assets/` through package-relative
 asset identifiers, paths, or resolved Godot resource UIDs.
 
-The base project may keep the simpler default `res://data/` layout or adopt a
-`res://content/data/` root when treating its own content as a package. A mod
-directory can mirror the complete structure:
+The managed profile names its authored source database `content` by default and
+builds the disposable runtime result as `effective_content`. Advanced callers
+may explicitly select another source database name.
+
+The initial readable manifest shape is:
+
+```ini
+[package]
+id="expanded_arsenal"
+name="Expanded Arsenal"
+version="1.2.0"
+kind="mod"
+priority=20
+data_path="data"
+assets_path="assets"
+
+[dependencies]
+base.game=">=1.0.0"
+
+[load_order]
+after=PackedStringArray("base.game")
+before=PackedStringArray("late_balance")
+```
+
+Package IDs are stable lowercase identifiers and package versions use semantic
+versioning. Data and asset paths remain relative to the package root. Runtime
+code consumes `GDSQLContentPackageManifestStore`; ConfigFile parsing stays in
+the ConfigFile backend. Dependency constraint evaluation and ordering occur
+across the complete discovered package set rather than inside one manifest.
+
+Directory discovery receives an explicit base package root and zero or more
+package-container roots. Each direct child may be a package root or contain a
+`content/` package root. Missing optional containers are warnings. Resolution
+always selects the single base package and only explicitly enabled DLC/mod
+packages; an empty enabled list therefore produces a base-only build.
+
+Dependencies and explicit before/after declarations form one directed graph.
+A stable topological sort uses ascending priority and then package ID when
+multiple packages are available. The base package always precedes optional
+layers. Missing dependencies, incompatible versions, duplicate IDs, unknown
+enabled IDs, and cycles return structured errors before content is read.
+
+The direct profile keeps the simpler `res://data/` layout. The managed profile
+uses `res://content/base/` as its base package root and
+`res://content/base/data/` as the enclosed GDSQL data root. A mod directory can
+mirror the complete structure:
 
 ```text
 user://mods/
@@ -585,6 +620,18 @@ The package format is separate from query execution. A package may later be a
 directory, archive, or Godot resource pack, but its database content remains an
 immutable input to effective-content construction rather than independently
 mutated save state.
+
+`overlays.cfg` stores operations that are not ordinary rows. The initial
+ConfigFile representation supports explicit stable-ID removals:
+
+```ini
+[remove:content:items]
+ids=PackedStringArray("retired_sword", "old_shield")
+```
+
+Package table rows are typed upserts. Within one package, upserts are applied
+before its removals. A removal-only optional package may omit the selected
+database; the base package must define it.
 
 ### Effective content database
 
@@ -613,7 +660,7 @@ The optional generated cache uses an explicitly disposable location:
 user://gdsql/cache/effective_content/
 ├── manifest.cfg
 ├── databases.cfg
-└── game_content/
+└── effective_content/
     ├── schema/
     └── tables/
 ```
@@ -621,6 +668,21 @@ user://gdsql/cache/effective_content/
 This cache is not save state. It can be deleted and rebuilt from the shipped
 base package and enabled mods. If cache creation is disabled or fails, the
 loader may construct the active working set directly from validated sources.
+
+The cache manifest stores its format version, source/effective database names,
+resolved package order, package versions, and SHA-256 hashes of sorted package
+paths and bytes. Exact compatibility plus a readable cached database produces a
+cache hit. Otherwise the cache manager rebuilds through the overlay loader. The
+ConfigFile store writes to an adjacent staging directory before replacing the
+old cache; malformed manifests are recoverable cache misses, not source-data
+failures.
+
+After cache preparation, the runtime composition root opens the candidate
+database before changing registry state. It then installs the runtime-local
+`effective_content` registration and selects it for the `content` role in one
+registry operation. Any preparation or open failure preserves the previous
+content binding. The disposable registration is rebuilt at startup and is not
+added to durable editor-authored registry metadata.
 
 ### Stable overrides and deterministic merging
 
@@ -638,11 +700,20 @@ removes that additional definition and reveals the unchanged base row. Removing
 base content requires an explicit removal marker or equivalent typed operation;
 it must not delete the authoritative base row.
 
-The loader records package identifiers and versions, dependencies, deterministic
-layer order, row provenance, conflicts, schema compatibility, and the base
-content version. A simple initial precedence rule is `base → declared mod load
-order`, where a later validated layer wins. Filesystem enumeration order must
-never silently determine precedence.
+The implemented overlay boundary reads one selected logical source database
+from each resolved package, requires compatible schemas for shared tables, and
+returns a deterministic `effective_content` snapshot. Tables and row identities
+are sorted in the output; package sources and decoded rows are copied rather
+than mutated. Cache persistence and active role replacement consume this
+snapshot without exposing source registrations to gameplay queries.
+
+Each applied operation records its package identifier, version, kind, table,
+and stable row identity. Removed rows retain their operation history even though
+they do not appear in the effective snapshot. A later upsert against an existing
+identity records a typed conflict and informational diagnostic naming both
+packages. The precedence rule remains `base → declared package load order`,
+where the later validated layer wins. Filesystem enumeration order must never
+silently determine precedence.
 
 The cache manifest fingerprints the base version, enabled package checksums or
 versions, and their order. Any mismatch invalidates the cache. The cache must
@@ -659,8 +730,12 @@ only in a disabled or removed mod, loading applies an explicit game policy:
 - Refuse to load the save until the required content is available.
 
 GDSQL reports the unresolved reference; it does not silently rewrite or delete
-player state. Save metadata may record the enabled package set so the game can
-explain incompatibilities.
+player state. Managed saves can store `content_manifest.cfg` beside their
+database catalog. It records the effective database and ordered package
+fingerprints expected by that save. Compatibility inspection reports legacy
+untracked saves, missing packages, package changes, load-order changes, and
+additional active packages so the game or editor can present an explicit
+decision before loading.
 
 ## 9. Signals and diagnostics
 

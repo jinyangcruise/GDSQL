@@ -11,12 +11,15 @@ enum Kind {
 	DROP_COLUMN,
 	ADD_INDEX,
 	DROP_INDEX,
+	ADD_FOREIGN_KEY,
+	DROP_FOREIGN_KEY,
 	SET_COLUMN_DEFAULT,
 	CLEAR_COLUMN_DEFAULT,
 	SET_COLUMN_NULLABLE,
 	SET_COLUMN_UNIQUE,
 	SET_COLUMN_AUTO_INCREMENT,
 	SET_COLUMN_GENERATION,
+	SET_RESOURCE_OWNERSHIP,
 	REORDER_COLUMNS,
 }
 
@@ -26,9 +29,12 @@ var column_name: StringName
 var new_column_name: StringName
 var index: GDSQLIndexDefinition
 var index_name: StringName
+var foreign_key: GDSQLForeignKeyDefinition
+var foreign_key_name: StringName
 var value: Variant
 var enabled: bool
 var generation: GDSQLColumnDefinition.Generation
+var resource_ownership := GDSQLResourceOwnership.Mode.OWNED
 var column_names: Array[StringName] = []
 
 
@@ -68,6 +74,22 @@ static func drop_index(index_to_drop: StringName) -> GDSQLTableAlteration:
 	var alteration := GDSQLTableAlteration.new()
 	alteration.kind = Kind.DROP_INDEX
 	alteration.index_name = index_to_drop
+	return alteration
+
+
+static func add_foreign_key(
+		foreign_key_definition: GDSQLForeignKeyDefinition,
+) -> GDSQLTableAlteration:
+	var alteration := GDSQLTableAlteration.new()
+	alteration.kind = Kind.ADD_FOREIGN_KEY
+	alteration.foreign_key = foreign_key_definition
+	return alteration
+
+
+static func drop_foreign_key(foreign_key_to_drop: StringName) -> GDSQLTableAlteration:
+	var alteration := GDSQLTableAlteration.new()
+	alteration.kind = Kind.DROP_FOREIGN_KEY
+	alteration.foreign_key_name = foreign_key_to_drop
 	return alteration
 
 
@@ -133,6 +155,17 @@ static func set_column_generation(
 	return alteration
 
 
+static func set_resource_ownership(
+		target_column: StringName,
+		ownership: GDSQLResourceOwnership.Mode,
+) -> GDSQLTableAlteration:
+	var alteration := GDSQLTableAlteration.new()
+	alteration.kind = Kind.SET_RESOURCE_OWNERSHIP
+	alteration.column_name = target_column
+	alteration.resource_ownership = ownership
+	return alteration
+
+
 static func reorder_columns(ordered_names: Array[StringName]) -> GDSQLTableAlteration:
 	var alteration := GDSQLTableAlteration.new()
 	alteration.kind = Kind.REORDER_COLUMNS
@@ -156,6 +189,12 @@ func describe() -> String:
 			return "Add index '%s'." % (index.name if index != null else &"")
 		Kind.DROP_INDEX:
 			return "Drop index '%s'." % index_name
+		Kind.ADD_FOREIGN_KEY:
+			return "Add foreign key '%s'." % (
+					foreign_key.name if foreign_key != null else &""
+			)
+		Kind.DROP_FOREIGN_KEY:
+			return "Drop foreign key '%s'." % foreign_key_name
 		Kind.SET_COLUMN_DEFAULT:
 			return "Set the default for column '%s'." % column_name
 		Kind.CLEAR_COLUMN_DEFAULT:
@@ -168,6 +207,11 @@ func describe() -> String:
 			return "Set column '%s' auto increment to %s." % [column_name, enabled]
 		Kind.SET_COLUMN_GENERATION:
 			return "Set the generation policy for column '%s'." % column_name
+		Kind.SET_RESOURCE_OWNERSHIP:
+			return "Set Resource ownership for column '%s' to %s." % [
+				column_name,
+				GDSQLResourceOwnership.display_name(resource_ownership),
+			]
 		Kind.REORDER_COLUMNS:
 			return "Set the table column display order."
 	return "Unknown table alteration."

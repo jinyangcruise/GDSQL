@@ -129,6 +129,42 @@ func test_rebinding_save_role_changes_the_database_used_by_save_models() -> void
 	assert_int(state.level).is_equal(9)
 
 
+func test_model_loaded_from_previous_save_slot_rejects_mutation_after_rebinding() -> void:
+	var previous_state := SaveState.find(1).get_value() as SaveState
+	var second_root := create_temp_dir("gdsql_model_stale_save_%d" % _test_index)
+	var second_save := _create_memory_database(
+		second_root,
+		&"save_slot_2",
+		_save_table(),
+		[
+			GDSQLRowRecord.new({ &"id": 1, &"hero_id": 2, &"level": 9 }),
+		],
+	)
+	assert_bool(_database_registry.register(&"save_2", second_save).is_successful()).is_true()
+	assert_bool(
+		_database_registry.bind_role(GDSQLDatabaseRegistry.SAVE_ROLE, &"save_2")
+		.is_successful(),
+	).is_true()
+	previous_state.level = 99
+
+	var stale_save := previous_state.save()
+	var stale_refresh := previous_state.refresh()
+	var stale_delete := previous_state.delete()
+	var active_state := SaveState.find(1).get_value() as SaveState
+
+	assert_bool(stale_save.is_successful()).is_false()
+	assert_str(String(stale_save.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_MODEL_DATABASE_CHANGED",
+	)
+	assert_str(String(stale_refresh.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_MODEL_DATABASE_CHANGED",
+	)
+	assert_str(String(stale_delete.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_MODEL_DATABASE_CHANGED",
+	)
+	assert_int(active_state.level).is_equal(9)
+
+
 func test_save_model_checkpoint_persists_changes_and_clears_dirty_state() -> void:
 	var state := SaveState.find(1).get_value() as SaveState
 	state.level = 7

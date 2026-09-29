@@ -1,5 +1,9 @@
 # Query graph implementation roadmap
 
+> **Status:** low-priority backlog. Preserve the implemented graph surface, but
+> do not extend it until GDSQL's table-first setup and data workflows are ready
+> and the graph has a discoverable entry point.
+
 This document records the implementation order for visual query composition.
 The ownership and dependency rules in [`editor.md`](editor.md) and
 [`core.md`](core.md) remain authoritative.
@@ -169,15 +173,16 @@ a defaulted column is omitted.
 
 `TYPE_OBJECT` requires a typed `ResourceTypeConstraint`; generic Resource
 columns are intentionally invalid. Native and project-global Resource classes
-and custom scripts without `class_name` are selected through an unrestricted
-Resource prototype picker. The derived native class or script path round-trips
+and custom scripts without `class_name` are selected through a bounded Resource
+picker; imported MP3 and Ogg Vorbis values must be loaded instead of constructed
+empty. The derived native class or script path round-trips
 through ConfigFile schemas, and the resolved constraint is enforced by column,
 query, and storage validation. Typed editor fields use the same constraint for
 `EditorResourcePicker.base_type`, so they do not present unrelated Resource
 families. Existing object-column constraints remain immutable and require an
 explicit add, migrate, and drop operation to replace.
 
-## Next slice: model-backed graph queries
+## Deferred slice: model-backed graph queries
 
 A graph source may later select either a raw catalog table or a registered
 model. The source-mode and model controls may live in the shared titlebar action
@@ -192,7 +197,7 @@ host, but model resolution remains in the model frontend:
   catalog structure from them.
 - Raw tables remain fully supported when no model exists.
 
-## Later graph operations
+## Deferred graph operations
 
 After projections and predicates are stable, implement operations in this
 order:

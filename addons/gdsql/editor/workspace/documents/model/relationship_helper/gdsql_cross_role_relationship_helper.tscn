@@ -1,0 +1,136 @@
+[gd_scene format=3 uid="uid://dbp4h2g5bjx14"]
+
+[ext_resource type="Script" uid="uid://ha5xvpe247fw" path="res://addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.gd" id="1_helper"]
+[ext_resource type="Texture2D" path="res://addons/gdsql/editor/workspace/icons/help.svg" id="2_help"]
+[ext_resource type="PackedScene" path="res://addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_content_reference_row.tscn" id="3_reference_row"]
+
+[node name="CrossRoleHelper" type="PanelContainer" unique_id=1038493823]
+script = ExtResource("1_helper")
+
+[node name="Margin" type="MarginContainer" parent="." unique_id=1232184205]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 9
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 9
+
+[node name="Content" type="VBoxContainer" parent="Margin" unique_id=24609342]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Header" type="HBoxContainer" parent="Margin/Content"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Margin/Content/Header" unique_id=1600756014]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Save → content reference"
+
+[node name="Help" type="TextureButton" parent="Margin/Content/Header"]
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+tooltip_text = "Save tables keep stable content identifiers. These references provide model navigation and editor picking without creating cross-database catalog constraints."
+texture_normal = ExtResource("2_help")
+ignore_texture_size = true
+stretch_mode = 5
+
+[node name="Form" type="GridContainer" parent="Margin/Content" unique_id=315005582]
+layout_mode = 2
+columns = 2
+
+[node name="LocalColumnLabel" type="Label" parent="Margin/Content/Form" unique_id=1053254969]
+layout_mode = 2
+text = "Save column"
+
+[node name="LocalReferenceColumn" type="OptionButton" parent="Margin/Content/Form" unique_id=1018240812]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+item_count = 1
+popup/item_0/text = "hero_id · int"
+popup/item_0/id = 0
+
+[node name="ContentTargetLabel" type="Label" parent="Margin/Content/Form" unique_id=364215700]
+layout_mode = 2
+text = "Content model"
+
+[node name="ContentTarget" type="OptionButton" parent="Margin/Content/Form" unique_id=657569546]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+item_count = 1
+popup/item_0/text = "content / heroes · HeroContent"
+popup/item_0/id = 0
+
+[node name="RelationshipNameLabel" type="Label" parent="Margin/Content/Form" unique_id=1707118555]
+layout_mode = 2
+text = "Reference name"
+
+[node name="RelationshipName" type="LineEdit" parent="Margin/Content/Form" unique_id=1415746630]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "hero_content"
+placeholder_text = "hero_content"
+
+[node name="RelationshipSnippet" type="CodeEdit" parent="Margin/Content" unique_id=223938451]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 145)
+layout_mode = 2
+text = "GDSQLRelationshipDefinition.references_one(
+	&\"hero_content\",
+	HeroContent,
+	&\"hero_content_id\",
+	&\"id\",
+),"
+editable = false
+gutters_draw_line_numbers = true
+
+[node name="Actions" type="HBoxContainer" parent="Margin/Content" unique_id=1954893015]
+layout_mode = 2
+
+[node name="RelationshipHelperStatus" type="Label" parent="Margin/Content/Actions" unique_id=1048339938]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "Paste this entry inside the save model's relationships() return array."
+autowrap_mode = 2
+
+[node name="CopyRelationship" type="Button" parent="Margin/Content/Actions" unique_id=1473765674]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Register & Copy"
+
+[node name="ReferenceSeparator" type="HSeparator" parent="Margin/Content"]
+layout_mode = 2
+
+[node name="RegisteredHeader" type="HBoxContainer" parent="Margin/Content"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Margin/Content/RegisteredHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Registered references"
+
+[node name="Help" type="TextureButton" parent="Margin/Content/RegisteredHeader"]
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+tooltip_text = "These bindings control editor cell pickers. Copy reproduces the runtime references_one() declaration. Remove deletes only picker metadata; model code remains user-owned."
+texture_normal = ExtResource("2_help")
+ignore_texture_size = true
+stretch_mode = 5
+
+[node name="NoRegisteredReferences" type="Label" parent="Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "No content references registered for this table."
+
+[node name="RegisteredReferences" type="VBoxContainer" parent="Margin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="PreviewReference" parent="Margin/Content/RegisteredReferences" instance=ExtResource("3_reference_row")]
+layout_mode = 2

@@ -402,8 +402,13 @@ The query-level function catalog exposes definitions containing name, arity,
 return type, and aggregate classification. Validation depends on this metadata,
 while the execution-level registry owns the matching scalar and aggregate
 callables. The initial runtime provides `lower`, `upper`, `length`, `abs`,
-`coalesce`, `count`, `sum`, `avg`, `min`, and `max`. Function existence,
-arity, argument compatibility, expression type compatibility, aggregate
+`coalesce`, `resource_property`, `count`, `sum`, `avg`, `min`, and `max`.
+`resource_property` accepts only a constrained Resource column and a literal
+Inspector-visible scalar-leaf path validated against catalog metadata. Compound
+values such as `Vector3` are not valid leaves; their supported scalar
+components are. Bound functions retain a resolved return type when their type
+depends on validated arguments. Function existence, arity, argument
+compatibility, expression type compatibility, aggregate
 placement, and grouped-expression compatibility are validated before planning.
 Aggregate execution groups rows before HAVING, ordering, and projection.
 
@@ -448,6 +453,8 @@ GDSQLExpr.column(&"damage").add(GDSQLExpr.column(&"bonus"))
 The factories are:
 
 - `column(column_name, table_alias)` for an optionally qualified column.
+- `resource_property(column_name, property_path, table_alias)` for a validated
+  scalar leaf of a constrained Resource column.
 - `literal(value)` for an explicit literal.
 - `and_(left, right)`, `or_(left, right)`, and `not_(expression)` for logical
   composition.
@@ -1081,6 +1088,15 @@ sequence. An explicit key at or above the current sequence advances the next
 generated value. If table metadata is absent or damaged, the storage backend
 may derive a replacement high-water mark from the existing rows.
 
+`Database.truncate_table()` is a distinct administrative operation. It stages
+removal of every row together with `row_count = 0` and
+`next_auto_increment = 1`, then commits through the same transaction manager
+and final-state foreign-key validation as query mutations. It is not compiled
+into a `DELETE`, because ordinary deletion must preserve the sequence.
+`TableSnapshot` carries generated-key state so in-memory hydration and durable
+checkpoints reproduce the authoritative sequence rather than deriving it only
+from the surviving rows.
+
 ### 11.1 Callback-scoped transactions
 
 Explicit multi-statement transactions are planned as a callback API:
@@ -1203,6 +1219,13 @@ project-defined roles through one API. Unregistering a handle also clears each
 role that selected it. Every lifecycle and resolution operation returns a
 `GDSQLDatabaseResult` with structured diagnostics.
 
+Game code changes save slots through `GDSQLRuntimeSession.select_save_slot()`.
+The session resolves the target first, checkpoints committed dirty state in the
+previous slot, and changes the role only after both operations succeed. Models
+materialized before a role change retain their source database identity and
+reject `save()`, `refresh()`, or `delete()` against the newly selected slot;
+game code must query a fresh instance after switching.
+
 Durable registration metadata uses `GDSQLDatabaseRegistration` and
 `GDSQLDatabaseRegistrySnapshot`. `GDSQLConfigFileDatabaseRegistryStore` stores
 the snapshot in `user://gdsql/databases.cfg`, allowing runtime startup and
@@ -1258,6 +1281,53 @@ var result := persistence.checkpoint(&"save_1")
 databases that remain dirty for a later retry. Periodic scheduling and graceful
 shutdown integration belong to the optional runtime Node adapter.
 
+`GDSQLRuntimeNode` implements that scene-tree boundary without moving storage
+or model services into a Node. Its scene-owned Timer checkpoints committed
+dirty registrations on one configurable interval. Application-pause and
+tree-exit notifications may request a synchronous final checkpoint before the
+node releases its `GDSQLRuntimeSession`. The node emits results for game UI but
+does not print failures or decide whether a game may quit.
+
+`GDSQLRuntimeFactory.bootstrap()` is the supported application composition
+path. It loads the durable registry snapshot, opens every registration through
+its selected backend, restores logical role bindings, creates one
+`GDSQLModelContext`, and registers checkpoint targets for in-memory databases.
+It returns a tested `GDSQLRuntimeSession` facade. ConfigFile registrations need
+no checkpoint target because their commits are already durable; explicit
+checkpoint calls for those roles succeed without writing again.
+
+Before opening registrations, bootstrap evaluates the snapshot through
+`GDSQLDirectSetupInspector` for direct or unselected setup profiles. Missing or
+unsafe direct-profile bindings become structured warnings, so games can
+diagnose the supported content plus active-save setup without preventing
+intentional custom-role compositions. Managed bootstrap omits those transient
+direct-role warnings because effective content is installed after package
+activation. The editor augments the same typed report with catalog, row, model,
+and runtime-autoload status; the inspector itself accesses neither files nor
+Controls.
+
+Project onboarding persists one explicit `GDSQLSetupProfile` through a
+`GDSQLSetupProfileStore`. Direct and managed inspectors produce ordered typed
+checks for their independent workflows. Changing this selection changes setup
+guidance only; database and model migration is never implicit.
+
+Managed package locations and enabled IDs are carried by one typed
+`GDSQLManagedContentConfiguration`. Its store contract keeps the editor and
+runtime on the same configuration, while the ConfigFile implementation owns
+the `managed_content` section of `res://.gdsql/settings.cfg` and preserves other
+settings. When the managed profile is selected, `GDSQLRuntimeNode` loads that
+configuration after ordinary registry bootstrap and asks the runtime factory to
+discover, resolve, cache, and activate the effective database. The node exposes
+the session only after activation succeeds; a failure clears the partial model
+context and is returned through the normal startup result and signals.
+
+After automatic activation, `GDSQLRuntimeNode` loads the active save's expected
+package manifest and compares it with the active cache. It retains the typed
+compatibility report, emits it before `runtime_started`, and refreshes it after
+a successful save-slot selection. An untracked, changed, missing, or unreadable
+manifest does not turn successful runtime startup into failure; the game decides
+whether that save may load.
+
 `GDSQLInMemoryCheckpointTarget` composes an `InMemoryTableStorage` source with
 an injected durable `TableStorage`. It synchronizes authoritative dirty tables
 and clears a dirty marker only when the copied version remains current. This
@@ -1265,6 +1335,99 @@ adapter keeps checkpoint policy outside storage and keeps ConfigFile knowledge
 outside the in-memory backend. `load_table()` establishes a clean authoritative
 memory snapshot before runtime mutation when an existing durable dataset is
 used as the source.
+
+### 11.4 Content package metadata
+
+Managed content begins with a typed `GDSQLContentPackageManifest`. It describes
+base-game, DLC, or mod identity, semantic version, priority, required packages,
+explicit before/after declarations, and package-relative data and asset paths.
+`GDSQLContentPackageManifestValidator` validates only one manifest's local
+invariants; discovery and cross-package graph validation remain separate.
+
+Runtime content services depend on `GDSQLContentPackageManifestStore`.
+`GDSQLConfigFileContentPackageManifestStore` is confined to
+`storage/configfile`, translates `manifest.cfg` at the external-data boundary,
+and returns the typed manifest with structured diagnostics. The manifest does
+not load databases, enumerate packages, or apply overlays.
+
+Editor setup may use `GDSQLConfigFileContentPackageScaffolder` to create the
+base package envelope and fill only absent manifest fields. The enclosed data
+root remains an ordinary GDSQL root whose catalog is created by the database
+API; existing manifest values are never replaced implicitly.
+
+`GDSQLContentPackageDiscovery` returns typed package sources from an explicit
+base location and package containers. The ConfigFile implementation owns direct
+directory enumeration and manifest decoding. `GDSQLContentPackageResolver`
+then validates the enabled set, semantic-version constraints, dependencies, and
+load-order graph. It returns a deterministic base-first topological order using
+priority and package ID only as stable tie-breakers. Neither stage opens package
+databases or mutates source content.
+
+### 11.5 Content overlay application
+
+`GDSQLContentPackageLayerReader` translates one package's selected logical
+database into typed table definitions and `GDSQLContentRowOperation` values.
+The ConfigFile implementation owns catalog, table-file, and `overlays.cfg`
+decoding. `GDSQLContentOverlayLoader` depends only on this reader contract.
+
+The loader copies compatible schemas and rows into a deterministic
+`GDSQLContentDatabaseSnapshot`. Later packages replace rows with the same
+primary-key value, add new identities, and remove identities only through an
+explicit removal operation. Source packages remain immutable. Cache writing,
+cache invalidation, and registry role replacement remain separate stages.
+
+Every successfully applied row operation emits a typed
+`GDSQLContentRowProvenance` entry with table identity, row identity, package ID,
+package version, and operation kind. Histories therefore retain explicit
+removals while effective rows resolve their current winning package. When a
+later upsert replaces an existing row, `GDSQLContentOverlayResult` records a
+typed `GDSQLContentRowConflict` and an informational diagnostic; deterministic
+last-layer-wins behavior remains successful rather than becoming an error.
+
+### 11.6 Effective-content cache
+
+`GDSQLContentCacheManager` computes an expected typed cache manifest through an
+injected package fingerprint provider. Cache reuse requires the same manifest
+format, source and effective database names, package order, package versions,
+and package content hashes, plus a readable cached database. A missing, stale,
+or malformed disposable cache triggers the same overlay build used without a
+cache.
+
+`GDSQLContentCacheStore` owns cache persistence. Its ConfigFile implementation
+writes the complete snapshot and manifest to a bounded staging directory, then
+replaces the previous cache directory. The manifest is written after the data,
+so incomplete output cannot be mistaken for a compatible cache. Package source
+directories remain authoritative and are never mutated or deleted.
+
+### 11.7 Effective-content activation
+
+`GDSQLRuntimeFactory.activate_effective_content()` composes cache preparation,
+candidate database opening, and runtime role replacement. It does not mutate
+the registry until the cache is compatible and the complete effective database
+can be opened. A failure in fingerprinting, overlay construction, persistence,
+or opening therefore leaves the current `content` role unchanged.
+
+`GDSQLDatabaseRegistry.replace_role_database()` validates the candidate handle
+and registration ownership before replacing the runtime-local registration and
+role binding together. The disposable `effective_content` registration is not
+written into editor-authored durable metadata. Replacing the handle invalidates
+previously materialized content models through their retained source-database
+identity; game code must query fresh models after content activation.
+
+### 11.8 Save content compatibility
+
+Managed saves may persist a `GDSQLSaveContentManifest` beside their database
+catalog. It records the effective database name and ordered package
+fingerprints that the save was created or explicitly confirmed against. The
+ConfigFile adapter stores this external metadata in the save root; it does not
+place package state inside gameplay tables.
+
+`GDSQLSaveContentCompatibilityInspector` compares that expectation with the
+active cache manifest. Its typed report separates untracked saves, missing
+packages, changed versions or bytes, changed load order, and additional active
+packages. These are diagnostics, not automatic mutations: the game must choose
+whether to refuse loading, request packages, use fallbacks, or continue with
+unresolved stable identifiers.
 
 ---
 
@@ -1409,6 +1572,7 @@ The catalog owns:
 - Column definitions.
 - Primary keys.
 - Index definitions.
+- Same-database foreign-key definitions.
 - Default values.
 - Nullability.
 - Uniqueness.
@@ -1433,7 +1597,50 @@ var name: StringName
 var columns: Array[ColumnDefinition] = []
 var primary_key: StringName
 var indexes: Array[IndexDefinition] = []
+var foreign_keys: Array[ForeignKeyDefinition] = []
 ```
+
+`ForeignKeyDefinition` describes one named local column referencing one unique
+column in another table in the same logical database. Catalog foreign keys are
+database-integrity metadata; model relationships remain navigation metadata.
+References between runtime roles such as `save` and `content` are therefore not
+catalog foreign keys because their physical databases can change independently
+and cannot share one transaction.
+
+The initial foreign-key contract supports exact `int`, `String`, and
+`StringName` keys with `RESTRICT` update and deletion policies. Catalog
+administration resolves the same-database target, requires an exact type match
+and a primary, unique column, or single-column unique index, and rejects an
+alteration when existing local values are orphaned. Transaction commit validates
+the final effective rows of every constrained table in each touched database.
+This makes inserts, updates, and `RESTRICT` deletes atomic while allowing a
+transaction to stage related changes in either statement order. Catalog
+administration rejects table or target-column lifecycle changes that would
+invalidate an incoming reference, including removal of the target's last unique
+contract. Self-referencing table and target-column renames update their own
+constraint metadata. Schema authoring can therefore expose these operations
+without permitting a silently broken catalog.
+
+The table designer authors the same `ForeignKeyDefinition` and
+`TableAlteration` types used by the catalog. Its local-column choices include
+only supported key types; referenced table and column choices are narrowed to
+exact-type, unique targets in other tables in the same database. The authoring
+UI deliberately excludes the source table even though the catalog can preserve
+pre-existing self-references. These controls are guidance, not a second
+validation authority: catalog administration still validates the completed
+definition before persistence. New constraints receive the deterministic name
+`fk_<source_table>_<local_column>_<target_table>_<target_column>`, which updates
+with the selected inputs instead of becoming stale editor state.
+
+For row editing, a column with exactly one foreign-key definition exposes an
+optional referenced-row picker. The result grid emits a lookup intent; the
+editor coordinator executes a canonical, ordered `SELECT` against the target
+table and returns typed rows to the grid. The grid never reads storage or the
+catalog directly. The initial popup is deliberately bounded to 500 rows,
+supports Godot's built-in type search, displays the referenced value with up to
+two contextual fields, and applies the chosen key through the existing pending
+cell-update path. Direct typed editing remains available when a target is
+outside that bound or a local column has multiple constraints.
 
 ```gdscript
 class_name ColumnDefinition
@@ -1454,6 +1661,8 @@ var unique: bool
 var auto_increment: bool
 var default: ColumnDefault
 var generation: Generation
+var resource_type: ResourceTypeConstraint
+var resource_ownership: ResourceOwnership.Mode
 ```
 
 `ColumnDefault` distinguishes no default (`default == null`) from an explicitly
@@ -1667,8 +1876,9 @@ The executor does not need to know whether rows will be:
 
 The model frontend will build on this boundary. A `GDSQLModel` represents one
 materialized row and is associated through `GDSQLModelDefinition` with one
-logical database and table. `GDSQLModelRegistry` resolves model definitions
-and delegates logical role selection to `GDSQLDatabaseRegistry`, while
+logical database and table. `GDSQLModelRegistry` resolves model definitions,
+adds catalog-derived same-database relationships, and delegates logical role
+selection to `GDSQLDatabaseRegistry`, while
 `GDSQLModelContext` permits isolated registries for tests. Model metadata stores
 logical roles and table names.
 
@@ -1711,11 +1921,26 @@ reloads the row into the same object. Mutable models use changed-field UPDATEs
 for `save()` and primary-key DELETEs for `delete()`. Content models return a
 read-only diagnostic for mutation attempts. These helpers emit canonical query
 specifications and remain independent from physical storage.
-Typed relationship definitions live on model classes. Model queries use those
-definitions for explicit or eager loading, and graphical tooling can inspect
-the same keys to display related identifiers and records.
+Same-database foreign keys provide default model navigation when both table
+models are registered. A normal foreign key produces `belongs_to` on its owning
+model and `has_many` on the referenced model; uniqueness on the foreign-key
+column changes the inverse to `has_one`. Model queries use the resulting typed
+definitions for explicit or eager loading, and graphical tooling can preview
+the same keys from catalog metadata.
 
-The model method is the source of truth for user-owned model scripts:
+Cross-role navigation uses `references_one()` instead. The declaring model
+stores a stable identifier and the target model resolves it through its own
+logical role. The name deliberately describes navigation rather than ownership:
+it creates neither a physical cross-database foreign key nor an inverse
+relationship from immutable content into saved state.
+
+The editor may persist a parallel project-tool binding for this declaration.
+That binding only lets a save-table cell query and select identifiers from the
+target content registration; runtime navigation remains defined by the model's
+`references_one()` entry, and no catalog constraint is synthesized.
+
+The model method remains the source of truth for custom or cross-role
+relationships:
 
 ```gdscript
 func relationships() -> Array[GDSQLRelationshipDefinition]:
@@ -1725,12 +1950,33 @@ func relationships() -> Array[GDSQLRelationshipDefinition]:
             Skill,
             &"hero_id",
         ),
-    ]
+]
 ```
 
+Many-to-many navigation is also explicit. It names a registered junction model
+and the two junction properties that connect the source and target identities:
+
+```gdscript
+GDSQLRelationshipDefinition.many_to_many(
+    &"tags",
+    TagContent,
+    HeroTagContent,
+    &"hero_id",
+    &"tag_id",
+)
+```
+
+Eager loading resolves the source, junction, and related models independently
+through their logical roles. The junction remains a normal model so projects
+can query relationship-owned fields directly when needed. Registration validates
+the source, target, and two junction properties without changing catalog structure.
+
 Registration captures and validates these definitions by relationship name.
-`with(&"skills")` performs a separate batched model query through the related
-model's logical role and attaches the result to each materialized model.
+Declared names take precedence over inferred names, so user behavior remains
+stable and generated or user-owned scripts do not need to be rewritten when a
+catalog relationship is added.
+`with(&"skills")` performs separate batched model queries through the related
+models' logical roles and attaches the result to each materialized model.
 `get_related(&"skills")` returns the loaded model, model array, or null, while
 `is_relationship_loaded(&"skills")` distinguishes an unloaded relationship
 from an empty result. Early graphical tooling may inspect this metadata while
@@ -1858,6 +2104,13 @@ ConfigFile registrations open their durable backend directly. In-memory
 registrations use the same catalog and hydrate existing durable rows into an
 authoritative clean working set.
 
+`open_authoring_registration()` is the editor-authoring composition entry
+point. It opens ConfigFile registrations normally and opens the durable
+ConfigFile source of an in-memory registration without changing its stored
+runtime backend. The workbench therefore commits authored rows directly to the
+source that a later runtime session hydrates; runtime mutation and checkpoint
+semantics remain unchanged.
+
 The composition root is permitted to reference concrete implementations. Most other classes depend on abstract contracts.
 
 This supports:
@@ -1950,7 +2203,10 @@ addons/gdsql/
 │   ├── checkpoint_policy.gd
 │   ├── checkpoint_result.gd
 │   ├── in_memory_checkpoint_target.gd
-│   └── persistence_coordinator.gd
+│   ├── persistence_coordinator.gd
+│   ├── runtime_session.gd
+│   ├── runtime_node.gd
+│   └── runtime_node.tscn
 │
 ├── model/
 │   ├── model.gd
@@ -2471,6 +2727,16 @@ Validation accepts the declared class and its subclasses; an unconstrained
 `Resource`, a different Resource family, `Node`, and other arbitrary `Object`
 instances are rejected. The constraint is catalog metadata and is enforced by
 query validation and storage, not only by editor filtering.
+
+Every Resource column also declares ownership independently from its physical
+backend layout. `OWNED` means the database owns an independent Resource value;
+editing its properties mutates row data and duplication deep-copies it.
+`REFERENCED` means the Resource remains an external project asset; the database
+stores a versioned UID plus fallback path and only replacing the reference
+mutates the row. ConfigFile persists owned values through native Resource
+serialization and referenced values through `GDSQLResourceLocator`. Future
+backends must preserve these semantics but may choose a different physical
+representation.
 
 ### Abstract contracts support boundaries
 

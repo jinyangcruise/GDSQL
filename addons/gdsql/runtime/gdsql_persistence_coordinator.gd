@@ -121,6 +121,11 @@ func get_policy(registration_name: StringName) -> GDSQLCheckpointPolicy:
 	return _policies.get(registration_name)
 
 
+## Reports whether a registration requires coordinated checkpoints.
+func is_registered(registration_name: StringName) -> bool:
+	return _targets.has(registration_name)
+
+
 func _operation_failure(code: StringName, message: String) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))

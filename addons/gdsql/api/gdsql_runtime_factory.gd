@@ -4,6 +4,153 @@ extends RefCounted
 const FunctionCatalog = preload("res://addons/gdsql/query/model/gdsql_query_function_catalog.gd")
 
 
+## Builds the supported runtime entry point from editor-authored durable
+## registration metadata. ConfigFile registrations are durable on commit;
+## in-memory registrations receive explicit checkpoint targets.
+static func bootstrap(
+		registry_path: String = GDSQLConfigFileDatabaseRegistryStore.DEFAULT_PATH,
+		checkpoint_policies: Dictionary = { },
+		default_checkpoint_policy: GDSQLCheckpointPolicy = null,
+		setup_profile: GDSQLSetupProfile.Kind = GDSQLSetupProfile.Kind.DIRECT,
+) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	var registry := GDSQLDatabaseRegistry.new(
+		GDSQLConfigFileDatabaseRegistryStore.new(registry_path),
+	)
+	var loaded := registry.load_snapshot()
+	result.diagnostics.merge(loaded.diagnostics)
+	if not loaded.is_successful():
+		return result
+	var persistence := GDSQLPersistenceCoordinator.new()
+	var snapshot := loaded.get_value() as GDSQLDatabaseRegistrySnapshot
+	if setup_profile != GDSQLSetupProfile.Kind.MANAGED:
+		var setup := GDSQLDirectSetupInspector.inspect_runtime(snapshot)
+		result.diagnostics.merge(setup.diagnostics)
+	for registration in snapshot.registrations:
+		var opened := open_registration(registration)
+		result.diagnostics.merge(opened.diagnostics)
+		if not opened.is_successful():
+			continue
+		var registered := registry.register(registration.name, opened.get_database())
+		result.diagnostics.merge(registered.diagnostics)
+		if not registered.is_successful() \
+				or registration.storage_backend_id != GDSQLStorageBackendIds.IN_MEMORY:
+			continue
+		var target := _create_in_memory_checkpoint_target(
+			registration,
+			opened.get_database(),
+		)
+		var policy := checkpoint_policies.get(
+			registration.name,
+			default_checkpoint_policy \
+			if default_checkpoint_policy != null \
+			else GDSQLCheckpointPolicy.manual(),
+		) as GDSQLCheckpointPolicy
+		var persistence_registration := persistence.register(
+			registration.name,
+			target,
+			policy,
+		)
+		result.diagnostics.merge(persistence_registration.diagnostics)
+	for binding in snapshot.role_bindings:
+		var bound := registry.bind_role(binding.role, binding.registration_name)
+		result.diagnostics.merge(bound.diagnostics)
+	if not result.is_successful():
+		return result
+	var model_context := GDSQLModelContext.new(GDSQLModelRegistry.new(registry))
+	var configured_models := GDSQLModels.configure(model_context)
+	result.diagnostics.merge(configured_models.diagnostics)
+	if result.is_successful():
+		result.value = GDSQLRuntimeSession.new(registry, model_context, persistence)
+	return result
+
+
+## Builds or reuses effective content and replaces the active content role only
+## after the candidate cache database has opened successfully.
+static func activate_effective_content(
+		runtime: GDSQLRuntimeSession,
+		cache_manager: GDSQLContentCacheManager,
+		ordered_packages: Array[GDSQLContentPackageSource],
+		source_database_name: StringName = GDSQLContentOverlayLoader.DEFAULT_SOURCE_DATABASE,
+		effective_database_name: StringName = GDSQLContentOverlayLoader.DEFAULT_EFFECTIVE_DATABASE,
+		registration_name: StringName = &"effective_content",
+) -> GDSQLContentActivationResult:
+	var result := GDSQLContentActivationResult.new()
+	if runtime == null or cache_manager == null:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_CONTENT_ACTIVATION_DEPENDENCY_REQUIRED",
+				"Content activation requires a runtime session and cache manager.",
+			),
+		)
+		return result
+	var cached := cache_manager.ensure_cache(
+		ordered_packages,
+		source_database_name,
+		effective_database_name,
+	)
+	result.cache_result = cached
+	result.diagnostics.merge(cached.diagnostics)
+	if not cached.is_successful():
+		return result
+	var opened := GDSQLDatabase.open(effective_database_name, cached.cache_root)
+	result.diagnostics.merge(opened.diagnostics)
+	if not opened.is_successful():
+		return result
+	var replaced := runtime.get_database_registry().replace_role_database(
+		GDSQLDatabaseRegistry.CONTENT_ROLE,
+		registration_name,
+		opened.get_database(),
+	)
+	result.diagnostics.merge(replaced.diagnostics)
+	if result.is_successful():
+		result.complete(opened.get_database(), cached)
+	return result
+
+
+## Discovers configured packages, resolves their deterministic order, and
+## activates the resulting effective database for an existing runtime session.
+static func activate_managed_content(
+		runtime: GDSQLRuntimeSession,
+		configuration: GDSQLManagedContentConfiguration,
+		discovery: GDSQLContentPackageDiscovery,
+		resolver: GDSQLContentPackageResolver,
+		cache_manager: GDSQLContentCacheManager,
+) -> GDSQLContentActivationResult:
+	var result := GDSQLContentActivationResult.new()
+	if runtime == null or configuration == null or discovery == null \
+			or resolver == null or cache_manager == null:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_MANAGED_CONTENT_DEPENDENCY_REQUIRED",
+				"Managed content activation requires runtime, configuration, discovery, resolution, and cache services.",
+			),
+		)
+		return result
+	var discovered := discovery.discover(
+		configuration.base_package_root,
+		configuration.package_container_roots,
+	)
+	result.diagnostics.merge(discovered.diagnostics)
+	if not discovered.is_successful():
+		return result
+	var packages := discovered.get_value() as Array[GDSQLContentPackageSource]
+	var resolved := resolver.resolve(packages, configuration.enabled_package_ids)
+	result.diagnostics.merge(resolved.diagnostics)
+	if not resolved.is_successful():
+		return result
+	var activated := activate_effective_content(
+		runtime,
+		cache_manager,
+		resolved.ordered_packages,
+	)
+	result.cache_result = activated.cache_result
+	result.diagnostics.merge(activated.diagnostics)
+	if result.is_successful():
+		result.complete(activated.get_database(), activated.cache_result)
+	return result
+
+
 static func create_default(settings: Variant = null) -> GDSQLDatabaseContext:
 	var data_root := _resolve_data_root(settings)
 	var path_resolver := GDSQLDatabasePathResolver.new(data_root)
@@ -84,6 +231,28 @@ static func open_registration(
 	return result
 
 
+## Opens the durable authoring source for an editor-selected registration.
+##
+## In-memory is a runtime policy: runtime sessions hydrate from ConfigFile and
+## checkpoint back to it. Editor authoring writes that ConfigFile source
+## directly so a separately launched game observes successful row mutations.
+## The durable registration metadata and selected runtime backend are unchanged.
+static func open_authoring_registration(
+		registration: GDSQLDatabaseRegistration,
+) -> GDSQLDatabaseResult:
+	if registration == null \
+			or registration.storage_backend_id != GDSQLStorageBackendIds.IN_MEMORY:
+		return open_registration(registration)
+	return open_registration(
+		GDSQLDatabaseRegistration.new(
+			registration.name,
+			registration.database_name,
+			registration.data_root,
+			GDSQLStorageBackendIds.CONFIG_FILE,
+		),
+	)
+
+
 static func _hydrate_in_memory(
 		context: GDSQLDatabaseContext,
 		data_root: String,
@@ -108,12 +277,32 @@ static func _hydrate_in_memory(
 				),
 			)
 			return result
-		var loaded := memory.load_table(table, snapshot.rows)
+		var loaded := memory.load_table(
+			table,
+			snapshot.rows,
+			snapshot.next_auto_increment,
+		)
 		result.diagnostics.merge(loaded.diagnostics)
 		if not loaded.is_successful():
 			return result
 	result.value = true
 	return result
+
+
+static func _create_in_memory_checkpoint_target(
+		registration: GDSQLDatabaseRegistration,
+		database: GDSQLDatabase,
+) -> GDSQLInMemoryCheckpointTarget:
+	var resolver := GDSQLDatabasePathResolver.new(registration.data_root)
+	var durable := GDSQLConfigFileTableStorage.new(
+		resolver,
+		GDSQLConfigFileCache.new(),
+		GDSQLGodotVariantCodec.new(),
+	)
+	return GDSQLInMemoryCheckpointTarget.new(
+		database.context.storage as GDSQLInMemoryTableStorage,
+		durable,
+	)
 
 
 static func _create_context(
@@ -130,7 +319,10 @@ static func _create_context(
 				cache,
 				codec,
 			)
-	var transactions := GDSQLTransactionManager.new(storage)
+	var transactions := GDSQLTransactionManager.new(
+		storage,
+		GDSQLForeignKeyConstraintValidator.new(catalog, storage),
+	)
 	var function_catalog := FunctionCatalog.new()
 	var function_registry := GDSQLQueryFunctionRegistry.new(function_catalog)
 	var expression_evaluator := GDSQLExpressionEvaluator.new(function_registry)

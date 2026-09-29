@@ -205,6 +205,33 @@ func test_failed_batch_does_not_advance_auto_increment_sequence() -> void:
 	assert_int(successful.rows[0].get_value(&"id")).is_equal(1)
 
 
+func test_truncate_removes_all_rows_and_restarts_auto_increment() -> void:
+	var database := _create_auto_increment_accounts_database()
+	assert_bool(
+		database.execute(
+			database.table(&"accounts")
+			.insert()
+			.values({&"email": "mage@example.test"})
+			.values({&"email": "knight@example.test"})
+			.build(),
+		).is_successful(),
+	).is_true()
+
+	var truncated := database.truncate_table(&"accounts")
+	var inserted := database.insert(
+		&"accounts",
+		{&"email": "rogue@example.test"},
+	)
+
+	assert_bool(truncated.is_successful()).is_true()
+	assert_int(truncated.get_value()).is_equal(2)
+	assert_bool(inserted.is_successful()).is_true()
+	assert_int(inserted.rows[0].get_value(&"id")).is_equal(1)
+	var metadata := _load_accounts_metadata()
+	assert_int(metadata["row_count"]).is_equal(1)
+	assert_int(metadata["next_auto_increment"]).is_equal(2)
+
+
 func test_timestamp_helpers_generate_created_at_and_updated_at() -> void:
 	var table := GDSQLTableDefinition.new(&"accounts", &"id")
 	table.add_column(

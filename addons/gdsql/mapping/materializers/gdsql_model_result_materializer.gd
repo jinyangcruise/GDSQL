@@ -2,10 +2,15 @@ class_name GDSQLModelResultMaterializer
 extends GDSQLResultMaterializer
 
 var _model_context: GDSQLModelContext
+var _source_database: GDSQLDatabase
 
 
-func _init(model_context: GDSQLModelContext = null) -> void:
+func _init(
+		model_context: GDSQLModelContext = null,
+		source_database: GDSQLDatabase = null,
+) -> void:
 	_model_context = model_context
+	_source_database = source_database
 
 
 func materialize(rows: GDSQLRowSet, mapping: GDSQLResultMapping = null) -> GDSQLQueryResult:
@@ -20,6 +25,13 @@ func materialize(rows: GDSQLRowSet, mapping: GDSQLResultMapping = null) -> GDSQL
 			),
 		)
 		return result
+	var source_database := _source_database
+	if source_database == null and _model_context != null:
+		var database_result := _model_context.resolve_database(mapping.resource_script)
+		if not database_result.is_successful():
+			result.diagnostics.merge(database_result.diagnostics)
+			return result
+		source_database = database_result.get_database()
 	var models: Array[GDSQLModel] = []
 	for row in rows.rows:
 		var candidate: Variant = mapping.resource_script.new()
@@ -54,7 +66,12 @@ func materialize(rows: GDSQLRowSet, mapping: GDSQLResultMapping = null) -> GDSQL
 			var value: Variant = row.get_value(source_column)
 			model.set(property_name, value)
 			materialized_values[property_name] = value
-		model._attach_model_context(_model_context, true, materialized_values)
+		model._attach_model_context(
+			_model_context,
+			true,
+			materialized_values,
+			source_database,
+		)
 		models.append(model)
 	result.value = Array(
 		models,

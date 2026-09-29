@@ -5,6 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="3_ctrlm"]
 [ext_resource type="Texture2D" uid="uid://dsm6xg4gnopxu" path="res://addons/gdsql/editor/workspace/icons/reticle.svg" id="4_ksyvb"]
 [ext_resource type="Texture2D" uid="uid://da35pq8onqig4" path="res://addons/gdsql/editor/workspace/icons/trash_can.svg" id="5_dwbiq"]
+[ext_resource type="Texture2D" uid="uid://cqrp4rr1rh61i" path="res://addons/gdsql/editor/workspace/icons/foreign_key.svg" id="6_foreign"]
 
 [node name="TableDraftFold" type="FoldableContainer" unique_id=194084698]
 propagate_maximum_size = false
@@ -100,6 +101,31 @@ text = "Add Index"
 icon = ExtResource("4_ksyvb")
 
 [node name="Indexes" type="VBoxContainer" parent="MarginContainer/Content" unique_id=1355192318]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="ForeignKeysHeader" type="HBoxContainer" parent="MarginContainer/Content"]
+layout_mode = 2
+
+[node name="ForeignKeysLabel" type="Label" parent="MarginContainer/Content/ForeignKeysHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Foreign Keys"
+
+[node name="AddForeignKey" type="Button" parent="MarginContainer/Content/ForeignKeysHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Add Foreign Key"
+icon = ExtResource("6_foreign")
+
+[node name="ForeignKeyHint" type="Label" parent="MarginContainer/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "Targets must be unique columns in this database with the same int, String, or StringName type."
+autowrap_mode = 2
+
+[node name="ForeignKeys" type="VBoxContainer" parent="MarginContainer/Content"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 2

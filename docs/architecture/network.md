@@ -4,6 +4,27 @@ Everything provided bellow is a "vision" of the future after the architectural i
 
 ---
 
+## Backlog status and first investigation
+
+Networking is not active delivery work. The first investigation should cover
+player-to-player database information exchange as a constrained application
+feature, not expose arbitrary `QuerySpec` mutations over the network.
+
+Before choosing RPC, ENet, WebSocket, or another transport, define:
+
+- whether the payload is an immutable content package, a save snapshot, or
+  synchronized runtime state;
+- which peer is authoritative and which operations a recipient may accept;
+- authentication, payload limits, schema/protocol versions, validation,
+  idempotency, and conflict policy;
+- whether received data is previewed/imported atomically or applied through a
+  replicated application command.
+
+Portable JSON/CSV interchange and live replication are separate boundaries.
+The former must not silently become a multiplayer synchronization protocol.
+
+---
+
 # Extending GDSQL Beyond Local Storage
 
 ## 1. Vision for networked and remote data management

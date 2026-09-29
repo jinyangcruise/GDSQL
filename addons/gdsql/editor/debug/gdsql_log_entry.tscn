@@ -57,7 +57,6 @@ vertical_alignment = 1
 [node name="Action" type="Label" parent="Content/Row/Margin/Fields" unique_id=1024686556]
 custom_minimum_size = Vector2(130, 0)
 layout_mode = 2
-size_flags_horizontal = 3
 tooltip_text = "Action"
 mouse_filter = 1
 text = "Action"

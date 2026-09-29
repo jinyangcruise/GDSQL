@@ -47,6 +47,25 @@ func stage_delete(table: GDSQLTableDefinition, key: Variant, session: GDSQLStora
 	return null
 
 
+## Stages removal of every row and resets generated-key state to its initial
+## value. This is intentionally distinct from staging individual deletes.
+func stage_truncate(
+		table: GDSQLTableDefinition,
+		session: GDSQLStorageSession,
+) -> GDSQLStorageOperationResult:
+	return null
+
+
+## Stages the exact next generated integer key. Persistence adapters use this
+## when transferring an authoritative table snapshot between backends.
+func stage_next_auto_increment(
+		table: GDSQLTableDefinition,
+		next_value: int,
+		session: GDSQLStorageSession,
+) -> GDSQLStorageOperationResult:
+	return null
+
+
 func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 	return null
 

@@ -2,57 +2,433 @@
 
 [ext_resource type="Script" uid="uid://dxu1lu8xgrho5" path="res://addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.gd" id="1"]
 [ext_resource type="Script" uid="uid://hvanlw2ev0lr" path="res://addons/gdsql/editor/controller/components/gdsql_editor_action_button.gd" id="2"]
-[ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="2_fltei"]
 
-[node name="WelcomeDocument" type="CenterContainer" unique_id=1787995265]
+[node name="WelcomeDocument" type="MarginContainer"]
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
 script = ExtResource("1")
 
-[node name="WelcomePanel" type="PanelContainer" parent="." unique_id=1837988156]
-custom_minimum_size = Vector2(580, 0)
+[node name="Scroll" type="ScrollContainer" parent="."]
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
 
-[node name="WelcomeMargin" type="MarginContainer" parent="WelcomePanel" unique_id=1779689014]
+[node name="Center" type="CenterContainer" parent="Scroll"]
 layout_mode = 2
-theme_override_constants/margin_left = 42
-theme_override_constants/margin_top = 36
-theme_override_constants/margin_right = 42
-theme_override_constants/margin_bottom = 36
+size_flags_horizontal = 3
 
-[node name="Content" type="VBoxContainer" parent="WelcomePanel/WelcomeMargin" unique_id=565048217]
+[node name="Content" type="VBoxContainer" parent="Scroll/Center"]
+custom_minimum_size = Vector2(760, 0)
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="Eyebrow" type="Label" parent="WelcomePanel/WelcomeMargin/Content" unique_id=1994474305]
+[node name="Eyebrow" type="Label" parent="Scroll/Center/Content"]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.68, 1, 1)
 text = "GDSQL WORKBENCH"
-horizontal_alignment = 1
 
-[node name="Title" type="Label" parent="WelcomePanel/WelcomeMargin/Content" unique_id=1963474828]
+[node name="Title" type="Label" parent="Scroll/Center/Content"]
+unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 26
-text = "Build and inspect game databases"
-horizontal_alignment = 1
+theme_override_font_sizes/font_size = 28
+text = "Choose your content profile"
 
-[node name="Description" type="Label" parent="WelcomePanel/WelcomeMargin/Content" unique_id=224874000]
-custom_minimum_size = Vector2(300, 0)
+[node name="Summary" type="Label" parent="Scroll/Center/Content"]
+unique_name_in_owner = true
 layout_mode = 2
-text = "Known databases are discovered automatically. Open one from the dock or create a new database workspace."
+theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
+text = "Choose the workflow that matches how this project will ship and extend content."
+autowrap_mode = 2
+
+[node name="ProfileChoice" type="VBoxContainer" parent="Scroll/Center/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Cards" type="HBoxContainer" parent="Scroll/Center/Content/ProfileChoice"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="DirectCard" type="PanelContainer" parent="Scroll/Center/Content/ProfileChoice/Cards"]
+custom_minimum_size = Vector2(370, 250)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Scroll/Center/Content/ProfileChoice/Cards/DirectCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 16
+
+[node name="Layout" type="VBoxContainer" parent="Scroll/Center/Content/ProfileChoice/Cards/DirectCard/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 9
+
+[node name="Title" type="Label" parent="Scroll/Center/Content/ProfileChoice/Cards/DirectCard/Margin/Layout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 21
+text = "Direct content"
+
+[node name="Subtitle" type="Label" parent="Scroll/Center/Content/ProfileChoice/Cards/DirectCard/Margin/Layout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
+text = "Fast setup for games that ship one authored definition database."
+autowrap_mode = 2
+
+[node name="Points" type="Label" parent="Scroll/Center/Content/ProfileChoice/Cards/DirectCard/Margin/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+text = "• Definitions live under res://data\n• Runtime reads that content directly\n• Best when overlays and user mods are unnecessary"
+autowrap_mode = 2
+
+[node name="ChooseDirect" type="Button" parent="Scroll/Center/Content/ProfileChoice/Cards/DirectCard/Margin/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Choose Direct Content"
+
+[node name="ManagedCard" type="PanelContainer" parent="Scroll/Center/Content/ProfileChoice/Cards"]
+custom_minimum_size = Vector2(370, 250)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Margin" type="MarginContainer" parent="Scroll/Center/Content/ProfileChoice/Cards/ManagedCard"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 16
+
+[node name="Layout" type="VBoxContainer" parent="Scroll/Center/Content/ProfileChoice/Cards/ManagedCard/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 9
+
+[node name="Title" type="Label" parent="Scroll/Center/Content/ProfileChoice/Cards/ManagedCard/Margin/Layout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 21
+text = "Managed content"
+
+[node name="Subtitle" type="Label" parent="Scroll/Center/Content/ProfileChoice/Cards/ManagedCard/Margin/Layout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
+text = "A complete package pipeline for moddable or layered game content."
+autowrap_mode = 2
+
+[node name="Points" type="Label" parent="Scroll/Center/Content/ProfileChoice/Cards/ManagedCard/Margin/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+text = "• Base game, DLC, and mods use the same package shape\n• Deterministic overlays build effective content\n• Adds provenance, cache, and save compatibility"
+autowrap_mode = 2
+
+[node name="ChooseManaged" type="Button" parent="Scroll/Center/Content/ProfileChoice/Cards/ManagedCard/Margin/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Choose Managed Content"
+
+[node name="MigrationWarning" type="Label" parent="Scroll/Center/Content/ProfileChoice"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.72, 0.32, 1)
+text = "Profile changes do not migrate databases, models, resource paths, or save expectations automatically."
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="HBoxContainer" type="HBoxContainer" parent="WelcomePanel/WelcomeMargin/Content" unique_id=495838937]
-layout_mode = 2
-alignment = 1
-
-[node name="CreateDatabase" type="Button" parent="WelcomePanel/WelcomeMargin/Content/HBoxContainer" unique_id=335882101]
+[node name="SelectedSetup" type="VBoxContainer" parent="Scroll/Center/Content"]
 unique_name_in_owner = true
-custom_maximum_size = Vector2(250, -1)
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="ProfilePanel" type="PanelContainer" parent="Scroll/Center/Content/SelectedSetup"]
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Scroll/Center/Content/SelectedSetup/ProfilePanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="Row" type="HBoxContainer" parent="Scroll/Center/Content/SelectedSetup/ProfilePanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Text" type="VBoxContainer" parent="Scroll/Center/Content/SelectedSetup/ProfilePanel/Margin/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ActiveProfile" type="Label" parent="Scroll/Center/Content/SelectedSetup/ProfilePanel/Margin/Row/Text"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.68, 1, 1)
+text = "DIRECT CONTENT"
+
+[node name="ProfileDetail" type="Label" parent="Scroll/Center/Content/SelectedSetup/ProfilePanel/Margin/Row/Text"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.68, 0.72, 0.78, 1)
+text = "Project-authored definitions are consumed directly from res://data."
+autowrap_mode = 2
+
+[node name="ChangeProfile" type="Button" parent="Scroll/Center/Content/SelectedSetup/ProfilePanel/Margin/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Reset / Change Profile…"
+
+[node name="DirectActions" type="HBoxContainer" parent="Scroll/Center/Content/SelectedSetup"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="CreateDatabase" type="Button" parent="Scroll/Center/Content/SelectedSetup/DirectActions"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "Create Database"
-icon = ExtResource("2_fltei")
-expand_icon = true
 script = ExtResource("2")
+
+[node name="ManageSaveSlots" type="Button" parent="Scroll/Center/Content/SelectedSetup/DirectActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Save Slots"
+script = ExtResource("2")
+
+[node name="RefreshDatabases" type="Button" parent="Scroll/Center/Content/SelectedSetup/DirectActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Refresh"
+script = ExtResource("2")
+
+[node name="ManagedActions" type="HBoxContainer" parent="Scroll/Center/Content/SelectedSetup"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="OpenManagedContent" type="Button" parent="Scroll/Center/Content/SelectedSetup/ManagedActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Open Managed Setup"
+script = ExtResource("2")
+
+[node name="ManagedRefresh" type="Button" parent="Scroll/Center/Content/SelectedSetup/ManagedActions"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Refresh"
+script = ExtResource("2")
+
+[node name="ChecklistPanel" type="PanelContainer" parent="Scroll/Center/Content/SelectedSetup"]
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 12
+
+[node name="Steps" type="VBoxContainer" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 7
+
+[node name="Title" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Setup checklist"
+
+[node name="Step1" type="HBoxContainer" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps"]
+unique_name_in_owner = true
+layout_mode = 2
+[node name="Step1Status" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step1"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+text = "→"
+[node name="Step1Label" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step1"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+text = "Content database"
+[node name="Step1Detail" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step1"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 2
+
+[node name="Step2" type="HBoxContainer" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps"]
+unique_name_in_owner = true
+layout_mode = 2
+[node name="Step2Status" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step2"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+text = "○"
+[node name="Step2Label" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step2"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+text = "First table"
+[node name="Step2Detail" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step2"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 2
+
+[node name="Step3" type="HBoxContainer" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps"]
+unique_name_in_owner = true
+layout_mode = 2
+[node name="Step3Status" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step3"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+text = "○"
+[node name="Step3Label" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step3"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+text = "First row"
+[node name="Step3Detail" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step3"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 2
+
+[node name="Step4" type="HBoxContainer" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps"]
+unique_name_in_owner = true
+layout_mode = 2
+[node name="Step4Status" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step4"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+text = "○"
+[node name="Step4Label" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step4"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+text = "Active save"
+[node name="Step4Detail" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step4"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 2
+
+[node name="Step5" type="HBoxContainer" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps"]
+unique_name_in_owner = true
+layout_mode = 2
+[node name="Step5Status" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step5"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+text = "○"
+[node name="Step5Label" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step5"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+text = "Model binding"
+[node name="Step5Detail" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step5"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 2
+
+[node name="Step6" type="HBoxContainer" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps"]
+unique_name_in_owner = true
+layout_mode = 2
+[node name="Step6Status" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step6"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+text = "○"
+[node name="Step6Label" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step6"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+text = "Runtime adapter"
+[node name="Step6Detail" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step6"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 2
+
+[node name="Step7" type="HBoxContainer" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+[node name="Step7Status" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step7"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(24, 0)
+layout_mode = 2
+text = "○"
+[node name="Step7Label" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step7"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 0)
+layout_mode = 2
+text = "Runtime adapter"
+[node name="Step7Detail" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/Step7"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+autowrap_mode = 2
+
+[node name="NextStepRow" type="HBoxContainer" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="NextStep" type="Label" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/NextStepRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.42, 0.68, 1, 1)
+text = "Next setup action"
+autowrap_mode = 2
+
+[node name="NextAction" type="Button" parent="Scroll/Center/Content/SelectedSetup/ChecklistPanel/Margin/Steps/NextStepRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Continue"
+
+[node name="DatabaseHeader" type="HBoxContainer" parent="Scroll/Center/Content/SelectedSetup"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Scroll/Center/Content/SelectedSetup/DatabaseHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+text = "Project databases"
+
+[node name="OpenDatabase" type="Button" parent="Scroll/Center/Content/SelectedSetup/DatabaseHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+text = "Open Selected"
+
+[node name="DatabaseList" type="ItemList" parent="Scroll/Center/Content/SelectedSetup"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 140)
+layout_mode = 2
+allow_reselect = true
+
+[node name="NoDatabases" type="Label" parent="Scroll/Center/Content/SelectedSetup"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 64)
+layout_mode = 2
+text = "No databases are registered for this project yet."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ProfileConfirmation" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Choose Setup Profile"
+ok_button_text = "Choose Profile"
+
+[node name="ResetProfileConfirmation" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Return to Profile Selection"
+ok_button_text = "Return to Selection"
+dialog_text = "Return to profile selection? This changes onboarding guidance only. Existing databases, packages, models, and saves will not be moved or deleted."

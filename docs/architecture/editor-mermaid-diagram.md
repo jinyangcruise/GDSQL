@@ -36,6 +36,36 @@ Workspace("`**Central Workspace**
 *Owns:* Active documents and focused context
 *Uses:* Opened workbench sessions`")
 
+Welcome("`**Welcome and Profile Setup**
+
+-
+*First run:* Choose Direct or Managed content with migration warning
+*Selected state:* Show only the active profile's actions and checklist
+*Persistence:* Project-owned setup profile setting`")
+
+ModelAssistant("`**Model Assistant**
+
+-
+*Purpose:* Preview generated schema bindings and user-owned models
+*Input:* Selected catalog table and logical role
+*Inspection:* Typed compatibility diagnostics and relationship target roles
+*Safety:* One-way generation; user scripts are never replaced`")
+
+SaveSlots("`**Save Slots**
+
+-
+*Purpose:* Discover and select direct-content save databases
+*Boundary:* user://gdsql/saves direct children plus active custom root
+*Safety:* Creation and role binding only; no implicit durable deletion`")
+
+ManagedContent("`**Managed Content Setup**
+
+-
+*Purpose:* Configure and validate base, DLC and mod package inputs
+*Setup:* Scaffold a base package and its first ordinary GDSQL database
+*Build:* Reuse runtime discovery, resolution, overlay and cache services
+*Save check:* Report compatibility and confirm expectation recording`")
+
 Activity("`**Activity Bottom Panel**
 
 -
@@ -63,6 +93,19 @@ Graphs("`**Query Graph Frontend**
 *Flow:* QueryGraph → GraphQueryCompiler
 *Produces:* QuerySpec`")
 
+TableData("`**Table Data Document**
+
+-
+*Purpose:* Browse and batch-edit one table without a graph
+*Owns:* Query header, canonical paging and row actions`")
+
+ResultGrid("`**Editor Result Grid**
+
+-
+*Purpose:* Render and validate typed rows for any editor frontend
+*Owns:* Cell presentation, pending edits and Resource controls
+*Boundary:* No query execution, pagination or graph chrome`")
+
 Runtime("`**Runtime Boundary**
 
 -
@@ -82,6 +125,15 @@ Dock -->|"load · discover · select"| Workbench
 Workbench -->|"open registration"| Session
 Workspace -->|"table and catalog tasks"| Session
 Workspace -->|"edit graph document"| Graphs
+Workspace -->|"browse table data"| TableData
+Workspace -->|"preview model binding"| ModelAssistant
+Workspace -->|"choose profile and guide setup"| Welcome
+Workspace -->|"manage active save role"| SaveSlots
+Workspace -->|"configure managed content"| ManagedContent
+SaveSlots -->|"discover · bind · open"| Workbench
+ManagedContent -->|"package and save diagnostics"| Runtime
+Graphs -->|"present query rows"| ResultGrid
+TableData -->|"present table rows"| ResultGrid
 
 Graphs -->|"compile(graph) · execute(query)"| Runtime
 Session -->|"catalog and canonical query operations"| Runtime
@@ -89,7 +141,7 @@ Runtime -->|"results · diagnostics"| Activity
 
 class Integration integration;
 class Actions action;
-class Dock,Workspace surface;
+class Dock,Workspace,Welcome,ModelAssistant,SaveSlots,ManagedContent,TableData,ResultGrid surface;
 class Workbench,Session coordination;
 class Graphs graphs;
 class Runtime runtime;

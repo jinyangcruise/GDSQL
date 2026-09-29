@@ -43,6 +43,8 @@ export default defineConfig({
                 { text: 'Introduction', link: '/guide/introduction' },
                 { text: 'Installation', link: '/guide/installation' },
                 { text: 'Quick Start', link: '/guide/getting-started' },
+                { text: 'Runtime Setup', link: '/guide/runtime-setup' },
+                { text: 'Content + Save Models', link: '/guide/content-save-models' },
               ],
             },
             {

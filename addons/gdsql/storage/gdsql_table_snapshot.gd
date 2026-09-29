@@ -3,6 +3,8 @@ extends RefCounted
 
 var rows: Array[GDSQLRowRecord] = []
 var primary_key: StringName
+var row_count: int = 0
+var next_auto_increment: int = 1
 
 
 func find_by_primary_key(key: Variant) -> GDSQLRowRecord:

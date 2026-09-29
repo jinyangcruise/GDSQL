@@ -102,10 +102,13 @@ func _load_table(database_name: StringName, table_name: StringName) -> GDSQLTabl
 				),
 			)
 			column.resource_type = _load_resource_type(schema, section, column.data_type)
+			column.resource_ownership = GDSQLResourceOwnership.from_id(
+				StringName(schema.get_value(section, "resource_ownership", "owned")),
+			)
 			if schema.has_section_key(section, "default_kind") \
 					and schema.get_value(section, "default_kind") == "static":
 				column.set_default(
-					_codec.decode(schema.get_value(section, "default")) \
+					_codec.decode(schema.get_value(section, "default"), column) \
 					if schema.has_section_key(section, "default") \
 					else null,
 				)
@@ -119,6 +122,29 @@ func _load_table(database_name: StringName, table_name: StringName) -> GDSQLTabl
 					StringName(section.trim_prefix("index:")),
 					index_columns,
 					bool(schema.get_value(section, "unique", false)),
+				),
+			)
+		elif section.begins_with("foreign_key:"):
+			table.foreign_keys.append(
+				GDSQLForeignKeyDefinition.new(
+					StringName(section.trim_prefix("foreign_key:")),
+					StringName(schema.get_value(section, "column", "")),
+					StringName(schema.get_value(section, "referenced_table", "")),
+					StringName(schema.get_value(section, "referenced_column", "")),
+					int(
+						schema.get_value(
+							section,
+							"on_delete",
+							GDSQLForeignKeyDefinition.Action.RESTRICT,
+						),
+					) as GDSQLForeignKeyDefinition.Action,
+					int(
+						schema.get_value(
+							section,
+							"on_update",
+							GDSQLForeignKeyDefinition.Action.RESTRICT,
+						),
+					) as GDSQLForeignKeyDefinition.Action,
 				),
 			)
 	return table

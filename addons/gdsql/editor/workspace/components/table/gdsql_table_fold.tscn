@@ -4,6 +4,12 @@
 [ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="2_23edi"]
 [ext_resource type="Texture2D" uid="uid://dsm6xg4gnopxu" path="res://addons/gdsql/editor/workspace/icons/reticle.svg" id="3_hkiee"]
 [ext_resource type="PackedScene" uid="uid://blg3sawy0eg2j" path="res://addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor.tscn" id="4_columns"]
+[ext_resource type="Texture2D" uid="uid://cqrp4rr1rh61i" path="res://addons/gdsql/editor/workspace/icons/foreign_key.svg" id="5_foreign"]
+[ext_resource type="Texture2D" uid="uid://bnvxdlrytsmrv" path="res://addons/gdsql/editor/workspace/icons/grid_fine.svg" id="6_grid"]
+[ext_resource type="Texture2D" uid="uid://benvx1k7my6ly" path="res://addons/gdsql/editor/workspace/icons/script.svg" id="7_script"]
+[ext_resource type="Texture2D" path="res://addons/gdsql/editor/workspace/icons/eraser.svg" id="8_eraser"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_ih4hc"]
 
 [node name="TableFold" type="FoldableContainer" unique_id=1236517426]
 anchors_preset = 10
@@ -24,11 +30,40 @@ theme_override_constants/margin_bottom = 4
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="Summary" type="Label" parent="MarginContainer/Content" unique_id=1384555598]
+[node name="QuickActions" type="HBoxContainer" parent="MarginContainer/Content" unique_id=419442243]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Summary" type="Label" parent="MarginContainer/Content/QuickActions" unique_id=1384555598]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 20
 text = "Table summary"
+
+[node name="HSeparator" type="HSeparator" parent="MarginContainer/Content/QuickActions" unique_id=713322811]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/separator = SubResource("StyleBoxEmpty_ih4hc")
+
+[node name="OpenData" type="Button" parent="MarginContainer/Content/QuickActions" unique_id=1625172406]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Open Data"
+icon = ExtResource("6_grid")
+
+[node name="OpenModel" type="Button" parent="MarginContainer/Content/QuickActions" unique_id=2128722326]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Model"
+icon = ExtResource("7_script")
+
+[node name="ResetData" type="Button" parent="MarginContainer/Content/QuickActions"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.45, 0.4, 1)
+tooltip_text = "Delete every row and reset the generated-key sequence."
+text = "Reset Data…"
+icon = ExtResource("8_eraser")
 
 [node name="FoldableContainer" type="FoldableContainer" parent="MarginContainer/Content" unique_id=1194308614]
 layout_mode = 2
@@ -57,6 +92,39 @@ size_flags_horizontal = 0
 text = "Add Index"
 icon = ExtResource("3_hkiee")
 
+[node name="ForeignKeyFold" type="FoldableContainer" parent="MarginContainer/Content" unique_id=949645144]
+layout_mode = 2
+folded = true
+title = "Foreign Keys"
+
+[node name="ForeignKeyContent" type="VBoxContainer" parent="MarginContainer/Content/ForeignKeyFold" unique_id=515809886]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Hint" type="Label" parent="MarginContainer/Content/ForeignKeyFold/ForeignKeyContent" unique_id=1573277566]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "References stay inside this database. Target columns must be unique and use the same key type."
+autowrap_mode = 2
+
+[node name="ForeignKeys" type="VBoxContainer" parent="MarginContainer/Content/ForeignKeyFold/ForeignKeyContent" unique_id=2065930837]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 1
+
+[node name="NewForeignKeys" type="VBoxContainer" parent="MarginContainer/Content/ForeignKeyFold/ForeignKeyContent" unique_id=1326353125]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="AddForeignKey" type="Button" parent="MarginContainer/Content/ForeignKeyFold/ForeignKeyContent" unique_id=1216055866]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 0
+text = "Add Foreign Key"
+icon = ExtResource("5_foreign")
+
 [node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/Content" unique_id=391976705]
 layout_mode = 2
 
@@ -81,3 +149,12 @@ icon = ExtResource("2_23edi")
 layout_mode = 2
 theme_override_constants/separation = 6
 alignment = 1
+
+[node name="ColumnRemovalConfirmation" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Remove Column"
+initial_position = 1
+ok_button_text = "Stage Removal"
+
+[node name="ColumnActions" type="PopupMenu" parent="."]
+unique_name_in_owner = true

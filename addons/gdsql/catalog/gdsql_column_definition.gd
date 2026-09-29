@@ -17,6 +17,7 @@ var auto_increment: bool = false
 var default: GDSQLColumnDefault
 var generation: Generation = Generation.NONE
 var resource_type: GDSQLResourceTypeConstraint
+var resource_ownership := GDSQLResourceOwnership.Mode.OWNED
 
 
 static func created_at(column_name: StringName = &"created_at") -> GDSQLColumnDefinition:
@@ -80,7 +81,8 @@ func accepts_value(value: Variant) -> bool:
 
 func has_valid_type_constraint() -> bool:
 	if data_type == TYPE_OBJECT:
-		return resource_type != null and resource_type.is_valid()
+		return resource_type != null and resource_type.is_valid() \
+				and GDSQLResourceOwnership.is_valid(resource_ownership)
 	return resource_type == null
 
 
@@ -93,8 +95,8 @@ func expected_type_name() -> String:
 func display_type_name() -> String:
 	if data_type == TYPE_OBJECT:
 		return (
-			resource_type.display_name()
-			if resource_type != null
-			else "Unspecified Resource"
+				resource_type.display_name()
+				if resource_type != null
+				else "Unspecified Resource"
 		)
 	return type_string(data_type)
