@@ -115,6 +115,23 @@ tooltip_text = "Database Location"
 mouse_filter = 1
 text = "res://data"
 
+[node name="MigrationState" type="HBoxContainer" parent="Layout/Scroll/Content/Details"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MigrationStatus" type="Label" parent="Layout/Scroll/Content/Details/MigrationState"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "Migrations · loading…"
+
+[node name="ReviewPendingMigration" type="Button" parent="Layout/Scroll/Content/Details/MigrationState"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Review Pending"
+
 [node name="Tables" type="VBoxContainer" parent="Layout/Scroll/Content" unique_id=2077037823]
 layout_mode = 2
 theme_override_constants/separation = 4
@@ -195,6 +212,12 @@ layout_mode = 2
 text = "Saved"
 vertical_alignment = 1
 
+[node name="CreateMigration" type="Button" parent="Layout/Footer"]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+script = ExtResource("2_w62mb")
+
 [node name="Save" type="Button" parent="Layout/Footer" unique_id=920113967]
 unique_name_in_owner = true
 layout_mode = 2
@@ -229,6 +252,53 @@ dialog_text = "Permanently destroy this database and all stored rows?"
 unique_name_in_owner = true
 title = "Reset Table Data"
 ok_button_text = "Delete All and Reset"
+
+[node name="MigrationAuthoring" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Create Schema Migration"
+ok_button_text = "Preview Migration"
+
+[node name="Fields" type="VBoxContainer" parent="MigrationAuthoring"]
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 552.0
+offset_bottom = 208.0
+theme_override_constants/separation = 6
+
+[node name="Explanation" type="Label" parent="MigrationAuthoring/Fields"]
+layout_mode = 2
+text = "Record this existing-table change in append-only project history."
+autowrap_mode = 2
+
+[node name="MigrationIdLabel" type="Label" parent="MigrationAuthoring/Fields"]
+layout_mode = 2
+text = "Stable migration ID"
+
+[node name="MigrationId" type="LineEdit" parent="MigrationAuthoring/Fields"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "20260929_120000_alter_heroes"
+
+[node name="MigrationDescriptionLabel" type="Label" parent="MigrationAuthoring/Fields"]
+layout_mode = 2
+text = "Description"
+
+[node name="MigrationDescription" type="LineEdit" parent="MigrationAuthoring/Fields"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Add faction to heroes"
+
+[node name="MigrationValidation" type="Label" parent="MigrationAuthoring/Fields"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.45, 0.4, 1)
+autowrap_mode = 2
+
+[node name="MigrationConfirmation" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Apply Migration"
+ok_button_text = "Save and Apply"
 
 [node name="RefreshConfirmation" type="ConfirmationDialog" parent="." unique_id=1393050904]
 title = "Discard Local Changes"

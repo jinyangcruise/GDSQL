@@ -52,6 +52,14 @@ Workbench("`**GDSQLWorkbench**
 *Reference UI:* Bounded canonical target-row lookup and searchable key picker
 *Rows:* Loaded only for the selected table`")
 
+MigrationAuthoring("`**Editor Migration Authoring**
+
+-
+*Purpose:* Turn one existing-table draft into immutable project history
+*Preview:* Affected rows, catalog summaries and destructive classification
+*Safety:* Explicit confirmation, stale-count append and stale-safe application
+*Recovery:* A persisted failure remains pending and retryable`")
+
 ForeignKeyAuthoring("`**Foreign Key Authoring**
 
 -
@@ -659,6 +667,8 @@ McpAdapter -.->|"read-only inspection state"| Workbench
 McpAdapter -.->|"profile readiness"| DirectSetup
 McpAdapter -.->|"managed readiness"| ManagedSetup
 Workbench -->|"preview · apply change plan"| CatalogAdministration
+MigrationAuthoring -->|"append immutable definition"| MigrationHistoryStore
+MigrationAuthoring -->|"preview_migrations() · apply_migration()"| Database
 MigrationHistory -->|"compare authored and applied prefix"| MigrationLedger
 MigrationHistory -->|"loaded from project stream"| MigrationHistoryStore
 MigrationService -->|"validate complete authored history"| MigrationHistory
@@ -742,7 +752,7 @@ Factory -.->|"bootstrap()"| RuntimeSession
 Factory -.->|"activate_effective_content()"| ContentActivation
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
-class Code,Models,Workbench,ForeignKeyAuthoring,RowBatch,MutationHistory,ModelAssistant,ContentReference,McpAdapter,GraphEditor,SQLEditor,Expr frontend;
+class Code,Models,Workbench,MigrationAuthoring,ForeignKeyAuthoring,RowBatch,MutationHistory,ModelAssistant,ContentReference,McpAdapter,GraphEditor,SQLEditor,Expr frontend;
 class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,SetupProfile,ManagedConfiguration,DirectSetup,ManagedSetup,PackageManifest,PackageResolution,ContentOverlay,ContentCache,ContentActivation,SaveCompatibility,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;

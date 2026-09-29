@@ -11,6 +11,13 @@ signal save_requested(
 signal remove_requested(registration_name: StringName)
 signal destroy_requested(registration_name: StringName)
 signal refresh_requested(registration_name: StringName)
+signal migration_preview_requested(
+		registration_name: StringName,
+		migration_id: String,
+		description: String,
+		table_change: GDSQLEditorTableChange,
+)
+signal migration_apply_requested(preview: GDSQLEditorMigrationPreview)
 
 const TABLE_FOLD_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn"
@@ -28,6 +35,9 @@ var _action_context: GDSQLContextActionHub
 var _action_context_id: StringName
 var _validation_state: Label
 var _pending_reset_table: StringName
+var _pending_migration_preview: GDSQLEditorMigrationPreview
+var _migration_history_count := 0
+var _migration_state_error := ""
 
 @onready var rename_button: Button = %Rename
 @onready var remove_button: Button = %RemoveRegistration
@@ -36,6 +46,7 @@ var _pending_reset_table: StringName
 @onready var _storage: Label = %Storage
 @onready var _location: Label = %Location
 @onready var _save: GDSQLEditorActionButton = %Save
+@onready var _create_migration: GDSQLEditorActionButton = %CreateMigration
 @onready var _refresh: GDSQLEditorActionButton = %Refresh
 @onready var _dirty_state: Label = %DirtyState
 @onready var _existing_tables: VBoxContainer = %ExistingTables
@@ -45,6 +56,13 @@ var _pending_reset_table: StringName
 @onready var _remove_confirmation: ConfirmationDialog = %RemoveConfirmation
 @onready var _destroy_confirmation: ConfirmationDialog = %DestroyConfirmation
 @onready var _reset_table_confirmation: ConfirmationDialog = %ResetTableConfirmation
+@onready var _migration_status: Label = %MigrationStatus
+@onready var _review_pending_migration: Button = %ReviewPendingMigration
+@onready var _migration_authoring: ConfirmationDialog = %MigrationAuthoring
+@onready var _migration_id: LineEdit = %MigrationId
+@onready var _migration_description: LineEdit = %MigrationDescription
+@onready var _migration_validation: Label = %MigrationValidation
+@onready var _migration_confirmation: ConfirmationDialog = %MigrationConfirmation
 
 
 func _ready() -> void:
@@ -66,6 +84,11 @@ func _ready() -> void:
 	_remove_confirmation.confirmed.connect(_emit_remove)
 	_destroy_confirmation.confirmed.connect(_emit_destroy)
 	_reset_table_confirmation.confirmed.connect(_confirm_table_reset)
+	_review_pending_migration.pressed.connect(_review_pending)
+	_migration_authoring.confirmed.connect(_emit_migration_preview)
+	_migration_id.text_changed.connect(_validate_migration_authoring.unbind(1))
+	_migration_description.text_changed.connect(_validate_migration_authoring.unbind(1))
+	_migration_confirmation.confirmed.connect(_emit_migration_apply)
 	%TableSearch.text_changed.connect(_filter_tables)
 	_update_dirty_state()
 
@@ -79,12 +102,23 @@ func configure_actions(action_hub: GDSQLEditorActionHub, context_id: StringName)
 	_action_context = GDSQLContextActionHub.new(context_id)
 	_action_context.add_action(
 		GDSQLEditorActionDefinition.new(
-			GDSQLEditorActionIds.SAVE_DATABASE_CHANGES,
-			"Save Changes",
-			"Review and apply the pending database changes.",
-			&"Save",
+			GDSQLEditorActionIds.CREATE_DATABASE_MIGRATION,
+			"Create Migration…",
+			"Preview and record one existing-table schema change.",
+			&"ScriptCreate",
 			&"document",
 			0,
+		),
+		_request_migration,
+	)
+	_action_context.add_action(
+		GDSQLEditorActionDefinition.new(
+			GDSQLEditorActionIds.SAVE_DATABASE_CHANGES,
+			"Apply Directly…",
+			"Apply schema drafts without creating migration history.",
+			&"Save",
+			&"document",
+			1,
 		),
 		_request_save,
 	)
@@ -95,7 +129,7 @@ func configure_actions(action_hub: GDSQLEditorActionHub, context_id: StringName)
 			"Discard local schema drafts and reload the durable database catalog.",
 			&"Reload",
 			&"document",
-			1,
+			2,
 		),
 		_request_refresh,
 	)
@@ -105,6 +139,10 @@ func configure_actions(action_hub: GDSQLEditorActionHub, context_id: StringName)
 	_save.configure(
 		_action_hub,
 		_action_context.get_action(GDSQLEditorActionIds.SAVE_DATABASE_CHANGES),
+	)
+	_create_migration.configure(
+		_action_hub,
+		_action_context.get_action(GDSQLEditorActionIds.CREATE_DATABASE_MIGRATION),
 	)
 	_refresh.configure(
 		_action_hub,
@@ -183,6 +221,61 @@ func focus_table(table_name: StringName) -> void:
 			fold.call("focus")
 			fold.grab_focus()
 			return
+
+
+func present_migration_state(
+		history_count: int,
+		pending_preview: GDSQLEditorMigrationPreview = null,
+		error_message: String = "",
+) -> void:
+	_migration_history_count = history_count
+	_migration_state_error = error_message
+	_pending_migration_preview = pending_preview
+	_review_pending_migration.visible = pending_preview != null
+	if not error_message.is_empty():
+		_migration_status.text = "Migrations · unavailable: %s" % error_message
+		_migration_status.tooltip_text = error_message
+	elif pending_preview != null:
+		_migration_status.text = "Migrations · pending: %s" % pending_preview.definition.migration_id
+		_migration_status.tooltip_text = (
+			"This authored migration has not been applied to this database."
+		)
+	elif history_count == 0:
+		_migration_status.text = "Migrations · no authored history"
+		_migration_status.tooltip_text = (
+			"Schema changes can be recorded as immutable project migrations."
+		)
+	else:
+		_migration_status.text = "Migrations · up to date · %d applied" % history_count
+		_migration_status.tooltip_text = "All authored migrations are applied."
+	_update_dirty_state()
+
+
+func present_migration_preview(preview: GDSQLEditorMigrationPreview) -> void:
+	if preview == null or not preview.is_valid():
+		return
+	_pending_migration_preview = preview
+	var details: Array[String] = [
+		"Migration: %s" % preview.definition.migration_id,
+		"Stream: %s" % preview.migration_stream,
+		"Affected rows: %d" % preview.affected_rows(),
+		"",
+	]
+	details.append_array(preview.summaries())
+	if preview.is_destructive():
+		details.append("")
+		details.append(
+			"WARNING: This migration removes or rewrites durable schema/data. "
+			+ "A recovery snapshot is created before application.",
+		)
+		_migration_confirmation.title = "Apply Destructive Migration"
+	else:
+		_migration_confirmation.title = "Apply Migration"
+	_migration_confirmation.dialog_text = "\n".join(details)
+	_migration_confirmation.get_ok_button().text = (
+		"Apply Pending" if preview.definition_persisted else "Save and Apply"
+	)
+	_migration_confirmation.popup_centered(Vector2i(620, 320))
 
 
 func _on_title_lose_focus():
@@ -308,6 +401,19 @@ func _request_save() -> GDSQLOperationResult:
 	return result
 
 
+func _request_migration() -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	var table_change := _build_migration_change()
+	if table_change == null:
+		return result
+	_migration_id.text = _suggest_migration_id(table_change.table_name)
+	_migration_description.text = "Update %s schema" % table_change.table_name
+	_validate_migration_authoring()
+	_migration_authoring.popup_centered(Vector2i(560, 280))
+	result.value = self
+	return result
+
+
 func _request_refresh() -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	if _inspection == null:
@@ -337,6 +443,42 @@ func _emit_save() -> void:
 	)
 
 
+func _emit_migration_preview() -> void:
+	var table_change := _build_migration_change()
+	if table_change == null or not GDSQLMigrationDefinition.is_valid_id(
+			_migration_id.text.strip_edges(),
+	) or _migration_description.text.strip_edges().is_empty():
+		return
+	migration_preview_requested.emit(
+		_inspection.registration.name,
+		_migration_id.text.strip_edges(),
+		_migration_description.text.strip_edges(),
+		table_change,
+	)
+
+
+func _emit_migration_apply() -> void:
+	if _pending_migration_preview != null:
+		migration_apply_requested.emit(_pending_migration_preview)
+
+
+func _review_pending() -> void:
+	present_migration_preview(_pending_migration_preview)
+
+
+func _validate_migration_authoring() -> void:
+	var migration_name := _migration_id.text.strip_edges()
+	var description := _migration_description.text.strip_edges()
+	var message := ""
+	if not GDSQLMigrationDefinition.is_valid_id(migration_name):
+		message = "Use a stable ID containing letters, numbers, '.', '-' or '_'."
+	elif description.is_empty():
+		message = "A short migration description is required."
+	_migration_validation.text = message
+	_migration_validation.visible = not message.is_empty()
+	_migration_authoring.get_ok_button().disabled = not message.is_empty()
+
+
 func _emit_remove() -> void:
 	remove_requested.emit(_inspection.registration.name)
 
@@ -356,16 +498,62 @@ func _on_changed() -> void:
 func _update_dirty_state() -> void:
 	var dirty := _is_dirty()
 	var validation_errors := _get_validation_errors()
-	_dirty_state.text = "Unsaved changes" if dirty else "Saved"
+	var has_pending := _pending_migration_preview != null \
+			and _pending_migration_preview.definition_persisted
+	var migration_managed := _migration_history_count > 0
+	var migration_locked := migration_managed or not _migration_state_error.is_empty()
+	_dirty_state.text = (
+		"Migration history unavailable"
+		if dirty and not _migration_state_error.is_empty()
+		else (
+			"Pending migration · discard drafts to review"
+			if dirty and has_pending
+			else (
+				"Migration required"
+				if dirty and migration_managed
+				else ("Unsaved changes" if dirty else "Saved")
+			)
+		)
+	)
 	_validation_state.visible = dirty and not validation_errors.is_empty()
 	_validation_state.text = (validation_errors[0]
 			if not validation_errors.is_empty()
 			else "")
 	if _action_context != null:
 		_action_context.set_action_enabled(
-			GDSQLEditorActionIds.SAVE_DATABASE_CHANGES,
-			dirty and validation_errors.is_empty(),
+			GDSQLEditorActionIds.CREATE_DATABASE_MIGRATION,
+			_migration_state_error.is_empty() \
+					and not has_pending \
+					and validation_errors.is_empty() \
+					and _build_migration_change() != null,
 		)
+		_action_context.set_action_enabled(
+			GDSQLEditorActionIds.SAVE_DATABASE_CHANGES,
+			dirty \
+					and not migration_locked \
+					and not has_pending \
+					and validation_errors.is_empty(),
+		)
+	_review_pending_migration.disabled = dirty
+	_review_pending_migration.tooltip_text = (
+		"Discard local schema drafts before applying pending history."
+		if dirty
+		else "Preview and apply the next authored migration."
+	)
+	_create_migration.tooltip_text = (
+		"Resolve the migration-history error before authoring schema changes."
+		if not _migration_state_error.is_empty()
+		else (
+			"Record and preview the change as an immutable migration."
+			if _build_migration_change() != null
+			else "Migration v1 requires changes to exactly one existing table."
+		)
+	)
+	_save.tooltip_text = (
+		"Direct schema saves are disabled while migration history is active or invalid."
+		if migration_locked
+		else "Review and apply changes without starting migration history."
+	)
 
 
 func _is_dirty() -> bool:
@@ -403,3 +591,32 @@ func _get_validation_errors() -> Array[String]:
 
 func _requested_database_name() -> StringName:
 	return StringName(_database_name.text.strip_edges())
+
+
+func _build_migration_change() -> GDSQLEditorTableChange:
+	if _inspection == null \
+			or _requested_database_name() != _original_database_name \
+			or _draft_tables.get_child_count() > 0:
+		return null
+	var requested: GDSQLEditorTableChange
+	for fold in _existing_tables.get_children():
+		var table_change := fold.call("build_change") as GDSQLEditorTableChange
+		if table_change.alterations.is_empty():
+			continue
+		if requested != null:
+			return null
+		requested = table_change
+	return requested
+
+
+func _suggest_migration_id(table_name: StringName) -> String:
+	var now := Time.get_datetime_dict_from_system()
+	return "%04d%02d%02d_%02d%02d%02d_alter_%s" % [
+		now.year,
+		now.month,
+		now.day,
+		now.hour,
+		now.minute,
+		now.second,
+		table_name,
+	]

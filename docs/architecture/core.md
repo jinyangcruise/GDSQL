@@ -1942,7 +1942,20 @@ directory cannot leave stale rows visible in the active context. In-memory
 runtime contexts do not expose migrations: schema history belongs to their
 durable ConfigFile authoring source, which must migrate before hydration.
 Editor history authoring and destructive confirmation remain a separate
-product flow over this public API.
+product flow over this public API. The database document now authors one
+existing-table step at a time. It emits typed intent to the editor controller,
+which rejects authoring while an earlier entry is pending, previews the
+candidate complete history, and returns an `EditorMigrationPreview` to the
+scene. The scene shows affected rows and catalog summaries and always requires
+confirmation; destructive plans receive an explicit warning. Confirmation
+appends the immutable project definition before applying its already-previewed
+plan. If application fails, the appended definition remains pending and is
+presented again on the next database open or refresh. After a stream contains
+its first definition, the database document disables direct structural saves;
+bypassing the ledger would invalidate its recorded schema fingerprint. The v1
+editor therefore keeps database rename, new-table, and multi-table drafts
+reversible but unapplied once history has started, until later migration steps
+cover those lifecycle changes.
 
 ---
 

@@ -18,6 +18,13 @@ signal database_save_submitted(
 )
 signal database_refresh_submitted(registration_name: StringName)
 signal database_destroy_submitted(registration_name: StringName)
+signal database_migration_preview_submitted(
+		registration_name: StringName,
+		migration_id: String,
+		description: String,
+		table_change: GDSQLEditorTableChange,
+)
+signal database_migration_apply_submitted(preview: GDSQLEditorMigrationPreview)
 signal table_rows_requested(
 		registration_name: StringName,
 		table_name: StringName,
@@ -221,6 +228,14 @@ func show_database(
 		document.connect("remove_requested", _on_database_remove_requested)
 		document.connect("destroy_requested", _on_database_destroy_requested)
 		document.connect("refresh_requested", _on_database_refresh_requested)
+		document.connect(
+			"migration_preview_requested",
+			_on_database_migration_preview_requested,
+		)
+		document.connect(
+			"migration_apply_requested",
+			_on_database_migration_apply_requested,
+		)
 		_add_document(
 			key,
 			String(inspection.registration.database_name),
@@ -388,6 +403,35 @@ func accept_database_saved(
 	if document != null:
 		document.call("accept_saved_state", inspection, session)
 	refresh_database(inspection, session)
+
+
+func present_database_migration_state(
+		registration_name: StringName,
+		history_count: int,
+		pending_preview: GDSQLEditorMigrationPreview = null,
+		error_message: String = "",
+) -> void:
+	var document := _documents.get(
+		_database_key(registration_name),
+	) as Control
+	if document != null:
+		document.call(
+			"present_migration_state",
+			history_count,
+			pending_preview,
+			error_message,
+		)
+
+
+func present_database_migration_preview(
+		registration_name: StringName,
+		preview: GDSQLEditorMigrationPreview,
+) -> void:
+	var document := _documents.get(
+		_database_key(registration_name),
+	) as Control
+	if document != null:
+		document.call("present_migration_preview", preview)
 
 
 func begin_table_draft() -> void:
@@ -794,6 +838,26 @@ func _on_database_destroy_requested(registration_name: StringName) -> void:
 
 func _on_database_refresh_requested(registration_name: StringName) -> void:
 	database_refresh_submitted.emit(registration_name)
+
+
+func _on_database_migration_preview_requested(
+		registration_name: StringName,
+		migration_id: String,
+		description: String,
+		table_change: GDSQLEditorTableChange,
+) -> void:
+	database_migration_preview_submitted.emit(
+		registration_name,
+		migration_id,
+		description,
+		table_change,
+	)
+
+
+func _on_database_migration_apply_requested(
+		preview: GDSQLEditorMigrationPreview,
+) -> void:
+	database_migration_apply_submitted.emit(preview)
 
 
 func _on_table_rows_requested(
