@@ -13,6 +13,7 @@ const RuntimeNodeScene = preload(
 
 var _test_root: String
 var _registry_path: String
+var _settings_path: String
 var _content_root: String
 var _save_one_root: String
 var _save_two_root: String
@@ -25,6 +26,7 @@ func before_test() -> void:
 	_test_index += 1
 	_test_root = create_temp_dir("gdsql_content_save_example_%d" % _test_index)
 	_registry_path = _test_root.path_join("registry.cfg")
+	_settings_path = _test_root.path_join("settings.cfg")
 	_content_root = _test_root.path_join("content")
 	_save_one_root = _test_root.path_join("save_1")
 	_save_two_root = _test_root.path_join("save_2")
@@ -32,9 +34,15 @@ func before_test() -> void:
 	_create_save_database(&"save_1", _save_one_root, 1)
 	_create_save_database(&"save_2", _save_two_root, 3)
 	_save_registry_snapshot()
+	assert_bool(
+		GDSQLConfigFileSetupProfileStore.new(_settings_path) \
+				.save_profile(GDSQLSetupProfile.Kind.DIRECT) \
+				.is_successful(),
+	).is_true()
 	_runtime_node = auto_free(RuntimeNodeScene.instantiate()) as GDSQLRuntimeNode
 	_runtime_node.auto_start = false
 	_runtime_node.registry_path = _registry_path
+	_runtime_node.setup_settings_path = _settings_path
 	add_child(_runtime_node)
 	assert_bool(_runtime_node.start().is_successful()).is_true()
 	assert_bool(_runtime_node.register_model(ContentItem).is_successful()).is_true()
@@ -53,25 +61,35 @@ func test_authored_content_lookup_uses_the_content_role() -> void:
 
 	assert_bool(result.is_successful()).is_true()
 	assert_object(item).is_not_null()
+	if item == null:
+		return
 	assert_str(item.display_name).is_equal("Iron Sword")
 
 
 func test_save_inventory_resolves_its_content_definition_by_stable_id() -> void:
 	var result := InventoryEntry.query().with(&"item").all()
 	var entries: Array = result.get_value()
-	var item := entries[0].get_related(&"item") as GDSQLExampleContentItem
 
 	assert_bool(result.is_successful()).is_true()
 	assert_int(entries.size()).is_equal(1)
+	if entries.is_empty():
+		return
+	var item := entries[0].get_related(&"item") as GDSQLExampleContentItem
 	assert_str(String(entries[0].item_id)).is_equal("iron_sword")
 	assert_int(entries[0].quantity).is_equal(1)
 	assert_object(item).is_not_null()
+	if item == null:
+		return
 	assert_str(item.display_name).is_equal("Iron Sword")
 
 
 func test_save_slot_switch_requires_a_fresh_save_model_query() -> void:
-	var old_entry := InventoryEntry.query().first().get_value() \
-			as GDSQLExampleInventoryEntry
+	var old_result := InventoryEntry.query().first()
+	var old_entry := old_result.get_value() as GDSQLExampleInventoryEntry
+	assert_bool(old_result.is_successful()).is_true()
+	assert_object(old_entry).is_not_null()
+	if old_entry == null:
+		return
 
 	var selected := _runtime_node.select_save_slot(&"save_2")
 	var fresh_result := InventoryEntry.query().with(&"item").all()
@@ -81,6 +99,9 @@ func test_save_slot_switch_requires_a_fresh_save_model_query() -> void:
 
 	assert_bool(selected.is_successful()).is_true()
 	assert_bool(fresh_result.is_successful()).is_true()
+	assert_int(fresh_entries.size()).is_equal(1)
+	if fresh_entries.is_empty():
+		return
 	assert_int(fresh_entries[0].quantity).is_equal(3)
 	assert_object(fresh_entries[0].get_related(&"item")).is_not_null()
 	assert_bool(stale_save.is_successful()).is_false()
