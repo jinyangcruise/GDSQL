@@ -37,7 +37,10 @@ Editor documents and database content use separate project-owned roots:
 ```text
 res://.gdsql/
 ├── settings.cfg
-└── graphs/
+├── graphs/
+└── migrations/
+    └── <stream>/
+        └── <migration_id>.cfg
 
 res://data/
 ├── databases.cfg
@@ -84,7 +87,8 @@ project. On first use of a save name, GDSQL creates or opens the corresponding
 database under `user://gdsql/saves/<save_name>/`. Once migrations are applied,
 `migrations.cfg` records their checksums and resulting schema fingerprints.
 This ledger is database state; authored migration definitions remain
-project-owned source.
+project-owned source. Multiple slots use the same configured migration stream
+while retaining independent applied ledgers.
 
 ### Settings database
 

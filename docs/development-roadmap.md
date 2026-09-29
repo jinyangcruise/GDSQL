@@ -49,7 +49,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Versioned migration v1 and compatibility policy | Runtime/API slice implemented and tested; editor history authoring, destructive confirmation, and release matrices remain |
+| High — first | Versioned migration v1 and compatibility policy | Runtime/API and project history persistence implemented and tested; editor authoring, destructive confirmation, and release matrices remain |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
@@ -325,6 +325,8 @@ slice provides:
    target database composition. Implemented through the durable ConfigFile
    runtime factory and public database facade; cross-database plans are
    rejected.
+   Project-authored definitions are now stored as immutable per-migration files
+   under a stable stream identity, separate from each physical database ledger.
 2. Forward-only typed schema steps built from the existing
    `GDSQLTableAlteration` vocabulary. Implemented.
 3. A persisted applied-migration ledger and schema fingerprint. Implemented
@@ -343,7 +345,8 @@ schema fingerprint, and restores the complete snapshot after catalog,
 fingerprint, or ledger failure. The public database API now previews complete
 history, applies one plan, reports an up-to-date state, and resolves leftover
 backups safely after interruption. The remaining v1 product work is editor
-history authoring and destructive confirmation. Broader interruption and
+definition creation, pending-history presentation, and destructive
+confirmation. Broader interruption and
 supported-version matrices remain part of release QA.
 
 Later slices add canonical data transformations, multi-table orchestration,

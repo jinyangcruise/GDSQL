@@ -1229,8 +1229,12 @@ game code must query a fresh instance after switching.
 Durable registration metadata uses `GDSQLDatabaseRegistration` and
 `GDSQLDatabaseRegistrySnapshot`. `GDSQLConfigFileDatabaseRegistryStore` stores
 the snapshot in `user://gdsql/databases.cfg`, allowing runtime startup and
-editor tools to inspect database roots, backend types, and role selections.
-Open handles remain attached to the active application context.
+editor tools to inspect database roots, backend types, role selections, and
+stable migration streams. A migration stream identifies the project-owned
+schema history independently from a physical database or registration name.
+It defaults to the logical database name, remains unchanged when a database is
+renamed, and may be shared by multiple physical save slots. Open handles remain
+attached to the active application context.
 
 One `DatabaseRegistration` identifies one logical database. The snapshot and
 registry form the collection that knows every registered database. Registration
@@ -1828,6 +1832,21 @@ IDs use only letters, digits, `_`, `-`, and `.`, and must be strictly increasing
 under ordinal comparison. Timestamp-prefixed, fixed-width IDs are the
 recommended authoring convention. Array order is authoritative; migrations
 are never reordered automatically.
+
+`GDSQLMigrationHistoryStore` is the project-source persistence contract for
+loading and append-only extension of one migration stream. It is separate from
+the per-database applied ledger: one authored stream may drive many physical
+save databases, while each database records its own progress. Appends carry an
+expected definition count so concurrent or stale editor sessions cannot
+silently overwrite project history.
+
+`GDSQLConfigFileMigrationHistoryStore` writes one immutable definition per file
+under `res://.gdsql/migrations/<stream>/<migration_id>.cfg`. Files are sorted by
+their stable IDs and activated from staging without replacing an existing
+entry. `GDSQLMigrationDefinitionSerializer` is the dynamic serialization
+boundary for typed steps and every current `GDSQLTableAlteration` shape. Loading
+recomputes and compares the authored checksum; edited, renamed, malformed,
+duplicate, or out-of-order entries return structured diagnostics.
 
 `GDSQLMigrationLedger` is the persistence contract for append-only applied
 history. `GDSQLAppliedMigration` records the exact migration ID and checksum,
@@ -2471,7 +2490,8 @@ res://
 │   └── gdsql/                  # Plugin implementation only
 ├── .gdsql/
 │   ├── settings.cfg            # Project/tool settings only
-│   └── graphs/                 # Editor query graph documents
+│   ├── graphs/                 # Editor query graph documents
+│   └── migrations/             # Project-owned schema history by stream
 └── data/
     ├── databases.cfg           # Database catalog
     └── <database>/

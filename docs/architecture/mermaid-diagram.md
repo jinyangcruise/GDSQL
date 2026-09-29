@@ -403,6 +403,13 @@ MigrationHistory("`**Schema Migration History**
 *Plan:* GDSQLMigrationPlanner returns pending definitions and destructive status
 *Boundary:* Models never create or infer migrations`")
 
+MigrationHistoryStore("`**GDSQLMigrationHistoryStore**
+
+-
+*Purpose:* Persist project-owned authored history by stable stream
+*API:* load(), append() with expected definition count
+*Boundary:* Shared source definitions, never per-database applied state`")
+
 MigrationCatalogPlanning("`**Migration Catalog Planning**
 
 -
@@ -477,6 +484,14 @@ ConfigMigrationLedger("`**GDSQLConfigFileMigrationLedger**
 *Location:* &lt;data_root&gt;/&lt;database&gt;/migrations.cfg
 *Extends:* GDSQLMigrationLedger
 *Uses:* GDSQLDatabasePathResolver`")
+
+ConfigMigrationHistory("`**GDSQLConfigFileMigrationHistoryStore**
+
+-
+*Purpose:* Persist one immutable authored definition per ConfigFile
+*Location:* res://.gdsql/migrations/&lt;stream&gt;/&lt;migration_id&gt;.cfg
+*Integrity:* Filename identity, strict order and recorded checksum
+*Extends:* GDSQLMigrationHistoryStore`")
 
 ConfigMigrationRecovery("`**GDSQLConfigFileMigrationRecoveryStore**
 
@@ -645,6 +660,7 @@ McpAdapter -.->|"profile readiness"| DirectSetup
 McpAdapter -.->|"managed readiness"| ManagedSetup
 Workbench -->|"preview · apply change plan"| CatalogAdministration
 MigrationHistory -->|"compare authored and applied prefix"| MigrationLedger
+MigrationHistory -->|"loaded from project stream"| MigrationHistoryStore
 MigrationService -->|"validate complete authored history"| MigrationHistory
 MigrationService -->|"preview next pending entry"| MigrationCatalogPlanning
 MigrationService -->|"apply one validated plan"| MigrationRunner
@@ -697,6 +713,7 @@ ForeignKeyValidation -->|"read effective session rows"| TableStorage
 CatalogService -->|"extended by"| ConfigCatalog
 CatalogAdministration -->|"extended by"| ConfigAdministration
 MigrationLedger -->|"extended by"| ConfigMigrationLedger
+MigrationHistoryStore -->|"extended by"| ConfigMigrationHistory
 MigrationRecovery -->|"extended by"| ConfigMigrationRecovery
 TableStorage -->|"extended by"| ConfigStorage
 TableStorage -->|"extended by"| MemoryStorage
@@ -732,8 +749,8 @@ class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
 class Planner,PlanNode planning;
 class Executor,ForeignKeyValidation,MigrationRunner,MigrationService execution;
-class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationCatalogPlanning,MigrationLedger,MigrationRecovery catalog;
+class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationHistoryStore,MigrationCatalogPlanning,MigrationLedger,MigrationRecovery catalog;
 class TableStorage storage;
-class ConfigCatalog,ConfigAdministration,ConfigMigrationLedger,ConfigMigrationRecovery,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
+class ConfigCatalog,ConfigAdministration,ConfigMigrationHistory,ConfigMigrationLedger,ConfigMigrationRecovery,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
 class ResourceMaterialization storage;
 class Results,Materialization result;

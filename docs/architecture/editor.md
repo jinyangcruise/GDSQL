@@ -499,8 +499,10 @@ keys, icons, shortcuts, labels, tooltips, empty states, and display ordering.
 It does not define database behavior, validation policy, filesystem access, or
 transactions.
 
-Project-owned editor state belongs under `res://.gdsql/`. Runtime database
-content remains under the roots selected through database registrations.
+Project-owned editor state belongs under `res://.gdsql/`. Append-only authored
+schema definitions live under `res://.gdsql/migrations/<stream>/`; applied
+migration ledgers remain physical database state. Runtime database content
+remains under the roots selected through database registrations.
 Editor layout preferences that belong to one user may use Godot editor settings
 or user-scoped plugin data rather than project database files.
 

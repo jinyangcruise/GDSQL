@@ -19,7 +19,7 @@ func is_valid() -> bool:
 			or alterations.is_empty():
 		return false
 	for alteration in alterations:
-		if alteration == null:
+		if alteration == null or not alteration.is_valid():
 			return false
 	return true
 

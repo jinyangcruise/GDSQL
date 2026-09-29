@@ -177,6 +177,77 @@ func is_destructive() -> bool:
 	return kind == Kind.DROP_COLUMN
 
 
+func is_valid() -> bool:
+	match kind:
+		Kind.ADD_COLUMN:
+			return _is_valid_column(column)
+		Kind.RENAME_COLUMN:
+			return _is_valid_name(column_name) and _is_valid_name(new_column_name)
+		Kind.DROP_COLUMN, Kind.SET_COLUMN_DEFAULT, Kind.CLEAR_COLUMN_DEFAULT, \
+		Kind.SET_COLUMN_NULLABLE, Kind.SET_COLUMN_UNIQUE, \
+		Kind.SET_COLUMN_AUTO_INCREMENT:
+			return _is_valid_name(column_name)
+		Kind.ADD_INDEX:
+			return _is_valid_index(index)
+		Kind.DROP_INDEX:
+			return _is_valid_name(index_name)
+		Kind.ADD_FOREIGN_KEY:
+			return _is_valid_foreign_key(foreign_key)
+		Kind.DROP_FOREIGN_KEY:
+			return _is_valid_name(foreign_key_name)
+		Kind.SET_COLUMN_GENERATION:
+			return _is_valid_name(column_name) \
+					and generation >= GDSQLColumnDefinition.Generation.NONE \
+					and generation <= GDSQLColumnDefinition.Generation.UPDATED_AT
+		Kind.SET_RESOURCE_OWNERSHIP:
+			return _is_valid_name(column_name) \
+					and GDSQLResourceOwnership.is_valid(resource_ownership)
+		Kind.REORDER_COLUMNS:
+			var seen: Dictionary[StringName, bool] = { }
+			for ordered_name in column_names:
+				if not _is_valid_name(ordered_name) or seen.has(ordered_name):
+					return false
+				seen[ordered_name] = true
+			return not column_names.is_empty()
+	return false
+
+
+func _is_valid_column(candidate: GDSQLColumnDefinition) -> bool:
+	return candidate != null \
+			and _is_valid_name(candidate.name) \
+			and candidate.data_type > TYPE_NIL \
+			and candidate.data_type < TYPE_MAX \
+			and candidate.has_valid_type_constraint() \
+			and candidate.generation >= GDSQLColumnDefinition.Generation.NONE \
+			and candidate.generation <= GDSQLColumnDefinition.Generation.UPDATED_AT
+
+
+func _is_valid_index(candidate: GDSQLIndexDefinition) -> bool:
+	if candidate == null or not _is_valid_name(candidate.name) \
+			or candidate.columns.is_empty():
+		return false
+	var seen: Dictionary[StringName, bool] = { }
+	for indexed_column in candidate.columns:
+		if not _is_valid_name(indexed_column) or seen.has(indexed_column):
+			return false
+		seen[indexed_column] = true
+	return true
+
+
+func _is_valid_foreign_key(candidate: GDSQLForeignKeyDefinition) -> bool:
+	return candidate != null \
+			and _is_valid_name(candidate.name) \
+			and _is_valid_name(candidate.column) \
+			and _is_valid_name(candidate.referenced_table) \
+			and _is_valid_name(candidate.referenced_column) \
+			and candidate.on_delete == GDSQLForeignKeyDefinition.Action.RESTRICT \
+			and candidate.on_update == GDSQLForeignKeyDefinition.Action.RESTRICT
+
+
+func _is_valid_name(candidate: StringName) -> bool:
+	return candidate != &"" and String(candidate).is_valid_identifier()
+
+
 func describe() -> String:
 	match kind:
 		Kind.ADD_COLUMN:
