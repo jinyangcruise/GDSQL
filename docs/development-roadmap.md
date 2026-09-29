@@ -2,592 +2,544 @@
 
 ## Product direction
 
-GDSQL should be **table-first and graph-capable**.
+GDSQL is **table-first and graph-capable**. The conventional table workbench is
+the primary editor surface. The graph remains an optional advanced frontend and
+is not active delivery work.
 
-Opening a table should show a familiar data workbench: a compact query header,
-the result grid, paging, and row actions. The query graph remains an advanced
-document for joins, calculated results, reusable visual queries, and users who
-benefit from spatial composition. It is not the default table browser. Further
-graph authoring is suspended until the primary table, setup, and release flows
-are complete and the graph has a discoverable entry point.
-
-This is an editor change, not a runtime rewrite. Both surfaces must continue to
-produce `GDSQLQuerySpec` and execute through `GDSQLDatabase`.
-
-The catalog remains the authority for tables. A model binds typed code and
-behavior to a table; creating or changing a model must not create or alter that
+Every frontend produces canonical `GDSQLQuerySpec` values and executes through
+`GDSQLDatabase`. The catalog remains the schema authority. Models bind typed
+code and behavior to existing tables; they never create, alter, or migrate a
 table implicitly.
 
-## Supported setup profiles
-
-GDSQL has two composition profiles, not two query APIs:
+GDSQL supports two setup profiles:
 
 | Profile | Content role | Intended use |
 |---|---|---|
-| Direct content | Project-authored database under `res://` | Small and medium projects that need definitions, save models, and minimal setup. |
-| Managed content | Derived `effective_content` database built from base content and optional packages | Large, customizable, or moddable games that need deterministic overlays, provenance, and cache orchestration. |
+| Direct Content | Project-authored content under `res://` | Small and medium projects with minimal setup |
+| Managed Content | Derived `effective_content` built from a base and optional packages | Customizable or moddable projects requiring deterministic overlays |
 
-Both profiles use the same tables, models, relationships, `QuerySpec` pipeline,
-and save-role behavior. A project can move from direct to managed content
-without changing normal `GDSQLContentModel` queries, but moving physical data,
-package metadata, resource paths, and save expectations is an explicit migration
-rather than a profile toggle.
+Changing profiles changes composition guidance, not project data. Moving
+physical data, package metadata, references, or save expectations is an
+explicit migration.
 
-## Current leverage and gaps
+## Current baseline
 
-- Query execution, typed expressions, joins, grouping, ordering, mutations,
-  indexes, transactions, model materialization, database roles, and persistence
-  contracts already exist behind the canonical API.
-- The graph result node and table document share the typed result grid for
-  schema-aware editing, dirty-state protection, and Resource handling.
-- The reusable WHERE editor already creates canonical expressions.
-- Table selection opens the standalone table document. The existing graph code
-  is retained, but further graph work is not active delivery.
-- Database-role and model APIs plus the optional runtime/autoload scene are
-  implemented. Managed content now builds deterministic snapshots, reuses
-  fingerprinted disposable caches, and activates them without exposing partial
-  runtime state. The runtime node reads the selected setup profile and activates
-  configured managed content automatically. Save-owned package expectations now
-  produce typed compatibility reports. A managed setup document validates package
-  inputs, builds the cache, reports active-save compatibility, and confirms
-  expectation recording.
-- SQL lexer/parser/compiler contracts remain scaffolded, but SQL text is not an
-  active product priority while typed query interactions have larger gaps.
+The current implementation provides:
 
-## Remaining delivery workstreams
+- Canonical typed queries, expressions, planning, transactions, indexes, joins,
+  grouping, ordering, mutations, and structured diagnostics.
+- Table browsing, filtering, nested typed WHERE groups, paging, row editing,
+  duplication, bounded Undo/Redo, and Resource-aware fields.
+- Schema authoring with defaults, indexes, generated values, Resource
+  ownership, and same-database foreign keys.
+- Direct and Managed Content onboarding, runtime roles, save slots,
+  checkpoints, deterministic content overlays, caching, provenance, and save
+  compatibility reports.
+- Generated/user-owned model bindings, inferred same-database navigation,
+  explicit many-to-many relationships, and cross-role content references.
+- Multi-table navigation and read-only Godot-AI MCP inspection tools.
 
-After the current experimental table, creation, bootstrap, model-assistant, and
-row-history slices, four substantive workstreams remain. They are grouped by outcome;
-individual workstreams may require several small changes.
+Implementation detail belongs in `docs/architecture/`, public usage belongs in
+the VitePress guides, and completed change history belongs in Git. This file
+tracks only product direction, active work, and deliberately deferred work.
 
-| Outcome | Count | Remaining workstreams |
-|---|---:|---|
-| Reliable direct-content setup | 0 | Complete for the current direct profile. |
-| Managed-content full kit | 0 | Complete for the current managed profile. |
-| Data integrity | 0 | Foreign-key enforcement and role-reference inference complete for the current contract. |
-| Editor interaction | 2 | Multi-table navigation/schema actions; nested typed WHERE groups. |
-| Agent integration | 1 | Live-editor verification of the implemented read-only Godot-AI MCP surface. |
-| Release | 1 | Migration, performance, compatibility, and release QA. |
+## Active priorities
 
-## Delivery order
-
-### 1. Make table browsing the default
-
-Experimental status: table selection opens the standalone table document, runs
-the initial SELECT automatically, and pages with canonical `LIMIT` and
-`OFFSET`. It now reuses the graph result's compact native grid and submits
-multi-row updates and selected-row deletes through a shared validated canonical
-batch plan and one transaction. Empty, duplicate, unknown-column, and read-only
-mutations are rejected before execution. The first query-header
-slice reuses the typed WHERE editor, applies filters explicitly, and derives
-filtered page totals through a canonical `COUNT` query. Projection and ordering
-controls are active in the native result header: the leading row-number header
-opens visible-column selection, while content headers cycle sort direction.
-Hidden primary keys remain in the query result for safe row mutations without
-being displayed. The typed result grid now lives in a graph-independent,
-scene-backed editor component; graph chrome, table paging, and mutation actions
-remain with their owning frontends. Data columns use stable equal expansion
-with fixed minimum widths, so table and insert views fill their host consistently
-and overflow horizontally only when all columns have reached their minimum.
-Selected rows can be duplicated through one atomic insert batch when the table
-has a generated identity and copies only non-unique scalar or referenced
-Resource values. Manual identities, copied unique constraints, or owned
-Resource values instead populate one editable insert draft from the first
-selected row. Owned Resource values are deep-cloned; referenced values preserve
-their asset identity. Constrained Resource columns expose only validated
-Inspector-visible scalar leaves to typed WHERE choices; compound values such as
-`Vector3` expose their scalar components instead of the container.
-Visual Resource thumbnails are applied through deferred editor-thread updates;
-non-visual Resources keep their editor type icon and do not invoke preview
-plugins that cannot safely represent them.
-Schema reopening reads stored Resource type metadata without constructing empty
-prototypes, and imported MP3/Ogg Vorbis picker entries are load-only.
-Tab advances through editable cells and Enter commits an inline edit before
-moving down the same column.
-
-1. Keep the shared typed result grid independent from graph orchestration.
-2. Keep standalone table actions outside the grid so row height and column
-   width do not change when editing or selecting a batch.
-3. Open the table document when a table is selected.
-4. Add a compact query header above the grid:
-   - typed WHERE conditions using the existing expression editor;
-   - projection/visible-column selection;
-   - ORDER BY and direction;
-   - page size, previous/next navigation, and refresh;
-   - a clear summary of the active query.
-5. Page through canonical `LIMIT`/`OFFSET` queries rather than loading a complete
-   large table solely to paginate it in Controls. Preserve edits across refresh
-   only when the row identity and query result still permit it.
-6. Keep advanced clauses progressive: common filtering stays visible, while
-   grouping, aggregates, joins, and calculated projections open an advanced
-   query surface.
-
-This slice is complete when browsing, filtering, paging, inserting, updating,
-and deleting a table requires no graph interaction.
-
-### 2. Turn the welcome page into setup status
-
-Experimental status: an empty project now chooses Direct Content or Managed
-Content from two explicit cards and confirms that profile changes do not migrate
-data. The selection is persisted in project settings. The welcome page then
-shows only the chosen profile's actions, typed checklist, and next step. Direct
-checks cover the content/save roles, rows, models, and runtime; managed checks
-cover the base package, source tables, effective cache, save, models, and runtime.
-
-The welcome document should show a short, actionable project checklist:
-
-1. Create or open an authored content database under `res://data`.
-2. Create a table and add a first row.
-3. Configure runtime roles for content, save, and settings as needed.
-4. Generate or copy a model binding for an existing table.
-5. Open focused integration examples and API documentation.
-
-It should detect completed steps from workbench metadata where possible. Empty
-projects get one primary action; existing projects get recent databases and the
-next incomplete setup action. Detailed tutorials belong in user guides, not in
-architecture documents or long welcome-page prose.
-
-### 3. Replace raw database creation with an intent-based wizard
-
-Experimental status: creation now starts with Direct Content, Managed Base
-Content, Save Slot, Shared Settings, or Custom intent. Managed creation
-scaffolds a base manifest plus data/assets roots and leaves the immutable source
-unbound; the generated effective database owns the runtime content role. Other
-intents derive their recommended root, storage backend, and logical role. The
-database document separates recoverable unregistering from confirmed permanent
-destruction of the selected database's catalog, schemas, tables, and rows.
-
-The first choice should be the database purpose:
-
-| Purpose | Recommended root | Runtime policy |
+| Priority | Outcome | State |
 |---|---|---|
-| Authored content | `res://data` | Read-only in exported games |
-| Managed base content | `res://content/base/data` | Immutable source for generated effective content |
-| Save slot | `user://gdsql/saves/<slot>` | Mutable and checkpointed |
-| Shared settings | `user://gdsql/settings` | Mutable, independent of slots |
-| Custom | Explicit root | Explicit access and persistence choices |
+| High — first | Bounded Resource Stage A: prevent accidental loading | Roadmap contract defined; architecture contract required |
+| High — second | Versioned migration v1 and compatibility policy | Architecture decision and implementation required |
+| High | Release, recovery, performance, and supported-version QA | Required before a stable release |
+| Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
+| Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
+| Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
 
-Advanced storage selection stays available but should not be the first concept
-shown to new users. Creation must explain whether it created new files or opened
-an existing logical database at that root.
+## Committed delivery sequence
 
-### 4. Provide one supported runtime bootstrap path
+The order below is intentional and should remain stable across development
+sessions unless new evidence changes an architectural dependency:
 
-Experimental status: `GDSQLRuntimeFactory.bootstrap()` now loads the durable
-registry created by the editor, opens registered databases, restores roles,
-configures the default model context, and returns a `GDSQLRuntimeSession` with
-role resolution and explicit checkpoints. In-memory save data is verified to
-checkpoint back into its durable ConfigFile source. Save-slot selection now
-validates the target, checkpoints the previous slot, and prevents model
-instances loaded from one slot from mutating another. The optional scene-backed
-`GDSQLRuntimeNode` now bootstraps that session, exposes common delegates,
-schedules periodic dirty checkpoints, and flushes synchronously on application
-pause or tree exit. It retains structured startup results and emits lifecycle
-results without printing or imposing game-specific quit behavior.
+1. **Resource Stage A — avoid accidental loads.** Stabilize referenced-asset
+   identity, required-column reads, explicit materialization, and contextual
+   diagnostics. Preserve the existing eager public behavior only for Resource
+   values an operation actually needs.
+2. **Migration v1 — durable schema history.** Build ordered forward schema
+   migrations, checksums, an applied ledger, dry runs, backups, recovery, and
+   headless validation on top of the stable stored-value boundary.
+3. **Migration data/save phases.** Add bounded data transformations,
+   multi-table orchestration, and migration of older `user://` saves after the
+   schema-only path is reliable.
+4. **Resource Stage B — explicit deferred loading.** Add opt-in handles,
+   threaded loading, and prefetch scopes only when the simple eager path and
+   migrations are stable.
+5. **Bounded reads and paged binary storage.** Add cursor/page execution before
+   implementing the binary backend so paging does not inherit full-snapshot
+   behavior.
+6. **Optional working-set eviction.** Add manual or budgeted release policies
+   only after profiling demonstrates that projects need them.
 
-The editor now has a scene-backed Save Slots document. It discovers standard
-slot directories, identifies the active role binding, opens a slot, switches
-the durable selection, and launches the existing creation wizard directly in
-Save Slot mode. It presents unregister-and-keep-files separately from permanent
-deletion. Permanent deletion requires confirmation, shows the exact database
-path, and is rejected unless the data root is one direct child of the standard
-save directory.
+Do not expand Resource Stage A into a complete asset-streaming subsystem before
+migration v1. Do not start migration value copying while storage decoding still
+loads referenced assets as an implicit side effect. The two high-priority
+tracks are sequential for this reason, not competing parallel rewrites.
 
-The workbench now treats an in-memory backend as a runtime policy and opens its
-durable ConfigFile source for editor authoring. Successful table edits are
-therefore visible when a separately launched runtime hydrates the registration;
-the stored backend selection remains in-memory and runtime checkpoint behavior
-is unchanged. This removes the persistence blocker for the cross-role
-content-reference cell selector.
+## 1. Resource materialization and memory policy
 
-Runtime bootstrap and the welcome checklist now share a typed direct-setup
-report. Missing roles, unsafe roots, unavailable backends, missing content, and
-an absent runtime autoload produce actionable status without preventing custom
-runtime compositions from booting.
+Referenced Resource columns persist compact UID/path locators, but persistence
+size and runtime memory behavior are separate concerns.
 
-When the selected setup profile is Managed Content, `GDSQLRuntimeNode` loads
-the typed package configuration shared with the editor, resolves the selected
-package order, and builds or reuses `effective_content`. It exposes the runtime
-only after that database owns the `content` role; failed activation clears the
-partial model context and remains a structured startup failure. It also checks
-the active save against that package set before `runtime_started`, retains the
-typed report for late consumers, and refreshes it after save-slot selection.
-Compatibility never changes whether startup succeeds; the game owns that load
-policy.
+### Why this is a foundation concern
 
-Add a small runtime setup API or optional autoload that composes and exposes:
+Referenced storage solves database size: the row contains a small, versioned
+UID/path locator instead of serialized mesh, texture, scene, or audio bytes. It
+does not by itself solve runtime loading. The locator becomes inexpensive only
+if it can remain a locator until game code actually needs the asset.
 
-- the database registry;
-- content, save, and settings role selection;
-- the default model context;
-- model registration;
-- checkpoint policies and lifecycle hooks.
+Current ConfigFile decoding resolves every referenced locator with
+`ResourceLoader.load()`. Opening a ConfigFile registration does not itself read
+every row, but a table scan currently decodes every column before filtering,
+projection, or `LIMIT`. As a result:
 
-The initial supported path should cover one project content database, one active
-save slot, and shared settings. Content overlays and mod caches remain a later
-extension and must not block the basic experience.
+- selecting only NPC names may still load every NPC mesh and voice;
+- editor pagination can display 25 rows after loading Resources from the full
+  scanned table;
+- `COUNT` and other operations that do not return Resource values can still pay
+  Resource-loading cost;
+- in-memory hydration can retain Resources for the database lifetime; and
+- a Managed Content rebuild can resolve assets while it is only copying rows
+  into a disposable cache.
 
-The documented content/runtime reference pattern is:
+An asset that is loaded but never rendered avoids draw calls and normal
+per-frame rendering cost, but it can still consume RAM or VRAM, load
+dependencies, compile or upload rendering data, and create a synchronous load
+spike. This matters first for asset-heavy 3D, audio-heavy, mobile, web, VR, or
+modded projects, but the database contract must not make it impossible to solve
+later.
 
-```text
-content.items.id = "iron_sword"
-        ↑ stable identifier
-save.inventory.item_id = "iron_sword"
-```
+Preloading remains a valid policy. Small games with a bounded content set
+should not be forced to use handles, streaming, or eviction. The concern is
+that GDSQL currently chooses eager loading as a side effect of reading storage,
+rather than as an explicit application policy.
 
-These are separate database contexts. Game or model-layer code resolves the
-content record from the stored identifier; GDSQL does not promise a cross-root
-join or a transaction spanning content and save databases.
+### Separate performance dimensions
 
-### 5. Make model binding understandable and assisted
+Resource loading and table paging are related but independent:
 
-Experimental status: every table document now exposes a scene-backed model
-assistant. It previews a generated schema base and a user-owned subclass,
-infers the registration's bound role, permits an explicit custom role and model
-root, and never replaces the user script. Existing generated bases require
-confirmation before regeneration. The assistant also inspects an existing user
-model against the authoritative table and reports generated-base, role, and
-property mismatches through static script metadata. It never instantiates the
-user model or executes `relationships()` in the editor; the runtime registry
-validates executable metadata and explicit relationships. The assistant displays
-catalog-inferred relationships separately. New bindings require an explicit
-singular class name, remember it per registration/database/table, and share the
-project-wide model root. The pure source builder and static
-compatibility inspector have focused tests. The runtime guide and executable
-example models now cover authored
-content lookup, a save model resolving a stable content identifier through a
-cross-role relationship, and fresh model queries after save-slot switching.
-Focused integration tests exercise all three flows against separate databases.
+| Dimension | Current limitation | Primary solution |
+|---|---|---|
+| Asset materialization | Decoding a locator loads the external asset | Preserve a reference value and resolve it only when required |
+| Column selection | A row read decodes all stored columns | Push required-column information into storage reads |
+| Table I/O | ConfigFile parses a complete table file on first access | Future paged binary storage and indexed page reads |
+| Query working set | Scan operators materialize complete snapshots | Batch/cursor reads and limit/index-aware execution |
+| Asset lifetime | Results and in-memory rows may retain loaded Resources | Explicit ownership, prefetch scopes, and optional eviction |
 
-Add a table action that previews a GDScript model skeleton. The user chooses
-`GDSQLContentModel`, `GDSQLSaveModel`, `GDSQLSettingsModel`, or a custom role.
-The preview should include typed properties, table name, primary key, and the
-small static query/find forwarding methods required by GDScript.
+A paged binary backend cannot fix eager Resource loading if it returns rows
+through the current eager decoder. Conversely, deferred Resource references can
+provide a large memory and loading improvement while ConfigFile remains the
+storage backend. Binary paging becomes necessary when row count, table-file
+parsing, or database working-set size is itself the problem.
 
-Generated schema bindings and user behavior must live in separate scripts:
+### Supported strategies
 
-```text
-res://models/generated/hero_model_generated.gd  # safe to regenerate
-res://models/hero.gd                            # created once; user-owned
-```
+The future design should support increasingly advanced choices without making
+them mandatory:
 
-The generated base contains table-derived properties and instance metadata.
-The user model extends that base and owns custom methods, relationships, and the
-static forwarding methods that must reference the concrete user class. A
-regeneration may replace only the generated base. It must never rewrite the
-user model. The root `res://models/` location should be configurable in
-`res://.gdsql/settings.cfg`, with `generated/` reserved for generated output.
+| Strategy | Intended use | Tradeoff |
+|---|---|---|
+| Eager materialization | Small bounded content sets | Simplest typed API; assets remain loaded while referenced |
+| Separate metadata and asset tables | Available now for medium projects | Explicit extra lookup; clear and backend-independent |
+| Deferred Resource reference | Asset-heavy rows | Requires an explicit load/materialization API |
+| Prefetch scope | Areas, encounters, menus, or upcoming characters | Game must predict a useful loading boundary |
+| Manual release | Deterministic scene or area ownership | Game code owns lifecycle discipline |
+| Budgeted working-set eviction | Large dynamic or modded content | More runtime complexity and platform-specific tuning |
+| Paged binary rows | Very large tables and saves | New backend and cursor/page execution; does not load assets itself |
 
-Generation is one-way assistance:
+Separating lightweight definitions from heavy assets is the stable authoring
+pattern available today:
 
 ```text
-catalog table -> model script draft
-model script -X-> catalog mutation
+npc_definitions
+    id, name, stats, dialogue_id
+
+npc_assets
+    npc_id, mesh, textures, voice
 ```
 
-Before writing a script, show its destination and generated source. Never
-overwrite a user script without explicit confirmation. Keep editor compatibility
-inspection static: check the generated base, role inheritance, and typed
-properties without executing project-owned model code.
+The game can browse `npc_definitions` broadly and retrieve one indexed
+`npc_assets` row when it prepares that NPC. This pattern remains useful after
+deferred references and binary paging are implemented.
 
-The first integration guide should contain three complete examples:
+### Schema authoring and editor presentation
 
-- authored content lookup;
-- save data that stores and resolves a content identifier;
-- changing save slots while model queries continue to use the `save` role.
+Resource ownership and Resource loading answer different questions and must not
+be collapsed into one ambiguous option:
 
-### 6. Close visual/API capability gaps deliberately
+- **Ownership** chooses `OWNED` or `REFERENCED`. It determines whether the row
+  contains an independent Resource value or a locator to an external asset.
+- **Materialization** chooses when a referenced locator becomes a loaded Godot
+  Resource. It does not change which value is authoritative in storage.
 
-Expose code features according to user intent rather than mirroring every
-internal class:
+The current table designer's **Storage** column is sufficient for ownership but
+will not scale well if materialization, prefetching, diagnostics, and future
+backend hints are added as more permanent row columns. Preserve stable table-row
+width with one compact Resource configuration entry:
 
-| Capability | Visual treatment |
-|---|---|
-| Select, filter, order, projection, paging | Primary table workbench |
-| Insert, update, delete | Table row actions |
-| Joins, grouping, aggregates, calculated columns | Advanced query document / graph |
-| Schema, defaults, indexes, generated values, Resource constraints | Database/table designer |
-| Transactions | Atomic multi-row save/import and operation summaries |
-| Model mapping and relationships | Model assistant and compatibility view |
-| Registry roles and checkpoints | Runtime setup page |
-| Planner, executor, storage sessions | Diagnostics only; no direct visual clone |
-| SQL text | Enable only after the SQL compiler is implemented and tested |
+```text
+Mesh · Referenced · On materialize                 [gear]
+```
 
-Atomic batch editing should follow the shared table view. The existing graph
-may reuse it later without making graph work a prerequisite.
+The gear action should open a focused popover or dialog for Resource-only
+settings. The exact scene belongs to the editor implementation, but the
+configuration should eventually distinguish:
 
-### 7. Build the effective-content and mod pipeline
+- concrete accepted Resource subtype;
+- Owned or Referenced storage;
+- default eager-on-materialize or explicit deferred-handle behavior;
+- whether a query or model is allowed to override that default;
+- missing/type-mismatch policy and diagnostic preview; and
+- future prefetch grouping only when that runtime capability exists.
 
-Experimental status: package manifests now have typed base-game, DLC, and mod
-metadata; semantic versions; required-package constraints; explicit priority
-and before/after declarations; package-relative data and asset paths; structured
-validation; and a ConfigFile reader behind a runtime store contract. Directory
-discovery now supports direct and nested `content/` packages. Resolution selects
-one mandatory base plus explicitly enabled DLC/mod packages, checks semantic
-version constraints, and topologically orders dependency and before/after edges
-with stable priority and package-ID tie-breaking. The overlay loader now reads a
-selected logical database through an injected layer-reader contract, copies
-compatible schemas, and deterministically applies stable-ID upserts and explicit
-removals into an effective-content snapshot. Provenance and conflict reporting
-now record every applied package operation, preserve removal histories,
-resolve the winning package for effective rows, and report later-package
-overrides without failing the deterministic build. Cache manifests and rebuilds
-now fingerprint package order, versions, and directory content; reuse only an
-exact compatible cache; and rebuild malformed or stale caches through a staged
-ConfigFile directory replacement. The runtime composition root now opens that
-candidate first and replaces the runtime-local `effective_content` registration
-and `content` role together. Save compatibility now compares persisted package
-expectations with the active manifest without imposing a load policy. The
-managed setup document persists package inputs, builds the cache, and records
-save expectations only after confirmation. Managed runtime startup now consumes
-that configuration automatically and exposes the active save's report through
-the runtime node for explicit game policy.
+Do not expose settings that the runtime cannot enforce. Stage A needs only a
+clear ownership summary and the guarantee that unneeded referenced columns do
+not load. Deferred and prefetch controls appear only with Stage B.
 
-Runtime content should always be consumed through one derived
-`effective_content` database bound to the `content` role. Base content and
-enabled mod packages are immutable inputs; gameplay models do not query those
-source registrations directly. The same build path applies when no mods are
-enabled, so adding mod support does not change application query code.
+For new Resource columns, selecting an existing saved asset should continue to
+recommend **Referenced**, while an unsaved inline Resource should recommend
+**Owned**. Referenced is the normal choice for meshes, textures, scenes, and
+audio already stored in the project or a package, but it cannot be a universal
+forced default because row-owned configuration Resources remain valid.
 
-The content loader should:
+The simple compatibility default is **eager when actually materialized**, not
+eager during storage decoding. This keeps generated concrete properties such as
+`Mesh` understandable while avoiding loads for unselected fields. A true
+deferred handle is opt-in because it changes the model/result access contract.
 
-1. Read the base package and enabled packages in deterministic order.
-2. Validate compatible schemas, package dependencies, stable identifiers, and
-   asset references.
-3. Apply typed additions, overrides, and explicit removals while recording row
-   provenance and conflicts.
-4. Produce one effective database, optionally persisted at
-   `user://gdsql/cache/effective_content` before loading its active working set.
-5. Fingerprint base and package versions, checksums, and load order so stale
-   cache data is rebuilt rather than treated as authoritative.
-6. Replace the `content` role binding atomically after a successful rebuild.
+The Resource summary and gear must be scene-backed, visible in the table
+designer's debug skeleton, and available only when the column type is Resource.
+Changing options produces typed column alterations and uses the normal catalog
+preview; the Control must not mutate schema or storage directly.
 
-Persistent and memory-only cache policies may differ by project size and
-platform, but both expose the same logical effective database. Save rows retain
-stable content identifiers rather than copying definitions. Save metadata may
-record its expected package set; missing mod-owned identifiers return structured
-diagnostics and remain subject to an explicit game policy instead of being
-silently deleted or rewritten.
+### Resource-aware WHERE and expression costs
 
-This slice is complete when base-only and modded launches use the same content
-model queries, deterministic rebuilds produce reproducible data, and disabling
-a package cannot mutate the base sources or corrupt save rows.
+Nested WHERE groups are not inherently unsafe. They become expensive when a
+condition reads a property inside a referenced Resource, because evaluating the
+predicate requires materializing that asset unless equivalent searchable
+metadata exists in ordinary columns.
 
-### 8. Improve multi-table navigation and schema actions
+For example:
 
-Experimental status: the database document filters existing table folds by
-table or column name without hiding unsaved table drafts. Registered databases
-and tables are also exposed through Godot's existing command palette
-(`Ctrl+Shift+P` by default), so GDSQL does not claim a competing editor
-shortcut. Existing table folds provide direct data and model actions plus a
-confirmed Reset Data macro. Reset Data stages transactional truncation through
-the shared storage contract, respects final-state foreign-key restrictions,
-and resets generated-key metadata without ConfigFile access from Controls.
-Column rows expose an extensible right-click action menu without adding a
-per-row action cluster. Removal previews stored-value loss, automatically
-stages dependent local index and foreign-key removal, discards dependent
-unsaved constraints, blocks on named cross-table foreign keys, and remains
-restorable from the same menu until Save Changes.
+```text
+WHERE faction = "forest"
+  AND mesh.material.albedo_color.r > 0.5
+```
 
-1. Search and filter tables within a database without loading their rows.
-2. Search table and column names across registered databases, with keyboard
-   navigation and direct open actions. Keep the command-palette inventory in
-   sync after discovery and schema changes.
-3. Give each database-document table direct actions for opening its data and
-   creating or updating its model binding.
-4. Let the model-binding assistant open the user-owned model directly in the
-   Script editor when that file exists.
-5. Keep table reset as an explicit confirmed administrative operation,
-   distinct from ordinary row deletion and independent of storage format.
-6. Keep column deletion in the row context menu and reversible before save,
-   with one explicit confirmation and visible dependency handling.
+The scalar `faction` comparison is inexpensive. The Resource-property condition
+may load the mesh, its material, and dependencies for every candidate row that
+reaches it. Pagination cannot safely apply `LIMIT` before this filter because
+the runtime does not yet know which rows match. Similar costs apply to Resource
+properties used by `ORDER BY`, grouping, aggregates, distinct selection, join
+conditions, and calculated projections.
 
-### 9. Add bounded row mutation history
+The query and editor contracts must therefore preserve these rules:
 
-Experimental status: table documents expose per-table Undo/Redo through the
-action hub. One entry represents a successfully committed non-Resource value
-update batch;
-inverse updates use the same canonical transactional batch path, and stack state
-moves only after success. History is capped, exists only in editor memory, and is
-never serialized or restored after Godot restarts. Inserts, deletes, graph-side
-mutations, and Resource edits clear the table history until generated identities,
-timestamps, and object snapshots have a safe restoration policy. Undo restores
-editable values while `updated_at` records the undo operation time.
+1. Resource-property expressions remain explicit canonical expressions; the
+   table editor must not perform a hidden editor-side filter.
+2. Only validated, Inspector-visible scalar leaf paths are filterable. Do not
+   expose intermediate compound values, arbitrary methods, unbounded
+   collections, or paths that execute project code.
+3. Nested groups retain their logical meaning and SQL-style null behavior.
+   Loading optimization must not change `AND`, `OR`, or `NOT` semantics.
+4. Resolve a given referenced value at most once per row and execution, even
+   when several nested conditions inspect it. Reuse the resolved value and its
+   failure diagnostic within that bounded execution.
+5. Short-circuit conditions when canonical three-valued logic permits it. Cheap
+   scalar predicates may narrow candidates before Resource-property predicates
+   only when reordering is semantically equivalent and diagnostics remain
+   deterministic.
+6. A missing or incompatible referenced asset evaluates through the defined
+   null/error policy and produces one contextual diagnostic, not repeated
+   failures for every nested condition.
+7. A Resource-property predicate makes the load intentional. `COUNT`, paging,
+   or a scalar projection cannot promise zero Resource loads when their filter,
+   ordering, grouping, or join depends on that property.
+8. Ordinary table indexes cannot accelerate an arbitrary property inside an
+   external Resource. Frequently searched asset metadata should be copied into
+   typed scalar columns and indexed there.
+9. The WHERE editor should mark Resource-property fields with an asset/load
+   indicator and concise tooltip. For a potentially broad scan, show a warning
+   or plan summary instead of silently presenting the condition as equivalent
+   to a scalar column.
+10. Long Resource-dependent scans need cancellation, progress, and measured
+    Resource-resolution counts before GDSQL considers background or parallel
+    evaluation. Do not load arbitrary Godot Resources from worker threads
+    without following engine-supported loading boundaries.
 
-### 10. Add foreign keys and role-aware reference inference
+The safest authoring recommendation is to query stable scalar metadata and use
+the resulting identity to load the heavy asset. Resource-property WHERE support
+remains valuable for small datasets and editor discovery, but it is not a
+replacement for deliberately modeled, indexed metadata.
 
-Experimental status: tables can carry typed named, single-column,
-same-database foreign-key definitions with `RESTRICT` policy metadata.
-ConfigFile schemas round-trip them; catalog creation and alteration restrict
-keys to exact `int`, `String`, or `StringName` pairs; referenced tables and
-unique columns are resolved; existing rows are rejected when orphaned; and
-managed-content schema comparison, copying, and cache persistence preserve the
-constraints. ConfigFile and in-memory runtimes validate the final effective
-transaction state before commit, so inserts and updates cannot create orphans,
-referenced target updates/deletes use `RESTRICT`, and related changes may be
-staged in either order atomically. Catalog administration blocks referenced
-table/column renames and drops plus removal of the target's last uniqueness
-contract; safe self-referencing renames update their constraint metadata. The
-database table designer now creates and removes these constraints through typed
-catalog alterations. Searchable selectors expose only supported local columns
-and exact-type unique targets in other tables, and foreign-key columns carry the
-dedicated key indicator. Existing self-references remain readable and removable,
-but the table designer does not offer the source table as a new target. New
-constraint names follow the deterministic
-`fk_<source>_<local>_<target>_<target_column>` convention and stay synchronized
-with their selected inputs. Data and insert grids expose the foreign-key action
-for columns with one unambiguous constraint, load an ordered canonical target
-query on demand, and present the first 500 rows through a searchable popup with
-context fields before applying the selected key through the normal batch draft.
-Large reference sets remain bounded: replace the loaded-page popup with debounced
-server-side search and paginated results before raising or removing that limit.
+### Required invariants
 
-The model registry now infers default same-database navigation when both model
-types are registered. The foreign-key owner receives `belongs_to`; its inverse
-is `has_one` when the local foreign key is unique and `has_many` otherwise.
-Declared user relationships take precedence by name, no model script is
-rewritten, and the model assistant previews the inferred edges directly from
-the catalog. Explicit `many_to_many()` relationships now resolve source models
-through a registered junction model, validate every participating key, preserve
-junction associations while batching eager loads, and return typed related-model arrays.
-Cross-role references remain logical contracts resolved through database roles.
-For save models, the Model Assistant now matches supported local identifiers to
-content-model primary keys and copies the corresponding `references_one()` entry;
-it does not create a catalog constraint across databases.
+The architecture work must preserve these rules:
 
-Save-table cells reuse the bounded reference selector for Model
-Assistant-registered `references_one()` navigation. The assistant stores typed
-editor metadata while copying the runtime declaration; the selector reads the
-target content registration without synthesizing a cross-database catalog
-foreign key. Registered bindings are listed with copy and remove actions so an
-accidental picker mapping is reversible without touching user model code.
-Server-side search and paging beyond the bounded first result set remain future
-work for this authoring picker.
+1. A referenced asset locator is authoritative persisted data. A loaded Godot
+   `Resource` is a runtime materialization of that value, not storage state.
+2. Resource loading remains outside `QuerySpec`; canonical queries describe
+   data intent without depending on `ResourceLoader` or cache state.
+3. Storage backends expose the same referenced-asset semantics. ConfigFile and
+   paged binary formats may encode locators differently, but neither changes
+   query or model meaning.
+4. Existing eager Resource fields remain the simple default until a user opts
+   into a deferred contract. A compatibility change must not silently replace a
+   concrete `Mesh` model property with an unrelated object.
+5. A transparent lazy proxy must not pretend to be every concrete Resource
+   subtype. Deferred fields expose an explicit reference/handle and validate
+   their expected subtype before returning a loaded Resource.
+6. Referenced Resources may be shared through Godot's cache. GDSQL must release
+   only references it owns and must not claim it can forcibly unload an asset
+   still used by a scene, model, result, or another system.
+7. Owned Resource columns remain row-owned values. They are not converted into
+   external lazy references implicitly.
+8. Dirty mutable data checkpoints before working-set eviction. Immutable
+   content and disposable caches may be reloaded or rebuilt.
+9. Filtering a referenced Resource property explicitly requires that Resource
+   to be resolved unless the backend has equivalent indexed metadata. This
+   cost must be visible rather than hidden.
+10. Missing, unreadable, or type-mismatched assets return diagnostics carrying
+    database, table, row, column, locator, and expected type.
 
-| Relationship delivery step | State |
-|---|---|
-| Same-role `belongs_to`, `has_one`, and `has_many` catalog inference | Implemented |
-| Empty relationship scaffold, compatibility guidance, and copyable clean model scaffold | Implemented |
-| Same-role registration and eager-loading micro guide | Implemented |
-| Explicit many-to-many/through contract | Implemented |
-| Assisted cross-role `save` → `content` declarations | Implemented |
+### Contract evolution before binary storage
 
-### 11. Improve nested typed WHERE interactions
+Exact class names belong in the architecture proposal, but the runtime needs
+four capabilities before a paged backend can deliver meaningful gains:
 
-The first bounded nesting slice is implemented: Resource columns expand to
-Inspector-visible scalar leaves, including supported Vector and Color
-components. Validation rejects unknown paths and intermediate compound values,
-and execution remains a canonical typed query rather than editor-side filtering.
+1. **Storage-neutral references.** Decoding must be able to return validated
+   asset identity without loading the asset. The current locator concept must
+   not remain an implementation detail usable only by ConfigFile storage.
+2. **Bounded read requests.** Storage reads need required columns, lookup or
+   scan range, batching/page information, and Resource materialization intent.
+   A backend that cannot optimize a request may fall back to a full read while
+   preserving semantics.
+3. **Column dependency analysis.** Planning/execution must identify columns
+   required by predicates, joins, grouping, ordering, projection, identity, and
+   mutation safety. Projection alone is not sufficient because an unreturned
+   column may still be needed to filter or order rows.
+4. **Explicit materialization.** Result and model materializers decide whether
+   a projected reference becomes a concrete Resource, remains a deferred
+   handle, or is prefetched asynchronously. Storage decoding does not make this
+   presentation decision.
 
-The shared WHERE editor now provides explicit scene-backed nested groups with
-group-level `NOT`, bounded nesting depth, visible precedence boundaries,
-reordering, and compact collapse summaries. Conditions remain left-associative
-inside their owning group, and recursive composition produces only canonical
-logical-expression trees without introducing SQL parsing into the control.
+The first implementation can preserve current public behavior by eagerly
+materializing projected Resource fields while avoiding loads for fields that
+the operation never needs. Deferred handles become an explicit later API.
+Generated models continue to use concrete Resource properties for eager fields;
+a deferred field requires separately generated reference access and a typed
+load helper.
 
-### 12. Define a GDSQL-aware MCP surface
+### Delivery stages
 
-Experimental status: the architecture contract and first implementation slice
-are complete. GDSQL delegates transport and protocol negotiation to the optional
-Godot-AI bridge, while its versioned inspection service stays project-scoped and
-independent from editor Controls and ConfigFile. Capabilities, setup inspection,
-and bounded schema inspection are promoted read-only tools, with deterministic
-JSON contract coverage and optional-plugin lifecycle handling. Godot-AI has
-accepted the initial tools in the live editor; reload, disable, and teardown
-behavior remain to be verified manually. Bounded model-binding inspection is
-also implemented: it reports static compatibility, catalog-inferred
-relationships, and registered cross-role references without loading row values
-or executing user model code. Query drafting and two-step confirmed editor
-actions follow only after the inspection contract is stable; a separate GDSQL
-resource namespace is not active work because Godot-AI already provides
-custom-tool discovery.
+#### Stage A — avoid accidental loads
 
-### 13. Migration, performance, and release QA
+- Keep referenced locators unresolved through generic storage decoding.
+- Determine the columns required by a planned operation.
+- Do not resolve referenced assets for `COUNT`, unrelated projections, or
+  metadata-only cache copying.
+- Materialize required Resource result values synchronously for compatibility.
+- Add contextual diagnostics and an injectable resolver so behavior can be
+  tested without loading real assets.
 
-Version persisted formats, provide dry-run migrations and recovery guidance,
-benchmark paging and managed-content caches with large datasets, and verify
-editor/runtime behavior across supported Godot versions and exported builds.
-Before release, add diagnostic-bearing storage read results so a missing or
-type-mismatched referenced Resource is reported with its table, row, column,
-and locator instead of being exposed only as a null value.
+This stage is backend-independent and provides the main benefit for ordinary
+small and medium projects.
+
+#### Stage B — explicit deferred loading
+
+- Add opt-in deferred Resource fields or result materialization.
+- Provide synchronous load, threaded request, status, and completion behavior
+  without blocking ordinary query construction.
+- Provide bounded prefetch scopes suitable for a scene, area, encounter, or UI
+  screen.
+- Document how consumers release scene, model, result, and cache references.
+
+This stage is for asset-heavy projects and should not complicate the default
+workflow.
+
+#### Stage C — bounded table reads
+
+- Extend storage capabilities with batch/page reads and ordered indexed access.
+- Let scan execution consume bounded batches instead of requiring one complete
+  `TableSnapshot`.
+- Push `LIMIT`/`OFFSET` only when doing so preserves filter, sort, aggregate,
+  distinct, and join semantics.
+- Measure row bytes/pages read separately from Resources materialized.
+
+ConfigFile may continue parsing a whole table file while implementing this
+contract through a compatibility adapter.
+
+#### Stage D — paged binary backend
+
+- Store versioned table headers, schema fingerprints, generated-key state,
+  row/index roots, and independently addressable pages.
+- Read only the row and index pages required by the bounded storage request.
+- Preserve the same external Resource locator and materialization rules.
+- Add clean-page eviction and crash-safe persistence without exposing binary
+  details above storage infrastructure.
+
+#### Stage E — optional working-set policy
+
+- Implement `LOAD_ALL`, `LAZY_TABLES`, `PAGED`, and `MANUAL` policies described
+  in `docs/architecture/databases.md` only after their underlying capabilities
+  exist.
+- Add explicit clean-table/page release and optional budgeted eviction.
+- Keep automatic asset eviction opt-in; project code may already own a more
+  appropriate scene, area, or asset lifecycle.
+
+### Verification criteria
+
+The foundation is successful when tests and profiling can demonstrate that:
+
+- selecting or counting scalar NPC fields performs zero Resource resolutions;
+- a primary-key asset lookup resolves only the requested row's projected asset;
+- pagination does not resolve assets discarded only by the final page limit
+  when filtering and ordering do not require those assets;
+- Managed Content cache copying preserves locators without loading the assets;
+- in-memory hydration can retain reference identities without retaining every
+  concrete Resource;
+- a Resource-property predicate documents and measures its required loads;
+- eager and deferred model fields retain their declared type behavior;
+- releasing all GDSQL-owned references permits Godot to reclaim an otherwise
+  unused asset; and
+- ConfigFile and future paged binary backends pass the same semantic tests while
+  reporting different I/O and working-set statistics.
+
+Profile Resource-resolution count, synchronous load time, peak RAM/VRAM,
+retained GDSQL references, scanned rows, bytes/pages read, and cache hit rate.
+Optimization decisions should follow measurements on supported target hardware,
+not project-size labels alone.
+
+## 2. Versioned migrations
+
+Models remain bindings, not migrations. A migration is project-owned,
+version-controlled history describing how an older catalog and its data reach
+the current catalog.
+
+Resource Stage A precedes this work because migrations, dry runs, backups, and
+cache rebuilds must copy referenced-asset identity without loading the assets.
+Migration v1 begins after that stored-value/materialization boundary is stable.
+
+Before implementation, update the architecture documents that currently place
+a general migration framework outside scope. The first supported slice should
+provide:
+
+1. Stable ordered migration IDs, descriptions, checksums, and target database
+   registrations or roles.
+2. Forward-only typed schema steps built from the existing
+   `GDSQLTableAlteration` vocabulary.
+3. A persisted applied-migration ledger and schema fingerprint.
+4. Dry-run planning with affected objects, destructive classification, and
+   structured diagnostics.
+5. Backup and recovery behavior for ConfigFile databases.
+6. Headless validation suitable for professional-team CI.
+
+Later slices add canonical data transformations, multi-table orchestration,
+and migration of older `user://` saves. Fresh databases and saves start at the
+current schema; existing durable data applies only pending migrations. Managed
+content sources migrate during authoring, while disposable effective-content
+caches are rebuilt rather than migrated.
+
+Applied migration files are immutable. Editing an applied file must produce a
+checksum or schema-drift diagnostic instead of silently changing history.
+Downgrades are optional and supported only when a migration is genuinely
+lossless.
+
+## 3. Release and compatibility QA
+
+Track these version dimensions independently:
+
+- GDSQL plugin release.
+- Registry and persisted storage format.
+- Database schema migration head.
+- Managed package and cache format.
+- Generated-model template contract.
+- Godot-AI MCP surface.
+
+Release readiness requires:
+
+- Recovery tests for interrupted catalog, migration, and checkpoint writes.
+- Paging, reference-materialization, and managed-cache benchmarks using large
+  datasets and heavy project assets.
+- Verification across supported Godot versions and exported builds.
+- Clear compatibility and support matrices.
+- Stable diagnostics for missing files, unsupported formats, schema drift, and
+  incompatible generated models.
+
+## 4. Editor and integration completion
+
+- Verify Godot-AI tool registration across plugin load order, reload, disable,
+  teardown, and project changes. Query execution and mutations remain deferred
+  until the read-only contract is stable.
+- Replace the 500-row foreign-key/content-reference popup boundary with
+  debounced canonical search and paginated results.
+- Keep editor actions, table navigation, and schema operations exposed through
+  the shared action hub and Godot's command palette.
+
+## 5. Updates
+
+The first update feature is an opt-in checker, not a self-overwriting updater.
+It should compare one canonical plugin version and supported Godot range, show
+release notes and migration requirements, and direct the user to the official
+release or Asset Library package.
+
+Assisted installation remains blocked until compatibility and migration
+policies are versioned. A later updater must stage and verify an archive,
+replace only `res://addons/gdsql`, preserve project-owned data and models,
+require a safe reload or restart boundary, and restore the previous plugin when
+activation fails.
 
 ## Backlog — not active delivery
 
-- **SQL compiler and editor:** complete the supported SQL frontend only when SQL
-  text unlocks a concrete workflow beyond the typed table and expression tools.
-- **Advanced query graph:** preserve the current implementation, but do not add
-  operations or saved graphs until it has a discoverable entry point and the
-  primary table, setup, and release workflows are complete.
-- **Dynamic editor content preview:** defer model-backed scene previews. Use
-  normal authored placeholders in editor scenes and load content models through
-  the runtime. Reconsider only if a core workflow cannot be served by placeholders.
-- **Generated model nullability and type ergonomics:** keep exact GDScript
-  property types for non-null columns and make nullable scalar fallbacks
-  explicit in the model assistant. Because GDScript has no nullable scalar or
-  union syntax, do not silently generate `String`, `float`, or other value types
-  when the table permits `NULL`; investigate a typed optional representation or
-  a schema action that lets users intentionally make required columns non-null.
-- **Portable database interchange:** export and import tables or query results
-  as JSON, CSV, and compatible GDSQL data. The interchange contract must remain
-  independent of ConfigFile and the future paged-binary backend, with schema
-  validation, previews, and atomic imports.
-- **Player-to-player data exchange:** use the existing
-  `docs/architecture/network.md` as the design log. The first future spike
-  should distinguish transferable data snapshots from synchronized gameplay
-  state and define authority, authentication, size limits, versioning,
-  validation, and conflict policy before selecting a transport.
-- **Editor localization:** extract user-facing strings so future translations
-  can be added without changing control scripts or scenes.
-- **Configurable shortcuts:** register GDSQL actions and shortcuts in a dedicated
-  plugin section of Godot's editor settings, including conflict-safe defaults.
-- **Automatic updater:** provide opt-in release checks and safe updates only
-  after plugin, registry, database, package, and generated-model compatibility
-  policies are versioned.
+- SQL text compiler and editor.
+- Advanced or saved query graphs.
+- Model-backed dynamic scene previews.
+- Generated-model nullability ergonomics.
+- JSON, CSV, and portable database interchange.
+- Player-to-player data exchange; `docs/architecture/network.md` remains its
+  design log.
+- Editor localization.
+- Configurable shortcuts in a dedicated Godot editor-settings section.
+- Automatic background updates.
 
-## Documentation transition
+## Documentation policy
 
-The rewrite sources of truth are `docs/architecture/` and this roadmap. The
-remaining VitePress documentation is legacy and scheduled for replacement; the
-new end-user documentation will be developed separately.
+The public documentation now covers installation, setup profiles, first-project
+workflow, table and schema authoring, Resource storage, managed content,
+runtime/model relationships, typed APIs, troubleshooting, Godot-AI integration,
+architecture, and project philosophy.
+
+New documentation should accompany an implemented or approved contract. The
+next required documents are migration/recovery guidance and a release
+compatibility matrix; do not add end-user updater instructions before that
+feature exists.
 
 ## Definition of plug and play
 
-A new user should be able to install the plugin and, without reading source
-code:
+A new user should be able to install GDSQL and, without reading source code:
 
-1. Create authored content and edit it in a conventional table.
-2. Create or select a save database with a safe writable location.
-3. Generate a model draft for an existing table and understand that the table
-   remains authoritative.
-4. Run the game, resolve content and save roles, query a model, mutate save
-   state, and checkpoint it through one documented bootstrap path.
-5. Diagnose setup and query failures from structured messages in the editor.
+1. Create and edit authored content in a conventional table.
+2. Create or select a save database in a safe writable location.
+3. Generate a model binding while understanding that the table is authoritative.
+4. Bootstrap runtime roles, query content and save models, mutate save state,
+   and checkpoint it through one documented path.
+5. Diagnose setup, query, storage, reference, and compatibility failures from
+   structured messages.
 
 ## Guardrails
 
-- Do not fork execution logic for table, graph, SQL, or model frontends.
-- Do not duplicate the typed result editor; extract and reuse it.
-- Do not make model scripts schema authorities.
+- Do not fork execution logic between table, graph, SQL, model, or agent
+  frontends.
+- Do not make models schema authorities or migration sources.
 - Do not hide content/save separation behind cross-database behavior.
-- Do not remove the graph while it contains reusable working behavior.
-- Keep roadmap progress synchronized with tests and the glossary when stable
-  concepts change implementation state.
-
-## Completed summary
-
-- Table-first browsing, filtering, ordering, paging, and atomic row editing.
-- Guided Direct Content and Managed Content setup plus safe database deletion.
-- Runtime bootstrap, roles, save-slot switching, checkpoints, and diagnostics.
-- Generated/user-owned model assistance and cross-role content references.
-- Deterministic managed-content overlays, caching, provenance, and save checks.
-- Explicit owned/reference Resource-column semantics with compact ConfigFile
-  asset locators and native owned-Resource serialization.
-- Command-palette database/table navigation, direct table/model actions, and
-  transactional table reset with generated-key restart.
-- Context-menu column removal with local constraint cleanup, cross-table
-  dependency warnings, and pre-save restoration.
-- Nested typed WHERE groups with group-level inversion, visible precedence, and
-  compact summaries across table and graph consumers.
-- Read-only Godot-AI MCP integration with promoted capabilities, setup, and
-  bounded schema/model tools, project-scoped inspection contracts, and explicit
-  future mutation boundaries.
+- Do not expose ConfigFile paths or sections above storage infrastructure.
+- Do not promise transparent lazy loading where concrete Godot Resource types
+  require explicit materialization.
+- Keep the roadmap, architecture glossary, and implementation state aligned.
