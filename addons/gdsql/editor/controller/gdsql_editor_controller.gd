@@ -22,6 +22,7 @@ var _workspace_loaded := false
 var _request_filesystem_scan: Callable
 var _mutation_histories: Dictionary[String, GDSQLEditorMutationHistory] = { }
 var _migration_history_store: GDSQLMigrationHistoryStore
+var _migration_schema_state_store: GDSQLMigrationSchemaStateStore
 
 
 static func _registration_prefix_for_root(
@@ -43,15 +44,21 @@ func _init(
 		logs_panel: GDSQLLogsPanel,
 		request_filesystem_scan: Callable = Callable(),
 		migration_history_store: GDSQLMigrationHistoryStore = null,
+		migration_schema_state_store: GDSQLMigrationSchemaStateStore = null,
 ) -> void:
 	_workspace = workspace
 	_database_dock = database_dock
 	_logs_panel = logs_panel
 	_request_filesystem_scan = request_filesystem_scan
 	_migration_history_store = (
-		migration_history_store
-		if migration_history_store != null
-		else GDSQLConfigFileMigrationHistoryStore.new()
+			migration_history_store
+			if migration_history_store != null
+			else GDSQLConfigFileMigrationHistoryStore.new()
+	)
+	_migration_schema_state_store = (
+			migration_schema_state_store
+			if migration_schema_state_store != null
+			else GDSQLConfigFileMigrationSchemaStateStore.new()
 	)
 	_create_workbench()
 	_create_actions()
@@ -1271,6 +1278,7 @@ func _refresh_database_migration_state(
 		registration_name: StringName,
 ) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
+	var state_sync_pending := false
 	var registration := workbench.get_registration(registration_name)
 	if registration == null or workbench.active_session == null \
 			or workbench.active_session.registration.name != registration_name:
@@ -1283,6 +1291,23 @@ func _refresh_database_migration_state(
 		var migration_preview := workbench.active_session.database.preview_migrations(history)
 		result.diagnostics.merge(migration_preview.diagnostics)
 		if migration_preview.is_successful():
+			if migration_preview.is_up_to_date():
+				var synchronized := _synchronize_migration_schema_state(
+					registration,
+					history,
+				)
+				if not synchronized.is_successful():
+					state_sync_pending = true
+					for diagnostic in synchronized.diagnostics.entries:
+						result.add_diagnostic(
+							GDSQLQueryDiagnostic.new(
+								&"GDSQL_MIGRATION_SCHEMA_STATE_SYNC_PENDING",
+								diagnostic.message,
+								GDSQLQueryDiagnostic.Severity.WARNING,
+								diagnostic.source_span,
+								diagnostic.related_object,
+							),
+						)
 			var pending: GDSQLEditorMigrationPreview
 			if migration_preview.next_plan != null:
 				pending = _editor_migration_preview(
@@ -1304,6 +1329,59 @@ func _refresh_database_migration_state(
 			_first_diagnostic_message(result),
 		)
 		_record_result("Inspect database migration history", result)
+	elif state_sync_pending:
+		_record_result("Synchronize migration schema state", result)
+	return result
+
+
+func _synchronize_migration_schema_state(
+		registration: GDSQLDatabaseRegistration,
+		history: Array[GDSQLMigrationDefinition],
+) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	if _migration_schema_state_store == null \
+			or workbench.active_session == null \
+			or workbench.active_session.catalog_snapshot == null:
+		return _error(
+			&"GDSQL_MIGRATION_SCHEMA_STATE_DEPENDENCY_REQUIRED",
+			"Migration schema-state synchronization requires an open catalog and state store.",
+		)
+	var database := workbench.active_session.catalog_snapshot.get_database(
+		registration.database_name,
+	)
+	var fingerprint := GDSQLSchemaFingerprint.compute(database)
+	var state := GDSQLMigrationSchemaState.from_history(
+		registration.migration_stream,
+		registration.database_name,
+		history,
+		fingerprint,
+	)
+	if not state.is_valid():
+		return _error(
+			&"GDSQL_MIGRATION_SCHEMA_STATE_INVALID",
+			"The current catalog could not produce valid migration schema state.",
+		)
+	var loaded := _migration_schema_state_store.load(registration.migration_stream)
+	result.diagnostics.merge(loaded.diagnostics)
+	if not loaded.is_successful():
+		return result
+	var previous := loaded.get_value() as GDSQLMigrationSchemaState
+	if previous != null \
+			and previous.database_name == state.database_name \
+			and previous.history_count == state.history_count \
+			and previous.migration_head_id == state.migration_head_id \
+			and previous.history_checksum == state.history_checksum \
+			and previous.schema_fingerprint == state.schema_fingerprint:
+		result.value = previous
+		return result
+	var saved := _migration_schema_state_store.save(
+		state,
+		previous.history_checksum if previous != null else "",
+	)
+	result.diagnostics.merge(saved.diagnostics)
+	if saved.is_successful():
+		result.value = saved.get_value()
+		_scan_project_filesystem()
 	return result
 
 

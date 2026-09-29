@@ -159,6 +159,17 @@ func apply_migration(
 	return context.apply_migration(plan)
 
 
+func adopt_migration_baseline(
+		history: Array[GDSQLMigrationDefinition],
+		schema_state: GDSQLMigrationSchemaState,
+) -> GDSQLOperationResult:
+	return context.adopt_migration_baseline(
+		database_name,
+		history,
+		schema_state,
+	)
+
+
 func recover_interrupted_migration(
 		migration_id: String,
 ) -> GDSQLMigrationRecoveryResult:

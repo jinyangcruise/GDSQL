@@ -357,6 +357,7 @@ static func _create_context(
 				recovery,
 			),
 			recovery,
+			catalog,
 		)
 	return GDSQLDatabaseContext.new(
 		catalog,

@@ -7,6 +7,7 @@ var _history_planner: GDSQLMigrationPlanner
 var _catalog_planner: GDSQLMigrationCatalogPlanner
 var _runner: GDSQLMigrationRunner
 var _recovery: GDSQLMigrationRecoveryStore
+var _catalog: GDSQLCatalogService
 
 
 func _init(
@@ -15,12 +16,14 @@ func _init(
 		catalog_planner: GDSQLMigrationCatalogPlanner = null,
 		runner: GDSQLMigrationRunner = null,
 		recovery: GDSQLMigrationRecoveryStore = null,
+		catalog: GDSQLCatalogService = null,
 ) -> void:
 	_ledger = ledger
 	_history_planner = history_planner
 	_catalog_planner = catalog_planner
 	_runner = runner
 	_recovery = recovery
+	_catalog = catalog
 
 
 func preview(
@@ -28,7 +31,8 @@ func preview(
 		history: Array[GDSQLMigrationDefinition],
 ) -> GDSQLMigrationPreviewResult:
 	var result := GDSQLMigrationPreviewResult.new()
-	if _ledger == null or _history_planner == null or _catalog_planner == null:
+	if _ledger == null or _history_planner == null or _catalog_planner == null \
+			or _catalog == null:
 		_error(
 			result,
 			&"GDSQL_MIGRATION_SERVICE_DEPENDENCY_REQUIRED",
@@ -39,7 +43,12 @@ func preview(
 	result.diagnostics.merge(loaded.diagnostics)
 	if not loaded.is_successful():
 		return result
-	var planned := _history_planner.plan(history, loaded.get_value())
+	var ledger := loaded.get_value() as GDSQLMigrationLedgerSnapshot
+	var evidence := _validate_schema_evidence(database_name, ledger)
+	result.diagnostics.merge(evidence.diagnostics)
+	if not evidence.is_successful():
+		return result
+	var planned := _history_planner.plan(history, ledger)
 	result.diagnostics.merge(planned.diagnostics)
 	if not planned.is_successful():
 		return result
@@ -55,6 +64,85 @@ func preview(
 		history_plan,
 		previewed.get_value() as GDSQLMigrationCatalogPlan,
 	)
+	return result
+
+
+func adopt_baseline(
+		database_name: StringName,
+		history: Array[GDSQLMigrationDefinition],
+		schema_state: GDSQLMigrationSchemaState,
+) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	if _ledger == null or _history_planner == null or _catalog == null:
+		_error(
+			result,
+			&"GDSQL_MIGRATION_SERVICE_DEPENDENCY_REQUIRED",
+			"Migration baseline adoption requires ledger, history, and catalog services.",
+		)
+		return result
+	if schema_state == null or not schema_state.is_valid() \
+			or schema_state.database_name != database_name:
+		_error(
+			result,
+			&"GDSQL_MIGRATION_SCHEMA_STATE_INVALID",
+			"Baseline adoption requires valid project-owned schema state for this database.",
+		)
+		return result
+	var validated := _history_planner.plan(
+		history,
+		GDSQLMigrationLedgerSnapshot.new(),
+	)
+	result.diagnostics.merge(validated.diagnostics)
+	if not validated.is_successful():
+		return result
+	if not schema_state.matches_history_prefix(history):
+		_error(
+			result,
+			&"GDSQL_MIGRATION_SCHEMA_STATE_HISTORY_MISMATCH",
+			"Project schema state does not match the authored migration-history prefix.",
+		)
+		return result
+	var current_fingerprint := GDSQLSchemaFingerprint.compute(
+		_catalog.get_database(database_name),
+	)
+	if current_fingerprint.is_empty():
+		_error(
+			result,
+			&"GDSQL_MIGRATION_SCHEMA_FINGERPRINT_FAILED",
+			"Could not fingerprint the database schema for baseline adoption.",
+		)
+		return result
+	if current_fingerprint != schema_state.schema_fingerprint:
+		_error(
+			result,
+			&"GDSQL_MIGRATION_BASELINE_SCHEMA_MISMATCH",
+			"The database schema does not match the requested migration baseline.",
+		)
+		return result
+	var loaded := _ledger.load(database_name)
+	result.diagnostics.merge(loaded.diagnostics)
+	if not loaded.is_successful():
+		return result
+	var snapshot := loaded.get_value() as GDSQLMigrationLedgerSnapshot
+	if snapshot == null or snapshot.revision() != 0:
+		_error(
+			result,
+			&"GDSQL_MIGRATION_BASELINE_ALREADY_ESTABLISHED",
+			"A migration baseline can only be adopted by an empty ledger.",
+		)
+		return result
+	var baseline := GDSQLMigrationBaseline.new(
+		schema_state.migration_head_id,
+		history[schema_state.history_count - 1].checksum \
+		if schema_state.history_count > 0 else "",
+		schema_state.history_checksum,
+		int(Time.get_unix_time_from_system() * 1000.0),
+		current_fingerprint,
+	)
+	var adopted := _ledger.adopt_baseline(database_name, baseline, 0)
+	result.diagnostics.merge(adopted.diagnostics)
+	if adopted.is_successful():
+		result.value = baseline
 	return result
 
 
@@ -119,8 +207,8 @@ func recover_interrupted(
 			result,
 			&"GDSQL_MIGRATION_RECOVERY_HISTORY_DIVERGED",
 			(
-				"Migration '%s' is absent, but later migration '%s' is applied; "
-				+ "automatic recovery is unsafe."
+					"Migration '%s' is absent, but later migration '%s' is applied; "
+					+ "automatic recovery is unsafe."
 			) % [migration_id, snapshot.last_id()],
 		)
 		return result
@@ -149,6 +237,39 @@ func _discard_backup(result: GDSQLMigrationRecoveryResult) -> void:
 				GDSQLQueryDiagnostic.Severity.WARNING,
 			),
 		)
+
+
+func _validate_schema_evidence(
+		database_name: StringName,
+		ledger: GDSQLMigrationLedgerSnapshot,
+) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	if ledger == null:
+		_error(
+			result,
+			&"GDSQL_MIGRATION_LEDGER_INVALID",
+			"Migration preview requires a valid applied-history snapshot.",
+		)
+		return result
+	var recorded_fingerprint := ledger.last_schema_fingerprint()
+	if recorded_fingerprint.is_empty():
+		return result
+	var current_fingerprint := GDSQLSchemaFingerprint.compute(
+		_catalog.get_database(database_name),
+	)
+	if current_fingerprint.is_empty():
+		_error(
+			result,
+			&"GDSQL_MIGRATION_SCHEMA_FINGERPRINT_FAILED",
+			"Could not fingerprint the current database schema.",
+		)
+	elif current_fingerprint != recorded_fingerprint:
+		_error(
+			result,
+			&"GDSQL_MIGRATION_SCHEMA_DRIFT",
+			"The current database schema differs from its migration ledger.",
+		)
+	return result
 
 
 func _error(

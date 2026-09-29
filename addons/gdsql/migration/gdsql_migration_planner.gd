@@ -2,7 +2,6 @@ class_name GDSQLMigrationPlanner
 extends RefCounted
 ## Validates immutable authored history against an append-only applied ledger.
 
-
 func plan(
 		migrations: Array[GDSQLMigrationDefinition],
 		ledger: GDSQLMigrationLedgerSnapshot,
@@ -29,7 +28,44 @@ func plan(
 				"Migration IDs must be unique and strictly increasing.",
 			)
 		previous_id = migration.migration_id
-	if ledger.records.size() > migrations.size():
+	var baseline_count := 0
+	if ledger.baseline != null:
+		if not ledger.baseline.is_valid():
+			return _error(
+				result,
+				&"GDSQL_MIGRATION_BASELINE_INVALID",
+				"The migration ledger contains an invalid adopted baseline.",
+			)
+		var baseline_index := -1
+		if not ledger.baseline.through_migration_id.is_empty():
+			baseline_index = _find_migration(
+				migrations,
+				ledger.baseline.through_migration_id,
+			)
+			if baseline_index < 0:
+				return _error(
+					result,
+					&"GDSQL_MIGRATION_BASELINE_HISTORY_MISSING",
+					"The adopted migration baseline is absent from project history.",
+				)
+			if migrations[baseline_index].checksum != ledger.baseline.through_checksum:
+				return _error(
+					result,
+					&"GDSQL_MIGRATION_BASELINE_CHECKSUM_MISMATCH",
+					"The adopted migration baseline changed after adoption.",
+				)
+		var history_checksum := GDSQLMigrationHistoryChecksum.compute(
+			migrations,
+			baseline_index + 1,
+		)
+		if history_checksum != ledger.baseline.history_checksum:
+			return _error(
+				result,
+				&"GDSQL_MIGRATION_BASELINE_HISTORY_CHANGED",
+				"The adopted migration-history prefix changed after adoption.",
+			)
+		baseline_count = baseline_index + 1
+	if baseline_count + ledger.records.size() > migrations.size():
 		return _error(
 			result,
 			&"GDSQL_MIGRATION_HISTORY_MISSING",
@@ -43,7 +79,7 @@ func plan(
 				&"GDSQL_MIGRATION_LEDGER_INVALID",
 				"The applied migration ledger contains an invalid record.",
 			)
-		var authored := migrations[index]
+		var authored := migrations[baseline_count + index]
 		if authored.migration_id != applied.migration_id:
 			return _error(
 				result,
@@ -61,10 +97,25 @@ func plan(
 						% authored.migration_id,
 			)
 	var pending: Array[GDSQLMigrationDefinition] = []
-	for index in range(ledger.records.size(), migrations.size()):
+	var applied_count := baseline_count + ledger.records.size()
+	for index in range(applied_count, migrations.size()):
 		pending.append(migrations[index])
-	result.value = GDSQLMigrationPlan.new(pending, ledger.records.size())
+	result.value = GDSQLMigrationPlan.new(
+		pending,
+		applied_count,
+		ledger.revision(),
+	)
 	return result
+
+
+func _find_migration(
+		history: Array[GDSQLMigrationDefinition],
+		migration_id: String,
+) -> int:
+	for index in history.size():
+		if history[index].migration_id == migration_id:
+			return index
+	return -1
 
 
 func _error(

@@ -5,19 +5,19 @@ extends RefCounted
 var database_name: StringName
 var migration: GDSQLMigrationDefinition
 var change_plan: GDSQLCatalogChangePlan
-var expected_ledger_count: int
+var expected_ledger_revision: int
 
 
 func _init(
 		target_database: StringName = &"",
 		pending_migration: GDSQLMigrationDefinition = null,
 		catalog_change_plan: GDSQLCatalogChangePlan = null,
-		applied_count: int = 0,
+		ledger_revision: int = 0,
 ) -> void:
 	database_name = target_database
 	migration = pending_migration
 	change_plan = catalog_change_plan
-	expected_ledger_count = applied_count
+	expected_ledger_revision = ledger_revision
 
 
 func affected_rows() -> int:

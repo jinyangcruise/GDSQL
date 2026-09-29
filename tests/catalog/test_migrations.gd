@@ -22,13 +22,28 @@ class FailingAppendLedger:
 	func append(
 			_database_name: StringName,
 			_record: GDSQLAppliedMigration,
-			_expected_record_count: int,
+			_expected_ledger_revision: int,
 	) -> GDSQLOperationResult:
 		var result := GDSQLOperationResult.new()
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_TEST_LEDGER_APPEND_FAILED",
 				"Forced ledger append failure.",
+			),
+		)
+		return result
+
+
+	func adopt_baseline(
+			_database_name: StringName,
+			_baseline: GDSQLMigrationBaseline,
+			_expected_ledger_revision: int,
+	) -> GDSQLOperationResult:
+		var result := GDSQLOperationResult.new()
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_TEST_BASELINE_ADOPTION_FAILED",
+				"Forced baseline adoption failure.",
 			),
 		)
 		return result
@@ -129,6 +144,58 @@ func test_planner_returns_only_the_unapplied_ordered_suffix() -> void:
 	assert_bool(plan.destructive).is_true()
 
 
+func test_planner_treats_a_verified_baseline_as_the_applied_prefix() -> void:
+	var first := _migration("202609280001_existing_level")
+	var second := _migration("202609280002_add_rank")
+	var history: Array[GDSQLMigrationDefinition] = [first, second]
+	var baseline := GDSQLMigrationBaseline.new(
+		first.migration_id,
+		first.checksum,
+		GDSQLMigrationHistoryChecksum.compute(history, 1),
+		1,
+		_valid_fingerprint("a"),
+	)
+
+	var result := GDSQLMigrationPlanner.new().plan(
+		history,
+		GDSQLMigrationLedgerSnapshot.new([], baseline),
+	)
+
+	assert_bool(result.is_successful()).is_true()
+	var plan := result.get_value() as GDSQLMigrationPlan
+	assert_int(plan.applied_count).is_equal(1)
+	assert_int(plan.ledger_revision).is_equal(1)
+	assert_array(plan.pending).contains_exactly([second])
+
+
+func test_planner_rejects_changes_before_an_adopted_history_head() -> void:
+	var original_first := _migration("202609280001_existing_level")
+	var second := _migration("202609280002_existing_rank")
+	var original_history: Array[GDSQLMigrationDefinition] = [original_first, second]
+	var baseline := GDSQLMigrationBaseline.new(
+		second.migration_id,
+		second.checksum,
+		GDSQLMigrationHistoryChecksum.compute(original_history, 2),
+		1,
+		_valid_fingerprint("a"),
+	)
+	var changed_first := GDSQLMigrationDefinition.new(
+		original_first.migration_id,
+		"Changed before the adopted head",
+		original_first.steps,
+	)
+	var changed_history: Array[GDSQLMigrationDefinition] = [changed_first, second]
+
+	var result := GDSQLMigrationPlanner.new().plan(
+		changed_history,
+		GDSQLMigrationLedgerSnapshot.new([], baseline),
+	)
+
+	assert_str(_first_code(result)).is_equal(
+		"GDSQL_MIGRATION_BASELINE_HISTORY_CHANGED",
+	)
+
+
 func test_planner_rejects_changed_divergent_and_missing_history() -> void:
 	var original := _migration("202609280001_add_level")
 	var changed := GDSQLMigrationDefinition.new(
@@ -200,6 +267,58 @@ func test_config_file_ledger_round_trips_and_rejects_stale_append() -> void:
 	assert_str(snapshot.records[1].schema_fingerprint).is_equal(schema_fingerprint)
 
 
+func test_config_file_ledger_round_trips_baseline_and_uses_ledger_revision() -> void:
+	var table := GDSQLTableDefinition.new(&"heroes", &"id")
+	table.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	var database := TestDatabase.create_database(_data_root, table)
+	var ledger := GDSQLConfigFileMigrationLedger.new(
+		GDSQLDatabasePathResolver.new(_data_root),
+	)
+	var adopted_definition := _migration("202609280001_existing")
+	var next_definition := _migration("202609280002_next")
+	var history: Array[GDSQLMigrationDefinition] = [
+		adopted_definition,
+		next_definition,
+	]
+	var schema_fingerprint := GDSQLSchemaFingerprint.compute(
+		database.context.catalog.get_database(database.database_name),
+	)
+	var baseline := GDSQLMigrationBaseline.new(
+		adopted_definition.migration_id,
+		adopted_definition.checksum,
+		GDSQLMigrationHistoryChecksum.compute(history, 1),
+		1,
+		schema_fingerprint,
+	)
+
+	assert_bool(
+		ledger.adopt_baseline(database.database_name, baseline, 0).is_successful(),
+	).is_true()
+	var duplicate := ledger.adopt_baseline(database.database_name, baseline, 1)
+	assert_str(_first_code(duplicate)).is_equal(
+		"GDSQL_MIGRATION_BASELINE_ALREADY_ESTABLISHED",
+	)
+	var next_record := GDSQLAppliedMigration.new(
+		next_definition.migration_id,
+		next_definition.checksum,
+		2,
+		schema_fingerprint,
+	)
+	var stale := ledger.append(database.database_name, next_record, 0)
+	assert_str(_first_code(stale)).is_equal("GDSQL_MIGRATION_LEDGER_STALE")
+	assert_bool(
+		ledger.append(database.database_name, next_record, 1).is_successful(),
+	).is_true()
+
+	var snapshot := ledger.load(database.database_name).get_value() \
+			as GDSQLMigrationLedgerSnapshot
+	assert_object(snapshot.baseline).is_not_null()
+	assert_str(snapshot.baseline.history_checksum).is_equal(baseline.history_checksum)
+	assert_int(snapshot.records.size()).is_equal(1)
+	assert_int(snapshot.revision()).is_equal(2)
+	assert_str(snapshot.last_id()).is_equal(next_definition.migration_id)
+
+
 func test_catalog_planner_previews_next_migration_without_mutation() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
 	TestDatabase.insert_basic_heroes(database)
@@ -217,7 +336,7 @@ func test_catalog_planner_previews_next_migration_without_mutation() -> void:
 	assert_bool(result.is_successful()).is_true()
 	var plan := result.get_value() as GDSQLMigrationCatalogPlan
 	assert_str(plan.migration.migration_id).is_equal(migration.migration_id)
-	assert_int(plan.expected_ledger_count).is_equal(0)
+	assert_int(plan.expected_ledger_revision).is_equal(0)
 	assert_int(plan.affected_rows()).is_equal(2)
 	assert_bool(plan.requires_confirmation()).is_false()
 	assert_array(plan.summaries()).has_size(1)
@@ -340,7 +459,7 @@ func test_config_file_recovery_restores_database_rows_schema_and_ledger() -> voi
 	assert_bool(
 		database.insert(
 			&"heroes",
-			{&"id": 3, &"name": "Rogue", &"level": 3},
+			{ &"id": 3, &"name": "Rogue", &"level": 3 },
 		).is_successful(),
 	).is_true()
 	var applied_definition := _migration("202609280001_add_level")

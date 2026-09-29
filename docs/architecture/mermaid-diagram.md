@@ -418,6 +418,20 @@ MigrationHistoryStore("`**GDSQLMigrationHistoryStore**
 *API:* load(), append() with expected definition count
 *Boundary:* Shared source definitions, never per-database applied state`")
 
+MigrationSchemaState("`**GDSQLMigrationSchemaState**
+
+-
+*Purpose:* Bind one stable stream and logical database to a verified history prefix
+*Evidence:* History count/head, prefix checksum and whole-schema fingerprint
+*Boundary:* Project-owned trust input for baseline adoption`")
+
+MigrationSchemaStateStore("`**GDSQLMigrationSchemaStateStore**
+
+-
+*Purpose:* Load and advance project-owned schema evidence
+*API:* load(), save() with expected previous history checksum
+*Safety:* Stale protection and monotonic established history positions`")
+
 MigrationCatalogPlanning("`**Migration Catalog Planning**
 
 -
@@ -430,8 +444,9 @@ MigrationLedger("`**GDSQLMigrationLedger**
 
 -
 *Purpose:* Persist append-only applied migration evidence
+*Baseline:* One verified adopted history prefix for a pre-existing schema
 *Records:* ID, checksum, application time and resulting schema fingerprint
-*Concurrency:* Append requires the expected record count
+*Concurrency:* Adoption and append require the expected ledger revision
 *Extension point:* Migration ledger backend implementations`")
 
 MigrationRecovery("`**GDSQLMigrationRecoveryStore**
@@ -446,15 +461,15 @@ MigrationRunner("`**GDSQLMigrationRunner**
 
 -
 *Input:* One validated GDSQLMigrationCatalogPlan
-*Preconditions:* Current ledger count and whole-schema fingerprint
+*Preconditions:* Current ledger revision and whole-schema fingerprint
 *Success:* Apply catalog plan, fingerprint result, append ledger, discard backup
 *Failure:* Restore complete backup and retain structured diagnostics`")
 
 MigrationService("`**GDSQLMigrationService**
 
 -
-*Purpose:* Supported preview, apply and interruption-recovery orchestration
-*API:* preview(), apply(), recover_interrupted()
+*Purpose:* Supported baseline, preview, apply and interruption-recovery orchestration
+*API:* adopt_baseline(), preview(), apply(), recover_interrupted()
 *Results:* Up-to-date or next plan; applied record; restored or cleanup-only recovery
 *Composition:* Durable ConfigFile authoring contexts only`")
 
@@ -488,7 +503,7 @@ ConfigAdministration("`**GDSQLConfigFileCatalogAdministrationService**
 ConfigMigrationLedger("`**GDSQLConfigFileMigrationLedger**
 
 -
-*Purpose:* Validate and persist one database's ordered applied history
+*Purpose:* Validate and persist one database's baseline and ordered applied history
 *Location:* &lt;data_root&gt;/&lt;database&gt;/migrations.cfg
 *Extends:* GDSQLMigrationLedger
 *Uses:* GDSQLDatabasePathResolver`")
@@ -500,6 +515,14 @@ ConfigMigrationHistory("`**GDSQLConfigFileMigrationHistoryStore**
 *Location:* res://.gdsql/migrations/&lt;stream&gt;/&lt;migration_id&gt;.cfg
 *Integrity:* Filename identity, strict order and recorded checksum
 *Extends:* GDSQLMigrationHistoryStore`")
+
+ConfigMigrationSchemaState("`**GDSQLConfigFileMigrationSchemaStateStore**
+
+-
+*Purpose:* Persist trusted stream/head schema evidence
+*Location:* res://.gdsql/migration_states/&lt;stream&gt;.cfg
+*Safety:* Staged activation, previous-file recovery and stale checks
+*Extends:* GDSQLMigrationSchemaStateStore`")
 
 ConfigMigrationRecovery("`**GDSQLConfigFileMigrationRecoveryStore**
 
@@ -629,7 +652,7 @@ Expr -->|"creates canonical nodes"| Expression
 Expression -->|"contained by"| QuerySpec
 
 Database -->|"execute(query) · lifecycle methods"| Context
-Context -->|"preview · apply · recover migration"| MigrationService
+Context -->|"baseline · preview · apply · recover migration"| MigrationService
 Database -->|"transaction(callback)"| Transaction
 Code -->|"register handles · select roles"| RuntimeRegistry
 Code -->|"bootstrap · role databases · checkpoints"| RuntimeSession
@@ -669,13 +692,17 @@ McpAdapter -.->|"managed readiness"| ManagedSetup
 Workbench -->|"preview · apply change plan"| CatalogAdministration
 MigrationAuthoring -->|"append immutable definition"| MigrationHistoryStore
 MigrationAuthoring -->|"preview_migrations() · apply_migration()"| Database
+MigrationAuthoring -->|"record verified authored head"| MigrationSchemaStateStore
 MigrationHistory -->|"compare authored and applied prefix"| MigrationLedger
 MigrationHistory -->|"loaded from project stream"| MigrationHistoryStore
+MigrationSchemaState -->|"verify exact authored prefix"| MigrationHistory
 MigrationService -->|"validate complete authored history"| MigrationHistory
+MigrationService -->|"adopt trusted baseline"| MigrationSchemaState
 MigrationService -->|"preview next pending entry"| MigrationCatalogPlanning
 MigrationService -->|"apply one validated plan"| MigrationRunner
 MigrationService -->|"resolve leftover backup against ledger"| MigrationRecovery
 MigrationService -->|"detect committed migration"| MigrationLedger
+MigrationService -->|"verify baseline and drift fingerprints"| CatalogService
 MigrationHistory -->|"preview next pending entry"| MigrationCatalogPlanning
 MigrationCatalogPlanning -->|"preview_alter_table()"| CatalogAdministration
 MigrationCatalogPlanning -->|"validated next plan"| MigrationRunner
@@ -724,6 +751,7 @@ CatalogService -->|"extended by"| ConfigCatalog
 CatalogAdministration -->|"extended by"| ConfigAdministration
 MigrationLedger -->|"extended by"| ConfigMigrationLedger
 MigrationHistoryStore -->|"extended by"| ConfigMigrationHistory
+MigrationSchemaStateStore -->|"extended by"| ConfigMigrationSchemaState
 MigrationRecovery -->|"extended by"| ConfigMigrationRecovery
 TableStorage -->|"extended by"| ConfigStorage
 TableStorage -->|"extended by"| MemoryStorage
@@ -759,8 +787,8 @@ class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
 class Planner,PlanNode planning;
 class Executor,ForeignKeyValidation,MigrationRunner,MigrationService execution;
-class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationHistoryStore,MigrationCatalogPlanning,MigrationLedger,MigrationRecovery catalog;
+class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationHistoryStore,MigrationSchemaState,MigrationSchemaStateStore,MigrationCatalogPlanning,MigrationLedger,MigrationRecovery catalog;
 class TableStorage storage;
-class ConfigCatalog,ConfigAdministration,ConfigMigrationHistory,ConfigMigrationLedger,ConfigMigrationRecovery,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
+class ConfigCatalog,ConfigAdministration,ConfigMigrationHistory,ConfigMigrationSchemaState,ConfigMigrationLedger,ConfigMigrationRecovery,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
 class ResourceMaterialization storage;
 class Results,Materialization result;

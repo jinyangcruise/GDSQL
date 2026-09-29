@@ -62,6 +62,27 @@ func apply_migration(
 	return result
 
 
+func adopt_migration_baseline(
+		database_name: StringName,
+		history: Array[GDSQLMigrationDefinition],
+		schema_state: GDSQLMigrationSchemaState,
+) -> GDSQLOperationResult:
+	if _migration_service != null:
+		return _migration_service.adopt_baseline(
+			database_name,
+			history,
+			schema_state,
+		)
+	var result := GDSQLOperationResult.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_MIGRATION_SERVICE_UNAVAILABLE",
+			"Migrations require a durable ConfigFile authoring context.",
+		),
+	)
+	return result
+
+
 func recover_interrupted_migration(
 		database_name: StringName,
 		migration_id: String,

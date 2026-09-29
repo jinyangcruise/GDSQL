@@ -120,6 +120,87 @@ func test_history_store_detects_changed_authored_files() -> void:
 	)
 
 
+func test_schema_state_store_advances_verified_history_with_stale_protection() -> void:
+	var state_root := _history_root.path_join("states")
+	var store := GDSQLConfigFileMigrationSchemaStateStore.new(state_root)
+	var first := _add_level_migration("202609290001_add_level")
+	var second := _add_level_migration("202609290002_add_rank", &"rank")
+	var history: Array[GDSQLMigrationDefinition] = [first, second]
+	var first_state := GDSQLMigrationSchemaState.from_history(
+		&"game_state",
+		&"game_state",
+		history,
+		"a".repeat(64),
+		1,
+	)
+	var second_state := GDSQLMigrationSchemaState.from_history(
+		&"game_state",
+		&"game_state",
+		history,
+		"b".repeat(64),
+	)
+
+	assert_bool(store.save(first_state, "").is_successful()).is_true()
+	var replaced_first_state := GDSQLMigrationSchemaState.from_history(
+		&"game_state",
+		&"game_state",
+		history,
+		"c".repeat(64),
+		1,
+	)
+	var replaced := store.save(
+		replaced_first_state,
+		first_state.history_checksum,
+	)
+	assert_str(_first_code(replaced)).is_equal(
+		"GDSQL_MIGRATION_SCHEMA_STATE_DIVERGED",
+	)
+	var stale := store.save(second_state, "")
+	assert_str(_first_code(stale)).is_equal("GDSQL_MIGRATION_SCHEMA_STATE_STALE")
+	assert_bool(
+		store.save(second_state, first_state.history_checksum).is_successful(),
+	).is_true()
+
+	var loaded := store.load(&"game_state")
+	assert_bool(loaded.is_successful()).is_true()
+	var restored := loaded.get_value() as GDSQLMigrationSchemaState
+	assert_int(restored.history_count).is_equal(2)
+	assert_str(restored.migration_head_id).is_equal(second.migration_id)
+	assert_str(restored.schema_fingerprint).is_equal("b".repeat(64))
+	var rollback := store.save(first_state, second_state.history_checksum)
+	assert_str(_first_code(rollback)).is_equal(
+		"GDSQL_MIGRATION_SCHEMA_STATE_DIVERGED",
+	)
+
+
+func test_schema_state_supports_an_empty_authored_history_origin() -> void:
+	var history: Array[GDSQLMigrationDefinition] = []
+	var state := GDSQLMigrationSchemaState.from_history(
+		&"game_state",
+		&"game_state",
+		history,
+		"a".repeat(64),
+	)
+
+	assert_bool(state.is_valid()).is_true()
+	assert_int(state.history_count).is_equal(0)
+	assert_str(state.migration_head_id).is_empty()
+	assert_bool(state.matches_history_prefix(history)).is_true()
+	var store := GDSQLConfigFileMigrationSchemaStateStore.new(
+		_history_root.path_join("origin_states"),
+	)
+	assert_bool(store.save(state, "").is_successful()).is_true()
+	var changed_origin := GDSQLMigrationSchemaState.from_history(
+		&"game_state",
+		&"game_state",
+		history,
+		"b".repeat(64),
+	)
+	assert_bool(
+		store.save(changed_origin, state.history_checksum).is_successful(),
+	).is_true()
+
+
 func test_registration_defaults_and_persists_a_stable_migration_stream() -> void:
 	var registry_path := _history_root.path_join("databases.cfg")
 	var legacy := ConfigFile.new()

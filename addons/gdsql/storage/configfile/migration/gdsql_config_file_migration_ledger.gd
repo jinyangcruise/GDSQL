@@ -4,6 +4,7 @@ extends GDSQLMigrationLedger
 
 const FORMAT_VERSION := 1
 const METADATA_SECTION := "migration_ledger"
+const BASELINE_SECTION := "baseline"
 const RECORD_PREFIX := "migration:"
 
 var _path_resolver: GDSQLDatabasePathResolver
@@ -24,9 +25,20 @@ func load(database_name: StringName) -> GDSQLOperationResult:
 	if load_error == ERR_FILE_NOT_FOUND:
 		result.value = GDSQLMigrationLedgerSnapshot.new()
 		return result
-	if load_error != OK \
-			or int(config.get_value(METADATA_SECTION, "format_version", 0)) != FORMAT_VERSION:
+	var format_version := int(config.get_value(METADATA_SECTION, "format_version", 0))
+	if load_error != OK or format_version != FORMAT_VERSION:
 		return _error(result, &"GDSQL_MIGRATION_LEDGER_UNREADABLE", path)
+	var baseline: GDSQLMigrationBaseline
+	if config.has_section(BASELINE_SECTION):
+		baseline = GDSQLMigrationBaseline.new(
+			String(config.get_value(BASELINE_SECTION, "through_migration_id", "")),
+			String(config.get_value(BASELINE_SECTION, "through_checksum", "")),
+			String(config.get_value(BASELINE_SECTION, "history_checksum", "")),
+			int(config.get_value(BASELINE_SECTION, "adopted_at_unix_ms", 0)),
+			String(config.get_value(BASELINE_SECTION, "schema_fingerprint", "")),
+		)
+		if not baseline.is_valid():
+			return _error(result, &"GDSQL_MIGRATION_LEDGER_INVALID", path)
 	var order: Variant = config.get_value(
 		METADATA_SECTION,
 		"order",
@@ -36,7 +48,7 @@ func load(database_name: StringName) -> GDSQLOperationResult:
 		return _error(result, &"GDSQL_MIGRATION_LEDGER_INVALID", path)
 	var records: Array[GDSQLAppliedMigration] = []
 	var seen: Dictionary[String, bool] = { }
-	var previous_id := ""
+	var previous_id := baseline.through_migration_id if baseline != null else ""
 	for id_value in order:
 		var migration_id := String(id_value)
 		var section := RECORD_PREFIX + migration_id
@@ -57,14 +69,14 @@ func load(database_name: StringName) -> GDSQLOperationResult:
 		if section_name.begins_with(RECORD_PREFIX) \
 				and not seen.has(section_name.trim_prefix(RECORD_PREFIX)):
 			return _error(result, &"GDSQL_MIGRATION_LEDGER_INVALID", path)
-	result.value = GDSQLMigrationLedgerSnapshot.new(records)
+	result.value = GDSQLMigrationLedgerSnapshot.new(records, baseline)
 	return result
 
 
 func append(
 		database_name: StringName,
 		record: GDSQLAppliedMigration,
-		expected_record_count: int,
+		expected_ledger_revision: int,
 ) -> GDSQLOperationResult:
 	var loaded := self.load(database_name)
 	if not loaded.is_successful():
@@ -73,12 +85,12 @@ func append(
 	var result := GDSQLOperationResult.new()
 	var path := _path_resolver.resolve_migration_ledger_path(database_name)
 	if not DirAccess.dir_exists_absolute(
-			ProjectSettings.globalize_path(path.get_base_dir()),
+		ProjectSettings.globalize_path(path.get_base_dir()),
 	):
 		return _error(result, &"GDSQL_MIGRATION_DATABASE_NOT_FOUND", path)
 	if record == null or not record.is_valid():
 		return _error(result, &"GDSQL_MIGRATION_RECORD_INVALID", path)
-	if snapshot.records.size() != expected_record_count:
+	if snapshot.revision() != expected_ledger_revision:
 		return _error(result, &"GDSQL_MIGRATION_LEDGER_STALE", path)
 	if snapshot.find(record.migration_id) != null \
 			or not snapshot.last_id().is_empty() and record.migration_id <= snapshot.last_id():
@@ -102,6 +114,45 @@ func append(
 	return result
 
 
+func adopt_baseline(
+		database_name: StringName,
+		baseline: GDSQLMigrationBaseline,
+		expected_ledger_revision: int,
+) -> GDSQLOperationResult:
+	var loaded := self.load(database_name)
+	if not loaded.is_successful():
+		return loaded
+	var snapshot := loaded.get_value() as GDSQLMigrationLedgerSnapshot
+	var result := GDSQLOperationResult.new()
+	var path := _path_resolver.resolve_migration_ledger_path(database_name)
+	if not DirAccess.dir_exists_absolute(
+		ProjectSettings.globalize_path(path.get_base_dir()),
+	):
+		return _error(result, &"GDSQL_MIGRATION_DATABASE_NOT_FOUND", path)
+	if baseline == null or not baseline.is_valid():
+		return _error(result, &"GDSQL_MIGRATION_BASELINE_INVALID", path)
+	if snapshot.revision() != expected_ledger_revision:
+		return _error(result, &"GDSQL_MIGRATION_LEDGER_STALE", path)
+	if snapshot.revision() != 0:
+		return _error(result, &"GDSQL_MIGRATION_BASELINE_ALREADY_ESTABLISHED", path)
+	var config := ConfigFile.new()
+	config.set_value(METADATA_SECTION, "format_version", FORMAT_VERSION)
+	config.set_value(METADATA_SECTION, "order", PackedStringArray())
+	config.set_value(
+		BASELINE_SECTION,
+		"through_migration_id",
+		baseline.through_migration_id,
+	)
+	config.set_value(BASELINE_SECTION, "through_checksum", baseline.through_checksum)
+	config.set_value(BASELINE_SECTION, "history_checksum", baseline.history_checksum)
+	config.set_value(BASELINE_SECTION, "adopted_at_unix_ms", baseline.adopted_at_unix_ms)
+	config.set_value(BASELINE_SECTION, "schema_fingerprint", baseline.schema_fingerprint)
+	if config.save(path) != OK:
+		return _error(result, &"GDSQL_MIGRATION_LEDGER_SAVE_FAILED", path)
+	result.value = baseline
+	return result
+
+
 func _error(
 		result: GDSQLOperationResult,
 		code: StringName,
@@ -111,7 +162,7 @@ func _error(
 		GDSQLQueryDiagnostic.new(
 			code,
 			"Could not use migration ledger%s." % (
-				" '%s'" % path if not path.is_empty() else ""
+					" '%s'" % path if not path.is_empty() else ""
 			),
 		),
 	)

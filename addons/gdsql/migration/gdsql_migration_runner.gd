@@ -31,7 +31,7 @@ func apply(plan: GDSQLMigrationCatalogPlan) -> GDSQLMigrationRunResult:
 	if not result.is_successful():
 		return result
 	var ledger := loaded.get_value() as GDSQLMigrationLedgerSnapshot
-	if ledger == null or ledger.records.size() != plan.expected_ledger_count:
+	if ledger == null or ledger.revision() != plan.expected_ledger_revision:
 		return _error(
 			result,
 			&"GDSQL_MIGRATION_RUN_PLAN_STALE",
@@ -46,8 +46,9 @@ func apply(plan: GDSQLMigrationCatalogPlan) -> GDSQLMigrationRunResult:
 			&"GDSQL_MIGRATION_SCHEMA_FINGERPRINT_FAILED",
 			"Could not fingerprint the current database schema.",
 		)
-	if not ledger.records.is_empty() \
-			and ledger.records[-1].schema_fingerprint != current_fingerprint:
+	var previous_fingerprint := ledger.last_schema_fingerprint()
+	if not previous_fingerprint.is_empty() \
+			and previous_fingerprint != current_fingerprint:
 		return _error(
 			result,
 			&"GDSQL_MIGRATION_SCHEMA_DRIFT",
@@ -87,7 +88,7 @@ func apply(plan: GDSQLMigrationCatalogPlan) -> GDSQLMigrationRunResult:
 	var appended := _ledger.append(
 		plan.database_name,
 		record,
-		plan.expected_ledger_count,
+		plan.expected_ledger_revision,
 	)
 	result.diagnostics.merge(appended.diagnostics)
 	if not appended.is_successful():
@@ -108,7 +109,7 @@ func _validate_plan(plan: GDSQLMigrationCatalogPlan) -> GDSQLOperationResult:
 			"Migration execution requires catalog, ledger, and recovery services.",
 		)
 	if plan == null or plan.migration == null or plan.change_plan == null \
-			or not plan.migration.is_valid() or plan.expected_ledger_count < 0:
+			or not plan.migration.is_valid() or plan.expected_ledger_revision < 0:
 		return _error(
 			result,
 			&"GDSQL_MIGRATION_RUN_PLAN_INVALID",

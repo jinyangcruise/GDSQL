@@ -46,8 +46,8 @@ func preview_next(
 			result,
 			&"GDSQL_MIGRATION_MULTI_STEP_PREVIEW_UNSUPPORTED",
 			(
-				"Migration '%s' has %d table steps; the initial dry-run boundary "
-				+ "requires one table step per migration."
+					"Migration '%s' has %d table steps; the initial dry-run boundary "
+					+ "requires one table step per migration."
 			) % [migration.migration_id, migration.steps.size()],
 		)
 	var step := migration.steps[0]
@@ -70,7 +70,7 @@ func preview_next(
 		database_name,
 		migration,
 		change_plan,
-		history_plan.applied_count,
+		history_plan.ledger_revision,
 	)
 	return result
 

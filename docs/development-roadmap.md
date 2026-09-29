@@ -49,7 +49,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Versioned migration v1 and compatibility policy | Runtime/API and project history persistence are tested; editor authoring, pending-history presentation, and destructive confirmation are implemented; live-editor verification and release matrices remain |
+| High — first | Versioned migration v1 foundation | Runtime/API, project history, recovery, verified baseline adoption, and trusted schema-state persistence are implemented; startup coordination, lifecycle steps, live-editor verification, and release matrices remain |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
@@ -330,7 +330,13 @@ slice provides:
 2. Forward-only typed schema steps built from the existing
    `GDSQLTableAlteration` vocabulary. Implemented.
 3. A persisted applied-migration ledger and schema fingerprint. Implemented
-   and enforced by the runner before and after catalog application.
+   and enforced by preview and the runner before and after catalog application.
+   Pre-existing current-schema databases can establish one explicit baseline
+   after their typed project-owned schema state, current fingerprint, and
+   complete authored history prefix are verified. A baseline is distinct from
+   applied records. Project schema state is persisted per stable stream with
+   stale-safe, staged replacement, and the editor advances it only after the
+   durable catalog is confirmed at the authored head.
 4. Dry-run planning with affected objects, destructive classification, and
    structured diagnostics. Implemented for the next pending migration under
    the v1 one-table-step-per-migration rule; later multi-table orchestration
@@ -353,6 +359,28 @@ bypass the ledger; table/database lifecycle migrations remain a later v1
 extension.
 Live-editor workflow verification, broader interruption coverage, and
 supported-version matrices remain part of release QA.
+
+Automatic runtime migration is not implemented yet. Its version-controlled
+schema-state boundary now maps a migration stream/head to the expected
+whole-schema fingerprint. The next slice is the startup coordinator, which
+can then:
+
+1. load the registration's stable migration stream and trusted schema state;
+2. adopt a baseline only for an empty ledger whose current schema matches that
+   state exactly;
+3. recover any interrupted migration before planning;
+4. apply pending migrations one at a time through the existing recovery-safe
+   runner; and
+5. open gameplay models only after the target head is reached.
+
+It must never infer a baseline merely because a ledger is absent, and callers
+must not compute a candidate database fingerprint and pass that same value back
+as independent evidence. Fresh database creation and database removal also need
+explicit ledger lifecycle rules before startup migration is enabled by default.
+
+The migration formats under development target the addon's first public 1.0.
+They may be corrected directly while unreleased; compatibility work begins
+when a persisted format is shipped as supported public behavior.
 
 Later slices add canonical data transformations, multi-table orchestration,
 and migration of older `user://` saves. Fresh databases and saves start at the

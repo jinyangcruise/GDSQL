@@ -11,5 +11,13 @@ func load(database_name: StringName) -> GDSQLOperationResult
 func append(
 		database_name: StringName,
 		record: GDSQLAppliedMigration,
-		expected_record_count: int,
+		expected_ledger_revision: int,
+) -> GDSQLOperationResult
+
+
+@abstract
+func adopt_baseline(
+		database_name: StringName,
+		baseline: GDSQLMigrationBaseline,
+		expected_ledger_revision: int,
 ) -> GDSQLOperationResult

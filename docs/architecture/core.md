@@ -1848,6 +1848,18 @@ boundary for typed steps and every current `GDSQLTableAlteration` shape. Loading
 recomputes and compares the authored checksum; edited, renamed, malformed,
 duplicate, or out-of-order entries return structured diagnostics.
 
+`GDSQLMigrationSchemaState` is project-owned trust evidence for one migration
+stream and logical database. It records an authored-history count and head, the
+checksum of that exact prefix, and the whole-schema fingerprint produced at
+that position. `GDSQLMigrationSchemaStateStore` persists this evidence
+independently from both authored definitions and per-database applied ledgers.
+The ConfigFile implementation uses
+`res://.gdsql/migration_states/<stream>.cfg`, stale-checks updates, prevents an
+established history position from being replaced, and activates staged writes
+with recovery of the previous file. The empty-history origin may change while
+the initial schema is still being designed; after a migration head exists,
+advancement requires a later history position.
+
 `GDSQLMigrationLedger` is the persistence contract for append-only applied
 history. `GDSQLAppliedMigration` records the exact migration ID and checksum,
 application time, and resulting whole-schema fingerprint. Both checksums are
@@ -1856,21 +1868,41 @@ database name and sorted tables, indexes, and foreign keys while preserving
 semantic column and key order.
 `GDSQLConfigFileMigrationLedger` stores the ordered ledger at
 `<data_root>/<database>/migrations.cfg`; the path remains owned by
-`GDSQLDatabasePathResolver`. Appends carry an expected record count so stale
-planners cannot silently extend a changed ledger.
+`GDSQLDatabasePathResolver`.
+
+An existing current-schema database can establish one explicit
+`GDSQLMigrationBaseline` before ordinary applied records exist. The baseline is
+not a synthetic applied migration. It records the adopted history head and its
+checksum, a checksum of the complete adopted history prefix, adoption time,
+and the verified whole-schema fingerprint. Adoption requires the caller's
+typed project-owned schema state to match both the authored history prefix and
+current catalog fingerprint. Adoption is rejected after any baseline or
+applied record exists. This makes an empty
+ledger unambiguous without claiming that historical migrations were executed.
+Calculating a fingerprint from the candidate database and immediately passing
+it back does not constitute independent verification.
+
+Ledger mutations carry an expected ledger revision. A baseline contributes one
+revision and each applied record contributes one, so stale planners cannot
+silently append to or re-baseline changed evidence. The ConfigFile backend
+uses one initial-1.0 ledger format containing the optional baseline and ordered
+applied records. There is no pre-release format compatibility branch.
 
 `GDSQLMigrationPlanner` compares authored definitions with the applied ledger.
-Applied records must be an exact prefix: absent authored history, reordered
-IDs, checksum changes, malformed records, and divergent IDs return structured
-diagnostics. A successful `GDSQLMigrationPlan` contains only the pending suffix
-and reports whether it contains destructive alterations.
+Without a baseline, applied records must be an exact prefix. With a baseline,
+the adopted prefix checksum must still match and ordinary records must be the
+exact suffix immediately after that prefix. Absent authored history, reordered
+IDs, checksum changes, malformed evidence, and divergent IDs return structured
+diagnostics. A successful `GDSQLMigrationPlan` contains only the pending suffix,
+reports whether it contains destructive alterations, and carries the current
+ledger revision.
 
 `GDSQLMigrationCatalogPlanner` receives catalog administration through
 constructor injection and previews only the next pending history entry.
 `preview_next()` delegates schema validation to `preview_alter_table()` and
 returns a `GDSQLMigrationCatalogPlan` containing the migration identity, its
 stale-safe `GDSQLCatalogChangePlan`, affected rows and summaries, and the
-expected applied-ledger count. Previewing does not mutate schema, rows, or the
+expected applied-ledger revision. Previewing does not mutate schema, rows, or the
 ledger.
 
 Migration v1 authors one table step per migration. This makes every preview
@@ -1907,7 +1939,7 @@ checksum, and catalog alterations must describe the same migration.
 
 After those preconditions pass, the runner creates a durable backup, applies
 the stale-safe catalog plan, fingerprints the resulting schema, and appends one
-`GDSQLAppliedMigration` with the plan's expected ledger count. A catalog,
+`GDSQLAppliedMigration` with the plan's expected ledger revision. A catalog,
 fingerprint, or ledger failure restores the complete backup automatically. The
 backup is discarded only after successful ledger persistence or successful
 recovery. Cleanup failure retains the backup and reports a warning without
@@ -1919,12 +1951,15 @@ not infer migrations, apply multiple pending entries at once, or bypass catalog
 validation.
 
 `GDSQLMigrationService` is the supported orchestration boundary above those
-components. `preview()` loads the durable ledger, validates the complete
+components. `preview()` loads the durable ledger, checks the current schema
+against the last baseline or applied fingerprint, validates the complete
 authored history, and returns `GDSQLMigrationPreviewResult`. An up-to-date
-history is a successful preview with no next catalog plan. `apply()` delegates
-one explicitly previewed plan to the runner. These operations are exposed by
-`GDSQLDatabase.preview_migrations()` and `apply_migration()` so callers do not
-compose backend migration services themselves.
+history is a successful preview with no next catalog plan. `adopt_baseline()`
+verifies and persists initial evidence for a pre-existing current-schema
+database. `apply()` delegates one explicitly previewed plan to the runner.
+These operations are exposed by `GDSQLDatabase.preview_migrations()`,
+`adopt_migration_baseline()`, and `apply_migration()` so callers do not compose
+backend migration services themselves.
 
 `recover_interrupted()` resolves a named durable backup against the current
 ledger. If the migration is absent and no later migration is recorded, it
@@ -1955,7 +1990,10 @@ its first definition, the database document disables direct structural saves;
 bypassing the ledger would invalidate its recorded schema fingerprint. The v1
 editor therefore keeps database rename, new-table, and multi-table drafts
 reversible but unapplied once history has started, until later migration steps
-cover those lifecycle changes.
+cover those lifecycle changes. Whenever editor preview confirms that the
+durable database is at the authored history head, the editor advances its
+project schema state. State persistence failure is reported as a warning and
+does not recast an already committed catalog migration as failed.
 
 ---
 
@@ -2504,7 +2542,8 @@ res://
 ├── .gdsql/
 │   ├── settings.cfg            # Project/tool settings only
 │   ├── graphs/                 # Editor query graph documents
-│   └── migrations/             # Project-owned schema history by stream
+│   ├── migrations/             # Project-owned schema history by stream
+│   └── migration_states/       # Trusted history-head schema evidence
 └── data/
     ├── databases.cfg           # Database catalog
     └── <database>/

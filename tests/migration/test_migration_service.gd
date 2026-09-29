@@ -62,6 +62,152 @@ func test_database_api_rejects_a_plan_for_another_database() -> void:
 	)
 
 
+func test_database_api_adopts_verified_baseline_then_previews_only_new_history() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	var existing := _migration("202609290001_existing_schema")
+	var next := GDSQLMigrationDefinition.new(
+		"202609290002_add_rank",
+		"Add rank",
+		[
+			GDSQLSchemaMigrationStep.new(
+				&"heroes",
+				[_add_int_column(&"rank")],
+			),
+		],
+	)
+	var history: Array[GDSQLMigrationDefinition] = [existing, next]
+	var fingerprint := GDSQLSchemaFingerprint.compute(
+		database.context.catalog.get_database(database.database_name),
+	)
+	var state := GDSQLMigrationSchemaState.from_history(
+		&"heroes",
+		database.database_name,
+		history,
+		fingerprint,
+		1,
+	)
+
+	var adopted := database.adopt_migration_baseline(
+		history,
+		state,
+	)
+
+	assert_bool(adopted.is_successful()).is_true()
+	var baseline := adopted.get_value() as GDSQLMigrationBaseline
+	assert_str(baseline.through_migration_id).is_equal(existing.migration_id)
+	assert_bool(baseline.is_valid()).is_true()
+	var preview := database.preview_migrations(history)
+	assert_bool(preview.is_successful()).is_true()
+	assert_str(preview.next_plan.migration.migration_id).is_equal(next.migration_id)
+	assert_int(preview.next_plan.expected_ledger_revision).is_equal(1)
+	assert_bool(database.apply_migration(preview.next_plan).is_successful()).is_true()
+	assert_bool(database.preview_migrations(history).is_up_to_date()).is_true()
+	assert_object(
+		database.context.catalog.get_table(database.database_name, &"heroes") \
+				.get_column(&"rank"),
+	).is_not_null()
+
+
+func test_database_api_adopts_an_empty_history_origin_before_first_migration() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	var migration := _migration("202609290001_add_level")
+	var history: Array[GDSQLMigrationDefinition] = [migration]
+	var fingerprint := GDSQLSchemaFingerprint.compute(
+		database.context.catalog.get_database(database.database_name),
+	)
+	var origin := GDSQLMigrationSchemaState.from_history(
+		&"heroes",
+		database.database_name,
+		history,
+		fingerprint,
+		0,
+	)
+
+	assert_bool(
+		database.adopt_migration_baseline(history, origin).is_successful(),
+	).is_true()
+	var preview := database.preview_migrations(history)
+	assert_bool(preview.is_successful()).is_true()
+	assert_str(preview.next_plan.migration.migration_id).is_equal(
+		migration.migration_id,
+	)
+	assert_int(preview.next_plan.expected_ledger_revision).is_equal(1)
+
+
+func test_database_api_rejects_unverified_or_repeated_baseline_adoption() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	var migration := _migration("202609290001_existing_schema")
+	var history: Array[GDSQLMigrationDefinition] = [migration]
+	var fingerprint := GDSQLSchemaFingerprint.compute(
+		database.context.catalog.get_database(database.database_name),
+	)
+	var mismatch_state := GDSQLMigrationSchemaState.from_history(
+		&"heroes",
+		database.database_name,
+		history,
+		"b".repeat(64),
+	)
+
+	var mismatch := database.adopt_migration_baseline(
+		history,
+		mismatch_state,
+	)
+	assert_str(_first_code(mismatch)).is_equal(
+		"GDSQL_MIGRATION_BASELINE_SCHEMA_MISMATCH",
+	)
+	assert_bool(
+		database.adopt_migration_baseline(
+			history,
+			GDSQLMigrationSchemaState.from_history(
+				&"heroes",
+				database.database_name,
+				history,
+				fingerprint,
+			),
+		).is_successful(),
+	).is_true()
+	var repeated := database.adopt_migration_baseline(
+		history,
+		GDSQLMigrationSchemaState.from_history(
+			&"heroes",
+			database.database_name,
+			history,
+			fingerprint,
+		),
+	)
+	assert_str(_first_code(repeated)).is_equal(
+		"GDSQL_MIGRATION_BASELINE_ALREADY_ESTABLISHED",
+	)
+
+
+func test_database_api_detects_schema_drift_from_an_adopted_baseline() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	var migration := _migration("202609290001_existing_schema")
+	var history: Array[GDSQLMigrationDefinition] = [migration]
+	var fingerprint := GDSQLSchemaFingerprint.compute(
+		database.context.catalog.get_database(database.database_name),
+	)
+	assert_bool(
+		database.adopt_migration_baseline(
+			history,
+			GDSQLMigrationSchemaState.from_history(
+				&"heroes",
+				database.database_name,
+				history,
+				fingerprint,
+			),
+		).is_successful(),
+	).is_true()
+	assert_bool(
+		database.alter_table(&"heroes", [_add_int_column(&"rank")]).is_successful(),
+	).is_true()
+
+	var preview := database.preview_migrations(history)
+
+	assert_bool(preview.is_successful()).is_false()
+	assert_str(_first_code(preview)).is_equal("GDSQL_MIGRATION_SCHEMA_DRIFT")
+
+
 func test_in_memory_context_reports_migration_service_unavailable() -> void:
 	var durable := TestDatabase.create_heroes_database(_data_root)
 	var context := GDSQLRuntimeFactory.create_in_memory(_data_root)
@@ -91,7 +237,7 @@ func test_interrupted_uncommitted_migration_restores_verified_backup() -> void:
 		database.alter_table(&"heroes", alterations).is_successful(),
 	).is_true()
 	assert_bool(
-		database.insert(&"heroes", {&"id": 3, &"name": "Rogue", &"rank": 4}) \
+		database.insert(&"heroes", { &"id": 3, &"name": "Rogue", &"rank": 4 }) \
 				.is_successful(),
 	).is_true()
 
