@@ -339,6 +339,25 @@ static func _create_context(
 		function_registry,
 		cancellation,
 	)
+	var migration_service: GDSQLMigrationService
+	if storage is GDSQLConfigFileTableStorage:
+		var ledger := GDSQLConfigFileMigrationLedger.new(path_resolver)
+		var recovery := GDSQLConfigFileMigrationRecoveryStore.new(
+			path_resolver,
+			cache,
+		)
+		migration_service = GDSQLMigrationService.new(
+			ledger,
+			GDSQLMigrationPlanner.new(),
+			GDSQLMigrationCatalogPlanner.new(catalog_administration),
+			GDSQLMigrationRunner.new(
+				catalog,
+				catalog_administration,
+				ledger,
+				recovery,
+			),
+			recovery,
+		)
 	return GDSQLDatabaseContext.new(
 		catalog,
 		catalog_administration,
@@ -347,6 +366,7 @@ static func _create_context(
 		GDSQLDefaultQueryPlanner.new(storage.get_capabilities()),
 		GDSQLDefaultQueryExecutor.new(),
 		execution_context,
+		migration_service,
 	)
 
 

@@ -49,7 +49,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Versioned migration v1 and compatibility policy | History, catalog dry-run, recovery-safe single-migration execution, ledger evidence, and schema-drift checks implemented; public composition and editor authoring remain |
+| High — first | Versioned migration v1 and compatibility policy | Runtime/API slice implemented and tested; editor history authoring, destructive confirmation, and release matrices remain |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
@@ -322,9 +322,9 @@ The architecture now includes the initial migration boundary. The complete v1
 slice provides:
 
 1. Stable ordered migration IDs, descriptions, checksums, and an explicit
-   target database composition. IDs, checksums, and history planning are
-   implemented; the runner validates its target database and catalog plan.
-   Public facade composition remains.
+   target database composition. Implemented through the durable ConfigFile
+   runtime factory and public database facade; cross-database plans are
+   rejected.
 2. Forward-only typed schema steps built from the existing
    `GDSQLTableAlteration` vocabulary. Implemented.
 3. A persisted applied-migration ledger and schema fingerprint. Implemented
@@ -338,12 +338,13 @@ slice provides:
    reload, explicit cleanup, and cache invalidation.
 6. Headless validation suitable for professional-team CI.
 
-The recovery-safe runner now applies one previewed migration, records its
-resulting schema fingerprint, and restores the complete snapshot after catalog,
-fingerprint, or ledger failure. The remaining v1 product work is the public
-database/editor composition that authors history, previews the next entry,
-requests destructive confirmation, and invokes this runner. Broader
-interruption and supported-version matrices remain part of release QA.
+The recovery-safe runner applies one previewed migration, records its resulting
+schema fingerprint, and restores the complete snapshot after catalog,
+fingerprint, or ledger failure. The public database API now previews complete
+history, applies one plan, reports an up-to-date state, and resolves leftover
+backups safely after interruption. The remaining v1 product work is editor
+history authoring and destructive confirmation. Broader interruption and
+supported-version matrices remain part of release QA.
 
 Later slices add canonical data transformations, multi-table orchestration,
 and migration of older `user://` saves. Fresh databases and saves start at the

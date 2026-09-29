@@ -1897,8 +1897,33 @@ misreporting an otherwise committed migration as failed.
 `GDSQLMigrationRunResult` exposes the applied record, backup identity,
 automatic-recovery status, and whether recovery files remain. The runner does
 not infer migrations, apply multiple pending entries at once, or bypass catalog
-validation. Public composition and editor authoring remain separate product
-flows over this execution boundary.
+validation.
+
+`GDSQLMigrationService` is the supported orchestration boundary above those
+components. `preview()` loads the durable ledger, validates the complete
+authored history, and returns `GDSQLMigrationPreviewResult`. An up-to-date
+history is a successful preview with no next catalog plan. `apply()` delegates
+one explicitly previewed plan to the runner. These operations are exposed by
+`GDSQLDatabase.preview_migrations()` and `apply_migration()` so callers do not
+compose backend migration services themselves.
+
+`recover_interrupted()` resolves a named durable backup against the current
+ledger. If the migration is absent and no later migration is recorded, it
+restores the verified snapshot. If the ledger already contains the migration,
+the schema and ledger commit completed and only backup cleanup was interrupted,
+so the backup is discarded without restoring it. A missing migration followed
+by a later applied ID is divergent history and is never recovered
+automatically. `GDSQLMigrationRecoveryResult` reports which action occurred and
+whether cleanup remains pending.
+
+`GDSQLRuntimeFactory.create_default()` composes this service for durable
+ConfigFile databases and injects the same path resolver and ConfigFile cache
+used by catalog and table storage. This shared cache is required so a restored
+directory cannot leave stale rows visible in the active context. In-memory
+runtime contexts do not expose migrations: schema history belongs to their
+durable ConfigFile authoring source, which must migrate before hydration.
+Editor history authoring and destructive confirmation remain a separate
+product flow over this public API.
 
 ---
 

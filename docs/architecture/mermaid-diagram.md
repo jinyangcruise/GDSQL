@@ -435,6 +435,14 @@ MigrationRunner("`**GDSQLMigrationRunner**
 *Success:* Apply catalog plan, fingerprint result, append ledger, discard backup
 *Failure:* Restore complete backup and retain structured diagnostics`")
 
+MigrationService("`**GDSQLMigrationService**
+
+-
+*Purpose:* Supported preview, apply and interruption-recovery orchestration
+*API:* preview(), apply(), recover_interrupted()
+*Results:* Up-to-date or next plan; applied record; restored or cleanup-only recovery
+*Composition:* Durable ConfigFile authoring contexts only`")
+
 TableStorage("`**GDSQLTableStorage**
 
 -
@@ -598,6 +606,7 @@ Expr -->|"creates canonical nodes"| Expression
 Expression -->|"contained by"| QuerySpec
 
 Database -->|"execute(query) · lifecycle methods"| Context
+Context -->|"preview · apply · recover migration"| MigrationService
 Database -->|"transaction(callback)"| Transaction
 Code -->|"register handles · select roles"| RuntimeRegistry
 Code -->|"bootstrap · role databases · checkpoints"| RuntimeSession
@@ -636,6 +645,11 @@ McpAdapter -.->|"profile readiness"| DirectSetup
 McpAdapter -.->|"managed readiness"| ManagedSetup
 Workbench -->|"preview · apply change plan"| CatalogAdministration
 MigrationHistory -->|"compare authored and applied prefix"| MigrationLedger
+MigrationService -->|"validate complete authored history"| MigrationHistory
+MigrationService -->|"preview next pending entry"| MigrationCatalogPlanning
+MigrationService -->|"apply one validated plan"| MigrationRunner
+MigrationService -->|"resolve leftover backup against ledger"| MigrationRecovery
+MigrationService -->|"detect committed migration"| MigrationLedger
 MigrationHistory -->|"preview next pending entry"| MigrationCatalogPlanning
 MigrationCatalogPlanning -->|"preview_alter_table()"| CatalogAdministration
 MigrationCatalogPlanning -->|"validated next plan"| MigrationRunner
@@ -717,7 +731,7 @@ class Translators translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
 class Planner,PlanNode planning;
-class Executor,ForeignKeyValidation,MigrationRunner execution;
+class Executor,ForeignKeyValidation,MigrationRunner,MigrationService execution;
 class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationCatalogPlanning,MigrationLedger,MigrationRecovery catalog;
 class TableStorage storage;
 class ConfigCatalog,ConfigAdministration,ConfigMigrationLedger,ConfigMigrationRecovery,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;

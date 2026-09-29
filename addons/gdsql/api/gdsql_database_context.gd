@@ -8,6 +8,7 @@ var validator: GDSQLQueryValidator
 var planner: GDSQLQueryPlanner
 var executor: GDSQLQueryExecutor
 var execution_context: GDSQLExecutionContext
+var _migration_service: GDSQLMigrationService
 
 
 func _init(
@@ -18,6 +19,7 @@ func _init(
 		_planner: GDSQLQueryPlanner = null,
 		_executor: GDSQLQueryExecutor = null,
 		_execution_context: GDSQLExecutionContext = null,
+		_migration_service: GDSQLMigrationService = null,
 ) -> void:
 	catalog = _catalog
 	catalog_administration = _catalog_administration
@@ -26,6 +28,54 @@ func _init(
 	planner = _planner
 	executor = _executor
 	execution_context = _execution_context
+	self._migration_service = _migration_service
+
+
+func preview_migrations(
+		database_name: StringName,
+		history: Array[GDSQLMigrationDefinition],
+) -> GDSQLMigrationPreviewResult:
+	if _migration_service != null:
+		return _migration_service.preview(database_name, history)
+	var result := GDSQLMigrationPreviewResult.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_MIGRATION_SERVICE_UNAVAILABLE",
+			"Migrations require a durable ConfigFile authoring context.",
+		),
+	)
+	return result
+
+
+func apply_migration(
+		plan: GDSQLMigrationCatalogPlan,
+) -> GDSQLMigrationRunResult:
+	if _migration_service != null:
+		return _migration_service.apply(plan)
+	var result := GDSQLMigrationRunResult.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_MIGRATION_SERVICE_UNAVAILABLE",
+			"Migrations require a durable ConfigFile authoring context.",
+		),
+	)
+	return result
+
+
+func recover_interrupted_migration(
+		database_name: StringName,
+		migration_id: String,
+) -> GDSQLMigrationRecoveryResult:
+	if _migration_service != null:
+		return _migration_service.recover_interrupted(database_name, migration_id)
+	var result := GDSQLMigrationRecoveryResult.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_MIGRATION_SERVICE_UNAVAILABLE",
+			"Migrations require a durable ConfigFile authoring context.",
+		),
+	)
+	return result
 
 
 func create_database(database_name: StringName) -> GDSQLCatalogOperationResult:

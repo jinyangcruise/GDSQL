@@ -217,11 +217,14 @@ state in the same change as implementation or test work.
 | `MigrationPlan` | Migration planning | Reports the applied count, pending suffix, and destructive classification before catalog-specific dry-run plans are built. | `is_up_to_date()` | 🧪 |
 | `MigrationCatalogPlanner` | Migration planning | Non-mutating composer that previews the next pending, single-table-step migration through injected catalog administration and returns structured diagnostics for unsupported shapes. | `preview_next()` | 🧪 |
 | `MigrationCatalogPlan` | Migration planning | Carries the pending migration identity, stale-safe catalog change plan, affected rows, summaries, destructive status, and expected ledger count into the later recovery-safe runner. | `affected_rows()`, `summaries()`, `requires_confirmation()` | 🧪 |
+| `MigrationPreviewResult` | Migration result | Carries validated full-history status and, when pending, the next stale-safe catalog migration plan. An up-to-date history is a successful result. | `is_up_to_date()`, `requires_confirmation()` | 🧪 |
 | `MigrationBackup` | Migration recovery | Durable identity and SHA-256 integrity evidence for one complete pre-migration database snapshot. | Typed fields, `is_valid()` | 🧪 |
 | `MigrationRecoveryStore` | Migration recovery | Backend-neutral boundary for creating, reloading, restoring, and explicitly discarding pre-migration snapshots. | `create_backup()`, `load_backup()`, `restore()`, `discard()` | 🧪 |
 | `ConfigFileMigrationRecoveryStore` | Migration backend | Creates fingerprinted whole-database snapshots and restores them with a staged directory swap and cache invalidation. | MigrationRecoveryStore implementation | 🧪 |
 | `MigrationRunner` | Migration execution | Validates a catalog preview against current history and schema, creates recovery state, applies one catalog plan, fingerprints the result, appends the ledger, and automatically restores on failure. | `apply()` | 🧪 |
 | `MigrationRunResult` | Migration result | Reports the applied record, backup identity, automatic recovery outcome, and retained-cleanup state without hiding stage diagnostics. | `complete()`, typed outcome fields | 🧪 |
+| `MigrationService` | Migration orchestration | Composes durable history preview, one-plan execution, and restart-safe recovery behind the supported database API. | `preview()`, `apply()`, `recover_interrupted()` | 🧪 |
+| `MigrationRecoveryResult` | Migration result | Distinguishes restoration of an uncommitted migration from cleanup of a committed migration's leftover backup. | `restored_database()`, typed status and cleanup fields | 🧪 |
 
 ## Storage
 

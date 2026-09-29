@@ -137,6 +137,34 @@ func apply_change_plan(
 	return context.apply_change_plan(plan)
 
 
+func preview_migrations(
+		history: Array[GDSQLMigrationDefinition],
+) -> GDSQLMigrationPreviewResult:
+	return context.preview_migrations(database_name, history)
+
+
+func apply_migration(
+		plan: GDSQLMigrationCatalogPlan,
+) -> GDSQLMigrationRunResult:
+	if plan != null and plan.database_name != database_name:
+		var result := GDSQLMigrationRunResult.new()
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_MIGRATION_PLAN_DATABASE_MISMATCH",
+				"Migration plan targets database '%s', not '%s'." \
+						% [plan.database_name, database_name],
+			),
+		)
+		return result
+	return context.apply_migration(plan)
+
+
+func recover_interrupted_migration(
+		migration_id: String,
+) -> GDSQLMigrationRecoveryResult:
+	return context.recover_interrupted_migration(database_name, migration_id)
+
+
 func insert(table_name: StringName, values: Dictionary) -> GDSQLQueryResult:
 	var query_spec := query().insert().into_table(table_name).values(values).build()
 	return execute(query_spec)
