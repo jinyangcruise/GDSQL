@@ -1613,6 +1613,7 @@ func _delete_save_slot(registration_name: StringName) -> GDSQLOperationResult:
 	var planned := GDSQLSaveSlotDeletionPlan.build(
 		registration,
 		_get_role_registration(GDSQLDatabaseRegistry.SAVE_ROLE),
+		workbench.get_registrations(),
 	)
 	if not planned.is_successful():
 		_record_result("Delete save slot data", planned)
@@ -1625,7 +1626,15 @@ func _delete_save_slot(registration_name: StringName) -> GDSQLOperationResult:
 		var dropped := workbench.active_session.database.drop()
 		result.diagnostics.merge(dropped.diagnostics)
 	if result.is_successful():
-		var removed := workbench.remove_registration(plan.registration_name)
+		var removed := (
+			workbench.remove_registration_and_rebind(
+				plan.registration_name,
+				GDSQLDatabaseRegistry.SAVE_ROLE,
+				plan.fallback_registration_name,
+			)
+			if plan.was_active and plan.fallback_registration_name != &""
+			else workbench.remove_registration(plan.registration_name)
+		)
 		result.diagnostics.merge(removed.diagnostics)
 	if result.is_successful():
 		_workspace.close_registration(plan.registration_name)

@@ -345,6 +345,40 @@ func test_workbench_persists_updated_migration_stream() -> void:
 	)
 
 
+func test_workbench_removes_active_registration_and_rebinds_in_one_snapshot() -> void:
+	var store := GDSQLConfigFileDatabaseRegistryStore.new(
+		_data_root.path_join("registry.cfg"),
+	)
+	var registry := GDSQLDatabaseRegistry.new(store)
+	var snapshot := GDSQLDatabaseRegistrySnapshot.new()
+	snapshot.registrations = [
+		GDSQLDatabaseRegistration.new(&"save_1", &"game_state", "user://save_1"),
+		GDSQLDatabaseRegistration.new(&"save_2", &"game_state", "user://save_2"),
+	]
+	snapshot.role_bindings = [
+		GDSQLDatabaseRoleBinding.new(GDSQLDatabaseRegistry.SAVE_ROLE, &"save_2"),
+	]
+	assert_bool(registry.save_snapshot(snapshot).is_successful()).is_true()
+	var workbench := GDSQLWorkbench.new(
+		registry,
+		GDSQLConfigFileDatabaseExplorer.new(),
+	)
+	assert_bool(workbench.load().is_successful()).is_true()
+
+	var removed := workbench.remove_registration_and_rebind(
+		&"save_2",
+		GDSQLDatabaseRegistry.SAVE_ROLE,
+		&"save_1",
+	)
+
+	assert_bool(removed.is_successful()).is_true()
+	assert_object(workbench.get_registration(&"save_2")).is_null()
+	var restored := registry.load_snapshot().get_value() \
+			as GDSQLDatabaseRegistrySnapshot
+	assert_int(restored.registrations.size()).is_equal(1)
+	assert_str(String(restored.role_bindings[0].registration_name)).is_equal("save_1")
+
+
 func _find_inspection(
 		inspections: Array,
 		database_name: StringName,

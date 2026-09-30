@@ -210,7 +210,12 @@ func _request_delete() -> void:
 		return
 	_pending_delete = planned.get_value() as GDSQLSaveSlotDeletionPlan
 	var active_warning := (
-			"\n\nThis is the active runtime save. The save role will be unbound."
+			(
+				"\n\nThis is the active runtime save. '%s' will become active." \
+						% _pending_delete.fallback_registration_name
+				if _pending_delete.fallback_registration_name != &""
+				else "\n\nThis is the last compatible save slot. No active save will remain."
+			)
 			if _pending_delete.was_active
 			else ""
 	)
@@ -244,6 +249,7 @@ func _build_selected_deletion_plan() -> GDSQLOperationResult:
 	return GDSQLSaveSlotDeletionPlan.build(
 		_selected_registration_value(),
 		_active_registration(),
+		_workbench.get_registrations() if _workbench != null else [],
 	)
 
 

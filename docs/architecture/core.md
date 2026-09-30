@@ -2094,6 +2094,10 @@ selection while sharing the `game_state` logical database name and migration
 stream. This lets one authored stream drive every physical slot without making
 the slot name part of schema identity. The first slot establishes the schema;
 later slots receive that schema at creation and begin with empty tables.
+Deleting the active slot selects the first naturally ordered remaining slot
+with the same logical database and migration stream. Registration removal and
+role rebinding are persisted as one registry update; deleting the last
+compatible slot intentionally leaves the save role unbound.
 
 The stable stream identity survives physical save-slot creation and database
 location changes. Renaming a database after history starts is currently
