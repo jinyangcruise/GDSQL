@@ -55,8 +55,9 @@ Workbench("`**GDSQLWorkbench**
 MigrationAuthoring("`**Editor Migration Authoring**
 
 -
-*Purpose:* Turn one table alteration, creation, rename, or drop into immutable project history
-*Preview:* Affected rows, catalog summaries and destructive classification
+*Purpose:* Turn one table alteration, lifecycle change, or typed row update into immutable project history
+*Data UI:* Typed literal assignments plus nested WHERE; explicit all-row confirmation
+*Preview:* Affected rows, step summaries and destructive classification
 *Safety:* Explicit confirmation, stale-count append and stale-safe application
 *Recovery:* A persisted failure remains pending and retryable`")
 

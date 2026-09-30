@@ -529,17 +529,17 @@ func _preview_database_migration(
 		registration_name: StringName,
 		migration_id: String,
 		description: String,
-		table_change: GDSQLEditorTableChange,
+		migration_step: GDSQLMigrationStep,
 ) -> GDSQLOperationResult:
 	var result := _ensure_active_registration(registration_name)
 	var registration := workbench.get_registration(registration_name)
 	if result.is_successful() and (
-			table_change == null or not table_change.is_valid()
+			migration_step == null or not migration_step.is_valid()
 	):
 		result.diagnostics.merge(
 			_error(
 				&"GDSQL_EDITOR_MIGRATION_CHANGE_REQUIRED",
-				"Migration authoring requires one table schema change.",
+				"Migration authoring requires one valid schema or data step.",
 			).diagnostics,
 		)
 	if result.is_successful() and (
@@ -581,9 +581,7 @@ func _preview_database_migration(
 				),
 			)
 	if result.is_successful():
-		var steps: Array[GDSQLSchemaMigrationStep] = [
-			table_change.to_migration_step(),
-		]
+		var steps: Array[GDSQLMigrationStep] = [migration_step]
 		var definition := GDSQLMigrationDefinition.new(
 			migration_id,
 			description,

@@ -7,6 +7,7 @@
 [ext_resource type="Texture2D" uid="uid://d4h61rae12l53" path="res://addons/gdsql/editor/workspace/icons/plus.svg" id="4_3vv2g"]
 [ext_resource type="Texture2D" uid="uid://cs3iterfftneq" path="res://addons/gdsql/editor/workspace/icons/floppy_disk.svg" id="5_toofw"]
 [ext_resource type="Texture2D" uid="uid://cuw72klaichks" path="res://addons/gdsql/editor/workspace/icons/arrow_uturn_up_left.svg" id="6_23t64"]
+[ext_resource type="PackedScene" path="res://addons/gdsql/editor/workspace/documents/database/migrations/gdsql_data_migration_editor.tscn" id="7_data_migration"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_r8eu3"]
 
@@ -255,20 +256,45 @@ ok_button_text = "Delete All and Reset"
 
 [node name="MigrationAuthoring" type="ConfirmationDialog" parent="."]
 unique_name_in_owner = true
-title = "Create Schema Migration"
+title = "Create Migration"
 ok_button_text = "Preview Migration"
 
 [node name="Fields" type="VBoxContainer" parent="MigrationAuthoring"]
 offset_left = 8.0
 offset_top = 8.0
-offset_right = 552.0
-offset_bottom = 208.0
+offset_right = 744.0
+offset_bottom = 620.0
 theme_override_constants/separation = 6
 
 [node name="Explanation" type="Label" parent="MigrationAuthoring/Fields"]
+unique_name_in_owner = true
 layout_mode = 2
-text = "Record this existing-table change in append-only project history."
+text = "Record one durable schema or data step in append-only project history."
 autowrap_mode = 2
+
+[node name="MigrationKindLabel" type="Label" parent="MigrationAuthoring/Fields"]
+layout_mode = 2
+text = "Migration step"
+
+[node name="MigrationKind" type="OptionButton" parent="MigrationAuthoring/Fields"]
+unique_name_in_owner = true
+layout_mode = 2
+item_count = 2
+popup/item_0/text = "Current schema draft"
+popup/item_0/id = 0
+popup/item_1/text = "Update table rows"
+popup/item_1/id = 1
+
+[node name="SchemaMigrationSummary" type="Label" parent="MigrationAuthoring/Fields"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+autowrap_mode = 2
+
+[node name="DataMigrationEditor" parent="MigrationAuthoring/Fields" instance=ExtResource("7_data_migration")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
 
 [node name="MigrationIdLabel" type="Label" parent="MigrationAuthoring/Fields"]
 layout_mode = 2

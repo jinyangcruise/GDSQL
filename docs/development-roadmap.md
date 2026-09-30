@@ -49,7 +49,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Migration data/save phase | Typed single-table row updates are implemented; add editor authoring and fresh-save schema provisioning, then multi-table orchestration |
+| High — first | Migration data/save phase | Typed single-table row updates and editor authoring are implemented; add fresh-save schema provisioning, then multi-table orchestration |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
@@ -69,8 +69,10 @@ sessions unless new evidence changes an architectural dependency:
    headless validation on top of the stable stored-value boundary.
 3. **Migration data/save phases (active).** Typed single-table UPDATE steps now
    use canonical expressions, dry-run row counts, durable backup/recovery, and
-   the applied ledger. Add editor authoring, fresh-save provisioning,
-   multi-table orchestration, and migration of older `user://` saves next.
+   the applied ledger. The database document now authors scalar literal
+   assignments and nested predicates through the same typed editor controls.
+   Add fresh-save provisioning, multi-table orchestration, and migration of
+   older `user://` saves next.
 4. **Resource Stage B — explicit deferred loading.** Add opt-in handles,
    threaded loading, and prefetch scopes only when the simple eager path and
    migrations are stable.
@@ -354,8 +356,9 @@ schema fingerprint, and restores the complete snapshot after catalog,
 fingerprint, or ledger failure. The public database API now previews complete
 history, applies one plan, reports an up-to-date state, and resolves leftover
 backups safely after interruption. The database document now authors one
-single-table change from an existing schema draft, a new table draft, or a
-staged table rename/drop. It previews affected rows and summaries, requires
+single-table change from an existing schema draft, a new table draft, a staged
+table rename/drop, or a typed row update with scalar literal assignments and a
+nested WHERE predicate. It previews affected rows and summaries, requires
 explicit confirmation, persists before application, and exposes a failed
 application as retryable pending history. Drop is destructive and protected by
 the same whole-database recovery snapshot as other migration failures; rename
@@ -396,8 +399,10 @@ when a persisted format is shipped as supported public behavior.
 
 The first canonical data transformation is implemented as one typed,
 single-table UPDATE step with optional predicate, dry-run count, recovery, and
-ledger participation. The next slices add editor authoring, fresh-save
-provisioning, multi-table orchestration, and migration of older `user://` saves.
+ledger participation. Editor authoring supports typed scalar literals, nested
+WHERE groups, and explicit all-row updates while keeping Resource literals out
+of durable migration files. The next slices add fresh-save provisioning,
+multi-table orchestration, and migration of older `user://` saves.
 Fresh databases and saves start at the current schema; existing durable data
 applies only pending migrations. Managed content sources migrate during
 authoring, while disposable effective-content caches are rebuilt rather than

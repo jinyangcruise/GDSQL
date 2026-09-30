@@ -2049,13 +2049,16 @@ directory cannot leave stale rows visible in the active context. In-memory
 runtime contexts do not expose migrations: schema history belongs to their
 durable ConfigFile authoring source, which must migrate before hydration.
 Editor history authoring and destructive confirmation remain a separate
-product flow over this public API. The database document now authors one table
+product flow over this public API. The database document authors one table
 step at a time: one existing-table alteration group, one new table definition,
-one table rename, or one table drop. It emits typed intent to the editor
-controller, which rejects authoring while an earlier entry is pending,
+one table rename, one table drop, or one typed row update. Data authoring reuses
+the typed mutation-value and nested WHERE controls, excludes Resource literals,
+requires an explicit choice before targeting every row, and is unavailable
+while local schema drafts exist. It emits the common typed migration-step
+intent to the editor controller, which rejects authoring while an earlier entry is pending,
 previews the candidate complete history, and returns an
 `EditorMigrationPreview` to the scene. The scene shows affected rows and
-catalog summaries and always requires confirmation; destructive plans receive
+step summaries and always requires confirmation; destructive plans receive
 an explicit warning. Confirmation appends the immutable project definition
 before applying its already-previewed plan. If application fails, the appended
 definition remains pending and is presented again on the next database open or

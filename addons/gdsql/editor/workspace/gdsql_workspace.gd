@@ -22,7 +22,7 @@ signal database_migration_preview_submitted(
 		registration_name: StringName,
 		migration_id: String,
 		description: String,
-		table_change: GDSQLEditorTableChange,
+		migration_step: GDSQLMigrationStep,
 )
 signal database_migration_apply_submitted(preview: GDSQLEditorMigrationPreview)
 signal table_rows_requested(
@@ -844,13 +844,13 @@ func _on_database_migration_preview_requested(
 		registration_name: StringName,
 		migration_id: String,
 		description: String,
-		table_change: GDSQLEditorTableChange,
+		migration_step: GDSQLMigrationStep,
 ) -> void:
 	database_migration_preview_submitted.emit(
 		registration_name,
 		migration_id,
 		description,
-		table_change,
+		migration_step,
 	)
 
 
