@@ -272,6 +272,14 @@ Factory("`**GDSQLRuntimeFactory**
 *Creates:* GDSQLDatabaseContext and GDSQLRuntimeSession
 *Injects:* Catalog, storage, validation, planning and execution services`")
 
+MigrationStartup("`**GDSQLMigrationStartupCoordinator**
+
+-
+*Purpose:* Reach a trusted durable schema before hydration and models
+*Flow:* Load verified prefix, recover, conditionally baseline, apply sequentially, verify
+*Policy:* No history and state is unconfigured; history without state fails closed
+*Returns:* GDSQLMigrationStartupResult with baseline, recovered and applied IDs`")
+
 Translators("`**Frontend Translators**
 
 -
@@ -454,7 +462,7 @@ MigrationRecovery("`**GDSQLMigrationRecoveryStore**
 -
 *Purpose:* Preserve and restore complete pre-migration database state
 *Evidence:* GDSQLMigrationBackup identity, creation time and SHA-256 fingerprint
-*API:* create_backup(), load_backup(), restore(), discard()
+*API:* list_backups(), create_backup(), load_backup(), restore(), discard()
 *Boundary:* Durable recovery, not query transactions or long-term archives`")
 
 MigrationRunner("`**GDSQLMigrationRunner**
@@ -469,7 +477,7 @@ MigrationService("`**GDSQLMigrationService**
 
 -
 *Purpose:* Supported baseline, preview, apply and interruption-recovery orchestration
-*API:* adopt_baseline(), preview(), apply(), recover_interrupted()
+*API:* adopt_baseline(), adopt_baseline_if_current(), preview(), apply(), recover_interrupted(), recover_pending()
 *Results:* Up-to-date or next plan; applied record; restored or cleanup-only recovery
 *Composition:* Durable ConfigFile authoring contexts only`")
 
@@ -777,11 +785,15 @@ ConfigSaveContent -->|"saved package expectations"| SaveCompatibility
 Factory -.->|"create_default(data_root)"| Context
 Factory -.->|"constructs and injects"| ConfigInfrastructure
 Factory -.->|"bootstrap()"| RuntimeSession
+Factory -->|"prepare durable registrations before hydration"| MigrationStartup
+MigrationStartup -->|"load trusted prefix"| MigrationHistoryStore
+MigrationStartup -->|"load trusted target schema"| MigrationSchemaStateStore
+MigrationStartup -->|"baseline · recover · preview · apply"| MigrationService
 Factory -.->|"activate_effective_content()"| ContentActivation
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
 class Code,Models,Workbench,MigrationAuthoring,ForeignKeyAuthoring,RowBatch,MutationHistory,ModelAssistant,ContentReference,McpAdapter,GraphEditor,SQLEditor,Expr frontend;
-class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,SetupProfile,ManagedConfiguration,DirectSetup,ManagedSetup,PackageManifest,PackageResolution,ContentOverlay,ContentCache,ContentActivation,SaveCompatibility,Persistence runtime;
+class Database,Context,Factory,MigrationStartup,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,SetupProfile,ManagedConfiguration,DirectSetup,ManagedSetup,PackageManifest,PackageResolution,ContentOverlay,ContentCache,ContentActivation,SaveCompatibility,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;

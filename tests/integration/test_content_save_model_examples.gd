@@ -151,18 +151,21 @@ func _save_registry_snapshot() -> void:
 			&"content",
 			_content_root,
 			GDSQLStorageBackendIds.CONFIG_FILE,
+			StringName("example_content_%d" % _test_index),
 		),
 		GDSQLDatabaseRegistration.new(
 			&"save_1",
 			&"save_1",
 			_save_one_root,
 			GDSQLStorageBackendIds.IN_MEMORY,
+			StringName("example_save_1_%d" % _test_index),
 		),
 		GDSQLDatabaseRegistration.new(
 			&"save_2",
 			&"save_2",
 			_save_two_root,
 			GDSQLStorageBackendIds.IN_MEMORY,
+			StringName("example_save_2_%d" % _test_index),
 		),
 	]
 	snapshot.role_bindings = [

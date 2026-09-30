@@ -146,6 +146,63 @@ func adopt_baseline(
 	return result
 
 
+func adopt_baseline_if_current(
+		database_name: StringName,
+		history: Array[GDSQLMigrationDefinition],
+		schema_state: GDSQLMigrationSchemaState,
+) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	if _ledger == null or _history_planner == null or _catalog == null:
+		_error(
+			result,
+			&"GDSQL_MIGRATION_SERVICE_DEPENDENCY_REQUIRED",
+			"Conditional baseline adoption requires ledger, history, and catalog services.",
+		)
+		return result
+	if schema_state == null or not schema_state.is_valid() \
+			or schema_state.database_name != database_name \
+			or not schema_state.matches_history_prefix(history):
+		_error(
+			result,
+			&"GDSQL_MIGRATION_SCHEMA_STATE_INVALID",
+			"Conditional baseline adoption requires matching project-owned schema state.",
+		)
+		return result
+	var current_fingerprint := GDSQLSchemaFingerprint.compute(
+		_catalog.get_database(database_name),
+	)
+	if current_fingerprint.is_empty():
+		_error(
+			result,
+			&"GDSQL_MIGRATION_SCHEMA_FINGERPRINT_FAILED",
+			"Could not fingerprint the database schema for baseline adoption.",
+		)
+		return result
+	if current_fingerprint != schema_state.schema_fingerprint:
+		result.value = false
+		return result
+	var loaded := _ledger.load(database_name)
+	result.diagnostics.merge(loaded.diagnostics)
+	if not loaded.is_successful():
+		return result
+	var snapshot := loaded.get_value() as GDSQLMigrationLedgerSnapshot
+	if snapshot == null:
+		_error(
+			result,
+			&"GDSQL_MIGRATION_LEDGER_INVALID",
+			"Conditional baseline adoption requires a valid applied history.",
+		)
+		return result
+	if snapshot.revision() != 0:
+		result.value = false
+		return result
+	var adopted := adopt_baseline(database_name, history, schema_state)
+	result.diagnostics.merge(adopted.diagnostics)
+	if adopted.is_successful():
+		result.value = true
+	return result
+
+
 func apply(plan: GDSQLMigrationCatalogPlan) -> GDSQLMigrationRunResult:
 	if _runner != null:
 		return _runner.apply(plan)
@@ -155,6 +212,52 @@ func apply(plan: GDSQLMigrationCatalogPlan) -> GDSQLMigrationRunResult:
 		&"GDSQL_MIGRATION_SERVICE_DEPENDENCY_REQUIRED",
 		"Migration application requires a migration runner.",
 	)
+	return result
+
+
+func recover_pending(
+		database_name: StringName,
+		history: Array[GDSQLMigrationDefinition],
+) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	if _ledger == null or _history_planner == null or _recovery == null:
+		_error(
+			result,
+			&"GDSQL_MIGRATION_SERVICE_DEPENDENCY_REQUIRED",
+			"Startup recovery requires ledger, history, and recovery services.",
+		)
+		return result
+	var validated := _history_planner.plan(
+		history,
+		GDSQLMigrationLedgerSnapshot.new(),
+	)
+	result.diagnostics.merge(validated.diagnostics)
+	if not validated.is_successful():
+		return result
+	var authored_ids: Dictionary[String, bool] = { }
+	for migration in history:
+		authored_ids[migration.migration_id] = true
+	var listed := _recovery.list_backups(database_name)
+	result.diagnostics.merge(listed.diagnostics)
+	if not listed.is_successful():
+		return result
+	var resolved_ids := PackedStringArray()
+	for migration_id_value in listed.get_value() as PackedStringArray:
+		var migration_id := String(migration_id_value)
+		if not authored_ids.has(migration_id):
+			_error(
+				result,
+				&"GDSQL_MIGRATION_RECOVERY_HISTORY_MISSING",
+				"Recovery snapshot migration '%s' is absent from project history." \
+						% migration_id,
+			)
+			return result
+		var recovered := recover_interrupted(database_name, migration_id)
+		result.diagnostics.merge(recovered.diagnostics)
+		if not recovered.is_successful():
+			return result
+		resolved_ids.append(migration_id)
+	result.value = resolved_ids
 	return result
 
 

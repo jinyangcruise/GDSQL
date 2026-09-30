@@ -12,6 +12,7 @@ static func bootstrap(
 		checkpoint_policies: Dictionary = { },
 		default_checkpoint_policy: GDSQLCheckpointPolicy = null,
 		setup_profile: GDSQLSetupProfile.Kind = GDSQLSetupProfile.Kind.DIRECT,
+		migration_startup: GDSQLMigrationStartupCoordinator = null,
 ) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	var registry := GDSQLDatabaseRegistry.new(
@@ -23,18 +24,35 @@ static func bootstrap(
 		return result
 	var persistence := GDSQLPersistenceCoordinator.new()
 	var snapshot := loaded.get_value() as GDSQLDatabaseRegistrySnapshot
+	var startup := migration_startup
+	if startup == null:
+		startup = GDSQLMigrationStartupCoordinator.new(
+			GDSQLConfigFileMigrationHistoryStore.new(),
+			GDSQLConfigFileMigrationSchemaStateStore.new(),
+		)
 	if setup_profile != GDSQLSetupProfile.Kind.MANAGED:
 		var setup := GDSQLDirectSetupInspector.inspect_runtime(snapshot)
 		result.diagnostics.merge(setup.diagnostics)
 	for registration in snapshot.registrations:
-		var opened := open_registration(registration)
+		var durable := open_authoring_registration(registration)
+		result.diagnostics.merge(durable.diagnostics)
+		if not durable.is_successful():
+			return result
+		var prepared := startup.prepare(registration, durable.get_database())
+		result.diagnostics.merge(prepared.diagnostics)
+		if not prepared.is_successful():
+			return result
+		var opened := durable
+		if registration.storage_backend_id == GDSQLStorageBackendIds.IN_MEMORY:
+			opened = open_registration(registration)
 		result.diagnostics.merge(opened.diagnostics)
 		if not opened.is_successful():
-			continue
+			return result
 		var registered := registry.register(registration.name, opened.get_database())
 		result.diagnostics.merge(registered.diagnostics)
-		if not registered.is_successful() \
-				or registration.storage_backend_id != GDSQLStorageBackendIds.IN_MEMORY:
+		if not registered.is_successful():
+			return result
+		if registration.storage_backend_id != GDSQLStorageBackendIds.IN_MEMORY:
 			continue
 		var target := _create_in_memory_checkpoint_target(
 			registration,
@@ -52,6 +70,8 @@ static func bootstrap(
 			policy,
 		)
 		result.diagnostics.merge(persistence_registration.diagnostics)
+		if not persistence_registration.is_successful():
+			return result
 	for binding in snapshot.role_bindings:
 		var bound := registry.bind_role(binding.role, binding.registration_name)
 		result.diagnostics.merge(bound.diagnostics)

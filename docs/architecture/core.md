@@ -1293,12 +1293,16 @@ node releases its `GDSQLRuntimeSession`. The node emits results for game UI but
 does not print failures or decide whether a game may quit.
 
 `GDSQLRuntimeFactory.bootstrap()` is the supported application composition
-path. It loads the durable registry snapshot, opens every registration through
-its selected backend, restores logical role bindings, creates one
-`GDSQLModelContext`, and registers checkpoint targets for in-memory databases.
-It returns a tested `GDSQLRuntimeSession` facade. ConfigFile registrations need
-no checkpoint target because their commits are already durable; explicit
-checkpoint calls for those roles succeed without writing again.
+path. It loads the durable registry snapshot and opens each registration's
+durable authoring source. Before runtime hydration or model registration,
+`GDSQLMigrationStartupCoordinator` brings that source to its trusted schema
+state. Bootstrap then opens the selected runtime backend, restores logical role
+bindings, creates one `GDSQLModelContext`, and registers checkpoint targets for
+in-memory databases. It returns a tested `GDSQLRuntimeSession` facade.
+ConfigFile registrations need no checkpoint target because their commits are
+already durable; explicit checkpoint calls for those roles succeed without
+writing again. Any migration or registration failure stops bootstrap before a
+partial model context is installed.
 
 Before opening registrations, bootstrap evaluates the snapshot through
 `GDSQLDirectSetupInspector` for direct or unselected setup profiles. Missing or
@@ -1913,7 +1917,9 @@ simulation remains part of later multi-table migration orchestration rather
 than approximating dependent steps against stale schema.
 
 `GDSQLMigrationRecoveryStore` is the backend-neutral durable recovery contract.
-It creates, reloads, restores, and discards a pre-migration database snapshot.
+It lists, creates, reloads, restores, and discards pre-migration database
+snapshots. Listing lets startup discover recovery work without assuming a
+backend path layout.
 `GDSQLMigrationBackup` identifies that snapshot and carries its SHA-256 content
 fingerprint and creation time. A backup is not a query transaction or a
 long-term version archive; it is recovery evidence retained until its migration
@@ -1956,9 +1962,10 @@ against the last baseline or applied fingerprint, validates the complete
 authored history, and returns `GDSQLMigrationPreviewResult`. An up-to-date
 history is a successful preview with no next catalog plan. `adopt_baseline()`
 verifies and persists initial evidence for a pre-existing current-schema
-database. `apply()` delegates one explicitly previewed plan to the runner.
-These operations are exposed by `GDSQLDatabase.preview_migrations()`,
-`adopt_migration_baseline()`, and `apply_migration()` so callers do not compose
+database. `adopt_baseline_if_current()` performs the same adoption only when
+the ledger is empty and the current schema independently matches the supplied
+trusted state. `apply()` delegates one explicitly previewed plan to the runner.
+These operations are exposed by the database facade so callers do not compose
 backend migration services themselves.
 
 `recover_interrupted()` resolves a named durable backup against the current
@@ -1969,6 +1976,28 @@ so the backup is discarded without restoring it. A missing migration followed
 by a later applied ID is divergent history and is never recovered
 automatically. `GDSQLMigrationRecoveryResult` reports which action occurred and
 whether cleanup remains pending.
+
+`recover_pending()` discovers every durable backup through the recovery-store
+contract, rejects backup IDs absent from the authored history, and resolves
+each authored interruption sequentially through `recover_interrupted()`.
+
+`GDSQLMigrationStartupCoordinator` owns schema readiness during runtime
+bootstrap. It loads the registration's authored stream and project-owned
+schema state, verifies that the state names an exact authored-history prefix,
+recovers pending backups, and targets only that verified prefix. A stream with
+history but no trusted schema state fails closed. A stream with neither is an
+explicit unconfigured no-op.
+
+For writable non-`res://` registrations already matching the trusted target,
+the coordinator may adopt the verified prefix as their initial baseline. It
+never derives trust from the candidate database itself and never automatically
+baselines authored project content. Remaining entries are previewed and
+applied one at a time through the recovery-safe service. The coordinator then
+requires the durable catalog fingerprint to equal the trusted target before
+bootstrap may hydrate an in-memory runtime or register models.
+`GDSQLMigrationStartupResult` reports configuration, target history count,
+baseline adoption, recovered IDs, and applied IDs without printing or owning
+runtime UI.
 
 `GDSQLRuntimeFactory.create_default()` composes this service for durable
 ConfigFile databases and injects the same path resolver and ConfigFile cache
@@ -2409,6 +2438,9 @@ addons/gdsql/
 │   ├── checkpoint_result.gd
 │   ├── in_memory_checkpoint_target.gd
 │   ├── persistence_coordinator.gd
+│   ├── migration/
+│   │   ├── gdsql_migration_startup_coordinator.gd
+│   │   └── gdsql_migration_startup_result.gd
 │   ├── runtime_session.gd
 │   ├── runtime_node.gd
 │   └── runtime_node.tscn

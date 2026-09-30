@@ -83,6 +83,43 @@ func adopt_migration_baseline(
 	return result
 
 
+func adopt_migration_baseline_if_current(
+		database_name: StringName,
+		history: Array[GDSQLMigrationDefinition],
+		schema_state: GDSQLMigrationSchemaState,
+) -> GDSQLOperationResult:
+	if _migration_service != null:
+		return _migration_service.adopt_baseline_if_current(
+			database_name,
+			history,
+			schema_state,
+		)
+	var result := GDSQLOperationResult.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_MIGRATION_SERVICE_UNAVAILABLE",
+			"Migrations require a durable ConfigFile authoring context.",
+		),
+	)
+	return result
+
+
+func recover_pending_migrations(
+		database_name: StringName,
+		history: Array[GDSQLMigrationDefinition],
+) -> GDSQLOperationResult:
+	if _migration_service != null:
+		return _migration_service.recover_pending(database_name, history)
+	var result := GDSQLOperationResult.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_MIGRATION_SERVICE_UNAVAILABLE",
+			"Migrations require a durable ConfigFile authoring context.",
+		),
+	)
+	return result
+
+
 func recover_interrupted_migration(
 		database_name: StringName,
 		migration_id: String,

@@ -170,6 +170,23 @@ func adopt_migration_baseline(
 	)
 
 
+func adopt_migration_baseline_if_current(
+		history: Array[GDSQLMigrationDefinition],
+		schema_state: GDSQLMigrationSchemaState,
+) -> GDSQLOperationResult:
+	return context.adopt_migration_baseline_if_current(
+		database_name,
+		history,
+		schema_state,
+	)
+
+
+func recover_pending_migrations(
+		history: Array[GDSQLMigrationDefinition],
+) -> GDSQLOperationResult:
+	return context.recover_pending_migrations(database_name, history)
+
+
 func recover_interrupted_migration(
 		migration_id: String,
 ) -> GDSQLMigrationRecoveryResult:

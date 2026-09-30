@@ -256,6 +256,33 @@ func test_interrupted_uncommitted_migration_restores_verified_backup() -> void:
 	assert_int(rows.rows.size()).is_equal(2)
 
 
+func test_startup_recovery_discovers_only_authored_migration_backups() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	var migration := _migration("202609290001_add_level")
+	var history: Array[GDSQLMigrationDefinition] = [migration]
+	var recovery := _recovery_store()
+	assert_bool(
+		recovery.create_backup(
+			database.database_name,
+			migration.migration_id,
+		).is_successful(),
+	).is_true()
+	var alterations: Array[GDSQLTableAlteration] = [_add_int_column(&"rank")]
+	assert_bool(
+		database.alter_table(&"heroes", alterations).is_successful(),
+	).is_true()
+
+	var recovered := database.recover_pending_migrations(history)
+
+	assert_bool(recovered.is_successful()).is_true()
+	assert_array(recovered.get_value()).contains_exactly([migration.migration_id])
+	assert_object(
+		database.context.catalog.get_table(database.database_name, &"heroes") \
+				.get_column(&"rank"),
+	).is_null()
+	assert_array(recovery.list_backups(database.database_name).get_value()).is_empty()
+
+
 func test_interrupted_cleanup_discards_backup_for_committed_migration() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
 	var migration := _migration("202609290001_add_level")

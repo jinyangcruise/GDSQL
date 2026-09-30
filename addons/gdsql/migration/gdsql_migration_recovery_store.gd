@@ -4,6 +4,10 @@ extends RefCounted
 ## Durable backup boundary used before catalog migration execution.
 
 @abstract
+func list_backups(database_name: StringName) -> GDSQLOperationResult
+
+
+@abstract
 func create_backup(
 		database_name: StringName,
 		migration_id: String,

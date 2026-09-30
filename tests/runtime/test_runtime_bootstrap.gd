@@ -5,6 +5,8 @@ var _test_root: String
 var _registry_path: String
 var _content_root: String
 var _save_root: String
+var _history_root: String
+var _state_root: String
 var _test_index := 0
 
 
@@ -15,6 +17,8 @@ func before_test() -> void:
 	_registry_path = _test_root.path_join("registry.cfg")
 	_content_root = _test_root.path_join("content")
 	_save_root = _test_root.path_join("save")
+	_history_root = _test_root.path_join("migrations")
+	_state_root = _test_root.path_join("migration_states")
 	_create_database(&"content", _content_root)
 	var save := _create_database(&"save_1", _save_root)
 	assert_bool(save.insert(&"heroes", { &"id": 1, &"name": "Knight" }).is_successful()).is_true()
@@ -26,7 +30,7 @@ func after_test() -> void:
 
 
 func test_bootstrap_opens_registrations_restores_roles_and_models() -> void:
-	var result := GDSQLRuntimeFactory.bootstrap(_registry_path)
+	var result := _bootstrap()
 	var runtime := result.get_value() as GDSQLRuntimeSession
 
 	assert_bool(result.is_successful()).is_true()
@@ -46,7 +50,7 @@ func test_bootstrap_opens_registrations_restores_roles_and_models() -> void:
 
 
 func test_save_checkpoint_transfers_committed_memory_rows_to_durable_storage() -> void:
-	var runtime := GDSQLRuntimeFactory.bootstrap(_registry_path).get_value() \
+	var runtime := _bootstrap().get_value() \
 			as GDSQLRuntimeSession
 	var save := runtime.database(GDSQLDatabaseRegistry.SAVE_ROLE).get_database()
 	var updated := save.execute(
@@ -73,7 +77,7 @@ func test_select_save_slot_checkpoints_the_previous_slot_before_rebinding() -> v
 		second_save.insert(&"heroes", { &"id": 1, &"name": "Mage" }).is_successful(),
 	).is_true()
 	_add_save_registration(&"save_2", second_root)
-	var runtime := GDSQLRuntimeFactory.bootstrap(_registry_path).get_value() \
+	var runtime := _bootstrap().get_value() \
 			as GDSQLRuntimeSession
 	var first_save := runtime.database(GDSQLDatabaseRegistry.SAVE_ROLE).get_database()
 	assert_bool(
@@ -97,7 +101,7 @@ func test_select_save_slot_checkpoints_the_previous_slot_before_rebinding() -> v
 
 
 func test_invalid_save_slot_selection_preserves_the_active_slot() -> void:
-	var runtime := GDSQLRuntimeFactory.bootstrap(_registry_path).get_value() \
+	var runtime := _bootstrap().get_value() \
 			as GDSQLRuntimeSession
 
 	var selected := runtime.select_save_slot(&"missing")
@@ -117,11 +121,94 @@ func test_failed_bootstrap_does_not_install_a_partial_model_context() -> void:
 	var store := GDSQLConfigFileDatabaseRegistryStore.new(_registry_path)
 	assert_bool(store.save_snapshot(snapshot).is_successful()).is_true()
 
-	var result := GDSQLRuntimeFactory.bootstrap(_registry_path)
+	var result := _bootstrap()
 
 	assert_bool(result.is_successful()).is_false()
 	assert_object(result.get_value()).is_null()
 	assert_object(GDSQLModels.get_context()).is_null()
+
+
+func test_bootstrap_migrates_durable_save_before_in_memory_hydration() -> void:
+	var migration := _add_level_migration()
+	var history: Array[GDSQLMigrationDefinition] = [migration]
+	var alterations: Array[GDSQLTableAlteration] = [_add_level_alteration()]
+	assert_bool(
+		_history_store().append(&"save_1", migration, 0).is_successful(),
+	).is_true()
+	var target := _create_database(
+		&"save_1",
+		_test_root.path_join("target_save"),
+	)
+	assert_bool(
+		target.alter_table(&"heroes", alterations).is_successful(),
+	).is_true()
+	_save_target_state(
+		&"save_1",
+		history,
+		GDSQLSchemaFingerprint.compute(
+			target.context.catalog.get_database(target.database_name),
+		),
+	)
+
+	var result := _bootstrap()
+	var runtime := result.get_value() as GDSQLRuntimeSession
+	var save := runtime.database(GDSQLDatabaseRegistry.SAVE_ROLE).get_database()
+	var rows := save.execute(save.table(&"heroes").select().build())
+
+	assert_bool(result.is_successful()).is_true()
+	assert_object(
+		save.context.catalog.get_table(save.database_name, &"heroes").get_column(&"level"),
+	).is_not_null()
+	assert_int(rows.rows[0].get_value(&"level")).is_equal(1)
+	var ledger := GDSQLConfigFileMigrationLedger.new(
+		GDSQLDatabasePathResolver.new(_save_root),
+	).load(&"save_1").get_value() as GDSQLMigrationLedgerSnapshot
+	assert_str(ledger.last_id()).is_equal(migration.migration_id)
+
+
+func test_bootstrap_baselines_a_writable_save_already_at_the_target_schema() -> void:
+	var migration := _add_level_migration()
+	var history: Array[GDSQLMigrationDefinition] = [migration]
+	var alterations: Array[GDSQLTableAlteration] = [_add_level_alteration()]
+	assert_bool(
+		_history_store().append(&"save_1", migration, 0).is_successful(),
+	).is_true()
+	var save := GDSQLDatabase.open(&"save_1", _save_root).get_database()
+	assert_bool(
+		save.alter_table(&"heroes", alterations).is_successful(),
+	).is_true()
+	_save_target_state(
+		&"save_1",
+		history,
+		GDSQLSchemaFingerprint.compute(
+			save.context.catalog.get_database(save.database_name),
+		),
+	)
+
+	var result := _bootstrap()
+	var ledger := GDSQLConfigFileMigrationLedger.new(
+		GDSQLDatabasePathResolver.new(_save_root),
+	).load(&"save_1").get_value() as GDSQLMigrationLedgerSnapshot
+
+	assert_bool(result.is_successful()).is_true()
+	assert_object(ledger.baseline).is_not_null()
+	assert_str(ledger.baseline.through_migration_id).is_equal(migration.migration_id)
+	assert_array(ledger.records).is_empty()
+
+
+func test_bootstrap_rejects_authored_history_without_trusted_schema_state() -> void:
+	assert_bool(
+		_history_store().append(&"save_1", _add_level_migration(), 0).is_successful(),
+	).is_true()
+
+	var result := _bootstrap()
+
+	assert_bool(result.is_successful()).is_false()
+	assert_object(result.get_value()).is_null()
+	assert_object(GDSQLModels.get_context()).is_null()
+	assert_str(String(result.diagnostics.entries[-1].code)).is_equal(
+		"GDSQL_MIGRATION_SCHEMA_STATE_REQUIRED",
+	)
 
 
 func _create_database(database_name: StringName, data_root: String) -> GDSQLDatabase:
@@ -175,3 +262,55 @@ func _add_save_registration(registration_name: StringName, data_root: String) ->
 		),
 	)
 	assert_bool(store.save_snapshot(snapshot).is_successful()).is_true()
+
+
+func _bootstrap() -> GDSQLOperationResult:
+	return GDSQLRuntimeFactory.bootstrap(
+		_registry_path,
+		{ },
+		null,
+		GDSQLSetupProfile.Kind.DIRECT,
+		GDSQLMigrationStartupCoordinator.new(
+			_history_store(),
+			GDSQLConfigFileMigrationSchemaStateStore.new(_state_root),
+		),
+	)
+
+
+func _history_store() -> GDSQLConfigFileMigrationHistoryStore:
+	return GDSQLConfigFileMigrationHistoryStore.new(_history_root)
+
+
+func _add_level_migration() -> GDSQLMigrationDefinition:
+	var alterations: Array[GDSQLTableAlteration] = [_add_level_alteration()]
+	var steps: Array[GDSQLSchemaMigrationStep] = [
+		GDSQLSchemaMigrationStep.new(&"heroes", alterations),
+	]
+	return GDSQLMigrationDefinition.new(
+		"202609290001_add_level",
+		"Add save hero level",
+		steps,
+	)
+
+
+func _add_level_alteration() -> GDSQLTableAlteration:
+	return GDSQLTableAlteration.add_column(
+		GDSQLColumnDefinition.new(&"level", TYPE_INT, false, false, false, 1),
+	)
+
+
+func _save_target_state(
+		stream: StringName,
+		history: Array[GDSQLMigrationDefinition],
+		fingerprint: String,
+) -> void:
+	var state := GDSQLMigrationSchemaState.from_history(
+		stream,
+		&"save_1",
+		history,
+		fingerprint,
+	)
+	assert_bool(
+		GDSQLConfigFileMigrationSchemaStateStore.new(_state_root) \
+				.save(state, "").is_successful(),
+	).is_true()

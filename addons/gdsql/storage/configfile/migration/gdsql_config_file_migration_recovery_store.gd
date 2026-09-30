@@ -21,6 +21,37 @@ func _init(
 	_cache = cache
 
 
+func list_backups(database_name: StringName) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	if not _path_resolver.is_valid_name(database_name):
+		return _error(
+			result,
+			&"GDSQL_MIGRATION_BACKUP_IDENTITY_INVALID",
+			"Migration recovery discovery requires a valid database identifier.",
+		)
+	var recovery_root := _path_resolver.resolve_migration_recovery_root(database_name)
+	var directory := DirAccess.open(recovery_root)
+	var migration_ids := PackedStringArray()
+	if directory == null:
+		result.value = migration_ids
+		return result
+	directory.include_hidden = true
+	for directory_name in directory.get_directories():
+		if directory_name.begins_with(".") or directory_name.ends_with(".building"):
+			continue
+		if not GDSQLMigrationDefinition.is_valid_id(directory_name):
+			return _error(
+				result,
+				&"GDSQL_MIGRATION_BACKUP_IDENTITY_INVALID",
+				"Migration recovery contains an invalid backup identifier '%s'." \
+						% directory_name,
+			)
+		migration_ids.append(directory_name)
+	migration_ids.sort()
+	result.value = migration_ids
+	return result
+
+
 func create_backup(
 		database_name: StringName,
 		migration_id: String,
