@@ -62,6 +62,25 @@ func prepare(
 	var target_history: Array[GDSQLMigrationDefinition] = []
 	for index in schema_state.history_count:
 		target_history.append(history[index])
+	if not _may_persist_runtime_ledger(registration.data_root):
+		var project_fingerprint := _schema_fingerprint(database)
+		if project_fingerprint.is_empty():
+			return _error(
+				result,
+				&"GDSQL_MIGRATION_SCHEMA_FINGERPRINT_FAILED",
+				"Runtime migration could not fingerprint the project database schema.",
+			)
+		if project_fingerprint != schema_state.schema_fingerprint:
+			return _error(
+				result,
+				&"GDSQL_MIGRATION_PROJECT_SCHEMA_OUTDATED",
+				(
+						"Project database '%s' is not at its trusted migration head. "
+						+ "Apply pending migrations in the editor before running or exporting."
+				) % registration.database_name,
+			)
+		result.complete(database, true, target_history.size())
+		return result
 	var recovered := database.recover_pending_migrations(history)
 	result.diagnostics.merge(recovered.diagnostics)
 	if not recovered.is_successful():
@@ -74,8 +93,7 @@ func prepare(
 			&"GDSQL_MIGRATION_SCHEMA_FINGERPRINT_FAILED",
 			"Runtime migration could not fingerprint the durable database schema.",
 		)
-	if current_fingerprint == schema_state.schema_fingerprint \
-			and _may_persist_runtime_ledger(registration.data_root):
+	if current_fingerprint == schema_state.schema_fingerprint:
 		var adopted := database.adopt_migration_baseline_if_current(
 			target_history,
 			schema_state,

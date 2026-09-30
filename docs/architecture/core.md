@@ -2010,14 +2010,21 @@ each authored interruption sequentially through `recover_interrupted()`.
 `GDSQLMigrationStartupCoordinator` owns schema readiness during runtime
 bootstrap. It loads the registration's authored stream and project-owned
 schema state, verifies that the state names an exact authored-history prefix,
-recovers pending backups, and targets only that verified prefix. A stream with
-history but no trusted schema state fails closed. A stream with neither is an
-explicit unconfigured no-op.
+and targets only that verified prefix. A stream with history but no trusted
+schema state fails closed. A stream with neither is an explicit unconfigured
+no-op.
 
-For writable non-`res://` registrations already matching the trusted target,
-the coordinator may adopt the verified prefix as their initial baseline. It
-never derives trust from the candidate database itself and never automatically
-baselines authored project content. Remaining entries are previewed and
+Project-owned `res://` registrations are read-only during runtime startup. The
+coordinator accepts them without a physical ledger when their current schema
+fingerprint equals the trusted project state. A mismatch fails with
+`GDSQL_MIGRATION_PROJECT_SCHEMA_OUTDATED`; migrations must be applied in the
+editor before running or exporting. Runtime startup never recovers, baselines,
+or mutates project content.
+
+Writable non-`res://` registrations recover pending backups before planning.
+When an empty ledger already matches the trusted target, the coordinator may
+adopt the verified history prefix as its initial baseline. It never derives
+trust from the candidate database itself. Remaining entries are previewed and
 applied one at a time through the recovery-safe service. The coordinator then
 requires the durable catalog fingerprint to equal the trusted target before
 bootstrap may hydrate an in-memory runtime or register models.
@@ -2034,22 +2041,47 @@ durable ConfigFile authoring source, which must migrate before hydration.
 Editor history authoring and destructive confirmation remain a separate
 product flow over this public API. The database document now authors one table
 step at a time: one existing-table alteration group, one new table definition,
-one table rename, or one table drop. It emits typed intent to the editor controller,
-which rejects authoring while an earlier entry is pending, previews the
-candidate complete history, and returns an `EditorMigrationPreview` to the
-scene. The scene shows affected rows and catalog summaries and always requires
-confirmation; destructive plans receive an explicit warning. Confirmation
-appends the immutable project definition before applying its already-previewed
-plan. If application fails, the appended definition remains pending and is
-presented again on the next database open or refresh. After a stream contains
-its first definition, the database document disables direct structural saves;
-bypassing the ledger would invalidate its recorded schema fingerprint. The v1
-editor therefore keeps database rename and multi-table drafts reversible but
-unapplied once history has started. Database lifecycle migrations still require
-later typed operations. Whenever editor preview confirms that the
-durable database is at the authored history head, the editor advances its
-project schema state. State persistence failure is reported as a warning and
-does not recast an already committed catalog migration as failed.
+one table rename, or one table drop. It emits typed intent to the editor
+controller, which rejects authoring while an earlier entry is pending,
+previews the candidate complete history, and returns an
+`EditorMigrationPreview` to the scene. The scene shows affected rows and
+catalog summaries and always requires confirmation; destructive plans receive
+an explicit warning. Confirmation appends the immutable project definition
+before applying its already-previewed plan. If application fails, the appended
+definition remains pending and is presented again on the next database open or
+refresh. After a stream contains its first definition, the database document
+disables direct structural saves; bypassing the ledger would invalidate its
+recorded schema fingerprint. The v1 editor therefore keeps database rename and
+multi-table drafts reversible but unapplied once history has started. Whenever
+editor preview confirms that the durable database is at the authored history
+head, the editor advances its project schema state. State persistence failure
+is reported as a warning and does not recast an already committed catalog
+migration as failed.
+
+#### 13.1 Database lifecycle policy
+
+Migration streams transform schema and rows inside one existing logical
+database. Creating, renaming, unregistering, and destroying that database
+container are administrative lifecycle operations, not migration steps.
+
+A newly provisioned writable database has two valid entry paths. It may replay
+a complete history whose declared origin is an empty database, or it may be
+scaffolded directly at the trusted current schema and receive a verified
+baseline. Runtime replay and verified baseline adoption are implemented. The
+editor workflow that automatically provisions new save slots at the current
+schema remains part of the data/save migration phase.
+
+The stable stream identity survives physical save-slot creation and database
+location changes. Renaming a database after history starts is currently
+blocked because it requires one coordinated administrative update of registry
+and schema-state metadata. A future rename flow may provide that atomic update,
+but it must not masquerade as a schema migration. Unregister and destroy remain
+explicit user operations. A deployed migration stream must never delete a
+player database or save slot automatically.
+
+Managed effective-content databases are disposable build products. Their
+project package sources migrate during authoring; effective caches are rebuilt
+from those sources instead of maintaining migration ledgers of their own.
 
 ---
 

@@ -276,7 +276,8 @@ MigrationStartup("`**GDSQLMigrationStartupCoordinator**
 
 -
 *Purpose:* Reach a trusted durable schema before hydration and models
-*Flow:* Load verified prefix, recover, conditionally baseline, apply sequentially, verify
+*Project flow:* Verify trusted head without ledger or mutation; fail when outdated
+*Writable flow:* Recover, conditionally baseline, apply sequentially, verify
 *Policy:* No history and state is unconfigured; history without state fails closed
 *Returns:* GDSQLMigrationStartupResult with baseline, recovered and applied IDs`")
 

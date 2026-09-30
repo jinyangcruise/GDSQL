@@ -49,7 +49,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Versioned migration v1 foundation | Runtime/API, project history, recovery, trusted baselines/state, startup coordination, and create/rename/drop table migrations are implemented; database lifecycle rules, live-editor verification, and release matrices remain |
+| High — first | Migration data/save phase | Add typed bounded row transformations and fresh-save schema provisioning; add multi-table orchestration after the single-table data path is reliable |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
@@ -64,7 +64,7 @@ sessions unless new evidence changes an architectural dependency:
    identity, required-column reads, explicit materialization, and contextual
    diagnostics. Preserve the existing eager public behavior only for Resource
    values an operation actually needs.
-2. **Migration v1 — durable schema history.** Build ordered forward schema
+2. **Migration v1 — durable schema history (implemented and tested).** Build ordered forward schema
    migrations, checksums, an applied ledger, dry runs, backups, recovery, and
    headless validation on top of the stable stored-value boundary.
 3. **Migration data/save phases.** Add bounded data transformations,
@@ -360,9 +360,8 @@ application as retryable pending history. Drop is destructive and protected by
 the same whole-database recovery snapshot as other migration failures; rename
 preserves stored rows.
 Once history starts, the editor blocks direct structural saves so they cannot
-bypass the ledger. Database lifecycle migrations remain a later v1 extension.
-Live-editor workflow verification, broader interruption coverage, and
-supported-version matrices remain part of release QA.
+bypass the ledger. Live-editor workflow verification, broader interruption
+coverage, and supported-version matrices remain part of release QA.
 
 Automatic schema-only runtime migration is implemented before in-memory
 hydration and model registration. The startup coordinator:
@@ -376,21 +375,29 @@ hydration and model registration. The startup coordinator:
 5. verifies the target fingerprint before gameplay models are opened.
 
 History without trusted schema state fails closed. A stream with neither
-history nor state is explicitly unconfigured. Baseline adoption is limited to
-writable non-project registrations already matching independently persisted
-state; project content is not automatically baselined. Table creation, rename,
-and drop are explicit migration operations. Fresh database creation/removal
-still needs explicit migration and ledger lifecycle rules.
+history nor state is explicitly unconfigured. Writable registrations may adopt
+a baseline only when an empty ledger already matches independently persisted
+state. Project content is validated against the trusted head without a ledger
+or runtime mutation; outdated content must be migrated in the editor. Table
+creation, rename, and drop are explicit migration operations.
+
+Database containers have an administrative lifecycle rather than migration
+steps. A new writable database either replays a history that begins from an
+empty origin or is provisioned at the trusted current schema and receives a
+verified baseline. Automatic fresh-save provisioning remains in the next
+data/save phase. Database rename after history starts requires a future atomic
+registry and schema-state operation; unregister and destroy stay explicit user
+actions and are never deployed migration entries.
 
 The migration formats under development target the addon's first public 1.0.
 They may be corrected directly while unreleased; compatibility work begins
 when a persisted format is shipped as supported public behavior.
 
-Later slices add canonical data transformations, multi-table orchestration,
-and migration of older `user://` saves. Fresh databases and saves start at the
-current schema; existing durable data applies only pending migrations. Managed
-content sources migrate during authoring, while disposable effective-content
-caches are rebuilt rather than migrated.
+The next slices add canonical data transformations, fresh-save provisioning,
+multi-table orchestration, and migration of older `user://` saves. Fresh
+databases and saves start at the current schema; existing durable data applies
+only pending migrations. Managed content sources migrate during authoring,
+while disposable effective-content caches are rebuilt rather than migrated.
 
 Applied migration files are immutable. Editing an applied file must produce a
 checksum or schema-drift diagnostic instead of silently changing history.

@@ -116,12 +116,16 @@ service for authoritative multiplayer data.
 
 The migration foundation currently includes ordered definitions, checksums,
 dry-run previews, an applied ledger, schema fingerprints, backups, recovery,
-and editor authoring for one existing-table change at a time.
+runtime startup coordination, verified save baselines, and editor authoring for
+one table change at a time. Table alteration, creation, rename, and drop are
+supported. Project content is verified at its trusted schema head without
+runtime mutation.
 
-Automatic migration during runtime startup, explicit baseline adoption for new
-and legacy saves, table lifecycle migrations, multi-table orchestration, and
-data transformations remain active development work. Until those pieces are
-complete, released projects should treat migration support as pre-release
+Typed data transformations, automatic fresh-save provisioning, multi-table
+orchestration, and broader release/recovery verification remain active work.
+Database creation, rename, unregister, and destruction are administrative
+lifecycle operations rather than migration entries. Until the remaining work
+is complete, released projects should treat migration support as pre-release
 infrastructure rather than a finished compatibility promise.
 
 Continue with [Create your first project](./getting-started), compare the

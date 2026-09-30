@@ -196,6 +196,98 @@ func test_bootstrap_baselines_a_writable_save_already_at_the_target_schema() -> 
 	assert_array(ledger.records).is_empty()
 
 
+func test_startup_accepts_project_content_at_the_trusted_head_without_a_ledger() -> void:
+	var migration := _add_level_migration()
+	var history: Array[GDSQLMigrationDefinition] = [migration]
+	assert_bool(
+		_history_store().append(&"content", migration, 0).is_successful(),
+	).is_true()
+	var content := GDSQLDatabase.open(&"content", _content_root).get_database()
+	assert_bool(
+		content.alter_table(&"heroes", [_add_level_alteration()]).is_successful(),
+	).is_true()
+	_save_schema_state(
+		&"content",
+		&"content",
+		history,
+		GDSQLSchemaFingerprint.compute(
+			content.context.catalog.get_database(content.database_name),
+		),
+	)
+	var registration := GDSQLDatabaseRegistration.new(
+		&"content",
+		&"content",
+		"res://data",
+		GDSQLStorageBackendIds.CONFIG_FILE,
+		&"content",
+	)
+
+	var result := GDSQLMigrationStartupCoordinator.new(
+		_history_store(),
+		GDSQLConfigFileMigrationSchemaStateStore.new(_state_root),
+	).prepare(registration, content)
+
+	assert_bool(result.is_successful()).is_true()
+	assert_bool(result.migration_configured).is_true()
+	assert_int(result.target_history_count).is_equal(1)
+	assert_bool(result.baseline_adopted).is_false()
+	assert_array(result.applied_migration_ids).is_empty()
+	var ledger := GDSQLConfigFileMigrationLedger.new(
+		GDSQLDatabasePathResolver.new(_content_root),
+	).load(&"content").get_value() as GDSQLMigrationLedgerSnapshot
+	assert_object(ledger.baseline).is_null()
+	assert_array(ledger.records).is_empty()
+
+
+func test_startup_rejects_outdated_project_content_without_mutating_it() -> void:
+	var migration := _add_level_migration()
+	var history: Array[GDSQLMigrationDefinition] = [migration]
+	assert_bool(
+		_history_store().append(&"content", migration, 0).is_successful(),
+	).is_true()
+	var target := _create_database(
+		&"content",
+		_test_root.path_join("target_content"),
+	)
+	assert_bool(
+		target.alter_table(&"heroes", [_add_level_alteration()]).is_successful(),
+	).is_true()
+	_save_schema_state(
+		&"content",
+		&"content",
+		history,
+		GDSQLSchemaFingerprint.compute(
+			target.context.catalog.get_database(target.database_name),
+		),
+	)
+	var content := GDSQLDatabase.open(&"content", _content_root).get_database()
+	var registration := GDSQLDatabaseRegistration.new(
+		&"content",
+		&"content",
+		"res://data",
+		GDSQLStorageBackendIds.CONFIG_FILE,
+		&"content",
+	)
+
+	var result := GDSQLMigrationStartupCoordinator.new(
+		_history_store(),
+		GDSQLConfigFileMigrationSchemaStateStore.new(_state_root),
+	).prepare(registration, content)
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(String(result.diagnostics.entries[-1].code)).is_equal(
+		"GDSQL_MIGRATION_PROJECT_SCHEMA_OUTDATED",
+	)
+	assert_object(
+		content.context.catalog.get_table(&"content", &"heroes").get_column(&"level"),
+	).is_null()
+	var ledger := GDSQLConfigFileMigrationLedger.new(
+		GDSQLDatabasePathResolver.new(_content_root),
+	).load(&"content").get_value() as GDSQLMigrationLedgerSnapshot
+	assert_object(ledger.baseline).is_null()
+	assert_array(ledger.records).is_empty()
+
+
 func test_bootstrap_rejects_authored_history_without_trusted_schema_state() -> void:
 	assert_bool(
 		_history_store().append(&"save_1", _add_level_migration(), 0).is_successful(),
@@ -304,9 +396,18 @@ func _save_target_state(
 		history: Array[GDSQLMigrationDefinition],
 		fingerprint: String,
 ) -> void:
+	_save_schema_state(stream, &"save_1", history, fingerprint)
+
+
+func _save_schema_state(
+		stream: StringName,
+		database_name: StringName,
+		history: Array[GDSQLMigrationDefinition],
+		fingerprint: String,
+) -> void:
 	var state := GDSQLMigrationSchemaState.from_history(
 		stream,
-		&"save_1",
+		database_name,
 		history,
 		fingerprint,
 	)
