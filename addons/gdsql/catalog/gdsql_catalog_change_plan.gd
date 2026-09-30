@@ -1,13 +1,20 @@
 class_name GDSQLCatalogChangePlan
 extends RefCounted
-## Read-only preview data for a validated table alteration request.
+## Read-only preview data for one validated table catalog operation.
 ##
 ## The source fingerprint prevents applying a preview after the table schema
 ## changed. Alteration intents are treated as immutable after preview.
 
+enum Kind {
+	ALTER_TABLE,
+	CREATE_TABLE,
+}
+
+var kind := Kind.ALTER_TABLE
 var database_name: StringName
 var table_name: StringName
 var alterations: Array[GDSQLTableAlteration] = []
+var table_definition: GDSQLTableDefinition
 var source_catalog_fingerprint: int
 var affected_rows: int
 var destructive: bool
@@ -31,6 +38,20 @@ func _init(
 			continue
 		destructive = destructive or alteration.is_destructive()
 		summaries.append(alteration.describe())
+
+
+static func for_create_table(
+		target_database: StringName,
+		table: GDSQLTableDefinition,
+) -> GDSQLCatalogChangePlan:
+	var plan := GDSQLCatalogChangePlan.new(
+		target_database,
+		table.name if table != null else &"",
+	)
+	plan.kind = Kind.CREATE_TABLE
+	plan.table_definition = table
+	plan.summaries = ["Create table '%s'." % plan.table_name]
+	return plan
 
 
 func requires_confirmation() -> bool:

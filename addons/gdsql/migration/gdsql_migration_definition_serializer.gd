@@ -62,10 +62,17 @@ static func decode(payload: Dictionary) -> GDSQLOperationResult:
 static func _encode_step(step: GDSQLSchemaMigrationStep) -> Dictionary:
 	if step == null:
 		return { }
+	if step.kind == GDSQLSchemaMigrationStep.Kind.CREATE_TABLE:
+		return {
+			"kind": step.kind,
+			"table_name": String(step.table_name),
+			"table_definition": _encode_table(step.table_definition),
+		}
 	var alterations: Array[Dictionary] = []
 	for alteration in step.alterations:
 		alterations.append(_encode_alteration(alteration))
 	return {
+		"kind": step.kind,
 		"table_name": String(step.table_name),
 		"alterations": alterations,
 	}
@@ -73,6 +80,19 @@ static func _encode_step(step: GDSQLSchemaMigrationStep) -> Dictionary:
 
 static func _decode_step(payload: Dictionary) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
+	var kind := int(
+		payload.get("kind", GDSQLSchemaMigrationStep.Kind.ALTER_TABLE),
+	)
+	if kind == GDSQLSchemaMigrationStep.Kind.CREATE_TABLE:
+		var table := _decode_table(payload.get("table_definition", { }))
+		var create_step := GDSQLSchemaMigrationStep.create_table(table)
+		if not create_step.is_valid() \
+				or create_step.table_name != StringName(payload.get("table_name", "")):
+			return _invalid(result)
+		result.value = create_step
+		return result
+	if kind != GDSQLSchemaMigrationStep.Kind.ALTER_TABLE:
+		return _invalid(result)
 	var raw_alterations: Variant = payload.get("alterations")
 	if not raw_alterations is Array:
 		return _invalid(result)
@@ -92,6 +112,60 @@ static func _decode_step(payload: Dictionary) -> GDSQLOperationResult:
 		return _invalid(result)
 	result.value = step
 	return result
+
+
+static func _encode_table(table: GDSQLTableDefinition) -> Dictionary:
+	if table == null:
+		return { }
+	var columns: Array[Dictionary] = []
+	for column in table.columns:
+		columns.append(_encode_column(column))
+	var indexes: Array[Dictionary] = []
+	for index in table.indexes:
+		indexes.append(_encode_index(index))
+	var foreign_keys: Array[Dictionary] = []
+	for foreign_key in table.foreign_keys:
+		foreign_keys.append(_encode_foreign_key(foreign_key))
+	return {
+		"name": String(table.name),
+		"primary_key": String(table.primary_key),
+		"columns": columns,
+		"indexes": indexes,
+		"foreign_keys": foreign_keys,
+	}
+
+
+static func _decode_table(value: Variant) -> GDSQLTableDefinition:
+	if not value is Dictionary or value.is_empty():
+		return null
+	var payload := value as Dictionary
+	var table := GDSQLTableDefinition.new(
+		StringName(payload.get("name", "")),
+		StringName(payload.get("primary_key", "")),
+	)
+	var raw_columns: Variant = payload.get("columns", [])
+	var raw_indexes: Variant = payload.get("indexes", [])
+	var raw_foreign_keys: Variant = payload.get("foreign_keys", [])
+	if not raw_columns is Array \
+			or not raw_indexes is Array \
+			or not raw_foreign_keys is Array:
+		return null
+	for raw_column in raw_columns:
+		var column := _decode_column(raw_column)
+		if column == null:
+			return null
+		table.add_column(column)
+	for raw_index in raw_indexes:
+		var index := _decode_index(raw_index)
+		if index == null:
+			return null
+		table.add_index(index)
+	for raw_foreign_key in raw_foreign_keys:
+		var foreign_key := _decode_foreign_key(raw_foreign_key)
+		if foreign_key == null:
+			return null
+		table.add_foreign_key(foreign_key)
+	return table
 
 
 static func _encode_alteration(alteration: GDSQLTableAlteration) -> Dictionary:
@@ -183,9 +257,9 @@ static func _encode_column(column: GDSQLColumnDefinition) -> Dictionary:
 		"generation": column.generation,
 		"resource_ownership": column.resource_ownership,
 		"resource_class": String(column.resource_type.resource_class) \
-				if column.resource_type != null else "",
+		if column.resource_type != null else "",
 		"resource_script": column.resource_type.script_path \
-				if column.resource_type != null else "",
+		if column.resource_type != null else "",
 	}
 
 

@@ -40,10 +40,33 @@ static func is_valid(value: String) -> bool:
 static func _serialize_step(step: GDSQLSchemaMigrationStep) -> Array:
 	if step == null:
 		return []
+	if step.kind == GDSQLSchemaMigrationStep.Kind.CREATE_TABLE:
+		return ["create_table", _serialize_table(step.table_definition)]
 	var alterations: Array = []
 	for alteration in step.alterations:
 		alterations.append(_serialize_alteration(alteration))
 	return [String(step.table_name), alterations]
+
+
+static func _serialize_table(table: GDSQLTableDefinition) -> Array:
+	if table == null:
+		return []
+	var columns: Array = []
+	for column in table.columns:
+		columns.append(_serialize_column(column))
+	var indexes: Array = []
+	for index in table.indexes:
+		indexes.append(_serialize_index(index))
+	var foreign_keys: Array = []
+	for foreign_key in table.foreign_keys:
+		foreign_keys.append(_serialize_foreign_key(foreign_key))
+	return [
+		String(table.name),
+		String(table.primary_key),
+		columns,
+		indexes,
+		foreign_keys,
+	]
 
 
 static func _serialize_alteration(alteration: GDSQLTableAlteration) -> Array:

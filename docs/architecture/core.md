@@ -1750,6 +1750,12 @@ func create_table(
 ) -> CatalogOperationResult
 
 @abstract
+func preview_create_table(
+    database_name: StringName,
+    table: TableDefinition,
+) -> OperationResult
+
+@abstract
 func rename_table(database_name: StringName, current_name: StringName, new_name: StringName) -> CatalogOperationResult
 
 @abstract
@@ -1827,10 +1833,11 @@ operations remove both metadata and owned storage.
 Migration history is project-authored, forward-only input above catalog
 administration. `GDSQLMigrationDefinition` owns one stable sortable ID, a
 description, an ordered list of `GDSQLSchemaMigrationStep` values, and a
-deterministic SHA-256 checksum. Each initial step targets one table and reuses
-the existing `GDSQLTableAlteration` vocabulary. A definition recalculates its
-checksum during validation, so changing an already recorded description,
-step, column, index, default, or foreign key is rejected as edited history.
+deterministic SHA-256 checksum. Each step targets one table and either reuses
+the existing `GDSQLTableAlteration` vocabulary or carries one complete table
+definition for creation. A definition recalculates its checksum during
+validation, so changing an already recorded description, operation, table,
+column, index, default, or foreign key is rejected as edited history.
 
 IDs use only letters, digits, `_`, `-`, and `.`, and must be strictly increasing
 under ordinal comparison. Timestamp-prefixed, fixed-width IDs are the
@@ -1848,9 +1855,11 @@ silently overwrite project history.
 under `res://.gdsql/migrations/<stream>/<migration_id>.cfg`. Files are sorted by
 their stable IDs and activated from staging without replacing an existing
 entry. `GDSQLMigrationDefinitionSerializer` is the dynamic serialization
-boundary for typed steps and every current `GDSQLTableAlteration` shape. Loading
-recomputes and compares the authored checksum; edited, renamed, malformed,
-duplicate, or out-of-order entries return structured diagnostics.
+boundary for typed steps, complete create-table definitions, and every current
+`GDSQLTableAlteration` shape. Existing alteration-only definitions retain their
+checksum representation. Loading recomputes and compares the authored checksum;
+edited, renamed, malformed, duplicate, or out-of-order entries return
+structured diagnostics.
 
 `GDSQLMigrationSchemaState` is project-owned trust evidence for one migration
 stream and logical database. It records an authored-history count and head, the
@@ -1903,8 +1912,9 @@ ledger revision.
 
 `GDSQLMigrationCatalogPlanner` receives catalog administration through
 constructor injection and previews only the next pending history entry.
-`preview_next()` delegates schema validation to `preview_alter_table()` and
-returns a `GDSQLMigrationCatalogPlan` containing the migration identity, its
+`preview_next()` delegates schema validation to `preview_alter_table()` or
+`preview_create_table()` according to the typed step and returns a
+`GDSQLMigrationCatalogPlan` containing the migration identity, its
 stale-safe `GDSQLCatalogChangePlan`, affected rows and summaries, and the
 expected applied-ledger revision. Previewing does not mutate schema, rows, or the
 ledger.
@@ -1941,7 +1951,7 @@ and recovery contracts through constructor injection. `apply()` accepts only a
 validated `GDSQLMigrationCatalogPlan`, reloads the ledger to reject stale
 history, and compares the current whole-schema fingerprint with the last
 applied record before creating a backup. The plan's database, table, authored
-checksum, and catalog alterations must describe the same migration.
+checksum, and catalog operation must describe the same migration.
 
 After those preconditions pass, the runner creates a durable backup, applies
 the stale-safe catalog plan, fingerprints the resulting schema, and appends one
@@ -2006,8 +2016,9 @@ directory cannot leave stale rows visible in the active context. In-memory
 runtime contexts do not expose migrations: schema history belongs to their
 durable ConfigFile authoring source, which must migrate before hydration.
 Editor history authoring and destructive confirmation remain a separate
-product flow over this public API. The database document now authors one
-existing-table step at a time. It emits typed intent to the editor controller,
+product flow over this public API. The database document now authors one table
+step at a time: either one existing-table alteration group or one new table
+definition. It emits typed intent to the editor controller,
 which rejects authoring while an earlier entry is pending, previews the
 candidate complete history, and returns an `EditorMigrationPreview` to the
 scene. The scene shows affected rows and catalog summaries and always requires
@@ -2017,9 +2028,9 @@ plan. If application fails, the appended definition remains pending and is
 presented again on the next database open or refresh. After a stream contains
 its first definition, the database document disables direct structural saves;
 bypassing the ledger would invalidate its recorded schema fingerprint. The v1
-editor therefore keeps database rename, new-table, and multi-table drafts
-reversible but unapplied once history has started, until later migration steps
-cover those lifecycle changes. Whenever editor preview confirms that the
+editor therefore keeps database rename and multi-table drafts reversible but
+unapplied once history has started. Table rename/drop and database lifecycle
+still require later typed operations. Whenever editor preview confirms that the
 durable database is at the authored history head, the editor advances its
 project schema state. State persistence failure is reported as a warning and
 does not recast an already committed catalog migration as failed.

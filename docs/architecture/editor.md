@@ -382,12 +382,14 @@ table opens or focuses a separate data document.
 
 New tables are editable drafts placed after existing table folds and before the
 persistent `Add Table` action. Database rename and new-table definitions remain
-local dirty state until the user requests save and confirms a concise change
-summary. Invalid drafts keep Save unavailable and expose the first actionable
-database, table, column, default, primary-key, or index validation message in
-the document footer. The editor then delegates the typed database rename and
-`TableDefinition` objects to catalog administration. Broader alterations
-continue through previewed `CatalogChangePlan` instances.
+local dirty state until the user chooses a valid persistence path. Before
+migration history begins, direct save confirms a concise change summary. One
+new-table draft can instead be previewed and recorded as an immutable migration;
+after history begins, that migration path is required. Invalid drafts keep both
+actions unavailable and expose the first actionable database, table, column,
+default, primary-key, or index validation message in the document footer. The
+editor delegates direct typed definitions and previewed `CatalogChangePlan`
+instances to catalog administration.
 
 Registration names are internal identities. User-facing titles and database
 fields display `DatabaseRegistration.database_name`; location and storage

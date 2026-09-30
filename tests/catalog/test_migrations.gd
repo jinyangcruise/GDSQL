@@ -346,6 +346,101 @@ func test_catalog_planner_previews_next_migration_without_mutation() -> void:
 	).is_null()
 
 
+func test_runner_creates_table_and_records_schema_fingerprint() -> void:
+	var database := GDSQLDatabase.create(
+		TestDatabase.DEFAULT_DATABASE_NAME,
+		_data_root,
+	).get_database()
+	var table := _inventory_table()
+	var migration := _create_table_migration(
+		"202609280001_create_inventory",
+		table,
+	)
+
+	var preview := database.preview_migrations([migration])
+
+	assert_bool(preview.is_successful()).is_true()
+	assert_object(
+		database.context.catalog.get_table(database.database_name, &"inventory"),
+	).is_null()
+	assert_array(preview.next_plan.summaries()).contains_exactly(
+		["Create table 'inventory'."],
+	)
+	var applied := database.apply_migration(preview.next_plan)
+	assert_bool(applied.is_successful()).is_true()
+	var reopened := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	var created := reopened.context.catalog.get_table(
+		database.database_name,
+		&"inventory",
+	)
+	assert_object(created).is_not_null()
+	assert_str(created.primary_key).is_equal("id")
+	var ledger := GDSQLConfigFileMigrationLedger.new(
+		GDSQLDatabasePathResolver.new(_data_root),
+	).load(database.database_name).get_value() as GDSQLMigrationLedgerSnapshot
+	assert_int(ledger.records.size()).is_equal(1)
+	assert_str(ledger.records[0].migration_id).is_equal(migration.migration_id)
+
+
+func test_create_table_plan_is_stale_when_table_appears_after_preview() -> void:
+	var database := GDSQLDatabase.create(
+		TestDatabase.DEFAULT_DATABASE_NAME,
+		_data_root,
+	).get_database()
+	var table := _inventory_table()
+	var migration := _create_table_migration(
+		"202609280001_create_inventory",
+		table,
+	)
+	var preview := database.preview_migrations([migration])
+	assert_bool(preview.is_successful()).is_true()
+	assert_bool(database.create_table(_inventory_table()).is_successful()).is_true()
+
+	var applied := database.apply_migration(preview.next_plan)
+
+	assert_bool(applied.is_successful()).is_false()
+	assert_str(_first_code(applied)).is_equal("GDSQL_CATALOG_CHANGE_PLAN_STALE")
+	var ledger := GDSQLConfigFileMigrationLedger.new(
+		GDSQLDatabasePathResolver.new(_data_root),
+	).load(database.database_name).get_value() as GDSQLMigrationLedgerSnapshot
+	assert_bool(ledger.records.is_empty()).is_true()
+
+
+func test_create_table_migration_restores_backup_when_ledger_append_fails() -> void:
+	var database := GDSQLDatabase.create(
+		TestDatabase.DEFAULT_DATABASE_NAME,
+		_data_root,
+	).get_database()
+	var harness := ConfigMigrationHarness.new(_data_root)
+	var migration := _create_table_migration(
+		"202609280001_create_inventory",
+		_inventory_table(),
+	)
+	var history := GDSQLMigrationPlanner.new().plan(
+		[migration],
+		GDSQLMigrationLedgerSnapshot.new(),
+	)
+	var preview := GDSQLMigrationCatalogPlanner.new(
+		harness.administration,
+	).preview_next(database.database_name, history.get_value())
+	var runner := GDSQLMigrationRunner.new(
+		harness.catalog,
+		harness.administration,
+		FailingAppendLedger.new(),
+		harness.recovery,
+	)
+
+	var result := runner.apply(preview.get_value())
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(_first_code(result)).is_equal("GDSQL_TEST_LEDGER_APPEND_FAILED")
+	assert_bool(result.recovered).is_true()
+	var reopened := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	assert_object(
+		reopened.context.catalog.get_table(database.database_name, &"inventory"),
+	).is_null()
+
+
 func test_catalog_migration_preview_retains_stale_schema_protection() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
 	var migration := _migration("202609280001_add_level")
@@ -703,6 +798,27 @@ func _migration(
 		GDSQLSchemaMigrationStep.new(&"heroes", alterations),
 	]
 	return GDSQLMigrationDefinition.new(migration_id, "Migration %s" % migration_id, steps)
+
+
+func _create_table_migration(
+		migration_id: String,
+		table: GDSQLTableDefinition,
+) -> GDSQLMigrationDefinition:
+	var steps: Array[GDSQLSchemaMigrationStep] = [
+		GDSQLSchemaMigrationStep.create_table(table),
+	]
+	return GDSQLMigrationDefinition.new(
+		migration_id,
+		"Migration %s" % migration_id,
+		steps,
+	)
+
+
+func _inventory_table() -> GDSQLTableDefinition:
+	var table := GDSQLTableDefinition.new(&"inventory", &"id")
+	table.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true, true))
+	table.add_column(GDSQLColumnDefinition.new(&"item_id", TYPE_STRING_NAME, false))
+	return table
 
 
 func _first_code(result: GDSQLOperationResult) -> String:

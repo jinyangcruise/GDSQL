@@ -51,11 +51,25 @@ func preview_next(
 			) % [migration.migration_id, migration.steps.size()],
 		)
 	var step := migration.steps[0]
-	var preview := _catalog_administration.preview_alter_table(
-		database_name,
-		step.table_name,
-		step.alterations,
-	)
+	var preview: GDSQLOperationResult
+	match step.kind:
+		GDSQLSchemaMigrationStep.Kind.ALTER_TABLE:
+			preview = _catalog_administration.preview_alter_table(
+				database_name,
+				step.table_name,
+				step.alterations,
+			)
+		GDSQLSchemaMigrationStep.Kind.CREATE_TABLE:
+			preview = _catalog_administration.preview_create_table(
+				database_name,
+				step.table_definition,
+			)
+		_:
+			return _error(
+				result,
+				&"GDSQL_MIGRATION_STEP_UNSUPPORTED",
+				"Migration uses an unsupported catalog lifecycle operation.",
+			)
 	result.diagnostics.merge(preview.diagnostics)
 	if not preview.is_successful():
 		return result

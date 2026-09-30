@@ -64,6 +64,12 @@ func create_table(table_definition: GDSQLTableDefinition) -> GDSQLCatalogOperati
 	return context.create_table(database_name, table_definition)
 
 
+func preview_create_table(
+		table_definition: GDSQLTableDefinition,
+) -> GDSQLOperationResult:
+	return context.preview_create_table(database_name, table_definition)
+
+
 func rename(new_name: StringName) -> GDSQLDatabaseResult:
 	var catalog_result := context.rename_database(database_name, new_name)
 	var result := GDSQLDatabaseResult.new()

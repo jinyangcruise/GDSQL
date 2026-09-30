@@ -241,6 +241,40 @@ func create_table(
 	return result
 
 
+func preview_create_table(
+		database_name: StringName,
+		table: GDSQLTableDefinition,
+) -> GDSQLOperationResult:
+	var validation := _validate_table(database_name, table)
+	if not validation.is_successful():
+		var failed := GDSQLOperationResult.new()
+		failed.diagnostics.merge(validation.diagnostics)
+		return failed
+	var registry := ConfigFile.new()
+	if registry.load(_path_resolver.resolve_catalog_path()) != OK \
+			or not registry.has_section(String(database_name)):
+		return _operation_error(
+			&"GDSQL_CATALOG_UNKNOWN_DATABASE",
+			"Database '%s' is not registered." % database_name,
+		)
+	var schema_path := _path_resolver.resolve_schema_path(database_name, table.name)
+	var table_path := _path_resolver.resolve_table_path(database_name, table.name)
+	if _catalog.has_table(database_name, table.name) \
+			or FileAccess.file_exists(schema_path):
+		return _operation_error(
+			&"GDSQL_CATALOG_TABLE_EXISTS",
+			"Table '%s.%s' already exists." % [database_name, table.name],
+		)
+	if FileAccess.file_exists(table_path):
+		return _operation_error(
+			&"GDSQL_CATALOG_TABLE_STORAGE_EXISTS",
+			"Table storage '%s' already exists without a schema." % table_path,
+		)
+	var result := GDSQLOperationResult.new()
+	result.value = GDSQLCatalogChangePlan.for_create_table(database_name, table)
+	return result
+
+
 func rename_table(
 		database_name: StringName,
 		current_name: StringName,
@@ -384,6 +418,25 @@ func apply_change_plan(
 		return _error(
 			&"GDSQL_CATALOG_CHANGE_PLAN_REQUIRED",
 			"A catalog change plan is required.",
+		)
+	if plan.kind == GDSQLCatalogChangePlan.Kind.CREATE_TABLE:
+		if plan.table_definition == null \
+				or plan.table_definition.name != plan.table_name:
+			return _error(
+				&"GDSQL_CATALOG_CHANGE_PLAN_INVALID",
+				"Create-table plan does not contain its authored table definition.",
+			)
+		if _catalog.has_table(plan.database_name, plan.table_name):
+			return _error(
+				&"GDSQL_CATALOG_CHANGE_PLAN_STALE",
+				"Table '%s.%s' was created after this plan was previewed." \
+						% [plan.database_name, plan.table_name],
+			)
+		return create_table(plan.database_name, plan.table_definition)
+	if plan.kind != GDSQLCatalogChangePlan.Kind.ALTER_TABLE:
+		return _error(
+			&"GDSQL_CATALOG_CHANGE_PLAN_INVALID",
+			"Catalog change plan uses an unsupported operation.",
 		)
 	var current_table := _catalog.get_table(plan.database_name, plan.table_name)
 	if current_table == null:

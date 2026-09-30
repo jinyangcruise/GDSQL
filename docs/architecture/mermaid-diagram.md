@@ -55,7 +55,7 @@ Workbench("`**GDSQLWorkbench**
 MigrationAuthoring("`**Editor Migration Authoring**
 
 -
-*Purpose:* Turn one existing-table draft into immutable project history
+*Purpose:* Turn one existing-table draft or one new table into immutable project history
 *Preview:* Affected rows, catalog summaries and destructive classification
 *Safety:* Explicit confirmation, stale-count append and stale-safe application
 *Recovery:* A persisted failure remains pending and retryable`")
@@ -407,14 +407,14 @@ CatalogAdministration("`**GDSQLCatalogAdministrationService**
 *Purpose:* Manage database and table lifecycle without exposing storage format
 *Database API:* create_database(), rename_database(), drop_database()
 *Table API:* create_table(), rename_table(), alter_table(), drop_table()
-*Plan API:* preview_alter_table(), apply_change_plan()
+*Plan API:* preview_create_table(), preview_alter_table(), apply_change_plan()
 *Integrity:* Reject incoming-reference-breaking schema changes
 *Extension point:* Catalog administration backend implementations`")
 
 MigrationHistory("`**Schema Migration History**
 
 -
-*Input:* Ordered GDSQLMigrationDefinition values and table alteration steps
+*Input:* Ordered GDSQLMigrationDefinition values with alter-table or create-table steps
 *Integrity:* Deterministic checksums; applied history must be an exact prefix
 *Plan:* GDSQLMigrationPlanner returns pending definitions and destructive status
 *Boundary:* Models never create or infer migrations`")
@@ -446,7 +446,7 @@ MigrationCatalogPlanning("`**Migration Catalog Planning**
 *Input:* Target database and next pending migration
 *API:* GDSQLMigrationCatalogPlanner.preview_next()
 *Output:* GDSQLMigrationCatalogPlan wrapping a stale-safe catalog change plan
-*Initial scope:* One table step per migration; no mutation`")
+*Initial scope:* One create-table or alter-table step per migration; no mutation`")
 
 MigrationLedger("`**GDSQLMigrationLedger**
 
@@ -712,7 +712,7 @@ MigrationService -->|"resolve leftover backup against ledger"| MigrationRecovery
 MigrationService -->|"detect committed migration"| MigrationLedger
 MigrationService -->|"verify baseline and drift fingerprints"| CatalogService
 MigrationHistory -->|"preview next pending entry"| MigrationCatalogPlanning
-MigrationCatalogPlanning -->|"preview_alter_table()"| CatalogAdministration
+MigrationCatalogPlanning -->|"preview_create_table() · preview_alter_table()"| CatalogAdministration
 MigrationCatalogPlanning -->|"validated next plan"| MigrationRunner
 MigrationRunner -->|"create · restore · discard"| MigrationRecovery
 MigrationRunner -->|"apply_change_plan()"| CatalogAdministration

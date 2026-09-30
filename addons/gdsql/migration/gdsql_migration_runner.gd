@@ -130,6 +130,7 @@ func _validate_plan(plan: GDSQLMigrationCatalogPlan) -> GDSQLOperationResult:
 		)
 	var step := plan.migration.steps[0]
 	if step.table_name != plan.change_plan.table_name \
+			or not _step_kind_matches_plan(step, plan.change_plan) \
 			or not _change_plan_matches_migration(plan):
 		return _error(
 			result,
@@ -140,10 +141,16 @@ func _validate_plan(plan: GDSQLMigrationCatalogPlan) -> GDSQLOperationResult:
 
 
 func _change_plan_matches_migration(plan: GDSQLMigrationCatalogPlan) -> bool:
-	var preview_step := GDSQLSchemaMigrationStep.new(
-		plan.change_plan.table_name,
-		plan.change_plan.alterations,
-	)
+	var preview_step: GDSQLSchemaMigrationStep
+	if plan.change_plan.kind == GDSQLCatalogChangePlan.Kind.CREATE_TABLE:
+		preview_step = GDSQLSchemaMigrationStep.create_table(
+			plan.change_plan.table_definition,
+		)
+	else:
+		preview_step = GDSQLSchemaMigrationStep.new(
+			plan.change_plan.table_name,
+			plan.change_plan.alterations,
+		)
 	var preview_steps: Array[GDSQLSchemaMigrationStep] = [preview_step]
 	var preview_definition := GDSQLMigrationDefinition.new(
 		plan.migration.migration_id,
@@ -151,6 +158,19 @@ func _change_plan_matches_migration(plan: GDSQLMigrationCatalogPlan) -> bool:
 		preview_steps,
 	)
 	return preview_definition.checksum == plan.migration.checksum
+
+
+func _step_kind_matches_plan(
+		step: GDSQLSchemaMigrationStep,
+		change_plan: GDSQLCatalogChangePlan,
+) -> bool:
+	return (
+			step.kind == GDSQLSchemaMigrationStep.Kind.ALTER_TABLE \
+					and change_plan.kind == GDSQLCatalogChangePlan.Kind.ALTER_TABLE
+	) or (
+			step.kind == GDSQLSchemaMigrationStep.Kind.CREATE_TABLE \
+					and change_plan.kind == GDSQLCatalogChangePlan.Kind.CREATE_TABLE
+	)
 
 
 func _recover(result: GDSQLMigrationRunResult) -> void:

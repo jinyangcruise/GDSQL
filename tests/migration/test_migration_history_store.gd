@@ -75,6 +75,56 @@ func test_definition_serializer_round_trips_every_schema_alteration_shape() -> v
 	)
 
 
+func test_definition_serializer_round_trips_create_table_step() -> void:
+	var table := GDSQLTableDefinition.new(&"inventory", &"id")
+	table.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true, true))
+	table.add_column(GDSQLColumnDefinition.new(&"item_id", TYPE_STRING_NAME, false))
+	var index_columns: Array[StringName] = [&"item_id"]
+	table.add_index(GDSQLIndexDefinition.new(&"inventory_item_idx", index_columns))
+	var steps: Array[GDSQLSchemaMigrationStep] = [
+		GDSQLSchemaMigrationStep.create_table(table),
+	]
+	var migration := GDSQLMigrationDefinition.new(
+		"202609290001_create_inventory",
+		"Create inventory table",
+		steps,
+	)
+
+	var decoded := GDSQLMigrationDefinitionSerializer.decode(
+		GDSQLMigrationDefinitionSerializer.encode(migration),
+	)
+
+	assert_bool(decoded.is_successful()).is_true()
+	var restored := decoded.get_value() as GDSQLMigrationDefinition
+	assert_str(restored.checksum).is_equal(migration.checksum)
+	assert_int(restored.steps[0].kind).is_equal(
+		GDSQLSchemaMigrationStep.Kind.CREATE_TABLE,
+	)
+	assert_str(restored.steps[0].table_definition.name).is_equal("inventory")
+	assert_str(restored.steps[0].table_definition.primary_key).is_equal("id")
+	assert_int(restored.steps[0].table_definition.columns.size()).is_equal(2)
+	assert_str(restored.steps[0].table_definition.indexes[0].name).is_equal(
+		"inventory_item_idx",
+	)
+
+
+func test_definition_serializer_keeps_existing_alteration_files_readable() -> void:
+	var migration := _add_level_migration("202609290001_add_level")
+	var payload := GDSQLMigrationDefinitionSerializer.encode(migration)
+	var steps := payload["steps"] as Array
+	var legacy_step := steps[0] as Dictionary
+	legacy_step.erase("kind")
+
+	var decoded := GDSQLMigrationDefinitionSerializer.decode(payload)
+
+	assert_bool(decoded.is_successful()).is_true()
+	var restored := decoded.get_value() as GDSQLMigrationDefinition
+	assert_str(restored.checksum).is_equal(migration.checksum)
+	assert_int(restored.steps[0].kind).is_equal(
+		GDSQLSchemaMigrationStep.Kind.ALTER_TABLE,
+	)
+
+
 func test_history_store_appends_ordered_files_and_rejects_stale_writers() -> void:
 	var store := _store()
 	var first := _add_level_migration("202609290001_add_level")

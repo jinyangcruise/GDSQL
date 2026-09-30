@@ -162,6 +162,13 @@ func create_table(
 	return catalog_administration.create_table(database_name, table)
 
 
+func preview_create_table(
+		database_name: StringName,
+		table: GDSQLTableDefinition,
+) -> GDSQLOperationResult:
+	return catalog_administration.preview_create_table(database_name, table)
+
+
 func rename_table(
 		database_name: StringName,
 		current_name: StringName,

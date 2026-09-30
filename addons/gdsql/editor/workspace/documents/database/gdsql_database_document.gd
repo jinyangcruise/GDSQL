@@ -104,7 +104,7 @@ func configure_actions(action_hub: GDSQLEditorActionHub, context_id: StringName)
 		GDSQLEditorActionDefinition.new(
 			GDSQLEditorActionIds.CREATE_DATABASE_MIGRATION,
 			"Create Migration…",
-			"Preview and record one existing-table schema change.",
+			"Preview and record one table schema change.",
 			&"ScriptCreate",
 			&"document",
 			0,
@@ -238,12 +238,12 @@ func present_migration_state(
 	elif pending_preview != null:
 		_migration_status.text = "Migrations · pending: %s" % pending_preview.definition.migration_id
 		_migration_status.tooltip_text = (
-			"This authored migration has not been applied to this database."
+				"This authored migration has not been applied to this database."
 		)
 	elif history_count == 0:
 		_migration_status.text = "Migrations · no authored history"
 		_migration_status.tooltip_text = (
-			"Schema changes can be recorded as immutable project migrations."
+				"Schema changes can be recorded as immutable project migrations."
 		)
 	else:
 		_migration_status.text = "Migrations · up to date · %d applied" % history_count
@@ -273,7 +273,7 @@ func present_migration_preview(preview: GDSQLEditorMigrationPreview) -> void:
 		_migration_confirmation.title = "Apply Migration"
 	_migration_confirmation.dialog_text = "\n".join(details)
 	_migration_confirmation.get_ok_button().text = (
-		"Apply Pending" if preview.definition_persisted else "Save and Apply"
+			"Apply Pending" if preview.definition_persisted else "Save and Apply"
 	)
 	_migration_confirmation.popup_centered(Vector2i(620, 320))
 
@@ -331,9 +331,9 @@ func _request_table_reset(table_name: StringName) -> void:
 	var table := _inspection.get_table(table_name)
 	var row_count := table.row_count if table != null else 0
 	_reset_table_confirmation.dialog_text = (
-		"Permanently delete all %d row(s) from '%s.%s'?\n\n"
-		+ "The table schema remains, but the next generated integer key resets to 1. "
-		+ "This operation cannot be undone."
+			"Permanently delete all %d row(s) from '%s.%s'?\n\n"
+			+ "The table schema remains, but the next generated integer key resets to 1. "
+			+ "This operation cannot be undone."
 	) % [row_count, _inspection.registration.database_name, table_name]
 	_reset_table_confirmation.popup_centered(Vector2i(570, 230))
 
@@ -406,8 +406,13 @@ func _request_migration() -> GDSQLOperationResult:
 	var table_change := _build_migration_change()
 	if table_change == null:
 		return result
-	_migration_id.text = _suggest_migration_id(table_change.table_name)
-	_migration_description.text = "Update %s schema" % table_change.table_name
+	var operation := "create" if table_change.is_create_table() else "alter"
+	_migration_id.text = _suggest_migration_id(table_change.table_name, operation)
+	_migration_description.text = (
+			"Create %s table" % table_change.table_name
+			if table_change.is_create_table()
+			else "Update %s schema" % table_change.table_name
+	)
 	_validate_migration_authoring()
 	_migration_authoring.popup_centered(Vector2i(560, 280))
 	result.value = self
@@ -446,7 +451,7 @@ func _emit_save() -> void:
 func _emit_migration_preview() -> void:
 	var table_change := _build_migration_change()
 	if table_change == null or not GDSQLMigrationDefinition.is_valid_id(
-			_migration_id.text.strip_edges(),
+		_migration_id.text.strip_edges(),
 	) or _migration_description.text.strip_edges().is_empty():
 		return
 	migration_preview_requested.emit(
@@ -503,17 +508,17 @@ func _update_dirty_state() -> void:
 	var migration_managed := _migration_history_count > 0
 	var migration_locked := migration_managed or not _migration_state_error.is_empty()
 	_dirty_state.text = (
-		"Migration history unavailable"
-		if dirty and not _migration_state_error.is_empty()
-		else (
-			"Pending migration · discard drafts to review"
-			if dirty and has_pending
+			"Migration history unavailable"
+			if dirty and not _migration_state_error.is_empty()
 			else (
-				"Migration required"
-				if dirty and migration_managed
-				else ("Unsaved changes" if dirty else "Saved")
+					"Pending migration · discard drafts to review"
+					if dirty and has_pending
+					else (
+							"Migration required"
+							if dirty and migration_managed
+							else ("Unsaved changes" if dirty else "Saved")
+					)
 			)
-		)
 	)
 	_validation_state.visible = dirty and not validation_errors.is_empty()
 	_validation_state.text = (validation_errors[0]
@@ -536,23 +541,23 @@ func _update_dirty_state() -> void:
 		)
 	_review_pending_migration.disabled = dirty
 	_review_pending_migration.tooltip_text = (
-		"Discard local schema drafts before applying pending history."
-		if dirty
-		else "Preview and apply the next authored migration."
+			"Discard local schema drafts before applying pending history."
+			if dirty
+			else "Preview and apply the next authored migration."
 	)
 	_create_migration.tooltip_text = (
-		"Resolve the migration-history error before authoring schema changes."
-		if not _migration_state_error.is_empty()
-		else (
-			"Record and preview the change as an immutable migration."
-			if _build_migration_change() != null
-			else "Migration v1 requires changes to exactly one existing table."
-		)
+			"Resolve the migration-history error before authoring schema changes."
+			if not _migration_state_error.is_empty()
+			else (
+					"Record and preview the change as an immutable migration."
+					if _build_migration_change() != null
+					else "Migration authoring requires exactly one table change."
+			)
 	)
 	_save.tooltip_text = (
-		"Direct schema saves are disabled while migration history is active or invalid."
-		if migration_locked
-		else "Review and apply changes without starting migration history."
+			"Direct schema saves are disabled while migration history is active or invalid."
+			if migration_locked
+			else "Review and apply changes without starting migration history."
 	)
 
 
@@ -595,10 +600,16 @@ func _requested_database_name() -> StringName:
 
 func _build_migration_change() -> GDSQLEditorTableChange:
 	if _inspection == null \
-			or _requested_database_name() != _original_database_name \
-			or _draft_tables.get_child_count() > 0:
+			or _requested_database_name() != _original_database_name:
 		return null
 	var requested: GDSQLEditorTableChange
+	if _draft_tables.get_child_count() == 1:
+		var definition := _draft_tables.get_child(0).call(
+			"build_definition",
+		) as GDSQLTableDefinition
+		requested = GDSQLEditorTableChange.create_table(definition)
+	elif _draft_tables.get_child_count() > 1:
+		return null
 	for fold in _existing_tables.get_children():
 		var table_change := fold.call("build_change") as GDSQLEditorTableChange
 		if table_change.alterations.is_empty():
@@ -609,14 +620,15 @@ func _build_migration_change() -> GDSQLEditorTableChange:
 	return requested
 
 
-func _suggest_migration_id(table_name: StringName) -> String:
+func _suggest_migration_id(table_name: StringName, operation: String = "alter") -> String:
 	var now := Time.get_datetime_dict_from_system()
-	return "%04d%02d%02d_%02d%02d%02d_alter_%s" % [
+	return "%04d%02d%02d_%02d%02d%02d_%s_%s" % [
 		now.year,
 		now.month,
 		now.day,
 		now.hour,
 		now.minute,
 		now.second,
+		operation,
 		table_name,
 	]
