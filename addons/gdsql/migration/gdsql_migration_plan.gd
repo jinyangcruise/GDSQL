@@ -1,6 +1,6 @@
 class_name GDSQLMigrationPlan
 extends RefCounted
-## Dry-run history result before catalog-specific schema previews are built.
+## Dry-run history result before step-specific previews are built.
 
 var pending: Array[GDSQLMigrationDefinition] = []
 var applied_count: int

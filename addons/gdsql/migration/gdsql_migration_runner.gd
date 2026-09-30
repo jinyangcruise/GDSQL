@@ -6,6 +6,10 @@ var _catalog: GDSQLCatalogService
 var _catalog_administration: GDSQLCatalogAdministrationService
 var _ledger: GDSQLMigrationLedger
 var _recovery: GDSQLMigrationRecoveryStore
+var _validator: GDSQLQueryValidator
+var _query_planner: GDSQLQueryPlanner
+var _executor: GDSQLQueryExecutor
+var _execution_context: GDSQLExecutionContext
 
 
 func _init(
@@ -13,14 +17,22 @@ func _init(
 		catalog_administration: GDSQLCatalogAdministrationService = null,
 		ledger: GDSQLMigrationLedger = null,
 		recovery: GDSQLMigrationRecoveryStore = null,
+		validator: GDSQLQueryValidator = null,
+		query_planner: GDSQLQueryPlanner = null,
+		executor: GDSQLQueryExecutor = null,
+		execution_context: GDSQLExecutionContext = null,
 ) -> void:
 	_catalog = catalog
 	_catalog_administration = catalog_administration
 	_ledger = ledger
 	_recovery = recovery
+	_validator = validator
+	_query_planner = query_planner
+	_executor = executor
+	_execution_context = execution_context
 
 
-func apply(plan: GDSQLMigrationCatalogPlan) -> GDSQLMigrationRunResult:
+func apply(plan: GDSQLMigrationStepPlan) -> GDSQLMigrationRunResult:
 	var result := GDSQLMigrationRunResult.new()
 	var validation := _validate_plan(plan)
 	result.diagnostics.merge(validation.diagnostics)
@@ -63,7 +75,7 @@ func apply(plan: GDSQLMigrationCatalogPlan) -> GDSQLMigrationRunResult:
 		return result
 	result.backup = backup_result.get_value() as GDSQLMigrationBackup
 	result.backup_retained = true
-	var applied := _catalog_administration.apply_change_plan(plan.change_plan)
+	var applied := _apply_step(plan)
 	result.diagnostics.merge(applied.diagnostics)
 	if not applied.is_successful():
 		_recover(result)
@@ -99,7 +111,7 @@ func apply(plan: GDSQLMigrationCatalogPlan) -> GDSQLMigrationRunResult:
 	return result
 
 
-func _validate_plan(plan: GDSQLMigrationCatalogPlan) -> GDSQLOperationResult:
+func _validate_plan(plan: GDSQLMigrationStepPlan) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	if _catalog == null or _catalog_administration == null \
 			or _ledger == null or _recovery == null:
@@ -108,19 +120,18 @@ func _validate_plan(plan: GDSQLMigrationCatalogPlan) -> GDSQLOperationResult:
 			&"GDSQL_MIGRATION_RUN_DEPENDENCY_REQUIRED",
 			"Migration execution requires catalog, ledger, and recovery services.",
 		)
-	if plan == null or plan.migration == null or plan.change_plan == null \
+	if plan == null or plan.migration == null \
 			or not plan.migration.is_valid() or plan.expected_ledger_revision < 0:
 		return _error(
 			result,
 			&"GDSQL_MIGRATION_RUN_PLAN_INVALID",
 			"Migration execution requires a valid catalog preview.",
 		)
-	if plan.database_name == &"" \
-			or plan.database_name != plan.change_plan.database_name:
+	if plan.database_name == &"":
 		return _error(
 			result,
 			&"GDSQL_MIGRATION_RUN_DATABASE_MISMATCH",
-			"Migration and catalog plans must target the same database.",
+			"Migration execution requires a target database.",
 		)
 	if plan.migration.steps.size() != 1:
 		return _error(
@@ -129,8 +140,22 @@ func _validate_plan(plan: GDSQLMigrationCatalogPlan) -> GDSQLOperationResult:
 			"Migration v1 execution requires exactly one table step.",
 		)
 	var step := plan.migration.steps[0]
-	if step.table_name != plan.change_plan.table_name \
-			or not _step_kind_matches_plan(step, plan.change_plan) \
+	if step is GDSQLDataMigrationStep:
+		if plan.change_plan != null or plan.data_step != step \
+				or _validator == null or _query_planner == null \
+				or _executor == null or _execution_context == null:
+			return _error(
+				result,
+				&"GDSQL_MIGRATION_RUN_PLAN_MISMATCH",
+				"Data preview does not represent the authored migration.",
+			)
+		return result
+	var schema_step := step as GDSQLSchemaMigrationStep
+	if schema_step == null or plan.change_plan == null \
+			or plan.data_step != null \
+			or plan.database_name != plan.change_plan.database_name \
+			or schema_step.table_name != plan.change_plan.table_name \
+			or not _step_kind_matches_plan(schema_step, plan.change_plan) \
 			or not _change_plan_matches_migration(plan):
 		return _error(
 			result,
@@ -140,7 +165,23 @@ func _validate_plan(plan: GDSQLMigrationCatalogPlan) -> GDSQLOperationResult:
 	return result
 
 
-func _change_plan_matches_migration(plan: GDSQLMigrationCatalogPlan) -> bool:
+func _apply_step(plan: GDSQLMigrationStepPlan) -> GDSQLOperationResult:
+	if not plan.is_data_update():
+		return _catalog_administration.apply_change_plan(plan.change_plan)
+	var validation := _validator.validate(plan.data_step.to_query(plan.database_name))
+	if not validation.is_valid():
+		var invalid := GDSQLOperationResult.new()
+		invalid.diagnostics.merge(validation.diagnostics)
+		return invalid
+	var planning := _query_planner.create_plan(validation.bound_query)
+	if not planning.is_successful() or planning.plan == null:
+		var unplanned := GDSQLOperationResult.new()
+		unplanned.diagnostics.merge(planning.diagnostics)
+		return unplanned
+	return _executor.execute(planning.plan, _execution_context)
+
+
+func _change_plan_matches_migration(plan: GDSQLMigrationStepPlan) -> bool:
 	var preview_step: GDSQLSchemaMigrationStep
 	if plan.change_plan.kind == GDSQLCatalogChangePlan.Kind.CREATE_TABLE:
 		preview_step = GDSQLSchemaMigrationStep.create_table(

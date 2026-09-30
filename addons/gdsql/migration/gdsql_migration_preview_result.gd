@@ -1,18 +1,18 @@
 class_name GDSQLMigrationPreviewResult
 extends GDSQLOperationResult
-## Reports validated history and the next catalog plan without mutating data.
+## Reports validated history and the next typed step plan without mutation.
 
 var history_plan: GDSQLMigrationPlan
-var next_plan: GDSQLMigrationCatalogPlan
+var next_plan: GDSQLMigrationStepPlan
 
 
 func complete(
 		validated_history: GDSQLMigrationPlan,
-		catalog_plan: GDSQLMigrationCatalogPlan = null,
+		step_plan: GDSQLMigrationStepPlan = null,
 ) -> void:
 	history_plan = validated_history
-	next_plan = catalog_plan
-	value = catalog_plan if catalog_plan != null else validated_history
+	next_plan = step_plan
+	value = step_plan if step_plan != null else validated_history
 
 
 func is_up_to_date() -> bool:

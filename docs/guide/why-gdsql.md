@@ -118,10 +118,12 @@ The migration foundation currently includes ordered definitions, checksums,
 dry-run previews, an applied ledger, schema fingerprints, backups, recovery,
 runtime startup coordination, verified save baselines, and editor authoring for
 one table change at a time. Table alteration, creation, rename, and drop are
-supported. Project content is verified at its trusted schema head without
+supported. Typed single-table row updates use the same canonical expressions as
+ordinary queries and participate in preview counts, backups, recovery, and the
+applied ledger. Project content is verified at its trusted schema head without
 runtime mutation.
 
-Typed data transformations, automatic fresh-save provisioning, multi-table
+Editor authoring for data steps, automatic fresh-save provisioning, multi-table
 orchestration, and broader release/recovery verification remain active work.
 Database creation, rename, unregister, and destruction are administrative
 lifecycle operations rather than migration entries. Until the remaining work

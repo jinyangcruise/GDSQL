@@ -2,6 +2,9 @@ class_name GDSQLMigrationDefinitionSerializer
 extends RefCounted
 ## Converts typed migration definitions at the external-data boundary.
 
+const ExpressionCodec = preload(
+	"res://addons/gdsql/migration/gdsql_migration_expression_codec.gd"
+)
 const FORMAT_VERSION := 1
 
 
@@ -31,7 +34,7 @@ static func decode(payload: Dictionary) -> GDSQLOperationResult:
 	var raw_steps: Variant = payload.get("steps")
 	if not raw_steps is Array:
 		return _invalid(result)
-	var steps: Array[GDSQLSchemaMigrationStep] = []
+	var steps: Array[GDSQLMigrationStep] = []
 	for raw_step in raw_steps:
 		if not raw_step is Dictionary:
 			return _invalid(result)
@@ -39,7 +42,7 @@ static func decode(payload: Dictionary) -> GDSQLOperationResult:
 		result.diagnostics.merge(decoded_step.diagnostics)
 		if not decoded_step.is_successful():
 			return result
-		steps.append(decoded_step.get_value() as GDSQLSchemaMigrationStep)
+		steps.append(decoded_step.get_value() as GDSQLMigrationStep)
 	var migration := GDSQLMigrationDefinition.new(
 		String(payload.get("migration_id", "")),
 		String(payload.get("description", "")),
@@ -59,38 +62,91 @@ static func decode(payload: Dictionary) -> GDSQLOperationResult:
 	return result
 
 
-static func _encode_step(step: GDSQLSchemaMigrationStep) -> Dictionary:
+static func _encode_step(step: GDSQLMigrationStep) -> Dictionary:
 	if step == null:
 		return { }
-	if step.kind == GDSQLSchemaMigrationStep.Kind.CREATE_TABLE:
+	if step is GDSQLDataMigrationStep:
+		var data_step := step as GDSQLDataMigrationStep
+		var assignments: Array[Dictionary] = []
+		for assignment in data_step.assignments:
+			assignments.append(
+				{
+					"column": String(assignment.column),
+					"expression": ExpressionCodec.encode(assignment.expression),
+				},
+			)
 		return {
-			"kind": step.kind,
-			"table_name": String(step.table_name),
-			"table_definition": _encode_table(step.table_definition),
+			"kind": "update_rows",
+			"table_name": String(data_step.table_name),
+			"assignments": assignments,
+			"predicate": ExpressionCodec.encode(data_step.predicate) \
+			if data_step.predicate != null else null,
 		}
-	if step.kind == GDSQLSchemaMigrationStep.Kind.RENAME_TABLE:
+	var schema_step := step as GDSQLSchemaMigrationStep
+	if schema_step == null:
+		return { }
+	if schema_step.kind == GDSQLSchemaMigrationStep.Kind.CREATE_TABLE:
 		return {
-			"kind": step.kind,
-			"table_name": String(step.table_name),
-			"new_table_name": String(step.new_table_name),
+			"kind": schema_step.kind,
+			"table_name": String(schema_step.table_name),
+			"table_definition": _encode_table(schema_step.table_definition),
 		}
-	if step.kind == GDSQLSchemaMigrationStep.Kind.DROP_TABLE:
+	if schema_step.kind == GDSQLSchemaMigrationStep.Kind.RENAME_TABLE:
 		return {
-			"kind": step.kind,
-			"table_name": String(step.table_name),
+			"kind": schema_step.kind,
+			"table_name": String(schema_step.table_name),
+			"new_table_name": String(schema_step.new_table_name),
+		}
+	if schema_step.kind == GDSQLSchemaMigrationStep.Kind.DROP_TABLE:
+		return {
+			"kind": schema_step.kind,
+			"table_name": String(schema_step.table_name),
 		}
 	var alterations: Array[Dictionary] = []
-	for alteration in step.alterations:
+	for alteration in schema_step.alterations:
 		alterations.append(_encode_alteration(alteration))
 	return {
-		"kind": step.kind,
-		"table_name": String(step.table_name),
+		"kind": schema_step.kind,
+		"table_name": String(schema_step.table_name),
 		"alterations": alterations,
 	}
 
 
 static func _decode_step(payload: Dictionary) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
+	var raw_kind: Variant = payload.get("kind")
+	if (typeof(raw_kind) == TYPE_STRING or typeof(raw_kind) == TYPE_STRING_NAME) \
+			and str(raw_kind) == "update_rows":
+		var raw_assignments: Variant = payload.get("assignments")
+		if not raw_assignments is Array:
+			return _invalid(result)
+		var assignments: Array[GDSQLColumnAssignment] = []
+		for raw_assignment in raw_assignments:
+			if not raw_assignment is Dictionary:
+				return _invalid(result)
+			var expression := ExpressionCodec.decode(raw_assignment.get("expression"))
+			if expression == null:
+				return _invalid(result)
+			assignments.append(
+				GDSQLColumnAssignment.new(
+					StringName(raw_assignment.get("column", "")),
+					expression,
+				),
+			)
+		var predicate: GDSQLQueryExpression
+		if payload.get("predicate") != null:
+			predicate = ExpressionCodec.decode(payload.get("predicate"))
+			if predicate == null:
+				return _invalid(result)
+		var data_step := GDSQLDataMigrationStep.new(
+			StringName(payload.get("table_name", "")),
+			assignments,
+			predicate,
+		)
+		if not data_step.is_valid():
+			return _invalid(result)
+		result.value = data_step
+		return result
 	var kind := int(
 		payload.get("kind", GDSQLSchemaMigrationStep.Kind.ALTER_TABLE),
 	)

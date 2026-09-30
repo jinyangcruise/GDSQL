@@ -1403,7 +1403,7 @@ func _synchronize_migration_schema_state(
 
 func _editor_migration_preview(
 		registration: GDSQLDatabaseRegistration,
-		plan: GDSQLMigrationCatalogPlan,
+		plan: GDSQLMigrationStepPlan,
 		history_count: int,
 		persisted: bool,
 ) -> GDSQLEditorMigrationPreview:

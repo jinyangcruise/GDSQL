@@ -83,7 +83,7 @@ class ConfigMigrationHarness:
 	func preview(
 			database_name: StringName,
 			history: Array[GDSQLMigrationDefinition],
-	) -> GDSQLMigrationCatalogPlan:
+	) -> GDSQLMigrationStepPlan:
 		var loaded := ledger.load(database_name)
 		assert(loaded.is_successful())
 		var planned := GDSQLMigrationPlanner.new().plan(
@@ -91,12 +91,12 @@ class ConfigMigrationHarness:
 			loaded.get_value(),
 		)
 		assert(planned.is_successful())
-		var previewed := GDSQLMigrationCatalogPlanner.new(administration).preview_next(
+		var previewed := GDSQLMigrationStepPlanner.new(administration).preview_next(
 			database_name,
 			planned.get_value(),
 		)
 		assert(previewed.is_successful())
-		return previewed.get_value() as GDSQLMigrationCatalogPlan
+		return previewed.get_value() as GDSQLMigrationStepPlan
 
 
 func before_test() -> void:
@@ -112,7 +112,8 @@ func test_checksum_is_stable_and_detects_authored_history_changes() -> void:
 	assert_int(first.checksum.length()).is_equal(64)
 	assert_bool(first.is_valid()).is_true()
 
-	first.steps[0].alterations[0].column.name = &"rank"
+	var first_step := first.steps[0] as GDSQLSchemaMigrationStep
+	first_step.alterations[0].column.name = &"rank"
 
 	assert_bool(first.has_valid_checksum()).is_false()
 	assert_bool(first.is_valid()).is_false()
@@ -319,7 +320,7 @@ func test_config_file_ledger_round_trips_baseline_and_uses_ledger_revision() -> 
 	assert_str(snapshot.last_id()).is_equal(next_definition.migration_id)
 
 
-func test_catalog_planner_previews_next_migration_without_mutation() -> void:
+func test_step_planner_previews_next_migration_without_mutation() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
 	TestDatabase.insert_basic_heroes(database)
 	var migration := _migration("202609280001_add_level")
@@ -327,14 +328,14 @@ func test_catalog_planner_previews_next_migration_without_mutation() -> void:
 		[migration],
 		GDSQLMigrationLedgerSnapshot.new(),
 	)
-	var planner := GDSQLMigrationCatalogPlanner.new(
+	var planner := GDSQLMigrationStepPlanner.new(
 		database.context.catalog_administration,
 	)
 
 	var result := planner.preview_next(database.database_name, history_result.get_value())
 
 	assert_bool(result.is_successful()).is_true()
-	var plan := result.get_value() as GDSQLMigrationCatalogPlan
+	var plan := result.get_value() as GDSQLMigrationStepPlan
 	assert_str(plan.migration.migration_id).is_equal(migration.migration_id)
 	assert_int(plan.expected_ledger_revision).is_equal(0)
 	assert_int(plan.affected_rows()).is_equal(2)
@@ -420,7 +421,7 @@ func test_create_table_migration_restores_backup_when_ledger_append_fails() -> v
 		[migration],
 		GDSQLMigrationLedgerSnapshot.new(),
 	)
-	var preview := GDSQLMigrationCatalogPlanner.new(
+	var preview := GDSQLMigrationStepPlanner.new(
 		harness.administration,
 	).preview_next(database.database_name, history.get_value())
 	var runner := GDSQLMigrationRunner.new(
@@ -515,7 +516,7 @@ func test_drop_table_migration_restores_rows_when_ledger_append_fails() -> void:
 		[migration],
 		GDSQLMigrationLedgerSnapshot.new(),
 	)
-	var preview := GDSQLMigrationCatalogPlanner.new(
+	var preview := GDSQLMigrationStepPlanner.new(
 		harness.administration,
 	).preview_next(database.database_name, history.get_value())
 	var runner := GDSQLMigrationRunner.new(
@@ -547,14 +548,14 @@ func test_catalog_migration_preview_retains_stale_schema_protection() -> void:
 		[migration],
 		GDSQLMigrationLedgerSnapshot.new(),
 	)
-	var planner := GDSQLMigrationCatalogPlanner.new(
+	var planner := GDSQLMigrationStepPlanner.new(
 		database.context.catalog_administration,
 	)
 	var preview := planner.preview_next(
 		database.database_name,
 		history_result.get_value(),
 	)
-	var plan := preview.get_value() as GDSQLMigrationCatalogPlan
+	var plan := preview.get_value() as GDSQLMigrationStepPlan
 	var unrelated: Array[GDSQLTableAlteration] = [
 		GDSQLTableAlteration.add_column(
 			GDSQLColumnDefinition.new(&"rank", TYPE_INT, false, false, false, 1),
@@ -568,7 +569,7 @@ func test_catalog_migration_preview_retains_stale_schema_protection() -> void:
 	assert_str(_first_code(apply_result)).is_equal("GDSQL_CATALOG_CHANGE_PLAN_STALE")
 
 
-func test_catalog_planner_rejects_multi_step_preview_without_mutation() -> void:
+func test_step_planner_rejects_multi_step_preview_without_mutation() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
 	var steps: Array[GDSQLSchemaMigrationStep] = [
 		GDSQLSchemaMigrationStep.new(
@@ -600,7 +601,7 @@ func test_catalog_planner_rejects_multi_step_preview_without_mutation() -> void:
 		[migration],
 		GDSQLMigrationLedgerSnapshot.new(),
 	)
-	var planner := GDSQLMigrationCatalogPlanner.new(
+	var planner := GDSQLMigrationStepPlanner.new(
 		database.context.catalog_administration,
 	)
 
@@ -801,7 +802,7 @@ func test_runner_restores_backup_when_ledger_append_fails() -> void:
 		[migration],
 		GDSQLMigrationLedgerSnapshot.new(),
 	)
-	var preview := GDSQLMigrationCatalogPlanner.new(
+	var preview := GDSQLMigrationStepPlanner.new(
 		harness.administration,
 	).preview_next(database.database_name, history.get_value())
 	var runner := GDSQLMigrationRunner.new(
@@ -826,6 +827,52 @@ func test_runner_restores_backup_when_ledger_append_fails() -> void:
 		reopened.query().select().from_table(&"heroes").build(),
 	)
 	assert_int(rows.rows.size()).is_equal(2)
+
+
+func test_runner_restores_data_update_when_ledger_append_fails() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var assignments: Array[GDSQLColumnAssignment] = [
+		GDSQLColumnAssignment.new(&"name", GDSQLLiteralExpression.new("Wizard")),
+	]
+	var migration := GDSQLMigrationDefinition.new(
+		"202609280001_rename_mage",
+		"Rename the mage",
+		[
+			GDSQLDataMigrationStep.new(
+				&"heroes",
+				assignments,
+				GDSQLColumnExpression.new(&"id").equals(2),
+			),
+		],
+	)
+	var preview := database.preview_migrations([migration])
+	var recovery := GDSQLConfigFileMigrationRecoveryStore.new(
+		GDSQLDatabasePathResolver.new(_data_root),
+		GDSQLConfigFileCache.new(),
+	)
+	var runner := GDSQLMigrationRunner.new(
+		database.context.catalog,
+		database.context.catalog_administration,
+		FailingAppendLedger.new(),
+		recovery,
+		database.context.validator,
+		database.context.planner,
+		database.context.executor,
+		database.context.execution_context,
+	)
+
+	var result := runner.apply(preview.next_plan)
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(_first_code(result)).is_equal("GDSQL_TEST_LEDGER_APPEND_FAILED")
+	assert_bool(result.recovered).is_true()
+	assert_bool(result.backup_retained).is_false()
+	var reopened := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	var rows := reopened.execute(
+		reopened.query().table(&"heroes").select().order_by_column(&"id").build(),
+	)
+	assert_str(rows.rows[1].get_value(&"name")).is_equal("Mage")
 
 
 func test_runner_restores_preexisting_state_when_catalog_plan_is_stale() -> void:

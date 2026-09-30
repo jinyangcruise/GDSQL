@@ -61,16 +61,17 @@ func test_definition_serializer_round_trips_every_schema_alteration_shape() -> v
 
 	assert_bool(decoded.is_successful()).is_true()
 	var restored := decoded.get_value() as GDSQLMigrationDefinition
+	var restored_step := restored.steps[0] as GDSQLSchemaMigrationStep
 	assert_str(restored.checksum).is_equal(migration.checksum)
-	assert_int(restored.steps[0].alterations.size()).is_equal(alterations.size())
-	var restored_column := restored.steps[0].alterations[0].column
+	assert_int(restored_step.alterations.size()).is_equal(alterations.size())
+	var restored_column := restored_step.alterations[0].column
 	assert_str(restored_column.name).is_equal("level")
 	assert_int(restored_column.get_default_value()).is_equal(1)
-	assert_bool(restored.steps[0].alterations[3].index.unique).is_true()
+	assert_bool(restored_step.alterations[3].index.unique).is_true()
 	assert_str(
-		restored.steps[0].alterations[5].foreign_key.referenced_table,
+		restored_step.alterations[5].foreign_key.referenced_table,
 	).is_equal("classes")
-	assert_array(restored.steps[0].alterations[-1].column_names).contains_exactly(
+	assert_array(restored_step.alterations[-1].column_names).contains_exactly(
 		ordered_columns,
 	)
 
@@ -96,14 +97,15 @@ func test_definition_serializer_round_trips_create_table_step() -> void:
 
 	assert_bool(decoded.is_successful()).is_true()
 	var restored := decoded.get_value() as GDSQLMigrationDefinition
+	var restored_step := restored.steps[0] as GDSQLSchemaMigrationStep
 	assert_str(restored.checksum).is_equal(migration.checksum)
-	assert_int(restored.steps[0].kind).is_equal(
+	assert_int(restored_step.kind).is_equal(
 		GDSQLSchemaMigrationStep.Kind.CREATE_TABLE,
 	)
-	assert_str(restored.steps[0].table_definition.name).is_equal("inventory")
-	assert_str(restored.steps[0].table_definition.primary_key).is_equal("id")
-	assert_int(restored.steps[0].table_definition.columns.size()).is_equal(2)
-	assert_str(restored.steps[0].table_definition.indexes[0].name).is_equal(
+	assert_str(restored_step.table_definition.name).is_equal("inventory")
+	assert_str(restored_step.table_definition.primary_key).is_equal("id")
+	assert_int(restored_step.table_definition.columns.size()).is_equal(2)
+	assert_str(restored_step.table_definition.indexes[0].name).is_equal(
 		"inventory_item_idx",
 	)
 
@@ -125,16 +127,64 @@ func test_definition_serializer_round_trips_table_lifecycle_steps() -> void:
 
 	assert_bool(decoded.is_successful()).is_true()
 	var restored := decoded.get_value() as GDSQLMigrationDefinition
+	var rename_step := restored.steps[0] as GDSQLSchemaMigrationStep
+	var drop_step := restored.steps[1] as GDSQLSchemaMigrationStep
 	assert_str(restored.checksum).is_equal(migration.checksum)
-	assert_int(restored.steps[0].kind).is_equal(
+	assert_int(rename_step.kind).is_equal(
 		GDSQLSchemaMigrationStep.Kind.RENAME_TABLE,
 	)
-	assert_str(restored.steps[0].table_name).is_equal("heroes")
-	assert_str(restored.steps[0].new_table_name).is_equal("characters")
-	assert_int(restored.steps[1].kind).is_equal(
+	assert_str(rename_step.table_name).is_equal("heroes")
+	assert_str(rename_step.new_table_name).is_equal("characters")
+	assert_int(drop_step.kind).is_equal(
 		GDSQLSchemaMigrationStep.Kind.DROP_TABLE,
 	)
-	assert_bool(restored.steps[1].is_destructive()).is_true()
+	assert_bool(drop_step.is_destructive()).is_true()
+
+
+func test_definition_serializer_round_trips_a_typed_data_update() -> void:
+	var assignments: Array[GDSQLColumnAssignment] = [
+		GDSQLColumnAssignment.new(
+			&"name",
+			GDSQLFunctionExpression.new(
+				&"upper",
+				[GDSQLColumnExpression.new(&"name")],
+			),
+		),
+	]
+	var predicate := GDSQLColumnExpression.new(&"id").greater_than(10)
+	var migration := GDSQLMigrationDefinition.new(
+		"202609290001_normalize_names",
+		"Normalize hero names",
+		[GDSQLDataMigrationStep.new(&"heroes", assignments, predicate)],
+	)
+
+	var decoded := GDSQLMigrationDefinitionSerializer.decode(
+		GDSQLMigrationDefinitionSerializer.encode(migration),
+	)
+
+	assert_bool(decoded.is_successful()).is_true()
+	var restored := decoded.get_value() as GDSQLMigrationDefinition
+	assert_str(restored.checksum).is_equal(migration.checksum)
+	assert_bool(restored.steps[0] is GDSQLDataMigrationStep).is_true()
+	var step := restored.steps[0] as GDSQLDataMigrationStep
+	assert_str(step.table_name).is_equal("heroes")
+	assert_str(step.assignments[0].column).is_equal("name")
+	assert_bool(step.assignments[0].expression is GDSQLFunctionExpression).is_true()
+	assert_bool(step.predicate is GDSQLComparisonExpression).is_true()
+	assert_bool(step.is_destructive()).is_true()
+
+
+func test_data_migration_rejects_unserializable_expression_values() -> void:
+	var assignments: Array[GDSQLColumnAssignment] = [
+		GDSQLColumnAssignment.new(
+			&"name",
+			GDSQLLiteralExpression.new(Resource.new()),
+		),
+	]
+
+	var step := GDSQLDataMigrationStep.new(&"heroes", assignments)
+
+	assert_bool(step.is_valid()).is_false()
 
 
 func test_definition_serializer_keeps_existing_alteration_files_readable() -> void:
@@ -148,8 +198,9 @@ func test_definition_serializer_keeps_existing_alteration_files_readable() -> vo
 
 	assert_bool(decoded.is_successful()).is_true()
 	var restored := decoded.get_value() as GDSQLMigrationDefinition
+	var restored_step := restored.steps[0] as GDSQLSchemaMigrationStep
 	assert_str(restored.checksum).is_equal(migration.checksum)
-	assert_int(restored.steps[0].kind).is_equal(
+	assert_int(restored_step.kind).is_equal(
 		GDSQLSchemaMigrationStep.Kind.ALTER_TABLE,
 	)
 

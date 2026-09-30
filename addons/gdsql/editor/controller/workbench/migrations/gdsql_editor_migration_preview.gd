@@ -5,7 +5,7 @@ extends RefCounted
 var registration_name: StringName
 var migration_stream: StringName
 var definition: GDSQLMigrationDefinition
-var plan: GDSQLMigrationCatalogPlan
+var plan: GDSQLMigrationStepPlan
 var expected_history_count: int
 var definition_persisted: bool
 
@@ -14,7 +14,7 @@ func _init(
 		target_registration: StringName = &"",
 		stream: StringName = &"",
 		migration_definition: GDSQLMigrationDefinition = null,
-		migration_plan: GDSQLMigrationCatalogPlan = null,
+		migration_plan: GDSQLMigrationStepPlan = null,
 		history_count: int = 0,
 		is_persisted: bool = false,
 ) -> void:

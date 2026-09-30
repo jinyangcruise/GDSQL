@@ -10,18 +10,20 @@ const ALLOWED_ID_CHARACTERS := \
 
 var migration_id: String
 var description: String
-var steps: Array[GDSQLSchemaMigrationStep] = []
+var steps: Array[GDSQLMigrationStep] = []
 var checksum: String
 
 
 func _init(
 		stable_id: String = "",
 		summary: String = "",
-		migration_steps: Array[GDSQLSchemaMigrationStep] = [],
+		migration_steps: Array = [],
 ) -> void:
 	migration_id = stable_id
 	description = summary
-	steps = migration_steps.duplicate()
+	for step in migration_steps:
+		if step is GDSQLMigrationStep:
+			steps.append(step)
 	checksum = GDSQLMigrationChecksum.compute(self)
 
 

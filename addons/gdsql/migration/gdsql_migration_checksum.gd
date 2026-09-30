@@ -5,6 +5,9 @@ extends RefCounted
 const CanonicalValue = preload(
 	"res://addons/gdsql/migration/gdsql_migration_canonical_value.gd"
 )
+const ExpressionCodec = preload(
+	"res://addons/gdsql/migration/gdsql_migration_expression_codec.gd"
+)
 const HEX_CHARACTERS := "0123456789abcdef"
 
 
@@ -37,19 +40,40 @@ static func is_valid(value: String) -> bool:
 	return true
 
 
-static func _serialize_step(step: GDSQLSchemaMigrationStep) -> Array:
+static func _serialize_step(step: GDSQLMigrationStep) -> Array:
 	if step == null:
 		return []
-	if step.kind == GDSQLSchemaMigrationStep.Kind.CREATE_TABLE:
-		return ["create_table", _serialize_table(step.table_definition)]
-	if step.kind == GDSQLSchemaMigrationStep.Kind.RENAME_TABLE:
-		return ["rename_table", String(step.table_name), String(step.new_table_name)]
-	if step.kind == GDSQLSchemaMigrationStep.Kind.DROP_TABLE:
-		return ["drop_table", String(step.table_name)]
+	if step is GDSQLDataMigrationStep:
+		var data_step := step as GDSQLDataMigrationStep
+		var assignments: Array = []
+		for assignment in data_step.assignments:
+			assignments.append(
+				[String(assignment.column), ExpressionCodec.canonical(assignment.expression)],
+			)
+		return [
+			"update_rows",
+			String(data_step.table_name),
+			assignments,
+			ExpressionCodec.canonical(data_step.predicate) \
+			if data_step.predicate != null else null,
+		]
+	var schema_step := step as GDSQLSchemaMigrationStep
+	if schema_step == null:
+		return []
+	if schema_step.kind == GDSQLSchemaMigrationStep.Kind.CREATE_TABLE:
+		return ["create_table", _serialize_table(schema_step.table_definition)]
+	if schema_step.kind == GDSQLSchemaMigrationStep.Kind.RENAME_TABLE:
+		return [
+			"rename_table",
+			String(schema_step.table_name),
+			String(schema_step.new_table_name),
+		]
+	if schema_step.kind == GDSQLSchemaMigrationStep.Kind.DROP_TABLE:
+		return ["drop_table", String(schema_step.table_name)]
 	var alterations: Array = []
-	for alteration in step.alterations:
+	for alteration in schema_step.alterations:
 		alterations.append(_serialize_alteration(alteration))
-	return [String(step.table_name), alterations]
+	return [String(schema_step.table_name), alterations]
 
 
 static func _serialize_table(table: GDSQLTableDefinition) -> Array:

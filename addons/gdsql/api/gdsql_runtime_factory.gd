@@ -351,6 +351,9 @@ static func _create_context(
 	var function_registry := GDSQLQueryFunctionRegistry.new(function_catalog)
 	var expression_evaluator := GDSQLExpressionEvaluator.new(function_registry)
 	var cancellation := GDSQLQueryCancellationToken.new()
+	var validator := GDSQLDefaultQueryValidator.new(catalog, function_catalog)
+	var query_planner := GDSQLDefaultQueryPlanner.new(storage.get_capabilities())
+	var executor := GDSQLDefaultQueryExecutor.new()
 	var execution_context := GDSQLExecutionContext.new(
 		catalog,
 		storage,
@@ -369,12 +372,22 @@ static func _create_context(
 		migration_service = GDSQLMigrationService.new(
 			ledger,
 			GDSQLMigrationPlanner.new(),
-			GDSQLMigrationCatalogPlanner.new(catalog_administration),
+			GDSQLMigrationStepPlanner.new(
+				catalog_administration,
+				validator,
+				query_planner,
+				executor,
+				execution_context,
+			),
 			GDSQLMigrationRunner.new(
 				catalog,
 				catalog_administration,
 				ledger,
 				recovery,
+				validator,
+				query_planner,
+				executor,
+				execution_context,
 			),
 			recovery,
 			catalog,
@@ -383,9 +396,9 @@ static func _create_context(
 		catalog,
 		catalog_administration,
 		storage,
-		GDSQLDefaultQueryValidator.new(catalog, function_catalog),
-		GDSQLDefaultQueryPlanner.new(storage.get_capabilities()),
-		GDSQLDefaultQueryExecutor.new(),
+		validator,
+		query_planner,
+		executor,
 		execution_context,
 		migration_service,
 	)

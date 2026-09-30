@@ -1842,17 +1842,26 @@ one call. Dropping the primary key is rejected. Database and table renames move
 their complete physical structures and update catalog metadata, while drop
 operations remove both metadata and owned storage.
 
-### 13.2 Versioned schema migration
+### 13.2 Versioned migrations
 
 Migration history is project-authored, forward-only input above catalog
 administration. `GDSQLMigrationDefinition` owns one stable sortable ID, a
-description, an ordered list of `GDSQLSchemaMigrationStep` values, and a
-deterministic SHA-256 checksum. Each step targets one table and either reuses
+description, an ordered list of `GDSQLMigrationStep` values, and a deterministic
+SHA-256 checksum. `GDSQLSchemaMigrationStep` targets one table and either reuses
 the existing `GDSQLTableAlteration` vocabulary, carries one complete table
-definition for creation, renames one table, or drops one table. A definition
-recalculates its checksum during validation, so changing an already recorded
-description, operation, table, column, index, default, or foreign key is
-rejected as edited history.
+definition for creation, renames one table, or drops one table.
+`GDSQLDataMigrationStep` describes one canonical UPDATE against one table with
+typed assignments and an optional predicate. A definition recalculates its
+checksum during validation, so changing an already recorded description,
+operation, table, expression, column, index, default, or foreign key is rejected
+as edited history.
+
+Data-migration expressions reuse the canonical query model. Column, literal,
+arithmetic, comparison, logical, null-check, and non-aggregate scalar-function
+expressions are persisted deterministically. Table-qualified columns,
+aggregate functions, Objects, Callables, Signals, and RIDs are rejected at the
+authored boundary. Query validation remains authoritative for table, column,
+function, assignment-type, and predicate-type compatibility.
 
 IDs use only letters, digits, `_`, `-`, and `.`, and must be strictly increasing
 under ordinal comparison. Timestamp-prefixed, fixed-width IDs are the
@@ -1870,10 +1879,10 @@ silently overwrite project history.
 under `res://.gdsql/migrations/<stream>/<migration_id>.cfg`. Files are sorted by
 their stable IDs and activated from staging without replacing an existing
 entry. `GDSQLMigrationDefinitionSerializer` is the dynamic serialization
-boundary for typed alter, create, rename, and drop steps, complete create-table
-definitions, and every current `GDSQLTableAlteration` shape. Existing
-alteration-only definitions retain their checksum representation. Loading
-recomputes and compares the authored checksum;
+boundary for typed alter, create, rename, drop, and row-update steps; canonical
+data expressions; complete create-table definitions; and every current
+`GDSQLTableAlteration` shape. Existing alteration-only definitions retain their
+checksum representation. Loading recomputes and compares the authored checksum;
 edited, renamed, malformed, duplicate, or out-of-order entries return
 structured diagnostics.
 
@@ -1926,16 +1935,16 @@ diagnostics. A successful `GDSQLMigrationPlan` contains only the pending suffix,
 reports whether it contains destructive alterations, and carries the current
 ledger revision.
 
-`GDSQLMigrationCatalogPlanner` receives catalog administration through
-constructor injection and previews only the next pending history entry.
-`preview_next()` delegates schema validation to the corresponding create,
-alter, rename, or drop catalog preview according to the typed step and returns a
-`GDSQLMigrationCatalogPlan` containing the migration identity, its
-stale-safe `GDSQLCatalogChangePlan`, affected rows and summaries, and the
-expected applied-ledger revision. Previewing does not mutate schema, rows, or the
-ledger.
+`GDSQLMigrationStepPlanner` receives catalog administration and the canonical
+query pipeline through constructor injection and previews only the next pending
+history entry. `preview_next()` delegates schema validation to the corresponding
+create, alter, rename, or drop catalog preview. For a data step it validates the
+canonical UPDATE and executes a read-only COUNT with the same predicate. It
+returns a `GDSQLMigrationStepPlan` containing the migration identity, typed step
+preview, affected rows and summaries, destructive status, and expected applied-
+ledger revision. Previewing does not mutate schema, rows, or the ledger.
 
-Migration v1 authors one table step per migration. This makes every preview
+Migration v1 authors one single-table step per migration. This makes every preview
 accurate against the current catalog and permits later migrations to be
 replanned after each successful application. A definition containing multiple
 steps receives a structured unsupported-preview diagnostic. Cross-table atomic
@@ -1964,18 +1973,19 @@ even when a manifest or snapshot cannot be loaded.
 
 `GDSQLMigrationRunner` composes the catalog, catalog administration, ledger,
 and recovery contracts through constructor injection. `apply()` accepts only a
-validated `GDSQLMigrationCatalogPlan`, reloads the ledger to reject stale
-history, and compares the current whole-schema fingerprint with the last
-applied record before creating a backup. The plan's database, table, authored
-checksum, and catalog operation must describe the same migration.
+validated `GDSQLMigrationStepPlan`, reloads the ledger to reject stale history,
+and compares the current whole-schema fingerprint with the last applied record
+before creating a backup. The plan's database, table, authored checksum, and
+typed operation must describe the same migration.
 
 After those preconditions pass, the runner creates a durable backup, applies
-the stale-safe catalog plan, fingerprints the resulting schema, and appends one
-`GDSQLAppliedMigration` with the plan's expected ledger revision. A catalog,
-fingerprint, or ledger failure restores the complete backup automatically. The
-backup is discarded only after successful ledger persistence or successful
-recovery. Cleanup failure retains the backup and reports a warning without
-misreporting an otherwise committed migration as failed.
+the stale-safe schema plan or canonical row update, fingerprints the resulting
+schema, and appends one `GDSQLAppliedMigration` with the plan's expected ledger
+revision. A catalog, query, fingerprint, or ledger failure restores the complete
+backup automatically. The backup is discarded only after successful ledger
+persistence or successful recovery. Cleanup failure retains the backup and
+reports a warning without misreporting an otherwise committed migration as
+failed.
 
 `GDSQLMigrationRunResult` exposes the applied record, backup identity,
 automatic-recovery status, and whether recovery files remain. The runner does
@@ -1986,7 +1996,7 @@ validation.
 components. `preview()` loads the durable ledger, checks the current schema
 against the last baseline or applied fingerprint, validates the complete
 authored history, and returns `GDSQLMigrationPreviewResult`. An up-to-date
-history is a successful preview with no next catalog plan. `adopt_baseline()`
+history is a successful preview with no next step plan. `adopt_baseline()`
 verifies and persists initial evidence for a pre-existing current-schema
 database. `adopt_baseline_if_current()` performs the same adoption only when
 the ledger is empty and the current schema independently matches the supplied

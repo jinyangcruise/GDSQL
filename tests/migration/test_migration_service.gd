@@ -39,6 +39,46 @@ func test_database_api_previews_applies_and_reports_up_to_date_history() -> void
 	).is_not_null()
 
 
+func test_database_api_previews_and_applies_a_typed_row_update() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var assignments: Array[GDSQLColumnAssignment] = [
+		GDSQLColumnAssignment.new(&"name", GDSQLLiteralExpression.new("Wizard")),
+	]
+	var migration := GDSQLMigrationDefinition.new(
+		"202609290001_rename_mage",
+		"Rename the mage",
+		[
+			GDSQLDataMigrationStep.new(
+				&"heroes",
+				assignments,
+				GDSQLColumnExpression.new(&"id").equals(2),
+			),
+		],
+	)
+	var history: Array[GDSQLMigrationDefinition] = [migration]
+
+	var preview := database.preview_migrations(history)
+
+	assert_bool(preview.is_successful()).is_true()
+	assert_bool(preview.next_plan.is_data_update()).is_true()
+	assert_int(preview.next_plan.affected_rows()).is_equal(1)
+	assert_bool(preview.requires_confirmation()).is_true()
+	assert_array(preview.next_plan.summaries()).contains_exactly(
+		["Update 1 row(s) in table 'heroes'."],
+	)
+	var applied := database.apply_migration(preview.next_plan)
+	assert_bool(applied.is_successful()).is_true()
+	var rows := database.execute(
+		database.query().table(&"heroes").select().order_by_column(&"id").build(),
+	)
+	assert_str(rows.rows[0].get_value(&"name")).is_equal("Knight")
+	assert_str(rows.rows[1].get_value(&"name")).is_equal("Wizard")
+	var complete := database.preview_migrations(history)
+	assert_bool(complete.is_successful()).is_true()
+	assert_bool(complete.is_up_to_date()).is_true()
+
+
 func test_database_api_rejects_a_plan_for_another_database() -> void:
 	var source := TestDatabase.create_heroes_database(_data_root)
 	var other_table := GDSQLTableDefinition.new(&"heroes", &"id")

@@ -1,5 +1,5 @@
 class_name GDSQLSchemaMigrationStep
-extends RefCounted
+extends GDSQLMigrationStep
 ## One ordered table lifecycle operation inside a forward schema migration.
 
 enum Kind {
@@ -10,7 +10,6 @@ enum Kind {
 }
 
 var kind := Kind.ALTER_TABLE
-var table_name: StringName
 var alterations: Array[GDSQLTableAlteration] = []
 var table_definition: GDSQLTableDefinition
 var new_table_name: StringName

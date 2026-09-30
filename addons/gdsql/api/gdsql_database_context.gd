@@ -48,7 +48,7 @@ func preview_migrations(
 
 
 func apply_migration(
-		plan: GDSQLMigrationCatalogPlan,
+		plan: GDSQLMigrationStepPlan,
 ) -> GDSQLMigrationRunResult:
 	if _migration_service != null:
 		return _migration_service.apply(plan)

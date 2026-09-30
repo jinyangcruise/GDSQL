@@ -161,7 +161,7 @@ func preview_migrations(
 
 
 func apply_migration(
-		plan: GDSQLMigrationCatalogPlan,
+		plan: GDSQLMigrationStepPlan,
 ) -> GDSQLMigrationRunResult:
 	if plan != null and plan.database_name != database_name:
 		var result := GDSQLMigrationRunResult.new()

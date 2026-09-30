@@ -49,7 +49,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Migration data/save phase | Add typed bounded row transformations and fresh-save schema provisioning; add multi-table orchestration after the single-table data path is reliable |
+| High — first | Migration data/save phase | Typed single-table row updates are implemented; add editor authoring and fresh-save schema provisioning, then multi-table orchestration |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
@@ -67,9 +67,10 @@ sessions unless new evidence changes an architectural dependency:
 2. **Migration v1 — durable schema history (implemented and tested).** Build ordered forward schema
    migrations, checksums, an applied ledger, dry runs, backups, recovery, and
    headless validation on top of the stable stored-value boundary.
-3. **Migration data/save phases.** Add bounded data transformations,
-   multi-table orchestration, and migration of older `user://` saves after the
-   schema-only path is reliable.
+3. **Migration data/save phases (active).** Typed single-table UPDATE steps now
+   use canonical expressions, dry-run row counts, durable backup/recovery, and
+   the applied ledger. Add editor authoring, fresh-save provisioning,
+   multi-table orchestration, and migration of older `user://` saves next.
 4. **Resource Stage B — explicit deferred loading.** Add opt-in handles,
    threaded loading, and prefetch scopes only when the simple eager path and
    migrations are stable.
@@ -393,11 +394,14 @@ The migration formats under development target the addon's first public 1.0.
 They may be corrected directly while unreleased; compatibility work begins
 when a persisted format is shipped as supported public behavior.
 
-The next slices add canonical data transformations, fresh-save provisioning,
-multi-table orchestration, and migration of older `user://` saves. Fresh
-databases and saves start at the current schema; existing durable data applies
-only pending migrations. Managed content sources migrate during authoring,
-while disposable effective-content caches are rebuilt rather than migrated.
+The first canonical data transformation is implemented as one typed,
+single-table UPDATE step with optional predicate, dry-run count, recovery, and
+ledger participation. The next slices add editor authoring, fresh-save
+provisioning, multi-table orchestration, and migration of older `user://` saves.
+Fresh databases and saves start at the current schema; existing durable data
+applies only pending migrations. Managed content sources migrate during
+authoring, while disposable effective-content caches are rebuilt rather than
+migrated.
 
 Applied migration files are immutable. Editing an applied file must produce a
 checksum or schema-drift diagnostic instead of silently changing history.

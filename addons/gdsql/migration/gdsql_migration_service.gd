@@ -4,7 +4,7 @@ extends RefCounted
 
 var _ledger: GDSQLMigrationLedger
 var _history_planner: GDSQLMigrationPlanner
-var _catalog_planner: GDSQLMigrationCatalogPlanner
+var _step_planner: GDSQLMigrationStepPlanner
 var _runner: GDSQLMigrationRunner
 var _recovery: GDSQLMigrationRecoveryStore
 var _catalog: GDSQLCatalogService
@@ -13,14 +13,14 @@ var _catalog: GDSQLCatalogService
 func _init(
 		ledger: GDSQLMigrationLedger = null,
 		history_planner: GDSQLMigrationPlanner = null,
-		catalog_planner: GDSQLMigrationCatalogPlanner = null,
+		step_planner: GDSQLMigrationStepPlanner = null,
 		runner: GDSQLMigrationRunner = null,
 		recovery: GDSQLMigrationRecoveryStore = null,
 		catalog: GDSQLCatalogService = null,
 ) -> void:
 	_ledger = ledger
 	_history_planner = history_planner
-	_catalog_planner = catalog_planner
+	_step_planner = step_planner
 	_runner = runner
 	_recovery = recovery
 	_catalog = catalog
@@ -31,7 +31,7 @@ func preview(
 		history: Array[GDSQLMigrationDefinition],
 ) -> GDSQLMigrationPreviewResult:
 	var result := GDSQLMigrationPreviewResult.new()
-	if _ledger == null or _history_planner == null or _catalog_planner == null \
+	if _ledger == null or _history_planner == null or _step_planner == null \
 			or _catalog == null:
 		_error(
 			result,
@@ -56,13 +56,13 @@ func preview(
 	if history_plan.is_up_to_date():
 		result.complete(history_plan)
 		return result
-	var previewed := _catalog_planner.preview_next(database_name, history_plan)
+	var previewed := _step_planner.preview_next(database_name, history_plan)
 	result.diagnostics.merge(previewed.diagnostics)
 	if not previewed.is_successful():
 		return result
 	result.complete(
 		history_plan,
-		previewed.get_value() as GDSQLMigrationCatalogPlan,
+		previewed.get_value() as GDSQLMigrationStepPlan,
 	)
 	return result
 
@@ -203,7 +203,7 @@ func adopt_baseline_if_current(
 	return result
 
 
-func apply(plan: GDSQLMigrationCatalogPlan) -> GDSQLMigrationRunResult:
+func apply(plan: GDSQLMigrationStepPlan) -> GDSQLMigrationRunResult:
 	if _runner != null:
 		return _runner.apply(plan)
 	var result := GDSQLMigrationRunResult.new()

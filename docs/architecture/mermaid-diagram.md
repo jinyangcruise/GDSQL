@@ -415,7 +415,7 @@ CatalogAdministration("`**GDSQLCatalogAdministrationService**
 MigrationHistory("`**Schema Migration History**
 
 -
-*Input:* Ordered GDSQLMigrationDefinition values with alter/create/rename/drop table steps
+*Input:* Ordered GDSQLMigrationDefinition values with typed schema or data steps
 *Integrity:* Deterministic checksums; applied history must be an exact prefix
 *Plan:* GDSQLMigrationPlanner returns pending definitions and destructive status
 *Boundary:* Models never create or infer migrations`")
@@ -441,13 +441,13 @@ MigrationSchemaStateStore("`**GDSQLMigrationSchemaStateStore**
 *API:* load(), save() with expected previous history checksum
 *Safety:* Stale protection and monotonic established history positions`")
 
-MigrationCatalogPlanning("`**Migration Catalog Planning**
+MigrationStepPlanning("`**Migration Step Planning**
 
 -
 *Input:* Target database and next pending migration
-*API:* GDSQLMigrationCatalogPlanner.preview_next()
-*Output:* GDSQLMigrationCatalogPlan wrapping a stale-safe catalog change plan
-*Initial scope:* One typed table lifecycle step per migration; no mutation`")
+*API:* GDSQLMigrationStepPlanner.preview_next()
+*Output:* GDSQLMigrationStepPlan wrapping a schema preview or canonical data update
+*Initial scope:* One typed single-table step per migration; no mutation`")
 
 MigrationLedger("`**GDSQLMigrationLedger**
 
@@ -469,9 +469,9 @@ MigrationRecovery("`**GDSQLMigrationRecoveryStore**
 MigrationRunner("`**GDSQLMigrationRunner**
 
 -
-*Input:* One validated GDSQLMigrationCatalogPlan
+*Input:* One validated GDSQLMigrationStepPlan
 *Preconditions:* Current ledger revision and whole-schema fingerprint
-*Success:* Apply catalog plan, fingerprint result, append ledger, discard backup
+*Success:* Apply schema or data plan, fingerprint result, append ledger, discard backup
 *Failure:* Restore complete backup and retain structured diagnostics`")
 
 MigrationService("`**GDSQLMigrationService**
@@ -707,16 +707,18 @@ MigrationHistory -->|"loaded from project stream"| MigrationHistoryStore
 MigrationSchemaState -->|"verify exact authored prefix"| MigrationHistory
 MigrationService -->|"validate complete authored history"| MigrationHistory
 MigrationService -->|"adopt trusted baseline"| MigrationSchemaState
-MigrationService -->|"preview next pending entry"| MigrationCatalogPlanning
+MigrationService -->|"preview next pending entry"| MigrationStepPlanning
 MigrationService -->|"apply one validated plan"| MigrationRunner
 MigrationService -->|"resolve leftover backup against ledger"| MigrationRecovery
 MigrationService -->|"detect committed migration"| MigrationLedger
 MigrationService -->|"verify baseline and drift fingerprints"| CatalogService
-MigrationHistory -->|"preview next pending entry"| MigrationCatalogPlanning
-MigrationCatalogPlanning -->|"preview typed table lifecycle"| CatalogAdministration
-MigrationCatalogPlanning -->|"validated next plan"| MigrationRunner
+MigrationHistory -->|"preview next pending entry"| MigrationStepPlanning
+MigrationStepPlanning -->|"preview typed table lifecycle"| CatalogAdministration
+MigrationStepPlanning -->|"validate and count canonical update"| Validator
+MigrationStepPlanning -->|"validated next plan"| MigrationRunner
 MigrationRunner -->|"create · restore · discard"| MigrationRecovery
 MigrationRunner -->|"apply_change_plan()"| CatalogAdministration
+MigrationRunner -->|"execute canonical row update"| Executor
 MigrationRunner -->|"load · append applied record"| MigrationLedger
 MigrationRunner -->|"read schema for drift and result fingerprints"| CatalogService
 Workbench -->|"table designer context"| ForeignKeyAuthoring
@@ -800,7 +802,7 @@ class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
 class Planner,PlanNode planning;
 class Executor,ForeignKeyValidation,MigrationRunner,MigrationService execution;
-class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationHistoryStore,MigrationSchemaState,MigrationSchemaStateStore,MigrationCatalogPlanning,MigrationLedger,MigrationRecovery catalog;
+class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationHistoryStore,MigrationSchemaState,MigrationSchemaStateStore,MigrationStepPlanning,MigrationLedger,MigrationRecovery catalog;
 class TableStorage storage;
 class ConfigCatalog,ConfigAdministration,ConfigMigrationHistory,ConfigMigrationSchemaState,ConfigMigrationLedger,ConfigMigrationRecovery,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
 class ResourceMaterialization storage;

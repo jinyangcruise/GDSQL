@@ -113,7 +113,7 @@ func prepare(
 			return _error(
 				result,
 				&"GDSQL_MIGRATION_STARTUP_PLAN_REQUIRED",
-				"Runtime migration did not produce the next required catalog plan.",
+				"Runtime migration did not produce the next required step plan.",
 			)
 		var applied := database.apply_migration(preview.next_plan)
 		result.diagnostics.merge(applied.diagnostics)
