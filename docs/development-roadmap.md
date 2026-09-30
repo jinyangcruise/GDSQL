@@ -49,7 +49,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Migration data/save phase | Typed single-table row updates and editor authoring are implemented; add fresh-save schema provisioning, then multi-table orchestration |
+| High — first | Migration data/save phase | Typed single-table row updates, editor authoring, and fresh-save schema provisioning are implemented; add multi-table orchestration next |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
@@ -71,8 +71,8 @@ sessions unless new evidence changes an architectural dependency:
    use canonical expressions, dry-run row counts, durable backup/recovery, and
    the applied ledger. The database document now authors scalar literal
    assignments and nested predicates through the same typed editor controls.
-   Add fresh-save provisioning, multi-table orchestration, and migration of
-   older `user://` saves next.
+   Fresh-save schema provisioning is implemented. Add multi-table
+   orchestration and migration of older `user://` saves next.
 4. **Resource Stage B — explicit deferred loading.** Add opt-in handles,
    threaded loading, and prefetch scopes only when the simple eager path and
    migrations are stable.
@@ -388,8 +388,10 @@ creation, rename, and drop are explicit migration operations.
 Database containers have an administrative lifecycle rather than migration
 steps. A new writable database either replays a history that begins from an
 empty origin or is provisioned at the trusted current schema and receives a
-verified baseline. Automatic fresh-save provisioning remains in the next
-data/save phase. Database rename after history starts requires a future atomic
+verified baseline. New save slots now reuse the active slot's logical
+`game_state` database and stable stream, copy its independently verified schema
+without rows, and adopt the trusted history prefix. The slot name remains its
+physical registration/root identity. Database rename after history starts requires a future atomic
 registry and schema-state operation; unregister and destroy stay explicit user
 actions and are never deployed migration entries.
 
@@ -401,8 +403,9 @@ The first canonical data transformation is implemented as one typed,
 single-table UPDATE step with optional predicate, dry-run count, recovery, and
 ledger participation. Editor authoring supports typed scalar literals, nested
 WHERE groups, and explicit all-row updates while keeping Resource literals out
-of durable migration files. The next slices add fresh-save provisioning,
-multi-table orchestration, and migration of older `user://` saves.
+of durable migration files. Fresh-save provisioning now creates the current
+schema and a verified baseline without copying player rows. The next slices add
+multi-table orchestration and migration of older `user://` saves.
 Fresh databases and saves start at the current schema; existing durable data
 applies only pending migrations. Managed content sources migrate during
 authoring, while disposable effective-content caches are rebuilt rather than

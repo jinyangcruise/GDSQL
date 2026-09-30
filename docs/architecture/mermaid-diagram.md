@@ -483,6 +483,14 @@ MigrationService("`**GDSQLMigrationService**
 *Results:* Up-to-date or next plan; applied record; restored or cleanup-only recovery
 *Composition:* Durable ConfigFile authoring contexts only`")
 
+FreshProvisioning("`**GDSQLEditorFreshSaveProvisioner**
+
+-
+*Purpose:* Create a new writable database at a trusted current schema head
+*Input:* Verified template catalog, authored history, schema state and empty target
+*Mutation:* Copy schema without rows, add foreign keys after tables, adopt baseline
+*Safety:* Verify source and target fingerprints; roll back created catalog on failure`")
+
 TableStorage("`**GDSQLTableStorage**
 
 -
@@ -713,6 +721,10 @@ MigrationService -->|"apply one validated plan"| MigrationRunner
 MigrationService -->|"resolve leftover backup against ledger"| MigrationRecovery
 MigrationService -->|"detect committed migration"| MigrationLedger
 MigrationService -->|"verify baseline and drift fingerprints"| CatalogService
+FreshProvisioning -->|"create schema without rows"| CatalogAdministration
+FreshProvisioning -->|"verify source and target"| MigrationSchemaState
+FreshProvisioning -->|"adopt trusted prefix"| MigrationService
+Workbench -->|"provision new save slot"| FreshProvisioning
 MigrationHistory -->|"preview next pending entry"| MigrationStepPlanning
 MigrationStepPlanning -->|"preview typed table lifecycle"| CatalogAdministration
 MigrationStepPlanning -->|"validate and count canonical update"| Validator
@@ -802,7 +814,7 @@ class Translators translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
 class Planner,PlanNode planning;
-class Executor,ForeignKeyValidation,MigrationRunner,MigrationService execution;
+class Executor,ForeignKeyValidation,MigrationRunner,MigrationService,FreshProvisioning execution;
 class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationHistoryStore,MigrationSchemaState,MigrationSchemaStateStore,MigrationStepPlanning,MigrationLedger,MigrationRecovery catalog;
 class TableStorage storage;
 class ConfigCatalog,ConfigAdministration,ConfigMigrationHistory,ConfigMigrationSchemaState,ConfigMigrationLedger,ConfigMigrationRecovery,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;

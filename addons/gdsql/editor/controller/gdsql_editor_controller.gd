@@ -294,12 +294,23 @@ func _install_runtime_adapter() -> GDSQLOperationResult:
 
 func _create_database(
 		database_name: StringName,
+		requested_registration_name: StringName,
 		data_root: String,
 		storage_backend_id: StringName,
 		database_role: StringName,
 		package_root: String,
 ) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
+	var save_template: GDSQLDatabaseRegistration
+	if database_role == GDSQLDatabaseRegistry.SAVE_ROLE:
+		save_template = workbench.get_registration(
+			_get_role_registration(GDSQLDatabaseRegistry.SAVE_ROLE),
+		)
+		database_name = (
+			save_template.database_name
+			if save_template != null
+			else GDSQLDatabaseRegistry.DEFAULT_SAVE_DATABASE_NAME
+		)
 	if not package_root.is_empty():
 		var scaffolded := GDSQLConfigFileContentPackageScaffolder.new().scaffold(
 			package_root,
@@ -322,6 +333,18 @@ func _create_database(
 	if not loaded_existing:
 		database_result = GDSQLDatabase.create(database_name, data_root)
 		result.diagnostics.merge(database_result.diagnostics)
+	if database_result.is_successful() and not loaded_existing \
+			and save_template != null:
+		var provisioned := _provision_fresh_save(
+			save_template,
+			database_result.get_database(),
+		)
+		result.diagnostics.merge(provisioned.diagnostics)
+		if not provisioned.is_successful():
+			var rolled_back := database_result.get_database().drop()
+			result.diagnostics.merge(rolled_back.diagnostics)
+			_record_result("Provision save slot schema", result)
+			return result
 	if database_result.is_successful():
 		if loaded_existing:
 			result.add_diagnostic(
@@ -336,7 +359,11 @@ func _create_database(
 			_scan_project_filesystem()
 		var discovered := workbench.discover_root(
 			data_root,
-			_registration_prefix_for_root(database_name, data_root),
+			(
+				requested_registration_name
+				if requested_registration_name != &""
+				else _registration_prefix_for_root(database_name, data_root)
+			),
 		)
 		result.diagnostics.merge(discovered.diagnostics)
 		if discovered.is_successful():
@@ -347,6 +374,12 @@ func _create_database(
 					storage_backend_id,
 				)
 				result.diagnostics.merge(selected_backend.diagnostics)
+				if result.is_successful() and save_template != null:
+					var migration_stream := workbench.set_migration_stream(
+						registration_name,
+						save_template.migration_stream,
+					)
+					result.diagnostics.merge(migration_stream.diagnostics)
 				if result.is_successful() and database_role != &"":
 					var bound_role := workbench.bind_role(database_role, registration_name)
 					result.diagnostics.merge(bound_role.diagnostics)
@@ -360,6 +393,75 @@ func _create_database(
 		"Load database" if loaded_existing else "Create database",
 		result,
 	)
+	return result
+
+
+func _provision_fresh_save(
+		template_registration: GDSQLDatabaseRegistration,
+		target: GDSQLDatabase,
+) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	var opened := GDSQLRuntimeFactory.open_authoring_registration(template_registration)
+	result.diagnostics.merge(opened.diagnostics)
+	if not opened.is_successful():
+		return result
+	var template_database := opened.get_database()
+	var loaded_history := _migration_history_store.load(
+		template_registration.migration_stream,
+	)
+	result.diagnostics.merge(loaded_history.diagnostics)
+	if not loaded_history.is_successful():
+		return result
+	var history := loaded_history.get_value() as Array[GDSQLMigrationDefinition]
+	var preview := template_database.preview_migrations(history)
+	result.diagnostics.merge(preview.diagnostics)
+	if not preview.is_successful():
+		return result
+	if not preview.is_up_to_date():
+		return _error(
+			&"GDSQL_FRESH_SAVE_TEMPLATE_PENDING",
+			"Apply the active save slot's pending migration before creating another slot.",
+		)
+	var template_definition := template_database.context.catalog.get_database(
+		template_registration.database_name,
+	)
+	var fingerprint := GDSQLSchemaFingerprint.compute(template_definition)
+	var loaded_state := _migration_schema_state_store.load(
+		template_registration.migration_stream,
+	)
+	result.diagnostics.merge(loaded_state.diagnostics)
+	if not loaded_state.is_successful():
+		return result
+	var previous := loaded_state.get_value() as GDSQLMigrationSchemaState
+	var schema_state := GDSQLMigrationSchemaState.from_history(
+		template_registration.migration_stream,
+		template_registration.database_name,
+		history,
+		fingerprint,
+	)
+	if previous == null or previous.history_count != schema_state.history_count \
+			or previous.migration_head_id != schema_state.migration_head_id \
+			or previous.history_checksum != schema_state.history_checksum \
+			or previous.schema_fingerprint != schema_state.schema_fingerprint:
+		var saved := _migration_schema_state_store.save(
+			schema_state,
+			previous.history_checksum if previous != null else "",
+		)
+		result.diagnostics.merge(saved.diagnostics)
+		if not saved.is_successful():
+			return result
+		schema_state = saved.get_value() as GDSQLMigrationSchemaState
+	else:
+		schema_state = previous
+	var provisioned := GDSQLEditorFreshSaveProvisioner.new().provision(
+		template_definition,
+		target,
+		history,
+		schema_state,
+	)
+	result.diagnostics.merge(provisioned.diagnostics)
+	if provisioned.is_successful():
+		result.value = provisioned.get_value()
 	return result
 
 

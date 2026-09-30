@@ -121,10 +121,11 @@ one table change at a time. Table alteration, creation, rename, and drop are
 supported. Typed single-table row updates use the same canonical expressions as
 ordinary queries and participate in preview counts, backups, recovery, and the
 applied ledger. Project content is verified at its trusted schema head without
-runtime mutation.
+runtime mutation. New save slots copy the active slot's verified schema without
+copying its rows and receive a baseline for the shared migration stream.
 
-Editor authoring for data steps, automatic fresh-save provisioning, multi-table
-orchestration, and broader release/recovery verification remain active work.
+Multi-table orchestration, migration of older player saves, and broader
+release/recovery verification remain active work.
 Database creation, rename, unregister, and destruction are administrative
 lifecycle operations rather than migration entries. Until the remaining work
 is complete, released projects should treat migration support as pre-release

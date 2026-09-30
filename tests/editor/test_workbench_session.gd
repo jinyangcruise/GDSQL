@@ -318,6 +318,33 @@ func test_workbench_persists_updated_logical_database_name() -> void:
 	).is_equal("renamed_content")
 
 
+func test_workbench_persists_updated_migration_stream() -> void:
+	var store := GDSQLConfigFileDatabaseRegistryStore.new(
+		_data_root.path_join("registry.cfg"),
+	)
+	var registry := GDSQLDatabaseRegistry.new(store)
+	var snapshot := GDSQLDatabaseRegistrySnapshot.new()
+	snapshot.registrations.append(
+		GDSQLDatabaseRegistration.new(&"save_1", &"game_state", _data_root),
+	)
+	assert_bool(registry.save_snapshot(snapshot).is_successful()).is_true()
+	var workbench := GDSQLWorkbench.new(
+		registry,
+		GDSQLConfigFileDatabaseExplorer.new(),
+	)
+	assert_bool(workbench.load().is_successful()).is_true()
+
+	assert_bool(
+		workbench.set_migration_stream(&"save_1", &"player_state_v1").is_successful(),
+	).is_true()
+
+	var restored := registry.load_snapshot().get_value() \
+			as GDSQLDatabaseRegistrySnapshot
+	assert_str(String(restored.registrations[0].migration_stream)).is_equal(
+		"player_state_v1",
+	)
+
+
 func _find_inspection(
 		inspections: Array,
 		database_name: StringName,

@@ -226,6 +226,27 @@ func set_storage_backend(
 	return result
 
 
+func set_migration_stream(
+		registration_name: StringName,
+		migration_stream: StringName,
+) -> GDSQLOperationResult:
+	if migration_stream == &"" or not String(migration_stream).is_valid_identifier():
+		return _error(
+			&"GDSQL_MIGRATION_STREAM_INVALID",
+			"Migration stream '%s' is not a valid identifier." % migration_stream,
+		)
+	var registration := get_registration(registration_name)
+	if registration == null:
+		return _error(
+			&"GDSQL_WORKBENCH_REGISTRATION_NOT_FOUND",
+			"Database registration '%s' was not found." % registration_name,
+		)
+	registration.migration_stream = migration_stream
+	var result := _registry.save_snapshot(snapshot)
+	result.value = registration
+	return result
+
+
 func bind_role(role: StringName, registration_name: StringName) -> GDSQLOperationResult:
 	if role == &"":
 		return _error(

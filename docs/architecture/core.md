@@ -2080,9 +2080,20 @@ container are administrative lifecycle operations, not migration steps.
 A newly provisioned writable database has two valid entry paths. It may replay
 a complete history whose declared origin is an empty database, or it may be
 scaffolded directly at the trusted current schema and receive a verified
-baseline. Runtime replay and verified baseline adoption are implemented. The
-editor workflow that automatically provisions new save slots at the current
-schema remains part of the data/save migration phase.
+baseline. Runtime replay and verified baseline adoption are implemented.
+`GDSQLEditorFreshSaveProvisioner` implements the second path for new save slots:
+it verifies the active template against independently persisted schema state,
+copies typed table definitions without rows, adds foreign keys only after all
+tables exist, verifies the completed target fingerprint, and adopts the exact
+trusted history prefix as the target baseline. A failed attempt removes the
+catalog structures it created; it never copies or replaces player data.
+
+Save-slot registration identity and logical database identity are distinct.
+Standard slots use their root/registration names (`save_1`, `save_2`) for
+selection while sharing the `game_state` logical database name and migration
+stream. This lets one authored stream drive every physical slot without making
+the slot name part of schema identity. The first slot establishes the schema;
+later slots receive that schema at creation and begin with empty tables.
 
 The stable stream identity survives physical save-slot creation and database
 location changes. Renaming a database after history starts is currently

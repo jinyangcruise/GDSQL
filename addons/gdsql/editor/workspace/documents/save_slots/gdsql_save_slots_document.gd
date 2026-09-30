@@ -60,7 +60,7 @@ func refresh_slots() -> void:
 	var active_item: TreeItem
 	for registration in slots:
 		var item := _tree.create_item(root)
-		item.set_text(0, String(registration.database_name))
+		item.set_text(0, String(registration.name))
 		item.set_text(1, "Active" if registration.name == active else "Available")
 		item.set_text(
 			2,
@@ -116,8 +116,8 @@ func _save_registrations(active: StringName) -> Array[GDSQLDatabaseRegistration]
 				return true
 			if right.name == active:
 				return false
-			return String(left.database_name).naturalnocasecmp_to(
-				String(right.database_name),
+			return String(left.name).naturalnocasecmp_to(
+				String(right.name),
 			) < 0,
 	)
 	return slots
@@ -187,7 +187,7 @@ func _request_unregister() -> void:
 			"Unregister save slot '%s'?\n\n"
 			+ "Its database files at '%s' will remain unchanged, but this logical "
 			+ "database will no longer appear as a slot until it is registered again."
-	) % [registration.database_name, registration.data_root]
+	) % [registration.name, registration.data_root]
 	_unregister_confirmation.popup_centered(Vector2i(560, 210))
 
 
@@ -215,12 +215,12 @@ func _request_delete() -> void:
 			else ""
 	)
 	_delete_confirmation.dialog_text = (
-			"Permanently delete save slot database '%s'?\n\n"
+			"Permanently delete save slot '%s'?\n\n"
 			+ "Database data: %s\n"
 			+ "Slot root: %s\n\n"
 			+ "Schemas and rows for this database will be deleted. This cannot be undone.%s"
 	) % [
-		_pending_delete.database_name,
+		_pending_delete.registration_name,
 		_pending_delete.database_path,
 		_pending_delete.data_root,
 		active_warning,

@@ -5,6 +5,7 @@ extends Control
 
 signal database_create_submitted(
 		database_name: StringName,
+		registration_name: StringName,
 		data_root: String,
 		storage_backend_id: StringName,
 		database_role: StringName,
@@ -796,6 +797,7 @@ func _set_create_table_enabled(enabled: bool) -> void:
 
 func _on_database_create_requested(
 		database_name: StringName,
+		registration_name: StringName,
 		data_root: String,
 		storage_backend_id: StringName,
 		database_role: StringName,
@@ -803,6 +805,7 @@ func _on_database_create_requested(
 ) -> void:
 	database_create_submitted.emit(
 		database_name,
+		registration_name,
 		data_root,
 		storage_backend_id,
 		database_role,
