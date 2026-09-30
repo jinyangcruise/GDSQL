@@ -108,6 +108,35 @@ func test_definition_serializer_round_trips_create_table_step() -> void:
 	)
 
 
+func test_definition_serializer_round_trips_table_lifecycle_steps() -> void:
+	var steps: Array[GDSQLSchemaMigrationStep] = [
+		GDSQLSchemaMigrationStep.rename_table(&"heroes", &"characters"),
+		GDSQLSchemaMigrationStep.drop_table(&"legacy_heroes"),
+	]
+	var migration := GDSQLMigrationDefinition.new(
+		"202609290001_table_lifecycle",
+		"Rename and remove tables",
+		steps,
+	)
+
+	var decoded := GDSQLMigrationDefinitionSerializer.decode(
+		GDSQLMigrationDefinitionSerializer.encode(migration),
+	)
+
+	assert_bool(decoded.is_successful()).is_true()
+	var restored := decoded.get_value() as GDSQLMigrationDefinition
+	assert_str(restored.checksum).is_equal(migration.checksum)
+	assert_int(restored.steps[0].kind).is_equal(
+		GDSQLSchemaMigrationStep.Kind.RENAME_TABLE,
+	)
+	assert_str(restored.steps[0].table_name).is_equal("heroes")
+	assert_str(restored.steps[0].new_table_name).is_equal("characters")
+	assert_int(restored.steps[1].kind).is_equal(
+		GDSQLSchemaMigrationStep.Kind.DROP_TABLE,
+	)
+	assert_bool(restored.steps[1].is_destructive()).is_true()
+
+
 func test_definition_serializer_keeps_existing_alteration_files_readable() -> void:
 	var migration := _add_level_migration("202609290001_add_level")
 	var payload := GDSQLMigrationDefinitionSerializer.encode(migration)

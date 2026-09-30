@@ -177,11 +177,30 @@ func rename_table(
 	return catalog_administration.rename_table(database_name, current_name, new_name)
 
 
+func preview_rename_table(
+		database_name: StringName,
+		current_name: StringName,
+		new_name: StringName,
+) -> GDSQLOperationResult:
+	return catalog_administration.preview_rename_table(
+		database_name,
+		current_name,
+		new_name,
+	)
+
+
 func drop_table(
 		database_name: StringName,
 		table_name: StringName,
 ) -> GDSQLCatalogOperationResult:
 	return catalog_administration.drop_table(database_name, table_name)
+
+
+func preview_drop_table(
+		database_name: StringName,
+		table_name: StringName,
+) -> GDSQLOperationResult:
+	return catalog_administration.preview_drop_table(database_name, table_name)
 
 
 func alter_table(

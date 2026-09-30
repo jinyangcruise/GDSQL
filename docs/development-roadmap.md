@@ -49,7 +49,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Versioned migration v1 foundation | Runtime/API, project history, recovery, trusted baselines/state, startup coordination, and create-table migrations are implemented; rename/drop lifecycle steps, live-editor verification, and release matrices remain |
+| High — first | Versioned migration v1 foundation | Runtime/API, project history, recovery, trusted baselines/state, startup coordination, and create/rename/drop table migrations are implemented; database lifecycle rules, live-editor verification, and release matrices remain |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
@@ -328,8 +328,9 @@ slice provides:
    Project-authored definitions are now stored as immutable per-migration files
    under a stable stream identity, separate from each physical database ledger.
 2. Forward-only typed schema steps built from the existing
-   `GDSQLTableAlteration` vocabulary, plus complete create-table definitions.
-   Implemented for altering and creating one table per migration.
+   `GDSQLTableAlteration` vocabulary, plus complete create-table definitions
+   and table rename/drop operations. Implemented for one table lifecycle step
+   per migration.
 3. A persisted applied-migration ledger and schema fingerprint. Implemented
    and enforced by preview and the runner before and after catalog application.
    Pre-existing current-schema databases can establish one explicit baseline
@@ -351,14 +352,15 @@ The recovery-safe runner applies one previewed migration, records its resulting
 schema fingerprint, and restores the complete snapshot after catalog,
 fingerprint, or ledger failure. The public database API now previews complete
 history, applies one plan, reports an up-to-date state, and resolves leftover
-backups safely after interruption. The database document now creates a
-single-table definition from either one existing schema draft or one new table
-draft, previews affected rows and summaries, requires explicit confirmation,
-persists before application, and exposes a failed application as retryable
-pending history.
+backups safely after interruption. The database document now authors one
+single-table change from an existing schema draft, a new table draft, or a
+staged table rename/drop. It previews affected rows and summaries, requires
+explicit confirmation, persists before application, and exposes a failed
+application as retryable pending history. Drop is destructive and protected by
+the same whole-database recovery snapshot as other migration failures; rename
+preserves stored rows.
 Once history starts, the editor blocks direct structural saves so they cannot
-bypass the ledger. Table rename/drop and database lifecycle migrations remain
-later v1 extensions.
+bypass the ledger. Database lifecycle migrations remain a later v1 extension.
 Live-editor workflow verification, broader interruption coverage, and
 supported-version matrices remain part of release QA.
 
@@ -376,9 +378,9 @@ hydration and model registration. The startup coordinator:
 History without trusted schema state fails closed. A stream with neither
 history nor state is explicitly unconfigured. Baseline adoption is limited to
 writable non-project registrations already matching independently persisted
-state; project content is not automatically baselined. Table creation is now an
-explicit migration operation. Fresh database creation/removal and table
-rename/drop still need explicit migration and ledger lifecycle rules.
+state; project content is not automatically baselined. Table creation, rename,
+and drop are explicit migration operations. Fresh database creation/removal
+still needs explicit migration and ledger lifecycle rules.
 
 The migration formats under development target the addon's first public 1.0.
 They may be corrected directly while unreleased; compatibility work begins

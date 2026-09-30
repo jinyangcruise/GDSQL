@@ -1759,6 +1759,13 @@ func preview_create_table(
 func rename_table(database_name: StringName, current_name: StringName, new_name: StringName) -> CatalogOperationResult
 
 @abstract
+func preview_rename_table(
+    database_name: StringName,
+    current_name: StringName,
+    new_name: StringName,
+) -> OperationResult
+
+@abstract
 func alter_table(
     database_name: StringName,
     table_name: StringName,
@@ -1779,6 +1786,12 @@ func apply_change_plan(
 
 @abstract
 func drop_table(database_name: StringName, table_name: StringName) -> CatalogOperationResult
+
+@abstract
+func preview_drop_table(
+    database_name: StringName,
+    table_name: StringName,
+) -> OperationResult
 ```
 
 Unregistering removes a logical database from the catalog while preserving its
@@ -1819,10 +1832,11 @@ Direct column data-type replacement is intentionally absent. The safe workflow
 adds a column with the new type, moves or converts values through canonical
 mutations, validates the result, and then drops the old column.
 
-`preview_alter_table()` validates the complete request against an isolated copy
-and returns a `CatalogChangePlan` with affected-row count, concise summaries,
-destructive classification, and a source schema fingerprint. Applying the plan
-compares that fingerprint with the current catalog and rejects stale previews.
+The create, alter, rename, and drop preview methods validate a complete request
+without mutation and return a `CatalogChangePlan` with affected-row count,
+concise summaries, destructive classification, and the required stale-state
+evidence. Applying the plan compares that evidence with the current catalog and
+rejects stale previews.
 `alter_table()` remains the immediate code API by previewing and applying in
 one call. Dropping the primary key is rejected. Database and table renames move
 their complete physical structures and update catalog metadata, while drop
@@ -1834,10 +1848,11 @@ Migration history is project-authored, forward-only input above catalog
 administration. `GDSQLMigrationDefinition` owns one stable sortable ID, a
 description, an ordered list of `GDSQLSchemaMigrationStep` values, and a
 deterministic SHA-256 checksum. Each step targets one table and either reuses
-the existing `GDSQLTableAlteration` vocabulary or carries one complete table
-definition for creation. A definition recalculates its checksum during
-validation, so changing an already recorded description, operation, table,
-column, index, default, or foreign key is rejected as edited history.
+the existing `GDSQLTableAlteration` vocabulary, carries one complete table
+definition for creation, renames one table, or drops one table. A definition
+recalculates its checksum during validation, so changing an already recorded
+description, operation, table, column, index, default, or foreign key is
+rejected as edited history.
 
 IDs use only letters, digits, `_`, `-`, and `.`, and must be strictly increasing
 under ordinal comparison. Timestamp-prefixed, fixed-width IDs are the
@@ -1855,9 +1870,10 @@ silently overwrite project history.
 under `res://.gdsql/migrations/<stream>/<migration_id>.cfg`. Files are sorted by
 their stable IDs and activated from staging without replacing an existing
 entry. `GDSQLMigrationDefinitionSerializer` is the dynamic serialization
-boundary for typed steps, complete create-table definitions, and every current
-`GDSQLTableAlteration` shape. Existing alteration-only definitions retain their
-checksum representation. Loading recomputes and compares the authored checksum;
+boundary for typed alter, create, rename, and drop steps, complete create-table
+definitions, and every current `GDSQLTableAlteration` shape. Existing
+alteration-only definitions retain their checksum representation. Loading
+recomputes and compares the authored checksum;
 edited, renamed, malformed, duplicate, or out-of-order entries return
 structured diagnostics.
 
@@ -1912,8 +1928,8 @@ ledger revision.
 
 `GDSQLMigrationCatalogPlanner` receives catalog administration through
 constructor injection and previews only the next pending history entry.
-`preview_next()` delegates schema validation to `preview_alter_table()` or
-`preview_create_table()` according to the typed step and returns a
+`preview_next()` delegates schema validation to the corresponding create,
+alter, rename, or drop catalog preview according to the typed step and returns a
 `GDSQLMigrationCatalogPlan` containing the migration identity, its
 stale-safe `GDSQLCatalogChangePlan`, affected rows and summaries, and the
 expected applied-ledger revision. Previewing does not mutate schema, rows, or the
@@ -2017,8 +2033,8 @@ runtime contexts do not expose migrations: schema history belongs to their
 durable ConfigFile authoring source, which must migrate before hydration.
 Editor history authoring and destructive confirmation remain a separate
 product flow over this public API. The database document now authors one table
-step at a time: either one existing-table alteration group or one new table
-definition. It emits typed intent to the editor controller,
+step at a time: one existing-table alteration group, one new table definition,
+one table rename, or one table drop. It emits typed intent to the editor controller,
 which rejects authoring while an earlier entry is pending, previews the
 candidate complete history, and returns an `EditorMigrationPreview` to the
 scene. The scene shows affected rows and catalog summaries and always requires
@@ -2029,8 +2045,8 @@ presented again on the next database open or refresh. After a stream contains
 its first definition, the database document disables direct structural saves;
 bypassing the ledger would invalidate its recorded schema fingerprint. The v1
 editor therefore keeps database rename and multi-table drafts reversible but
-unapplied once history has started. Table rename/drop and database lifecycle
-still require later typed operations. Whenever editor preview confirms that the
+unapplied once history has started. Database lifecycle migrations still require
+later typed operations. Whenever editor preview confirms that the
 durable database is at the authored history head, the editor advances its
 project schema state. State persistence failure is reported as a warning and
 does not recast an already committed catalog migration as failed.

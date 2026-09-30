@@ -146,6 +146,15 @@ func _change_plan_matches_migration(plan: GDSQLMigrationCatalogPlan) -> bool:
 		preview_step = GDSQLSchemaMigrationStep.create_table(
 			plan.change_plan.table_definition,
 		)
+	elif plan.change_plan.kind == GDSQLCatalogChangePlan.Kind.RENAME_TABLE:
+		preview_step = GDSQLSchemaMigrationStep.rename_table(
+			plan.change_plan.table_name,
+			plan.change_plan.new_table_name,
+		)
+	elif plan.change_plan.kind == GDSQLCatalogChangePlan.Kind.DROP_TABLE:
+		preview_step = GDSQLSchemaMigrationStep.drop_table(
+			plan.change_plan.table_name,
+		)
 	else:
 		preview_step = GDSQLSchemaMigrationStep.new(
 			plan.change_plan.table_name,
@@ -170,6 +179,12 @@ func _step_kind_matches_plan(
 	) or (
 			step.kind == GDSQLSchemaMigrationStep.Kind.CREATE_TABLE \
 					and change_plan.kind == GDSQLCatalogChangePlan.Kind.CREATE_TABLE
+	) or (
+			step.kind == GDSQLSchemaMigrationStep.Kind.RENAME_TABLE \
+					and change_plan.kind == GDSQLCatalogChangePlan.Kind.RENAME_TABLE
+	) or (
+			step.kind == GDSQLSchemaMigrationStep.Kind.DROP_TABLE \
+					and change_plan.kind == GDSQLCatalogChangePlan.Kind.DROP_TABLE
 	)
 
 

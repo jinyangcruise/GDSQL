@@ -42,6 +42,10 @@ static func _serialize_step(step: GDSQLSchemaMigrationStep) -> Array:
 		return []
 	if step.kind == GDSQLSchemaMigrationStep.Kind.CREATE_TABLE:
 		return ["create_table", _serialize_table(step.table_definition)]
+	if step.kind == GDSQLSchemaMigrationStep.Kind.RENAME_TABLE:
+		return ["rename_table", String(step.table_name), String(step.new_table_name)]
+	if step.kind == GDSQLSchemaMigrationStep.Kind.DROP_TABLE:
+		return ["drop_table", String(step.table_name)]
 	var alterations: Array = []
 	for alteration in step.alterations:
 		alterations.append(_serialize_alteration(alteration))

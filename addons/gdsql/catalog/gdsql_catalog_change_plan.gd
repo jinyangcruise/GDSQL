@@ -8,6 +8,8 @@ extends RefCounted
 enum Kind {
 	ALTER_TABLE,
 	CREATE_TABLE,
+	RENAME_TABLE,
+	DROP_TABLE,
 }
 
 var kind := Kind.ALTER_TABLE
@@ -15,6 +17,7 @@ var database_name: StringName
 var table_name: StringName
 var alterations: Array[GDSQLTableAlteration] = []
 var table_definition: GDSQLTableDefinition
+var new_table_name: StringName
 var source_catalog_fingerprint: int
 var affected_rows: int
 var destructive: bool
@@ -51,6 +54,45 @@ static func for_create_table(
 	plan.kind = Kind.CREATE_TABLE
 	plan.table_definition = table
 	plan.summaries = ["Create table '%s'." % plan.table_name]
+	return plan
+
+
+static func for_rename_table(
+		target_database: StringName,
+		current_name: StringName,
+		target_name: StringName,
+		fingerprint: int,
+		row_count: int,
+) -> GDSQLCatalogChangePlan:
+	var plan := GDSQLCatalogChangePlan.new(
+		target_database,
+		current_name,
+		[],
+		fingerprint,
+		row_count,
+	)
+	plan.kind = Kind.RENAME_TABLE
+	plan.new_table_name = target_name
+	plan.summaries = ["Rename table '%s' to '%s'." % [current_name, target_name]]
+	return plan
+
+
+static func for_drop_table(
+		target_database: StringName,
+		table_to_drop: StringName,
+		fingerprint: int,
+		row_count: int,
+) -> GDSQLCatalogChangePlan:
+	var plan := GDSQLCatalogChangePlan.new(
+		target_database,
+		table_to_drop,
+		[],
+		fingerprint,
+		row_count,
+	)
+	plan.kind = Kind.DROP_TABLE
+	plan.destructive = true
+	plan.summaries = ["Drop table '%s' and its %d row(s)." % [table_to_drop, row_count]]
 	return plan
 
 

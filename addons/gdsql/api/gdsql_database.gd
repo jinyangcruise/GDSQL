@@ -103,8 +103,19 @@ func rename_table(
 	return context.rename_table(database_name, current_name, new_name)
 
 
+func preview_rename_table(
+		current_name: StringName,
+		new_name: StringName,
+) -> GDSQLOperationResult:
+	return context.preview_rename_table(database_name, current_name, new_name)
+
+
 func drop_table(table_name: StringName) -> GDSQLCatalogOperationResult:
 	return context.drop_table(database_name, table_name)
+
+
+func preview_drop_table(table_name: StringName) -> GDSQLOperationResult:
+	return context.preview_drop_table(database_name, table_name)
 
 
 ## Removes every row and resets the table's generated integer key sequence.

@@ -21,6 +21,9 @@ const FOREIGN_KEY_PROPERTY_SCENE := preload(
 )
 const COLUMN_ACTION_REMOVE := 0
 const COLUMN_ACTION_RESTORE := 1
+const TABLE_ACTION_RENAME := 0
+const TABLE_ACTION_DROP := 1
+const TABLE_ACTION_RESTORE := 2
 
 var table_name: StringName
 var _table: GDSQLTableDefinition
@@ -31,6 +34,8 @@ var _dropped_foreign_keys: Dictionary[StringName, bool] = { }
 var _column_dropped_indexes: Dictionary[StringName, bool] = { }
 var _column_dropped_foreign_keys: Dictionary[StringName, bool] = { }
 var _context_column: GDSQLEditorColumnDraft
+var _new_table_name: StringName
+var _drop_requested := false
 
 @onready var _columns: GDSQLEditorColumnEditor = %Columns
 
@@ -39,6 +44,12 @@ func _ready() -> void:
 	%OpenData.pressed.connect(_request_data)
 	%OpenModel.pressed.connect(_request_model)
 	%ResetData.pressed.connect(_request_reset)
+	var table_actions: PopupMenu = (%TableActions as MenuButton).get_popup()
+	table_actions.about_to_popup.connect(_prepare_table_actions)
+	table_actions.id_pressed.connect(_on_table_action)
+	%TableRenameName.text_changed.connect(_validate_table_rename.unbind(1))
+	%TableRenameDialog.confirmed.connect(_stage_table_rename)
+	%TableDropConfirmation.confirmed.connect(_stage_table_drop)
 	%AddColumn.pressed.connect(_add_column)
 	%ColumnActions.id_pressed.connect(_on_column_context_action)
 	%ColumnRemovalConfirmation.confirmed.connect(_confirm_column_removal)
@@ -61,7 +72,8 @@ func configure(
 	_dropped_foreign_keys.clear()
 	_column_dropped_indexes.clear()
 	_column_dropped_foreign_keys.clear()
-	title = String(table.name)
+	_new_table_name = &""
+	_drop_requested = false
 	%Summary.text = "%d rows · %d columns · %d indexes" % [
 		inspection.row_count,
 		table.columns.size(),
@@ -76,10 +88,19 @@ func configure(
 	for child in %NewForeignKeys.get_children():
 		%NewForeignKeys.remove_child(child)
 		child.queue_free()
+	_update_lifecycle_presentation()
 	_update_foreign_key_indicators()
 
 
 func build_change() -> GDSQLEditorTableChange:
+	if _drop_requested:
+		return GDSQLEditorTableChange.drop_table(table_name)
+	if _new_table_name != &"":
+		return GDSQLEditorTableChange.rename_table(table_name, _new_table_name)
+	return GDSQLEditorTableChange.new(table_name, _build_alterations())
+
+
+func _build_alterations() -> Array[GDSQLTableAlteration]:
 	var alterations: Array[GDSQLTableAlteration] = []
 	for constraint_name in _dropped_foreign_keys:
 		if _dropped_foreign_keys[constraint_name]:
@@ -106,14 +127,20 @@ func build_change() -> GDSQLEditorTableChange:
 				row.call("build_definition") as GDSQLForeignKeyDefinition,
 			),
 		)
-	return GDSQLEditorTableChange.new(table_name, alterations)
+	return alterations
 
 
 func has_changes() -> bool:
-	return not build_change().alterations.is_empty()
+	return build_change().is_valid()
 
 
 func is_valid_draft() -> bool:
+	if _drop_requested:
+		return true
+	if _new_table_name != &"":
+		return String(_new_table_name).is_valid_identifier() \
+				and _new_table_name != table_name \
+				and _database.get_table(_new_table_name) == null
 	if not _columns.get_validation_errors(_table.primary_key).is_empty():
 		return false
 	var index_names: Dictionary[StringName, bool] = { }
@@ -157,6 +184,127 @@ func _request_model() -> void:
 
 func _request_reset() -> void:
 	reset_requested.emit(table_name)
+
+
+func _prepare_table_actions() -> void:
+	var menu: PopupMenu = (%TableActions as MenuButton).get_popup()
+	var has_alterations := not _build_alterations().is_empty()
+	var lifecycle_staged := _drop_requested or _new_table_name != &""
+	var incoming := _incoming_foreign_key_dependencies(_table_column_names())
+	var lifecycle_blocked := has_alterations or not incoming.is_empty()
+	menu.set_item_disabled(menu.get_item_index(TABLE_ACTION_RENAME), lifecycle_blocked)
+	menu.set_item_disabled(menu.get_item_index(TABLE_ACTION_DROP), lifecycle_blocked)
+	menu.set_item_disabled(menu.get_item_index(TABLE_ACTION_RESTORE), not lifecycle_staged)
+	var reason := ""
+	if has_alterations:
+		reason = "Discard or save column and constraint drafts first."
+	elif not incoming.is_empty():
+		reason = "Remove incoming foreign keys first: %s." % ", ".join(incoming)
+	menu.set_item_tooltip(menu.get_item_index(TABLE_ACTION_RENAME), reason)
+	menu.set_item_tooltip(menu.get_item_index(TABLE_ACTION_DROP), reason)
+
+
+func _on_table_action(action_id: int) -> void:
+	match action_id:
+		TABLE_ACTION_RENAME:
+			_begin_table_rename()
+		TABLE_ACTION_DROP:
+			_begin_table_drop()
+		TABLE_ACTION_RESTORE:
+			_restore_table_lifecycle()
+
+
+func _begin_table_rename() -> void:
+	%TableRenameName.text = String(table_name)
+	_validate_table_rename()
+	%TableRenameDialog.popup_centered(Vector2i(500, 210))
+	%TableRenameName.grab_focus.call_deferred()
+	%TableRenameName.select_all.call_deferred()
+
+
+func _validate_table_rename() -> void:
+	var candidate := StringName(%TableRenameName.text.strip_edges())
+	var message := ""
+	if candidate == &"" or not String(candidate).is_valid_identifier():
+		message = "Use a valid GDScript identifier."
+	elif candidate == table_name:
+		message = "Enter a different table name."
+	elif _database.get_table(candidate) != null:
+		message = "Table '%s' already exists." % candidate
+	%TableRenameValidation.text = message
+	%TableRenameValidation.visible = not message.is_empty()
+	%TableRenameDialog.get_ok_button().disabled = not message.is_empty()
+
+
+func _stage_table_rename() -> void:
+	_new_table_name = StringName(%TableRenameName.text.strip_edges())
+	_drop_requested = false
+	_update_lifecycle_presentation()
+	changed.emit()
+
+
+func _begin_table_drop() -> void:
+	%TableDropConfirmation.dialog_text = (
+			"Stage table '%s' for removal?\n\n"
+			+ "Applying this change permanently deletes its schema and %d stored row(s). "
+			+ "A migration creates a recovery snapshot before application."
+	) % [table_name, _row_count]
+	%TableDropConfirmation.popup_centered(Vector2i(560, 230))
+
+
+func _stage_table_drop() -> void:
+	_new_table_name = &""
+	_drop_requested = true
+	_update_lifecycle_presentation()
+	changed.emit()
+
+
+func _restore_table_lifecycle() -> void:
+	_new_table_name = &""
+	_drop_requested = false
+	_update_lifecycle_presentation()
+	changed.emit()
+
+
+func _update_lifecycle_presentation() -> void:
+	var lifecycle_staged := _drop_requested or _new_table_name != &""
+	title = (
+			"%s · drop staged" % table_name
+			if _drop_requested
+			else (
+					"%s → %s" % [table_name, _new_table_name]
+					if _new_table_name != &""
+					else String(table_name)
+			)
+	)
+	%LifecycleStatus.visible = lifecycle_staged
+	%LifecycleStatus.text = (
+			"Table and stored rows will be removed when this change is applied."
+			if _drop_requested
+			else (
+					"Table will be renamed to '%s' when this change is applied." % _new_table_name
+					if _new_table_name != &""
+					else ""
+			)
+	)
+	%IndexesFold.visible = not lifecycle_staged
+	%ForeignKeyFold.visible = not lifecycle_staged
+	%ColumnsHeader.visible = not lifecycle_staged
+	%Columns.visible = not lifecycle_staged
+	%AddColumn.visible = not lifecycle_staged
+	%ResetData.disabled = lifecycle_staged
+	%ResetData.tooltip_text = (
+			"Restore the staged table operation before resetting its rows."
+			if lifecycle_staged
+			else "Delete every row and reset the generated-key sequence."
+	)
+
+
+func _table_column_names() -> Array[StringName]:
+	var names: Array[StringName] = []
+	for column in _table.columns:
+		names.append(column.name)
+	return names
 
 
 func matches_search(query: String) -> bool:
@@ -248,13 +396,13 @@ func _on_column_context_action(action_id: int) -> void:
 	var incoming := _incoming_foreign_key_dependencies(_original_column_names(drafts))
 	%ColumnRemovalConfirmation.dialog_text = _column_removal_message(_context_column)
 	%ColumnRemovalConfirmation.title = (
-		"Cannot Remove Column"
-		if not incoming.is_empty() else "Remove Column"
+			"Cannot Remove Column"
+			if not incoming.is_empty() else "Remove Column"
 	)
 	%ColumnRemovalConfirmation.get_ok_button().disabled = not incoming.is_empty()
 	%ColumnRemovalConfirmation.get_ok_button().tooltip_text = (
-		"Remove and save the listed foreign keys first."
-		if not incoming.is_empty() else ""
+			"Remove and save the listed foreign keys first."
+			if not incoming.is_empty() else ""
 	)
 	%ColumnRemovalConfirmation.popup_centered(Vector2i(620, 330))
 
@@ -336,7 +484,7 @@ func _dependent_foreign_key_names(column_names: Array[StringName]) -> Array[Stri
 		if definition.column in column_names \
 				or (
 						definition.referenced_table == table_name \
-						and definition.referenced_column in column_names
+								and definition.referenced_column in column_names
 				):
 			names.append(definition.name)
 	return names
@@ -350,11 +498,13 @@ func _incoming_foreign_key_dependencies(column_names: Array[StringName]) -> Arra
 		for definition in source_table.foreign_keys:
 			if definition.referenced_table == table_name \
 					and definition.referenced_column in column_names:
-				dependencies.append("%s.%s (%s)" % [
-					source_table.name,
-					definition.column,
-					definition.name,
-				])
+				dependencies.append(
+					"%s.%s (%s)" % [
+						source_table.name,
+						definition.column,
+						definition.name,
+					],
+				)
 	return dependencies
 
 
@@ -370,7 +520,7 @@ func _dependent_draft_names(column_names: Array[StringName]) -> Array[String]:
 		if definition.column in column_names \
 				or (
 						definition.referenced_table == table_name \
-						and definition.referenced_column in column_names
+								and definition.referenced_column in column_names
 				):
 			names.append("foreign key %s" % definition.name)
 	return names
@@ -389,7 +539,7 @@ func _discard_dependent_constraint_drafts(removed_current: Array[StringName]) ->
 		if definition.column in removed_current \
 				or (
 						definition.referenced_table == table_name \
-						and definition.referenced_column in removed_current
+								and definition.referenced_column in removed_current
 				):
 			%NewForeignKeys.remove_child(row)
 			row.queue_free()

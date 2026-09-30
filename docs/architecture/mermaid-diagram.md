@@ -48,14 +48,14 @@ Workbench("`**GDSQLWorkbench**
 *Collection API:* load(), discover_root(), discover_children(), select_registration()
 *Session API:* select_table(), load_rows(), preview_table_change(), apply_pending_change()
 *Metadata:* Lightweight catalog, schema and table-header inspections
-*Schema UI:* Scene-backed fixed header and reusable rows over typed column drafts; row context actions preview removal dependencies and stay reversible before save
+*Schema UI:* Scene-backed fixed header and reusable rows over typed column drafts; row context actions preview removal dependencies; compact table actions stage rename/drop
 *Reference UI:* Bounded canonical target-row lookup and searchable key picker
 *Rows:* Loaded only for the selected table`")
 
 MigrationAuthoring("`**Editor Migration Authoring**
 
 -
-*Purpose:* Turn one existing-table draft or one new table into immutable project history
+*Purpose:* Turn one table alteration, creation, rename, or drop into immutable project history
 *Preview:* Affected rows, catalog summaries and destructive classification
 *Safety:* Explicit confirmation, stale-count append and stale-safe application
 *Recovery:* A persisted failure remains pending and retryable`")
@@ -407,14 +407,14 @@ CatalogAdministration("`**GDSQLCatalogAdministrationService**
 *Purpose:* Manage database and table lifecycle without exposing storage format
 *Database API:* create_database(), rename_database(), drop_database()
 *Table API:* create_table(), rename_table(), alter_table(), drop_table()
-*Plan API:* preview_create_table(), preview_alter_table(), apply_change_plan()
+*Plan API:* create/alter/rename/drop previews and apply_change_plan()
 *Integrity:* Reject incoming-reference-breaking schema changes
 *Extension point:* Catalog administration backend implementations`")
 
 MigrationHistory("`**Schema Migration History**
 
 -
-*Input:* Ordered GDSQLMigrationDefinition values with alter-table or create-table steps
+*Input:* Ordered GDSQLMigrationDefinition values with alter/create/rename/drop table steps
 *Integrity:* Deterministic checksums; applied history must be an exact prefix
 *Plan:* GDSQLMigrationPlanner returns pending definitions and destructive status
 *Boundary:* Models never create or infer migrations`")
@@ -446,7 +446,7 @@ MigrationCatalogPlanning("`**Migration Catalog Planning**
 *Input:* Target database and next pending migration
 *API:* GDSQLMigrationCatalogPlanner.preview_next()
 *Output:* GDSQLMigrationCatalogPlan wrapping a stale-safe catalog change plan
-*Initial scope:* One create-table or alter-table step per migration; no mutation`")
+*Initial scope:* One typed table lifecycle step per migration; no mutation`")
 
 MigrationLedger("`**GDSQLMigrationLedger**
 
@@ -712,7 +712,7 @@ MigrationService -->|"resolve leftover backup against ledger"| MigrationRecovery
 MigrationService -->|"detect committed migration"| MigrationLedger
 MigrationService -->|"verify baseline and drift fingerprints"| CatalogService
 MigrationHistory -->|"preview next pending entry"| MigrationCatalogPlanning
-MigrationCatalogPlanning -->|"preview_create_table() · preview_alter_table()"| CatalogAdministration
+MigrationCatalogPlanning -->|"preview typed table lifecycle"| CatalogAdministration
 MigrationCatalogPlanning -->|"validated next plan"| MigrationRunner
 MigrationRunner -->|"create · restore · discard"| MigrationRecovery
 MigrationRunner -->|"apply_change_plan()"| CatalogAdministration

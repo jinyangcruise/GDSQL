@@ -441,6 +441,105 @@ func test_create_table_migration_restores_backup_when_ledger_append_fails() -> v
 	).is_null()
 
 
+func test_runner_renames_table_and_preserves_stored_rows() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var migration := _rename_table_migration(
+		"202609280001_rename_heroes",
+		&"heroes",
+		&"characters",
+	)
+
+	var preview := database.preview_migrations([migration])
+
+	assert_bool(preview.is_successful()).is_true()
+	assert_int(preview.next_plan.affected_rows()).is_equal(2)
+	assert_bool(preview.next_plan.requires_confirmation()).is_false()
+	assert_array(preview.next_plan.summaries()).contains_exactly(
+		["Rename table 'heroes' to 'characters'."],
+	)
+	var applied := database.apply_migration(preview.next_plan)
+	assert_bool(applied.is_successful()).is_true()
+	var reopened := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	assert_object(
+		reopened.context.catalog.get_table(database.database_name, &"heroes"),
+	).is_null()
+	assert_object(
+		reopened.context.catalog.get_table(database.database_name, &"characters"),
+	).is_not_null()
+	var rows := reopened.execute(
+		reopened.query().select().from_table(&"characters").build(),
+	)
+	assert_int(rows.rows.size()).is_equal(2)
+	assert_str(rows.rows[0].get_value(&"name")).is_equal("Knight")
+
+
+func test_runner_drops_table_and_records_destructive_migration() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var migration := _drop_table_migration(
+		"202609280001_drop_heroes",
+		&"heroes",
+	)
+
+	var preview := database.preview_migrations([migration])
+
+	assert_bool(preview.is_successful()).is_true()
+	assert_int(preview.next_plan.affected_rows()).is_equal(2)
+	assert_bool(preview.next_plan.requires_confirmation()).is_true()
+	assert_array(preview.next_plan.summaries()).contains_exactly(
+		["Drop table 'heroes' and its 2 row(s)."],
+	)
+	var applied := database.apply_migration(preview.next_plan)
+	assert_bool(applied.is_successful()).is_true()
+	var reopened := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	assert_object(
+		reopened.context.catalog.get_table(database.database_name, &"heroes"),
+	).is_null()
+	var ledger := GDSQLConfigFileMigrationLedger.new(
+		GDSQLDatabasePathResolver.new(_data_root),
+	).load(database.database_name).get_value() as GDSQLMigrationLedgerSnapshot
+	assert_int(ledger.records.size()).is_equal(1)
+	assert_str(ledger.records[0].migration_id).is_equal(migration.migration_id)
+
+
+func test_drop_table_migration_restores_rows_when_ledger_append_fails() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var harness := ConfigMigrationHarness.new(_data_root)
+	var migration := _drop_table_migration(
+		"202609280001_drop_heroes",
+		&"heroes",
+	)
+	var history := GDSQLMigrationPlanner.new().plan(
+		[migration],
+		GDSQLMigrationLedgerSnapshot.new(),
+	)
+	var preview := GDSQLMigrationCatalogPlanner.new(
+		harness.administration,
+	).preview_next(database.database_name, history.get_value())
+	var runner := GDSQLMigrationRunner.new(
+		harness.catalog,
+		harness.administration,
+		FailingAppendLedger.new(),
+		harness.recovery,
+	)
+
+	var result := runner.apply(preview.get_value())
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(_first_code(result)).is_equal("GDSQL_TEST_LEDGER_APPEND_FAILED")
+	assert_bool(result.recovered).is_true()
+	var reopened := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	assert_object(
+		reopened.context.catalog.get_table(database.database_name, &"heroes"),
+	).is_not_null()
+	var rows := reopened.execute(
+		reopened.query().select().from_table(&"heroes").build(),
+	)
+	assert_int(rows.rows.size()).is_equal(2)
+
+
 func test_catalog_migration_preview_retains_stale_schema_protection() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
 	var migration := _migration("202609280001_add_level")
@@ -806,6 +905,35 @@ func _create_table_migration(
 ) -> GDSQLMigrationDefinition:
 	var steps: Array[GDSQLSchemaMigrationStep] = [
 		GDSQLSchemaMigrationStep.create_table(table),
+	]
+	return GDSQLMigrationDefinition.new(
+		migration_id,
+		"Migration %s" % migration_id,
+		steps,
+	)
+
+
+func _rename_table_migration(
+		migration_id: String,
+		current_name: StringName,
+		new_name: StringName,
+) -> GDSQLMigrationDefinition:
+	var steps: Array[GDSQLSchemaMigrationStep] = [
+		GDSQLSchemaMigrationStep.rename_table(current_name, new_name),
+	]
+	return GDSQLMigrationDefinition.new(
+		migration_id,
+		"Migration %s" % migration_id,
+		steps,
+	)
+
+
+func _drop_table_migration(
+		migration_id: String,
+		table_name: StringName,
+) -> GDSQLMigrationDefinition:
+	var steps: Array[GDSQLSchemaMigrationStep] = [
+		GDSQLSchemaMigrationStep.drop_table(table_name),
 	]
 	return GDSQLMigrationDefinition.new(
 		migration_id,

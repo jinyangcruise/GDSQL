@@ -65,27 +65,48 @@ tooltip_text = "Delete every row and reset the generated-key sequence."
 text = "Reset Data…"
 icon = ExtResource("8_eraser")
 
-[node name="FoldableContainer" type="FoldableContainer" parent="MarginContainer/Content" unique_id=1194308614]
+[node name="TableActions" type="MenuButton" parent="MarginContainer/Content/QuickActions"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Rename, drop, or restore a staged table operation."
+text = "⋮"
+item_count = 3
+popup/item_0/text = "Rename Table…"
+popup/item_0/id = 0
+popup/item_1/text = "Drop Table…"
+popup/item_1/id = 1
+popup/item_2/text = "Restore Staged Operation"
+popup/item_2/id = 2
+
+[node name="LifecycleStatus" type="Label" parent="MarginContainer/Content"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.68, 0.28, 1)
+autowrap_mode = 2
+
+[node name="IndexesFold" type="FoldableContainer" parent="MarginContainer/Content" unique_id=1194308614]
+unique_name_in_owner = true
 layout_mode = 2
 folded = true
 title = "Indexes"
 
-[node name="Constraints" type="VBoxContainer" parent="MarginContainer/Content/FoldableContainer" unique_id=1453170358]
+[node name="Constraints" type="VBoxContainer" parent="MarginContainer/Content/IndexesFold" unique_id=1453170358]
 visible = false
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="Indexes" type="VBoxContainer" parent="MarginContainer/Content/FoldableContainer/Constraints" unique_id=1748426945]
+[node name="Indexes" type="VBoxContainer" parent="MarginContainer/Content/IndexesFold/Constraints" unique_id=1748426945]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 1
 
-[node name="NewIndexes" type="VBoxContainer" parent="MarginContainer/Content/FoldableContainer/Constraints" unique_id=604692864]
+[node name="NewIndexes" type="VBoxContainer" parent="MarginContainer/Content/IndexesFold/Constraints" unique_id=604692864]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 2
 
-[node name="AddIndex" type="Button" parent="MarginContainer/Content/FoldableContainer/Constraints" unique_id=1740668426]
+[node name="AddIndex" type="Button" parent="MarginContainer/Content/IndexesFold/Constraints" unique_id=1740668426]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 0
@@ -93,6 +114,7 @@ text = "Add Index"
 icon = ExtResource("3_hkiee")
 
 [node name="ForeignKeyFold" type="FoldableContainer" parent="MarginContainer/Content" unique_id=949645144]
+unique_name_in_owner = true
 layout_mode = 2
 folded = true
 title = "Foreign Keys"
@@ -125,10 +147,11 @@ size_flags_horizontal = 0
 text = "Add Foreign Key"
 icon = ExtResource("5_foreign")
 
-[node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/Content" unique_id=391976705]
+[node name="ColumnsHeader" type="HBoxContainer" parent="MarginContainer/Content" unique_id=391976705]
+unique_name_in_owner = true
 layout_mode = 2
 
-[node name="ColumnsTitle" type="Label" parent="MarginContainer/Content/HBoxContainer" unique_id=1070345048]
+[node name="ColumnsTitle" type="Label" parent="MarginContainer/Content/ColumnsHeader" unique_id=1070345048]
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 20
@@ -158,3 +181,36 @@ ok_button_text = "Stage Removal"
 
 [node name="ColumnActions" type="PopupMenu" parent="."]
 unique_name_in_owner = true
+
+[node name="TableRenameDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Rename Table"
+ok_button_text = "Stage Rename"
+
+[node name="Fields" type="VBoxContainer" parent="TableRenameDialog"]
+offset_left = 8.0
+offset_top = 8.0
+offset_right = 492.0
+offset_bottom = 142.0
+theme_override_constants/separation = 6
+
+[node name="Explanation" type="Label" parent="TableRenameDialog/Fields"]
+layout_mode = 2
+text = "Choose a new durable name for this table."
+
+[node name="TableRenameName" type="LineEdit" parent="TableRenameDialog/Fields"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "characters"
+
+[node name="TableRenameValidation" type="Label" parent="TableRenameDialog/Fields"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.45, 0.4, 1)
+autowrap_mode = 2
+
+[node name="TableDropConfirmation" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "Drop Table"
+ok_button_text = "Stage Drop"

@@ -68,6 +68,17 @@ static func _encode_step(step: GDSQLSchemaMigrationStep) -> Dictionary:
 			"table_name": String(step.table_name),
 			"table_definition": _encode_table(step.table_definition),
 		}
+	if step.kind == GDSQLSchemaMigrationStep.Kind.RENAME_TABLE:
+		return {
+			"kind": step.kind,
+			"table_name": String(step.table_name),
+			"new_table_name": String(step.new_table_name),
+		}
+	if step.kind == GDSQLSchemaMigrationStep.Kind.DROP_TABLE:
+		return {
+			"kind": step.kind,
+			"table_name": String(step.table_name),
+		}
 	var alterations: Array[Dictionary] = []
 	for alteration in step.alterations:
 		alterations.append(_encode_alteration(alteration))
@@ -90,6 +101,23 @@ static func _decode_step(payload: Dictionary) -> GDSQLOperationResult:
 				or create_step.table_name != StringName(payload.get("table_name", "")):
 			return _invalid(result)
 		result.value = create_step
+		return result
+	if kind == GDSQLSchemaMigrationStep.Kind.RENAME_TABLE:
+		var rename_step := GDSQLSchemaMigrationStep.rename_table(
+			StringName(payload.get("table_name", "")),
+			StringName(payload.get("new_table_name", "")),
+		)
+		if not rename_step.is_valid():
+			return _invalid(result)
+		result.value = rename_step
+		return result
+	if kind == GDSQLSchemaMigrationStep.Kind.DROP_TABLE:
+		var drop_step := GDSQLSchemaMigrationStep.drop_table(
+			StringName(payload.get("table_name", "")),
+		)
+		if not drop_step.is_valid():
+			return _invalid(result)
+		result.value = drop_step
 		return result
 	if kind != GDSQLSchemaMigrationStep.Kind.ALTER_TABLE:
 		return _invalid(result)

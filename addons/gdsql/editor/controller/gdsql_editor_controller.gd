@@ -411,9 +411,9 @@ func _save_database(
 	for table_change in table_changes:
 		if not result.is_successful():
 			break
-		var preview := workbench.active_session.database.preview_alter_table(
-			table_change.table_name,
-			table_change.alterations,
+		var preview := _preview_table_change(
+			workbench.active_session.database,
+			table_change,
 		)
 		result.diagnostics.merge(preview.diagnostics)
 		if not preview.is_successful():
@@ -441,6 +441,25 @@ func _save_database(
 		_refresh_database_migration_state(registration_name)
 	_record_result("Save database changes", result)
 	return result
+
+
+func _preview_table_change(
+		database: GDSQLDatabase,
+		change: GDSQLEditorTableChange,
+) -> GDSQLOperationResult:
+	if change == null or not change.is_valid():
+		return _error(
+			&"GDSQL_EDITOR_TABLE_CHANGE_INVALID",
+			"Database save requires one valid table change.",
+		)
+	if change.is_drop_table():
+		return database.preview_drop_table(change.table_name)
+	if change.is_rename_table():
+		return database.preview_rename_table(
+			change.table_name,
+			change.new_table_name,
+		)
+	return database.preview_alter_table(change.table_name, change.alterations)
 
 
 func _remove_registration(registration_name: StringName) -> GDSQLOperationResult:

@@ -64,6 +64,17 @@ func preview_next(
 				database_name,
 				step.table_definition,
 			)
+		GDSQLSchemaMigrationStep.Kind.RENAME_TABLE:
+			preview = _catalog_administration.preview_rename_table(
+				database_name,
+				step.table_name,
+				step.new_table_name,
+			)
+		GDSQLSchemaMigrationStep.Kind.DROP_TABLE:
+			preview = _catalog_administration.preview_drop_table(
+				database_name,
+				step.table_name,
+			)
 		_:
 			return _error(
 				result,

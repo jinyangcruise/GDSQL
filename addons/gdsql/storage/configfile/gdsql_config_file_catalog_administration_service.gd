@@ -320,6 +320,59 @@ func rename_table(
 	return result
 
 
+func preview_rename_table(
+		database_name: StringName,
+		current_name: StringName,
+		new_name: StringName,
+) -> GDSQLOperationResult:
+	if not _path_resolver.is_valid_name(new_name) or current_name == new_name:
+		return _operation_error(
+			&"GDSQL_CATALOG_INVALID_TABLE_NAME",
+			"Table rename requires a different valid target name.",
+		)
+	var table := _catalog.get_table(database_name, current_name)
+	if table == null:
+		return _operation_error(
+			&"GDSQL_CATALOG_UNKNOWN_TABLE",
+			"Table '%s.%s' does not exist." % [database_name, current_name],
+		)
+	var new_schema_path := _path_resolver.resolve_schema_path(database_name, new_name)
+	var new_table_path := _path_resolver.resolve_table_path(database_name, new_name)
+	if _catalog.has_table(database_name, new_name) \
+			or FileAccess.file_exists(new_schema_path) \
+			or FileAccess.file_exists(new_table_path):
+		return _operation_error(
+			&"GDSQL_CATALOG_TABLE_EXISTS",
+			"Table '%s.%s' already exists." % [database_name, new_name],
+		)
+	var dependencies := _validate_no_incoming_foreign_keys(
+		database_name,
+		current_name,
+		&"",
+		current_name,
+	)
+	if not dependencies.is_successful():
+		var failed := GDSQLOperationResult.new()
+		failed.diagnostics.merge(dependencies.diagnostics)
+		return failed
+	var table_data := ConfigFile.new()
+	var table_path := _path_resolver.resolve_table_path(database_name, current_name)
+	if table_data.load(table_path) != OK:
+		return _operation_error(
+			&"GDSQL_CATALOG_TABLE_UNREADABLE",
+			"Could not read table storage '%s'." % table_path,
+		)
+	var result := GDSQLOperationResult.new()
+	result.value = GDSQLCatalogChangePlan.for_rename_table(
+		database_name,
+		current_name,
+		new_name,
+		_catalog_fingerprint(table),
+		_get_row_sections(table_data).size(),
+	)
+	return result
+
+
 func drop_table(
 		database_name: StringName,
 		table_name: StringName,
@@ -349,6 +402,43 @@ func drop_table(
 	_cache.invalidate(table_path)
 	var result := GDSQLCatalogOperationResult.new()
 	result.value = table
+	return result
+
+
+func preview_drop_table(
+		database_name: StringName,
+		table_name: StringName,
+) -> GDSQLOperationResult:
+	var table := _catalog.get_table(database_name, table_name)
+	if table == null:
+		return _operation_error(
+			&"GDSQL_CATALOG_UNKNOWN_TABLE",
+			"Table '%s.%s' does not exist." % [database_name, table_name],
+		)
+	var dependencies := _validate_no_incoming_foreign_keys(
+		database_name,
+		table_name,
+		&"",
+		table_name,
+	)
+	if not dependencies.is_successful():
+		var failed := GDSQLOperationResult.new()
+		failed.diagnostics.merge(dependencies.diagnostics)
+		return failed
+	var table_data := ConfigFile.new()
+	var table_path := _path_resolver.resolve_table_path(database_name, table_name)
+	if table_data.load(table_path) != OK:
+		return _operation_error(
+			&"GDSQL_CATALOG_TABLE_UNREADABLE",
+			"Could not read table storage '%s'." % table_path,
+		)
+	var result := GDSQLOperationResult.new()
+	result.value = GDSQLCatalogChangePlan.for_drop_table(
+		database_name,
+		table_name,
+		_catalog_fingerprint(table),
+		_get_row_sections(table_data).size(),
+	)
 	return result
 
 
@@ -433,11 +523,6 @@ func apply_change_plan(
 						% [plan.database_name, plan.table_name],
 			)
 		return create_table(plan.database_name, plan.table_definition)
-	if plan.kind != GDSQLCatalogChangePlan.Kind.ALTER_TABLE:
-		return _error(
-			&"GDSQL_CATALOG_CHANGE_PLAN_INVALID",
-			"Catalog change plan uses an unsupported operation.",
-		)
 	var current_table := _catalog.get_table(plan.database_name, plan.table_name)
 	if current_table == null:
 		return _error(
@@ -450,10 +535,46 @@ func apply_change_plan(
 			"Table '%s.%s' changed after this plan was previewed." \
 					% [plan.database_name, plan.table_name],
 		)
-	return _apply_alterations(
-		plan.database_name,
-		plan.table_name,
-		plan.alterations,
+	match plan.kind:
+		GDSQLCatalogChangePlan.Kind.ALTER_TABLE:
+			return _apply_alterations(
+				plan.database_name,
+				plan.table_name,
+				plan.alterations,
+			)
+		GDSQLCatalogChangePlan.Kind.RENAME_TABLE:
+			if not _path_resolver.is_valid_name(plan.new_table_name) \
+					or plan.new_table_name == plan.table_name:
+				return _error(
+					&"GDSQL_CATALOG_CHANGE_PLAN_INVALID",
+					"Rename-table plan requires a different valid target name.",
+				)
+			var target_schema_path := _path_resolver.resolve_schema_path(
+				plan.database_name,
+				plan.new_table_name,
+			)
+			var target_table_path := _path_resolver.resolve_table_path(
+				plan.database_name,
+				plan.new_table_name,
+			)
+			if _catalog.has_table(plan.database_name, plan.new_table_name) \
+					or FileAccess.file_exists(target_schema_path) \
+					or FileAccess.file_exists(target_table_path):
+				return _error(
+					&"GDSQL_CATALOG_CHANGE_PLAN_STALE",
+					"Rename target '%s.%s' appeared after preview." \
+							% [plan.database_name, plan.new_table_name],
+				)
+			return rename_table(
+				plan.database_name,
+				plan.table_name,
+				plan.new_table_name,
+			)
+		GDSQLCatalogChangePlan.Kind.DROP_TABLE:
+			return drop_table(plan.database_name, plan.table_name)
+	return _error(
+		&"GDSQL_CATALOG_CHANGE_PLAN_INVALID",
+		"Catalog change plan uses an unsupported operation.",
 	)
 
 

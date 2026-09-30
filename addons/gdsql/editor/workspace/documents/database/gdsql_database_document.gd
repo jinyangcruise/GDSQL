@@ -393,8 +393,18 @@ func _request_save() -> GDSQLOperationResult:
 		changes.append("Create table '%s'." % definition.name)
 	for fold in _existing_tables.get_children():
 		var table_change := fold.call("build_change") as GDSQLEditorTableChange
-		for alteration in table_change.alterations:
-			changes.append("%s: %s" % [table_change.table_name, alteration.describe()])
+		if table_change.is_rename_table():
+			changes.append(
+				"Rename table '%s' to '%s'." % [
+					table_change.table_name,
+					table_change.new_table_name,
+				],
+			)
+		elif table_change.is_drop_table():
+			changes.append("Drop table '%s' and its stored rows." % table_change.table_name)
+		else:
+			for alteration in table_change.alterations:
+				changes.append("%s: %s" % [table_change.table_name, alteration.describe()])
 	_save_confirmation.dialog_text = "\n".join(changes)
 	_save_confirmation.popup_centered(Vector2i(520, 220))
 	result.value = self
@@ -406,12 +416,31 @@ func _request_migration() -> GDSQLOperationResult:
 	var table_change := _build_migration_change()
 	if table_change == null:
 		return result
-	var operation := "create" if table_change.is_create_table() else "alter"
+	var operation := (
+			"create"
+			if table_change.is_create_table()
+			else (
+					"rename"
+					if table_change.is_rename_table()
+					else ("drop" if table_change.is_drop_table() else "alter")
+			)
+	)
 	_migration_id.text = _suggest_migration_id(table_change.table_name, operation)
 	_migration_description.text = (
 			"Create %s table" % table_change.table_name
 			if table_change.is_create_table()
-			else "Update %s schema" % table_change.table_name
+			else (
+					"Rename %s table to %s" % [
+						table_change.table_name,
+						table_change.new_table_name,
+					]
+					if table_change.is_rename_table()
+					else (
+							"Drop %s table" % table_change.table_name
+							if table_change.is_drop_table()
+							else "Update %s schema" % table_change.table_name
+					)
+			)
 	)
 	_validate_migration_authoring()
 	_migration_authoring.popup_centered(Vector2i(560, 280))
@@ -438,7 +467,7 @@ func _emit_save() -> void:
 	var table_changes: Array[GDSQLEditorTableChange] = []
 	for fold in _existing_tables.get_children():
 		var table_change := fold.call("build_change") as GDSQLEditorTableChange
-		if not table_change.alterations.is_empty():
+		if table_change.is_valid():
 			table_changes.append(table_change)
 	save_requested.emit(
 		_inspection.registration.name,
@@ -612,7 +641,7 @@ func _build_migration_change() -> GDSQLEditorTableChange:
 		return null
 	for fold in _existing_tables.get_children():
 		var table_change := fold.call("build_change") as GDSQLEditorTableChange
-		if table_change.alterations.is_empty():
+		if not table_change.is_valid():
 			continue
 		if requested != null:
 			return null
