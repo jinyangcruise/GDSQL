@@ -258,15 +258,26 @@ func truncate_table(
 	return result
 
 
-func execute(query: GDSQLQuerySpec) -> GDSQLQueryResult:
-	return _execute(query, execution_context)
+func execute(
+		query: GDSQLQuerySpec,
+		options: GDSQLQueryExecutionOptions = null,
+) -> GDSQLQueryResult:
+	return _execute(
+		query,
+		execution_context if options == null else execution_context.with_options(options),
+	)
 
 
 func execute_in_session(
 		query: GDSQLQuerySpec,
 		session: GDSQLStorageSession,
+		options: GDSQLQueryExecutionOptions = null,
 ) -> GDSQLQueryResult:
-	return _execute(query, execution_context.for_session(session))
+	var scoped_context := execution_context.for_session(session)
+	return _execute(
+		query,
+		scoped_context if options == null else scoped_context.with_options(options),
+	)
 
 
 func transaction(callback: Callable) -> GDSQLOperationResult:

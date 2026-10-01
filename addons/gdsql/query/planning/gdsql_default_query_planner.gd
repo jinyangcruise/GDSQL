@@ -145,6 +145,10 @@ func _plan_select(bound_select: GDSQLBoundSelectQuery, output_schema: GDSQLResul
 		limit.output_schema = output_schema
 		current = limit
 	result.plan = GDSQLQueryPlan.new(current)
+	result.plan.requires_concrete_resources = _requires_concrete_resources(
+		bound_select,
+		output_schema,
+	)
 	result.value = result.plan
 	return result
 
@@ -288,6 +292,65 @@ func _collect_required_columns(
 	if expression is GDSQLFunctionExpression:
 		for argument in (expression as GDSQLFunctionExpression).arguments:
 			_collect_required_columns(argument, source, columns)
+
+
+func _requires_concrete_resources(
+		query: GDSQLBoundSelectQuery,
+		output_schema: GDSQLResultSchema,
+) -> bool:
+	if _expression_uses_resource(query.predicate) \
+			or _expression_uses_resource(query.having):
+		return true
+	for join in query.joins:
+		if _expression_uses_resource(join.condition):
+			return true
+	for expression in query.grouping:
+		if _expression_uses_resource(expression):
+			return true
+	for clause in query.ordering:
+		if _expression_uses_resource(clause.expression):
+			return true
+	for projection in query.projections:
+		if not projection.expression is GDSQLBoundColumnExpression \
+				and _expression_uses_resource(projection.expression):
+			return true
+	if query.distinct:
+		for column in output_schema.columns:
+			if column.data_type == TYPE_OBJECT \
+					and column.resource_ownership == GDSQLResourceOwnership.Mode.REFERENCED:
+				return true
+	return false
+
+
+func _expression_uses_resource(expression: GDSQLQueryExpression) -> bool:
+	if expression == null:
+		return false
+	if expression is GDSQLBoundColumnExpression:
+		return (expression as GDSQLBoundColumnExpression).resource_type != null
+	var children: Array[GDSQLQueryExpression] = []
+	if expression is GDSQLComparisonExpression:
+		children.assign([
+			(expression as GDSQLComparisonExpression).left,
+			(expression as GDSQLComparisonExpression).right,
+		])
+	elif expression is GDSQLLogicalExpression:
+		children.assign([
+			(expression as GDSQLLogicalExpression).left,
+			(expression as GDSQLLogicalExpression).right,
+		])
+	elif expression is GDSQLArithmeticExpression:
+		children.assign([
+			(expression as GDSQLArithmeticExpression).left,
+			(expression as GDSQLArithmeticExpression).right,
+		])
+	elif expression is GDSQLNullCheckExpression:
+		children.append((expression as GDSQLNullCheckExpression).operand)
+	elif expression is GDSQLFunctionExpression:
+		children.assign((expression as GDSQLFunctionExpression).arguments)
+	for child in children:
+		if _expression_uses_resource(child):
+			return true
+	return false
 
 
 func _bound_column_matches_source(

@@ -31,6 +31,18 @@ func execute(plan: GDSQLQueryPlan, context: GDSQLExecutionContext) -> GDSQLQuery
 			),
 		)
 		return result
+	if context.options != null \
+			and context.options.defers_resources() \
+			and plan.requires_concrete_resources:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_DEFERRED_RESOURCE_EXPRESSION_UNSUPPORTED",
+				"Deferred Resource queries cannot filter, sort, group, aggregate, " \
+						+ "join, or derive expressions from Resource columns. Use eager " \
+						+ "execution when query evaluation needs a concrete Resource.",
+			),
+		)
+		return result
 	if plan.root is GDSQLInsertPlan:
 		return _execute_insert(plan.root as GDSQLInsertPlan, context, result)
 	if plan.root is GDSQLUpdatePlan:
@@ -202,6 +214,7 @@ func _execute_select_node(
 				stored_row,
 				scan.table,
 				scan.required_columns,
+				context,
 				result,
 			)
 			row.set_source_values(
@@ -227,6 +240,7 @@ func _execute_select_node(
 				row,
 				lookup.table,
 				lookup.required_columns,
+				context,
 				result,
 			)
 			qualified_row.set_source_values(
@@ -253,6 +267,7 @@ func _execute_select_node(
 			lookup.alias,
 			node.output_schema,
 			lookup.required_columns,
+			context,
 			result,
 		)
 	if node is GDSQLRangeLookupPlan:
@@ -278,6 +293,7 @@ func _execute_select_node(
 			lookup.alias,
 			node.output_schema,
 			lookup.required_columns,
+			context,
 			result,
 		)
 	if node is GDSQLNestedLoopJoinPlan:
@@ -366,6 +382,7 @@ func _qualify_lookup_rows(
 	alias: StringName,
 	output_schema: GDSQLResultSchema,
 	required_columns: Array[StringName],
+	context: GDSQLExecutionContext,
 	result: GDSQLQueryExecutionResult,
 ) -> GDSQLRowSet:
 	var rows := GDSQLRowSet.new()
@@ -375,6 +392,7 @@ func _qualify_lookup_rows(
 			stored_row,
 			table,
 			required_columns,
+			context,
 			result,
 		)
 		row.set_source_values(
@@ -394,6 +412,7 @@ func _materialize_row(
 	stored_row: GDSQLRowRecord,
 	table: GDSQLTableDefinition,
 	required_columns: Array[StringName],
+	context: GDSQLExecutionContext,
 	result: GDSQLQueryExecutionResult,
 ) -> GDSQLRowRecord:
 	var row := stored_row.duplicate_record()
@@ -402,6 +421,12 @@ func _materialize_row(
 		if not value is GDSQLResourceReference:
 			continue
 		var reference := value as GDSQLResourceReference
+		if context.options != null and context.options.defers_resources():
+			row.set_value(column_name, reference.create_handle(_resource_resolver))
+			result.statistics["resource_handles_created"] = int(
+				result.statistics.get("resource_handles_created", 0),
+			) + 1
+			continue
 		var resolution := _resource_resolver.resolve(reference)
 		if not resolution.is_successful():
 			_add_resource_diagnostics(

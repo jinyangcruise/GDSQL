@@ -45,6 +45,7 @@ func materialize(rows: GDSQLRowSet, mapping: GDSQLResultMapping = null) -> GDSQL
 			return result
 		var model := candidate as GDSQLModel
 		var materialized_values: Dictionary[StringName, Variant] = { }
+		var deferred_handles: Dictionary[StringName, GDSQLResourceHandle] = { }
 		for source_column in _source_columns(row, mapping):
 			if not row.has_column(source_column):
 				result.add_diagnostic(
@@ -64,14 +65,20 @@ func materialize(rows: GDSQLRowSet, mapping: GDSQLResultMapping = null) -> GDSQL
 				)
 				return result
 			var value: Variant = row.get_value(source_column)
-			model.set(property_name, value)
-			materialized_values[property_name] = value
+			if value is GDSQLResourceHandle:
+				deferred_handles[property_name] = value as GDSQLResourceHandle
+				materialized_values[property_name] = null
+			else:
+				model.set(property_name, value)
+				materialized_values[property_name] = value
 		model._attach_model_context(
 			_model_context,
 			true,
 			materialized_values,
 			source_database,
 		)
+		for property_name in deferred_handles:
+			model._attach_resource_handle(property_name, deferred_handles[property_name])
 		models.append(model)
 	result.value = Array(
 		models,

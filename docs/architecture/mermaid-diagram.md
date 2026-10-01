@@ -345,7 +345,7 @@ Planner("`**GDSQLQueryPlanner**
 *Purpose:* Choose executable operations for a bound query
 *API:* create_plan(bound_query)
 *Returns:* GDSQLQueryPlanningResult containing GDSQLQueryPlan
-*Derives:* Required columns for each table access
+*Derives:* Required columns and concrete Resource evaluation requirements
 *Extended by:* GDSQLDefaultQueryPlanner`")
 
 PlanNode("`**GDSQLPlanNode**
@@ -573,6 +573,7 @@ ResourceMaterialization("`**Resource Materialization**
 *Purpose:* Preserve inert referenced-asset identity and materialize it only through explicit policy
 *Identity:* GDSQLResourceReference
 *Deferred state:* GDSQLResourceHandle with sync/threaded load, progress, signals and release
+*Opt-in:* GDSQLQueryExecutionOptions and ModelQuery.defer_resources()
 *Contract:* GDSQLResourceResolver sync plus optional request/poll
 *Default:* GDSQLGodotResourceResolver`")
 

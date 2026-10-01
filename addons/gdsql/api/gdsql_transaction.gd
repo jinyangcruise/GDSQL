@@ -16,7 +16,10 @@ func _init(
 	_session = session
 
 
-func execute(query_spec: GDSQLQuerySpec) -> GDSQLQueryResult:
+func execute(
+		query_spec: GDSQLQuerySpec,
+		options: GDSQLQueryExecutionOptions = null,
+) -> GDSQLQueryResult:
 	if not _active:
 		return _invalid_execution_result(
 			&"GDSQL_TRANSACTION_CLOSED",
@@ -27,7 +30,7 @@ func execute(query_spec: GDSQLQuerySpec) -> GDSQLQueryResult:
 			&"GDSQL_TRANSACTION_ABORTED",
 			"The transaction has already failed and cannot execute more queries.",
 		)
-	var result := _context.execute_in_session(query_spec, _session)
+	var result := _context.execute_in_session(query_spec, _session, options)
 	diagnostics.merge(result.diagnostics)
 	if not result.is_successful():
 		_failed = true

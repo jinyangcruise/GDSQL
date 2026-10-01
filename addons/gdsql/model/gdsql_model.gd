@@ -13,6 +13,7 @@ var _source_database: GDSQLDatabase
 var _persisted := false
 var _original_values: Dictionary[StringName, Variant] = { }
 var _loaded_relationships: Dictionary[StringName, Variant] = { }
+var _resource_handles: Dictionary[StringName, GDSQLResourceHandle] = { }
 
 
 ## Declares the logical database role used by this model.
@@ -58,6 +59,32 @@ func is_relationship_loaded(relationship_name: StringName) -> bool:
 ## Returns a loaded model, model array, or null for the named relationship.
 func get_related(relationship_name: StringName) -> Variant:
 	return _loaded_relationships.get(relationship_name)
+
+
+## Reports whether this model retained an unloaded handle for the column.
+func has_resource_handle(column_name: StringName) -> bool:
+	return _resource_handles.has(column_name)
+
+
+## Returns the caller-owned deferred handle for a referenced Resource column.
+func get_resource_handle(column_name: StringName) -> GDSQLResourceHandle:
+	return _resource_handles.get(column_name)
+
+
+## Releases the model's concrete value and its handle-owned reference.
+func release_resource(column_name: StringName) -> void:
+	var handle := get_resource_handle(column_name)
+	if handle == null:
+		return
+	handle.release()
+	if _has_property(column_name):
+		set(column_name, null)
+	_original_values[column_name] = null
+
+
+func release_all_resources() -> void:
+	for column_name in _resource_handles.keys():
+		release_resource(column_name)
 
 
 ## Persists changed fields through a canonical UPDATE operation.
@@ -147,6 +174,17 @@ func _attach_model_context(
 	_persisted = persisted
 	_original_values = values.duplicate()
 	_loaded_relationships.clear()
+	_clear_resource_handles()
+
+
+func _attach_resource_handle(
+		property_name: StringName,
+		handle: GDSQLResourceHandle,
+) -> void:
+	if handle == null:
+		return
+	_resource_handles[property_name] = handle
+	handle.load_completed.connect(_on_resource_loaded.bind(property_name))
 
 
 func _set_loaded_relationship(relationship_name: StringName, value: Variant) -> void:
@@ -205,12 +243,29 @@ func _apply_row(row: GDSQLRowRecord) -> void:
 
 
 func _apply_values(values: Dictionary[StringName, Variant]) -> void:
+	_clear_resource_handles()
 	for property_name in values:
 		if _has_property(property_name):
 			set(property_name, values[property_name])
 	_original_values = values.duplicate()
 	_persisted = true
 	_loaded_relationships.clear()
+
+
+func _on_resource_loaded(resource: Resource, property_name: StringName) -> void:
+	if not _has_property(property_name):
+		return
+	set(property_name, resource)
+	_original_values[property_name] = resource
+
+
+func _clear_resource_handles() -> void:
+	for property_name in _resource_handles:
+		var handle := _resource_handles[property_name] as GDSQLResourceHandle
+		var callback := _on_resource_loaded.bind(property_name)
+		if handle != null and handle.load_completed.is_connected(callback):
+			handle.load_completed.disconnect(callback)
+	_resource_handles.clear()
 
 
 func _has_property(property_name: StringName) -> bool:

@@ -1570,8 +1570,25 @@ completion/failure signals. The Godot resolver adapts
 `ResourceLoader.load_threaded_request()` and its status API; other resolvers may
 return a structured unsupported diagnostic. This Stage B contract does not
 silently replace concrete Resource values in ordinary query or model results.
-Opt-in result/model handles and bounded prefetch scopes build on the same state
-contract.
+
+`GDSQLQueryExecutionOptions.deferred_resources()` is the explicit opt-in at the
+execution boundary. It is runtime presentation policy rather than query
+meaning, so it never enters `QuerySpec`. A deferred SELECT returns an unloaded
+`GDSQLResourceHandle` for each referenced Resource value and does not invoke
+the resolver during the query. The planner records whether expression
+evaluation requires concrete Resource values. Queries that filter, sort,
+group, aggregate, join, or derive expressions from Resource columns reject
+deferred execution with a structured diagnostic because those operations
+require a concrete Resource. Callers use eager execution for that query instead
+of receiving silently different semantics.
+
+`GDSQLModelQuery.defer_resources()` applies the same policy to model results.
+The concrete typed Resource property remains null until its retained handle
+loads successfully; the model then updates the property without marking it as
+a user mutation. Handles are available through `get_resource_handle()`, and
+model-owned concrete/handle references can be released together through
+`release_resource()` or `release_all_resources()`. Bounded prefetch scopes
+build on this same handle contract.
 
 A future `GDSQLPagedBinaryTableStorage` can implement the same contract with
 one binary file per table. Each file begins with a typed header containing the

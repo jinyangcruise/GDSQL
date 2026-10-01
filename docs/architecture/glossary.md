@@ -145,8 +145,8 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `QueryPlanner` | Planning | Converts a bound query into a `QueryPlan`. | `create_plan(query)` | 🚧 |
-| `DefaultQueryPlanner` | Planning | Produces deterministic plans and derives per-source column dependencies from every expression-bearing select clause. | `create_plan(query)` | 🧪 |
-| `QueryPlan` | Planning | Owns the root executable plan node and associated metadata. | `get_root()` | 🚧 |
+| `DefaultQueryPlanner` | Planning | Produces deterministic plans, derives per-source column dependencies, and records whether query evaluation requires concrete Resource values. | `create_plan(query)` | 🧪 |
+| `QueryPlan` | Planning | Owns the root executable plan node and typed execution metadata, including concrete Resource requirements. | Root node and `requires_concrete_resources` | 🧪 |
 | `PlanNode` | Planning | Abstract base for executable relational operations. | `accept(visitor)` | 🚧 |
 | `PlanNodeVisitor` | Planning | Performs operations over concrete plan node types. | `visit_table_scan()`, `visit_filter()`, `visit_sort()`, and related methods | 🚧 |
 | `TableScanPlan` | Planning | Reads rows from a table source with the columns required by downstream expressions. | `required_columns`, `accept(visitor)` | 🧪 |
@@ -171,7 +171,8 @@ state in the same change as implementation or test work.
 |---|---|---|---|---|
 | `QueryExecutor` | Execution | Abstract contract for executing query plans. | `execute(plan, context)` | 🚧 |
 | `DefaultQueryExecutor` | Execution | Executes plans, requests only planned columns, and materializes required Resource references through an injected resolver with contextual diagnostics. | `execute(plan, context)` | 🧪 |
-| `ExecutionContext` | Execution | Groups runtime services and per-execution state. | Service accessors | 🚧 |
+| `ExecutionContext` | Execution | Groups runtime services, session state, cancellation, and immutable presentation options for one execution. | `for_session()`, `with_options()`, service accessors | 🧪 |
+| `QueryExecutionOptions` | Execution | Immutable per-execution presentation policy that keeps eager Resources as the default or explicitly returns deferred handles without changing `QuerySpec`. | `eager()`, `deferred_resources()`, `defers_resources()` | 🧪 |
 | `ExpressionEvaluator` | Execution | Evaluates canonical or bound scalar expressions against a row context with null propagation. | `evaluate(expression, row_context)` | 🧪 |
 | `QueryFunctionRegistry` | Execution | Associates query-function definitions with executable scalar and aggregate callables. | `register_function()`, `register_aggregate_function()`, `resolve()`, `resolve_aggregate()` | 🧪 |
 | `QueryCancellationToken` | Execution | Communicates cancellation requests to long-running operations. | `cancel()`, `is_cancelled()` | 🚧 |
@@ -416,7 +417,7 @@ Toolbar tags follow Godot's [RichTextLabel BBCode reference](https://docs.godote
 | `ResultMaterializer` | Mapping | Abstract contract for converting a `RowSet` into a user-facing value while retaining result diagnostics and metadata. | `materialize(rows, mapping)` | 🧪 |
 | `DictionaryResultMaterializer` | Mapping | Converts each selected row into an independent dictionary using optional column renaming. | `materialize()` | 🧪 |
 | `ResourceResultMaterializer` | Mapping | Instantiates one custom Resource per row and assigns mapped columns to declared properties. | `materialize()` | 🧪 |
-| `ModelResultMaterializer` | Mapping | Converts rows into a concrete script-typed model Array and attaches model context and persisted state. | `materialize()` | 🧪 |
+| `ModelResultMaterializer` | Mapping | Converts rows into a concrete script-typed model Array, attaches model context and persisted state, and retains deferred Resource handles outside concrete typed properties. | `materialize()` | 🧪 |
 | `EditorTableMaterializer` | Editor mapping | Converts rows into data appropriate for the editor table interface. | `materialize()` | 🚧 |
 | `CsvExportMaterializer` | Export mapping | Converts rows into CSV output. | `materialize()` | 🚧 |
 
@@ -434,5 +435,5 @@ Toolbar tags follow Godot's [RichTextLabel BBCode reference](https://docs.godote
 | `ModelRelationshipInferrer` | Model metadata | Derives `belongs_to` plus inverse `has_one` or `has_many` navigation from same-database foreign keys and supplies matching editor summaries without modifying model scripts. | `infer()`, `describe()` | 🧪 |
 | `Models` | Model API | Holds the configured default model context and supplies static model query and find forwarding. | `configure()`, `query()`, `find()`, `clear_context()` | 🧪 |
 | `ModelContext` | Model API | Supplies an injectable model registry for default runtime composition, tests, and isolated runtimes. | `register_model()`, `query()`, `find()` | 🧪 |
-| `ModelQuery` | Model API | Model-oriented SELECT frontend that translates filters, ordering, limits, offsets, distinct selection, and named eager loads into canonical queries. | `where()`, `with()`, `order_by()`, `all()`, `first()`, `find()`, `to_query_spec()` | 🧪 |
+| `ModelQuery` | Model API | Model-oriented SELECT frontend that translates filters, ordering, limits, offsets, distinct selection, named eager relationship loads, and opt-in deferred Resource presentation into canonical execution. | `where()`, `with()`, `defer_resources()`, `order_by()`, `all()`, `first()`, `find()`, `to_query_spec()` | 🧪 |
 | `RelationshipDefinition` | Model API | Typed navigation captured by model registration for eager loading and editor inspection: catalog-style belongs-to/has-one/has-many, ownership-neutral cross-role references, and explicit many-to-many navigation through a junction model. | `belongs_to()`, `references_one()`, `has_one()`, `has_many()`, `many_to_many()`, typed direct and junction keys | 🧪 |

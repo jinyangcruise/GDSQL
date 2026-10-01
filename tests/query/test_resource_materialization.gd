@@ -39,6 +39,16 @@ class CountingResolver:
 		return result
 
 
+class AssetModel extends GDSQLContentModel:
+	var id: int
+	var name: String
+	var icon: Texture2D
+
+
+	func table_name() -> StringName:
+		return &"assets"
+
+
 func before_test() -> void:
 	_test_index += 1
 	_data_root = create_temp_dir("gdsql_resource_materialization_%d" % _test_index)
@@ -78,6 +88,78 @@ func test_projected_reference_materializes_once_and_remains_a_resource() -> void
 	assert_object(selected.rows[0].get_value(&"icon")).is_same(icon)
 	assert_int(selected.statistics.get("resources_materialized", 0)).is_equal(1)
 	assert_int(resolver.calls).is_equal(1)
+
+
+func test_deferred_query_returns_unloaded_handle_without_resolving_asset() -> void:
+	var icon := load(REFERENCED_ICON_PATH) as Resource
+	var database := _create_database(icon)
+	var resolver := CountingResolver.new(icon)
+	database.context.executor = GDSQLDefaultQueryExecutor.new(resolver)
+
+	var selected := database.execute(
+		database.table(&"assets").select()
+		.column(&"icon")
+		.where(GDSQLExpr.column(&"name").equals("Key"))
+		.build(),
+		GDSQLQueryExecutionOptions.deferred_resources(),
+	)
+	var handle := selected.rows[0].get_value(&"icon") as GDSQLResourceHandle
+
+	assert_bool(selected.is_successful()).is_true()
+	assert_object(handle).is_not_null()
+	assert_int(handle.get_status()).is_equal(GDSQLResourceHandle.Status.UNLOADED)
+	assert_int(selected.statistics.get("resource_handles_created", 0)).is_equal(1)
+	assert_int(resolver.calls).is_zero()
+	assert_object(handle.load().get_value()).is_same(icon)
+	assert_int(resolver.calls).is_equal(1)
+
+
+func test_deferred_query_rejects_resource_dependent_expression() -> void:
+	var icon := load(REFERENCED_ICON_PATH) as Resource
+	var database := _create_database(icon)
+	var resolver := CountingResolver.new(icon)
+	database.context.executor = GDSQLDefaultQueryExecutor.new(resolver)
+
+	var selected := database.execute(
+		database.table(&"assets").select()
+		.where(GDSQLExpr.column(&"icon").equals(icon))
+		.build(),
+		GDSQLQueryExecutionOptions.deferred_resources(),
+	)
+
+	assert_bool(selected.is_successful()).is_false()
+	assert_str(String(selected.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_DEFERRED_RESOURCE_EXPRESSION_UNSUPPORTED",
+	)
+	assert_int(resolver.calls).is_zero()
+
+
+func test_deferred_model_retains_handle_and_updates_typed_property_after_load() -> void:
+	var icon := load(REFERENCED_ICON_PATH) as Resource
+	var database := _create_database(icon)
+	var resolver := CountingResolver.new(icon)
+	database.context.executor = GDSQLDefaultQueryExecutor.new(resolver)
+	var database_registry := GDSQLDatabaseRegistry.new()
+	database_registry.register(&"active", database)
+	database_registry.bind_role(GDSQLDatabaseRegistry.CONTENT_ROLE, &"active")
+	var model_registry := GDSQLModelRegistry.new(database_registry)
+	assert_bool(model_registry.register(AssetModel).is_successful()).is_true()
+	var model_context := GDSQLModelContext.new(model_registry)
+
+	var selected := model_context.query(AssetModel).defer_resources().first()
+	var model := selected.get_value() as AssetModel
+	var handle := model.get_resource_handle(&"icon")
+
+	assert_bool(selected.is_successful()).is_true()
+	assert_object(model).is_not_null()
+	assert_object(model.icon).is_null()
+	assert_bool(model.has_resource_handle(&"icon")).is_true()
+	assert_int(resolver.calls).is_zero()
+	assert_object(handle.load().get_value()).is_same(icon)
+	assert_object(model.icon).is_same(icon)
+	model.release_resource(&"icon")
+	assert_object(model.icon).is_null()
+	assert_int(handle.get_status()).is_equal(GDSQLResourceHandle.Status.UNLOADED)
 
 
 func test_failed_materialization_reports_row_and_column_context() -> void:

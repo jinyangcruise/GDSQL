@@ -49,7 +49,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Resource Stage B | Explicit synchronous/threaded handles are implemented; add opt-in result/model materialization next |
+| High — first | Resource Stage B | Explicit handles and opt-in query/model materialization are implemented; add bounded prefetch scopes next |
 | High | Migration data/save phase | Runtime already recovers and advances registered writable saves before hydration; dependent schema/mixed batches remain deferred |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
@@ -77,8 +77,8 @@ sessions unless new evidence changes an architectural dependency:
    batches remain deferred.
 4. **Resource Stage B — explicit deferred loading (active).** The first typed
    handle provides synchronous and native threaded on-demand loading, progress,
-   signals, diagnostics, caching, type validation, and caller-owned release
-   without changing eager defaults. Add opt-in result/model handles and bounded
+   signals, diagnostics, caching, type validation, caller-owned release, and
+   opt-in query/model handles without changing eager defaults. Add bounded
    prefetch scopes next.
 5. **Bounded reads and paged binary storage.** Add cursor/page execution before
    implementing the binary backend so paging does not inherit full-snapshot
@@ -255,7 +255,8 @@ small and medium projects.
 - Synchronous and threaded explicit handles, progress, completion/failure
   signals, diagnostics, type validation, caching, and caller-owned release are
   implemented and tested.
-- Add opt-in deferred Resource fields or result materialization.
+- Opt-in query and model materialization returns handles without resolving
+  assets; Resource-dependent expressions explicitly require eager execution.
 - Provide bounded prefetch scopes suitable for a scene, area, encounter, or UI
   screen.
 - Document how consumers release scene, model, result, and cache references.

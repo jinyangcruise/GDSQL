@@ -52,8 +52,11 @@ func table(table_name: StringName) -> GDSQLQuery:
 	return query().table(table_name)
 
 
-func execute(query_spec: GDSQLQuerySpec) -> GDSQLQueryResult:
-	return context.execute(query_spec)
+func execute(
+		query_spec: GDSQLQuerySpec,
+		options: GDSQLQueryExecutionOptions = null,
+) -> GDSQLQueryResult:
+	return context.execute(query_spec, options)
 
 
 func transaction(callback: Callable) -> GDSQLOperationResult:
