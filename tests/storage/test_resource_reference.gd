@@ -40,6 +40,35 @@ class FailingResolver:
 		return result
 
 
+class ThreadedResolver:
+	extends CountingResolver
+
+	var requests := 0
+	var polls := 0
+
+
+	func request_threaded(
+			_reference: GDSQLResourceReference,
+	) -> GDSQLOperationResult:
+		requests += 1
+		var result := GDSQLOperationResult.new()
+		result.value = true
+		return result
+
+
+	func poll_threaded(
+			_reference: GDSQLResourceReference,
+	) -> GDSQLOperationResult:
+		polls += 1
+		var result := GDSQLOperationResult.new()
+		result.value = (
+			GDSQLResourceLoadProgress.in_progress(0.5)
+			if polls == 1
+			else GDSQLResourceLoadProgress.loaded(resolved_resource)
+		)
+		return result
+
+
 func test_reference_decoding_does_not_materialize_the_asset() -> void:
 	var icon := load(REFERENCED_ICON_PATH) as Resource
 	var resolver := CountingResolver.new(icon)
@@ -92,6 +121,7 @@ func test_deferred_handle_resolves_only_on_demand_and_reuses_loaded_value() -> v
 	assert_int(resolver.calls).is_zero()
 	assert_object(handle.load().get_value()).is_same(icon)
 	assert_int(handle.get_status()).is_equal(GDSQLResourceHandle.Status.LOADED)
+	assert_float(handle.get_progress()).is_equal(1.0)
 	assert_object(handle.load().get_value()).is_same(icon)
 	assert_int(resolver.calls).is_equal(1)
 
@@ -101,6 +131,57 @@ func test_deferred_handle_resolves_only_on_demand_and_reuses_loaded_value() -> v
 	assert_object(handle.get_resource()).is_null()
 	assert_object(handle.load().get_value()).is_same(icon)
 	assert_int(resolver.calls).is_equal(2)
+
+
+func test_deferred_handle_reports_threaded_progress_and_completion() -> void:
+	var icon := load(REFERENCED_ICON_PATH) as Resource
+	var resolver := ThreadedResolver.new(icon)
+	var reference := GDSQLResourceReference.from_resource(
+		icon,
+		GDSQLResourceTypeConstraint.from_resource(icon),
+	)
+	var handle := reference.create_handle(resolver)
+	var completed: Array[Resource] = []
+	handle.load_completed.connect(func(resource: Resource) -> void: completed.append(resource))
+
+	var requested := handle.request_load()
+
+	assert_bool(requested.is_successful()).is_true()
+	assert_int(handle.get_status()).is_equal(GDSQLResourceHandle.Status.LOADING)
+	assert_int(resolver.requests).is_equal(1)
+	var synchronous := handle.load()
+	assert_bool(synchronous.is_successful()).is_false()
+	assert_int(handle.get_status()).is_equal(GDSQLResourceHandle.Status.LOADING)
+	var first_poll := handle.poll_load()
+	assert_bool(first_poll.is_successful()).is_true()
+	assert_float(handle.get_progress()).is_equal(0.5)
+	assert_bool((first_poll.get_value() as GDSQLResourceLoadProgress).is_complete()) \
+			.is_false()
+	var completed_poll := handle.poll_load()
+
+	assert_bool(completed_poll.is_successful()).is_true()
+	assert_bool((completed_poll.get_value() as GDSQLResourceLoadProgress).is_complete()) \
+			.is_true()
+	assert_int(handle.get_status()).is_equal(GDSQLResourceHandle.Status.LOADED)
+	assert_object(handle.get_resource()).is_same(icon)
+	assert_array(completed).contains_exactly([icon])
+
+
+func test_deferred_handle_reports_unsupported_threaded_resolver() -> void:
+	var icon := load(REFERENCED_ICON_PATH) as Resource
+	var reference := GDSQLResourceReference.from_resource(
+		icon,
+		GDSQLResourceTypeConstraint.from_resource(icon),
+	)
+	var handle := reference.create_handle(CountingResolver.new(icon))
+
+	var result := handle.request_load()
+
+	assert_bool(result.is_successful()).is_false()
+	assert_int(handle.get_status()).is_equal(GDSQLResourceHandle.Status.FAILED)
+	assert_str(String(result.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_RESOURCE_THREADED_UNSUPPORTED",
+	)
 
 
 func test_deferred_handle_retains_failure_diagnostics() -> void:

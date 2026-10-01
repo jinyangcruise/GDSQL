@@ -1564,9 +1564,13 @@ remains unloaded until `load()` is called. A successful load is type-checked
 against the locator and cached by the handle; a failure retains structured
 diagnostics and can be retried. `release()` removes only the handle's strong
 reference because Godot's cache, scenes, or other consumers may still retain
-the Resource. This first Stage B contract does not silently replace concrete
-Resource values in ordinary query or model results. Threaded requests, opt-in
-result/model handles, and bounded prefetch scopes build on the same state
+the Resource. Threaded loading uses `request_load()` followed by non-blocking
+`poll_load()` calls, with typed `GDSQLResourceLoadProgress` snapshots and
+completion/failure signals. The Godot resolver adapts
+`ResourceLoader.load_threaded_request()` and its status API; other resolvers may
+return a structured unsupported diagnostic. This Stage B contract does not
+silently replace concrete Resource values in ordinary query or model results.
+Opt-in result/model handles and bounded prefetch scopes build on the same state
 contract.
 
 A future `GDSQLPagedBinaryTableStorage` can implement the same contract with
