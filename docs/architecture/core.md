@@ -1558,6 +1558,17 @@ therefore copy validated locator identity without materializing an asset. A
 ownership mode, expected Resource class, and project-script path match the
 column. It is not exposed as an ordinary eager query result.
 
+`GDSQLResourceHandle` is the explicit deferred-materialization state for one
+reference. It copies the locator, owns an injected `GDSQLResourceResolver`, and
+remains unloaded until `load()` is called. A successful load is type-checked
+against the locator and cached by the handle; a failure retains structured
+diagnostics and can be retried. `release()` removes only the handle's strong
+reference because Godot's cache, scenes, or other consumers may still retain
+the Resource. This first Stage B contract does not silently replace concrete
+Resource values in ordinary query or model results. Threaded requests, opt-in
+result/model handles, and bounded prefetch scopes build on the same state
+contract.
+
 A future `GDSQLPagedBinaryTableStorage` can implement the same contract with
 one binary file per table. Each file begins with a typed header containing the
 format version, schema fingerprint, page size, row count, generated-key state,
@@ -3075,8 +3086,10 @@ serialization and referenced values through a `GDSQLResourceReference`.
 References are inert storage values: parsing one never loads its asset. An
 injected `GDSQLResourceResolver` owns materialization, with
 `GDSQLGodotResourceResolver` providing the default UID/path and
-`ResourceLoader` policy. Future backends must preserve these semantics but may
-choose a different physical representation.
+`ResourceLoader` policy. An explicit `GDSQLResourceHandle` may retain that
+identity and resolve it on demand without changing eager query defaults. Future
+backends must preserve these semantics but may choose a different physical
+representation.
 
 ### Abstract contracts support boundaries
 

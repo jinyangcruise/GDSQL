@@ -59,6 +59,22 @@ static func from_dictionary(data: Dictionary) -> GDSQLResourceReference:
 	return reference if reference.is_valid() else null
 
 
+func duplicate_reference() -> GDSQLResourceReference:
+	var reference := GDSQLResourceReference.new()
+	reference.scope = scope
+	reference.uid = uid
+	reference.fallback_path = fallback_path
+	reference.expected_type = expected_type
+	reference.expected_script_path = expected_script_path
+	return reference
+
+
+func create_handle(
+		resolver: GDSQLResourceResolver = null,
+) -> GDSQLResourceHandle:
+	return GDSQLResourceHandle.new(self, resolver)
+
+
 func is_valid() -> bool:
 	return scope in [PROJECT_SCOPE, PACKAGE_SCOPE, EXTERNAL_SCOPE] \
 			and expected_type != &"" \
@@ -73,6 +89,18 @@ func matches_column(column: GDSQLColumnDefinition) -> bool:
 			and column.resource_type.is_valid() \
 			and expected_type == column.resource_type.resource_class \
 			and expected_script_path == column.resource_type.script_path
+
+
+func accepts_resource(resource: Resource) -> bool:
+	if resource == null or not is_valid():
+		return false
+	if expected_type == &"Resource" and expected_script_path.is_empty():
+		return true
+	var constraint := GDSQLResourceTypeConstraint.from_serialized(
+		expected_type,
+		expected_script_path,
+	)
+	return constraint != null and constraint.accepts_value(resource)
 
 
 func to_dictionary() -> Dictionary:

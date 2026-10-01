@@ -572,6 +572,7 @@ ResourceMaterialization("`**Resource Materialization**
 -
 *Purpose:* Preserve inert referenced-asset identity and materialize it only through explicit policy
 *Identity:* GDSQLResourceReference
+*Deferred state:* GDSQLResourceHandle with load, status, diagnostics and release
 *Contract:* GDSQLResourceResolver
 *Default:* GDSQLGodotResourceResolver`")
 

@@ -49,7 +49,8 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Migration data/save phase | Atomic distinct-table data batches and fresh-save schema provisioning are implemented; migrate older `user://` saves next |
+| High — first | Resource Stage B | Explicit synchronous handles are implemented; add threaded requests and opt-in result/model materialization next |
+| High | Migration data/save phase | Runtime already recovers and advances registered writable saves before hydration; dependent schema/mixed batches remain deferred |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
@@ -67,15 +68,18 @@ sessions unless new evidence changes an architectural dependency:
 2. **Migration v1 — durable schema history (implemented and tested).** Build ordered forward schema
    migrations, checksums, an applied ledger, dry runs, backups, recovery, and
    headless validation on top of the stable stored-value boundary.
-3. **Migration data/save phases (active).** Typed UPDATE steps use canonical
+3. **Migration data/save phases (implemented and tested).** Typed UPDATE steps use canonical
    expressions and may form one atomic migration across distinct tables, with
    per-table dry-run counts, one durable recovery snapshot, and one ledger
    record. The database document authors one table step at a time through typed
-   controls. Fresh-save schema provisioning is implemented. Migrate older
-   `user://` saves next; dependent schema/mixed batches remain deferred.
-4. **Resource Stage B — explicit deferred loading.** Add opt-in handles,
-   threaded loading, and prefetch scopes only when the simple eager path and
-   migrations are stable.
+   controls. Fresh-save schema provisioning and runtime migration of registered
+   writable saves before hydration are implemented. Dependent schema/mixed
+   batches remain deferred.
+4. **Resource Stage B — explicit deferred loading (active).** The first typed
+   handle provides synchronous on-demand loading, status, diagnostics, caching,
+   type validation, and caller-owned release without changing eager defaults.
+   Add threaded loading, opt-in result/model handles, and bounded prefetch
+   scopes next.
 5. **Bounded reads and paged binary storage.** Add cursor/page execution before
    implementing the binary backend so paging does not inherit full-snapshot
    behavior.
@@ -248,9 +252,11 @@ small and medium projects.
 
 #### Stage B — explicit deferred loading
 
+- Synchronous explicit handles, status, diagnostics, type validation, caching,
+  and caller-owned release are implemented and tested.
 - Add opt-in deferred Resource fields or result materialization.
-- Provide synchronous load, threaded request, status, and completion behavior
-  without blocking ordinary query construction.
+- Add threaded request and completion behavior without blocking ordinary query
+  construction.
 - Provide bounded prefetch scopes suitable for a scene, area, encounter, or UI
   screen.
 - Document how consumers release scene, model, result, and cache references.
@@ -407,11 +413,11 @@ snapshot, and success creates one ledger record. Editor authoring supports one
 step at a time with typed scalar literals, nested WHERE groups, and explicit
 all-row updates while keeping Resource literals out of durable migration files.
 Fresh-save provisioning creates the current schema and a verified baseline
-without copying player rows. The next slice migrates older `user://` saves.
-Fresh databases and saves start at the current schema; existing durable data
-applies only pending migrations. Managed content sources migrate during
-authoring, while disposable effective-content caches are rebuilt rather than
-migrated.
+without copying player rows. Fresh databases and saves start at the current
+schema; registered writable saves recover interrupted work and apply only their
+pending migrations before runtime hydration. Managed content sources migrate
+during authoring, while disposable effective-content caches are rebuilt rather
+than migrated.
 
 Applied migration files are immutable. Editing an applied file must produce a
 checksum or schema-drift diagnostic instead of silently changing history.
