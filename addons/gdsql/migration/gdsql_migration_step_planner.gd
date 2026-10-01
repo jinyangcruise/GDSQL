@@ -53,23 +53,22 @@ func preview_next(
 			"The migration history is already up to date.",
 		)
 	var migration := history_plan.pending[0]
-	if migration.steps.size() != 1:
-		return _error(
-			result,
-			&"GDSQL_MIGRATION_MULTI_STEP_PREVIEW_UNSUPPORTED",
-			(
-					"Migration '%s' has %d table steps; the initial dry-run boundary "
-					+ "requires one table step per migration."
-			) % [migration.migration_id, migration.steps.size()],
-		)
-	var step := migration.steps[0]
-	if step is GDSQLDataMigrationStep:
-		return _preview_data_update(
+	if migration.steps.size() > 1:
+		return _preview_data_updates(
 			result,
 			database_name,
 			migration,
-			step as GDSQLDataMigrationStep,
 			history_plan.ledger_revision,
+		)
+	var step := migration.steps[0]
+	if step is GDSQLDataMigrationStep:
+		var data_steps: Array[GDSQLDataMigrationStep] = [step]
+		return _preview_data_updates(
+			result,
+			database_name,
+			migration,
+			history_plan.ledger_revision,
+			data_steps,
 		)
 	var schema_step := step as GDSQLSchemaMigrationStep
 	if schema_step == null:
@@ -127,13 +126,41 @@ func preview_next(
 	return result
 
 
-func _preview_data_update(
+func _preview_data_updates(
 		result: GDSQLOperationResult,
 		database_name: StringName,
 		migration: GDSQLMigrationDefinition,
-		step: GDSQLDataMigrationStep,
 		ledger_revision: int,
+		known_steps: Array[GDSQLDataMigrationStep] = [],
 ) -> GDSQLOperationResult:
+	var steps: Array[GDSQLDataMigrationStep] = []
+	if not known_steps.is_empty():
+		steps.assign(known_steps)
+	else:
+		var target_tables: Dictionary[StringName, bool] = {}
+		for migration_step in migration.steps:
+			var data_step := migration_step as GDSQLDataMigrationStep
+			if data_step == null:
+				return _error(
+					result,
+					&"GDSQL_MIGRATION_MULTI_STEP_PREVIEW_UNSUPPORTED",
+					(
+						"Migration '%s' mixes schema and data steps or contains "
+						+ "multiple schema steps. "
+						+ "Dependent schema batches require catalog simulation."
+					) % migration.migration_id,
+				)
+			if target_tables.has(data_step.table_name):
+				return _error(
+					result,
+					&"GDSQL_MIGRATION_DATA_TABLE_REPEATED",
+					(
+						"Multi-table data migration '%s' targets table '%s' more than once. "
+						+ "Combine those updates so preview counts remain stable."
+					) % [migration.migration_id, data_step.table_name],
+				)
+			target_tables[data_step.table_name] = true
+			steps.append(data_step)
 	if _validator == null or _query_planner == null or _executor == null \
 			or _execution_context == null:
 		return _error(
@@ -141,6 +168,28 @@ func _preview_data_update(
 			&"GDSQL_MIGRATION_DATA_PIPELINE_REQUIRED",
 			"Data migration preview requires the canonical query pipeline.",
 		)
+	var row_counts: Array[int] = []
+	for step in steps:
+		var counted := _preview_data_update_count(database_name, step)
+		result.diagnostics.merge(counted.diagnostics)
+		if not counted.is_successful():
+			return result
+		row_counts.append(int(counted.get_value()))
+	result.value = GDSQLMigrationStepPlan.for_data_updates(
+		database_name,
+		migration,
+		steps,
+		row_counts,
+		ledger_revision,
+	)
+	return result
+
+
+func _preview_data_update_count(
+		database_name: StringName,
+		step: GDSQLDataMigrationStep,
+) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
 	var prepared := _prepare(step.to_query(database_name))
 	result.diagnostics.merge(prepared.diagnostics)
 	if not prepared.is_successful():
@@ -159,13 +208,7 @@ func _preview_data_update(
 			"Data migration preview could not count the affected rows.",
 		)
 	var row_count := int(counted.rows.rows[0].get_value(&"row_count"))
-	result.value = GDSQLMigrationStepPlan.for_data_update(
-		database_name,
-		migration,
-		step,
-		row_count,
-		ledger_revision,
-	)
+	result.value = row_count
 	return result
 
 

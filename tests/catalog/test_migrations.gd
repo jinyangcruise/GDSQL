@@ -875,6 +875,81 @@ func test_runner_restores_data_update_when_ledger_append_fails() -> void:
 	assert_str(rows.rows[1].get_value(&"name")).is_equal("Mage")
 
 
+func test_runner_restores_every_table_when_data_batch_ledger_append_fails() -> void:
+	var heroes := GDSQLTableDefinition.new(&"heroes", &"id")
+	heroes.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	heroes.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
+	var quests := GDSQLTableDefinition.new(&"quests", &"id")
+	quests.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	quests.add_column(GDSQLColumnDefinition.new(&"status", TYPE_STRING, false))
+	var database := TestDatabase.create_database_with_tables(
+		_data_root,
+		[heroes, quests],
+	)
+	TestDatabase.insert_basic_heroes(database)
+	TestDatabase.insert_rows(
+		database,
+		[{ &"id": 1, &"status": "locked" }],
+		&"quests",
+	)
+	var migration := GDSQLMigrationDefinition.new(
+		"202609280001_multi_table_data",
+		"Update two tables atomically",
+		[
+			GDSQLDataMigrationStep.new(
+				&"heroes",
+				[
+					GDSQLColumnAssignment.new(
+						&"name",
+						GDSQLLiteralExpression.new("Wizard"),
+					),
+				],
+				GDSQLColumnExpression.new(&"id").equals(2),
+			),
+			GDSQLDataMigrationStep.new(
+				&"quests",
+				[
+					GDSQLColumnAssignment.new(
+						&"status",
+						GDSQLLiteralExpression.new("available"),
+					),
+				],
+				GDSQLColumnExpression.new(&"id").equals(1),
+			),
+		],
+	)
+	var preview := database.preview_migrations([migration])
+	var recovery := GDSQLConfigFileMigrationRecoveryStore.new(
+		GDSQLDatabasePathResolver.new(_data_root),
+		GDSQLConfigFileCache.new(),
+	)
+	var runner := GDSQLMigrationRunner.new(
+		database.context.catalog,
+		database.context.catalog_administration,
+		FailingAppendLedger.new(),
+		recovery,
+		database.context.validator,
+		database.context.planner,
+		database.context.executor,
+		database.context.execution_context,
+	)
+
+	var result := runner.apply(preview.next_plan)
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(_first_code(result)).is_equal("GDSQL_TEST_LEDGER_APPEND_FAILED")
+	assert_bool(result.recovered).is_true()
+	var reopened := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	var hero_rows := reopened.execute(
+		reopened.query().table(&"heroes").select().order_by_column(&"id").build(),
+	)
+	var quest_rows := reopened.execute(
+		reopened.query().table(&"quests").select().build(),
+	)
+	assert_str(hero_rows.rows[1].get_value(&"name")).is_equal("Mage")
+	assert_str(quest_rows.rows[0].get_value(&"status")).is_equal("locked")
+
+
 func test_runner_restores_preexisting_state_when_catalog_plan_is_stale() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
 	var harness := ConfigMigrationHarness.new(_data_root)

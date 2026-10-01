@@ -5,8 +5,8 @@ extends RefCounted
 var database_name: StringName
 var migration: GDSQLMigrationDefinition
 var change_plan: GDSQLCatalogChangePlan
-var data_step: GDSQLDataMigrationStep
-var data_affected_rows: int
+var data_steps: Array[GDSQLDataMigrationStep] = []
+var data_step_affected_rows: Array[int] = []
 var expected_ledger_revision: int
 
 
@@ -22,11 +22,11 @@ func _init(
 	expected_ledger_revision = ledger_revision
 
 
-static func for_data_update(
+static func for_data_updates(
 		target_database: StringName,
 		pending_migration: GDSQLMigrationDefinition,
-		step: GDSQLDataMigrationStep,
-		row_count: int,
+		steps: Array[GDSQLDataMigrationStep],
+		row_counts: Array[int],
 		ledger_revision: int,
 ) -> GDSQLMigrationStepPlan:
 	var plan := GDSQLMigrationStepPlan.new(
@@ -35,18 +35,22 @@ static func for_data_update(
 		null,
 		ledger_revision,
 	)
-	plan.data_step = step
-	plan.data_affected_rows = row_count
+	plan.data_steps.assign(steps)
+	plan.data_step_affected_rows.assign(row_counts)
 	return plan
 
 
 func is_data_update() -> bool:
-	return data_step != null
+	return not data_steps.is_empty()
 
 
 func affected_rows() -> int:
-	return data_affected_rows if is_data_update() \
-	else change_plan.affected_rows if change_plan != null else 0
+	if is_data_update():
+		var total := 0
+		for row_count in data_step_affected_rows:
+			total += row_count
+		return total
+	return change_plan.affected_rows if change_plan != null else 0
 
 
 func requires_confirmation() -> bool:
@@ -55,8 +59,13 @@ func requires_confirmation() -> bool:
 
 func summaries() -> Array[String]:
 	if is_data_update():
-		return [
-			"Update %d row(s) in table '%s'." \
-					% [data_affected_rows, data_step.table_name],
-		]
+		var result: Array[String] = []
+		for index in data_steps.size():
+			result.append(
+				"Update %d row(s) in table '%s'." % [
+					data_step_affected_rows[index],
+					data_steps[index].table_name,
+				],
+			)
+		return result
 	return change_plan.summaries.duplicate() if change_plan != null else []

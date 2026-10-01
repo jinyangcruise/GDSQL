@@ -49,7 +49,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Migration data/save phase | Typed single-table row updates, editor authoring, and fresh-save schema provisioning are implemented; add multi-table orchestration next |
+| High — first | Migration data/save phase | Atomic distinct-table data batches and fresh-save schema provisioning are implemented; migrate older `user://` saves next |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
@@ -67,12 +67,12 @@ sessions unless new evidence changes an architectural dependency:
 2. **Migration v1 — durable schema history (implemented and tested).** Build ordered forward schema
    migrations, checksums, an applied ledger, dry runs, backups, recovery, and
    headless validation on top of the stable stored-value boundary.
-3. **Migration data/save phases (active).** Typed single-table UPDATE steps now
-   use canonical expressions, dry-run row counts, durable backup/recovery, and
-   the applied ledger. The database document now authors scalar literal
-   assignments and nested predicates through the same typed editor controls.
-   Fresh-save schema provisioning is implemented. Add multi-table
-   orchestration and migration of older `user://` saves next.
+3. **Migration data/save phases (active).** Typed UPDATE steps use canonical
+   expressions and may form one atomic migration across distinct tables, with
+   per-table dry-run counts, one durable recovery snapshot, and one ledger
+   record. The database document authors one table step at a time through typed
+   controls. Fresh-save schema provisioning is implemented. Migrate older
+   `user://` saves next; dependent schema/mixed batches remain deferred.
 4. **Resource Stage B — explicit deferred loading.** Add opt-in handles,
    threaded loading, and prefetch scopes only when the simple eager path and
    migrations are stable.
@@ -343,9 +343,10 @@ slice provides:
    stale-safe, staged replacement, and the editor advances it only after the
    durable catalog is confirmed at the authored head.
 4. Dry-run planning with affected objects, destructive classification, and
-   structured diagnostics. Implemented for the next pending migration under
-   the v1 one-table-step-per-migration rule; later multi-table orchestration
-   remains separate.
+   structured diagnostics. Implemented for the next pending migration as one
+   schema step or an ordered data-update batch across distinct tables. Repeated
+   tables and dependent schema/mixed batches are rejected until their previews
+   can be simulated accurately.
 5. Backup and recovery behavior for ConfigFile databases. Implemented with
    fingerprinted whole-database snapshots, staged restore, rollback, durable
    reload, explicit cleanup, and cache invalidation.
@@ -399,13 +400,14 @@ The migration formats under development target the addon's first public 1.0.
 They may be corrected directly while unreleased; compatibility work begins
 when a persisted format is shipped as supported public behavior.
 
-The first canonical data transformation is implemented as one typed,
-single-table UPDATE step with optional predicate, dry-run count, recovery, and
-ledger participation. Editor authoring supports typed scalar literals, nested
-WHERE groups, and explicit all-row updates while keeping Resource literals out
-of durable migration files. Fresh-save provisioning now creates the current
-schema and a verified baseline without copying player rows. The next slices add
-multi-table orchestration and migration of older `user://` saves.
+Canonical data transformations use typed single-table UPDATE steps with
+optional predicates. One migration may order several steps when each targets a
+distinct table; preview reports per-table counts, execution uses one recovery
+snapshot, and success creates one ledger record. Editor authoring supports one
+step at a time with typed scalar literals, nested WHERE groups, and explicit
+all-row updates while keeping Resource literals out of durable migration files.
+Fresh-save provisioning creates the current schema and a verified baseline
+without copying player rows. The next slice migrates older `user://` saves.
 Fresh databases and saves start at the current schema; existing durable data
 applies only pending migrations. Managed content sources migrate during
 authoring, while disposable effective-content caches are rebuilt rather than

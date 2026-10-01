@@ -447,8 +447,8 @@ MigrationStepPlanning("`**Migration Step Planning**
 -
 *Input:* Target database and next pending migration
 *API:* GDSQLMigrationStepPlanner.preview_next()
-*Output:* GDSQLMigrationStepPlan wrapping a schema preview or canonical data update
-*Initial scope:* One typed single-table step per migration; no mutation`")
+*Output:* GDSQLMigrationStepPlan wrapping one schema preview or a distinct-table data batch
+*Scope:* Per-table counts without mutation; dependent schema/mixed batches are rejected`")
 
 MigrationLedger("`**GDSQLMigrationLedger**
 
@@ -472,7 +472,7 @@ MigrationRunner("`**GDSQLMigrationRunner**
 -
 *Input:* One validated GDSQLMigrationStepPlan
 *Preconditions:* Current ledger revision and whole-schema fingerprint
-*Success:* Apply schema or data plan, fingerprint result, append ledger, discard backup
+*Success:* Apply one schema step or ordered data batch, then append one ledger record
 *Failure:* Restore complete backup and retain structured diagnostics`")
 
 MigrationService("`**GDSQLMigrationService**

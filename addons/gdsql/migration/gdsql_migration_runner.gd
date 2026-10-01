@@ -75,7 +75,7 @@ func apply(plan: GDSQLMigrationStepPlan) -> GDSQLMigrationRunResult:
 		return result
 	result.backup = backup_result.get_value() as GDSQLMigrationBackup
 	result.backup_retained = true
-	var applied := _apply_step(plan)
+	var applied := _apply_steps(plan)
 	result.diagnostics.merge(applied.diagnostics)
 	if not applied.is_successful():
 		_recover(result)
@@ -133,26 +133,27 @@ func _validate_plan(plan: GDSQLMigrationStepPlan) -> GDSQLOperationResult:
 			&"GDSQL_MIGRATION_RUN_DATABASE_MISMATCH",
 			"Migration execution requires a target database.",
 		)
-	if plan.migration.steps.size() != 1:
-		return _error(
-			result,
-			&"GDSQL_MIGRATION_RUN_PLAN_INVALID",
-			"Migration v1 execution requires exactly one table step.",
-		)
 	var step := plan.migration.steps[0]
 	if step is GDSQLDataMigrationStep:
-		if plan.change_plan != null or plan.data_step != step \
+		if plan.change_plan != null \
 				or _validator == null or _query_planner == null \
-				or _executor == null or _execution_context == null:
+				or _executor == null or _execution_context == null \
+				or not _data_plan_matches_migration(plan):
 			return _error(
 				result,
 				&"GDSQL_MIGRATION_RUN_PLAN_MISMATCH",
 				"Data preview does not represent the authored migration.",
 			)
 		return result
+	if plan.migration.steps.size() != 1:
+		return _error(
+			result,
+			&"GDSQL_MIGRATION_RUN_PLAN_INVALID",
+			"Schema migration execution requires exactly one table step.",
+		)
 	var schema_step := step as GDSQLSchemaMigrationStep
 	if schema_step == null or plan.change_plan == null \
-			or plan.data_step != null \
+			or plan.is_data_update() \
 			or plan.database_name != plan.change_plan.database_name \
 			or schema_step.table_name != plan.change_plan.table_name \
 			or not _step_kind_matches_plan(schema_step, plan.change_plan) \
@@ -165,10 +166,23 @@ func _validate_plan(plan: GDSQLMigrationStepPlan) -> GDSQLOperationResult:
 	return result
 
 
-func _apply_step(plan: GDSQLMigrationStepPlan) -> GDSQLOperationResult:
+func _apply_steps(plan: GDSQLMigrationStepPlan) -> GDSQLOperationResult:
 	if not plan.is_data_update():
 		return _catalog_administration.apply_change_plan(plan.change_plan)
-	var validation := _validator.validate(plan.data_step.to_query(plan.database_name))
+	var result := GDSQLOperationResult.new()
+	for data_step in plan.data_steps:
+		var applied := _apply_data_step(plan.database_name, data_step)
+		result.diagnostics.merge(applied.diagnostics)
+		if not applied.is_successful():
+			return result
+	return result
+
+
+func _apply_data_step(
+		database_name: StringName,
+		data_step: GDSQLDataMigrationStep,
+) -> GDSQLOperationResult:
+	var validation := _validator.validate(data_step.to_query(database_name))
 	if not validation.is_valid():
 		var invalid := GDSQLOperationResult.new()
 		invalid.diagnostics.merge(validation.diagnostics)
@@ -179,6 +193,21 @@ func _apply_step(plan: GDSQLMigrationStepPlan) -> GDSQLOperationResult:
 		unplanned.diagnostics.merge(planning.diagnostics)
 		return unplanned
 	return _executor.execute(planning.plan, _execution_context)
+
+
+func _data_plan_matches_migration(plan: GDSQLMigrationStepPlan) -> bool:
+	if plan.data_steps.size() != plan.migration.steps.size() \
+			or plan.data_step_affected_rows.size() != plan.data_steps.size():
+		return false
+	var target_tables: Dictionary[StringName, bool] = {}
+	for index in plan.migration.steps.size():
+		var authored_step := plan.migration.steps[index] as GDSQLDataMigrationStep
+		if authored_step == null or plan.data_steps[index] != authored_step \
+				or plan.data_step_affected_rows[index] < 0 \
+				or target_tables.has(authored_step.table_name):
+			return false
+		target_tables[authored_step.table_name] = true
+	return true
 
 
 func _change_plan_matches_migration(plan: GDSQLMigrationStepPlan) -> bool:

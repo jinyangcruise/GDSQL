@@ -1937,19 +1937,18 @@ ledger revision.
 
 `GDSQLMigrationStepPlanner` receives catalog administration and the canonical
 query pipeline through constructor injection and previews only the next pending
-history entry. `preview_next()` delegates schema validation to the corresponding
-create, alter, rename, or drop catalog preview. For a data step it validates the
-canonical UPDATE and executes a read-only COUNT with the same predicate. It
-returns a `GDSQLMigrationStepPlan` containing the migration identity, typed step
-preview, affected rows and summaries, destructive status, and expected applied-
+history entry. `preview_next()` delegates a single schema step to the matching
+create, alter, rename, or drop catalog preview. A data migration may contain an
+ordered UPDATE for each of several distinct tables; every update is validated
+and counted independently against the unchanged current state. The returned
+`GDSQLMigrationStepPlan` carries the migration identity, typed step previews,
+per-table summaries, combined affected rows, destructive status, and expected
 ledger revision. Previewing does not mutate schema, rows, or the ledger.
 
-Migration v1 authors one single-table step per migration. This makes every preview
-accurate against the current catalog and permits later migrations to be
-replanned after each successful application. A definition containing multiple
-steps receives a structured unsupported-preview diagnostic. Cross-table atomic
-simulation remains part of later multi-table migration orchestration rather
-than approximating dependent steps against stale schema.
+Repeating a target table in one data migration is rejected because an earlier
+update could make a later predicate count stale. Multi-step schema or mixed
+schema/data migrations also remain unsupported until catalog simulation can
+preview dependent steps accurately.
 
 `GDSQLMigrationRecoveryStore` is the backend-neutral durable recovery contract.
 It lists, creates, reloads, restores, and discards pre-migration database
@@ -1978,14 +1977,15 @@ and compares the current whole-schema fingerprint with the last applied record
 before creating a backup. The plan's database, table, authored checksum, and
 typed operation must describe the same migration.
 
-After those preconditions pass, the runner creates a durable backup, applies
-the stale-safe schema plan or canonical row update, fingerprints the resulting
-schema, and appends one `GDSQLAppliedMigration` with the plan's expected ledger
-revision. A catalog, query, fingerprint, or ledger failure restores the complete
-backup automatically. The backup is discarded only after successful ledger
-persistence or successful recovery. Cleanup failure retains the backup and
-reports a warning without misreporting an otherwise committed migration as
-failed.
+After those preconditions pass, the runner creates one durable backup, applies
+the stale-safe schema plan or every distinct-table data update in authored
+order, fingerprints the resulting schema, and appends one
+`GDSQLAppliedMigration` with the plan's expected ledger revision. A catalog,
+query, fingerprint, or ledger failure restores the complete backup, including
+all tables changed earlier in a data batch. The backup is discarded only after
+successful ledger persistence or successful recovery. Cleanup failure retains
+the backup and reports a warning without misreporting an otherwise committed
+migration as failed.
 
 `GDSQLMigrationRunResult` exposes the applied record, backup identity,
 automatic-recovery status, and whether recovery files remain. The runner does

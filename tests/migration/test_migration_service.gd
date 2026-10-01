@@ -79,6 +79,99 @@ func test_database_api_previews_and_applies_a_typed_row_update() -> void:
 	assert_bool(complete.is_up_to_date()).is_true()
 
 
+func test_database_api_applies_distinct_table_updates_as_one_migration() -> void:
+	var heroes := GDSQLTableDefinition.new(&"heroes", &"id")
+	heroes.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	heroes.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
+	var quests := GDSQLTableDefinition.new(&"quests", &"id")
+	quests.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	quests.add_column(GDSQLColumnDefinition.new(&"status", TYPE_STRING, false))
+	var database := TestDatabase.create_database_with_tables(
+		_data_root,
+		[heroes, quests],
+	)
+	TestDatabase.insert_basic_heroes(database)
+	TestDatabase.insert_rows(
+		database,
+		[{ &"id": 1, &"status": "locked" }],
+		&"quests",
+	)
+	var migration := GDSQLMigrationDefinition.new(
+		"202609290001_unlock_content",
+		"Update related authored content",
+		[
+			GDSQLDataMigrationStep.new(
+				&"heroes",
+				[
+					GDSQLColumnAssignment.new(
+						&"name",
+						GDSQLLiteralExpression.new("Wizard"),
+					),
+				],
+				GDSQLColumnExpression.new(&"id").equals(2),
+			),
+			GDSQLDataMigrationStep.new(
+				&"quests",
+				[
+					GDSQLColumnAssignment.new(
+						&"status",
+						GDSQLLiteralExpression.new("available"),
+					),
+				],
+				GDSQLColumnExpression.new(&"id").equals(1),
+			),
+		],
+	)
+	var history: Array[GDSQLMigrationDefinition] = [migration]
+
+	var preview := database.preview_migrations(history)
+
+	assert_bool(preview.is_successful()).is_true()
+	assert_int(preview.next_plan.data_steps.size()).is_equal(2)
+	assert_int(preview.next_plan.affected_rows()).is_equal(2)
+	assert_array(preview.next_plan.summaries()).contains_exactly(
+		[
+			"Update 1 row(s) in table 'heroes'.",
+			"Update 1 row(s) in table 'quests'.",
+		],
+	)
+	assert_bool(database.apply_migration(preview.next_plan).is_successful()).is_true()
+	var hero_rows := database.execute(
+		database.query().table(&"heroes").select() \
+				.where(GDSQLColumnExpression.new(&"id").equals(2)).build(),
+	)
+	var quest_rows := database.execute(
+		database.query().table(&"quests").select().build(),
+	)
+	assert_str(hero_rows.rows[0].get_value(&"name")).is_equal("Wizard")
+	assert_str(quest_rows.rows[0].get_value(&"status")).is_equal("available")
+	assert_bool(database.preview_migrations(history).is_up_to_date()).is_true()
+	var ledger := GDSQLConfigFileMigrationLedger.new(
+		GDSQLDatabasePathResolver.new(_data_root),
+	).load(database.database_name).get_value() as GDSQLMigrationLedgerSnapshot
+	assert_int(ledger.records.size()).is_equal(1)
+
+
+func test_database_api_rejects_repeated_table_data_steps() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var migration := GDSQLMigrationDefinition.new(
+		"202609290001_repeated_heroes",
+		"Ambiguous sequential updates",
+		[
+			_data_name_step("Knight", 1),
+			_data_name_step("Wizard", 2),
+		],
+	)
+
+	var preview := database.preview_migrations([migration])
+
+	assert_bool(preview.is_successful()).is_false()
+	assert_str(_first_code(preview)).is_equal(
+		"GDSQL_MIGRATION_DATA_TABLE_REPEATED",
+	)
+
+
 func test_database_api_rejects_a_plan_for_another_database() -> void:
 	var source := TestDatabase.create_heroes_database(_data_root)
 	var other_table := GDSQLTableDefinition.new(&"heroes", &"id")
@@ -368,6 +461,19 @@ func _migration(migration_id: String) -> GDSQLMigrationDefinition:
 		migration_id,
 		"Migration %s" % migration_id,
 		steps,
+	)
+
+
+func _data_name_step(value: String, id: int) -> GDSQLDataMigrationStep:
+	return GDSQLDataMigrationStep.new(
+		&"heroes",
+		[
+			GDSQLColumnAssignment.new(
+				&"name",
+				GDSQLLiteralExpression.new(value),
+			),
+		],
+		GDSQLColumnExpression.new(&"id").equals(id),
 	)
 
 
