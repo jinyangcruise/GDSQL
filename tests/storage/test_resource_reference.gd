@@ -69,6 +69,49 @@ class ThreadedResolver:
 		return result
 
 
+class ScopeResolver:
+	extends GDSQLResourceResolver
+
+	var resolved_resource: Resource
+	var requests := 0
+	var polls: Dictionary[String, int] = { }
+	var failing_path := ""
+
+
+	func _init(resource: Resource, failure: String = "") -> void:
+		resolved_resource = resource
+		failing_path = failure
+
+
+	func resolve(_reference: GDSQLResourceReference) -> GDSQLOperationResult:
+		var result := GDSQLOperationResult.new()
+		result.value = resolved_resource
+		return result
+
+
+	func request_threaded(reference: GDSQLResourceReference) -> GDSQLOperationResult:
+		requests += 1
+		var result := GDSQLOperationResult.new()
+		if reference.fallback_path == failing_path:
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_TEST_PREFETCH_FAILED",
+					"Forced prefetch request failure.",
+				),
+			)
+			return result
+		result.value = true
+		return result
+
+
+	func poll_threaded(reference: GDSQLResourceReference) -> GDSQLOperationResult:
+		var path := reference.fallback_path
+		polls[path] = polls.get(path, 0) + 1
+		var result := GDSQLOperationResult.new()
+		result.value = GDSQLResourceLoadProgress.in_progress(0.25)
+		if polls[path] >= 2:
+			result.value = GDSQLResourceLoadProgress.loaded(resolved_resource)
+		return result
 func test_reference_decoding_does_not_materialize_the_asset() -> void:
 	var icon := load(REFERENCED_ICON_PATH) as Resource
 	var resolver := CountingResolver.new(icon)
@@ -218,8 +261,66 @@ func test_deferred_handle_rejects_a_mismatched_resource_type() -> void:
 	)
 
 
+func test_prefetch_scope_reports_aggregate_progress_and_releases_handles() -> void:
+	var resource := Resource.new()
+	var resolver := ScopeResolver.new(resource)
+	var first := _fake_reference("res://prefetch/first.tres").create_handle(resolver)
+	var second := _fake_reference("res://prefetch/second.tres").create_handle(resolver)
+	var scope := GDSQLResourcePrefetchScope.from_handles([first, second])
+	var completed_count := [0]
+	scope.completed.connect(func(_resources: Array[Resource]) -> void: completed_count[0] += 1)
+
+	var requested := scope.request_load()
+	var first_poll := scope.poll_load()
+	var first_progress := first_poll.get_value() as GDSQLResourcePrefetchProgress
+	var completed_poll := scope.poll_load()
+	var completed_progress := completed_poll.get_value() as GDSQLResourcePrefetchProgress
+
+	assert_bool(requested.is_successful()).is_true()
+	assert_int(scope.get_status()).is_equal(GDSQLResourcePrefetchScope.Status.LOADED)
+	assert_float(first_progress.progress).is_equal(0.25)
+	assert_bool(completed_progress.is_successful()).is_true()
+	assert_int(completed_progress.loaded_count).is_equal(2)
+	assert_int(completed_count[0]).is_equal(1)
+	assert_int(resolver.requests).is_equal(2)
+	scope.release()
+	assert_int(scope.get_status()).is_equal(GDSQLResourcePrefetchScope.Status.READY)
+	assert_int(first.get_status()).is_equal(GDSQLResourceHandle.Status.UNLOADED)
+	assert_int(second.get_status()).is_equal(GDSQLResourceHandle.Status.UNLOADED)
+
+
+func test_prefetch_scope_finishes_remaining_handles_after_one_request_fails() -> void:
+	var resource := Resource.new()
+	var failed_path := "res://prefetch/missing.tres"
+	var resolver := ScopeResolver.new(resource, failed_path)
+	var available := _fake_reference("res://prefetch/available.tres").create_handle(resolver)
+	var missing := _fake_reference(failed_path).create_handle(resolver)
+	var scope := GDSQLResourcePrefetchScope.from_handles([available, missing])
+
+	var requested := scope.request_load()
+	scope.poll_load()
+	var completed := scope.poll_load()
+	var progress := completed.get_value() as GDSQLResourcePrefetchProgress
+
+	assert_bool(requested.is_successful()).is_false()
+	assert_int(scope.get_status()).is_equal(GDSQLResourcePrefetchScope.Status.FAILED)
+	assert_bool(progress.is_complete()).is_true()
+	assert_int(progress.loaded_count).is_equal(1)
+	assert_int(progress.failed_count).is_equal(1)
+	assert_str(String(scope.get_diagnostics()[0].code)).is_equal(
+		"GDSQL_TEST_PREFETCH_FAILED",
+	)
+
+
 func _referenced_column(prototype: Resource) -> GDSQLColumnDefinition:
 	var column := GDSQLColumnDefinition.new(&"icon", TYPE_OBJECT, false)
 	column.resource_type = GDSQLResourceTypeConstraint.from_resource(prototype)
 	column.resource_ownership = GDSQLResourceOwnership.Mode.REFERENCED
 	return column
+
+
+func _fake_reference(path: String) -> GDSQLResourceReference:
+	var reference := GDSQLResourceReference.new()
+	reference.fallback_path = path
+	reference.expected_type = &"Resource"
+	return reference

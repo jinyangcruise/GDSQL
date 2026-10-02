@@ -1587,8 +1587,18 @@ The concrete typed Resource property remains null until its retained handle
 loads successfully; the model then updates the property without marking it as
 a user mutation. Handles are available through `get_resource_handle()`, and
 model-owned concrete/handle references can be released together through
-`release_resource()` or `release_all_resources()`. Bounded prefetch scopes
-build on this same handle contract.
+`release_resource()` or `release_all_resources()`.
+
+`GDSQLResourcePrefetchScope` is the bounded lifetime coordinator over a fixed
+set of handles. Deferred query results and models create a scope through
+`create_resource_prefetch_scope()`. The scope requests every unloaded handle,
+polls them without blocking, emits aggregate progress/completion/failure, and
+retains diagnostics while allowing unaffected requests to finish. Its typed
+`GDSQLResourcePrefetchProgress` reports total, loaded, and failed counts.
+`release()` releases every handle-owned strong reference and resets the scope
+for another lifecycle; model properties connected to those handles are cleared
+at the same time. It cannot cancel a native Godot threaded request or release
+references owned by scenes, caches, or other consumers.
 
 A future `GDSQLPagedBinaryTableStorage` can implement the same contract with
 one binary file per table. Each file begins with a typed header containing the

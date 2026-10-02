@@ -39,7 +39,7 @@ var veterans := HeroContent.query() \
 ```
 
 `GDSQLModelQuery` provides `where`, `order_by`, `limit`, `offset`, `distinct`,
-and `with`. Terminal methods are:
+`with`, and opt-in `defer_resources`. Terminal methods are:
 
 | Method | Result value |
 |---|---|
@@ -50,6 +50,24 @@ and `with`. Terminal methods are:
 
 Like the lower-level query builders, a model query cannot be modified after
 `to_query_spec()` builds its canonical query.
+
+## Deferred Resource fields
+
+For asset-heavy models, keep referenced Resource properties unloaded until the
+gameplay boundary needs them:
+
+```gdscript
+var result := HeroContent.query().defer_resources().find(hero_id)
+var hero := result.get_value() as HeroContent
+var scope := hero.create_resource_prefetch_scope()
+scope.request_load()
+```
+
+The generated concrete Resource properties remain `null` until their handles
+finish loading. Access an individual handle with
+`get_resource_handle(column_name)`. Poll the scope during processing, and call
+`scope.release()` when the owning scene, area, encounter, or menu ends; the
+model properties loaded by those handles are cleared as part of release.
 
 ## Eager-load relationships
 

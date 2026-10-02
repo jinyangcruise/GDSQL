@@ -26,6 +26,17 @@ func get_returned_rows() -> int:
 	return int(statistics.get("returned_rows", rows.size()))
 
 
+## Collects the distinct deferred handles returned by this query into one
+## caller-owned prefetch and release boundary.
+func create_resource_prefetch_scope() -> GDSQLResourcePrefetchScope:
+	var scope := GDSQLResourcePrefetchScope.new()
+	for row in rows:
+		for value: Variant in row.values.values():
+			if value is GDSQLResourceHandle:
+				scope.add_handle(value as GDSQLResourceHandle)
+	return scope
+
+
 func materialize(
 		materializer: GDSQLResultMaterializer,
 		mapping: GDSQLResultMapping = null,

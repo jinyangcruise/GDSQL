@@ -103,10 +103,12 @@ func test_deferred_query_returns_unloaded_handle_without_resolving_asset() -> vo
 		.build(),
 		GDSQLQueryExecutionOptions.deferred_resources(),
 	)
-	var handle := selected.rows[0].get_value(&"icon") as GDSQLResourceHandle
+	var scope := selected.create_resource_prefetch_scope()
+	var handle := scope.get_handles()[0]
 
 	assert_bool(selected.is_successful()).is_true()
 	assert_object(handle).is_not_null()
+	assert_int(scope.get_handles().size()).is_equal(1)
 	assert_int(handle.get_status()).is_equal(GDSQLResourceHandle.Status.UNLOADED)
 	assert_int(selected.statistics.get("resource_handles_created", 0)).is_equal(1)
 	assert_int(resolver.calls).is_zero()
@@ -149,6 +151,7 @@ func test_deferred_model_retains_handle_and_updates_typed_property_after_load() 
 	var selected := model_context.query(AssetModel).defer_resources().first()
 	var model := selected.get_value() as AssetModel
 	var handle := model.get_resource_handle(&"icon")
+	var scope := model.create_resource_prefetch_scope()
 
 	assert_bool(selected.is_successful()).is_true()
 	assert_object(model).is_not_null()
@@ -157,7 +160,7 @@ func test_deferred_model_retains_handle_and_updates_typed_property_after_load() 
 	assert_int(resolver.calls).is_zero()
 	assert_object(handle.load().get_value()).is_same(icon)
 	assert_object(model.icon).is_same(icon)
-	model.release_resource(&"icon")
+	scope.release()
 	assert_object(model.icon).is_null()
 	assert_int(handle.get_status()).is_equal(GDSQLResourceHandle.Status.UNLOADED)
 

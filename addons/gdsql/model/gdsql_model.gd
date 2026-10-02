@@ -71,6 +71,14 @@ func get_resource_handle(column_name: StringName) -> GDSQLResourceHandle:
 	return _resource_handles.get(column_name)
 
 
+## Collects this model's deferred fields into one prefetch/release boundary.
+func create_resource_prefetch_scope() -> GDSQLResourcePrefetchScope:
+	var scope := GDSQLResourcePrefetchScope.new()
+	for handle in _resource_handles.values():
+		scope.add_handle(handle as GDSQLResourceHandle)
+	return scope
+
+
 ## Releases the model's concrete value and its handle-owned reference.
 func release_resource(column_name: StringName) -> void:
 	var handle := get_resource_handle(column_name)
@@ -185,6 +193,7 @@ func _attach_resource_handle(
 		return
 	_resource_handles[property_name] = handle
 	handle.load_completed.connect(_on_resource_loaded.bind(property_name))
+	handle.status_changed.connect(_on_resource_status_changed.bind(property_name))
 
 
 func _set_loaded_relationship(relationship_name: StringName, value: Variant) -> void:
@@ -259,12 +268,27 @@ func _on_resource_loaded(resource: Resource, property_name: StringName) -> void:
 	_original_values[property_name] = resource
 
 
+func _on_resource_status_changed(
+		status: GDSQLResourceHandle.Status,
+		property_name: StringName,
+) -> void:
+	if status != GDSQLResourceHandle.Status.UNLOADED or not _has_property(property_name):
+		return
+	set(property_name, null)
+	_original_values[property_name] = null
+
+
 func _clear_resource_handles() -> void:
 	for property_name in _resource_handles:
 		var handle := _resource_handles[property_name] as GDSQLResourceHandle
-		var callback := _on_resource_loaded.bind(property_name)
-		if handle != null and handle.load_completed.is_connected(callback):
-			handle.load_completed.disconnect(callback)
+		if handle == null:
+			continue
+		var loaded_callback := _on_resource_loaded.bind(property_name)
+		if handle.load_completed.is_connected(loaded_callback):
+			handle.load_completed.disconnect(loaded_callback)
+		var status_callback := _on_resource_status_changed.bind(property_name)
+		if handle.status_changed.is_connected(status_callback):
+			handle.status_changed.disconnect(status_callback)
 	_resource_handles.clear()
 
 

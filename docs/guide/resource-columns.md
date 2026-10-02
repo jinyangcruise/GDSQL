@@ -24,17 +24,33 @@ than scalar columns.
 
 ## Runtime loading and memory
 
-**Referenced describes persistence ownership; it does not currently guarantee
-lazy loading.** The table stores only a compact UID/path locator, but GDSQL
-resolves that locator with `ResourceLoader.load()` when the row is decoded.
+Referenced columns store a compact locator and use eager loading by default.
+Queries only resolve Resource columns required by the plan; unrelated scalar
+projections and counts do not load them. Asset-heavy code can explicitly return
+deferred handles:
 
-Opening a ConfigFile database normally loads its catalog without reading every
-row. However, a table scan currently decodes every stored column before query
-projection, filtering, or pagination. A query that returns only NPC names can
-therefore still load mesh, texture, audio, or scene references from every
-scanned row. A primary-key or index lookup narrows the affected rows, but still
-decodes every column in each matching row. In-memory hydration and a Managed
-Content cache rebuild may decode complete tables.
+```gdscript
+var result := database.execute(
+    database.table(&"npc_assets").select().build(),
+    GDSQLQueryExecutionOptions.deferred_resources(),
+)
+var scope := result.create_resource_prefetch_scope()
+scope.request_load()
+
+# Poll from a process loop until the snapshot is complete.
+var snapshot := scope.poll_load().get_value() as GDSQLResourcePrefetchProgress
+print(snapshot.progress)
+```
+
+`GDSQLResourceHandle.load()` loads synchronously. `request_load()` plus
+`poll_load()` uses Godot's threaded loader. A prefetch scope coordinates all
+handles returned for one bounded gameplay lifetime and reports aggregate loaded
+and failed counts. A failure does not prevent the scope from finishing its
+other requests.
+
+Resource-dependent filters, ordering, grouping, joins, or derived expressions
+require concrete Resources and therefore reject deferred execution. Run those
+queries with the default eager policy.
 
 For a large asset catalog, keep frequently queried metadata separate from heavy
 assets:
@@ -53,23 +69,20 @@ npc_assets
 - voice
 ```
 
-Browse or query `npc_definitions`, then look up one indexed `npc_assets` row
-when the NPC is needed. This is the reliable lazy-loading boundary in the
-current release; selecting fewer columns alone does not prevent referenced
-Resources from loading.
+Browse or query `npc_definitions`, then look up and prefetch the relevant
+`npc_assets` rows when the NPC is needed. This remains useful because it keeps
+the query and asset working sets bounded.
 
-Godot Resources are reference-counted. To make a loaded asset eligible for
-release, clear it from scene properties and release every result, model, array,
-or other object that still references it. An in-memory GDSQL table can itself
-retain the Resource, so GDSQL does not currently provide a deterministic
-per-table or per-row unload operation. See Godot's
+Call `scope.release()` when its scene, area, encounter, or menu ends. For a
+deferred model, scope release also clears the concrete model properties loaded
+through those handles. Godot Resources are reference-counted, so the asset is
+only eligible for reclamation after scenes, caches, and every other consumer
+also release it. Releasing a scope cannot cancel a native threaded request that
+Godot already accepted. See Godot's
 [`Resource`](https://docs.godotengine.org/en/stable/classes/class_resource.html)
 and
 [`ResourceLoader`](https://docs.godotengine.org/en/stable/classes/class_resourceloader.html)
 documentation for engine caching and reference-count behavior.
-
-Deferred Resource handles, selective column decoding, threaded materialization,
-and explicit content loading/eviction policies are active roadmap work.
 
 ## Editing behavior
 

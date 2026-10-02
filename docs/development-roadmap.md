@@ -38,8 +38,9 @@ The current implementation provides:
 - Generated/user-owned model bindings, inferred same-database navigation,
   explicit many-to-many relationships, and cross-role content references.
 - Multi-table navigation and read-only Godot-AI MCP inspection tools.
-- Resource Stage A: required-column reads, inert locator transfer through
-  managed caches and in-memory checkpoints, and contextual materialization.
+- Resource Stages A–B: required-column reads, inert locator transfer, explicit
+  sync/threaded handles, opt-in query/model deferral, and bounded prefetch
+  lifetimes.
 
 Implementation detail belongs in `docs/architecture/`, public usage belongs in
 the VitePress guides, and completed change history belongs in Git. This file
@@ -49,7 +50,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Resource Stage B | Explicit handles and opt-in query/model materialization are implemented; add bounded prefetch scopes next |
+| High — first | Bounded reads (Resource Stage C) | Add batch/page execution before the paged binary backend |
 | High | Migration data/save phase | Runtime already recovers and advances registered writable saves before hydration; dependent schema/mixed batches remain deferred |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
@@ -75,11 +76,11 @@ sessions unless new evidence changes an architectural dependency:
    controls. Fresh-save schema provisioning and runtime migration of registered
    writable saves before hydration are implemented. Dependent schema/mixed
    batches remain deferred.
-4. **Resource Stage B — explicit deferred loading (active).** The first typed
+4. **Resource Stage B — explicit deferred loading (implemented and tested).** The typed
    handle provides synchronous and native threaded on-demand loading, progress,
    signals, diagnostics, caching, type validation, caller-owned release, and
-   opt-in query/model handles without changing eager defaults. Add bounded
-   prefetch scopes next.
+   opt-in query/model handles without changing eager defaults. Bounded scopes
+   coordinate aggregate progress, partial failures, and deterministic release.
 5. **Bounded reads and paged binary storage.** Add cursor/page execution before
    implementing the binary backend so paging does not inherit full-snapshot
    behavior.
@@ -257,9 +258,11 @@ small and medium projects.
   implemented and tested.
 - Opt-in query and model materialization returns handles without resolving
   assets; Resource-dependent expressions explicitly require eager execution.
-- Provide bounded prefetch scopes suitable for a scene, area, encounter, or UI
-  screen.
-- Document how consumers release scene, model, result, and cache references.
+- Bounded prefetch scopes coordinate scene, area, encounter, or UI-screen
+  handles with aggregate progress, partial-failure diagnostics, and release.
+- Query results and models expose scope creation; release clears GDSQL-owned
+  handle/model references while external scene and Godot cache ownership
+  remains explicit.
 
 This stage is for asset-heavy projects and should not complicate the default
 workflow.
