@@ -1,6 +1,8 @@
 class_name GDSQLDefaultQueryExecutor
 extends GDSQLQueryExecutor
 
+const DEFAULT_SCAN_BATCH_SIZE := 256
+
 var _resource_resolver: GDSQLResourceResolver
 
 
@@ -200,30 +202,11 @@ func _execute_select_node(
 		result: GDSQLQueryExecutionResult,
 ) -> GDSQLRowSet:
 	if node is GDSQLTableScanPlan:
-		var scan := node as GDSQLTableScanPlan
-		var snapshot := context.storage.read_table(
-			scan.table,
-			_get_session(context),
-			_read_request(scan.required_columns),
+		return _execute_table_scan(
+			node as GDSQLTableScanPlan,
+			context,
+			result,
 		)
-		var rows := GDSQLRowSet.new()
-		rows.schema = node.output_schema
-		var table_id := _table_id(scan.table)
-		for stored_row in snapshot.rows:
-			var row := _materialize_row(
-				stored_row,
-				scan.table,
-				scan.required_columns,
-				context,
-				result,
-			)
-			row.set_source_values(
-				table_id,
-				row.values,
-				scan.alias if scan.alias != &"" else scan.table.name,
-			)
-			rows.rows.append(row)
-		return rows
 	if node is GDSQLPrimaryKeyLookupPlan:
 		var lookup := node as GDSQLPrimaryKeyLookupPlan
 		var rows := GDSQLRowSet.new()
@@ -368,6 +351,114 @@ func _execute_select_node(
 		),
 	)
 	return GDSQLRowSet.new()
+
+
+func _execute_table_scan(
+	scan: GDSQLTableScanPlan,
+	context: GDSQLExecutionContext,
+	result: GDSQLQueryExecutionResult,
+) -> GDSQLRowSet:
+	var rows := GDSQLRowSet.new()
+	rows.schema = scan.output_schema
+	var session := _get_session(context)
+	var request := _read_request(scan.required_columns)
+	if not context.storage.get_capabilities().supports_bounded_reads():
+		var snapshot := context.storage.read_table(scan.table, session, request)
+		result.statistics["storage_snapshot_fallbacks"] = int(
+			result.statistics.get("storage_snapshot_fallbacks", 0),
+		) + 1
+		rows.rows = _qualify_lookup_rows(
+			snapshot.rows,
+			scan.table,
+			scan.alias,
+			scan.output_schema,
+			scan.required_columns,
+			context,
+			result,
+		).rows
+		return rows
+	var cursor: GDSQLStorageReadCursor
+	var seen_cursors: Array[GDSQLStorageReadCursor] = []
+	while true:
+		if context.cancellation != null and context.cancellation.is_cancelled():
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_EXECUTION_CANCELLED",
+					"Query execution was cancelled during a table scan.",
+				),
+			)
+			return rows
+		var batch := context.storage.read_batch(
+			scan.table,
+			session,
+			request.bounded(DEFAULT_SCAN_BATCH_SIZE, cursor),
+		)
+		result.diagnostics.merge(batch.diagnostics)
+		_merge_storage_read_statistics(batch, result)
+		if not batch.is_successful():
+			return rows
+		var qualified := _qualify_lookup_rows(
+			batch.rows,
+			scan.table,
+			scan.alias,
+			scan.output_schema,
+			scan.required_columns,
+			context,
+			result,
+		)
+		rows.rows.append_array(qualified.rows)
+		if not batch.has_more():
+			return rows
+		var next_cursor := batch.get_next_cursor()
+		for seen_cursor in seen_cursors:
+			if seen_cursor.is_equivalent_to(next_cursor):
+				result.add_diagnostic(
+					GDSQLQueryDiagnostic.new(
+						&"GDSQL_STORAGE_CURSOR_DID_NOT_ADVANCE",
+						"Storage repeated a continuation during a bounded scan.",
+					),
+				)
+				return rows
+		seen_cursors.append(next_cursor)
+		cursor = next_cursor
+	return rows
+
+
+func _merge_storage_read_statistics(
+	batch: GDSQLStorageReadBatch,
+	result: GDSQLQueryExecutionResult,
+) -> void:
+	result.statistics["storage_batches"] = int(
+		result.statistics.get("storage_batches", 0),
+	) + 1
+	result.statistics["storage_rows_scanned"] = int(
+		result.statistics.get("storage_rows_scanned", 0),
+	) + batch.statistics.rows_scanned
+	result.statistics["storage_rows_returned"] = int(
+		result.statistics.get("storage_rows_returned", 0),
+	) + batch.statistics.rows_returned
+	result.statistics["storage_physical_read_bounded"] = bool(
+		result.statistics.get("storage_physical_read_bounded", true),
+	) and batch.statistics.physical_read_bounded
+	_merge_optional_storage_measurement(
+		"storage_bytes_read",
+		batch.statistics.bytes_read,
+		result,
+	)
+	_merge_optional_storage_measurement(
+		"storage_pages_read",
+		batch.statistics.pages_read,
+		result,
+	)
+
+
+func _merge_optional_storage_measurement(
+	key: String,
+	value: int,
+	result: GDSQLQueryExecutionResult,
+) -> void:
+	var current := int(result.statistics.get(key, 0))
+	result.statistics[key] = -1 if current < 0 or value < 0 else current + value
 
 
 func _get_session(context: GDSQLExecutionContext) -> GDSQLStorageSession:

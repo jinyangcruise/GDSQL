@@ -777,8 +777,8 @@ ResourceConstraint -->|"static property metadata"| ResourceProperties
 Validator -->|"validate scalar leaf path"| ResourceProperties
 Workbench -.->|"Resource WHERE field choices"| ResourceProperties
 CatalogService -->|"table integrity metadata"| ForeignKeys
-Executor -->|"read_table() · find_by_primary_key()"| TableStorage
-Executor -.->|"future bounded scan consumption"| StorageBatches
+Executor -->|"read_batch() · lookup reads"| TableStorage
+Executor -->|"consume bounded scan continuations"| StorageBatches
 TableStorage -->|"read_batch(request)"| StorageBatches
 Executor -->|"materialize required references"| ResourceMaterialization
 Executor -->|"stage_*() · commit() · rollback()"| TableStorage

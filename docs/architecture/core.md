@@ -1577,6 +1577,23 @@ counts as `-1`, and the full inspected row count. This compatibility behavior
 establishes stable execution semantics without pretending to provide the
 future binary backend's I/O characteristics.
 
+Table-scan execution consumes these responses in bounded batches of 256 rows.
+It keeps one storage session and passes each opaque continuation back to the
+same table backend until no continuation remains. Storage diagnostics are
+merged into the query result, cancellation is checked between batches, and an
+repeated continuation is rejected instead of permitting a cursor cycle.
+Backends that do not advertise bounded reads retain the complete-snapshot
+compatibility path.
+
+`GDSQLQueryExecutionResult.statistics` aggregates `storage_batches`,
+`storage_rows_scanned`, `storage_rows_returned`, `storage_bytes_read`,
+`storage_pages_read`, and `storage_physical_read_bounded` independently from
+Resource materialization counters. Unknown byte or page counts remain `-1`.
+This initial scan integration still assembles all batches before downstream
+relational operators run. It therefore preserves filter, join, aggregate,
+sort, projection, distinct, `OFFSET`, and `LIMIT` semantics without assuming
+that an early storage window is the final result window.
+
 Internal row transfers use a full-column read request with reference
 preservation. Managed package composition, effective-cache writes, in-memory
 hydration, checkpoint comparison, constraint validation, and index rebuilding

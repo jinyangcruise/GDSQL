@@ -118,7 +118,7 @@ state in the same change as implementation or test work.
 | `QueryValidationResult` | Validation | Contains validation diagnostics and an optional bound query. | `is_valid()`, `get_bound_query()` | 🛠️ |
 | `QueryBindingResult` | Binding | Contains binding diagnostics and an optional bound query. | `is_successful()`, `get_bound_query()` | 🚧 |
 | `QueryPlanningResult` | Planning | Contains a generated plan and planning diagnostics. | `is_successful()`, `get_plan()` | 🛠️ |
-| `QueryExecutionResult` | Execution | Contains execution output, diagnostics, and optional statistics. | `is_successful()`, `get_rows()` | 🛠️ |
+| `QueryExecutionResult` | Execution | Contains execution output, diagnostics, and statistics that distinguish bounded storage work from Resource materialization. | `is_successful()`, `get_rows()`, `statistics` | 🛠️ |
 | `StorageOperationResult` | Storage | Describes the outcome of a staged storage mutation. | `is_successful()` | 🛠️ |
 | `StorageCommitResult` | Storage | Describes the outcome of persisting a storage session. | `is_successful()` | 🛠️ |
 
@@ -170,7 +170,7 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `QueryExecutor` | Execution | Abstract contract for executing query plans. | `execute(plan, context)` | 🚧 |
-| `DefaultQueryExecutor` | Execution | Executes plans, requests only planned columns, and materializes required Resource references through an injected resolver with contextual diagnostics. | `execute(plan, context)` | 🧪 |
+| `DefaultQueryExecutor` | Execution | Executes plans, consumes table scans through cancellable bounded batches with cursor-progress guards and aggregated storage statistics, requests only planned columns, and materializes required Resource references through an injected resolver. | `execute(plan, context)` | 🧪 |
 | `ExecutionContext` | Execution | Groups runtime services, session state, cancellation, and immutable presentation options for one execution. | `for_session()`, `with_options()`, service accessors | 🧪 |
 | `QueryExecutionOptions` | Execution | Immutable per-execution presentation policy that keeps eager Resources as the default or explicitly returns deferred handles without changing `QuerySpec`. | `eager()`, `deferred_resources()`, `defers_resources()` | 🧪 |
 | `ExpressionEvaluator` | Execution | Evaluates canonical or bound scalar expressions against a row context with null propagation. | `evaluate(expression, row_context)` | 🧪 |

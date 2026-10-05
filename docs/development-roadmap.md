@@ -50,7 +50,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Bounded reads (Resource Stage C) | Storage cursor/batch contracts and compatibility adapters are tested; connect scan execution and safe limit pushdown next |
+| High — first | Bounded reads (Resource Stage C) | Scan execution consumes tested batches and reports storage work; safe limit pushdown and ordered paged indexes remain |
 | High | Migration data/save phase | Runtime already recovers and advances registered writable saves before hydration; dependent schema/mixed batches remain deferred |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
@@ -271,9 +271,10 @@ workflow.
 
 - Typed backend-owned cursors, bounded batch results, read statistics, and
   ConfigFile/in-memory compatibility adapters are implemented and tested.
+- Scan execution consumes bounded batches with cancellation, cursor-progress
+  guards, compatibility fallback, and aggregate storage statistics while
+  retaining the existing relational operator order.
 - Extend storage capabilities with ordered paged index access.
-- Let scan execution consume bounded batches instead of requiring one complete
-  `TableSnapshot`.
 - Push `LIMIT`/`OFFSET` only when doing so preserves filter, sort, aggregate,
   distinct, and join semantics.
 - Measure row bytes/pages read separately from Resources materialized.

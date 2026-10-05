@@ -37,6 +37,14 @@ func is_for_source(database_name: StringName, table_name: StringName) -> bool:
 	return _database_name == database_name and _table_name == table_name
 
 
+func is_equivalent_to(other: GDSQLStorageReadCursor) -> bool:
+	return other != null \
+			and _backend_id == other._backend_id \
+			and _database_name == other._database_name \
+			and _table_name == other._table_name \
+			and _token == other._token
+
+
 func duplicate_cursor() -> GDSQLStorageReadCursor:
 	return GDSQLStorageReadCursor.new(
 		_backend_id,
