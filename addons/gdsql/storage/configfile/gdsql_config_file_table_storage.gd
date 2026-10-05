@@ -20,7 +20,7 @@ func _init(
 
 
 func get_capabilities() -> GDSQLStorageCapabilities:
-	return GDSQLStorageCapabilities.new(true, true)
+	return GDSQLStorageCapabilities.new(true, true, true)
 
 
 func read_table(
@@ -38,6 +38,58 @@ func read_table(
 	snapshot.row_count = int(metadata["row_count"])
 	snapshot.next_auto_increment = int(metadata["next_auto_increment"])
 	return snapshot
+
+
+func read_batch(
+	table: GDSQLTableDefinition,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLStorageReadBatch:
+	var result := GDSQLStorageReadBatch.new()
+	if not _validate_bounded_read_request(
+		request,
+		GDSQLStorageBackendIds.CONFIG_FILE,
+		table,
+		result,
+	):
+		return result
+	var offset := _cursor_offset(request.cursor, result)
+	if not result.is_successful():
+		return result
+	if session != null and session.dirty:
+		return _batch_from_rows(
+			_build_effective_rows(
+				table,
+				session,
+				_effective_batch_request(table, request),
+			),
+			offset,
+			request,
+			table,
+		)
+	var config := config_cache.get_or_load(
+		path_resolver.resolve_table_path(table.database_name, table.name),
+	)
+	if config == null:
+		result.value = result.rows
+		return result
+	var sections := _get_row_sections(config)
+	if offset > sections.size():
+		return _bounded_read_offset_error(offset, sections.size())
+	var end := mini(offset + request.batch_size, sections.size())
+	for index in range(offset, end):
+		result.rows.append(_read_row(config, sections[index], table, request))
+	result.statistics.rows_scanned = sections.size()
+	result.statistics.rows_returned = result.rows.size()
+	if end < sections.size():
+		result.next_cursor = GDSQLStorageReadCursor.new(
+			GDSQLStorageBackendIds.CONFIG_FILE,
+			table.database_name,
+			table.name,
+			end,
+		)
+	result.value = result.rows
+	return result
 
 
 func find_by_primary_key(
@@ -360,6 +412,60 @@ func _read_persisted_rows(
 			continue
 		rows.append(_read_row(config, section, table, request))
 	return rows
+
+
+func _batch_from_rows(
+	rows: Array[GDSQLRowRecord],
+	offset: int,
+	request: GDSQLStorageReadRequest,
+	table: GDSQLTableDefinition,
+) -> GDSQLStorageReadBatch:
+	if offset > rows.size():
+		return _bounded_read_offset_error(offset, rows.size())
+	var result := GDSQLStorageReadBatch.new()
+	var end := mini(offset + request.batch_size, rows.size())
+	for index in range(offset, end):
+		result.rows.append(_apply_read_request(rows[index], request))
+	result.statistics.rows_scanned = rows.size()
+	result.statistics.rows_returned = result.rows.size()
+	if end < rows.size():
+		result.next_cursor = GDSQLStorageReadCursor.new(
+			GDSQLStorageBackendIds.CONFIG_FILE,
+			table.database_name,
+			table.name,
+			end,
+		)
+	result.value = result.rows
+	return result
+
+
+func _cursor_offset(
+	cursor: GDSQLStorageReadCursor,
+	result: GDSQLStorageReadBatch,
+) -> int:
+	if cursor == null:
+		return 0
+	var token: Variant = cursor.get_token()
+	if token is int and int(token) >= 0:
+		return int(token)
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_STORAGE_CURSOR_INVALID",
+			"The ConfigFile read cursor is invalid.",
+		),
+	)
+	return 0
+
+
+func _effective_batch_request(
+	table: GDSQLTableDefinition,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLStorageReadRequest:
+	var effective_request := request.duplicate_request()
+	if not effective_request.all_columns \
+			and not effective_request.required_columns.has(table.primary_key):
+		effective_request.required_columns.append(table.primary_key)
+	return effective_request
 
 
 func _validate_session_constraints(

@@ -1459,6 +1459,13 @@ func read_table(
 ) -> TableSnapshot
 
 @abstract
+func read_batch(
+    table: TableDefinition,
+    session: StorageSession,
+    request: StorageReadRequest
+) -> StorageReadBatch
+
+@abstract
 func find_by_primary_key(
     table: TableDefinition,
     key: Variant,
@@ -1549,6 +1556,26 @@ materializes only required references through its injected resolver before
 expression evaluation, preserving concrete Resource values in ordinary public
 results. Resolver failures become query diagnostics containing database,
 table, row, and column context.
+
+Stage C extends the same request with an optional positive batch size and an
+opaque `GDSQLStorageReadCursor`. A cursor is bound to its backend and source
+table, and its token is created and interpreted only by that storage backend;
+execution may retain it and pass it back, but cannot inspect its token or
+translate it into query meaning. It remains valid only for the unchanged read
+view that produced it. `read_batch()` returns a
+`GDSQLStorageReadBatch` containing at most the requested rows, a continuation
+when more rows remain, structured diagnostics, and typed
+`GDSQLStorageReadStatistics`.
+
+Bounded result size and bounded physical I/O are intentionally distinct. The
+statistics report rows scanned and returned, optional byte/page counts, and
+whether the backend actually bounded physical reading. ConfigFile currently
+parses its complete table file before decoding the requested row window, and
+in-memory storage currently assembles its effective row set before slicing it;
+both therefore report `physical_read_bounded == false`, unknown byte/page
+counts as `-1`, and the full inspected row count. This compatibility behavior
+establishes stable execution semantics without pretending to provide the
+future binary backend's I/O characteristics.
 
 Internal row transfers use a full-column read request with reference
 preservation. Managed package composition, effective-cache writes, in-memory

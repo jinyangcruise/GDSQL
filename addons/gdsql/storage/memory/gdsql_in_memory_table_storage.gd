@@ -15,7 +15,7 @@ var _dirty_versions: Dictionary = { }
 
 
 func get_capabilities() -> GDSQLStorageCapabilities:
-	return GDSQLStorageCapabilities.new(true, true)
+	return GDSQLStorageCapabilities.new(true, true, true)
 
 
 func read_table(
@@ -30,6 +30,48 @@ func read_table(
 	snapshot.row_count = int(metadata["row_count"])
 	snapshot.next_auto_increment = int(metadata["next_auto_increment"])
 	return snapshot
+
+
+func read_batch(
+	table: GDSQLTableDefinition,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLStorageReadBatch:
+	var result := GDSQLStorageReadBatch.new()
+	if not _validate_bounded_read_request(
+		request,
+		GDSQLStorageBackendIds.IN_MEMORY,
+		table,
+		result,
+	):
+		return result
+	var offset := _cursor_offset(request.cursor, result)
+	if not result.is_successful():
+		return result
+	var rows := _effective_rows(table, session)
+	if offset > rows.size():
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_STORAGE_CURSOR_OUT_OF_RANGE",
+				"Read cursor offset %d exceeds the current row count %d." \
+						% [offset, rows.size()],
+			),
+		)
+		return result
+	var end := mini(offset + request.batch_size, rows.size())
+	for index in range(offset, end):
+		result.rows.append(_project_row(rows[index], request))
+	result.statistics.rows_scanned = rows.size()
+	result.statistics.rows_returned = result.rows.size()
+	if end < rows.size():
+		result.next_cursor = GDSQLStorageReadCursor.new(
+			GDSQLStorageBackendIds.IN_MEMORY,
+			table.database_name,
+			table.name,
+			end,
+		)
+	result.value = result.rows
+	return result
 
 
 func find_by_primary_key(
@@ -307,6 +349,24 @@ func _table_rows(table: GDSQLTableDefinition) -> Dictionary:
 	if not _tables.has(table_key):
 		_tables[table_key] = { }
 	return _tables[table_key]
+
+
+func _cursor_offset(
+	cursor: GDSQLStorageReadCursor,
+	result: GDSQLStorageReadBatch,
+) -> int:
+	if cursor == null:
+		return 0
+	var token: Variant = cursor.get_token()
+	if token is int and int(token) >= 0:
+		return int(token)
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_STORAGE_CURSOR_INVALID",
+			"The in-memory read cursor is invalid.",
+		),
+	)
+	return 0
 
 
 func _effective_rows(

@@ -495,11 +495,19 @@ TableStorage("`**GDSQLTableStorage**
 
 -
 *Purpose:* Isolate row persistence from query execution
-*Read API:* read_table(), primary-key/index/range lookup, get_capabilities()
-*Read input:* GDSQLStorageReadRequest with required columns and reference policy
+*Read API:* read_table(), read_batch(), primary-key/index/range lookup, get_capabilities()
+*Read input:* GDSQLStorageReadRequest with required columns, reference policy and optional batch continuation
 *Mutation API:* stage_insert(), stage_update(), stage_delete()
 *Transaction API:* commit(), rollback()
 *Extension point:* Table storage backend implementations`")
+
+StorageBatches("`**Bounded Storage Reads**
+
+-
+*Request:* Positive batch size plus backend/source-bound opaque GDSQLStorageReadCursor
+*Result:* GDSQLStorageReadBatch with rows, continuation, diagnostics and statistics
+*Metrics:* Rows scanned/returned, optional bytes/pages and physical-bound flag
+*Boundary:* Execution passes cursors back without inspecting backend tokens`")
 
 subgraph ConfigFileBackend["ConfigFile backend"]
 ConfigCatalog("`**GDSQLConfigFileCatalogService**
@@ -554,7 +562,8 @@ ConfigStorage("`**GDSQLConfigFileTableStorage**
 
 -
 *Purpose:* Persist table rows as ConfigFile sections and values
-*API:* Read, primary-key/index/range lookup, staged mutations, commit and rollback
+*API:* Snapshot/batch reads, primary-key/index/range lookup, staged mutations, commit and rollback
+*Batch behavior:* Bounds decoded rows after ConfigFile has parsed the table file
 *Maintains:* Reserved index entries during committed mutations
 *Extends:* GDSQLTableStorage
 *Uses:* Path resolver, ConfigFile cache and Variant codec`")
@@ -633,7 +642,8 @@ MemoryStorage("`**GDSQLInMemoryTableStorage**
 
 -
 *Purpose:* Keep authoritative table rows in memory
-*API:* Read, lookup, staged mutations, commit and rollback
+*API:* Snapshot/batch reads, lookup, staged mutations, commit and rollback
+*Batch behavior:* Bounds returned rows after assembling the effective in-memory set
 *State:* Committed rows, table metadata and dirty versions
 *Extends:* GDSQLTableStorage`")
 
@@ -768,6 +778,8 @@ Validator -->|"validate scalar leaf path"| ResourceProperties
 Workbench -.->|"Resource WHERE field choices"| ResourceProperties
 CatalogService -->|"table integrity metadata"| ForeignKeys
 Executor -->|"read_table() · find_by_primary_key()"| TableStorage
+Executor -.->|"future bounded scan consumption"| StorageBatches
+TableStorage -->|"read_batch(request)"| StorageBatches
 Executor -->|"materialize required references"| ResourceMaterialization
 Executor -->|"stage_*() · commit() · rollback()"| TableStorage
 Context -->|"validate final transaction state"| ForeignKeyValidation

@@ -50,7 +50,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Bounded reads (Resource Stage C) | Add batch/page execution before the paged binary backend |
+| High — first | Bounded reads (Resource Stage C) | Storage cursor/batch contracts and compatibility adapters are tested; connect scan execution and safe limit pushdown next |
 | High | Migration data/save phase | Runtime already recovers and advances registered writable saves before hydration; dependent schema/mixed batches remain deferred |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
@@ -269,7 +269,9 @@ workflow.
 
 #### Stage C — bounded table reads
 
-- Extend storage capabilities with batch/page reads and ordered indexed access.
+- Typed backend-owned cursors, bounded batch results, read statistics, and
+  ConfigFile/in-memory compatibility adapters are implemented and tested.
+- Extend storage capabilities with ordered paged index access.
 - Let scan execution consume bounded batches instead of requiring one complete
   `TableSnapshot`.
 - Push `LIMIT`/`OFFSET` only when doing so preserves filter, sort, aggregate,

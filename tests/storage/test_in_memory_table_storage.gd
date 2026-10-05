@@ -207,6 +207,129 @@ func test_hydration_keeps_referenced_assets_inert_in_memory() -> void:
 			.is_instanceof(GDSQLResourceReference)
 
 
+func test_in_memory_bounded_reads_continue_without_exposing_unrequested_columns() -> void:
+	var table := _heroes_table()
+	var storage := GDSQLInMemoryTableStorage.new()
+	var session := GDSQLStorageSession.new()
+	for index in 5:
+		storage.stage_insert(table, _hero(index + 1, "Hero %d" % (index + 1)), session)
+	assert_bool(storage.commit(session).is_successful()).is_true()
+	var base_request := GDSQLStorageReadRequest.for_columns([&"name"], true)
+
+	var first := storage.read_batch(table, null, base_request.bounded(2))
+	var second := storage.read_batch(
+		table,
+		null,
+		base_request.bounded(2, first.get_next_cursor()),
+	)
+	var third := storage.read_batch(
+		table,
+		null,
+		base_request.bounded(2, second.get_next_cursor()),
+	)
+
+	assert_bool(first.is_successful()).is_true()
+	assert_int(first.rows.size()).is_equal(2)
+	assert_int(second.rows.size()).is_equal(2)
+	assert_int(third.rows.size()).is_equal(1)
+	assert_bool(first.has_more()).is_true()
+	assert_bool(second.has_more()).is_true()
+	assert_bool(third.has_more()).is_false()
+	assert_bool(first.rows[0].has_column(&"name")).is_true()
+	assert_bool(first.rows[0].has_column(&"id")).is_false()
+	assert_int(first.statistics.rows_scanned).is_equal(5)
+	assert_int(first.statistics.rows_returned).is_equal(2)
+	assert_bool(first.statistics.physical_read_bounded).is_false()
+	var names: Array[String] = []
+	for batch in [first, second, third]:
+		for row in batch.rows:
+			names.append(row.get_value(&"name"))
+	names.sort()
+	assert_array(names).contains_exactly([
+		"Hero 1",
+		"Hero 2",
+		"Hero 3",
+		"Hero 4",
+		"Hero 5",
+	])
+
+
+func test_configfile_bounded_reads_return_compatible_batches() -> void:
+	var table := _heroes_table()
+	var database := TestDatabase.create_database(_data_root, table)
+	TestDatabase.insert_named_heroes(
+		database,
+		["Knight", "Mage", "Ranger", "Rogue", "Cleric"],
+	)
+	var storage := database.context.storage as GDSQLConfigFileTableStorage
+	var request := GDSQLStorageReadRequest.all(true)
+
+	var first := storage.read_batch(table, null, request.bounded(3))
+	var second := storage.read_batch(
+		table,
+		null,
+		request.bounded(3, first.get_next_cursor()),
+	)
+
+	assert_bool(first.is_successful()).is_true()
+	assert_int(first.rows.size()).is_equal(3)
+	assert_int(second.rows.size()).is_equal(2)
+	assert_bool(first.has_more()).is_true()
+	assert_bool(second.has_more()).is_false()
+	assert_int(first.statistics.rows_scanned).is_equal(5)
+	assert_int(first.statistics.rows_returned).is_equal(3)
+	assert_int(first.statistics.bytes_read).is_equal(-1)
+	assert_int(first.statistics.pages_read).is_equal(-1)
+	assert_bool(first.statistics.physical_read_bounded).is_false()
+	var staged_session := GDSQLStorageSession.new()
+	assert_bool(
+		storage.stage_insert(table, _hero(6, "Paladin"), staged_session).is_successful(),
+	).is_true()
+	var staged_batch := storage.read_batch(
+		table,
+		staged_session,
+		GDSQLStorageReadRequest.for_columns([&"name"], true).bounded(10),
+	)
+	assert_bool(staged_batch.is_successful()).is_true()
+	assert_int(staged_batch.rows.size()).is_equal(6)
+	assert_bool(staged_batch.rows[0].has_column(&"id")).is_false()
+
+
+func test_bounded_read_rejects_a_cursor_from_another_backend() -> void:
+	var table := _heroes_table()
+	var storage := GDSQLInMemoryTableStorage.new()
+	var request := GDSQLStorageReadRequest.all().bounded(
+		2,
+		GDSQLStorageReadCursor.new(
+			GDSQLStorageBackendIds.CONFIG_FILE,
+			table.database_name,
+			table.name,
+			2,
+		),
+	)
+
+	var batch := storage.read_batch(table, null, request)
+
+	assert_bool(batch.is_successful()).is_false()
+	assert_str(String(batch.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_STORAGE_CURSOR_BACKEND_MISMATCH",
+	)
+	var wrong_source := GDSQLStorageReadRequest.all().bounded(
+		2,
+		GDSQLStorageReadCursor.new(
+			GDSQLStorageBackendIds.IN_MEMORY,
+			table.database_name,
+			&"other_table",
+			2,
+		),
+	)
+	var source_batch := storage.read_batch(table, null, wrong_source)
+	assert_bool(source_batch.is_successful()).is_false()
+	assert_str(String(source_batch.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_STORAGE_CURSOR_SOURCE_MISMATCH",
+	)
+
+
 func _heroes_table() -> GDSQLTableDefinition:
 	var table := GDSQLTableDefinition.new(&"heroes", &"id")
 	table.database_name = &"game_config"
