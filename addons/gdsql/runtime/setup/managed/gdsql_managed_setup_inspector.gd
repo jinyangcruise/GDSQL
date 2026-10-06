@@ -28,7 +28,7 @@ static func inspect_editor(
 			"Base content table",
 			not ready_tables.is_empty(),
 			(
-					"%d base table(s) have schema and storage." % ready_tables.size()
+					_tr("%d base table(s) have schema and storage.") % ready_tables.size()
 					if not ready_tables.is_empty()
 					else "Create the base content database, then add its first table."
 			),
@@ -44,7 +44,7 @@ static func inspect_editor(
 			"First base row",
 			rows > 0,
 			(
-					"The base package contains %d stored row(s)." % rows
+					_tr("The base package contains %d stored row(s).") % rows
 					if rows > 0
 					else "Open a base content table and add its first row."
 			),
@@ -59,7 +59,7 @@ static func inspect_editor(
 			"Model binding",
 			model_count > 0,
 			(
-					"%d user-owned model binding(s) found." % model_count
+					_tr("%d user-owned model binding(s) found.") % model_count
 					if model_count > 0
 					else "Open a base table and generate its first typed model binding."
 			),
@@ -92,7 +92,7 @@ static func _base_package_check(
 		"Base package",
 		complete,
 		(
-				"Base package '%s' contains the '%s' database." % [
+				_tr("Base package '%s' contains the '%s' database.") % [
 					base_source.manifest.package_id,
 					inspection.registration.database_name,
 				]
@@ -109,7 +109,7 @@ static func _cache_check(manifest: GDSQLContentCacheManifest) -> GDSQLSetupCheck
 		"Effective content",
 		manifest != null,
 		(
-				"%d package(s) are cached as '%s'." % [
+				_tr("%d package(s) are cached as '%s'.") % [
 					manifest.packages.size(),
 					manifest.effective_database_name,
 				]
@@ -136,7 +136,7 @@ static func _save_check(snapshot: GDSQLDatabaseRegistrySnapshot) -> GDSQLSetupCh
 		"Active save",
 		complete,
 		(
-				"Save role resolves to '%s'." % registration.database_name
+				_tr("Save role resolves to '%s'.") % registration.database_name
 				if complete
 				else "Create or select a writable save slot for runtime state."
 		),
@@ -154,3 +154,7 @@ static func _ready_tables(
 		if table.schema_exists and table.storage_exists:
 			tables.append(table)
 	return tables
+
+
+static func _tr(message: StringName) -> StringName:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

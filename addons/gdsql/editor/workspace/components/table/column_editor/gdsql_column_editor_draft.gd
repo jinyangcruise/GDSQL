@@ -132,24 +132,24 @@ func get_validation_errors() -> Array[String]:
 	var errors: Array[String] = []
 	var column_name := get_column_name()
 	if column_name == &"":
-		errors.append("A column name is required.")
+		errors.append(tr("A column name is required."))
 	elif not String(column_name).is_valid_identifier():
-		errors.append("Column '%s' must be a valid identifier." % column_name)
+		errors.append(tr("Column '%s' must be a valid identifier.") % column_name)
 	var definition := build_definition()
 	if not definition.has_valid_type_constraint():
-		errors.append("Column '%s' requires a concrete Resource subtype." % column_name)
+		errors.append(tr("Column '%s' requires a concrete Resource subtype.") % column_name)
 	if auto_increment and data_type != TYPE_INT:
-		errors.append("Auto-increment column '%s' must use TYPE_INT." % column_name)
+		errors.append(tr("Auto-increment column '%s' must use TYPE_INT.") % column_name)
 	if generation != GDSQLColumnDefinition.Generation.NONE:
 		if data_type != TYPE_INT:
-			errors.append("Generated column '%s' must use TYPE_INT." % column_name)
+			errors.append(tr("Generated column '%s' must use TYPE_INT.") % column_name)
 		if auto_increment:
-			errors.append("Column '%s' cannot be generated and auto-incremented." % column_name)
+			errors.append(tr("Column '%s' cannot be generated and auto-incremented.") % column_name)
 		if has_default:
-			errors.append("Generated column '%s' cannot declare a static default." % column_name)
+			errors.append(tr("Generated column '%s' cannot declare a static default.") % column_name)
 	if has_default and (not default_valid or not definition.accepts_value(default_value)):
 		errors.append(
-			"Default for column '%s' must be a valid %s value."
+			tr("Default for column '%s' must be a valid %s value.")
 			% [column_name, definition.expected_type_name()],
 		)
 	return errors

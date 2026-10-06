@@ -195,7 +195,7 @@ func _refresh_save_compatibility(active: GDSQLContentCacheManifest) -> void:
 func _request_record_content() -> void:
 	if _pending_save == null:
 		return
-	_record_confirmation.dialog_text = (
+	_record_confirmation.dialog_text = tr(
 			"Record the current effective-content package set for save '%s'?\n\n"
 			+ "This replaces its previous compatibility expectation. Save rows are unchanged."
 	) % _pending_save.database_name

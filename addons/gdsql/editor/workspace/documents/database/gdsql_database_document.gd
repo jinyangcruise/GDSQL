@@ -266,9 +266,9 @@ func _filter_tables(search_text: String) -> void:
 		if matches:
 			visible_count += 1
 	%TableSearchStatus.text = (
-			"%d tables" % total_count
+			tr("%d tables") % total_count
 			if query.is_empty()
-			else "%d of %d tables" % [visible_count, total_count]
+			else tr("%d of %d tables") % [visible_count, total_count]
 	)
 	%NoSearchResults.visible = not query.is_empty() and total_count > 0 and visible_count == 0
 
@@ -294,10 +294,10 @@ func _request_save() -> GDSQLOperationResult:
 	var changes: Array[String] = []
 	var requested_name := _requested_database_name()
 	if requested_name != _original_database_name:
-		changes.append("Rename database '%s' to '%s'." % [_original_database_name, requested_name])
+		changes.append(tr("Rename database '%s' to '%s'.") % [_original_database_name, requested_name])
 	for draft in _draft_tables.get_children():
 		var definition := draft.call("build_definition") as GDSQLTableDefinition
-		changes.append("Create table '%s'." % definition.name)
+		changes.append(tr("Create table '%s'.") % definition.name)
 	for fold in _existing_tables.get_children():
 		var table_change := fold.call("build_change") as GDSQLEditorTableChange
 		for alteration in table_change.alterations:
@@ -386,16 +386,16 @@ func _get_validation_errors() -> Array[String]:
 	var errors: Array[String] = []
 	var database_name := _requested_database_name()
 	if database_name == &"":
-		errors.append("A database name is required.")
+		errors.append(tr("A database name is required."))
 	elif not String(database_name).is_valid_identifier():
-		errors.append("Database '%s' must be a valid identifier." % database_name)
+		errors.append(tr("Database '%s' must be a valid identifier.") % database_name)
 	for draft in _draft_tables.get_children():
 		var draft_errors: Array[String] = draft.call("get_validation_errors")
 		errors.append_array(draft_errors)
 	for fold in _existing_tables.get_children():
 		if not bool(fold.call("is_valid_draft")):
 			errors.append(
-				"Table '%s' contains an invalid column or index change." \
+				tr("Table '%s' contains an invalid column or index change.") \
 						% fold.get("table_name"),
 			)
 	return errors

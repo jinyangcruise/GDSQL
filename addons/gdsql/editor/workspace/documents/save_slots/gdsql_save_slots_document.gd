@@ -183,7 +183,7 @@ func _request_unregister() -> void:
 	if registration == null:
 		return
 	_pending_unregister = registration.name
-	_unregister_confirmation.dialog_text = (
+	_unregister_confirmation.dialog_text = tr(
 			"Unregister save slot '%s'?\n\n"
 			+ "Its database files at '%s' will remain unchanged, but this logical "
 			+ "database will no longer appear as a slot until it is registered again."

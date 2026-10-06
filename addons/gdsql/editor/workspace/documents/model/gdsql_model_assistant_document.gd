@@ -75,7 +75,7 @@ func configure(
 	_database = database
 	_inspections = inspections.duplicate()
 	_role_bindings = role_bindings.duplicate()
-	%Title.text = "Model binding · %s" % table.name
+	%Title.text = tr("Model binding · %s") % table.name
 	%TableValue.text = _table_identity(table)
 	_model_root.text = _load_model_root()
 	_select_role(database_role)
@@ -93,7 +93,7 @@ func refresh_table(
 		return
 	_table = table
 	_database = database
-	%Title.text = "Model binding · %s" % table.name
+	%Title.text = tr("Model binding · %s") % table.name
 	%TableValue.text = _table_identity(table)
 	_refresh_preview()
 	_refresh_cross_role_helper()
@@ -211,12 +211,12 @@ func _refresh_preview() -> void:
 		%Generate.disabled = true
 		%OpenUserScript.disabled = true
 		return
-	%GeneratedPath.text = "Generated base: %s%s" % [
+	%GeneratedPath.text = tr("Generated base: %s%s") % [
 		_source.generated_path,
 		" · will be replaced" if FileAccess.file_exists(_source.generated_path) else "",
 	]
 	var user_exists := FileAccess.file_exists(_source.user_path)
-	%UserPath.text = "User model: %s%s" % [
+	%UserPath.text = tr("User model: %s%s") % [
 		_source.user_path,
 		" · preserved" if user_exists else " · created once",
 	]
@@ -349,7 +349,7 @@ func _request_generation() -> void:
 		return
 	if FileAccess.file_exists(_source.generated_path):
 		%OverwriteConfirmation.dialog_text = (
-				"Replace the generated schema base?\n\n%s\n\nThe user model will not be changed."
+				tr("Replace the generated schema base?\n\n%s\n\nThe user model will not be changed.")
 				% _source.generated_path
 		)
 		%OverwriteConfirmation.popup_centered(Vector2i(560, 220))
@@ -367,8 +367,8 @@ func _save_preferences_if_valid() -> void:
 		return
 	var settings_error := _save_model_settings()
 	if settings_error != OK:
-		%Status.text = "The model settings could not be saved (error %d)." \
-				% settings_error
+		%Status.text = tr("The model settings could not be saved (error %s).") \
+				% error_string(settings_error)
 
 
 func _write_sources() -> void:
@@ -384,29 +384,29 @@ func _write_sources() -> void:
 			ProjectSettings.globalize_path(user_directory),
 		)
 	if directory_error != OK:
-		%Status.text = "Could not create the model directories (error %d)." % directory_error
+		%Status.text = tr("Could not create the model directories (error %s).") % error_string(directory_error)
 		return
 	var generated_error := _write_text(_source.generated_path, _source.generated_source)
 	if generated_error != OK:
-		%Status.text = "Could not write the generated model (error %d)." % generated_error
+		%Status.text = tr("Could not write the generated model (error %s).") % error_string(generated_error)
 		return
 	var user_created := false
 	if not FileAccess.file_exists(_source.user_path):
 		var user_error := _write_text(_source.user_path, _source.user_source)
 		if user_error != OK:
-			%Status.text = "Generated the base, but could not create the user model (error %d)." \
-					% user_error
+			%Status.text = tr("Generated the base, but could not create the user model (error %s).") \
+					% error_string(user_error)
 			return
 		user_created = true
 	var settings_error := _save_model_settings()
-	var message := (
+	var message := tr(
 			"Generated the schema base and created the user model."
 			if user_created
 			else "Regenerated the schema base. The user model was preserved."
 	)
 	if settings_error != OK:
-		message += " The model settings could not be saved (error %d)." \
-				% settings_error
+		message += " The model settings could not be saved (error %s)." \
+				% error_string(settings_error)
 	%Status.text = message
 	scripts_generated.emit(_source.generated_path, _source.user_path)
 	%OpenUserScript.disabled = false

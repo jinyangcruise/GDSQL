@@ -275,28 +275,28 @@ func _column_removal_message(draft: GDSQLEditorColumnDraft) -> String:
 	if draft.original != null:
 		original_names.append(draft.original.name)
 	var lines: Array[String] = [
-		"Stage removal of column '%s' from '%s'?" % [draft.get_column_name(), table_name],
+		tr("Stage removal of column '%s' from '%s'?") % [draft.get_column_name(), table_name],
 	]
 	if not original_names.is_empty():
 		lines.append(
-			"Saving will permanently delete its values from %d stored row(s)." % _row_count,
+			tr("Saving will permanently delete its values from %d stored row(s).") % _row_count,
 		)
 	var local_indexes := _dependent_index_names(original_names)
 	if not local_indexes.is_empty():
-		lines.append("Dependent indexes also staged for removal: %s." % _join_names(local_indexes))
+		lines.append(tr("Dependent indexes also staged for removal: %s.") % _join_names(local_indexes))
 	var local_keys := _dependent_foreign_key_names(original_names)
 	if not local_keys.is_empty():
-		lines.append("Local foreign keys also staged for removal: %s." % _join_names(local_keys))
+		lines.append(tr("Local foreign keys also staged for removal: %s.") % _join_names(local_keys))
 	var draft_dependencies := _dependent_draft_names(current_names)
 	if not draft_dependencies.is_empty():
-		lines.append("Unsaved dependent constraints will be discarded: %s." % ", ".join(draft_dependencies))
+		lines.append(tr("Unsaved dependent constraints will be discarded: %s.") % ", ".join(draft_dependencies))
 	var incoming := _incoming_foreign_key_dependencies(original_names)
 	if not incoming.is_empty():
 		lines.append(
-			"Blocked by foreign keys in other tables: %s. Remove and save those constraints first." \
+			tr("Blocked by foreign keys in other tables: %s. Remove and save those constraints first.") \
 					% ", ".join(incoming),
 		)
-	lines.append("Right-click the column again to restore it before Save Changes.")
+	lines.append(tr("Right-click the column again to restore it before Save Changes."))
 	return "\n\n".join(lines)
 
 

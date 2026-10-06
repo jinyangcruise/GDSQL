@@ -292,13 +292,13 @@ func _remove_registered_reference(reference: GDSQLEditorContentReference) -> voi
 	var remove_error := _reference_store.remove(reference)
 	if remove_error != OK:
 		%RelationshipHelperStatus.text = (
-				"Could not remove the editor picker (%s)." % error_string(remove_error)
+				tr("Could not remove the editor picker (%s).") % error_string(remove_error)
 		)
 		return
 	_refresh_registered_references()
 	reference_registered.emit(_registration_name, _table.name)
 	%RelationshipHelperStatus.text = (
-			"Removed %s from the editor picker. Model code was not changed."
+			tr("Removed %s from the editor picker. Model code was not changed.")
 			% reference.relationship_name
 	)
 
@@ -307,7 +307,7 @@ func _on_registered_snippet_copied(
 		reference: GDSQLEditorContentReference,
 ) -> void:
 	%RelationshipHelperStatus.text = (
-			"Copied the %s relationship declaration." % reference.relationship_name
+			tr("Copied the %s relationship declaration.") % reference.relationship_name
 	)
 
 

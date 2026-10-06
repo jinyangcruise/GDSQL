@@ -121,7 +121,7 @@ func _update_safety_presentation() -> void:
 func _update_summary() -> void:
 	var suffix := _where.get_summary()
 	if suffix.is_empty() and _all_rows_confirmation.button_pressed:
-		suffix = " · ALL ROWS CONFIRMED"
+		suffix = tr(" · ALL ROWS CONFIRMED")
 	_summary.text = (
 			"DELETE FROM %s%s" % [get_selected_table(), suffix]
 			if get_selected_table() != &""

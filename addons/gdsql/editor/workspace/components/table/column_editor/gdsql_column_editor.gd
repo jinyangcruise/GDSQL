@@ -106,21 +106,21 @@ func get_validation_errors(primary_key: StringName) -> Array[String]:
 		errors.append_array(draft.get_validation_errors())
 		var column_name := draft.get_column_name()
 		if names.has(column_name):
-			errors.append("Column '%s' is declared more than once." % column_name)
+			errors.append(tr("Column '%s' is declared more than once.") % column_name)
 		names[column_name] = true
 		if draft.auto_increment:
 			auto_increment_columns += 1
 	if names.is_empty():
-		errors.append("A table requires at least one column.")
+		errors.append(tr("A table requires at least one column."))
 	if primary_key == &"" or not names.has(primary_key):
-		errors.append("Primary key '%s' must reference a declared column." % primary_key)
+		errors.append(tr("Primary key '%s' must reference a declared column.") % primary_key)
 	if auto_increment_columns > 1:
-		errors.append("Only one auto-increment column is supported.")
+		errors.append(tr("Only one auto-increment column is supported."))
 	elif auto_increment_columns == 1:
 		for draft in _drafts:
 			if not draft.remove and draft.auto_increment \
 					and draft.get_column_name() != primary_key:
-				errors.append("Auto-increment is supported only on the primary key.")
+				errors.append(tr("Auto-increment is supported only on the primary key."))
 	return errors
 
 

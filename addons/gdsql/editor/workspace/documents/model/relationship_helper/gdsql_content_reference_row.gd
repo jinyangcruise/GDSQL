@@ -23,7 +23,7 @@ func configure(reference: GDSQLEditorContentReference) -> void:
 		reference.target_column_name,
 	]
 	%Connection.tooltip_text = (
-			"Target registration: %s\nTarget model: %s" % [
+			tr("Target registration: %s\nTarget model: %s") % [
 				reference.target_registration_name,
 				reference.target_model_class,
 			]

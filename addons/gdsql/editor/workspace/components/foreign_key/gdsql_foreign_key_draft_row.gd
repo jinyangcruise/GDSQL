@@ -59,20 +59,20 @@ func get_validation_errors() -> Array[String]:
 	var errors: Array[String] = []
 	var definition := build_definition()
 	if definition.name == &"":
-		errors.append("Every foreign key requires a constraint name.")
+		errors.append(tr("Every foreign key requires a constraint name."))
 	elif not String(definition.name).is_valid_identifier():
-		errors.append("Foreign key '%s' must use a valid identifier." % definition.name)
+		errors.append(tr("Foreign key '%s' must use a valid identifier.") % definition.name)
 	var local := _source_table.get_column(definition.column) if _source_table != null else null
 	if local == null:
-		errors.append("Foreign key '%s' requires a local column." % definition.name)
+		errors.append(tr("Foreign key '%s' requires a local column.") % definition.name)
 	elif not GDSQLForeignKeyDefinition.supports_column_type(local.data_type):
-		errors.append("Foreign key column '%s' must use int, String, or StringName." % local.name)
+		errors.append(tr("Foreign key column '%s' must use int, String, or StringName.") % local.name)
 	var target := _find_table(definition.referenced_table)
 	if target == null:
-		errors.append("Foreign key '%s' requires a referenced table." % definition.name)
+		errors.append(tr("Foreign key '%s' requires a referenced table.") % definition.name)
 	elif definition.referenced_column == &"" \
 			or not _is_compatible_target(target, definition.referenced_column, local):
-		errors.append("Foreign key '%s' requires a matching unique target column." % definition.name)
+		errors.append(tr("Foreign key '%s' requires a matching unique target column.") % definition.name)
 	return errors
 
 

@@ -984,7 +984,7 @@ msgstr "托管包数据必须位于其包根目录下的子目录中。"
 msgid ""
 "Rows load into memory. ConfigFile remains the hydration and checkpoint "
 "source."
-msgstr "行数据会载入内存，ConfigFile 仍是载入与检查点保存的来源。"
+msgstr "行数据会载入内存，cfg 文件仍是载入与检查点保存的来源。"
 
 #: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "DATABASE SETUP"
@@ -1042,7 +1042,7 @@ msgstr "运行时存储"
 #: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 #: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "ConfigFile"
-msgstr "ConfigFile"
+msgstr "cfg 文件"
 
 #: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "Runtime role"
@@ -1062,15 +1062,15 @@ msgstr "数据根目录"
 
 #: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "ConfigFile — read and write durable files directly"
-msgstr "ConfigFile — 直接读写持久化文件"
+msgstr "cfg 文件 — 直接读写持久化文件"
 
 #: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "In memory — hydrate from ConfigFile and checkpoint changes"
-msgstr "内存 — 从 ConfigFile 载入，并对变更做检查点保存"
+msgstr "内存 — 从 cfg 文件 载入，并对变更做检查点保存"
 
 #: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "Catalog, schema, and rows use ConfigFile storage directly."
-msgstr "目录、模式和行数据直接使用 ConfigFile 存储。"
+msgstr "目录、模式和行数据直接使用 cfg 文件存储。"
 
 #: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid ""
@@ -2457,8 +2457,7 @@ msgid "Enter the new row, then save it from the action bar."
 msgstr "请输入新行内容，然后从操作栏保存它。"
 
 #: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:672
-msgid ""
-"The transaction failed and was rolled back; pending edits were preserved."
+msgid "The transaction failed and was rolled back; pending edits were preserved."
 msgstr "事务失败并已回滚；待处理的编辑已保留。"
 
 #: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:685
@@ -2623,6 +2622,9 @@ msgid "Immutable packages build one effective runtime content database."
 msgstr "不可变软件包构建出一套有效的运行时内容数据库。"
 
 msgid "Base Content table"
+msgstr "基础内容表"
+
+msgid "Base content table"
 msgstr "基础内容表"
 
 msgid "%d base table(s) have schema and storage."
@@ -4422,3 +4424,531 @@ msgstr "无法读取被引用的表“%s.%s”。"
 
 msgid "Foreign key '%s' has value '%s' without a matching '%s.%s' row."
 msgstr "外键“%s”的取值“%s”在“%s.%s”中没有匹配的行。"
+
+msgid "Content profile"
+msgstr ""
+
+msgid "Choose Direct Content or Managed Content in the GDSQL welcome page."
+msgstr ""
+
+msgid "%d base table(s) have schema and storage."
+msgstr ""
+
+msgid "Stage removal of column '%s' from '%s'?"
+msgstr ""
+
+msgid "Saving will permanently delete its values from %d stored row(s)."
+msgstr ""
+
+msgid "Dependent indexes also staged for removal: %s."
+msgstr ""
+
+msgid "Local foreign keys also staged for removal: %s."
+msgstr ""
+
+msgid "Unsaved dependent constraints will be discarded: %s."
+msgstr ""
+
+msgid "Blocked by foreign keys in other tables: %s. Remove and save those constraints first."
+msgstr ""
+
+msgid "Right-click the column again to restore it before Save Changes."
+msgstr ""
+
+msgid "%d tables"
+msgstr ""
+
+msgid "%d of %d tables"
+msgstr ""
+
+msgid "Rename database '%s' to '%s'."
+msgstr ""
+
+msgid "Create table '%s'."
+msgstr ""
+
+msgid "Unsaved changes"
+msgstr ""
+
+msgid "Database '%s' must be a valid identifier."
+msgstr ""
+
+msgid "Table '%s' contains an invalid column or index change."
+msgstr ""
+
+msgid "Replace the generated schema base?\n\n%s\n\nThe user model will not be changed."
+msgstr ""
+
+msgid "Return to profile selection? This changes onboarding guidance only. Existing databases, packages, models, and saves will not be moved or deleted."
+msgstr ""
+
+msgid "Managed content uses immutable packages and a generated effective-content database."
+msgstr ""
+
+msgid "Direct content reads project-authored definitions from res://data."
+msgstr ""
+
+msgid "\n\nGDSQL will not move or rewrite existing databases. Changing profiles later "
+"requires an explicit content migration."
+msgstr ""
+
+msgid "Delete the row whose primary key is %s?"
+msgstr ""
+
+msgid "Delete %d selected row(s)? This operation is atomic."
+msgstr ""
+
+msgid "This query result has unsaved row changes. Close it and discard the draft?"
+msgstr ""
+
+msgid "Every foreign key requires a constraint name."
+msgstr ""
+
+msgid "Foreign key '%s' must use a valid identifier."
+msgstr ""
+
+msgid "Foreign key '%s' requires a local column."
+msgstr ""
+
+msgid "Foreign key column '%s' must use int, String, or StringName."
+msgstr ""
+
+msgid "Foreign key '%s' requires a referenced table."
+msgstr ""
+
+msgid "Foreign key '%s' requires a matching unique target column."
+msgstr ""
+
+msgid "A column name is required."
+msgstr ""
+
+msgid "Column '%s' must be a valid identifier."
+msgstr ""
+
+msgid "Column '%s' requires a concrete Resource subtype."
+msgstr ""
+
+msgid "Generated column '%s' must use TYPE_INT."
+msgstr ""
+
+msgid "Column '%s' cannot be generated and auto-incremented."
+msgstr ""
+
+msgid "Generated column '%s' cannot declare a static default."
+msgstr ""
+
+msgid "Default for column '%s' must be a valid %s value."
+msgstr ""
+
+msgid "Column '%s' is declared more than once."
+msgstr ""
+
+msgid "A table requires at least one column."
+msgstr ""
+
+msgid "Primary key '%s' must reference a declared column."
+msgstr ""
+
+msgid "Only one auto-increment column is supported."
+msgstr ""
+
+msgid "Auto-increment is supported only on the primary key."
+msgstr ""
+
+msgid "A table name is required."
+msgstr ""
+
+msgid "Table '%s' must be a valid identifier."
+msgstr ""
+
+msgid "Table '%s' requires a primary key."
+msgstr ""
+
+msgid "Every index requires a name."
+msgstr ""
+
+msgid "Index '%s' is declared more than once." 
+msgstr ""
+
+msgid "Foreign key '%s' is declared more than once."
+msgstr ""
+
+msgid "New table: %s"
+msgstr ""
+
+msgid "New table"
+msgstr ""
+
+msgid "Cannot Remove Column"
+msgstr ""
+
+msgid "Remove and save the listed foreign keys first."
+msgstr ""
+
+msgid "Edit %s"
+msgstr ""
+
+msgid "GDSQL DBs"
+msgstr ""
+
+msgid "GDSQL Logs"
+msgstr ""
+
+msgid "belongs_to %s · %s → %s.%s"
+msgstr ""
+
+msgid "has_one"
+msgstr ""
+
+msgid "has_many"
+msgstr ""
+
+msgid "editable"
+msgstr ""
+
+msgid "read only"
+msgstr ""
+
+msgid "%d row(s)"
+msgstr ""
+
+msgid "rows can be added"
+msgstr ""
+
+msgid "projected result; adding rows is unavailable"
+msgstr ""
+
+msgid "Only the first selected row was copied into the draft."
+msgstr ""
+
+msgid "Change '%s' before saving."
+msgstr ""
+
+msgid "Review the copied unique values before saving."
+msgstr ""
+
+msgid "Owned Resource values were deep-cloned; review them before saving."
+msgstr ""
+
+msgid "1 new row"
+msgstr ""
+
+msgid "%d edited"
+msgstr ""
+
+msgid "%d selected"
+msgstr ""
+
+msgid "invalid values"
+msgstr ""
+
+msgid "This foreign key must be removed with its selected column."
+msgstr ""
+
+msgid "Accepted Resource type: %s"
+msgstr ""
+
+msgid "Open expanded text editor as read only"
+msgstr ""
+
+msgid "Enter a %s value using Godot Variant syntax."
+msgstr ""
+
+msgid "Target registration: %s\nTarget model: %s"
+msgstr ""
+
+msgid "Maximum WHERE nesting depth reached."
+msgstr ""
+
+msgid "Expand group"
+msgstr ""
+
+msgid "Edit one selected row in a focused table editor. "
+"Disable to edit table cells directly."
+msgstr ""
+
+msgid "Build a typed WHERE filter. Resource columns expose supported scalar property leaves."
+msgstr ""
+
+msgid "Copy the first selected row into an editable Add Row draft"
+msgstr ""
+
+msgid "Duplicate %d selected row(s) in one transaction; owned Resource values are omitted"
+msgstr ""
+
+msgid "Delete %d selected row(s) in one transaction"
+msgstr ""
+
+msgid "Undo %s"
+msgstr ""
+
+msgid "No committed row update to undo"
+msgstr ""
+
+msgid "\n\nNote: Undo restores editable values;\n"
+"updated_at records the undo operation time. \n"
+"History lasts only for this editor session."
+msgstr ""
+
+msgid "Redo %s"
+msgstr ""
+
+msgid "No undone row update to redo"
+msgstr ""
+
+msgid "\n\nNote: Undo restores editable values;\n"
+"`updated_at` records the undo operation time. \n"
+"History lasts only for this editor session."
+msgstr ""
+
+msgid "Unnamed column"
+msgstr ""
+
+msgid "Immutable base package source. Runtime reads a generated effective-content database."
+msgstr ""
+
+msgid "Mutable player state for one save slot, hydrated into memory and checkpointed."
+msgstr ""
+
+msgid "Rows load into memory. ConfigFile remains the hydration and checkpoint source."
+msgstr ""
+
+msgid "Creates manifest.cfg, assets/, and the normal data/databases.cfg catalog."
+msgstr ""
+
+msgid "Buffered"
+msgstr ""
+
+msgid "Paste this entry inside the save model's relationships() return array."
+msgstr ""
+
+msgid "Picker registered and relationship copied. Paste it inside relationships()."
+msgstr ""
+
+msgid "Could not remove the editor picker (%s)."
+msgstr ""
+
+msgid "Model binding · %s"
+msgstr ""
+
+msgid "The model preview is invalid."
+msgstr ""
+
+msgid "User model: %s%s"
+msgstr ""
+
+msgid "The model settings could not be saved (error %d)."
+msgstr ""
+
+msgid "Could not create the model directories (error %s)."
+msgstr ""
+
+msgid "Could not write the generated model (error %s)."
+msgstr ""
+
+msgid "Generated the base, but could not create the user model (error %s)."
+msgstr ""
+
+msgid "Generated the schema base and created the user model."
+msgstr ""
+
+msgid "Regenerated the schema base. The user model was preserved."
+msgstr ""
+
+msgid " The model settings could not be saved (error %s)."
+msgstr ""
+
+msgid " · ALL ROWS CONFIRMED"
+msgstr ""
+
+msgid "%d row(s) affected."
+msgstr ""
+
+msgid "QUERY RESULT · %s"
+msgstr ""
+
+msgid "No rows returned."
+msgstr ""
+
+msgid "%d row(s) returned. Select a row to inspect or edit it."
+msgstr ""
+
+msgid "%d row(s) returned. Double-click an editable value to change it."
+msgstr ""
+
+msgid "Row %d selected. Double-click a value to edit it."
+msgstr ""
+
+msgid "Editing row %d of %d."
+msgstr ""
+
+msgid "Invalid row values."
+msgstr ""
+
+msgid "Saved changes to %d row(s)."
+msgstr ""
+
+msgid "%d row(s) saved; %d failed update(s) remain pending."
+msgstr ""
+
+msgid "Page %d of %d · rows %d–%d of %d"
+msgstr ""
+
+msgid " · %d assignment(s)%s"
+msgstr ""
+
+msgid "%d columns · Primary key: %s"
+msgstr ""
+
+msgid "%s Rows could not be reloaded."
+msgstr ""
+
+msgid "Could not load table rows."
+msgstr ""
+
+msgid "Showing the first %d referenced rows. Type to search this bounded page."
+msgstr ""
+
+msgid "Choose a referenced row. Type while the list is open to search."
+msgstr ""
+
+msgid "Referenced rows could not be loaded."
+msgstr ""
+
+msgid "Showing the first %d content rows. Type to search this bounded page."
+msgstr ""
+
+msgid "Choose a content row. Type while the list is open to search."
+msgstr ""
+
+msgid "Content rows could not be loaded."
+msgstr ""
+
+msgid "The WHERE filter is invalid."
+msgstr ""
+
+msgid "Committing %d edited row(s) as one transaction…"
+msgstr ""
+
+msgid "%d selected row(s) deleted atomically."
+msgstr ""
+
+msgid "Deleting %d row(s) as one transaction…"
+msgstr ""
+
+msgid "%d edited row(s) committed atomically."
+msgstr ""
+
+msgid "Duplicating %d selected row(s) as one transaction…"
+msgstr ""
+
+msgid "Page %d of %d · %d rows"
+msgstr ""
+
+msgid "Review and apply the pending database changes."
+msgstr ""
+
+msgid "Discard / Refresh"
+msgstr ""
+
+msgid "Discard local schema drafts and reload the durable database catalog."
+msgstr ""
+
+msgid "Create a database under a selected data root."
+msgstr ""
+
+msgid "Create Table"
+msgstr ""
+
+msgid "Create a table in the active database."
+msgstr ""
+
+msgid "Forget a database registration while leaving its files unchanged."
+msgstr ""
+
+msgid "Delete a table and its stored rows."
+msgstr ""
+
+msgid "Discover databases under res://data."
+msgstr ""
+
+msgid "Refresh registered database metadata."
+msgstr ""
+
+msgid "Open the selected database registration."
+msgstr ""
+
+msgid "Select a table in the active database."
+msgstr ""
+
+msgid "Open the model-binding assistant for a table."
+msgstr ""
+
+msgid "Welcome"
+msgstr ""
+
+msgid "Show the GDSQL welcome page."
+msgstr ""
+
+msgid "Install Runtime"
+msgstr ""
+
+msgid "Install the scene-backed GDSQLRuntime project autoload."
+msgstr ""
+
+msgid "Create, inspect, and select the active save slot."
+msgstr ""
+
+msgid "Configure packages, build effective content, and inspect save compatibility."
+msgstr ""
+
+msgid "Create a writable save database with recommended defaults."
+msgstr ""
+
+msgid "Use Save Slot"
+msgstr ""
+
+msgid "Bind a registered database as the active save role."
+msgstr ""
+
+msgid "Permanently delete one validated standard save-slot database."
+msgstr ""
+
+msgid "Open the project query-graph folder."
+msgstr ""
+
+msgid "Save Graph"
+msgstr ""
+
+msgid "Save this query graph and its node layout."
+msgstr ""
+
+msgid "Add a SELECT operation node."
+msgstr ""
+
+msgid "Add a LEFT JOIN operation node."
+msgstr ""
+
+msgid "Add an INSERT operation node."
+msgstr ""
+
+msgid "Add an UPDATE operation node."
+msgstr ""
+
+msgid "Add a DELETE operation node."
+msgstr ""
+
+msgid "Compile and execute the selected query operation."
+msgstr ""
+
+msgid "Add a row when the query result contains every table column."
+msgstr ""
+
+msgid "Remove the selected query operation node."
+msgstr ""
+
+msgid "Undo the latest committed row-value update."
+msgstr ""
+
+msgid "Redo the latest undone row-value update."
+msgstr ""
