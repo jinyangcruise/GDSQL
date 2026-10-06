@@ -153,5 +153,5 @@ func execute_sql(source: String) -> GDSQLQueryResult:
 	return result
 
 
-static func _tr(message: StringName) -> StringName:
+static func _tr(message: String) -> String:
 	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

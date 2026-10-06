@@ -200,5 +200,5 @@ static func _singularize(value: String) -> String:
 	return value
 
 
-static func _tr(message: StringName) -> StringName:
+static func _tr(message: String) -> String:
 	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

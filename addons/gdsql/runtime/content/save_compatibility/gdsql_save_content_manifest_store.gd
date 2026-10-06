@@ -11,5 +11,5 @@ func load_manifest() -> GDSQLOperationResult
 func save_manifest(manifest: GDSQLSaveContentManifest) -> GDSQLOperationResult
 
 
-func _tr(message: StringName) -> StringName:
+func _tr(message: String) -> String:
 	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

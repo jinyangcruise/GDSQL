@@ -335,5 +335,5 @@ func _configure_update_history(
 		_history_after_rows.append(GDSQLRowRecord.new(after_snapshot))
 
 
-static func _tr(message: StringName) -> StringName:
+static func _tr(message: String) -> String:
 	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

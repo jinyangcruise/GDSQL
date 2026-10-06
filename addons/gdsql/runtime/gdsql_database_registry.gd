@@ -224,5 +224,5 @@ func _operation_failure(code: StringName, message: String) -> GDSQLOperationResu
 	return result
 
 
-func _tr(message: StringName) -> StringName:
+func _tr(message: String) -> String:
 	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

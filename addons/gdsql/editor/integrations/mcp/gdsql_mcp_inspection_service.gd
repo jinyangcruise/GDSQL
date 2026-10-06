@@ -578,5 +578,5 @@ func _runtime_adapter_configured() -> bool:
 	return bool(_runtime_adapter_provider.call()) if _runtime_adapter_provider.is_valid() else false
 
 
-func _tr(message: StringName) -> StringName:
+func _tr(message: String) -> String:
 	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

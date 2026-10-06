@@ -34,5 +34,5 @@ func _source_columns(
 	return columns
 
 
-func _tr(message: StringName) -> StringName:
+func _tr(message: String) -> String:
 	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

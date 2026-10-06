@@ -7,5 +7,5 @@ extends RefCounted
 func fingerprint(source: GDSQLContentPackageSource) -> GDSQLOperationResult
 
 
-func _tr(message: StringName) -> StringName:
+func _tr(message: String) -> String:
 	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

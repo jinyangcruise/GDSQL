@@ -30,7 +30,7 @@ static func inspect_editor(
 			(
 					_tr("%d base table(s) have schema and storage.") % ready_tables.size()
 					if not ready_tables.is_empty()
-					else "Create the base content database, then add its first table."
+					else _tr("Create the base content database, then add its first table.")
 			),
 			GDSQLSetupCheck.ACTION_OPEN_BASE_DATABASE,
 		),
@@ -46,7 +46,7 @@ static func inspect_editor(
 			(
 					_tr("The base package contains %d stored row(s).") % rows
 					if rows > 0
-					else "Open a base content table and add its first row."
+					else _tr("Open a base content table and add its first row.")
 			),
 			GDSQLSetupCheck.ACTION_OPEN_BASE_TABLE,
 		),
@@ -61,7 +61,7 @@ static func inspect_editor(
 			(
 					_tr("%d user-owned model binding(s) found.") % model_count
 					if model_count > 0
-					else "Open a base table and generate its first typed model binding."
+					else _tr("Open a base table and generate its first typed model binding.")
 			),
 			GDSQLSetupCheck.ACTION_OPEN_BASE_TABLE,
 		),
@@ -72,9 +72,9 @@ static func inspect_editor(
 			"Runtime adapter",
 			runtime_adapter_configured,
 			(
-					"GDSQLRuntime is installed as the project autoload."
+					_tr("GDSQLRuntime is installed as the project autoload.")
 					if runtime_adapter_configured
-					else "Install GDSQLRuntime before managed startup is enabled."
+					else _tr("Install GDSQLRuntime before managed startup is enabled.")
 			),
 			GDSQLSetupCheck.ACTION_INSTALL_RUNTIME,
 		),
@@ -97,7 +97,7 @@ static func _base_package_check(
 					inspection.registration.database_name,
 				]
 				if complete
-				else "Create a valid base package and its content database."
+				else _tr("Create a valid base package and its content database.")
 		),
 		GDSQLSetupCheck.ACTION_OPEN_MANAGED_CONTENT,
 	)
@@ -114,7 +114,7 @@ static func _cache_check(manifest: GDSQLContentCacheManifest) -> GDSQLSetupCheck
 					manifest.effective_database_name,
 				]
 				if manifest != null
-				else "Validate packages and build the effective-content cache."
+				else _tr("Validate packages and build the effective-content cache.")
 		),
 		GDSQLSetupCheck.ACTION_OPEN_MANAGED_CONTENT,
 	)
@@ -138,7 +138,7 @@ static func _save_check(snapshot: GDSQLDatabaseRegistrySnapshot) -> GDSQLSetupCh
 		(
 				_tr("Save role resolves to '%s'.") % registration.database_name
 				if complete
-				else "Create or select a writable save slot for runtime state."
+				else _tr("Create or select a writable save slot for runtime state.")
 		),
 		GDSQLSetupCheck.ACTION_MANAGE_SAVE_SLOTS,
 	)
@@ -156,5 +156,5 @@ static func _ready_tables(
 	return tables
 
 
-static func _tr(message: StringName) -> StringName:
+static func _tr(message: String) -> String:
 	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

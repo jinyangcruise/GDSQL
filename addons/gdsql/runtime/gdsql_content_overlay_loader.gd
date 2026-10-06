@@ -396,5 +396,5 @@ func _add_error(
 	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
 
 
-func _tr(message: StringName) -> StringName:
+func _tr(message: String) -> String:
 	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

@@ -364,5 +364,5 @@ static func _database_error(
 	return result
 
 
-static func _tr(message: StringName) -> StringName:
+static func _tr(message: String) -> String:
 	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)
