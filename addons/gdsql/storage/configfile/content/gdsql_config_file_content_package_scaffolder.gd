@@ -30,9 +30,9 @@ func scaffold(
 		if directory_error != OK:
 			return _error(
 				&"GDSQL_CONTENT_PACKAGE_DIRECTORY_CREATE_FAILED",
-				"Could not create content package directory '%s' (error %d)." % [
+				_tr("Could not create content package directory '%s' (error %s).") % [
 					path,
-					directory_error,
+					error_string(directory_error),
 				],
 			)
 	var manifest_path := package_root.path_join(MANIFEST_FILE)
@@ -42,9 +42,9 @@ func scaffold(
 		if load_error != OK:
 			return _error(
 				&"GDSQL_CONTENT_PACKAGE_MANIFEST_LOAD_FAILED",
-				"Could not load content package manifest '%s' (error %d)." % [
+				_tr("Could not load content package manifest '%s' (error %s).") % [
 					manifest_path,
-					load_error,
+					error_string(load_error),
 				],
 			)
 	_set_missing(config, "id", String(manifest.package_id))
@@ -58,9 +58,9 @@ func scaffold(
 	if save_error != OK:
 		return _error(
 			&"GDSQL_CONTENT_PACKAGE_MANIFEST_SAVE_FAILED",
-			"Could not save content package manifest '%s' (error %d)." % [
+			_tr("Could not save content package manifest '%s' (error %s)." )% [
 				manifest_path,
-				save_error,
+				error_string(save_error),
 			],
 		)
 	var loaded := GDSQLConfigFileContentPackageManifestStore.new().load_manifest(package_root)
@@ -82,3 +82,7 @@ func _error(code: StringName, message: String) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
 	return result
+
+
+func _tr(message: StringName) -> StringName:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

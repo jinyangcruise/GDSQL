@@ -430,7 +430,7 @@ func _request_redo() -> GDSQLOperationResult:
 
 
 func _history_blocked(action_name: String) -> GDSQLOperationResult:
-	%Status.text = "%s is unavailable while the table has a pending draft." % action_name
+	%Status.text = tr("%s is unavailable while the table has a pending draft.") % tr(action_name)
 	var result := GDSQLOperationResult.new()
 	result.add_diagnostic(
 		GDSQLQueryDiagnostic.new(&"GDSQL_EDITOR_MUTATION_HISTORY_DRAFT_PENDING", %Status.text),

@@ -30,7 +30,7 @@ func materialize(rows: GDSQLRowSet, mapping: GDSQLResultMapping = null) -> GDSQL
 				result.add_diagnostic(
 					GDSQLQueryDiagnostic.new(
 						&"GDSQL_MATERIALIZATION_UNKNOWN_COLUMN",
-						"Result column '%s' does not exist." % source_column,
+						_tr("Result column '%s' does not exist.") % source_column,
 					),
 				)
 				return result
@@ -39,7 +39,7 @@ func materialize(rows: GDSQLRowSet, mapping: GDSQLResultMapping = null) -> GDSQL
 				result.add_diagnostic(
 					GDSQLQueryDiagnostic.new(
 						&"GDSQL_MATERIALIZATION_UNKNOWN_PROPERTY",
-						"Resource property '%s' does not exist." % property_name,
+						_tr("Resource property '%s' does not exist.") % property_name,
 					),
 				)
 				return result

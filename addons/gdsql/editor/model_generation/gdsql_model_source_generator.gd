@@ -37,7 +37,7 @@ func build(
 	if not class_name_text.is_valid_identifier():
 		return _failure(
 			&"GDSQL_MODEL_SOURCE_CLASS_INVALID",
-			"Model class '%s' is not a valid GDScript identifier." % class_name_text,
+			_tr("Model class '%s' is not a valid GDScript identifier.") % class_name_text,
 		)
 	if database_role == &"":
 		return _failure(
@@ -56,12 +56,12 @@ func build(
 		if not property_name.is_valid_identifier():
 			return _failure(
 				&"GDSQL_MODEL_SOURCE_COLUMN_INVALID",
-				"Column '%s' cannot be represented as a GDScript property." % column.name,
+				_tr("Column '%s' cannot be represented as a GDScript property.") % column.name,
 			)
 		if RESERVED_PROPERTIES.has(column.name):
 			return _failure(
 				&"GDSQL_MODEL_SOURCE_COLUMN_RESERVED",
-				"Column '%s' conflicts with required model metadata." % column.name,
+				_tr("Column '%s' conflicts with required model metadata.") % column.name,
 			)
 
 	var result := GDSQLOperationResult.new()
@@ -183,7 +183,7 @@ func _add_resource_fallback_warning(
 	result.add_diagnostic(
 		GDSQLQueryDiagnostic.new(
 			&"GDSQL_MODEL_SOURCE_RESOURCE_FALLBACK",
-			"Column '%s' uses Resource in generated code because its exact script type has no global class name." \
+			_tr("Column '%s' uses Resource in generated code because its exact script type has no global class name.") \
 					% column.name,
 			GDSQLQueryDiagnostic.Severity.WARNING,
 		),
@@ -198,3 +198,7 @@ func _failure(code: StringName, message: String) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
 	return result
+
+
+func _tr(message: StringName) -> StringName:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

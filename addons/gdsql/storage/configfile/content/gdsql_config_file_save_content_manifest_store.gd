@@ -110,7 +110,7 @@ func _error(
 	result.add_diagnostic(
 		GDSQLQueryDiagnostic.new(
 			code,
-			"Could not use save content manifest '%s'." % path,
+			_tr("Could not use save content manifest '%s'.") % path,
 		),
 	)
 	return result

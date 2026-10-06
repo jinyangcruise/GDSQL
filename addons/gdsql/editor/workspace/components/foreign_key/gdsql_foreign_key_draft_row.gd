@@ -248,4 +248,4 @@ func _update_constraint_name() -> void:
 		if value != &"":
 			parts.append(String(value))
 	_name.text = "_".join(parts)
-	_name.tooltip_text = "Generated constraint name: %s" % _name.text
+	_name.tooltip_text = tr("Generated constraint name: %s") % _name.text

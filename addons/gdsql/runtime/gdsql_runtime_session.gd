@@ -83,7 +83,7 @@ func checkpoint_role(role: StringName) -> GDSQLCheckpointResult:
 	if registration_name == &"":
 		return _checkpoint_failure(
 			&"GDSQL_DATABASE_ROLE_NOT_BOUND",
-			"Database role '%s' has no active binding." % role,
+			_tr("Database role '%s' has no active binding.") % _tr(role),
 		)
 	if not _persistence.is_registered(registration_name):
 		var durable_result := GDSQLCheckpointResult.new()
@@ -110,3 +110,7 @@ func _checkpoint_failure(code: StringName, message: String) -> GDSQLCheckpointRe
 	var result := GDSQLCheckpointResult.new()
 	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
 	return result
+
+
+func _tr(message: StringName) -> StringName:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

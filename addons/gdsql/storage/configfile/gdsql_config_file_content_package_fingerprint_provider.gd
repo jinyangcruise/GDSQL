@@ -32,7 +32,7 @@ func fingerprint(source: GDSQLContentPackageSource) -> GDSQLOperationResult:
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_CONTENT_PACKAGE_FINGERPRINT_FILE_UNREADABLE",
-					"Could not fingerprint package file '%s'." % relative_path,
+					_tr("Could not fingerprint package file '%s'.") % relative_path,
 				),
 			)
 			return result

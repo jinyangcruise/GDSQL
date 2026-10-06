@@ -196,7 +196,7 @@ static func open_registration(
 	if not GDSQLStorageBackendIds.is_valid(registration.storage_backend_id):
 		return _database_error(
 			&"GDSQL_STORAGE_BACKEND_ID_INVALID",
-			"Unknown storage backend '%s'." % registration.storage_backend_id,
+			_tr("Unknown storage backend '%s'.") % registration.storage_backend_id,
 		)
 	var context: GDSQLDatabaseContext
 	match registration.storage_backend_id:
@@ -207,7 +207,7 @@ static func open_registration(
 		_:
 			return _database_error(
 				&"GDSQL_STORAGE_BACKEND_UNAVAILABLE",
-				"Storage backend '%s' is not implemented." \
+				_tr("Storage backend '%s' is not implemented.") \
 						% registration.storage_backend_id,
 			)
 	var database_definition := context.catalog.get_database(
@@ -216,7 +216,7 @@ static func open_registration(
 	if database_definition == null:
 		return _database_error(
 			&"GDSQL_DATABASE_NOT_FOUND",
-			"Database '%s' is not registered." % registration.database_name,
+			_tr("Database '%s' is not registered.") % registration.database_name,
 		)
 	if registration.storage_backend_id == GDSQLStorageBackendIds.IN_MEMORY:
 		var hydration := _hydrate_in_memory(
@@ -272,7 +272,7 @@ static func _hydrate_in_memory(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_STORAGE_TABLE_UNREADABLE",
-					"Could not hydrate table '%s.%s'." \
+					_tr("Could not hydrate table '%s.%s'.") \
 							% [database.name, table.name],
 				),
 			)
@@ -362,3 +362,7 @@ static func _database_error(
 	var result := GDSQLDatabaseResult.new()
 	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
 	return result
+
+
+static func _tr(message: StringName) -> StringName:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

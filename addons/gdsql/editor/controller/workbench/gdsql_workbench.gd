@@ -143,7 +143,7 @@ func discover_children(
 	if directory == null:
 		return _error(
 			&"GDSQL_DATABASE_DISCOVERY_ROOT_UNREADABLE",
-			"Could not inspect database parent root '%s'." % parent_root,
+			_tr("Could not inspect database parent root '%s'.") % parent_root,
 		)
 	var result := GDSQLOperationResult.new()
 	var discovered: Array[GDSQLDatabaseInspection] = []
@@ -174,7 +174,7 @@ func select_registration(
 	if registration == null:
 		return _error(
 			&"GDSQL_WORKBENCH_REGISTRATION_NOT_FOUND",
-			"Database registration '%s' was not found." % registration_name,
+			_tr("Database registration '%s' was not found.") % registration_name,
 		)
 	var session := GDSQLWorkbenchSession.new()
 	var opened := session.open_registration(registration)
@@ -194,7 +194,7 @@ func remove_registration(
 	if registration == null:
 		return _error(
 			&"GDSQL_WORKBENCH_REGISTRATION_NOT_FOUND",
-			"Database registration '%s' was not found." % registration_name,
+			_tr("Database registration '%s' was not found.") % registration_name,
 		)
 	_remove_registration_state(registration)
 	var result := GDSQLOperationResult.new()
@@ -212,13 +212,13 @@ func set_storage_backend(
 	if not GDSQLStorageBackendIds.is_implemented(backend_id):
 		return _error(
 			&"GDSQL_STORAGE_BACKEND_UNAVAILABLE",
-			"Storage backend '%s' is not available." % backend_id,
+			_tr("Storage backend '%s' is not available.") % backend_id,
 		)
 	var registration := get_registration(registration_name)
 	if registration == null:
 		return _error(
 			&"GDSQL_WORKBENCH_REGISTRATION_NOT_FOUND",
-			"Database registration '%s' was not found." % registration_name,
+			_tr("Database registration '%s' was not found.") % registration_name,
 		)
 	registration.storage_backend_id = backend_id
 	var result := _registry.save_snapshot(snapshot)
@@ -235,7 +235,7 @@ func bind_role(role: StringName, registration_name: StringName) -> GDSQLOperatio
 	if get_registration(registration_name) == null:
 		return _error(
 			&"GDSQL_WORKBENCH_REGISTRATION_NOT_FOUND",
-			"Database registration '%s' was not found." % registration_name,
+			_tr("Database registration '%s' was not found.") % registration_name,
 		)
 	for binding in snapshot.role_bindings:
 		if binding.role == role:
@@ -258,7 +258,7 @@ func update_database_name(
 	if registration == null:
 		return _error(
 			&"GDSQL_WORKBENCH_REGISTRATION_NOT_FOUND",
-			"Database registration '%s' was not found." % registration_name,
+			_tr("Database registration '%s' was not found.") % registration_name,
 		)
 	registration.database_name = database_name
 	var result := _registry.save_snapshot(snapshot)
@@ -305,7 +305,7 @@ func _merge_inspection(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_DATABASE_REGISTRATION_DISAMBIGUATED",
-				"Registration name '%s' was already in use; registered database '%s' as '%s'." \
+				_tr("Registration name '%s' was already in use; registered database '%s' as '%s'.") \
 						% [requested_name, registration.database_name, registration.name],
 				GDSQLQueryDiagnostic.Severity.INFO,
 			),
@@ -340,3 +340,7 @@ func _error(code: StringName, message: String) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
 	return result
+
+
+func _tr(message: StringName) -> StringName:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

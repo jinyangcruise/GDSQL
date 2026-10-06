@@ -91,7 +91,7 @@ func inspect_models(
 	if limit < 1 or limit > MAX_LIMIT:
 		return _error(
 			&"GDSQL_MCP_LIMIT_INVALID",
-			"Limit must be between 1 and %d." % MAX_LIMIT,
+			_tr("Limit must be between 1 and %d.") % MAX_LIMIT,
 		)
 	var inspected := _model_inspection_service.call(
 		"inspect",
@@ -168,7 +168,7 @@ func inspect_schema(
 	if limit < 1 or limit > MAX_LIMIT:
 		return _error(
 			&"GDSQL_MCP_LIMIT_INVALID",
-			"Limit must be between 1 and %d." % MAX_LIMIT,
+			_tr("Limit must be between 1 and %d.") % MAX_LIMIT,
 		)
 	if registration_name == &"" and table_name != &"":
 		return _error(
@@ -185,7 +185,7 @@ func inspect_schema(
 	if registration == null:
 		return _error(
 			&"GDSQL_MCP_REGISTRATION_NOT_FOUND",
-			"Database registration '%s' was not found." % registration_name,
+			_tr("Database registration '%s' was not found.") % registration_name,
 		)
 	var inspection := _workbench.get_inspection(registration_name)
 	if table_name == &"":
@@ -259,7 +259,7 @@ func _table_detail(
 	if inspection == null or inspection.get_table(table_name) == null:
 		return _error(
 			&"GDSQL_MCP_TABLE_NOT_FOUND",
-			"Table '%s' was not found in registration '%s'." % [
+			_tr("Table '%s' was not found in registration '%s'.") % [
 				table_name,
 				registration.name,
 			],
@@ -272,7 +272,7 @@ func _table_detail(
 	if table == null:
 		return _error(
 			&"GDSQL_MCP_TABLE_NOT_FOUND",
-			"Table '%s' could not be loaded from registration '%s'." % [
+			_tr("Table '%s' could not be loaded from registration '%s'.") % [
 				table_name,
 				registration.name,
 			],
@@ -576,3 +576,7 @@ func _model_count() -> int:
 
 func _runtime_adapter_configured() -> bool:
 	return bool(_runtime_adapter_provider.call()) if _runtime_adapter_provider.is_valid() else false
+
+
+func _tr(message: StringName) -> StringName:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

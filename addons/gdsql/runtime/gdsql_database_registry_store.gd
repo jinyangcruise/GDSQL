@@ -11,3 +11,7 @@ func load_snapshot() -> GDSQLOperationResult
 ## Persists a complete typed registry snapshot.
 @abstract
 func save_snapshot(snapshot: GDSQLDatabaseRegistrySnapshot) -> GDSQLOperationResult
+
+
+func _tr(message: StringName) -> StringName:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

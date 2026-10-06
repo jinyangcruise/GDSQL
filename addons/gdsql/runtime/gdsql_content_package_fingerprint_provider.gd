@@ -5,3 +5,7 @@ extends RefCounted
 
 @abstract
 func fingerprint(source: GDSQLContentPackageSource) -> GDSQLOperationResult
+
+
+func _tr(message: StringName) -> StringName:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

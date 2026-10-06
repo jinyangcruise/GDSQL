@@ -63,3 +63,7 @@ func preview_alter_table(
 func apply_change_plan(
 		plan: GDSQLCatalogChangePlan,
 ) -> GDSQLCatalogOperationResult
+
+
+func _tr(message: StringName) -> StringName:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

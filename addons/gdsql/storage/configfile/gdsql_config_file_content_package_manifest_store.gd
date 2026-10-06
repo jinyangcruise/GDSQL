@@ -32,15 +32,15 @@ func load_manifest(package_root: String) -> GDSQLOperationResult:
 	if load_error != OK:
 		return _error(
 			&"GDSQL_CONTENT_PACKAGE_MANIFEST_LOAD_FAILED",
-			"Could not load content package manifest '%s' (error %d)." % [
+			_tr("Could not load content package manifest '%s' (error %s).") % [
 				manifest_path,
-				load_error,
+				error_string(load_error),
 			],
 		)
 	if not config.has_section(PACKAGE_SECTION):
 		return _error(
 			&"GDSQL_CONTENT_PACKAGE_SECTION_REQUIRED",
-			"Content package manifest '%s' requires a [package] section." % manifest_path,
+			_tr("Content package manifest '%s' requires a [package] section.") % manifest_path,
 		)
 	var package_id := StringName(config.get_value(PACKAGE_SECTION, "id", &""))
 	var dependencies := _read_dependencies(config, result)
@@ -80,7 +80,7 @@ func _read_dependencies(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_CONTENT_PACKAGE_DEPENDENCY_TYPE_INVALID",
-					"Dependency '%s' version constraint must be text." % package_id,
+					_tr("Dependency '%s' version constraint must be text.") % package_id,
 				),
 			)
 			continue
@@ -106,7 +106,7 @@ func _read_package_ids(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_CONTENT_PACKAGE_ORDER_TYPE_INVALID",
-				"Load-order '%s' must be an array of package ids." % key,
+				_tr("Load-order '%s' must be an array of package ids.") % key,
 			),
 		)
 		return package_ids

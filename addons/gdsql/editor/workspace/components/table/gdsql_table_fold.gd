@@ -62,7 +62,7 @@ func configure(
 	_column_dropped_indexes.clear()
 	_column_dropped_foreign_keys.clear()
 	title = String(table.name)
-	%Summary.text = "%d rows · %d columns · %d indexes" % [
+	%Summary.text = tr("%d rows · %d columns · %d indexes") % [
 		inspection.row_count,
 		table.columns.size(),
 		table.indexes.size() + 1,

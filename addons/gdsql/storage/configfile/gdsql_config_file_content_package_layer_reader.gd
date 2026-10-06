@@ -30,7 +30,7 @@ func read_layer(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_CONTENT_BASE_DATABASE_NOT_FOUND",
-					"Base package '%s' does not contain database '%s'." % [
+					_tr("Base package '%s' does not contain database '%s'.") % [
 						source.manifest.package_id,
 						database_name,
 					],
@@ -76,7 +76,7 @@ func _read_removals(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_CONTENT_OVERLAYS_UNREADABLE",
-				"Could not read package overlay operations at '%s'." % path,
+				_tr("Could not read package overlay operations at '%s'.") % path,
 			),
 		)
 		return
@@ -85,7 +85,7 @@ func _read_removals(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_CONTENT_OVERLAY_SECTION_INVALID",
-					"Unknown overlay operation section '%s'." % section,
+					_tr("Unknown overlay operation section '%s'.") % section,
 				),
 			)
 			continue
@@ -95,7 +95,7 @@ func _read_removals(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_CONTENT_REMOVAL_TARGET_INVALID",
-					"Removal section '%s' must target '<database>:<table>'." % section,
+					_tr("Removal section '%s' must target '<database>:<table>'.") % section,
 				),
 			)
 			continue
@@ -103,7 +103,7 @@ func _read_removals(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_CONTENT_REMOVAL_IDS_REQUIRED",
-					"Removal section '%s' requires an ids array." % section,
+					_tr("Removal section '%s' requires an ids array.") % section,
 				),
 			)
 			continue
@@ -112,7 +112,7 @@ func _read_removals(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_CONTENT_REMOVAL_IDS_INVALID",
-					"Removal section '%s' ids must be an Array or packed integer/string array." \
+					_tr("Removal section '%s' ids must be an Array or packed integer/string array.") \
 							% section,
 				),
 			)

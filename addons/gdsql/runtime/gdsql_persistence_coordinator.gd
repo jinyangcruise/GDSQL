@@ -35,7 +35,7 @@ func register(
 	if _targets.has(registration_name):
 		return _operation_failure(
 			&"GDSQL_PERSISTENCE_ALREADY_REGISTERED",
-			"Persistence registration '%s' already exists." % registration_name,
+			_tr("Persistence registration '%s' already exists.") % registration_name,
 		)
 	_targets[registration_name] = target
 	_policies[registration_name] = selected_policy
@@ -48,7 +48,7 @@ func unregister(registration_name: StringName) -> GDSQLOperationResult:
 	if not _targets.has(registration_name):
 		return _operation_failure(
 			&"GDSQL_PERSISTENCE_NOT_REGISTERED",
-			"Persistence registration '%s' was not found." % registration_name,
+			_tr("Persistence registration '%s' was not found.") % registration_name,
 		)
 	var result := GDSQLOperationResult.new()
 	result.value = _targets[registration_name]
@@ -62,7 +62,7 @@ func checkpoint(registration_name: StringName) -> GDSQLCheckpointResult:
 	if not _targets.has(registration_name):
 		return _checkpoint_failure(
 			&"GDSQL_PERSISTENCE_NOT_REGISTERED",
-			"Persistence registration '%s' was not found." % registration_name,
+			_tr("Persistence registration '%s' was not found.") % registration_name,
 		)
 	var target := _targets[registration_name]
 	if not target.is_dirty():
@@ -105,7 +105,7 @@ func transaction_committed(registration_name: StringName) -> GDSQLCheckpointResu
 	if not _targets.has(registration_name):
 		return _checkpoint_failure(
 			&"GDSQL_PERSISTENCE_NOT_REGISTERED",
-			"Persistence registration '%s' was not found." % registration_name,
+			_tr("Persistence registration '%s' was not found.") % registration_name,
 		)
 	if _policies[registration_name].mode == GDSQLCheckpointPolicy.Mode.IMMEDIATE:
 		return checkpoint(registration_name)
@@ -136,3 +136,7 @@ func _checkpoint_failure(code: StringName, message: String) -> GDSQLCheckpointRe
 	var result := GDSQLCheckpointResult.new()
 	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
 	return result
+
+
+func _tr(message: StringName) -> StringName:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

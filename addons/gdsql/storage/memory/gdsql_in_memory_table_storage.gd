@@ -104,7 +104,7 @@ func stage_insert(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_STORAGE_DUPLICATE_PRIMARY_KEY",
-				"Primary key '%s' already exists in %s.%s." \
+				_tr("Primary key '%s' already exists in %s.%s.") \
 						% [key, table.database_name, table.name],
 			),
 		)
@@ -381,7 +381,7 @@ func _validate_next_auto_increment(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_STORAGE_AUTO_INCREMENT_INVALID",
-				"Next generated key %d is below the required value %d for %s.%s." \
+				_tr("Next generated key %d is below the required value %d for %s.%s.") \
 						% [next_value, minimum, table.database_name, table.name],
 			),
 		)
@@ -410,14 +410,14 @@ func _validate_session_constraints(
 						continue
 					return _commit_error(
 						&"GDSQL_STORAGE_REQUIRED_COLUMN_MISSING",
-						"Column '%s' is required in %s.%s." \
+						_tr("Column '%s' is required in %s.%s.") \
 								% [column.name, table.database_name, table.name],
 					)
 				if not column.accepts_value(row.get_value(column.name)):
 					var expected := column.expected_type_name()
 					return _commit_error(
 						&"GDSQL_STORAGE_COLUMN_TYPE_MISMATCH",
-						"Column '%s' expects %s." % [column.name, expected],
+						_tr("Column '%s' expects %s.") % [column.name, expected],
 					)
 		var primary := _validate_unique_column(table, table.primary_key, rows, true)
 		if not primary.is_successful():
@@ -453,7 +453,7 @@ func _validate_unique_column(
 				&"GDSQL_STORAGE_DUPLICATE_PRIMARY_KEY" \
 				if primary_key \
 				else &"GDSQL_STORAGE_DUPLICATE_UNIQUE_VALUE",
-				"Value '%s' appears more than once in %s.%s." \
+				_tr("Value '%s' appears more than once in %s.%s.") \
 						% [value, table.database_name, table.name],
 			)
 		seen.append(value)
@@ -475,7 +475,7 @@ func _validate_unique_index(
 		if seen.has(values):
 			return _commit_error(
 				&"GDSQL_STORAGE_DUPLICATE_INDEX_VALUE",
-				"Unique index '%s' value '%s' appears more than once in %s.%s." \
+				_tr("Unique index '%s' value '%s' appears more than once in %s.%s.") \
 						% [index.name, values, table.database_name, table.name],
 			)
 		seen.append(values)
@@ -554,7 +554,7 @@ func _missing_row_result(
 	result.add_diagnostic(
 		GDSQLQueryDiagnostic.new(
 			&"GDSQL_STORAGE_ROW_NOT_FOUND",
-			"Cannot %s missing primary key '%s' in %s.%s." \
+			_tr("Cannot %s missing primary key '%s' in %s.%s.") \
 					% [operation, key, table.database_name, table.name],
 		),
 	)

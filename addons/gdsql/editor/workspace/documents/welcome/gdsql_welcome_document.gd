@@ -92,7 +92,7 @@ func refresh_status() -> void:
 			if _profile == GDSQLSetupProfile.Kind.DIRECT
 			else "Immutable packages build one effective runtime content database."
 	)
-	%Summary.text = "%d database(s) · %d table(s) · %d stored row(s)" % [
+	%Summary.text = tr("%d database(s) · %d table(s) · %d stored row(s)") % [
 		registrations.size(),
 		counts.x,
 		counts.y,
@@ -242,7 +242,7 @@ func _refresh_next_action(check: GDSQLSetupCheck) -> void:
 		%NextStep.text = "This profile's setup checklist is complete."
 		_next_action_button.hide()
 		return
-	%NextStep.text = "Next: %s" % check.detail
+	%NextStep.text = tr("Next: %s") % check.detail
 	_next_action_button.visible = check.next_action != GDSQLSetupCheck.ACTION_NONE
 	match check.next_action:
 		GDSQLSetupCheck.ACTION_CREATE_DATABASE:

@@ -136,14 +136,14 @@ func configure(inspection: GDSQLDatabaseInspection, session: GDSQLWorkbenchSessi
 		String(inspection.registration.database_name),
 	)
 	_remove_confirmation.dialog_text = (
-			(
+			tr(
 					"Remove database '%s' from GDSQL?\n\n"
 					+ "Files at '%s' will remain unchanged. Creating the same database "
 					+ "later will load these files again."
 			)
 			% [inspection.registration.database_name, database_path]
 	)
-	_destroy_confirmation.dialog_text = (
+	_destroy_confirmation.dialog_text = tr(
 			"Permanently destroy database '%s'?\n\n"
 			+ "Catalog metadata, schemas, tables, and every stored row under:\n%s\n\n"
 			+ "This cannot be undone by GDSQL. Other databases under the same data root remain."
@@ -237,7 +237,7 @@ func _request_table_reset(table_name: StringName) -> void:
 	_pending_reset_table = table_name
 	var table := _inspection.get_table(table_name)
 	var row_count := table.row_count if table != null else 0
-	_reset_table_confirmation.dialog_text = (
+	_reset_table_confirmation.dialog_text = tr(
 		"Permanently delete all %d row(s) from '%s.%s'?\n\n"
 		+ "The table schema remains, but the next generated integer key resets to 1. "
 		+ "This operation cannot be undone."

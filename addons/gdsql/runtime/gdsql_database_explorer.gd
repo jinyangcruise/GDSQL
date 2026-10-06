@@ -8,3 +8,7 @@ func inspect_root(
 		data_root: String,
 		registration_prefix: StringName = &"",
 ) -> GDSQLOperationResult
+
+
+func _tr(message: StringName) -> StringName:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

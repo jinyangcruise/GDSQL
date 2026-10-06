@@ -312,7 +312,7 @@ func _execute_select_node(
 	result.add_diagnostic(
 		GDSQLQueryDiagnostic.new(
 			&"GDSQL_EXECUTION_PLAN_UNSUPPORTED",
-			"Plan node '%s' is not implemented by the executor." % node.get_class(),
+			_tr("Plan node '%s' is not implemented by the executor.") % node.get_class(),
 		),
 	)
 	return GDSQLRowSet.new()
@@ -403,7 +403,7 @@ func _evaluate_aggregate_function(
 	result.add_diagnostic(
 		GDSQLQueryDiagnostic.new(
 			&"GDSQL_EXECUTION_AGGREGATE_UNSUPPORTED",
-			"Aggregate function '%s' is not implemented by the executor." % expression.name,
+			_tr("Aggregate function '%s' is not implemented by the executor.") % expression.name,
 		),
 	)
 	return null

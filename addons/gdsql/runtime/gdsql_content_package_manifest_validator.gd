@@ -13,26 +13,26 @@ func validate(manifest: GDSQLContentPackageManifest) -> GDSQLOperationResult:
 		_add_error(
 			result,
 			&"GDSQL_CONTENT_PACKAGE_ID_INVALID",
-			"Package id '%s' must use lowercase letters, numbers, '.', '_' or '-'." \
+			_tr("Package id '%s' must use lowercase letters, numbers, '.', '_' or '-'.") \
 					% manifest.package_id,
 		)
 	if manifest.display_name.strip_edges().is_empty():
 		_add_error(
 			result,
 			&"GDSQL_CONTENT_PACKAGE_NAME_REQUIRED",
-			"Package '%s' requires a display name." % manifest.package_id,
+			_tr("Package '%s' requires a display name.") % manifest.package_id,
 		)
 	if not GDSQLSemanticVersion.parse(manifest.version).is_successful():
 		_add_error(
 			result,
 			&"GDSQL_CONTENT_PACKAGE_VERSION_INVALID",
-			"Package '%s' requires a semantic version such as 1.0.0." % manifest.package_id,
+			_tr("Package '%s' requires a semantic version such as 1.0.0.") % manifest.package_id,
 		)
 	if not GDSQLContentPackageKind.is_valid(manifest.kind):
 		_add_error(
 			result,
 			&"GDSQL_CONTENT_PACKAGE_KIND_INVALID",
-			"Package '%s' must declare kind 'base', 'dlc', or 'mod'." % manifest.package_id,
+			_tr("Package '%s' must declare kind 'base', 'dlc', or 'mod'.") % manifest.package_id,
 		)
 	_validate_relative_path(result, manifest.package_id, "data", manifest.data_path)
 	_validate_relative_path(result, manifest.package_id, "assets", manifest.assets_path)
@@ -53,20 +53,20 @@ func _validate_dependencies(
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_PACKAGE_DEPENDENCY_INVALID",
-				"Package '%s' contains an invalid dependency id." % manifest.package_id,
+				_tr("Package '%s' contains an invalid dependency id.") % manifest.package_id,
 			)
 			continue
 		if dependency.package_id == manifest.package_id:
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_PACKAGE_SELF_DEPENDENCY",
-				"Package '%s' cannot depend on itself." % manifest.package_id,
+				_tr("Package '%s' cannot depend on itself.") % manifest.package_id,
 			)
 		if seen.has(dependency.package_id):
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_PACKAGE_DEPENDENCY_DUPLICATE",
-				"Package '%s' declares dependency '%s' more than once." % [
+				_tr("Package '%s' declares dependency '%s' more than once.") % [
 					manifest.package_id,
 					dependency.package_id,
 				],
@@ -76,7 +76,7 @@ func _validate_dependencies(
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_PACKAGE_DEPENDENCY_VERSION_REQUIRED",
-				"Dependency '%s' requires a version constraint." % dependency.package_id,
+				_tr("Dependency '%s' requires a version constraint.") % dependency.package_id,
 			)
 		elif not GDSQLSemanticVersionConstraint.matches(
 			manifest.version,
@@ -85,7 +85,7 @@ func _validate_dependencies(
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_PACKAGE_DEPENDENCY_CONSTRAINT_INVALID",
-				"Dependency '%s' uses unsupported version constraint '%s'." % [
+				_tr("Dependency '%s' uses unsupported version constraint '%s'.") % [
 					dependency.package_id,
 					dependency.version_constraint,
 				],
@@ -103,7 +103,7 @@ func _validate_order(
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_PACKAGE_ORDER_CONFLICT",
-				"Package '%s' cannot load both before and after '%s'." % [
+				_tr("Package '%s' cannot load both before and after '%s'.") % [
 					manifest.package_id,
 					package_id,
 				],
@@ -122,7 +122,7 @@ func _validate_order_list(
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_PACKAGE_ORDER_ID_INVALID",
-				"Package '%s' contains an invalid load-%s id." % [
+				_tr("Package '%s' contains an invalid load-%s id.") % [
 					manifest.package_id,
 					relation,
 				],
@@ -132,13 +132,13 @@ func _validate_order_list(
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_PACKAGE_SELF_ORDER",
-				"Package '%s' cannot load %s itself." % [manifest.package_id, relation],
+				_tr("Package '%s' cannot load %s itself.") % [manifest.package_id, relation],
 			)
 		if seen.has(package_id):
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_PACKAGE_ORDER_DUPLICATE",
-				"Package '%s' repeats '%s' in load-%s." % [
+				_tr("Package '%s' repeats '%s' in load-%s.") % [
 					manifest.package_id,
 					package_id,
 					relation,
@@ -163,7 +163,7 @@ func _validate_relative_path(
 		_add_error(
 			result,
 			&"GDSQL_CONTENT_PACKAGE_PATH_INVALID",
-			"Package '%s' %s path must stay relative to its package root." % [
+			_tr("Package '%s' %s path must stay relative to its package root.") % [
 				package_id,
 				field_name,
 			],
@@ -196,3 +196,7 @@ func _error(code: StringName, message: String) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	_add_error(result, code, message)
 	return result
+
+
+func _tr(message: StringName) -> StringName:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

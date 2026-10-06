@@ -239,7 +239,7 @@ func _copy_relationship() -> void:
 	var save_error := _reference_store.save(reference)
 	if save_error != OK:
 		%RelationshipHelperStatus.text = (
-				"Could not register the editor picker (%s)." % error_string(save_error)
+				tr("Could not register the editor picker (%s).") % error_string(save_error)
 		)
 		return
 	DisplayServer.clipboard_set(_snippet.text)

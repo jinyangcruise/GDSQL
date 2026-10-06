@@ -32,7 +32,7 @@ static func build_inserts(
 				result.add_diagnostic(
 					_error(
 						&"GDSQL_EDITOR_ROW_BATCH_COLUMN_NOT_FOUND",
-						"Insert %d references unknown column '%s'." % [
+						_tr("Insert %d references unknown column '%s'.") % [
 							index + 1,
 							column_name,
 						],
@@ -44,7 +44,7 @@ static func build_inserts(
 				result.add_diagnostic(
 					_error(
 						&"GDSQL_EDITOR_ROW_BATCH_COLUMN_READ_ONLY",
-						"Column '%s' is generated and cannot be inserted explicitly." % column_name,
+						_tr("Column '%s' is generated and cannot be inserted explicitly.") % column_name,
 					),
 				)
 				continue
@@ -52,7 +52,7 @@ static func build_inserts(
 				result.add_diagnostic(
 					_error(
 						&"GDSQL_EDITOR_ROW_BATCH_VALUE_INVALID",
-						"Column '%s' expects %s." % [
+						_tr("Column '%s' expects %s.") % [
 							column_name,
 							column.display_type_name(),
 						],
@@ -86,7 +86,7 @@ static func build_updates(
 			result.add_diagnostic(
 				_error(
 					&"GDSQL_EDITOR_ROW_BATCH_IDENTITY_REQUIRED",
-					"Update %d has no primary-key identity." % (index + 1),
+					_tr("Update %d has no primary-key identity.") % (index + 1),
 				),
 			)
 			continue
@@ -95,7 +95,7 @@ static func build_updates(
 			result.add_diagnostic(
 				_error(
 					&"GDSQL_EDITOR_ROW_BATCH_DUPLICATE_IDENTITY",
-					"Primary key '%s' occurs more than once in the update batch." % identity,
+					_tr("Primary key '%s' occurs more than once in the update batch.") % identity,
 				),
 			)
 			continue
@@ -134,7 +134,7 @@ static func build_deletes(
 			result.add_diagnostic(
 				_error(
 					&"GDSQL_EDITOR_ROW_BATCH_DUPLICATE_IDENTITY",
-					"Primary key '%s' occurs more than once in the delete batch." % identity,
+					_tr("Primary key '%s' occurs more than once in the delete batch.") % identity,
 				),
 			)
 			continue
@@ -171,7 +171,7 @@ static func _build_update_query(
 			result.add_diagnostic(
 				_error(
 					&"GDSQL_EDITOR_ROW_BATCH_COLUMN_NOT_FOUND",
-					"Update %d references unknown column '%s'." % [
+					_tr("Update %d references unknown column '%s'.") % [
 						update_index + 1,
 						column_name,
 					],
@@ -184,7 +184,7 @@ static func _build_update_query(
 			result.add_diagnostic(
 				_error(
 					&"GDSQL_EDITOR_ROW_BATCH_COLUMN_READ_ONLY",
-					"Column '%s' cannot be changed through row editing." % column_name,
+					_tr("Column '%s' cannot be changed through row editing.") % column_name,
 				),
 			)
 			continue
@@ -193,7 +193,7 @@ static func _build_update_query(
 			result.add_diagnostic(
 				_error(
 					&"GDSQL_EDITOR_ROW_BATCH_VALUE_INVALID",
-					"Column '%s' expects %s." % [
+					_tr("Column '%s' expects %s.") % [
 						column_name,
 						column.display_type_name(),
 					],
@@ -206,7 +206,7 @@ static func _build_update_query(
 		result.add_diagnostic(
 			_error(
 				&"GDSQL_EDITOR_ROW_BATCH_UPDATE_EMPTY",
-				"Update %d contains no mutable values." % (update_index + 1),
+				_tr("Update %d contains no mutable values.") % (update_index + 1),
 			),
 		)
 		return null
@@ -230,7 +230,7 @@ static func _validate_request(
 	if requested_rows <= 0:
 		return _failed(
 			&"GDSQL_EDITOR_ROW_BATCH_EMPTY",
-			"At least one row is required for a batch %s." % operation_name,
+			_tr("At least one row is required for a batch %s.") % operation_name,
 		)
 	return GDSQLOperationResult.new()
 
@@ -292,7 +292,7 @@ func execute(database: GDSQLDatabase) -> GDSQLOperationResult:
 	if database.database_name != database_name:
 		return _failed(
 			&"GDSQL_EDITOR_ROW_BATCH_DATABASE_MISMATCH",
-			"The row batch targets database '%s', not '%s'." % [
+			_tr("The row batch targets database '%s', not '%s'.") % [
 				database_name,
 				database.database_name,
 			],
@@ -333,3 +333,7 @@ func _configure_update_history(
 			after_snapshot[column_name] = after_values[column_name]
 		_history_before_rows.append(GDSQLRowRecord.new(before_snapshot))
 		_history_after_rows.append(GDSQLRowRecord.new(after_snapshot))
+
+
+static func _tr(message: StringName) -> StringName:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

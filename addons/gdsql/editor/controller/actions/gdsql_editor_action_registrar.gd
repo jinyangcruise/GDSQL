@@ -208,7 +208,7 @@ func _register(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_EDITOR_ACTION_HANDLER_REQUIRED",
-				"Editor action '%s' requires a valid handler." % action_id,
+				TranslationServer.get_or_add_domain(&"GDSQL").translate("Editor action '%s' requires a valid handler.") % action_id,
 			),
 		)
 		return

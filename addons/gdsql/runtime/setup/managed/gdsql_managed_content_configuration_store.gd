@@ -11,3 +11,7 @@ func load_configuration() -> GDSQLOperationResult
 func save_configuration(
 		configuration: GDSQLManagedContentConfiguration,
 ) -> GDSQLOperationResult
+
+
+func _tr(message: StringName) -> StringName:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

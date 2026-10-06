@@ -19,9 +19,9 @@ func load_configuration() -> GDSQLOperationResult:
 	if load_error != OK and load_error != ERR_FILE_NOT_FOUND:
 		return _error(
 			&"GDSQL_MANAGED_CONTENT_SETTINGS_LOAD_FAILED",
-			"Could not load managed-content settings from '%s' (error %d)." % [
+			_tr("Could not load managed-content settings from '%s' (error %s).") % [
 				_settings_path,
-				load_error,
+				error_string(load_error),
 			],
 		)
 	var defaults := GDSQLManagedContentConfiguration.create_default()
@@ -69,9 +69,9 @@ func save_configuration(
 	if load_error != OK and load_error != ERR_FILE_NOT_FOUND:
 		return _error(
 			&"GDSQL_MANAGED_CONTENT_SETTINGS_LOAD_FAILED",
-			"Could not load managed-content settings from '%s' (error %d)." % [
+			_tr("Could not load managed-content settings from '%s' (error %s).") % [
 				_settings_path,
-				load_error,
+				error_string(load_error),
 			],
 		)
 	config.set_value(SECTION, "base_package_root", configuration.base_package_root)
@@ -91,16 +91,16 @@ func save_configuration(
 	if directory_error != OK:
 		return _error(
 			&"GDSQL_MANAGED_CONTENT_SETTINGS_DIRECTORY_FAILED",
-			"Could not create the managed-content settings directory (error %d)." \
-					% directory_error,
+			_tr("Could not create the managed-content settings directory (error %s).") \
+					% error_string(directory_error),
 		)
 	var save_error := config.save(_settings_path)
 	if save_error != OK:
 		return _error(
 			&"GDSQL_MANAGED_CONTENT_SETTINGS_SAVE_FAILED",
-			"Could not save managed-content settings to '%s' (error %d)." % [
+			_tr("Could not save managed-content settings to '%s' (error %s).") % [
 				_settings_path,
-				save_error,
+				error_string(save_error),
 			],
 		)
 	var result := GDSQLOperationResult.new()

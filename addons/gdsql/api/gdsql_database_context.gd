@@ -105,7 +105,7 @@ func truncate_table(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_DATABASE_TABLE_NOT_FOUND",
-				"Table '%s.%s' does not exist." % [database_name, table_name],
+				TranslationServer.get_or_add_domain(&"GDSQL").translate("Table '%s.%s' does not exist.") % [database_name, table_name],
 			),
 		)
 		return result

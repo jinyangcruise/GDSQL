@@ -170,7 +170,7 @@ func _load_relationships(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_MODEL_RELATIONSHIP_NOT_FOUND",
-					"Model relationship '%s' is not declared." % relationship_name,
+					TranslationServer.get_or_add_domain(&"GDSQL").translate("Model relationship '%s' is not declared.") % relationship_name,
 				),
 			)
 			return result

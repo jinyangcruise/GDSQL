@@ -15,7 +15,7 @@ static func open(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_DATABASE_NOT_FOUND",
-				"Database '%s' is not registered." % database_name,
+				_tr("Database '%s' is not registered.") % database_name,
 			),
 		)
 		return result
@@ -129,7 +129,7 @@ func apply_change_plan(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_CATALOG_CHANGE_PLAN_DATABASE_MISMATCH",
-				"Change plan targets database '%s', not '%s'." \
+				_tr("Change plan targets database '%s', not '%s'.") \
 						% [plan.database_name, database_name],
 			),
 		)
@@ -151,3 +151,7 @@ func execute_sql(source: String) -> GDSQLQueryResult:
 		),
 	)
 	return result
+
+
+static func _tr(message: StringName) -> StringName:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

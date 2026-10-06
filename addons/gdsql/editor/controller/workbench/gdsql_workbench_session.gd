@@ -51,7 +51,7 @@ func select_table(table_name: StringName) -> GDSQLOperationResult:
 	if table == null:
 		return _operation_error(
 			&"GDSQL_WORKBENCH_UNKNOWN_TABLE",
-			"Table '%s.%s' does not exist." \
+			TranslationServer.get_or_add_domain(&"GDSQL").translate("Table '%s.%s' does not exist.") \
 					% [database.database_name, table_name],
 		)
 	selected_table = table

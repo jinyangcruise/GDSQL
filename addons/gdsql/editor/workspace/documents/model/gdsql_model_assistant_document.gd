@@ -289,7 +289,7 @@ func _refresh_compatibility(user_exists: bool) -> void:
 	for diagnostic in report.diagnostics.entries:
 		lines.append("• %s" % diagnostic.message)
 	if script_error:
-		lines.append("See Godot Output for the reported script error and source path.")
+		lines.append(tr("See Godot Output for the reported script error and source path."))
 	%CompatibilityDetails.text = "\n".join(lines)
 	%CompatibilityDetails.visible = not lines.is_empty()
 
@@ -328,18 +328,18 @@ func _catalog_relationship_lines() -> Array[String]:
 		_database,
 	)
 	if relationships.is_empty():
-		lines.append("No same-database relationships inferred from foreign keys.")
+		lines.append(tr("No same-database relationships inferred from foreign keys."))
 	else:
 		lines.append(
-			"Catalog relationships · inferred when both model types are registered; no relationship code is written:",
+			tr("Catalog relationships · inferred when both model types are registered; no relationship code is written:"),
 		)
 		lines.append(
-			"No relationship code is required for these edges; an empty relationships() method avoids duplicate declarations.",
+			tr("No relationship code is required for these edges; an empty relationships() method avoids duplicate declarations."),
 		)
 		for relationship in relationships:
 			lines.append("• %s" % relationship)
 	lines.append(
-		"Many-to-many and cross-role relationships are declared explicitly in relationships().",
+		tr("Many-to-many and cross-role relationships are declared explicitly in relationships()."),
 	)
 	return lines
 
