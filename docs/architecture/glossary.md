@@ -145,11 +145,11 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `QueryPlanner` | Planning | Converts a bound query into a `QueryPlan`. | `create_plan(query)` | 🚧 |
-| `DefaultQueryPlanner` | Planning | Produces deterministic plans, derives per-source column dependencies, and records whether query evaluation requires concrete Resource values. | `create_plan(query)` | 🧪 |
+| `DefaultQueryPlanner` | Planning | Produces deterministic plans, derives per-source column dependencies, records whether query evaluation requires concrete Resource values, and pushes a result window only into semantically safe single-table scans. | `create_plan(query)` | 🧪 |
 | `QueryPlan` | Planning | Owns the root executable plan node and typed execution metadata, including concrete Resource requirements. | Root node and `requires_concrete_resources` | 🧪 |
 | `PlanNode` | Planning | Abstract base for executable relational operations. | `accept(visitor)` | 🚧 |
 | `PlanNodeVisitor` | Planning | Performs operations over concrete plan node types. | `visit_table_scan()`, `visit_filter()`, `visit_sort()`, and related methods | 🚧 |
-| `TableScanPlan` | Planning | Reads rows from a table source with the columns required by downstream expressions. | `required_columns`, `accept(visitor)` | 🧪 |
+| `TableScanPlan` | Planning | Reads rows from a table source with the columns required by downstream expressions and may carry a planner-proven safe offset/limit window. | `required_columns`, `pushed_offset`, `pushed_limit`, `has_pushed_window()`, `accept(visitor)` | 🧪 |
 | `PrimaryKeyLookupPlan` | Planning | Retrieves a row through a primary-key lookup with the columns required downstream. | `required_columns`, `accept(visitor)` | 🧪 |
 | `IndexLookupPlan` | Planning | Retrieves rows through an exact single-column lookup with the columns required downstream. | `required_columns`, `accept(visitor)` | 🧪 |
 | `RangeLookupPlan` | Planning | Retrieves rows through a bounded single-column index lookup with the columns required downstream. | `required_columns`, `accept(visitor)` | 🧪 |
@@ -170,7 +170,7 @@ state in the same change as implementation or test work.
 | Name | Domain | Responsibility | Principal API | State |
 |---|---|---|---|---|
 | `QueryExecutor` | Execution | Abstract contract for executing query plans. | `execute(plan, context)` | 🚧 |
-| `DefaultQueryExecutor` | Execution | Executes plans, consumes table scans through cancellable bounded batches with cursor-progress guards and aggregated storage statistics, requests only planned columns, and materializes required Resource references through an injected resolver. | `execute(plan, context)` | 🧪 |
+| `DefaultQueryExecutor` | Execution | Executes plans, consumes table scans through cancellable bounded batches with cursor-progress guards and aggregated storage statistics, applies safe pushed windows before Resource materialization, requests only planned columns, and materializes required references through an injected resolver. | `execute(plan, context)` | 🧪 |
 | `ExecutionContext` | Execution | Groups runtime services, session state, cancellation, and immutable presentation options for one execution. | `for_session()`, `with_options()`, service accessors | 🧪 |
 | `QueryExecutionOptions` | Execution | Immutable per-execution presentation policy that keeps eager Resources as the default or explicitly returns deferred handles without changing `QuerySpec`. | `eager()`, `deferred_resources()`, `defers_resources()` | 🧪 |
 | `ExpressionEvaluator` | Execution | Evaluates canonical or bound scalar expressions against a row context with null propagation. | `evaluate(expression, row_context)` | 🧪 |

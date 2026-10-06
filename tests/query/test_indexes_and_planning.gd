@@ -69,6 +69,28 @@ func test_exact_index_lookup_is_planned_and_executed() -> void:
 		assert_str(row.get_value(&"name")).is_equal("Mage")
 
 
+func test_simple_window_is_pushed_to_scan_but_ordered_window_is_not() -> void:
+	var database := _create_indexed_database()
+	var pushed := database.context.prepare(
+		database.table(&"heroes").select().offset(2).limit(3).build(),
+	)
+	var scan := pushed.plan.root as GDSQLTableScanPlan
+
+	assert_object(scan).is_not_null()
+	assert_bool(scan.has_pushed_window()).is_true()
+	assert_int(scan.pushed_offset).is_equal(2)
+	assert_int(scan.pushed_limit).is_equal(3)
+	var ordered := database.context.prepare(
+		database.table(&"heroes")
+		.select()
+		.order_by_column(&"name")
+		.offset(2)
+		.limit(3)
+		.build(),
+	)
+	assert_object(ordered.plan.root).is_instanceof(GDSQLLimitPlan)
+
+
 func test_range_lookup_tracks_committed_mutations() -> void:
 	var database := _create_indexed_database()
 	_seed_heroes(database)

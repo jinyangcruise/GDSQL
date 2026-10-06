@@ -362,13 +362,27 @@ func _execute_table_scan(
 	rows.schema = scan.output_schema
 	var session := _get_session(context)
 	var request := _read_request(scan.required_columns)
+	var skip_remaining := scan.pushed_offset
+	var take_remaining := scan.pushed_limit
+	if scan.has_pushed_window():
+		result.statistics["scan_window_pushed"] = true
+	if take_remaining == 0:
+		return rows
 	if not context.storage.get_capabilities().supports_bounded_reads():
 		var snapshot := context.storage.read_table(scan.table, session, request)
-		result.statistics["storage_snapshot_fallbacks"] = int(
-			result.statistics.get("storage_snapshot_fallbacks", 0),
-		) + 1
-		rows.rows = _qualify_lookup_rows(
+		_merge_snapshot_read_statistics(snapshot.rows.size(), result)
+		var stored_rows := _window_rows(
 			snapshot.rows,
+			skip_remaining,
+			take_remaining,
+		)
+		_record_pushed_rows(
+			snapshot.rows.size() - stored_rows.size(),
+			scan,
+			result,
+		)
+		rows.rows = _qualify_lookup_rows(
+			stored_rows,
 			scan.table,
 			scan.alias,
 			scan.output_schema,
@@ -388,17 +402,32 @@ func _execute_table_scan(
 				),
 			)
 			return rows
+		var requested_size := _scan_batch_size(skip_remaining, take_remaining)
 		var batch := context.storage.read_batch(
 			scan.table,
 			session,
-			request.bounded(DEFAULT_SCAN_BATCH_SIZE, cursor),
+			request.bounded(requested_size, cursor),
 		)
 		result.diagnostics.merge(batch.diagnostics)
 		_merge_storage_read_statistics(batch, result)
 		if not batch.is_successful():
 			return rows
+		var selected_rows: Array[GDSQLRowRecord] = []
+		var selected_start := mini(skip_remaining, batch.rows.size())
+		skip_remaining -= selected_start
+		var selected_count := batch.rows.size() - selected_start
+		if take_remaining >= 0:
+			selected_count = mini(selected_count, take_remaining)
+			take_remaining -= selected_count
+		for index in range(selected_start, selected_start + selected_count):
+			selected_rows.append(batch.rows[index])
+		_record_pushed_rows(
+			batch.rows.size() - selected_rows.size(),
+			scan,
+			result,
+		)
 		var qualified := _qualify_lookup_rows(
-			batch.rows,
+			selected_rows,
 			scan.table,
 			scan.alias,
 			scan.output_schema,
@@ -407,6 +436,8 @@ func _execute_table_scan(
 			result,
 		)
 		rows.rows.append_array(qualified.rows)
+		if take_remaining == 0:
+			return rows
 		if not batch.has_more():
 			return rows
 		var next_cursor := batch.get_next_cursor()
@@ -422,6 +453,59 @@ func _execute_table_scan(
 		seen_cursors.append(next_cursor)
 		cursor = next_cursor
 	return rows
+
+
+func _scan_batch_size(skip_remaining: int, take_remaining: int) -> int:
+	if take_remaining < 0:
+		return DEFAULT_SCAN_BATCH_SIZE
+	return mini(DEFAULT_SCAN_BATCH_SIZE, skip_remaining + take_remaining)
+
+
+func _window_rows(
+	stored_rows: Array[GDSQLRowRecord],
+	offset: int,
+	limit: int,
+) -> Array[GDSQLRowRecord]:
+	var rows: Array[GDSQLRowRecord] = []
+	var start := mini(offset, stored_rows.size())
+	var end := (
+		stored_rows.size()
+		if limit < 0
+		else mini(start + limit, stored_rows.size())
+	)
+	for index in range(start, end):
+		rows.append(stored_rows[index])
+	return rows
+
+
+func _record_pushed_rows(
+	count: int,
+	scan: GDSQLTableScanPlan,
+	result: GDSQLQueryExecutionResult,
+) -> void:
+	if count <= 0 or not scan.has_pushed_window():
+		return
+	result.statistics["scan_rows_pruned"] = int(
+		result.statistics.get("scan_rows_pruned", 0),
+	) + count
+
+
+func _merge_snapshot_read_statistics(
+	row_count: int,
+	result: GDSQLQueryExecutionResult,
+) -> void:
+	result.statistics["storage_snapshot_fallbacks"] = int(
+		result.statistics.get("storage_snapshot_fallbacks", 0),
+	) + 1
+	result.statistics["storage_rows_scanned"] = int(
+		result.statistics.get("storage_rows_scanned", 0),
+	) + row_count
+	result.statistics["storage_rows_returned"] = int(
+		result.statistics.get("storage_rows_returned", 0),
+	) + row_count
+	result.statistics["storage_physical_read_bounded"] = false
+	_merge_optional_storage_measurement("storage_bytes_read", -1, result)
+	_merge_optional_storage_measurement("storage_pages_read", -1, result)
 
 
 func _merge_storage_read_statistics(

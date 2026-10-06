@@ -95,6 +95,12 @@ func _plan_select(bound_select: GDSQLBoundSelectQuery, output_schema: GDSQLResul
 			join_plan.right_source = join.source
 			join_plan.output_schema = source_schema
 			current = join_plan
+	var scan_window_pushed := false
+	if current is GDSQLTableScanPlan and _can_push_scan_window(bound_select):
+		var scan := current as GDSQLTableScanPlan
+		scan.pushed_offset = bound_select.offset
+		scan.pushed_limit = bound_select.limit
+		scan_window_pushed = true
 	if bound_select.predicate != null:
 		var filter := GDSQLFilterPlan.new()
 		filter.input = current
@@ -137,7 +143,8 @@ func _plan_select(bound_select: GDSQLBoundSelectQuery, output_schema: GDSQLResul
 		distinct.input = current
 		distinct.output_schema = output_schema
 		current = distinct
-	if bound_select.limit >= 0 or bound_select.offset > 0:
+	if (bound_select.limit >= 0 or bound_select.offset > 0) \
+			and not scan_window_pushed:
 		var limit := GDSQLLimitPlan.new()
 		limit.input = current
 		limit.limit = bound_select.limit
@@ -151,6 +158,22 @@ func _plan_select(bound_select: GDSQLBoundSelectQuery, output_schema: GDSQLResul
 	)
 	result.value = result.plan
 	return result
+
+
+func _can_push_scan_window(bound_select: GDSQLBoundSelectQuery) -> bool:
+	if bound_select.limit < 0 and bound_select.offset <= 0:
+		return false
+	if not bound_select.joins.is_empty() \
+			or bound_select.predicate != null \
+			or not bound_select.grouping.is_empty() \
+			or bound_select.having != null \
+			or not bound_select.ordering.is_empty() \
+			or bound_select.distinct:
+		return false
+	var aggregates: Array[GDSQLFunctionExpression] = []
+	for selected in bound_select.projections:
+		_collect_aggregates(selected.expression, aggregates)
+	return aggregates.is_empty()
 
 
 func _scan_source(

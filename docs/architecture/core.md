@@ -863,6 +863,8 @@ extends PlanNode
 
 var table: TableDefinition
 var alias: StringName
+var pushed_offset: int = 0
+var pushed_limit: int = -1
 
 func accept(visitor: PlanNodeVisitor) -> Variant:
     return visitor.visit_table_scan(self)
@@ -907,6 +909,12 @@ Ordering is applied to source rows before projection so a query may order by a
 source column that is not returned. Projection establishes public output names
 and the result schema. Distinct selection removes duplicate projected rows
 before limit and offset are applied.
+
+The planner may attach `OFFSET`/`LIMIT` directly to a table scan only for a
+single-table query without a predicate, join, grouping, aggregate, ordering, or
+distinct operation. These conditions guarantee that downstream operators cannot
+change which source rows belong to the requested window. Other queries retain
+an explicit `LimitPlan` after their relational operators.
 
 ```gdscript
 func plan_select(
@@ -1580,19 +1588,26 @@ future binary backend's I/O characteristics.
 Table-scan execution consumes these responses in bounded batches of 256 rows.
 It keeps one storage session and passes each opaque continuation back to the
 same table backend until no continuation remains. Storage diagnostics are
-merged into the query result, cancellation is checked between batches, and an
+merged into the query result, cancellation is checked between batches, and a
 repeated continuation is rejected instead of permitting a cursor cycle.
 Backends that do not advertise bounded reads retain the complete-snapshot
 compatibility path.
+
+When a scan carries a semantically safe pushed window, execution skips its
+offset and stops at its limit before Resource materialization and projection.
+This prevents discarded rows from resolving referenced assets and avoids
+unnecessary downstream work. It does not claim bounded disk I/O: compatibility
+backends still report the complete row set they inspected, while future paged
+backends may satisfy the same request through physical row or index pages.
 
 `GDSQLQueryExecutionResult.statistics` aggregates `storage_batches`,
 `storage_rows_scanned`, `storage_rows_returned`, `storage_bytes_read`,
 `storage_pages_read`, and `storage_physical_read_bounded` independently from
 Resource materialization counters. Unknown byte or page counts remain `-1`.
-This initial scan integration still assembles all batches before downstream
-relational operators run. It therefore preserves filter, join, aggregate,
-sort, projection, distinct, `OFFSET`, and `LIMIT` semantics without assuming
-that an early storage window is the final result window.
+Queries with filters, joins, aggregates, sorting, distinct selection, or other
+row-set-changing operations still assemble all batches before those operators
+run. This preserves their semantics without assuming that an early storage
+window is the final result window.
 
 Internal row transfers use a full-column read request with reference
 preservation. Managed package composition, effective-cache writes, in-memory

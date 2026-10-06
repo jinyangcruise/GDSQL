@@ -50,7 +50,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Bounded reads (Resource Stage C) | Scan execution consumes tested batches and reports storage work; safe limit pushdown and ordered paged indexes remain |
+| High — first | Bounded reads (Resource Stage C) | Safe single-table scan windows, batched execution, and storage metrics are tested; ordered paged indexes and physical backend measurements remain |
 | High | Migration data/save phase | Runtime already recovers and advances registered writable saves before hydration; dependent schema/mixed batches remain deferred |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
@@ -274,10 +274,12 @@ workflow.
 - Scan execution consumes bounded batches with cancellation, cursor-progress
   guards, compatibility fallback, and aggregate storage statistics while
   retaining the existing relational operator order.
+- Safe single-table `LIMIT`/`OFFSET` windows are pushed before Resource
+  materialization. Predicates, joins, grouping, aggregates, ordering, and
+  distinct selection retain the complete relational pipeline.
 - Extend storage capabilities with ordered paged index access.
-- Push `LIMIT`/`OFFSET` only when doing so preserves filter, sort, aggregate,
-  distinct, and join semantics.
-- Measure row bytes/pages read separately from Resources materialized.
+- Measure physical row bytes/pages read separately from Resources materialized
+  when a backend can report them.
 
 ConfigFile may continue parsing a whole table file while implementing this
 contract through a compatibility adapter.

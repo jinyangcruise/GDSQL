@@ -346,6 +346,7 @@ Planner("`**GDSQLQueryPlanner**
 *API:* create_plan(bound_query)
 *Returns:* GDSQLQueryPlanningResult containing GDSQLQueryPlan
 *Derives:* Required columns and concrete Resource evaluation requirements
+*Optimizes:* Safe single-table OFFSET/LIMIT scan windows
 *Extended by:* GDSQLDefaultQueryPlanner`")
 
 PlanNode("`**GDSQLPlanNode**
@@ -507,6 +508,7 @@ StorageBatches("`**Bounded Storage Reads**
 *Request:* Positive batch size plus backend/source-bound opaque GDSQLStorageReadCursor
 *Result:* GDSQLStorageReadBatch with rows, continuation, diagnostics and statistics
 *Metrics:* Rows scanned/returned, optional bytes/pages and physical-bound flag
+*Window:* Safe scan offsets/limits are applied before Resource materialization
 *Boundary:* Execution passes cursors back without inspecting backend tokens`")
 
 subgraph ConfigFileBackend["ConfigFile backend"]
