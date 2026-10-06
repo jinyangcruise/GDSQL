@@ -4878,3 +4878,45 @@ msgstr "撤销最近一次已提交的行值更新。"
 
 msgid "Redo the latest undone row-value update."
 msgstr "重做最近一次已撤销的行值更新。"
+
+msgid "Open a content table and use Model to generate its first typed binding."
+msgstr ""
+
+msgid "Install gdsql_runtime_node.tscn as the GDSQLRuntime autoload."
+msgstr ""
+
+msgid "Content role should use an authored res:// data root."
+msgstr ""
+
+msgid "The content registration does not contain a readable database catalog."
+msgstr ""
+
+msgid "Content role resolves to '%s' under %s."
+msgstr ""
+
+msgid "Save role resolves to '%s' under %s."
+msgstr ""
+
+msgid "%d content table(s) have schema and storage."
+msgstr ""
+
+msgid "Open the content database, then add and save its first table."
+msgstr ""
+
+msgid "The content database contains %d stored row(s)."
+msgstr ""
+
+msgid "Open a content table and add its first row."
+msgstr ""
+
+msgid "Database registry metadata is unavailable."
+msgstr ""
+
+msgid "Database role '%s' points to missing registration '%s'."
+msgstr ""
+
+msgid "Registration '%s' is missing its database name or data root."
+msgstr ""
+
+msgid "Registration '%s' uses unavailable storage backend '%s'."
+msgstr ""
