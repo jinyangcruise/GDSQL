@@ -943,18 +943,6 @@ msgid ""
 "Authored game content shipped with the project. Runtime access is read-only."
 msgstr "随项目一同发布的原创游戏内容。运行时只读。"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd:136
-msgid ""
-"Immutable base package source. Runtime reads a generated effective-content "
-"database."
-msgstr "不可变的基础包源。运行时读取生成后的有效内容数据库。"
-
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd:140
-msgid ""
-"Mutable player state for one save slot, hydrated into memory and "
-"checkpointed."
-msgstr "单个存档槽位的可变玩家状态，会载入内存并做检查点保存。"
-
 #: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd:144
 msgid "Mutable settings shared independently from save slots."
 msgstr "独立于存档槽位共享的可变设置。"
@@ -975,12 +963,6 @@ msgstr "请选择数据根目录。"
 #: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd:177
 msgid "Managed package data must use a directory below its package root."
 msgstr "托管包数据必须位于其包根目录下的子目录中。"
-
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd:180
-msgid ""
-"Rows load into memory. ConfigFile remains the hydration and checkpoint "
-"source."
-msgstr "行数据会载入内存，cfg 文件仍是载入与检查点保存的来源。"
 
 #: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "DATABASE SETUP"
@@ -1491,9 +1473,7 @@ msgstr "请使用 snake_case 形式的引用名，例如 hero_content。"
 msgid "Paste this entry inside the save model's relationships() return array."
 msgstr "将此条目粘贴到存档模型的 relationships() 返回数组中。"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.gd:249
-msgid ""
-"Picker registered and relationship copied. Paste it inside relationships()."
+msgid "Picker registered and relationship copied. Paste it inside relationships()."
 msgstr "已注册选择器并复制关系。请将其粘贴到 relationships() 中。"
 
 #: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn
@@ -1812,13 +1792,8 @@ msgstr "返回方案选择"
 msgid "Return to Selection"
 msgstr "返回选择"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
-msgid ""
-"Return to profile selection? This changes onboarding guidance only. Existing "
-"databases, packages, models, and saves will not be moved or deleted."
-msgstr ""
-"要返回方案选择吗？这只会改变引导提示。现有的数据库、包、模型和存档不会被移动"
-"或删除。"
+msgid "Return to profile selection? This changes onboarding guidance only. Existing databases, packages, models, and saves will not be moved or deleted."
+msgstr "要返回方案选择吗？这只会改变引导提示。现有的数据库、包、模型和存档不会被移动或删除。"
 
 #: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "File"
@@ -2186,10 +2161,7 @@ msgstr "QUERY"
 msgid "Safe Mode"
 msgstr "安全模式"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:80
-msgid ""
-"Edit one selected row in a focused table editor. Disable to edit table cells "
-"directly."
+msgid "Edit one selected row in a focused table editor. Disable to edit table cells directly."
 msgstr "在专门的行编辑器中编辑选中的单行。关闭后可直接编辑表格单元格。"
 
 #: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:131
@@ -2389,12 +2361,6 @@ msgstr "我确认更新所有行"
 #: addons/gdsql/editor/workspace/query_graph/nodes/update/update_operation_node.tscn
 msgid "Compile and run this UPDATE"
 msgstr "编译并运行此 UPDATE"
-
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:216
-msgid ""
-"Build a typed WHERE filter. Resource columns expose supported scalar "
-"property leaves."
-msgstr "构建带类型的 WHERE 筛选。Resource 列会暴露受支持的标量属性叶子节点。"
 
 #: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:343
 msgid "Save or discard changes before loading another page."
@@ -3806,9 +3772,6 @@ msgstr "需要已打开的数据库句柄。"
 msgid "Database registration '%s' already exists."
 msgstr "数据库注册“%s”已存在。"
 
-msgid "A logical database role is required."
-msgstr "需要逻辑数据库角色。"
-
 msgid "Database registration '%s' is selected by role '%s'."
 msgstr "数据库注册“%s”已被角色“%s”选定。"
 
@@ -4145,12 +4108,6 @@ msgstr "无法保存数据库目录“%s”。"
 msgid "Database names must be valid identifiers."
 msgstr "数据库名必须是有效的标识符。"
 
-msgid "Database '%s' is not registered."
-msgstr "数据库“%s”未注册。"
-
-msgid "Database '%s' is already registered."
-msgstr "数据库“%s”已注册。"
-
 msgid "Database directory '%s' already exists."
 msgstr "数据库目录“%s”已存在。"
 
@@ -4192,9 +4149,6 @@ msgstr "无法保存表模式“%s”。"
 
 msgid "Table name '%s' is not a valid identifier."
 msgstr "表名“%s”不是有效的标识符。"
-
-msgid "Table '%s.%s' already exists." 
-msgstr "表“%s.%s”已存在。"
 
 msgid "Target files for table '%s' already exist."
 msgstr "表“%s”的目标文件已存在。"
@@ -4271,9 +4225,6 @@ msgstr "列名“%s”不是有效的标识符。"
 msgid "Column '%s' does not exist."
 msgstr "列“%s”不存在。"
 
-msgid "Column '%s' already exists."
-msgstr "列“%s”已存在。"
-
 msgid "Primary-key column '%s' cannot be dropped."
 msgstr "主键列“%s”不能被删除。"
 
@@ -4304,12 +4255,6 @@ msgstr "外键“%s”已存在。"
 msgid "Foreign key '%s' does not exist."
 msgstr "外键“%s”不存在。"
 
-msgid "Generated column '%s' cannot also declare a static default."
-msgstr "自动生成的列“%s”不能同时声明静态默认值。"
-
-msgid "Default for column '%s' does not match its Variant type."
-msgstr "列“%s”的默认值与其 Variant 类型不匹配。"
-
 msgid "Primary-key column '%s' cannot be nullable."
 msgstr "主键列“%s”不能可为空。"
 
@@ -4333,9 +4278,6 @@ msgstr "列“%s”包含重复的取值“%s”。"
 
 msgid "Unique index '%s' has duplicate value '%s'."
 msgstr "唯一索引“%s”存在重复的取值“%s”。"
-
-msgid "Column '%s' does not exist."
-msgstr "列“%s”不存在。"
 
 msgid "Could not read the database catalog."
 msgstr "无法读取数据库目录。"
@@ -4427,9 +4369,6 @@ msgstr "内容方案"
 msgid "Choose Direct Content or Managed Content in the GDSQL welcome page."
 msgstr "请在 GDSQL 欢迎页中选择直接内容或托管内容。"
 
-msgid "%d base table(s) have schema and storage."
-msgstr "%d 张基础表已具备表结构与存储。"
-
 msgid "Stage removal of column '%s' from '%s'?"
 msgstr "要将列“%s”从“%s”中暂存移除吗？"
 
@@ -4474,11 +4413,6 @@ msgstr "表“%s”包含无效的列改动或索引改动。"
 
 msgid "Replace the generated schema base?\n\n%s\n\nThe user model will not be changed."
 msgstr "要替换生成的模式基类吗？\n\n%s\n\n用户模型不会改变。"
-
-msgid "Return to profile selection? This changes onboarding guidance only. Existing databases, packages, models, and saves will not be moved or deleted."
-msgstr ""
-"要返回方案选择吗？这只会改变引导提示。现有的数据库、包、模型和存档不会被移动"
-"或删除。"
 
 msgid "Managed content uses immutable packages and a generated effective-content database."
 msgstr "托管内容使用不可变的包与生成的有效内容数据库。"
@@ -4661,10 +4595,6 @@ msgstr "已达到 WHERE 嵌套的最大深度。"
 msgid "Expand group"
 msgstr "展开分组"
 
-msgid "Edit one selected row in a focused table editor. "
-"Disable to edit table cells directly."
-msgstr "在专门的行编辑器中编辑选中的单行。关闭后可直接编辑表格单元格。"
-
 msgid "Build a typed WHERE filter. Resource columns expose supported scalar property leaves."
 msgstr "构建带类型的 WHERE 筛选。Resource 列会暴露受支持的标量属性叶子节点。"
 
@@ -4726,15 +4656,6 @@ msgstr "创建 manifest.cfg、assets/ 以及常规的 data/databases.cfg 目录�
 
 msgid "Buffered"
 msgstr "缓冲"
-
-msgid "Paste this entry inside the save model's relationships() return array."
-msgstr "将此条目粘贴到存档模型的 relationships() 返回数组中。"
-
-msgid "Picker registered and relationship copied. Paste it inside relationships()."
-msgstr "已注册选择器并复制关系。请将其粘贴到 relationships() 中。"
-
-msgid "Could not remove the editor picker (%s)."
-msgstr "无法移除编辑器选择器（%s）。"
 
 msgid "Model binding · %s"
 msgstr "模型绑定 · %s"
@@ -4897,9 +4818,6 @@ msgstr "欢迎"
 
 msgid "Show the GDSQL welcome page."
 msgstr "显示 GDSQL 欢迎页。"
-
-msgid "Install Runtime"
-msgstr "安装运行时"
 
 msgid "Install the scene-backed GDSQLRuntime project autoload."
 msgstr "安装基于场景的 GDSQLRuntime 项目自动加载项。"
