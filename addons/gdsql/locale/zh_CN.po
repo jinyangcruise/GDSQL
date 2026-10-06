@@ -4880,43 +4880,43 @@ msgid "Redo the latest undone row-value update."
 msgstr "重做最近一次已撤销的行值更新。"
 
 msgid "Open a content table and use Model to generate its first typed binding."
-msgstr ""
+msgstr "打开一张内容表，使用模型助手生成它的第一个带类型绑定。"
 
 msgid "Install gdsql_runtime_node.tscn as the GDSQLRuntime autoload."
-msgstr ""
+msgstr "将 gdsql_runtime_node.tscn 安装为 GDSQLRuntime 自动加载项。"
 
 msgid "Content role should use an authored res:// data root."
-msgstr ""
+msgstr "内容角色应使用 res:// 下的原创数据根目录。"
 
 msgid "The content registration does not contain a readable database catalog."
-msgstr ""
+msgstr "内容注册不包含可读的数据库目录。"
 
 msgid "Content role resolves to '%s' under %s."
-msgstr ""
+msgstr "内容角色解析为“%s”，位于 %s 下。"
 
 msgid "Save role resolves to '%s' under %s."
-msgstr ""
+msgstr "存档角色解析为“%s”，位于 %s 下。"
 
 msgid "%d content table(s) have schema and storage."
-msgstr ""
+msgstr "%d 张内容表已具备表结构与存储。"
 
 msgid "Open the content database, then add and save its first table."
-msgstr ""
+msgstr "打开内容数据库，然后添加并保存它的第一张表。"
 
 msgid "The content database contains %d stored row(s)."
-msgstr ""
+msgstr "内容数据库包含 %d 行已存储的数据。"
 
 msgid "Open a content table and add its first row."
-msgstr ""
+msgstr "打开一张内容表并添加它的第一行。"
 
 msgid "Database registry metadata is unavailable."
-msgstr ""
+msgstr "数据库注册表元数据不可用。"
 
 msgid "Database role '%s' points to missing registration '%s'."
-msgstr ""
+msgstr "数据库角色“%s”指向缺失的注册“%s”。"
 
 msgid "Registration '%s' is missing its database name or data root."
-msgstr ""
+msgstr "注册“%s”缺少其数据库名称或数据根目录。"
 
 msgid "Registration '%s' uses unavailable storage backend '%s'."
-msgstr ""
+msgstr "注册“%s”使用了不可用的存储后端“%s”。"
