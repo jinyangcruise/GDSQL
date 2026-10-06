@@ -1474,6 +1474,15 @@ func read_batch(
 ) -> StorageReadBatch
 
 @abstract
+func read_index_batch(
+    table: TableDefinition,
+    index: IndexDefinition,
+    direction: StorageOrderDirection,
+    session: StorageSession,
+    request: StorageReadRequest
+) -> StorageReadBatch
+
+@abstract
 func find_by_primary_key(
     table: TableDefinition,
     key: Variant,
@@ -1575,12 +1584,21 @@ view that produced it. `read_batch()` returns a
 when more rows remain, structured diagnostics, and typed
 `GDSQLStorageReadStatistics`.
 
+`read_index_batch()` applies the same bounded request to one catalog index in
+ascending or descending value order. Its cursor token also identifies the
+index and direction, so a continuation cannot be reused for a different
+ordered read. The storage-specific direction type prevents the storage
+contract from depending on query-model ordering enums. The initial ConfigFile
+and in-memory adapters support composite index value order and staged-session
+visibility while decoding or projecting only rows in the returned window.
+
 Bounded result size and bounded physical I/O are intentionally distinct. The
 statistics report rows scanned and returned, optional byte/page counts, and
 whether the backend actually bounded physical reading. ConfigFile currently
 parses its complete table file before decoding the requested row window, and
-in-memory storage currently assembles its effective row set before slicing it;
-both therefore report `physical_read_bounded == false`, unknown byte/page
+orders persisted index metadata before decoding the requested indexed window.
+In-memory storage assembles and orders its effective row set before slicing it.
+Both therefore report `physical_read_bounded == false`, unknown byte/page
 counts as `-1`, and the full inspected row count. This compatibility behavior
 establishes stable execution semantics without pretending to provide the
 future binary backend's I/O characteristics.

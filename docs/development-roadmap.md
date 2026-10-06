@@ -50,7 +50,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Bounded reads (Resource Stage C) | Safe single-table scan windows, batched execution, and storage metrics are tested; ordered paged indexes and physical backend measurements remain |
+| High — first | Bounded reads (Resource Stage C) | Safe scan windows plus scan and ordered-index batch contracts are tested; planner adoption and physical backend measurements remain |
 | High | Migration data/save phase | Runtime already recovers and advances registered writable saves before hydration; dependent schema/mixed batches remain deferred |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
@@ -277,7 +277,9 @@ workflow.
 - Safe single-table `LIMIT`/`OFFSET` windows are pushed before Resource
   materialization. Predicates, joins, grouping, aggregates, ordering, and
   distinct selection retain the complete relational pipeline.
-- Extend storage capabilities with ordered paged index access.
+- Ordered catalog-index batches, direction-bound opaque cursors, capability
+  reporting, and ConfigFile/in-memory compatibility adapters are implemented
+  and tested. Planner/executor adoption remains the next Stage C step.
 - Measure physical row bytes/pages read separately from Resources materialized
   when a backend can report them.
 

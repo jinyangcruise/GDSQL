@@ -32,6 +32,26 @@ func read_batch(
 	return result
 
 
+## Reads at most request.batch_size rows in one catalog index's value order.
+## The cursor remains backend-owned and valid only for the same index and
+## direction that produced it.
+func read_index_batch(
+	table: GDSQLTableDefinition,
+	index: GDSQLIndexDefinition,
+	direction: GDSQLStorageOrderDirection.Direction,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLStorageReadBatch:
+	var result := GDSQLStorageReadBatch.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_STORAGE_ORDERED_INDEX_READ_UNSUPPORTED",
+			"The selected storage backend does not implement ordered index reads.",
+		),
+	)
+	return result
+
+
 func _validate_bounded_read_request(
 	request: GDSQLStorageReadRequest,
 	backend_id: StringName,
@@ -80,6 +100,45 @@ func _bounded_read_offset_error(
 		),
 	)
 	return result
+
+
+func _validate_ordered_index_read_request(
+	table: GDSQLTableDefinition,
+	index: GDSQLIndexDefinition,
+	direction: GDSQLStorageOrderDirection.Direction,
+	request: GDSQLStorageReadRequest,
+	backend_id: StringName,
+	result: GDSQLStorageReadBatch,
+) -> bool:
+	if not _validate_bounded_read_request(request, backend_id, table, result):
+		return false
+	if index == null:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_STORAGE_ORDERED_INDEX_REQUIRED",
+				"An ordered index read requires a catalog index.",
+			),
+		)
+		return false
+	var catalog_index := table.get_index(index.name)
+	if catalog_index == null or catalog_index.columns != index.columns:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_STORAGE_ORDERED_INDEX_MISMATCH",
+				"Index '%s' does not match table %s.%s." \
+						% [index.name, table.database_name, table.name],
+			),
+		)
+		return false
+	if not GDSQLStorageOrderDirection.is_valid(direction):
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_STORAGE_ORDER_DIRECTION_INVALID",
+				"An ordered index read requires a valid direction.",
+			),
+		)
+		return false
+	return true
 
 
 func find_by_primary_key(

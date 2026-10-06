@@ -3,6 +3,9 @@ extends GDSQLTableStorage
 
 const TABLE_METADATA_SECTION := "__gdsql_metadata__"
 const INDEX_SECTION_PREFIX := "__gdsql_index__:"
+const IndexBatchSupport = preload(
+	"res://addons/gdsql/storage/reads/gdsql_storage_index_batch_support.gd",
+)
 
 var path_resolver: GDSQLDatabasePathResolver
 var config_cache: GDSQLConfigFileCache
@@ -20,7 +23,7 @@ func _init(
 
 
 func get_capabilities() -> GDSQLStorageCapabilities:
-	return GDSQLStorageCapabilities.new(true, true, true)
+	return GDSQLStorageCapabilities.new(true, true, true, true)
 
 
 func read_table(
@@ -86,6 +89,72 @@ func read_batch(
 			GDSQLStorageBackendIds.CONFIG_FILE,
 			table.database_name,
 			table.name,
+			end,
+		)
+	result.value = result.rows
+	return result
+
+
+func read_index_batch(
+	table: GDSQLTableDefinition,
+	index: GDSQLIndexDefinition,
+	direction: GDSQLStorageOrderDirection.Direction,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLStorageReadBatch:
+	var result := GDSQLStorageReadBatch.new()
+	if not _validate_ordered_index_read_request(
+		table,
+		index,
+		direction,
+		request,
+		GDSQLStorageBackendIds.CONFIG_FILE,
+		result,
+	):
+		return result
+	var offset := IndexBatchSupport.cursor_offset(
+		request.cursor,
+		index,
+		direction,
+		result,
+	)
+	if not result.is_successful():
+		return result
+	if session != null and session.dirty:
+		var rows := _build_effective_rows(
+			table,
+			session,
+			_ordered_index_request(table, index, request),
+		)
+		IndexBatchSupport.sort_rows(rows, index, direction)
+		return _ordered_batch_from_rows(
+			rows,
+			offset,
+			request,
+			table,
+			index,
+			direction,
+		)
+	var config := config_cache.get_or_load(
+		path_resolver.resolve_table_path(table.database_name, table.name),
+	)
+	if config == null:
+		result.value = result.rows
+		return result
+	var sections := _ordered_index_row_sections(config, table, index, direction)
+	if offset > sections.size():
+		return _bounded_read_offset_error(offset, sections.size())
+	var end := mini(offset + request.batch_size, sections.size())
+	for row_offset in range(offset, end):
+		result.rows.append(_read_row(config, sections[row_offset], table, request))
+	result.statistics.rows_scanned = sections.size()
+	result.statistics.rows_returned = result.rows.size()
+	if end < sections.size():
+		result.next_cursor = IndexBatchSupport.create_cursor(
+			GDSQLStorageBackendIds.CONFIG_FILE,
+			table,
+			index,
+			direction,
 			end,
 		)
 	result.value = result.rows
@@ -439,6 +508,34 @@ func _batch_from_rows(
 	return result
 
 
+func _ordered_batch_from_rows(
+	rows: Array[GDSQLRowRecord],
+	offset: int,
+	request: GDSQLStorageReadRequest,
+	table: GDSQLTableDefinition,
+	index: GDSQLIndexDefinition,
+	direction: GDSQLStorageOrderDirection.Direction,
+) -> GDSQLStorageReadBatch:
+	if offset > rows.size():
+		return _bounded_read_offset_error(offset, rows.size())
+	var result := GDSQLStorageReadBatch.new()
+	var end := mini(offset + request.batch_size, rows.size())
+	for row_offset in range(offset, end):
+		result.rows.append(_apply_read_request(rows[row_offset], request))
+	result.statistics.rows_scanned = rows.size()
+	result.statistics.rows_returned = result.rows.size()
+	if end < rows.size():
+		result.next_cursor = IndexBatchSupport.create_cursor(
+			GDSQLStorageBackendIds.CONFIG_FILE,
+			table,
+			index,
+			direction,
+			end,
+		)
+	result.value = result.rows
+	return result
+
+
 func _cursor_offset(
 	cursor: GDSQLStorageReadCursor,
 	result: GDSQLStorageReadBatch,
@@ -465,6 +562,20 @@ func _effective_batch_request(
 	if not effective_request.all_columns \
 			and not effective_request.required_columns.has(table.primary_key):
 		effective_request.required_columns.append(table.primary_key)
+	return effective_request
+
+
+func _ordered_index_request(
+	table: GDSQLTableDefinition,
+	index: GDSQLIndexDefinition,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLStorageReadRequest:
+	var effective_request := _effective_batch_request(table, request)
+	if effective_request.all_columns:
+		return effective_request
+	for column_name in index.columns:
+		if not effective_request.required_columns.has(column_name):
+			effective_request.required_columns.append(column_name)
 	return effective_request
 
 
@@ -892,6 +1003,37 @@ func _get_row_sections(config: ConfigFile) -> PackedStringArray:
 	return sections
 
 
+func _ordered_index_row_sections(
+	config: ConfigFile,
+	table: GDSQLTableDefinition,
+	index: GDSQLIndexDefinition,
+	direction: GDSQLStorageOrderDirection.Direction,
+) -> PackedStringArray:
+	var buckets: Array[Dictionary] = []
+	for section in config.get_sections():
+		if not section.begins_with(_index_prefix(index)):
+			continue
+		buckets.append(
+			{
+				"values": _decode_index_values(
+					config.get_value(section, "values", []),
+					table,
+					index,
+				),
+				"rows": config.get_value(
+					section,
+					"rows",
+					PackedStringArray(),
+				),
+			},
+		)
+	buckets.sort_custom(_index_bucket_precedes.bind(direction))
+	var sections := PackedStringArray()
+	for bucket in buckets:
+		sections.append_array(bucket["rows"] as PackedStringArray)
+	return sections
+
+
 func _is_reserved_section(section: String) -> bool:
 	return section == TABLE_METADATA_SECTION or section.begins_with(INDEX_SECTION_PREFIX)
 
@@ -932,6 +1074,18 @@ func _compare_values(left: Variant, right: Variant) -> int:
 	if String(left) == String(right):
 		return 0
 	return -1 if String(left) < String(right) else 1
+
+
+func _index_bucket_precedes(
+	left: Dictionary,
+	right: Dictionary,
+	direction: GDSQLStorageOrderDirection.Direction,
+) -> bool:
+	return IndexBatchSupport.values_precede(
+		left["values"],
+		right["values"],
+		direction,
+	)
 
 
 func _has_staged_key(session: GDSQLStorageSession, table: GDSQLTableDefinition, key: Variant) -> bool:

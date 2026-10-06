@@ -295,6 +295,130 @@ func test_configfile_bounded_reads_return_compatible_batches() -> void:
 	assert_bool(staged_batch.rows[0].has_column(&"id")).is_false()
 
 
+func test_in_memory_ordered_index_reads_page_in_both_directions() -> void:
+	var table := _indexed_heroes_table()
+	var storage := GDSQLInMemoryTableStorage.new()
+	var session := GDSQLStorageSession.new()
+	for row in [
+		_hero(1, "Rogue"),
+		_hero(2, "Mage"),
+		_hero(3, "Knight"),
+		_hero(4, "Mage"),
+	]:
+		assert_bool(storage.stage_insert(table, row, session).is_successful()).is_true()
+	assert_bool(storage.commit(session).is_successful()).is_true()
+	var index := table.get_index(&"heroes_by_name")
+	var request := GDSQLStorageReadRequest.for_columns([&"name"], true)
+
+	var first := storage.read_index_batch(
+		table,
+		index,
+		GDSQLStorageOrderDirection.Direction.ASCENDING,
+		null,
+		request.bounded(2),
+	)
+	var second := storage.read_index_batch(
+		table,
+		index,
+		GDSQLStorageOrderDirection.Direction.ASCENDING,
+		null,
+		request.bounded(2, first.get_next_cursor()),
+	)
+	var descending := storage.read_index_batch(
+		table,
+		index,
+		GDSQLStorageOrderDirection.Direction.DESCENDING,
+		null,
+		request.bounded(2),
+	)
+
+	assert_bool(storage.get_capabilities().supports_ordered_index_reads()).is_true()
+	assert_array(_row_names(first.rows)).contains_exactly(["Knight", "Mage"])
+	assert_array(_row_names(second.rows)).contains_exactly(["Mage", "Rogue"])
+	assert_array(_row_names(descending.rows)).contains_exactly(["Rogue", "Mage"])
+	assert_bool(first.rows[0].has_column(&"id")).is_false()
+	assert_int(first.statistics.rows_scanned).is_equal(4)
+	assert_int(first.statistics.rows_returned).is_equal(2)
+	assert_bool(first.statistics.physical_read_bounded).is_false()
+
+
+func test_configfile_ordered_index_read_decodes_only_the_requested_window() -> void:
+	var table := _indexed_heroes_table()
+	var database := TestDatabase.create_database(_data_root, table)
+	TestDatabase.insert_rows(
+		database,
+		[
+			{&"id": 1, &"name": "Rogue"},
+			{&"id": 2, &"name": "Mage"},
+			{&"id": 3, &"name": "Knight"},
+			{&"id": 4, &"name": "Cleric"},
+		],
+	)
+	var storage := database.context.storage as GDSQLConfigFileTableStorage
+	var batch := storage.read_index_batch(
+		table,
+		table.get_index(&"heroes_by_name"),
+		GDSQLStorageOrderDirection.Direction.DESCENDING,
+		null,
+		GDSQLStorageReadRequest.for_columns([&"name"], true).bounded(2),
+	)
+
+	assert_bool(batch.is_successful()).is_true()
+	assert_array(_row_names(batch.rows)).contains_exactly(["Rogue", "Mage"])
+	assert_bool(batch.rows[0].has_column(&"id")).is_false()
+	assert_bool(batch.has_more()).is_true()
+	assert_int(batch.statistics.rows_scanned).is_equal(4)
+	assert_int(batch.statistics.rows_returned).is_equal(2)
+	assert_bool(batch.statistics.physical_read_bounded).is_false()
+	var staged_session := GDSQLStorageSession.new()
+	assert_bool(
+		storage.stage_insert(
+			table,
+			_hero(5, "Archer"),
+			staged_session,
+		).is_successful(),
+	).is_true()
+	var staged := storage.read_index_batch(
+		table,
+		table.get_index(&"heroes_by_name"),
+		GDSQLStorageOrderDirection.Direction.ASCENDING,
+		staged_session,
+		GDSQLStorageReadRequest.for_columns([&"name"], true).bounded(2),
+	)
+	assert_array(_row_names(staged.rows)).contains_exactly(["Archer", "Cleric"])
+
+
+func test_ordered_index_cursor_rejects_a_direction_change() -> void:
+	var table := _indexed_heroes_table()
+	var storage := GDSQLInMemoryTableStorage.new()
+	var session := GDSQLStorageSession.new()
+	for row in [_hero(1, "Mage"), _hero(2, "Knight")]:
+		storage.stage_insert(table, row, session)
+	assert_bool(storage.commit(session).is_successful()).is_true()
+	var index := table.get_index(&"heroes_by_name")
+	var request := GDSQLStorageReadRequest.all(true)
+	var first := storage.read_index_batch(
+		table,
+		index,
+		GDSQLStorageOrderDirection.Direction.ASCENDING,
+		null,
+		request.bounded(1),
+	)
+
+	var mismatched := storage.read_index_batch(
+		table,
+		index,
+		GDSQLStorageOrderDirection.Direction.DESCENDING,
+		null,
+		request.bounded(1, first.get_next_cursor()),
+	)
+
+	assert_bool(mismatched.is_successful()).is_false()
+	assert_str(String(mismatched.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_STORAGE_ORDERED_INDEX_CURSOR_MISMATCH",
+	)
+
+
 func test_bounded_read_rejects_a_cursor_from_another_backend() -> void:
 	var table := _heroes_table()
 	var storage := GDSQLInMemoryTableStorage.new()
@@ -338,6 +462,12 @@ func _heroes_table() -> GDSQLTableDefinition:
 	return table
 
 
+func _indexed_heroes_table() -> GDSQLTableDefinition:
+	var table := _heroes_table()
+	table.add_index(GDSQLIndexDefinition.new(&"heroes_by_name", [&"name"]))
+	return table
+
+
 func _auto_increment_heroes_table() -> GDSQLTableDefinition:
 	var table := GDSQLTableDefinition.new(&"heroes", &"id")
 	table.database_name = &"game_config"
@@ -348,3 +478,10 @@ func _auto_increment_heroes_table() -> GDSQLTableDefinition:
 
 func _hero(id: int, name: String) -> GDSQLRowRecord:
 	return GDSQLRowRecord.new({ &"id": id, &"name": name })
+
+
+func _row_names(rows: Array[GDSQLRowRecord]) -> Array[String]:
+	var names: Array[String] = []
+	for row in rows:
+		names.append(row.get_value(&"name"))
+	return names

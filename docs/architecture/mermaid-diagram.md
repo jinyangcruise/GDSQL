@@ -496,7 +496,7 @@ TableStorage("`**GDSQLTableStorage**
 
 -
 *Purpose:* Isolate row persistence from query execution
-*Read API:* read_table(), read_batch(), primary-key/index/range lookup, get_capabilities()
+*Read API:* read_table(), read_batch(), read_index_batch(), primary-key/index/range lookup, get_capabilities()
 *Read input:* GDSQLStorageReadRequest with required columns, reference policy and optional batch continuation
 *Mutation API:* stage_insert(), stage_update(), stage_delete()
 *Transaction API:* commit(), rollback()
@@ -507,6 +507,7 @@ StorageBatches("`**Bounded Storage Reads**
 -
 *Request:* Positive batch size plus backend/source-bound opaque GDSQLStorageReadCursor
 *Result:* GDSQLStorageReadBatch with rows, continuation, diagnostics and statistics
+*Ordered index:* Cursor also binds the catalog index and traversal direction
 *Metrics:* Rows scanned/returned, optional bytes/pages and physical-bound flag
 *Window:* Safe scan offsets/limits are applied before Resource materialization
 *Boundary:* Execution passes cursors back without inspecting backend tokens`")
@@ -564,8 +565,8 @@ ConfigStorage("`**GDSQLConfigFileTableStorage**
 
 -
 *Purpose:* Persist table rows as ConfigFile sections and values
-*API:* Snapshot/batch reads, primary-key/index/range lookup, staged mutations, commit and rollback
-*Batch behavior:* Bounds decoded rows after ConfigFile has parsed the table file
+*API:* Snapshot/scan/ordered-index batches, lookup, staged mutations, commit and rollback
+*Batch behavior:* Bounds decoded rows after ConfigFile has parsed table and index metadata
 *Maintains:* Reserved index entries during committed mutations
 *Extends:* GDSQLTableStorage
 *Uses:* Path resolver, ConfigFile cache and Variant codec`")
@@ -644,8 +645,8 @@ MemoryStorage("`**GDSQLInMemoryTableStorage**
 
 -
 *Purpose:* Keep authoritative table rows in memory
-*API:* Snapshot/batch reads, lookup, staged mutations, commit and rollback
-*Batch behavior:* Bounds returned rows after assembling the effective in-memory set
+*API:* Snapshot/scan/ordered-index batches, lookup, staged mutations, commit and rollback
+*Batch behavior:* Bounds returned rows after assembling and ordering the effective in-memory set
 *State:* Committed rows, table metadata and dirty versions
 *Extends:* GDSQLTableStorage`")
 

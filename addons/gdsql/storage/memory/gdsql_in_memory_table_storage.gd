@@ -7,6 +7,10 @@ extends GDSQLTableStorage
 ## adapter can inspect those tables and clear each dirty version after copying
 ## it to a durable [GDSQLTableStorage].
 
+const IndexBatchSupport = preload(
+	"res://addons/gdsql/storage/reads/gdsql_storage_index_batch_support.gd",
+)
+
 var _tables: Dictionary = { }
 var _metadata: Dictionary = { }
 var _definitions: Dictionary = { }
@@ -15,7 +19,7 @@ var _dirty_versions: Dictionary = { }
 
 
 func get_capabilities() -> GDSQLStorageCapabilities:
-	return GDSQLStorageCapabilities.new(true, true, true)
+	return GDSQLStorageCapabilities.new(true, true, true, true)
 
 
 func read_table(
@@ -68,6 +72,52 @@ func read_batch(
 			GDSQLStorageBackendIds.IN_MEMORY,
 			table.database_name,
 			table.name,
+			end,
+		)
+	result.value = result.rows
+	return result
+
+
+func read_index_batch(
+	table: GDSQLTableDefinition,
+	index: GDSQLIndexDefinition,
+	direction: GDSQLStorageOrderDirection.Direction,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLStorageReadBatch:
+	var result := GDSQLStorageReadBatch.new()
+	if not _validate_ordered_index_read_request(
+		table,
+		index,
+		direction,
+		request,
+		GDSQLStorageBackendIds.IN_MEMORY,
+		result,
+	):
+		return result
+	var offset := IndexBatchSupport.cursor_offset(
+		request.cursor,
+		index,
+		direction,
+		result,
+	)
+	if not result.is_successful():
+		return result
+	var rows := _effective_rows(table, session)
+	IndexBatchSupport.sort_rows(rows, index, direction)
+	if offset > rows.size():
+		return _bounded_read_offset_error(offset, rows.size())
+	var end := mini(offset + request.batch_size, rows.size())
+	for row_offset in range(offset, end):
+		result.rows.append(_project_row(rows[row_offset], request))
+	result.statistics.rows_scanned = rows.size()
+	result.statistics.rows_returned = result.rows.size()
+	if end < rows.size():
+		result.next_cursor = IndexBatchSupport.create_cursor(
+			GDSQLStorageBackendIds.IN_MEMORY,
+			table,
+			index,
+			direction,
 			end,
 		)
 	result.value = result.rows
