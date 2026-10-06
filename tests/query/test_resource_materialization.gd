@@ -119,6 +119,36 @@ func test_pushed_window_does_not_materialize_skipped_resource_rows() -> void:
 	assert_int(resolver.calls).is_equal(1)
 
 
+func test_ordered_index_window_does_not_materialize_skipped_resources() -> void:
+	var icon := load(REFERENCED_ICON_PATH) as Resource
+	var database := _create_database(icon)
+	assert_bool(
+		database.insert(
+			&"assets",
+			{&"id": 2, &"name": "Second key", &"icon": icon},
+		).is_successful(),
+	).is_true()
+	var resolver := CountingResolver.new(icon)
+	database.context.executor = GDSQLDefaultQueryExecutor.new(resolver)
+
+	var selected := database.execute(
+		database.table(&"assets")
+		.select()
+		.column(&"icon")
+		.order_by_column(&"name")
+		.offset(1)
+		.limit(1)
+		.build(),
+	)
+
+	assert_bool(selected.is_successful()).is_true()
+	assert_object(selected.rows[0].get_value(&"icon")).is_same(icon)
+	assert_bool(selected.statistics["ordered_index_window_pushed"]).is_true()
+	assert_int(selected.statistics["scan_rows_pruned"]).is_equal(1)
+	assert_int(selected.statistics["resources_materialized"]).is_equal(1)
+	assert_int(resolver.calls).is_equal(1)
+
+
 func test_deferred_query_returns_unloaded_handle_without_resolving_asset() -> void:
 	var icon := load(REFERENCED_ICON_PATH) as Resource
 	var database := _create_database(icon)
@@ -221,6 +251,7 @@ func _create_database(icon: Resource) -> GDSQLDatabase:
 	icon_column.resource_type = GDSQLResourceTypeConstraint.from_resource(icon)
 	icon_column.resource_ownership = GDSQLResourceOwnership.Mode.REFERENCED
 	table.add_column(icon_column)
+	table.add_index(GDSQLIndexDefinition.new(&"assets_by_name", [&"name"]))
 	var database := TestDatabase.create_database(_data_root, table)
 	var inserted := database.insert(
 		&"assets",

@@ -201,6 +201,12 @@ func _execute_select_node(
 		context: GDSQLExecutionContext,
 		result: GDSQLQueryExecutionResult,
 ) -> GDSQLRowSet:
+	if node is GDSQLOrderedIndexScanPlan:
+		return _execute_ordered_index_scan(
+			node as GDSQLOrderedIndexScanPlan,
+			context,
+			result,
+		)
 	if node is GDSQLTableScanPlan:
 		return _execute_table_scan(
 			node as GDSQLTableScanPlan,
@@ -378,7 +384,7 @@ func _execute_table_scan(
 		)
 		_record_pushed_rows(
 			snapshot.rows.size() - stored_rows.size(),
-			scan,
+			scan.has_pushed_window(),
 			result,
 		)
 		rows.rows = _qualify_lookup_rows(
@@ -391,6 +397,61 @@ func _execute_table_scan(
 			result,
 		).rows
 		return rows
+	return _execute_bounded_source(
+		scan.table,
+		scan.alias,
+		scan.output_schema,
+		scan.required_columns,
+		scan.pushed_offset,
+		scan.pushed_limit,
+		null,
+		GDSQLStorageOrderDirection.Direction.ASCENDING,
+		context,
+		result,
+	)
+
+
+func _execute_ordered_index_scan(
+	scan: GDSQLOrderedIndexScanPlan,
+	context: GDSQLExecutionContext,
+	result: GDSQLQueryExecutionResult,
+) -> GDSQLRowSet:
+	result.statistics["ordered_index_window_pushed"] = true
+	result.statistics["ordered_index_name"] = String(scan.index.name)
+	return _execute_bounded_source(
+		scan.table,
+		scan.alias,
+		scan.output_schema,
+		scan.required_columns,
+		scan.pushed_offset,
+		scan.pushed_limit,
+		scan.index,
+		_storage_order_direction(scan.direction),
+		context,
+		result,
+	)
+
+
+func _execute_bounded_source(
+	table: GDSQLTableDefinition,
+	alias: StringName,
+	output_schema: GDSQLResultSchema,
+	required_columns: Array[StringName],
+	pushed_offset: int,
+	pushed_limit: int,
+	index: GDSQLIndexDefinition,
+	direction: GDSQLStorageOrderDirection.Direction,
+	context: GDSQLExecutionContext,
+	result: GDSQLQueryExecutionResult,
+) -> GDSQLRowSet:
+	var rows := GDSQLRowSet.new()
+	rows.schema = output_schema
+	if pushed_limit == 0:
+		return rows
+	var session := _get_session(context)
+	var request := _read_request(required_columns)
+	var skip_remaining := pushed_offset
+	var take_remaining := pushed_limit
 	var cursor: GDSQLStorageReadCursor
 	var seen_cursors: Array[GDSQLStorageReadCursor] = []
 	while true:
@@ -398,16 +459,23 @@ func _execute_table_scan(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_EXECUTION_CANCELLED",
-					"Query execution was cancelled during a table scan.",
+					"Query execution was cancelled during a bounded storage read.",
 				),
 			)
 			return rows
 		var requested_size := _scan_batch_size(skip_remaining, take_remaining)
-		var batch := context.storage.read_batch(
-			scan.table,
-			session,
-			request.bounded(requested_size, cursor),
-		)
+		var bounded_request := request.bounded(requested_size, cursor)
+		var batch: GDSQLStorageReadBatch
+		if index == null:
+			batch = context.storage.read_batch(table, session, bounded_request)
+		else:
+			batch = context.storage.read_index_batch(
+				table,
+				index,
+				direction,
+				session,
+				bounded_request,
+			)
 		result.diagnostics.merge(batch.diagnostics)
 		_merge_storage_read_statistics(batch, result)
 		if not batch.is_successful():
@@ -419,19 +487,19 @@ func _execute_table_scan(
 		if take_remaining >= 0:
 			selected_count = mini(selected_count, take_remaining)
 			take_remaining -= selected_count
-		for index in range(selected_start, selected_start + selected_count):
-			selected_rows.append(batch.rows[index])
+		for row_index in range(selected_start, selected_start + selected_count):
+			selected_rows.append(batch.rows[row_index])
 		_record_pushed_rows(
 			batch.rows.size() - selected_rows.size(),
-			scan,
+			pushed_offset > 0 or pushed_limit >= 0,
 			result,
 		)
 		var qualified := _qualify_lookup_rows(
 			selected_rows,
-			scan.table,
-			scan.alias,
-			scan.output_schema,
-			scan.required_columns,
+			table,
+			alias,
+			output_schema,
+			required_columns,
 			context,
 			result,
 		)
@@ -446,13 +514,23 @@ func _execute_table_scan(
 				result.add_diagnostic(
 					GDSQLQueryDiagnostic.new(
 						&"GDSQL_STORAGE_CURSOR_DID_NOT_ADVANCE",
-						"Storage repeated a continuation during a bounded scan.",
+						"Storage repeated a continuation during a bounded read.",
 					),
 				)
 				return rows
 		seen_cursors.append(next_cursor)
 		cursor = next_cursor
 	return rows
+
+
+func _storage_order_direction(
+	direction: GDSQLOrderClause.SortDirection,
+) -> GDSQLStorageOrderDirection.Direction:
+	return (
+		GDSQLStorageOrderDirection.Direction.DESCENDING
+		if direction == GDSQLOrderClause.SortDirection.DESCENDING
+		else GDSQLStorageOrderDirection.Direction.ASCENDING
+	)
 
 
 func _scan_batch_size(skip_remaining: int, take_remaining: int) -> int:
@@ -480,10 +558,10 @@ func _window_rows(
 
 func _record_pushed_rows(
 	count: int,
-	scan: GDSQLTableScanPlan,
+	window_pushed: bool,
 	result: GDSQLQueryExecutionResult,
 ) -> void:
-	if count <= 0 or not scan.has_pushed_window():
+	if count <= 0 or not window_pushed:
 		return
 	result.statistics["scan_rows_pruned"] = int(
 		result.statistics.get("scan_rows_pruned", 0),

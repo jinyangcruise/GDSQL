@@ -69,7 +69,7 @@ func test_exact_index_lookup_is_planned_and_executed() -> void:
 		assert_str(row.get_value(&"name")).is_equal("Mage")
 
 
-func test_simple_window_is_pushed_to_scan_but_ordered_window_is_not() -> void:
+func test_safe_windows_are_pushed_to_scans_and_ordered_indexes() -> void:
 	var database := _create_indexed_database()
 	var pushed := database.context.prepare(
 		database.table(&"heroes").select().offset(2).limit(3).build(),
@@ -88,7 +88,70 @@ func test_simple_window_is_pushed_to_scan_but_ordered_window_is_not() -> void:
 		.limit(3)
 		.build(),
 	)
-	assert_object(ordered.plan.root).is_instanceof(GDSQLLimitPlan)
+	var ordered_scan := ordered.plan.root as GDSQLOrderedIndexScanPlan
+
+	assert_object(ordered_scan).is_not_null()
+	assert_str(String(ordered_scan.index.name)).is_equal("heroes_by_name")
+	assert_int(ordered_scan.pushed_offset).is_equal(2)
+	assert_int(ordered_scan.pushed_limit).is_equal(3)
+
+
+func test_ordered_index_window_executes_without_sorting_skipped_rows() -> void:
+	var database := _create_indexed_database()
+	_seed_heroes(database)
+	var query := database.table(&"heroes") \
+		.select() \
+		.order_by_column(&"name") \
+		.offset(2) \
+		.limit(1) \
+		.build()
+
+	var selected := database.execute(query)
+
+	assert_bool(selected.is_successful()).is_true()
+	assert_int(selected.get_returned_rows()).is_equal(1)
+	assert_str(selected.rows[0].get_value(&"name")).is_equal("Mage")
+	assert_bool(selected.statistics["ordered_index_window_pushed"]).is_true()
+	assert_str(selected.statistics["ordered_index_name"]).is_equal(
+		"heroes_by_name",
+	)
+	assert_int(selected.statistics["scan_rows_pruned"]).is_equal(2)
+	var descending := database.execute(
+		database.table(&"heroes")
+		.select()
+		.order_by_column(&"name", GDSQLOrderClause.SortDirection.DESCENDING)
+		.limit(1)
+		.build(),
+	)
+	assert_bool(descending.is_successful()).is_true()
+	assert_str(descending.rows[0].get_value(&"name")).is_equal("Mage")
+
+
+func test_ordered_index_window_falls_back_when_semantics_are_not_safe() -> void:
+	var database := _create_indexed_database()
+	var primary_key_order := database.context.prepare(
+		database.table(&"heroes").select().order_by_column(&"id").limit(2).build(),
+	)
+	var filtered_order := database.context.prepare(
+		database.table(&"heroes")
+		.select()
+		.where(TestDatabase.id_equals(2))
+		.order_by_column(&"name")
+		.limit(2)
+		.build(),
+	)
+	var mixed_direction := database.context.prepare(
+		database.table(&"heroes")
+		.select()
+		.order_by_column(&"name")
+		.order_by_column(&"level", GDSQLOrderClause.SortDirection.DESCENDING)
+		.limit(2)
+		.build(),
+	)
+
+	assert_object(primary_key_order.plan.root).is_instanceof(GDSQLLimitPlan)
+	assert_object(filtered_order.plan.root).is_instanceof(GDSQLLimitPlan)
+	assert_object(mixed_direction.plan.root).is_instanceof(GDSQLLimitPlan)
 
 
 func test_range_lookup_tracks_committed_mutations() -> void:

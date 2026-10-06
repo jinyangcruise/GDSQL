@@ -916,6 +916,13 @@ distinct operation. These conditions guarantee that downstream operators cannot
 change which source rows belong to the requested window. Other queries retain
 an explicit `LimitPlan` after their relational operators.
 
+When that same safe query has `ORDER BY`, the planner may instead emit an
+`OrderedIndexScanPlan` when every order clause is a bound column, all directions
+match, and the ordered columns match a catalog index prefix. The node carries
+the index, direction, required columns, and result window. It replaces both
+`SortPlan` and `LimitPlan`; queries with predicates or other row-set-changing
+operators keep the complete relational pipeline.
+
 ```gdscript
 func plan_select(
     query: BoundSelectQuery
@@ -971,6 +978,7 @@ Later implementations may choose among alternative operations:
 
 ```text
 TableScanPlan
+OrderedIndexScanPlan
 PrimaryKeyLookupPlan
 IndexLookupPlan
 NestedLoopJoinPlan
@@ -993,11 +1001,13 @@ These decisions do not alter `QuerySpec`.
 Indexes are an execution and storage capability rather than a second query
 model. `IndexDefinition` stores a stable name, an ordered column list, and a
 uniqueness policy in catalog metadata. `StorageCapabilities` reports exact and
-range lookup support without making the planner depend on a concrete backend.
+range lookup, bounded scan, and ordered-index read support without making the
+planner depend on a concrete backend.
 
-The deterministic planner chooses among table scan, primary-key lookup, exact
-index lookup, and range lookup based on bound predicates, index metadata, and
-reported storage capabilities. The initial optimization recognizes literal
+The deterministic planner chooses among table scan, ordered-index scan,
+primary-key lookup, exact index lookup, and range lookup based on bound
+predicates, index metadata, and reported storage capabilities. The initial
+predicate optimization recognizes literal
 comparisons against single-column indexes, including indexed comparisons inside
 an `AND` predicate. It retains the complete predicate as a filter after the
 lookup, preserving semantics when other conditions are present. Composite
@@ -1603,16 +1613,17 @@ counts as `-1`, and the full inspected row count. This compatibility behavior
 establishes stable execution semantics without pretending to provide the
 future binary backend's I/O characteristics.
 
-Table-scan execution consumes these responses in bounded batches of 256 rows.
-It keeps one storage session and passes each opaque continuation back to the
-same table backend until no continuation remains. Storage diagnostics are
-merged into the query result, cancellation is checked between batches, and a
-repeated continuation is rejected instead of permitting a cursor cycle.
-Backends that do not advertise bounded reads retain the complete-snapshot
-compatibility path.
+Table-scan and ordered-index execution consume these responses in bounded
+batches of 256 rows. They keep one storage session and pass each opaque
+continuation back to the same table backend until no continuation remains.
+Storage diagnostics are merged into the query result, cancellation is checked
+between batches, and a repeated continuation is rejected instead of permitting
+a cursor cycle. Backends that do not advertise bounded table reads retain the
+complete-snapshot compatibility path.
 
-When a scan carries a semantically safe pushed window, execution skips its
-offset and stops at its limit before Resource materialization and projection.
+When a table or ordered-index scan carries a semantically safe pushed window,
+execution skips its offset and stops at its limit before Resource
+materialization and projection.
 This prevents discarded rows from resolving referenced assets and avoids
 unnecessary downstream work. It does not claim bounded disk I/O: compatibility
 backends still report the complete row set they inspected, while future paged

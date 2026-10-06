@@ -346,7 +346,7 @@ Planner("`**GDSQLQueryPlanner**
 *API:* create_plan(bound_query)
 *Returns:* GDSQLQueryPlanningResult containing GDSQLQueryPlan
 *Derives:* Required columns and concrete Resource evaluation requirements
-*Optimizes:* Safe single-table OFFSET/LIMIT scan windows
+*Optimizes:* Safe single-table OFFSET/LIMIT table or ordered-index windows
 *Extended by:* GDSQLDefaultQueryPlanner`")
 
 PlanNode("`**GDSQLPlanNode**
@@ -354,7 +354,7 @@ PlanNode("`**GDSQLPlanNode**
 -
 *Purpose:* Represent one executable operation in a query plan
 *API:* accept(visitor)
-*Read nodes:* Scan, primary-key, exact-index, range-index, join, filter, aggregate, sort, projection, distinct and limit
+*Read nodes:* Scan, ordered-index scan, primary-key, exact-index, range-index, join, filter, aggregate, sort, projection, distinct and limit
 *Mutation nodes:* Insert, update and delete`")
 
 Executor("`**GDSQLQueryExecutor**
@@ -780,9 +780,9 @@ ResourceConstraint -->|"static property metadata"| ResourceProperties
 Validator -->|"validate scalar leaf path"| ResourceProperties
 Workbench -.->|"Resource WHERE field choices"| ResourceProperties
 CatalogService -->|"table integrity metadata"| ForeignKeys
-Executor -->|"read_batch() · lookup reads"| TableStorage
-Executor -->|"consume bounded scan continuations"| StorageBatches
-TableStorage -->|"read_batch(request)"| StorageBatches
+Executor -->|"read_batch() · read_index_batch() · lookup reads"| TableStorage
+Executor -->|"consume bounded scan/index continuations"| StorageBatches
+TableStorage -->|"read_batch(request) · read_index_batch(request)"| StorageBatches
 Executor -->|"materialize required references"| ResourceMaterialization
 Executor -->|"stage_*() · commit() · rollback()"| TableStorage
 Context -->|"validate final transaction state"| ForeignKeyValidation
