@@ -67,9 +67,12 @@ func is_lazy_loaded(property: String) -> bool:
 
 
 ## 丢弃懒加载缓存（写入/删除后调用，避免读到陈旧集合）。不传参数则整体丢弃。
+##
+## NOTICE 只丢弃**值**，保留登记信息（_lazy_specs）：下次访问该属性时会按原 spec 重新查询。
+## 若把登记也一起清掉，_lazy_specs 就再也无法恢复，"失效后重新读取"会退化成永远返回空容器
+## （而且不再发起任何查询），这与本函数的用途正好相反。
 func invalidate_lazy(property: String = "") -> void:
 	if property.is_empty():
-		_lazy_specs.clear()
 		_lazy_values.clear()
 		_lazy_loaded.clear()
 		return
@@ -78,7 +81,8 @@ func invalidate_lazy(property: String = "") -> void:
 
 
 ## 按属性声明的元素类型造一个空 typed 数组（非数组属性返回 null）。
-## 构造法与 result_map.gd 的 _gen_array() 一致：Array([], TYPE_OBJECT, 基类, 脚本)。
+## 这里只能拿到**属性名**（拿不到 resultMap 里配置的 of_type 字符串），所以要扫
+## get_script_property_list() 取 hint_string；拿到类型名后优先复用共享实现。
 func _empty_typed_default(property: String) -> Variant:
 	var of_type := ""
 	for p in (get_script() as GDScript).get_script_property_list():
@@ -88,6 +92,10 @@ func _empty_typed_default(property: String) -> Variant:
 			break
 	if of_type.is_empty():
 		return null
+	var typed = GDSQL.GDSQLUtils.make_typed_array(of_type)
+	if typed != null:
+		return typed
+	# 类型名无法解析成表达式时的兜底：手工拼 Array([], TYPE_OBJECT, 基类, 脚本)
 	if GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(of_type):
 		return Array([], GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES[of_type], "", null)
 	if ClassDB.class_exists(of_type):
@@ -110,10 +118,9 @@ func _run_lazy_spec(property: String) -> Variant:
 		push_warning("GBatis: 懒加载 %s 失败（mapper/select 不可用），返回空值。" % property)
 		return null
 	var result = parser_ref.get_ref().call_method_in_namespace(select_name, spec.get("args", []))
-	# 与 eager 路径保持一致的容器类型：集合用注册时生成的 typed 空数组当原型
+	# 与 eager 路径保持一致的容器类型：集合用注册时生成的 typed 空数组当原型。
+	# assign 的丢数据陷阱由 GDSQLUtils.assign_to_typed() 统一处理。
 	var proto = spec.get("typed_proto")
 	if proto is Array and result is Array and not (result as Array).is_empty():
-		var typed: Array = (proto as Array).duplicate()
-		typed.assign(result)
-		return typed
+		return GDSQL.GDSQLUtils.assign_to_typed(proto, result)
 	return result

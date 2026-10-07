@@ -189,6 +189,39 @@ static func evaluate_command_script(command: String, variable_names = [], variab
 	return ret
 
 
+## 构造一个元素类型为 p_type_name 的**空 typed 数组**。
+##
+## 用 `[] as Array[X]` 让引擎自己解析元素类型，这样内建类型（int、String）、
+## 用户实体类（class_name 注册的全局类）都走同一条路径，不需要手工拼
+## Array([], TYPE_OBJECT, 基类, 脚本) —— 后者在元素类型解析不出来时，会在
+## GDSQL.GBatisEntityDB.get_class_path()/load() 里报错甚至卡住。
+##
+## 返回：typed 空数组；p_type_name 为空或无法解析时返回 null（调用方自行决定回退策略）。
+## NOTICE 每次调用都会编译一小段 GDScript（约 0.02ms），不要放在逐行/逐元素的循环里。
+static func make_typed_array(p_type_name: String):
+	if p_type_name.strip_edges().is_empty():
+		return null
+	return evaluate_command_script("[] as Array[" + p_type_name + "]")
+
+
+## 把 p_data 装进"元素类型与 p_proto 相同"的 typed 数组。
+##
+## NOTICE Array.assign() 在元素无法转换成目标类型时**不报错**：引擎只打印
+## "Unable to convert array index ..."，然后留下一个空数组。若不校验，就会把查询到的
+## N 条数据静默变成空集合。这里在 assign 之后核对元素个数：
+## 元素没丢就返回结果（哪怕因引擎不做该转换而退化成了无类型数组），
+## 只有确实丢元素时才退回原始数据 —— 宁可容器类型退化，也不能丢数据。
+static func assign_to_typed(p_proto: Array, p_data: Array) -> Array:
+	var typed: Array = p_proto.duplicate()
+	typed.assign(p_data)
+	if typed.size() == p_data.size():
+		return typed
+	push_warning(
+		"GBatis: 结果元素类型与目标数组 %s 不匹配，已按原始类型返回（避免丢失数据）。" % p_proto,
+	)
+	return p_data
+
+
 ## FileAccess.file_exists 不支持 install:// 路径，此函数先做路径转换再检查
 static func file_exists(path: String) -> bool:
 	return FileAccess.file_exists(globalize_path(path))

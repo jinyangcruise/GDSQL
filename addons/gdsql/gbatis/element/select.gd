@@ -365,7 +365,5 @@ func query():
 func _gen_array():
 	if method_return_info.hint == PROPERTY_HINT_ARRAY_TYPE:
 		# 不能使用evaluate_command，原因是Expression虽然成功返回但并不是typed array
-		return GDSQL.GDSQLUtils.evaluate_command_script(
-			"[] as Array[" + method_return_info.hint_string + "]",
-		)
+		return GDSQL.GDSQLUtils.make_typed_array(method_return_info.hint_string)
 	return []

@@ -858,7 +858,7 @@ func _automapping_collections(data: Array, obj: Object):
 			if of_type == "":
 				list = arr
 			else:
-				list.assign(arr)
+				list = GDSQL.GDSQLUtils.assign_to_typed(list, arr)
 			obj.set(col.property, list)
 			if obj.get(col.property) != list:
 				assert(false, "Set collected property %s failed!" % col.property)
@@ -882,14 +882,15 @@ func _automapping_collections(data: Array, obj: Object):
 	return true
 
 
+## 把整行结果装进 array_type 对应的 typed 数组（array_type 为空时原样返回）。
 func _automapping_array(data: Array):
 	if array_type == "":
 		return data
 	var ret_data = _gen_array(array_type)
+	# 已经同类型（含元素与 typed 签名完全一致）时无需再转换
 	if data.is_same_typed(ret_data):
 		return data
-	ret_data.assign(data)
-	return ret_data
+	return GDSQL.GDSQLUtils.assign_to_typed(ret_data, data)
 
 
 func _automapping_dictionary(data: Array) -> Dictionary:
@@ -974,9 +975,15 @@ func _get_obj_or_generate(data: Array) -> Object:
 	return obj
 
 
+## 构造元素类型为 p_array_type 的空 typed 数组。
+## 优先走 GDSQLUtils.make_typed_array()（`[] as Array[X]`，一条路径覆盖内建类型与实体类）；
+## 只有当它无法解析该类型时才退回下面手工拼 (builtin, base, script) 的老办法。
 func _gen_array(p_array_type: String):
 	if p_array_type == "":
 		return []
+	var typed = GDSQL.GDSQLUtils.make_typed_array(p_array_type)
+	if typed != null:
+		return typed
 	if GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES.has(p_array_type):
 		return Array([], GDSQL.DataTypeDef.DATA_TYPE_COMMON_NAMES[p_array_type], "", null)
 	if ClassDB.class_exists(p_array_type):

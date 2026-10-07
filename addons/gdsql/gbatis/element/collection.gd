@@ -24,9 +24,11 @@ extends RefCounted
 #                                     id when needed. If this attr is set, then 
 #                                     NRM(Nested Result Mapping) which uses 
 #                                     some `JOIN`s will not work.
-#fetchType (lazy|eager) #IMPLIED ---- lazy: [default] fetch data when this 
-#                                           property is getted;
-#                                     eager: fetch data immediately.
+#fetchType (lazy|eager) #IMPLIED ---- lazy: fetch data when this property is
+#                                           getted; requires attr `select`, and
+#                                           the entity field must use
+#                                           lazy_get()/lazy_set() accessors;
+#                                     eager: [default] fetch data immediately.
 #===============================================================================
 #集合的嵌套结果映射：
 #resultMap CDATA #IMPLIED ----------- configured result map.
