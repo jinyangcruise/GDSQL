@@ -87,7 +87,7 @@ msgid ""
 msgstr "存在依赖行时，对被引用行的更新和删除将受到限制。"
 
 msgid "RESTRICT"
-msgstr "RESTRICT"
+msgstr "限制"
 
 msgid "Discard foreign key draft"
 msgstr "放弃外键草稿"
@@ -189,7 +189,7 @@ msgid "Drag to change the editor column order"
 msgstr "拖动可调整编辑器中的列顺序"
 
 msgid "column_name"
-msgstr "column_name"
+msgstr "列名"
 
 msgid "bool"
 msgstr "bool"
@@ -509,7 +509,7 @@ msgid "ConfigFile — read and write durable files directly"
 msgstr "cfg 文件 — 直接读写持久化文件"
 
 msgid "In memory — hydrate from ConfigFile and checkpoint changes"
-msgstr "内存 — 从 cfg 文件 载入，并对变更做检查点保存"
+msgstr "内存 — 从 cfg 文件载入，并对变更做检查点保存"
 
 msgid "Catalog, schema, and rows use ConfigFile storage directly."
 msgstr "目录、模式和行数据直接使用 cfg 文件存储。"
@@ -733,13 +733,13 @@ msgid "Database role"
 msgstr "数据库角色"
 
 msgid "Content · read-only at runtime"
-msgstr "内容 · 运行时只读"
+msgstr "游戏内容 · 运行时只读"
 
 msgid "Saved state · mutable active slot"
-msgstr "存档状态 · 可变的活动槽位"
+msgstr "玩家存档 · 可变的活动槽位"
 
 msgid "Settings · mutable shared state"
-msgstr "设置 · 可变的共享状态"
+msgstr "游戏设置 · 可变的共享状态"
 
 msgid "Custom role · read-only by default"
 msgstr "自定义角色 · 默认只读"
@@ -1718,7 +1718,7 @@ msgid "%d database(s) · %d table(s) · %d stored row(s)"
 msgstr "%d 个数据库 · %d 张表 · %d 行已存储"
 
 msgid "PRIMARY (%s) · unique · automatic"
-msgstr "主键（%s）· 唯一 · 自动"
+msgstr "主键（%s）· 唯一 · 自动递增"
 
 msgid "%d rows · %d columns · %d indexes"
 msgstr "%d 行 · %d 列 · %d 个索引"
@@ -1848,6 +1848,9 @@ msgid "New Database"
 msgstr "新建数据库"
 
 msgid "In Memory"
+msgstr "内存"
+
+msgid "In memory"
 msgstr "内存"
 
 msgid "%d package(s) selected in deterministic load order."
@@ -3991,3 +3994,9 @@ msgstr "注册“%s”缺少其数据库名称或数据根目录。"
 
 msgid "Registration '%s' uses unavailable storage backend '%s'."
 msgstr "注册“%s”使用了不可用的存储后端“%s”。"
+
+msgid "Unspecified Resource"
+msgstr "未指定资源"
+
+msgid "%s  —  %d table(s), %d row(s)"
+msgstr "%s — %d 张表，%d 行"

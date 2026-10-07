@@ -55,18 +55,18 @@ vertical_alignment = 1
 [node name="VSeparator3" type="VSeparator" parent="Margin/Cells" unique_id=413905432]
 layout_mode = 2
 
-[node name="OwnershipCell" type="MarginContainer" parent="Margin/Cells"]
+[node name="OwnershipCell" type="MarginContainer" parent="Margin/Cells" unique_id=935756974]
 custom_minimum_size = Vector2(115, 0)
 custom_maximum_size = Vector2(115, -1)
 layout_mode = 2
 
-[node name="Ownership" type="Label" parent="Margin/Cells/OwnershipCell"]
+[node name="Ownership" type="Label" parent="Margin/Cells/OwnershipCell" unique_id=1616677937]
 layout_mode = 2
 text = "Storage"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="VSeparatorOwnership" type="VSeparator" parent="Margin/Cells"]
+[node name="VSeparatorOwnership" type="VSeparator" parent="Margin/Cells" unique_id=823909574]
 layout_mode = 2
 
 [node name="NullableCell" type="MarginContainer" parent="Margin/Cells" unique_id=2019579880]
@@ -79,6 +79,7 @@ size_flags_horizontal = 4
 layout_mode = 2
 size_flags_horizontal = 4
 tooltip_text = "Nullable"
+mouse_filter = 1
 text = "NUL"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -95,6 +96,8 @@ size_flags_horizontal = 4
 [node name="Unique" type="Label" parent="Margin/Cells/UniqueCell" unique_id=456543946]
 layout_mode = 2
 size_flags_horizontal = 4
+tooltip_text = "Unique"
+mouse_filter = 1
 text = "UN"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -111,6 +114,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 4
 tooltip_text = "Auto Increment"
+mouse_filter = 1
 text = "AI"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -127,6 +131,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 4
 tooltip_text = "Default"
+mouse_filter = 1
 text = "DEF"
 horizontal_alignment = 1
 vertical_alignment = 1

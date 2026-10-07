@@ -222,7 +222,7 @@ func _populate_databases(
 			for table in inspection.tables:
 				rows += table.row_count
 		var index := _database_list.add_item(
-			"%s  —  %d table(s), %d row(s)\n%s" % [
+			(tr("%s  —  %d table(s), %d row(s)") + " \n%s") % [
 				registration.database_name,
 				tables,
 				rows,

@@ -162,7 +162,7 @@ func _update_model_class_placeholder() -> void:
 	if _table == null:
 		return
 	var example := _suggest_class_name(String(_table.name)) + _role_class_suffix()
-	_model_class.placeholder_text = "Use a singular class name, e.g. %s" % example
+	_model_class.placeholder_text = tr("Use a singular class name, e.g. %s") % example
 
 
 func _role_class_suffix() -> String:
@@ -218,7 +218,7 @@ func _refresh_preview() -> void:
 	var user_exists := FileAccess.file_exists(_source.user_path)
 	%UserPath.text = tr("User model: %s%s") % [
 		_source.user_path,
-		" · preserved" if user_exists else " · created once",
+		tr(" · preserved" if user_exists else " · created once"),
 	]
 	_generated_preview.text = _source.generated_source
 	_user_preview.text = (
