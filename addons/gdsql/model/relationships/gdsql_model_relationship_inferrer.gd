@@ -90,7 +90,7 @@ static func describe(
 			foreign_key.referenced_table,
 		).size()
 		descriptions.append(
-			"belongs_to %s · %s → %s.%s" % [
+			_tr("belongs_to %s · %s → %s.%s") % [
 				_belongs_to_name(foreign_key, matching_target_count),
 				foreign_key.column,
 				foreign_key.referenced_table,
@@ -102,8 +102,8 @@ static func describe(
 		for foreign_key in incoming:
 			descriptions.append(
 				"%s %s · %s → %s.%s" % [
-					"has_one" if related_table.has_unique_key(foreign_key.column) \
-							else "has_many",
+					_tr("has_one" if related_table.has_unique_key(foreign_key.column) \
+							else "has_many"),
 					_inverse_name(related_table, foreign_key, incoming.size()),
 					foreign_key.referenced_column,
 					related_table.name,
@@ -198,3 +198,7 @@ static func _singularize(value: String) -> String:
 			and not value.ends_with("is"):
 		return value.left(-1)
 	return value
+
+
+static func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

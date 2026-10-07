@@ -104,7 +104,7 @@ func configure(column_draft: GDSQLEditorColumnDraft) -> void:
 			if draft.resource_type != null
 			else "Unspecified Resource"
 	)
-	_resource_type_name.tooltip_text = "Accepted Resource type: %s" % _resource_type_name.text
+	_resource_type_name.tooltip_text = tr("Accepted Resource type: %s") % _resource_type_name.text
 	_resource_type.set_edited_resource(draft.resource_prototype)
 	_resource_type.editable = draft.original == null
 	_resource_ownership.visible = shows_resource_type

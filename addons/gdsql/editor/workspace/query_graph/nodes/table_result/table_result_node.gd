@@ -139,7 +139,7 @@ func present(
 		_can_add_rows = false
 		_can_edit_rows = false
 		_title.text = "MUTATION RESULT"
-		_details.text = "%d row(s) affected." % result.get_affected_rows()
+		_details.text = tr("%d row(s) affected.") % result.get_affected_rows()
 		_status.text = "Mutation completed successfully."
 		_set_table_visible(false)
 		_emit_capabilities()
@@ -160,7 +160,7 @@ func present(
 	_render_table()
 	if not _page_layout_initialized:
 		_fit_initial_page.call_deferred()
-	_status.text = ("No rows returned."
+	_status.text = (tr("No rows returned.")
 			if _records.is_empty()
 			else _result_status_text())
 	if _safe_mode and _selected_record_index >= 0:
@@ -246,10 +246,10 @@ func _has_all_columns(table: GDSQLTableDefinition, view: GDSQLTableDefinition) -
 
 
 func _capability_summary(row_count: int) -> String:
-	var capabilities: Array[String] = ["%d row(s)" % row_count]
-	capabilities.append("editable" if _can_edit_rows else "read only")
+	var capabilities: Array[String] = [tr("%d row(s)") % row_count]
+	capabilities.append(tr("editable" if _can_edit_rows else "read only"))
 	capabilities.append(
-		"rows can be added" if _can_add_rows else "projected result; adding rows is unavailable",
+		tr("rows can be added" if _can_add_rows else "projected result; adding rows is unavailable"),
 	)
 	return " · ".join(capabilities)
 
@@ -288,7 +288,7 @@ func _on_table_row_selected() -> void:
 		_open_record_editor(record_index)
 	else:
 		_selected_record_index = record_index
-		_status.text = "Row %d selected. Double-click a value to edit it." % (record_index + 1)
+		_status.text = tr("Row %d selected. Double-click a value to edit it.") % (record_index + 1)
 		_refresh_editor_actions()
 
 
@@ -317,7 +317,7 @@ func _open_record_editor(record_index: int) -> void:
 	_editor_table.set_safe_mode(false)
 	_editor_table.render_page(0, 1, 0, 1)
 	_editor_section.visible = true
-	_status.text = "Editing row %d of %d." % [record_index + 1, _records.size()]
+	_status.text = tr("Editing row %d of %d.") % [record_index + 1, _records.size()]
 	_refresh_editor_actions()
 
 
@@ -397,9 +397,9 @@ func _save_inline_changes() -> void:
 	_table_view.restore_pending_updates(failed)
 	_render_table()
 	_status.text = (
-			"Saved changes to %d row(s)." % saved_count
+			tr("Saved changes to %d row(s).") % saved_count
 			if failed.is_empty()
-			else "%d row(s) saved; %d failed update(s) remain pending." % [saved_count, failed.size()]
+			else tr("%d row(s) saved; %d failed update(s) remain pending.") % [saved_count, failed.size()]
 	)
 	_refresh_editor_actions()
 	_emit_capabilities()
@@ -412,7 +412,7 @@ func _request_delete_editor_row() -> void:
 			_discard_editor_row()
 		return
 	_delete_confirmation.dialog_text = (
-			"Delete the row whose primary key is %s?"
+			tr("Delete the row whose primary key is %s?")
 			% _value_text(source.get_value(_table.primary_key))
 	)
 	_delete_confirmation.popup_centered(Vector2i(420, 160))
@@ -501,10 +501,10 @@ func _selected_source_record() -> GDSQLRowRecord:
 
 func _result_status_text() -> String:
 	if _records.is_empty():
-		return "No rows returned."
+		return tr("No rows returned.")
 	if _safe_mode:
-		return "%d row(s) returned. Select a row to inspect or edit it." % _records.size()
-	return "%d row(s) returned. Double-click an editable value to change it." % _records.size()
+		return tr("%d row(s) returned. Select a row to inspect or edit it.") % _records.size()
+	return tr("%d row(s) returned. Double-click an editable value to change it.") % _records.size()
 
 
 func _populate_page_sizes() -> void:
@@ -525,7 +525,7 @@ func _update_pagination() -> void:
 	_page_index = clampi(_page_index, 0, count - 1)
 	var first_row := _page_index * _page_size + 1 if not _records.is_empty() else 0
 	var last_row := mini((_page_index + 1) * _page_size, _records.size())
-	_page_status.text = "Page %d of %d · rows %d–%d of %d" % [
+	_page_status.text = tr("Page %d of %d · rows %d–%d of %d") % [
 		_page_index + 1,
 		count,
 		first_row,

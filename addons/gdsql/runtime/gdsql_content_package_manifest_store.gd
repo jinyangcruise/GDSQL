@@ -5,3 +5,7 @@ extends RefCounted
 
 @abstract
 func load_manifest(package_root: String) -> GDSQLOperationResult
+
+
+func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

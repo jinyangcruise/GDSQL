@@ -427,7 +427,7 @@ func _unavailable_action(capability: String) -> GDSQLOperationResult:
 	result.add_diagnostic(
 		GDSQLQueryDiagnostic.new(
 			&"GDSQL_QUERY_GRAPH_ACTION_NOT_IMPLEMENTED",
-			"%s is not implemented yet." % capability,
+			tr("%s is not implemented yet.") % tr(capability),
 		),
 	)
 	return result

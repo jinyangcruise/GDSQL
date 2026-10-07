@@ -1,0 +1,4002 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: GDSQL\n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: \n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: zh_CN\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.9\n"
+
+msgid "Databases"
+msgstr "数据库"
+
+msgid "Refresh"
+msgstr "刷新"
+
+msgid ""
+"No databases registered.\n"
+"Create a database to begin."
+msgstr ""
+"未注册任何数据库。\n"
+"请创建一个数据库以开始操作。"
+
+msgid "Time / Tick"
+msgstr "时间 / 毫秒数时间"
+
+msgid "00:00:00"
+msgstr "00:00:00"
+
+msgid "Status"
+msgstr "状态"
+
+msgctxt "result"
+msgid "OK"
+msgstr "成功"
+
+msgid "OK"
+msgstr "确定"
+
+msgid "Action"
+msgstr "动作"
+
+msgid "Message"
+msgstr "信息"
+
+msgid "No GDSQL activity yet."
+msgstr "目前尚无 GDSQL 活动。"
+
+msgid "Copy Message"
+msgstr "复制消息"
+
+msgid "Delete"
+msgstr "删除"
+
+msgid "Clear All"
+msgstr "全部清除"
+
+msgid "Constraint"
+msgstr "约束"
+
+msgid "Generated from the source column and referenced target."
+msgstr "由源列和引用目标生成。"
+
+msgid "fk_source_column_target_column"
+msgstr "fk_source_column_target_column"
+
+msgid "Local column"
+msgstr "本地列"
+
+msgid "→"
+msgstr "→"
+
+msgid "Referenced table"
+msgstr "引用表"
+
+msgid "."
+msgstr "."
+
+msgid "Referenced unique column"
+msgstr "被引用的唯一列"
+
+msgid ""
+"Referenced updates and deletes are restricted while dependent rows exist."
+msgstr "存在依赖行时，对被引用行的更新和删除将受到限制。"
+
+msgid "RESTRICT"
+msgstr "限制"
+
+msgid "Discard foreign key draft"
+msgstr "放弃外键草稿"
+
+msgid "×"
+msgstr "×"
+
+msgid "Updates and deletes use RESTRICT while dependent rows exist."
+msgstr "存在依赖行时，更新和删除使用 RESTRICT。"
+
+msgid "Constraint:"
+msgstr "约束："
+
+msgid "constraint: column → table.column"
+msgstr "约束：列 → 表.列"
+
+msgid "Remove"
+msgstr "移除"
+
+msgid "Null"
+msgstr "空值"
+
+msgid "Unique"
+msgstr "唯一"
+
+msgid "index_name"
+msgstr "index_name"
+
+msgid "column_a, column_b"
+msgstr "column_a, column_b"
+
+msgid ""
+"Primary keys use GDSQL's dedicated primary-key lookup and cannot be removed "
+"as a secondary index."
+msgstr "主键使用 GDSQL 专用的主键查找，不能作为二级索引移除。"
+
+msgid "index_name (column)"
+msgstr "index_name (column)"
+
+msgid "New"
+msgstr "新建"
+
+msgid "NULL"
+msgstr "NULL"
+
+msgid "Typed database rows with validated editing and Resource previews."
+msgstr "带类型校验的数据库行，提供受校验的编辑与 Resource 预览。"
+
+msgid "Name"
+msgstr "名称"
+
+msgid "Type"
+msgstr "类型"
+
+msgid "Resource"
+msgstr "资源"
+
+msgid "Storage"
+msgstr "存储"
+
+msgid "Nullable"
+msgstr "可为空"
+
+msgid "NUL"
+msgstr "NUL"
+
+msgid "UN"
+msgstr "UN"
+
+msgid "Auto Increment"
+msgstr "自动递增"
+
+msgid "AI"
+msgstr "AI"
+
+msgid "Default"
+msgstr "默认"
+
+msgid "DEF"
+msgstr "DEF"
+
+msgid "Default value"
+msgstr "默认值"
+
+msgid "Generation"
+msgstr "生成方式"
+
+msgid ""
+"Owned: store an independent Resource value in this database.\n"
+"Referenced: store a UID/path locator to an existing asset."
+msgstr ""
+"自有：在本数据库中存储一份独立的 Resource 值。\n"
+"引用：存储指向现有资源的 UID/路径定位符。"
+
+msgid "Right-click for column actions."
+msgstr "右键点击可执行列操作。"
+
+msgid "Drag to change the editor column order"
+msgstr "拖动可调整编辑器中的列顺序"
+
+msgid "column_name"
+msgstr "列名"
+
+msgid "bool"
+msgstr "bool"
+
+msgid "int"
+msgstr "int"
+
+msgid "float"
+msgstr "float"
+
+msgid "String"
+msgstr "String"
+
+msgid "StringName"
+msgstr "StringName"
+
+msgid "NodePath"
+msgstr "NodePath"
+
+msgid "Vector2"
+msgstr "Vector2"
+
+msgid "Vector2i"
+msgstr "Vector2i"
+
+msgid "Rect2"
+msgstr "Rect2"
+
+msgid "Rect2i"
+msgstr "Rect2i"
+
+msgid "Vector3"
+msgstr "Vector3"
+
+msgid "Vector3i"
+msgstr "Vector3i"
+
+msgid "Transform2D"
+msgstr "Transform2D"
+
+msgid "Vector4"
+msgstr "Vector4"
+
+msgid "Vector4i"
+msgstr "Vector4i"
+
+msgid "Plane"
+msgstr "Plane"
+
+msgid "Quaternion"
+msgstr "Quaternion"
+
+msgid "AABB"
+msgstr "AABB"
+
+msgid "Basis"
+msgstr "Basis"
+
+msgid "Transform3D"
+msgstr "Transform3D"
+
+msgid "Projection"
+msgstr "Projection"
+
+msgid "Color"
+msgstr "Color"
+
+msgid "Dictionary"
+msgstr "Dictionary"
+
+msgid "Array"
+msgstr "Array"
+
+msgid "PackedByteArray"
+msgstr "PackedByteArray"
+
+msgid "PackedInt32Array"
+msgstr "PackedInt32Array"
+
+msgid "PackedInt64Array"
+msgstr "PackedInt64Array"
+
+msgid "PackedFloat32Array"
+msgstr "PackedFloat32Array"
+
+msgid "PackedFloat64Array"
+msgstr "PackedFloat64Array"
+
+msgid "PackedStringArray"
+msgstr "PackedStringArray"
+
+msgid "PackedVector2Array"
+msgstr "PackedVector2Array"
+
+msgid "PackedVector3Array"
+msgstr "PackedVector3Array"
+
+msgid "PackedColorArray"
+msgstr "PackedColorArray"
+
+msgid "PackedVector4Array"
+msgstr "PackedVector4Array"
+
+msgid "Select a Resource prototype to define the accepted subtype."
+msgstr "选择一个 Resource 原型，以定义可接受的子类型。"
+
+msgid "Resource type"
+msgstr "Resource 类型"
+
+msgid "Owned"
+msgstr "自有"
+
+msgid "Referenced"
+msgstr "引用"
+
+msgid "None"
+msgstr "无"
+
+msgid "Created At"
+msgstr "创建时间"
+
+msgid "Updated At"
+msgstr "更新时间"
+
+msgid "Draft table"
+msgstr "草稿表"
+
+msgid "Table name"
+msgstr "表名"
+
+msgid "heroes"
+msgstr "heroes"
+
+msgid "Primary key is automatically added as an index"
+msgstr "主键会自动作为索引加入"
+
+msgid "Primary key"
+msgstr "主键"
+
+msgid "Column name"
+msgstr "列名"
+
+msgid "Generated timestamps"
+msgstr "自动生成的时间戳"
+
+msgid "created_at and updated_at"
+msgstr "created_at and updated_at"
+
+msgid "Columns"
+msgstr "列"
+
+msgid "Add Column"
+msgstr "添加列"
+
+msgid "Indexes"
+msgstr "索引"
+
+msgid "Add Index"
+msgstr "添加索引"
+
+msgid "Foreign Keys"
+msgstr "外键"
+
+msgid "Add Foreign Key"
+msgstr "添加外键"
+
+msgid ""
+"Targets must be unique columns in this database with the same int, String, "
+"or StringName type."
+msgstr "目标必须是本数据库中类型同为 int、String 或 StringName 的唯一列。"
+
+msgid "Discard Table"
+msgstr "放弃表"
+
+msgid "Primary key cannot be removed"
+msgstr "主键不能移除"
+
+msgid "Restore Column"
+msgstr "恢复列"
+
+msgid "Remove Column…"
+msgstr "移除列…"
+
+msgid "Table"
+msgstr "表"
+
+msgid "Table summary"
+msgstr "表摘要"
+
+msgid "Open Data"
+msgstr "打开数据"
+
+msgid "Model"
+msgstr "模型"
+
+msgid "Delete every row and reset the generated-key sequence."
+msgstr "删除所有行并重置自增键序列。"
+
+msgid "Reset Data…"
+msgstr "重置数据…"
+
+msgid ""
+"References stay inside this database. Target columns must be unique and use "
+"the same key type."
+msgstr "引用仅限本数据库内部。目标列必须唯一且使用相同的键类型。"
+
+msgid "Remove Column"
+msgstr "移除列"
+
+msgid "Stage Removal"
+msgstr "暂存移除"
+
+msgid "Text"
+msgstr "文本"
+
+msgid "Open expanded text editor"
+msgstr "打开扩展文本编辑器"
+
+msgid "Edit the stored String in a multiline field."
+msgstr "在多行字段中编辑所存储的 String。"
+
+msgid "Edit Text"
+msgstr "编辑文本"
+
+msgid "Apply"
+msgstr "应用"
+
+msgid "Enter text…"
+msgstr "输入文本…"
+
+msgid "content"
+msgstr "游戏内容"
+
+msgid "res://content/base/data"
+msgstr "res://content/base/data"
+
+msgid "save_1"
+msgstr "save_1"
+
+msgid "user://gdsql/settings"
+msgstr "user://gdsql/settings"
+
+msgid ""
+"Authored game content shipped with the project. Runtime access is read-only."
+msgstr "随项目一同发布的原创游戏内容。运行时只读。"
+
+msgid "Mutable settings shared independently from save slots."
+msgstr "独立于存档槽位共享的可变设置。"
+
+msgid ""
+"Explicit location and storage behavior without an automatic runtime role."
+msgstr "显式指定位置与存储行为，不自动分配运行时角色。"
+
+msgid "Enter a database name."
+msgstr "请输入数据库名称。"
+
+msgid "Choose a data root."
+msgstr "请选择数据根目录。"
+
+msgid "Managed package data must use a directory below its package root."
+msgstr "托管包数据必须位于其包根目录下的子目录中。"
+
+msgid "DATABASE SETUP"
+msgstr "数据库设置"
+
+msgid "What will this database store?"
+msgstr "这个数据库要存储什么？"
+
+msgid ""
+"Choose the purpose first. GDSQL will derive a safe location, storage mode, "
+"and runtime role."
+msgstr "请先选择用途，GDSQL 会据此推导出安全的位置、存储模式和运行时角色。"
+
+msgid "Purpose"
+msgstr "用途"
+
+msgid "Direct content"
+msgstr "直接内容"
+
+msgid "Managed base content"
+msgstr "托管基础内容"
+
+msgid "Save slot"
+msgstr "存档槽位"
+
+msgid "Shared settings"
+msgstr "共享设置"
+
+msgid "Custom"
+msgstr "自定义"
+
+msgid "Location"
+msgstr "位置"
+
+msgid "res://data"
+msgstr "res://data"
+
+msgid "Runtime storage"
+msgstr "运行时存储"
+
+msgid "ConfigFile"
+msgstr "cfg 文件"
+
+msgid "Runtime role"
+msgstr "运行时角色"
+
+msgid "Database name"
+msgstr "数据库名称"
+
+msgid "Advanced storage options"
+msgstr "高级存储选项"
+
+msgid "Data root"
+msgstr "数据根目录"
+
+msgid "ConfigFile — read and write durable files directly"
+msgstr "cfg 文件 — 直接读写持久化文件"
+
+msgid "In memory — hydrate from ConfigFile and checkpoint changes"
+msgstr "内存 — 从 cfg 文件载入，并对变更做检查点保存"
+
+msgid "Catalog, schema, and rows use ConfigFile storage directly."
+msgstr "目录、模式和行数据直接使用 cfg 文件存储。"
+
+msgid ""
+"If this logical database already exists at the selected root, GDSQL opens it "
+"without replacing its files."
+msgstr "若所选根目录下已存在该逻辑数据库，GDSQL 会直接打开它，不会替换其文件。"
+
+msgid "Create Database"
+msgstr "创建数据库"
+
+msgid "Cancel"
+msgstr "取消"
+
+msgid "Database: "
+msgstr "数据库："
+
+msgid "Database Name"
+msgstr "数据库名称"
+
+msgid "Remove from GDSQL"
+msgstr "从 GDSQL 中移除"
+
+msgid "Destroy Files…"
+msgstr "销毁文件…"
+
+msgid "Database Storage Format"
+msgstr "数据库存储格式"
+
+msgid "Database Location"
+msgstr "数据库位置"
+
+msgid "Tables"
+msgstr "表"
+
+msgid "Search tables or columns…"
+msgstr "搜索表或列…"
+
+msgid "0 tables"
+msgstr "0 张表"
+
+msgid "No table or column matches this search."
+msgstr "没有与该搜索匹配的表或列。"
+
+msgid "A database name is required."
+msgstr "必须填写数据库名称。"
+
+msgid "Saved"
+msgstr "已保存"
+
+msgid "Apply Database Changes"
+msgstr "应用数据库变更"
+
+msgid "Remove Database"
+msgstr "移除数据库"
+
+msgid "Remove this database from GDSQL? Its files will remain unchanged."
+msgstr "要将此数据库从 GDSQL 中移除吗？其文件将保持不变。"
+
+msgid "Permanently Destroy Database"
+msgstr "永久销毁数据库"
+
+msgid "Destroy Database Files"
+msgstr "销毁数据库文件"
+
+msgid "Permanently destroy this database and all stored rows?"
+msgstr "要永久销毁此数据库及其全部已存储的行吗？"
+
+msgid "Reset Table Data"
+msgstr "重置表数据"
+
+msgid "Delete All and Reset"
+msgstr "全部删除并重置"
+
+msgid "Discard Local Changes"
+msgstr "放弃本地更改"
+
+msgid "Discard and Refresh"
+msgstr "放弃并刷新"
+
+msgid "Discard unsaved database drafts and reload the durable catalog?"
+msgstr "要放弃未保存的数据库草稿并重新加载持久化目录吗？"
+
+msgid "RUNTIME CONTENT"
+msgstr "运行时内容"
+
+msgid "Managed content setup"
+msgstr "托管内容设置"
+
+msgid ""
+"Build one effective content database from an immutable base package and "
+"optional DLC or mod packages."
+msgstr "从不可变的基础包与可选的 DLC 或模组包构建一个有效内容数据库。"
+
+msgid "Package configuration"
+msgstr "包配置"
+
+msgid "Base package directory"
+msgstr "基础包目录"
+
+msgid "Directory containing manifest.cfg"
+msgstr "包含 manifest.cfg 的目录"
+
+msgid "Optional package container directories · one per line"
+msgstr "可选包容器目录 · 每行一个"
+
+msgid "Directories whose children contain package manifests"
+msgstr "其子目录中包含包清单的目录"
+
+msgid "Enabled optional package IDs · one per line"
+msgstr "已启用的可选包 ID · 每行一个"
+
+msgid "Leave empty for base content only"
+msgstr "留空则仅使用基础内容"
+
+msgid "Create Base Database"
+msgstr "创建基础数据库"
+
+msgid "Validate"
+msgstr "校验"
+
+msgid "Save & Build Cache"
+msgstr "保存并构建缓存"
+
+msgid "Configure a base package to begin."
+msgstr "请先配置基础包以开始。"
+
+msgid "2 package(s) discovered"
+msgstr "发现 2 个包"
+
+msgid "Package                 Kind       Version      Selection      Source"
+msgstr "包                     类型       版本         选择           来源"
+
+msgid ""
+"base.game               BASE       1.0.0        Base           res://content/"
+"base"
+msgstr ""
+"base.game               BASE       1.0.0        基础           res://content"
+"/base"
+
+msgid ""
+"example.cosmetics       MOD        1.1.0        Enabled        user://gdsql/"
+"mods/example"
+msgstr ""
+"example.cosmetics       MOD        1.1.0        已启用         user://gdsql/"
+"mods/example"
+
+msgid "Effective cache"
+msgstr "有效内容缓存"
+
+msgid "READY"
+msgstr "就绪"
+
+msgid "2 packages cached as effective_content."
+msgstr "已将 2 个包缓存为 effective_content。"
+
+msgid "Active save compatibility"
+msgstr "活动存档兼容性"
+
+msgid "NOT RECORDED"
+msgstr "未记录"
+
+msgid "Record the current package set for this save."
+msgstr "为本存档记录当前的包集合。"
+
+msgid "Record Current Package Set…"
+msgstr "记录当前包集合…"
+
+msgid "Record Save Content Set"
+msgstr "记录存档内容集合"
+
+msgid "Record Current Set"
+msgstr "记录当前集合"
+
+msgid "Generated base: —"
+msgstr "生成的基类：—"
+
+msgid "User model: —"
+msgstr "用户模型：—"
+
+msgid "Generate the user-owned model before opening its script."
+msgstr "请先生成用户自有模型，再打开其脚本。"
+
+msgid "Godot could not load the user model script. Check the Output panel."
+msgstr "Godot 无法加载用户模型脚本。请查看输出面板。"
+
+msgid ""
+"Copied a clean user-model scaffold. The existing model file was not changed."
+msgstr "已复制一份干净的用户模型骨架。现有模型文件未被修改。"
+
+msgid "NOT INSPECTED"
+msgstr "未检查"
+
+msgid "UPDATING"
+msgstr "更新中"
+
+msgid "Waiting for Godot to import the generated scripts."
+msgstr "正在等待 Godot 导入生成的脚本。"
+
+msgid "Model binding · heroes"
+msgstr "模型绑定 · heroes"
+
+msgid ""
+"The table owns the schema. Regeneration replaces only the generated base; "
+"the user model and its custom functions remain user-owned."
+msgstr ""
+"模式归表所有。重新生成只会替换生成的基类；用户模型及其自定义函数仍归用户所有"
+"。"
+
+msgid "base_content / heroes"
+msgstr "base_content / heroes"
+
+msgid "Model class"
+msgstr "模型类"
+
+msgid "Use a singular class name, e.g. HeroContent"
+msgstr "请使用单数形式的类名，例如 HeroContent"
+
+msgid "Database role"
+msgstr "数据库角色"
+
+msgid "Content · read-only at runtime"
+msgstr "游戏内容 · 运行时只读"
+
+msgid "Saved state · mutable active slot"
+msgstr "玩家存档 · 可变的活动槽位"
+
+msgid "Settings · mutable shared state"
+msgstr "游戏设置 · 可变的共享状态"
+
+msgid "Custom role · read-only by default"
+msgstr "自定义角色 · 默认只读"
+
+msgid "Custom role"
+msgstr "自定义角色"
+
+msgid "analytics"
+msgstr "analytics"
+
+msgid "Models folder"
+msgstr "模型目录"
+
+msgid "res://models"
+msgstr "res://models"
+
+msgid "Generated base: res://models/generated/hero_model_generated.gd"
+msgstr "生成的基类：res://models/generated/hero_model_generated.gd"
+
+msgid "User model: res://models/hero.gd · created once"
+msgstr "用户模型：res://models/hero.gd · 仅创建一次"
+
+msgid "Existing model compatibility"
+msgstr "现有模型兼容性"
+
+msgid ""
+"Same-database relationships are inferred from catalog foreign keys when both "
+"model types are registered. Many-to-many and cross-role relationships remain "
+"explicit in relationships()."
+msgstr ""
+"当两种模型类型都已注册时，同库关系会依据目录中的外键推导得出。多对多关系与跨"
+"角色关系仍需在 relationships() 中显式声明。"
+
+msgid ""
+"Copy a clean user-owned model scaffold. The existing file is not changed."
+msgstr "复制一份干净的用户自有模型骨架。现有文件不会被修改。"
+
+msgid "Copy Scaffold"
+msgstr "复制骨架"
+
+msgid "COMPATIBLE"
+msgstr "兼容"
+
+msgid "Column 'name' has no matching model property."
+msgstr "列 'name' 没有匹配的模型属性。"
+
+msgid "Generated schema base · safe to regenerate"
+msgstr "生成的模式基类 · 可安全重新生成"
+
+msgid "User model · created once"
+msgstr "用户模型 · 仅创建一次"
+
+msgid "Scene preview only — table metadata replaces this skeleton."
+msgstr "仅为场景预览 — 表元数据会替换此骨架内容。"
+
+msgid "Preview ready. The table remains the schema source of truth."
+msgstr "预览就绪。表仍是模式的权威来源。"
+
+msgid "Close"
+msgstr "关闭"
+
+msgid "Open the user-owned model in Godot's Script editor."
+msgstr "在 Godot 的脚本编辑器中打开用户自有模型。"
+
+msgid "Open Script"
+msgstr "打开脚本"
+
+msgid "Generate Scripts"
+msgstr "生成脚本"
+
+msgid "Regenerate Model Base"
+msgstr "重新生成模型基类"
+
+msgid "Replace Generated Base"
+msgstr "替换生成的基类"
+
+msgid "hero_content"
+msgstr "hero_content"
+
+msgid "hero_content_id → content / heroes.id"
+msgstr "hero_content_id → content / heroes.id"
+
+msgid "Copy this references_one() declaration"
+msgstr "复制这段 references_one() 声明"
+
+msgid "Remove this editor picker binding. Model code is not changed."
+msgstr "移除此编辑器选择器绑定。模型代码不会被修改。"
+
+msgid "Use a snake_case reference name such as hero_content."
+msgstr "请使用 snake_case 形式的引用名，例如 hero_content。"
+
+msgid "Paste this entry inside the save model's relationships() return array."
+msgstr "将此条目粘贴到存档模型的 relationships() 返回数组中。"
+
+msgid "Picker registered and relationship copied. Paste it inside relationships()."
+msgstr "已注册选择器并复制关系。请将其粘贴到 relationships() 中。"
+
+msgid "Save → content reference"
+msgstr "存档 → 内容引用"
+
+msgid ""
+"Save tables keep stable content identifiers. These references provide model "
+"navigation and editor picking without creating cross-database catalog "
+"constraints."
+msgstr ""
+"存档表保存稳定的内容标识符。这些引用提供模型导航与编辑器选择能力，且不会创建"
+"跨数据库的目录约束。"
+
+msgid "Save column"
+msgstr "存档列"
+
+msgid "hero_id · int"
+msgstr "hero_id · int"
+
+msgid "Content model"
+msgstr "内容模型"
+
+msgid "content / heroes · HeroContent"
+msgstr "content / heroes · HeroContent"
+
+msgid "Reference name"
+msgstr "引用名"
+
+msgid "Register & Copy"
+msgstr "注册并复制"
+
+msgid "Registered references"
+msgstr "已注册的引用"
+
+msgid ""
+"These bindings control editor cell pickers. Copy reproduces the runtime "
+"references_one() declaration. Remove deletes only picker metadata; model "
+"code remains user-owned."
+msgstr ""
+"这些绑定控制编辑器中的单元格选择器。复制会重现运行时的 references_one() 声明"
+"。移除仅删除选择器元数据；模型代码仍归用户所有。"
+
+msgid "No content references registered for this table."
+msgstr "此表未注册任何内容引用。"
+
+msgid "RUNTIME STATE"
+msgstr "运行时状态"
+
+msgid "Save slots"
+msgstr "存档槽位"
+
+msgid "New Save Slot"
+msgstr "新建存档槽位"
+
+msgid ""
+"Each slot is an independent writable database. Save models follow the slot "
+"selected for the save role."
+msgstr "每个槽位都是独立可写的数据库。存档模型会跟随为存档角色选定的槽位。"
+
+msgid "Active runtime save"
+msgstr "活动运行时存档"
+
+msgid "2 save slot(s) registered"
+msgstr "已注册 2 个存档槽位"
+
+msgid "No save slots found under user://gdsql/saves."
+msgstr "在 user://gdsql/saves 下未找到存档槽位。"
+
+msgid "Slot"
+msgstr "槽位"
+
+msgid "State"
+msgstr "状态"
+
+msgid ""
+"save_1                 Active              In memory          user://gdsql/"
+"saves/save_1"
+msgstr ""
+"save_1                 活动                内存               user://gdsql/s"
+"aves/save_1"
+
+msgid ""
+"save_2                 Available           In memory          user://gdsql/"
+"saves/save_2"
+msgstr ""
+"save_2                 可用                内存               user://gdsql/s"
+"aves/save_2"
+
+msgid ""
+"Selection changes project runtime configuration; it does not alter slot data."
+msgstr "选择结果会改变项目运行时配置，但不会修改槽位数据。"
+
+msgid "Use This Slot"
+msgstr "使用此槽位"
+
+msgid "Open Database"
+msgstr "打开数据库"
+
+msgid "Unregister (Keep Files)"
+msgstr "注销（保留文件）"
+
+msgid "Delete Slot Data…"
+msgstr "删除槽位数据…"
+
+msgid "Unregister Save Slot"
+msgstr "注销存档槽位"
+
+msgid "Unregister and Keep Files"
+msgstr "注销并保留文件"
+
+msgid "Permanently Delete Save Slot Data"
+msgstr "永久删除存档槽位数据"
+
+msgid "Delete Slot Data"
+msgstr "删除槽位数据"
+
+msgid "Choose your content profile"
+msgstr "选择内容方案"
+
+msgid "This profile's setup checklist is complete."
+msgstr "此方案的设置清单已完成。"
+
+msgid "Create Content"
+msgstr "创建内容"
+
+msgid "Open Table"
+msgstr "打开表"
+
+msgid "Open Managed Setup"
+msgstr "打开托管设置"
+
+msgid "Manage Saves"
+msgstr "管理存档"
+
+msgid "Install Runtime"
+msgstr "安装运行时"
+
+msgid "GDSQL WORKBENCH"
+msgstr "GDSQL 工作台"
+
+msgid ""
+"Choose the workflow that matches how this project will ship and extend "
+"content."
+msgstr "选择与本项目内容发布和扩展方式相匹配的工作流。"
+
+msgid "Fast setup for games that ship one authored definition database."
+msgstr "适用于只发布一个原创定义数据库的游戏，可快速完成设置。"
+
+msgid ""
+"• Definitions live under res://data\n"
+"• Runtime reads that content directly\n"
+"• Best when overlays and user mods are unnecessary"
+msgstr ""
+"• 定义存放在 res://data 下\n"
+"• 运行时直接读取该内容\n"
+"• 在无需覆盖层和用户模组时最为合适"
+
+msgid "Choose Direct Content"
+msgstr "选择直接内容"
+
+msgid "Managed content"
+msgstr "托管内容"
+
+msgid "A complete package pipeline for moddable or layered game content."
+msgstr "面向可模组化或分层游戏内容的完整包流水线。"
+
+msgid ""
+"• Base game, DLC, and mods use the same package shape\n"
+"• Deterministic overlays build effective content\n"
+"• Adds provenance, cache, and save compatibility"
+msgstr ""
+"• 基础游戏、DLC 与模组使用相同的包结构\n"
+"• 由确定性的覆盖层构建有效内容\n"
+"• 增加来源追踪、缓存与存档兼容性"
+
+msgid "Choose Managed Content"
+msgstr "选择托管内容"
+
+msgid ""
+"Profile changes do not migrate databases, models, resource paths, or save "
+"expectations automatically."
+msgstr "切换方案不会自动迁移数据库、模型、资源路径或存档预期。"
+
+msgid "DIRECT CONTENT"
+msgstr "直接内容"
+
+msgid "Project-authored definitions are consumed directly from res://data."
+msgstr "项目原创的定义直接从 res://data 读取。"
+
+msgid "Reset / Change Profile…"
+msgstr "重置 / 更改方案…"
+
+msgid "Save Slots"
+msgstr "存档槽位"
+
+msgid "Setup checklist"
+msgstr "设置清单"
+
+msgid "Content database"
+msgstr "内容数据库"
+
+msgid "○"
+msgstr "○"
+
+msgid "First table"
+msgstr "首个表"
+
+msgid "First row"
+msgstr "首行"
+
+msgid "Active save"
+msgstr "活动存档"
+
+msgid "Model binding"
+msgstr "模型绑定"
+
+msgid "Runtime adapter"
+msgstr "运行时适配器"
+
+msgid "Next setup action"
+msgstr "下一步设置操作"
+
+msgid "Continue"
+msgstr "继续"
+
+msgid "Project databases"
+msgstr "项目数据库"
+
+msgid "Open Selected"
+msgstr "打开所选"
+
+msgid "No databases are registered for this project yet."
+msgstr "此项目尚未注册任何数据库。"
+
+msgid "Choose Setup Profile"
+msgstr "选择设置方案"
+
+msgid "Choose Profile"
+msgstr "选择方案"
+
+msgid "Return to Profile Selection"
+msgstr "返回方案选择"
+
+msgid "Return to Selection"
+msgstr "返回选择"
+
+msgid "Return to profile selection? This changes onboarding guidance only. Existing databases, packages, models, and saves will not be moved or deleted."
+msgstr "要返回方案选择吗？这只会改变引导提示。现有的数据库、包、模型和存档不会被移动或删除。"
+
+msgid "File"
+msgstr "文件"
+
+msgid "New Database…"
+msgstr "新建数据库…"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Edit"
+msgstr "编辑"
+
+msgid "Undo"
+msgstr "撤销"
+
+msgid "Redo"
+msgstr "重做"
+
+msgid "Editor Settings…"
+msgstr "编辑器设置…"
+
+msgid "Query"
+msgstr "查询"
+
+msgid "New Query Graph"
+msgstr "新建查询图"
+
+msgid "Run Query"
+msgstr "运行查询"
+
+msgid "Database"
+msgstr "数据库"
+
+msgid "Create Database…"
+msgstr "创建数据库…"
+
+msgid "Add Table"
+msgstr "添加表"
+
+msgid "Save Slots…"
+msgstr "存档槽位…"
+
+msgid "Managed Content…"
+msgstr "托管内容…"
+
+msgid "Help"
+msgstr "帮助"
+
+msgid "GDSQL Documentation"
+msgstr "GDSQL 文档"
+
+msgid "About GDSQL"
+msgstr "关于 GDSQL"
+
+msgid "Discard Unsaved Changes"
+msgstr "放弃未保存的更改"
+
+msgid "Discard and Close"
+msgstr "放弃并关闭"
+
+msgid "Fit node to graph view at 100%"
+msgstr "将节点适配到图形视图的 100%"
+
+msgid "Remove node"
+msgstr "移除节点"
+
+msgid "AND"
+msgstr "AND"
+
+msgid "OR"
+msgstr "OR"
+
+msgid "IF"
+msgstr "IF"
+
+msgid "Invert this condition"
+msgstr "反转此条件"
+
+msgid "NOT"
+msgstr "NOT"
+
+msgid "Equals"
+msgstr "等于"
+
+msgid "Not equal"
+msgstr "不等于"
+
+msgid "Greater than"
+msgstr "大于"
+
+msgid "Greater or equal"
+msgstr "大于或等于"
+
+msgid "Less than"
+msgstr "小于"
+
+msgid "Less or equal"
+msgstr "小于或等于"
+
+msgid "Is null"
+msgstr "为空"
+
+msgid "Is not null"
+msgstr "不为空"
+
+msgid "Move condition up"
+msgstr "上移条件"
+
+msgid "↑"
+msgstr "↑"
+
+msgid "Move condition down"
+msgstr "下移条件"
+
+msgid "↓"
+msgstr "↓"
+
+msgid "Remove condition"
+msgstr "移除条件"
+
+msgid "WHERE"
+msgstr "WHERE"
+
+msgid "All rows"
+msgstr "所有行"
+
+msgid "Clear the current and pending WHERE filter"
+msgstr "清除当前及待应用的 WHERE 筛选"
+
+msgid "Clear"
+msgstr "清除"
+
+msgid "Apply this WHERE filter"
+msgstr "应用此 WHERE 筛选"
+
+msgid "Apply Filter"
+msgstr "应用筛选"
+
+msgid ""
+"Groups define precedence. Conditions inside each group are composed from top "
+"to bottom."
+msgstr "分组决定优先级。每个分组内的条件按从上到下的顺序组合。"
+
+msgid "Collapse group"
+msgstr "折叠分组"
+
+msgid "▼"
+msgstr "▼"
+
+msgid "GROUP"
+msgstr "GROUP"
+
+msgid "Invert this entire group"
+msgstr "反转整个分组"
+
+msgid "(<group summary>)"
+msgstr "（<分组摘要>）"
+
+msgid "Move group up"
+msgstr "上移分组"
+
+msgid "Move group down"
+msgstr "下移分组"
+
+msgid "Remove group"
+msgstr "移除分组"
+
+msgid "Append a condition to this group"
+msgstr "向此分组追加一个条件"
+
+msgid "Add condition"
+msgstr "添加条件"
+
+msgid "Add a nested precedence group"
+msgstr "添加嵌套的优先级分组"
+
+msgid "Add group"
+msgstr "添加分组"
+
+msgid "Open Graphs Folder"
+msgstr "打开图形目录"
+
+msgid "Save graph layout"
+msgstr "保存图形布局"
+
+msgid "Add Select Graph Node"
+msgstr "添加 SELECT 图节点"
+
+msgid "SELECT"
+msgstr "SELECT"
+
+msgid "Add Left Join Graph Node"
+msgstr "添加 LEFT JOIN 图节点"
+
+msgid "LEFT JOIN"
+msgstr "LEFT JOIN"
+
+msgid "Add Insert Graph Node"
+msgstr "添加 INSERT 图节点"
+
+msgid "INSERT"
+msgstr "INSERT"
+
+msgid "Add Update Graph Node"
+msgstr "添加 UPDATE 图节点"
+
+msgid "UPDATE"
+msgstr "UPDATE"
+
+msgid "Add Delete Graph Node"
+msgstr "添加 DELETE 图节点"
+
+msgid "DELETE"
+msgstr "DELETE"
+
+msgid "I confirm deleting every row"
+msgstr "我确认删除所有行"
+
+msgid "Mutation result"
+msgstr "变更结果"
+
+msgid "No source selected."
+msgstr "未选择源。"
+
+msgid "Compile and run this DELETE"
+msgstr "编译并运行此 DELETE"
+
+msgid "Compile and run this INSERT"
+msgstr "编译并运行此 INSERT"
+
+msgid "No columns"
+msgstr "无列"
+
+msgid "Select all"
+msgstr "全选"
+
+msgid "No database is available."
+msgstr "没有可用的数据库。"
+
+msgid "All columns"
+msgstr "所有列"
+
+msgid "Select one or more result columns"
+msgstr "选择一个或多个结果列"
+
+msgid "Table rows"
+msgstr "表行"
+
+msgid "Compile and run this SELECT"
+msgstr "编译并运行此 SELECT"
+
+msgid "QUERY"
+msgstr "QUERY"
+
+msgid "Safe Mode"
+msgstr "安全模式"
+
+msgid "Edit one selected row in a focused table editor. Disable to edit table cells directly."
+msgstr "在专门的行编辑器中编辑选中的单行。关闭后可直接编辑表格单元格。"
+
+msgid "QUERY RESULT"
+msgstr "查询结果"
+
+msgid "The query did not return an editable table."
+msgstr "该查询未返回可编辑的表。"
+
+msgid "Query failed. See the activity log for diagnostics."
+msgstr "查询失败。请查看活动日志中的诊断信息。"
+
+msgid "MUTATION RESULT"
+msgstr "变更结果"
+
+msgid "Mutation completed successfully."
+msgstr "变更已成功完成。"
+
+msgid "Creating a new row."
+msgstr "正在创建新行。"
+
+msgid "Save or discard the current row before selecting another row."
+msgstr "请先保存或放弃当前行，再选择其他行。"
+
+msgid "Correct the highlighted invalid values before saving."
+msgstr "请先修正标出的无效值再保存。"
+
+msgid "New row discarded."
+msgstr "已放弃新行。"
+
+msgid "Unsaved changes were discarded."
+msgstr "已放弃未保存的更改。"
+
+msgid "Unsaved cell changes were discarded."
+msgstr "已放弃未保存的单元格更改。"
+
+msgid "Save or discard pending changes before switching edit modes."
+msgstr "请先保存或放弃待处理的更改，再切换编辑模式。"
+
+msgid "Save or discard the current row before changing pages."
+msgstr "请先保存或放弃当前行，再切换页码。"
+
+msgid "Save or discard the current row before changing page size."
+msgstr "请先保存或放弃当前行，再更改每页行数。"
+
+msgid "TABLE"
+msgstr "表"
+
+msgid "Run the query to display rows."
+msgstr "运行查询以显示行。"
+
+msgid ""
+"Columns follow the configured display order. Safe Mode uses the row editor; "
+"direct mode edits cells in place."
+msgstr "列遵循配置的显示顺序。安全模式使用行编辑器；直接模式就地编辑单元格。"
+
+msgid "First page"
+msgstr "第一页"
+
+msgid "|<"
+msgstr "|<"
+
+msgid "Previous page"
+msgstr "上一页"
+
+msgid "<"
+msgstr "<"
+
+msgid "Page 1 of 1"
+msgstr "第 1 页 / 共 1 页"
+
+msgid "Next page"
+msgstr "下一页"
+
+msgid ">"
+msgstr ">"
+
+msgid "Last page"
+msgstr "最后一页"
+
+msgid ">|"
+msgstr ">|"
+
+msgid "Rows"
+msgstr "行"
+
+msgid "Rows per page"
+msgstr "每页行数"
+
+msgid "10"
+msgstr "10"
+
+msgid "25"
+msgstr "25"
+
+msgid "50"
+msgstr "50"
+
+msgid "100"
+msgstr "100"
+
+msgid "The selected row uses the same typed table editor as direct mode."
+msgstr "所选行使用与直接模式相同的带类型表编辑器。"
+
+msgid "No query result yet."
+msgstr "尚无查询结果。"
+
+msgid "Add row"
+msgstr "添加行"
+
+msgid "Add Row"
+msgstr "添加行"
+
+msgid "Save all pending row or cell changes"
+msgstr "保存所有待处理的行或单元格更改"
+
+msgid "Save Changes"
+msgstr "保存更改"
+
+msgid "Discard all pending row or cell changes"
+msgstr "放弃所有待处理的行或单元格更改"
+
+msgid "Discard Changes"
+msgstr "放弃更改"
+
+msgid "Delete the selected row"
+msgstr "删除所选行"
+
+msgid "Delete Row"
+msgstr "删除行"
+
+msgid "I confirm updating every row"
+msgstr "我确认更新所有行"
+
+msgid "Compile and run this UPDATE"
+msgstr "编译并运行此 UPDATE"
+
+msgid "Save or discard changes before loading another page."
+msgstr "请先保存或放弃更改，再加载其他页。"
+
+msgid "Loading rows…"
+msgstr "正在加载行…"
+
+msgid "The selected foreign-key constraint no longer exists."
+msgstr "所选外键约束已不存在。"
+
+msgid "Loading referenced rows…"
+msgstr "正在加载被引用的行…"
+
+msgid "The selected content reference is invalid."
+msgstr "所选内容引用无效。"
+
+msgid "Loading content rows…"
+msgstr "正在加载内容行…"
+
+msgid "Show all"
+msgstr "显示全部"
+
+msgid "Save or discard row changes before changing visible columns."
+msgstr "请先保存或放弃行更改，再更改可见列。"
+
+msgid "At least one column must remain visible."
+msgstr "至少需保留一列可见。"
+
+msgid "Save or discard row changes before changing row order."
+msgstr "请先保存或放弃行更改，再更改行顺序。"
+
+msgid "Save or discard row changes before applying a filter."
+msgstr "请先保存或放弃行更改，再应用筛选。"
+
+msgid "Save or discard row changes before clearing the filter."
+msgstr "请先保存或放弃行更改，再清除筛选。"
+
+msgid "Save or discard edited rows before adding a row."
+msgstr "请先保存或放弃已编辑的行，再添加行。"
+
+msgid "Enter the new row, then save it from the action bar."
+msgstr "请输入新行内容，然后从操作栏保存它。"
+
+msgid "The transaction failed and was rolled back; pending edits were preserved."
+msgstr "事务失败并已回滚；待处理的编辑已保留。"
+
+msgid "Adding row…"
+msgstr "正在添加行…"
+
+msgid "Could not add the row; its values were preserved."
+msgstr "无法添加该行；其取值已保留。"
+
+msgid "Pending draft discarded; stored rows were not changed."
+msgstr "已放弃待处理草稿；已存储的行未被修改。"
+
+msgid "Save or discard changes before duplicating rows."
+msgstr "请先保存或放弃更改，再复制行。"
+
+msgid "The duplicate transaction failed and was rolled back."
+msgstr "复制事务失败并已回滚。"
+
+msgid "Save or discard changes before deleting rows."
+msgstr "请先保存或放弃更改，再删除行。"
+
+msgid "The delete transaction failed and was rolled back."
+msgstr "删除事务失败并已回滚。"
+
+msgid ""
+"\n"
+"\n"
+"Note: Undo restores editable values;\n"
+"\tupdated_at records the undo operation time. \n"
+"\tHistory lasts only for this editor session."
+msgstr ""
+"\n"
+"\n"
+"注意：撤销会恢复可编辑的取值；\n"
+"	updated_at 记录撤销操作的时间。 \n"
+"	历史记录仅在本次编辑器会话内有效。"
+
+msgid ""
+"\n"
+"\n"
+"Note: Undo restores editable values; \n"
+"\t`updated_at` records the undo operation time. \n"
+"\tHistory lasts only for this editor session."
+msgstr ""
+"\n"
+"\n"
+"注意：撤销会恢复可编辑的取值； \n"
+"	`updated_at` 记录撤销操作的时间。 \n"
+"	历史记录仅在本次编辑器会话内有效。"
+
+msgid "Save or discard changes before changing pages."
+msgstr "请先保存或放弃更改，再切换页码。"
+
+msgid "Save or discard changes before changing page size."
+msgstr "请先保存或放弃更改，再更改每页行数。"
+
+msgid "Table: "
+msgstr "表："
+
+msgid "Reload this page"
+msgstr "重新加载此页"
+
+msgid "Generate a typed model binding for this table"
+msgstr "为此表生成带类型的模型绑定"
+
+msgid "Table details"
+msgstr "表详情"
+
+msgid "Edit cells directly. Hold Ctrl or Shift to select multiple rows."
+msgstr "直接编辑单元格。按住 Ctrl 或 Shift 可选择多行。"
+
+msgid ""
+"id      name              health\n"
+"1       Preview row       100\n"
+"2       Skeleton data      80\n"
+"\n"
+"Scene preview only — runtime rows replace this content."
+msgstr ""
+"id      name              health\n"
+"1       预览行             100\n"
+"2       骨架数据           80\n"
+"\n"
+"仅为场景预览 — 运行时的行会替换此内容。"
+
+msgid "New row"
+msgstr "新行"
+
+msgid "Rows are loaded on demand."
+msgstr "行按需加载。"
+
+msgid "Add a row"
+msgstr "添加一行"
+
+msgid ""
+"Commit all pending edits together; any failure rolls back the complete batch"
+msgstr "一并提交所有待处理的编辑；任一处失败都会回滚整个批次"
+
+msgid "Discard the local draft without changing stored rows"
+msgstr "放弃本地草稿，不改动已存储的行"
+
+msgid "Discard"
+msgstr "放弃"
+
+msgid "Select one or more rows to duplicate"
+msgstr "选择一行或多行以复制"
+
+msgid "Duplicate"
+msgstr "复制"
+
+msgid "Select one or more rows to delete"
+msgstr "选择一行或多行以删除"
+
+msgid ""
+"Pending row edits commit as one transaction; a failure applies none of them"
+msgstr "待处理的行编辑作为一个事务提交；任一处失败则全部不生效"
+
+msgid "No pending changes"
+msgstr "没有待处理的更改"
+
+msgid "Page 1 of 1 · 0 rows"
+msgstr "第 1 页 / 共 1 页 · 0 行"
+
+msgid "Delete Selected Rows"
+msgstr "删除所选行"
+
+msgid "GDSQL"
+msgstr "GDSQL"
+
+msgid "MANAGED CONTENT"
+msgstr "托管内容"
+
+msgid "Immutable packages build one effective runtime content database."
+msgstr "不可变软件包构建出一套有效的运行时内容数据库。"
+
+msgid "Base Content table"
+msgstr "基础内容表"
+
+msgid "Base content table"
+msgstr "基础内容表"
+
+msgid "%d base table(s) have schema and storage."
+msgstr "%d 张基础表已具备表结构与存储。"
+
+msgid "Create the base content database, then add its first table."
+msgstr "创建基础内容数据库，然后添加它的第一张表。"
+
+msgid "First base row"
+msgstr "首个基础行"
+
+msgid "The base package contains %d stored row(s)."
+msgstr "基础包中包含 %d 行已存储的数据。"
+
+msgid "Open a base content table and add its first row."
+msgstr "打开一张基础内容表并添加它的第一行。"
+
+msgid "%d user-owned model binding(s) found."
+msgstr "找到 %d 个用户自有的模型绑定。"
+
+msgid "Open a base table and generate its first typed model binding."
+msgstr "打开一张基础表并生成它的第一个带类型模型绑定。"
+
+msgid "GDSQLRuntime is installed as the project autoload."
+msgstr "GDSQLRuntime 已安装为项目自动加载项。"
+
+msgid "Install GDSQLRuntime before managed startup is enabled."
+msgstr "请先安装 GDSQLRuntime，再启用托管启动。"
+
+msgid "Base package"
+msgstr "基础包"
+
+msgid "Base package '%s' contains the '%s' database."
+msgstr "基础包“%s”包含“%s”数据库。"
+
+msgid "Create a valid base package and its content database."
+msgstr "创建一个有效的基础软件包及其内容数据库。"
+
+msgid "Effective content"
+msgstr "有效内容"
+
+msgid "%d package(s) are cached as '%s'."
+msgstr "已有 %d 个包缓存为“%s”。"
+
+msgid "Validate packages and build the effective-content cache."
+msgstr "校验各包并构建有效内容缓存。"
+
+msgid "Save role resolves to '%s'."
+msgstr "存档角色解析为“%s”。"
+
+msgid "Create or select a writable save slot for runtime state."
+msgstr "创建或选择一个可写的存档槽位以承载运行时状态。"
+
+msgid "Next: %s"
+msgstr "下一步：%s"
+
+msgid "%d database(s) · %d table(s) · %d stored row(s)"
+msgstr "%d 个数据库 · %d 张表 · %d 行已存储"
+
+msgid "PRIMARY (%s) · unique · automatic"
+msgstr "主键（%s）· 唯一 · 自动递增"
+
+msgid "%d rows · %d columns · %d indexes"
+msgstr "%d 行 · %d 列 · %d 个索引"
+
+msgid "Use a singular class name, e.g. %s"
+msgstr "请使用单数形式的类名，例如 %s"
+
+msgid "No same-database relationships inferred from foreign keys."
+msgstr "未从外键推导出同库关系。"
+
+msgid "Catalog relationships · inferred when both model types are registered; no relationship code is written:"
+msgstr "目录关系 · 当两种模型类型都已注册时推导得出；不会写入关系代码："
+
+msgid "No relationship code is required for these edges; an empty relationships() method avoids duplicate declarations."
+msgstr "这些边不需要关系代码；relationships() 方法保持为空可避免重复声明。"
+
+msgid "Many-to-many and cross-role relationships are declared explicitly in relationships()."
+msgstr "多对多关系与跨角色关系需在 relationships() 中显式声明。"
+
+msgid "Resolve the preview errors before inspecting the model."
+msgstr "请先解决预览错误，再检查模型。"
+
+msgid "Generated base: %s%s"
+msgstr "生成的基类：%s%s"
+
+msgid " · will be replaced"
+msgstr " · 将被替换"
+
+msgid " · preserved"
+msgstr " · 保留"
+
+msgid " · created once"
+msgstr " · 仅创建一次"
+
+msgid "User model · existing file preserved"
+msgstr "用户模型 · 现有文件保留"
+
+msgid "Generate the user-owned model, then compatibility will be checked here."
+msgstr "生成用户自有模型后，将在此检查兼容性。"
+
+msgid "SCRIPT ERROR"
+msgstr "脚本错误"
+
+msgid "NEEDS UPDATE"
+msgstr "需要更新"
+
+msgid "See Godot Output for the reported script error and source path."
+msgstr "请在 Godot 输出面板中查看所报告的脚本错误与源文件路径。"
+
+msgid "Add an int, String, or StringName content identifier to this save table."
+msgstr "请为此存档表添加一个 int、String 或 StringName 类型的内容标识符。"
+
+msgid "No compatible content model binding was found. Generate or open its Model Assistant once."
+msgstr ""
+"未找到兼容的内容模型绑定。请生成一次其模型助手，或打开已生成的模型助手。"
+
+msgid "Choose a content model target."
+msgstr "请选择一个内容模型目标。"
+
+msgid "Could not register the editor picker (%s)."
+msgstr "无法注册编辑器选择器（%s）。"
+
+msgid "Could not remove the editor picker (%s)."
+msgstr "无法移除编辑器选择器（%s）。"
+
+msgid "Removed %s from the editor picker. Model code was not changed."
+msgstr "已将 %s 从编辑器选择器中移除。模型代码未被修改。"
+
+msgid "Copied the %s relationship declaration."
+msgstr "已复制 %s 关系声明。"
+
+msgid "No key-compatible columns"
+msgstr "没有键类型兼容的列"
+
+msgid "No compatible target tables"
+msgstr "没有兼容的目标表"
+
+msgid "No matching unique columns"
+msgstr "没有匹配的唯一列"
+
+msgid "Generated constraint name: %s"
+msgstr "生成的约束名称：%s"
+
+msgid "Remove database '%s' from GDSQL?\n\n"
+"Files at '%s' will remain unchanged. Creating the same database "
+"later will load these files again."
+msgstr ""
+"要将数据库“%s”从 GDSQL 中移除吗？\n"
+"\n"
+"位于“%s”的文件将保持不变。之后创建同名数据库时会再次加载这些文件。"
+
+msgid "Permanently destroy database '%s'?\n\n"
+"Catalog metadata, schemas, tables, and every stored row under:\n%s\n\n"
+"This cannot be undone by GDSQL. Other databases under the same data root remain."
+msgstr ""
+"要永久销毁数据库“%s”吗？\n"
+"\n"
+"以下位置中的目录元数据、模式、表以及全部已存储的行都将被删除：\n"
+"%s\n"
+"\n"
+"此操作无法通过 GDSQL 撤销。同一数据根目录下的其他数据库不受影响。"
+
+msgid "Permanently delete all %d row(s) from '%s.%s'?\n\n"
+"The table schema remains, but the next generated integer key resets to 1. "
+"This operation cannot be undone."
+msgstr ""
+"要永久删除 %d 行吗？这些行来自“%s.%s”。\n"
+"\n"
+"表模式会保留，但下一个生成的自增整数键将重置为 1。此操作无法撤销。"
+
+msgid "Effective content only"
+msgstr "仅有效内容"
+
+msgid "Not assigned"
+msgstr "未分配"
+
+msgid "save"
+msgstr "游戏存档"
+
+msgid "settings"
+msgstr "游戏设置"
+
+msgid "Managed Content"
+msgstr "托管内容"
+
+msgid "New Database"
+msgstr "新建数据库"
+
+msgid "In Memory"
+msgstr "内存"
+
+msgid "In memory"
+msgstr "内存"
+
+msgid "%d package(s) selected in deterministic load order."
+msgstr "已按确定性加载顺序选定 %d 个包。"
+
+msgid "Configuration is valid. Load order: %s."
+msgstr "配置有效。加载顺序：%s。"
+
+msgid "Effective content cache rebuilt successfully."
+msgstr "有效内容缓存已成功重建。"
+
+msgid "Effective content cache is already current."
+msgstr "有效内容缓存已是最新。"
+
+msgid "%d package(s) cached as '%s'."
+msgstr "已将 %d 个包缓存为“%s”。"
+
+msgid "Validate the package configuration, then build the disposable cache."
+msgstr "校验包配置，然后构建可丢弃的缓存。"
+
+msgid "NO ACTIVE SAVE"
+msgstr "无活动存档"
+
+msgid "Create or select a save slot first."
+msgstr "请先创建或选择一个存档槽位。"
+
+msgid "NO ACTIVE CONTENT"
+msgstr "无活动内容"
+
+msgid "Build the effective cache first."
+msgstr "请先构建有效内容缓存。"
+
+msgid "UNREADABLE"
+msgstr "无法读取"
+
+msgid "The active package set matches this save."
+msgstr "活动包集合与此存档匹配。"
+
+msgid "Record the current set for this save."
+msgstr "为本存档记录当前集合。"
+
+msgid "MISSING PACKAGES"
+msgstr "缺少包"
+
+msgid "Not active: %s. Re-enable them or apply an explicit game policy."
+msgstr "未启用：%s。请重新启用它们，或应用明确的游戏策略。"
+
+msgid "REVIEW CHANGES"
+msgstr "检查变更"
+
+msgid "UNAVAILABLE"
+msgstr "不可用"
+
+msgid "Record the current effective-content package set for save '%s'?\n\n"
+"This replaces its previous compatibility expectation. Save rows are unchanged."
+msgstr ""
+"要为存档“%s”记录当前的有效内容包集合吗？\n"
+"\n"
+"这会替换它此前的兼容性预期。存档行数据不受影响。"
+
+msgid "Recorded the active package set for save '%s'."
+msgstr "已记录存档“%s”的活动包集合。"
+
+msgid "Base"
+msgstr "基础"
+
+msgid "Enabled"
+msgstr "已启用"
+
+msgid "Available"
+msgstr "可用"
+
+msgid "%d package(s) discovered"
+msgstr "发现 %d 个包"
+
+msgid "The operation could not be completed."
+msgstr "该操作无法完成。"
+
+msgid "No compatibility detail is available."
+msgstr "没有可用的兼容性详情。"
+
+msgid "NOT BUILT"
+msgstr "未构建"
+
+msgid "Package"
+msgstr "包"
+
+msgid "Kind"
+msgstr "类型"
+
+msgid "Version"
+msgstr "版本"
+
+msgid "Selection"
+msgstr "选择"
+
+msgid "Source"
+msgstr "来源"
+
+msgid "%d save slot(s) registered"
+msgstr "已注册 %d 个存档槽位"
+
+msgid "None selected"
+msgstr "未选择"
+
+msgid "Registration: %s\nDatabase: %s"
+msgstr "注册：%s\n数据库：%s"
+
+msgid "Active"
+msgstr "活动"
+
+msgid "Create the first save slot to configure the runtime save role."
+msgstr "创建第一个存档槽位，以配置运行时存档角色。"
+
+msgid "Active Slot"
+msgstr "活动槽位"
+
+msgid "'%s' is now the active save slot."
+msgstr "“%s”现在是活动存档槽位。"
+
+msgid "Unregister save slot '%s'?\n\n"
+"Its database files at '%s' will remain unchanged, but this logical "
+"database will no longer appear as a slot until it is registered again."
+msgstr ""
+"要注销存档槽位“%s”吗？\n"
+"\n"
+"位于“%s”的数据库文件将保持不变，但此逻辑数据库在重新注册之前不会再作为槽位出"
+"现。"
+
+msgid "Save slot unregistered; its files were kept."
+msgstr "存档槽位已注销；其文件已保留。"
+
+msgid "\n\nThis is the active runtime save. The save role will be unbound."
+msgstr "\n\n这是活动运行时存档。存档角色将被解除绑定。"
+
+msgid "Permanently delete save slot database '%s'?\n\n"
+"Database data: %s\n"
+"Slot root: %s\n\n"
+"Schemas and rows for this database will be deleted. This cannot be undone.%s"
+msgstr ""
+"要永久删除存档槽位数据库“%s”吗？\n"
+"\n"
+"数据库数据：%s\n"
+"槽位根目录：%s\n"
+"\n"
+"此数据库的模式与行数据都将被删除。此操作无法撤销。%s"
+
+msgid "Save slot data permanently deleted."
+msgstr "存档槽位数据已永久删除。"
+
+msgid "Load workspace"
+msgstr "加载工作区"
+
+msgid "Install runtime adapter"
+msgstr "安装运行时适配器"
+
+msgid "Scaffold base content package"
+msgstr "搭建基础内容包骨架"
+
+msgid "Load database"
+msgstr "加载数据库"
+
+msgid "Save database changes"
+msgstr "保存数据库更改"
+
+msgid "Refresh database"
+msgstr "刷新数据库"
+
+msgid "Load table rows"
+msgstr "加载表行"
+
+msgid "Load foreign key references"
+msgstr "加载外键引用"
+
+msgid "Load content references"
+msgstr "加载内容引用"
+
+msgid "Run query graph"
+msgstr "运行查询图"
+
+msgid "Insert table row"
+msgstr "插入表行"
+
+msgid "Duplicate table rows"
+msgstr "复制表行"
+
+msgid "Update table rows"
+msgstr "更新表行"
+
+msgid "Undo table row update"
+msgstr "撤销表行更新"
+
+msgid "Redo table row update"
+msgstr "重做表行更新"
+
+msgid "Delete table rows"
+msgstr "删除表行"
+
+msgid "Insert query result row"
+msgstr "插入查询结果行"
+
+msgid "Update query result row"
+msgstr "更新查询结果行"
+
+msgid "Delete query result row"
+msgstr "删除查询结果行"
+
+msgid "Delete table"
+msgstr "删除表"
+
+msgid "Discover project"
+msgstr "发现项目"
+
+msgid "Refresh databases"
+msgstr "刷新数据库列表"
+
+msgid "Select table"
+msgstr "选择表"
+
+msgid "Open table model"
+msgstr "打开表模型"
+
+msgid "Refresh save slots"
+msgstr "刷新存档槽位"
+
+msgid "Select save slot"
+msgstr "选择存档槽位"
+
+msgid "Delete save slot data"
+msgstr "删除存档槽位数据"
+
+msgid "Error"
+msgstr "错误"
+
+msgid "The action returned no result."
+msgstr "该操作未返回结果。"
+
+msgid "Completed."
+msgstr "已完成。"
+
+msgid "A transaction cannot execute queries after its callback exits."
+msgstr "事务回调退出后无法再执行查询。"
+
+msgid "The transaction has already failed and cannot execute more queries."
+msgstr "该事务已失败，无法再执行更多查询。"
+
+msgid "Content activation requires a runtime session and cache manager."
+msgstr "内容激活需要运行时会话与缓存管理器。"
+
+msgid "Managed content activation requires runtime, configuration, discovery, resolution, and cache services."
+msgstr "托管内容激活需要运行时、配置、发现、解析与缓存服务。"
+
+msgid "Could not hydrate table '%s.%s'."
+msgstr "无法载入表“%s.%s”。"
+
+msgid "This index must be removed with its selected column."
+msgstr "此索引必须与其选中的列一同移除。"
+
+msgid "A database registration is required."
+msgstr "需要数据库注册信息。"
+
+msgid "Registration requires a database name and data root."
+msgstr "注册需要数据库名称与数据根目录。"
+
+msgid "Unknown storage backend '%s'."
+msgstr "未知的存储后端“%s”。"
+
+msgid "Storage backend '%s' is not implemented."
+msgstr "存储后端“%s”尚未实现。"
+
+msgid "Database '%s' is not registered."
+msgstr "数据库“%s”未注册。"
+
+msgid "A result materializer is required."
+msgstr "需要结果实体化器。"
+
+msgid "Table '%s.%s' does not exist."
+msgstr "表“%s.%s”不存在。"
+
+msgid "Change plan targets database '%s', not '%s'."
+msgstr "变更计划针对的是数据库“%s”，而非“%s”。"
+
+msgid "Editor action '%s' requires a valid handler."
+msgstr "编辑器操作“%s”需要有效的处理函数。"
+
+msgid "An editor action context requires a stable identifier."
+msgstr "编辑器操作上下文需要稳定的标识符。"
+
+msgid "Editor action context '%s' is already registered."
+msgstr "编辑器操作上下文“%s”已注册。"
+
+msgid "An editor action requires a definition with a stable identifier."
+msgstr "编辑器操作需要带有稳定标识符的定义。"
+
+msgid "Editor action '%s' is already registered in context '%s'."
+msgstr "编辑器操作“%s”已在上下文“%s”中注册。"
+
+msgid "A mutation history entry requires a target and valid row snapshots."
+msgstr "变更历史条目需要目标与有效的行快照。"
+
+msgid "Only the latest committed mutation can be marked as undone."
+msgstr "只有最近一次已提交的变更可以标记为已撤销。"
+
+msgid "Only the latest undone mutation can be marked as redone."
+msgstr "只有最近一次已撤销的变更可以标记为已重做。"
+
+msgid "Insert %d references unknown column '%s'."
+msgstr "插入项 %d 引用了未知的列“%s”。"
+
+msgid "Column '%s' is generated and cannot be inserted explicitly."
+msgstr "列“%s”为自动生成列，不能显式插入。"
+
+msgid "Column '%s' expects %s."
+msgstr "列“%s”需要 %s 类型的值。"
+
+msgid "Update %d has no primary-key identity."
+msgstr "更新项 %d 没有主键标识。"
+
+msgid "Primary key '%s' occurs more than once in the update batch."
+msgstr "主键“%s”在更新批次中出现多次。"
+
+msgid "Primary key '%s' occurs more than once in the delete batch."
+msgstr "主键“%s”在删除批次中出现多次。"
+
+msgid "Update %d references unknown column '%s'."
+msgstr "更新项 %d 引用了未知的列“%s”。"
+
+msgid "Column '%s' cannot be changed through row editing."
+msgstr "列“%s”不能通过行编辑修改。"
+
+msgid "Update %d contains no mutable values."
+msgstr "更新项 %d 不包含可修改的值。"
+
+msgid "A table definition is required to build a row batch."
+msgstr "构建行批次需要表定义。"
+
+msgid "At least one row is required for a batch %s."
+msgstr "批次 %s 至少需要一行。"
+
+msgid "A database is required to execute a row batch."
+msgstr "执行行批次需要数据库。"
+
+msgid "An empty row batch cannot be executed."
+msgstr "空的行批次无法执行。"
+
+msgid "The row batch targets database '%s', not '%s'."
+msgstr "行批次针对的是数据库“%s”，而非“%s”。"
+
+msgid "Preview a table change before applying it."
+msgstr "请先预览表变更，再应用。"
+
+msgid "Open a database registration before refreshing its catalog."
+msgstr "请先打开数据库注册，再刷新其目录。"
+
+msgid "Open a database registration before selecting a table."
+msgstr "请先打开数据库注册，再选择表。"
+
+msgid "Select a table before previewing schema changes."
+msgstr "请先选择表，再预览模式变更。"
+
+msgid "Select a table before loading rows."
+msgstr "请先选择表，再加载行。"
+
+msgid "Registration name '%s' was already in use; registered database '%s' as '%s'."
+msgstr "注册名“%s”已被占用；已将数据库“%s”注册为“%s”。"
+
+msgid "Workbench requires a database registry and explorer."
+msgstr "工作台需要数据库注册表与浏览器。"
+
+msgid "Could not inspect database parent root '%s'."
+msgstr "无法检查数据库的上级根目录“%s”。"
+
+msgid "Database registration '%s' was not found."
+msgstr "未找到数据库注册“%s”。"
+
+msgid "Storage backend '%s' is not available."
+msgstr "存储后端“%s”不可用。"
+
+msgid "A logical database role is required."
+msgstr "需要逻辑数据库角色。"
+
+msgid "Select a registered save slot before deleting its data."
+msgstr "请先选择一个已注册的存档槽位，再删除其数据。"
+
+msgid "The selected save slot requires registration and database names."
+msgstr "所选存档槽位缺少注册名或数据库名。"
+
+msgid "Only a database in a direct child of '%s' can be deleted as a save slot. "
+"The selected root is '%s'."
+msgstr ""
+"只有“%s”的直接子目录中的数据库才能作为存档槽位删除。当前选中的根目录是“%s”。"
+
+msgid "The GDSQLRuntime autoload name is already used by '%s'."
+msgstr "自动加载项名称 GDSQLRuntime 已被“%s”占用。"
+
+msgid "Could not save the GDSQLRuntime autoload setting: %s."
+msgstr "无法保存 GDSQLRuntime 自动加载设置：%s。"
+
+msgid "Loaded existing database '%s' from '%s'."
+msgstr "已加载现有数据库“%s”，来自“%s”。"
+
+msgid "Source table '%s' was not found."
+msgstr "未找到源表“%s”。"
+
+msgid "Foreign key '%s' was not found."
+msgstr "未找到外键“%s”。"
+
+msgid "Referenced table '%s' was not found."
+msgstr "未找到被引用的表“%s”。"
+
+msgid "Content registration '%s' was not found."
+msgstr "未找到内容注册“%s”。"
+
+msgid "Content table '%s' was not found."
+msgstr "未找到内容表“%s”。"
+
+msgid "Table '%s' is not available in registration '%s'."
+msgstr "表“%s”在注册“%s”中不可用。"
+
+msgid "The editor requires a workbench coordinator."
+msgstr "编辑器需要工作台协调器。"
+
+msgid "Open a database before creating a table."
+msgstr "请先打开数据库，再创建表。"
+
+msgid "Table '%s' was not found."
+msgstr "未找到表“%s”。"
+
+msgid "There is no row update to undo."
+msgstr "没有可撤销的行更新。"
+
+msgid "There is no row update to redo."
+msgstr "没有可重做的行更新。"
+
+msgid "Model binding inspection is unavailable."
+msgstr "模型绑定检查不可用。"
+
+msgid "A registration is required when inspecting one model binding."
+msgstr "检查单个模型绑定时需要指定注册。"
+
+msgid "A cursor cannot be used when inspecting one model binding."
+msgstr "检查单个模型绑定时不能使用游标。"
+
+msgid "Table '%s' has no model binding in registration '%s'."
+msgstr "表“%s”在注册“%s”中没有模型绑定。"
+
+msgid "The model cursor is out of range."
+msgstr "模型游标超出范围。"
+
+msgid "The model binding for '%s' targets database '%s', but registration '%s' now targets '%s'."
+msgstr "“%s”的模型绑定针对的是数据库“%s”，但注册“%s”现在针对“%s”。"
+
+msgid "Bound table '%s' was not found in registration '%s'."
+msgstr "已绑定的表“%s”未在注册“%s”中找到。"
+
+msgid "The model cursor is invalid."
+msgstr "模型游标无效。"
+
+msgid "Limit must be between 1 and %d."
+msgstr "限制值必须在 1 到 %d 之间。"
+
+msgid "Profile must be 'selected', 'direct', or 'managed'."
+msgstr "方案必须为“selected”、“direct”或“managed”。"
+
+msgid "A registration is required when inspecting a table."
+msgstr "检查单个表时需要指定注册。"
+
+msgid "A cursor cannot be used when inspecting one table."
+msgstr "检查单个表时不能使用游标。"
+
+msgid "The schema cursor is out of range."
+msgstr "模式游标超出范围。"
+
+msgid "Table '%s' was not found in registration '%s'."
+msgstr "表“%s”未在注册“%s”中找到。"
+
+msgid "Table '%s' could not be loaded from registration '%s'."
+msgstr "表“%s”无法从注册“%s”中加载。"
+
+msgid "The schema cursor is invalid."
+msgstr "模式游标无效。"
+
+msgid "The GDSQL workbench is unavailable."
+msgstr "GDSQL 工作台不可用。"
+
+msgid "The setup profile store is unavailable."
+msgstr "设置方案存储不可用。"
+
+msgid "Setup inspection services are unavailable."
+msgstr "设置检查服务不可用。"
+
+msgid "Column '%s' uses Resource in generated code because its exact script type has no global class name."
+msgstr "由于列“%s”的确切脚本类型没有全局类名，生成的代码中会使用 Resource。"
+
+msgid "A table definition is required to generate a model binding."
+msgstr "生成模型绑定需要表定义。"
+
+msgid "Model class '%s' is not a valid GDScript identifier."
+msgstr "模型类名“%s”不是有效的 GDScript 标识符。"
+
+msgid "Models must be generated into project-owned files under res://."
+msgstr "模型必须生成到 res:// 下的项目自有文件中。"
+
+msgid "Column '%s' cannot be represented as a GDScript property."
+msgstr "列“%s”无法表示为 GDScript 属性。"
+
+msgid "Column '%s' conflicts with required model metadata."
+msgstr "列“%s”与必需的模型元数据冲突。"
+
+msgid "A table definition is required for model compatibility inspection."
+msgstr "模型兼容性检查需要表定义。"
+
+msgid "Godot could not load the user model script. See Output for its parser error."
+msgstr "Godot 无法加载用户模型脚本。请查看输出面板中的解析错误。"
+
+msgid "The model does not inherit %s, required by role '%s'."
+msgstr "该模型未继承 %s，而角色“%s”要求必须继承。"
+
+msgid "The user model must directly extend '%s'."
+msgstr "用户模型必须直接继承“%s”。"
+
+msgid "Column '%s' has no matching model property."
+msgstr "列“%s”没有匹配的模型属性。"
+
+msgid "Property '%s' uses %s; the table requires %s."
+msgstr "属性“%s”使用 %s，而该表要求 %s。"
+
+msgid "Column '%s' does not contain a valid typed value."
+msgstr "列“%s”未包含有效的带类型取值。"
+
+msgid "Select at least one column value."
+msgstr "请至少选择一个列值。"
+
+msgid "Add a condition or nested group to this WHERE group."
+msgstr "请向此 WHERE 分组添加一个条件或嵌套分组。"
+
+msgid "Add at least one WHERE condition."
+msgstr "请至少添加一个 WHERE 条件。"
+
+msgid "Choose a column for this WHERE condition."
+msgstr "请为此 WHERE 条件选择一个列。"
+
+msgid "Enter a value for this WHERE condition."
+msgstr "请为此 WHERE 条件输入一个值。"
+
+msgid "WHERE value for '%s' must be %s."
+msgstr "“%s”的 WHERE 值必须是 %s。"
+
+msgid "The selected WHERE operator is not supported."
+msgstr "不支持所选的 WHERE 运算符。"
+
+msgid "Enable WHERE or explicitly confirm deleting every row."
+msgstr "请启用 WHERE，或明确确认删除所有行。"
+
+msgid "Rows can only be added when the result contains every table column."
+msgstr "只有当结果包含表的全部列时才能添加行。"
+
+msgid "Save or discard the current row before adding another row."
+msgstr "请先保存或放弃当前行，再添加其他行。"
+
+msgid "Enable WHERE or explicitly confirm updating every row."
+msgstr "请启用 WHERE，或明确确认更新所有行。"
+
+msgid "Save or discard the selected row before refreshing the query result."
+msgstr "请先保存或放弃所选行，再刷新查询结果。"
+
+msgid "%s is not implemented yet."
+msgstr "%s 尚未实现。"
+
+msgid "Select a query operation node to remove."
+msgstr "请选择要移除的查询操作节点。"
+
+msgid "Opening the query-graph folder"
+msgstr "正在打开查询图目录"
+
+msgid "Saving query graphs"
+msgstr "正在保存查询图"
+
+msgid "LEFT JOIN nodes"
+msgstr "LEFT JOIN 节点"
+
+msgid "Adding query-result rows"
+msgstr "正在添加查询结果行"
+
+msgid "%s is unavailable while the table has a pending draft."
+msgstr "表存在待处理草稿时，%s 不可用。"
+
+msgid "The query graph document is no longer open."
+msgstr "查询图文档已不再打开。"
+
+msgid "Resource materialization requires a target Resource script."
+msgstr "Resource 实体化需要目标 Resource 脚本。"
+
+msgid "The target script must extend Resource."
+msgstr "目标脚本必须继承 Resource。"
+
+msgid "Result column '%s' does not exist."
+msgstr "结果列“%s”不存在。"
+
+msgid "Resource property '%s' does not exist."
+msgstr "Resource 属性“%s”不存在。"
+
+msgid "Model materialization requires a target model script."
+msgstr "模型实体化需要目标模型脚本。"
+
+msgid "The target script must extend GDSQLModel."
+msgstr "目标脚本必须继承 GDSQLModel。"
+
+msgid "Model property '%s' does not exist."
+msgstr "模型属性“%s”不存在。"
+
+msgid "More than one result column maps to '%s'."
+msgstr "有多个结果列映射到“%s”。"
+
+msgid "Materialization requires a row set."
+msgstr "实体化需要行集。"
+
+msgid "Model role resolution requires a database registry."
+msgstr "解析模型角色需要数据库注册表。"
+
+msgid "A model script that can be instantiated is required."
+msgstr "需要可实例化的模型脚本。"
+
+msgid "The model script is already registered."
+msgstr "该模型脚本已注册。"
+
+msgid "A registered model script must extend GDSQLModel."
+msgstr "已注册的模型脚本必须继承 GDSQLModel。"
+
+msgid "A model must declare a logical database role."
+msgstr "模型必须声明逻辑数据库角色。"
+
+msgid "A model must declare a table name."
+msgstr "模型必须声明表名。"
+
+msgid "A model must declare a primary key."
+msgstr "模型必须声明主键。"
+
+msgid "The model script is not registered."
+msgstr "该模型脚本未注册。"
+
+msgid "Relationship declarations must contain typed definitions."
+msgstr "关系声明必须包含带类型的定义。"
+
+msgid "A model relationship must declare a name."
+msgstr "模型关系必须声明名称。"
+
+msgid "Model relationship '%s' is declared more than once."
+msgstr "模型关系“%s”被声明了多次。"
+
+msgid "Model relationship '%s' must declare both keys."
+msgstr "模型关系“%s”必须声明两端的键。"
+
+msgid "Model relationship '%s' references unknown local key '%s'."
+msgstr "模型关系“%s”引用了未知的本地键“%s”。"
+
+msgid "Model relationship '%s' requires a concrete related model."
+msgstr "模型关系“%s”需要一个具体的关联模型。"
+
+msgid "The related script for '%s' must extend GDSQLModel."
+msgstr "“%s”的关联脚本必须继承 GDSQLModel。"
+
+msgid "Model relationship '%s' references unknown related key '%s'."
+msgstr "模型关系“%s”引用了未知的关联键“%s”。"
+
+msgid "Many-to-many relationship '%s' must declare both junction keys."
+msgstr "多对多关系“%s”必须声明两端的联结键。"
+
+msgid "Many-to-many relationship '%s' requires a concrete junction model."
+msgstr "多对多关系“%s”需要一个具体的联结模型。"
+
+msgid "The junction script for '%s' must extend GDSQLModel."
+msgstr "“%s”的联结脚本必须继承 GDSQLModel。"
+
+msgid "Many-to-many relationship '%s' references unknown junction key '%s'."
+msgstr "多对多关系“%s”引用了未知的联结键“%s”。"
+
+msgid "Configure GDSQLModels with a model context before querying models."
+msgstr "查询模型前，请先为 GDSQLModel 配置模型上下文。"
+
+msgid "Model relationship '%s' is not declared."
+msgstr "模型关系“%s”未声明。"
+
+msgid "A model registry is required."
+msgstr "需要模型注册表。"
+
+msgid "A configured model context with a registry is required."
+msgstr "需要已配置且带有注册表的模型上下文。"
+
+msgid "A persisted model's primary key cannot be changed."
+msgstr "已持久化模型的主键不能修改。"
+
+msgid "The persisted model row was not found during refresh."
+msgstr "刷新时未找到已持久化的模型行。"
+
+msgid "A materialized model context is required."
+msgstr "需要已实体化的模型上下文。"
+
+msgid "This model does not represent a persisted row."
+msgstr "此模型不代表任何已持久化的行。"
+
+msgid "This model belongs to a database that is no longer active. Query it again after changing database roles."
+msgstr "此模型所属的数据库已不再活动。请在更改数据库角色后重新查询。"
+
+msgid "This model type permits read operations only."
+msgstr "此模型类型只允许读操作。"
+
+msgid "Cannot validate foreign keys for missing database '%s'."
+msgstr "无法为缺失的数据库“%s”校验外键。"
+
+msgid "Foreign key '%s' references missing table '%s.%s'."
+msgstr "外键“%s”引用了缺失的表“%s.%s”。"
+
+msgid "Foreign key '%s' value '%s' has no matching '%s.%s' row."
+msgstr "外键“%s”的取值“%s”在“%s.%s”中没有匹配的行。"
+
+msgid "Could not read table '%s.%s' while validating foreign keys."
+msgstr "校验外键时无法读取表“%s.%s”。"
+
+msgid "Cannot execute an empty query plan."
+msgstr "无法执行空的查询计划。"
+
+msgid "Query execution was cancelled."
+msgstr "查询执行已取消。"
+
+msgid "Plan node '%s' is not implemented by the executor."
+msgstr "执行器未实现计划节点“%s”。"
+
+msgid "Aggregate function '%s' is not implemented by the executor."
+msgstr "执行器未实现聚合函数“%s”。"
+
+msgid "A query graph node is required."
+msgstr "需要查询图节点。"
+
+msgid "The query graph has no operation to execute."
+msgstr "该查询图没有可执行的操作。"
+
+msgid "The current query graph compiler requires one selected root operation."
+msgstr "当前的查询图编译器要求选定一个根操作。"
+
+msgid "The selected graph operation cannot be compiled."
+msgstr "所选的图操作无法编译。"
+
+msgid "The query operation requires a database and table."
+msgstr "查询操作需要数据库与表。"
+
+msgid "Select at least one result column."
+msgstr "请至少选择一个结果列。"
+
+msgid "INSERT requires at least one valid column value."
+msgstr "INSERT 至少需要一个有效的列值。"
+
+msgid "UPDATE requires at least one valid assignment."
+msgstr "UPDATE 至少需要一个有效的赋值。"
+
+msgid "A query graph is required for compilation."
+msgstr "编译需要查询图。"
+
+msgid "Cannot plan a null bound query."
+msgstr "无法为空绑定查询生成计划。"
+
+msgid "The bound query operation is not implemented by the planner."
+msgstr "规划器未实现该绑定查询操作。"
+
+msgid "Unknown table alias '%s'."
+msgstr "未知的表别名“%s”。"
+
+msgid "Unknown column '%s'."
+msgstr "未知的列“%s”。"
+
+msgid "Column '%s' is ambiguous and requires a source qualifier."
+msgstr "列“%s”有歧义，需要指定源限定符。"
+
+msgid "Logical expressions require boolean operands."
+msgstr "逻辑表达式需要布尔操作数。"
+
+msgid "Expression type '%s' is not implemented in the minimal select slice."
+msgstr "最小 SELECT 切片中未实现表达式类型“%s”。"
+
+msgid "Unknown query function '%s'."
+msgstr "未知的查询函数“%s”。"
+
+msgid "Function '%s' does not accept %d arguments."
+msgstr "函数“%s”不接受 %d 个参数。"
+
+msgid "Aggregate functions cannot contain another aggregate function."
+msgstr "聚合函数中不能包含另一个聚合函数。"
+
+msgid "Comparison operands have incompatible types %s and %s."
+msgstr "比较操作数的类型不兼容：%s 与 %s。"
+
+msgid "Function '%s' requires a string argument."
+msgstr "函数“%s”需要字符串参数。"
+
+msgid "Function 'abs' requires a numeric argument."
+msgstr "函数 abs 需要数值参数。"
+
+msgid "Function '%s' requires a numeric argument."
+msgstr "函数“%s”需要数值参数。"
+
+msgid "Function 'coalesce' requires compatible argument types."
+msgstr "函数 coalesce 需要类型兼容的参数。"
+
+msgid "Resource property filters require a constrained Resource column."
+msgstr "Resource 属性筛选要求使用带类型约束的 Resource 列。"
+
+msgid "Resource property filters require one non-empty literal property path."
+msgstr "Resource 属性筛选要求提供一个非空的字面量属性路径。"
+
+msgid "Resource property '%s' is not an Inspector-visible scalar leaf."
+msgstr "Resource 属性“%s”不是 Inspector 中可见的标量叶子节点。"
+
+msgid "Arithmetic expressions require numeric operands; ADD also accepts two strings."
+msgstr "算术表达式需要数值操作数；ADD 也接受两个字符串。"
+
+msgid "Modulo requires integer operands."
+msgstr "取模运算需要整数操作数。"
+
+msgid "Missing implementation"
+msgstr "缺少实现"
+
+msgid "Select query requires one table source."
+msgstr "SELECT 查询需要一个表源。"
+
+msgid "Limit must be -1 or greater and offset cannot be negative."
+msgstr "限制值必须大于等于 -1，且偏移量不能为负。"
+
+msgid "Unknown table '%s.%s'."
+msgstr "未知的表“%s.%s”。"
+
+msgid "Join clauses require a table source and condition."
+msgstr "联接子句需要表源与条件。"
+
+msgid "RIGHT and FULL joins are scaffolded but not implemented."
+msgstr "RIGHT 与 FULL 联接仅有骨架，尚未实现。"
+
+msgid "Source qualifier '%s' appears more than once."
+msgstr "源限定符“%s”出现多次。"
+
+msgid "Aggregate functions cannot be used in join conditions."
+msgstr "联接条件中不能使用聚合函数。"
+
+msgid "Join conditions must produce a boolean value."
+msgstr "联接条件必须产生布尔值。"
+
+msgid "Select projections require an expression."
+msgstr "SELECT 投影需要表达式。"
+
+msgid "Aggregate functions cannot be used in WHERE predicates."
+msgstr "WHERE 谓词中不能使用聚合函数。"
+
+msgid "Select predicate must produce a boolean value."
+msgstr "SELECT 谓词必须产生布尔值。"
+
+msgid "Group clauses require an expression."
+msgstr "分组子句需要表达式。"
+
+msgid "Aggregate functions cannot be used in GROUP BY expressions."
+msgstr "GROUP BY 表达式中不能使用聚合函数。"
+
+msgid "HAVING predicates must produce a boolean value."
+msgstr "HAVING 谓词必须产生布尔值。"
+
+msgid "Order clauses require an expression."
+msgstr "排序子句需要表达式。"
+
+msgid "HAVING requires GROUP BY or an aggregate function."
+msgstr "HAVING 需要配合 GROUP BY 或聚合函数。"
+
+msgid "Grouped queries require explicit projections."
+msgstr "分组查询需要显式投影。"
+
+msgid "Select projections must be grouped or aggregated."
+msgstr "SELECT 投影必须出现在分组中或被聚合。"
+
+msgid "HAVING expressions must be grouped or aggregated."
+msgstr "HAVING 表达式必须出现在分组中或被聚合。"
+
+msgid "Order expressions must be grouped or aggregated."
+msgstr "排序表达式必须出现在分组中或被聚合。"
+
+msgid "Projection output name '%s' appears more than once."
+msgstr "投影输出名“%s”出现多次。"
+
+msgid "Insert query requires a target table."
+msgstr "INSERT 查询需要目标表。"
+
+msgid "Insert query requires at least one column and row."
+msgstr "INSERT 查询至少需要一列和一行。"
+
+msgid "Column '%s' appears more than once."
+msgstr "列“%s”出现多次。"
+
+msgid "Unknown column '%s' in table '%s'."
+msgstr "表“%s”中存在未知的列“%s”。"
+
+msgid "Generated column '%s' cannot be assigned directly."
+msgstr "自动生成的列“%s”不能被直接赋值。"
+
+msgid "Required column '%s' is missing."
+msgstr "缺少必需的列“%s”。"
+
+msgid "Insert value count does not match the column count."
+msgstr "插入值的数量与列数不匹配。"
+
+msgid "Column '%s' expects %s, received %s."
+msgstr "列“%s”需要 %s，却收到 %s。"
+
+msgid "Update query requires a target table."
+msgstr "UPDATE 查询需要目标表。"
+
+msgid "Update query requires at least one assignment."
+msgstr "UPDATE 查询至少需要一个赋值。"
+
+msgid "Update assignments require a column and expression."
+msgstr "更新赋值需要列与表达式。"
+
+msgid "Column '%s' is assigned more than once."
+msgstr "列“%s”被赋值多次。"
+
+msgid "Updating the primary key is not supported."
+msgstr "不支持更新主键。"
+
+msgid "Aggregate functions cannot be used in update assignments."
+msgstr "更新赋值中不能使用聚合函数。"
+
+msgid "Assignment for column '%s' has an incompatible type."
+msgstr "列“%s”的赋值类型不兼容。"
+
+msgid "Aggregate functions cannot be used in update predicates."
+msgstr "更新谓词中不能使用聚合函数。"
+
+msgid "Update predicate must produce a boolean value."
+msgstr "更新谓词必须产生布尔值。"
+
+msgid "Delete query requires a target table."
+msgstr "DELETE 查询需要目标表。"
+
+msgid "Aggregate functions cannot be used in delete predicates."
+msgstr "删除谓词中不能使用聚合函数。"
+
+msgid "Delete predicate must produce a boolean value."
+msgstr "删除谓词必须产生布尔值。"
+
+msgid "'%s' is not a supported semantic-version constraint."
+msgstr "“%s”不是受支持的语义版本约束。"
+
+msgid "'%s' is not a semantic version."
+msgstr "“%s”不是语义版本。"
+
+msgid "'%s' contains a numeric prerelease identifier with a leading zero."
+msgstr "“%s”包含带前导零的数字型预发布标识符。"
+
+msgid "Database role '%s' has no active binding."
+msgstr "数据库角色“%s”没有活动绑定。"
+
+msgid "Start the GDSQL runtime before registering models."
+msgstr "请先启动 GDSQL 运行时，再注册模型。"
+
+msgid "Start the GDSQL runtime before resolving a database."
+msgstr "请先启动 GDSQL 运行时，再解析数据库。"
+
+msgid "Start the GDSQL runtime before selecting a save slot."
+msgstr "请先启动 GDSQL 运行时，再选择存档槽位。"
+
+msgid "Start the GDSQL runtime before checkpointing."
+msgstr "请先启动 GDSQL 运行时，再做检查点保存。"
+
+msgid "A persistence registration name is required."
+msgstr "需要持久化注册名。"
+
+msgid "A checkpoint target is required."
+msgstr "需要检查点保存目标。"
+
+msgid "The checkpoint policy configuration is invalid."
+msgstr "检查点保存策略配置无效。"
+
+msgid "Persistence registration '%s' already exists."
+msgstr "持久化注册“%s”已存在。"
+
+msgid "Persistence registration '%s' was not found."
+msgstr "未找到持久化注册“%s”。"
+
+msgid "The checkpoint target must return a checkpoint result."
+msgstr "检查点保存目标必须返回检查点结果。"
+
+msgid "A database registration name is required."
+msgstr "需要数据库注册名。"
+
+msgid "An open database handle is required."
+msgstr "需要已打开的数据库句柄。"
+
+msgid "Database registration '%s' already exists."
+msgstr "数据库注册“%s”已存在。"
+
+msgid "Database registration '%s' is selected by role '%s'."
+msgstr "数据库注册“%s”已被角色“%s”选定。"
+
+msgid "A database registry store is required for durable metadata."
+msgstr "持久化元数据需要数据库注册表存储。"
+
+msgid "A discovered package is missing its root or manifest."
+msgstr "发现的一个包缺少根目录或清单。"
+
+msgid "Package id '%s' is supplied by more than one source."
+msgstr "包 ID“%s”由多个来源提供。"
+
+msgid "Exactly one base package is required; discovered %d."
+msgstr "必须且只能有一个基础包；实际发现 %d 个。"
+
+msgid "Enabled package '%s' is listed more than once."
+msgstr "已启用的包“%s”被列出多次。"
+
+msgid "Enabled package '%s' was not discovered."
+msgstr "未发现已启用的包“%s”。"
+
+msgid "Package '%s' requires enabled package '%s' (%s)."
+msgstr "包“%s”需要已启用的包“%s”（%s）。"
+
+msgid "Package '%s' requires '%s' %s, but %s is selected."
+msgstr "包“%s”需要“%s”%s，但当前选择的是 %s。"
+
+msgid "Package load order contains a cycle involving: %s."
+msgstr "包加载顺序中存在循环，涉及：%s。"
+
+msgid "Package id '%s' must use lowercase letters, numbers, '.', '_' or '-'."
+msgstr "包 ID“%s”只能使用小写字母、数字、“.”、“_”或“-”。"
+
+msgid "Package '%s' requires a display name."
+msgstr "包“%s”需要显示名称。"
+
+msgid "Package '%s' requires a semantic version such as 1.0.0."
+msgstr "包“%s”需要语义版本号，例如 1.0.0。"
+
+msgid "Package '%s' must declare kind 'base', 'dlc', or 'mod'."
+msgstr "包“%s”必须声明类型为“base”、“dlc”或“mod”。"
+
+msgid "Package '%s' contains an invalid dependency id."
+msgstr "包“%s”包含无效的依赖 ID。"
+
+msgid "Package '%s' cannot depend on itself."
+msgstr "包“%s”不能依赖自身。"
+
+msgid "Package '%s' declares dependency '%s' more than once."
+msgstr "包“%s”多次声明依赖“%s”。"
+
+msgid "Dependency '%s' requires a version constraint."
+msgstr "依赖“%s”需要版本约束。"
+
+msgid "Dependency '%s' uses unsupported version constraint '%s'."
+msgstr "依赖“%s”使用了不受支持的版本约束“%s”。"
+
+msgid "Package '%s' cannot load both before and after '%s'."
+msgstr "包“%s”不能同时声明在“%s”之前和之后加载。"
+
+msgid "Package '%s' contains an invalid load-%s id."
+msgstr "包“%s”包含无效的 load-%s ID。"
+
+msgid "Package '%s' cannot load %s itself."
+msgstr "包“%s”的 load-%s 不能指向自身。"
+
+msgid "Package '%s' repeats '%s' in load-%s."
+msgstr "包“%s”重复列出了“%s”（load-%s）。"
+
+msgid "Package '%s' %s path must stay relative to its package root."
+msgstr "包“%s”的 %s 路径必须相对于其包根目录。"
+
+msgid "A content package manifest is required."
+msgstr "需要内容包清单。"
+
+msgid "Package '%s' removes missing row '%s' from table '%s'."
+msgstr "包“%s”要移除行“%s”，但该行在表“%s”中不存在。"
+
+msgid "Package '%s' supplies an invalid row operation for table '%s'."
+msgstr "包“%s”为表“%s”提供了无效的行操作。"
+
+msgid "Package '%s' replaces row '%s' in table '%s' from package '%s'."
+msgstr "包“%s”将行“%s”替换到表“%s”中，该行来自包“%s”。"
+
+msgid "Content overlay construction requires a package layer reader."
+msgstr "构建内容覆盖层需要包层读取器。"
+
+msgid "Content overlay construction requires an ordered base package."
+msgstr "构建内容覆盖层需要一个已排序的基础包。"
+
+msgid "Source and effective content database names are required."
+msgstr "需要源内容数据库名与有效内容数据库名。"
+
+msgid "Package '%s' supplies a schema for table '%s' that conflicts with package '%s'."
+msgstr "包“%s”为表“%s”提供的模式与包“%s”冲突。"
+
+msgid "The selected package layers do not define any content tables."
+msgstr "所选包层未定义任何内容表。"
+
+msgid "A content package layer is missing its source manifest."
+msgstr "某个内容包层缺少其源清单。"
+
+msgid "Package '%s' targets unknown table '%s'."
+msgstr "包“%s”指向未知的表“%s”。"
+
+msgid "Package '%s' supplies an empty identity for table '%s'."
+msgstr "包“%s”为表“%s”提供了空标识。"
+
+msgid "Package '%s' row identity does not match primary key '%s' in table '%s'."
+msgstr "包“%s”的行标识与主键“%s”不匹配（表“%s”）。"
+
+msgid "Package '%s' row contains unknown column '%s' in table '%s'."
+msgstr "包“%s”的行包含未知的列“%s”（表“%s”）。"
+
+msgid "Package '%s' row is missing required column '%s' in table '%s'."
+msgstr "包“%s”的行缺少必需的列“%s”（表“%s”）。"
+
+msgid "Package '%s' column '%s' expects %s."
+msgstr "包“%s”的列“%s”需要 %s 类型的值。"
+
+msgid "Content cache construction requires an overlay loader, fingerprint provider, and store."
+msgstr "构建内容缓存需要覆盖层加载器、指纹提供器与存储。"
+
+msgid "Could not use save content manifest '%s'."
+msgstr "无法使用存档内容清单“%s”。"
+
+msgid "A content package root is required."
+msgstr "需要内容包根目录。"
+
+msgid "Could not create content package directory '%s' (error %s)."
+msgstr "无法创建内容包目录“%s”（错误 %s）。"
+
+msgid "Could not load content package manifest '%s' (error %s)."
+msgstr "无法加载内容包清单“%s”（错误 %s）。"
+
+msgid "Could not save content package manifest '%s' (error %s)."
+msgstr "无法保存内容包清单“%s”（错误 %s）。"
+
+msgid "Could not load setup profile from '%s' (error %s)."
+msgstr "无法从“%s”加载设置方案（错误 %s）。"
+
+msgid "Unknown GDSQL setup profile '%s'."
+msgstr "未知的 GDSQL 设置方案“%s”。"
+
+msgid "Choose either the direct or managed content profile."
+msgstr "请选择直接内容方案或托管内容方案。"
+
+msgid "Could not load setup settings '%s' (error %s)."
+msgstr "无法加载设置“%s”（错误 %s）。"
+
+msgid "Could not create the GDSQL settings directory (error %s)."
+msgstr "无法创建 GDSQL 设置目录（错误 %s）。"
+
+msgid "Could not save setup profile to '%s' (error %s)."
+msgstr "无法将设置方案保存到“%s”（错误 %s）。"
+
+msgid "Could not load managed-content settings from '%s' (error %s)."
+msgstr "无法从“%s”加载托管内容设置（错误 %s）。"
+
+msgid "Managed-content roots and enabled package IDs must be strings or string arrays."
+msgstr "托管内容根目录与已启用的包 ID 必须为字符串或字符串数组。"
+
+msgid "Managed-content configuration is required."
+msgstr "需要托管内容配置。"
+
+msgid "Could not create the managed-content settings directory (error %s)."
+msgstr "无法创建托管内容设置目录（错误 %s）。"
+
+msgid "Could not save managed-content settings to '%s' (error %s)."
+msgstr "无法将托管内容设置保存到“%s”（错误 %s）。"
+
+msgid "Insert requires the table primary key."
+msgstr "插入需要表的主键。"
+
+msgid "Primary key value '%s' is reserved for table metadata."
+msgstr "主键取值“%s”为表元数据保留。"
+
+msgid "Primary key '%s' already exists in %s.%s."
+msgstr "主键“%s”在 %s.%s 中已存在。"
+
+msgid "An update cannot remove or change the table primary key."
+msgstr "更新不能移除或修改表的主键。"
+
+msgid "Next generated key %d is below the required value %d for %s.%s."
+msgstr "下一个生成键 %d 低于所需的值 %d（%s.%s）。"
+
+msgid "Cannot %s missing primary key '%s' in %s.%s."
+msgstr "%s 无法处理缺失的主键“%s”（%s.%s）。"
+
+msgid "Could not create table directory: %s"
+msgstr "无法创建表目录：%s"
+
+msgid "Could not load table file: %s"
+msgstr "无法加载表文件：%s"
+
+msgid "Could not save table file: %s"
+msgstr "无法保存表文件：%s"
+
+msgid "Column '%s' is required in %s.%s."
+msgstr "列“%s”在 %s.%s 中是必需的。"
+
+msgid "Referenced Resource column '%s' requires a saved asset."
+msgstr "被引用的 Resource 列“%s”需要一个已保存的资源。"
+
+msgid "%s '%s' appears more than once in %s.%s."
+msgstr "%s“%s”在 %s.%s 中出现多次。"
+
+msgid "Unique index '%s' value '%s' appears more than once in %s.%s."
+msgstr "唯一索引“%s”的取值“%s”在 %s.%s 中出现多次。"
+
+msgid "Failed to load database registry '%s' (error %s)."
+msgstr "加载数据库注册表“%s”失败（错误 %s）。"
+
+msgid "Database registration '%s' uses unknown storage backend '%s'."
+msgstr "数据库注册“%s”使用了未知的存储后端“%s”。"
+
+msgid "A database registry snapshot is required."
+msgstr "需要数据库注册表快照。"
+
+msgid "Failed to prepare database registry directory (error %s)."
+msgstr "准备数据库注册表目录失败（错误 %s）。"
+
+msgid "Failed to save database registry '%s' (error %s)."
+msgstr "保存数据库注册表“%s”失败（错误 %s）。"
+
+msgid "Could not inspect database catalog '%s'."
+msgstr "无法检查数据库目录“%s”。"
+
+msgid "Schema directory for database '%s' is unavailable."
+msgstr "数据库“%s”的模式目录不可用。"
+
+msgid "Dependency '%s' version constraint must be text."
+msgstr "依赖“%s”的版本约束必须是文本。"
+
+msgid "Load-order '%s' must be an array of package ids."
+msgstr "加载顺序“%s”必须是包 ID 数组。"
+
+msgid "Content package manifest '%s' was not found."
+msgstr "未找到内容包清单“%s”。"
+
+msgid "Content package manifest '%s' requires a [package] section."
+msgstr "内容包清单“%s”需要 [package] 区段。"
+
+msgid "A package source with a manifest is required."
+msgstr "需要带有清单的包源。"
+
+msgid "Base package '%s' does not contain database '%s'."
+msgstr "基础包“%s”不包含数据库“%s”。"
+
+msgid "Could not read package overlay operations at '%s'."
+msgstr "无法读取“%s”处的包覆盖层操作。"
+
+msgid "Unknown overlay operation section '%s'."
+msgstr "未知的覆盖层操作区段“%s”。"
+
+msgid "Removal section '%s' must target '<database>:<table>'."
+msgstr "移除区段“%s”必须采用 <database>:<table> 形式。"
+
+msgid "Removal section '%s' requires an ids array."
+msgstr "移除区段“%s”需要 ids 数组。"
+
+msgid "Removal section '%s' ids must be an Array or packed integer/string array."
+msgstr "移除区段“%s”的 ids 必须是 Array 或打包的整数/字符串数组。"
+
+msgid "Cannot fingerprint a package without an accessible source directory."
+msgstr "没有可访问的源目录时无法为包计算指纹。"
+
+msgid "Could not initialize the package fingerprint."
+msgstr "无法初始化包指纹。"
+
+msgid "Could not fingerprint package file '%s'."
+msgstr "无法为包文件“%s”计算指纹。"
+
+msgid "A base content package root is required."
+msgstr "需要基础内容包根目录。"
+
+msgid "Package container '%s' is unavailable."
+msgstr "包容器“%s”不可用。"
+
+msgid "Content cache replacement requires a snapshot and a bounded cache directory."
+msgstr "替换内容缓存需要快照与有界缓存目录。"
+
+msgid "Could not prepare the content cache staging directories."
+msgstr "无法准备内容缓存的暂存目录。"
+
+msgid "Could not move the previous content cache aside."
+msgstr "无法将先前的内容缓存移开。"
+
+msgid "Could not activate the rebuilt content cache."
+msgstr "无法启用重建后的内容缓存。"
+
+msgid "Could not save content cache manifest '%s'."
+msgstr "无法保存内容缓存清单“%s”。"
+
+msgid "Could not read content cache manifest '%s'."
+msgstr "无法读取内容缓存清单“%s”。"
+
+msgid "Content cache manifest is missing its cache section."
+msgstr "内容缓存清单缺少其缓存区段。"
+
+msgid "Content cache package order must be an array."
+msgstr "内容缓存的包顺序必须是数组。"
+
+msgid "Content cache manifest is missing package '%s'."
+msgstr "内容缓存清单缺少包“%s”。"
+
+msgid "Created missing storage for table '%s.%s'."
+msgstr "已为表“%s.%s”创建缺失的存储。"
+
+msgid "At least one table alteration is required."
+msgstr "至少需要一项表更改。"
+
+msgid "Could not read table storage '%s'."
+msgstr "无法读取表存储“%s”。"
+
+msgid "Database name '%s' must be a valid identifier."
+msgstr "数据库名“%s”必须是有效的标识符。"
+
+msgid "Could not create catalog directory '%s'."
+msgstr "无法创建目录所在文件夹“%s”。"
+
+msgid "Could not read database catalog '%s'."
+msgstr "无法读取数据库目录“%s”。"
+
+msgid "Database '%s' is already registered."
+msgstr "数据库“%s”已注册。"
+
+msgid "Could not create database directory '%s'."
+msgstr "无法创建数据库目录“%s”。"
+
+msgid "Could not save database catalog '%s'."
+msgstr "无法保存数据库目录“%s”。"
+
+msgid "Database names must be valid identifiers."
+msgstr "数据库名必须是有效的标识符。"
+
+msgid "Database directory '%s' already exists."
+msgstr "数据库目录“%s”已存在。"
+
+msgid "Could not rename database directory '%s'."
+msgstr "无法重命名数据库目录“%s”。"
+
+msgid "Could not save the renamed database registration."
+msgstr "无法保存重命名后的数据库注册。"
+
+msgid "Invalid database name '%s'."
+msgstr "无效的数据库名“%s”。"
+
+msgid "Could not unregister database '%s' from the catalog."
+msgstr "无法将数据库“%s”从目录中注销。"
+
+msgid "Could not remove database '%s' from the catalog."
+msgstr "无法将数据库“%s”从目录中移除。"
+
+msgid "Could not remove database directory '%s'."
+msgstr "无法移除数据库目录“%s”。"
+
+msgid "Table '%s.%s' already exists."
+msgstr "表“%s.%s”已存在。"
+
+msgid "Table storage '%s' already exists without a schema."
+msgstr "表存储“%s”已存在，但没有对应的模式。"
+
+msgid "Could not create schema directory '%s'."
+msgstr "无法创建模式目录“%s”。"
+
+msgid "Could not create table directory '%s'."
+msgstr "无法创建表目录“%s”。"
+
+msgid "Could not create table storage '%s'."
+msgstr "无法创建表存储“%s”。"
+
+msgid "Could not save table schema '%s'."
+msgstr "无法保存表模式“%s”。"
+
+msgid "Table name '%s' is not a valid identifier."
+msgstr "表名“%s”不是有效的标识符。"
+
+msgid "Target files for table '%s' already exist."
+msgstr "表“%s”的目标文件已存在。"
+
+msgid "Could not rename table storage '%s'."
+msgstr "无法重命名表存储“%s”。"
+
+msgid "Could not rename table schema '%s'."
+msgstr "无法重命名表模式“%s”。"
+
+msgid "Could not update renamed table schema '%s'."
+msgstr "无法更新重命名后的表模式“%s”。"
+
+msgid "Could not load table '%s.%s' before dropping it."
+msgstr "无法在删除之前加载表“%s.%s”。"
+
+msgid "Could not remove table schema '%s'."
+msgstr "无法移除表模式“%s”。"
+
+msgid "Could not remove table storage '%s'."
+msgstr "无法移除表存储“%s”。"
+
+msgid "A catalog change plan is required."
+msgstr "需要目录变更计划。"
+
+msgid "Table '%s.%s' changed after this plan was previewed."
+msgstr "此计划预览之后，表“%s.%s”已被改动。"
+
+msgid "Could not read table schema '%s'."
+msgstr "无法读取表模式“%s”。"
+
+msgid "Could not save altered table storage '%s'."
+msgstr "无法保存更改后的表存储“%s”。"
+
+msgid "Could not save altered table schema '%s'."
+msgstr "无法保存更改后的表模式“%s”。"
+
+msgid "Table alteration cannot be null."
+msgstr "表更改不能为空。"
+
+msgid "Unsupported table alteration kind."
+msgstr "不支持的表更改类型。"
+
+msgid "Added column requires a valid name and Variant type."
+msgstr "新增列需要有效的名称与 Variant 类型。"
+
+msgid "Object column '%s' requires a valid concrete Resource subtype."
+msgstr "对象列“%s”需要有效的具体 Resource 子类型。"
+
+msgid "Column '%s' already exists."
+msgstr "列“%s”已存在。"
+
+msgid "Default for column '%s' does not match its Variant type."
+msgstr "列“%s”的默认值与其 Variant 类型不匹配。"
+
+msgid "Default for referenced Resource column '%s' must be a saved asset."
+msgstr "被引用的 Resource 列“%s”的默认值必须是已保存的资源。"
+
+msgid "Generated timestamp column '%s' must use TYPE_INT."
+msgstr "自动生成的时间戳列“%s”必须使用 TYPE_INT。"
+
+msgid "Generated column '%s' cannot also declare a static default."
+msgstr "自动生成的列“%s”不能同时声明静态默认值。"
+
+msgid "Non-nullable column '%s' requires a default when rows already exist."
+msgstr "已存在行时，不可为空的列“%s”需要默认值。"
+
+msgid "Unique column '%s' cannot apply one default to multiple existing rows."
+msgstr "唯一列“%s”不能将同一个默认值应用于多个已存在的行。"
+
+msgid "Column name '%s' is not a valid identifier."
+msgstr "列名“%s”不是有效的标识符。"
+
+msgid "Column '%s' does not exist."
+msgstr "列“%s”不存在。"
+
+msgid "Primary-key column '%s' cannot be dropped."
+msgstr "主键列“%s”不能被删除。"
+
+msgid "Column '%s' cannot be dropped while index '%s' references it."
+msgstr "列“%s”在被索引“%s”引用时不能删除。"
+
+msgid "Column '%s' cannot be dropped while foreign key '%s' references it."
+msgstr "列“%s”在被外键“%s”引用时不能删除。"
+
+msgid "Column order must contain every table column exactly once."
+msgstr "列顺序必须恰好包含表中的每一列一次。"
+
+msgid "Added index cannot be null."
+msgstr "新增索引不能为空。"
+
+msgid "Index '%s' already exists."
+msgstr "索引“%s”已存在。"
+
+msgid "Index '%s' does not exist."
+msgstr "索引“%s”不存在。"
+
+msgid "Added foreign key cannot be null."
+msgstr "新增外键不能为空。"
+
+msgid "Foreign key '%s' already exists."
+msgstr "外键“%s”已存在。"
+
+msgid "Foreign key '%s' does not exist."
+msgstr "外键“%s”不存在。"
+
+msgid "Primary-key column '%s' cannot be nullable."
+msgstr "主键列“%s”不能可为空。"
+
+msgid "Column '%s' contains null or missing values."
+msgstr "列“%s”包含空值或缺失值。"
+
+msgid "Primary-key column '%s' must remain unique."
+msgstr "主键列“%s”必须保持唯一。"
+
+msgid "Column '%s' received an unknown generation policy."
+msgstr "列“%s”收到了未知的生成策略。"
+
+msgid "Column '%s' requires a valid Resource ownership mode."
+msgstr "列“%s”需要有效的 Resource 归属模式。"
+
+msgid "Column '%s' contains an owned Resource without a saved asset path."
+msgstr "列“%s”包含自有的 Resource，但没有已保存的资源路径。"
+
+msgid "Column '%s' contains duplicate value '%s'."
+msgstr "列“%s”包含重复的取值“%s”。"
+
+msgid "Unique index '%s' has duplicate value '%s'."
+msgstr "唯一索引“%s”存在重复的取值“%s”。"
+
+msgid "Could not read the database catalog."
+msgstr "无法读取数据库目录。"
+
+msgid "Database '%s' does not exist."
+msgstr "数据库“%s”不存在。"
+
+msgid "Foreign key '%s' on '%s.%s' depends on '%s.%s'."
+msgstr "外键“%s”（位于 %s.%s）依赖于 %s.%s。"
+
+msgid "Table name must be a valid identifier."
+msgstr "表名必须是有效的标识符。"
+
+msgid "Table '%s' requires at least one column."
+msgstr "表“%s”至少需要一列。"
+
+msgid "Every column requires a valid identifier name."
+msgstr "每一列都需要有效的标识符名称。"
+
+msgid "Column '%s' requires a Variant type."
+msgstr "列“%s”需要一个 Variant 类型。"
+
+msgid "Auto-increment column '%s' must use TYPE_INT."
+msgstr "自动递增列“%s”必须使用 TYPE_INT。"
+
+msgid "Table primary key must reference a declared column."
+msgstr "表的主键必须引用已声明的列。"
+
+msgid "Only one auto-increment column is supported per table."
+msgstr "每张表只支持一个自动递增列。"
+
+msgid "The initial auto-increment implementation requires the primary key."
+msgstr "初版的自动递增实现要求将该列设为主键。"
+
+msgid "Every index requires a valid identifier name."
+msgstr "每个索引都需要有效的标识符名称。"
+
+msgid "Index '%s' appears more than once."
+msgstr "索引“%s”出现多次。"
+
+msgid "Index '%s' requires at least one column."
+msgstr "索引“%s”至少需要一列。"
+
+msgid "Index '%s' references unknown column '%s'."
+msgstr "索引“%s”引用了未知的列“%s”。"
+
+msgid "Index '%s' references column '%s' more than once."
+msgstr "索引“%s”多次引用列“%s”。"
+
+msgid "Index '%s' cannot reference Resource column '%s'."
+msgstr "索引“%s”不能引用 Resource 列“%s”。"
+
+msgid "Every foreign key requires valid constraint, table, and column names."
+msgstr "每个外键都需要有效的约束名、表名与列名。"
+
+msgid "Foreign key '%s' appears more than once."
+msgstr "外键“%s”出现多次。"
+
+msgid "Foreign key '%s' references unknown local column '%s'."
+msgstr "外键“%s”引用了未知的本地列“%s”。"
+
+msgid "Foreign key '%s' column '%s' must use int, String, or StringName."
+msgstr "外键“%s”的列“%s”必须使用 int、String 或 StringName。"
+
+msgid "Foreign key '%s' references unknown table '%s'."
+msgstr "外键“%s”引用了未知的表“%s”。"
+
+msgid "Foreign key '%s' references unknown column '%s.%s'."
+msgstr "外键“%s”引用了未知的列“%s.%s”。"
+
+msgid "Foreign key '%s' column types do not match (%s and %s)."
+msgstr "外键“%s”的列类型不匹配（%s 与 %s）。"
+
+msgid "Foreign key '%s' target '%s.%s' must be unique."
+msgstr "外键“%s”的目标“%s.%s”必须唯一。"
+
+msgid "Foreign key '%s' uses an unsupported action."
+msgstr "外键“%s”使用了不受支持的动作。"
+
+msgid "Could not read referenced table '%s.%s'."
+msgstr "无法读取被引用的表“%s.%s”。"
+
+msgid "Foreign key '%s' has value '%s' without a matching '%s.%s' row."
+msgstr "外键“%s”的取值“%s”在“%s.%s”中没有匹配的行。"
+
+msgid "Content profile"
+msgstr "内容方案"
+
+msgid "Choose Direct Content or Managed Content in the GDSQL welcome page."
+msgstr "请在 GDSQL 欢迎页中选择直接内容或托管内容。"
+
+msgid "Stage removal of column '%s' from '%s'?"
+msgstr "要将列“%s”从“%s”中暂存移除吗？"
+
+msgid "Saving will permanently delete its values from %d stored row(s)."
+msgstr "保存后将永久删除该列在 %d 行已存储数据中的值。"
+
+msgid "Dependent indexes also staged for removal: %s."
+msgstr "依赖的索引也将暂存移除：%s。"
+
+msgid "Local foreign keys also staged for removal: %s."
+msgstr "本地外键也将暂存移除：%s。"
+
+msgid "Unsaved dependent constraints will be discarded: %s."
+msgstr "未保存的依赖约束将被放弃：%s。"
+
+msgid "Blocked by foreign keys in other tables: %s. Remove and save those constraints first."
+msgstr "被其他表中的外键阻止：%s。请先移除并保存这些约束。"
+
+msgid "Right-click the column again to restore it before Save Changes."
+msgstr "在点击“保存更改”之前，再次右键点击该列即可将其恢复。"
+
+msgid "%d tables"
+msgstr "%d 张表"
+
+msgid "%d of %d tables"
+msgstr "%d / %d 张表"
+
+msgid "Rename database '%s' to '%s'."
+msgstr "将数据库“%s”重命名为“%s”。"
+
+msgid "Create table '%s'."
+msgstr "创建表“%s”。"
+
+msgid "Unsaved changes"
+msgstr "未保存的更改"
+
+msgid "Database '%s' must be a valid identifier."
+msgstr "数据库名“%s”必须是有效的标识符。"
+
+msgid "Table '%s' contains an invalid column or index change."
+msgstr "表“%s”包含无效的列改动或索引改动。"
+
+msgid "Replace the generated schema base?\n\n%s\n\nThe user model will not be changed."
+msgstr "要替换生成的模式基类吗？\n\n%s\n\n用户模型不会改变。"
+
+msgid "Managed content uses immutable packages and a generated effective-content database."
+msgstr "托管内容使用不可变的包与生成的有效内容数据库。"
+
+msgid "Direct content reads project-authored definitions from res://data."
+msgstr "直接内容从 res://data 读取项目编写的定义。"
+
+msgid "\n\nGDSQL will not move or rewrite existing databases. Changing profiles later "
+"requires an explicit content migration."
+msgstr "\n\nGDSQL 不会移动或重写现有数据库。之后更改方案需要显式执行内容迁移。"
+
+msgid "Delete the row whose primary key is %s?"
+msgstr "要删除主键为 %s 的行吗？"
+
+msgid "Delete %d selected row(s)? This operation is atomic."
+msgstr "要删除选中的 %d 行吗？此操作是原子的。"
+
+msgid "This query result has unsaved row changes. Close it and discard the draft?"
+msgstr "此查询结果包含未保存的行更改。要关闭并放弃草稿吗？"
+
+msgid "Every foreign key requires a constraint name."
+msgstr "每个外键都需要约束名。"
+
+msgid "Foreign key '%s' must use a valid identifier."
+msgstr "外键“%s”必须使用有效的标识符。"
+
+msgid "Foreign key '%s' requires a local column."
+msgstr "外键“%s”需要指定本地列。"
+
+msgid "Foreign key column '%s' must use int, String, or StringName."
+msgstr "外键列“%s”必须使用 int、String 或 StringName。"
+
+msgid "Foreign key '%s' requires a referenced table."
+msgstr "外键“%s”需要指定被引用的表。"
+
+msgid "Foreign key '%s' requires a matching unique target column."
+msgstr "外键“%s”需要一个匹配的唯一目标列。"
+
+msgid "A column name is required."
+msgstr "需要列名。"
+
+msgid "Column '%s' must be a valid identifier."
+msgstr "列“%s”必须是有效的标识符。"
+
+msgid "Column '%s' requires a concrete Resource subtype."
+msgstr "列“%s”需要具体的 Resource 子类型。"
+
+msgid "Generated column '%s' must use TYPE_INT."
+msgstr "自动生成的列“%s”必须使用 TYPE_INT。"
+
+msgid "Column '%s' cannot be generated and auto-incremented."
+msgstr "列“%s”不能同时自动生成和自动递增。"
+
+msgid "Generated column '%s' cannot declare a static default."
+msgstr "自动生成的列“%s”不能声明静态默认值。"
+
+msgid "Default for column '%s' must be a valid %s value."
+msgstr "列“%s”的默认值必须是有效的 %s 值。"
+
+msgid "Column '%s' is declared more than once."
+msgstr "列“%s”被声明了多次。"
+
+msgid "A table requires at least one column."
+msgstr "表至少需要一列。"
+
+msgid "Primary key '%s' must reference a declared column."
+msgstr "主键“%s”必须引用已声明的列。"
+
+msgid "Only one auto-increment column is supported."
+msgstr "只支持一个自动递增列。"
+
+msgid "Auto-increment is supported only on the primary key."
+msgstr "自动递增仅支持主键。"
+
+msgid "A table name is required."
+msgstr "需要表名。"
+
+msgid "Table '%s' must be a valid identifier."
+msgstr "表名“%s”必须是有效的标识符。"
+
+msgid "Table '%s' requires a primary key."
+msgstr "表“%s”需要主键。"
+
+msgid "Every index requires a name."
+msgstr "每个索引都需要名称。"
+
+msgid "Index '%s' is declared more than once." 
+msgstr "索引“%s”被声明了多次。"
+
+msgid "Foreign key '%s' is declared more than once."
+msgstr "外键“%s”被声明了多次。"
+
+msgid "New table: %s"
+msgstr "新建表：%s"
+
+msgid "New table"
+msgstr "新建表"
+
+msgid "Cannot Remove Column"
+msgstr "无法移除列"
+
+msgid "Remove and save the listed foreign keys first."
+msgstr "请先移除并保存列出的外键。"
+
+msgid "Edit %s"
+msgstr "编辑 %s"
+
+msgid "GDSQL DBs"
+msgstr "GDSQL 数据库"
+
+msgid "GDSQL Logs"
+msgstr "GDSQL 日志"
+
+msgid "belongs_to %s · %s → %s.%s"
+msgstr "belongs_to %s · %s → %s.%s"
+
+msgid "has_one"
+msgstr "has_one"
+
+msgid "has_many"
+msgstr "has_many"
+
+msgid "editable"
+msgstr "可编辑"
+
+msgid "read only"
+msgstr "只读"
+
+msgid "%d row(s)"
+msgstr "%d 行"
+
+msgid "rows can be added"
+msgstr "可添加行"
+
+msgid "projected result; adding rows is unavailable"
+msgstr "投影结果；无法添加行"
+
+msgid "Only the first selected row was copied into the draft."
+msgstr "仅有选中的第一行被复制到草稿中。"
+
+msgid "Change '%s' before saving."
+msgstr "保存前请更改“%s”。"
+
+msgid "Review the copied unique values before saving."
+msgstr "保存前请检查复制来的唯一值。"
+
+msgid "Owned Resource values were deep-cloned; review them before saving."
+msgstr "自有 Resource 值已深拷贝；保存前请检查。"
+
+msgid "1 new row"
+msgstr "1 行新增"
+
+msgid "%d edited"
+msgstr "%d 行已编辑"
+
+msgid "%d selected"
+msgstr "%d 行已选中"
+
+msgid "invalid values"
+msgstr "无效值"
+
+msgid "This foreign key must be removed with its selected column."
+msgstr "此外键必须与其选中的列一同移除。"
+
+msgid "Accepted Resource type: %s"
+msgstr "接受的 Resource 类型：%s"
+
+msgid "Open expanded text editor as read only"
+msgstr "以只读方式打开展开的文本编辑器"
+
+msgid "Enter a %s value using Godot Variant syntax."
+msgstr "请使用 Godot Variant 语法输入 %s 值。"
+
+msgid "Target registration: %s\nTarget model: %s"
+msgstr "目标注册：%s\n目标模型：%s"
+
+msgid "Maximum WHERE nesting depth reached."
+msgstr "已达到 WHERE 嵌套的最大深度。"
+
+msgid "Expand group"
+msgstr "展开分组"
+
+msgid "Build a typed WHERE filter. Resource columns expose supported scalar property leaves."
+msgstr "构建带类型的 WHERE 筛选。Resource 列会暴露受支持的标量属性叶子节点。"
+
+msgid "Copy the first selected row into an editable Add Row draft"
+msgstr "将选中的第一行复制为可编辑的“添加行”草稿"
+
+msgid "Duplicate %d selected row(s) in one transaction; owned Resource values are omitted"
+msgstr "在一个事务中复制选中的 %d 行；自有 Resource 值将被忽略"
+
+msgid "Delete %d selected row(s) in one transaction"
+msgstr "在一个事务中删除选中的 %d 行"
+
+msgid "Undo %s"
+msgstr "撤销 %s"
+
+msgid "No committed row update to undo"
+msgstr "没有可撤销的已提交行更新"
+
+msgid "\n\nNote: Undo restores editable values;\n"
+"updated_at records the undo operation time. \n"
+"History lasts only for this editor session."
+msgstr ""
+"\n"
+"\n"
+"注意：撤销会恢复可编辑的取值；\n"
+"updated_at 记录撤销操作的时间。 \n"
+"历史记录仅在本次编辑器会话内有效。"
+
+msgid "Redo %s"
+msgstr "重做 %s"
+
+msgid "No undone row update to redo"
+msgstr "没有可重做的已撤销行更新"
+
+msgid "\n\nNote: Undo restores editable values;\n"
+"`updated_at` records the undo operation time. \n"
+"History lasts only for this editor session."
+msgstr ""
+"\n"
+"\n"
+"注意：撤销会恢复可编辑的取值；\n"
+"`updated_at` 记录撤销操作的时间。 \n"
+"历史记录仅在本次编辑器会话内有效。"
+
+msgid "Unnamed column"
+msgstr "未命名列"
+
+msgid "Immutable base package source. Runtime reads a generated effective-content database."
+msgstr "不可变的基础包源。运行时读取生成后的有效内容数据库。"
+
+msgid "Mutable player state for one save slot, hydrated into memory and checkpointed."
+msgstr "单个存档槽位的可变玩家状态，会载入内存并做检查点保存。"
+
+msgid "Rows load into memory. ConfigFile remains the hydration and checkpoint source."
+msgstr "行数据会载入内存，cfg 文件仍是载入与检查点保存的来源。"
+
+msgid "Creates manifest.cfg, assets/, and the normal data/databases.cfg catalog."
+msgstr "创建 manifest.cfg、assets/ 以及常规的 data/databases.cfg 目录。"
+
+msgid "Buffered"
+msgstr "缓冲"
+
+msgid "Model binding · %s"
+msgstr "模型绑定 · %s"
+
+msgid "The model preview is invalid."
+msgstr "模型预览无效。"
+
+msgid "User model: %s%s"
+msgstr "用户模型：%s%s"
+
+msgid "The model settings could not be saved (error %d)."
+msgstr "无法保存模型设置（错误 %d）。"
+
+msgid "Could not create the model directories (error %s)."
+msgstr "无法创建模型目录（错误 %s）。"
+
+msgid "Could not write the generated model (error %s)."
+msgstr "无法写入生成的模型（错误 %s）。"
+
+msgid "Generated the base, but could not create the user model (error %s)."
+msgstr "已生成基类，但无法创建用户模型（错误 %s）。"
+
+msgid "Generated the schema base and created the user model."
+msgstr "已生成模式基类并创建用户模型。"
+
+msgid "Regenerated the schema base. The user model was preserved."
+msgstr "已重新生成模式基类。用户模型已保留。"
+
+msgid " The model settings could not be saved (error %s)."
+msgstr " 无法保存模型设置（错误 %s）。"
+
+msgid " · ALL ROWS CONFIRMED"
+msgstr " · 已确认全部行"
+
+msgid "%d row(s) affected."
+msgstr "影响了 %d 行。"
+
+msgid "QUERY RESULT · %s"
+msgstr "查询结果 · %s"
+
+msgid "No rows returned."
+msgstr "未返回任何行。"
+
+msgid "%d row(s) returned. Select a row to inspect or edit it."
+msgstr "返回 %d 行。选择一行以查看或编辑。"
+
+msgid "%d row(s) returned. Double-click an editable value to change it."
+msgstr "返回 %d 行。双击可编辑的值即可修改。"
+
+msgid "Row %d selected. Double-click a value to edit it."
+msgstr "已选中第 %d 行。双击某个值即可编辑。"
+
+msgid "Editing row %d of %d."
+msgstr "正在编辑第 %d 行，共 %d 行。"
+
+msgid "Invalid row values."
+msgstr "行值无效。"
+
+msgid "Saved changes to %d row(s)."
+msgstr "已保存对 %d 行的更改。"
+
+msgid "%d row(s) saved; %d failed update(s) remain pending."
+msgstr "已保存 %d 行；仍有 %d 项失败的更新待处理。"
+
+msgid "Page %d of %d · rows %d–%d of %d"
+msgstr "第 %d 页 / 共 %d 页 · 第 %d–%d 行，共 %d 行"
+
+msgid " · %d assignment(s)%s"
+msgstr " · %d 项赋值%s"
+
+msgid "%d columns · Primary key: %s"
+msgstr "%d 列 · 主键：%s"
+
+msgid "%s Rows could not be reloaded."
+msgstr "%s 行数据无法重新载入。"
+
+msgid "Could not load table rows."
+msgstr "无法加载表行。"
+
+msgid "Showing the first %d referenced rows. Type to search this bounded page."
+msgstr "显示前 %d 个被引用的行。在此受限页内输入即可搜索。"
+
+msgid "Choose a referenced row. Type while the list is open to search."
+msgstr "请选择一个被引用的行。列表打开时输入即可搜索。"
+
+msgid "Referenced rows could not be loaded."
+msgstr "无法加载被引用的行。"
+
+msgid "Showing the first %d content rows. Type to search this bounded page."
+msgstr "显示前 %d 个内容行。在此受限页内输入即可搜索。"
+
+msgid "Choose a content row. Type while the list is open to search."
+msgstr "请选择一个内容行。列表打开时输入即可搜索。"
+
+msgid "Content rows could not be loaded."
+msgstr "无法加载内容行。"
+
+msgid "The WHERE filter is invalid."
+msgstr "WHERE 筛选无效。"
+
+msgid "Committing %d edited row(s) as one transaction…"
+msgstr "正在将 %d 行编辑作为一个事务提交…"
+
+msgid "%d selected row(s) deleted atomically."
+msgstr "已原子删除选中的 %d 行。"
+
+msgid "Deleting %d row(s) as one transaction…"
+msgstr "正在将 %d 行作为一个事务删除…"
+
+msgid "%d edited row(s) committed atomically."
+msgstr "已原子提交 %d 行编辑。"
+
+msgid "Duplicating %d selected row(s) as one transaction…"
+msgstr "正在将选中的 %d 行作为一个事务复制…"
+
+msgid "Page %d of %d · %d rows"
+msgstr "第 %d 页 / 共 %d 页 · %d 行"
+
+msgid "Review and apply the pending database changes."
+msgstr "检查并应用待处理的数据库更改。"
+
+msgid "Discard / Refresh"
+msgstr "放弃 / 刷新"
+
+msgid "Discard local schema drafts and reload the durable database catalog."
+msgstr "放弃本地模式草稿并重新加载持久化数据库目录。"
+
+msgid "Create a database under a selected data root."
+msgstr "在选定的数据根目录下创建数据库。"
+
+msgid "Create Table"
+msgstr "创建表"
+
+msgid "Create a table in the active database."
+msgstr "在活动数据库中创建表。"
+
+msgid "Forget a database registration while leaving its files unchanged."
+msgstr "注销数据库注册，同时保持其文件不变。"
+
+msgid "Delete a table and its stored rows."
+msgstr "删除表及其已存储的行。"
+
+msgid "Discover databases under res://data."
+msgstr "发现 res://data 下的数据库。"
+
+msgid "Refresh registered database metadata."
+msgstr "刷新已注册数据库的元数据。"
+
+msgid "Open the selected database registration."
+msgstr "打开选定的数据库注册。"
+
+msgid "Select a table in the active database."
+msgstr "选择活动数据库中的表。"
+
+msgid "Open the model-binding assistant for a table."
+msgstr "为表打开模型绑定助手。"
+
+msgid "Welcome"
+msgstr "欢迎"
+
+msgid "Show the GDSQL welcome page."
+msgstr "显示 GDSQL 欢迎页。"
+
+msgid "Install the scene-backed GDSQLRuntime project autoload."
+msgstr "安装基于场景的 GDSQLRuntime 项目自动加载项。"
+
+msgid "Create, inspect, and select the active save slot."
+msgstr "创建、检查并选择活动的存档槽位。"
+
+msgid "Configure packages, build effective content, and inspect save compatibility."
+msgstr "配置包、构建有效内容并检查存档兼容性。"
+
+msgid "Create a writable save database with recommended defaults."
+msgstr "使用推荐的默认设置创建可写的存档数据库。"
+
+msgid "Use Save Slot"
+msgstr "使用存档槽位"
+
+msgid "Bind a registered database as the active save role."
+msgstr "将已注册的数据库绑定为活动存档角色。"
+
+msgid "Permanently delete one validated standard save-slot database."
+msgstr "永久删除一个经过校验的标准存档槽位数据库。"
+
+msgid "Open the project query-graph folder."
+msgstr "打开项目的查询图文件夹。"
+
+msgid "Save Graph"
+msgstr "保存图"
+
+msgid "Save this query graph and its node layout."
+msgstr "保存此查询图及其节点布局。"
+
+msgid "Add a SELECT operation node."
+msgstr "添加 SELECT 操作节点。"
+
+msgid "Add a LEFT JOIN operation node."
+msgstr "添加 LEFT JOIN 操作节点。"
+
+msgid "Add an INSERT operation node."
+msgstr "添加 INSERT 操作节点。"
+
+msgid "Add an UPDATE operation node."
+msgstr "添加 UPDATE 操作节点。"
+
+msgid "Add a DELETE operation node."
+msgstr "添加 DELETE 操作节点。"
+
+msgid "Compile and execute the selected query operation."
+msgstr "编译并执行选中的查询操作。"
+
+msgid "Add a row when the query result contains every table column."
+msgstr "当查询结果包含全部表列时可添加行。"
+
+msgid "Remove the selected query operation node."
+msgstr "移除选中的查询操作节点。"
+
+msgid "Undo the latest committed row-value update."
+msgstr "撤销最近一次已提交的行值更新。"
+
+msgid "Redo the latest undone row-value update."
+msgstr "重做最近一次已撤销的行值更新。"
+
+msgid "Open a content table and use Model to generate its first typed binding."
+msgstr "打开一张内容表，使用模型助手生成它的第一个带类型绑定。"
+
+msgid "Install gdsql_runtime_node.tscn as the GDSQLRuntime autoload."
+msgstr "将 gdsql_runtime_node.tscn 安装为 GDSQLRuntime 自动加载项。"
+
+msgid "Content role should use an authored res:// data root."
+msgstr "内容角色应使用 res:// 下的原创数据根目录。"
+
+msgid "The content registration does not contain a readable database catalog."
+msgstr "内容注册不包含可读的数据库目录。"
+
+msgid "Content role resolves to '%s' under %s."
+msgstr "内容角色解析为“%s”，位于 %s 下。"
+
+msgid "Save role resolves to '%s' under %s."
+msgstr "存档角色解析为“%s”，位于 %s 下。"
+
+msgid "%d content table(s) have schema and storage."
+msgstr "%d 张内容表已具备表结构与存储。"
+
+msgid "Open the content database, then add and save its first table."
+msgstr "打开内容数据库，然后添加并保存它的第一张表。"
+
+msgid "The content database contains %d stored row(s)."
+msgstr "内容数据库包含 %d 行已存储的数据。"
+
+msgid "Open a content table and add its first row."
+msgstr "打开一张内容表并添加它的第一行。"
+
+msgid "Database registry metadata is unavailable."
+msgstr "数据库注册表元数据不可用。"
+
+msgid "Database role '%s' points to missing registration '%s'."
+msgstr "数据库角色“%s”指向缺失的注册“%s”。"
+
+msgid "Registration '%s' is missing its database name or data root."
+msgstr "注册“%s”缺少其数据库名称或数据根目录。"
+
+msgid "Registration '%s' uses unavailable storage backend '%s'."
+msgstr "注册“%s”使用了不可用的存储后端“%s”。"
+
+msgid "Unspecified Resource"
+msgstr "未指定资源"
+
+msgid "%s  —  %d table(s), %d row(s)"
+msgstr "%s — %d 张表，%d 行"

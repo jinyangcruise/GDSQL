@@ -55,9 +55,9 @@ static func _inspect(
 				"Model binding",
 				model_count > 0,
 				(
-						"%d user-owned model binding(s) found." % model_count
+						_tr("%d user-owned model binding(s) found.") % model_count
 						if model_count > 0
-						else "Open a content table and use Model to generate its first typed binding."
+						else _tr("Open a content table and use Model to generate its first typed binding.")
 				),
 				GDSQLDirectSetupCheck.ACTION_OPEN_CONTENT_TABLE,
 			),
@@ -68,9 +68,9 @@ static func _inspect(
 				"Runtime adapter",
 				runtime_adapter_configured,
 				(
-						"GDSQLRuntime is installed as the project autoload."
+						_tr("GDSQLRuntime is installed as the project autoload.")
 						if runtime_adapter_configured
-						else "Install gdsql_runtime_node.tscn as the GDSQLRuntime autoload."
+						else _tr("Install gdsql_runtime_node.tscn as the GDSQLRuntime autoload.")
 				),
 				GDSQLDirectSetupCheck.ACTION_INSTALL_RUNTIME,
 			),
@@ -86,15 +86,15 @@ static func _content_database_check(
 ) -> GDSQLDirectSetupCheck:
 	var issue := _role_issue(snapshot, GDSQLDatabaseRegistry.CONTENT_ROLE, registration)
 	if issue.is_empty() and not registration.data_root.begins_with("res://"):
-		issue = "Content role should use an authored res:// data root."
+		issue = _tr("Content role should use an authored res:// data root.")
 	if issue.is_empty() and require_catalog and (inspection == null or not inspection.catalog_exists):
-		issue = "The content registration does not contain a readable database catalog."
+		issue = _tr("The content registration does not contain a readable database catalog.")
 	return GDSQLDirectSetupCheck.new(
 		CONTENT_DATABASE,
 		"Content database",
 		issue.is_empty(),
 		(
-				"Content role resolves to '%s' under %s." % [
+				_tr("Content role resolves to '%s' under %s.") % [
 					registration.database_name,
 					registration.data_root,
 				]
@@ -113,15 +113,15 @@ static func _active_save_check(
 ) -> GDSQLDirectSetupCheck:
 	var issue := _role_issue(snapshot, GDSQLDatabaseRegistry.SAVE_ROLE, registration)
 	if issue.is_empty() and not registration.data_root.begins_with("user://"):
-		issue = "Save role should use a writable user:// data root."
+		issue = _tr("Save role should use a writable user:// data root.")
 	if issue.is_empty() and require_catalog and (inspection == null or not inspection.catalog_exists):
-		issue = "The active save registration does not contain a readable database catalog."
+		issue = _tr("The active save registration does not contain a readable database catalog.")
 	return GDSQLDirectSetupCheck.new(
 		ACTIVE_SAVE,
 		"Active save",
 		issue.is_empty(),
 		(
-				"Save role resolves to '%s' under %s." % [
+				_tr("Save role resolves to '%s' under %s.") % [
 					registration.database_name,
 					registration.data_root,
 				]
@@ -141,9 +141,9 @@ static func _content_table_check(
 		"First table",
 		not ready_tables.is_empty(),
 		(
-				"%d content table(s) have schema and storage." % ready_tables.size()
+				_tr("%d content table(s) have schema and storage.") % ready_tables.size()
 				if not ready_tables.is_empty()
-				else "Open the content database, then add and save its first table."
+				else _tr("Open the content database, then add and save its first table.")
 		),
 		GDSQLDirectSetupCheck.ACTION_OPEN_CONTENT_DATABASE,
 	)
@@ -160,9 +160,9 @@ static func _content_row_check(
 		"First content row",
 		rows > 0,
 		(
-				"The content database contains %d stored row(s)." % rows
+				_tr("The content database contains %d stored row(s).") % rows
 				if rows > 0
-				else "Open a content table and add its first row."
+				else _tr("Open a content table and add its first row.")
 		),
 		GDSQLDirectSetupCheck.ACTION_OPEN_CONTENT_TABLE,
 	)
@@ -174,19 +174,19 @@ static func _role_issue(
 		registration: GDSQLDatabaseRegistration,
 ) -> String:
 	if snapshot == null:
-		return "Database registry metadata is unavailable."
+		return _tr("Database registry metadata is unavailable.")
 	var selected_name := _registration_name_for_role(snapshot, role)
 	if selected_name == &"":
-		return "Database role '%s' has no active binding." % role
+		return _tr("Database role '%s' has no active binding.") % role
 	if registration == null:
-		return "Database role '%s' points to missing registration '%s'." % [
+		return _tr("Database role '%s' points to missing registration '%s'.") % [
 			role,
 			selected_name,
 		]
 	if registration.database_name == &"" or registration.data_root.is_empty():
-		return "Registration '%s' is missing its database name or data root." % registration.name
+		return _tr("Registration '%s' is missing its database name or data root.") % registration.name
 	if not GDSQLStorageBackendIds.is_implemented(registration.storage_backend_id):
-		return "Registration '%s' uses unavailable storage backend '%s'." % [
+		return _tr("Registration '%s' uses unavailable storage backend '%s'.") % [
 			registration.name,
 			registration.storage_backend_id,
 		]
@@ -239,3 +239,7 @@ static func _ready_tables(
 		if table.schema_exists and table.storage_exists:
 			tables.append(table)
 	return tables
+
+
+static func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

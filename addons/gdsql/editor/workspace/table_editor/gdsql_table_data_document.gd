@@ -220,7 +220,7 @@ func configure(
 		_total_rows = _catalog_total_rows
 	_page_index = clampi(_page_index, 0, _page_count() - 1)
 	%Title.text = String(table.name)
-	%Details.text = "%d columns · Primary key: %s" % [table.columns.size(), table.primary_key]
+	%Details.text = tr("%d columns · Primary key: %s") % [table.columns.size(), table.primary_key]
 	_update_pagination()
 	_refresh_filter_actions()
 	_refresh_actions()
@@ -255,7 +255,7 @@ func present_rows(result: GDSQLQueryResult, total_rows: int = -1) -> void:
 		_table_view.configure(_table, _table, _records, true, _content_references)
 		_table_view.clear()
 		%Status.text = (
-				"%s Rows could not be reloaded." % _pending_mutation_status
+				tr("%s Rows could not be reloaded.") % _pending_mutation_status
 				if not _pending_mutation_status.is_empty()
 				else "Could not load table rows."
 		)
@@ -300,7 +300,7 @@ func present_reference_rows(
 	_reference_request_grid.present_foreign_key_options(foreign_key, target_table, result)
 	%Status.text = (
 			(
-					"Showing the first %d referenced rows. Type to search this bounded page."
+					tr("Showing the first %d referenced rows. Type to search this bounded page.")
 					% REFERENCE_PICKER_LIMIT
 					if result.rows.size() >= REFERENCE_PICKER_LIMIT
 					else "Choose a referenced row. Type while the list is open to search."
@@ -324,7 +324,7 @@ func present_content_reference_rows(
 	)
 	%Status.text = (
 			(
-					"Showing the first %d content rows. Type to search this bounded page."
+					tr("Showing the first %d content rows. Type to search this bounded page.")
 					% REFERENCE_PICKER_LIMIT
 					if result.rows.size() >= REFERENCE_PICKER_LIMIT
 					else "Choose a content row. Type while the list is open to search."
@@ -430,7 +430,7 @@ func _request_redo() -> GDSQLOperationResult:
 
 
 func _history_blocked(action_name: String) -> GDSQLOperationResult:
-	%Status.text = "%s is unavailable while the table has a pending draft." % action_name
+	%Status.text = tr("%s is unavailable while the table has a pending draft.") % tr(action_name)
 	var result := GDSQLOperationResult.new()
 	result.add_diagnostic(
 		GDSQLQueryDiagnostic.new(&"GDSQL_EDITOR_MUTATION_HISTORY_DRAFT_PENDING", %Status.text),
@@ -660,8 +660,8 @@ func _save_changes() -> void:
 	var updates := _table_view.get_pending_updates()
 	if updates.is_empty():
 		return
-	%Status.text = "Committing %d edited row(s) as one transaction…" % updates.size()
-	_pending_mutation_status = "%d edited row(s) committed atomically." % updates.size()
+	%Status.text = tr("Committing %d edited row(s) as one transaction…") % updates.size()
+	_pending_mutation_status = tr("%d edited row(s) committed atomically.") % updates.size()
 	var previous_revision := _presentation_revision
 	_mutation_in_flight = true
 	rows_update_requested.emit(registration_name, table_name, updates)
@@ -669,7 +669,7 @@ func _save_changes() -> void:
 	if _presentation_revision == previous_revision:
 		_pending_mutation_status = ""
 		%Status.text = (
-				"The transaction failed and was rolled back; " + "pending edits were preserved."
+				"The transaction failed and was rolled back; pending edits were preserved."
 		)
 	_refresh_actions()
 
@@ -726,7 +726,7 @@ func _duplicate_selected_rows() -> void:
 	var rows := _duplicate_values_for(selected_keys)
 	if rows.is_empty():
 		return
-	%Status.text = "Duplicating %d selected row(s) as one transaction…" % rows.size()
+	%Status.text = tr("Duplicating %d selected row(s) as one transaction…") % rows.size()
 	_pending_mutation_status = "%d selected row(s) duplicated atomically." % rows.size()
 	var previous_revision := _presentation_revision
 	_mutation_in_flight = true
@@ -754,7 +754,7 @@ func _begin_duplicate_draft(primary_keys: Array[Variant]) -> void:
 	%InsertSection.show()
 	var status_parts := PackedStringArray()
 	if primary_keys.size() > 1:
-		status_parts.append("Only the first selected row was copied into the draft.")
+		status_parts.append(tr("Only the first selected row was copied into the draft."))
 	status_parts.append_array(_duplicate_draft_guidance(primary_keys))
 	%Status.text = " ".join(status_parts)
 	_refresh_actions()
@@ -811,11 +811,11 @@ func _duplicate_draft_guidance(primary_keys: Array[Variant]) -> PackedStringArra
 	if primary_key == null \
 			or (not primary_key.auto_increment \
 							and primary_key.generation == GDSQLColumnDefinition.Generation.NONE):
-		guidance.append("Change '%s' before saving." % _table.primary_key)
+		guidance.append(tr("Change '%s' before saving.") % _table.primary_key)
 	if _has_copied_unique_constraint():
-		guidance.append("Review the copied unique values before saving.")
+		guidance.append(tr("Review the copied unique values before saving."))
 	if _selected_rows_contain_owned_resources(primary_keys):
-		guidance.append("Owned Resource values were deep-cloned; review them before saving.")
+		guidance.append(tr("Owned Resource values were deep-cloned; review them before saving."))
 	return guidance
 
 
@@ -862,7 +862,7 @@ func _request_selected_rows_delete() -> void:
 	if _pending_delete_keys.is_empty():
 		return
 	%DeleteConfirmation.dialog_text = (
-			"Delete %d selected row(s)? This operation is atomic." % _pending_delete_keys.size()
+			tr("Delete %d selected row(s)? This operation is atomic.") % _pending_delete_keys.size()
 	)
 	%DeleteConfirmation.popup_centered(Vector2i(440, 160))
 
@@ -872,8 +872,8 @@ func _confirm_rows_delete() -> void:
 		return
 	var keys := _pending_delete_keys.duplicate()
 	_pending_delete_keys.clear()
-	%Status.text = "Deleting %d row(s) as one transaction…" % keys.size()
-	_pending_mutation_status = "%d selected row(s) deleted atomically." % keys.size()
+	%Status.text = tr("Deleting %d row(s) as one transaction…") % keys.size()
+	_pending_mutation_status = tr("%d selected row(s) deleted atomically.") % keys.size()
 	var previous_revision := _presentation_revision
 	_mutation_in_flight = true
 	rows_delete_requested.emit(registration_name, table_name, keys)
@@ -920,7 +920,7 @@ func _refresh_actions() -> void:
 					"Copy the first selected row into an editable Add Row draft"
 					if _duplicate_requires_draft(selected_keys)
 					else (
-							"Duplicate %d selected row(s) in one transaction; owned Resource values are omitted"
+							tr("Duplicate %d selected row(s) in one transaction; owned Resource values are omitted")
 							% selected_count
 					)
 			)
@@ -931,19 +931,19 @@ func _refresh_actions() -> void:
 			_mutation_in_flight or inserting or has_edits or selected_count == 0
 	)
 	%DeleteSelected.tooltip_text = (
-			"Delete %d selected row(s) in one transaction" % selected_count
+			tr("Delete %d selected row(s) in one transaction") % selected_count
 			if selected_count > 0
 			else "Select one or more rows to delete"
 	)
 	var action_summary := PackedStringArray()
 	if inserting:
-		action_summary.append("1 new row")
+		action_summary.append(tr("1 new row"))
 	elif edited_count > 0:
-		action_summary.append("%d edited" % edited_count)
+		action_summary.append(tr("%d edited") % edited_count)
 	if selected_count > 0:
-		action_summary.append("%d selected" % selected_count)
+		action_summary.append(tr("%d selected") % selected_count)
 	if _table_view.has_validation_errors() or _insert_editor.has_validation_errors():
-		action_summary.append("invalid values")
+		action_summary.append(tr("invalid values"))
 	%ActionSummary.text = (
 			"No pending changes"
 			if action_summary.is_empty()
@@ -966,22 +966,22 @@ func _refresh_history_actions() -> void:
 		not blocked and not _redo_summary.is_empty(),
 	)
 	%Undo.tooltip_text = (
-			"Undo %s" % _undo_summary
+			tr("Undo %s") % _undo_summary
 			if not _undo_summary.is_empty()
 			else "No committed row update to undo"
 	)
-	%Undo.tooltip_text += "\n\nNote: Undo restores editable values;
-	updated_at records the undo operation time. 
-	History lasts only for this editor session."
+	%Undo.tooltip_text += tr("\n\nNote: Undo restores editable values;\n"
+			+ "updated_at records the undo operation time. \n"
+			+ "History lasts only for this editor session.")
 
 	%Redo.tooltip_text = (
 			"Redo %s" % _redo_summary
 			if not _redo_summary.is_empty()
 			else "No undone row update to redo"
 	)
-	%Redo.tooltip_text += "\n\nNote: Undo restores editable values; 
-	`updated_at` records the undo operation time. 
-	History lasts only for this editor session."
+	%Redo.tooltip_text += tr("\n\nNote: Undo restores editable values;\n"
+			+ "`updated_at` records the undo operation time. \n"
+			+ "History lasts only for this editor session.")
 
 
 func _change_page(delta: int) -> void:
@@ -1026,7 +1026,7 @@ func _update_pagination() -> void:
 	if not is_node_ready():
 		return
 	var pages := _page_count()
-	%PageStatus.text = "Page %d of %d · %d rows" % [_page_index + 1, pages, _total_rows]
+	%PageStatus.text = tr("Page %d of %d · %d rows") % [_page_index + 1, pages, _total_rows]
 	%FirstPage.disabled = _page_index <= 0
 	%PreviousPage.disabled = _page_index <= 0
 	%NextPage.disabled = _page_index >= pages - 1

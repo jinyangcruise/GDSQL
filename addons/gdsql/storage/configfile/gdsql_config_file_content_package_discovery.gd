@@ -39,7 +39,7 @@ func discover(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_CONTENT_PACKAGE_CONTAINER_UNAVAILABLE",
-					"Package container '%s' is unavailable." % container_root,
+					_tr("Package container '%s' is unavailable.") % container_root,
 					GDSQLQueryDiagnostic.Severity.WARNING,
 				),
 			)

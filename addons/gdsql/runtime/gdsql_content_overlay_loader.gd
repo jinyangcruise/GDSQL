@@ -68,7 +68,7 @@ func _compose(
 					_add_error(
 						result,
 						&"GDSQL_CONTENT_SCHEMA_CONFLICT",
-						"Package '%s' supplies a schema for table '%s' that conflicts with package '%s'." % [
+						_tr("Package '%s' supplies a schema for table '%s' that conflicts with package '%s'.") % [
 							layer.source.manifest.package_id,
 							source_table.name,
 							schema_owners[source_table.name],
@@ -147,7 +147,7 @@ func _apply_operation(
 		_add_error(
 			result,
 			&"GDSQL_CONTENT_OPERATION_TABLE_UNKNOWN",
-			"Package '%s' targets unknown table '%s'." % [
+			_tr("Package '%s' targets unknown table '%s'.") % [
 				layer.source.manifest.package_id,
 				operation.table_name if operation != null else &"",
 			],
@@ -158,7 +158,7 @@ func _apply_operation(
 		_add_error(
 			result,
 			&"GDSQL_CONTENT_ROW_ID_REQUIRED",
-			"Package '%s' supplies an empty identity for table '%s'." % [
+			_tr("Package '%s' supplies an empty identity for table '%s'.") % [
 				layer.source.manifest.package_id,
 				table.name,
 			],
@@ -171,7 +171,7 @@ func _apply_operation(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_CONTENT_REMOVAL_TARGET_MISSING",
-					"Package '%s' removes missing row '%s' from table '%s'." % [
+					_tr("Package '%s' removes missing row '%s' from table '%s'.") % [
 						layer.source.manifest.package_id,
 						operation.identity,
 						table.name,
@@ -187,7 +187,7 @@ func _apply_operation(
 		_add_error(
 			result,
 			&"GDSQL_CONTENT_ROW_OPERATION_INVALID",
-			"Package '%s' supplies an invalid row operation for table '%s'." % [
+			_tr("Package '%s' supplies an invalid row operation for table '%s'.") % [
 				layer.source.manifest.package_id,
 				table.name,
 			],
@@ -209,7 +209,7 @@ func _apply_operation(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_CONTENT_ROW_OVERRIDE",
-				"Package '%s' replaces row '%s' in table '%s' from package '%s'." % [
+				_tr("Package '%s' replaces row '%s' in table '%s' from package '%s'.") % [
 					origin.package_id,
 					operation.identity,
 					table.name,
@@ -248,7 +248,7 @@ func _validate_row(
 		_add_error(
 			result,
 			&"GDSQL_CONTENT_ROW_ID_INVALID",
-			"Package '%s' row identity does not match primary key '%s' in table '%s'." % [
+			_tr("Package '%s' row identity does not match primary key '%s' in table '%s'.") % [
 				layer.source.manifest.package_id,
 				table.primary_key,
 				table.name,
@@ -260,7 +260,7 @@ func _validate_row(
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_ROW_COLUMN_UNKNOWN",
-				"Package '%s' row contains unknown column '%s' in table '%s'." % [
+				_tr("Package '%s' row contains unknown column '%s' in table '%s'.") % [
 					layer.source.manifest.package_id,
 					column_name,
 					table.name,
@@ -274,7 +274,7 @@ func _validate_row(
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_ROW_COLUMN_REQUIRED",
-				"Package '%s' row is missing required column '%s' in table '%s'." % [
+				_tr("Package '%s' row is missing required column '%s' in table '%s'.") % [
 					layer.source.manifest.package_id,
 					column.name,
 					table.name,
@@ -285,7 +285,7 @@ func _validate_row(
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_ROW_COLUMN_TYPE_MISMATCH",
-				"Package '%s' column '%s' expects %s." % [
+				_tr("Package '%s' column '%s' expects %s.") % [
 					layer.source.manifest.package_id,
 					column.name,
 					column.display_type_name(),
@@ -394,3 +394,7 @@ func _add_error(
 		message: String,
 ) -> void:
 	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
+
+
+func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

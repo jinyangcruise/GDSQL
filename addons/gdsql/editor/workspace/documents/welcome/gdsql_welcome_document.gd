@@ -92,7 +92,7 @@ func refresh_status() -> void:
 			if _profile == GDSQLSetupProfile.Kind.DIRECT
 			else "Immutable packages build one effective runtime content database."
 	)
-	%Summary.text = "%d database(s) · %d table(s) · %d stored row(s)" % [
+	%Summary.text = tr("%d database(s) · %d table(s) · %d stored row(s)") % [
 		registrations.size(),
 		counts.x,
 		counts.y,
@@ -222,7 +222,7 @@ func _populate_databases(
 			for table in inspection.tables:
 				rows += table.row_count
 		var index := _database_list.add_item(
-			"%s  —  %d table(s), %d row(s)\n%s" % [
+			(tr("%s  —  %d table(s), %d row(s)") + " \n%s") % [
 				registration.database_name,
 				tables,
 				rows,
@@ -242,7 +242,7 @@ func _refresh_next_action(check: GDSQLSetupCheck) -> void:
 		%NextStep.text = "This profile's setup checklist is complete."
 		_next_action_button.hide()
 		return
-	%NextStep.text = "Next: %s" % check.detail
+	%NextStep.text = tr("Next: %s") % tr(check.detail)
 	_next_action_button.visible = check.next_action != GDSQLSetupCheck.ACTION_NONE
 	match check.next_action:
 		GDSQLSetupCheck.ACTION_CREATE_DATABASE:
@@ -291,10 +291,10 @@ func _request_profile(profile: GDSQLSetupProfile.Kind) -> void:
 	_profile_confirmation.title = "Choose %s Content" % ("Managed" if managed else "Direct")
 	_profile_confirmation.ok_button_text = "Choose Profile"
 	_profile_confirmation.dialog_text = (
-			("Managed content uses immutable packages and a generated effective-content database."
-					if managed else "Direct content reads project-authored definitions from res://data.")
-			+ "\n\nGDSQL will not move or rewrite existing databases. Changing profiles later "
-			+ "requires an explicit content migration."
+			(tr("Managed content uses immutable packages and a generated effective-content database.")
+					if managed else tr("Direct content reads project-authored definitions from res://data."))
+			+ tr("\n\nGDSQL will not move or rewrite existing databases. Changing profiles later "
+					+ "requires an explicit content migration.")
 	)
 	_profile_confirmation.popup_centered(Vector2i(590, 230))
 

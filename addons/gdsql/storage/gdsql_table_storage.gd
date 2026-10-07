@@ -72,3 +72,7 @@ func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 
 func rollback(session: GDSQLStorageSession) -> void:
 	pass
+
+
+func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

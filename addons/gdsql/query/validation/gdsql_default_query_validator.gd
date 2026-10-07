@@ -48,7 +48,7 @@ func _validate_select(query: GDSQLSelectQuerySpec) -> GDSQLQueryValidationResult
 	if source_table == null:
 		return _error(
 			&"GDSQL_VALIDATION_UNKNOWN_TABLE",
-			"Unknown table '%s.%s'." \
+			_tr("Unknown table '%s.%s'.") \
 					% [source_reference.database_name, source_reference.table_name],
 		)
 	var sources: Array[GDSQLBoundTableSource] = [
@@ -79,7 +79,7 @@ func _validate_select(query: GDSQLSelectQuerySpec) -> GDSQLQueryValidationResult
 		if join_table == null:
 			return _error(
 				&"GDSQL_VALIDATION_UNKNOWN_TABLE",
-				"Unknown table '%s.%s'." % [database_name, join_reference.table_name],
+				_tr("Unknown table '%s.%s'.") % [database_name, join_reference.table_name],
 			)
 		var bound_source := GDSQLBoundTableSource.new(
 			join_table,
@@ -89,7 +89,7 @@ func _validate_select(query: GDSQLSelectQuerySpec) -> GDSQLQueryValidationResult
 		if _has_source_qualifier(sources, bound_source.get_qualifier()):
 			return _error(
 				&"GDSQL_VALIDATION_DUPLICATE_ALIAS",
-				"Source qualifier '%s' appears more than once." % bound_source.get_qualifier(),
+				_tr("Source qualifier '%s' appears more than once.") % bound_source.get_qualifier(),
 			)
 		sources.append(bound_source)
 		var condition := _bind_expression(join.condition, sources, result)
@@ -236,7 +236,7 @@ func _validate_select(query: GDSQLSelectQuerySpec) -> GDSQLQueryValidationResult
 			if output_names.has(output_name):
 				return _error(
 					&"GDSQL_VALIDATION_DUPLICATE_PROJECTION_NAME",
-					"Projection output name '%s' appears more than once." % output_name,
+					_tr("Projection output name '%s' appears more than once.") % output_name,
 				)
 			output_names[output_name] = true
 			bound_query.output_schema.columns.append(
@@ -321,7 +321,7 @@ func _bind_expression(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_VALIDATION_UNKNOWN_ALIAS",
-					"Unknown table alias '%s'." % column_expression.table_alias,
+					_tr("Unknown table alias '%s'.") % column_expression.table_alias,
 				),
 			)
 			return null
@@ -329,7 +329,7 @@ func _bind_expression(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_VALIDATION_UNKNOWN_COLUMN",
-					"Unknown column '%s'." % column_expression.column_name,
+					_tr("Unknown column '%s'.") % column_expression.column_name,
 				),
 			)
 			return null
@@ -337,7 +337,7 @@ func _bind_expression(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_VALIDATION_AMBIGUOUS_COLUMN",
-					"Column '%s' is ambiguous and requires a source qualifier." \
+					_tr("Column '%s' is ambiguous and requires a source qualifier.") \
 							% column_expression.column_name,
 				),
 			)
@@ -404,7 +404,7 @@ func _bind_expression(
 	result.add_diagnostic(
 		GDSQLQueryDiagnostic.new(
 			&"GDSQL_VALIDATION_EXPRESSION_UNSUPPORTED",
-			"Expression type '%s' is not implemented in the minimal select slice." % expression.get_class(),
+			_tr("Expression type '%s' is not implemented in the minimal select slice.") % expression.get_class(),
 		),
 	)
 	return null
@@ -561,17 +561,17 @@ func _validate_insert(query: GDSQLInsertQuerySpec) -> GDSQLQueryValidationResult
 	if table == null:
 		return _error(
 			&"GDSQL_VALIDATION_UNKNOWN_TABLE",
-			"Unknown table '%s.%s'." % [query.target.database_name, query.target.table_name],
+			_tr("Unknown table '%s.%s'.") % [query.target.database_name, query.target.table_name],
 		)
 	if query.columns.is_empty() or query.rows.is_empty():
 		return _error(&"GDSQL_VALIDATION_INSERT_VALUES_REQUIRED", "Insert query requires at least one column and row.")
 	var seen_columns: Dictionary = { }
 	for column_name in query.columns:
 		if seen_columns.has(column_name):
-			return _error(&"GDSQL_VALIDATION_DUPLICATE_COLUMN", "Column '%s' appears more than once." % column_name)
+			return _error(&"GDSQL_VALIDATION_DUPLICATE_COLUMN", _tr("Column '%s' appears more than once.") % column_name)
 		seen_columns[column_name] = true
 		if not table.has_column(column_name):
-			return _error(&"GDSQL_VALIDATION_UNKNOWN_COLUMN", "Unknown column '%s' in table '%s'." % [column_name, table.name])
+			return _error(&"GDSQL_VALIDATION_UNKNOWN_COLUMN", _tr("Unknown column '%s' in table '%s'.") % [column_name, table.name])
 		var column := table.get_column(column_name)
 		if column.generation != GDSQLColumnDefinition.Generation.NONE:
 			return _error(
@@ -583,7 +583,7 @@ func _validate_insert(query: GDSQLInsertQuerySpec) -> GDSQLQueryValidationResult
 				and not column.auto_increment \
 				and column.generation == GDSQLColumnDefinition.Generation.NONE \
 				and not seen_columns.has(column.name):
-			return _error(&"GDSQL_VALIDATION_REQUIRED_COLUMN", "Required column '%s' is missing." % column.name)
+			return _error(&"GDSQL_VALIDATION_REQUIRED_COLUMN", _tr("Required column '%s' is missing.") % column.name)
 	var bound_operation := GDSQLBoundInsertQuery.new()
 	bound_operation.target = table
 	for source_row in query.rows:
@@ -597,7 +597,7 @@ func _validate_insert(query: GDSQLInsertQuerySpec) -> GDSQLQueryValidationResult
 			if not _is_compatible(value, column):
 				return _error(
 					&"GDSQL_VALIDATION_TYPE_MISMATCH",
-					"Column '%s' expects %s, received %s." % [column_name, column.expected_type_name(), type_string(typeof(value))],
+					_tr("Column '%s' expects %s, received %s.") % [column_name, column.expected_type_name(), type_string(typeof(value))],
 				)
 			values[column_name] = value
 		for column in table.columns:
@@ -621,7 +621,7 @@ func _validate_update(query: GDSQLUpdateQuerySpec) -> GDSQLQueryValidationResult
 	if table == null:
 		return _error(
 			&"GDSQL_VALIDATION_UNKNOWN_TABLE",
-			"Unknown table '%s.%s'." % [query.target.database_name, query.target.table_name],
+			_tr("Unknown table '%s.%s'.") % [query.target.database_name, query.target.table_name],
 		)
 	if query.assignments.is_empty():
 		return _error(&"GDSQL_VALIDATION_UPDATE_ASSIGNMENTS_REQUIRED", "Update query requires at least one assignment.")
@@ -634,17 +634,17 @@ func _validate_update(query: GDSQLUpdateQuerySpec) -> GDSQLQueryValidationResult
 		if assignment == null or assignment.column == &"" or assignment.expression == null:
 			return _error(&"GDSQL_VALIDATION_INVALID_ASSIGNMENT", "Update assignments require a column and expression.")
 		if seen_columns.has(assignment.column):
-			return _error(&"GDSQL_VALIDATION_DUPLICATE_COLUMN", "Column '%s' is assigned more than once." % assignment.column)
+			return _error(&"GDSQL_VALIDATION_DUPLICATE_COLUMN", _tr("Column '%s' is assigned more than once.") % assignment.column)
 		seen_columns[assignment.column] = true
 		var column := table.get_column(assignment.column)
 		if column == null:
-			return _error(&"GDSQL_VALIDATION_UNKNOWN_COLUMN", "Unknown column '%s' in table '%s'." % [assignment.column, table.name])
+			return _error(&"GDSQL_VALIDATION_UNKNOWN_COLUMN", _tr("Unknown column '%s' in table '%s'.") % [assignment.column, table.name])
 		if assignment.column == table.primary_key:
 			return _error(&"GDSQL_VALIDATION_PRIMARY_KEY_UPDATE_FORBIDDEN", "Updating the primary key is not supported.")
 		if column.generation != GDSQLColumnDefinition.Generation.NONE:
 			return _error(
 				&"GDSQL_VALIDATION_GENERATED_COLUMN_UPDATE",
-				"Generated column '%s' cannot be assigned directly." % assignment.column,
+				_tr("Generated column '%s' cannot be assigned directly.") % assignment.column,
 			)
 		var bound_expression := _bind_expression(assignment.expression, sources, result)
 		if bound_expression == null:
@@ -657,7 +657,7 @@ func _validate_update(query: GDSQLUpdateQuerySpec) -> GDSQLQueryValidationResult
 		if not _is_assignment_compatible(bound_expression, column):
 			return _error(
 				&"GDSQL_VALIDATION_TYPE_MISMATCH",
-				"Assignment for column '%s' has an incompatible type." % assignment.column,
+				_tr("Assignment for column '%s' has an incompatible type.") % assignment.column,
 			)
 		bound_operation.assignments.append(GDSQLColumnAssignment.new(assignment.column, bound_expression))
 	if query.predicate != null:
@@ -684,7 +684,7 @@ func _validate_delete(query: GDSQLDeleteQuerySpec) -> GDSQLQueryValidationResult
 	if table == null:
 		return _error(
 			&"GDSQL_VALIDATION_UNKNOWN_TABLE",
-			"Unknown table '%s.%s'." % [query.target.database_name, query.target.table_name],
+			_tr("Unknown table '%s.%s'.") % [query.target.database_name, query.target.table_name],
 		)
 	var result := GDSQLQueryValidationResult.new()
 	var bound_operation := GDSQLBoundDeleteQuery.new()
@@ -743,7 +743,7 @@ func _bind_function(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_VALIDATION_UNKNOWN_FUNCTION",
-				"Unknown query function '%s'." % expression.name,
+				_tr("Unknown query function '%s'.") % expression.name,
 			),
 		)
 		return null
@@ -752,7 +752,7 @@ func _bind_function(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_VALIDATION_FUNCTION_ARITY",
-				"Function '%s' does not accept %d arguments." \
+				_tr("Function '%s' does not accept %d arguments.") \
 						% [expression.name, expression.arguments.size()],
 			),
 		)
@@ -801,7 +801,7 @@ func _validate_comparison_types(
 	result.add_diagnostic(
 		GDSQLQueryDiagnostic.new(
 			&"GDSQL_VALIDATION_COMPARISON_TYPE",
-			"Comparison operands have incompatible types %s and %s." % [left_type, right_type],
+			_tr("Comparison operands have incompatible types %s and %s.") % [left_type, right_type],
 		),
 	)
 	return false
@@ -821,7 +821,7 @@ func _validate_function_types(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_VALIDATION_FUNCTION_TYPE",
-					"Function '%s' requires a string argument." % name,
+					_tr("Function '%s' requires a string argument.") % name,
 				),
 			)
 			return false
@@ -897,7 +897,7 @@ func _validate_resource_property(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_VALIDATION_RESOURCE_PROPERTY_LEAF",
-				"Resource property '%s' is not an Inspector-visible scalar leaf." \
+				_tr("Resource property '%s' is not an Inspector-visible scalar leaf.") \
 						% path_literal.value,
 			),
 		)

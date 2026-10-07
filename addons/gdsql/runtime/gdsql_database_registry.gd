@@ -86,7 +86,7 @@ func register(
 	if _databases.has(registration_name):
 		return _failure(
 			&"GDSQL_DATABASE_ALREADY_REGISTERED",
-			"Database registration '%s' already exists." % registration_name,
+			_tr("Database registration '%s' already exists.") % registration_name,
 		)
 	_databases[registration_name] = database
 	return _success(database)
@@ -113,7 +113,7 @@ func resolve(registration_name: StringName) -> GDSQLDatabaseResult:
 	if not _databases.has(registration_name):
 		return _failure(
 			&"GDSQL_DATABASE_NOT_REGISTERED",
-			"Database registration '%s' was not found." % registration_name,
+			_tr("Database registration '%s' was not found.") % registration_name,
 		)
 	return _success(_databases[registration_name])
 
@@ -162,7 +162,7 @@ func replace_role_database(
 		if bound_role != role and _role_bindings[bound_role] == registration_name:
 			return _failure(
 				&"GDSQL_DATABASE_REGISTRATION_IN_USE",
-				"Database registration '%s' is selected by role '%s'." % [
+				_tr("Database registration '%s' is selected by role '%s'.") % [
 					registration_name,
 					bound_role,
 				],
@@ -177,7 +177,7 @@ func resolve_role(role: StringName) -> GDSQLDatabaseResult:
 	if not _role_bindings.has(role):
 		return _failure(
 			&"GDSQL_DATABASE_ROLE_NOT_BOUND",
-			"Database role '%s' has no active binding." % role,
+			_tr("Database role '%s' has no active binding.") % role,
 		)
 	return resolve(_role_bindings[role])
 
@@ -222,3 +222,7 @@ func _operation_failure(code: StringName, message: String) -> GDSQLOperationResu
 	var result := GDSQLOperationResult.new()
 	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
 	return result
+
+
+func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

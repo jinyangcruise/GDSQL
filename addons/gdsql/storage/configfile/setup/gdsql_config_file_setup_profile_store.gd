@@ -20,9 +20,9 @@ func load_profile() -> GDSQLOperationResult:
 	if load_error != OK and load_error != ERR_FILE_NOT_FOUND:
 		return _error(
 			&"GDSQL_SETUP_PROFILE_LOAD_FAILED",
-			"Could not load setup profile from '%s' (error %d)." % [
+			_tr("Could not load setup profile from '%s' (error %s).") % [
 				_settings_path,
-				load_error,
+				error_string(load_error),
 			],
 		)
 	var stored := StringName(config.get_value(SECTION, PROFILE_KEY, &""))
@@ -30,7 +30,7 @@ func load_profile() -> GDSQLOperationResult:
 	if stored != &"" and profile == GDSQLSetupProfile.Kind.UNSELECTED:
 		return _error(
 			&"GDSQL_SETUP_PROFILE_INVALID",
-			"Unknown GDSQL setup profile '%s'." % stored,
+			_tr("Unknown GDSQL setup profile '%s'.") % stored,
 		)
 	result.value = profile
 	return result
@@ -69,7 +69,7 @@ func _load_for_write() -> GDSQLOperationResult:
 	if load_error != OK and load_error != ERR_FILE_NOT_FOUND:
 		return _error(
 			&"GDSQL_SETUP_PROFILE_LOAD_FAILED",
-			"Could not load setup settings '%s' (error %d)." % [_settings_path, load_error],
+			"Could not load setup settings '%s' (error %s)." % [_settings_path, error_string(load_error)],
 		)
 	result.value = config
 	return result
@@ -82,15 +82,15 @@ func _save(config: ConfigFile, value: Variant) -> GDSQLOperationResult:
 	if directory_error != OK:
 		return _error(
 			&"GDSQL_SETUP_PROFILE_DIRECTORY_FAILED",
-			"Could not create the GDSQL settings directory (error %d)." % directory_error,
+			_tr("Could not create the GDSQL settings directory (error %s).") % error_string(directory_error),
 		)
 	var save_error := config.save(_settings_path)
 	if save_error != OK:
 		return _error(
 			&"GDSQL_SETUP_PROFILE_SAVE_FAILED",
-			"Could not save setup profile to '%s' (error %d)." % [
+			_tr("Could not save setup profile to '%s' (error %s).") % [
 				_settings_path,
-				save_error,
+				error_string(save_error),
 			],
 		)
 	var result := GDSQLOperationResult.new()

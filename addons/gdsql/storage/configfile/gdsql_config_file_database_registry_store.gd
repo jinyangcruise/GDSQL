@@ -25,8 +25,8 @@ func load_snapshot() -> GDSQLOperationResult:
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_DATABASE_REGISTRY_LOAD_FAILED",
-				"Failed to load database registry '%s' (error %d)." \
-						% [registry_path, load_error],
+				_tr("Failed to load database registry '%s' (error %s).") \
+						% [registry_path, error_string(load_error)],
 			),
 		)
 		return result
@@ -44,7 +44,7 @@ func load_snapshot() -> GDSQLOperationResult:
 				result.add_diagnostic(
 					GDSQLQueryDiagnostic.new(
 						&"GDSQL_STORAGE_BACKEND_ID_INVALID",
-						"Database registration '%s' uses unknown storage backend '%s'." \
+						_tr("Database registration '%s' uses unknown storage backend '%s'.") \
 								% [registration_name, backend_id],
 					),
 				)
@@ -83,7 +83,7 @@ func save_snapshot(snapshot: GDSQLDatabaseRegistrySnapshot) -> GDSQLOperationRes
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_STORAGE_BACKEND_ID_INVALID",
-					"Database registration '%s' uses unknown storage backend '%s'." \
+					_tr("Database registration '%s' uses unknown storage backend '%s'.") \
 							% [registration.name, registration.storage_backend_id],
 				),
 			)
@@ -96,7 +96,7 @@ func save_snapshot(snapshot: GDSQLDatabaseRegistrySnapshot) -> GDSQLOperationRes
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_DATABASE_REGISTRY_DIRECTORY_FAILED",
-				"Failed to prepare database registry directory (error %d)." % directory_error,
+				_tr("Failed to prepare database registry directory (error %s).") % error_string(directory_error),
 			),
 		)
 		return result
@@ -113,8 +113,8 @@ func save_snapshot(snapshot: GDSQLDatabaseRegistrySnapshot) -> GDSQLOperationRes
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_DATABASE_REGISTRY_SAVE_FAILED",
-				"Failed to save database registry '%s' (error %d)." \
-						% [registry_path, save_error],
+				_tr("Failed to save database registry '%s' (error %s).") \
+						% [registry_path, error_string(save_error)],
 			),
 		)
 		return result

@@ -93,7 +93,7 @@ func build_values() -> GDSQLOperationResult:
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_QUERY_GRAPH_MUTATION_VALUE_INVALID",
-					"Column '%s' does not contain a valid typed value." % column.name,
+					tr("Column '%s' does not contain a valid typed value.") % column.name,
 				),
 			)
 			return result

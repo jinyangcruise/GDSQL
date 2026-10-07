@@ -27,7 +27,7 @@ func validate(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 		if database == null:
 			return _error(
 				&"GDSQL_STORAGE_FOREIGN_KEY_DATABASE_MISSING",
-				"Cannot validate foreign keys for missing database '%s'." % database_name,
+				_tr("Cannot validate foreign keys for missing database '%s'.") % database_name,
 			)
 		var validation := _validate_database(database, session)
 		if not validation.is_successful():
@@ -52,7 +52,7 @@ func _validate_database(
 			if referenced_table == null:
 				return _error(
 					&"GDSQL_STORAGE_FOREIGN_KEY_TARGET_MISSING",
-					"Foreign key '%s' references missing table '%s.%s'." % [
+					_tr("Foreign key '%s' references missing table '%s.%s'.") % [
 						foreign_key.name,
 						database.name,
 						foreign_key.referenced_table,
@@ -73,7 +73,7 @@ func _validate_database(
 				if local_value != null and not target_values.has(local_value):
 					return _error(
 						&"GDSQL_STORAGE_FOREIGN_KEY_VIOLATION",
-						"Foreign key '%s' value '%s' has no matching '%s.%s' row." % [
+						_tr("Foreign key '%s' value '%s' has no matching '%s.%s' row.") % [
 							foreign_key.name,
 							local_value,
 							foreign_key.referenced_table,
@@ -88,7 +88,7 @@ func _validate_database(
 func _unreadable_table(table: GDSQLTableDefinition) -> GDSQLStorageCommitResult:
 	return _error(
 		&"GDSQL_STORAGE_FOREIGN_KEY_TABLE_UNREADABLE",
-		"Could not read table '%s.%s' while validating foreign keys." % [
+		_tr("Could not read table '%s.%s' while validating foreign keys.") % [
 			table.database_name,
 			table.name,
 		],
@@ -99,3 +99,7 @@ func _error(code: StringName, message: String) -> GDSQLStorageCommitResult:
 	var result := GDSQLStorageCommitResult.new()
 	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
 	return result
+
+
+func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

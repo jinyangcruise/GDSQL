@@ -136,14 +136,14 @@ func configure(inspection: GDSQLDatabaseInspection, session: GDSQLWorkbenchSessi
 		String(inspection.registration.database_name),
 	)
 	_remove_confirmation.dialog_text = (
-			(
+			tr(
 					"Remove database '%s' from GDSQL?\n\n"
 					+ "Files at '%s' will remain unchanged. Creating the same database "
 					+ "later will load these files again."
 			)
 			% [inspection.registration.database_name, database_path]
 	)
-	_destroy_confirmation.dialog_text = (
+	_destroy_confirmation.dialog_text = tr(
 			"Permanently destroy database '%s'?\n\n"
 			+ "Catalog metadata, schemas, tables, and every stored row under:\n%s\n\n"
 			+ "This cannot be undone by GDSQL. Other databases under the same data root remain."
@@ -237,7 +237,7 @@ func _request_table_reset(table_name: StringName) -> void:
 	_pending_reset_table = table_name
 	var table := _inspection.get_table(table_name)
 	var row_count := table.row_count if table != null else 0
-	_reset_table_confirmation.dialog_text = (
+	_reset_table_confirmation.dialog_text = tr(
 		"Permanently delete all %d row(s) from '%s.%s'?\n\n"
 		+ "The table schema remains, but the next generated integer key resets to 1. "
 		+ "This operation cannot be undone."
@@ -266,9 +266,9 @@ func _filter_tables(search_text: String) -> void:
 		if matches:
 			visible_count += 1
 	%TableSearchStatus.text = (
-			"%d tables" % total_count
+			tr("%d tables") % total_count
 			if query.is_empty()
-			else "%d of %d tables" % [visible_count, total_count]
+			else tr("%d of %d tables") % [visible_count, total_count]
 	)
 	%NoSearchResults.visible = not query.is_empty() and total_count > 0 and visible_count == 0
 
@@ -294,10 +294,10 @@ func _request_save() -> GDSQLOperationResult:
 	var changes: Array[String] = []
 	var requested_name := _requested_database_name()
 	if requested_name != _original_database_name:
-		changes.append("Rename database '%s' to '%s'." % [_original_database_name, requested_name])
+		changes.append(tr("Rename database '%s' to '%s'.") % [_original_database_name, requested_name])
 	for draft in _draft_tables.get_children():
 		var definition := draft.call("build_definition") as GDSQLTableDefinition
-		changes.append("Create table '%s'." % definition.name)
+		changes.append(tr("Create table '%s'.") % definition.name)
 	for fold in _existing_tables.get_children():
 		var table_change := fold.call("build_change") as GDSQLEditorTableChange
 		for alteration in table_change.alterations:
@@ -386,16 +386,16 @@ func _get_validation_errors() -> Array[String]:
 	var errors: Array[String] = []
 	var database_name := _requested_database_name()
 	if database_name == &"":
-		errors.append("A database name is required.")
+		errors.append(tr("A database name is required."))
 	elif not String(database_name).is_valid_identifier():
-		errors.append("Database '%s' must be a valid identifier." % database_name)
+		errors.append(tr("Database '%s' must be a valid identifier.") % database_name)
 	for draft in _draft_tables.get_children():
 		var draft_errors: Array[String] = draft.call("get_validation_errors")
 		errors.append_array(draft_errors)
 	for fold in _existing_tables.get_children():
 		if not bool(fold.call("is_valid_draft")):
 			errors.append(
-				"Table '%s' contains an invalid column or index change." \
+				tr("Table '%s' contains an invalid column or index change.") \
 						% fold.get("table_name"),
 			)
 	return errors

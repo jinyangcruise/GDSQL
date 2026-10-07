@@ -49,7 +49,7 @@ func refresh_status() -> void:
 	var resolved := _resolve_packages()
 	_refresh_cache_and_save()
 	if resolved.is_successful():
-		%Status.text = "%d package(s) selected in deterministic load order." \
+		%Status.text = tr("%d package(s) selected in deterministic load order.") \
 				% resolved.ordered_packages.size()
 	else:
 		%Status.text = _first_diagnostic(resolved)
@@ -101,7 +101,7 @@ func _resolve_packages() -> GDSQLContentPackageResolutionResult:
 func _validate_packages() -> void:
 	var resolved := _resolve_packages()
 	%Status.text = (
-			"Configuration is valid. Load order: %s." % _package_order(resolved)
+			tr("Configuration is valid. Load order: %s.") % _package_order(resolved)
 			if resolved.is_successful()
 			else _first_diagnostic(resolved)
 	)
@@ -142,7 +142,7 @@ func _refresh_cache_and_save() -> void:
 			Color(0.42, 0.82, 0.55) if active != null else Color(1.0, 0.72, 0.32)
 	)
 	%CacheDetail.text = (
-			"%d package(s) cached as '%s'." % [
+			tr("%d package(s) cached as '%s'.") % [
 				active.packages.size(),
 				active.effective_database_name,
 			]
@@ -182,7 +182,7 @@ func _refresh_save_compatibility(active: GDSQLContentCacheManifest) -> void:
 				missing_ids.append(String(package.package_id))
 			_set_save_status(
 				"MISSING PACKAGES",
-				"Not active: %s. Re-enable them or apply an explicit game policy." \
+				tr("Not active: %s. Re-enable them or apply an explicit game policy.") \
 						% ", ".join(missing_ids),
 				false,
 			)
@@ -195,7 +195,7 @@ func _refresh_save_compatibility(active: GDSQLContentCacheManifest) -> void:
 func _request_record_content() -> void:
 	if _pending_save == null:
 		return
-	_record_confirmation.dialog_text = (
+	_record_confirmation.dialog_text = tr(
 			"Record the current effective-content package set for save '%s'?\n\n"
 			+ "This replaces its previous compatibility expectation. Save rows are unchanged."
 	) % _pending_save.database_name
@@ -212,7 +212,7 @@ func _record_content_confirmed() -> void:
 		_pending_save.data_root,
 	).save_manifest(GDSQLSaveContentManifest.from_cache_manifest(active))
 	%Status.text = (
-			"Recorded the active package set for save '%s'." % _pending_save.database_name
+			tr("Recorded the active package set for save '%s'.") % _pending_save.database_name
 			if saved.is_successful()
 			else _first_diagnostic(saved)
 	)
@@ -246,13 +246,13 @@ func _populate_packages(
 			else ("Enabled" if package.manifest.package_id in enabled_ids else "Available"),
 		)
 		item.set_text(4, package.package_root)
-	%PackageSummary.text = "%d package(s) discovered" % packages.size()
+	%PackageSummary.text = tr("%d package(s) discovered") % packages.size()
 
 
 func _configure_tree() -> void:
 	var titles := ["Package", "Kind", "Version", "Selection", "Source"]
 	for column in titles.size():
-		_package_tree.set_column_title(column, titles[column])
+		_package_tree.set_column_title(column, tr(titles[column]))
 		_package_tree.set_column_expand(column, column in [0, 4])
 	_package_tree.set_column_custom_minimum_width(0, 170)
 	_package_tree.set_column_custom_minimum_width(1, 80)

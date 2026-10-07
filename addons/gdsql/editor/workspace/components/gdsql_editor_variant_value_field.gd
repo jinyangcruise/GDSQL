@@ -155,7 +155,7 @@ func _build_line_edit(value: Variant) -> void:
 	_line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_line_edit.placeholder_text = _example_text()
 	_line_edit.tooltip_text = (
-			"Enter a %s value using Godot Variant syntax." % VARIANT_TYPES.display_name(data_type)
+			tr("Enter a %s value using Godot Variant syntax.") % VARIANT_TYPES.display_name(data_type)
 	)
 	_line_edit.text = _format_value(value) if value != null else ""
 	_line_edit.text_changed.connect(_on_text_changed)

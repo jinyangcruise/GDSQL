@@ -50,6 +50,7 @@ theme_override_constants/margin_right = 6
 
 [node name="Value" type="Label" parent="Content/Row/Margin/Fields/Status/StatusMargin" unique_id=1471965595]
 layout_mode = 2
+translation_context = &"result"
 text = "OK"
 horizontal_alignment = 1
 vertical_alignment = 1

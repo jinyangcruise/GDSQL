@@ -26,33 +26,33 @@ func create_database(database_name: StringName) -> GDSQLCatalogOperationResult:
 	if not _path_resolver.is_valid_name(database_name):
 		return _error(
 			&"GDSQL_CATALOG_INVALID_DATABASE_NAME",
-			"Database name '%s' must be a valid identifier." % database_name,
+			_tr("Database name '%s' must be a valid identifier.") % database_name,
 		)
 	var registry_path := _path_resolver.resolve_catalog_path()
 	var directory_error := _ensure_directory(registry_path.get_base_dir())
 	if directory_error != OK:
 		return _error(
 			&"GDSQL_CATALOG_DIRECTORY_UNWRITABLE",
-			"Could not create catalog directory '%s'." % registry_path.get_base_dir(),
+			_tr("Could not create catalog directory '%s'.") % registry_path.get_base_dir(),
 		)
 	var registry := ConfigFile.new()
 	var load_error := registry.load(registry_path)
 	if load_error != OK and load_error != ERR_FILE_NOT_FOUND:
 		return _error(
 			&"GDSQL_CATALOG_UNREADABLE",
-			"Could not read database catalog '%s'." % registry_path,
+			_tr("Could not read database catalog '%s'.") % registry_path,
 		)
 	if registry.has_section(String(database_name)):
 		return _error(
 			&"GDSQL_CATALOG_DATABASE_EXISTS",
-			"Database '%s' is already registered." % database_name,
+			_tr("Database '%s' is already registered.") % database_name,
 		)
 	for folder in ["schema", "tables"]:
 		var folder_path := _path_resolver.resolve_database_path(database_name).path_join(folder)
 		if _ensure_directory(folder_path) != OK:
 			return _error(
 				&"GDSQL_CATALOG_DIRECTORY_UNWRITABLE",
-				"Could not create database directory '%s'." % folder_path,
+				_tr("Could not create database directory '%s'.") % folder_path,
 			)
 	registry.set_value(
 		String(database_name),
@@ -62,7 +62,7 @@ func create_database(database_name: StringName) -> GDSQLCatalogOperationResult:
 	if registry.save(registry_path) != OK:
 		return _error(
 			&"GDSQL_CATALOG_SAVE_FAILED",
-			"Could not save database catalog '%s'." % registry_path,
+			_tr("Could not save database catalog '%s'.") % registry_path,
 		)
 	var definition := GDSQLDatabaseDefinition.new()
 	definition.name = database_name
@@ -82,24 +82,24 @@ func rename_database(
 		return registry_result
 	var registry := registry_result.value as ConfigFile
 	if not registry.has_section(String(current_name)):
-		return _error(&"GDSQL_CATALOG_UNKNOWN_DATABASE", "Database '%s' is not registered." % current_name)
+		return _error(&"GDSQL_CATALOG_UNKNOWN_DATABASE", _tr("Database '%s' is not registered.") % current_name)
 	if registry.has_section(String(new_name)):
-		return _error(&"GDSQL_CATALOG_DATABASE_EXISTS", "Database '%s' is already registered." % new_name)
+		return _error(&"GDSQL_CATALOG_DATABASE_EXISTS", _tr("Database '%s' is already registered.") % new_name)
 	var old_path := _path_resolver.resolve_database_path(current_name)
 	var new_path := _path_resolver.resolve_database_path(new_name)
 	if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(new_path)):
-		return _error(&"GDSQL_CATALOG_DATABASE_DIRECTORY_EXISTS", "Database directory '%s' already exists." % new_path)
+		return _error(&"GDSQL_CATALOG_DATABASE_DIRECTORY_EXISTS", _tr("Database directory '%s' already exists.") % new_path)
 	var database := _catalog.get_database(current_name)
 	if DirAccess.rename_absolute(
 		ProjectSettings.globalize_path(old_path),
 		ProjectSettings.globalize_path(new_path),
 	) != OK:
-		return _error(&"GDSQL_CATALOG_DATABASE_RENAME_FAILED", "Could not rename database directory '%s'." % old_path)
+		return _error(&"GDSQL_CATALOG_DATABASE_RENAME_FAILED", _tr("Could not rename database directory '%s'.") % old_path)
 	registry.erase_section(String(current_name))
 	registry.set_value(String(new_name), "path", new_path)
 	if registry.save(_path_resolver.resolve_catalog_path()) != OK:
 		DirAccess.rename_absolute(ProjectSettings.globalize_path(new_path), ProjectSettings.globalize_path(old_path))
-		return _error(&"GDSQL_CATALOG_SAVE_FAILED", "Could not save the renamed database registration.")
+		return _error(&"GDSQL_CATALOG_SAVE_FAILED", _tr("Could not save the renamed database registration."))
 	_invalidate_database_tables(database, current_name)
 	var definition := _catalog.get_database(new_name)
 	var result := GDSQLCatalogOperationResult.new()
@@ -113,7 +113,7 @@ func unregister_database(
 	if not _path_resolver.is_valid_name(database_name):
 		return _error(
 			&"GDSQL_CATALOG_INVALID_DATABASE_NAME",
-			"Invalid database name '%s'." % database_name,
+			_tr("Invalid database name '%s'.") % database_name,
 		)
 	var registry_result := _load_registry()
 	if not registry_result.is_successful():
@@ -122,14 +122,14 @@ func unregister_database(
 	if not registry.has_section(String(database_name)):
 		return _error(
 			&"GDSQL_CATALOG_UNKNOWN_DATABASE",
-			"Database '%s' is not registered." % database_name,
+			_tr("Database '%s' is not registered.") % database_name,
 		)
 	var database := _catalog.get_database(database_name)
 	registry.erase_section(String(database_name))
 	if registry.save(_path_resolver.resolve_catalog_path()) != OK:
 		return _error(
 			&"GDSQL_CATALOG_SAVE_FAILED",
-			"Could not unregister database '%s' from the catalog." \
+			_tr("Could not unregister database '%s' from the catalog.") \
 					% database_name,
 		)
 	_invalidate_database_tables(database, database_name)
@@ -140,23 +140,23 @@ func unregister_database(
 
 func drop_database(database_name: StringName) -> GDSQLCatalogOperationResult:
 	if not _path_resolver.is_valid_name(database_name):
-		return _error(&"GDSQL_CATALOG_INVALID_DATABASE_NAME", "Invalid database name '%s'." % database_name)
+		return _error(&"GDSQL_CATALOG_INVALID_DATABASE_NAME", _tr("Invalid database name '%s'.") % database_name)
 	var registry_result := _load_registry()
 	if not registry_result.is_successful():
 		return registry_result
 	var registry := registry_result.value as ConfigFile
 	if not registry.has_section(String(database_name)):
-		return _error(&"GDSQL_CATALOG_UNKNOWN_DATABASE", "Database '%s' is not registered." % database_name)
+		return _error(&"GDSQL_CATALOG_UNKNOWN_DATABASE", _tr("Database '%s' is not registered.") % database_name)
 	var database := _catalog.get_database(database_name)
 	var registered_path: Variant = registry.get_value(String(database_name), "path", _path_resolver.resolve_database_path(database_name))
 	registry.erase_section(String(database_name))
 	if registry.save(_path_resolver.resolve_catalog_path()) != OK:
-		return _error(&"GDSQL_CATALOG_SAVE_FAILED", "Could not remove database '%s' from the catalog." % database_name)
+		return _error(&"GDSQL_CATALOG_SAVE_FAILED", _tr("Could not remove database '%s' from the catalog.") % database_name)
 	var database_path := _path_resolver.resolve_database_path(database_name)
 	if _remove_directory_recursive(database_path) != OK:
 		registry.set_value(String(database_name), "path", registered_path)
 		registry.save(_path_resolver.resolve_catalog_path())
-		return _error(&"GDSQL_CATALOG_DATABASE_DROP_FAILED", "Could not remove database directory '%s'." % database_path)
+		return _error(&"GDSQL_CATALOG_DATABASE_DROP_FAILED", _tr("Could not remove database directory '%s'.") % database_path)
 	_invalidate_database_tables(database, database_name)
 	var result := GDSQLCatalogOperationResult.new()
 	result.value = database
@@ -175,7 +175,7 @@ func create_table(
 			or not registry.has_section(String(database_name)):
 		return _error(
 			&"GDSQL_CATALOG_UNKNOWN_DATABASE",
-			"Database '%s' is not registered." % database_name,
+			_tr("Database '%s' is not registered.") % database_name,
 		)
 	var schema_path := _path_resolver.resolve_schema_path(database_name, table.name)
 	var table_path := _path_resolver.resolve_table_path(database_name, table.name)
@@ -184,29 +184,29 @@ func create_table(
 			return _complete_missing_table_storage(database_name, table, table_path)
 		return _error(
 			&"GDSQL_CATALOG_TABLE_EXISTS",
-			"Table '%s.%s' already exists." % [database_name, table.name],
+			_tr("Table '%s.%s' already exists.") % [database_name, table.name],
 		)
 	if FileAccess.file_exists(table_path):
 		return _error(
 			&"GDSQL_CATALOG_TABLE_STORAGE_EXISTS",
-			"Table storage '%s' already exists without a schema." % table_path,
+			_tr("Table storage '%s' already exists without a schema.") % table_path,
 		)
 	if _ensure_directory(schema_path.get_base_dir()) != OK:
 		return _error(
 			&"GDSQL_CATALOG_DIRECTORY_UNWRITABLE",
-			"Could not create schema directory '%s'." % schema_path.get_base_dir(),
+			_tr("Could not create schema directory '%s'.") % schema_path.get_base_dir(),
 		)
 	if _ensure_directory(table_path.get_base_dir()) != OK:
 		return _error(
 			&"GDSQL_CATALOG_DIRECTORY_UNWRITABLE",
-			"Could not create table directory '%s'." % table_path.get_base_dir(),
+			_tr("Could not create table directory '%s'.") % table_path.get_base_dir(),
 		)
 	var empty_table := ConfigFile.new()
 	_initialize_table_metadata(empty_table)
 	if empty_table.save(table_path) != OK:
 		return _error(
 			&"GDSQL_CATALOG_TABLE_STORAGE_CREATE_FAILED",
-			"Could not create table storage '%s'." % table_path,
+			_tr("Could not create table storage '%s'.") % table_path,
 		)
 	var schema := ConfigFile.new()
 	schema.set_value("table", "name", String(table.name))
@@ -233,7 +233,7 @@ func create_table(
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(table_path))
 		return _error(
 			&"GDSQL_CATALOG_SCHEMA_SAVE_FAILED",
-			"Could not save table schema '%s'." % schema_path,
+			_tr("Could not save table schema '%s'.") % schema_path,
 		)
 	table.database_name = database_name
 	var result := GDSQLCatalogOperationResult.new()
@@ -247,12 +247,12 @@ func rename_table(
 		new_name: StringName,
 ) -> GDSQLCatalogOperationResult:
 	if not _path_resolver.is_valid_name(new_name):
-		return _error(&"GDSQL_CATALOG_INVALID_TABLE_NAME", "Table name '%s' is not a valid identifier." % new_name)
+		return _error(&"GDSQL_CATALOG_INVALID_TABLE_NAME", _tr("Table name '%s' is not a valid identifier.") % new_name)
 	var table := _catalog.get_table(database_name, current_name)
 	if table == null:
-		return _error(&"GDSQL_CATALOG_UNKNOWN_TABLE", "Table '%s.%s' does not exist." % [database_name, current_name])
+		return _error(&"GDSQL_CATALOG_UNKNOWN_TABLE", _tr("Table '%s.%s' does not exist.") % [database_name, current_name])
 	if _catalog.has_table(database_name, new_name):
-		return _error(&"GDSQL_CATALOG_TABLE_EXISTS", "Table '%s.%s' already exists." % [database_name, new_name])
+		return _error(&"GDSQL_CATALOG_TABLE_EXISTS", _tr("Table '%s.%s' already exists." ) % [database_name, new_name])
 	var dependencies := _validate_no_incoming_foreign_keys(
 		database_name,
 		current_name,
@@ -266,19 +266,19 @@ func rename_table(
 	var old_table_path := _path_resolver.resolve_table_path(database_name, current_name)
 	var new_table_path := _path_resolver.resolve_table_path(database_name, new_name)
 	if FileAccess.file_exists(new_schema_path) or FileAccess.file_exists(new_table_path):
-		return _error(&"GDSQL_CATALOG_TABLE_TARGET_EXISTS", "Target files for table '%s' already exist." % new_name)
+		return _error(&"GDSQL_CATALOG_TABLE_TARGET_EXISTS", _tr("Target files for table '%s' already exist.") % new_name)
 	if DirAccess.rename_absolute(ProjectSettings.globalize_path(old_table_path), ProjectSettings.globalize_path(new_table_path)) != OK:
-		return _error(&"GDSQL_CATALOG_TABLE_RENAME_FAILED", "Could not rename table storage '%s'." % old_table_path)
+		return _error(&"GDSQL_CATALOG_TABLE_RENAME_FAILED", _tr("Could not rename table storage '%s'.") % old_table_path)
 	if DirAccess.rename_absolute(ProjectSettings.globalize_path(old_schema_path), ProjectSettings.globalize_path(new_schema_path)) != OK:
 		DirAccess.rename_absolute(ProjectSettings.globalize_path(new_table_path), ProjectSettings.globalize_path(old_table_path))
-		return _error(&"GDSQL_CATALOG_TABLE_RENAME_FAILED", "Could not rename table schema '%s'." % old_schema_path)
+		return _error(&"GDSQL_CATALOG_TABLE_RENAME_FAILED", _tr("Could not rename table schema '%s'.") % old_schema_path)
 	table.name = new_name
 	for foreign_key in table.foreign_keys:
 		if foreign_key.referenced_table == current_name:
 			foreign_key.referenced_table = new_name
 	if _save_schema(new_schema_path, table) != OK:
 		_rollback_table_rename(old_schema_path, new_schema_path, old_table_path, new_table_path)
-		return _error(&"GDSQL_CATALOG_SCHEMA_SAVE_FAILED", "Could not update renamed table schema '%s'." % new_schema_path)
+		return _error(&"GDSQL_CATALOG_SCHEMA_SAVE_FAILED", _tr("Could not update renamed table schema '%s'.") % new_schema_path)
 	_cache.invalidate(old_table_path)
 	_cache.invalidate(new_table_path)
 	var result := GDSQLCatalogOperationResult.new()
@@ -292,7 +292,7 @@ func drop_table(
 ) -> GDSQLCatalogOperationResult:
 	var table := _catalog.get_table(database_name, table_name)
 	if table == null:
-		return _error(&"GDSQL_CATALOG_UNKNOWN_TABLE", "Table '%s.%s' does not exist." % [database_name, table_name])
+		return _error(&"GDSQL_CATALOG_UNKNOWN_TABLE", _tr("Table '%s.%s' does not exist.") % [database_name, table_name])
 	var dependencies := _validate_no_incoming_foreign_keys(
 		database_name,
 		table_name,
@@ -306,12 +306,12 @@ func drop_table(
 	var schema := ConfigFile.new()
 	var table_data := ConfigFile.new()
 	if schema.load(schema_path) != OK or table_data.load(table_path) != OK:
-		return _error(&"GDSQL_CATALOG_TABLE_UNREADABLE", "Could not load table '%s.%s' before dropping it." % [database_name, table_name])
+		return _error(&"GDSQL_CATALOG_TABLE_UNREADABLE", _tr("Could not load table '%s.%s' before dropping it.") % [database_name, table_name])
 	if DirAccess.remove_absolute(ProjectSettings.globalize_path(schema_path)) != OK:
-		return _error(&"GDSQL_CATALOG_TABLE_DROP_FAILED", "Could not remove table schema '%s'." % schema_path)
+		return _error(&"GDSQL_CATALOG_TABLE_DROP_FAILED", _tr("Could not remove table schema '%s'.") % schema_path)
 	if DirAccess.remove_absolute(ProjectSettings.globalize_path(table_path)) != OK:
 		schema.save(schema_path)
-		return _error(&"GDSQL_CATALOG_TABLE_DROP_FAILED", "Could not remove table storage '%s'." % table_path)
+		return _error(&"GDSQL_CATALOG_TABLE_DROP_FAILED", _tr("Could not remove table storage '%s'.") % table_path)
 	_cache.invalidate(table_path)
 	var result := GDSQLCatalogOperationResult.new()
 	result.value = table
@@ -345,14 +345,14 @@ func preview_alter_table(
 	if table == null:
 		return _operation_error(
 			&"GDSQL_CATALOG_UNKNOWN_TABLE",
-			"Table '%s.%s' does not exist." % [database_name, table_name],
+			_tr("Table '%s.%s' does not exist.") % [database_name, table_name],
 		)
 	var table_path := _path_resolver.resolve_table_path(database_name, table_name)
 	var table_data := ConfigFile.new()
 	if table_data.load(table_path) != OK:
 		return _operation_error(
 			&"GDSQL_CATALOG_TABLE_UNREADABLE",
-			"Could not read table storage '%s'." % table_path,
+			_tr("Could not read table storage '%s'.") % table_path,
 		)
 	var source_fingerprint := _catalog_fingerprint(table)
 	for alteration in alterations:
@@ -389,12 +389,12 @@ func apply_change_plan(
 	if current_table == null:
 		return _error(
 			&"GDSQL_CATALOG_UNKNOWN_TABLE",
-			"Table '%s.%s' does not exist." % [plan.database_name, plan.table_name],
+			_tr("Table '%s.%s' does not exist.") % [plan.database_name, plan.table_name],
 		)
 	if _catalog_fingerprint(current_table) != plan.source_catalog_fingerprint:
 		return _error(
 			&"GDSQL_CATALOG_CHANGE_PLAN_STALE",
-			"Table '%s.%s' changed after this plan was previewed." \
+			_tr("Table '%s.%s' changed after this plan was previewed.") \
 					% [plan.database_name, plan.table_name],
 		)
 	return _apply_alterations(
@@ -415,7 +415,7 @@ func _apply_alterations(
 	if table_data.load(table_path) != OK:
 		return _error(
 			&"GDSQL_CATALOG_TABLE_UNREADABLE",
-			"Could not read table storage '%s'." % table_path,
+			_tr("Could not read table storage '%s'.") % table_path,
 		)
 	var changes_table_data := false
 	for alteration in alterations:
@@ -440,16 +440,16 @@ func _apply_alterations(
 	var schema_path := _path_resolver.resolve_schema_path(database_name, table_name)
 	var original_schema := ConfigFile.new()
 	if original_schema.load(schema_path) != OK:
-		return _error(&"GDSQL_CATALOG_SCHEMA_UNREADABLE", "Could not read table schema '%s'." % schema_path)
+		return _error(&"GDSQL_CATALOG_SCHEMA_UNREADABLE", _tr("Could not read table schema '%s'.") % schema_path)
 	if changes_table_data:
 		_rebuild_indexes(table_data, table)
 		if table_data.save(table_path) != OK:
-			return _error(&"GDSQL_CATALOG_TABLE_SAVE_FAILED", "Could not save altered table storage '%s'." % table_path)
+			return _error(&"GDSQL_CATALOG_TABLE_SAVE_FAILED", _tr("Could not save altered table storage '%s'.") % table_path)
 	if _save_schema(schema_path, table) != OK:
 		if changes_table_data:
 			original_data.save(table_path)
 		original_schema.save(schema_path)
-		return _error(&"GDSQL_CATALOG_SCHEMA_SAVE_FAILED", "Could not save altered table schema '%s'." % schema_path)
+		return _error(&"GDSQL_CATALOG_SCHEMA_SAVE_FAILED", _tr("Could not save altered table schema '%s'.") % schema_path)
 	if changes_table_data:
 		_cache.invalidate(table_path)
 	var result := GDSQLCatalogOperationResult.new()
@@ -465,14 +465,14 @@ func _complete_missing_table_storage(
 	if _ensure_directory(table_path.get_base_dir()) != OK:
 		return _error(
 			&"GDSQL_CATALOG_DIRECTORY_UNWRITABLE",
-			"Could not create table directory '%s'." % table_path.get_base_dir(),
+			_tr("Could not create table directory '%s'.") % table_path.get_base_dir(),
 		)
 	var empty_table := ConfigFile.new()
 	_initialize_table_metadata(empty_table)
 	if empty_table.save(table_path) != OK:
 		return _error(
 			&"GDSQL_CATALOG_TABLE_STORAGE_CREATE_FAILED",
-			"Could not create table storage '%s'." % table_path,
+			_tr("Could not create table storage '%s'.") % table_path,
 		)
 	table.database_name = database_name
 	var result := GDSQLCatalogOperationResult.new()
@@ -480,7 +480,7 @@ func _complete_missing_table_storage(
 	result.add_diagnostic(
 		GDSQLQueryDiagnostic.new(
 			&"GDSQL_CATALOG_TABLE_STORAGE_COMPLETED",
-			"Created missing storage for table '%s.%s'." % [database_name, table.name],
+			_tr("Created missing storage for table '%s.%s'.") % [database_name, table.name],
 			GDSQLQueryDiagnostic.Severity.INFO,
 		),
 	)
@@ -600,43 +600,43 @@ func _add_column(
 	if not column.has_valid_type_constraint():
 		return _error(
 			&"GDSQL_CATALOG_RESOURCE_TYPE_REQUIRED",
-			"Object column '%s' requires a valid concrete Resource subtype." % column.name,
+			_tr("Object column '%s' requires a valid concrete Resource subtype.") % column.name,
 		)
 	if table.has_column(column.name):
-		return _error(&"GDSQL_CATALOG_DUPLICATE_COLUMN", "Column '%s' already exists." % column.name)
+		return _error(&"GDSQL_CATALOG_DUPLICATE_COLUMN", _tr("Column '%s' already exists.") % column.name)
 	if column.has_default() and not column.accepts_value(column.get_default_value()):
 		return _error(
 			&"GDSQL_CATALOG_COLUMN_DEFAULT_TYPE_MISMATCH",
-			"Default for column '%s' does not match its Variant type." % column.name,
+			_tr("Default for column '%s' does not match its Variant type.") % column.name,
 		)
 	if column.has_default() and not _codec.can_encode(column.get_default_value(), column):
 		return _error(
 			&"GDSQL_CATALOG_RESOURCE_REFERENCE_PATH_REQUIRED",
-			"Default for referenced Resource column '%s' must be a saved asset." % column.name,
+			_tr("Default for referenced Resource column '%s' must be a saved asset.") % column.name,
 		)
 	if column.generation != GDSQLColumnDefinition.Generation.NONE:
 		if column.data_type != TYPE_INT:
 			return _error(
 				&"GDSQL_CATALOG_GENERATED_COLUMN_TYPE",
-				"Generated timestamp column '%s' must use TYPE_INT." % column.name,
+				_tr("Generated timestamp column '%s' must use TYPE_INT.") % column.name,
 			)
 		if column.has_default():
 			return _error(
 				&"GDSQL_CATALOG_GENERATED_COLUMN_DEFAULT",
-				"Generated column '%s' cannot also declare a static default." % column.name,
+				_tr("Generated column '%s' cannot also declare a static default.") % column.name,
 			)
 	var row_count := _get_row_sections(table_data).size()
 	if row_count > 0 and not column.nullable and not column.has_default() \
 			and column.generation == GDSQLColumnDefinition.Generation.NONE:
 		return _error(
 			&"GDSQL_CATALOG_COLUMN_DEFAULT_REQUIRED",
-			"Non-nullable column '%s' requires a default when rows already exist." % column.name,
+			_tr("Non-nullable column '%s' requires a default when rows already exist.") % column.name,
 		)
 	if row_count > 1 and column.unique and column.has_default() \
 			and column.get_default_value() != null:
 		return _error(
 			&"GDSQL_CATALOG_COLUMN_UNIQUE_DEFAULT_CONFLICT",
-			"Unique column '%s' cannot apply one default to multiple existing rows." % column.name,
+			_tr("Unique column '%s' cannot apply one default to multiple existing rows.") % column.name,
 		)
 	if column.has_default():
 		for section in _get_row_sections(table_data):
@@ -665,12 +665,12 @@ func _rename_column(
 		new_name: StringName,
 ) -> GDSQLCatalogOperationResult:
 	if not _path_resolver.is_valid_name(new_name):
-		return _error(&"GDSQL_CATALOG_INVALID_COLUMN_NAME", "Column name '%s' is not a valid identifier." % new_name)
+		return _error(&"GDSQL_CATALOG_INVALID_COLUMN_NAME", _tr("Column name '%s' is not a valid identifier.") % new_name)
 	var column := table.get_column(current_name)
 	if column == null:
-		return _error(&"GDSQL_CATALOG_UNKNOWN_COLUMN", "Column '%s' does not exist." % current_name)
+		return _error(&"GDSQL_CATALOG_UNKNOWN_COLUMN", _tr("Column '%s' does not exist.") % current_name)
 	if table.has_column(new_name):
-		return _error(&"GDSQL_CATALOG_DUPLICATE_COLUMN", "Column '%s' already exists." % new_name)
+		return _error(&"GDSQL_CATALOG_DUPLICATE_COLUMN", _tr("Column '%s' already exists.") % new_name)
 	var dependencies := _validate_no_incoming_foreign_keys(
 		table.database_name,
 		table.name,
@@ -705,10 +705,10 @@ func _drop_column(
 		column_name: StringName,
 ) -> GDSQLCatalogOperationResult:
 	if table.primary_key == column_name:
-		return _error(&"GDSQL_CATALOG_PRIMARY_KEY_DROP_FORBIDDEN", "Primary-key column '%s' cannot be dropped." % column_name)
+		return _error(&"GDSQL_CATALOG_PRIMARY_KEY_DROP_FORBIDDEN", _tr("Primary-key column '%s' cannot be dropped.") % column_name)
 	var column := table.get_column(column_name)
 	if column == null:
-		return _error(&"GDSQL_CATALOG_UNKNOWN_COLUMN", "Column '%s' does not exist." % column_name)
+		return _error(&"GDSQL_CATALOG_UNKNOWN_COLUMN", _tr("Column '%s' does not exist.") % column_name)
 	var dependencies := _validate_no_incoming_foreign_keys(
 		table.database_name,
 		table.name,
@@ -721,7 +721,7 @@ func _drop_column(
 		if index.columns.has(column_name):
 			return _error(
 				&"GDSQL_CATALOG_INDEXED_COLUMN_DROP_FORBIDDEN",
-				"Column '%s' cannot be dropped while index '%s' references it." \
+				_tr("Column '%s' cannot be dropped while index '%s' references it.") \
 						% [column_name, index.name],
 			)
 	for foreign_key in table.foreign_keys:
@@ -729,7 +729,7 @@ func _drop_column(
 				or foreign_key.references_target(table.name, column_name):
 			return _error(
 				&"GDSQL_CATALOG_FOREIGN_KEY_COLUMN_DROP_FORBIDDEN",
-				"Column '%s' cannot be dropped while foreign key '%s' references it." % [
+				_tr("Column '%s' cannot be dropped while foreign key '%s' references it.") % [
 					column_name,
 					foreign_key.name,
 				],
@@ -774,7 +774,7 @@ func _add_index(
 	if table.get_index(index.name) != null:
 		return _error(
 			&"GDSQL_CATALOG_DUPLICATE_INDEX",
-			"Index '%s' already exists." % index.name,
+			_tr("Index '%s' already exists.") % index.name,
 		)
 	if index.unique:
 		var uniqueness := _validate_unique_index_data(table, table_data, index)
@@ -792,7 +792,7 @@ func _drop_index(
 	if index == null:
 		return _error(
 			&"GDSQL_CATALOG_UNKNOWN_INDEX",
-			"Index '%s' does not exist." % index_name,
+			_tr("Index '%s' does not exist.") % index_name,
 		)
 	if index.unique and index.columns.size() == 1 \
 			and not _has_alternate_unique_key(table, index.columns[0], index):
@@ -819,7 +819,7 @@ func _add_foreign_key(
 	if table.get_foreign_key(foreign_key.name) != null:
 		return _error(
 			&"GDSQL_CATALOG_DUPLICATE_FOREIGN_KEY",
-			"Foreign key '%s' already exists." % foreign_key.name,
+			_tr("Foreign key '%s' already exists.") % foreign_key.name,
 		)
 	table.foreign_keys.append(foreign_key)
 	return GDSQLCatalogOperationResult.new()
@@ -833,7 +833,7 @@ func _drop_foreign_key(
 	if foreign_key == null:
 		return _error(
 			&"GDSQL_CATALOG_UNKNOWN_FOREIGN_KEY",
-			"Foreign key '%s' does not exist." % foreign_key_name,
+			_tr("Foreign key '%s' does not exist.") % foreign_key_name,
 		)
 	table.foreign_keys.erase(foreign_key)
 	return GDSQLCatalogOperationResult.new()
@@ -850,17 +850,17 @@ func _set_column_default(
 	if column.generation != GDSQLColumnDefinition.Generation.NONE:
 		return _error(
 			&"GDSQL_CATALOG_GENERATED_COLUMN_DEFAULT",
-			"Generated column '%s' cannot also declare a static default." % column_name,
+			_tr("Generated column '%s' cannot also declare a static default.") % column_name,
 		)
 	if not column.accepts_value(value):
 		return _error(
 			&"GDSQL_CATALOG_COLUMN_DEFAULT_TYPE_MISMATCH",
-			"Default for column '%s' does not match its Variant type." % column_name,
+			_tr("Default for column '%s' does not match its Variant type.") % column_name,
 		)
 	if not _codec.can_encode(value, column):
 		return _error(
 			&"GDSQL_CATALOG_RESOURCE_REFERENCE_PATH_REQUIRED",
-			"Default for referenced Resource column '%s' must be a saved asset." % column_name,
+			_tr("Default for referenced Resource column '%s' must be a saved asset.") % column_name,
 		)
 	column.set_default(value)
 	return GDSQLCatalogOperationResult.new()
@@ -889,7 +889,7 @@ func _set_column_nullable(
 	if column_name == table.primary_key and nullable:
 		return _error(
 			&"GDSQL_CATALOG_PRIMARY_KEY_NULLABLE_FORBIDDEN",
-			"Primary-key column '%s' cannot be nullable." % column_name,
+			_tr("Primary-key column '%s' cannot be nullable.") % column_name,
 		)
 	if not nullable:
 		for section in _get_row_sections(table_data):
@@ -897,7 +897,7 @@ func _set_column_nullable(
 					or _read_value(table_data, section, column_name, column) == null:
 				return _error(
 					&"GDSQL_CATALOG_COLUMN_CONTAINS_NULL",
-					"Column '%s' contains null or missing values." % column_name,
+					_tr("Column '%s' contains null or missing values.") % column_name,
 				)
 	column.nullable = nullable
 	return GDSQLCatalogOperationResult.new()
@@ -915,7 +915,7 @@ func _set_column_unique(
 	if column_name == table.primary_key and not unique:
 		return _error(
 			&"GDSQL_CATALOG_PRIMARY_KEY_UNIQUE_REQUIRED",
-			"Primary-key column '%s' must remain unique." % column_name,
+			_tr("Primary-key column '%s' must remain unique.") % column_name,
 		)
 	if not unique and column.unique \
 			and not _has_alternate_unique_key(table, column_name, null, true):
@@ -961,12 +961,12 @@ func _set_column_generation(
 			or generation > GDSQLColumnDefinition.Generation.UPDATED_AT:
 		return _error(
 			&"GDSQL_CATALOG_GENERATION_INVALID",
-			"Column '%s' received an unknown generation policy." % column_name,
+			_tr("Column '%s' received an unknown generation policy.") % column_name,
 		)
 	if generation != GDSQLColumnDefinition.Generation.NONE and column.has_default():
 		return _error(
 			&"GDSQL_CATALOG_GENERATED_COLUMN_DEFAULT",
-			"Generated column '%s' cannot also declare a static default." % column_name,
+			_tr("Generated column '%s' cannot also declare a static default.") % column_name,
 		)
 	column.generation = generation
 	return GDSQLCatalogOperationResult.new()
@@ -984,7 +984,7 @@ func _set_resource_ownership(
 	if column.data_type != TYPE_OBJECT or not GDSQLResourceOwnership.is_valid(ownership):
 		return _error(
 			&"GDSQL_CATALOG_RESOURCE_OWNERSHIP_INVALID",
-			"Column '%s' requires a valid Resource ownership mode." % column_name,
+			_tr("Column '%s' requires a valid Resource ownership mode.") % column_name,
 		)
 	if column.resource_ownership == ownership:
 		return GDSQLCatalogOperationResult.new()
@@ -992,7 +992,7 @@ func _set_resource_ownership(
 	if column.has_default() and not _codec.can_encode(column.get_default_value(), changed_column):
 		return _error(
 			&"GDSQL_CATALOG_RESOURCE_REFERENCE_PATH_REQUIRED",
-			"Default for referenced Resource column '%s' must be a saved asset." % column_name,
+			_tr("Default for referenced Resource column '%s' must be a saved asset.") % column_name,
 		)
 	var values: Dictionary[String, Variant] = { }
 	for section in _get_row_sections(table_data):
@@ -1003,7 +1003,7 @@ func _set_resource_ownership(
 				and not _codec.can_encode(value, changed_column):
 			return _error(
 				&"GDSQL_CATALOG_RESOURCE_REFERENCE_PATH_REQUIRED",
-				"Column '%s' contains an owned Resource without a saved asset path." % column_name,
+				_tr("Column '%s' contains an owned Resource without a saved asset path.") % column_name,
 			)
 		values[section] = value
 	column.resource_ownership = ownership
@@ -1050,7 +1050,7 @@ func _validate_unique_column_data(
 		if seen.has(value):
 			return _error(
 				&"GDSQL_CATALOG_DUPLICATE_UNIQUE_VALUE",
-				"Column '%s' contains duplicate value '%s'." % [column_name, value],
+				_tr("Column '%s' contains duplicate value '%s'.") % [column_name, value],
 			)
 		seen.append(value)
 	return GDSQLCatalogOperationResult.new()
@@ -1079,7 +1079,7 @@ func _validate_unique_index_data(
 		if seen.has(values):
 			return _error(
 				&"GDSQL_CATALOG_DUPLICATE_INDEX_VALUE",
-				"Unique index '%s' has duplicate value '%s'." % [index.name, values],
+				_tr("Unique index '%s' has duplicate value '%s'.") % [index.name, values],
 			)
 		seen.append(values)
 	return GDSQLCatalogOperationResult.new()
@@ -1116,7 +1116,7 @@ func _recalculate_auto_increment(
 func _unknown_column(column_name: StringName) -> GDSQLCatalogOperationResult:
 	return _error(
 		&"GDSQL_CATALOG_UNKNOWN_COLUMN",
-		"Column '%s' does not exist." % column_name,
+		_tr("Column '%s' does not exist.") % column_name,
 	)
 
 
@@ -1233,7 +1233,7 @@ func _validate_no_incoming_foreign_keys(
 	if database == null:
 		return _error(
 			&"GDSQL_CATALOG_UNKNOWN_DATABASE",
-			"Database '%s' does not exist." % database_name,
+			_tr("Database '%s' does not exist.") % database_name,
 		)
 	for source_table in database.tables:
 		if source_table.name == excluded_source_table:
@@ -1247,7 +1247,7 @@ func _validate_no_incoming_foreign_keys(
 				continue
 			return _error(
 				&"GDSQL_CATALOG_FOREIGN_KEY_DEPENDENCY",
-				"Foreign key '%s' on '%s.%s' depends on '%s.%s'." % [
+				_tr("Foreign key '%s' on '%s.%s' depends on '%s.%s'.") % [
 					foreign_key.name,
 					source_table.name,
 					foreign_key.column,
@@ -1281,52 +1281,52 @@ func _validate_table(
 		table_data: ConfigFile = null,
 ) -> GDSQLCatalogOperationResult:
 	if not _path_resolver.is_valid_name(database_name):
-		return _error(&"GDSQL_CATALOG_INVALID_DATABASE_NAME", "Invalid database name '%s'." % database_name)
+		return _error(&"GDSQL_CATALOG_INVALID_DATABASE_NAME", _tr("Invalid database name '%s'.") % database_name)
 	if table == null or not _path_resolver.is_valid_name(table.name):
 		return _error(&"GDSQL_CATALOG_INVALID_TABLE_NAME", "Table name must be a valid identifier.")
 	if table.columns.is_empty():
-		return _error(&"GDSQL_CATALOG_COLUMNS_REQUIRED", "Table '%s' requires at least one column." % table.name)
+		return _error(&"GDSQL_CATALOG_COLUMNS_REQUIRED", _tr("Table '%s' requires at least one column.") % table.name)
 	var column_names: Dictionary = { }
 	var auto_increment_columns := 0
 	for column in table.columns:
 		if column == null or not _path_resolver.is_valid_name(column.name):
 			return _error(&"GDSQL_CATALOG_INVALID_COLUMN_NAME", "Every column requires a valid identifier name.")
 		if column_names.has(column.name):
-			return _error(&"GDSQL_CATALOG_DUPLICATE_COLUMN", "Column '%s' appears more than once." % column.name)
+			return _error(&"GDSQL_CATALOG_DUPLICATE_COLUMN", _tr("Column '%s' appears more than once.") % column.name)
 		if column.data_type == TYPE_NIL:
-			return _error(&"GDSQL_CATALOG_COLUMN_TYPE_REQUIRED", "Column '%s' requires a Variant type." % column.name)
+			return _error(&"GDSQL_CATALOG_COLUMN_TYPE_REQUIRED", _tr("Column '%s' requires a Variant type.") % column.name)
 		if not column.has_valid_type_constraint():
 			return _error(
 				&"GDSQL_CATALOG_RESOURCE_TYPE_REQUIRED",
-				"Object column '%s' requires a valid concrete Resource subtype." % column.name,
+				_tr("Object column '%s' requires a valid concrete Resource subtype.") % column.name,
 			)
 		if column.has_default() and not column.accepts_value(column.get_default_value()):
 			return _error(
 				&"GDSQL_CATALOG_COLUMN_DEFAULT_TYPE_MISMATCH",
-				"Default for column '%s' does not match its Variant type." % column.name,
+				_tr("Default for column '%s' does not match its Variant type.") % column.name,
 			)
 		if column.has_default() and not _codec.can_encode(column.get_default_value(), column):
 			return _error(
 				&"GDSQL_CATALOG_RESOURCE_REFERENCE_PATH_REQUIRED",
-				"Default for referenced Resource column '%s' must be a saved asset." % column.name,
+				_tr("Default for referenced Resource column '%s' must be a saved asset.") % column.name,
 			)
 		if column.auto_increment:
 			auto_increment_columns += 1
 			if column.data_type != TYPE_INT:
 				return _error(
 					&"GDSQL_CATALOG_AUTO_INCREMENT_TYPE",
-					"Auto-increment column '%s' must use TYPE_INT." % column.name,
+					_tr("Auto-increment column '%s' must use TYPE_INT.") % column.name,
 				)
 		if column.generation != GDSQLColumnDefinition.Generation.NONE:
 			if column.data_type != TYPE_INT:
 				return _error(
 					&"GDSQL_CATALOG_GENERATED_COLUMN_TYPE",
-					"Generated timestamp column '%s' must use TYPE_INT." % column.name,
+					_tr("Generated timestamp column '%s' must use TYPE_INT.") % column.name,
 				)
 			if column.has_default():
 				return _error(
 					&"GDSQL_CATALOG_GENERATED_COLUMN_DEFAULT",
-					"Generated column '%s' cannot also declare a static default." % column.name,
+					_tr("Generated column '%s' cannot also declare a static default.") % column.name,
 				)
 		column_names[column.name] = true
 	if table.primary_key == &"" or not column_names.has(table.primary_key):
@@ -1354,32 +1354,32 @@ func _validate_table(
 		if index_names.has(index.name):
 			return _error(
 				&"GDSQL_CATALOG_DUPLICATE_INDEX",
-				"Index '%s' appears more than once." % index.name,
+				_tr("Index '%s' appears more than once.") % index.name,
 			)
 		if index.columns.is_empty():
 			return _error(
 				&"GDSQL_CATALOG_INDEX_COLUMNS_REQUIRED",
-				"Index '%s' requires at least one column." % index.name,
+				_tr("Index '%s' requires at least one column.") % index.name,
 			)
 		var indexed_columns: Dictionary = { }
 		for column_name in index.columns:
 			if not column_names.has(column_name):
 				return _error(
 					&"GDSQL_CATALOG_INDEX_UNKNOWN_COLUMN",
-					"Index '%s' references unknown column '%s'." \
+					_tr("Index '%s' references unknown column '%s'.") \
 							% [index.name, column_name],
 				)
 			if indexed_columns.has(column_name):
 				return _error(
 					&"GDSQL_CATALOG_INDEX_DUPLICATE_COLUMN",
-					"Index '%s' references column '%s' more than once." \
+					_tr("Index '%s' references column '%s' more than once.") \
 							% [index.name, column_name],
 				)
 			var indexed_column := table.get_column(column_name)
 			if indexed_column.data_type == TYPE_OBJECT:
 				return _error(
 					&"GDSQL_CATALOG_INDEX_UNSUPPORTED_TYPE",
-					"Index '%s' cannot reference Resource column '%s'." \
+					_tr("Index '%s' cannot reference Resource column '%s'.") \
 							% [index.name, column_name],
 				)
 			indexed_columns[column_name] = true
@@ -1397,12 +1397,12 @@ func _validate_table(
 		if foreign_key_names.has(foreign_key.name):
 			return _error(
 				&"GDSQL_CATALOG_DUPLICATE_FOREIGN_KEY",
-				"Foreign key '%s' appears more than once." % foreign_key.name,
+				_tr("Foreign key '%s' appears more than once.") % foreign_key.name,
 			)
 		if not column_names.has(foreign_key.column):
 			return _error(
 				&"GDSQL_CATALOG_FOREIGN_KEY_UNKNOWN_COLUMN",
-				"Foreign key '%s' references unknown local column '%s'." % [
+				_tr("Foreign key '%s' references unknown local column '%s'.") % [
 					foreign_key.name,
 					foreign_key.column,
 				],
@@ -1411,7 +1411,7 @@ func _validate_table(
 		if not GDSQLForeignKeyDefinition.supports_column_type(local_column.data_type):
 			return _error(
 				&"GDSQL_CATALOG_FOREIGN_KEY_UNSUPPORTED_TYPE",
-				"Foreign key '%s' column '%s' must use int, String, or StringName." % [
+				_tr("Foreign key '%s' column '%s' must use int, String, or StringName.") % [
 					foreign_key.name,
 					foreign_key.column,
 				],
@@ -1424,7 +1424,7 @@ func _validate_table(
 		if referenced_table == null:
 			return _error(
 				&"GDSQL_CATALOG_FOREIGN_KEY_UNKNOWN_TABLE",
-				"Foreign key '%s' references unknown table '%s'." % [
+				_tr("Foreign key '%s' references unknown table '%s'.") % [
 					foreign_key.name,
 					foreign_key.referenced_table,
 				],
@@ -1435,7 +1435,7 @@ func _validate_table(
 		if referenced_column == null:
 			return _error(
 				&"GDSQL_CATALOG_FOREIGN_KEY_UNKNOWN_TARGET_COLUMN",
-				"Foreign key '%s' references unknown column '%s.%s'." % [
+				_tr("Foreign key '%s' references unknown column '%s.%s'.") % [
 					foreign_key.name,
 					foreign_key.referenced_table,
 					foreign_key.referenced_column,
@@ -1444,7 +1444,7 @@ func _validate_table(
 		if local_column.data_type != referenced_column.data_type:
 			return _error(
 				&"GDSQL_CATALOG_FOREIGN_KEY_TYPE_MISMATCH",
-				"Foreign key '%s' column types do not match (%s and %s)." % [
+				_tr("Foreign key '%s' column types do not match (%s and %s).") % [
 					foreign_key.name,
 					local_column.display_type_name(),
 					referenced_column.display_type_name(),
@@ -1453,7 +1453,7 @@ func _validate_table(
 		if not referenced_table.has_unique_key(foreign_key.referenced_column):
 			return _error(
 				&"GDSQL_CATALOG_FOREIGN_KEY_TARGET_NOT_UNIQUE",
-				"Foreign key '%s' target '%s.%s' must be unique." % [
+				_tr("Foreign key '%s' target '%s.%s' must be unique.") % [
 					foreign_key.name,
 					foreign_key.referenced_table,
 					foreign_key.referenced_column,
@@ -1463,7 +1463,7 @@ func _validate_table(
 				or foreign_key.on_update != GDSQLForeignKeyDefinition.Action.RESTRICT:
 			return _error(
 				&"GDSQL_CATALOG_FOREIGN_KEY_ACTION_UNSUPPORTED",
-				"Foreign key '%s' uses an unsupported action." % foreign_key.name,
+				_tr("Foreign key '%s' uses an unsupported action.") % foreign_key.name,
 			)
 		var row_validation := _validate_foreign_key_rows(
 			database_name,
@@ -1497,7 +1497,7 @@ func _validate_foreign_key_rows(
 		if referenced_data.load(referenced_path) != OK:
 			return _error(
 				&"GDSQL_CATALOG_FOREIGN_KEY_TARGET_UNREADABLE",
-				"Could not read referenced table '%s.%s'." % [
+				_tr("Could not read referenced table '%s.%s'.") % [
 					database_name,
 					referenced_table.name,
 				],
@@ -1522,7 +1522,7 @@ func _validate_foreign_key_rows(
 		if local_value != null and not target_values.has(local_value):
 			return _error(
 				&"GDSQL_CATALOG_FOREIGN_KEY_ORPHAN_VALUE",
-				"Foreign key '%s' has value '%s' without a matching '%s.%s' row." % [
+				_tr("Foreign key '%s' has value '%s' without a matching '%s.%s' row.") % [
 					foreign_key.name,
 					local_value,
 					foreign_key.referenced_table,

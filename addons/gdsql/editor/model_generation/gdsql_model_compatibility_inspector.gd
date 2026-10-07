@@ -41,7 +41,7 @@ func _compare_inheritance(
 	_add_error(
 		report,
 		&"GDSQL_MODEL_COMPATIBILITY_ROLE_MISMATCH",
-		"The model does not inherit %s, required by role '%s'." % [
+		_tr("The model does not inherit %s, required by role '%s'.") % [
 			expected_base.get_global_name(),
 			expected_role,
 		],
@@ -61,7 +61,7 @@ func _compare_generated_base(
 	_add_error(
 		report,
 		&"GDSQL_MODEL_COMPATIBILITY_GENERATED_BASE_MISMATCH",
-		"The user model must directly extend '%s'." % expected_path,
+		_tr("The user model must directly extend '%s'.") % expected_path,
 	)
 
 
@@ -78,7 +78,7 @@ func _compare_properties(
 			_add_error(
 				report,
 				&"GDSQL_MODEL_COMPATIBILITY_PROPERTY_MISSING",
-				"Column '%s' has no matching model property." % column.name,
+				_tr("Column '%s' has no matching model property.") % column.name,
 			)
 			continue
 		var expected_type := _expected_property_type(column)
@@ -88,7 +88,7 @@ func _compare_properties(
 			_add_error(
 				report,
 				&"GDSQL_MODEL_COMPATIBILITY_TYPE_MISMATCH",
-				"Property '%s' uses %s; the table requires %s." % [
+				_tr("Property '%s' uses %s; the table requires %s.") % [
 					column.name,
 					type_string(actual_type),
 					type_string(expected_type),
@@ -129,3 +129,7 @@ func _add_error(
 		message: String,
 ) -> void:
 	report.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
+
+
+func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

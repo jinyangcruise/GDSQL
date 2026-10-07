@@ -16,6 +16,7 @@ const MCP_MODEL_INSPECTION := preload(
 const DATABASE_DOCK_KEY := "GDSQLDatabases"
 const LOGS_DOCK_KEY := "GDSQLLogs"
 const WORKSPACE_HOST_NAME := "GDSQLWorkspaceHost"
+const TRANSLATION_DOMAIN := &"GDSQL"
 const SETTINGS_PATH := "res://.gdsql/settings.cfg"
 const MODEL_BINDING_PREFIX := "model_binding:"
 const RUNTIME_AUTOLOAD_SETTING := "autoload/GDSQLRuntime"
@@ -39,6 +40,7 @@ var _mcp_adapter: Node
 
 
 func _enter_tree() -> void:
+	_setup_localization()
 	_create_workspace()
 	_create_database_dock()
 	_create_logs_dock()
@@ -114,6 +116,13 @@ func _show_main_screen() -> void:
 	EditorInterface.set_main_screen_editor(_get_plugin_name())
 
 
+func _setup_localization():
+	var domain = TranslationServer.get_or_add_domain(TRANSLATION_DOMAIN)
+	for file_path in ResourceLoader.list_directory("res://addons/gdsql/locale/"):
+		if file_path.get_extension() == "po":
+			domain.add_translation(load("res://addons/gdsql/locale/" + file_path))
+
+
 func _create_workspace() -> void:
 	var main_screen := EditorInterface.get_editor_main_screen()
 	var stale_host := main_screen.get_node_or_null(WORKSPACE_HOST_NAME)
@@ -125,6 +134,7 @@ func _create_workspace() -> void:
 	_workspace_host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_workspace_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_workspace_host.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_workspace_host.set_translation_domain(TRANSLATION_DOMAIN)
 	main_screen.add_child(_workspace_host)
 
 	_workspace = WORKSPACE_SCENE.instantiate() as GDSQLWorkspace
@@ -146,6 +156,7 @@ func _create_database_dock() -> void:
 			EditorDock.DOCK_LAYOUT_VERTICAL | EditorDock.DOCK_LAYOUT_FLOATING
 	)
 	_database_dock.add_child(_database_dock_content)
+	_database_dock.set_translation_domain(TRANSLATION_DOMAIN)
 	add_dock(_database_dock)
 
 
@@ -162,6 +173,7 @@ func _create_logs_dock() -> void:
 			EditorDock.DOCK_LAYOUT_HORIZONTAL | EditorDock.DOCK_LAYOUT_FLOATING
 	)
 	_logs_dock.add_child(_logs_panel)
+	_logs_dock.set_translation_domain(TRANSLATION_DOMAIN)
 	add_dock(_logs_dock)
 
 

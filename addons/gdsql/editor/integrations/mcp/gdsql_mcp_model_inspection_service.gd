@@ -40,7 +40,7 @@ func inspect(
 	if registration_name != &"" and _workbench.get_registration(registration_name) == null:
 		return _error(
 			&"GDSQL_MCP_REGISTRATION_NOT_FOUND",
-			"Database registration '%s' was not found." % registration_name,
+			_tr("Database registration '%s' was not found.") % registration_name,
 		)
 	var bindings := _bindings()
 	if registration_name != &"":
@@ -59,7 +59,7 @@ func inspect(
 				return _detail(binding)
 		return _error(
 			&"GDSQL_MCP_MODEL_BINDING_NOT_FOUND",
-			"Table '%s' has no model binding in registration '%s'." % [
+			_tr("Table '%s' has no model binding in registration '%s'.") % [
 				table_name,
 				registration_name,
 			],
@@ -110,7 +110,7 @@ func _detail(binding: Dictionary) -> GDSQLOperationResult:
 	if StringName(binding.get("database", "")) != registration.database_name:
 		return _error(
 			&"GDSQL_MCP_MODEL_BINDING_STALE",
-			"The model binding for '%s' targets database '%s', but registration '%s' now targets '%s'." % [
+			_tr("The model binding for '%s' targets database '%s', but registration '%s' now targets '%s'.") % [
 				binding["table"],
 				binding.get("database", ""),
 				registration_name,
@@ -127,7 +127,7 @@ func _detail(binding: Dictionary) -> GDSQLOperationResult:
 	if table == null:
 		return _error(
 			&"GDSQL_MCP_TABLE_NOT_FOUND",
-			"Bound table '%s' was not found in registration '%s'." % [
+			_tr("Bound table '%s' was not found in registration '%s'.") % [
 				table_name,
 				registration_name,
 			],
@@ -305,3 +305,7 @@ func _error(code: StringName, message: String) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
 	return result
+
+
+func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

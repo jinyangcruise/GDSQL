@@ -70,14 +70,14 @@ func refresh_slots() -> void:
 		item.set_metadata(0, registration.name)
 		item.set_tooltip_text(
 			0,
-			"Registration: %s\nDatabase: %s" \
+			tr("Registration: %s\nDatabase: %s") \
 					% [registration.name, registration.database_name],
 		)
 		if registration.name == active:
 			active_item = item
 	_empty_state.visible = slots.is_empty()
 	_tree.visible = not slots.is_empty()
-	_summary.text = "%d save slot(s) registered" % slots.size()
+	_summary.text = tr("%d save slot(s) registered") % slots.size()
 	_active_slot.text = "None selected" if active == &"" else String(active)
 	if active_item != null:
 		active_item.select(0)
@@ -94,7 +94,7 @@ func refresh_slots() -> void:
 func _configure_tree() -> void:
 	var titles := ["Slot", "State", "Storage", "Location"]
 	for column in titles.size():
-		_tree.set_column_title(column, titles[column])
+		_tree.set_column_title(column, tr(titles[column]))
 		_tree.set_column_expand(column, column in [0, 3])
 	_tree.set_column_custom_minimum_width(0, 160)
 	_tree.set_column_custom_minimum_width(1, 90)
@@ -163,7 +163,7 @@ func _select_requested() -> void:
 	)
 	if result.is_successful():
 		refresh_slots()
-		_status.text = "'%s' is now the active save slot." % selected
+		_status.text = tr("'%s' is now the active save slot.") % selected
 	elif not result.diagnostics.entries.is_empty():
 		_status.text = result.diagnostics.entries[0].message
 
@@ -183,7 +183,7 @@ func _request_unregister() -> void:
 	if registration == null:
 		return
 	_pending_unregister = registration.name
-	_unregister_confirmation.dialog_text = (
+	_unregister_confirmation.dialog_text = tr(
 			"Unregister save slot '%s'?\n\n"
 			+ "Its database files at '%s' will remain unchanged, but this logical "
 			+ "database will no longer appear as a slot until it is registered again."
@@ -210,11 +210,11 @@ func _request_delete() -> void:
 		return
 	_pending_delete = planned.get_value() as GDSQLSaveSlotDeletionPlan
 	var active_warning := (
-			"\n\nThis is the active runtime save. The save role will be unbound."
+			tr("\n\nThis is the active runtime save. The save role will be unbound.")
 			if _pending_delete.was_active
 			else ""
 	)
-	_delete_confirmation.dialog_text = (
+	_delete_confirmation.dialog_text = tr(
 			"Permanently delete save slot database '%s'?\n\n"
 			+ "Database data: %s\n"
 			+ "Slot root: %s\n\n"

@@ -164,7 +164,7 @@ func stage_insert(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_STORAGE_RESERVED_PRIMARY_KEY",
-				"Primary key value '%s' is reserved for table metadata." % key,
+				_tr("Primary key value '%s' is reserved for table metadata.") % key,
 			),
 		)
 		return result
@@ -172,7 +172,7 @@ func stage_insert(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_STORAGE_DUPLICATE_PRIMARY_KEY",
-				"Primary key '%s' already exists in %s.%s." % [key, table.database_name, table.name],
+				_tr("Primary key '%s' already exists in %s.%s.") % [key, table.database_name, table.name],
 			),
 		)
 		return result
@@ -261,10 +261,10 @@ func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 		var path := path_resolver.resolve_table_path(table.database_name, table.name)
 		var directory_error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path.get_base_dir()))
 		if directory_error != OK:
-			return _commit_error(&"GDSQL_STORAGE_DIRECTORY_UNWRITABLE", "Could not create table directory: %s" % path.get_base_dir())
+			return _commit_error(&"GDSQL_STORAGE_DIRECTORY_UNWRITABLE", _tr("Could not create table directory: %s") % path.get_base_dir())
 		var config := config_cache.get_or_load(path)
 		if config == null:
-			return _commit_error(&"GDSQL_STORAGE_TABLE_UNREADABLE", "Could not load table file: %s" % path)
+			return _commit_error(&"GDSQL_STORAGE_TABLE_UNREADABLE", _tr("Could not load table file: %s") % path)
 		var operation_type := operation["type"] as StringName
 		if operation_type == &"truncate":
 			for section in _get_row_sections(config):
@@ -291,7 +291,7 @@ func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 		if config == null:
 			return _commit_error(
 				&"GDSQL_STORAGE_TABLE_UNREADABLE",
-				"Could not load table file: %s" % path,
+				_tr("Could not load table file: %s") % path,
 			)
 		config.set_value(
 			TABLE_METADATA_SECTION,
@@ -315,14 +315,14 @@ func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 		if config == null:
 			return _commit_error(
 				&"GDSQL_STORAGE_TABLE_UNREADABLE",
-				"Could not load table file: %s" % path,
+				_tr("Could not load table file: %s") % path,
 			)
 		_rebuild_indexes(config, table)
 		touched_paths[path] = true
 	for path: String in touched_paths:
 		var save_error := config_cache.flush(path)
 		if save_error != OK:
-			return _commit_error(&"GDSQL_STORAGE_COMMIT_FAILED", "Could not save table file: %s" % path)
+			return _commit_error(&"GDSQL_STORAGE_COMMIT_FAILED", _tr("Could not save table file: %s") % path)
 	session.clear()
 	result.value = true
 	return result
@@ -496,7 +496,7 @@ func _validate_row_values(
 					continue
 				return _commit_error(
 					&"GDSQL_STORAGE_REQUIRED_COLUMN_MISSING",
-					"Column '%s' is required in %s.%s." \
+					_tr("Column '%s' is required in %s.%s.") \
 							% [column.name, table.database_name, table.name],
 				)
 			var value: Variant = row.get_value(column.name)
@@ -504,12 +504,12 @@ func _validate_row_values(
 				var expected := column.expected_type_name()
 				return _commit_error(
 					&"GDSQL_STORAGE_COLUMN_TYPE_MISMATCH",
-					"Column '%s' expects %s." % [column.name, expected],
+					_tr("Column '%s' expects %s.") % [column.name, expected],
 				)
 			if not codec.can_encode(value, column):
 				return _commit_error(
 					&"GDSQL_STORAGE_RESOURCE_REFERENCE_PATH_REQUIRED",
-					"Referenced Resource column '%s' requires a saved asset." % column.name,
+					_tr("Referenced Resource column '%s' requires a saved asset.") % column.name,
 				)
 	var result := GDSQLStorageCommitResult.new()
 	result.value = true
@@ -534,7 +534,7 @@ func _validate_unique_column(
 			var label := "Primary key" if primary_key else "Unique column '%s' value" % column_name
 			return _commit_error(
 				code,
-				"%s '%s' appears more than once in %s.%s." \
+				_tr("%s '%s' appears more than once in %s.%s.") \
 						% [label, value, table.database_name, table.name],
 			)
 		seen_values.append(value)
@@ -561,7 +561,7 @@ func _validate_unique_index(
 		if seen_values.has(values):
 			return _commit_error(
 				&"GDSQL_STORAGE_DUPLICATE_INDEX_VALUE",
-				"Unique index '%s' value '%s' appears more than once in %s.%s." \
+				_tr("Unique index '%s' value '%s' appears more than once in %s.%s.") \
 						% [index.name, values, table.database_name, table.name],
 			)
 		seen_values.append(values)
@@ -793,7 +793,7 @@ func _validate_next_auto_increment(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_STORAGE_AUTO_INCREMENT_INVALID",
-				"Next generated key %d is below the required value %d for %s.%s." \
+				_tr("Next generated key %d is below the required value %d for %s.%s.") \
 						% [next_value, minimum, table.database_name, table.name],
 			),
 		)
@@ -809,7 +809,7 @@ func _missing_row_result(
 	result.add_diagnostic(
 		GDSQLQueryDiagnostic.new(
 			&"GDSQL_STORAGE_ROW_NOT_FOUND",
-			"Cannot %s missing primary key '%s' in %s.%s." % [operation, key, table.database_name, table.name],
+			_tr("Cannot %s missing primary key '%s' in %s.%s.") % [operation, key, table.database_name, table.name],
 		),
 	)
 	return result

@@ -125,7 +125,7 @@ func build_expression() -> GDSQLOperationResult:
 		if not converted.valid:
 			return _error(
 				&"GDSQL_QUERY_GRAPH_WHERE_VALUE_INVALID",
-				"WHERE value for '%s' must be %s." % [
+				tr("WHERE value for '%s' must be %s.") % [
 					field.display_name(),
 					type_string(field.data_type),
 				],

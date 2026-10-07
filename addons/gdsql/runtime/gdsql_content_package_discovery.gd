@@ -8,3 +8,7 @@ func discover(
 		base_package_root: String,
 		package_container_roots: Array[String],
 ) -> GDSQLOperationResult
+
+
+func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

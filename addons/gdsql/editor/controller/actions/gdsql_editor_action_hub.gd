@@ -27,7 +27,7 @@ func register_context(context: GDSQLContextActionHub) -> GDSQLOperationResult:
 	if _contexts.has(context.context_id):
 		return _error(
 			&"GDSQL_EDITOR_ACTION_CONTEXT_ALREADY_REGISTERED",
-			"Editor action context '%s' is already registered." \
+			TranslationServer.get_or_add_domain(&"GDSQL").translate("Editor action context '%s' is already registered.") \
 					% context.context_id,
 		)
 	_contexts[context.context_id] = context

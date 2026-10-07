@@ -34,7 +34,7 @@ static func build(
 	if normalized_root == standard_root or normalized_root.get_base_dir() != standard_root:
 		return _error(
 			&"GDSQL_SAVE_SLOT_DELETE_ROOT_REJECTED",
-			(
+			TranslationServer.get_or_add_domain(&"GDSQL").translate(
 					"Only a database in a direct child of '%s' can be deleted as a save slot. "
 					+ "The selected root is '%s'."
 			)

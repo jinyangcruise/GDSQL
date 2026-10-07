@@ -24,7 +24,7 @@ func inspect_root(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_DATABASE_DISCOVERY_CATALOG_UNREADABLE",
-				"Could not inspect database catalog '%s'." % catalog_path,
+				_tr("Could not inspect database catalog '%s'.") % catalog_path,
 				GDSQLQueryDiagnostic.Severity.WARNING,
 			),
 		)
@@ -67,7 +67,7 @@ func _inspect_tables(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_DATABASE_DISCOVERY_SCHEMA_DIRECTORY_MISSING",
-				"Schema directory for database '%s' is unavailable." % database_name,
+				_tr("Schema directory for database '%s' is unavailable.") % database_name,
 				GDSQLQueryDiagnostic.Severity.WARNING,
 			),
 		)

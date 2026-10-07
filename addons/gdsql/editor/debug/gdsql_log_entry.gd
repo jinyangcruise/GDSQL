@@ -41,13 +41,13 @@ func configure(
 	# [TODO] Add optional tick option
 	tick = Time.get_ticks_msec()
 	_time.text = "%s / %s" % [time_text, tick]
-	_time.tooltip_text += ": %s / %s" % [time_text, tick]
+	_time.tooltip_text = tr("Time / Tick") + ": %s / %s" % [time_text, tick]
 	_status.text = status_text
-	_status_panel.tooltip_text += ": %s" % [status_text]
+	_status_panel.tooltip_text = tr("Status") + ": " + tr(status_text, "result")
 	_action.text = action_text
-	_action.tooltip_text += ": %s" % [action_text]
+	_action.tooltip_text = tr("Action") + ": " + tr(action_text)
 	_message.text = message_text
-	_message.tooltip_text += ": %s" % [message_text]
+	_message.tooltip_text = tr("Message") + ": " + tr(message_text)
 	_apply_status_style(status_text)
 	tooltip_text = "#%d · %s · %s\n%s" % [entry_id, action_text, status_text, message_text]
 

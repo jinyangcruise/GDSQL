@@ -13,3 +13,7 @@ func save_profile(profile: GDSQLSetupProfile.Kind) -> GDSQLOperationResult
 
 @abstract
 func clear_profile() -> GDSQLOperationResult
+
+
+func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

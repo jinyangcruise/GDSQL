@@ -27,12 +27,12 @@ func add_action(
 	if not handler.is_valid():
 		return _error(
 			&"GDSQL_EDITOR_ACTION_HANDLER_REQUIRED",
-			"Editor action '%s' requires a valid handler." % definition.id,
+			_tr("Editor action '%s' requires a valid handler.") % definition.id,
 		)
 	if _definitions.has(definition.id):
 		return _error(
 			&"GDSQL_EDITOR_ACTION_ALREADY_REGISTERED",
-			"Editor action '%s' is already registered in context '%s'." \
+			_tr("Editor action '%s' is already registered in context '%s'.") \
 					% [definition.id, context_id],
 		)
 	_definitions[definition.id] = definition
@@ -120,3 +120,7 @@ func _error(code: StringName, message: String) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
 	return result
+
+
+func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

@@ -128,17 +128,17 @@ func _validate_relationship(
 	if names.has(relationship.name):
 		return _failure(
 			&"GDSQL_MODEL_RELATIONSHIP_DUPLICATE",
-			"Model relationship '%s' is declared more than once." % relationship.name,
+			_tr("Model relationship '%s' is declared more than once.") % relationship.name,
 		)
 	if relationship.local_key == &"" or relationship.related_key == &"":
 		return _failure(
 			&"GDSQL_MODEL_RELATIONSHIP_KEY_REQUIRED",
-			"Model relationship '%s' must declare both keys." % relationship.name,
+			_tr("Model relationship '%s' must declare both keys.") % relationship.name,
 		)
 	if not _has_property(model, relationship.local_key):
 		return _failure(
 			&"GDSQL_MODEL_RELATIONSHIP_LOCAL_KEY_UNKNOWN",
-			"Model relationship '%s' references unknown local key '%s'." % [
+			_tr("Model relationship '%s' references unknown local key '%s'.") % [
 				relationship.name,
 				relationship.local_key,
 			],
@@ -147,18 +147,18 @@ func _validate_relationship(
 	if related_script == null or not related_script.can_instantiate():
 		return _failure(
 			&"GDSQL_MODEL_RELATIONSHIP_MODEL_REQUIRED",
-			"Model relationship '%s' requires a concrete related model." % relationship.name,
+			_tr("Model relationship '%s' requires a concrete related model.") % relationship.name,
 		)
 	var related_candidate: Variant = related_script.new()
 	if not related_candidate is GDSQLModel:
 		return _failure(
 			&"GDSQL_MODEL_RELATIONSHIP_MODEL_REQUIRED",
-			"The related script for '%s' must extend GDSQLModel." % relationship.name,
+			_tr("The related script for '%s' must extend GDSQLModel.") % relationship.name,
 		)
 	if not _has_property(related_candidate as GDSQLModel, relationship.related_key):
 		return _failure(
 			&"GDSQL_MODEL_RELATIONSHIP_RELATED_KEY_UNKNOWN",
-			"Model relationship '%s' references unknown related key '%s'." % [
+			_tr("Model relationship '%s' references unknown related key '%s'.") % [
 				relationship.name,
 				relationship.related_key,
 			],
@@ -175,21 +175,21 @@ func _validate_through_relationship(
 			or relationship.through_related_key == &"":
 		return _failure(
 			&"GDSQL_MODEL_RELATIONSHIP_THROUGH_KEY_REQUIRED",
-			"Many-to-many relationship '%s' must declare both junction keys." \
+			_tr("Many-to-many relationship '%s' must declare both junction keys.") \
 					% relationship.name,
 		)
 	var through_script := relationship.through_model_script
 	if through_script == null or not through_script.can_instantiate():
 		return _failure(
 			&"GDSQL_MODEL_RELATIONSHIP_THROUGH_MODEL_REQUIRED",
-			"Many-to-many relationship '%s' requires a concrete junction model." \
+			_tr("Many-to-many relationship '%s' requires a concrete junction model.") \
 					% relationship.name,
 		)
 	var candidate: Variant = through_script.new()
 	if not candidate is GDSQLModel:
 		return _failure(
 			&"GDSQL_MODEL_RELATIONSHIP_THROUGH_MODEL_REQUIRED",
-			"The junction script for '%s' must extend GDSQLModel." \
+			_tr("The junction script for '%s' must extend GDSQLModel.") \
 					% relationship.name,
 		)
 	var through_model := candidate as GDSQLModel
@@ -197,7 +197,7 @@ func _validate_through_relationship(
 		if not _has_property(through_model, key):
 			return _failure(
 				&"GDSQL_MODEL_RELATIONSHIP_THROUGH_KEY_UNKNOWN",
-				"Many-to-many relationship '%s' references unknown junction key '%s'." % [
+				_tr("Many-to-many relationship '%s' references unknown junction key '%s'.") % [
 					relationship.name,
 					key,
 				],
@@ -233,3 +233,7 @@ func _refresh_inferred_relationships() -> void:
 		definition.replace_inferred_relationships(
 			_relationship_inferrer.infer(definition, definitions, catalog_database),
 		)
+
+
+func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

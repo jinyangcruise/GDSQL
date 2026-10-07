@@ -31,7 +31,7 @@ func resolve(
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_PACKAGE_ID_DUPLICATE",
-				"Package id '%s' is supplied by more than one source." % package_id,
+				_tr("Package id '%s' is supplied by more than one source.") % package_id,
 			)
 			continue
 		discovered[package_id] = package
@@ -41,7 +41,7 @@ func resolve(
 		_add_error(
 			result,
 			&"GDSQL_CONTENT_BASE_PACKAGE_COUNT_INVALID",
-			"Exactly one base package is required; discovered %d." % base_packages.size(),
+			_tr("Exactly one base package is required; discovered %d.") % base_packages.size(),
 		)
 	if not result.is_successful():
 		return result
@@ -54,7 +54,7 @@ func resolve(
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_PACKAGE_ENABLED_DUPLICATE",
-				"Enabled package '%s' is listed more than once." % package_id,
+				_tr("Enabled package '%s' is listed more than once.") % package_id,
 			)
 			continue
 		enabled_seen[package_id] = true
@@ -62,7 +62,7 @@ func resolve(
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_PACKAGE_ENABLED_NOT_FOUND",
-				"Enabled package '%s' was not discovered." % package_id,
+				_tr("Enabled package '%s' was not discovered.") % package_id,
 			)
 			continue
 		selected[package_id] = discovered[package_id]
@@ -86,7 +86,7 @@ func _validate_dependencies(
 				_add_error(
 					result,
 					&"GDSQL_CONTENT_PACKAGE_DEPENDENCY_MISSING",
-					"Package '%s' requires enabled package '%s' (%s)." % [
+					_tr("Package '%s' requires enabled package '%s' (%s).") % [
 						package_id,
 						dependency.package_id,
 						dependency.version_constraint,
@@ -103,7 +103,7 @@ func _validate_dependencies(
 				_add_error(
 					result,
 					&"GDSQL_CONTENT_PACKAGE_DEPENDENCY_VERSION_MISMATCH",
-					"Package '%s' requires '%s' %s, but %s is selected." % [
+					_tr("Package '%s' requires '%s' %s, but %s is selected.") % [
 						package_id,
 						dependency.package_id,
 						dependency.version_constraint,
@@ -153,7 +153,7 @@ func _topological_order(
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_PACKAGE_ORDER_CYCLE",
-				"Package load order contains a cycle involving: %s." % ", ".join(remaining),
+				_tr("Package load order contains a cycle involving: %s.") % ", ".join(remaining),
 			)
 			return []
 		available.sort_custom(_package_precedes)
@@ -195,3 +195,7 @@ func _add_error(
 		message: String,
 ) -> void:
 	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
+
+
+func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

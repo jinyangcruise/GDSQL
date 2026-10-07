@@ -8,3 +8,7 @@ func read_layer(
 		source: GDSQLContentPackageSource,
 		database_name: StringName,
 ) -> GDSQLOperationResult
+
+
+func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

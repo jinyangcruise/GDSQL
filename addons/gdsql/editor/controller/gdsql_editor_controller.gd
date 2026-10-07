@@ -237,7 +237,7 @@ func _install_runtime_adapter() -> GDSQLOperationResult:
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_RUNTIME_AUTOLOAD_NAME_IN_USE",
-				"The GDSQLRuntime autoload name is already used by '%s'." % current_path,
+				_tr("The GDSQLRuntime autoload name is already used by '%s'.") % current_path,
 			),
 		)
 		_record_result("Install runtime adapter", result)
@@ -251,7 +251,7 @@ func _install_runtime_adapter() -> GDSQLOperationResult:
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_RUNTIME_AUTOLOAD_SAVE_FAILED",
-				"Could not save the GDSQLRuntime autoload setting: %s." % error_string(error),
+				_tr("Could not save the GDSQLRuntime autoload setting: %s.") % error_string(error),
 			),
 		)
 	else:
@@ -296,7 +296,7 @@ func _create_database(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_EDITOR_DATABASE_LOADED",
-					"Loaded existing database '%s' from '%s'." \
+					_tr("Loaded existing database '%s' from '%s'.") \
 							% [database_name, data_root],
 					GDSQLQueryDiagnostic.Severity.INFO,
 				),
@@ -529,7 +529,7 @@ func _load_table_reference_rows(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_EDITOR_REFERENCE_SOURCE_NOT_FOUND",
-					"Source table '%s' was not found." % source_table_name,
+					_tr("Source table '%s' was not found.") % source_table_name,
 				),
 			)
 		else:
@@ -538,7 +538,7 @@ func _load_table_reference_rows(
 				result.add_diagnostic(
 					GDSQLQueryDiagnostic.new(
 						&"GDSQL_EDITOR_FOREIGN_KEY_NOT_FOUND",
-						"Foreign key '%s' was not found." % constraint_name,
+						_tr("Foreign key '%s' was not found.") % constraint_name,
 					),
 				)
 			else:
@@ -550,7 +550,7 @@ func _load_table_reference_rows(
 					result.add_diagnostic(
 						GDSQLQueryDiagnostic.new(
 							&"GDSQL_EDITOR_REFERENCE_TARGET_NOT_FOUND",
-							"Referenced table '%s' was not found." \
+							_tr("Referenced table '%s' was not found.") \
 									% foreign_key.referenced_table,
 						),
 					)
@@ -581,7 +581,7 @@ func _load_table_content_reference_rows(
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_EDITOR_CONTENT_REFERENCE_REGISTRATION_NOT_FOUND",
-				"Content registration '%s' was not found." \
+				_tr("Content registration '%s' was not found.") \
 						% reference.target_registration_name,
 			),
 		)
@@ -598,7 +598,7 @@ func _load_table_content_reference_rows(
 				result.add_diagnostic(
 					GDSQLQueryDiagnostic.new(
 						&"GDSQL_EDITOR_CONTENT_REFERENCE_TARGET_NOT_FOUND",
-						"Content table '%s' was not found." \
+						_tr("Content table '%s' was not found.") \
 								% reference.target_table_name,
 					),
 				)
@@ -686,7 +686,7 @@ func _duplicate_table_rows(
 	if table == null:
 		result = _error(
 			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
-			"Table '%s' was not found." % table_name,
+			_tr("Table '%s' was not found.") % table_name,
 		)
 	else:
 		var planned := GDSQLEditorRowBatch.build_inserts(table, rows)
@@ -717,7 +717,7 @@ func _update_table_rows(
 	if table == null:
 		result = _error(
 			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
-			"Table '%s' was not found." % table_name,
+			_tr("Table '%s' was not found.") % table_name,
 		)
 	else:
 		var planned := GDSQLEditorRowBatch.build_updates(table, updates)
@@ -771,7 +771,7 @@ func _apply_table_history(
 	if entry == null:
 		return _error(
 			&"GDSQL_EDITOR_MUTATION_HISTORY_EMPTY",
-			"There is no row update to %s." % ("undo" if undo else "redo"),
+			_tr("There is no row update to %s." % ("undo" if undo else "redo")),
 		)
 	var result := _ensure_active_registration(registration_name)
 	if not result.is_successful():
@@ -781,7 +781,7 @@ func _apply_table_history(
 	if table == null:
 		return _error(
 			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
-			"Table '%s' was not found." % table_name,
+			_tr("Table '%s' was not found.") % table_name,
 		)
 	var snapshots := entry.duplicate_before_rows() if undo else entry.duplicate_after_rows()
 	var planned := GDSQLEditorRowBatch.build_updates(
@@ -839,7 +839,7 @@ func _update_row(
 	if table == null:
 		return _error(
 			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
-			"Table '%s' was not found." % table_name,
+			_tr("Table '%s' was not found.") % table_name,
 		)
 	var updates: Array[Dictionary] = [
 		{
@@ -879,7 +879,7 @@ func _delete_table_rows(
 	if table == null:
 		result = _error(
 			&"GDSQL_EDITOR_TABLE_NOT_FOUND",
-			"Table '%s' was not found." % table_name,
+			_tr("Table '%s' was not found.") % table_name,
 		)
 	else:
 		var planned := GDSQLEditorRowBatch.build_deletes(table, primary_keys)
@@ -913,7 +913,7 @@ func _delete_row(
 		if table == null:
 			return _error(
 				&"GDSQL_EDITOR_TABLE_NOT_FOUND",
-				"Table '%s' was not found." % table_name,
+				_tr("Table '%s' was not found.") % table_name,
 			)
 		var primary_keys: Array[Variant] = [primary_key]
 		var planned := GDSQLEditorRowBatch.build_deletes(table, primary_keys)
@@ -1146,7 +1146,7 @@ func _open_model_assistant(
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
 					&"GDSQL_EDITOR_TABLE_NOT_FOUND",
-					"Table '%s' is not available in registration '%s'." \
+					_tr("Table '%s' is not available in registration '%s'.") \
 							% [table_name, registration_name],
 				),
 			)
@@ -1325,3 +1325,7 @@ func _error(code: StringName, message: String) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	result.add_diagnostic(GDSQLQueryDiagnostic.new(code, message))
 	return result
+
+
+func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

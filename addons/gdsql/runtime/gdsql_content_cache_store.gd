@@ -20,3 +20,7 @@ func replace(
 
 @abstract
 func get_cache_root() -> String
+
+
+func _tr(message: String) -> String:
+	return TranslationServer.get_or_add_domain(&"GDSQL").translate(message)

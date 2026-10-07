@@ -25,7 +25,7 @@ func load_manifest() -> GDSQLOperationResult:
 		return _cache_miss(
 			result,
 			&"GDSQL_CONTENT_CACHE_MANIFEST_UNREADABLE",
-			"Could not read content cache manifest '%s'." % path,
+			_tr("Could not read content cache manifest '%s'.") % path,
 		)
 	if not config.has_section(CACHE_SECTION):
 		return _cache_miss(
@@ -52,7 +52,7 @@ func load_manifest() -> GDSQLOperationResult:
 			return _cache_miss(
 				result,
 				&"GDSQL_CONTENT_CACHE_MANIFEST_INVALID",
-				"Content cache manifest is missing package '%s'." % package_id,
+				_tr("Content cache manifest is missing package '%s'.") % package_id,
 			)
 		packages.append(
 			GDSQLContentPackageFingerprint.new(
