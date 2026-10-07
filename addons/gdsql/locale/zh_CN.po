@@ -1,342 +1,3 @@
-# LANGUAGE translation for GDSQL for the following files:
-# res://addons/gdsql/api/gdsql_database.gd
-# res://addons/gdsql/api/gdsql_database_context.gd
-# res://addons/gdsql/api/gdsql_database_result.gd
-# res://addons/gdsql/api/gdsql_delete_query_builder.gd
-# res://addons/gdsql/api/gdsql_expr.gd
-# res://addons/gdsql/api/gdsql_insert_query_builder.gd
-# res://addons/gdsql/api/gdsql_query.gd
-# res://addons/gdsql/api/gdsql_query_result.gd
-# res://addons/gdsql/api/gdsql_runtime_factory.gd
-# res://addons/gdsql/api/gdsql_select_query_builder.gd
-# res://addons/gdsql/api/gdsql_transaction.gd
-# res://addons/gdsql/api/gdsql_update_query_builder.gd
-# res://addons/gdsql/catalog/gdsql_catalog_administration_service.gd
-# res://addons/gdsql/catalog/gdsql_catalog_change_plan.gd
-# res://addons/gdsql/catalog/gdsql_catalog_operation_result.gd
-# res://addons/gdsql/catalog/gdsql_catalog_service.gd
-# res://addons/gdsql/catalog/gdsql_catalog_snapshot.gd
-# res://addons/gdsql/catalog/gdsql_column_default.gd
-# res://addons/gdsql/catalog/gdsql_column_definition.gd
-# res://addons/gdsql/catalog/gdsql_database_definition.gd
-# res://addons/gdsql/catalog/gdsql_foreign_key_definition.gd
-# res://addons/gdsql/catalog/gdsql_index_definition.gd
-# res://addons/gdsql/catalog/gdsql_resource_ownership.gd
-# res://addons/gdsql/catalog/gdsql_resource_property_catalog.gd
-# res://addons/gdsql/catalog/gdsql_resource_property_definition.gd
-# res://addons/gdsql/catalog/gdsql_resource_type_constraint.gd
-# res://addons/gdsql/catalog/gdsql_table_alteration.gd
-# res://addons/gdsql/catalog/gdsql_table_definition.gd
-# res://addons/gdsql/common/diagnostics/gdsql_diagnostics.gd
-# res://addons/gdsql/common/diagnostics/gdsql_query_diagnostic.gd
-# res://addons/gdsql/common/diagnostics/gdsql_source_span.gd
-# res://addons/gdsql/common/identifiers/gdsql_column_id.gd
-# res://addons/gdsql/common/identifiers/gdsql_table_id.gd
-# res://addons/gdsql/common/results/gdsql_operation_result.gd
-# res://addons/gdsql/common/results/gdsql_result_schema.gd
-# res://addons/gdsql/common/results/gdsql_row_set.gd
-# res://addons/gdsql/editor/controller/actions/gdsql_context_action_hub.gd
-# res://addons/gdsql/editor/controller/actions/gdsql_editor_action_definition.gd
-# res://addons/gdsql/editor/controller/actions/gdsql_editor_action_hub.gd
-# res://addons/gdsql/editor/controller/actions/gdsql_editor_action_ids.gd
-# res://addons/gdsql/editor/controller/actions/gdsql_editor_action_registrar.gd
-# res://addons/gdsql/editor/controller/components/gdsql_editor_action_button.gd
-# res://addons/gdsql/editor/controller/components/gdsql_editor_action_strip.gd
-# res://addons/gdsql/editor/controller/gdsql_editor_controller.gd
-# res://addons/gdsql/editor/controller/navigation/gdsql_editor_command_palette.gd
-# res://addons/gdsql/editor/controller/workbench/gdsql_editor_table_change.gd
-# res://addons/gdsql/editor/controller/workbench/gdsql_save_slot_deletion_plan.gd
-# res://addons/gdsql/editor/controller/workbench/gdsql_workbench.gd
-# res://addons/gdsql/editor/controller/workbench/gdsql_workbench_session.gd
-# res://addons/gdsql/editor/controller/workbench/history/gdsql_editor_mutation_history.gd
-# res://addons/gdsql/editor/controller/workbench/history/gdsql_editor_mutation_history_entry.gd
-# res://addons/gdsql/editor/controller/workbench/mutations/gdsql_editor_row_batch.gd
-# res://addons/gdsql/editor/database_dock/gdsql_database_dock.gd
-# res://addons/gdsql/editor/database_dock/gdsql_database_dock.tscn
-# res://addons/gdsql/editor/debug/gdsql_log_entry.gd
-# res://addons/gdsql/editor/debug/gdsql_log_entry.tscn
-# res://addons/gdsql/editor/debug/gdsql_logs_panel.gd
-# res://addons/gdsql/editor/debug/gdsql_logs_panel.tscn
-# res://addons/gdsql/editor/integrations/mcp/gdsql_godot_ai_mcp_adapter.gd
-# res://addons/gdsql/editor/integrations/mcp/gdsql_godot_ai_mcp_handler.gd
-# res://addons/gdsql/editor/integrations/mcp/gdsql_mcp_bridge_context.gd
-# res://addons/gdsql/editor/integrations/mcp/gdsql_mcp_inspection_service.gd
-# res://addons/gdsql/editor/integrations/mcp/gdsql_mcp_model_inspection_service.gd
-# res://addons/gdsql/editor/model_generation/gdsql_model_compatibility_inspector.gd
-# res://addons/gdsql/editor/model_generation/gdsql_model_compatibility_report.gd
-# res://addons/gdsql/editor/model_generation/gdsql_model_source.gd
-# res://addons/gdsql/editor/model_generation/gdsql_model_source_generator.gd
-# res://addons/gdsql/editor/model_generation/references/gdsql_editor_content_reference.gd
-# res://addons/gdsql/editor/model_generation/references/gdsql_editor_content_reference_store.gd
-# res://addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.gd
-# res://addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.tscn
-# res://addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_property_row.gd
-# res://addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_property_row.tscn
-# res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_types.gd
-# res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_value_field.gd
-# res://addons/gdsql/editor/workspace/components/index/gdsql_index_draft_row.gd
-# res://addons/gdsql/editor/workspace/components/index/gdsql_index_draft_row.tscn
-# res://addons/gdsql/editor/workspace/components/index/gdsql_index_property_row.gd
-# res://addons/gdsql/editor/workspace/components/index/gdsql_index_property_row.tscn
-# res://addons/gdsql/editor/workspace/components/resource/gdsql_editor_resource_picker.gd
-# res://addons/gdsql/editor/workspace/components/result_grid/gdsql_editor_result_grid.gd
-# res://addons/gdsql/editor/workspace/components/result_grid/gdsql_editor_result_grid.tscn
-# res://addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor.gd
-# res://addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor.tscn
-# res://addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_draft.gd
-# res://addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_header.tscn
-# res://addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.gd
-# res://addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
-# res://addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.gd
-# res://addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
-# res://addons/gdsql/editor/workspace/components/table/gdsql_table_fold.gd
-# res://addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn
-# res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_expanded_text_editor.gd
-# res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_string_value_field.gd
-# res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_string_value_field.tscn
-# res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_text_value_dialog.gd
-# res://addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_text_value_dialog.tscn
-# res://addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd
-# res://addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
-# res://addons/gdsql/editor/workspace/documents/database/gdsql_database_document.gd
-# res://addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
-# res://addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.gd
-# res://addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
-# res://addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.gd
-# res://addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
-# res://addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_content_reference_row.gd
-# res://addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_content_reference_row.tscn
-# res://addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.gd
-# res://addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn
-# res://addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.gd
-# res://addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
-# res://addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.gd
-# res://addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
-# res://addons/gdsql/editor/workspace/gdsql_workspace.gd
-# res://addons/gdsql/editor/workspace/gdsql_workspace.tscn
-# res://addons/gdsql/editor/workspace/query_graph/components/graph_node/query_graph_node.gd
-# res://addons/gdsql/editor/workspace/query_graph/components/graph_node/query_graph_node_header.gd
-# res://addons/gdsql/editor/workspace/query_graph/components/graph_node/query_graph_node_header.tscn
-# res://addons/gdsql/editor/workspace/query_graph/components/mutation_values/mutation_values_editor.gd
-# res://addons/gdsql/editor/workspace/query_graph/components/mutation_values/mutation_values_editor.tscn
-# res://addons/gdsql/editor/workspace/query_graph/components/source/source_selector.gd
-# res://addons/gdsql/editor/workspace/query_graph/components/source/source_selector.tscn
-# res://addons/gdsql/editor/workspace/query_graph/components/where_expression/gdsql_where_field.gd
-# res://addons/gdsql/editor/workspace/query_graph/components/where_expression/gdsql_where_field_catalog.gd
-# res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.gd
-# res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
-# res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.gd
-# res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.tscn
-# res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.gd
-# res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
-# res://addons/gdsql/editor/workspace/query_graph/graph_editor.gd
-# res://addons/gdsql/editor/workspace/query_graph/graph_editor.tscn
-# res://addons/gdsql/editor/workspace/query_graph/nodes/delete/delete_operation_node.gd
-# res://addons/gdsql/editor/workspace/query_graph/nodes/delete/delete_operation_node.tscn
-# res://addons/gdsql/editor/workspace/query_graph/nodes/insert/insert_operation_node.gd
-# res://addons/gdsql/editor/workspace/query_graph/nodes/insert/insert_operation_node.tscn
-# res://addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.gd
-# res://addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.tscn
-# res://addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd
-# res://addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-# res://addons/gdsql/editor/workspace/query_graph/nodes/update/update_operation_node.gd
-# res://addons/gdsql/editor/workspace/query_graph/nodes/update/update_operation_node.tscn
-# res://addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd
-# res://addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
-# res://addons/gdsql/mapping/gdsql_result_mapping.gd
-# res://addons/gdsql/mapping/gdsql_result_materializer.gd
-# res://addons/gdsql/mapping/materializers/gdsql_csv_export_materializer.gd
-# res://addons/gdsql/mapping/materializers/gdsql_dictionary_result_materializer.gd
-# res://addons/gdsql/mapping/materializers/gdsql_editor_table_materializer.gd
-# res://addons/gdsql/mapping/materializers/gdsql_model_result_materializer.gd
-# res://addons/gdsql/mapping/materializers/gdsql_resource_result_materializer.gd
-# res://addons/gdsql/model/gdsql_content_model.gd
-# res://addons/gdsql/model/gdsql_model.gd
-# res://addons/gdsql/model/gdsql_model_access_mode.gd
-# res://addons/gdsql/model/gdsql_model_context.gd
-# res://addons/gdsql/model/gdsql_model_definition.gd
-# res://addons/gdsql/model/gdsql_model_query.gd
-# res://addons/gdsql/model/gdsql_model_registry.gd
-# res://addons/gdsql/model/gdsql_models.gd
-# res://addons/gdsql/model/gdsql_relationship_definition.gd
-# res://addons/gdsql/model/gdsql_save_model.gd
-# res://addons/gdsql/model/gdsql_settings_model.gd
-# res://addons/gdsql/model/relationships/gdsql_model_relationship_inferrer.gd
-# res://addons/gdsql/plugin.gd
-# res://addons/gdsql/query/binding/gdsql_bound_column_expression.gd
-# res://addons/gdsql/query/binding/gdsql_bound_delete_query.gd
-# res://addons/gdsql/query/binding/gdsql_bound_insert_query.gd
-# res://addons/gdsql/query/binding/gdsql_bound_join.gd
-# res://addons/gdsql/query/binding/gdsql_bound_query.gd
-# res://addons/gdsql/query/binding/gdsql_bound_query_operation.gd
-# res://addons/gdsql/query/binding/gdsql_bound_select_query.gd
-# res://addons/gdsql/query/binding/gdsql_bound_table_source.gd
-# res://addons/gdsql/query/binding/gdsql_bound_update_query.gd
-# res://addons/gdsql/query/binding/gdsql_query_binding_result.gd
-# res://addons/gdsql/query/execution/gdsql_default_query_executor.gd
-# res://addons/gdsql/query/execution/gdsql_execution_context.gd
-# res://addons/gdsql/query/execution/gdsql_expression_evaluator.gd
-# res://addons/gdsql/query/execution/gdsql_foreign_key_constraint_validator.gd
-# res://addons/gdsql/query/execution/gdsql_query_cancellation_token.gd
-# res://addons/gdsql/query/execution/gdsql_query_execution_result.gd
-# res://addons/gdsql/query/execution/gdsql_query_executor.gd
-# res://addons/gdsql/query/execution/gdsql_query_function_registry.gd
-# res://addons/gdsql/query/execution/gdsql_transaction_manager.gd
-# res://addons/gdsql/query/graph/gdsql_graph_query_compiler.gd
-# res://addons/gdsql/query/graph/gdsql_query_graph.gd
-# res://addons/gdsql/query/graph/nodes/gdsql_query_graph_delete_node.gd
-# res://addons/gdsql/query/graph/nodes/gdsql_query_graph_insert_node.gd
-# res://addons/gdsql/query/graph/nodes/gdsql_query_graph_select_node.gd
-# res://addons/gdsql/query/graph/nodes/gdsql_query_graph_update_node.gd
-# res://addons/gdsql/query/model/clauses/gdsql_column_assignment.gd
-# res://addons/gdsql/query/model/clauses/gdsql_insert_row.gd
-# res://addons/gdsql/query/model/clauses/gdsql_join_spec.gd
-# res://addons/gdsql/query/model/clauses/gdsql_order_clause.gd
-# res://addons/gdsql/query/model/clauses/gdsql_query_source.gd
-# res://addons/gdsql/query/model/clauses/gdsql_select_projection.gd
-# res://addons/gdsql/query/model/clauses/gdsql_table_reference.gd
-# res://addons/gdsql/query/model/expressions/gdsql_arithmetic_expression.gd
-# res://addons/gdsql/query/model/expressions/gdsql_column_expression.gd
-# res://addons/gdsql/query/model/expressions/gdsql_comparison_expression.gd
-# res://addons/gdsql/query/model/expressions/gdsql_function_expression.gd
-# res://addons/gdsql/query/model/expressions/gdsql_literal_expression.gd
-# res://addons/gdsql/query/model/expressions/gdsql_logical_expression.gd
-# res://addons/gdsql/query/model/expressions/gdsql_null_check_expression.gd
-# res://addons/gdsql/query/model/gdsql_delete_query_spec.gd
-# res://addons/gdsql/query/model/gdsql_expression_visitor.gd
-# res://addons/gdsql/query/model/gdsql_insert_query_spec.gd
-# res://addons/gdsql/query/model/gdsql_query_expression.gd
-# res://addons/gdsql/query/model/gdsql_query_function_catalog.gd
-# res://addons/gdsql/query/model/gdsql_query_function_definition.gd
-# res://addons/gdsql/query/model/gdsql_query_spec.gd
-# res://addons/gdsql/query/model/gdsql_query_spec_visitor.gd
-# res://addons/gdsql/query/model/gdsql_select_query_spec.gd
-# res://addons/gdsql/query/model/gdsql_update_query_spec.gd
-# res://addons/gdsql/query/planning/gdsql_default_query_planner.gd
-# res://addons/gdsql/query/planning/gdsql_plan_node.gd
-# res://addons/gdsql/query/planning/gdsql_plan_node_visitor.gd
-# res://addons/gdsql/query/planning/gdsql_query_plan.gd
-# res://addons/gdsql/query/planning/gdsql_query_planner.gd
-# res://addons/gdsql/query/planning/gdsql_query_planning_result.gd
-# res://addons/gdsql/query/planning/nodes/gdsql_aggregate_plan.gd
-# res://addons/gdsql/query/planning/nodes/gdsql_delete_plan.gd
-# res://addons/gdsql/query/planning/nodes/gdsql_distinct_plan.gd
-# res://addons/gdsql/query/planning/nodes/gdsql_filter_plan.gd
-# res://addons/gdsql/query/planning/nodes/gdsql_index_lookup_plan.gd
-# res://addons/gdsql/query/planning/nodes/gdsql_insert_plan.gd
-# res://addons/gdsql/query/planning/nodes/gdsql_limit_plan.gd
-# res://addons/gdsql/query/planning/nodes/gdsql_nested_loop_join_plan.gd
-# res://addons/gdsql/query/planning/nodes/gdsql_primary_key_lookup_plan.gd
-# res://addons/gdsql/query/planning/nodes/gdsql_projection_plan.gd
-# res://addons/gdsql/query/planning/nodes/gdsql_range_lookup_plan.gd
-# res://addons/gdsql/query/planning/nodes/gdsql_sort_plan.gd
-# res://addons/gdsql/query/planning/nodes/gdsql_table_scan_plan.gd
-# res://addons/gdsql/query/planning/nodes/gdsql_update_plan.gd
-# res://addons/gdsql/query/sql/ast/gdsql_sql_binary_expression_node.gd
-# res://addons/gdsql/query/sql/ast/gdsql_sql_column_node.gd
-# res://addons/gdsql/query/sql/ast/gdsql_sql_literal_node.gd
-# res://addons/gdsql/query/sql/ast/gdsql_sql_table_node.gd
-# res://addons/gdsql/query/sql/gdsql_query_compilation_result.gd
-# res://addons/gdsql/query/sql/gdsql_sql_lexer.gd
-# res://addons/gdsql/query/sql/gdsql_sql_parse_result.gd
-# res://addons/gdsql/query/sql/gdsql_sql_parser.gd
-# res://addons/gdsql/query/sql/gdsql_sql_query_compiler.gd
-# res://addons/gdsql/query/sql/gdsql_sql_select_statement.gd
-# res://addons/gdsql/query/sql/gdsql_sql_statement.gd
-# res://addons/gdsql/query/sql/gdsql_sql_token.gd
-# res://addons/gdsql/query/sql/gdsql_tokenization_result.gd
-# res://addons/gdsql/query/validation/gdsql_default_query_validator.gd
-# res://addons/gdsql/query/validation/gdsql_query_validation_result.gd
-# res://addons/gdsql/query/validation/gdsql_query_validator.gd
-# res://addons/gdsql/runtime/content/save_compatibility/gdsql_save_content_compatibility_inspector.gd
-# res://addons/gdsql/runtime/content/save_compatibility/gdsql_save_content_compatibility_report.gd
-# res://addons/gdsql/runtime/content/save_compatibility/gdsql_save_content_manifest.gd
-# res://addons/gdsql/runtime/content/save_compatibility/gdsql_save_content_manifest_store.gd
-# res://addons/gdsql/runtime/content/save_compatibility/gdsql_save_content_package_change.gd
-# res://addons/gdsql/runtime/gdsql_checkpoint_policy.gd
-# res://addons/gdsql/runtime/gdsql_checkpoint_result.gd
-# res://addons/gdsql/runtime/gdsql_checkpoint_target.gd
-# res://addons/gdsql/runtime/gdsql_content_activation_result.gd
-# res://addons/gdsql/runtime/gdsql_content_cache_manager.gd
-# res://addons/gdsql/runtime/gdsql_content_cache_manifest.gd
-# res://addons/gdsql/runtime/gdsql_content_cache_result.gd
-# res://addons/gdsql/runtime/gdsql_content_cache_store.gd
-# res://addons/gdsql/runtime/gdsql_content_database_snapshot.gd
-# res://addons/gdsql/runtime/gdsql_content_overlay_loader.gd
-# res://addons/gdsql/runtime/gdsql_content_overlay_result.gd
-# res://addons/gdsql/runtime/gdsql_content_package_dependency.gd
-# res://addons/gdsql/runtime/gdsql_content_package_discovery.gd
-# res://addons/gdsql/runtime/gdsql_content_package_fingerprint.gd
-# res://addons/gdsql/runtime/gdsql_content_package_fingerprint_provider.gd
-# res://addons/gdsql/runtime/gdsql_content_package_kind.gd
-# res://addons/gdsql/runtime/gdsql_content_package_layer.gd
-# res://addons/gdsql/runtime/gdsql_content_package_layer_reader.gd
-# res://addons/gdsql/runtime/gdsql_content_package_manifest.gd
-# res://addons/gdsql/runtime/gdsql_content_package_manifest_store.gd
-# res://addons/gdsql/runtime/gdsql_content_package_manifest_validator.gd
-# res://addons/gdsql/runtime/gdsql_content_package_resolution_result.gd
-# res://addons/gdsql/runtime/gdsql_content_package_resolver.gd
-# res://addons/gdsql/runtime/gdsql_content_package_source.gd
-# res://addons/gdsql/runtime/gdsql_content_row_conflict.gd
-# res://addons/gdsql/runtime/gdsql_content_row_operation.gd
-# res://addons/gdsql/runtime/gdsql_content_row_provenance.gd
-# res://addons/gdsql/runtime/gdsql_database_explorer.gd
-# res://addons/gdsql/runtime/gdsql_database_inspection.gd
-# res://addons/gdsql/runtime/gdsql_database_registration.gd
-# res://addons/gdsql/runtime/gdsql_database_registry.gd
-# res://addons/gdsql/runtime/gdsql_database_registry_snapshot.gd
-# res://addons/gdsql/runtime/gdsql_database_registry_store.gd
-# res://addons/gdsql/runtime/gdsql_database_role_binding.gd
-# res://addons/gdsql/runtime/gdsql_direct_setup_check.gd
-# res://addons/gdsql/runtime/gdsql_direct_setup_inspector.gd
-# res://addons/gdsql/runtime/gdsql_direct_setup_report.gd
-# res://addons/gdsql/runtime/gdsql_in_memory_checkpoint_target.gd
-# res://addons/gdsql/runtime/gdsql_persistence_coordinator.gd
-# res://addons/gdsql/runtime/gdsql_runtime_node.gd
-# res://addons/gdsql/runtime/gdsql_runtime_node.tscn
-# res://addons/gdsql/runtime/gdsql_runtime_session.gd
-# res://addons/gdsql/runtime/gdsql_semantic_version.gd
-# res://addons/gdsql/runtime/gdsql_semantic_version_constraint.gd
-# res://addons/gdsql/runtime/gdsql_table_inspection.gd
-# res://addons/gdsql/runtime/setup/gdsql_setup_check.gd
-# res://addons/gdsql/runtime/setup/gdsql_setup_profile.gd
-# res://addons/gdsql/runtime/setup/gdsql_setup_profile_store.gd
-# res://addons/gdsql/runtime/setup/gdsql_setup_report.gd
-# res://addons/gdsql/runtime/setup/managed/gdsql_managed_content_configuration.gd
-# res://addons/gdsql/runtime/setup/managed/gdsql_managed_content_configuration_store.gd
-# res://addons/gdsql/runtime/setup/managed/gdsql_managed_setup_inspector.gd
-# res://addons/gdsql/runtime/setup/managed/gdsql_managed_setup_report.gd
-# res://addons/gdsql/storage/configfile/content/gdsql_config_file_content_package_scaffolder.gd
-# res://addons/gdsql/storage/configfile/content/gdsql_config_file_save_content_manifest_store.gd
-# res://addons/gdsql/storage/configfile/gdsql_config_file_cache.gd
-# res://addons/gdsql/storage/configfile/gdsql_config_file_catalog_administration_service.gd
-# res://addons/gdsql/storage/configfile/gdsql_config_file_catalog_service.gd
-# res://addons/gdsql/storage/configfile/gdsql_config_file_content_cache_store.gd
-# res://addons/gdsql/storage/configfile/gdsql_config_file_content_package_discovery.gd
-# res://addons/gdsql/storage/configfile/gdsql_config_file_content_package_fingerprint_provider.gd
-# res://addons/gdsql/storage/configfile/gdsql_config_file_content_package_layer_reader.gd
-# res://addons/gdsql/storage/configfile/gdsql_config_file_content_package_manifest_store.gd
-# res://addons/gdsql/storage/configfile/gdsql_config_file_database_explorer.gd
-# res://addons/gdsql/storage/configfile/gdsql_config_file_database_registry_store.gd
-# res://addons/gdsql/storage/configfile/gdsql_config_file_table_storage.gd
-# res://addons/gdsql/storage/configfile/gdsql_godot_variant_codec.gd
-# res://addons/gdsql/storage/configfile/gdsql_resource_locator.gd
-# res://addons/gdsql/storage/configfile/setup/gdsql_config_file_managed_content_configuration_store.gd
-# res://addons/gdsql/storage/configfile/setup/gdsql_config_file_setup_profile_store.gd
-# res://addons/gdsql/storage/gdsql_database_path_resolver.gd
-# res://addons/gdsql/storage/gdsql_row_record.gd
-# res://addons/gdsql/storage/gdsql_storage_backend_ids.gd
-# res://addons/gdsql/storage/gdsql_storage_capabilities.gd
-# res://addons/gdsql/storage/gdsql_storage_commit_result.gd
-# res://addons/gdsql/storage/gdsql_storage_operation_result.gd
-# res://addons/gdsql/storage/gdsql_storage_session.gd
-# res://addons/gdsql/storage/gdsql_table_snapshot.gd
-# res://addons/gdsql/storage/gdsql_table_storage.gd
-# res://addons/gdsql/storage/memory/gdsql_in_memory_table_storage.gd
-#
-# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
-#
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: GDSQL\n"
@@ -350,19 +11,12 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 3.9\n"
 
-#: addons/gdsql/editor/database_dock/gdsql_database_dock.tscn
 msgid "Databases"
 msgstr "数据库"
 
-#: addons/gdsql/editor/database_dock/gdsql_database_dock.tscn
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "Refresh"
 msgstr "刷新"
 
-#: addons/gdsql/editor/database_dock/gdsql_database_dock.tscn
 msgid ""
 "No databases registered.\n"
 "Create a database to begin."
@@ -370,19 +24,15 @@ msgstr ""
 "未注册任何数据库。\n"
 "请创建一个数据库以开始操作。"
 
-#: addons/gdsql/editor/debug/gdsql_log_entry.tscn
 msgid "Time / Tick"
 msgstr "时间 / 毫秒数时间"
 
-#: addons/gdsql/editor/debug/gdsql_log_entry.tscn
 msgid "00:00:00"
 msgstr "00:00:00"
 
-#: addons/gdsql/editor/debug/gdsql_log_entry.tscn
 msgid "Status"
 msgstr "状态"
 
-#: addons/gdsql/editor/debug/gdsql_log_entry.tscn
 msgctxt "result"
 msgid "OK"
 msgstr "成功"
@@ -390,197 +40,141 @@ msgstr "成功"
 msgid "OK"
 msgstr "确定"
 
-#: addons/gdsql/editor/debug/gdsql_log_entry.tscn
 msgid "Action"
 msgstr "动作"
 
-#: addons/gdsql/editor/debug/gdsql_log_entry.tscn
 msgid "Message"
 msgstr "信息"
 
-#: addons/gdsql/editor/debug/gdsql_logs_panel.tscn
 msgid "No GDSQL activity yet."
 msgstr "目前尚无 GDSQL 活动。"
 
-#: addons/gdsql/editor/debug/gdsql_logs_panel.tscn
 msgid "Copy Message"
 msgstr "复制消息"
 
-#: addons/gdsql/editor/debug/gdsql_logs_panel.tscn
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Delete"
 msgstr "删除"
 
-#: addons/gdsql/editor/debug/gdsql_logs_panel.tscn
 msgid "Clear All"
 msgstr "全部清除"
 
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.tscn
 msgid "Constraint"
 msgstr "约束"
 
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.tscn
 msgid "Generated from the source column and referenced target."
 msgstr "由源列和引用目标生成。"
 
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.tscn
 msgid "fk_source_column_target_column"
 msgstr "fk_source_column_target_column"
 
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.tscn
 msgid "Local column"
 msgstr "本地列"
 
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.tscn
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "→"
 msgstr "→"
 
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.tscn
 msgid "Referenced table"
 msgstr "引用表"
 
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.tscn
 msgid "."
 msgstr "."
 
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.tscn
 msgid "Referenced unique column"
 msgstr "被引用的唯一列"
 
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.tscn
 msgid ""
 "Referenced updates and deletes are restricted while dependent rows exist."
 msgstr "存在依赖行时，对被引用行的更新和删除将受到限制。"
 
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.tscn
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_property_row.tscn
 msgid "RESTRICT"
 msgstr "RESTRICT"
 
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.tscn
 msgid "Discard foreign key draft"
 msgstr "放弃外键草稿"
 
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.tscn
-#: addons/gdsql/editor/workspace/components/index/gdsql_index_draft_row.tscn
 msgid "×"
 msgstr "×"
 
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_property_row.gd:29
 msgid "Updates and deletes use RESTRICT while dependent rows exist."
 msgstr "存在依赖行时，更新和删除使用 RESTRICT。"
 
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_property_row.tscn
 msgid "Constraint:"
 msgstr "约束："
 
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_property_row.tscn
 msgid "constraint: column → table.column"
 msgstr "约束：列 → 表.列"
 
-#: addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_property_row.tscn
-#: addons/gdsql/editor/workspace/components/index/gdsql_index_property_row.tscn
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Remove"
 msgstr "移除"
 
-#: addons/gdsql/editor/workspace/components/gdsql_editor_variant_value_field.gd:124
-#: addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_text_value_dialog.tscn
 msgid "Null"
 msgstr "空值"
 
-#: addons/gdsql/editor/workspace/components/index/gdsql_index_draft_row.tscn
 msgid "Unique"
 msgstr "唯一"
 
-#: addons/gdsql/editor/workspace/components/index/gdsql_index_draft_row.tscn
 msgid "index_name"
 msgstr "index_name"
 
-#: addons/gdsql/editor/workspace/components/index/gdsql_index_draft_row.tscn
 msgid "column_a, column_b"
 msgstr "column_a, column_b"
 
-#: addons/gdsql/editor/workspace/components/index/gdsql_index_property_row.gd:21
 msgid ""
 "Primary keys use GDSQL's dedicated primary-key lookup and cannot be removed "
 "as a secondary index."
 msgstr "主键使用 GDSQL 专用的主键查找，不能作为二级索引移除。"
 
-#: addons/gdsql/editor/workspace/components/index/gdsql_index_property_row.tscn
 msgid "index_name (column)"
 msgstr "index_name (column)"
 
-#: addons/gdsql/editor/workspace/components/resource/gdsql_editor_resource_picker.gd:49
 msgid "New"
 msgstr "新建"
 
-#: addons/gdsql/editor/workspace/components/result_grid/gdsql_editor_result_grid.gd:220
 msgid "NULL"
 msgstr "NULL"
 
-#: addons/gdsql/editor/workspace/components/result_grid/gdsql_editor_result_grid.tscn
 msgid "Typed database rows with validated editing and Resource previews."
 msgstr "带类型校验的数据库行，提供受校验的编辑与 Resource 预览。"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_header.tscn
 msgid "Name"
 msgstr "名称"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_header.tscn
 msgid "Type"
 msgstr "类型"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_header.tscn
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Resource"
 msgstr "资源"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_header.tscn
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "Storage"
 msgstr "存储"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_header.tscn
 msgid "Nullable"
 msgstr "可为空"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_header.tscn
 msgid "NUL"
 msgstr "NUL"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_header.tscn
 msgid "UN"
 msgstr "UN"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_header.tscn
 msgid "Auto Increment"
 msgstr "自动递增"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_header.tscn
 msgid "AI"
 msgstr "AI"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_header.tscn
 msgid "Default"
 msgstr "默认"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_header.tscn
 msgid "DEF"
 msgstr "DEF"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_header.tscn
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Default value"
 msgstr "默认值"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_header.tscn
 msgid "Generation"
 msgstr "生成方式"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.gd:113
 msgid ""
 "Owned: store an independent Resource value in this database.\n"
 "Referenced: store a UID/path locator to an existing asset."
@@ -588,642 +182,468 @@ msgstr ""
 "自有：在本数据库中存储一份独立的 Resource 值。\n"
 "引用：存储指向现有资源的 UID/路径定位符。"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Right-click for column actions."
 msgstr "右键点击可执行列操作。"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Drag to change the editor column order"
 msgstr "拖动可调整编辑器中的列顺序"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "column_name"
 msgstr "column_name"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "bool"
 msgstr "bool"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "int"
 msgstr "int"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "float"
 msgstr "float"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "String"
 msgstr "String"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "StringName"
 msgstr "StringName"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "NodePath"
 msgstr "NodePath"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Vector2"
 msgstr "Vector2"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Vector2i"
 msgstr "Vector2i"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Rect2"
 msgstr "Rect2"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Rect2i"
 msgstr "Rect2i"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Vector3"
 msgstr "Vector3"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Vector3i"
 msgstr "Vector3i"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Transform2D"
 msgstr "Transform2D"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Vector4"
 msgstr "Vector4"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Vector4i"
 msgstr "Vector4i"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Plane"
 msgstr "Plane"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Quaternion"
 msgstr "Quaternion"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "AABB"
 msgstr "AABB"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Basis"
 msgstr "Basis"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Transform3D"
 msgstr "Transform3D"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Projection"
 msgstr "Projection"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Color"
 msgstr "Color"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Dictionary"
 msgstr "Dictionary"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Array"
 msgstr "Array"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "PackedByteArray"
 msgstr "PackedByteArray"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "PackedInt32Array"
 msgstr "PackedInt32Array"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "PackedInt64Array"
 msgstr "PackedInt64Array"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "PackedFloat32Array"
 msgstr "PackedFloat32Array"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "PackedFloat64Array"
 msgstr "PackedFloat64Array"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "PackedStringArray"
 msgstr "PackedStringArray"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "PackedVector2Array"
 msgstr "PackedVector2Array"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "PackedVector3Array"
 msgstr "PackedVector3Array"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "PackedColorArray"
 msgstr "PackedColorArray"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "PackedVector4Array"
 msgstr "PackedVector4Array"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Select a Resource prototype to define the accepted subtype."
 msgstr "选择一个 Resource 原型，以定义可接受的子类型。"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Resource type"
 msgstr "Resource 类型"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Owned"
 msgstr "自有"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Referenced"
 msgstr "引用"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "None"
 msgstr "无"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Created At"
 msgstr "创建时间"
 
-#: addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.tscn
 msgid "Updated At"
 msgstr "更新时间"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
 msgid "Draft table"
 msgstr "草稿表"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
 msgid "Table name"
 msgstr "表名"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
 msgid "heroes"
 msgstr "heroes"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
 msgid "Primary key is automatically added as an index"
 msgstr "主键会自动作为索引加入"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
 msgid "Primary key"
 msgstr "主键"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
 msgid "Column name"
 msgstr "列名"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
 msgid "Generated timestamps"
 msgstr "自动生成的时间戳"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
 msgid "created_at and updated_at"
 msgstr "created_at and updated_at"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.tscn
 msgid "Columns"
 msgstr "列"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn
 msgid "Add Column"
 msgstr "添加列"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn
 msgid "Indexes"
 msgstr "索引"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn
 msgid "Add Index"
 msgstr "添加索引"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn
 msgid "Foreign Keys"
 msgstr "外键"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn
 msgid "Add Foreign Key"
 msgstr "添加外键"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
 msgid ""
 "Targets must be unique columns in this database with the same int, String, "
 "or StringName type."
 msgstr "目标必须是本数据库中类型同为 int、String 或 StringName 的唯一列。"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_draft_fold.tscn
 msgid "Discard Table"
 msgstr "放弃表"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.gd:226
 msgid "Primary key cannot be removed"
 msgstr "主键不能移除"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.gd:229
 msgid "Restore Column"
 msgstr "恢复列"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.gd:231
 msgid "Remove Column…"
 msgstr "移除列…"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
-#: addons/gdsql/editor/workspace/query_graph/components/source/source_selector.tscn
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Table"
 msgstr "表"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn
 msgid "Table summary"
 msgstr "表摘要"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn
 msgid "Open Data"
 msgstr "打开数据"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Model"
 msgstr "模型"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn
 msgid "Delete every row and reset the generated-key sequence."
 msgstr "删除所有行并重置自增键序列。"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn
 msgid "Reset Data…"
 msgstr "重置数据…"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn
 msgid ""
 "References stay inside this database. Target columns must be unique and use "
 "the same key type."
 msgstr "引用仅限本数据库内部。目标列必须唯一且使用相同的键类型。"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn
 msgid "Remove Column"
 msgstr "移除列"
 
-#: addons/gdsql/editor/workspace/components/table/gdsql_table_fold.tscn
 msgid "Stage Removal"
 msgstr "暂存移除"
 
-#: addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_string_value_field.tscn
 msgid "Text"
 msgstr "文本"
 
-#: addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_string_value_field.tscn
 msgid "Open expanded text editor"
 msgstr "打开扩展文本编辑器"
 
-#: addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_text_value_dialog.gd:33
-#: addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_text_value_dialog.tscn
 msgid "Edit the stored String in a multiline field."
 msgstr "在多行字段中编辑所存储的 String。"
 
-#: addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_text_value_dialog.tscn
 msgid "Edit Text"
 msgstr "编辑文本"
 
-#: addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_text_value_dialog.tscn
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Apply"
 msgstr "应用"
 
-#: addons/gdsql/editor/workspace/components/text_editor/gdsql_editor_text_value_dialog.tscn
 msgid "Enter text…"
 msgstr "输入文本…"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd:100
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd:104
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "content"
 msgstr "游戏内容"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd:105
 msgid "res://content/base/data"
 msgstr "res://content/base/data"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd:108
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "save_1"
 msgstr "save_1"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd:113
 msgid "user://gdsql/settings"
 msgstr "user://gdsql/settings"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd:132
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid ""
 "Authored game content shipped with the project. Runtime access is read-only."
 msgstr "随项目一同发布的原创游戏内容。运行时只读。"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd:144
 msgid "Mutable settings shared independently from save slots."
 msgstr "独立于存档槽位共享的可变设置。"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd:148
 msgid ""
 "Explicit location and storage behavior without an automatic runtime role."
 msgstr "显式指定位置与存储行为，不自动分配运行时角色。"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd:173
 msgid "Enter a database name."
 msgstr "请输入数据库名称。"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd:175
 msgid "Choose a data root."
 msgstr "请选择数据根目录。"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.gd:177
 msgid "Managed package data must use a directory below its package root."
 msgstr "托管包数据必须位于其包根目录下的子目录中。"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "DATABASE SETUP"
 msgstr "数据库设置"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "What will this database store?"
 msgstr "这个数据库要存储什么？"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid ""
 "Choose the purpose first. GDSQL will derive a safe location, storage mode, "
 "and runtime role."
 msgstr "请先选择用途，GDSQL 会据此推导出安全的位置、存储模式和运行时角色。"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "Purpose"
 msgstr "用途"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Direct content"
 msgstr "直接内容"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "Managed base content"
 msgstr "托管基础内容"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "Save slot"
 msgstr "存档槽位"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "Shared settings"
 msgstr "共享设置"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "Custom"
 msgstr "自定义"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "Location"
 msgstr "位置"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "res://data"
 msgstr "res://data"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "Runtime storage"
 msgstr "运行时存储"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "ConfigFile"
 msgstr "cfg 文件"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "Runtime role"
 msgstr "运行时角色"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "Database name"
 msgstr "数据库名称"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "Advanced storage options"
 msgstr "高级存储选项"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "Data root"
 msgstr "数据根目录"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "ConfigFile — read and write durable files directly"
 msgstr "cfg 文件 — 直接读写持久化文件"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "In memory — hydrate from ConfigFile and checkpoint changes"
 msgstr "内存 — 从 cfg 文件 载入，并对变更做检查点保存"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "Catalog, schema, and rows use ConfigFile storage directly."
 msgstr "目录、模式和行数据直接使用 cfg 文件存储。"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid ""
 "If this logical database already exists at the selected root, GDSQL opens it "
 "without replacing its files."
 msgstr "若所选根目录下已存在该逻辑数据库，GDSQL 会直接打开它，不会替换其文件。"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Create Database"
 msgstr "创建数据库"
 
-#: addons/gdsql/editor/workspace/documents/create_database/gdsql_database_create_document.tscn
 msgid "Cancel"
 msgstr "取消"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Database: "
 msgstr "数据库："
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Database Name"
 msgstr "数据库名称"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Remove from GDSQL"
 msgstr "从 GDSQL 中移除"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Destroy Files…"
 msgstr "销毁文件…"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Database Storage Format"
 msgstr "数据库存储格式"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Database Location"
 msgstr "数据库位置"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Tables"
 msgstr "表"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Search tables or columns…"
 msgstr "搜索表或列…"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "0 tables"
 msgstr "0 张表"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "No table or column matches this search."
 msgstr "没有与该搜索匹配的表或列。"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "A database name is required."
 msgstr "必须填写数据库名称。"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Saved"
 msgstr "已保存"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Apply Database Changes"
 msgstr "应用数据库变更"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Remove Database"
 msgstr "移除数据库"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Remove this database from GDSQL? Its files will remain unchanged."
 msgstr "要将此数据库从 GDSQL 中移除吗？其文件将保持不变。"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Permanently Destroy Database"
 msgstr "永久销毁数据库"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Destroy Database Files"
 msgstr "销毁数据库文件"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Permanently destroy this database and all stored rows?"
 msgstr "要永久销毁此数据库及其全部已存储的行吗？"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Reset Table Data"
 msgstr "重置表数据"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Delete All and Reset"
 msgstr "全部删除并重置"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Discard Local Changes"
 msgstr "放弃本地更改"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Discard and Refresh"
 msgstr "放弃并刷新"
 
-#: addons/gdsql/editor/workspace/documents/database/gdsql_database_document.tscn
 msgid "Discard unsaved database drafts and reload the durable catalog?"
 msgstr "要放弃未保存的数据库草稿并重新加载持久化目录吗？"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "RUNTIME CONTENT"
 msgstr "运行时内容"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Managed content setup"
 msgstr "托管内容设置"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid ""
 "Build one effective content database from an immutable base package and "
 "optional DLC or mod packages."
 msgstr "从不可变的基础包与可选的 DLC 或模组包构建一个有效内容数据库。"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Package configuration"
 msgstr "包配置"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Base package directory"
 msgstr "基础包目录"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Directory containing manifest.cfg"
 msgstr "包含 manifest.cfg 的目录"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Optional package container directories · one per line"
 msgstr "可选包容器目录 · 每行一个"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Directories whose children contain package manifests"
 msgstr "其子目录中包含包清单的目录"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Enabled optional package IDs · one per line"
 msgstr "已启用的可选包 ID · 每行一个"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Leave empty for base content only"
 msgstr "留空则仅使用基础内容"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Create Base Database"
 msgstr "创建基础数据库"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Validate"
 msgstr "校验"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Save & Build Cache"
 msgstr "保存并构建缓存"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Configure a base package to begin."
 msgstr "请先配置基础包以开始。"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "2 package(s) discovered"
 msgstr "发现 2 个包"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Package                 Kind       Version      Selection      Source"
 msgstr "包                     类型       版本         选择           来源"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid ""
 "base.game               BASE       1.0.0        Base           res://content/"
 "base"
@@ -1231,7 +651,6 @@ msgstr ""
 "base.game               BASE       1.0.0        基础           res://content"
 "/base"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid ""
 "example.cosmetics       MOD        1.1.0        Enabled        user://gdsql/"
 "mods/example"
@@ -1239,80 +658,61 @@ msgstr ""
 "example.cosmetics       MOD        1.1.0        已启用         user://gdsql/"
 "mods/example"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Effective cache"
 msgstr "有效内容缓存"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "READY"
 msgstr "就绪"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "2 packages cached as effective_content."
 msgstr "已将 2 个包缓存为 effective_content。"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Active save compatibility"
 msgstr "活动存档兼容性"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "NOT RECORDED"
 msgstr "未记录"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Record the current package set for this save."
 msgstr "为本存档记录当前的包集合。"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Record Current Package Set…"
 msgstr "记录当前包集合…"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Record Save Content Set"
 msgstr "记录存档内容集合"
 
-#: addons/gdsql/editor/workspace/documents/managed_content/gdsql_managed_content_document.tscn
 msgid "Record Current Set"
 msgstr "记录当前集合"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.gd:207
 msgid "Generated base: —"
 msgstr "生成的基类：—"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.gd:208
 msgid "User model: —"
 msgstr "用户模型：—"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.gd:243
 msgid "Generate the user-owned model before opening its script."
 msgstr "请先生成用户自有模型，再打开其脚本。"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.gd:251
 msgid "Godot could not load the user model script. Check the Output panel."
 msgstr "Godot 无法加载用户模型脚本。请查看输出面板。"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.gd:302
 msgid ""
 "Copied a clean user-model scaffold. The existing model file was not changed."
 msgstr "已复制一份干净的用户模型骨架。现有模型文件未被修改。"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.gd:314
 msgid "NOT INSPECTED"
 msgstr "未检查"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.gd:414
 msgid "UPDATING"
 msgstr "更新中"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.gd:416
 msgid "Waiting for Godot to import the generated scripts."
 msgstr "正在等待 Godot 导入生成的脚本。"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Model binding · heroes"
 msgstr "模型绑定 · heroes"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid ""
 "The table owns the schema. Regeneration replaces only the generated base; "
 "the user model and its custom functions remain user-owned."
@@ -1320,67 +720,51 @@ msgstr ""
 "模式归表所有。重新生成只会替换生成的基类；用户模型及其自定义函数仍归用户所有"
 "。"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "base_content / heroes"
 msgstr "base_content / heroes"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Model class"
 msgstr "模型类"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Use a singular class name, e.g. HeroContent"
 msgstr "请使用单数形式的类名，例如 HeroContent"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Database role"
 msgstr "数据库角色"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Content · read-only at runtime"
 msgstr "内容 · 运行时只读"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Saved state · mutable active slot"
 msgstr "存档状态 · 可变的活动槽位"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Settings · mutable shared state"
 msgstr "设置 · 可变的共享状态"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Custom role · read-only by default"
 msgstr "自定义角色 · 默认只读"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Custom role"
 msgstr "自定义角色"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "analytics"
 msgstr "analytics"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Models folder"
 msgstr "模型目录"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "res://models"
 msgstr "res://models"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Generated base: res://models/generated/hero_model_generated.gd"
 msgstr "生成的基类：res://models/generated/hero_model_generated.gd"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "User model: res://models/hero.gd · created once"
 msgstr "用户模型：res://models/hero.gd · 仅创建一次"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Existing model compatibility"
 msgstr "现有模型兼容性"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid ""
 "Same-database relationships are inferred from catalog foreign keys when both "
 "model types are registered. Many-to-many and cross-role relationships remain "
@@ -1389,98 +773,73 @@ msgstr ""
 "当两种模型类型都已注册时，同库关系会依据目录中的外键推导得出。多对多关系与跨"
 "角色关系仍需在 relationships() 中显式声明。"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid ""
 "Copy a clean user-owned model scaffold. The existing file is not changed."
 msgstr "复制一份干净的用户自有模型骨架。现有文件不会被修改。"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Copy Scaffold"
 msgstr "复制骨架"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "COMPATIBLE"
 msgstr "兼容"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Column 'name' has no matching model property."
 msgstr "列 'name' 没有匹配的模型属性。"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Generated schema base · safe to regenerate"
 msgstr "生成的模式基类 · 可安全重新生成"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "User model · created once"
 msgstr "用户模型 · 仅创建一次"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Scene preview only — table metadata replaces this skeleton."
 msgstr "仅为场景预览 — 表元数据会替换此骨架内容。"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Preview ready. The table remains the schema source of truth."
 msgstr "预览就绪。表仍是模式的权威来源。"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "Close"
 msgstr "关闭"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Open the user-owned model in Godot's Script editor."
 msgstr "在 Godot 的脚本编辑器中打开用户自有模型。"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Open Script"
 msgstr "打开脚本"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Generate Scripts"
 msgstr "生成脚本"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Regenerate Model Base"
 msgstr "重新生成模型基类"
 
-#: addons/gdsql/editor/workspace/documents/model/gdsql_model_assistant_document.tscn
 msgid "Replace Generated Base"
 msgstr "替换生成的基类"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_content_reference_row.tscn
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn
 msgid "hero_content"
 msgstr "hero_content"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_content_reference_row.tscn
 msgid "hero_content_id → content / heroes.id"
 msgstr "hero_content_id → content / heroes.id"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_content_reference_row.tscn
 msgid "Copy this references_one() declaration"
 msgstr "复制这段 references_one() 声明"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_content_reference_row.tscn
 msgid "Remove this editor picker binding. Model code is not changed."
 msgstr "移除此编辑器选择器绑定。模型代码不会被修改。"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.gd:210
 msgid "Use a snake_case reference name such as hero_content."
 msgstr "请使用 snake_case 形式的引用名，例如 hero_content。"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.gd:217
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn
 msgid "Paste this entry inside the save model's relationships() return array."
 msgstr "将此条目粘贴到存档模型的 relationships() 返回数组中。"
 
 msgid "Picker registered and relationship copied. Paste it inside relationships()."
 msgstr "已注册选择器并复制关系。请将其粘贴到 relationships() 中。"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn
 msgid "Save → content reference"
 msgstr "存档 → 内容引用"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn
 msgid ""
 "Save tables keep stable content identifiers. These references provide model "
 "navigation and editor picking without creating cross-database catalog "
@@ -1489,35 +848,27 @@ msgstr ""
 "存档表保存稳定的内容标识符。这些引用提供模型导航与编辑器选择能力，且不会创建"
 "跨数据库的目录约束。"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn
 msgid "Save column"
 msgstr "存档列"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn
 msgid "hero_id · int"
 msgstr "hero_id · int"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn
 msgid "Content model"
 msgstr "内容模型"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn
 msgid "content / heroes · HeroContent"
 msgstr "content / heroes · HeroContent"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn
 msgid "Reference name"
 msgstr "引用名"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn
 msgid "Register & Copy"
 msgstr "注册并复制"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn
 msgid "Registered references"
 msgstr "已注册的引用"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn
 msgid ""
 "These bindings control editor cell pickers. Copy reproduces the runtime "
 "references_one() declaration. Remove deletes only picker metadata; model "
@@ -1526,49 +877,38 @@ msgstr ""
 "这些绑定控制编辑器中的单元格选择器。复制会重现运行时的 references_one() 声明"
 "。移除仅删除选择器元数据；模型代码仍归用户所有。"
 
-#: addons/gdsql/editor/workspace/documents/model/relationship_helper/gdsql_cross_role_relationship_helper.tscn
 msgid "No content references registered for this table."
 msgstr "此表未注册任何内容引用。"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "RUNTIME STATE"
 msgstr "运行时状态"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "Save slots"
 msgstr "存档槽位"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "New Save Slot"
 msgstr "新建存档槽位"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid ""
 "Each slot is an independent writable database. Save models follow the slot "
 "selected for the save role."
 msgstr "每个槽位都是独立可写的数据库。存档模型会跟随为存档角色选定的槽位。"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "Active runtime save"
 msgstr "活动运行时存档"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "2 save slot(s) registered"
 msgstr "已注册 2 个存档槽位"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "No save slots found under user://gdsql/saves."
 msgstr "在 user://gdsql/saves 下未找到存档槽位。"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "Slot"
 msgstr "槽位"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "State"
 msgstr "状态"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid ""
 "save_1                 Active              In memory          user://gdsql/"
 "saves/save_1"
@@ -1576,7 +916,6 @@ msgstr ""
 "save_1                 活动                内存               user://gdsql/s"
 "aves/save_1"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid ""
 "save_2                 Available           In memory          user://gdsql/"
 "saves/save_2"
@@ -1584,89 +923,66 @@ msgstr ""
 "save_2                 可用                内存               user://gdsql/s"
 "aves/save_2"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid ""
 "Selection changes project runtime configuration; it does not alter slot data."
 msgstr "选择结果会改变项目运行时配置，但不会修改槽位数据。"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "Use This Slot"
 msgstr "使用此槽位"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.gd:251
 msgid "Open Database"
 msgstr "打开数据库"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "Unregister (Keep Files)"
 msgstr "注销（保留文件）"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "Delete Slot Data…"
 msgstr "删除槽位数据…"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "Unregister Save Slot"
 msgstr "注销存档槽位"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "Unregister and Keep Files"
 msgstr "注销并保留文件"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "Permanently Delete Save Slot Data"
 msgstr "永久删除存档槽位数据"
 
-#: addons/gdsql/editor/workspace/documents/save_slots/gdsql_save_slots_document.tscn
 msgid "Delete Slot Data"
 msgstr "删除槽位数据"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.gd:70
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Choose your content profile"
 msgstr "选择内容方案"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.gd:242
 msgid "This profile's setup checklist is complete."
 msgstr "此方案的设置清单已完成。"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.gd:249
 msgid "Create Content"
 msgstr "创建内容"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.gd:253
 msgid "Open Table"
 msgstr "打开表"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.gd:255
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Open Managed Setup"
 msgstr "打开托管设置"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.gd:257
 msgid "Manage Saves"
 msgstr "管理存档"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.gd:259
 msgid "Install Runtime"
 msgstr "安装运行时"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "GDSQL WORKBENCH"
 msgstr "GDSQL 工作台"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid ""
 "Choose the workflow that matches how this project will ship and extend "
 "content."
 msgstr "选择与本项目内容发布和扩展方式相匹配的工作流。"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Fast setup for games that ship one authored definition database."
 msgstr "适用于只发布一个原创定义数据库的游戏，可快速完成设置。"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid ""
 "• Definitions live under res://data\n"
 "• Runtime reads that content directly\n"
@@ -1676,19 +992,15 @@ msgstr ""
 "• 运行时直接读取该内容\n"
 "• 在无需覆盖层和用户模组时最为合适"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Choose Direct Content"
 msgstr "选择直接内容"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Managed content"
 msgstr "托管内容"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "A complete package pipeline for moddable or layered game content."
 msgstr "面向可模组化或分层游戏内容的完整包流水线。"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid ""
 "• Base game, DLC, and mods use the same package shape\n"
 "• Deterministic overlays build effective content\n"
@@ -1698,759 +1010,540 @@ msgstr ""
 "• 由确定性的覆盖层构建有效内容\n"
 "• 增加来源追踪、缓存与存档兼容性"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Choose Managed Content"
 msgstr "选择托管内容"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid ""
 "Profile changes do not migrate databases, models, resource paths, or save "
 "expectations automatically."
 msgstr "切换方案不会自动迁移数据库、模型、资源路径或存档预期。"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "DIRECT CONTENT"
 msgstr "直接内容"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Project-authored definitions are consumed directly from res://data."
 msgstr "项目原创的定义直接从 res://data 读取。"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Reset / Change Profile…"
 msgstr "重置 / 更改方案…"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Save Slots"
 msgstr "存档槽位"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Setup checklist"
 msgstr "设置清单"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Content database"
 msgstr "内容数据库"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "○"
 msgstr "○"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "First table"
 msgstr "首个表"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "First row"
 msgstr "首行"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Active save"
 msgstr "活动存档"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Model binding"
 msgstr "模型绑定"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Runtime adapter"
 msgstr "运行时适配器"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Next setup action"
 msgstr "下一步设置操作"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Continue"
 msgstr "继续"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Project databases"
 msgstr "项目数据库"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Open Selected"
 msgstr "打开所选"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "No databases are registered for this project yet."
 msgstr "此项目尚未注册任何数据库。"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Choose Setup Profile"
 msgstr "选择设置方案"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Choose Profile"
 msgstr "选择方案"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Return to Profile Selection"
 msgstr "返回方案选择"
 
-#: addons/gdsql/editor/workspace/documents/welcome/gdsql_welcome_document.tscn
 msgid "Return to Selection"
 msgstr "返回选择"
 
 msgid "Return to profile selection? This changes onboarding guidance only. Existing databases, packages, models, and saves will not be moved or deleted."
 msgstr "要返回方案选择吗？这只会改变引导提示。现有的数据库、包、模型和存档不会被移动或删除。"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "File"
 msgstr "文件"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "New Database…"
 msgstr "新建数据库…"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Save"
 msgstr "保存"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "Edit"
 msgstr "编辑"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "Undo"
 msgstr "撤销"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "Redo"
 msgstr "重做"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "Editor Settings…"
 msgstr "编辑器设置…"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "Query"
 msgstr "查询"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "New Query Graph"
 msgstr "新建查询图"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "Run Query"
 msgstr "运行查询"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
-#: addons/gdsql/editor/workspace/query_graph/components/source/source_selector.tscn
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.tscn
 msgid "Database"
 msgstr "数据库"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "Create Database…"
 msgstr "创建数据库…"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "Add Table"
 msgstr "添加表"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "Save Slots…"
 msgstr "存档槽位…"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "Managed Content…"
 msgstr "托管内容…"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "Help"
 msgstr "帮助"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "GDSQL Documentation"
 msgstr "GDSQL 文档"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "About GDSQL"
 msgstr "关于 GDSQL"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "Discard Unsaved Changes"
 msgstr "放弃未保存的更改"
 
-#: addons/gdsql/editor/workspace/gdsql_workspace.tscn
 msgid "Discard and Close"
 msgstr "放弃并关闭"
 
-#: addons/gdsql/editor/workspace/query_graph/components/graph_node/query_graph_node_header.tscn
 msgid "Fit node to graph view at 100%"
 msgstr "将节点适配到图形视图的 100%"
 
-#: addons/gdsql/editor/workspace/query_graph/components/graph_node/query_graph_node_header.tscn
 msgid "Remove node"
 msgstr "移除节点"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.gd:158
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.gd:221
 msgid "AND"
 msgstr "AND"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.gd:163
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.gd:226
 msgid "OR"
 msgstr "OR"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
 msgid "IF"
 msgstr "IF"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
 msgid "Invert this condition"
 msgstr "反转此条件"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
 msgid "NOT"
 msgstr "NOT"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
 msgid "Equals"
 msgstr "等于"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
 msgid "Not equal"
 msgstr "不等于"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
 msgid "Greater than"
 msgstr "大于"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
 msgid "Greater or equal"
 msgstr "大于或等于"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
 msgid "Less than"
 msgstr "小于"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
 msgid "Less or equal"
 msgstr "小于或等于"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
 msgid "Is null"
 msgstr "为空"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
 msgid "Is not null"
 msgstr "不为空"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
 msgid "Move condition up"
 msgstr "上移条件"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
 msgid "↑"
 msgstr "↑"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
 msgid "Move condition down"
 msgstr "下移条件"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
 msgid "↓"
 msgstr "↓"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_condition_row.tscn
 msgid "Remove condition"
 msgstr "移除条件"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.tscn
 msgid "WHERE"
 msgstr "WHERE"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.tscn
 msgid "All rows"
 msgstr "所有行"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.tscn
 msgid "Clear the current and pending WHERE filter"
 msgstr "清除当前及待应用的 WHERE 筛选"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.tscn
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.gd:190
 msgid "Clear"
 msgstr "清除"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.tscn
 msgid "Apply this WHERE filter"
 msgstr "应用此 WHERE 筛选"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.tscn
 msgid "Apply Filter"
 msgstr "应用筛选"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.tscn
 msgid ""
 "Groups define precedence. Conditions inside each group are composed from top "
 "to bottom."
 msgstr "分组决定优先级。每个分组内的条件按从上到下的顺序组合。"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
 msgid "Collapse group"
 msgstr "折叠分组"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
 msgid "▼"
 msgstr "▼"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
 msgid "GROUP"
 msgstr "GROUP"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
 msgid "Invert this entire group"
 msgstr "反转整个分组"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
 msgid "(<group summary>)"
 msgstr "（<分组摘要>）"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
 msgid "Move group up"
 msgstr "上移分组"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
 msgid "Move group down"
 msgstr "下移分组"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
 msgid "Remove group"
 msgstr "移除分组"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
 msgid "Append a condition to this group"
 msgstr "向此分组追加一个条件"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
 msgid "Add condition"
 msgstr "添加条件"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
 msgid "Add a nested precedence group"
 msgstr "添加嵌套的优先级分组"
 
-#: addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_group.tscn
 msgid "Add group"
 msgstr "添加分组"
 
-#: addons/gdsql/editor/workspace/query_graph/graph_editor.tscn
 msgid "Open Graphs Folder"
 msgstr "打开图形目录"
 
-#: addons/gdsql/editor/workspace/query_graph/graph_editor.tscn
 msgid "Save graph layout"
 msgstr "保存图形布局"
 
-#: addons/gdsql/editor/workspace/query_graph/graph_editor.tscn
 msgid "Add Select Graph Node"
 msgstr "添加 SELECT 图节点"
 
-#: addons/gdsql/editor/workspace/query_graph/graph_editor.tscn
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.tscn
 msgid "SELECT"
 msgstr "SELECT"
 
-#: addons/gdsql/editor/workspace/query_graph/graph_editor.tscn
 msgid "Add Left Join Graph Node"
 msgstr "添加 LEFT JOIN 图节点"
 
-#: addons/gdsql/editor/workspace/query_graph/graph_editor.tscn
 msgid "LEFT JOIN"
 msgstr "LEFT JOIN"
 
-#: addons/gdsql/editor/workspace/query_graph/graph_editor.tscn
 msgid "Add Insert Graph Node"
 msgstr "添加 INSERT 图节点"
 
-#: addons/gdsql/editor/workspace/query_graph/graph_editor.tscn
-#: addons/gdsql/editor/workspace/query_graph/nodes/insert/insert_operation_node.tscn
 msgid "INSERT"
 msgstr "INSERT"
 
-#: addons/gdsql/editor/workspace/query_graph/graph_editor.tscn
 msgid "Add Update Graph Node"
 msgstr "添加 UPDATE 图节点"
 
-#: addons/gdsql/editor/workspace/query_graph/graph_editor.tscn
-#: addons/gdsql/editor/workspace/query_graph/nodes/update/update_operation_node.tscn
 msgid "UPDATE"
 msgstr "UPDATE"
 
-#: addons/gdsql/editor/workspace/query_graph/graph_editor.tscn
 msgid "Add Delete Graph Node"
 msgstr "添加 DELETE 图节点"
 
-#: addons/gdsql/editor/workspace/query_graph/graph_editor.tscn
-#: addons/gdsql/editor/workspace/query_graph/nodes/delete/delete_operation_node.tscn
 msgid "DELETE"
 msgstr "DELETE"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/delete/delete_operation_node.tscn
 msgid "I confirm deleting every row"
 msgstr "我确认删除所有行"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/delete/delete_operation_node.tscn
-#: addons/gdsql/editor/workspace/query_graph/nodes/insert/insert_operation_node.tscn
-#: addons/gdsql/editor/workspace/query_graph/nodes/update/update_operation_node.tscn
 msgid "Mutation result"
 msgstr "变更结果"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/delete/delete_operation_node.tscn
-#: addons/gdsql/editor/workspace/query_graph/nodes/insert/insert_operation_node.tscn
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.tscn
-#: addons/gdsql/editor/workspace/query_graph/nodes/update/update_operation_node.tscn
 msgid "No source selected."
 msgstr "未选择源。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/delete/delete_operation_node.tscn
 msgid "Compile and run this DELETE"
 msgstr "编译并运行此 DELETE"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/insert/insert_operation_node.tscn
 msgid "Compile and run this INSERT"
 msgstr "编译并运行此 INSERT"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.gd:185
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.gd:253
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.gd:257
 msgid "No columns"
 msgstr "无列"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.gd:189
 msgid "Select all"
 msgstr "全选"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.gd:221
 msgid "No database is available."
 msgstr "没有可用的数据库。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.gd:255
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.tscn
 msgid "All columns"
 msgstr "所有列"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.tscn
 msgid "Select one or more result columns"
 msgstr "选择一个或多个结果列"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.tscn
 msgid "Table rows"
 msgstr "表行"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.tscn
 msgid "Compile and run this SELECT"
 msgstr "编译并运行此 SELECT"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/select/select_operation_node.tscn
 msgid "QUERY"
 msgstr "QUERY"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:78
 msgid "Safe Mode"
 msgstr "安全模式"
 
 msgid "Edit one selected row in a focused table editor. Disable to edit table cells directly."
 msgstr "在专门的行编辑器中编辑选中的单行。关闭后可直接编辑表格单元格。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:131
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
 msgid "QUERY RESULT"
 msgstr "查询结果"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:132
 msgid "The query did not return an editable table."
 msgstr "该查询未返回可编辑的表。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:133
 msgid "Query failed. See the activity log for diagnostics."
 msgstr "查询失败。请查看活动日志中的诊断信息。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:141
 msgid "MUTATION RESULT"
 msgstr "变更结果"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:143
 msgid "Mutation completed successfully."
 msgstr "变更已成功完成。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:212
 msgid "Creating a new row."
 msgstr "正在创建新行。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:284
 msgid "Save or discard the current row before selecting another row."
 msgstr "请先保存或放弃当前行，再选择其他行。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:349
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:377
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:658
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:679
 msgid "Correct the highlighted invalid values before saving."
 msgstr "请先修正标出的无效值再保存。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:434
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:698
 msgid "New row discarded."
 msgstr "已放弃新行。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:446
 msgid "Unsaved changes were discarded."
 msgstr "已放弃未保存的更改。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:458
 msgid "Unsaved cell changes were discarded."
 msgstr "已放弃未保存的单元格更改。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:468
 msgid "Save or discard pending changes before switching edit modes."
 msgstr "请先保存或放弃待处理的更改，再切换编辑模式。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:551
 msgid "Save or discard the current row before changing pages."
 msgstr "请先保存或放弃当前行，再切换页码。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.gd:561
 msgid "Save or discard the current row before changing page size."
 msgstr "请先保存或放弃当前行，再更改每页行数。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
 msgid "TABLE"
 msgstr "表"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
 msgid "Run the query to display rows."
 msgstr "运行查询以显示行。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
 msgid ""
 "Columns follow the configured display order. Safe Mode uses the row editor; "
 "direct mode edits cells in place."
 msgstr "列遵循配置的显示顺序。安全模式使用行编辑器；直接模式就地编辑单元格。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "First page"
 msgstr "第一页"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "|<"
 msgstr "|<"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Previous page"
 msgstr "上一页"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "<"
 msgstr "<"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
 msgid "Page 1 of 1"
 msgstr "第 1 页 / 共 1 页"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Next page"
 msgstr "下一页"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid ">"
 msgstr ">"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Last page"
 msgstr "最后一页"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid ">|"
 msgstr ">|"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Rows"
 msgstr "行"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Rows per page"
 msgstr "每页行数"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "10"
 msgstr "10"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "25"
 msgstr "25"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "50"
 msgstr "50"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "100"
 msgstr "100"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
 msgid "The selected row uses the same typed table editor as direct mode."
 msgstr "所选行使用与直接模式相同的带类型表编辑器。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
 msgid "No query result yet."
 msgstr "尚无查询结果。"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
 msgid "Add row"
 msgstr "添加行"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Add Row"
 msgstr "添加行"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
 msgid "Save all pending row or cell changes"
 msgstr "保存所有待处理的行或单元格更改"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
 msgid "Save Changes"
 msgstr "保存更改"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
 msgid "Discard all pending row or cell changes"
 msgstr "放弃所有待处理的行或单元格更改"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
 msgid "Discard Changes"
 msgstr "放弃更改"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
 msgid "Delete the selected row"
 msgstr "删除所选行"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/table_result/table_result_node.tscn
 msgid "Delete Row"
 msgstr "删除行"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/update/update_operation_node.tscn
 msgid "I confirm updating every row"
 msgstr "我确认更新所有行"
 
-#: addons/gdsql/editor/workspace/query_graph/nodes/update/update_operation_node.tscn
 msgid "Compile and run this UPDATE"
 msgstr "编译并运行此 UPDATE"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:343
 msgid "Save or discard changes before loading another page."
 msgstr "请先保存或放弃更改，再加载其他页。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:345
 msgid "Loading rows…"
 msgstr "正在加载行…"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:360
 msgid "The selected foreign-key constraint no longer exists."
 msgstr "所选外键约束已不存在。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:363
 msgid "Loading referenced rows…"
 msgstr "正在加载被引用的行…"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:383
 msgid "The selected content reference is invalid."
 msgstr "所选内容引用无效。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:386
 msgid "Loading content rows…"
 msgstr "正在加载内容行…"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:493
 msgid "Show all"
 msgstr "显示全部"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:504
 msgid "Save or discard row changes before changing visible columns."
 msgstr "请先保存或放弃行更改，再更改可见列。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:517
 msgid "At least one column must remain visible."
 msgstr "至少需保留一列可见。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:535
 msgid "Save or discard row changes before changing row order."
 msgstr "请先保存或放弃行更改，再更改行顺序。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:581
 msgid "Save or discard row changes before applying a filter."
 msgstr "请先保存或放弃行更改，再应用筛选。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:603
 msgid "Save or discard row changes before clearing the filter."
 msgstr "请先保存或放弃行更改，再清除筛选。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:637
 msgid "Save or discard edited rows before adding a row."
 msgstr "请先保存或放弃已编辑的行，再添加行。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:649
 msgid "Enter the new row, then save it from the action bar."
 msgstr "请输入新行内容，然后从操作栏保存它。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:672
 msgid "The transaction failed and was rolled back; pending edits were preserved."
 msgstr "事务失败并已回滚；待处理的编辑已保留。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:685
 msgid "Adding row…"
 msgstr "正在添加行…"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:691
 msgid "Could not add the row; its values were preserved."
 msgstr "无法添加该行；其取值已保留。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:702
 msgid "Pending draft discarded; stored rows were not changed."
 msgstr "已放弃待处理草稿；已存储的行未被修改。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:718
 msgid "Save or discard changes before duplicating rows."
 msgstr "请先保存或放弃更改，再复制行。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:737
 msgid "The duplicate transaction failed and was rolled back."
 msgstr "复制事务失败并已回滚。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:859
 msgid "Save or discard changes before deleting rows."
 msgstr "请先保存或放弃更改，再删除行。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:883
 msgid "The delete transaction failed and was rolled back."
 msgstr "删除事务失败并已回滚。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:973
 msgid ""
 "\n"
 "\n"
@@ -2464,7 +1557,6 @@ msgstr ""
 "	updated_at 记录撤销操作的时间。 \n"
 "	历史记录仅在本次编辑器会话内有效。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:982
 msgid ""
 "\n"
 "\n"
@@ -2478,35 +1570,27 @@ msgstr ""
 "	`updated_at` 记录撤销操作的时间。 \n"
 "	历史记录仅在本次编辑器会话内有效。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:1000
 msgid "Save or discard changes before changing pages."
 msgstr "请先保存或放弃更改，再切换页码。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.gd:1012
 msgid "Save or discard changes before changing page size."
 msgstr "请先保存或放弃更改，再更改每页行数。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Table: "
 msgstr "表："
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Reload this page"
 msgstr "重新加载此页"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Generate a typed model binding for this table"
 msgstr "为此表生成带类型的模型绑定"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Table details"
 msgstr "表详情"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Edit cells directly. Hold Ctrl or Shift to select multiple rows."
 msgstr "直接编辑单元格。按住 Ctrl 或 Shift 可选择多行。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid ""
 "id      name              health\n"
 "1       Preview row       100\n"
@@ -2520,57 +1604,44 @@ msgstr ""
 "\n"
 "仅为场景预览 — 运行时的行会替换此内容。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "New row"
 msgstr "新行"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Rows are loaded on demand."
 msgstr "行按需加载。"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Add a row"
 msgstr "添加一行"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid ""
 "Commit all pending edits together; any failure rolls back the complete batch"
 msgstr "一并提交所有待处理的编辑；任一处失败都会回滚整个批次"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Discard the local draft without changing stored rows"
 msgstr "放弃本地草稿，不改动已存储的行"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Discard"
 msgstr "放弃"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Select one or more rows to duplicate"
 msgstr "选择一行或多行以复制"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Duplicate"
 msgstr "复制"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Select one or more rows to delete"
 msgstr "选择一行或多行以删除"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid ""
 "Pending row edits commit as one transaction; a failure applies none of them"
 msgstr "待处理的行编辑作为一个事务提交；任一处失败则全部不生效"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "No pending changes"
 msgstr "没有待处理的更改"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Page 1 of 1 · 0 rows"
 msgstr "第 1 页 / 共 1 页 · 0 行"
 
-#: addons/gdsql/editor/workspace/table_editor/gdsql_table_data_document.tscn
 msgid "Delete Selected Rows"
 msgstr "删除所选行"
 
