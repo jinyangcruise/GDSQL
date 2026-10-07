@@ -48,6 +48,11 @@ jobs:
 
           echo "Release version $ADDON_VERSION is consistent."
 
+      - name: Smoke test packaged addon
+        env:
+          GODOT_BIN: /home/runner/godot-linux/godot
+        run: ./scripts/validate-addon-package.sh
+
       - name: Package addon
         run: |
           mkdir -p dist/addons

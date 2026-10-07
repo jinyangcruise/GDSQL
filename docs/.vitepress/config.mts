@@ -33,6 +33,7 @@ export default defineConfig({
             { text: 'Introduction', link: '/guide/introduction' },
             { text: 'Why GDSQL?', link: '/guide/why-gdsql' },
             { text: 'Installation', link: '/guide/installation' },
+            { text: 'Compatibility', link: '/guide/compatibility' },
             { text: 'Create your first project', link: '/guide/getting-started' },
             { text: 'Choose a content profile', link: '/guide/content-profiles' },
             { text: 'Managed content packages', link: '/guide/managed-content' },

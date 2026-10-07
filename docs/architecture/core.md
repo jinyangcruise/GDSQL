@@ -194,7 +194,9 @@ A `QuerySpec` is treated as descriptive data rather than an executable object.
 
 Godot 4.5 abstract classes and methods provide explicit contracts for the redesigned architecture.
 
-Adopting `@abstract` makes Godot 4.5 the minimum supported version unless a compatibility layer is maintained.
+`@abstract` requires Godot 4.5 at the language layer. The complete plugin
+supports Godot 4.7 because its editor integration uses `EditorDock`; older
+versions are not part of the supported product matrix.
 
 ```gdscript
 @abstract

@@ -52,7 +52,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Release, recovery, performance, and supported-version QA | Required before a stable release |
+| High — first | Release, recovery, performance, and supported-version QA | Godot 4.7 contract and isolated package smoke check implemented; exported builds, recovery fault injection, and benchmarks remain |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
@@ -459,6 +459,12 @@ Release readiness requires:
 - Stable diagnostics for missing files, unsupported formats, schema drift, and
   incompatible generated models.
 
+The first QA slice is implemented: Godot 4.7 is the explicit supported editor
+line, public documentation no longer promises every Godot 4 release, and CI
+loads the packaged `addons/gdsql` directory in an otherwise empty project after
+the test suite. This detects hidden development-addon dependencies and packaged
+script loading failures before release creation.
+
 ## 4. Editor and integration completion
 
 - Verify Godot-AI tool registration across plugin load order, reload, disable,
@@ -503,8 +509,8 @@ runtime/model relationships, typed APIs, troubleshooting, Godot-AI integration,
 architecture, and project philosophy.
 
 New documentation should accompany an implemented or approved contract. The
-next required documents are migration/recovery guidance and a release
-compatibility matrix; do not add end-user updater instructions before that
+compatibility matrix is published; migration/recovery guidance remains the next
+required public document. Do not add end-user updater instructions before that
 feature exists.
 
 ## Definition of plug and play

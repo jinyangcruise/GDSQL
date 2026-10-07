@@ -29,3 +29,8 @@ jobs:
           publish-report: false
           paths: res://tests
           timeout: 5
+
+      - name: Smoke test packaged addon
+        env:
+          GODOT_BIN: /home/runner/godot-linux/godot
+        run: ./scripts/validate-addon-package.sh

@@ -124,8 +124,9 @@ applied ledger. Project content is verified at its trusted schema head without
 runtime mutation. New save slots copy the active slot's verified schema without
 copying its rows and receive a baseline for the shared migration stream.
 
-Multi-table orchestration, migration of older player saves, and broader
-release/recovery verification remain active work.
+Ordered dependent schema/data migrations and migration of registered older
+player saves are implemented. Broader release/recovery verification remains
+active work.
 Database creation, rename, unregister, and destruction are administrative
 lifecycle operations rather than migration entries. Until the remaining work
 is complete, released projects should treat migration support as pre-release

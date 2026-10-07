@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Godot 4.x
+- Godot 4.7 stable. See the [compatibility matrix](./compatibility).
 - The `addons/gdsql` directory from this repository
 
 Godot-AI is optional and is needed only for the agent tools described in
