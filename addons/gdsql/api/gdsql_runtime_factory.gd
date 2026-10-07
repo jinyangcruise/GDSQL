@@ -378,6 +378,7 @@ static func _create_context(
 				query_planner,
 				executor,
 				execution_context,
+				GDSQLConfigFileMigrationSimulator.new(path_resolver),
 			),
 			GDSQLMigrationRunner.new(
 				catalog,

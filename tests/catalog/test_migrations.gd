@@ -569,7 +569,7 @@ func test_catalog_migration_preview_retains_stale_schema_protection() -> void:
 	assert_str(_first_code(apply_result)).is_equal("GDSQL_CATALOG_CHANGE_PLAN_STALE")
 
 
-func test_step_planner_rejects_multi_step_preview_without_mutation() -> void:
+func test_step_planner_requires_isolated_simulation_for_multiple_steps() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
 	var steps: Array[GDSQLSchemaMigrationStep] = [
 		GDSQLSchemaMigrationStep.new(
@@ -594,7 +594,7 @@ func test_step_planner_rejects_multi_step_preview_without_mutation() -> void:
 	]
 	var migration := GDSQLMigrationDefinition.new(
 		"202609280001_multiple_steps",
-		"Unsupported initial dry run",
+		"Requires isolated simulation",
 		steps,
 	)
 	var history_result := GDSQLMigrationPlanner.new().plan(
@@ -609,12 +609,155 @@ func test_step_planner_rejects_multi_step_preview_without_mutation() -> void:
 
 	assert_bool(result.is_successful()).is_false()
 	assert_str(_first_code(result)).is_equal(
-		"GDSQL_MIGRATION_MULTI_STEP_PREVIEW_UNSUPPORTED",
+		"GDSQL_MIGRATION_SIMULATOR_REQUIRED",
 	)
 	assert_object(
 		database.context.catalog.get_table(database.database_name, &"heroes") \
 				.get_column(&"level"),
 	).is_null()
+
+
+func test_simulation_previews_and_applies_dependent_schema_steps() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var migration := GDSQLMigrationDefinition.new(
+		"202609280001_rename_and_extend_characters",
+		"Rename and extend the character table",
+		[
+			GDSQLSchemaMigrationStep.rename_table(&"heroes", &"characters"),
+			GDSQLSchemaMigrationStep.new(
+				&"characters",
+				[
+					GDSQLTableAlteration.add_column(
+						GDSQLColumnDefinition.new(
+							&"level",
+							TYPE_INT,
+							false,
+							false,
+							false,
+							1,
+						),
+					),
+				],
+			),
+		],
+	)
+
+	var preview := database.preview_migrations([migration])
+
+	assert_bool(preview.is_successful()).is_true()
+	assert_array(preview.next_plan.summaries()).contains_exactly(
+		[
+			"Rename table 'heroes' to 'characters'.",
+			"Add column 'level'.",
+		],
+	)
+	assert_object(
+		database.context.catalog.get_table(database.database_name, &"heroes"),
+	).is_not_null()
+	assert_object(
+		database.context.catalog.get_table(database.database_name, &"characters"),
+	).is_null()
+
+	var applied := database.apply_migration(preview.next_plan)
+
+	assert_bool(applied.is_successful()).is_true()
+	var reopened := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	var characters := reopened.context.catalog.get_table(
+		database.database_name,
+		&"characters",
+	)
+	assert_object(characters).is_not_null()
+	assert_object(characters.get_column(&"level")).is_not_null()
+	var rows := reopened.execute(
+		reopened.query().table(&"characters").select().order_by_column(&"id").build(),
+	)
+	assert_int(rows.rows.size()).is_equal(2)
+	assert_int(rows.rows[0].get_value(&"level")).is_equal(1)
+
+
+func test_simulation_previews_and_applies_mixed_schema_and_data_steps() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var migration := _add_and_populate_level_migration()
+
+	var preview := database.preview_migrations([migration])
+
+	assert_bool(preview.is_successful()).is_true()
+	assert_array(preview.next_plan.summaries()).contains_exactly(
+		[
+			"Add column 'level'.",
+			"Update 1 row(s) in table 'heroes'.",
+		],
+	)
+	assert_object(
+		database.context.catalog.get_table(database.database_name, &"heroes") \
+				.get_column(&"level"),
+	).is_null()
+
+	var applied := database.apply_migration(preview.next_plan)
+
+	assert_bool(applied.is_successful()).is_true()
+	var reopened := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	var rows := reopened.execute(
+		reopened.query().table(&"heroes").select().order_by_column(&"id").build(),
+	)
+	assert_int(rows.rows[0].get_value(&"level")).is_equal(1)
+	assert_int(rows.rows[1].get_value(&"level")).is_equal(5)
+
+
+func test_simulation_counts_repeated_data_steps_against_prior_results() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var migration := GDSQLMigrationDefinition.new(
+		"202609280001_promote_mage_twice",
+		"Apply dependent updates to one table",
+		[
+			_data_name_step("Mage", "Wizard"),
+			_data_name_step("Wizard", "Sorcerer"),
+		],
+	)
+
+	var preview := database.preview_migrations([migration])
+
+	assert_bool(preview.is_successful()).is_true()
+	assert_array(preview.next_plan.data_step_affected_rows).contains_exactly([1, 1])
+	var applied := database.apply_migration(preview.next_plan)
+	assert_bool(applied.is_successful()).is_true()
+	var reopened := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	var rows := reopened.execute(
+		reopened.query().table(&"heroes").select().order_by_column(&"id").build(),
+	)
+	assert_str(rows.rows[1].get_value(&"name")).is_equal("Sorcerer")
+
+
+func test_runner_recovers_when_data_count_changed_after_preview() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var migration := GDSQLMigrationDefinition.new(
+		"202609280001_promote_mages",
+		"Promote every mage",
+		[_data_name_step("Mage", "Wizard")],
+	)
+	var preview := database.preview_migrations([migration])
+	assert_bool(preview.is_successful()).is_true()
+	assert_int(preview.next_plan.affected_rows()).is_equal(1)
+	assert_bool(
+		database.insert(&"heroes", { &"id": 3, &"name": "Mage" }).is_successful(),
+	).is_true()
+
+	var result := database.apply_migration(preview.next_plan)
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(_first_code(result)).is_equal("GDSQL_MIGRATION_DATA_PREVIEW_STALE")
+	assert_bool(result.recovered).is_true()
+	var reopened := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	var rows := reopened.execute(
+		reopened.query().table(&"heroes").select().order_by_column(&"id").build(),
+	)
+	assert_int(rows.rows.size()).is_equal(3)
+	assert_str(rows.rows[1].get_value(&"name")).is_equal("Mage")
+	assert_str(rows.rows[2].get_value(&"name")).is_equal("Mage")
 
 
 func test_config_file_recovery_restores_database_rows_schema_and_ledger() -> void:
@@ -950,6 +1093,43 @@ func test_runner_restores_every_table_when_data_batch_ledger_append_fails() -> v
 	assert_str(quest_rows.rows[0].get_value(&"status")).is_equal("locked")
 
 
+func test_runner_restores_mixed_steps_when_ledger_append_fails() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var migration := _add_and_populate_level_migration()
+	var preview := database.preview_migrations([migration])
+	assert_bool(preview.is_successful()).is_true()
+	var recovery := GDSQLConfigFileMigrationRecoveryStore.new(
+		GDSQLDatabasePathResolver.new(_data_root),
+		GDSQLConfigFileCache.new(),
+	)
+	var runner := GDSQLMigrationRunner.new(
+		database.context.catalog,
+		database.context.catalog_administration,
+		FailingAppendLedger.new(),
+		recovery,
+		database.context.validator,
+		database.context.planner,
+		database.context.executor,
+		database.context.execution_context,
+	)
+
+	var result := runner.apply(preview.next_plan)
+
+	assert_bool(result.is_successful()).is_false()
+	assert_str(_first_code(result)).is_equal("GDSQL_TEST_LEDGER_APPEND_FAILED")
+	assert_bool(result.recovered).is_true()
+	var reopened := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	assert_object(
+		reopened.context.catalog.get_table(database.database_name, &"heroes") \
+				.get_column(&"level"),
+	).is_null()
+	var rows := reopened.execute(
+		reopened.query().table(&"heroes").select().order_by_column(&"id").build(),
+	)
+	assert_str(rows.rows[1].get_value(&"name")).is_equal("Mage")
+
+
 func test_runner_restores_preexisting_state_when_catalog_plan_is_stale() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
 	var harness := ConfigMigrationHarness.new(_data_root)
@@ -1061,6 +1241,56 @@ func _drop_table_migration(
 		migration_id,
 		"Migration %s" % migration_id,
 		steps,
+	)
+
+
+func _data_name_step(
+		current_name: String,
+		new_name: String,
+) -> GDSQLDataMigrationStep:
+	return GDSQLDataMigrationStep.new(
+		&"heroes",
+		[
+			GDSQLColumnAssignment.new(
+				&"name",
+				GDSQLLiteralExpression.new(new_name),
+			),
+		],
+		GDSQLColumnExpression.new(&"name").equals(current_name),
+	)
+
+
+func _add_and_populate_level_migration() -> GDSQLMigrationDefinition:
+	return GDSQLMigrationDefinition.new(
+		"202609280001_add_and_populate_level",
+		"Add levels and promote the mage",
+		[
+			GDSQLSchemaMigrationStep.new(
+				&"heroes",
+				[
+					GDSQLTableAlteration.add_column(
+						GDSQLColumnDefinition.new(
+							&"level",
+							TYPE_INT,
+							false,
+							false,
+							false,
+							1,
+						),
+					),
+				],
+			),
+			GDSQLDataMigrationStep.new(
+				&"heroes",
+				[
+					GDSQLColumnAssignment.new(
+						&"level",
+						GDSQLLiteralExpression.new(5),
+					),
+				],
+				GDSQLColumnExpression.new(&"id").equals(2),
+			),
+		],
 	)
 
 

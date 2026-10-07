@@ -152,7 +152,7 @@ func test_database_api_applies_distinct_table_updates_as_one_migration() -> void
 	assert_int(ledger.records.size()).is_equal(1)
 
 
-func test_database_api_rejects_repeated_table_data_steps() -> void:
+func test_database_api_applies_repeated_table_data_steps_in_order() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
 	TestDatabase.insert_basic_heroes(database)
 	var migration := GDSQLMigrationDefinition.new(
@@ -166,10 +166,14 @@ func test_database_api_rejects_repeated_table_data_steps() -> void:
 
 	var preview := database.preview_migrations([migration])
 
-	assert_bool(preview.is_successful()).is_false()
-	assert_str(_first_code(preview)).is_equal(
-		"GDSQL_MIGRATION_DATA_TABLE_REPEATED",
+	assert_bool(preview.is_successful()).is_true()
+	assert_array(preview.next_plan.data_step_affected_rows).contains_exactly([1, 1])
+	assert_bool(database.apply_migration(preview.next_plan).is_successful()).is_true()
+	var rows := database.execute(
+		database.query().table(&"heroes").select().order_by_column(&"id").build(),
 	)
+	assert_str(rows.rows[0].get_value(&"name")).is_equal("Knight")
+	assert_str(rows.rows[1].get_value(&"name")).is_equal("Wizard")
 
 
 func test_database_api_rejects_a_plan_for_another_database() -> void:

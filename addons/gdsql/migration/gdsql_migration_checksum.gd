@@ -40,6 +40,13 @@ static func is_valid(value: String) -> bool:
 	return true
 
 
+static func steps_match(
+		first: GDSQLMigrationStep,
+		second: GDSQLMigrationStep,
+) -> bool:
+	return _serialize_step(first) == _serialize_step(second)
+
+
 static func _serialize_step(step: GDSQLMigrationStep) -> Array:
 	if step == null:
 		return []

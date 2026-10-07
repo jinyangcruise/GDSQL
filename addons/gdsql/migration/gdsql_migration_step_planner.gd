@@ -7,6 +7,7 @@ var _validator: GDSQLQueryValidator
 var _query_planner: GDSQLQueryPlanner
 var _executor: GDSQLQueryExecutor
 var _execution_context: GDSQLExecutionContext
+var _simulator: GDSQLMigrationSimulator
 
 
 func _init(
@@ -15,12 +16,14 @@ func _init(
 		query_planner: GDSQLQueryPlanner = null,
 		executor: GDSQLQueryExecutor = null,
 		execution_context: GDSQLExecutionContext = null,
+		simulator: GDSQLMigrationSimulator = null,
 ) -> void:
 	_catalog_administration = catalog_administration
 	_validator = validator
 	_query_planner = query_planner
 	_executor = executor
 	_execution_context = execution_context
+	_simulator = simulator
 
 
 func preview_next(
@@ -54,8 +57,13 @@ func preview_next(
 		)
 	var migration := history_plan.pending[0]
 	if migration.steps.size() > 1:
-		return _preview_data_updates(
-			result,
+		if _simulator == null:
+			return _error(
+				result,
+				&"GDSQL_MIGRATION_SIMULATOR_REQUIRED",
+				"Ordered multi-step preview requires isolated migration simulation.",
+			)
+		return _simulator.preview(
 			database_name,
 			migration,
 			history_plan.ledger_revision,

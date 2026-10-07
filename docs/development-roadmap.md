@@ -52,8 +52,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Migration data/save completion | Runtime already recovers and advances registered writable saves before hydration; dependent schema/mixed batches remain deferred |
-| High | Release, recovery, performance, and supported-version QA | Required before a stable release |
+| High — first | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
@@ -70,13 +69,13 @@ sessions unless new evidence changes an architectural dependency:
 2. **Migration v1 — durable schema history (implemented and tested).** Build ordered forward schema
    migrations, checksums, an applied ledger, dry runs, backups, recovery, and
    headless validation on top of the stable stored-value boundary.
-3. **Migration data/save phases (implemented and tested).** Typed UPDATE steps use canonical
-   expressions and may form one atomic migration across distinct tables, with
-   per-table dry-run counts, one durable recovery snapshot, and one ledger
+3. **Migration data/save phases (implemented and tested).** Typed schema and UPDATE steps
+   form one ordered atomic migration. Isolated ConfigFile simulation previews
+   dependent schema, repeated-table data, and mixed batches with accurate
+   per-step counts; live application uses one recovery snapshot and one ledger
    record. The database document authors one table step at a time through typed
    controls. Fresh-save schema provisioning and runtime migration of registered
-   writable saves before hydration are implemented. Dependent schema/mixed
-   batches remain deferred.
+   writable saves before hydration are implemented.
 4. **Resource Stage B — explicit deferred loading (implemented and tested).** The typed
    handle provides synchronous and native threaded on-demand loading, progress,
    signals, diagnostics, caching, type validation, caller-owned release, and
@@ -354,8 +353,8 @@ slice provides:
    under a stable stream identity, separate from each physical database ledger.
 2. Forward-only typed schema steps built from the existing
    `GDSQLTableAlteration` vocabulary, plus complete create-table definitions
-   and table rename/drop operations. Implemented for one table lifecycle step
-   per migration.
+   and table rename/drop operations. Ordered migrations may contain dependent
+   schema and data operations.
 3. A persisted applied-migration ledger and schema fingerprint. Implemented
    and enforced by preview and the runner before and after catalog application.
    Pre-existing current-schema databases can establish one explicit baseline
@@ -365,17 +364,16 @@ slice provides:
    stale-safe, staged replacement, and the editor advances it only after the
    durable catalog is confirmed at the authored head.
 4. Dry-run planning with affected objects, destructive classification, and
-   structured diagnostics. Implemented for the next pending migration as one
-   schema step or an ordered data-update batch across distinct tables. Repeated
-   tables and dependent schema/mixed batches are rejected until their previews
-   can be simulated accurately.
+   structured diagnostics. The next pending migration is simulated against an
+   isolated ConfigFile database copy when it contains multiple steps, so every
+   preview observes preceding schema and row changes without touching source data.
 5. Backup and recovery behavior for ConfigFile databases. Implemented with
    fingerprinted whole-database snapshots, staged restore, rollback, durable
    reload, explicit cleanup, and cache invalidation.
 6. Headless validation suitable for professional-team CI.
 
-The recovery-safe runner applies one previewed migration, records its resulting
-schema fingerprint, and restores the complete snapshot after catalog,
+The recovery-safe runner applies every ordered step in one previewed migration,
+records its resulting schema fingerprint, and restores the complete snapshot after catalog,
 fingerprint, or ledger failure. The public database API now previews complete
 history, applies one plan, reports an up-to-date state, and resolves leftover
 backups safely after interruption. The database document now authors one
@@ -390,8 +388,8 @@ Once history starts, the editor blocks direct structural saves so they cannot
 bypass the ledger. Live-editor workflow verification, broader interruption
 coverage, and supported-version matrices remain part of release QA.
 
-Automatic schema-only runtime migration is implemented before in-memory
-hydration and model registration. The startup coordinator:
+Automatic registered writable-database migration is implemented before
+in-memory hydration and model registration. The startup coordinator:
 
 1. loads the registration's stable migration stream and trusted schema state;
 2. adopts a baseline only for an empty ledger whose current schema matches that
@@ -423,10 +421,10 @@ They may be corrected directly while unreleased; compatibility work begins
 when a persisted format is shipped as supported public behavior.
 
 Canonical data transformations use typed single-table UPDATE steps with
-optional predicates. One migration may order several steps when each targets a
-distinct table; preview reports per-table counts, execution uses one recovery
-snapshot, and success creates one ledger record. Editor authoring supports one
-step at a time with typed scalar literals, nested WHERE groups, and explicit
+optional predicates. One migration may order schema and data steps across the
+same or different tables; preview reports per-step counts, execution uses one
+recovery snapshot, and success creates one ledger record. Editor authoring
+supports one step at a time with typed scalar literals, nested WHERE groups, and explicit
 all-row updates while keeping Resource literals out of durable migration files.
 Fresh-save provisioning creates the current schema and a verified baseline
 without copying player rows. Fresh databases and saves start at the current

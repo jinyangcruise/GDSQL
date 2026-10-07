@@ -133,48 +133,75 @@ func _validate_plan(plan: GDSQLMigrationStepPlan) -> GDSQLOperationResult:
 			&"GDSQL_MIGRATION_RUN_DATABASE_MISMATCH",
 			"Migration execution requires a target database.",
 		)
-	var step := plan.migration.steps[0]
-	if step is GDSQLDataMigrationStep:
-		if plan.change_plan != null \
-				or _validator == null or _query_planner == null \
-				or _executor == null or _execution_context == null \
-				or not _data_plan_matches_migration(plan):
-			return _error(
-				result,
-				&"GDSQL_MIGRATION_RUN_PLAN_MISMATCH",
-				"Data preview does not represent the authored migration.",
-			)
-		return result
-	if plan.migration.steps.size() != 1:
-		return _error(
-			result,
-			&"GDSQL_MIGRATION_RUN_PLAN_INVALID",
-			"Schema migration execution requires exactly one table step.",
-		)
-	var schema_step := step as GDSQLSchemaMigrationStep
-	if schema_step == null or plan.change_plan == null \
-			or plan.is_data_update() \
-			or plan.database_name != plan.change_plan.database_name \
-			or schema_step.table_name != plan.change_plan.table_name \
-			or not _step_kind_matches_plan(schema_step, plan.change_plan) \
-			or not _change_plan_matches_migration(plan):
+	if plan.step_previews.size() != plan.migration.steps.size():
 		return _error(
 			result,
 			&"GDSQL_MIGRATION_RUN_PLAN_MISMATCH",
-			"Catalog preview does not represent the authored migration.",
+			"Migration preview does not cover every authored step.",
 		)
+	for index in plan.migration.steps.size():
+		var authored_step := plan.migration.steps[index]
+		var preview := plan.step_previews[index]
+		if preview == null or preview.step == null \
+				or not GDSQLMigrationChecksum.steps_match(authored_step, preview.step):
+			return _error(
+				result,
+				&"GDSQL_MIGRATION_RUN_PLAN_MISMATCH",
+				"Migration preview step %d does not match its authored operation." \
+						% (index + 1),
+			)
+		if authored_step is GDSQLDataMigrationStep:
+			if not preview.is_data() or preview.affected_rows < 0 \
+					or _validator == null or _query_planner == null \
+					or _executor == null or _execution_context == null:
+				return _error(
+					result,
+					&"GDSQL_MIGRATION_RUN_PLAN_MISMATCH",
+					"Data preview does not represent its authored migration step.",
+				)
+			continue
+		var schema_step := authored_step as GDSQLSchemaMigrationStep
+		if schema_step == null or not preview.is_schema() \
+				or plan.database_name != preview.change_plan.database_name \
+				or schema_step.table_name != preview.change_plan.table_name \
+				or not _step_kind_matches_plan(schema_step, preview.change_plan) \
+				or not _change_plan_matches_step(schema_step, preview.change_plan):
+			return _error(
+				result,
+				&"GDSQL_MIGRATION_RUN_PLAN_MISMATCH",
+				"Catalog preview does not represent its authored migration step.",
+			)
 	return result
 
 
 func _apply_steps(plan: GDSQLMigrationStepPlan) -> GDSQLOperationResult:
-	if not plan.is_data_update():
-		return _catalog_administration.apply_change_plan(plan.change_plan)
 	var result := GDSQLOperationResult.new()
-	for data_step in plan.data_steps:
-		var applied := _apply_data_step(plan.database_name, data_step)
+	for preview in plan.step_previews:
+		var applied: GDSQLOperationResult
+		if preview.is_schema():
+			applied = _catalog_administration.apply_change_plan(preview.change_plan)
+		else:
+			applied = _apply_data_step(
+				plan.database_name,
+				preview.step as GDSQLDataMigrationStep,
+			)
 		result.diagnostics.merge(applied.diagnostics)
 		if not applied.is_successful():
 			return result
+		if preview.is_data():
+			var execution := applied as GDSQLQueryExecutionResult
+			var actual_rows := int(
+				execution.statistics.get("affected_rows", -1) if execution != null else -1,
+			)
+			if actual_rows != preview.affected_rows:
+				return _error(
+					result,
+					&"GDSQL_MIGRATION_DATA_PREVIEW_STALE",
+					(
+						"Data step for table '%s' affected %d row(s), but its preview "
+						+ "reported %d. Migration application cannot continue."
+					) % [preview.step.table_name, actual_rows, preview.affected_rows],
+				)
 	return result
 
 
@@ -195,48 +222,30 @@ func _apply_data_step(
 	return _executor.execute(planning.plan, _execution_context)
 
 
-func _data_plan_matches_migration(plan: GDSQLMigrationStepPlan) -> bool:
-	if plan.data_steps.size() != plan.migration.steps.size() \
-			or plan.data_step_affected_rows.size() != plan.data_steps.size():
-		return false
-	var target_tables: Dictionary[StringName, bool] = {}
-	for index in plan.migration.steps.size():
-		var authored_step := plan.migration.steps[index] as GDSQLDataMigrationStep
-		if authored_step == null or plan.data_steps[index] != authored_step \
-				or plan.data_step_affected_rows[index] < 0 \
-				or target_tables.has(authored_step.table_name):
-			return false
-		target_tables[authored_step.table_name] = true
-	return true
-
-
-func _change_plan_matches_migration(plan: GDSQLMigrationStepPlan) -> bool:
+func _change_plan_matches_step(
+		authored_step: GDSQLSchemaMigrationStep,
+		change_plan: GDSQLCatalogChangePlan,
+) -> bool:
 	var preview_step: GDSQLSchemaMigrationStep
-	if plan.change_plan.kind == GDSQLCatalogChangePlan.Kind.CREATE_TABLE:
+	if change_plan.kind == GDSQLCatalogChangePlan.Kind.CREATE_TABLE:
 		preview_step = GDSQLSchemaMigrationStep.create_table(
-			plan.change_plan.table_definition,
+			change_plan.table_definition,
 		)
-	elif plan.change_plan.kind == GDSQLCatalogChangePlan.Kind.RENAME_TABLE:
+	elif change_plan.kind == GDSQLCatalogChangePlan.Kind.RENAME_TABLE:
 		preview_step = GDSQLSchemaMigrationStep.rename_table(
-			plan.change_plan.table_name,
-			plan.change_plan.new_table_name,
+			change_plan.table_name,
+			change_plan.new_table_name,
 		)
-	elif plan.change_plan.kind == GDSQLCatalogChangePlan.Kind.DROP_TABLE:
+	elif change_plan.kind == GDSQLCatalogChangePlan.Kind.DROP_TABLE:
 		preview_step = GDSQLSchemaMigrationStep.drop_table(
-			plan.change_plan.table_name,
+			change_plan.table_name,
 		)
 	else:
 		preview_step = GDSQLSchemaMigrationStep.new(
-			plan.change_plan.table_name,
-			plan.change_plan.alterations,
+			change_plan.table_name,
+			change_plan.alterations,
 		)
-	var preview_steps: Array[GDSQLSchemaMigrationStep] = [preview_step]
-	var preview_definition := GDSQLMigrationDefinition.new(
-		plan.migration.migration_id,
-		plan.migration.description,
-		preview_steps,
-	)
-	return preview_definition.checksum == plan.migration.checksum
+	return GDSQLMigrationChecksum.steps_match(authored_step, preview_step)
 
 
 func _step_kind_matches_plan(

@@ -448,8 +448,16 @@ MigrationStepPlanning("`**Migration Step Planning**
 -
 *Input:* Target database and next pending migration
 *API:* GDSQLMigrationStepPlanner.preview_next()
-*Output:* GDSQLMigrationStepPlan wrapping one schema preview or a distinct-table data batch
-*Scope:* Per-table counts without mutation; dependent schema/mixed batches are rejected`")
+*Output:* Ordered GDSQLMigrationStepPreview values in one GDSQLMigrationStepPlan
+*Scope:* Direct single-step preview or isolated multi-step simulation without source mutation`")
+
+MigrationSimulation("`**Migration Simulation**
+
+-
+*Contract:* GDSQLMigrationSimulator
+*ConfigFile backend:* Temporary user-storage database copy
+*Behavior:* Apply schema/data steps in authored order through the real pipeline
+*Supports:* Dependent schema, repeated-table data and mixed batches`")
 
 MigrationLedger("`**GDSQLMigrationLedger**
 
@@ -473,7 +481,7 @@ MigrationRunner("`**GDSQLMigrationRunner**
 -
 *Input:* One validated GDSQLMigrationStepPlan
 *Preconditions:* Current ledger revision and whole-schema fingerprint
-*Success:* Apply one schema step or ordered data batch, then append one ledger record
+*Success:* Apply every ordered schema/data preview, then append one ledger record
 *Failure:* Restore complete backup and retain structured diagnostics`")
 
 MigrationService("`**GDSQLMigrationService**
@@ -745,6 +753,9 @@ Workbench -->|"provision new save slot"| FreshProvisioning
 MigrationHistory -->|"preview next pending entry"| MigrationStepPlanning
 MigrationStepPlanning -->|"preview typed table lifecycle"| CatalogAdministration
 MigrationStepPlanning -->|"validate and count canonical update"| Validator
+MigrationStepPlanning -->|"preview ordered multi-step entry"| MigrationSimulation
+MigrationSimulation -->|"isolated schema plans"| CatalogAdministration
+MigrationSimulation -->|"isolated canonical updates"| Executor
 MigrationStepPlanning -->|"validated next plan"| MigrationRunner
 MigrationRunner -->|"create · restore · discard"| MigrationRecovery
 MigrationRunner -->|"apply_change_plan()"| CatalogAdministration
@@ -834,7 +845,7 @@ class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
 class Planner,PlanNode planning;
 class Executor,ForeignKeyValidation,MigrationRunner,MigrationService,FreshProvisioning execution;
-class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationHistoryStore,MigrationSchemaState,MigrationSchemaStateStore,MigrationStepPlanning,MigrationLedger,MigrationRecovery catalog;
+class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationHistoryStore,MigrationSchemaState,MigrationSchemaStateStore,MigrationStepPlanning,MigrationSimulation,MigrationLedger,MigrationRecovery catalog;
 class TableStorage storage;
 class ConfigCatalog,ConfigAdministration,ConfigMigrationHistory,ConfigMigrationSchemaState,ConfigMigrationLedger,ConfigMigrationRecovery,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
 class ResourceMaterialization storage;
