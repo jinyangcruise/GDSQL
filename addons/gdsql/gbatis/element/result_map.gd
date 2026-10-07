@@ -753,6 +753,19 @@ func _automapping_associations(data: Array, obj: Object):
 			if args.size() != link_cols.size():
 				assert(false, "Err occur.")
 				return null
+			if ass.fetch_type == "lazy" and obj.has_method("set_lazy_spec"):
+				# 懒加载：只登记"怎么取"，**不查询、不赋値**；首次读取该属性时才真正执行子 <select>。
+				# 见 gbatis_entity.gd 顶部说明（为什么现在能做而当初做不了）。
+				obj.set_lazy_spec(
+					ass.property,
+					{
+						"parser": mapper_parser_ref,
+						"select": ass.select,
+						"args": args,
+						"typed_proto": null,
+					},
+				)
+				continue
 			sub_obj = mapper_parser_ref.get_ref(). \
 					call_method_in_namespace(ass.select, args)
 		else:
@@ -823,6 +836,18 @@ func _automapping_collections(data: Array, obj: Object):
 			if args.size() != link_cols.size():
 				assert(false, "Err occur.")
 				return null
+			if col.fetch_type == "lazy" and obj.has_method("set_lazy_spec"):
+				# 懒加载：只登记"怎么取"（含 typed 数组原型，保证首次访问时类型与 eager 一致）。
+				obj.set_lazy_spec(
+					col.property,
+					{
+						"parser": mapper_parser_ref,
+						"select": col.select,
+						"args": args,
+						"typed_proto": _gen_array(of_type),
+					},
+				)
+				continue
 			var arr = mapper_parser_ref.get_ref(). \
 					call_method_in_namespace(col.select, args)
 			if not arr is Array:

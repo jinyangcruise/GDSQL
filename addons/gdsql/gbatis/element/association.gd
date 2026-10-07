@@ -23,12 +23,7 @@ extends RefCounted
 #                                     id when needed. If this attr is set, then 
 #                                     NRM(Nested Result Mapping) which uses 
 #                                     some `JOIN`s will not work.
-#fetchType (lazy|eager) #IMPLIED ---- ❌ not support. INFO _get() will not be
-#                                     called if properties are defined in 
-#                                     Object. So we couldn't find a proper
-#                                     way to achieve this lazy feature.
-#
-#                                     lazy: [default] fetch data when this 
+#fetchType (lazy|eager) #IMPLIED ---- lazy: [default] fetch data when this 
 #                                           property is getted;
 #                                     eager: fetch data immediately.
 #===============================================================================
@@ -72,6 +67,7 @@ var result_map = ""
 var column_prefix = ""
 var foreign_column = ""
 var auto_mapping = ""
+var fetch_type = "eager"
 var result_embeded: GDSQL.GBatisResultMap
 var mapper_parser_ref: WeakRef:
 	set = set_mapper_parser_ref
@@ -89,6 +85,13 @@ func _init(conf: Dictionary):
 	column_prefix = conf.get("columnPrefix", "").strip_edges()
 	foreign_column = conf.get("foreignColumn", "").strip_edges()
 	auto_mapping = conf.get("autoMapping", "").strip_edges()
+	fetch_type = conf.get("fetchType", "eager").strip_edges().to_lower()
+	if fetch_type != "lazy" and fetch_type != "eager":
+		assert(false, "Invalid fetchType '%s' in <association> (expect lazy|eager)." % fetch_type)
+		fetch_type = "eager"
+	if fetch_type == "lazy" and select.is_empty():
+		push_warning("GBatis: fetchType=\"lazy\" 需要 select 属性才有意义（<association property=%s>），已按 eager 处理。" % property)
+		fetch_type = "eager"
 
 	assert(
 		select.is_empty() or result_map.is_empty(),
