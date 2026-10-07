@@ -1519,6 +1519,7 @@ func _get_init_datas(
 		# 检查cond中是否涉及子查询
 		var simple_expression = _simplify_expression(cond, __final_input_names, __inputs, { })
 		if need_user_enter_password():
+			all_datas[table_alias] = []
 			return
 		# 子查询依赖未知表的数据，暂时无法query出实际值，那么也不需要下面筛选表达式中涉及主键或
 		# 索引的数据了，所以直接给全量数据。
@@ -1560,6 +1561,7 @@ func _get_init_datas(
 		# { "and": { "left": {  }, "right": { "not": { "left": { "==": 1 } } } } }
 		# { "or": { "left": { }, "right": { "==": 5 } }
 		var const_collection = []
+		var empty_equality_constraint := false
 		for a_name in indexed_name:
 			var operations = { }
 			expression.search_input_name_equal(expression.root, table_alias, a_name, operations)
@@ -1638,12 +1640,32 @@ func _get_init_datas(
 					curr_dependency.erase(table_alias)
 
 			if a_name == pk_name:
+				if not a_collection.is_empty():
+					var pk_matched := 0
+					for pk_value in a_collection:
+						if conf.has_section(str(pk_value)):
+							pk_matched += 1
+					if pk_matched == 0:
+						empty_equality_constraint = true
 				const_collection.append_array(a_collection)
 			else:
+				var indexed_sections := []
 				for indexed_value in a_collection:
-					const_collection.append_array(conf.get_sections_by_indexed_key(a_name, indexed_value))
+					indexed_sections.append_array(conf.get_sections_by_indexed_key(a_name, indexed_value))
+				if not a_collection.is_empty() and indexed_sections.is_empty():
+					empty_equality_constraint = true
+				const_collection.append_array(indexed_sections)
 
-		if not const_collection.is_empty():
+		# 主表上有合取等值约束（continu 为 true 表示不含 or/not/!=），
+		# 但索引/主键里一行都没有 → 该 WHERE 不可能命中任何行，候选集就是空集。
+		# 若不这样处理，引擎会退回"取全量数据"，再与联表做全量×全量的嵌套循环 join，
+		# 实测一个查不到行的 select 会从 ~1ms 变成 ~1100ms。
+		# 只对主表生效：联表的 cond 是 LEFT JOIN 的 ON 条件，查不到时必须保留左行（补 NULL）。
+		# 另注：循环里因后续列无法判定而 break 时**不会**清掉此标记 —— 合取语义下，
+		# 只要有一列的等值在整表里没有任何匹配，整个 WHERE 就不可能命中，与其余列能否预筛无关。
+		if empty_equality_constraint and table_alias == __table_alias:
+			all_datas[table_alias] = []
+		elif not const_collection.is_empty():
 			all_datas[table_alias] = []
 			if const_collection.size() == 1:
 				if conf.has_section(str(const_collection[0])):
@@ -1744,7 +1766,13 @@ func ___select(fill_primary_key: String = ""):
 	)
 
 	# 取联表所有数据
+	# 主表是 LEFT JOIN 的左表：它的**候选集**为空时，WHERE 过滤后的结果必然为空（候选集是过滤对象的超集），
+	# 联表数据不可能出现在结果里，因此可跳过联表加载。
+	var main_table_empty: bool = all_datas[__table_alias].is_empty()
 	for a_left_join in arr_left_join:
+		if main_table_empty:
+			all_datas[a_left_join.get_alias()] = []
+			continue
 		var db = a_left_join.get_db()
 		var tb = a_left_join.get_table()
 		var al = a_left_join.get_alias()
