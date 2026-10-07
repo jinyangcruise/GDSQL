@@ -263,6 +263,19 @@ func test_configfile_bounded_reads_return_compatible_batches() -> void:
 	)
 	var storage := database.context.storage as GDSQLConfigFileTableStorage
 	var request := GDSQLStorageReadRequest.all(true)
+	var table_path := storage.path_resolver.resolve_table_path(
+		table.database_name,
+		table.name,
+	)
+	var table_bytes := _file_size(table_path)
+	storage.config_cache.invalidate(table_path)
+	var measured_load := storage.config_cache.get_or_load_with_statistics(table_path)
+	var measured_hit := storage.config_cache.get_or_load_with_statistics(table_path)
+	assert_bool(measured_load.cache_hit).is_false()
+	assert_int(measured_load.bytes_read).is_equal(table_bytes)
+	assert_bool(measured_hit.cache_hit).is_true()
+	assert_int(measured_hit.bytes_read).is_zero()
+	storage.config_cache.invalidate(table_path)
 
 	var first := storage.read_batch(table, null, request.bounded(3))
 	var second := storage.read_batch(
@@ -278,9 +291,18 @@ func test_configfile_bounded_reads_return_compatible_batches() -> void:
 	assert_bool(second.has_more()).is_false()
 	assert_int(first.statistics.rows_scanned).is_equal(5)
 	assert_int(first.statistics.rows_returned).is_equal(3)
-	assert_int(first.statistics.bytes_read).is_equal(-1)
+	assert_int(first.statistics.bytes_read).is_equal(table_bytes)
+	assert_int(second.statistics.bytes_read).is_zero()
 	assert_int(first.statistics.pages_read).is_equal(-1)
 	assert_bool(first.statistics.physical_read_bounded).is_false()
+	storage.config_cache.invalidate(table_path)
+	var selected := database.execute(
+		database.table(&"heroes").select().offset(1).limit(2).build(),
+	)
+	assert_bool(selected.is_successful()).is_true()
+	assert_int(selected.statistics["storage_bytes_read"]).is_equal(table_bytes)
+	assert_int(selected.statistics["storage_pages_read"]).is_equal(-1)
+	assert_bool(selected.statistics["storage_physical_read_bounded"]).is_false()
 	var staged_session := GDSQLStorageSession.new()
 	assert_bool(
 		storage.stage_insert(table, _hero(6, "Paladin"), staged_session).is_successful(),
@@ -355,6 +377,12 @@ func test_configfile_ordered_index_read_decodes_only_the_requested_window() -> v
 		],
 	)
 	var storage := database.context.storage as GDSQLConfigFileTableStorage
+	var table_path := storage.path_resolver.resolve_table_path(
+		table.database_name,
+		table.name,
+	)
+	var table_bytes := _file_size(table_path)
+	storage.config_cache.invalidate(table_path)
 	var batch := storage.read_index_batch(
 		table,
 		table.get_index(&"heroes_by_name"),
@@ -369,7 +397,20 @@ func test_configfile_ordered_index_read_decodes_only_the_requested_window() -> v
 	assert_bool(batch.has_more()).is_true()
 	assert_int(batch.statistics.rows_scanned).is_equal(4)
 	assert_int(batch.statistics.rows_returned).is_equal(2)
+	assert_int(batch.statistics.bytes_read).is_equal(table_bytes)
+	assert_int(batch.statistics.pages_read).is_equal(-1)
 	assert_bool(batch.statistics.physical_read_bounded).is_false()
+	var continued := storage.read_index_batch(
+		table,
+		table.get_index(&"heroes_by_name"),
+		GDSQLStorageOrderDirection.Direction.DESCENDING,
+		null,
+		GDSQLStorageReadRequest.for_columns([&"name"], true).bounded(
+			2,
+			batch.get_next_cursor(),
+		),
+	)
+	assert_int(continued.statistics.bytes_read).is_zero()
 	var staged_session := GDSQLStorageSession.new()
 	assert_bool(
 		storage.stage_insert(
@@ -485,3 +526,8 @@ func _row_names(rows: Array[GDSQLRowRecord]) -> Array[String]:
 	for row in rows:
 		names.append(row.get_value(&"name"))
 	return names
+
+
+func _file_size(path: String) -> int:
+	var file := FileAccess.open(path, FileAccess.READ)
+	return -1 if file == null else file.get_length()

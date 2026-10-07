@@ -567,6 +567,7 @@ ConfigStorage("`**GDSQLConfigFileTableStorage**
 *Purpose:* Persist table rows as ConfigFile sections and values
 *API:* Snapshot/scan/ordered-index batches, lookup, staged mutations, commit and rollback
 *Batch behavior:* Bounds decoded rows after ConfigFile has parsed table and index metadata
+*Statistics:* Cache-miss file bytes; zero bytes on cache hits; OS pages unknown
 *Maintains:* Reserved index entries during committed mutations
 *Extends:* GDSQLTableStorage
 *Uses:* Path resolver, ConfigFile cache and Variant codec`")
@@ -576,8 +577,8 @@ ConfigInfrastructure("`**ConfigFile Infrastructure**
 -
 *Purpose:* Contain ConfigFile-specific paths, caching and serialization
 *Path API:* resolve_catalog_path(), resolve_schema_path(), resolve_table_path()
-*Cache API:* get_or_load(), invalidate(), flush()
-*Types:* GDSQLDatabasePathResolver, GDSQLConfigFileCache, GDSQLGodotVariantCodec`")
+*Cache API:* get_or_load(), get_or_load_with_statistics(), invalidate(), flush()
+*Types:* GDSQLDatabasePathResolver, GDSQLConfigFileCache, GDSQLConfigFileCacheLoadResult, GDSQLGodotVariantCodec`")
 
 ResourceMaterialization("`**Resource Materialization**
 

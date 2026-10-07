@@ -59,8 +59,10 @@ func read_batch(
 	var offset := _cursor_offset(request.cursor, result)
 	if not result.is_successful():
 		return result
+	var path := path_resolver.resolve_table_path(table.database_name, table.name)
+	var cache_load := config_cache.get_or_load_with_statistics(path)
 	if session != null and session.dirty:
-		return _batch_from_rows(
+		var batch := _batch_from_rows(
 			_build_effective_rows(
 				table,
 				session,
@@ -70,20 +72,24 @@ func read_batch(
 			request,
 			table,
 		)
-	var config := config_cache.get_or_load(
-		path_resolver.resolve_table_path(table.database_name, table.name),
-	)
+		_apply_cache_load_statistics(batch, cache_load)
+		return batch
+	var config := cache_load.config
 	if config == null:
+		_apply_cache_load_statistics(result, cache_load)
 		result.value = result.rows
 		return result
 	var sections := _get_row_sections(config)
 	if offset > sections.size():
-		return _bounded_read_offset_error(offset, sections.size())
+		var offset_error := _bounded_read_offset_error(offset, sections.size())
+		_apply_cache_load_statistics(offset_error, cache_load)
+		return offset_error
 	var end := mini(offset + request.batch_size, sections.size())
 	for index in range(offset, end):
 		result.rows.append(_read_row(config, sections[index], table, request))
 	result.statistics.rows_scanned = sections.size()
 	result.statistics.rows_returned = result.rows.size()
+	_apply_cache_load_statistics(result, cache_load)
 	if end < sections.size():
 		result.next_cursor = GDSQLStorageReadCursor.new(
 			GDSQLStorageBackendIds.CONFIG_FILE,
@@ -120,6 +126,8 @@ func read_index_batch(
 	)
 	if not result.is_successful():
 		return result
+	var path := path_resolver.resolve_table_path(table.database_name, table.name)
+	var cache_load := config_cache.get_or_load_with_statistics(path)
 	if session != null and session.dirty:
 		var rows := _build_effective_rows(
 			table,
@@ -127,7 +135,7 @@ func read_index_batch(
 			_ordered_index_request(table, index, request),
 		)
 		IndexBatchSupport.sort_rows(rows, index, direction)
-		return _ordered_batch_from_rows(
+		var batch := _ordered_batch_from_rows(
 			rows,
 			offset,
 			request,
@@ -135,20 +143,24 @@ func read_index_batch(
 			index,
 			direction,
 		)
-	var config := config_cache.get_or_load(
-		path_resolver.resolve_table_path(table.database_name, table.name),
-	)
+		_apply_cache_load_statistics(batch, cache_load)
+		return batch
+	var config := cache_load.config
 	if config == null:
+		_apply_cache_load_statistics(result, cache_load)
 		result.value = result.rows
 		return result
 	var sections := _ordered_index_row_sections(config, table, index, direction)
 	if offset > sections.size():
-		return _bounded_read_offset_error(offset, sections.size())
+		var offset_error := _bounded_read_offset_error(offset, sections.size())
+		_apply_cache_load_statistics(offset_error, cache_load)
+		return offset_error
 	var end := mini(offset + request.batch_size, sections.size())
 	for row_offset in range(offset, end):
 		result.rows.append(_read_row(config, sections[row_offset], table, request))
 	result.statistics.rows_scanned = sections.size()
 	result.statistics.rows_returned = result.rows.size()
+	_apply_cache_load_statistics(result, cache_load)
 	if end < sections.size():
 		result.next_cursor = IndexBatchSupport.create_cursor(
 			GDSQLStorageBackendIds.CONFIG_FILE,
@@ -534,6 +546,15 @@ func _ordered_batch_from_rows(
 		)
 	result.value = result.rows
 	return result
+
+
+func _apply_cache_load_statistics(
+	result: GDSQLStorageReadBatch,
+	cache_load: GDSQLConfigFileCacheLoadResult,
+) -> void:
+	result.statistics.bytes_read = cache_load.bytes_read
+	result.statistics.pages_read = -1
+	result.statistics.physical_read_bounded = false
 
 
 func _cursor_offset(

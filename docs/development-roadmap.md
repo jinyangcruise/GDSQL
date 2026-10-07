@@ -41,6 +41,8 @@ The current implementation provides:
 - Resource Stages A–B: required-column reads, inert locator transfer, explicit
   sync/threaded handles, opt-in query/model deferral, and bounded prefetch
   lifetimes.
+- Resource Stage C: bounded table and ordered-index reads, safe result-window
+  planning, pre-materialization pruning, and honest backend read statistics.
 
 Implementation detail belongs in `docs/architecture/`, public usage belongs in
 the VitePress guides, and completed change history belongs in Git. This file
@@ -50,8 +52,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Bounded reads (Resource Stage C) | Safe table and ordered-index windows are planned and executed; physical backend measurements remain |
-| High | Migration data/save phase | Runtime already recovers and advances registered writable saves before hydration; dependent schema/mixed batches remain deferred |
+| High — first | Migration data/save completion | Runtime already recovers and advances registered writable saves before hydration; dependent schema/mixed batches remain deferred |
 | High | Release, recovery, performance, and supported-version QA | Required before a stable release |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
@@ -81,9 +82,10 @@ sessions unless new evidence changes an architectural dependency:
    signals, diagnostics, caching, type validation, caller-owned release, and
    opt-in query/model handles without changing eager defaults. Bounded scopes
    coordinate aggregate progress, partial failures, and deterministic release.
-5. **Bounded reads and paged binary storage.** Add cursor/page execution before
-   implementing the binary backend so paging does not inherit full-snapshot
-   behavior.
+5. **Bounded reads (implemented and tested) and paged binary storage.** Cursor
+   execution, safe table/index windows, and honest compatibility-backend
+   measurements establish the contract before the binary backend, so paging
+   does not inherit full-snapshot behavior.
 6. **Optional working-set eviction.** Add manual or budgeted release policies
    only after profiling demonstrates that projects need them.
 
@@ -283,8 +285,9 @@ workflow.
   and tested. Safe indexed `ORDER BY` windows now replace downstream sort and
   limit nodes; predicates and other row-set-changing operations retain the full
   pipeline.
-- Measure physical row bytes/pages read separately from Resources materialized
-  when a backend can report them.
+- ConfigFile reports the full table-file byte length only for cache misses and
+  zero bytes for cache hits; OS page counts remain unknown. In-memory storage
+  keeps byte/page counts unknown rather than inventing a physical measurement.
 
 ConfigFile may continue parsing a whole table file while implementing this
 contract through a compatibility adapter.

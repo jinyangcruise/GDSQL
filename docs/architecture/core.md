@@ -1608,10 +1608,15 @@ whether the backend actually bounded physical reading. ConfigFile currently
 parses its complete table file before decoding the requested row window, and
 orders persisted index metadata before decoding the requested indexed window.
 In-memory storage assembles and orders its effective row set before slicing it.
-Both therefore report `physical_read_bounded == false`, unknown byte/page
-counts as `-1`, and the full inspected row count. This compatibility behavior
-establishes stable execution semantics without pretending to provide the
-future binary backend's I/O characteristics.
+Both therefore report `physical_read_bounded == false` and the full inspected
+row count. ConfigFile reports the table file length as `bytes_read` when a
+batch causes a cache miss and disk parse, and `0` whenever the lookup is a
+cache hit, including normal continuations; OS page counts remain unknown at
+`-1`. In-memory storage retains
+unknown byte/page counts because it cannot report a backend-neutral physical
+measurement. This compatibility behavior establishes stable execution
+semantics without pretending to provide the future binary backend's I/O
+characteristics.
 
 Table-scan and ordered-index execution consume these responses in bounded
 batches of 256 rows. They keep one storage session and pass each opaque
