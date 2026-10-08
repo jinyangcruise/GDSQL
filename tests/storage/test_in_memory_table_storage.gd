@@ -8,6 +8,32 @@ var _data_root: String
 var _test_index := 0
 
 
+class FailOnceConfigFileStorage:
+	extends GDSQLConfigFileTableStorage
+
+	var commit_attempts := 0
+	var rollback_count := 0
+
+
+	func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
+		commit_attempts += 1
+		if commit_attempts == 1:
+			var result := GDSQLStorageCommitResult.new()
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_TEST_CHECKPOINT_COMMIT_INTERRUPTED",
+					"Forced durable checkpoint commit failure.",
+				),
+			)
+			return result
+		return super.commit(session)
+
+
+	func rollback(session: GDSQLStorageSession) -> void:
+		rollback_count += 1
+		super.rollback(session)
+
+
 func before_test() -> void:
 	_test_index += 1
 	_data_root = create_temp_dir("gdsql_in_memory_%d" % _test_index)
@@ -96,6 +122,86 @@ func test_checkpoint_copies_dirty_memory_state_to_configfile_storage() -> void:
 	assert_str(selected.rows[0].get_value(&"name")).is_equal("Knight")
 
 
+func test_interrupted_checkpoint_retains_every_dirty_table_for_retry() -> void:
+	var heroes := _heroes_table()
+	var quests := GDSQLTableDefinition.new(&"quests", &"id")
+	quests.add_column(GDSQLColumnDefinition.new(&"id", TYPE_INT, false, true))
+	quests.add_column(GDSQLColumnDefinition.new(&"title", TYPE_STRING, false))
+	var disk_database := TestDatabase.create_database_with_tables(
+		_data_root,
+		[heroes, quests],
+	)
+	heroes = disk_database.context.catalog.get_table(
+		disk_database.database_name,
+		&"heroes",
+	)
+	quests = disk_database.context.catalog.get_table(
+		disk_database.database_name,
+		&"quests",
+	)
+	var memory := GDSQLInMemoryTableStorage.new()
+	var mutation := GDSQLStorageSession.new()
+	assert_bool(
+		memory.stage_insert(heroes, _hero(1, "Knight"), mutation).is_successful(),
+	).is_true()
+	assert_bool(
+		memory.stage_insert(
+			quests,
+			GDSQLRowRecord.new({ &"id": 1, &"title": "First quest" }),
+			mutation,
+		).is_successful(),
+	).is_true()
+	assert_bool(memory.commit(mutation).is_successful()).is_true()
+	var durable := FailOnceConfigFileStorage.new(
+		GDSQLDatabasePathResolver.new(_data_root),
+		GDSQLConfigFileCache.new(),
+		GDSQLGodotVariantCodec.new(),
+	)
+	var coordinator := GDSQLPersistenceCoordinator.new()
+	assert_bool(
+		coordinator.register(
+			&"save_1",
+			GDSQLInMemoryCheckpointTarget.new(memory, durable),
+			GDSQLCheckpointPolicy.manual(),
+		).is_successful(),
+	).is_true()
+
+	var interrupted := coordinator.checkpoint(&"save_1")
+
+	assert_bool(interrupted.is_successful()).is_false()
+	assert_str(String(interrupted.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_TEST_CHECKPOINT_COMMIT_INTERRUPTED",
+	)
+	assert_array(interrupted.dirty_databases).contains_exactly([&"save_1"])
+	assert_bool(memory.is_dirty()).is_true()
+	assert_int(memory.get_dirty_tables().size()).is_equal(2)
+	assert_int(durable.commit_attempts).is_equal(1)
+	assert_int(durable.rollback_count).is_equal(1)
+	assert_array(durable.read_table(heroes, null).rows).is_empty()
+	assert_array(durable.read_table(quests, null).rows).is_empty()
+
+	var retried := coordinator.checkpoint(&"save_1")
+
+	assert_bool(retried.is_successful()).is_true()
+	assert_array(retried.checkpointed_databases).contains_exactly([&"save_1"])
+	assert_bool(memory.is_dirty()).is_false()
+	assert_int(durable.commit_attempts).is_equal(2)
+	var reopened := GDSQLDatabase.open(
+		disk_database.database_name,
+		_data_root,
+	).get_database()
+	var hero_rows := reopened.execute(
+		reopened.query().table(&"heroes").select().build(),
+	)
+	var quest_rows := reopened.execute(
+		reopened.query().table(&"quests").select().build(),
+	)
+	assert_int(hero_rows.rows.size()).is_equal(1)
+	assert_str(hero_rows.rows[0].get_value(&"name")).is_equal("Knight")
+	assert_int(quest_rows.rows.size()).is_equal(1)
+	assert_str(quest_rows.rows[0].get_value(&"title")).is_equal("First quest")
+
+
 func test_hydration_and_checkpoint_preserve_truncated_generated_key_state() -> void:
 	var disk_database := TestDatabase.create_database(
 		_data_root,
@@ -105,8 +211,8 @@ func test_hydration_and_checkpoint_preserve_truncated_generated_key_state() -> v
 		disk_database.execute(
 			disk_database.table(&"heroes")
 			.insert()
-			.values({&"name": "Knight"})
-			.values({&"name": "Mage"})
+			.values({ &"name": "Knight" })
+			.values({ &"name": "Mage" })
 			.build(),
 		).is_successful(),
 	).is_true()
@@ -135,15 +241,15 @@ func test_hydration_and_checkpoint_preserve_truncated_generated_key_state() -> v
 		GDSQLConfigFileCache.new(),
 		GDSQLGodotVariantCodec.new(),
 	)
-	var hydrated_insert := database.insert(&"heroes", {&"name": "Ranger"})
+	var hydrated_insert := database.insert(&"heroes", { &"name": "Ranger" })
 	assert_bool(database.truncate_table(&"heroes").is_successful()).is_true()
-	var inserted := database.insert(&"heroes", {&"name": "Rogue"})
+	var inserted := database.insert(&"heroes", { &"name": "Rogue" })
 	var checkpoint := GDSQLInMemoryCheckpointTarget.new(memory, durable).checkpoint()
 	var reopened := GDSQLDatabase.open(
 		disk_database.database_name,
 		_data_root,
 	).get_database()
-	var next_insert := reopened.insert(&"heroes", {&"name": "Cleric"})
+	var next_insert := reopened.insert(&"heroes", { &"name": "Cleric" })
 
 	assert_int(hydrated_insert.rows[0].get_value(&"id")).is_equal(3)
 	assert_int(inserted.rows[0].get_value(&"id")).is_equal(1)
@@ -164,7 +270,7 @@ func test_hydration_keeps_referenced_assets_inert_in_memory() -> void:
 	assert_bool(
 		disk_database.insert(
 			&"assets",
-			{&"id": 1, &"name": "Key", &"icon": icon},
+			{ &"id": 1, &"name": "Key", &"icon": icon },
 		).is_successful(),
 	).is_true()
 	var opened := GDSQLRuntimeFactory.open_registration(
@@ -245,13 +351,15 @@ func test_in_memory_bounded_reads_continue_without_exposing_unrequested_columns(
 		for row in batch.rows:
 			names.append(row.get_value(&"name"))
 	names.sort()
-	assert_array(names).contains_exactly([
-		"Hero 1",
-		"Hero 2",
-		"Hero 3",
-		"Hero 4",
-		"Hero 5",
-	])
+	assert_array(names).contains_exactly(
+		[
+			"Hero 1",
+			"Hero 2",
+			"Hero 3",
+			"Hero 4",
+			"Hero 5",
+		],
+	)
 
 
 func test_configfile_bounded_reads_return_compatible_batches() -> void:
@@ -370,10 +478,10 @@ func test_configfile_ordered_index_read_decodes_only_the_requested_window() -> v
 	TestDatabase.insert_rows(
 		database,
 		[
-			{&"id": 1, &"name": "Rogue"},
-			{&"id": 2, &"name": "Mage"},
-			{&"id": 3, &"name": "Knight"},
-			{&"id": 4, &"name": "Cleric"},
+			{ &"id": 1, &"name": "Rogue" },
+			{ &"id": 2, &"name": "Mage" },
+			{ &"id": 3, &"name": "Knight" },
+			{ &"id": 4, &"name": "Cleric" },
 		],
 	)
 	var storage := database.context.storage as GDSQLConfigFileTableStorage

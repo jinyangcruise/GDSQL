@@ -1358,12 +1358,15 @@ whether that save may load.
 
 `GDSQLInMemoryCheckpointTarget` composes an `InMemoryTableStorage` source with
 an injected durable `TableStorage`. It synchronizes authoritative dirty tables
-and clears a dirty marker only when the copied version remains current. This
-adapter keeps checkpoint policy outside storage and keeps ConfigFile knowledge
-outside the in-memory backend. `load_table()` establishes a clean authoritative
-memory snapshot before runtime mutation when an existing durable dataset is
-used as the source. Hydration and checkpoint reads preserve Resource locators;
-neither operation loads an external asset merely to transfer or compare rows.
+through one storage session and clears a dirty marker only after that session
+commits and the copied version remains current. A staging or commit failure
+rolls back the session and leaves every participating table dirty for a later
+complete retry. This adapter keeps checkpoint policy outside storage and keeps
+ConfigFile knowledge outside the in-memory backend. `load_table()` establishes
+a clean authoritative memory snapshot before runtime mutation when an existing
+durable dataset is used as the source. Hydration and checkpoint reads preserve
+Resource locators; neither operation loads an external asset merely to transfer
+or compare rows.
 
 ### 11.4 Content package metadata
 

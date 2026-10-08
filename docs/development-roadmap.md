@@ -52,7 +52,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Release, recovery, performance, and supported-version QA | Godot 4.7 contract, isolated package smoke check, and failed migration-restore activation coverage implemented; catalog/checkpoint interruption, exported builds, and benchmarks remain |
+| High — first | Release, recovery, performance, and supported-version QA | Godot 4.7 contract, isolated package smoke check, migration-restore activation recovery, and checkpoint commit/retry coverage implemented; physical catalog interruption, exported builds, and benchmarks remain |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
@@ -468,8 +468,10 @@ script loading failures before release creation.
 Migration recovery now also injects a deterministic failure at the directory
 swap activation boundary. The test verifies that the displaced live database
 is restored, the verified backup remains available, and a later restore can
-retry successfully. Catalog-file and runtime-checkpoint interruption scenarios
-remain separate QA work.
+retry successfully. Runtime checkpoint QA forces a multi-table durable commit
+failure and verifies that every table remains dirty until one complete retry
+succeeds. Physical interruption during ConfigFile replacement remains separate
+catalog/storage QA work.
 
 ## 4. Editor and integration completion
 
