@@ -67,6 +67,72 @@ func test_reorder_columns_changes_schema_order_without_rewriting_rows() -> void:
 	assert_str(String(table.columns[1].name)).is_equal("id")
 
 
+func test_catalog_reopen_recovers_an_interrupted_schema_table_activation() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var resolver := GDSQLDatabasePathResolver.new(_data_root)
+	var schema_path := resolver.resolve_schema_path(
+		database.database_name,
+		&"heroes",
+	)
+	var table_path := resolver.resolve_table_path(
+		database.database_name,
+		&"heroes",
+	)
+	var staged_schema := ConfigFile.new()
+	assert_int(staged_schema.load(schema_path)).is_equal(OK)
+	staged_schema.set_value("column:level", "type", TYPE_INT)
+	staged_schema.set_value("column:level", "nullable", false)
+	staged_schema.set_value("column:level", "unique", false)
+	staged_schema.set_value("column:level", "auto_increment", false)
+	staged_schema.set_value(
+		"column:level",
+		"generation",
+		GDSQLColumnDefinition.Generation.NONE,
+	)
+	var staged_table := ConfigFile.new()
+	assert_int(staged_table.load(table_path)).is_equal(OK)
+	staged_table.set_value("2", "name", "Wizard")
+	assert_int(staged_schema.save(schema_path + ".building")).is_equal(OK)
+	assert_int(staged_table.save(table_path + ".building")).is_equal(OK)
+	assert_int(
+		DirAccess.rename_absolute(
+			ProjectSettings.globalize_path(table_path),
+			ProjectSettings.globalize_path(table_path + ".previous"),
+		),
+	).is_equal(OK)
+	assert_int(
+		DirAccess.rename_absolute(
+			ProjectSettings.globalize_path(schema_path),
+			ProjectSettings.globalize_path(schema_path + ".previous"),
+		),
+	).is_equal(OK)
+	assert_int(
+		DirAccess.rename_absolute(
+			ProjectSettings.globalize_path(table_path + ".building"),
+			ProjectSettings.globalize_path(table_path),
+		),
+	).is_equal(OK)
+
+	var reopened_result := GDSQLDatabase.open(database.database_name, _data_root)
+
+	assert_bool(reopened_result.is_successful()).is_true()
+	var reopened := reopened_result.get_database()
+	var table := reopened.context.catalog.get_table(
+		database.database_name,
+		&"heroes",
+	)
+	assert_object(table.get_column(&"level")).is_null()
+	var selected := reopened.execute(
+		reopened.query().table(&"heroes").select().order_by_column(&"id").build(),
+	)
+	assert_int(selected.rows.size()).is_equal(2)
+	assert_str(selected.rows[1].get_value(&"name")).is_equal("Mage")
+	for path in [schema_path, table_path]:
+		assert_bool(FileAccess.file_exists(path + ".building")).is_false()
+		assert_bool(FileAccess.file_exists(path + ".previous")).is_false()
+
+
 func test_alter_table_rejects_primary_key_drop() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
 	var alterations: Array[GDSQLTableAlteration] = [
@@ -106,8 +172,8 @@ func test_alter_table_updates_column_metadata_and_indexes() -> void:
 	assert_object(table.get_index(&"heroes_name")).is_not_null()
 	var selected := reopened.execute(
 		reopened.query().select().from_table(&"heroes") \
-			.where(GDSQLExpr.column(&"name").equals("Mage")) \
-			.build(),
+				.where(GDSQLExpr.column(&"name").equals("Mage")) \
+				.build(),
 	)
 	assert_bool(selected.is_successful()).is_true()
 	assert_int(selected.rows.size()).is_equal(1)
@@ -219,11 +285,11 @@ func test_foreign_key_rejects_an_unknown_target_table() -> void:
 
 func test_foreign_key_alteration_validates_rows_and_round_trips() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
-	TestDatabase.insert_rows(database, [{&"id": 1, &"name": "Mage"}])
+	TestDatabase.insert_rows(database, [{ &"id": 1, &"name": "Mage" }])
 	var skills := _referencing_table(&"skills")
 	skills.foreign_keys.clear()
 	assert_bool(database.create_table(skills).is_successful()).is_true()
-	TestDatabase.insert_rows(database, [{&"id": 10, &"reference_id": 1}], &"skills")
+	TestDatabase.insert_rows(database, [{ &"id": 10, &"reference_id": 1 }], &"skills")
 	var foreign_key := GDSQLForeignKeyDefinition.new(
 		&"skills_reference",
 		&"reference_id",
@@ -253,11 +319,11 @@ func test_foreign_key_alteration_validates_rows_and_round_trips() -> void:
 
 func test_foreign_key_alteration_rejects_existing_orphans() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
-	TestDatabase.insert_rows(database, [{&"id": 1, &"name": "Mage"}])
+	TestDatabase.insert_rows(database, [{ &"id": 1, &"name": "Mage" }])
 	var skills := _referencing_table(&"skills")
 	skills.foreign_keys.clear()
 	assert_bool(database.create_table(skills).is_successful()).is_true()
-	TestDatabase.insert_rows(database, [{&"id": 10, &"reference_id": 99}], &"skills")
+	TestDatabase.insert_rows(database, [{ &"id": 10, &"reference_id": 99 }], &"skills")
 
 	var result := database.alter_table(
 		&"skills",
@@ -404,8 +470,8 @@ func test_alter_table_rejects_constraints_violated_by_existing_rows() -> void:
 	TestDatabase.insert_rows(
 		database,
 		[
-			{&"id": 1, &"name": "Mage"},
-			{&"id": 2, &"name": "Mage"},
+			{ &"id": 1, &"name": "Mage" },
+			{ &"id": 2, &"name": "Mage" },
 		],
 	)
 	var result := database.alter_table(
@@ -414,7 +480,7 @@ func test_alter_table_rejects_constraints_violated_by_existing_rows() -> void:
 	)
 	assert_bool(result.is_successful()).is_false()
 	assert_str(String(result.diagnostics.entries[0].code)) \
-		.is_equal("GDSQL_CATALOG_DUPLICATE_UNIQUE_VALUE")
+			.is_equal("GDSQL_CATALOG_DUPLICATE_UNIQUE_VALUE")
 
 
 func test_change_plan_previews_applies_and_detects_stale_schema() -> void:
@@ -445,12 +511,12 @@ func test_change_plan_previews_applies_and_detects_stale_schema() -> void:
 	var stale := database.apply_change_plan(plan)
 	assert_bool(stale.is_successful()).is_false()
 	assert_str(String(stale.diagnostics.entries[0].code)) \
-		.is_equal("GDSQL_CATALOG_CHANGE_PLAN_STALE")
+			.is_equal("GDSQL_CATALOG_CHANGE_PLAN_STALE")
 
 
 func test_rename_and_drop_database_and_table() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
-	TestDatabase.insert_rows(database, [{&"id": 1, &"name": "Knight"}])
+	TestDatabase.insert_rows(database, [{ &"id": 1, &"name": "Knight" }])
 
 	assert_bool(database.rename_table(&"heroes", &"characters").is_successful()).is_true()
 	assert_bool(database.context.catalog.has_table(&"game_config", &"heroes")).is_false()
@@ -474,7 +540,7 @@ func test_rename_and_drop_database_and_table() -> void:
 
 func test_unregister_preserves_and_reloads_existing_database_files() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
-	TestDatabase.insert_rows(database, [{&"id": 1, &"name": "Knight"}])
+	TestDatabase.insert_rows(database, [{ &"id": 1, &"name": "Knight" }])
 	var database_path := _data_root.path_join("game_config")
 
 	assert_bool(database.unregister().is_successful()).is_true()

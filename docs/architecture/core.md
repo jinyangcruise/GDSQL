@@ -1958,6 +1958,15 @@ backend may complete a missing empty table file when an existing stored schema
 exactly matches the requested definition; this repairs incomplete structures
 without overwriting a table or changing its schema.
 
+`GDSQLConfigFileCatalogTransaction` keeps each table's schema and row file as a
+recoverable pair during creation and alteration. Both replacements are written
+to `.building` files before either active file moves to `.previous`. Catalog
+loading resolves leftover artifacts: an incomplete activation restores the old
+pair, while a fully activated pair discards stale previous files. Query and
+catalog layers continue to use logical table identity and never inspect these
+backend-owned suffixes. Table/database rename and destructive removal require
+their own recovery protocols and are not covered by this pair transaction.
+
 Table alterations are explicit typed intents for column lifecycle, display
 order, defaults, nullability, uniqueness, generated-value and auto-increment
 policies, and indexes. Reordering changes schema order only and does not rewrite
@@ -2752,6 +2761,7 @@ addons/gdsql/
 │       ├── config_file_table_storage.gd
 │       ├── config_file_catalog_service.gd
 │       ├── config_file_catalog_administration_service.gd
+│       ├── gdsql_config_file_catalog_transaction.gd
 │       ├── config_file_database_registry_store.gd
 │       ├── config_file_database_explorer.gd
 │       ├── config_file_cache.gd

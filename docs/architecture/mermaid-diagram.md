@@ -569,6 +569,13 @@ ConfigMigrationRecovery("`**GDSQLConfigFileMigrationRecoveryStore**
 *Safety:* Verified staging copy, directory swap, rollback and cache invalidation
 *Extends:* GDSQLMigrationRecoveryStore`")
 
+ConfigCatalogTransaction("`**GDSQLConfigFileCatalogTransaction**
+
+-
+*Purpose:* Activate one table's schema and row files as a recoverable pair
+*Safety:* Building files, previous files and reopen-time interruption recovery
+*Scope:* Create/alter replacement; rename and removal use separate protocols`")
+
 ConfigStorage("`**GDSQLConfigFileTableStorage**
 
 -
@@ -814,7 +821,10 @@ MemoryCheckpoint -->|"reads dirty table versions"| MemoryStorage
 MemoryCheckpoint -->|"stages and commits durable changes"| TableStorage
 
 ConfigCatalog -->|"path resolution"| ConfigInfrastructure
+ConfigCatalog -->|"recover schema/table pairs"| ConfigCatalogTransaction
 ConfigAdministration -->|"paths · cache"| ConfigInfrastructure
+ConfigAdministration -->|"replace schema/table pairs"| ConfigCatalogTransaction
+ConfigCatalogTransaction -->|"paths · ConfigFile activation"| ConfigInfrastructure
 ConfigMigrationLedger -->|"ledger path"| ConfigInfrastructure
 ConfigMigrationRecovery -->|"recovery paths · cache invalidation"| ConfigInfrastructure
 ConfigStorage -->|"paths · cache · codec"| ConfigInfrastructure

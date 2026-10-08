@@ -8,6 +8,7 @@ var _path_resolver: GDSQLDatabasePathResolver
 var _catalog: GDSQLCatalogService
 var _cache: GDSQLConfigFileCache
 var _codec: GDSQLGodotVariantCodec
+var _catalog_transaction: GDSQLConfigFileCatalogTransaction
 
 
 func _init(
@@ -15,11 +16,15 @@ func _init(
 		catalog: GDSQLCatalogService,
 		cache: GDSQLConfigFileCache,
 		codec: GDSQLGodotVariantCodec,
+		catalog_transaction: GDSQLConfigFileCatalogTransaction = null,
 ) -> void:
 	_path_resolver = path_resolver
 	_catalog = catalog
 	_cache = cache
 	_codec = codec
+	_catalog_transaction = catalog_transaction \
+	if catalog_transaction != null \
+	else GDSQLConfigFileCatalogTransaction.new(path_resolver)
 
 
 func create_database(database_name: StringName) -> GDSQLCatalogOperationResult:
@@ -170,6 +175,11 @@ func create_table(
 	var validation := _validate_table(database_name, table)
 	if not validation.is_successful():
 		return validation
+	var recovered := _catalog_transaction.recover_table(database_name, table.name)
+	if not recovered.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(recovered.diagnostics)
+		return failed
 	var registry := ConfigFile.new()
 	if registry.load(_path_resolver.resolve_catalog_path()) != OK \
 			or not registry.has_section(String(database_name)):
@@ -203,38 +213,16 @@ func create_table(
 		)
 	var empty_table := ConfigFile.new()
 	_initialize_table_metadata(empty_table)
-	if empty_table.save(table_path) != OK:
-		return _error(
-			&"GDSQL_CATALOG_TABLE_STORAGE_CREATE_FAILED",
-			"Could not create table storage '%s'." % table_path,
-		)
-	var schema := ConfigFile.new()
-	schema.set_value("table", "name", String(table.name))
-	schema.set_value("table", "primary_key", String(table.primary_key))
-	for column in table.columns:
-		var section := "column:%s" % column.name
-		schema.set_value(section, "type", column.data_type)
-		schema.set_value(section, "nullable", column.nullable)
-		schema.set_value(section, "unique", column.unique)
-		schema.set_value(section, "auto_increment", column.auto_increment)
-		schema.set_value(section, "generation", column.generation)
-		_write_resource_type(schema, section, column)
-		if column.has_default():
-			schema.set_value(section, "default_kind", "static")
-			if column.get_default_value() != null:
-				schema.set_value(
-					section,
-					"default",
-					_codec.encode(column.get_default_value(), column),
-				)
-	_write_index_schema(schema, table)
-	_write_foreign_key_schema(schema, table)
-	if schema.save(schema_path) != OK:
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(table_path))
-		return _error(
-			&"GDSQL_CATALOG_SCHEMA_SAVE_FAILED",
-			"Could not save table schema '%s'." % schema_path,
-		)
+	var persisted := _catalog_transaction.replace_table(
+		database_name,
+		table.name,
+		_build_schema(table),
+		empty_table,
+	)
+	if not persisted.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(persisted.diagnostics)
+		return failed
 	table.database_name = database_name
 	var result := GDSQLCatalogOperationResult.new()
 	result.value = table
@@ -600,10 +588,6 @@ func _apply_alterations(
 		]:
 			changes_table_data = true
 			break
-	var original_data: ConfigFile
-	if changes_table_data:
-		original_data = ConfigFile.new()
-		original_data.parse(table_data.encode_to_text())
 	for alteration in alterations:
 		var alteration_result := _apply_alteration(table, table_data, alteration)
 		if not alteration_result.is_successful():
@@ -611,19 +595,18 @@ func _apply_alterations(
 	var validation := _validate_table(database_name, table, table_data)
 	if not validation.is_successful():
 		return validation
-	var schema_path := _path_resolver.resolve_schema_path(database_name, table_name)
-	var original_schema := ConfigFile.new()
-	if original_schema.load(schema_path) != OK:
-		return _error(&"GDSQL_CATALOG_SCHEMA_UNREADABLE", "Could not read table schema '%s'." % schema_path)
 	if changes_table_data:
 		_rebuild_indexes(table_data, table)
-		if table_data.save(table_path) != OK:
-			return _error(&"GDSQL_CATALOG_TABLE_SAVE_FAILED", "Could not save altered table storage '%s'." % table_path)
-	if _save_schema(schema_path, table) != OK:
-		if changes_table_data:
-			original_data.save(table_path)
-		original_schema.save(schema_path)
-		return _error(&"GDSQL_CATALOG_SCHEMA_SAVE_FAILED", "Could not save altered table schema '%s'." % schema_path)
+	var persisted := _catalog_transaction.replace_table(
+		database_name,
+		table_name,
+		_build_schema(table),
+		table_data,
+	)
+	if not persisted.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(persisted.diagnostics)
+		return failed
 	if changes_table_data:
 		_cache.invalidate(table_path)
 	var result := GDSQLCatalogOperationResult.new()
@@ -1295,6 +1278,10 @@ func _unknown_column(column_name: StringName) -> GDSQLCatalogOperationResult:
 
 
 func _save_schema(path: String, table: GDSQLTableDefinition) -> Error:
+	return _build_schema(table).save(path)
+
+
+func _build_schema(table: GDSQLTableDefinition) -> ConfigFile:
 	var schema := ConfigFile.new()
 	schema.set_value("table", "name", String(table.name))
 	schema.set_value("table", "primary_key", String(table.primary_key))
@@ -1316,7 +1303,7 @@ func _save_schema(path: String, table: GDSQLTableDefinition) -> Error:
 				)
 	_write_index_schema(schema, table)
 	_write_foreign_key_schema(schema, table)
-	return schema.save(path)
+	return schema
 
 
 func _write_index_schema(
