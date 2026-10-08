@@ -66,6 +66,7 @@ export default defineConfig({
           items: [
             { text: 'Typed query API', link: '/guide/query-api' },
             { text: 'Model API', link: '/guide/model-api' },
+            { text: 'Performance benchmarks', link: '/guide/performance-benchmarks' },
           ],
         },
       ],

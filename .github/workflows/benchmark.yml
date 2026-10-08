@@ -1,0 +1,42 @@
+name: GDSQL Benchmarks
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Dataset size profile
+        required: true
+        default: standard
+        type: choice
+        options:
+          - smoke
+          - standard
+          - full
+
+jobs:
+  configfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: lihop/setup-godot@v3
+        with:
+          version: 4.7.2-stable
+          cache: true
+
+      - name: Run ConfigFile benchmark
+        env:
+          GODOT_BIN: godot
+          GDSQL_BENCHMARK_REPORT_DIR: ${{ github.workspace }}/reports/benchmarks/configfile/${{ github.run_id }}
+        run: ./scripts/run-configfile-benchmark.sh "${{ inputs.profile }}"
+
+      - name: Upload benchmark reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gdsql-configfile-benchmark-${{ inputs.profile }}-${{ github.run_id }}
+          path: reports/benchmarks/configfile/
+          if-no-files-found: error
+          retention-days: 30

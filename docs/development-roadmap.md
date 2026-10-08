@@ -52,7 +52,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Release, recovery, performance, and supported-version QA | Recovery plus PCK and standalone Linux export gates are implemented; broader platform coverage and large-data benchmarks remain |
+| High — first | Release, recovery, performance, and supported-version QA | Recovery, PCK/standalone Linux export gates, and the scalar ConfigFile benchmark harness are implemented; broader platform and benchmark coverage remain |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
@@ -509,6 +509,19 @@ Benchmarks remain outside ordinary correctness tests. Results record the Godot
 version, build type, hardware, dataset seed, cold/warm state, elapsed time, and
 peak memory. CI should first preserve comparable reports without failing on
 timing; regression thresholds are introduced only after stable baselines exist.
+
+The first report-only benchmark slice is implemented for deterministic scalar
+ConfigFile tables at 1,000, 10,000, and 100,000 rows. It records a fixed
+public-API batched-insert probe, reopen cost, cold/warm bounded scans, ordered
+windows, primary and secondary lookups, filtered ordering, full counts, indexed
+single-row updates/deletes, table bytes, storage statistics, process memory,
+Godot build, and host details. Large read fixtures use the backend codec for
+deterministic setup and reopen through the public API before measurement, so
+known staged-insert cost does not prevent the 100,000-row cases from running.
+Local runs preserve Markdown and JSON under `reports/benchmarks/configfile/`;
+the manual benchmark workflow uploads the same reports without enforcing
+machine-dependent timing budgets. Resource, checkpoint, and Managed Content
+fixtures remain separate follow-up slices.
 
 ## 4. Editor and integration completion
 
