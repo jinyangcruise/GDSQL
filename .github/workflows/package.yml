@@ -53,6 +53,11 @@ jobs:
           GODOT_BIN: /home/runner/godot-linux/godot
         run: ./scripts/validate-addon-package.sh
 
+      - name: Smoke test exported runtime pack
+        env:
+          GODOT_BIN: /home/runner/godot-linux/godot
+        run: ./scripts/validate-exported-runtime.sh
+
       - name: Package addon
         run: |
           mkdir -p dist/addons
