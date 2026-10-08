@@ -1,6 +1,6 @@
 class_name GDSQLConfigFileDatabaseLifecycleTransaction
 extends RefCounted
-## Coordinates database directory identity with the root ConfigFile registry.
+## Coordinates root registration visibility with physical database lifecycle.
 
 const BUILDING_SUFFIX := ".building"
 const PREVIOUS_SUFFIX := ".previous"
@@ -9,6 +9,8 @@ const PREPARING_SUFFIX := ".preparing"
 const COMMITTED_SUFFIX := ".committed"
 const CONFIG_EXTENSION := ".cfg"
 const TRANSACTION_SECTION := "transaction"
+const REGISTER_DATABASE_KIND := "register_database"
+const UNREGISTER_DATABASE_KIND := "unregister_database"
 const RENAME_DATABASE_KIND := "rename_database"
 const DROP_DATABASE_KIND := "drop_database"
 
@@ -18,6 +20,80 @@ var _path_resolver: GDSQLDatabasePathResolver
 func _init(path_resolver: GDSQLDatabasePathResolver) -> void:
 	assert(path_resolver != null)
 	_path_resolver = path_resolver
+
+
+func register_database(database_name: StringName) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	if not _path_resolver.is_valid_name(database_name):
+		return _error(
+			result,
+			&"GDSQL_DATABASE_LIFECYCLE_INVALID",
+			"Database registration requires a valid identifier.",
+		)
+	var recovered := recover()
+	result.diagnostics.merge(recovered.diagnostics)
+	if not recovered.is_successful():
+		return result
+	var had_registry := FileAccess.file_exists(_registry_path())
+	var registry_result := _load_registry(true)
+	result.diagnostics.merge(registry_result.diagnostics)
+	if not registry_result.is_successful():
+		return result
+	var registry := registry_result.value as ConfigFile
+	if registry.has_section(String(database_name)) \
+			or not _directory_exists(
+				_path_resolver.resolve_database_path(database_name),
+			):
+		return _error(
+			result,
+			&"GDSQL_DATABASE_REGISTER_STATE_INVALID",
+			"Database registration requires an unregistered physical database.",
+		)
+	registry.set_value(
+		String(database_name),
+		"path",
+		_path_resolver.resolve_database_path(database_name),
+	)
+	return _replace_registration(
+		result,
+		registry,
+		REGISTER_DATABASE_KIND,
+		database_name,
+		had_registry,
+	)
+
+
+func unregister_database(database_name: StringName) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	if not _path_resolver.is_valid_name(database_name):
+		return _error(
+			result,
+			&"GDSQL_DATABASE_LIFECYCLE_INVALID",
+			"Database unregister requires a valid identifier.",
+		)
+	var recovered := recover()
+	result.diagnostics.merge(recovered.diagnostics)
+	if not recovered.is_successful():
+		return result
+	var registry_result := _load_registry()
+	result.diagnostics.merge(registry_result.diagnostics)
+	if not registry_result.is_successful():
+		return result
+	var registry := registry_result.value as ConfigFile
+	if not registry.has_section(String(database_name)):
+		return _error(
+			result,
+			&"GDSQL_DATABASE_UNREGISTER_STATE_INVALID",
+			"Database unregister requires an existing registration.",
+		)
+	registry.erase_section(String(database_name))
+	return _replace_registration(
+		result,
+		registry,
+		UNREGISTER_DATABASE_KIND,
+		database_name,
+		true,
+	)
 
 
 func rename_database(
@@ -172,6 +248,10 @@ func recover() -> GDSQLOperationResult:
 		var committed := file_name.ends_with(COMMITTED_SUFFIX)
 		var recovery_error := ERR_INVALID_DATA
 		match String(marker.get_value(TRANSACTION_SECTION, "kind", "")):
+			REGISTER_DATABASE_KIND:
+				recovery_error = _recover_registration(marker_path, committed, true)
+			UNREGISTER_DATABASE_KIND:
+				recovery_error = _recover_registration(marker_path, committed, false)
 			RENAME_DATABASE_KIND:
 				recovery_error = _recover_rename(marker_path, committed)
 			DROP_DATABASE_KIND:
@@ -185,6 +265,78 @@ func recover() -> GDSQLOperationResult:
 		return _recovery_error(result)
 	result.value = recovered_count
 	return result
+
+
+func _replace_registration(
+		result: GDSQLOperationResult,
+		registry: ConfigFile,
+		kind: String,
+		database_name: StringName,
+		had_registry: bool,
+) -> GDSQLOperationResult:
+	var staged := _stage_registry(registry)
+	result.diagnostics.merge(staged.diagnostics)
+	if not staged.is_successful():
+		return result
+	var marker := _create_marker(
+		kind,
+		database_name,
+		&"",
+		had_registry,
+	)
+	result.diagnostics.merge(marker.diagnostics)
+	if not marker.is_successful():
+		_remove_file(_registry_path() + BUILDING_SUFFIX)
+		return result
+	var preparing_path := String(marker.value)
+	if _activate_staged_registry(had_registry) != OK:
+		_recover_registration(
+			preparing_path,
+			false,
+			kind == REGISTER_DATABASE_KIND,
+		)
+		return _activation_error(result, database_name, "registration")
+	var committed_path := _commit_marker(preparing_path)
+	if committed_path.is_empty():
+		_recover_registration(
+			preparing_path,
+			false,
+			kind == REGISTER_DATABASE_KIND,
+		)
+		return _activation_error(result, database_name, "registration")
+	if _cleanup_registry_and_marker(committed_path) != OK:
+		_add_cleanup_warning(result)
+	result.value = true
+	return result
+
+
+func _recover_registration(
+		marker_path: String,
+		committed: bool,
+		registering: bool,
+) -> Error:
+	var marker := _load_marker(marker_path)
+	if marker == null:
+		return ERR_FILE_CORRUPT
+	var database_name := StringName(
+		marker.get_value(TRANSACTION_SECTION, "source", ""),
+	)
+	if not _path_resolver.is_valid_name(database_name):
+		return ERR_INVALID_DATA
+	var had_registry := bool(
+		marker.get_value(TRANSACTION_SECTION, "had_registry", true),
+	)
+	if committed:
+		var is_registered := _registry_has(database_name)
+		if is_registered != registering:
+			return ERR_FILE_CORRUPT
+		return _cleanup_registry_and_marker(marker_path)
+	if _restore_previous_registry(had_registry) != OK:
+		return ERR_CANT_CREATE
+	var is_registered := _registry_has(database_name)
+	if is_registered == registering:
+		return ERR_FILE_CORRUPT
+	return _remove_file(marker_path)
 
 
 func _recover_rename(marker_path: String, committed: bool) -> Error:
@@ -266,23 +418,27 @@ func _stage_registry(registry: ConfigFile) -> GDSQLOperationResult:
 	return result
 
 
-func _activate_staged_registry() -> Error:
+func _activate_staged_registry(had_registry: bool = true) -> Error:
 	var registry_path := _registry_path()
-	if _rename(registry_path, registry_path + PREVIOUS_SUFFIX) != OK:
+	if had_registry \
+			and _rename(registry_path, registry_path + PREVIOUS_SUFFIX) != OK:
 		return ERR_CANT_CREATE
 	if _rename(registry_path + BUILDING_SUFFIX, registry_path) == OK:
 		return OK
-	_rename(registry_path + PREVIOUS_SUFFIX, registry_path)
+	if had_registry:
+		_rename(registry_path + PREVIOUS_SUFFIX, registry_path)
 	return ERR_CANT_CREATE
 
 
-func _restore_previous_registry() -> Error:
+func _restore_previous_registry(had_registry: bool = true) -> Error:
 	var registry_path := _registry_path()
 	var previous_path := registry_path + PREVIOUS_SUFFIX
 	if FileAccess.file_exists(previous_path):
 		if _remove_file(registry_path) != OK \
 				or _rename(previous_path, registry_path) != OK:
 			return ERR_CANT_CREATE
+	elif not had_registry and _remove_file(registry_path) != OK:
+		return ERR_CANT_CREATE
 	return _remove_file(registry_path + BUILDING_SUFFIX)
 
 
@@ -310,6 +466,7 @@ func _create_marker(
 		kind: String,
 		source: StringName,
 		target: StringName,
+		had_registry: bool = true,
 ) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	var root := _path_resolver.resolve_catalog_transaction_root()
@@ -332,6 +489,7 @@ func _create_marker(
 	marker.set_value(TRANSACTION_SECTION, "kind", kind)
 	marker.set_value(TRANSACTION_SECTION, "source", String(source))
 	marker.set_value(TRANSACTION_SECTION, "target", String(target))
+	marker.set_value(TRANSACTION_SECTION, "had_registry", had_registry)
 	if marker.save(building_path) != OK \
 			or _rename(building_path, preparing_path) != OK:
 		_remove_file(building_path)
@@ -376,10 +534,11 @@ func _cleanup_registry_and_marker(marker_path: String) -> Error:
 	return OK
 
 
-func _load_registry() -> GDSQLOperationResult:
+func _load_registry(allow_missing: bool = false) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	var registry := ConfigFile.new()
-	if registry.load(_registry_path()) != OK:
+	var load_error := registry.load(_registry_path())
+	if load_error != OK and not (allow_missing and load_error == ERR_FILE_NOT_FOUND):
 		return _error(
 			result,
 			&"GDSQL_DATABASE_LIFECYCLE_REGISTRY_UNREADABLE",

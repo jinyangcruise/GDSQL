@@ -586,9 +586,9 @@ ConfigTableLifecycle("`**GDSQLConfigFileTableLifecycleTransaction**
 ConfigDatabaseLifecycle("`**GDSQLConfigFileDatabaseLifecycleTransaction**
 
 -
-*Purpose:* Coordinate database identity across the root registry and directory
+*Purpose:* Coordinate registration visibility and database directory identity
 *Safety:* Staged registry plus global preparing/committed recovery markers
-*Scope:* Database rename and destructive drop`")
+*Scope:* Register, unregister, rename, and destructive drop`")
 
 ConfigStorage("`**GDSQLConfigFileTableStorage**
 

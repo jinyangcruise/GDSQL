@@ -74,19 +74,15 @@ func create_database(database_name: StringName) -> GDSQLCatalogOperationResult:
 				&"GDSQL_CATALOG_DIRECTORY_UNWRITABLE",
 				"Could not create database directory '%s'." % folder_path,
 			)
-	registry.set_value(
-		String(database_name),
-		"path",
-		_path_resolver.resolve_database_path(database_name),
-	)
-	if registry.save(registry_path) != OK:
-		return _error(
-			&"GDSQL_CATALOG_SAVE_FAILED",
-			"Could not save database catalog '%s'." % registry_path,
-		)
+	var persisted := _database_lifecycle.register_database(database_name)
+	if not persisted.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(persisted.diagnostics)
+		return failed
 	var definition := GDSQLDatabaseDefinition.new()
 	definition.name = database_name
 	var result := GDSQLCatalogOperationResult.new()
+	result.diagnostics.merge(persisted.diagnostics)
 	result.value = definition
 	return result
 
@@ -145,15 +141,14 @@ func unregister_database(
 			"Database '%s' is not registered." % database_name,
 		)
 	var database := _catalog.get_database(database_name)
-	registry.erase_section(String(database_name))
-	if registry.save(_path_resolver.resolve_catalog_path()) != OK:
-		return _error(
-			&"GDSQL_CATALOG_SAVE_FAILED",
-			"Could not unregister database '%s' from the catalog." \
-					% database_name,
-		)
+	var persisted := _database_lifecycle.unregister_database(database_name)
+	if not persisted.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(persisted.diagnostics)
+		return failed
 	_invalidate_database_tables(database, database_name)
 	var result := GDSQLCatalogOperationResult.new()
+	result.diagnostics.merge(persisted.diagnostics)
 	result.value = database
 	return result
 

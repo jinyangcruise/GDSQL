@@ -1973,14 +1973,16 @@ quarantines both files before its marker commit. Reopening rolls back a
 preparing operation or finishes cleanup for a committed operation before
 catalog discovery exposes tables.
 
-`GDSQLConfigFileDatabaseLifecycleTransaction` coordinates database rename and
-destructive drop across the root registry and the database directory. It stages
-the replacement `databases.cfg`, moves the directory, then atomically promotes
-a global preparing marker to committed. Recovery runs before any registry read:
-preparing work restores the previous registry and directory identity, while
-committed work preserves the new logical state and retries artifact cleanup.
-Registration creation and non-destructive unregister remain separate root
-registry replacement work.
+`GDSQLConfigFileDatabaseLifecycleTransaction` coordinates every root registry
+replacement. Registration creation and non-destructive unregister stage
+`databases.cfg` and atomically promote a global preparing marker to committed;
+rollback changes only catalog visibility and always preserves the physical
+database directory. Rename and destructive drop additionally move or quarantine
+that directory inside the same protocol. Recovery runs before any registry read:
+preparing work restores the previous registration state and directory identity,
+while committed work preserves the new logical state and retries artifact
+cleanup. A first registration uses the same protocol even when no prior
+`databases.cfg` exists.
 
 Table alterations are explicit typed intents for column lifecycle, display
 order, defaults, nullability, uniqueness, generated-value and auto-increment

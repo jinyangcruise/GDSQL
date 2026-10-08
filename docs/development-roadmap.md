@@ -52,7 +52,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Release, recovery, performance, and supported-version QA | Checkpoint, migration, table lifecycle, and database rename/drop recovery implemented; atomic registration create/unregister, exported builds, and benchmarks remain |
+| High — first | Release, recovery, performance, and supported-version QA | Recovery and an exported runtime-pack gate are implemented; standalone export-template coverage and large-data benchmarks remain |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
@@ -465,6 +465,15 @@ loads the packaged `addons/gdsql` directory in an otherwise empty project after
 the test suite. This detects hidden development-addon dependencies and packaged
 script loading failures before release creation.
 
+The exported-runtime slice builds a PCK from a minimal project containing only
+the packaged addon, excludes editor entry points, and executes the pack in game
+mode. Its runtime fixture creates a writable database and table, inserts a row,
+reopens the database, and verifies the persisted query result. This catches
+export inclusion, script remap, global-class and runtime composition failures.
+It does not replace standalone exports with platform templates: Linux and the
+eventual supported platform matrix still need stripped-template execution so
+editor-only engine dependencies cannot be masked by the editor binary.
+
 Migration recovery now also injects a deterministic failure at the directory
 swap activation boundary. The test verifies that the displaced live database
 is restored, the verified backup remains available, and a later restore can
@@ -477,9 +486,27 @@ rename and destructive removal now use explicit preparing/committed markers:
 reopening rolls back work before the commit point and finishes cleanup after
 it. Database rename/drop uses a separate boundary because it coordinates the root
 registry with an entire directory identity. That boundary now stages the root
-registry, moves or quarantines the directory, and resolves global lifecycle
-markers before any catalog read. Atomic registry replacement for database
-creation and non-destructive unregister remains the final catalog-write slice.
+registry, resolves global lifecycle markers before any catalog read, and covers
+first registration, non-destructive unregister, rename, and destructive drop.
+Registration rollback preserves the physical directory so an existing database
+can always be registered again. The recoverable catalog-write boundary is now
+complete.
+
+Large-data benchmarking will use deterministic fixtures and report evidence
+before enforcing budgets. The initial matrix is:
+
+- scalar tables at 1,000, 10,000, and 100,000 rows for paged scans, primary-key
+  and secondary-index lookup, filtered ordering, and bounded result windows;
+- batched inserts, updates, deletes, checkpoints, and reopen cost, including
+  bytes read and written where the storage boundary exposes them;
+- reference columns measured separately for identity-only access, prefetch, and
+  materialization so heavy assets are never confused with scalar row cost;
+- managed-content cold composition, cache reuse, and one-package invalidation.
+
+Benchmarks remain outside ordinary correctness tests. Results record the Godot
+version, build type, hardware, dataset seed, cold/warm state, elapsed time, and
+peak memory. CI should first preserve comparable reports without failing on
+timing; regression thresholds are introduced only after stable baselines exist.
 
 ## 4. Editor and integration completion
 
