@@ -5,6 +5,7 @@ var _path_resolver: GDSQLDatabasePathResolver
 var _codec: GDSQLGodotVariantCodec
 var _catalog_transaction: GDSQLConfigFileCatalogTransaction
 var _table_lifecycle: GDSQLConfigFileTableLifecycleTransaction
+var _database_lifecycle: GDSQLConfigFileDatabaseLifecycleTransaction
 
 
 func _init(
@@ -12,6 +13,7 @@ func _init(
 		codec: GDSQLGodotVariantCodec,
 		catalog_transaction: GDSQLConfigFileCatalogTransaction = null,
 		table_lifecycle: GDSQLConfigFileTableLifecycleTransaction = null,
+		database_lifecycle: GDSQLConfigFileDatabaseLifecycleTransaction = null,
 ) -> void:
 	_path_resolver = path_resolver
 	_codec = codec
@@ -21,9 +23,14 @@ func _init(
 	_table_lifecycle = table_lifecycle \
 	if table_lifecycle != null \
 	else GDSQLConfigFileTableLifecycleTransaction.new(path_resolver)
+	_database_lifecycle = database_lifecycle \
+	if database_lifecycle != null \
+	else GDSQLConfigFileDatabaseLifecycleTransaction.new(path_resolver)
 
 
 func get_database(database_name: StringName) -> GDSQLDatabaseDefinition:
+	if not _database_lifecycle.recover().is_successful():
+		return null
 	var registry := ConfigFile.new()
 	if registry.load(_path_resolver.resolve_catalog_path()) != OK:
 		return null
@@ -68,6 +75,8 @@ func has_table(database_name: StringName, table_name: StringName) -> bool:
 
 func create_snapshot() -> GDSQLCatalogSnapshot:
 	var snapshot := GDSQLCatalogSnapshot.new()
+	if not _database_lifecycle.recover().is_successful():
+		return snapshot
 	var registry := ConfigFile.new()
 	if registry.load(_path_resolver.resolve_catalog_path()) != OK:
 		return snapshot
@@ -81,6 +90,8 @@ func create_snapshot() -> GDSQLCatalogSnapshot:
 
 
 func get_database_registration(database_name: StringName) -> Dictionary:
+	if not _database_lifecycle.recover().is_successful():
+		return { }
 	var registry := ConfigFile.new()
 	if registry.load(_path_resolver.resolve_catalog_path()) != OK:
 		return { }

@@ -264,6 +264,141 @@ func test_catalog_reopen_finishes_a_committed_table_drop() -> void:
 	assert_bool(FileAccess.file_exists(marker)).is_false()
 
 
+func test_catalog_reopen_rolls_back_an_interrupted_database_rename() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_rows(database, [{ &"id": 1, &"name": "Knight" }])
+	var resolver := GDSQLDatabasePathResolver.new(_data_root)
+	var registry_path := resolver.resolve_catalog_path()
+	var old_path := resolver.resolve_database_path(&"game_config")
+	var new_path := resolver.resolve_database_path(&"game_data")
+	_stage_database_registry(resolver, &"game_config", &"game_data")
+	var marker := _write_database_lifecycle_marker(
+		resolver,
+		"rename_database",
+		&"game_config",
+		&"game_data",
+		false,
+	)
+	assert_int(_rename_file(old_path, new_path)).is_equal(OK)
+	_activate_staged_database_registry(registry_path)
+
+	var reopened_result := GDSQLDatabase.open(&"game_config", _data_root)
+
+	assert_bool(reopened_result.is_successful()).is_true()
+	assert_bool(GDSQLDatabase.open(&"game_data", _data_root).is_successful()).is_false()
+	var selected := reopened_result.get_database().execute(
+		reopened_result.get_database().query().table(&"heroes").select().build(),
+	)
+	assert_int(selected.rows.size()).is_equal(1)
+	assert_str(selected.rows[0].get_value(&"name")).is_equal("Knight")
+	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(old_path))).is_true()
+	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(new_path))).is_false()
+	_assert_database_lifecycle_artifacts_removed(registry_path, marker)
+
+
+func test_catalog_reopen_discards_an_unactivated_database_registry_stage() -> void:
+	TestDatabase.create_heroes_database(_data_root)
+	var resolver := GDSQLDatabasePathResolver.new(_data_root)
+	var registry_path := resolver.resolve_catalog_path()
+	_stage_database_registry(resolver, &"game_config", &"game_data")
+
+	var reopened_result := GDSQLDatabase.open(&"game_config", _data_root)
+
+	assert_bool(reopened_result.is_successful()).is_true()
+	assert_bool(GDSQLDatabase.open(&"game_data", _data_root).is_successful()).is_false()
+	assert_bool(FileAccess.file_exists(registry_path + ".building")).is_false()
+
+
+func test_catalog_reopen_finishes_a_committed_database_rename() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_rows(database, [{ &"id": 1, &"name": "Knight" }])
+	var resolver := GDSQLDatabasePathResolver.new(_data_root)
+	var registry_path := resolver.resolve_catalog_path()
+	var old_path := resolver.resolve_database_path(&"game_config")
+	var new_path := resolver.resolve_database_path(&"game_data")
+	_stage_database_registry(resolver, &"game_config", &"game_data")
+	var marker := _write_database_lifecycle_marker(
+		resolver,
+		"rename_database",
+		&"game_config",
+		&"game_data",
+		true,
+	)
+	assert_int(_rename_file(old_path, new_path)).is_equal(OK)
+	_activate_staged_database_registry(registry_path)
+
+	var reopened_result := GDSQLDatabase.open(&"game_data", _data_root)
+
+	assert_bool(reopened_result.is_successful()).is_true()
+	assert_bool(GDSQLDatabase.open(&"game_config", _data_root).is_successful()).is_false()
+	var selected := reopened_result.get_database().execute(
+		reopened_result.get_database().query().table(&"heroes").select().build(),
+	)
+	assert_int(selected.rows.size()).is_equal(1)
+	assert_str(selected.rows[0].get_value(&"name")).is_equal("Knight")
+	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(old_path))).is_false()
+	assert_bool(DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(new_path))).is_true()
+	_assert_database_lifecycle_artifacts_removed(registry_path, marker)
+
+
+func test_catalog_reopen_rolls_back_an_interrupted_database_drop() -> void:
+	TestDatabase.create_heroes_database(_data_root)
+	var resolver := GDSQLDatabasePathResolver.new(_data_root)
+	var registry_path := resolver.resolve_catalog_path()
+	var database_path := resolver.resolve_database_path(&"game_config")
+	var dropping_path := database_path + ".dropping"
+	_stage_database_registry(resolver, &"game_config")
+	var marker := _write_database_lifecycle_marker(
+		resolver,
+		"drop_database",
+		&"game_config",
+		&"",
+		false,
+	)
+	assert_int(_rename_file(database_path, dropping_path)).is_equal(OK)
+	_activate_staged_database_registry(registry_path)
+
+	var reopened_result := GDSQLDatabase.open(&"game_config", _data_root)
+
+	assert_bool(reopened_result.is_successful()).is_true()
+	assert_bool(
+		DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(database_path)),
+	).is_true()
+	assert_bool(
+		DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(dropping_path)),
+	).is_false()
+	_assert_database_lifecycle_artifacts_removed(registry_path, marker)
+
+
+func test_catalog_reopen_finishes_a_committed_database_drop() -> void:
+	TestDatabase.create_heroes_database(_data_root)
+	var resolver := GDSQLDatabasePathResolver.new(_data_root)
+	var registry_path := resolver.resolve_catalog_path()
+	var database_path := resolver.resolve_database_path(&"game_config")
+	var dropping_path := database_path + ".dropping"
+	_stage_database_registry(resolver, &"game_config")
+	var marker := _write_database_lifecycle_marker(
+		resolver,
+		"drop_database",
+		&"game_config",
+		&"",
+		true,
+	)
+	assert_int(_rename_file(database_path, dropping_path)).is_equal(OK)
+	_activate_staged_database_registry(registry_path)
+
+	var reopened_result := GDSQLDatabase.open(&"game_config", _data_root)
+
+	assert_bool(reopened_result.is_successful()).is_false()
+	assert_bool(
+		DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(database_path)),
+	).is_false()
+	assert_bool(
+		DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(dropping_path)),
+	).is_false()
+	_assert_database_lifecycle_artifacts_removed(registry_path, marker)
+
+
 func test_alter_table_rejects_primary_key_drop() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
 	var alterations: Array[GDSQLTableAlteration] = [
@@ -732,6 +867,63 @@ func _write_lifecycle_marker(
 	marker.set_value("transaction", "target", String(target))
 	assert_int(marker.save(path)).is_equal(OK)
 	return path
+
+
+func _stage_database_registry(
+		resolver: GDSQLDatabasePathResolver,
+		source: StringName,
+		target: StringName = &"",
+) -> void:
+	var registry_path := resolver.resolve_catalog_path()
+	var registry := ConfigFile.new()
+	assert_int(registry.load(registry_path)).is_equal(OK)
+	registry.erase_section(String(source))
+	if target != &"":
+		registry.set_value(
+			String(target),
+			"path",
+			resolver.resolve_database_path(target),
+		)
+	assert_int(registry.save(registry_path + ".building")).is_equal(OK)
+
+
+func _activate_staged_database_registry(registry_path: String) -> void:
+	assert_int(
+		_rename_file(registry_path, registry_path + ".previous"),
+	).is_equal(OK)
+	assert_int(
+		_rename_file(registry_path + ".building", registry_path),
+	).is_equal(OK)
+
+
+func _write_database_lifecycle_marker(
+		resolver: GDSQLDatabasePathResolver,
+		kind: String,
+		source: StringName,
+		target: StringName,
+		committed: bool,
+) -> String:
+	var root := resolver.resolve_catalog_transaction_root()
+	assert_int(
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(root)),
+	).is_equal(OK)
+	var phase := ".committed" if committed else ".preparing"
+	var path := root.path_join("simulated_database.cfg" + phase)
+	var marker := ConfigFile.new()
+	marker.set_value("transaction", "kind", kind)
+	marker.set_value("transaction", "source", String(source))
+	marker.set_value("transaction", "target", String(target))
+	assert_int(marker.save(path)).is_equal(OK)
+	return path
+
+
+func _assert_database_lifecycle_artifacts_removed(
+		registry_path: String,
+		marker_path: String,
+) -> void:
+	assert_bool(FileAccess.file_exists(registry_path + ".building")).is_false()
+	assert_bool(FileAccess.file_exists(registry_path + ".previous")).is_false()
+	assert_bool(FileAccess.file_exists(marker_path)).is_false()
 
 
 func _rename_file(source: String, destination: String) -> Error:

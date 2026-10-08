@@ -17,6 +17,14 @@ func inspect_root(
 ) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	var resolver := GDSQLDatabasePathResolver.new(data_root)
+	var database_recovery := GDSQLConfigFileDatabaseLifecycleTransaction.new(
+		resolver,
+	).recover()
+	result.diagnostics.merge(database_recovery.diagnostics)
+	if not database_recovery.is_successful():
+		var inspections: Array[GDSQLDatabaseInspection] = []
+		result.value = inspections
+		return result
 	var catalog_path := resolver.resolve_catalog_path()
 	var catalog := ConfigFile.new()
 	var load_error := catalog.load(catalog_path)

@@ -52,7 +52,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Release, recovery, performance, and supported-version QA | Compatibility/package checks, migration restore recovery, checkpoint retry, and table create/alter/rename/drop recovery implemented; database lifecycle interruption, exported builds, and benchmarks remain |
+| High — first | Release, recovery, performance, and supported-version QA | Checkpoint, migration, table lifecycle, and database rename/drop recovery implemented; atomic registration create/unregister, exported builds, and benchmarks remain |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
@@ -475,8 +475,11 @@ catalog/storage QA work. Create and alter replacement now stage schema and row
 files together and recover an interrupted pair when the catalog reopens. Table
 rename and destructive removal now use explicit preparing/committed markers:
 reopening rolls back work before the commit point and finishes cleanup after
-it. Database rename/drop remains separate because it coordinates the root
-registry with an entire directory identity.
+it. Database rename/drop uses a separate boundary because it coordinates the root
+registry with an entire directory identity. That boundary now stages the root
+registry, moves or quarantines the directory, and resolves global lifecycle
+markers before any catalog read. Atomic registry replacement for database
+creation and non-destructive unregister remains the final catalog-write slice.
 
 ## 4. Editor and integration completion
 

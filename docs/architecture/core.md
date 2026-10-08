@@ -1971,9 +1971,16 @@ the data root. Rename stages the updated schema, moves the row file without
 copying it, and keeps the old schema until an atomic marker commit. Drop
 quarantines both files before its marker commit. Reopening rolls back a
 preparing operation or finishes cleanup for a committed operation before
-catalog discovery exposes tables. Database rename and removal still require a
-separate registry/directory protocol because their commit point spans the root
-catalog and a directory.
+catalog discovery exposes tables.
+
+`GDSQLConfigFileDatabaseLifecycleTransaction` coordinates database rename and
+destructive drop across the root registry and the database directory. It stages
+the replacement `databases.cfg`, moves the directory, then atomically promotes
+a global preparing marker to committed. Recovery runs before any registry read:
+preparing work restores the previous registry and directory identity, while
+committed work preserves the new logical state and retries artifact cleanup.
+Registration creation and non-destructive unregister remain separate root
+registry replacement work.
 
 Table alterations are explicit typed intents for column lifecycle, display
 order, defaults, nullability, uniqueness, generated-value and auto-increment
@@ -2771,6 +2778,7 @@ addons/gdsql/
 │       ├── config_file_catalog_administration_service.gd
 │       ├── gdsql_config_file_catalog_transaction.gd
 │       ├── gdsql_config_file_table_lifecycle_transaction.gd
+│       ├── gdsql_config_file_database_lifecycle_transaction.gd
 │       ├── config_file_database_registry_store.gd
 │       ├── config_file_database_explorer.gd
 │       ├── config_file_cache.gd

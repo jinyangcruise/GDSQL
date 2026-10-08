@@ -583,6 +583,13 @@ ConfigTableLifecycle("`**GDSQLConfigFileTableLifecycleTransaction**
 *Safety:* Preparing/committed markers with rollback or cleanup on reopen
 *Scope:* Table rename and drop; database lifecycle remains separate`")
 
+ConfigDatabaseLifecycle("`**GDSQLConfigFileDatabaseLifecycleTransaction**
+
+-
+*Purpose:* Coordinate database identity across the root registry and directory
+*Safety:* Staged registry plus global preparing/committed recovery markers
+*Scope:* Database rename and destructive drop`")
+
 ConfigStorage("`**GDSQLConfigFileTableStorage**
 
 -
@@ -830,11 +837,14 @@ MemoryCheckpoint -->|"stages and commits durable changes"| TableStorage
 ConfigCatalog -->|"path resolution"| ConfigInfrastructure
 ConfigCatalog -->|"recover schema/table pairs"| ConfigCatalogTransaction
 ConfigCatalog -->|"recover table lifecycle markers"| ConfigTableLifecycle
+ConfigCatalog -->|"recover root registry/directory lifecycle"| ConfigDatabaseLifecycle
 ConfigAdministration -->|"paths · cache"| ConfigInfrastructure
 ConfigAdministration -->|"replace schema/table pairs"| ConfigCatalogTransaction
 ConfigAdministration -->|"rename/drop table pairs"| ConfigTableLifecycle
+ConfigAdministration -->|"rename/drop databases"| ConfigDatabaseLifecycle
 ConfigCatalogTransaction -->|"paths · ConfigFile activation"| ConfigInfrastructure
 ConfigTableLifecycle -->|"paths · marker activation"| ConfigInfrastructure
+ConfigDatabaseLifecycle -->|"paths · registry/directory activation"| ConfigInfrastructure
 ConfigMigrationLedger -->|"ledger path"| ConfigInfrastructure
 ConfigMigrationRecovery -->|"recovery paths · cache invalidation"| ConfigInfrastructure
 ConfigStorage -->|"paths · cache · codec"| ConfigInfrastructure
