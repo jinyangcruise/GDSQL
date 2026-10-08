@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        godot-version: [4.7]
+        godot-version: [4.7.2]
 
     steps:
       - uses: actions/checkout@v4
@@ -30,12 +30,19 @@ jobs:
           paths: res://tests
           timeout: 5
 
+      - uses: lihop/setup-godot@v3
+        with:
+          version: ${{ matrix.godot-version }}-stable
+          export-templates: true
+          cache: true
+
       - name: Smoke test packaged addon
         env:
-          GODOT_BIN: /home/runner/godot-linux/godot
+          GODOT_BIN: godot
         run: ./scripts/validate-addon-package.sh
 
-      - name: Smoke test exported runtime pack
+      - name: Smoke test exported runtimes
         env:
-          GODOT_BIN: /home/runner/godot-linux/godot
+          GODOT_BIN: godot
+          GDSQL_REQUIRE_STANDALONE_EXPORT: 1
         run: ./scripts/validate-exported-runtime.sh

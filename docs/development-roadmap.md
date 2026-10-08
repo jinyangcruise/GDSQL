@@ -52,7 +52,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Release, recovery, performance, and supported-version QA | Recovery and an exported runtime-pack gate are implemented; standalone export-template coverage and large-data benchmarks remain |
+| High — first | Release, recovery, performance, and supported-version QA | Recovery plus PCK and standalone Linux export gates are implemented; broader platform coverage and large-data benchmarks remain |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
@@ -470,9 +470,11 @@ the packaged addon, excludes editor entry points, and executes the pack in game
 mode. Its runtime fixture creates a writable database and table, inserts a row,
 reopens the database, and verifies the persisted query result. This catches
 export inclusion, script remap, global-class and runtime composition failures.
-It does not replace standalone exports with platform templates: Linux and the
-eventual supported platform matrix still need stripped-template execution so
-editor-only engine dependencies cannot be masked by the editor binary.
+CI also pins Godot 4.7.2 with its matching cached export templates, builds a
+standalone Linux x86_64 executable, and runs the same fixture through the
+stripped runtime binary. This closes the editor-class masking gap for the first
+supported export target. Broader platform coverage should follow only when the
+public support matrix names those platforms.
 
 Migration recovery now also injects a deterministic failure at the directory
 swap activation boundary. The test verifies that the displaced live database

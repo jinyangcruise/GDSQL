@@ -18,12 +18,18 @@ jobs:
       - name: Run GdUnit4 tests
         uses: godot-gdunit-labs/gdUnit4-action@v1
         with:
-          godot-version: 4.7
+          godot-version: 4.7.2
           godot-status: stable
           version: installed
           publish-report: false
           paths: res://tests
           timeout: 5
+
+      - uses: lihop/setup-godot@v3
+        with:
+          version: 4.7.2-stable
+          export-templates: true
+          cache: true
 
       - name: Validate release version
         shell: bash
@@ -50,12 +56,13 @@ jobs:
 
       - name: Smoke test packaged addon
         env:
-          GODOT_BIN: /home/runner/godot-linux/godot
+          GODOT_BIN: godot
         run: ./scripts/validate-addon-package.sh
 
-      - name: Smoke test exported runtime pack
+      - name: Smoke test exported runtimes
         env:
-          GODOT_BIN: /home/runner/godot-linux/godot
+          GODOT_BIN: godot
+          GDSQL_REQUIRE_STANDALONE_EXPORT: 1
         run: ./scripts/validate-exported-runtime.sh
 
       - name: Package addon
