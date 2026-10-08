@@ -574,7 +574,14 @@ ConfigCatalogTransaction("`**GDSQLConfigFileCatalogTransaction**
 -
 *Purpose:* Activate one table's schema and row files as a recoverable pair
 *Safety:* Building files, previous files and reopen-time interruption recovery
-*Scope:* Create/alter replacement; rename and removal use separate protocols`")
+*Scope:* Table create and alter replacement`")
+
+ConfigTableLifecycle("`**GDSQLConfigFileTableLifecycleTransaction**
+
+-
+*Purpose:* Move or remove table identities through recoverable commit states
+*Safety:* Preparing/committed markers with rollback or cleanup on reopen
+*Scope:* Table rename and drop; database lifecycle remains separate`")
 
 ConfigStorage("`**GDSQLConfigFileTableStorage**
 
@@ -822,9 +829,12 @@ MemoryCheckpoint -->|"stages and commits durable changes"| TableStorage
 
 ConfigCatalog -->|"path resolution"| ConfigInfrastructure
 ConfigCatalog -->|"recover schema/table pairs"| ConfigCatalogTransaction
+ConfigCatalog -->|"recover table lifecycle markers"| ConfigTableLifecycle
 ConfigAdministration -->|"paths · cache"| ConfigInfrastructure
 ConfigAdministration -->|"replace schema/table pairs"| ConfigCatalogTransaction
+ConfigAdministration -->|"rename/drop table pairs"| ConfigTableLifecycle
 ConfigCatalogTransaction -->|"paths · ConfigFile activation"| ConfigInfrastructure
+ConfigTableLifecycle -->|"paths · marker activation"| ConfigInfrastructure
 ConfigMigrationLedger -->|"ledger path"| ConfigInfrastructure
 ConfigMigrationRecovery -->|"recovery paths · cache invalidation"| ConfigInfrastructure
 ConfigStorage -->|"paths · cache · codec"| ConfigInfrastructure

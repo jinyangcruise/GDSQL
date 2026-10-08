@@ -1964,8 +1964,16 @@ to `.building` files before either active file moves to `.previous`. Catalog
 loading resolves leftover artifacts: an incomplete activation restores the old
 pair, while a fully activated pair discards stale previous files. Query and
 catalog layers continue to use logical table identity and never inspect these
-backend-owned suffixes. Table/database rename and destructive removal require
-their own recovery protocols and are not covered by this pair transaction.
+backend-owned suffixes.
+
+`GDSQLConfigFileTableLifecycleTransaction` owns table lifecycle markers under
+the data root. Rename stages the updated schema, moves the row file without
+copying it, and keeps the old schema until an atomic marker commit. Drop
+quarantines both files before its marker commit. Reopening rolls back a
+preparing operation or finishes cleanup for a committed operation before
+catalog discovery exposes tables. Database rename and removal still require a
+separate registry/directory protocol because their commit point spans the root
+catalog and a directory.
 
 Table alterations are explicit typed intents for column lifecycle, display
 order, defaults, nullability, uniqueness, generated-value and auto-increment
@@ -2762,6 +2770,7 @@ addons/gdsql/
 │       ├── config_file_catalog_service.gd
 │       ├── config_file_catalog_administration_service.gd
 │       ├── gdsql_config_file_catalog_transaction.gd
+│       ├── gdsql_config_file_table_lifecycle_transaction.gd
 │       ├── config_file_database_registry_store.gd
 │       ├── config_file_database_explorer.gd
 │       ├── config_file_cache.gd
@@ -2814,7 +2823,9 @@ res://
 │   ├── migrations/             # Project-owned schema history by stream
 │   └── migration_states/       # Trusted history-head schema evidence
 └── data/
-    ├── databases.cfg           # Database catalog
+    ├── databases.cfg                 # Database catalog
+    ├── .gdsql_catalog_transactions/  # Transient table lifecycle markers
+    ├── .gdsql_migration_recovery/    # Migration recovery snapshots
     └── <database>/
         ├── schema/              # Table definitions
         └── tables/              # Row data stored as .cfg or binary table files

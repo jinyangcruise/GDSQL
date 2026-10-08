@@ -49,7 +49,15 @@ func inspect_root(
 			GDSQLStorageBackendIds.CONFIG_FILE,
 		)
 		var inspection := GDSQLDatabaseInspection.new(registration, true)
-		inspection.tables = _inspect_tables(resolver, database_name, result)
+		var recovered := GDSQLConfigFileTableLifecycleTransaction.new(resolver) \
+				.recover_database(database_name)
+		result.diagnostics.merge(recovered.diagnostics)
+		if recovered.is_successful():
+			var pair_recovery := GDSQLConfigFileCatalogTransaction.new(resolver) \
+					.recover_database(database_name)
+			result.diagnostics.merge(pair_recovery.diagnostics)
+			if pair_recovery.is_successful():
+				inspection.tables = _inspect_tables(resolver, database_name, result)
 		inspections.append(inspection)
 	result.value = inspections
 	return result

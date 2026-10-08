@@ -9,6 +9,7 @@ var _catalog: GDSQLCatalogService
 var _cache: GDSQLConfigFileCache
 var _codec: GDSQLGodotVariantCodec
 var _catalog_transaction: GDSQLConfigFileCatalogTransaction
+var _table_lifecycle: GDSQLConfigFileTableLifecycleTransaction
 
 
 func _init(
@@ -17,6 +18,7 @@ func _init(
 		cache: GDSQLConfigFileCache,
 		codec: GDSQLGodotVariantCodec,
 		catalog_transaction: GDSQLConfigFileCatalogTransaction = null,
+		table_lifecycle: GDSQLConfigFileTableLifecycleTransaction = null,
 ) -> void:
 	_path_resolver = path_resolver
 	_catalog = catalog
@@ -25,6 +27,9 @@ func _init(
 	_catalog_transaction = catalog_transaction \
 	if catalog_transaction != null \
 	else GDSQLConfigFileCatalogTransaction.new(path_resolver)
+	_table_lifecycle = table_lifecycle \
+	if table_lifecycle != null \
+	else GDSQLConfigFileTableLifecycleTransaction.new(path_resolver)
 
 
 func create_database(database_name: StringName) -> GDSQLCatalogOperationResult:
@@ -283,24 +288,25 @@ func rename_table(
 	)
 	if not dependencies.is_successful():
 		return dependencies
-	var old_schema_path := _path_resolver.resolve_schema_path(database_name, current_name)
 	var new_schema_path := _path_resolver.resolve_schema_path(database_name, new_name)
 	var old_table_path := _path_resolver.resolve_table_path(database_name, current_name)
 	var new_table_path := _path_resolver.resolve_table_path(database_name, new_name)
 	if FileAccess.file_exists(new_schema_path) or FileAccess.file_exists(new_table_path):
 		return _error(&"GDSQL_CATALOG_TABLE_TARGET_EXISTS", "Target files for table '%s' already exist." % new_name)
-	if DirAccess.rename_absolute(ProjectSettings.globalize_path(old_table_path), ProjectSettings.globalize_path(new_table_path)) != OK:
-		return _error(&"GDSQL_CATALOG_TABLE_RENAME_FAILED", "Could not rename table storage '%s'." % old_table_path)
-	if DirAccess.rename_absolute(ProjectSettings.globalize_path(old_schema_path), ProjectSettings.globalize_path(new_schema_path)) != OK:
-		DirAccess.rename_absolute(ProjectSettings.globalize_path(new_table_path), ProjectSettings.globalize_path(old_table_path))
-		return _error(&"GDSQL_CATALOG_TABLE_RENAME_FAILED", "Could not rename table schema '%s'." % old_schema_path)
 	table.name = new_name
 	for foreign_key in table.foreign_keys:
 		if foreign_key.referenced_table == current_name:
 			foreign_key.referenced_table = new_name
-	if _save_schema(new_schema_path, table) != OK:
-		_rollback_table_rename(old_schema_path, new_schema_path, old_table_path, new_table_path)
-		return _error(&"GDSQL_CATALOG_SCHEMA_SAVE_FAILED", "Could not update renamed table schema '%s'." % new_schema_path)
+	var persisted := _table_lifecycle.rename_table(
+		database_name,
+		current_name,
+		new_name,
+		_build_schema(table),
+	)
+	if not persisted.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(persisted.diagnostics)
+		return failed
 	_cache.invalidate(old_table_path)
 	_cache.invalidate(new_table_path)
 	var result := GDSQLCatalogOperationResult.new()
@@ -382,11 +388,11 @@ func drop_table(
 	var table_data := ConfigFile.new()
 	if schema.load(schema_path) != OK or table_data.load(table_path) != OK:
 		return _error(&"GDSQL_CATALOG_TABLE_UNREADABLE", "Could not load table '%s.%s' before dropping it." % [database_name, table_name])
-	if DirAccess.remove_absolute(ProjectSettings.globalize_path(schema_path)) != OK:
-		return _error(&"GDSQL_CATALOG_TABLE_DROP_FAILED", "Could not remove table schema '%s'." % schema_path)
-	if DirAccess.remove_absolute(ProjectSettings.globalize_path(table_path)) != OK:
-		schema.save(schema_path)
-		return _error(&"GDSQL_CATALOG_TABLE_DROP_FAILED", "Could not remove table storage '%s'." % table_path)
+	var persisted := _table_lifecycle.drop_table(database_name, table_name)
+	if not persisted.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(persisted.diagnostics)
+		return failed
 	_cache.invalidate(table_path)
 	var result := GDSQLCatalogOperationResult.new()
 	result.value = table
@@ -1347,16 +1353,6 @@ func _load_registry() -> GDSQLCatalogOperationResult:
 	var result := GDSQLCatalogOperationResult.new()
 	result.value = registry
 	return result
-
-
-func _rollback_table_rename(
-		old_schema_path: String,
-		new_schema_path: String,
-		old_table_path: String,
-		new_table_path: String,
-) -> void:
-	DirAccess.rename_absolute(ProjectSettings.globalize_path(new_schema_path), ProjectSettings.globalize_path(old_schema_path))
-	DirAccess.rename_absolute(ProjectSettings.globalize_path(new_table_path), ProjectSettings.globalize_path(old_table_path))
 
 
 func _invalidate_database_tables(database: GDSQLDatabaseDefinition, database_name: StringName) -> void:

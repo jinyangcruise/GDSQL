@@ -133,6 +133,137 @@ func test_catalog_reopen_recovers_an_interrupted_schema_table_activation() -> vo
 		assert_bool(FileAccess.file_exists(path + ".previous")).is_false()
 
 
+func test_catalog_reopen_rolls_back_an_interrupted_table_rename() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_rows(database, [{ &"id": 1, &"name": "Knight" }])
+	var resolver := GDSQLDatabasePathResolver.new(_data_root)
+	var old_schema := resolver.resolve_schema_path(database.database_name, &"heroes")
+	var old_table := resolver.resolve_table_path(database.database_name, &"heroes")
+	var new_schema := resolver.resolve_schema_path(database.database_name, &"characters")
+	var new_table := resolver.resolve_table_path(database.database_name, &"characters")
+	var staged_schema := ConfigFile.new()
+	assert_int(staged_schema.load(old_schema)).is_equal(OK)
+	staged_schema.set_value("table", "name", "characters")
+	assert_int(staged_schema.save(new_schema + ".building")).is_equal(OK)
+	var marker := _write_lifecycle_marker(
+		resolver,
+		database.database_name,
+		"rename_table",
+		&"heroes",
+		&"characters",
+		false,
+	)
+	assert_int(_rename_file(old_table, new_table)).is_equal(OK)
+	assert_int(_rename_file(old_schema, old_schema + ".previous")).is_equal(OK)
+
+	var reopened_result := GDSQLDatabase.open(database.database_name, _data_root)
+
+	assert_bool(reopened_result.is_successful()).is_true()
+	var reopened := reopened_result.get_database()
+	assert_bool(reopened.context.catalog.has_table(database.database_name, &"heroes")).is_true()
+	assert_bool(reopened.context.catalog.has_table(database.database_name, &"characters")).is_false()
+	var selected := reopened.execute(
+		reopened.query().table(&"heroes").select().build(),
+	)
+	assert_int(selected.rows.size()).is_equal(1)
+	assert_str(selected.rows[0].get_value(&"name")).is_equal("Knight")
+	assert_bool(FileAccess.file_exists(new_schema + ".building")).is_false()
+	assert_bool(FileAccess.file_exists(old_schema + ".previous")).is_false()
+	assert_bool(FileAccess.file_exists(marker)).is_false()
+
+
+func test_catalog_reopen_finishes_a_committed_table_rename() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_rows(database, [{ &"id": 1, &"name": "Knight" }])
+	var resolver := GDSQLDatabasePathResolver.new(_data_root)
+	var old_schema := resolver.resolve_schema_path(database.database_name, &"heroes")
+	var old_table := resolver.resolve_table_path(database.database_name, &"heroes")
+	var new_schema := resolver.resolve_schema_path(database.database_name, &"characters")
+	var new_table := resolver.resolve_table_path(database.database_name, &"characters")
+	var renamed_schema := ConfigFile.new()
+	assert_int(renamed_schema.load(old_schema)).is_equal(OK)
+	renamed_schema.set_value("table", "name", "characters")
+	assert_int(renamed_schema.save(new_schema)).is_equal(OK)
+	var marker := _write_lifecycle_marker(
+		resolver,
+		database.database_name,
+		"rename_table",
+		&"heroes",
+		&"characters",
+		true,
+	)
+	assert_int(_rename_file(old_table, new_table)).is_equal(OK)
+	assert_int(_rename_file(old_schema, old_schema + ".previous")).is_equal(OK)
+
+	var reopened_result := GDSQLDatabase.open(database.database_name, _data_root)
+
+	assert_bool(reopened_result.is_successful()).is_true()
+	var reopened := reopened_result.get_database()
+	assert_bool(reopened.context.catalog.has_table(database.database_name, &"heroes")).is_false()
+	assert_bool(reopened.context.catalog.has_table(database.database_name, &"characters")).is_true()
+	var selected := reopened.execute(
+		reopened.query().table(&"characters").select().build(),
+	)
+	assert_int(selected.rows.size()).is_equal(1)
+	assert_str(selected.rows[0].get_value(&"name")).is_equal("Knight")
+	assert_bool(FileAccess.file_exists(old_schema + ".previous")).is_false()
+	assert_bool(FileAccess.file_exists(marker)).is_false()
+
+
+func test_catalog_reopen_rolls_back_an_interrupted_table_drop() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_rows(database, [{ &"id": 1, &"name": "Knight" }])
+	var resolver := GDSQLDatabasePathResolver.new(_data_root)
+	var table_path := resolver.resolve_table_path(database.database_name, &"heroes")
+	var marker := _write_lifecycle_marker(
+		resolver,
+		database.database_name,
+		"drop_table",
+		&"heroes",
+		&"",
+		false,
+	)
+	assert_int(_rename_file(table_path, table_path + ".dropping")).is_equal(OK)
+
+	var reopened_result := GDSQLDatabase.open(database.database_name, _data_root)
+
+	assert_bool(reopened_result.is_successful()).is_true()
+	var reopened := reopened_result.get_database()
+	assert_bool(reopened.context.catalog.has_table(database.database_name, &"heroes")).is_true()
+	var selected := reopened.execute(
+		reopened.query().table(&"heroes").select().build(),
+	)
+	assert_int(selected.rows.size()).is_equal(1)
+	assert_bool(FileAccess.file_exists(table_path + ".dropping")).is_false()
+	assert_bool(FileAccess.file_exists(marker)).is_false()
+
+
+func test_catalog_reopen_finishes_a_committed_table_drop() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	var resolver := GDSQLDatabasePathResolver.new(_data_root)
+	var schema_path := resolver.resolve_schema_path(database.database_name, &"heroes")
+	var table_path := resolver.resolve_table_path(database.database_name, &"heroes")
+	var marker := _write_lifecycle_marker(
+		resolver,
+		database.database_name,
+		"drop_table",
+		&"heroes",
+		&"",
+		true,
+	)
+	assert_int(_rename_file(schema_path, schema_path + ".dropping")).is_equal(OK)
+	assert_int(_rename_file(table_path, table_path + ".dropping")).is_equal(OK)
+
+	var reopened_result := GDSQLDatabase.open(database.database_name, _data_root)
+
+	assert_bool(reopened_result.is_successful()).is_true()
+	var reopened := reopened_result.get_database()
+	assert_bool(reopened.context.catalog.has_table(database.database_name, &"heroes")).is_false()
+	assert_bool(FileAccess.file_exists(schema_path + ".dropping")).is_false()
+	assert_bool(FileAccess.file_exists(table_path + ".dropping")).is_false()
+	assert_bool(FileAccess.file_exists(marker)).is_false()
+
+
 func test_alter_table_rejects_primary_key_drop() -> void:
 	var database := TestDatabase.create_heroes_database(_data_root)
 	var alterations: Array[GDSQLTableAlteration] = [
@@ -578,3 +709,33 @@ func _referencing_table(
 		),
 	)
 	return table
+
+
+func _write_lifecycle_marker(
+		resolver: GDSQLDatabasePathResolver,
+		database_name: StringName,
+		kind: String,
+		source: StringName,
+		target: StringName,
+		committed: bool,
+) -> String:
+	var root := resolver.resolve_catalog_transaction_root(database_name)
+	assert_int(
+		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(root)),
+	).is_equal(OK)
+	var phase := ".committed" if committed else ".preparing"
+	var path := root.path_join("simulated.cfg" + phase)
+	var marker := ConfigFile.new()
+	marker.set_value("transaction", "kind", kind)
+	marker.set_value("transaction", "database", String(database_name))
+	marker.set_value("transaction", "source", String(source))
+	marker.set_value("transaction", "target", String(target))
+	assert_int(marker.save(path)).is_equal(OK)
+	return path
+
+
+func _rename_file(source: String, destination: String) -> Error:
+	return DirAccess.rename_absolute(
+		ProjectSettings.globalize_path(source),
+		ProjectSettings.globalize_path(destination),
+	)

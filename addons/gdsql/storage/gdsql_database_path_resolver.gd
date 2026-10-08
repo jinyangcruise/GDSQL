@@ -37,6 +37,10 @@ func resolve_migration_recovery_root(database: StringName) -> String:
 	return data_root.path_join(".gdsql_migration_recovery").path_join(String(database))
 
 
+func resolve_catalog_transaction_root(database: StringName) -> String:
+	return data_root.path_join(".gdsql_catalog_transactions").path_join(String(database))
+
+
 func resolve_migration_backup_path(
 		database: StringName,
 		migration_id: String,

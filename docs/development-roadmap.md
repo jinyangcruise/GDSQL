@@ -52,7 +52,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Release, recovery, performance, and supported-version QA | Compatibility/package checks, migration restore recovery, checkpoint retry, and create/alter catalog-pair recovery implemented; rename/drop interruption, exported builds, and benchmarks remain |
+| High — first | Release, recovery, performance, and supported-version QA | Compatibility/package checks, migration restore recovery, checkpoint retry, and table create/alter/rename/drop recovery implemented; database lifecycle interruption, exported builds, and benchmarks remain |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
@@ -472,9 +472,11 @@ retry successfully. Runtime checkpoint QA forces a multi-table durable commit
 failure and verifies that every table remains dirty until one complete retry
 succeeds. Physical interruption during ConfigFile replacement remains separate
 catalog/storage QA work. Create and alter replacement now stage schema and row
-files together and recover an interrupted pair when the catalog reopens.
-Physical rename and destructive removal remain separate because they move or
-delete identities instead of replacing a stable pair.
+files together and recover an interrupted pair when the catalog reopens. Table
+rename and destructive removal now use explicit preparing/committed markers:
+reopening rolls back work before the commit point and finishes cleanup after
+it. Database rename/drop remains separate because it coordinates the root
+registry with an entire directory identity.
 
 ## 4. Editor and integration completion
 
