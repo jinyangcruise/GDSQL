@@ -49,6 +49,19 @@ class FailingAppendLedger:
 		return result
 
 
+class FailingRestoreActivationRecoveryStore:
+	extends GDSQLConfigFileMigrationRecoveryStore
+
+	var activation_failure_count := 0
+
+
+	func _rename_absolute(source: String, destination: String) -> Error:
+		if activation_failure_count == 0 and source.ends_with(".restoring"):
+			activation_failure_count += 1
+			return ERR_CANT_CREATE
+		return super._rename_absolute(source, destination)
+
+
 class ConfigMigrationHarness:
 	extends RefCounted
 
@@ -892,6 +905,57 @@ func test_config_file_recovery_rejects_a_corrupted_snapshot_without_mutation() -
 		database.context.catalog.get_table(database.database_name, &"heroes") \
 				.get_column(&"level"),
 	).is_not_null()
+
+
+func test_config_file_recovery_rolls_back_a_failed_snapshot_activation() -> void:
+	var database := TestDatabase.create_heroes_database(_data_root)
+	TestDatabase.insert_basic_heroes(database)
+	var resolver := GDSQLDatabasePathResolver.new(_data_root)
+	var recovery := FailingRestoreActivationRecoveryStore.new(
+		resolver,
+		GDSQLConfigFileCache.new(),
+	)
+	var created := recovery.create_backup(
+		database.database_name,
+		"202609280001_restore_failure",
+	)
+	assert_bool(created.is_successful()).is_true()
+	var backup := created.get_value() as GDSQLMigrationBackup
+	assert_bool(
+		database.insert(
+			&"heroes",
+			{ &"id": 3, &"name": "Rogue" },
+		).is_successful(),
+	).is_true()
+
+	var failed := recovery.restore(backup)
+
+	assert_bool(failed.is_successful()).is_false()
+	assert_str(_first_code(failed)).is_equal("GDSQL_MIGRATION_RESTORE_SWAP_FAILED")
+	assert_int(recovery.activation_failure_count).is_equal(1)
+	assert_bool(
+		recovery.load_backup(database.database_name, backup.migration_id) \
+				.is_successful(),
+	).is_true()
+	var current := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	var current_rows := current.execute(
+		current.query().table(&"heroes").select().order_by_column(&"id").build(),
+	)
+	assert_int(current_rows.rows.size()).is_equal(3)
+	assert_str(current_rows.rows[2].get_value(&"name")).is_equal("Rogue")
+
+	var retry := GDSQLConfigFileMigrationRecoveryStore.new(
+		resolver,
+		GDSQLConfigFileCache.new(),
+	).restore(backup)
+
+	assert_bool(retry.is_successful()).is_true()
+	var restored := GDSQLDatabase.open(database.database_name, _data_root).get_database()
+	var restored_rows := restored.execute(
+		restored.query().table(&"heroes").select().order_by_column(&"id").build(),
+	)
+	assert_int(restored_rows.rows.size()).is_equal(2)
+	assert_str(restored_rows.rows[1].get_value(&"name")).is_equal("Mage")
 
 
 func test_runner_applies_catalog_change_and_records_schema_fingerprint() -> void:

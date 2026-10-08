@@ -52,7 +52,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Release, recovery, performance, and supported-version QA | Godot 4.7 contract and isolated package smoke check implemented; exported builds, recovery fault injection, and benchmarks remain |
+| High — first | Release, recovery, performance, and supported-version QA | Godot 4.7 contract, isolated package smoke check, and failed migration-restore activation coverage implemented; catalog/checkpoint interruption, exported builds, and benchmarks remain |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
@@ -464,6 +464,12 @@ line, public documentation no longer promises every Godot 4 release, and CI
 loads the packaged `addons/gdsql` directory in an otherwise empty project after
 the test suite. This detects hidden development-addon dependencies and packaged
 script loading failures before release creation.
+
+Migration recovery now also injects a deterministic failure at the directory
+swap activation boundary. The test verifies that the displaced live database
+is restored, the verified backup remains available, and a later restore can
+retry successfully. Catalog-file and runtime-checkpoint interruption scenarios
+remain separate QA work.
 
 ## 4. Editor and integration completion
 

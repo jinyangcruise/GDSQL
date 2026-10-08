@@ -114,7 +114,7 @@ func create_backup(
 			&"GDSQL_MIGRATION_BACKUP_MANIFEST_SAVE_FAILED",
 			"Could not save migration recovery metadata.",
 		)
-	if DirAccess.rename_absolute(
+	if _rename_absolute(
 		ProjectSettings.globalize_path(staging_path),
 		ProjectSettings.globalize_path(backup_path),
 	) != OK:
@@ -239,7 +239,7 @@ func restore(backup: GDSQLMigrationBackup) -> GDSQLOperationResult:
 			)
 		return result
 	var had_database := _directory_exists(database_path)
-	if had_database and DirAccess.rename_absolute(
+	if had_database and _rename_absolute(
 		ProjectSettings.globalize_path(database_path),
 		ProjectSettings.globalize_path(displaced_path),
 	) != OK:
@@ -249,12 +249,12 @@ func restore(backup: GDSQLMigrationBackup) -> GDSQLOperationResult:
 			&"GDSQL_MIGRATION_RESTORE_SWAP_FAILED",
 			"Could not move the current database aside for recovery.",
 		)
-	if DirAccess.rename_absolute(
+	if _rename_absolute(
 		ProjectSettings.globalize_path(restoring_path),
 		ProjectSettings.globalize_path(database_path),
 	) != OK:
 		if had_database:
-			DirAccess.rename_absolute(
+			_rename_absolute(
 				ProjectSettings.globalize_path(displaced_path),
 				ProjectSettings.globalize_path(database_path),
 			)
@@ -433,6 +433,12 @@ func _remove_tree(path: String) -> Error:
 
 func _directory_exists(path: String) -> bool:
 	return DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(path))
+
+
+## Kept as one overridable filesystem boundary so recovery swap failures can be
+## reproduced deterministically without weakening the production algorithm.
+func _rename_absolute(source: String, destination: String) -> Error:
+	return DirAccess.rename_absolute(source, destination)
 
 
 func _is_valid_identity(database_name: StringName, migration_id: String) -> bool:
