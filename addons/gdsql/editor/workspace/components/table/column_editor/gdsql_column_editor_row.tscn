@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://lw0b5m8dq4pr" path="res://addons/gdsql/editor/workspace/components/table/column_editor/gdsql_column_editor_row.gd" id="1_row"]
 [ext_resource type="Texture2D" uid="uid://b0khswtaw0vda" path="res://addons/gdsql/editor/workspace/icons/arrow_down_arrow_up.svg" id="2_p0i6b"]
 [ext_resource type="Script" uid="uid://cxkajegaa5agx" path="res://addons/gdsql/editor/workspace/components/gdsql_editor_variant_value_field.gd" id="3_value"]
-[ext_resource type="Script" path="res://addons/gdsql/editor/workspace/components/resource/gdsql_editor_resource_picker.gd" id="4_picker"]
+[ext_resource type="Script" uid="uid://biw4m8yv55ivx" path="res://addons/gdsql/editor/workspace/components/resource/gdsql_editor_resource_picker.gd" id="4_picker"]
 
 [node name="ColumnEditorRow" type="PanelContainer" unique_id=809263312]
 offset_right = 1134.0
@@ -144,7 +144,7 @@ tooltip_text = "Select a Resource prototype to define the accepted subtype."
 base_type = "Resource"
 script = ExtResource("4_picker")
 
-[node name="ResourceTypeName" type="Label" parent="Margin/Cells/ResourceCell"]
+[node name="ResourceTypeName" type="Label" parent="Margin/Cells/ResourceCell" unique_id=447120717]
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
@@ -155,21 +155,21 @@ text_overrun_behavior = 3
 [node name="VSeparator3" type="VSeparator" parent="Margin/Cells" unique_id=916121464]
 layout_mode = 2
 
-[node name="OwnershipCell" type="MarginContainer" parent="Margin/Cells"]
+[node name="OwnershipCell" type="MarginContainer" parent="Margin/Cells" unique_id=3003334]
 custom_minimum_size = Vector2(115, 0)
 custom_maximum_size = Vector2(115, -1)
 layout_mode = 2
 
-[node name="ResourceOwnership" type="OptionButton" parent="Margin/Cells/OwnershipCell"]
+[node name="ResourceOwnership" type="OptionButton" parent="Margin/Cells/OwnershipCell" unique_id=1934390362]
 unique_name_in_owner = true
 layout_mode = 2
 item_count = 2
-popup/item_0/text = "Owned"
-popup/item_0/id = 0
-popup/item_1/text = "Referenced"
-popup/item_1/id = 1
+popup/item_0/text = "Referenced"
+popup/item_0/id = 1
+popup/item_1/text = "Owned"
+popup/item_1/id = 0
 
-[node name="VSeparatorOwnership" type="VSeparator" parent="Margin/Cells"]
+[node name="VSeparatorOwnership" type="VSeparator" parent="Margin/Cells" unique_id=785763505]
 layout_mode = 2
 
 [node name="NullableCell" type="MarginContainer" parent="Margin/Cells" unique_id=1967765174]

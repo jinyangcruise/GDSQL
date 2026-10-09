@@ -523,6 +523,45 @@ the manual benchmark workflow uploads the same reports without enforcing
 machine-dependent timing budgets. Resource, checkpoint, and Managed Content
 fixtures remain separate follow-up slices.
 
+### ConfigFile checkpoint rescue
+
+The scalar benchmark shows that constructing and saving one complete
+100,000-row ConfigFile snapshot is practical on the measured machine. That
+fixture builds the file in memory, rebuilds its indexes once, and saves the
+whole file once. It does not exercise the normal transactional mutation path
+and is not yet a crash-safe temporary-file replacement.
+
+Keep the following work recorded, but gate it on checkpoint measurements at
+ordinary project sizes rather than treating every item as a release blocker:
+
+1. Use one per-table mutation map so a transaction does not repeatedly rebuild
+   the same effective table snapshot.
+2. Track dirty row identities and table versions in the in-memory backend so a
+   checkpoint can transfer changed rows without diffing two complete tables.
+3. Add a validated bulk-snapshot checkpoint path: validate once, encode once,
+   write a temporary table, verify it, atomically activate it, and preserve
+   retry evidence if activation fails.
+4. Consider incremental ConfigFile index and constraint maintenance only if
+   profiling shows that ConfigFile must support larger frequently-mutated
+   tables. This is deferred because it duplicates work better owned by the
+   paged backend.
+
+The first three items reduce editor/runtime stalls while ConfigFile remains the
+default mutable backend. They are performance and durability safeguards, not
+new query features and not prerequisites for a small game whose measured save
+tables remain modest. The migration/recovery guide is the separate public
+documentation requirement for explaining the behavior already implemented.
+
+### Optional native acceleration
+
+Keep a C++ GDExtension backend or accelerator in the future backlog. Consider
+it only after the storage layout and algorithms are stable and profiling shows
+CPU-bound work that GDScript cannot meet. Preserve the existing storage
+contracts, use coarse page/buffer/index operations across the language
+boundary, and avoid per-cell calls. Native acceleration does not replace
+paging, bounded I/O, or crash-safe persistence, and it adds per-platform build,
+packaging, and compatibility work.
+
 ## 4. Editor and integration completion
 
 - Verify Godot-AI tool registration across plugin load order, reload, disable,
@@ -558,6 +597,9 @@ activation fails.
 - Editor localization.
 - Configurable shortcuts in a dedicated Godot editor-settings section.
 - Automatic background updates.
+- Optional C++ GDExtension acceleration after storage algorithms and the paged
+  format are stable; retain a GDScript-compatible contract and measure before
+  adopting the additional distribution burden.
 
 ## Documentation policy
 
