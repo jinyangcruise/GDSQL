@@ -335,7 +335,18 @@ static func _create_context(
 		cache: GDSQLConfigFileCache,
 		codec: GDSQLGodotVariantCodec,
 ) -> GDSQLDatabaseContext:
-	var catalog: GDSQLCatalogService = GDSQLConfigFileCatalogService.new(path_resolver, codec)
+	var table_data_transaction := GDSQLConfigFileTableDataTransaction.new(
+		path_resolver,
+		cache,
+	)
+	var catalog: GDSQLCatalogService = GDSQLConfigFileCatalogService.new(
+		path_resolver,
+		codec,
+		null,
+		null,
+		null,
+		table_data_transaction,
+	)
 	var catalog_administration: GDSQLCatalogAdministrationService = \
 			GDSQLConfigFileCatalogAdministrationService.new(
 				path_resolver,

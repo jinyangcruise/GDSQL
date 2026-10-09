@@ -52,7 +52,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Release, recovery, performance, and supported-version QA | Recovery, PCK/standalone Linux export gates, and the scalar ConfigFile benchmark harness are implemented; broader platform and benchmark coverage remain |
+| High — first | Release, recovery, and supported-version QA | Crash-safe table commits, catalog/migration recovery, PCK/standalone Linux export gates, and the scalar ConfigFile baseline are implemented; the migration/recovery guide and selected supported-platform verification remain. Additional benchmarks are deferred until measurements or real projects justify them |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
@@ -481,9 +481,12 @@ swap activation boundary. The test verifies that the displaced live database
 is restored, the verified backup remains available, and a later restore can
 retry successfully. Runtime checkpoint QA forces a multi-table durable commit
 failure and verifies that every table remains dirty until one complete retry
-succeeds. Physical interruption during ConfigFile replacement remains separate
-catalog/storage QA work. Create and alter replacement now stage schema and row
-files together and recover an interrupted pair when the catalog reopens. Table
+succeeds. ConfigFile row commits now stage and verify complete replacement
+files for every touched table and activate them behind one database-scoped
+preparing/committed marker. Reopen-time tests cover rollback before the commit
+point and cleanup after it; hardware power-loss guarantees remain limited by
+the filesystem behavior Godot exposes. Create and alter replacement stage
+schema and row files together and recover an interrupted pair when the catalog reopens. Table
 rename and destructive removal now use explicit preparing/committed markers:
 reopening rolls back work before the commit point and finishes cleanup after
 it. Database rename/drop uses a separate boundary because it coordinates the root
@@ -538,18 +541,20 @@ ordinary project sizes rather than treating every item as a release blocker:
    the same effective table snapshot.
 2. Track dirty row identities and table versions in the in-memory backend so a
    checkpoint can transfer changed rows without diffing two complete tables.
-3. Add a validated bulk-snapshot checkpoint path: validate once, encode once,
-   write a temporary table, verify it, atomically activate it, and preserve
-   retry evidence if activation fails.
+3. **Implemented and tested.** ConfigFile commits build complete replacement
+   tables, verify their staged files, and activate every table touched by one
+   database transaction behind a recoverable commit marker. Checkpoints reuse
+   this storage boundary and retain dirty in-memory versions when activation
+   fails.
 4. Consider incremental ConfigFile index and constraint maintenance only if
    profiling shows that ConfigFile must support larger frequently-mutated
    tables. This is deferred because it duplicates work better owned by the
    paged backend.
 
-The first three items reduce editor/runtime stalls while ConfigFile remains the
-default mutable backend. They are performance and durability safeguards, not
-new query features and not prerequisites for a small game whose measured save
-tables remain modest. The migration/recovery guide is the separate public
+The first two remaining items may reduce editor/runtime stalls while ConfigFile
+remains the default mutable backend and stay measurement-gated. The implemented
+third item is the durability boundary for ordinary mutations and checkpoints,
+not a new query feature. The migration/recovery guide is the separate public
 documentation requirement for explaining the behavior already implemented.
 
 ### Optional native acceleration

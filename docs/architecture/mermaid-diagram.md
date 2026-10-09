@@ -590,6 +590,13 @@ ConfigDatabaseLifecycle("`**GDSQLConfigFileDatabaseLifecycleTransaction**
 *Safety:* Staged registry plus global preparing/committed recovery markers
 *Scope:* Register, unregister, rename, and destructive drop`")
 
+ConfigTableDataTransaction("`**GDSQLConfigFileTableDataTransaction**
+
+-
+*Purpose:* Activate complete replacement table snapshots as one database commit
+*Safety:* Verified staging plus preparing/committed marker recovery
+*Scope:* Query, transaction, truncate and in-memory checkpoint row persistence`")
+
 ConfigStorage("`**GDSQLConfigFileTableStorage**
 
 -
@@ -848,6 +855,8 @@ ConfigDatabaseLifecycle -->|"paths · registry/directory activation"| ConfigInfr
 ConfigMigrationLedger -->|"ledger path"| ConfigInfrastructure
 ConfigMigrationRecovery -->|"recovery paths · cache invalidation"| ConfigInfrastructure
 ConfigStorage -->|"paths · cache · codec"| ConfigInfrastructure
+ConfigStorage -->|"recoverable multi-table replacement"| ConfigTableDataTransaction
+ConfigTableDataTransaction -->|"paths · cache invalidation"| ConfigInfrastructure
 ConfigInfrastructure -->|"reference identity · resolver"| ResourceMaterialization
 ConfigPackageManifest -->|"decodes typed metadata"| PackageManifest
 ConfigPackageScaffolder -->|"validates typed metadata"| PackageManifest
@@ -877,6 +886,6 @@ class Planner,PlanNode planning;
 class Executor,ForeignKeyValidation,MigrationRunner,MigrationService,FreshProvisioning execution;
 class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationHistoryStore,MigrationSchemaState,MigrationSchemaStateStore,MigrationStepPlanning,MigrationSimulation,MigrationLedger,MigrationRecovery catalog;
 class TableStorage storage;
-class ConfigCatalog,ConfigAdministration,ConfigMigrationHistory,ConfigMigrationSchemaState,ConfigMigrationLedger,ConfigMigrationRecovery,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
+class ConfigCatalog,ConfigAdministration,ConfigMigrationHistory,ConfigMigrationSchemaState,ConfigMigrationLedger,ConfigMigrationRecovery,ConfigStorage,ConfigTableDataTransaction,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
 class ResourceMaterialization storage;
 class Results,Materialization result;

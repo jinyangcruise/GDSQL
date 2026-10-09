@@ -6,6 +6,7 @@ var _codec: GDSQLGodotVariantCodec
 var _catalog_transaction: GDSQLConfigFileCatalogTransaction
 var _table_lifecycle: GDSQLConfigFileTableLifecycleTransaction
 var _database_lifecycle: GDSQLConfigFileDatabaseLifecycleTransaction
+var _table_data_transaction: GDSQLConfigFileTableDataTransaction
 
 
 func _init(
@@ -14,6 +15,7 @@ func _init(
 		catalog_transaction: GDSQLConfigFileCatalogTransaction = null,
 		table_lifecycle: GDSQLConfigFileTableLifecycleTransaction = null,
 		database_lifecycle: GDSQLConfigFileDatabaseLifecycleTransaction = null,
+		table_data_transaction: GDSQLConfigFileTableDataTransaction = null,
 ) -> void:
 	_path_resolver = path_resolver
 	_codec = codec
@@ -26,6 +28,9 @@ func _init(
 	_database_lifecycle = database_lifecycle \
 	if database_lifecycle != null \
 	else GDSQLConfigFileDatabaseLifecycleTransaction.new(path_resolver)
+	_table_data_transaction = table_data_transaction \
+	if table_data_transaction != null \
+	else GDSQLConfigFileTableDataTransaction.new(path_resolver)
 
 
 func get_database(database_name: StringName) -> GDSQLDatabaseDefinition:
@@ -39,6 +44,8 @@ func get_database(database_name: StringName) -> GDSQLDatabaseDefinition:
 	if not _table_lifecycle.recover_database(database_name).is_successful():
 		return null
 	if not _catalog_transaction.recover_database(database_name).is_successful():
+		return null
+	if not _table_data_transaction.recover_database(database_name).is_successful():
 		return null
 	var database := GDSQLDatabaseDefinition.new()
 	database.name = database_name
@@ -68,7 +75,8 @@ func has_table(database_name: StringName, table_name: StringName) -> bool:
 			or not _catalog_transaction.recover_table(
 				database_name,
 				table_name,
-			).is_successful():
+			).is_successful() \
+			or not _table_data_transaction.recover_database(database_name).is_successful():
 		return false
 	return FileAccess.file_exists(_path_resolver.resolve_schema_path(database_name, table_name))
 

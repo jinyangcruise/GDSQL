@@ -42,6 +42,11 @@ func resolve_catalog_transaction_root(database: StringName = &"") -> String:
 	return root if database == &"" else root.path_join(String(database))
 
 
+func resolve_table_data_transaction_root(database: StringName) -> String:
+	assert(is_valid_name(database), "Invalid database name: %s" % database)
+	return data_root.path_join(".gdsql_storage_transactions").path_join(String(database))
+
+
 func resolve_migration_backup_path(
 		database: StringName,
 		migration_id: String,

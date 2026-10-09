@@ -65,7 +65,11 @@ func inspect_root(
 					.recover_database(database_name)
 			result.diagnostics.merge(pair_recovery.diagnostics)
 			if pair_recovery.is_successful():
-				inspection.tables = _inspect_tables(resolver, database_name, result)
+				var data_recovery := GDSQLConfigFileTableDataTransaction.new(resolver) \
+						.recover_database(database_name)
+				result.diagnostics.merge(data_recovery.diagnostics)
+				if data_recovery.is_successful():
+					inspection.tables = _inspect_tables(resolver, database_name, result)
 		inspections.append(inspection)
 	result.value = inspections
 	return result

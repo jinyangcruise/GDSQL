@@ -1368,6 +1368,16 @@ durable dataset is used as the source. Hydration and checkpoint reads preserve
 Resource locators; neither operation loads an external asset merely to transfer
 or compare rows.
 
+ConfigFile storage commits complete replacement files for every touched table
+through `GDSQLConfigFileTableDataTransaction`. The transaction stages and
+verifies all replacements before persisting one database-scoped preparing
+marker, moves the previous files aside, activates every replacement, and then
+promotes the marker to committed. Recovery rolls back every touched table while
+the marker is preparing and keeps the complete new set when it is committed;
+cached table files are invalidated after either outcome. This protects process
+interruption and failed rename boundaries without claiming hardware power-loss
+durability beyond the filesystem guarantees available through Godot.
+
 ### 11.4 Content package metadata
 
 Managed content begins with a typed `GDSQLContentPackageManifest`. It describes
@@ -2781,6 +2791,7 @@ addons/gdsql/
 │       ├── gdsql_config_file_catalog_transaction.gd
 │       ├── gdsql_config_file_table_lifecycle_transaction.gd
 │       ├── gdsql_config_file_database_lifecycle_transaction.gd
+│       ├── gdsql_config_file_table_data_transaction.gd
 │       ├── config_file_database_registry_store.gd
 │       ├── config_file_database_explorer.gd
 │       ├── config_file_cache.gd
@@ -2835,6 +2846,7 @@ res://
 └── data/
     ├── databases.cfg                 # Database catalog
     ├── .gdsql_catalog_transactions/  # Transient table lifecycle markers
+    ├── .gdsql_storage_transactions/  # Transient row-commit markers
     ├── .gdsql_migration_recovery/    # Migration recovery snapshots
     └── <database>/
         ├── schema/              # Table definitions

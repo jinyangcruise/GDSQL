@@ -10,16 +10,22 @@ const IndexBatchSupport = preload(
 var path_resolver: GDSQLDatabasePathResolver
 var config_cache: GDSQLConfigFileCache
 var codec: GDSQLGodotVariantCodec
+var _table_data_transaction: GDSQLConfigFileTableDataTransaction
+var _recovered_databases: Dictionary[StringName, bool] = { }
 
 
 func _init(
 		_path_resolver: GDSQLDatabasePathResolver,
 		_config_cache: GDSQLConfigFileCache,
 		_codec: GDSQLGodotVariantCodec,
+		_table_data_transaction: GDSQLConfigFileTableDataTransaction = null,
 ) -> void:
 	path_resolver = _path_resolver
 	config_cache = _config_cache
 	codec = _codec
+	self._table_data_transaction = _table_data_transaction \
+	if _table_data_transaction != null \
+	else GDSQLConfigFileTableDataTransaction.new(path_resolver, config_cache)
 
 
 func get_capabilities() -> GDSQLStorageCapabilities:
@@ -33,6 +39,8 @@ func read_table(
 ) -> GDSQLTableSnapshot:
 	var snapshot := GDSQLTableSnapshot.new()
 	snapshot.primary_key = table.primary_key
+	if not _ensure_recovered(table.database_name):
+		return snapshot
 	if session != null and session.dirty:
 		snapshot.rows = _build_effective_rows(table, session, request)
 	else:
@@ -49,6 +57,10 @@ func read_batch(
 	request: GDSQLStorageReadRequest,
 ) -> GDSQLStorageReadBatch:
 	var result := GDSQLStorageReadBatch.new()
+	var recovered := _recover_database(table.database_name)
+	result.diagnostics.merge(recovered.diagnostics)
+	if not recovered.is_successful():
+		return result
 	if not _validate_bounded_read_request(
 		request,
 		GDSQLStorageBackendIds.CONFIG_FILE,
@@ -109,6 +121,10 @@ func read_index_batch(
 	request: GDSQLStorageReadRequest,
 ) -> GDSQLStorageReadBatch:
 	var result := GDSQLStorageReadBatch.new()
+	var recovered := _recover_database(table.database_name)
+	result.diagnostics.merge(recovered.diagnostics)
+	if not recovered.is_successful():
+		return result
 	if not _validate_ordered_index_read_request(
 		table,
 		index,
@@ -179,6 +195,8 @@ func find_by_primary_key(
 	session: GDSQLStorageSession,
 	request: GDSQLStorageReadRequest = null,
 ) -> GDSQLRowRecord:
+	if not _ensure_recovered(table.database_name):
+		return null
 	if session != null and session.dirty:
 		return _find_effective_row(table, key, session, request)
 	var path := path_resolver.resolve_table_path(table.database_name, table.name)
@@ -196,6 +214,8 @@ func find_by_index(
 	session: GDSQLStorageSession,
 	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
+	if not _ensure_recovered(table.database_name):
+		return []
 	if session != null and session.dirty:
 		return _filter_effective_rows(table, index, values, session, request)
 	var config := config_cache.get_or_load(
@@ -230,6 +250,8 @@ func find_by_index_range(
 	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
 	var matching: Array[GDSQLRowRecord] = []
+	if not _ensure_recovered(table.database_name):
+		return matching
 	if index.columns.size() != 1:
 		return matching
 	if lower_bound != null:
@@ -402,74 +424,38 @@ func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 	if not constraint_result.is_successful():
 		return constraint_result
 	var result := GDSQLStorageCommitResult.new()
-	var touched_paths: Dictionary = { }
-	for operation in session.operations:
-		var table := operation["table"] as GDSQLTableDefinition
-		var path := path_resolver.resolve_table_path(table.database_name, table.name)
-		var directory_error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path.get_base_dir()))
-		if directory_error != OK:
-			return _commit_error(&"GDSQL_STORAGE_DIRECTORY_UNWRITABLE", "Could not create table directory: %s" % path.get_base_dir())
-		var config := config_cache.get_or_load(path)
-		if config == null:
-			return _commit_error(&"GDSQL_STORAGE_TABLE_UNREADABLE", "Could not load table file: %s" % path)
-		var operation_type := operation["type"] as StringName
-		if operation_type == &"truncate":
-			for section in _get_row_sections(config):
-				config.erase_section(section)
-		elif operation_type == &"metadata":
-			pass
-		elif operation_type == &"delete":
-			config.erase_section(str(operation["key"]))
-		else:
-			var row := operation["row"] as GDSQLRowRecord
-			var section := str(row.get_value(table.primary_key))
-			for column: Variant in row.values.keys():
-				config.set_value(
-					section,
-					String(column),
-					codec.encode(row.values[column], table.get_column(column)),
-				)
-		touched_paths[path] = true
-	for table_key in session.table_metadata:
-		var metadata: Dictionary = session.table_metadata[table_key]
-		var table := metadata["table"] as GDSQLTableDefinition
-		var path := path_resolver.resolve_table_path(table.database_name, table.name)
-		var config := config_cache.get_or_load(path)
-		if config == null:
-			return _commit_error(
-				&"GDSQL_STORAGE_TABLE_UNREADABLE",
-				"Could not load table file: %s" % path,
-			)
-		config.set_value(
-			TABLE_METADATA_SECTION,
-			"row_count",
-			int(metadata["row_count"]),
-		)
-		config.set_value(
-			TABLE_METADATA_SECTION,
-			"next_auto_increment",
-			int(metadata["next_auto_increment"]),
-		)
-		touched_paths[path] = true
 	var touched_tables: Dictionary = { }
 	for operation in session.operations:
 		var table := operation["table"] as GDSQLTableDefinition
 		touched_tables[_table_key(table)] = table
-	for table_key in touched_tables:
-		var table := touched_tables[table_key] as GDSQLTableDefinition
-		var path := path_resolver.resolve_table_path(table.database_name, table.name)
-		var config := config_cache.get_or_load(path)
-		if config == null:
+	if touched_tables.is_empty():
+		session.clear()
+		result.value = true
+		return result
+	var database_name := &""
+	var replacements: Dictionary = { }
+	for table_value in touched_tables.values():
+		var table := table_value as GDSQLTableDefinition
+		if database_name == &"":
+			database_name = table.database_name
+		elif table.database_name != database_name:
+			return _commit_error(
+				&"GDSQL_STORAGE_CROSS_DATABASE_SESSION_UNSUPPORTED",
+				"One storage commit cannot replace tables from multiple databases.",
+			)
+		var replacement := _build_replacement(table, session)
+		if replacement == null:
 			return _commit_error(
 				&"GDSQL_STORAGE_TABLE_UNREADABLE",
-				"Could not load table file: %s" % path,
+				"Could not build replacement data for %s.%s." \
+						% [table.database_name, table.name],
 			)
-		_rebuild_indexes(config, table)
-		touched_paths[path] = true
-	for path: String in touched_paths:
-		var save_error := config_cache.flush(path)
-		if save_error != OK:
-			return _commit_error(&"GDSQL_STORAGE_COMMIT_FAILED", "Could not save table file: %s" % path)
+		replacements[table.name] = replacement
+	var activated := _table_data_transaction.replace_tables(database_name, replacements)
+	result.diagnostics.merge(activated.diagnostics)
+	if not activated.is_successful():
+		return result
+	_recovered_databases[database_name] = true
 	session.clear()
 	result.value = true
 	return result
@@ -484,6 +470,8 @@ func _read_persisted_rows(
 	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
 	var rows: Array[GDSQLRowRecord] = []
+	if not _ensure_recovered(table.database_name):
+		return rows
 	var path := path_resolver.resolve_table_path(table.database_name, table.name)
 	var config := config_cache.get_or_load(path)
 	if config == null:
@@ -660,6 +648,11 @@ func _get_session_table_metadata(
 
 
 func _load_table_metadata(table: GDSQLTableDefinition) -> Dictionary:
+	if not _ensure_recovered(table.database_name):
+		return {
+			"row_count": 0,
+			"next_auto_increment": 1,
+		}
 	var path := path_resolver.resolve_table_path(table.database_name, table.name)
 	var config := config_cache.get_or_load(path)
 	if config == null:
@@ -711,6 +704,52 @@ func _effective_metadata(
 
 func _table_key(table: GDSQLTableDefinition) -> String:
 	return "%s.%s" % [table.database_name, table.name]
+
+
+func _build_replacement(
+		table: GDSQLTableDefinition,
+		session: GDSQLStorageSession,
+) -> ConfigFile:
+	var config := ConfigFile.new()
+	var rows := _build_effective_rows(
+		table,
+		session,
+		GDSQLStorageReadRequest.all(true),
+	)
+	for row in rows:
+		var section := str(row.get_value(table.primary_key))
+		for column in table.columns:
+			if not row.has_column(column.name):
+				continue
+			config.set_value(
+				section,
+				String(column.name),
+				codec.encode(row.get_value(column.name), column),
+			)
+	var metadata := _effective_metadata(table, session)
+	config.set_value(TABLE_METADATA_SECTION, "row_count", int(metadata["row_count"]))
+	config.set_value(
+		TABLE_METADATA_SECTION,
+		"next_auto_increment",
+		int(metadata["next_auto_increment"]),
+	)
+	_rebuild_indexes(config, table)
+	return config
+
+
+func _recover_database(database_name: StringName) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	if _recovered_databases.has(database_name):
+		result.value = false
+		return result
+	result = _table_data_transaction.recover_database(database_name)
+	if result.is_successful():
+		_recovered_databases[database_name] = true
+	return result
+
+
+func _ensure_recovered(database_name: StringName) -> bool:
+	return _recover_database(database_name).is_successful()
 
 
 func _build_effective_rows(
