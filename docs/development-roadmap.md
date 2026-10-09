@@ -52,7 +52,7 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Release, recovery, and supported-version QA | Crash-safe table commits, catalog/migration recovery, PCK/standalone Linux export gates, and the scalar ConfigFile baseline are implemented; the migration/recovery guide and selected supported-platform verification remain. Additional benchmarks are deferred until measurements or real projects justify them |
+| High — first | Release, recovery, and supported-version QA | Crash-safe table commits, catalog/migration recovery, the public migration/recovery guide, PCK/standalone Linux export gates, and the scalar ConfigFile baseline are implemented; selected supported-platform verification remains. Additional benchmarks are deferred until measurements or real projects justify them |
 | Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
@@ -554,8 +554,8 @@ ordinary project sizes rather than treating every item as a release blocker:
 The first two remaining items may reduce editor/runtime stalls while ConfigFile
 remains the default mutable backend and stay measurement-gated. The implemented
 third item is the durability boundary for ordinary mutations and checkpoints,
-not a new query feature. The migration/recovery guide is the separate public
-documentation requirement for explaining the behavior already implemented.
+not a new query feature. The public migration/recovery guide now explains the
+implemented persistence and recovery behavior.
 
 ### Optional native acceleration
 
@@ -614,9 +614,8 @@ runtime/model relationships, typed APIs, troubleshooting, Godot-AI integration,
 architecture, and project philosophy.
 
 New documentation should accompany an implemented or approved contract. The
-compatibility matrix is published; migration/recovery guidance remains the next
-required public document. Do not add end-user updater instructions before that
-feature exists.
+compatibility matrix and migration/recovery guide are published. Do not add
+end-user updater instructions before that feature exists.
 
 ## Definition of plug and play
 

@@ -44,6 +44,7 @@ export default defineConfig({
           items: [
             { text: 'Table workbench', link: '/guide/table-workbench' },
             { text: 'Schemas and constraints', link: '/guide/schema-and-constraints' },
+            { text: 'Migrations and recovery', link: '/guide/migrations-and-recovery' },
             { text: 'Resource columns', link: '/guide/resource-columns' },
           ],
         },
