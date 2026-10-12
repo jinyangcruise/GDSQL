@@ -13,6 +13,9 @@ const GODOT_AI_MCP_ADAPTER := preload(
 const MCP_MODEL_INSPECTION := preload(
 	"res://addons/gdsql/editor/integrations/mcp/gdsql_mcp_model_inspection_service.gd"
 )
+const MCP_AUTHORING := preload(
+	"res://addons/gdsql/editor/integrations/mcp/authoring/gdsql_mcp_authoring_service.gd"
+)
 const DATABASE_DOCK_KEY := "GDSQLDatabases"
 const LOGS_DOCK_KEY := "GDSQLLogs"
 const WORKSPACE_HOST_NAME := "GDSQLWorkspaceHost"
@@ -184,6 +187,8 @@ func _load_workspace() -> void:
 
 
 func _create_mcp_adapter() -> void:
+	var authoring := MCP_AUTHORING.new(_controller.workbench)
+	authoring.mutation_committed.connect(_controller.refresh_after_external_mutation)
 	var model_inspection := MCP_MODEL_INSPECTION.new(
 		_controller.workbench,
 		_mcp_model_bindings,
@@ -199,8 +204,9 @@ func _create_mcp_adapter() -> void:
 		_mcp_model_count,
 		_mcp_runtime_adapter_configured,
 		model_inspection,
+		true,
 	)
-	_mcp_adapter = GODOT_AI_MCP_ADAPTER.new(service)
+	_mcp_adapter = GODOT_AI_MCP_ADAPTER.new(service, authoring)
 	add_child(_mcp_adapter)
 
 

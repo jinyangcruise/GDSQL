@@ -37,7 +37,8 @@ The current implementation provides:
   compatibility reports.
 - Generated/user-owned model bindings, inferred same-database navigation,
   explicit many-to-many relationships, and cross-role content references.
-- Multi-table navigation and read-only Godot-AI MCP inspection tools.
+- Multi-table navigation plus Godot-AI inspection, bounded scalar row query,
+  and preview/confirm row-mutation tools.
 - Resource Stages A–B: required-column reads, inert locator transfer, explicit
   sync/threaded handles, opt-in query/model deferral, and bounded prefetch
   lifetimes.
@@ -53,7 +54,7 @@ tracks only product direction, active work, and deliberately deferred work.
 | Priority | Outcome | State |
 |---|---|---|
 | High — first | Release, recovery, and supported-version QA | Crash-safe table commits, catalog/migration recovery, the public migration/recovery guide, PCK/standalone Linux export gates, and the scalar ConfigFile baseline are implemented; selected supported-platform verification remains. Additional benchmarks are deferred until measurements or real projects justify them |
-| Medium | Godot-AI lifecycle and authoring surface | Inspection tools work; reload, disable, and teardown need live-editor verification before bounded query and preview/commit mutation families are added |
+| Medium | Godot-AI lifecycle and authoring surface | Inspection plus bounded scalar query and preview/commit row mutations are tested; schema/database authoring is next, followed by migrations. Reload, disable, teardown, and project-change behavior still need live-editor verification |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
 
@@ -589,11 +590,13 @@ packaging, and compatibility work.
 
 - Verify Godot-AI tool registration across plugin load order, reload, disable,
   teardown, and project changes.
-- Add a UI-independent agent authoring service, then expose bounded query,
-  row-mutation, schema/database, and migration operation families through
-  Godot-AI. Mutations use preview plus one-use confirmation handles. The action
-  hub may refresh or navigate editor UI afterward but does not execute the
-  domain mutation. A future CLI may reuse the same service.
+- **Implemented and tested:** UI-independent bounded scalar queries and atomic
+  row mutations through preview plus one-use confirmation handles. The action
+  hub remains outside domain execution; committed external mutations refresh
+  open editor surfaces.
+- Add schema/database authoring next, then migration authoring, preview, and
+  application. Reuse the same confirmation model for writes and the same
+  application service from any future CLI.
 - Replace the 500-row foreign-key/content-reference popup boundary with
   debounced canonical search and paginated results.
 - Keep editor actions, table navigation, and schema operations exposed through

@@ -2,10 +2,10 @@
 
 ## Status and purpose
 
-This document defines the implemented first GDSQL-aware Model Context Protocol
-surface. The first delivery is read-only and editor-only: it lets an
-agent understand the current project's setup and database schemas without
-reading table rows, opening arbitrary files, or controlling editor UI.
+This document defines the editor-only GDSQL-aware Model Context Protocol
+surface. Agents can inspect setup, schemas, and models; query bounded scalar
+rows; and preview then commit bounded scalar row mutations. The integration
+does not open arbitrary files or control editor UI.
 
 GDSQL does not implement an MCP transport. The installed Godot-AI plugin owns
 transport, protocol-version handling, client connectivity, tool discovery, and
@@ -20,8 +20,8 @@ The GDSQL plugin must continue to load and function when Godot-AI is absent.
 MCP client
     -> Godot-AI transport and custom-tool registry
     -> GDSQL MCP adapter
-    -> GDSQL MCP inspection service
-    -> Workbench inspections / setup inspectors / catalog definitions
+    -> GDSQL MCP inspection or authoring service
+    -> Workbench / canonical QuerySpec / EditorRowBatch
 ```
 
 The adapter is an editor composition boundary. It may translate JSON-compatible
@@ -33,8 +33,9 @@ arguments and results, but it must not:
 - Return Godot objects, scripts, live resources, or mutable domain instances.
 - Become a required dependency of runtime, catalog, query, or storage code.
 
-The inspection service owns deterministic domain projection. It consumes typed
-state supplied by existing GDSQL services and returns JSON-compatible data plus
+The inspection service owns deterministic domain projection. The authoring
+service translates structured input into canonical queries and reuses the
+atomic editor row-batch boundary. Both return JSON-compatible data and
 structured diagnostics. The Godot-AI adapter owns only optional registration,
 request validation, and transport-envelope translation.
 
@@ -43,7 +44,7 @@ request validation, and transport-envelope translation.
 The surface is restricted to the project open in the Godot editor and to
 databases already registered with GDSQL.
 
-Phase-one inspection may expose:
+Inspection may expose:
 
 - Selected setup profile and ordered readiness checks.
 - Logical registration names, database names, roles, and storage backend IDs.
@@ -55,15 +56,15 @@ Phase-one inspection may expose:
   and registered cross-role content references.
 - Stable GDSQL diagnostic codes, severities, messages, and bounded context.
 
-Phase one does not expose:
+Bounded row queries additionally expose scalar `bool`, `int`, `float`, `String`,
+and `StringName` values from explicitly registered tables. They do not expose:
 
-- Table row values or query results.
 - Resource contents, imported artifacts, binary blobs, or previews.
 - User script source or relationships that require executing user model code.
 - Arbitrary filesystem paths or files outside registered GDSQL roots.
 - Credentials, environment variables, editor metadata owned by other plugins,
   or connection details.
-- Mutations, query execution, project execution, or editor navigation.
+- Project execution, editor navigation, or mutation of Resource-valued fields.
 
 ## Version and capability negotiation
 
@@ -83,9 +84,9 @@ not assume support from the plugin version. The response includes tool names,
 feature flags, limits, mutation availability, and the currently selected setup
 profile. Capability entries are sorted by stable identifier.
 
-## Read-only tools
+## Tools
 
-All four tools are promoted through Godot-AI. Compatible MCP clients normally
+All seven tools are promoted through Godot-AI. Compatible MCP clients normally
 see them as `custom_gdsql_*`; they remain available through `custom_manage` if a
 bridge promotion limit is reached. The promotion prefix is a bridge detail and
 is not part of the GDSQL surface version.
@@ -96,6 +97,9 @@ is not part of the GDSQL surface version.
 | `gdsql_inspect_setup` | Optional `profile`: `selected`, `direct`, or `managed` | Selected profile, readiness, ordered checks, next semantic action, and diagnostics. |
 | `gdsql_inspect_schema` | Optional `registration`, `table`, `cursor`, and bounded `limit` | Registration summaries, table summaries, or one full table definition. |
 | `gdsql_inspect_models` | Optional `registration`, `table`, `cursor`, and bounded `limit` | Binding summaries or one binding's static compatibility, inferred relationships, and registered cross-role references. |
+| `gdsql_query_rows` | Registration, table, optional scalar columns, structured `where`, ordering, cursor, and bounded limit | A deterministic scalar row window and opaque next cursor. |
+| `gdsql_preview_row_mutation` | Operation, registration, table, and at most 100 scalar row changes or primary keys | Validated target summary and a short-lived one-use confirmation handle; no write occurs. |
+| `gdsql_commit_row_mutation` | Confirmation handle and explicit `confirm: true` | Atomic commit summary after schema and target-row conflict checks. |
 
 Input schemas reject unknown fields. Registration and table parameters are
 logical identifiers, never paths. Lists use opaque cursors and bounded limits;
@@ -110,9 +114,37 @@ or an unavailable inspection service are failures.
 foreign keys and cross-role references registered by the editor. Explicit
 many-to-many or custom relationships remain marked as not statically inspected.
 
-All tools are read-only, idempotent, and closed to external systems. The adapter
-sets the equivalent tool annotations when the active bridge supports them;
-annotations are descriptive and do not replace enforcement in GDSQL.
+The first five tools are read-only. Both mutation tools declare Godot-AI
+`requires_writable`; neither claims Godot Undo/Redo support. Adapter annotations
+are descriptive and do not replace validation and confirmation in GDSQL.
+
+## Structured row query
+
+`gdsql_query_rows` accepts structured predicates rather than SQL. Leaf
+operators are `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `is_null`, and
+`is_not_null`; groups are `and`, `or`, and `not`. Nesting, condition count,
+ordering, and result size are bounded. The primary key is appended as a stable
+ordering tie-breaker. Cursors are bound to the normalized registration, table,
+projection, predicate, and ordering and cannot be reused with another query.
+
+Resource and other compound columns are omitted from default projections and
+rejected when explicitly requested. A later Resource surface must use typed
+locators and explicit materialization rather than JSON-serializing live Godot
+objects.
+
+## Row mutation confirmation
+
+Scalar inserts, updates, and deletes use two calls:
+
+1. Preview validates at most 100 changes through `EditorRowBatch`, prepares the
+   canonical queries, fingerprints the schema and existing update/delete
+   targets, and returns a handle without writing.
+2. Commit requires the same handle and `confirm: true`, rechecks the
+   fingerprints, and executes the batch in one database transaction.
+
+Handles expire after two minutes, are one-use, and exist only in editor memory.
+Plugin reload or editor restart invalidates them. A schema or target-row change
+after preview produces `GDSQL_MCP_MUTATION_STALE`; the agent must preview again.
 
 ## Godot-AI discovery
 
@@ -132,7 +164,7 @@ field. The GDSQL payload has this stable envelope:
 
 ```json
 {
-  "surface_version": "1.1.0",
+  "surface_version": "1.0.0",
   "ok": true,
   "data": {},
   "diagnostics": [],
@@ -157,8 +189,7 @@ Each diagnostic contains:
 
 Diagnostic codes and severities are stable machine-facing fields. Messages are
 human-facing and may improve without a surface-version change. Context is
-optional, bounded, JSON-compatible, and must not contain row values or absolute
-paths.
+optional, bounded, JSON-compatible, and must not contain absolute host paths.
 
 Completed inspections use `ok: true`, including setup reports with readiness
 warnings. Invalid parameters, unknown logical identifiers, an unavailable
@@ -170,36 +201,12 @@ Results are deterministic: registrations, tables, columns, constraints,
 checks, capabilities, and diagnostics have explicit stable ordering. Output is
 bounded before serialization.
 
-## Future query surface
+## Mutation rules for later families
 
-Query drafting follows schema inspection and remains separate from execution.
-A future draft tool may translate structured MCP input into a canonical
-`QuerySpec` preview and return validation diagnostics. It must not accept raw
-SQL as a privileged escape hatch.
-
-Query execution is a separate future capability with explicit projection,
-pagination, row and byte limits, and Resource-safe serialization. Read-only
-SELECT execution is not implied by phase-one schema access.
-
-## Future mutation confirmation
-
-No mutation tool is included in phase one. Future editor or data mutations use
-a two-step contract:
-
-1. A preview call validates the requested action and returns its exact targets,
-   expected effects, diagnostics, and an opaque confirmation handle.
-2. A commit call requires the handle and an explicit confirmation value.
-
-Confirmation handles are one-use, short-lived, stored only in editor memory,
-and bound to the project, action, normalized arguments, and relevant catalog
-fingerprint. They become invalid after use, expiry, plugin reload, editor
-restart, or a conflicting catalog change. The caller must carry the handle
-between calls; no hidden MCP connection state is authoritative.
-
-The host must still present the operation to the user. A handle proves that the
-same validated preview is being committed; it does not prove human consent.
-
-Mutation adapters additionally:
+Schema, database, migration, setup, and model-generation mutations must retain
+the row surface's preview/commit pattern. The host must still present the
+operation to the user: a handle proves that the validated preview is being
+committed, not that a person consented. Mutation adapters additionally:
 
 - Declare Godot-AI `requires_writable` and accurate MCP risk annotations.
 - Use GDSQL application services and canonical queries, never Controls or raw
@@ -218,8 +225,8 @@ not a domain-mutation API.
 Prefer a small set of composable operation families over one tool per editor
 button:
 
-- bounded query draft, validation, and SELECT execution;
-- row mutation preview and commit, including bounded batch inserts;
+- bounded structured SELECT execution;
+- row mutation preview and commit, including bounded batch inserts (implemented);
 - schema/database mutation preview and commit; and
 - migration authoring, preview, and application.
 
@@ -230,7 +237,7 @@ state or raw catalog files.
 
 ## Registration lifecycle
 
-The optional adapter dynamically resolves Godot-AI, registers all phase-one
+The optional adapter dynamically resolves Godot-AI, registers all current
 specs atomically when both plugins are ready, and polls briefly so plugin load
 order is irrelevant. It re-registers after Godot-AI emits `registry_ready` and
 unregisters the GDSQL `plugin.cfg` source during teardown. Registration is
@@ -242,6 +249,20 @@ Handler scripts receive their inspection service through a GDSQL-owned
 composition mechanism; they do not locate editor controls or construct concrete
 ConfigFile services.
 
+## Editor capability coverage
+
+| Editor capability | Agent surface | State |
+|---|---|---|
+| Setup, registration, schema, constraint, and model-binding inspection | Four inspection tools | Tested |
+| Typed WHERE, scalar SELECT, ordering, and pagination | `gdsql_query_rows` | Tested |
+| Scalar insert, update, and delete | Preview/commit row mutation | Tested |
+| Database/table/column/index/foreign-key authoring | Schema mutation family | Planned next |
+| Migration authoring, preview, apply, recovery status | Migration family | Planned after schema authoring |
+| Model generation and cross-role content-reference registration | Model binding family | Planned |
+| Direct/Managed profile setup, packages, cache, and save-slot management | Setup family with destructive guards | Planned |
+| Resource-valued query and mutation | Typed locator/materialization family | Planned; scalar surface rejects it |
+| Open editor documents, focus scripts, or run the project | Navigation commands only when useful | Backlog; never implemented by simulating UI input |
+
 ## Delivery slices
 
 | Slice | State |
@@ -251,9 +272,10 @@ ConfigFile services.
 | Live editor discovery, registration, and Tools-panel acceptance | Verified with Godot-AI |
 | Live reload, disable, and teardown verification | Pending manual verification |
 | Bounded model-binding and relationship inspection | Tested |
-| Bounded query drafting and SELECT execution | Planned next after lifecycle verification |
-| Row mutation preview and commit | Planned after bounded query execution |
-| Schema/database and migration preview and commit | Planned after row mutations |
+| Bounded structured scalar SELECT execution | Tested |
+| Scalar row mutation preview and commit | Tested |
+| Schema/database preview and commit | Planned next |
+| Migration preview and commit | Planned after schema/database authoring |
 | Optional CLI adapter over the same application service | Backlog; not required for Godot-AI |
 
 ## Protocol references

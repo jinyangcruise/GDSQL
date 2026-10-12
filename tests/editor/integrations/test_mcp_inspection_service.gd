@@ -18,6 +18,7 @@ const ModelInspection = preload(
 var _root: String
 var _settings_path: String
 var _test_index := 0
+var _workbench_value: GDSQLWorkbench
 
 
 func before_test() -> void:
@@ -35,8 +36,8 @@ func test_capabilities_are_bounded_and_versioned() -> void:
 	var payload := result.get_value() as Dictionary
 	assert_str(payload["surface_version"]).is_equal("1.0.0")
 	assert_bool(payload["ok"]).is_true()
-	assert_bool(payload["data"]["limits"]["row_values_exposed"]).is_false()
-	assert_int(payload["data"]["tools"].size()).is_equal(4)
+	assert_bool(payload["data"]["limits"]["row_values_exposed"]).is_true()
+	assert_int(payload["data"]["tools"].size()).is_equal(7)
 	assert_str(payload["data"]["selected_profile"]).is_equal("direct")
 	assert_str(JSON.stringify(payload)).is_not_empty()
 
@@ -125,7 +126,8 @@ func test_schema_inspection_rejects_unknown_targets_and_bad_limits() -> void:
 
 func test_lazy_handler_uses_attached_inspection_service() -> void:
 	var service := _service()
-	BridgeContext.attach(service)
+	var authoring := GDSQLMcpAuthoringService.new(_workbench_value)
+	BridgeContext.attach(service, authoring)
 	var handler := Handler.new()
 
 	var response := handler.capabilities({ }, null)
@@ -137,24 +139,28 @@ func test_lazy_handler_uses_attached_inspection_service() -> void:
 	assert_str(models["data"]["data"]["kind"]).is_equal("model_bindings")
 	assert_str(invalid["status"]).is_equal("error")
 	assert_str(invalid["error"]["code"]).is_equal("INVALID_PARAMS")
-	BridgeContext.detach(service)
+	BridgeContext.detach(service, authoring)
 
 
 func test_godot_ai_specs_follow_the_published_contract() -> void:
 	var service := _service()
-	var adapter := Adapter.new(service)
+	var authoring := GDSQLMcpAuthoringService.new(_workbench_value)
+	var adapter := Adapter.new(service, authoring)
 	assert_bool(adapter.call("_load_godot_ai_contract")).is_true()
 	adapter.call("_refresh_registry")
 	var specs := adapter.call("_build_specs") as Array
 
 	assert_bool(specs.is_typed()).is_true()
-	assert_int(specs.size()).is_equal(4)
+	assert_int(specs.size()).is_equal(7)
+	var writable_count := 0
 	for spec in specs:
 		assert_bool((spec.call("validate") as Array).is_empty()).is_true()
 		assert_bool(spec.get("promoted")).is_true()
-		assert_bool(spec.get("requires_writable")).is_false()
+		if spec.get("requires_writable"):
+			writable_count += 1
 		assert_bool(spec.get("deferred")).is_false()
 		assert_bool(spec.get("undoable")).is_false()
+	assert_int(writable_count).is_equal(2)
 	adapter.shutdown()
 	adapter.free()
 
@@ -217,6 +223,7 @@ func _service() -> GDSQLMcpInspectionService:
 	assert_bool(registry.save_snapshot(snapshot).is_successful()).is_true()
 	var workbench := GDSQLWorkbench.new(registry, GDSQLConfigFileDatabaseExplorer.new())
 	assert_bool(workbench.load().is_successful()).is_true()
+	_workbench_value = workbench
 	var profile_store := GDSQLConfigFileSetupProfileStore.new(_settings_path)
 	assert_bool(
 		profile_store.save_profile(GDSQLSetupProfile.Kind.DIRECT).is_successful(),
@@ -236,6 +243,7 @@ func _service() -> GDSQLMcpInspectionService:
 		func() -> int: return 1,
 		func() -> bool: return true,
 		model_inspection,
+		true,
 	)
 
 

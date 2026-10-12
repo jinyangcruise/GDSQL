@@ -71,12 +71,87 @@ func inspect_models(params: Dictionary, _context: Variant) -> Dictionary:
 	)
 
 
+func query_rows(params: Dictionary, _context: Variant) -> Dictionary:
+	var invalid := _unknown_parameter(
+		params,
+		["registration", "table", "columns", "where", "order_by", "cursor", "limit"],
+	)
+	if not invalid.is_empty():
+		return _invalid(invalid)
+	for required in ["registration", "table"]:
+		if not params.has(required) or not params[required] is String \
+				or String(params[required]).is_empty():
+			return _invalid("%s must be a non-empty string." % required)
+	if params.has("columns") and not params["columns"] is Array:
+		return _invalid("columns must be an array.")
+	if params.has("where") and not params["where"] is Dictionary:
+		return _invalid("where must be an object.")
+	if params.has("order_by") and not params["order_by"] is Array:
+		return _invalid("order_by must be an array.")
+	if params.has("cursor") and not params["cursor"] is String:
+		return _invalid("cursor must be a string.")
+	var limit: Variant = _integer_parameter(
+		params,
+		"limit",
+		GDSQLMcpAuthoringService.DEFAULT_LIMIT,
+	)
+	if limit == null:
+		return _invalid("limit must be an integer.")
+	return _invoke(
+		Callable(_authoring_service(), "query_rows").bind(
+			StringName(params["registration"]),
+			StringName(params["table"]),
+			params.get("columns", []),
+			params.get("where", { }),
+			params.get("order_by", []),
+			String(params.get("cursor", "")),
+			limit,
+		),
+	)
+
+
+func preview_row_mutation(params: Dictionary, _context: Variant) -> Dictionary:
+	var invalid := _unknown_parameter(
+		params,
+		["operation", "registration", "table", "rows", "primary_keys"],
+	)
+	if not invalid.is_empty():
+		return _invalid(invalid)
+	for required in ["operation", "registration", "table"]:
+		if not params.has(required) or not params[required] is String \
+				or String(params[required]).is_empty():
+			return _invalid("%s must be a non-empty string." % required)
+	if params.has("rows") and not params["rows"] is Array:
+		return _invalid("rows must be an array.")
+	if params.has("primary_keys") and not params["primary_keys"] is Array:
+		return _invalid("primary_keys must be an array.")
+	return _invoke(
+		Callable(_authoring_service(), "preview_row_mutation").bind(params),
+	)
+
+
+func commit_row_mutation(params: Dictionary, _context: Variant) -> Dictionary:
+	var invalid := _unknown_parameter(params, ["handle", "confirm"])
+	if not invalid.is_empty():
+		return _invalid(invalid)
+	if not params.get("handle") is String or String(params.get("handle", "")).is_empty():
+		return _invalid("handle must be a non-empty string.")
+	if not params.get("confirm") is bool:
+		return _invalid("confirm must be a boolean.")
+	return _invoke(
+		Callable(_authoring_service(), "commit_row_mutation").bind(
+			String(params["handle"]),
+			bool(params["confirm"]),
+		),
+	)
+
+
 func _invoke(operation: Callable) -> Dictionary:
 	if not operation.is_valid():
-		return _error("INTERNAL_ERROR", "The GDSQL MCP inspection service is unavailable.")
+		return _error("INTERNAL_ERROR", "The requested GDSQL MCP service is unavailable.")
 	var result := operation.call() as GDSQLOperationResult
 	if result == null:
-		return _error("INTERNAL_ERROR", "The GDSQL MCP inspection returned no result.")
+		return _error("INTERNAL_ERROR", "The GDSQL MCP operation returned no result.")
 	if result.is_successful():
 		return { "data": result.get_value() }
 	var diagnostic := result.diagnostics.entries[0]
@@ -86,7 +161,22 @@ func _invoke(operation: Callable) -> Dictionary:
 
 
 func _service() -> GDSQLMcpInspectionService:
-	return Context.get_service()
+	return Context.get_inspection_service()
+
+
+func _authoring_service() -> GDSQLMcpAuthoringService:
+	return Context.get_authoring_service()
+
+
+func _integer_parameter(params: Dictionary, key: String, fallback: int) -> Variant:
+	if not params.has(key):
+		return fallback
+	var value: Variant = params[key]
+	if not value is int and not value is float:
+		return null
+	if value is float and value != floorf(value):
+		return null
+	return int(value)
 
 
 func _unknown_parameter(params: Dictionary, allowed: Array[String]) -> String:

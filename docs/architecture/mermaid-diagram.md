@@ -104,12 +104,12 @@ ContentReference("`**Editor Content Reference**
 McpAdapter("`**Optional Godot-AI MCP Adapter**
 
 -
-*Purpose:* Register project-scoped GDSQL inspection tools
+*Purpose:* Register project-scoped GDSQL inspection and bounded authoring tools
 *Transport:* Owned by Godot-AI; optional to GDSQL
-*Tools:* Promoted capabilities, setup, schema and model-binding inspection
+*Tools:* Inspection, scalar row SELECT, and preview/confirm row mutations
 *Discovery:* Godot-AI custom tools resource and `custom_manage`
-*Safety:* No rows, Controls, arbitrary paths or ConfigFile access
-*Future writes:* Separate preview and confirmation calls`")
+*Safety:* Registered tables only; bounded scalar values; no Controls, arbitrary paths, live Resources, or ConfigFile access
+*Writes:* One-use expiring handle, schema and target conflict checks, atomic canonical row batch`")
 
 GraphEditor("`**Graph Editor**
 

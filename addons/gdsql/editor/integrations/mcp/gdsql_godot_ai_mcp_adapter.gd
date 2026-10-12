@@ -11,16 +11,21 @@ const HANDLER_PATH := (
 )
 const POLL_SECONDS := 0.5
 
-var _service: GDSQLMcpInspectionService
+var _inspection_service: GDSQLMcpInspectionService
+var _authoring_service: GDSQLMcpAuthoringService
 var _registry_script: Script
 var _spec_script: Script
 var _registry: Variant
 var _poll_elapsed := 0.0
 
 
-func _init(service: GDSQLMcpInspectionService) -> void:
-	_service = service
-	Context.attach(service)
+func _init(
+		inspection_service: GDSQLMcpInspectionService,
+		authoring_service: GDSQLMcpAuthoringService = null,
+) -> void:
+	_inspection_service = inspection_service
+	_authoring_service = authoring_service
+	Context.attach(inspection_service, authoring_service)
 
 
 func _ready() -> void:
@@ -34,8 +39,9 @@ func shutdown() -> void:
 	if is_instance_valid(_registry):
 		_registry.call("unregister_source", SOURCE_PATH)
 	_registry = null
-	Context.detach(_service)
-	_service = null
+	Context.detach(_inspection_service, _authoring_service)
+	_inspection_service = null
+	_authoring_service = null
 
 
 func _process(delta: float) -> void:
@@ -93,71 +99,153 @@ func _register_tools() -> void:
 
 
 func _build_specs() -> Array:
+	var specs := [
+		_spec(
+			"gdsql_capabilities",
+			"Describe the installed GDSQL agent surface, limits, and selected setup profile.",
+			&"capabilities",
+			{ "type": "object", "additionalProperties": false },
+		),
+		_spec(
+			"gdsql_inspect_setup",
+			"Inspect the current GDSQL Direct or Managed Content setup checklist without changing the project.",
+			&"inspect_setup",
+			{
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"profile": {
+						"type": "string",
+						"enum": ["selected", "direct", "managed"],
+						"default": "selected",
+					},
+				},
+			},
+		),
+		_spec(
+			"gdsql_inspect_models",
+			"List GDSQL model bindings or inspect one binding's static compatibility and relationships without executing user code.",
+			&"inspect_models",
+			{
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"registration": { "type": "string" },
+					"table": { "type": "string" },
+					"cursor": { "type": "string" },
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": GDSQLMcpInspectionService.MAX_LIMIT,
+						"default": GDSQLMcpInspectionService.DEFAULT_LIMIT,
+					},
+				},
+			},
+		),
+		_spec(
+			"gdsql_inspect_schema",
+			"List registered GDSQL databases and tables or inspect one table schema. Row values are never returned.",
+			&"inspect_schema",
+			{
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"registration": { "type": "string" },
+					"table": { "type": "string" },
+					"cursor": { "type": "string" },
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": GDSQLMcpInspectionService.MAX_LIMIT,
+						"default": GDSQLMcpInspectionService.DEFAULT_LIMIT,
+					},
+				},
+			},
+		),
+	]
+	if _authoring_service != null:
+		specs.append(
+			_spec(
+				"gdsql_query_rows",
+				"Query bounded scalar row data with structured WHERE, ordering, and opaque cursor pagination.",
+				&"query_rows",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["registration", "table"],
+					"properties": {
+						"registration": { "type": "string", "minLength": 1 },
+						"table": { "type": "string", "minLength": 1 },
+						"columns": {
+							"type": "array",
+							"items": { "type": "string" },
+							"uniqueItems": true,
+						},
+						"where": { "type": "object" },
+						"order_by": {
+							"type": "array",
+							"maxItems": 8,
+							"items": {
+								"type": "object",
+								"required": ["column"],
+								"additionalProperties": false,
+								"properties": {
+									"column": { "type": "string" },
+									"direction": { "type": "string", "enum": ["asc", "desc"] },
+								},
+							},
+						},
+						"cursor": { "type": "string" },
+						"limit": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": GDSQLMcpAuthoringService.MAX_LIMIT,
+							"default": GDSQLMcpAuthoringService.DEFAULT_LIMIT,
+						},
+					},
+				},
+			),
+		)
+		specs.append(
+			_spec(
+				"gdsql_preview_row_mutation",
+				"Validate and preview a bounded scalar insert, update, or delete. Returns a short-lived confirmation handle and changes nothing.",
+				&"preview_row_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["operation", "registration", "table"],
+					"properties": {
+						"operation": { "type": "string", "enum": ["insert", "update", "delete"] },
+						"registration": { "type": "string", "minLength": 1 },
+						"table": { "type": "string", "minLength": 1 },
+						"rows": { "type": "array", "maxItems": GDSQLMcpAuthoringService.MAX_MUTATION_ROWS },
+						"primary_keys": { "type": "array", "maxItems": GDSQLMcpAuthoringService.MAX_MUTATION_ROWS },
+					},
+				},
+				true,
+			),
+		)
+		specs.append(
+			_spec(
+				"gdsql_commit_row_mutation",
+				"Commit one previewed GDSQL row mutation using its one-use confirmation handle.",
+				&"commit_row_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["handle", "confirm"],
+					"properties": {
+						"handle": { "type": "string", "minLength": 1 },
+						"confirm": { "type": "boolean" },
+					},
+				},
+				true,
+				30_000,
+			),
+		)
 	return Array(
-		[
-			_spec(
-				"gdsql_capabilities",
-				"Describe the installed GDSQL agent surface, limits, and selected setup profile.",
-				&"capabilities",
-				{ "type": "object", "additionalProperties": false },
-			),
-			_spec(
-				"gdsql_inspect_setup",
-				"Inspect the current GDSQL Direct or Managed Content setup checklist without changing the project.",
-				&"inspect_setup",
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"profile": {
-							"type": "string",
-							"enum": ["selected", "direct", "managed"],
-							"default": "selected",
-						},
-					},
-				},
-			),
-			_spec(
-				"gdsql_inspect_models",
-				"List GDSQL model bindings or inspect one binding's static compatibility and relationships without executing user code.",
-				&"inspect_models",
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"registration": { "type": "string" },
-						"table": { "type": "string" },
-						"cursor": { "type": "string" },
-						"limit": {
-							"type": "integer",
-							"minimum": 1,
-							"maximum": GDSQLMcpInspectionService.MAX_LIMIT,
-							"default": GDSQLMcpInspectionService.DEFAULT_LIMIT,
-						},
-					},
-				},
-			),
-			_spec(
-				"gdsql_inspect_schema",
-				"List registered GDSQL databases and tables or inspect one table schema. Row values are never returned.",
-				&"inspect_schema",
-				{
-					"type": "object",
-					"additionalProperties": false,
-					"properties": {
-						"registration": { "type": "string" },
-						"table": { "type": "string" },
-						"cursor": { "type": "string" },
-						"limit": {
-							"type": "integer",
-							"minimum": 1,
-							"maximum": GDSQLMcpInspectionService.MAX_LIMIT,
-							"default": GDSQLMcpInspectionService.DEFAULT_LIMIT,
-						},
-					},
-				},
-			),
-		],
+		specs,
 		TYPE_OBJECT,
 		&"RefCounted",
 		_spec_script,
@@ -169,6 +257,8 @@ func _spec(
 		description: String,
 		method: StringName,
 		schema: Dictionary,
+		requires_writable: bool = false,
+		timeout_ms: int = 4500,
 ) -> Variant:
 	var spec: Variant = _spec_script.new()
 	spec.set("name", name)
@@ -179,8 +269,8 @@ func _spec(
 	spec.set("source_path", SOURCE_PATH)
 	spec.set("source", "GDSQL")
 	spec.set("promoted", true)
-	spec.set("timeout_ms", 4500)
+	spec.set("timeout_ms", timeout_ms)
 	spec.set("deferred", false)
-	spec.set("requires_writable", false)
+	spec.set("requires_writable", requires_writable)
 	spec.set("undoable", false)
 	return spec

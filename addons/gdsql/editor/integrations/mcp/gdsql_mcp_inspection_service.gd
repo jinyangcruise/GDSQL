@@ -16,6 +16,7 @@ var _explorer: GDSQLDatabaseExplorer
 var _model_count_provider: Callable
 var _runtime_adapter_provider: Callable
 var _model_inspection_service: RefCounted
+var _authoring_available: bool
 
 
 func _init(
@@ -28,6 +29,7 @@ func _init(
 		model_count_provider: Callable = Callable(),
 		runtime_adapter_provider: Callable = Callable(),
 		model_inspection_service: RefCounted = null,
+		authoring_available: bool = false,
 ) -> void:
 	_workbench = workbench
 	_profile_store = profile_store
@@ -38,6 +40,7 @@ func _init(
 	_model_count_provider = model_count_provider
 	_runtime_adapter_provider = runtime_adapter_provider
 	_model_inspection_service = model_inspection_service
+	_authoring_available = authoring_available
 
 
 func get_capabilities() -> GDSQLOperationResult:
@@ -47,6 +50,20 @@ func get_capabilities() -> GDSQLOperationResult:
 	var loaded_profile := _profile_store.load_profile()
 	if not loaded_profile.is_successful():
 		return loaded_profile
+	var tools := [
+		{ "name": "gdsql_capabilities", "read_only": true },
+		{ "name": "gdsql_inspect_models", "read_only": true },
+		{ "name": "gdsql_inspect_schema", "read_only": true },
+		{ "name": "gdsql_inspect_setup", "read_only": true },
+	]
+	if _authoring_available:
+		tools.append_array(
+			[
+				{ "name": "gdsql_query_rows", "read_only": true },
+				{ "name": "gdsql_preview_row_mutation", "read_only": false },
+				{ "name": "gdsql_commit_row_mutation", "read_only": false },
+			],
+		)
 	return _success(
 		{
 			"project_scope": "current_project",
@@ -54,22 +71,18 @@ func get_capabilities() -> GDSQLOperationResult:
 			"features": [
 				{ "id": "capabilities", "enabled": true },
 				{ "id": "model_inspection", "enabled": true },
-				{ "id": "mutations", "enabled": false },
-				{ "id": "query_drafting", "enabled": false },
+				{ "id": "mutations", "enabled": _authoring_available },
+				{ "id": "query_execution", "enabled": _authoring_available },
 				{ "id": "schema_inspection", "enabled": true },
 				{ "id": "setup_inspection", "enabled": true },
 			],
 			"limits": {
 				"default_items": DEFAULT_LIMIT,
 				"maximum_items": MAX_LIMIT,
-				"row_values_exposed": false,
+				"maximum_mutation_rows": GDSQLMcpAuthoringService.MAX_MUTATION_ROWS,
+				"row_values_exposed": _authoring_available,
 			},
-			"tools": [
-				{ "name": "gdsql_capabilities", "read_only": true },
-				{ "name": "gdsql_inspect_models", "read_only": true },
-				{ "name": "gdsql_inspect_schema", "read_only": true },
-				{ "name": "gdsql_inspect_setup", "read_only": true },
-			],
+			"tools": tools,
 		},
 	)
 

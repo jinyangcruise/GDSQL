@@ -92,6 +92,19 @@ func ensure_workspace_loaded() -> GDSQLOperationResult:
 	return load_workspace()
 
 
+func refresh_after_external_mutation(
+		registration_name: StringName,
+		table_name: StringName,
+) -> void:
+	_clear_table_history(registration_name, table_name)
+	if workbench.active_session != null \
+			and workbench.active_session.registration.name == registration_name:
+		workbench.active_session.refresh_catalog()
+	_refresh_surfaces()
+	if is_instance_valid(_workspace):
+		_workspace.request_table_rows(registration_name, table_name)
+
+
 func shutdown() -> void:
 	if is_instance_valid(_workspace) \
 			and _workspace.database_create_submitted.is_connected(_create_database):
@@ -307,9 +320,9 @@ func _create_database(
 			_get_role_registration(GDSQLDatabaseRegistry.SAVE_ROLE),
 		)
 		database_name = (
-			save_template.database_name
-			if save_template != null
-			else GDSQLDatabaseRegistry.DEFAULT_SAVE_DATABASE_NAME
+				save_template.database_name
+				if save_template != null
+				else GDSQLDatabaseRegistry.DEFAULT_SAVE_DATABASE_NAME
 		)
 	if not package_root.is_empty():
 		var scaffolded := GDSQLConfigFileContentPackageScaffolder.new().scaffold(
@@ -360,9 +373,9 @@ func _create_database(
 		var discovered := workbench.discover_root(
 			data_root,
 			(
-				requested_registration_name
-				if requested_registration_name != &""
-				else _registration_prefix_for_root(database_name, data_root)
+					requested_registration_name
+					if requested_registration_name != &""
+					else _registration_prefix_for_root(database_name, data_root)
 			),
 		)
 		result.diagnostics.merge(discovered.diagnostics)
@@ -1633,13 +1646,13 @@ func _delete_save_slot(registration_name: StringName) -> GDSQLOperationResult:
 		result.diagnostics.merge(dropped.diagnostics)
 	if result.is_successful():
 		var removed := (
-			workbench.remove_registration_and_rebind(
-				plan.registration_name,
-				GDSQLDatabaseRegistry.SAVE_ROLE,
-				plan.fallback_registration_name,
-			)
-			if plan.was_active and plan.fallback_registration_name != &""
-			else workbench.remove_registration(plan.registration_name)
+				workbench.remove_registration_and_rebind(
+					plan.registration_name,
+					GDSQLDatabaseRegistry.SAVE_ROLE,
+					plan.fallback_registration_name,
+				)
+				if plan.was_active and plan.fallback_registration_name != &""
+				else workbench.remove_registration(plan.registration_name)
 		)
 		result.diagnostics.merge(removed.diagnostics)
 	if result.is_successful():
