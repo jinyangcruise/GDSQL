@@ -31,7 +31,7 @@ The current implementation provides:
 - Table browsing, filtering, nested typed WHERE groups, paging, row editing,
   duplication, bounded Undo/Redo, and Resource-aware fields.
 - Schema authoring with defaults, indexes, generated values, Resource
-  ownership, and same-database foreign keys.
+  Embedded/External Reference storage modes, and same-database foreign keys.
 - Direct and Managed Content onboarding, runtime roles, save slots,
   checkpoints, deterministic content overlays, caching, provenance, and save
   compatibility reports.

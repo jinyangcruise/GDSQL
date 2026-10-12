@@ -53,8 +53,8 @@ Like the lower-level query builders, a model query cannot be modified after
 
 ## Deferred Resource fields
 
-For asset-heavy models, keep referenced Resource properties unloaded until the
-gameplay boundary needs them:
+For asset-heavy models, keep Resource properties stored as **External
+Reference** unloaded until the gameplay boundary needs them:
 
 ```gdscript
 var result := HeroContent.query().defer_resources().find(hero_id)

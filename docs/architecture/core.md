@@ -3251,10 +3251,12 @@ query validation and storage, not only by editor filtering.
 
 Every Resource column also declares ownership independently from its physical
 backend layout. `OWNED` means the database owns an independent Resource value;
-editing its properties mutates row data and duplication deep-copies it.
+editing its properties mutates row data and duplication deep-copies it. The
+editor presents this mode as **Embedded**.
 `REFERENCED` means the Resource remains an external project asset; the database
 stores a versioned UID plus fallback path and only replacing the reference
-mutates the row. ConfigFile persists owned values through native Resource
+mutates the row. The editor presents this mode as **External Reference**.
+ConfigFile persists owned values through native Resource
 serialization and referenced values through a `GDSQLResourceReference`.
 References are inert storage values: parsing one never loads its asset. An
 injected `GDSQLResourceResolver` owns materialization, with

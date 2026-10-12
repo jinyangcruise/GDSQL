@@ -156,18 +156,18 @@ text_overrun_behavior = 3
 layout_mode = 2
 
 [node name="OwnershipCell" type="MarginContainer" parent="Margin/Cells" unique_id=3003334]
-custom_minimum_size = Vector2(115, 0)
-custom_maximum_size = Vector2(115, -1)
+custom_minimum_size = Vector2(160, 0)
+custom_maximum_size = Vector2(160, -1)
 layout_mode = 2
 
 [node name="ResourceOwnership" type="OptionButton" parent="Margin/Cells/OwnershipCell" unique_id=1934390362]
 unique_name_in_owner = true
 layout_mode = 2
 item_count = 2
-popup/item_0/text = "Referenced"
-popup/item_0/id = 1
-popup/item_1/text = "Owned"
-popup/item_1/id = 0
+popup/item_0/text = "Embedded"
+popup/item_0/id = 0
+popup/item_1/text = "External Reference"
+popup/item_1/id = 1
 
 [node name="VSeparatorOwnership" type="VSeparator" parent="Margin/Cells" unique_id=785763505]
 layout_mode = 2

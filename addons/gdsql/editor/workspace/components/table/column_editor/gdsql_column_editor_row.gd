@@ -110,8 +110,8 @@ func configure(column_draft: GDSQLEditorColumnDraft) -> void:
 	_resource_ownership.visible = shows_resource_type
 	_resource_ownership.select(draft.resource_ownership)
 	_resource_ownership.tooltip_text = (
-		"Owned: store an independent Resource value in this database.\n"
-		+ "Referenced: store a UID/path locator to an existing asset."
+		"Embedded: serialize an independent Resource value with the row.\n"
+		+ "External Reference: store a UID/path locator to an existing asset."
 	)
 	_nullable.set_pressed_no_signal(draft.nullable)
 	_nullable.disabled = draft.is_primary

@@ -47,12 +47,12 @@ Hold Ctrl or Shift while selecting rows.
 
 - **Duplicate** inserts every selected row atomically when an automatic primary
   key can be generated and copied values do not need user decisions.
-- If a manual identity, unique value, or owned Resource must change, Duplicate
+- If a manual identity, unique value, or embedded Resource must change, Duplicate
   copies the first selected row into an editable Add Row draft instead.
 - **Delete** confirms and deletes all selected rows in one transaction.
 
-Referenced Resources preserve their asset identity. Owned Resources copied to
-an insert draft are independent deep copies.
+Resources stored as **External Reference** preserve their asset identity.
+Embedded Resources copied to an insert draft are independent deep copies.
 
 ## Undo and redo
 
