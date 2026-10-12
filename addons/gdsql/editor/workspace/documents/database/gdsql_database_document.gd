@@ -15,7 +15,7 @@ signal migration_preview_requested(
 		registration_name: StringName,
 		migration_id: String,
 		description: String,
-		migration_step: GDSQLMigrationStep,
+		migration_steps: Array[GDSQLMigrationStep],
 )
 signal migration_apply_requested(preview: GDSQLEditorMigrationPreview)
 
@@ -116,7 +116,7 @@ func configure_actions(action_hub: GDSQLEditorActionHub, context_id: StringName)
 		GDSQLEditorActionDefinition.new(
 			GDSQLEditorActionIds.CREATE_DATABASE_MIGRATION,
 			"Create Migration…",
-			"Preview and record one table schema change.",
+			"Preview and record the current schema changes or one data update.",
 			&"ScriptCreate",
 			&"document",
 			0,
@@ -431,15 +431,15 @@ func _request_save() -> GDSQLOperationResult:
 
 func _request_migration() -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
-	var table_change := _build_migration_change()
+	var table_changes := _build_migration_changes()
 	var can_author_data := _can_author_data_migration()
-	if table_change == null and not can_author_data:
+	if table_changes.is_empty() and not can_author_data:
 		return result
-	_migration_kind.set_item_disabled(MigrationAuthoringMode.SCHEMA, table_change == null)
+	_migration_kind.set_item_disabled(MigrationAuthoringMode.SCHEMA, table_changes.is_empty())
 	_migration_kind.set_item_disabled(MigrationAuthoringMode.DATA_UPDATE, not can_author_data)
 	_migration_kind.select(
-			MigrationAuthoringMode.SCHEMA
-			if table_change != null
+		MigrationAuthoringMode.SCHEMA
+			if not table_changes.is_empty()
 			else MigrationAuthoringMode.DATA_UPDATE
 	)
 	_update_migration_mode()
@@ -484,16 +484,17 @@ func _emit_save() -> void:
 
 
 func _emit_migration_preview() -> void:
-	var step_result := _build_selected_migration_step()
-	if not step_result.is_successful() or not GDSQLMigrationDefinition.is_valid_id(
+	var steps_result := _build_selected_migration_steps()
+	if not steps_result.is_successful() or not GDSQLMigrationDefinition.is_valid_id(
 		_migration_id.text.strip_edges(),
 	) or _migration_description.text.strip_edges().is_empty():
 		return
+	var migration_steps: Array[GDSQLMigrationStep] = steps_result.get_value()
 	migration_preview_requested.emit(
 		_inspection.registration.name,
 		_migration_id.text.strip_edges(),
 		_migration_description.text.strip_edges(),
-		step_result.get_value() as GDSQLMigrationStep,
+		migration_steps,
 	)
 
 
@@ -515,9 +516,9 @@ func _validate_migration_authoring() -> void:
 	elif description.is_empty():
 		message = "A short migration description is required."
 	else:
-		var step_result := _build_selected_migration_step()
-		if not step_result.is_successful():
-			message = _first_diagnostic_message(step_result)
+		var steps_result := _build_selected_migration_steps()
+		if not steps_result.is_successful():
+			message = _first_diagnostic_message(steps_result)
 	_migration_validation.text = message
 	_migration_validation.visible = not message.is_empty()
 	_migration_authoring.get_ok_button().disabled = not message.is_empty()
@@ -546,7 +547,7 @@ func _update_dirty_state() -> void:
 			and _pending_migration_preview.definition_persisted
 	var migration_managed := _migration_history_count > 0
 	var migration_locked := migration_managed or not _migration_state_error.is_empty()
-	var can_author_migration := _build_migration_change() != null \
+	var can_author_migration := not _build_migration_changes().is_empty() \
 			or _can_author_data_migration()
 	_dirty_state.text = (
 			"Migration history unavailable"
@@ -590,7 +591,7 @@ func _update_dirty_state() -> void:
 			"Resolve the migration-history error before authoring migrations."
 			if not _migration_state_error.is_empty()
 			else (
-					"Record and preview one immutable schema or data step."
+					"Record and preview the current schema changes or one data update."
 					if can_author_migration
 					else "Resolve schema drafts before authoring a migration."
 			)
@@ -639,25 +640,20 @@ func _requested_database_name() -> StringName:
 	return StringName(_database_name.text.strip_edges())
 
 
-func _build_migration_change() -> GDSQLEditorTableChange:
+func _build_migration_changes() -> Array[GDSQLEditorTableChange]:
+	var requested: Array[GDSQLEditorTableChange] = []
 	if _inspection == null \
 			or _requested_database_name() != _original_database_name:
-		return null
-	var requested: GDSQLEditorTableChange
-	if _draft_tables.get_child_count() == 1:
-		var definition := _draft_tables.get_child(0).call(
+		return requested
+	for draft in _draft_tables.get_children():
+		var definition := draft.call(
 			"build_definition",
 		) as GDSQLTableDefinition
-		requested = GDSQLEditorTableChange.create_table(definition)
-	elif _draft_tables.get_child_count() > 1:
-		return null
+		requested.append(GDSQLEditorTableChange.create_table(definition))
 	for fold in _existing_tables.get_children():
 		var table_change := fold.call("build_change") as GDSQLEditorTableChange
-		if not table_change.is_valid():
-			continue
-		if requested != null:
-			return null
-		requested = table_change
+		if table_change.is_valid():
+			requested.append(table_change)
 	return requested
 
 
@@ -671,20 +667,29 @@ func _can_author_data_migration() -> bool:
 	return database != null and not database.tables.is_empty()
 
 
-func _build_selected_migration_step() -> GDSQLOperationResult:
+func _build_selected_migration_steps() -> GDSQLOperationResult:
 	if _migration_kind.get_selected_id() == MigrationAuthoringMode.DATA_UPDATE:
-		return _data_migration_editor.build_step()
+		var data_step := _data_migration_editor.build_step()
+		if data_step.is_successful():
+			var steps: Array[GDSQLMigrationStep] = [
+				data_step.get_value() as GDSQLMigrationStep,
+			]
+			data_step.value = steps
+		return data_step
 	var result := GDSQLOperationResult.new()
-	var table_change := _build_migration_change()
-	if table_change == null:
+	var table_changes := _build_migration_changes()
+	if table_changes.is_empty():
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_EDITOR_MIGRATION_CHANGE_REQUIRED",
-				"Schema migration authoring requires exactly one table change.",
+				"Schema migration authoring requires at least one table change.",
 			),
 		)
 		return result
-	result.value = table_change.to_migration_step()
+	var steps: Array[GDSQLMigrationStep] = []
+	for table_change in table_changes:
+		steps.append(table_change.to_migration_step())
+	result.value = steps
 	return result
 
 
@@ -710,14 +715,14 @@ func _update_migration_mode() -> void:
 	_migration_explanation.text = (
 			"Record one typed row update in append-only project history."
 			if data_mode
-			else "Record the current schema draft in append-only project history."
+			else "Record the current schema drafts in one ordered migration."
 	)
 	if not data_mode:
-		var table_change := _build_migration_change()
+		var table_changes := _build_migration_changes()
 		_schema_migration_summary.text = (
-				_schema_migration_description(table_change)
-				if table_change != null
-				else "No single schema draft is available."
+				_schema_migration_summary_for(table_changes)
+				if not table_changes.is_empty()
+				else "No schema draft is available."
 		)
 
 
@@ -730,9 +735,14 @@ func _set_migration_suggestions() -> void:
 		_migration_id.text = _suggest_migration_id(table_name, "update")
 		_migration_description.text = "Update %s rows" % table_name
 		return
-	var table_change := _build_migration_change()
-	if table_change == null:
+	var table_changes := _build_migration_changes()
+	if table_changes.is_empty():
 		return
+	if table_changes.size() > 1:
+		_migration_id.text = _suggest_migration_id(&"schema", "update")
+		_migration_description.text = "Apply %d schema changes" % table_changes.size()
+		return
+	var table_change := table_changes[0]
 	_migration_id.text = _suggest_migration_id(
 		table_change.table_name,
 		_schema_migration_operation(table_change),
@@ -761,6 +771,15 @@ func _schema_migration_description(table_change: GDSQLEditorTableChange) -> Stri
 	if table_change.is_drop_table():
 		return "Drop %s table" % table_change.table_name
 	return "Update %s schema" % table_change.table_name
+
+
+func _schema_migration_summary_for(
+		table_changes: Array[GDSQLEditorTableChange],
+) -> String:
+	var summaries: Array[String] = []
+	for table_change in table_changes:
+		summaries.append("• %s" % _schema_migration_description(table_change))
+	return "\n".join(summaries)
 
 
 func _first_diagnostic_message(result: GDSQLOperationResult) -> String:

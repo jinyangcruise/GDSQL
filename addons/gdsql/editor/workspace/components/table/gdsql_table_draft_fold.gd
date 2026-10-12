@@ -11,8 +11,10 @@ const INDEX_DRAFT_SCENE := preload(
 const FOREIGN_KEY_DRAFT_SCENE := preload(
 	"res://addons/gdsql/editor/workspace/components/foreign_key/gdsql_foreign_key_draft_row.tscn"
 )
+const COLUMN_ACTION_DELETE := 0
 
 var _database: GDSQLDatabaseDefinition
+var _context_column: GDSQLEditorColumnDraft
 
 @onready var _name: LineEdit = %TableName
 @onready var _primary_key: LineEdit = %PrimaryKey
@@ -29,6 +31,8 @@ func _ready() -> void:
 	%AddForeignKey.pressed.connect(_add_foreign_key)
 	%RemoveTable.pressed.connect(remove_requested.emit.bind(self))
 	_columns.changed.connect(_on_schema_changed)
+	_columns.column_context_requested.connect(_show_column_context)
+	%ColumnActions.id_pressed.connect(_on_column_context_action)
 	for row in _indexes.get_children():
 		_connect_index(row)
 	folded = false
@@ -121,6 +125,41 @@ func _remove_index(row: Control) -> void:
 	_indexes.remove_child(row)
 	row.queue_free()
 	_on_schema_changed()
+
+
+func _show_column_context(column_draft: GDSQLEditorColumnDraft) -> void:
+	_context_column = column_draft
+	%ColumnActions.clear()
+	%ColumnActions.add_item(
+		"Primary key cannot be deleted" if column_draft.is_primary else "Delete Column",
+		COLUMN_ACTION_DELETE,
+	)
+	%ColumnActions.set_item_disabled(0, column_draft.is_primary)
+	%ColumnActions.position = DisplayServer.mouse_get_position()
+	%ColumnActions.popup()
+
+
+func _on_column_context_action(action_id: int) -> void:
+	if action_id != COLUMN_ACTION_DELETE or _context_column == null \
+			or _context_column.is_primary:
+		return
+	var column_name := _context_column.get_column_name()
+	_discard_column_dependencies(column_name)
+	if not _columns.discard_new_column(_context_column):
+		return
+	_context_column = null
+
+
+func _discard_column_dependencies(column_name: StringName) -> void:
+	for row in _indexes.get_children():
+		var columns: Array[StringName] = row.call("get_columns")
+		if column_name in columns:
+			_indexes.remove_child(row)
+			row.queue_free()
+	for row in %ForeignKeys.get_children():
+		if row.call("get_local_column_name") == column_name:
+			%ForeignKeys.remove_child(row)
+			row.queue_free()
 
 
 func _add_foreign_key() -> void:

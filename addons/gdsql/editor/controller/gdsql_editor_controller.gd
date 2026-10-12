@@ -631,17 +631,15 @@ func _preview_database_migration(
 		registration_name: StringName,
 		migration_id: String,
 		description: String,
-		migration_step: GDSQLMigrationStep,
+		migration_steps: Array[GDSQLMigrationStep],
 ) -> GDSQLOperationResult:
 	var result := _ensure_active_registration(registration_name)
 	var registration := workbench.get_registration(registration_name)
-	if result.is_successful() and (
-			migration_step == null or not migration_step.is_valid()
-	):
+	if result.is_successful() and not _migration_steps_are_valid(migration_steps):
 		result.diagnostics.merge(
 			_error(
 				&"GDSQL_EDITOR_MIGRATION_CHANGE_REQUIRED",
-				"Migration authoring requires one valid schema or data step.",
+				"Migration authoring requires one or more valid schema or data steps.",
 			).diagnostics,
 		)
 	if result.is_successful() and (
@@ -683,11 +681,10 @@ func _preview_database_migration(
 				),
 			)
 	if result.is_successful():
-		var steps: Array[GDSQLMigrationStep] = [migration_step]
 		var definition := GDSQLMigrationDefinition.new(
 			migration_id,
 			description,
-			steps,
+			migration_steps,
 		)
 		var candidate: Array[GDSQLMigrationDefinition] = history.duplicate()
 		candidate.append(definition)
@@ -707,6 +704,15 @@ func _preview_database_migration(
 			result.value = editor_preview
 	_record_result("Preview database migration", result)
 	return result
+
+
+func _migration_steps_are_valid(steps: Array[GDSQLMigrationStep]) -> bool:
+	if steps.is_empty():
+		return false
+	for step in steps:
+		if step == null or not step.is_valid():
+			return false
+	return true
 
 
 func _apply_database_migration(

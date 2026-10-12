@@ -269,7 +269,7 @@ theme_override_constants/separation = 6
 [node name="Explanation" type="Label" parent="MigrationAuthoring/Fields"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Record one durable schema or data step in append-only project history."
+text = "Record schema drafts or one data update in append-only project history."
 autowrap_mode = 2
 
 [node name="MigrationKindLabel" type="Label" parent="MigrationAuthoring/Fields"]

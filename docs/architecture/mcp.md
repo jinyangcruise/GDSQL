@@ -71,9 +71,8 @@ Godot-AI owns MCP protocol negotiation. GDSQL must not reproduce transport
 capability logic or infer authorization from client or server display metadata.
 
 GDSQL owns an independent `surface_version` for its tool and result contract.
-The initial implementation started at `1.0.0`; model inspection extends the
-current surface to `1.1.0`. Every successful GDSQL response
-includes this version. Compatibility rules are:
+The unpublished surface remains at `1.0.0`, including model inspection. Every
+successful GDSQL response includes this version. Compatibility rules are:
 
 - Patch: diagnostic text or additive implementation fixes without shape changes.
 - Minor: additive fields, capabilities, enum values, or optional parameters.
@@ -211,6 +210,24 @@ Mutation adapters additionally:
 - Keep destructive database, table, schema, and bulk-row actions behind preview
   plus confirmation even when a client requests batch execution.
 
+The mutation boundary is a UI-independent application service. Godot-AI MCP is
+one JSON adapter over that service; a future CLI may reuse it for headless or CI
+work. The editor action hub remains a presentation and navigation layer and is
+not a domain-mutation API.
+
+Prefer a small set of composable operation families over one tool per editor
+button:
+
+- bounded query draft, validation, and SELECT execution;
+- row mutation preview and commit, including bounded batch inserts;
+- schema/database mutation preview and commit; and
+- migration authoring, preview, and application.
+
+Requests use logical registration, database, table, and column identifiers plus
+typed JSON values. Responses use stable diagnostics, bounded result windows,
+and opaque cursors or confirmation handles so agents do not need to consume UI
+state or raw catalog files.
+
 ## Registration lifecycle
 
 The optional adapter dynamically resolves Godot-AI, registers all phase-one
@@ -234,8 +251,10 @@ ConfigFile services.
 | Live editor discovery, registration, and Tools-panel acceptance | Verified with Godot-AI |
 | Live reload, disable, and teardown verification | Pending manual verification |
 | Bounded model-binding and relationship inspection | Tested |
-| Structured query drafting | Planned after the inspection contract is stable |
-| Preview-and-confirm mutation families | Planned separately |
+| Bounded query drafting and SELECT execution | Planned next after lifecycle verification |
+| Row mutation preview and commit | Planned after bounded query execution |
+| Schema/database and migration preview and commit | Planned after row mutations |
+| Optional CLI adapter over the same application service | Backlog; not required for Godot-AI |
 
 ## Protocol references
 

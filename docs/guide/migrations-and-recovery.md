@@ -30,7 +30,7 @@ project history.
 
 ## Author a schema migration
 
-Open the database document and stage exactly one table change. Then:
+Open the database document and stage one or more table changes. Then:
 
 1. Select **Create Migration**.
 2. Keep **Current schema draft** selected.
@@ -39,9 +39,10 @@ Open the database document and stage exactly one table change. Then:
 5. Inspect the operation, affected rows, and destructive warning.
 6. Select **Save and Apply**.
 
-The editor currently records one typed schema step per migration. The step can
-create, alter, rename, or drop a table. Column, index, and foreign-key changes
-inside one table alteration remain one step.
+The editor records each changed table as one ordered typed schema step in the
+same migration. A step can create, alter, rename, or drop a table. Column,
+index, and foreign-key changes inside one table alteration remain one step.
+Preview uses an isolated database when several steps depend on earlier ones.
 
 Migration IDs must be unique and sort after the current history head. The
 editor suggests timestamp-prefixed IDs such as
@@ -160,4 +161,3 @@ Common protections include:
 Never repair these states by manually editing checksums or the applied ledger.
 Preserve the affected files, inspect the first diagnostic, and restore from a
 known backup when the evidence cannot be reconciled.
-

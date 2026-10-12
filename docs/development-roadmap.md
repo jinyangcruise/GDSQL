@@ -53,7 +53,7 @@ tracks only product direction, active work, and deliberately deferred work.
 | Priority | Outcome | State |
 |---|---|---|
 | High — first | Release, recovery, and supported-version QA | Crash-safe table commits, catalog/migration recovery, the public migration/recovery guide, PCK/standalone Linux export gates, and the scalar ConfigFile baseline are implemented; selected supported-platform verification remains. Additional benchmarks are deferred until measurements or real projects justify them |
-| Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
+| Medium | Godot-AI lifecycle and authoring surface | Inspection tools work; reload, disable, and teardown need live-editor verification before bounded query and preview/commit mutation families are added |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
 
@@ -73,18 +73,21 @@ sessions unless new evidence changes an architectural dependency:
    form one ordered atomic migration. Isolated ConfigFile simulation previews
    dependent schema, repeated-table data, and mixed batches with accurate
    per-step counts; live application uses one recovery snapshot and one ledger
-   record. The database document authors one table step at a time through typed
-   controls. Fresh-save schema provisioning and runtime migration of registered
-   writable saves before hydration are implemented.
+   record. The database document authors ordered multi-table schema drafts or
+   one typed data step through typed controls. Fresh-save schema provisioning
+   and runtime migration of registered writable saves before hydration are
+   implemented.
 4. **Resource Stage B — explicit deferred loading (implemented and tested).** The typed
    handle provides synchronous and native threaded on-demand loading, progress,
    signals, diagnostics, caching, type validation, caller-owned release, and
    opt-in query/model handles without changing eager defaults. Bounded scopes
    coordinate aggregate progress, partial failures, and deterministic release.
-5. **Bounded reads (implemented and tested) and paged binary storage.** Cursor
+5. **Bounded reads (implemented and tested) and scalable storage.** Cursor
    execution, safe table/index windows, and honest compatibility-backend
-   measurements establish the contract before the binary backend, so paging
-   does not inherit full-snapshot behavior.
+   measurements establish the contract before another backend. Evaluate a
+   SQLite adapter against GDSQL semantics, exported platforms, Resource codecs,
+   migrations, and packaged read-only content before committing to a custom
+   paged binary format.
 6. **Optional working-set eviction.** Add manual or budgeted release policies
    only after profiling demonstrates that projects need them.
 
@@ -291,7 +294,21 @@ workflow.
 ConfigFile may continue parsing a whole table file while implementing this
 contract through a compatibility adapter.
 
-#### Stage D — paged binary backend
+#### Stage D — scalable storage backend
+
+Start with a bounded SQLite adapter spike behind the existing storage, catalog,
+administration, migration-ledger, and recovery contracts. Target writable
+`user://` save data first, while retaining ConfigFile as the zero-dependency
+authoring and compatibility backend. The spike must pass the shared semantic
+suite and exported-build gates, preserve GDSQL schema authority and Resource
+locator behavior, and measure whether query/predicate pushdown is required.
+
+Adopt SQLite when its native-library distribution and packaged-content behavior
+meet the support matrix. Build the custom paged backend below only if SQLite
+cannot satisfy those constraints or a measured project requirement needs a
+GDSQL-owned format.
+
+If a custom paged backend is required:
 
 - Store versioned table headers, schema fingerprints, generated-key state,
   row/index roots, and independently addressable pages.
@@ -376,9 +393,9 @@ The recovery-safe runner applies every ordered step in one previewed migration,
 records its resulting schema fingerprint, and restores the complete snapshot after catalog,
 fingerprint, or ledger failure. The public database API now previews complete
 history, applies one plan, reports an up-to-date state, and resolves leftover
-backups safely after interruption. The database document now authors one
-single-table change from an existing schema draft, a new table draft, a staged
-table rename/drop, or a typed row update with scalar literal assignments and a
+backups safely after interruption. The database document now authors the
+current ordered schema draft set, including multiple created or changed tables,
+or one typed row update with scalar literal assignments and a
 nested WHERE predicate. It previews affected rows and summaries, requires
 explicit confirmation, persists before application, and exposes a failed
 application as retryable pending history. Drop is destructive and protected by
@@ -424,8 +441,9 @@ Canonical data transformations use typed single-table UPDATE steps with
 optional predicates. One migration may order schema and data steps across the
 same or different tables; preview reports per-step counts, execution uses one
 recovery snapshot, and success creates one ledger record. Editor authoring
-supports one step at a time with typed scalar literals, nested WHERE groups, and explicit
-all-row updates while keeping Resource literals out of durable migration files.
+supports multiple ordered schema steps or one data step with typed scalar literals,
+nested WHERE groups, and explicit all-row updates while keeping Resource literals
+out of durable migration files.
 Fresh-save provisioning creates the current schema and a verified baseline
 without copying player rows. Fresh databases and saves start at the current
 schema; registered writable saves recover interrupted work and apply only their
@@ -570,8 +588,12 @@ packaging, and compatibility work.
 ## 4. Editor and integration completion
 
 - Verify Godot-AI tool registration across plugin load order, reload, disable,
-  teardown, and project changes. Query execution and mutations remain deferred
-  until the read-only contract is stable.
+  teardown, and project changes.
+- Add a UI-independent agent authoring service, then expose bounded query,
+  row-mutation, schema/database, and migration operation families through
+  Godot-AI. Mutations use preview plus one-use confirmation handles. The action
+  hub may refresh or navigate editor UI afterward but does not execute the
+  domain mutation. A future CLI may reuse the same service.
 - Replace the 500-row foreign-key/content-reference popup boundary with
   debounced canonical search and paginated results.
 - Keep editor actions, table navigation, and schema operations exposed through
