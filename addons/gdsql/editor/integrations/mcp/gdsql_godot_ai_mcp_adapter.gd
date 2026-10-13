@@ -355,6 +355,49 @@ func _build_specs() -> Array:
 				30_000,
 			),
 		)
+		specs.append(
+			_spec(
+				"gdsql_preview_migration",
+				"Preview the next pending migration, or validate a new ordered schema/data migration without writing.",
+				&"preview_migration",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["registration"],
+					"properties": {
+						"registration": { "type": "string", "minLength": 1 },
+						"migration_id": { "type": "string" },
+						"description": { "type": "string" },
+						"steps": {
+							"type": "array",
+							"minItems": 1,
+							"maxItems": 16,
+							"items": { "type": "object" },
+						},
+					},
+				},
+				true,
+				30_000,
+			),
+		)
+		specs.append(
+			_spec(
+				"gdsql_commit_migration",
+				"Persist and apply one previewed GDSQL migration using its one-use confirmation handle.",
+				&"commit_migration",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["handle", "confirm"],
+					"properties": {
+						"handle": { "type": "string", "minLength": 1 },
+						"confirm": { "type": "boolean" },
+					},
+				},
+				true,
+				30_000,
+			),
+		)
 	return Array(
 		specs,
 		TYPE_OBJECT,

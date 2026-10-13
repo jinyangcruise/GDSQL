@@ -89,7 +89,7 @@ profile. Capability entries are sorted by stable identifier.
 
 ## Tools
 
-All eleven tools are promoted through Godot-AI. Compatible MCP clients normally
+All thirteen tools are promoted through Godot-AI. Compatible MCP clients normally
 see them as `custom_gdsql_*`; they remain available through `custom_manage` if a
 bridge promotion limit is reached. The promotion prefix is a bridge detail and
 is not part of the GDSQL surface version.
@@ -107,6 +107,8 @@ is not part of the GDSQL surface version.
 | `gdsql_commit_schema_mutation` | Confirmation handle and explicit `confirm: true` | Catalog commit summary after the canonical plan's stale-schema check. |
 | `gdsql_preview_database_mutation` | Lifecycle operation, registration, and operation-specific logical identifiers | Validated database/role/table/row impact and a short-lived one-use confirmation handle; no write occurs. |
 | `gdsql_commit_database_mutation` | Confirmation handle and explicit `confirm: true` | Registered database lifecycle commit after workspace and schema conflict checks. |
+| `gdsql_preview_migration` | Registration alone for the next pending migration, or registration plus migration ID, description, and bounded ordered steps | Validated schema/data plan or up-to-date status; a pending plan includes a one-use confirmation handle. |
+| `gdsql_commit_migration` | Confirmation handle and explicit `confirm: true` | Authored-history append when needed, stale-safe migration application, and schema-state synchronization status. |
 
 Input schemas reject unknown fields. Registration and table parameters are
 logical identifiers, never paths. Lists use opaque cursors and bounded limits;
@@ -121,7 +123,7 @@ or an unavailable inspection service are failures.
 foreign keys and cross-role references registered by the editor. Explicit
 many-to-many or custom relationships remain marked as not statically inspected.
 
-Five tools are read-only. All six mutation tools declare Godot-AI
+Five tools are read-only. All eight mutation tools declare Godot-AI
 `requires_writable`; none claims Godot Undo/Redo support. Adapter annotations
 are descriptive and do not replace validation and confirmation in GDSQL.
 
@@ -189,6 +191,22 @@ one-use handle and verifies that the registration workspace and target schema
 are unchanged. Rename is rejected once authored migration history exists
 because renaming that identity requires a future atomic migration-history and
 schema-state operation.
+
+## Migration authoring and application
+
+`gdsql_preview_migration` reuses the existing migration history, schema/data
+step planners, and recovery-aware runner. With only a registration it previews
+the next authored but unapplied migration. With an ID, description, and ordered
+steps it requires the current history to be up to date, validates the candidate
+without persisting it, and returns the same confirmation shape.
+
+Schema steps use the table-schema decoder. Data steps accept bounded scalar
+assignments to columns present when preview begins and the structured WHERE
+format. Commit re-previews the plan so
+history, schema, ledger revision, affected rows, or summaries changed after
+confirmation are rejected. A new definition is appended immediately before
+application; if application fails it intentionally remains pending and can be
+previewed again. Successful application updates project schema-state evidence.
 
 ## Godot-AI discovery
 
@@ -305,7 +323,8 @@ ConfigFile services.
 | Scalar insert, update, and delete | Preview/commit row mutation | Tested |
 | Table/column/index/foreign-key authoring | Schema preview/commit family | Tested |
 | Registered database lifecycle authoring | Database lifecycle preview/commit family | Tested |
-| Migration authoring, preview, apply, recovery status | Migration family | Planned next |
+| Migration authoring, pending preview, and apply | Migration preview/commit family | Tested |
+| Explicit migration recovery inspection/control | Recovery family | Backlog; startup recovery remains automatic |
 | Model generation and cross-role content-reference registration | Model binding family | Planned |
 | Direct/Managed profile setup, packages, cache, and save-slot management | Setup family with destructive guards | Planned |
 | Resource-valued query and mutation | Typed locator/materialization family | Planned; scalar surface rejects it |
@@ -325,7 +344,7 @@ ConfigFile services.
 | Scalar row mutation preview and commit | Tested |
 | Registered table schema preview and commit | Tested |
 | Registered database lifecycle preview and commit | Tested |
-| Migration preview and commit | Planned next |
+| Migration preview and commit | Tested |
 | Optional CLI adapter over the same application service | Backlog; not required for Godot-AI |
 
 ## Protocol references

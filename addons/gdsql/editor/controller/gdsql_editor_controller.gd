@@ -127,6 +127,11 @@ func refresh_after_external_database_mutation(registration_name: StringName) -> 
 	_refresh_surfaces()
 
 
+func refresh_after_external_migration(registration_name: StringName) -> void:
+	refresh_after_external_schema_mutation(registration_name)
+	_refresh_database_migration_state(registration_name)
+
+
 func shutdown() -> void:
 	if is_instance_valid(_workspace) \
 			and _workspace.database_create_submitted.is_connected(_create_database):

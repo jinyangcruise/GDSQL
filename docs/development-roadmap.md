@@ -54,7 +54,7 @@ tracks only product direction, active work, and deliberately deferred work.
 | Priority | Outcome | State |
 |---|---|---|
 | High — first | Release, recovery, and supported-version QA | Crash-safe table commits, catalog/migration recovery, the public migration/recovery guide, PCK/standalone Linux export gates, and the scalar ConfigFile baseline are implemented; selected supported-platform verification remains. Additional benchmarks are deferred until measurements or real projects justify them |
-| Medium | Godot-AI lifecycle and authoring surface | Inspection, bounded scalar query, preview/commit row mutations, registered table-schema authoring, registry transitions, and guarded registered-database lifecycle authoring are tested. Migration authoring/preview/application is next; live disable/re-enable acceptance remains |
+| Medium | Godot-AI lifecycle and authoring surface | Inspection, bounded scalar query, row/schema/database preview/commit, and migration authoring/application are tested. Model/setup families and live disable/re-enable acceptance remain |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
 
@@ -607,9 +607,11 @@ packaging, and compatibility work.
   Named locations reject arbitrary paths, previews report affected tables,
   rows, and roles, unregister preserves files, and migration-managed databases
   reject unsafe rename.
-- Add migration authoring, preview, and application next. Reuse the same
-  confirmation model for writes and the same application service from any
-  future CLI.
+- **Implemented and tested:** Migration preview/commit accepts bounded ordered
+  schema and scalar data-update steps, applies already-authored pending history,
+  rejects stale plans, and synchronizes trusted project schema state. Explicit
+  recovery inspection remains separate because startup recovery already owns
+  mutation of interrupted backups.
 - Replace the 500-row foreign-key/content-reference popup boundary with
   debounced canonical search and paginated results.
 - Keep editor actions, table navigation, and schema operations exposed through

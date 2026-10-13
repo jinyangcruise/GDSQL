@@ -19,6 +19,8 @@ absent.
 | `gdsql_commit_schema_mutation` | Applies one unchanged canonical table-schema preview. |
 | `gdsql_preview_database_mutation` | Validates registered database create, rename, unregister, or destroy and reports its impact. |
 | `gdsql_commit_database_mutation` | Applies one unchanged database lifecycle preview after explicit confirmation. |
+| `gdsql_preview_migration` | Previews the next pending migration or validates a new ordered schema/data migration. |
+| `gdsql_commit_migration` | Persists when needed and applies one unchanged migration preview. |
 
 Godot-AI normally exposes promoted tools with a `custom_` prefix. Enable or
 disable them for the current project from Godot-AI's **Tools** panel.
@@ -45,8 +47,8 @@ by Godot-AI. GDSQL owns its versioned domain results and mutation safeguards.
 
 ## Current scope and later extensions
 
-The current `1.0.0` surface has eleven tools. Migration operations are next.
-Model generation, profile/package/save-slot
+The current `1.0.0` surface has thirteen tools. Model generation and
+profile/package/save-slot
 management, and typed Resource locators follow as separate guarded families.
 Late startup, registry replacement, repeated readiness, contract loss, and
 teardown are covered by lifecycle tests. Live disable/re-enable and reload

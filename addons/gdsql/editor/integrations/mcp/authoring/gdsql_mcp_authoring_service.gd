@@ -5,6 +5,7 @@ extends RefCounted
 signal mutation_committed(registration_name: StringName, table_name: StringName)
 signal schema_committed(registration_name: StringName)
 signal database_committed(registration_name: StringName)
+signal migration_committed(registration_name: StringName)
 
 const ScalarCodec = preload(
 	"res://addons/gdsql/editor/integrations/mcp/query/gdsql_mcp_scalar_codec.gd"
@@ -21,6 +22,9 @@ const SchemaAuthoring = preload(
 const DatabaseAuthoring = preload(
 	"res://addons/gdsql/editor/integrations/mcp/authoring/database/gdsql_mcp_database_authoring_service.gd"
 )
+const MigrationAuthoring = preload(
+	"res://addons/gdsql/editor/integrations/mcp/authoring/migration/gdsql_mcp_migration_authoring_service.gd"
+)
 const DEFAULT_LIMIT := 25
 const MAX_LIMIT := 100
 const MAX_MUTATION_ROWS := 100
@@ -31,6 +35,7 @@ var _workbench: GDSQLWorkbench
 var _tickets: Dictionary[String, GDSQLMcpMutationTicket] = { }
 var _schema_authoring: RefCounted
 var _database_authoring: RefCounted
+var _migration_authoring: RefCounted
 
 
 class Target extends RefCounted:
@@ -43,16 +48,33 @@ func _init(
 		workbench: GDSQLWorkbench,
 		database_locations: Dictionary = { },
 		migration_history_store: GDSQLMigrationHistoryStore = null,
+		migration_schema_state_store: GDSQLMigrationSchemaStateStore = null,
 ) -> void:
 	_workbench = workbench
+	var history_store := (
+		migration_history_store
+		if migration_history_store != null
+		else GDSQLConfigFileMigrationHistoryStore.new()
+	)
+	var state_store := (
+		migration_schema_state_store
+		if migration_schema_state_store != null
+		else GDSQLConfigFileMigrationSchemaStateStore.new()
+	)
 	_schema_authoring = SchemaAuthoring.new(workbench)
 	_schema_authoring.connect("committed", schema_committed.emit)
 	_database_authoring = DatabaseAuthoring.new(
 		workbench,
 		database_locations,
-		migration_history_store,
+		history_store,
 	)
 	_database_authoring.connect("committed", database_committed.emit)
+	_migration_authoring = MigrationAuthoring.new(
+		workbench,
+		history_store,
+		state_store,
+	)
+	_migration_authoring.connect("committed", migration_committed.emit)
 
 
 func preview_schema_mutation(request: Dictionary) -> GDSQLOperationResult:
@@ -69,6 +91,14 @@ func preview_database_mutation(request: Dictionary) -> GDSQLOperationResult:
 
 func commit_database_mutation(handle: String, confirmed: bool) -> GDSQLOperationResult:
 	return _database_authoring.call("commit", handle, confirmed) as GDSQLOperationResult
+
+
+func preview_migration(request: Dictionary) -> GDSQLOperationResult:
+	return _migration_authoring.call("preview", request) as GDSQLOperationResult
+
+
+func commit_migration(handle: String, confirmed: bool) -> GDSQLOperationResult:
+	return _migration_authoring.call("commit", handle, confirmed) as GDSQLOperationResult
 
 
 func query_rows(

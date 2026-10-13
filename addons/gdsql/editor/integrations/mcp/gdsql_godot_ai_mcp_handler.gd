@@ -224,6 +224,40 @@ func commit_database_mutation(params: Dictionary, _context: Variant) -> Dictiona
 	)
 
 
+func preview_migration(params: Dictionary, _context: Variant) -> Dictionary:
+	var invalid := _unknown_parameter(
+		params,
+		["registration", "migration_id", "description", "steps"],
+	)
+	if not invalid.is_empty():
+		return _invalid(invalid)
+	if not params.get("registration") is String \
+			or String(params.get("registration", "")).is_empty():
+		return _invalid("registration must be a non-empty string.")
+	for key in ["migration_id", "description"]:
+		if params.has(key) and not params[key] is String:
+			return _invalid("%s must be a string." % key)
+	if params.has("steps") and not params["steps"] is Array:
+		return _invalid("steps must be an array.")
+	return _invoke(Callable(_authoring_service(), "preview_migration").bind(params))
+
+
+func commit_migration(params: Dictionary, _context: Variant) -> Dictionary:
+	var invalid := _unknown_parameter(params, ["handle", "confirm"])
+	if not invalid.is_empty():
+		return _invalid(invalid)
+	if not params.get("handle") is String or String(params.get("handle", "")).is_empty():
+		return _invalid("handle must be a non-empty string.")
+	if not params.get("confirm") is bool:
+		return _invalid("confirm must be a boolean.")
+	return _invoke(
+		Callable(_authoring_service(), "commit_migration").bind(
+			String(params["handle"]),
+			bool(params["confirm"]),
+		),
+	)
+
+
 func _invoke(operation: Callable) -> Dictionary:
 	if not operation.is_valid():
 		return _error("INTERNAL_ERROR", "The requested GDSQL MCP service is unavailable.")
