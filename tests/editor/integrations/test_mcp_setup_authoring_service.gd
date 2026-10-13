@@ -17,7 +17,17 @@ func test_profile_selection_and_save_binding_require_preview() -> void:
 	var workbench := GDSQLWorkbench.new(registry, GDSQLConfigFileDatabaseExplorer.new())
 	assert_bool(workbench.load().is_successful()).is_true()
 	var profiles := GDSQLConfigFileSetupProfileStore.new(root.path_join("settings.cfg"))
-	var service := GDSQLMcpSetupAuthoringService.new(workbench, profiles)
+	var runtime_state := { "path": "" }
+	var service := GDSQLMcpSetupAuthoringService.new(
+		workbench,
+		profiles,
+		func() -> String: return runtime_state["path"],
+		func() -> GDSQLOperationResult:
+			runtime_state["path"] = "*%s" % GDSQLMcpSetupAuthoringService.RUNTIME_NODE_PATH
+			var result := GDSQLOperationResult.new()
+			result.value = true
+			return result,
+	)
 
 	var profile_preview := service.preview(
 		{ "operation": "select_profile", "profile": "direct" },
@@ -42,3 +52,15 @@ func test_profile_selection_and_save_binding_require_preview() -> void:
 		).is_successful(),
 	).is_true()
 	assert_str(String(workbench.snapshot.role_bindings[0].registration_name)).is_equal("save_1")
+
+	var runtime_preview := service.preview({ "operation": "install_runtime_adapter" })
+	assert_bool(runtime_preview.is_successful()).is_true()
+	assert_bool(
+		service.commit(
+			runtime_preview.get_value()["data"]["confirmation_handle"],
+			true,
+		).is_successful(),
+	).is_true()
+	assert_str(runtime_state["path"]).is_equal(
+		"*%s" % GDSQLMcpSetupAuthoringService.RUNTIME_NODE_PATH,
+	)

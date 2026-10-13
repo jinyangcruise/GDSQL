@@ -111,8 +111,8 @@ is not part of the GDSQL surface version.
 | `gdsql_commit_migration` | Confirmation handle and explicit `confirm: true` | Authored-history append when needed, stale-safe migration application, and schema-state synchronization status. |
 | `gdsql_preview_model_mutation` | Model generation identifiers, or save/content relationship identifiers | Derived project paths or cross-role reference impact plus a one-use confirmation handle; no write occurs. |
 | `gdsql_commit_model_mutation` | Confirmation handle and explicit `confirm: true` | Generated base replacement with user-file preservation, or one cross-role reference settings change. |
-| `gdsql_preview_setup_mutation` | Initial `direct`/`managed` profile selection, or a registered database plus logical role | Current and requested setup binding plus a one-use confirmation handle. Existing profiles cannot be switched without an explicit content migration. |
-| `gdsql_commit_setup_mutation` | Confirmation handle and explicit `confirm: true` | Durable profile selection or role binding after setup-state conflict checks. |
+| `gdsql_preview_setup_mutation` | Initial profile selection, a registered database plus logical role, or runtime-adapter installation | Current and requested setup state plus a one-use confirmation handle. Existing profiles cannot be switched without an explicit content migration. |
+| `gdsql_commit_setup_mutation` | Confirmation handle and explicit `confirm: true` | Durable profile selection, role binding, or conflict-safe runtime autoload installation. |
 
 Input schemas reject unknown fields. Registration and table parameters are
 logical identifiers, never paths. Lists use opaque cursors and bounded limits;
@@ -331,7 +331,7 @@ ConfigFile services.
 | Migration authoring, pending preview, and apply | Migration preview/commit family | Tested |
 | Explicit migration recovery inspection/control | Recovery family | Backlog; startup recovery remains automatic |
 | Model generation and cross-role content-reference registration | Model preview/commit family | Implemented |
-| Initial Direct/Managed profile selection and logical role binding | Setup preview/commit family | Tested |
+| Initial profile selection, logical role binding, and runtime-adapter installation | Setup preview/commit family | Tested |
 | Package/cache and save-slot lifecycle management | Setup lifecycle family | Planned |
 | Resource-valued query and mutation | Typed locator/materialization family | Planned; scalar surface rejects it |
 | Open editor documents, focus scripts, or run the project | Navigation commands only when useful | Backlog; never implemented by simulating UI input |
@@ -352,7 +352,7 @@ ConfigFile services.
 | Registered database lifecycle preview and commit | Tested |
 | Migration preview and commit | Tested |
 | Model-generation preview and cross-role reference preview/commit | Tested |
-| Initial profile selection and logical role binding | Tested |
+| Initial profile selection, logical role binding, and runtime-adapter installation | Tested |
 | Generated-source commit and live Godot-AI model-tool acceptance | Pending manual verification |
 | Optional CLI adapter over the same application service | Backlog; not required for Godot-AI |
 

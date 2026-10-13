@@ -8,6 +8,8 @@ const Ticket = preload(
 	"res://addons/gdsql/editor/integrations/mcp/authoring/setup/gdsql_mcp_setup_ticket.gd"
 )
 const HANDLE_TTL_MSEC := 120_000
+const RUNTIME_AUTOLOAD_SETTING := "autoload/GDSQLRuntime"
+const RUNTIME_NODE_PATH := "res://addons/gdsql/runtime/gdsql_runtime_node.tscn"
 const ROLES: Array[StringName] = [
 	GDSQLDatabaseRegistry.CONTENT_ROLE,
 	GDSQLDatabaseRegistry.SAVE_ROLE,
@@ -16,31 +18,49 @@ const ROLES: Array[StringName] = [
 
 var _workbench: GDSQLWorkbench
 var _profile_store: GDSQLSetupProfileStore
+var _runtime_path_provider: Callable
+var _runtime_installer: Callable
 var _tickets: Dictionary[String, GDSQLMcpSetupTicket] = { }
 
 
 func _init(
 		workbench: GDSQLWorkbench,
 		profile_store: GDSQLSetupProfileStore = null,
+		runtime_path_provider: Callable = Callable(),
+		runtime_installer: Callable = Callable(),
 ) -> void:
 	_workbench = workbench
 	_profile_store = (
 		profile_store if profile_store != null else GDSQLConfigFileSetupProfileStore.new()
+	)
+	_runtime_path_provider = (
+		runtime_path_provider
+		if runtime_path_provider.is_valid()
+		else Callable(self, "_current_runtime_path")
+	)
+	_runtime_installer = (
+		runtime_installer
+		if runtime_installer.is_valid()
+		else Callable(self, "_install_runtime")
 	)
 
 
 func preview(request: Dictionary) -> GDSQLOperationResult:
 	_cleanup_expired()
 	var operation := String(request.get("operation", "")).to_lower()
-	var prepared := (
-		_prepare_profile(request)
-		if operation == "select_profile"
-		else _prepare_role(request) if operation == "bind_role" else null
-	)
+	var prepared: GDSQLOperationResult
+	match operation:
+		"select_profile":
+			prepared = _prepare_profile(request)
+		"bind_role":
+			prepared = _prepare_role(request)
+		"install_runtime_adapter":
+			prepared = _prepare_runtime(request)
 	if prepared == null:
 		return _error(
 			&"GDSQL_MCP_SETUP_OPERATION_INVALID",
-			"Operation must be 'select_profile' or 'bind_role'.",
+			"Operation must be 'select_profile', 'bind_role', or " \
+					+ "'install_runtime_adapter'.",
 		)
 	if not prepared.is_successful():
 		return prepared
@@ -83,15 +103,18 @@ func commit(handle: String, confirmed: bool) -> GDSQLOperationResult:
 			"The setup profile, registrations, or role bindings changed after preview.",
 		)
 	var result: GDSQLOperationResult
-	if ticket.operation == "select_profile":
-		result = _profile_store.save_profile(
-			GDSQLSetupProfile.from_id(ticket.payload["profile"]),
-		)
-	else:
-		result = _workbench.bind_role(
-			StringName(ticket.payload["role"]),
-			StringName(ticket.payload["registration"]),
-		)
+	match ticket.operation:
+		"select_profile":
+			result = _profile_store.save_profile(
+				GDSQLSetupProfile.from_id(ticket.payload["profile"]),
+			)
+		"bind_role":
+			result = _workbench.bind_role(
+				StringName(ticket.payload["role"]),
+				StringName(ticket.payload["registration"]),
+			)
+		"install_runtime_adapter":
+			result = _runtime_installer.call() as GDSQLOperationResult
 	if not result.is_successful():
 		return result
 	committed.emit()
@@ -102,6 +125,7 @@ func commit(handle: String, confirmed: bool) -> GDSQLOperationResult:
 			"profile": ticket.payload.get("profile", ""),
 			"role": ticket.payload.get("role", ""),
 			"registration": ticket.payload.get("registration", ""),
+			"runtime_path": ticket.payload.get("runtime_path", ""),
 		},
 	)
 
@@ -170,6 +194,25 @@ func _prepare_role(request: Dictionary) -> GDSQLOperationResult:
 	)
 
 
+func _prepare_runtime(request: Dictionary) -> GDSQLOperationResult:
+	var unknown := _unknown(request, ["operation"])
+	if not unknown.is_empty():
+		return _error(&"GDSQL_MCP_SETUP_FIELD_UNKNOWN", unknown)
+	var current := String(_runtime_path_provider.call()).trim_prefix("*")
+	if not current.is_empty() and current != RUNTIME_NODE_PATH:
+		return _error(
+			&"GDSQL_RUNTIME_AUTOLOAD_NAME_IN_USE",
+			"The GDSQLRuntime autoload name is already used by '%s'." % current,
+		)
+	return _value(
+		{
+			"operation": "install_runtime_adapter",
+			"runtime_path": RUNTIME_NODE_PATH,
+			"already_installed": current == RUNTIME_NODE_PATH,
+		},
+	)
+
+
 func _registration_for_role(role: StringName) -> StringName:
 	if _workbench != null:
 		for binding in _workbench.snapshot.role_bindings:
@@ -194,7 +237,33 @@ func _fingerprint() -> String:
 		roles.sort()
 		values.append(registrations)
 		values.append(roles)
+	values.append(String(_runtime_path_provider.call()))
 	return var_to_str(values).sha256_text()
+
+
+func _current_runtime_path() -> String:
+	return String(ProjectSettings.get_setting(RUNTIME_AUTOLOAD_SETTING, ""))
+
+
+func _install_runtime() -> GDSQLOperationResult:
+	var current := _current_runtime_path().trim_prefix("*")
+	if current == RUNTIME_NODE_PATH:
+		return _value(true)
+	if not current.is_empty():
+		return _error(
+			&"GDSQL_RUNTIME_AUTOLOAD_NAME_IN_USE",
+			"The GDSQLRuntime autoload name is already used by '%s'." % current,
+		)
+	ProjectSettings.set_setting(RUNTIME_AUTOLOAD_SETTING, "*%s" % RUNTIME_NODE_PATH)
+	var save_error := ProjectSettings.save()
+	if save_error != OK:
+		ProjectSettings.clear(RUNTIME_AUTOLOAD_SETTING)
+		return _error(
+			&"GDSQL_RUNTIME_AUTOLOAD_SAVE_FAILED",
+			"Could not save the GDSQLRuntime autoload setting: %s." \
+					% error_string(save_error),
+		)
+	return _value(true)
 
 
 func _cleanup_expired() -> void:

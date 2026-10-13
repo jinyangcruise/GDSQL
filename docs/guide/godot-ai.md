@@ -23,8 +23,8 @@ absent.
 | `gdsql_commit_migration` | Persists when needed and applies one unchanged migration preview. |
 | `gdsql_preview_model_mutation` | Previews model generation or save-to-content reference registration/removal. |
 | `gdsql_commit_model_mutation` | Generates sources or changes one unchanged cross-role reference after confirmation. |
-| `gdsql_preview_setup_mutation` | Previews initial profile selection or a logical database-role binding. |
-| `gdsql_commit_setup_mutation` | Commits one unchanged profile or role-binding preview. |
+| `gdsql_preview_setup_mutation` | Previews initial profile selection, logical role binding, or runtime-adapter installation. |
+| `gdsql_commit_setup_mutation` | Commits one unchanged profile, role-binding, or runtime-adapter preview. |
 
 Godot-AI normally exposes promoted tools with a `custom_` prefix. Enable or
 disable them for the current project from Godot-AI's **Tools** panel.

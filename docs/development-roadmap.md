@@ -54,7 +54,7 @@ tracks only product direction, active work, and deliberately deferred work.
 | Priority | Outcome | State |
 |---|---|---|
 | High — first | Release, recovery, and supported-version QA | Crash-safe table commits, catalog/migration recovery, the public migration/recovery guide, PCK/standalone Linux export gates, and the scalar ConfigFile baseline are implemented; selected supported-platform verification remains. Additional benchmarks are deferred until measurements or real projects justify them |
-| Medium | Godot-AI lifecycle and authoring surface | Inspection, bounded scalar query, row/schema/database/model preview/commit, migration authoring/application, initial profile selection, and role binding are implemented. Package/cache and save-slot lifecycle plus live disable/re-enable acceptance remain |
+| Medium | Godot-AI lifecycle and authoring surface | Inspection, bounded scalar query, row/schema/database/model preview/commit, migration authoring/application, profile selection, role binding, and runtime-adapter installation are implemented. Package/cache and save-slot lifecycle plus live disable/re-enable acceptance remain |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
 

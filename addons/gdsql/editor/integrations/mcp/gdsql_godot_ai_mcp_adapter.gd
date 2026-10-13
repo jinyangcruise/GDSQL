@@ -456,7 +456,7 @@ func _build_specs() -> Array:
 		specs.append(
 			_spec(
 				"gdsql_preview_setup_mutation",
-				"Preview initial Direct/Managed profile selection or bind a registered database to a logical content, save, or settings role.",
+				"Preview initial profile selection, logical database-role binding, or GDSQLRuntime autoload installation.",
 				&"preview_setup_mutation",
 				{
 					"type": "object",
@@ -465,7 +465,9 @@ func _build_specs() -> Array:
 					"properties": {
 						"operation": {
 							"type": "string",
-							"enum": ["select_profile", "bind_role"],
+							"enum": [
+								"select_profile", "bind_role", "install_runtime_adapter",
+							],
 						},
 						"profile": { "type": "string", "enum": ["direct", "managed"] },
 						"role": {
