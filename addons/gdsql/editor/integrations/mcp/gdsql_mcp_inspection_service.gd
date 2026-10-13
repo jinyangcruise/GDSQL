@@ -52,16 +52,27 @@ func get_capabilities() -> GDSQLOperationResult:
 		return loaded_profile
 	var tools := [
 		{ "name": "gdsql_capabilities", "read_only": true },
-		{ "name": "gdsql_inspect_models", "read_only": true },
-		{ "name": "gdsql_inspect_schema", "read_only": true },
-		{ "name": "gdsql_inspect_setup", "read_only": true },
 	]
 	if _authoring_available:
 		tools.append_array(
 			[
-				{ "name": "gdsql_query_rows", "read_only": true },
-				{ "name": "gdsql_preview_row_mutation", "read_only": false },
 				{ "name": "gdsql_commit_row_mutation", "read_only": false },
+				{ "name": "gdsql_commit_schema_mutation", "read_only": false },
+			],
+		)
+	tools.append_array(
+		[
+			{ "name": "gdsql_inspect_models", "read_only": true },
+			{ "name": "gdsql_inspect_schema", "read_only": true },
+			{ "name": "gdsql_inspect_setup", "read_only": true },
+		],
+	)
+	if _authoring_available:
+		tools.append_array(
+			[
+				{ "name": "gdsql_preview_row_mutation", "read_only": false },
+				{ "name": "gdsql_preview_schema_mutation", "read_only": false },
+				{ "name": "gdsql_query_rows", "read_only": true },
 			],
 		)
 	return _success(
@@ -73,6 +84,7 @@ func get_capabilities() -> GDSQLOperationResult:
 				{ "id": "model_inspection", "enabled": true },
 				{ "id": "mutations", "enabled": _authoring_available },
 				{ "id": "query_execution", "enabled": _authoring_available },
+				{ "id": "schema_authoring", "enabled": _authoring_available },
 				{ "id": "schema_inspection", "enabled": true },
 				{ "id": "setup_inspection", "enabled": true },
 			],

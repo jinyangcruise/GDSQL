@@ -78,7 +78,13 @@ func test_capabilities_are_bounded_and_versioned() -> void:
 	assert_str(payload["surface_version"]).is_equal("1.0.0")
 	assert_bool(payload["ok"]).is_true()
 	assert_bool(payload["data"]["limits"]["row_values_exposed"]).is_true()
-	assert_int(payload["data"]["tools"].size()).is_equal(7)
+	assert_int(payload["data"]["tools"].size()).is_equal(9)
+	var tool_names: Array[String] = []
+	for tool in payload["data"]["tools"]:
+		tool_names.append(tool["name"])
+	var sorted_names := tool_names.duplicate()
+	sorted_names.sort()
+	assert_array(tool_names).contains_exactly(sorted_names)
 	assert_str(payload["data"]["selected_profile"]).is_equal("direct")
 	assert_str(JSON.stringify(payload)).is_not_empty()
 
@@ -189,18 +195,20 @@ func test_godot_ai_specs_follow_the_published_contract() -> void:
 	var adapter := Adapter.new(service, authoring)
 	_inject_test_contract(adapter)
 	var specs := adapter.call("_build_specs") as Array
+	var handler := Handler.new()
 
 	assert_bool(specs.is_typed()).is_true()
-	assert_int(specs.size()).is_equal(7)
+	assert_int(specs.size()).is_equal(9)
 	var writable_count := 0
 	for spec in specs:
 		assert_bool((spec.call("validate") as Array).is_empty()).is_true()
+		assert_bool(handler.has_method(spec.get("method"))).is_true()
 		assert_bool(spec.get("promoted")).is_true()
 		if spec.get("requires_writable"):
 			writable_count += 1
 		assert_bool(spec.get("deferred")).is_false()
 		assert_bool(spec.get("undoable")).is_false()
-	assert_int(writable_count).is_equal(2)
+	assert_int(writable_count).is_equal(4)
 	adapter.shutdown()
 	adapter.free()
 
@@ -217,7 +225,7 @@ func test_godot_ai_late_startup_registers_after_registry_ready() -> void:
 	registry.mark_ready()
 
 	assert_int(registry.batch_calls).is_equal(1)
-	assert_array(registry.registered_names).has_size(7)
+	assert_array(registry.registered_names).has_size(9)
 	adapter.shutdown()
 	assert_int(registry.unregister_calls).is_equal(1)
 	assert_array(registry.unregistered_sources).contains_exactly([Adapter.SOURCE_PATH])

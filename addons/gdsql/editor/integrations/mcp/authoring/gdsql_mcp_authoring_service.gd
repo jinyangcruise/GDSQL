@@ -1,8 +1,9 @@
 class_name GDSQLMcpAuthoringService
 extends RefCounted
-## Bounded, UI-independent row access for editor AI integrations.
+## Bounded, UI-independent row and table-schema access for editor AI integrations.
 
 signal mutation_committed(registration_name: StringName, table_name: StringName)
+signal schema_committed(registration_name: StringName)
 
 const ScalarCodec = preload(
 	"res://addons/gdsql/editor/integrations/mcp/query/gdsql_mcp_scalar_codec.gd"
@@ -13,6 +14,9 @@ const QueryDecoder = preload(
 const CanonicalValue = preload(
 	"res://addons/gdsql/migration/gdsql_migration_canonical_value.gd"
 )
+const SchemaAuthoring = preload(
+	"res://addons/gdsql/editor/integrations/mcp/authoring/schema/gdsql_mcp_schema_authoring_service.gd"
+)
 const DEFAULT_LIMIT := 25
 const MAX_LIMIT := 100
 const MAX_MUTATION_ROWS := 100
@@ -21,6 +25,7 @@ const CURSOR_PREFIX := "gdsql-rows-v1:"
 
 var _workbench: GDSQLWorkbench
 var _tickets: Dictionary[String, GDSQLMcpMutationTicket] = { }
+var _schema_authoring: RefCounted
 
 
 class Target extends RefCounted:
@@ -31,6 +36,16 @@ class Target extends RefCounted:
 
 func _init(workbench: GDSQLWorkbench) -> void:
 	_workbench = workbench
+	_schema_authoring = SchemaAuthoring.new(workbench)
+	_schema_authoring.connect("committed", schema_committed.emit)
+
+
+func preview_schema_mutation(request: Dictionary) -> GDSQLOperationResult:
+	return _schema_authoring.call("preview", request) as GDSQLOperationResult
+
+
+func commit_schema_mutation(handle: String, confirmed: bool) -> GDSQLOperationResult:
+	return _schema_authoring.call("commit", handle, confirmed) as GDSQLOperationResult
 
 
 func query_rows(

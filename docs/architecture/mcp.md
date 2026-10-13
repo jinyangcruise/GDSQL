@@ -4,8 +4,8 @@
 
 This document defines the editor-only GDSQL-aware Model Context Protocol
 surface. Agents can inspect setup, schemas, and models; query bounded scalar
-rows; and preview then commit bounded scalar row mutations. The integration
-does not open arbitrary files or control editor UI.
+rows; and preview then commit bounded scalar row or registered table-schema
+mutations. The integration does not open arbitrary files or control editor UI.
 
 GDSQL does not implement an MCP transport. The installed Godot-AI plugin owns
 transport, protocol-version handling, client connectivity, tool discovery, and
@@ -34,10 +34,12 @@ arguments and results, but it must not:
 - Become a required dependency of runtime, catalog, query, or storage code.
 
 The inspection service owns deterministic domain projection. The authoring
-service translates structured input into canonical queries and reuses the
-atomic editor row-batch boundary. Both return JSON-compatible data and
-structured diagnostics. The Godot-AI adapter owns only optional registration,
-request validation, and transport-envelope translation.
+service translates structured input into canonical queries, atomic editor row
+batches, or typed catalog definitions and alterations. Schema previews and
+commits reuse `CatalogChangePlan`; the integration does not reproduce catalog
+validation. Both services return JSON-compatible data and structured
+diagnostics. The Godot-AI adapter owns only optional registration, request
+validation, and transport-envelope translation.
 
 ## Project scope
 
@@ -86,7 +88,7 @@ profile. Capability entries are sorted by stable identifier.
 
 ## Tools
 
-All seven tools are promoted through Godot-AI. Compatible MCP clients normally
+All nine tools are promoted through Godot-AI. Compatible MCP clients normally
 see them as `custom_gdsql_*`; they remain available through `custom_manage` if a
 bridge promotion limit is reached. The promotion prefix is a bridge detail and
 is not part of the GDSQL surface version.
@@ -100,6 +102,8 @@ is not part of the GDSQL surface version.
 | `gdsql_query_rows` | Registration, table, optional scalar columns, structured `where`, ordering, cursor, and bounded limit | A deterministic scalar row window and opaque next cursor. |
 | `gdsql_preview_row_mutation` | Operation, registration, table, and at most 100 scalar row changes or primary keys | Validated target summary and a short-lived one-use confirmation handle; no write occurs. |
 | `gdsql_commit_row_mutation` | Confirmation handle and explicit `confirm: true` | Atomic commit summary after schema and target-row conflict checks. |
+| `gdsql_preview_schema_mutation` | Operation, registration, and a table definition, table name, rename target, or at most 32 typed alterations | Canonical catalog-plan summary and a short-lived one-use confirmation handle; no write occurs. |
+| `gdsql_commit_schema_mutation` | Confirmation handle and explicit `confirm: true` | Catalog commit summary after the canonical plan's stale-schema check. |
 
 Input schemas reject unknown fields. Registration and table parameters are
 logical identifiers, never paths. Lists use opaque cursors and bounded limits;
@@ -114,8 +118,8 @@ or an unavailable inspection service are failures.
 foreign keys and cross-role references registered by the editor. Explicit
 many-to-many or custom relationships remain marked as not statically inspected.
 
-The first five tools are read-only. Both mutation tools declare Godot-AI
-`requires_writable`; neither claims Godot Undo/Redo support. Adapter annotations
+Five tools are read-only. All four mutation tools declare Godot-AI
+`requires_writable`; none claims Godot Undo/Redo support. Adapter annotations
 are descriptive and do not replace validation and confirmation in GDSQL.
 
 ## Structured row query
@@ -145,6 +149,28 @@ Scalar inserts, updates, and deletes use two calls:
 Handles expire after two minutes, are one-use, and exist only in editor memory.
 Plugin reload or editor restart invalidates them. A schema or target-row change
 after preview produces `GDSQL_MCP_MUTATION_STALE`; the agent must preview again.
+
+## Table-schema mutation confirmation
+
+Registered table schema changes use the same two-call discipline. Supported
+operations are `create_table`, `rename_table`, `drop_table`, and `alter_table`.
+An alter request may compose up to 32 catalog alterations for columns, defaults,
+generation policies, indexes, same-database foreign keys, Resource ownership,
+and column order. The service decodes these values into typed catalog domain
+objects and asks the database to produce the canonical `CatalogChangePlan`.
+
+The commit call applies the exact plan stored with the handle. Catalog
+fingerprints reject stale rename, drop, and alter plans, while create rejects a
+table created after preview. Resource schema declarations require a concrete
+Resource class and explicit `owned` or `referenced` storage. Project-script
+constraints may name only an existing `res://` script; arbitrary paths are
+rejected. Default values remain JSON scalar values, so compound and Resource
+defaults stay in the editor surface.
+
+Database lifecycle operations are deliberately not part of this slice. Creating
+or destroying a database changes registration and filesystem lifecycle state,
+so those operations require a separate guarded service rather than overloading
+the table catalog boundary.
 
 ## Godot-AI discovery
 
@@ -259,7 +285,8 @@ ConfigFile services.
 | Setup, registration, schema, constraint, and model-binding inspection | Four inspection tools | Tested |
 | Typed WHERE, scalar SELECT, ordering, and pagination | `gdsql_query_rows` | Tested |
 | Scalar insert, update, and delete | Preview/commit row mutation | Tested |
-| Database/table/column/index/foreign-key authoring | Schema mutation family | Planned next |
+| Table/column/index/foreign-key authoring | Schema preview/commit family | Tested |
+| Registered database lifecycle authoring | Database lifecycle family | Planned next |
 | Migration authoring, preview, apply, recovery status | Migration family | Planned after schema authoring |
 | Model generation and cross-role content-reference registration | Model binding family | Planned |
 | Direct/Managed profile setup, packages, cache, and save-slot management | Setup family with destructive guards | Planned |
@@ -278,8 +305,9 @@ ConfigFile services.
 | Bounded model-binding and relationship inspection | Tested |
 | Bounded structured scalar SELECT execution | Tested |
 | Scalar row mutation preview and commit | Tested |
-| Schema/database preview and commit | Planned next |
-| Migration preview and commit | Planned after schema/database authoring |
+| Registered table schema preview and commit | Tested |
+| Registered database lifecycle preview and commit | Planned next |
+| Migration preview and commit | Planned after database lifecycle authoring |
 | Optional CLI adapter over the same application service | Backlog; not required for Godot-AI |
 
 ## Protocol references

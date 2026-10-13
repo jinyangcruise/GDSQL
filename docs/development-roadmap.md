@@ -54,7 +54,7 @@ tracks only product direction, active work, and deliberately deferred work.
 | Priority | Outcome | State |
 |---|---|---|
 | High — first | Release, recovery, and supported-version QA | Crash-safe table commits, catalog/migration recovery, the public migration/recovery guide, PCK/standalone Linux export gates, and the scalar ConfigFile baseline are implemented; selected supported-platform verification remains. Additional benchmarks are deferred until measurements or real projects justify them |
-| Medium | Godot-AI lifecycle and authoring surface | Inspection, bounded scalar query, preview/commit row mutations, and registry lifecycle transitions are tested. Schema/database authoring is next, followed by migrations; live disable/re-enable acceptance remains |
+| Medium | Godot-AI lifecycle and authoring surface | Inspection, bounded scalar query, preview/commit row mutations, registered table-schema authoring, and registry lifecycle transitions are tested. Registered database lifecycle is next, followed by migrations; live disable/re-enable acceptance remains |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
 
@@ -597,9 +597,14 @@ packaging, and compatibility work.
   row mutations through preview plus one-use confirmation handles. The action
   hub remains outside domain execution; committed external mutations refresh
   open editor surfaces.
-- Add schema/database authoring next, then migration authoring, preview, and
-  application. Reuse the same confirmation model for writes and the same
-  application service from any future CLI.
+- **Implemented and tested:** Registered table creation, rename, drop, and typed
+  alteration authoring reuse canonical catalog previews and stale-plan checks
+  behind expiring one-use confirmation handles. Columns, defaults, generation,
+  indexes, foreign keys, Resource policies, and ordering share one bounded
+  schema family.
+- Add guarded registered-database lifecycle authoring next, then migration
+  authoring, preview, and application. Reuse the same confirmation model for
+  writes and the same application service from any future CLI.
 - Replace the 500-row foreign-key/content-reference popup boundary with
   debounced canonical search and paginated results.
 - Keep editor actions, table navigation, and schema operations exposed through

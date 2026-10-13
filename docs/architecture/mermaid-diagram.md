@@ -106,10 +106,10 @@ McpAdapter("`**Optional Godot-AI MCP Adapter**
 -
 *Purpose:* Register project-scoped GDSQL inspection and bounded authoring tools
 *Transport:* Owned by Godot-AI; optional to GDSQL
-*Tools:* Inspection, scalar row SELECT, and preview/confirm row mutations
+*Tools:* Inspection, scalar row SELECT, and preview/confirm row or table-schema mutations
 *Discovery:* Godot-AI custom tools resource and `custom_manage`
 *Safety:* Registered tables only; bounded scalar values; no Controls, arbitrary paths, live Resources, or ConfigFile access
-*Writes:* One-use expiring handle, schema and target conflict checks, atomic canonical row batch`")
+*Writes:* One-use expiring handles; atomic row batches or canonical catalog change plans with stale checks`")
 
 GraphEditor("`**Graph Editor**
 

@@ -258,6 +258,51 @@ func _build_specs() -> Array:
 				30_000,
 			),
 		)
+		specs.append(
+			_spec(
+				"gdsql_preview_schema_mutation",
+				"Validate and preview one registered GDSQL table schema mutation. Returns a short-lived confirmation handle and changes nothing.",
+				&"preview_schema_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["operation", "registration", "table"],
+					"properties": {
+						"operation": {
+							"type": "string",
+							"enum": ["create_table", "rename_table", "drop_table", "alter_table"],
+						},
+						"registration": { "type": "string", "minLength": 1 },
+						"table": { "type": ["string", "object"] },
+						"new_name": { "type": "string" },
+						"alterations": {
+							"type": "array",
+							"maxItems": 32,
+							"items": { "type": "object" },
+						},
+					},
+				},
+				true,
+			),
+		)
+		specs.append(
+			_spec(
+				"gdsql_commit_schema_mutation",
+				"Commit one previewed GDSQL table schema mutation using its one-use confirmation handle.",
+				&"commit_schema_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["handle", "confirm"],
+					"properties": {
+						"handle": { "type": "string", "minLength": 1 },
+						"confirm": { "type": "boolean" },
+					},
+				},
+				true,
+				30_000,
+			),
+		)
 	return Array(
 		specs,
 		TYPE_OBJECT,

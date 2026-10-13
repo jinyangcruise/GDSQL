@@ -146,6 +146,44 @@ func commit_row_mutation(params: Dictionary, _context: Variant) -> Dictionary:
 	)
 
 
+func preview_schema_mutation(params: Dictionary, _context: Variant) -> Dictionary:
+	var invalid := _unknown_parameter(
+		params,
+		["operation", "registration", "table", "new_name", "alterations"],
+	)
+	if not invalid.is_empty():
+		return _invalid(invalid)
+	for required in ["operation", "registration"]:
+		if not params.get(required) is String or String(params.get(required, "")).is_empty():
+			return _invalid("%s must be a non-empty string." % required)
+	if not params.has("table") or not params["table"] is String \
+			and not params["table"] is Dictionary:
+		return _invalid("table must be a string or object.")
+	if params.has("new_name") and not params["new_name"] is String:
+		return _invalid("new_name must be a string.")
+	if params.has("alterations") and not params["alterations"] is Array:
+		return _invalid("alterations must be an array.")
+	return _invoke(
+		Callable(_authoring_service(), "preview_schema_mutation").bind(params),
+	)
+
+
+func commit_schema_mutation(params: Dictionary, _context: Variant) -> Dictionary:
+	var invalid := _unknown_parameter(params, ["handle", "confirm"])
+	if not invalid.is_empty():
+		return _invalid(invalid)
+	if not params.get("handle") is String or String(params.get("handle", "")).is_empty():
+		return _invalid("handle must be a non-empty string.")
+	if not params.get("confirm") is bool:
+		return _invalid("confirm must be a boolean.")
+	return _invoke(
+		Callable(_authoring_service(), "commit_schema_mutation").bind(
+			String(params["handle"]),
+			bool(params["confirm"]),
+		),
+	)
+
+
 func _invoke(operation: Callable) -> Dictionary:
 	if not operation.is_valid():
 		return _error("INTERNAL_ERROR", "The requested GDSQL MCP service is unavailable.")
