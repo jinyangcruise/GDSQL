@@ -132,7 +132,7 @@ field. The GDSQL payload has this stable envelope:
 
 ```json
 {
-  "surface_version": "1.1.0",
+  "surface_version": "1.0.0",
   "ok": true,
   "data": {},
   "diagnostics": [],
