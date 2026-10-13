@@ -2,348 +2,180 @@
 
 # GDSQL
 
-**Database SQL Workbench Plugin for Godot Engine**
+### A Godot-native data layer for game content and saved state
 
-**English** | [简体中文](README_zh.md)
+Build typed tables, edit game data visually, connect content to runtime state,
+and evolve released schemas without maintaining a separate database server or
+an internal data platform.
 
-[![Godot](https://img.shields.io/badge/Godot-4.x-478CBF?logo=godot-engine&logoColor=white)](https://godotengine.org)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Pure GDScript](https://img.shields.io/badge/100%25-GDScript-3b82f6)]()
+[![Godot 4.7](https://img.shields.io/badge/Godot-4.7-478CBF?logo=godot-engine&logoColor=white)](https://godotengine.org)
+[![Tests](https://github.com/jinyangcruise/GDSQL/actions/workflows/test.yml/badge.svg)](https://github.com/jinyangcruise/GDSQL/actions/workflows/test.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Status: pre-1.0](https://img.shields.io/badge/status-pre--1.0-f59e0b)](https://jinyangcruise.github.io/GDSQL/guide/compatibility)
 
-A database SQL workbench plugin for Godot Engine built on top of the `ConfigFile` system. It provides a visual database management interface, Excel-like data editing, a full SQL query engine, a MyBatis-style ORM mapping framework (GBatis), and AES-256-CBC data encryption. **Pure GDScript, zero external dependencies, no database server required.**
+[Documentation](https://jinyangcruise.github.io/GDSQL/) ·
+[Getting started](https://jinyangcruise.github.io/GDSQL/guide/getting-started) ·
+[Why GDSQL?](https://jinyangcruise.github.io/GDSQL/guide/why-gdsql) ·
+[Roadmap](docs/development-roadmap.md)
 
 </div>
 
 ---
 
-## Basic Usage
+Games usually have two kinds of durable data:
 
-### Fluent DAO API
-Complete database operations through GDScript method chaining — no XML required:
+- **Content** shared by every player: characters, items, dialogue, abilities,
+  balance values, and asset references.
+- **State** owned by a playthrough: inventory, progression, customization,
+  quest choices, settings, and other mutable data.
 
-```gdscript
-# Select
-var result = GDSQL.BaseDao.new() \
-	.use_db("GameConfig") \
-	.select("id, name, hp, mp", true) \ # Or: .select("id", "name", "hp", "mp", true) Or: .select("*", true)
-	.from("c_hero") \
-	.where("hp > 100 AND mp >= 50") \
-	.order_by("hp") \
-	.limit(10) \
-	.query()
+GDSQL gives both a common foundation inside Godot while keeping their
+lifecycles separate. Designers work in a conventional table editor. Gameplay
+code uses typed queries or generated models. Save slots, migrations, Resources,
+and optional content packages use the same catalog and validation rules.
 
-# Insert
-GDSQL.BaseDao.new() \
-	.use_db("GameConfig") \
-	.insert_into("c_hero") \
-	.values({"id": 101, "name": "NewHero", "hp": 200}) \
-	.query()
+## What is included
 
-# Update
-GDSQL.BaseDao.new() \
-	.use_db("GameConfig") \
-	.update("c_hero") \
-	.sets({"hp": 300}) \
-	.where("id == 101") \
-	.query()
+### A table-first Godot workbench
 
-# Delete
-GDSQL.BaseDao.new() \
-	.use_db("GameConfig") \
-	.delete_from("c_hero") \
-	.where("id == 101") \
-	.query()
-```
+- Create databases, tables, columns, defaults, indexes, and foreign keys.
+- Browse paginated rows with typed nested filters and stable ordering.
+- Edit, duplicate, batch-delete, and Undo/Redo changes during the editor session.
+- Store Godot `Resource` values with concrete type validation and explicit
+  referenced or database-owned policies.
+- Navigate databases and tables from the dock or Godot command palette.
 
-### Execute SQL Strings with SQLParser
+### One typed runtime pipeline
 
-Parse and execute any SQL string directly — the parser returns a ready-to-run `BaseDao`:
+- Immutable query specifications for select, insert, update, and delete.
+- Typed expressions, joins, grouping, aggregates, ordering, and projections.
+- Schema, uniqueness, index, and foreign-key validation.
+- Atomic transactions with rollback and structured diagnostics.
+- Storage-independent public APIs with ConfigFile and in-memory backends today.
+- Inspectable ConfigFile-authored content that fits ordinary version-control
+  workflows.
 
-```gdscript
-# SELECT
-var dao = GDSQL.SQLParser.parse_to_dao("SELECT id, name, hp FROM GameConfig.c_hero WHERE hp > 100 ORDER BY hp DESC")
-var result = dao.query()
-if result and result.ok():
-    var head = result.get_head()   # ["id", "name", "hp"]
-    var rows = result.get_data()   # [[1, "Warrior", 200], ...]
-    for row in rows:
-        print(row)
+GDSQL does not require SQL text. The editor and GDScript API build the same
+canonical typed query model.
 
-# INSERT
-GDSQL.SQLParser.parse_to_dao("INSERT INTO GameConfig.c_hero (id, name, hp) VALUES (101, 'Mage', 80)").query()
+### Content, save slots, and models
 
-# UPDATE
-GDSQL.SQLParser.parse_to_dao("UPDATE GameConfig.c_hero SET hp = 300 WHERE id == 101").query()
+- Logical `content`, `save`, and `settings` roles keep game code independent
+  from physical database paths.
+- Save slots can use fast in-memory runtime data with explicit durable
+  checkpoints.
+- Generated schema bases provide typed properties while user-owned child
+  scripts preserve custom functions across regeneration.
+- Catalog foreign keys generate same-database model navigation; stable content
+  identifiers connect save state to authored definitions.
 
-# DELETE
-GDSQL.SQLParser.parse_to_dao("DELETE FROM GameConfig.c_hero WHERE id == 101").query()
-```
+### Production-oriented foundations
 
-SQL keywords are case-insensitive. The parser includes an LRU cache (1024 entries) so repeated queries are faster.
+- Ordered schema and data migrations with checksums and dry-run previews.
+- Applied migration ledgers, schema fingerprints, backups, and recovery.
+- Deferred Resource handles and bounded prefetch scopes for heavy assets.
+- Structured diagnostics instead of UI-only errors or silent failures.
+- Crash-safe table commits and recoverable save checkpoints.
 
-### Working with QueryResult
+### Optional AI-assisted workflows
 
-`QueryResult` wraps query output with status checks and data access:
+When [Godot-AI](https://github.com/hi-godot/godot-ai) is installed, GDSQL
+registers project-aware tools that can:
 
-```gdscript
-var result = GDSQL.BaseDao.new() \
-    .use_db("GameConfig") \
-    .select("id, name, hp", true) \
-    .from("c_hero") \
-    .where("hp > 100") \
-    .query()
+- inspect setup, schemas, constraints, and model bindings;
+- query bounded scalar row windows with structured filters; and
+- preview and explicitly confirm atomic scalar row mutations.
 
-if result and result.ok():
-    var head = result.get_head()   # Column names: ["id", "name", "hp"]
-    var data = result.get_data()   # Rows: [[1, "Warrior", 200], ...]
-    print("Row count: ", result.size())
-    
-    for row in data:
-        var name = row[head.find("name")]
-        print(name)
-else:
-    print("Query failed: ", result.get_err() if result else "null")
-```
+AI mutations use short-lived one-use handles and reject commits when their
+schema or target rows changed after preview. Godot-AI remains optional; GDSQL
+has no runtime dependency on it.
 
-### Cross-Database Queries
+## Choose the workflow that fits the game
 
-Reference tables from other databases using `database.table` notation:
+| Profile | Best fit | Content source |
+|---|---|---|
+| **Direct Content** | Small and medium games that want minimal setup | One project-authored database under `res://` |
+| **Managed Content** | Games that need deterministic DLC, mod, or package overlays | A disposable effective database built from a base package and enabled additions |
 
-```gdscript
-var dao = GDSQL.SQLParser.parse_to_dao("SELECT * FROM UserData.t_hero t1 LEFT JOIN GameConfig.c_hero t2 on t2.id == t1.hid WHERE t1.hp > 100")
-var result = dao.query()
-```
+The profile is chosen during onboarding and defines the content pipeline. It is
+not a cosmetic option that should be switched casually after production data
+has been created.
 
-### Aggregate Queries
+## Quick start
 
-```gdscript
-var dao = GDSQL.SQLParser.parse_to_dao("SELECT name, AVG(hp) as avg_hp FROM GameConfig.c_hero GROUP BY name WHERE avg_hp > 100")
-var result = dao.query()
-```
+Requirements: **Godot 4.7 stable**. See the
+[compatibility matrix](https://jinyangcruise.github.io/GDSQL/guide/compatibility)
+before adopting a different engine version.
 
-### LEFT JOIN
+1. Copy `addons/gdsql` into the project's `addons` directory.
+2. Enable **GDSQL** under **Project → Project Settings → Plugins**.
+3. Open the **GDSQL** main screen and choose Direct or Managed Content.
+4. Follow the welcome checklist to create content, a save slot, model bindings,
+   and the optional runtime autoload.
+
+The [first-project guide](https://jinyangcruise.github.io/GDSQL/guide/getting-started)
+walks through the complete Direct Content setup.
+
+## Typed query example
+
+Gameplay code normally resolves a logical role and then builds a canonical
+query:
 
 ```gdscript
-var dao = GDSQL.SQLParser.parse_to_dao("SELECT a.id, a.name, b.score FROM GameConfig.c_hero a LEFT JOIN c_score b ON a.id == b.hero_id WHERE b.score > 50")
-var result = dao.query()
+var resolved := GDSQLRuntime.database(&"content")
+if not resolved.is_successful():
+    resolved.diagnostics.print_to_debug()
+    return
+
+var database := resolved.get_database()
+var query := database.table(&"heroes") \
+    .select() \
+    .where(GDSQLExpr.column(&"health").greater_than(100.0)) \
+    .order_by_column(&"health", GDSQLOrderClause.SortDirection.DESCENDING) \
+    .limit(25) \
+    .build()
+
+var result := database.execute(query)
+if result.is_successful():
+    for row in result.get_rows():
+        print(row.get_value(&"name"))
 ```
 
----
+For higher-level access, generate and register a model binding, then query the
+user-owned model class directly. See
+[Runtime and models](https://jinyangcruise.github.io/GDSQL/guide/runtime-and-models)
+and the [typed query API](https://jinyangcruise.github.io/GDSQL/guide/query-api).
 
-## Features
+## Documentation
 
-### SQL Query Engine
-- **Full SQL syntax**: SELECT / INSERT / UPDATE / DELETE / REPLACE
-- **Conditional queries**: WHERE, AND, OR, IN, NOT IN, Godot built-in operator or function (eg. contains)
-- **Sorting & grouping**: ORDER BY, GROUP BY
-- **Pagination**: LIMIT, OFFSET
-- **Joins**: LEFT JOIN with chainable multi-table support; Cross database join query!
-- **Set operations**: UNION ALL
-- **Aggregate functions**: COUNT, SUM, AVG, MIN, MAX, GROUP_CONCAT, and more
-- **Expression evaluation**: SQL-compatible null semantics, operators, function calls, type conversion
-- **LRU cache**: Auto-caches the last 1024 parsed SQL statements
+| Topic | Start here |
+|---|---|
+| Installation and first project | [Installation](https://jinyangcruise.github.io/GDSQL/guide/installation) · [Getting started](https://jinyangcruise.github.io/GDSQL/guide/getting-started) |
+| Tables and schema | [Table workbench](https://jinyangcruise.github.io/GDSQL/guide/table-workbench) · [Schemas and constraints](https://jinyangcruise.github.io/GDSQL/guide/schema-and-constraints) |
+| Runtime data and relationships | [Runtime and models](https://jinyangcruise.github.io/GDSQL/guide/runtime-and-models) · [Relationships](https://jinyangcruise.github.io/GDSQL/guide/relationships) |
+| Resources and performance | [Resource columns](https://jinyangcruise.github.io/GDSQL/guide/resource-columns) · [Benchmarks](https://jinyangcruise.github.io/GDSQL/guide/performance-benchmarks) |
+| Releases and schema changes | [Migrations and recovery](https://jinyangcruise.github.io/GDSQL/guide/migrations-and-recovery) · [Compatibility](https://jinyangcruise.github.io/GDSQL/guide/compatibility) |
+| Mods and content packages | [Content profiles](https://jinyangcruise.github.io/GDSQL/guide/content-profiles) · [Managed Content](https://jinyangcruise.github.io/GDSQL/guide/managed-content) |
+| Design and internals | [Architecture overview](https://jinyangcruise.github.io/GDSQL/architecture/overview) · [Project philosophy](https://jinyangcruise.github.io/GDSQL/architecture/philosophy) |
 
-### Visual Database Workbench
-Available as a dedicated main screen in the Godot Editor:
+## Scope and project status
 
-- **Database tree browser**: Navigate all databases and tables in a tree view
-- **Data table viewer**: Browse and edit data in an Excel-like grid
-- **Inline editing**: Modify data directly in table cells with instant effect
-- **Drag-to-resize columns**: Freely adjust column widths
-- **Table structure editor**: View and modify column definitions, types, defaults, and comments
-- **Schema management**: Visually create / delete / edit databases and tables
-- **Diff view**: Compare table content with highlighted additions, deletions, and changes
-- **SQL query editor**: Write and execute SQL with automatic query history
+GDSQL is an embedded local game-data layer, not an authoritative multiplayer
+server, telemetry warehouse, or general-purpose network database. ConfigFile is
+the current durable backend and is aimed at ordinary game-content and save-data
+workloads rather than high-frequency, very large transactional datasets.
 
-### Smart Auto-Fill
-- **Least-squares fitting**: Predicts and fills subsequent data based on existing samples
-- **Multi-type support**: Numbers, strings (with numeric placeholders), Vector2/3/4, Vector2i/3i/4i, Resource paths
-- **Pattern recognition**: Detects numbering patterns (e.g. `"name_001"`, `"name_002"`) and fills accordingly
-
-### Mapper Graph Visual Editor
-A drag-and-drop graph editor for designing table relationships:
-
-- **Node-based editing**: Display tables as graph nodes with free-form layout
-- **One-click code generation**:
-  - **Entity class** (`.gd`): Auto-generated `class_name` entity with typed properties
-  - **XML mapping file** (`.xml`): Complete GBatis mapping
-  - **Mapper Graph file** (`.gdmappergraph`): Persisted layout and relationships
-- **Type inference**: Database column types → GDScript types
-- **Relationship visualization**: Lines show foreign-key connections
-- **Incremental sync**: Detects schema changes and highlights differences
-
-### Data Encryption
-- **AES-256-CBC**: Built on Godot's native `AESContext`
-- **DEK hierarchy**: Data encryption key + user password dual-layer protection
-- **Key derivation**: HMAC-SHA256 with random salt
-- **Verification**: Built-in verify code detects wrong passwords
-- **Flexible granularity**: Database-level and table-level encryption
-- **Editor support**: Encrypted files require a password to view in-editor
-
-### XML Editor
-- Built-in XML editor with syntax highlighting
-- Find and replace
-- Tree view navigation and multi-tab editing
-
-### Internationalization
-13 languages: Simplified Chinese, Traditional Chinese, English, Japanese, Korean, French, German, Spanish, Italian, Portuguese (BR), Russian, Polish, Turkish.
-
----
-
-## Screenshots
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/jinyangcruise/GDSQL-ICON/refs/heads/main/Screenshot-2026-06-17-193925.jpg" alt="GDSQL Screenshot 1" width="800"/>
-</p>
-<p align="center">
-  <img src="https://raw.githubusercontent.com/jinyangcruise/GDSQL-ICON/refs/heads/main/Screenshot-2026-06-17-193934.jpg" alt="GDSQL Screenshot 2" width="800"/>
-</p>
-<p align="center">
-  <img src="https://raw.githubusercontent.com/jinyangcruise/GDSQL-ICON/refs/heads/main/Screenshot-2026-06-17-193947.jpg" alt="GDSQL Screenshot 3" width="800"/>
-</p>
-<p align="center">
-  <img src="https://raw.githubusercontent.com/jinyangcruise/GDSQL-ICON/refs/heads/main/Screenshot-2026-06-17-194000.jpg" alt="GDSQL Screenshot 4" width="800"/>
-</p>
-<p align="center">
-  <img src="https://raw.githubusercontent.com/jinyangcruise/GDSQL-ICON/refs/heads/main/Screenshot-2026-06-17-194147.jpg" alt="GDSQL Screenshot 5" width="800"/>
-</p>
-
----
-
-## Highlights
-
-### Comparison
-
-| Feature | GDSQL | SQLite / GDSQLite | Custom Resource |
-|---------|-------|-------------------|-----------------|
-| Storage | `.cfg` plain text | Binary | `.tres` / `.res` |
-| SQL queries | Full syntax | ✅ | ❌ |
-| Visual editor | Built into Godot | Third-party | Built into Godot |
-| Excel-like editing | Inline + auto-fill | ❌ | ❌ |
-| ORM mapping | ✅ GBatis | ❌ | ❌ |
-| Code generation | Entity + XML mapping | ❌ | ❌ |
-| Runtime CRUD | Fluent API / GBatis | SQL | ❌ |
-| Encryption | AES-256-CBC | Manual | Godot built-in |
-| VCS friendly | Plain text, diffable | Binary | Diffable |
-| No external services | ✅ | ✅ | ✅ |
-| Cross-platform | Godot everywhere | Needs compilation | Godot everywhere |
-
-### Key Advantages
-
-1. **Zero external dependencies** — No database engine, no database server, no additional runtime. Install as a plugin and it works.
-
-2. **ConfigFile-based storage** — All data lives in `.cfg` plain text files, Godot's native format. Version control friendly (git diff), editable in any text editor, accessible outside the Godot editor.
-
-3. **Unified editor & runtime API** — The same API works in-editor for development and in the exported game for runtime access. No need to maintain two data access layers.
-
-4. **Dual development modes** — Use the fluent DAO API for quick data access, or GBatis XML mapping files for complex queries and result mapping.
-
-5. **End-to-end ORM pipeline** — From visual graph editor to auto-generated entity classes and mapping files to runtime CRUD. Developers focus on business logic while the tool handles the boilerplate.
-
-6. **Excel-grade data editing** — Inline cell editing, draggable columns, long-content viewing, and smart auto-fill dramatically improve editing efficiency.
-
-7. **Built-in security** — Sensitive game data can be encrypted directly at the plugin level.
-
-8. **All-in-one solution** — A single plugin covers data definition, management, querying, editing, encryption, and code generation.
-
----
+The architectural rewrite targets the first public **1.0** contract. Until it
+is published, persisted-format corrections may still occur. Commit authored
+content and migration definitions to version control, and review the
+[roadmap](docs/development-roadmap.md) and
+[compatibility policy](https://jinyangcruise.github.io/GDSQL/guide/compatibility)
+before using a development build in a released game.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, including the pre-push git hook for manifest management.
+Issues, design discussion, and focused pull requests are welcome. Read
+[CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and
+[AGENTS.md](AGENTS.md) before changing architectural code.
 
----
-
-## Quick Start
-
-1. Place this repository into your Godot project's `addons/` directory
-2. Enable GDSQL in Godot Editor → Project Settings → Plugins
-3. Click the GDSQL main screen button at the top of the editor
-4. Create databases and tables in the workbench
-5. Use `GDSQL.BaseDao` or GBatis for runtime queries
-
----
-
-## Advanced: GBatis ORM Framework
-
-GBatis is the built-in ORM framework, fully implementing MyBatis 3 capabilities. SQL statements live in XML mapping files, completely separate from GDScript code — ideal for complex queries and object mapping.
-
-GBatis supports two working modes:
-
-- **Manual authoring**: Advanced users can fully customize XML and entity code for fine-grained control
-- **Visual generation**: The built-in **Mapper Graph editor** lets you design relationships through drag-and-drop, then generate initial versions with one click:
-  - XML mapping files (`.xml`): Complete resultMap and dynamic SQL
-  - Entity class code (`.gd`): `class_name` GDScript class with typed properties
-  - Mapper Graph file (`.gdmappergraph`): Persisted node layout for incremental updates
-
-The two approaches can be combined: quickly scaffold with the visual editor, then manually fine-tune.
-
-### Core Capabilities
-
-- **XML mapping files**: SQL in XML, decoupled from code
-- **Dynamic SQL**: `<if>`, `<where>`, `<set>`, `<foreach>`, `<trim>`, `<bind>`
-- **Result mapping**: `<resultMap>` for complex nested object mapping
-- **Associations & collections**: One-to-one and one-to-many via `<association>` / `<collection>`
-- **Discriminator**: Polymorphic mapping based on field values
-- **L1 / L2 caching**: Configurable cache for query performance
-- **Auto-mapping**: NONE and PARTIAL levels
-- **useGeneratedKeys**: Auto-populate generated primary keys
-- **Multi-parameter binding**: Named and positional parameter support
-
-### GBatis Example
-
-```xml
-<mapper namespace="HeroMapper">
-    <resultMap id="heroResult" type="HeroEntity">
-        <id property="id" column="id"/>
-        <result property="name" column="name"/>
-        <result property="hp" column="hp"/>
-        <result property="mp" column="mp"/>
-    </resultMap>
-
-    <select id="selectHeroesByHp" resultMap="heroResult">
-        SELECT * FROM c_hero WHERE hp > #{minHp} ORDER BY hp DESC
-    </select>
-</mapper>
-```
-
-Create a class extending `GBatisMapper` and point its `mapper_xml` property to the XML file above. The SQL methods become directly callable.
-
-### Fluent DAO vs. GBatis
-
-| Scenario | Recommended | Why |
-|----------|------------|-----|
-| Simple CRUD | Fluent DAO | Concise, no extra files |
-| Complex queries / joins | GBatis | SQL-code separation, powerful mapping |
-| Team collaboration | GBatis | DBA handles XML, devs call methods |
-| Rapid prototyping | Fluent DAO | Zero config, write and use |
-
----
-
-## Limitations
-
-- **Performance ceiling**: As a pure GDScript implementation, GDSQL is not designed for real-time high-throughput scenarios.
-- **Data volume**: Optimized for game configuration data (hundreds to tens of thousands of records), not for data warehouses or datasets exceeding hundreds of thousands of rows.
-- **Concurrent access**: The ConfigFile-based engine does not support multi-threaded concurrent writes. All operations should run on the main thread.
-- **No server mode**: Local-only, file-based data store. No network access, no client-server architecture, no multi-user concurrency.
-- **No referential integrity**: Foreign key relationships exist at the application level; the storage engine itself does not enforce constraints.
-- **Limited indexing**: Indexes are maintained in memory via `ImprovedConfigFile.set_indexed_props()` — no persistent index structure.
-
----
-
-## Future Plans
-
-- **Portable import/export**: Schema-validated CSV, JSON, and GDSQL interchange independent of the active storage backend
-- **Performance roadmap**: Identify hot paths and optimize — both GDScript-level and via GDExtension for critical sections
-- **Extended SQL syntax**: Window functions, CTEs (Common Table Expressions), full JOIN support (INNER, RIGHT, FULL)
-- **Query planner optimization**: Better execution order, LEFT JOIN predicate push-down
-- **More ease-of-use features**: Simplify common workflows, lower the learning curve
-- **Quality-of-life improvements**: Better error messages, undo/redo, batch operations, enhanced keyboard shortcuts
-- **Comprehensive documentation site**: Dedicated API reference, tutorials, and real-world examples
-- **Testing infrastructure**: Expanded unit test coverage and integration tests for the full query lifecycle
-
----
-
-## License
-
-[MIT License](LICENSE)
+GDSQL is available under the [MIT License](LICENSE).
