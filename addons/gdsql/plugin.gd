@@ -190,6 +190,7 @@ func _create_mcp_adapter() -> void:
 	var authoring := MCP_AUTHORING.new(_controller.workbench)
 	authoring.mutation_committed.connect(_controller.refresh_after_external_mutation)
 	authoring.schema_committed.connect(_controller.refresh_after_external_schema_mutation)
+	authoring.database_committed.connect(_controller.refresh_after_external_database_mutation)
 	var model_inspection := MCP_MODEL_INSPECTION.new(
 		_controller.workbench,
 		_mcp_model_bindings,

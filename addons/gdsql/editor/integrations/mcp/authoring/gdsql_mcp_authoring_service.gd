@@ -4,6 +4,7 @@ extends RefCounted
 
 signal mutation_committed(registration_name: StringName, table_name: StringName)
 signal schema_committed(registration_name: StringName)
+signal database_committed(registration_name: StringName)
 
 const ScalarCodec = preload(
 	"res://addons/gdsql/editor/integrations/mcp/query/gdsql_mcp_scalar_codec.gd"
@@ -17,6 +18,9 @@ const CanonicalValue = preload(
 const SchemaAuthoring = preload(
 	"res://addons/gdsql/editor/integrations/mcp/authoring/schema/gdsql_mcp_schema_authoring_service.gd"
 )
+const DatabaseAuthoring = preload(
+	"res://addons/gdsql/editor/integrations/mcp/authoring/database/gdsql_mcp_database_authoring_service.gd"
+)
 const DEFAULT_LIMIT := 25
 const MAX_LIMIT := 100
 const MAX_MUTATION_ROWS := 100
@@ -26,6 +30,7 @@ const CURSOR_PREFIX := "gdsql-rows-v1:"
 var _workbench: GDSQLWorkbench
 var _tickets: Dictionary[String, GDSQLMcpMutationTicket] = { }
 var _schema_authoring: RefCounted
+var _database_authoring: RefCounted
 
 
 class Target extends RefCounted:
@@ -34,10 +39,20 @@ class Target extends RefCounted:
 	var table: GDSQLTableDefinition
 
 
-func _init(workbench: GDSQLWorkbench) -> void:
+func _init(
+		workbench: GDSQLWorkbench,
+		database_locations: Dictionary = { },
+		migration_history_store: GDSQLMigrationHistoryStore = null,
+) -> void:
 	_workbench = workbench
 	_schema_authoring = SchemaAuthoring.new(workbench)
 	_schema_authoring.connect("committed", schema_committed.emit)
+	_database_authoring = DatabaseAuthoring.new(
+		workbench,
+		database_locations,
+		migration_history_store,
+	)
+	_database_authoring.connect("committed", database_committed.emit)
 
 
 func preview_schema_mutation(request: Dictionary) -> GDSQLOperationResult:
@@ -46,6 +61,14 @@ func preview_schema_mutation(request: Dictionary) -> GDSQLOperationResult:
 
 func commit_schema_mutation(handle: String, confirmed: bool) -> GDSQLOperationResult:
 	return _schema_authoring.call("commit", handle, confirmed) as GDSQLOperationResult
+
+
+func preview_database_mutation(request: Dictionary) -> GDSQLOperationResult:
+	return _database_authoring.call("preview", request) as GDSQLOperationResult
+
+
+func commit_database_mutation(handle: String, confirmed: bool) -> GDSQLOperationResult:
+	return _database_authoring.call("commit", handle, confirmed) as GDSQLOperationResult
 
 
 func query_rows(

@@ -56,6 +56,7 @@ func get_capabilities() -> GDSQLOperationResult:
 	if _authoring_available:
 		tools.append_array(
 			[
+				{ "name": "gdsql_commit_database_mutation", "read_only": false },
 				{ "name": "gdsql_commit_row_mutation", "read_only": false },
 				{ "name": "gdsql_commit_schema_mutation", "read_only": false },
 			],
@@ -70,6 +71,7 @@ func get_capabilities() -> GDSQLOperationResult:
 	if _authoring_available:
 		tools.append_array(
 			[
+				{ "name": "gdsql_preview_database_mutation", "read_only": false },
 				{ "name": "gdsql_preview_row_mutation", "read_only": false },
 				{ "name": "gdsql_preview_schema_mutation", "read_only": false },
 				{ "name": "gdsql_query_rows", "read_only": true },
@@ -81,6 +83,7 @@ func get_capabilities() -> GDSQLOperationResult:
 			"selected_profile": _profile_id(loaded_profile.get_value()),
 			"features": [
 				{ "id": "capabilities", "enabled": true },
+				{ "id": "database_authoring", "enabled": _authoring_available },
 				{ "id": "model_inspection", "enabled": true },
 				{ "id": "mutations", "enabled": _authoring_available },
 				{ "id": "query_execution", "enabled": _authoring_available },

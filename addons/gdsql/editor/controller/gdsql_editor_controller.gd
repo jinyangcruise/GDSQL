@@ -115,6 +115,18 @@ func refresh_after_external_schema_mutation(registration_name: StringName) -> vo
 	_refresh_surfaces()
 
 
+func refresh_after_external_database_mutation(registration_name: StringName) -> void:
+	_clear_registration_histories(registration_name)
+	workbench.refresh_inspections()
+	if workbench.get_registration(registration_name) == null:
+		if is_instance_valid(_workspace):
+			_workspace.close_registration(registration_name)
+	elif workbench.active_session != null \
+			and workbench.active_session.registration.name == registration_name:
+		workbench.select_registration(registration_name)
+	_refresh_surfaces()
+
+
 func shutdown() -> void:
 	if is_instance_valid(_workspace) \
 			and _workspace.database_create_submitted.is_connected(_create_database):

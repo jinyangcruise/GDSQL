@@ -303,6 +303,58 @@ func _build_specs() -> Array:
 				30_000,
 			),
 		)
+		specs.append(
+			_spec(
+				"gdsql_preview_database_mutation",
+				"Validate and preview creation, rename, unregistration, or destruction of a registered GDSQL database without accepting arbitrary paths.",
+				&"preview_database_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["operation", "registration"],
+					"properties": {
+						"operation": {
+							"type": "string",
+							"enum": [
+								"create_database", "rename_database",
+								"unregister_database", "destroy_database",
+							],
+						},
+						"registration": { "type": "string", "minLength": 1 },
+						"database": { "type": "string" },
+						"location": {
+							"type": "string",
+							"enum": ["project_data", "settings", "registration_root"],
+						},
+						"root_registration": { "type": "string" },
+						"storage_backend": {
+							"type": "string",
+							"enum": ["configfile", "memory"],
+						},
+						"new_name": { "type": "string" },
+					},
+				},
+				true,
+			),
+		)
+		specs.append(
+			_spec(
+				"gdsql_commit_database_mutation",
+				"Commit one previewed registered-database lifecycle mutation using its one-use confirmation handle.",
+				&"commit_database_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["handle", "confirm"],
+					"properties": {
+						"handle": { "type": "string", "minLength": 1 },
+						"confirm": { "type": "boolean" },
+					},
+				},
+				true,
+				30_000,
+			),
+		)
 	return Array(
 		specs,
 		TYPE_OBJECT,
