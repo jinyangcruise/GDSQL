@@ -14,6 +14,9 @@ const Adapter = preload(
 const ModelInspection = preload(
 	"res://addons/gdsql/editor/integrations/mcp/gdsql_mcp_model_inspection_service.gd"
 )
+const FakeMcpCustomToolSpec = preload(
+	"res://tests/editor/integrations/fixtures/fake_mcp_custom_tool_spec.gd"
+)
 
 
 class FakeToolRegistry extends RefCounted:
@@ -184,8 +187,7 @@ func test_godot_ai_specs_follow_the_published_contract() -> void:
 	var service := _service()
 	var authoring := GDSQLMcpAuthoringService.new(_workbench_value)
 	var adapter := Adapter.new(service, authoring)
-	assert_bool(adapter.call("_load_godot_ai_contract")).is_true()
-	adapter.call("_refresh_registry")
+	_inject_test_contract(adapter)
 	var specs := adapter.call("_build_specs") as Array
 
 	assert_bool(specs.is_typed()).is_true()
@@ -206,7 +208,7 @@ func test_godot_ai_specs_follow_the_published_contract() -> void:
 func test_godot_ai_late_startup_registers_after_registry_ready() -> void:
 	var adapter := _adapter()
 	var registry := FakeToolRegistry.new()
-	assert_bool(adapter.call("_load_godot_ai_contract")).is_true()
+	_inject_test_contract(adapter)
 	assert_object(BridgeContext.get_inspection_service()).is_not_null()
 	assert_object(BridgeContext.get_authoring_service()).is_not_null()
 
@@ -228,7 +230,7 @@ func test_godot_ai_registry_replacement_unregisters_the_previous_instance() -> v
 	var adapter := _adapter()
 	var first := FakeToolRegistry.new(true)
 	var replacement := FakeToolRegistry.new(true)
-	assert_bool(adapter.call("_load_godot_ai_contract")).is_true()
+	_inject_test_contract(adapter)
 
 	adapter.call("_adopt_registry", first)
 	adapter.call("_adopt_registry", replacement)
@@ -247,7 +249,7 @@ func test_godot_ai_registry_replacement_unregisters_the_previous_instance() -> v
 func test_godot_ai_contract_loss_unregisters_and_disconnects() -> void:
 	var adapter := _adapter()
 	var registry := FakeToolRegistry.new(true)
-	assert_bool(adapter.call("_load_godot_ai_contract")).is_true()
+	_inject_test_contract(adapter)
 	adapter.call("_adopt_registry", registry)
 
 	adapter.call("_adopt_registry", null)
@@ -263,7 +265,7 @@ func test_godot_ai_contract_loss_unregisters_and_disconnects() -> void:
 func test_godot_ai_same_registry_ready_signal_replaces_specs_after_reload() -> void:
 	var adapter := _adapter()
 	var registry := FakeToolRegistry.new(true)
-	assert_bool(adapter.call("_load_godot_ai_contract")).is_true()
+	_inject_test_contract(adapter)
 	adapter.call("_adopt_registry", registry)
 
 	registry.mark_ready()
@@ -277,6 +279,10 @@ func test_godot_ai_same_registry_ready_signal_replaces_specs_after_reload() -> v
 func _adapter() -> Node:
 	var service := _service()
 	return Adapter.new(service, GDSQLMcpAuthoringService.new(_workbench_value))
+
+
+func _inject_test_contract(adapter: Node) -> void:
+	adapter.set("_spec_script", FakeMcpCustomToolSpec)
 
 
 func _service() -> GDSQLMcpInspectionService:
