@@ -143,6 +143,10 @@ func refresh_after_external_model_mutation(
 		_workspace.refresh_external_model_mutation(registration_name, table_name)
 
 
+func refresh_after_external_setup_mutation() -> void:
+	_refresh_surfaces()
+
+
 func shutdown() -> void:
 	if is_instance_valid(_workspace) \
 			and _workspace.database_create_submitted.is_connected(_create_database):

@@ -453,6 +453,50 @@ func _build_specs() -> Array:
 				30_000,
 			),
 		)
+		specs.append(
+			_spec(
+				"gdsql_preview_setup_mutation",
+				"Preview initial Direct/Managed profile selection or bind a registered database to a logical content, save, or settings role.",
+				&"preview_setup_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["operation"],
+					"properties": {
+						"operation": {
+							"type": "string",
+							"enum": ["select_profile", "bind_role"],
+						},
+						"profile": { "type": "string", "enum": ["direct", "managed"] },
+						"role": {
+							"type": "string",
+							"enum": ["content", "save", "settings"],
+						},
+						"registration": { "type": "string", "minLength": 1 },
+					},
+				},
+				true,
+				30_000,
+			),
+		)
+		specs.append(
+			_spec(
+				"gdsql_commit_setup_mutation",
+				"Commit one unchanged setup-profile or role-binding preview using its one-use confirmation handle.",
+				&"commit_setup_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["handle", "confirm"],
+					"properties": {
+						"handle": { "type": "string", "minLength": 1 },
+						"confirm": { "type": "boolean" },
+					},
+				},
+				true,
+				30_000,
+			),
+		)
 	return Array(
 		specs,
 		TYPE_OBJECT,

@@ -23,6 +23,8 @@ absent.
 | `gdsql_commit_migration` | Persists when needed and applies one unchanged migration preview. |
 | `gdsql_preview_model_mutation` | Previews model generation or save-to-content reference registration/removal. |
 | `gdsql_commit_model_mutation` | Generates sources or changes one unchanged cross-role reference after confirmation. |
+| `gdsql_preview_setup_mutation` | Previews initial profile selection or a logical database-role binding. |
+| `gdsql_commit_setup_mutation` | Commits one unchanged profile or role-binding preview. |
 
 Godot-AI normally exposes promoted tools with a `custom_` prefix. Enable or
 disable them for the current project from Godot-AI's **Tools** panel.
@@ -51,8 +53,8 @@ by Godot-AI. GDSQL owns its versioned domain results and mutation safeguards.
 
 ## Current scope and later extensions
 
-The current `1.0.0` surface has fifteen tools. Profile/package/save-slot
-management and typed Resource locators follow as separate guarded families.
+The current `1.0.0` surface has seventeen tools. Package/cache and save-slot
+lifecycle management, plus typed Resource locators, remain separate guarded families.
 Late startup, registry replacement, repeated readiness, contract loss, and
 teardown are covered by lifecycle tests. Live disable/re-enable and reload
 still need a final Tools-panel acceptance pass with Godot-AI installed.
