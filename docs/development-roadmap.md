@@ -54,7 +54,7 @@ tracks only product direction, active work, and deliberately deferred work.
 | Priority | Outcome | State |
 |---|---|---|
 | High — first | Release, recovery, and supported-version QA | Crash-safe table commits, catalog/migration recovery, the public migration/recovery guide, PCK/standalone Linux export gates, and the scalar ConfigFile baseline are implemented; selected supported-platform verification remains. Additional benchmarks are deferred until measurements or real projects justify them |
-| Medium | Godot-AI lifecycle and authoring surface | Inspection plus bounded scalar query and preview/commit row mutations are tested; schema/database authoring is next, followed by migrations. Reload, disable, teardown, and project-change behavior still need live-editor verification |
+| Medium | Godot-AI lifecycle and authoring surface | Inspection, bounded scalar query, preview/commit row mutations, and registry lifecycle transitions are tested. Schema/database authoring is next, followed by migrations; live disable/re-enable acceptance remains |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
 
@@ -588,8 +588,11 @@ packaging, and compatibility work.
 
 ## 4. Editor and integration completion
 
-- Verify Godot-AI tool registration across plugin load order, reload, disable,
-  teardown, and project changes.
+- **Implemented and tested:** Godot-AI registration handles late plugin load,
+  repeated readiness, registry replacement, contract loss, and GDSQL teardown
+  without stale tools. Live Tools-panel disable/re-enable remains a manual
+  acceptance check; opening another Godot project creates a separate editor
+  process and fresh composition root.
 - **Implemented and tested:** UI-independent bounded scalar queries and atomic
   row mutations through preview plus one-use confirmation handles. The action
   hub remains outside domain execution; committed external mutations refresh

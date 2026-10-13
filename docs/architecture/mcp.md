@@ -240,8 +240,11 @@ state or raw catalog files.
 The optional adapter dynamically resolves Godot-AI, registers all current
 specs atomically when both plugins are ready, and polls briefly so plugin load
 order is irrelevant. It re-registers after Godot-AI emits `registry_ready` and
-unregisters the GDSQL `plugin.cfg` source during teardown. Registration is
-idempotent and uses GDSQL-owned names.
+unregisters the GDSQL `plugin.cfg` source during teardown. When Godot-AI
+replaces its registry during reload, GDSQL disconnects and unregisters from the
+old instance before adopting the replacement. Contract disappearance follows
+the same cleanup path. Repeated polling of one ready registry is idempotent;
+another `registry_ready` signal intentionally replaces same-source specs.
 
 The adapter must resolve the Godot-AI integration dynamically at the editor
 composition boundary so installing GDSQL alone does not create parser errors.
@@ -268,9 +271,10 @@ ConfigFile services.
 | Slice | State |
 |---|---|
 | Pure inspection projector and JSON contract tests | Tested |
-| Optional Godot-AI handler, promoted specs, registration, and teardown | Implemented; specification contract tested |
+| Optional Godot-AI handler, promoted specs, registration, and teardown | Tested |
 | Live editor discovery, registration, and Tools-panel acceptance | Verified with Godot-AI |
-| Live reload, disable, and teardown verification | Pending manual verification |
+| Late startup, registry reload/replacement, contract loss, and teardown transitions | Tested with deterministic registry lifecycle doubles |
+| Live disable/re-enable and reload acceptance in the Tools panel | Pending manual verification |
 | Bounded model-binding and relationship inspection | Tested |
 | Bounded structured scalar SELECT execution | Tested |
 | Scalar row mutation preview and commit | Tested |

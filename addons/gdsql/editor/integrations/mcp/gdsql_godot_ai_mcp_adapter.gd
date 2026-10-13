@@ -35,10 +35,7 @@ func _ready() -> void:
 
 func shutdown() -> void:
 	set_process(false)
-	_disconnect_registry()
-	if is_instance_valid(_registry):
-		_registry.call("unregister_source", SOURCE_PATH)
-	_registry = null
+	_release_registry()
 	Context.detach(_inspection_service, _authoring_service)
 	_inspection_service = null
 	_authoring_service = null
@@ -54,18 +51,21 @@ func _process(delta: float) -> void:
 
 func _refresh_registry() -> void:
 	if not _load_godot_ai_contract():
-		if is_instance_valid(_registry):
-			_disconnect_registry()
-			_registry = null
+		_adopt_registry(null)
 		return
 	var current: Variant = _registry_script.call("get_instance")
-	if current == _registry:
+	_adopt_registry(current)
+
+
+func _adopt_registry(current: Variant) -> void:
+	if current == _registry and is_instance_valid(_registry):
 		return
-	_disconnect_registry()
+	_release_registry()
+	if not _is_registry_compatible(current):
+		return
 	_registry = current
-	if not is_instance_valid(_registry):
-		return
-	if _registry.has_signal("registry_ready"):
+	if _registry.has_signal("registry_ready") \
+			and not _registry.is_connected("registry_ready", _on_registry_ready):
 		_registry.connect("registry_ready", _on_registry_ready)
 	if bool(_registry.call("is_ready")):
 		_register_tools()
@@ -85,6 +85,20 @@ func _disconnect_registry() -> void:
 	if is_instance_valid(_registry) and _registry.has_signal("registry_ready") \
 			and _registry.is_connected("registry_ready", _on_registry_ready):
 		_registry.disconnect("registry_ready", _on_registry_ready)
+
+
+func _release_registry() -> void:
+	_disconnect_registry()
+	if is_instance_valid(_registry) and _registry.has_method("unregister_source"):
+		_registry.call("unregister_source", SOURCE_PATH)
+	_registry = null
+
+
+func _is_registry_compatible(candidate: Variant) -> bool:
+	return is_instance_valid(candidate) \
+			and candidate.has_method("is_ready") \
+			and candidate.has_method("batch_register") \
+			and candidate.has_method("unregister_source")
 
 
 func _on_registry_ready() -> void:

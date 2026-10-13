@@ -43,5 +43,6 @@ by Godot-AI. GDSQL owns its versioned domain results and mutation safeguards.
 The current `1.0.0` surface has seven tools. Schema/database authoring and
 migration operations are next. Model generation, profile/package/save-slot
 management, and typed Resource locators follow as separate guarded families.
-Editor reload, disable, teardown, and project-change behavior still needs live
-verification with Godot-AI installed.
+Late startup, registry replacement, repeated readiness, contract loss, and
+teardown are covered by lifecycle tests. Live disable/re-enable and reload
+still need a final Tools-panel acceptance pass with Godot-AI installed.
