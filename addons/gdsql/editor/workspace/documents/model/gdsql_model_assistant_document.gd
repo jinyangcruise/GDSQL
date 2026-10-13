@@ -6,13 +6,6 @@ signal close_requested
 signal scripts_generated(generated_path: String, user_path: String)
 signal content_reference_registered(registration_name: StringName, table_name: StringName)
 
-const SETTINGS_PATH := "res://.gdsql/settings.cfg"
-const SETTINGS_SECTION := "models"
-const SETTINGS_ROOT_KEY := "root"
-const SETTINGS_BINDING_PREFIX := "model_binding:"
-const SETTINGS_CLASS_KEY := "class_name"
-const SETTINGS_ROLE_KEY := "role"
-
 var _registration_name: StringName
 var _table: GDSQLTableDefinition
 var _database: GDSQLDatabaseDefinition
@@ -21,6 +14,7 @@ var _role_bindings: Array[GDSQLDatabaseRoleBinding] = []
 var _source: GDSQLModelSource
 var _generator := GDSQLModelSourceGenerator.new()
 var _compatibility_inspector := GDSQLModelCompatibilityInspector.new()
+var _binding_store := GDSQLEditorModelBindingStore.new()
 var _refresh_after_filesystem_scan := false
 var _filesystem_retry_active := false
 var _last_reported_script_error := ""
@@ -462,79 +456,27 @@ func _read_text(path: String) -> String:
 
 
 func _load_model_root() -> String:
-	var config := ConfigFile.new()
-	if config.load(SETTINGS_PATH) != OK:
-		return GDSQLModelSourceGenerator.DEFAULT_ROOT
-	return String(
-		config.get_value(
-			SETTINGS_SECTION,
-			SETTINGS_ROOT_KEY,
-			GDSQLModelSourceGenerator.DEFAULT_ROOT,
-		),
-	)
+	return _binding_store.load_root()
 
 
 func _load_model_class() -> String:
-	return _load_binding_value(
+	var binding := _binding_store.load_for_table(
 		_registration_name,
 		_table.database_name,
 		_table.name,
-		SETTINGS_CLASS_KEY,
 	)
-
-
-func _load_binding_value(
-		registration_name: StringName,
-		database_name: StringName,
-		table_name: StringName,
-		key: String,
-) -> String:
-	var config := ConfigFile.new()
-	if config.load(SETTINGS_PATH) != OK:
-		return ""
-	return String(
-		config.get_value(
-			_binding_section(registration_name, database_name, table_name),
-			key,
-			"",
-		),
-	)
-
-
-func _binding_section(
-		registration_name: StringName,
-		database_name: StringName,
-		table_name: StringName,
-) -> String:
-	return "%s%s:%s:%s" % [
-		SETTINGS_BINDING_PREFIX,
-		registration_name,
-		database_name,
-		table_name,
-	]
+	return String(binding.get("class_name", ""))
 
 
 func _save_model_settings() -> Error:
-	var directory_error := DirAccess.make_dir_recursive_absolute(
-		ProjectSettings.globalize_path(SETTINGS_PATH.get_base_dir()),
-	)
-	if directory_error != OK:
-		return directory_error
-	var config := ConfigFile.new()
-	config.load(SETTINGS_PATH)
-	config.set_value(SETTINGS_SECTION, SETTINGS_ROOT_KEY, _model_root.text.strip_edges())
-	var binding_section := _binding_section(
+	return _binding_store.save(
 		_registration_name,
 		_table.database_name,
 		_table.name,
+		StringName(_model_class.text.strip_edges()),
+		_selected_role(),
+		_model_root.text.strip_edges(),
 	)
-	config.set_value(
-		binding_section,
-		SETTINGS_CLASS_KEY,
-		_model_class.text.strip_edges(),
-	)
-	config.set_value(binding_section, SETTINGS_ROLE_KEY, _selected_role())
-	return config.save(SETTINGS_PATH)
 
 
 func _first_diagnostic(result: GDSQLOperationResult, fallback: String) -> String:

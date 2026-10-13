@@ -398,6 +398,61 @@ func _build_specs() -> Array:
 				30_000,
 			),
 		)
+		specs.append(
+			_spec(
+				"gdsql_preview_model_mutation",
+				"Preview generated model sources or register/remove a save-to-content model reference without executing user code.",
+				&"preview_model_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["operation"],
+					"properties": {
+						"operation": {
+							"type": "string",
+							"enum": [
+								"generate_model",
+								"register_content_reference",
+								"remove_content_reference",
+							],
+						},
+						"registration": { "type": "string" },
+						"table": { "type": "string" },
+						"class_name": { "type": "string" },
+						"role": { "type": "string" },
+						"model_root": { "type": "string" },
+						"source_registration": { "type": "string" },
+						"source_table": { "type": "string" },
+						"source_column": { "type": "string" },
+						"target_registration": { "type": "string" },
+						"target_table": { "type": "string" },
+						"target_column": { "type": "string" },
+						"target_model_class": { "type": "string" },
+						"relationship_name": { "type": "string" },
+					},
+				},
+				true,
+				30_000,
+			),
+		)
+		specs.append(
+			_spec(
+				"gdsql_commit_model_mutation",
+				"Commit one previewed model-source or cross-role reference mutation using its one-use confirmation handle.",
+				&"commit_model_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["handle", "confirm"],
+					"properties": {
+						"handle": { "type": "string", "minLength": 1 },
+						"confirm": { "type": "boolean" },
+					},
+				},
+				true,
+				30_000,
+			),
+		)
 	return Array(
 		specs,
 		TYPE_OBJECT,

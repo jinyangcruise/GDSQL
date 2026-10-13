@@ -132,6 +132,17 @@ func refresh_after_external_migration(registration_name: StringName) -> void:
 	_refresh_database_migration_state(registration_name)
 
 
+func refresh_after_external_model_mutation(
+		registration_name: StringName,
+		table_name: StringName,
+) -> void:
+	_scan_project_filesystem()
+	workbench.refresh_inspections()
+	_refresh_surfaces()
+	if is_instance_valid(_workspace):
+		_workspace.refresh_external_model_mutation(registration_name, table_name)
+
+
 func shutdown() -> void:
 	if is_instance_valid(_workspace) \
 			and _workspace.database_create_submitted.is_connected(_create_database):

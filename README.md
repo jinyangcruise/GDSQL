@@ -84,7 +84,8 @@ registers project-aware tools that can:
 
 - inspect setup, schemas, constraints, and model bindings;
 - query bounded scalar row windows with structured filters; and
-- preview and explicitly confirm atomic scalar row mutations.
+- preview and explicitly confirm row, schema, database, migration, and model
+  mutations.
 
 AI mutations use short-lived one-use handles and reject commits when their
 schema or target rows changed after preview. Godot-AI remains optional; GDSQL

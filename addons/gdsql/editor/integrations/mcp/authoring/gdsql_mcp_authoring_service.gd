@@ -6,6 +6,7 @@ signal mutation_committed(registration_name: StringName, table_name: StringName)
 signal schema_committed(registration_name: StringName)
 signal database_committed(registration_name: StringName)
 signal migration_committed(registration_name: StringName)
+signal model_committed(registration_name: StringName, table_name: StringName)
 
 const ScalarCodec = preload(
 	"res://addons/gdsql/editor/integrations/mcp/query/gdsql_mcp_scalar_codec.gd"
@@ -25,6 +26,9 @@ const DatabaseAuthoring = preload(
 const MigrationAuthoring = preload(
 	"res://addons/gdsql/editor/integrations/mcp/authoring/migration/gdsql_mcp_migration_authoring_service.gd"
 )
+const ModelAuthoring = preload(
+	"res://addons/gdsql/editor/integrations/mcp/authoring/model/gdsql_mcp_model_authoring_service.gd"
+)
 const DEFAULT_LIMIT := 25
 const MAX_LIMIT := 100
 const MAX_MUTATION_ROWS := 100
@@ -36,6 +40,7 @@ var _tickets: Dictionary[String, GDSQLMcpMutationTicket] = { }
 var _schema_authoring: RefCounted
 var _database_authoring: RefCounted
 var _migration_authoring: RefCounted
+var _model_authoring: RefCounted
 
 
 class Target extends RefCounted:
@@ -75,6 +80,8 @@ func _init(
 		state_store,
 	)
 	_migration_authoring.connect("committed", migration_committed.emit)
+	_model_authoring = ModelAuthoring.new(workbench)
+	_model_authoring.connect("committed", model_committed.emit)
 
 
 func preview_schema_mutation(request: Dictionary) -> GDSQLOperationResult:
@@ -99,6 +106,14 @@ func preview_migration(request: Dictionary) -> GDSQLOperationResult:
 
 func commit_migration(handle: String, confirmed: bool) -> GDSQLOperationResult:
 	return _migration_authoring.call("commit", handle, confirmed) as GDSQLOperationResult
+
+
+func preview_model_mutation(request: Dictionary) -> GDSQLOperationResult:
+	return _model_authoring.call("preview", request) as GDSQLOperationResult
+
+
+func commit_model_mutation(handle: String, confirmed: bool) -> GDSQLOperationResult:
+	return _model_authoring.call("commit", handle, confirmed) as GDSQLOperationResult
 
 
 func query_rows(

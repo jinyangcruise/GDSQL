@@ -89,7 +89,7 @@ profile. Capability entries are sorted by stable identifier.
 
 ## Tools
 
-All thirteen tools are promoted through Godot-AI. Compatible MCP clients normally
+All fifteen tools are promoted through Godot-AI. Compatible MCP clients normally
 see them as `custom_gdsql_*`; they remain available through `custom_manage` if a
 bridge promotion limit is reached. The promotion prefix is a bridge detail and
 is not part of the GDSQL surface version.
@@ -109,6 +109,8 @@ is not part of the GDSQL surface version.
 | `gdsql_commit_database_mutation` | Confirmation handle and explicit `confirm: true` | Registered database lifecycle commit after workspace and schema conflict checks. |
 | `gdsql_preview_migration` | Registration alone for the next pending migration, or registration plus migration ID, description, and bounded ordered steps | Validated schema/data plan or up-to-date status; a pending plan includes a one-use confirmation handle. |
 | `gdsql_commit_migration` | Confirmation handle and explicit `confirm: true` | Authored-history append when needed, stale-safe migration application, and schema-state synchronization status. |
+| `gdsql_preview_model_mutation` | Model generation identifiers, or save/content relationship identifiers | Derived project paths or cross-role reference impact plus a one-use confirmation handle; no write occurs. |
+| `gdsql_commit_model_mutation` | Confirmation handle and explicit `confirm: true` | Generated base replacement with user-file preservation, or one cross-role reference settings change. |
 
 Input schemas reject unknown fields. Registration and table parameters are
 logical identifiers, never paths. Lists use opaque cursors and bounded limits;
@@ -123,7 +125,7 @@ or an unavailable inspection service are failures.
 foreign keys and cross-role references registered by the editor. Explicit
 many-to-many or custom relationships remain marked as not statically inspected.
 
-Five tools are read-only. All eight mutation tools declare Godot-AI
+Five tools are read-only. All ten mutation tools declare Godot-AI
 `requires_writable`; none claims Godot Undo/Redo support. Adapter annotations
 are descriptive and do not replace validation and confirmation in GDSQL.
 
@@ -289,8 +291,9 @@ button:
 
 - bounded structured SELECT execution;
 - row mutation preview and commit, including bounded batch inserts (implemented);
-- schema/database mutation preview and commit; and
-- migration authoring, preview, and application.
+- schema/database mutation preview and commit;
+- migration authoring, preview, and application; and
+- generated-model and cross-role reference preview and commit.
 
 Requests use logical registration, database, table, and column identifiers plus
 typed JSON values. Responses use stable diagnostics, bounded result windows,
@@ -325,7 +328,7 @@ ConfigFile services.
 | Registered database lifecycle authoring | Database lifecycle preview/commit family | Tested |
 | Migration authoring, pending preview, and apply | Migration preview/commit family | Tested |
 | Explicit migration recovery inspection/control | Recovery family | Backlog; startup recovery remains automatic |
-| Model generation and cross-role content-reference registration | Model binding family | Planned |
+| Model generation and cross-role content-reference registration | Model preview/commit family | Implemented |
 | Direct/Managed profile setup, packages, cache, and save-slot management | Setup family with destructive guards | Planned |
 | Resource-valued query and mutation | Typed locator/materialization family | Planned; scalar surface rejects it |
 | Open editor documents, focus scripts, or run the project | Navigation commands only when useful | Backlog; never implemented by simulating UI input |
@@ -345,6 +348,8 @@ ConfigFile services.
 | Registered table schema preview and commit | Tested |
 | Registered database lifecycle preview and commit | Tested |
 | Migration preview and commit | Tested |
+| Model-generation preview and cross-role reference preview/commit | Tested |
+| Generated-source commit and live Godot-AI model-tool acceptance | Pending manual verification |
 | Optional CLI adapter over the same application service | Backlog; not required for Godot-AI |
 
 ## Protocol references

@@ -20,7 +20,6 @@ const DATABASE_DOCK_KEY := "GDSQLDatabases"
 const LOGS_DOCK_KEY := "GDSQLLogs"
 const WORKSPACE_HOST_NAME := "GDSQLWorkspaceHost"
 const SETTINGS_PATH := "res://.gdsql/settings.cfg"
-const MODEL_BINDING_PREFIX := "model_binding:"
 const RUNTIME_AUTOLOAD_SETTING := "autoload/GDSQLRuntime"
 const RUNTIME_NODE_PATH := "res://addons/gdsql/runtime/gdsql_runtime_node.tscn"
 const DATABASE = preload("res://addons/gdsql/editor/workspace/icons/database.svg")
@@ -192,6 +191,7 @@ func _create_mcp_adapter() -> void:
 	authoring.schema_committed.connect(_controller.refresh_after_external_schema_mutation)
 	authoring.database_committed.connect(_controller.refresh_after_external_database_mutation)
 	authoring.migration_committed.connect(_controller.refresh_after_external_migration)
+	authoring.model_committed.connect(_controller.refresh_after_external_model_mutation)
 	var model_inspection := MCP_MODEL_INSPECTION.new(
 		_controller.workbench,
 		_mcp_model_bindings,
@@ -234,33 +234,7 @@ func _mcp_runtime_adapter_configured() -> bool:
 
 
 func _mcp_model_bindings() -> Array[Dictionary]:
-	var bindings: Array[Dictionary] = []
-	var config := ConfigFile.new()
-	if config.load(SETTINGS_PATH) != OK:
-		return bindings
-	var model_root := String(
-		config.get_value("models", "root", GDSQLModelSourceGenerator.DEFAULT_ROOT),
-	)
-	for section in config.get_sections():
-		if not section.begins_with(MODEL_BINDING_PREFIX):
-			continue
-		var identity := section.trim_prefix(MODEL_BINDING_PREFIX).split(":", false, 2)
-		if identity.size() != 3:
-			continue
-		var class_name_value := String(config.get_value(section, "class_name", ""))
-		if class_name_value.is_empty():
-			continue
-		bindings.append(
-			{
-				"registration": identity[0],
-				"database": identity[1],
-				"table": identity[2],
-				"class_name": class_name_value,
-				"role": String(config.get_value(section, "role", "")),
-				"model_root": model_root,
-			},
-		)
-	return bindings
+	return GDSQLEditorModelBindingStore.new().load_all()
 
 
 func _mcp_content_references(

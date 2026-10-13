@@ -371,6 +371,14 @@ func refresh_database(
 	_refresh_table_documents(inspection, session)
 
 
+func refresh_external_model_mutation(
+		registration_name: StringName,
+		table_name: StringName,
+) -> void:
+	_on_content_reference_registered(registration_name, table_name)
+	refresh_welcome()
+
+
 func open_create_database_page(default_root: String = "res://data") -> void:
 	var document := _get_create_database_document()
 	document.call("reset", default_root)
