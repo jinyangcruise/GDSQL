@@ -54,6 +54,20 @@ func add_draft_column() -> void:
 	changed.emit()
 
 
+func discard_new_column(column_draft: GDSQLEditorColumnDraft) -> bool:
+	if column_draft == null or column_draft.is_primary \
+			or column_draft.original != null:
+		return false
+	var index := _drafts.find(column_draft)
+	if index < 0:
+		return false
+	_drafts.remove_at(index)
+	_baseline_drafts.erase(column_draft)
+	_render_rows()
+	changed.emit()
+	return true
+
+
 func set_column_removal(
 		column_draft: GDSQLEditorColumnDraft,
 		enabled: bool,

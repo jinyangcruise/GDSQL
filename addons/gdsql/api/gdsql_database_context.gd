@@ -8,6 +8,7 @@ var validator: GDSQLQueryValidator
 var planner: GDSQLQueryPlanner
 var executor: GDSQLQueryExecutor
 var execution_context: GDSQLExecutionContext
+var _migration_service: GDSQLMigrationService
 
 
 func _init(
@@ -18,6 +19,7 @@ func _init(
 		_planner: GDSQLQueryPlanner = null,
 		_executor: GDSQLQueryExecutor = null,
 		_execution_context: GDSQLExecutionContext = null,
+		_migration_service: GDSQLMigrationService = null,
 ) -> void:
 	catalog = _catalog
 	catalog_administration = _catalog_administration
@@ -26,6 +28,112 @@ func _init(
 	planner = _planner
 	executor = _executor
 	execution_context = _execution_context
+	self._migration_service = _migration_service
+
+
+func preview_migrations(
+		database_name: StringName,
+		history: Array[GDSQLMigrationDefinition],
+) -> GDSQLMigrationPreviewResult:
+	if _migration_service != null:
+		return _migration_service.preview(database_name, history)
+	var result := GDSQLMigrationPreviewResult.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_MIGRATION_SERVICE_UNAVAILABLE",
+			"Migrations require a durable ConfigFile authoring context.",
+		),
+	)
+	return result
+
+
+func apply_migration(
+		plan: GDSQLMigrationStepPlan,
+) -> GDSQLMigrationRunResult:
+	if _migration_service != null:
+		return _migration_service.apply(plan)
+	var result := GDSQLMigrationRunResult.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_MIGRATION_SERVICE_UNAVAILABLE",
+			"Migrations require a durable ConfigFile authoring context.",
+		),
+	)
+	return result
+
+
+func adopt_migration_baseline(
+		database_name: StringName,
+		history: Array[GDSQLMigrationDefinition],
+		schema_state: GDSQLMigrationSchemaState,
+) -> GDSQLOperationResult:
+	if _migration_service != null:
+		return _migration_service.adopt_baseline(
+			database_name,
+			history,
+			schema_state,
+		)
+	var result := GDSQLOperationResult.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_MIGRATION_SERVICE_UNAVAILABLE",
+			"Migrations require a durable ConfigFile authoring context.",
+		),
+	)
+	return result
+
+
+func adopt_migration_baseline_if_current(
+		database_name: StringName,
+		history: Array[GDSQLMigrationDefinition],
+		schema_state: GDSQLMigrationSchemaState,
+) -> GDSQLOperationResult:
+	if _migration_service != null:
+		return _migration_service.adopt_baseline_if_current(
+			database_name,
+			history,
+			schema_state,
+		)
+	var result := GDSQLOperationResult.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_MIGRATION_SERVICE_UNAVAILABLE",
+			"Migrations require a durable ConfigFile authoring context.",
+		),
+	)
+	return result
+
+
+func recover_pending_migrations(
+		database_name: StringName,
+		history: Array[GDSQLMigrationDefinition],
+) -> GDSQLOperationResult:
+	if _migration_service != null:
+		return _migration_service.recover_pending(database_name, history)
+	var result := GDSQLOperationResult.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_MIGRATION_SERVICE_UNAVAILABLE",
+			"Migrations require a durable ConfigFile authoring context.",
+		),
+	)
+	return result
+
+
+func recover_interrupted_migration(
+		database_name: StringName,
+		migration_id: String,
+) -> GDSQLMigrationRecoveryResult:
+	if _migration_service != null:
+		return _migration_service.recover_interrupted(database_name, migration_id)
+	var result := GDSQLMigrationRecoveryResult.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_MIGRATION_SERVICE_UNAVAILABLE",
+			"Migrations require a durable ConfigFile authoring context.",
+		),
+	)
+	return result
 
 
 func create_database(database_name: StringName) -> GDSQLCatalogOperationResult:
@@ -54,6 +162,13 @@ func create_table(
 	return catalog_administration.create_table(database_name, table)
 
 
+func preview_create_table(
+		database_name: StringName,
+		table: GDSQLTableDefinition,
+) -> GDSQLOperationResult:
+	return catalog_administration.preview_create_table(database_name, table)
+
+
 func rename_table(
 		database_name: StringName,
 		current_name: StringName,
@@ -62,11 +177,30 @@ func rename_table(
 	return catalog_administration.rename_table(database_name, current_name, new_name)
 
 
+func preview_rename_table(
+		database_name: StringName,
+		current_name: StringName,
+		new_name: StringName,
+) -> GDSQLOperationResult:
+	return catalog_administration.preview_rename_table(
+		database_name,
+		current_name,
+		new_name,
+	)
+
+
 func drop_table(
 		database_name: StringName,
 		table_name: StringName,
 ) -> GDSQLCatalogOperationResult:
 	return catalog_administration.drop_table(database_name, table_name)
+
+
+func preview_drop_table(
+		database_name: StringName,
+		table_name: StringName,
+) -> GDSQLOperationResult:
+	return catalog_administration.preview_drop_table(database_name, table_name)
 
 
 func alter_table(
@@ -124,15 +258,26 @@ func truncate_table(
 	return result
 
 
-func execute(query: GDSQLQuerySpec) -> GDSQLQueryResult:
-	return _execute(query, execution_context)
+func execute(
+		query: GDSQLQuerySpec,
+		options: GDSQLQueryExecutionOptions = null,
+) -> GDSQLQueryResult:
+	return _execute(
+		query,
+		execution_context if options == null else execution_context.with_options(options),
+	)
 
 
 func execute_in_session(
 		query: GDSQLQuerySpec,
 		session: GDSQLStorageSession,
+		options: GDSQLQueryExecutionOptions = null,
 ) -> GDSQLQueryResult:
-	return _execute(query, execution_context.for_session(session))
+	var scoped_context := execution_context.for_session(session)
+	return _execute(
+		query,
+		scoped_context if options == null else scoped_context.with_options(options),
+	)
 
 
 func transaction(callback: Callable) -> GDSQLOperationResult:

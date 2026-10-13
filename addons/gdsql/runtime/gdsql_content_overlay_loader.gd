@@ -281,7 +281,11 @@ func _validate_row(
 				],
 			)
 			return false
-		if not column.accepts_value(row.get_value(column.name)):
+		var value: Variant = row.get_value(column.name)
+		if not column.accepts_value(value) and not (
+				value is GDSQLResourceReference
+				and (value as GDSQLResourceReference).matches_column(column)
+		):
 			_add_error(
 				result,
 				&"GDSQL_CONTENT_ROW_COLUMN_TYPE_MISMATCH",

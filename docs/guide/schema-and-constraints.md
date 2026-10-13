@@ -15,6 +15,10 @@ Open the database document and expand a table. Each table provides:
 Schema edits remain drafts until the database document's **Save Changes**
 action succeeds.
 
+Once a database has authored migration history, direct schema saves are
+disabled. Continue its schema through [Migrations and recovery](./migrations-and-recovery)
+so existing saves and team databases can advance from their own applied head.
+
 ## Column rules
 
 Each column defines a Godot Variant type and may define nullability, uniqueness,

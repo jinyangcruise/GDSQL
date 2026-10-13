@@ -1,6 +1,19 @@
 class_name GDSQLDefaultQueryExecutor
 extends GDSQLQueryExecutor
 
+const DEFAULT_SCAN_BATCH_SIZE := 256
+
+var _resource_resolver: GDSQLResourceResolver
+
+
+func _init(resource_resolver: GDSQLResourceResolver = null) -> void:
+	_resource_resolver = (
+		resource_resolver
+		if resource_resolver != null
+		else GDSQLGodotResourceResolver.new()
+	)
+
+
 func execute(plan: GDSQLQueryPlan, context: GDSQLExecutionContext) -> GDSQLQueryExecutionResult:
 	var result := GDSQLQueryExecutionResult.new()
 	result.rows = GDSQLRowSet.new()
@@ -20,6 +33,18 @@ func execute(plan: GDSQLQueryPlan, context: GDSQLExecutionContext) -> GDSQLQuery
 			),
 		)
 		return result
+	if context.options != null \
+			and context.options.defers_resources() \
+			and plan.requires_concrete_resources:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_DEFERRED_RESOURCE_EXPRESSION_UNSUPPORTED",
+				"Deferred Resource queries cannot filter, sort, group, aggregate, " \
+						+ "join, or derive expressions from Resource columns. Use eager " \
+						+ "execution when query evaluation needs a concrete Resource.",
+			),
+		)
+		return result
 	if plan.root is GDSQLInsertPlan:
 		return _execute_insert(plan.root as GDSQLInsertPlan, context, result)
 	if plan.root is GDSQLUpdatePlan:
@@ -28,7 +53,7 @@ func execute(plan: GDSQLQueryPlan, context: GDSQLExecutionContext) -> GDSQLQuery
 		return _execute_delete(plan.root as GDSQLDeletePlan, context, result)
 	result.rows = _execute_select_node(plan.root, context, result)
 	if result.is_successful():
-		result.statistics = { "returned_rows": result.rows.rows.size() }
+		result.statistics["returned_rows"] = result.rows.rows.size()
 		result.value = result.rows
 	return result
 
@@ -176,32 +201,40 @@ func _execute_select_node(
 		context: GDSQLExecutionContext,
 		result: GDSQLQueryExecutionResult,
 ) -> GDSQLRowSet:
+	if node is GDSQLOrderedIndexScanPlan:
+		return _execute_ordered_index_scan(
+			node as GDSQLOrderedIndexScanPlan,
+			context,
+			result,
+		)
 	if node is GDSQLTableScanPlan:
-		var scan := node as GDSQLTableScanPlan
-		var snapshot := context.storage.read_table(scan.table, _get_session(context))
-		var rows := GDSQLRowSet.new()
-		rows.schema = node.output_schema
-		var table_id := _table_id(scan.table)
-		for stored_row in snapshot.rows:
-			var row := stored_row.duplicate_record()
-			row.set_source_values(
-				table_id,
-				stored_row.values,
-				scan.alias if scan.alias != &"" else scan.table.name,
-			)
-			rows.rows.append(row)
-		return rows
+		return _execute_table_scan(
+			node as GDSQLTableScanPlan,
+			context,
+			result,
+		)
 	if node is GDSQLPrimaryKeyLookupPlan:
 		var lookup := node as GDSQLPrimaryKeyLookupPlan
 		var rows := GDSQLRowSet.new()
 		rows.schema = node.output_schema
 		var key: Variant = context.expression_evaluator.evaluate(lookup.key, null)
-		var row := context.storage.find_by_primary_key(lookup.table, key, _get_session(context))
+		var row := context.storage.find_by_primary_key(
+			lookup.table,
+			key,
+			_get_session(context),
+			_read_request(lookup.required_columns),
+		)
 		if row != null:
-			var qualified_row := row.duplicate_record()
+			var qualified_row := _materialize_row(
+				row,
+				lookup.table,
+				lookup.required_columns,
+				context,
+				result,
+			)
 			qualified_row.set_source_values(
 				_table_id(lookup.table),
-				row.values,
+				qualified_row.values,
 				lookup.alias if lookup.alias != &"" else lookup.table.name,
 			)
 			rows.rows.append(qualified_row)
@@ -217,10 +250,14 @@ func _execute_select_node(
 				lookup.index,
 				values,
 				_get_session(context),
+				_read_request(lookup.required_columns),
 			),
 			lookup.table,
 			lookup.alias,
 			node.output_schema,
+			lookup.required_columns,
+			context,
+			result,
 		)
 	if node is GDSQLRangeLookupPlan:
 		var lookup := node as GDSQLRangeLookupPlan
@@ -239,10 +276,14 @@ func _execute_select_node(
 				lookup.include_lower,
 				lookup.include_upper,
 				_get_session(context),
+				_read_request(lookup.required_columns),
 			),
 			lookup.table,
 			lookup.alias,
 			node.output_schema,
+			lookup.required_columns,
+			context,
+			result,
 		)
 	if node is GDSQLNestedLoopJoinPlan:
 		return _execute_nested_loop_join(
@@ -318,6 +359,270 @@ func _execute_select_node(
 	return GDSQLRowSet.new()
 
 
+func _execute_table_scan(
+	scan: GDSQLTableScanPlan,
+	context: GDSQLExecutionContext,
+	result: GDSQLQueryExecutionResult,
+) -> GDSQLRowSet:
+	var rows := GDSQLRowSet.new()
+	rows.schema = scan.output_schema
+	var session := _get_session(context)
+	var request := _read_request(scan.required_columns)
+	var skip_remaining := scan.pushed_offset
+	var take_remaining := scan.pushed_limit
+	if scan.has_pushed_window():
+		result.statistics["scan_window_pushed"] = true
+	if take_remaining == 0:
+		return rows
+	if not context.storage.get_capabilities().supports_bounded_reads():
+		var snapshot := context.storage.read_table(scan.table, session, request)
+		_merge_snapshot_read_statistics(snapshot.rows.size(), result)
+		var stored_rows := _window_rows(
+			snapshot.rows,
+			skip_remaining,
+			take_remaining,
+		)
+		_record_pushed_rows(
+			snapshot.rows.size() - stored_rows.size(),
+			scan.has_pushed_window(),
+			result,
+		)
+		rows.rows = _qualify_lookup_rows(
+			stored_rows,
+			scan.table,
+			scan.alias,
+			scan.output_schema,
+			scan.required_columns,
+			context,
+			result,
+		).rows
+		return rows
+	return _execute_bounded_source(
+		scan.table,
+		scan.alias,
+		scan.output_schema,
+		scan.required_columns,
+		scan.pushed_offset,
+		scan.pushed_limit,
+		null,
+		GDSQLStorageOrderDirection.Direction.ASCENDING,
+		context,
+		result,
+	)
+
+
+func _execute_ordered_index_scan(
+	scan: GDSQLOrderedIndexScanPlan,
+	context: GDSQLExecutionContext,
+	result: GDSQLQueryExecutionResult,
+) -> GDSQLRowSet:
+	result.statistics["ordered_index_window_pushed"] = true
+	result.statistics["ordered_index_name"] = String(scan.index.name)
+	return _execute_bounded_source(
+		scan.table,
+		scan.alias,
+		scan.output_schema,
+		scan.required_columns,
+		scan.pushed_offset,
+		scan.pushed_limit,
+		scan.index,
+		_storage_order_direction(scan.direction),
+		context,
+		result,
+	)
+
+
+func _execute_bounded_source(
+	table: GDSQLTableDefinition,
+	alias: StringName,
+	output_schema: GDSQLResultSchema,
+	required_columns: Array[StringName],
+	pushed_offset: int,
+	pushed_limit: int,
+	index: GDSQLIndexDefinition,
+	direction: GDSQLStorageOrderDirection.Direction,
+	context: GDSQLExecutionContext,
+	result: GDSQLQueryExecutionResult,
+) -> GDSQLRowSet:
+	var rows := GDSQLRowSet.new()
+	rows.schema = output_schema
+	if pushed_limit == 0:
+		return rows
+	var session := _get_session(context)
+	var request := _read_request(required_columns)
+	var skip_remaining := pushed_offset
+	var take_remaining := pushed_limit
+	var cursor: GDSQLStorageReadCursor
+	var seen_cursors: Array[GDSQLStorageReadCursor] = []
+	while true:
+		if context.cancellation != null and context.cancellation.is_cancelled():
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_EXECUTION_CANCELLED",
+					"Query execution was cancelled during a bounded storage read.",
+				),
+			)
+			return rows
+		var requested_size := _scan_batch_size(skip_remaining, take_remaining)
+		var bounded_request := request.bounded(requested_size, cursor)
+		var batch: GDSQLStorageReadBatch
+		if index == null:
+			batch = context.storage.read_batch(table, session, bounded_request)
+		else:
+			batch = context.storage.read_index_batch(
+				table,
+				index,
+				direction,
+				session,
+				bounded_request,
+			)
+		result.diagnostics.merge(batch.diagnostics)
+		_merge_storage_read_statistics(batch, result)
+		if not batch.is_successful():
+			return rows
+		var selected_rows: Array[GDSQLRowRecord] = []
+		var selected_start := mini(skip_remaining, batch.rows.size())
+		skip_remaining -= selected_start
+		var selected_count := batch.rows.size() - selected_start
+		if take_remaining >= 0:
+			selected_count = mini(selected_count, take_remaining)
+			take_remaining -= selected_count
+		for row_index in range(selected_start, selected_start + selected_count):
+			selected_rows.append(batch.rows[row_index])
+		_record_pushed_rows(
+			batch.rows.size() - selected_rows.size(),
+			pushed_offset > 0 or pushed_limit >= 0,
+			result,
+		)
+		var qualified := _qualify_lookup_rows(
+			selected_rows,
+			table,
+			alias,
+			output_schema,
+			required_columns,
+			context,
+			result,
+		)
+		rows.rows.append_array(qualified.rows)
+		if take_remaining == 0:
+			return rows
+		if not batch.has_more():
+			return rows
+		var next_cursor := batch.get_next_cursor()
+		for seen_cursor in seen_cursors:
+			if seen_cursor.is_equivalent_to(next_cursor):
+				result.add_diagnostic(
+					GDSQLQueryDiagnostic.new(
+						&"GDSQL_STORAGE_CURSOR_DID_NOT_ADVANCE",
+						"Storage repeated a continuation during a bounded read.",
+					),
+				)
+				return rows
+		seen_cursors.append(next_cursor)
+		cursor = next_cursor
+	return rows
+
+
+func _storage_order_direction(
+	direction: GDSQLOrderClause.SortDirection,
+) -> GDSQLStorageOrderDirection.Direction:
+	return (
+		GDSQLStorageOrderDirection.Direction.DESCENDING
+		if direction == GDSQLOrderClause.SortDirection.DESCENDING
+		else GDSQLStorageOrderDirection.Direction.ASCENDING
+	)
+
+
+func _scan_batch_size(skip_remaining: int, take_remaining: int) -> int:
+	if take_remaining < 0:
+		return DEFAULT_SCAN_BATCH_SIZE
+	return mini(DEFAULT_SCAN_BATCH_SIZE, skip_remaining + take_remaining)
+
+
+func _window_rows(
+	stored_rows: Array[GDSQLRowRecord],
+	offset: int,
+	limit: int,
+) -> Array[GDSQLRowRecord]:
+	var rows: Array[GDSQLRowRecord] = []
+	var start := mini(offset, stored_rows.size())
+	var end := (
+		stored_rows.size()
+		if limit < 0
+		else mini(start + limit, stored_rows.size())
+	)
+	for index in range(start, end):
+		rows.append(stored_rows[index])
+	return rows
+
+
+func _record_pushed_rows(
+	count: int,
+	window_pushed: bool,
+	result: GDSQLQueryExecutionResult,
+) -> void:
+	if count <= 0 or not window_pushed:
+		return
+	result.statistics["scan_rows_pruned"] = int(
+		result.statistics.get("scan_rows_pruned", 0),
+	) + count
+
+
+func _merge_snapshot_read_statistics(
+	row_count: int,
+	result: GDSQLQueryExecutionResult,
+) -> void:
+	result.statistics["storage_snapshot_fallbacks"] = int(
+		result.statistics.get("storage_snapshot_fallbacks", 0),
+	) + 1
+	result.statistics["storage_rows_scanned"] = int(
+		result.statistics.get("storage_rows_scanned", 0),
+	) + row_count
+	result.statistics["storage_rows_returned"] = int(
+		result.statistics.get("storage_rows_returned", 0),
+	) + row_count
+	result.statistics["storage_physical_read_bounded"] = false
+	_merge_optional_storage_measurement("storage_bytes_read", -1, result)
+	_merge_optional_storage_measurement("storage_pages_read", -1, result)
+
+
+func _merge_storage_read_statistics(
+	batch: GDSQLStorageReadBatch,
+	result: GDSQLQueryExecutionResult,
+) -> void:
+	result.statistics["storage_batches"] = int(
+		result.statistics.get("storage_batches", 0),
+	) + 1
+	result.statistics["storage_rows_scanned"] = int(
+		result.statistics.get("storage_rows_scanned", 0),
+	) + batch.statistics.rows_scanned
+	result.statistics["storage_rows_returned"] = int(
+		result.statistics.get("storage_rows_returned", 0),
+	) + batch.statistics.rows_returned
+	result.statistics["storage_physical_read_bounded"] = bool(
+		result.statistics.get("storage_physical_read_bounded", true),
+	) and batch.statistics.physical_read_bounded
+	_merge_optional_storage_measurement(
+		"storage_bytes_read",
+		batch.statistics.bytes_read,
+		result,
+	)
+	_merge_optional_storage_measurement(
+		"storage_pages_read",
+		batch.statistics.pages_read,
+		result,
+	)
+
+
+func _merge_optional_storage_measurement(
+	key: String,
+	value: int,
+	result: GDSQLQueryExecutionResult,
+) -> void:
+	var current := int(result.statistics.get(key, 0))
+	result.statistics[key] = -1 if current < 0 or value < 0 else current + value
+
+
 func _get_session(context: GDSQLExecutionContext) -> GDSQLStorageSession:
 	return context.session \
 	if context.session != null \
@@ -327,20 +632,115 @@ func _get_session(context: GDSQLExecutionContext) -> GDSQLStorageSession:
 func _qualify_lookup_rows(
 		stored_rows: Array[GDSQLRowRecord],
 		table: GDSQLTableDefinition,
-		alias: StringName,
-		output_schema: GDSQLResultSchema,
+	alias: StringName,
+	output_schema: GDSQLResultSchema,
+	required_columns: Array[StringName],
+	context: GDSQLExecutionContext,
+	result: GDSQLQueryExecutionResult,
 ) -> GDSQLRowSet:
 	var rows := GDSQLRowSet.new()
 	rows.schema = output_schema
 	for stored_row in stored_rows:
-		var row := stored_row.duplicate_record()
+		var row := _materialize_row(
+			stored_row,
+			table,
+			required_columns,
+			context,
+			result,
+		)
 		row.set_source_values(
 			_table_id(table),
-			stored_row.values,
+			row.values,
 			alias if alias != &"" else table.name,
 		)
 		rows.rows.append(row)
 	return rows
+
+
+func _read_request(required_columns: Array[StringName]) -> GDSQLStorageReadRequest:
+	return GDSQLStorageReadRequest.for_columns(required_columns, true)
+
+
+func _materialize_row(
+	stored_row: GDSQLRowRecord,
+	table: GDSQLTableDefinition,
+	required_columns: Array[StringName],
+	context: GDSQLExecutionContext,
+	result: GDSQLQueryExecutionResult,
+) -> GDSQLRowRecord:
+	var row := stored_row.duplicate_record()
+	for column_name in required_columns:
+		var value: Variant = row.get_value(column_name)
+		if not value is GDSQLResourceReference:
+			continue
+		var reference := value as GDSQLResourceReference
+		if context.options != null and context.options.defers_resources():
+			row.set_value(column_name, reference.create_handle(_resource_resolver))
+			result.statistics["resource_handles_created"] = int(
+				result.statistics.get("resource_handles_created", 0),
+			) + 1
+			continue
+		var resolution := _resource_resolver.resolve(reference)
+		if not resolution.is_successful():
+			_add_resource_diagnostics(
+				resolution,
+				table,
+				row,
+				column_name,
+				result,
+			)
+			row.set_value(column_name, null)
+			continue
+		var resource := resolution.get_value() as Resource
+		var column := table.get_column(column_name)
+		if resource == null or column == null or not column.accepts_value(resource):
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_RESOURCE_REFERENCE_TYPE_MISMATCH",
+					"Referenced Resource for %s.%s row '%s' column '%s' does not match %s." % [
+						table.database_name,
+						table.name,
+						row.get_value(table.primary_key),
+						column_name,
+						column.expected_type_name() if column != null else "the declared type",
+					],
+					GDSQLQueryDiagnostic.Severity.ERROR,
+					null,
+					reference,
+				),
+			)
+			row.set_value(column_name, null)
+			continue
+		row.set_value(column_name, resource)
+		result.statistics["resources_materialized"] = int(
+			result.statistics.get("resources_materialized", 0),
+		) + 1
+	return row
+
+
+func _add_resource_diagnostics(
+	resolution: GDSQLOperationResult,
+	table: GDSQLTableDefinition,
+	row: GDSQLRowRecord,
+	column_name: StringName,
+	result: GDSQLQueryExecutionResult,
+) -> void:
+	for entry in resolution.diagnostics.entries:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				entry.code,
+				"%s.%s row '%s' column '%s': %s" % [
+					table.database_name,
+					table.name,
+					row.get_value(table.primary_key),
+					column_name,
+					entry.message,
+				],
+				entry.severity,
+				null,
+				entry.related_object,
+			),
+		)
 
 
 func _execute_aggregate(

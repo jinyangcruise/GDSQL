@@ -140,3 +140,6 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Discard Table"
 icon = ExtResource("5_dwbiq")
+
+[node name="ColumnActions" type="PopupMenu" parent="."]
+unique_name_in_owner = true

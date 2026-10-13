@@ -31,13 +31,18 @@ The current implementation provides:
 - Table browsing, filtering, nested typed WHERE groups, paging, row editing,
   duplication, bounded Undo/Redo, and Resource-aware fields.
 - Schema authoring with defaults, indexes, generated values, Resource
-  ownership, and same-database foreign keys.
+  Embedded/External Reference storage modes, and same-database foreign keys.
 - Direct and Managed Content onboarding, runtime roles, save slots,
   checkpoints, deterministic content overlays, caching, provenance, and save
   compatibility reports.
 - Generated/user-owned model bindings, inferred same-database navigation,
   explicit many-to-many relationships, and cross-role content references.
 - Multi-table navigation and read-only Godot-AI MCP inspection tools.
+- Resource Stages A–B: required-column reads, inert locator transfer, explicit
+  sync/threaded handles, opt-in query/model deferral, and bounded prefetch
+  lifetimes.
+- Resource Stage C: bounded table and ordered-index reads, safe result-window
+  planning, pre-materialization pruning, and honest backend read statistics.
 
 Implementation detail belongs in `docs/architecture/`, public usage belongs in
 the VitePress guides, and completed change history belongs in Git. This file
@@ -47,10 +52,8 @@ tracks only product direction, active work, and deliberately deferred work.
 
 | Priority | Outcome | State |
 |---|---|---|
-| High — first | Bounded Resource Stage A: prevent accidental loading | Roadmap contract defined; architecture contract required |
-| High — second | Versioned migration v1 and compatibility policy | Architecture decision and implementation required |
-| High | Release, recovery, performance, and supported-version QA | Required before a stable release |
-| Medium | Godot-AI lifecycle verification | Tools work; reload, disable, and teardown need live-editor verification |
+| High — first | Release, recovery, and supported-version QA | Crash-safe table commits, catalog/migration recovery, the public migration/recovery guide, PCK/standalone Linux export gates, and the scalar ConfigFile baseline are implemented; selected supported-platform verification remains. Additional benchmarks are deferred until measurements or real projects justify them |
+| Medium | Godot-AI lifecycle and authoring surface | Inspection tools work; reload, disable, and teardown need live-editor verification before bounded query and preview/commit mutation families are added |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
 
@@ -59,22 +62,32 @@ tracks only product direction, active work, and deliberately deferred work.
 The order below is intentional and should remain stable across development
 sessions unless new evidence changes an architectural dependency:
 
-1. **Resource Stage A — avoid accidental loads.** Stabilize referenced-asset
+1. **Resource Stage A — avoid accidental loads (implemented and tested).** Stabilize referenced-asset
    identity, required-column reads, explicit materialization, and contextual
    diagnostics. Preserve the existing eager public behavior only for Resource
    values an operation actually needs.
-2. **Migration v1 — durable schema history.** Build ordered forward schema
+2. **Migration v1 — durable schema history (implemented and tested).** Build ordered forward schema
    migrations, checksums, an applied ledger, dry runs, backups, recovery, and
    headless validation on top of the stable stored-value boundary.
-3. **Migration data/save phases.** Add bounded data transformations,
-   multi-table orchestration, and migration of older `user://` saves after the
-   schema-only path is reliable.
-4. **Resource Stage B — explicit deferred loading.** Add opt-in handles,
-   threaded loading, and prefetch scopes only when the simple eager path and
-   migrations are stable.
-5. **Bounded reads and paged binary storage.** Add cursor/page execution before
-   implementing the binary backend so paging does not inherit full-snapshot
-   behavior.
+3. **Migration data/save phases (implemented and tested).** Typed schema and UPDATE steps
+   form one ordered atomic migration. Isolated ConfigFile simulation previews
+   dependent schema, repeated-table data, and mixed batches with accurate
+   per-step counts; live application uses one recovery snapshot and one ledger
+   record. The database document authors ordered multi-table schema drafts or
+   one typed data step through typed controls. Fresh-save schema provisioning
+   and runtime migration of registered writable saves before hydration are
+   implemented.
+4. **Resource Stage B — explicit deferred loading (implemented and tested).** The typed
+   handle provides synchronous and native threaded on-demand loading, progress,
+   signals, diagnostics, caching, type validation, caller-owned release, and
+   opt-in query/model handles without changing eager defaults. Bounded scopes
+   coordinate aggregate progress, partial failures, and deterministic release.
+5. **Bounded reads (implemented and tested) and scalable storage.** Cursor
+   execution, safe table/index windows, and honest compatibility-backend
+   measurements establish the contract before another backend. Evaluate a
+   SQLite adapter against GDSQL semantics, exported platforms, Resource codecs,
+   migrations, and packaged read-only content before committing to a custom
+   paged binary format.
 6. **Optional working-set eviction.** Add manual or budgeted release policies
    only after profiling demonstrates that projects need them.
 
@@ -354,29 +367,58 @@ small and medium projects.
 
 #### Stage B — explicit deferred loading
 
-- Add opt-in deferred Resource fields or result materialization.
-- Provide synchronous load, threaded request, status, and completion behavior
-  without blocking ordinary query construction.
-- Provide bounded prefetch scopes suitable for a scene, area, encounter, or UI
-  screen.
-- Document how consumers release scene, model, result, and cache references.
+- Synchronous and threaded explicit handles, progress, completion/failure
+  signals, diagnostics, type validation, caching, and caller-owned release are
+  implemented and tested.
+- Opt-in query and model materialization returns handles without resolving
+  assets; Resource-dependent expressions explicitly require eager execution.
+- Bounded prefetch scopes coordinate scene, area, encounter, or UI-screen
+  handles with aggregate progress, partial-failure diagnostics, and release.
+- Query results and models expose scope creation; release clears GDSQL-owned
+  handle/model references while external scene and Godot cache ownership
+  remains explicit.
 
 This stage is for asset-heavy projects and should not complicate the default
 workflow.
 
 #### Stage C — bounded table reads
 
-- Extend storage capabilities with batch/page reads and ordered indexed access.
-- Let scan execution consume bounded batches instead of requiring one complete
-  `TableSnapshot`.
-- Push `LIMIT`/`OFFSET` only when doing so preserves filter, sort, aggregate,
-  distinct, and join semantics.
-- Measure row bytes/pages read separately from Resources materialized.
+- Typed backend-owned cursors, bounded batch results, read statistics, and
+  ConfigFile/in-memory compatibility adapters are implemented and tested.
+- Scan execution consumes bounded batches with cancellation, cursor-progress
+  guards, compatibility fallback, and aggregate storage statistics while
+  retaining the existing relational operator order.
+- Safe single-table `LIMIT`/`OFFSET` windows are pushed before Resource
+  materialization. Predicates, joins, grouping, aggregates, ordering, and
+  distinct selection retain the complete relational pipeline unless the
+  following ordered-index rule applies.
+- Ordered catalog-index batches, direction-bound opaque cursors, capability
+  reporting, and ConfigFile/in-memory compatibility adapters are implemented
+  and tested. Safe indexed `ORDER BY` windows now replace downstream sort and
+  limit nodes; predicates and other row-set-changing operations retain the full
+  pipeline.
+- ConfigFile reports the full table-file byte length only for cache misses and
+  zero bytes for cache hits; OS page counts remain unknown. In-memory storage
+  keeps byte/page counts unknown rather than inventing a physical measurement.
 
 ConfigFile may continue parsing a whole table file while implementing this
 contract through a compatibility adapter.
 
-#### Stage D — paged binary backend
+#### Stage D — scalable storage backend
+
+Start with a bounded SQLite adapter spike behind the existing storage, catalog,
+administration, migration-ledger, and recovery contracts. Target writable
+`user://` save data first, while retaining ConfigFile as the zero-dependency
+authoring and compatibility backend. The spike must pass the shared semantic
+suite and exported-build gates, preserve GDSQL schema authority and Resource
+locator behavior, and measure whether query/predicate pushdown is required.
+
+Adopt SQLite when its native-library distribution and packaged-content behavior
+meet the support matrix. Build the custom paged backend below only if SQLite
+cannot satisfy those constraints or a measured project requirement needs a
+GDSQL-owned format.
+
+If a custom paged backend is required:
 
 - Store versioned table headers, schema fingerprints, generated-key state,
   row/index roots, and independently addressable pages.
@@ -427,25 +469,97 @@ Resource Stage A precedes this work because migrations, dry runs, backups, and
 cache rebuilds must copy referenced-asset identity without loading the assets.
 Migration v1 begins after that stored-value/materialization boundary is stable.
 
-Before implementation, update the architecture documents that currently place
-a general migration framework outside scope. The first supported slice should
-provide:
+The architecture now includes the initial migration boundary. The complete v1
+slice provides:
 
-1. Stable ordered migration IDs, descriptions, checksums, and target database
-   registrations or roles.
+1. Stable ordered migration IDs, descriptions, checksums, and an explicit
+   target database composition. Implemented through the durable ConfigFile
+   runtime factory and public database facade; cross-database plans are
+   rejected.
+   Project-authored definitions are now stored as immutable per-migration files
+   under a stable stream identity, separate from each physical database ledger.
 2. Forward-only typed schema steps built from the existing
-   `GDSQLTableAlteration` vocabulary.
-3. A persisted applied-migration ledger and schema fingerprint.
+   `GDSQLTableAlteration` vocabulary, plus complete create-table definitions
+   and table rename/drop operations. Ordered migrations may contain dependent
+   schema and data operations.
+3. A persisted applied-migration ledger and schema fingerprint. Implemented
+   and enforced by preview and the runner before and after catalog application.
+   Pre-existing current-schema databases can establish one explicit baseline
+   after their typed project-owned schema state, current fingerprint, and
+   complete authored history prefix are verified. A baseline is distinct from
+   applied records. Project schema state is persisted per stable stream with
+   stale-safe, staged replacement, and the editor advances it only after the
+   durable catalog is confirmed at the authored head.
 4. Dry-run planning with affected objects, destructive classification, and
-   structured diagnostics.
-5. Backup and recovery behavior for ConfigFile databases.
+   structured diagnostics. The next pending migration is simulated against an
+   isolated ConfigFile database copy when it contains multiple steps, so every
+   preview observes preceding schema and row changes without touching source data.
+5. Backup and recovery behavior for ConfigFile databases. Implemented with
+   fingerprinted whole-database snapshots, staged restore, rollback, durable
+   reload, explicit cleanup, and cache invalidation.
 6. Headless validation suitable for professional-team CI.
 
-Later slices add canonical data transformations, multi-table orchestration,
-and migration of older `user://` saves. Fresh databases and saves start at the
-current schema; existing durable data applies only pending migrations. Managed
-content sources migrate during authoring, while disposable effective-content
-caches are rebuilt rather than migrated.
+The recovery-safe runner applies every ordered step in one previewed migration,
+records its resulting schema fingerprint, and restores the complete snapshot after catalog,
+fingerprint, or ledger failure. The public database API now previews complete
+history, applies one plan, reports an up-to-date state, and resolves leftover
+backups safely after interruption. The database document now authors the
+current ordered schema draft set, including multiple created or changed tables,
+or one typed row update with scalar literal assignments and a
+nested WHERE predicate. It previews affected rows and summaries, requires
+explicit confirmation, persists before application, and exposes a failed
+application as retryable pending history. Drop is destructive and protected by
+the same whole-database recovery snapshot as other migration failures; rename
+preserves stored rows.
+Once history starts, the editor blocks direct structural saves so they cannot
+bypass the ledger. Live-editor workflow verification, broader interruption
+coverage, and supported-version matrices remain part of release QA.
+
+Automatic registered writable-database migration is implemented before
+in-memory hydration and model registration. The startup coordinator:
+
+1. loads the registration's stable migration stream and trusted schema state;
+2. adopts a baseline only for an empty ledger whose current schema matches that
+   state exactly;
+3. recovers any interrupted migration before planning;
+4. applies pending migrations one at a time through the existing recovery-safe
+   runner; and
+5. verifies the target fingerprint before gameplay models are opened.
+
+History without trusted schema state fails closed. A stream with neither
+history nor state is explicitly unconfigured. Writable registrations may adopt
+a baseline only when an empty ledger already matches independently persisted
+state. Project content is validated against the trusted head without a ledger
+or runtime mutation; outdated content must be migrated in the editor. Table
+creation, rename, and drop are explicit migration operations.
+
+Database containers have an administrative lifecycle rather than migration
+steps. A new writable database either replays a history that begins from an
+empty origin or is provisioned at the trusted current schema and receives a
+verified baseline. New save slots now reuse the active slot's logical
+`game_state` database and stable stream, copy its independently verified schema
+without rows, and adopt the trusted history prefix. The slot name remains its
+physical registration/root identity. Database rename after history starts requires a future atomic
+registry and schema-state operation; unregister and destroy stay explicit user
+actions and are never deployed migration entries.
+
+The migration formats under development target the addon's first public 1.0.
+They may be corrected directly while unreleased; compatibility work begins
+when a persisted format is shipped as supported public behavior.
+
+Canonical data transformations use typed single-table UPDATE steps with
+optional predicates. One migration may order schema and data steps across the
+same or different tables; preview reports per-step counts, execution uses one
+recovery snapshot, and success creates one ledger record. Editor authoring
+supports multiple ordered schema steps or one data step with typed scalar literals,
+nested WHERE groups, and explicit all-row updates while keeping Resource literals
+out of durable migration files.
+Fresh-save provisioning creates the current schema and a verified baseline
+without copying player rows. Fresh databases and saves start at the current
+schema; registered writable saves recover interrupted work and apply only their
+pending migrations before runtime hydration. Managed content sources migrate
+during authoring, while disposable effective-content caches are rebuilt rather
+than migrated.
 
 Applied migration files are immutable. Editing an applied file must produce a
 checksum or schema-drift diagnostic instead of silently changing history.
@@ -473,11 +587,123 @@ Release readiness requires:
 - Stable diagnostics for missing files, unsupported formats, schema drift, and
   incompatible generated models.
 
+The first QA slice is implemented: Godot 4.7 is the explicit supported editor
+line, public documentation no longer promises every Godot 4 release, and CI
+loads the packaged `addons/gdsql` directory in an otherwise empty project after
+the test suite. This detects hidden development-addon dependencies and packaged
+script loading failures before release creation.
+
+The exported-runtime slice builds a PCK from a minimal project containing only
+the packaged addon, excludes editor entry points, and executes the pack in game
+mode. Its runtime fixture creates a writable database and table, inserts a row,
+reopens the database, and verifies the persisted query result. This catches
+export inclusion, script remap, global-class and runtime composition failures.
+CI also pins Godot 4.7.2 with its matching cached export templates, builds a
+standalone Linux x86_64 executable, and runs the same fixture through the
+stripped runtime binary. This closes the editor-class masking gap for the first
+supported export target. Broader platform coverage should follow only when the
+public support matrix names those platforms.
+
+Migration recovery now also injects a deterministic failure at the directory
+swap activation boundary. The test verifies that the displaced live database
+is restored, the verified backup remains available, and a later restore can
+retry successfully. Runtime checkpoint QA forces a multi-table durable commit
+failure and verifies that every table remains dirty until one complete retry
+succeeds. ConfigFile row commits now stage and verify complete replacement
+files for every touched table and activate them behind one database-scoped
+preparing/committed marker. Reopen-time tests cover rollback before the commit
+point and cleanup after it; hardware power-loss guarantees remain limited by
+the filesystem behavior Godot exposes. Create and alter replacement stage
+schema and row files together and recover an interrupted pair when the catalog reopens. Table
+rename and destructive removal now use explicit preparing/committed markers:
+reopening rolls back work before the commit point and finishes cleanup after
+it. Database rename/drop uses a separate boundary because it coordinates the root
+registry with an entire directory identity. That boundary now stages the root
+registry, resolves global lifecycle markers before any catalog read, and covers
+first registration, non-destructive unregister, rename, and destructive drop.
+Registration rollback preserves the physical directory so an existing database
+can always be registered again. The recoverable catalog-write boundary is now
+complete.
+
+Large-data benchmarking will use deterministic fixtures and report evidence
+before enforcing budgets. The initial matrix is:
+
+- scalar tables at 1,000, 10,000, and 100,000 rows for paged scans, primary-key
+  and secondary-index lookup, filtered ordering, and bounded result windows;
+- batched inserts, updates, deletes, checkpoints, and reopen cost, including
+  bytes read and written where the storage boundary exposes them;
+- reference columns measured separately for identity-only access, prefetch, and
+  materialization so heavy assets are never confused with scalar row cost;
+- managed-content cold composition, cache reuse, and one-package invalidation.
+
+Benchmarks remain outside ordinary correctness tests. Results record the Godot
+version, build type, hardware, dataset seed, cold/warm state, elapsed time, and
+peak memory. CI should first preserve comparable reports without failing on
+timing; regression thresholds are introduced only after stable baselines exist.
+
+The first report-only benchmark slice is implemented for deterministic scalar
+ConfigFile tables at 1,000, 10,000, and 100,000 rows. It records a fixed
+public-API batched-insert probe, reopen cost, cold/warm bounded scans, ordered
+windows, primary and secondary lookups, filtered ordering, full counts, indexed
+single-row updates/deletes, table bytes, storage statistics, process memory,
+Godot build, and host details. Large read fixtures use the backend codec for
+deterministic setup and reopen through the public API before measurement, so
+known staged-insert cost does not prevent the 100,000-row cases from running.
+Local runs preserve Markdown and JSON under `reports/benchmarks/configfile/`;
+the manual benchmark workflow uploads the same reports without enforcing
+machine-dependent timing budgets. Resource, checkpoint, and Managed Content
+fixtures remain separate follow-up slices.
+
+### ConfigFile checkpoint rescue
+
+The scalar benchmark shows that constructing and saving one complete
+100,000-row ConfigFile snapshot is practical on the measured machine. That
+fixture builds the file in memory, rebuilds its indexes once, and saves the
+whole file once. It does not exercise the normal transactional mutation path
+and is not yet a crash-safe temporary-file replacement.
+
+Keep the following work recorded, but gate it on checkpoint measurements at
+ordinary project sizes rather than treating every item as a release blocker:
+
+1. Use one per-table mutation map so a transaction does not repeatedly rebuild
+   the same effective table snapshot.
+2. Track dirty row identities and table versions in the in-memory backend so a
+   checkpoint can transfer changed rows without diffing two complete tables.
+3. **Implemented and tested.** ConfigFile commits build complete replacement
+   tables, verify their staged files, and activate every table touched by one
+   database transaction behind a recoverable commit marker. Checkpoints reuse
+   this storage boundary and retain dirty in-memory versions when activation
+   fails.
+4. Consider incremental ConfigFile index and constraint maintenance only if
+   profiling shows that ConfigFile must support larger frequently-mutated
+   tables. This is deferred because it duplicates work better owned by the
+   paged backend.
+
+The first two remaining items may reduce editor/runtime stalls while ConfigFile
+remains the default mutable backend and stay measurement-gated. The implemented
+third item is the durability boundary for ordinary mutations and checkpoints,
+not a new query feature. The public migration/recovery guide now explains the
+implemented persistence and recovery behavior.
+
+### Optional native acceleration
+
+Keep a C++ GDExtension backend or accelerator in the future backlog. Consider
+it only after the storage layout and algorithms are stable and profiling shows
+CPU-bound work that GDScript cannot meet. Preserve the existing storage
+contracts, use coarse page/buffer/index operations across the language
+boundary, and avoid per-cell calls. Native acceleration does not replace
+paging, bounded I/O, or crash-safe persistence, and it adds per-platform build,
+packaging, and compatibility work.
+
 ## 4. Editor and integration completion
 
 - Verify Godot-AI tool registration across plugin load order, reload, disable,
-  teardown, and project changes. Query execution and mutations remain deferred
-  until the read-only contract is stable.
+  teardown, and project changes.
+- Add a UI-independent agent authoring service, then expose bounded query,
+  row-mutation, schema/database, and migration operation families through
+  Godot-AI. Mutations use preview plus one-use confirmation handles. The action
+  hub may refresh or navigate editor UI afterward but does not execute the
+  domain mutation. A future CLI may reuse the same service.
 - Replace the 500-row foreign-key/content-reference popup boundary with
   debounced canonical search and paginated results.
 - Keep editor actions, table navigation, and schema operations exposed through
@@ -508,6 +734,9 @@ activation fails.
 - Editor localization.
 - Configurable shortcuts in a dedicated Godot editor-settings section.
 - Automatic background updates.
+- Optional C++ GDExtension acceleration after storage algorithms and the paged
+  format are stable; retain a GDScript-compatible contract and measure before
+  adopting the additional distribution burden.
 
 ## Documentation policy
 
@@ -517,9 +746,8 @@ runtime/model relationships, typed APIs, troubleshooting, Godot-AI integration,
 architecture, and project philosophy.
 
 New documentation should accompany an implemented or approved contract. The
-next required documents are migration/recovery guidance and a release
-compatibility matrix; do not add end-user updater instructions before that
-feature exists.
+compatibility matrix and migration/recovery guide are published. Do not add
+end-user updater instructions before that feature exists.
 
 ## Definition of plug and play
 

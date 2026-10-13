@@ -17,6 +17,14 @@ func inspect_root(
 ) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	var resolver := GDSQLDatabasePathResolver.new(data_root)
+	var database_recovery := GDSQLConfigFileDatabaseLifecycleTransaction.new(
+		resolver,
+	).recover()
+	result.diagnostics.merge(database_recovery.diagnostics)
+	if not database_recovery.is_successful():
+		var inspections: Array[GDSQLDatabaseInspection] = []
+		result.value = inspections
+		return result
 	var catalog_path := resolver.resolve_catalog_path()
 	var catalog := ConfigFile.new()
 	var load_error := catalog.load(catalog_path)
@@ -49,7 +57,19 @@ func inspect_root(
 			GDSQLStorageBackendIds.CONFIG_FILE,
 		)
 		var inspection := GDSQLDatabaseInspection.new(registration, true)
-		inspection.tables = _inspect_tables(resolver, database_name, result)
+		var recovered := GDSQLConfigFileTableLifecycleTransaction.new(resolver) \
+				.recover_database(database_name)
+		result.diagnostics.merge(recovered.diagnostics)
+		if recovered.is_successful():
+			var pair_recovery := GDSQLConfigFileCatalogTransaction.new(resolver) \
+					.recover_database(database_name)
+			result.diagnostics.merge(pair_recovery.diagnostics)
+			if pair_recovery.is_successful():
+				var data_recovery := GDSQLConfigFileTableDataTransaction.new(resolver) \
+						.recover_database(database_name)
+				result.diagnostics.merge(data_recovery.diagnostics)
+				if data_recovery.is_successful():
+					inspection.tables = _inspect_tables(resolver, database_name, result)
 		inspections.append(inspection)
 	result.value = inspections
 	return result

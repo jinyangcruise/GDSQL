@@ -5,6 +5,10 @@ func visit_table_scan(node: GDSQLTableScanPlan) -> Variant:
 	return null
 
 
+func visit_ordered_index_scan(node: GDSQLOrderedIndexScanPlan) -> Variant:
+	return null
+
+
 func visit_primary_key_lookup(node: GDSQLPrimaryKeyLookupPlan) -> Variant:
 	return null
 

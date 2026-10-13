@@ -4,6 +4,7 @@ extends GDSQLPlanNode
 var table: GDSQLTableDefinition
 var alias: StringName
 var key: GDSQLQueryExpression
+var required_columns: Array[StringName] = []
 
 
 func accept(visitor: GDSQLPlanNodeVisitor) -> Variant:

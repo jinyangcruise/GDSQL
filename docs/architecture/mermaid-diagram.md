@@ -48,9 +48,18 @@ Workbench("`**GDSQLWorkbench**
 *Collection API:* load(), discover_root(), discover_children(), select_registration()
 *Session API:* select_table(), load_rows(), preview_table_change(), apply_pending_change()
 *Metadata:* Lightweight catalog, schema and table-header inspections
-*Schema UI:* Scene-backed fixed header and reusable rows over typed column drafts; row context actions preview removal dependencies and stay reversible before save
+*Schema UI:* Scene-backed fixed header and reusable rows over typed column drafts; row context actions preview removal dependencies; compact table actions stage rename/drop
 *Reference UI:* Bounded canonical target-row lookup and searchable key picker
 *Rows:* Loaded only for the selected table`")
+
+MigrationAuthoring("`**Editor Migration Authoring**
+
+-
+*Purpose:* Turn the ordered schema draft set or one typed row update into immutable project history
+*Data UI:* Typed literal assignments plus nested WHERE; explicit all-row confirmation
+*Preview:* Ordered affected rows, step summaries and destructive classification
+*Safety:* Explicit confirmation, stale-count append and stale-safe application
+*Recovery:* A persisted failure remains pending and retryable`")
 
 ForeignKeyAuthoring("`**Foreign Key Authoring**
 
@@ -264,6 +273,15 @@ Factory("`**GDSQLRuntimeFactory**
 *Creates:* GDSQLDatabaseContext and GDSQLRuntimeSession
 *Injects:* Catalog, storage, validation, planning and execution services`")
 
+MigrationStartup("`**GDSQLMigrationStartupCoordinator**
+
+-
+*Purpose:* Reach a trusted durable schema before hydration and models
+*Project flow:* Verify trusted head without ledger or mutation; fail when outdated
+*Writable flow:* Recover, conditionally baseline, apply sequentially, verify
+*Policy:* No history and state is unconfigured; history without state fails closed
+*Returns:* GDSQLMigrationStartupResult with baseline, recovered and applied IDs`")
+
 Translators("`**Frontend Translators**
 
 -
@@ -327,6 +345,8 @@ Planner("`**GDSQLQueryPlanner**
 *Purpose:* Choose executable operations for a bound query
 *API:* create_plan(bound_query)
 *Returns:* GDSQLQueryPlanningResult containing GDSQLQueryPlan
+*Derives:* Required columns and concrete Resource evaluation requirements
+*Optimizes:* Safe single-table OFFSET/LIMIT table or ordered-index windows
 *Extended by:* GDSQLDefaultQueryPlanner`")
 
 PlanNode("`**GDSQLPlanNode**
@@ -334,7 +354,7 @@ PlanNode("`**GDSQLPlanNode**
 -
 *Purpose:* Represent one executable operation in a query plan
 *API:* accept(visitor)
-*Read nodes:* Scan, primary-key, exact-index, range-index, join, filter, aggregate, sort, projection, distinct and limit
+*Read nodes:* Scan, ordered-index scan, primary-key, exact-index, range-index, join, filter, aggregate, sort, projection, distinct and limit
 *Mutation nodes:* Insert, update and delete`")
 
 Executor("`**GDSQLQueryExecutor**
@@ -343,6 +363,7 @@ Executor("`**GDSQLQueryExecutor**
 *Purpose:* Execute a query plan using runtime service contracts
 *API:* execute(plan, execution_context)
 *Returns:* GDSQLQueryExecutionResult
+*Resources:* Materializes only required references through an injected resolver
 *Extended by:* GDSQLDefaultQueryExecutor`")
 
 ForeignKeyValidation("`**GDSQLForeignKeyConstraintValidator**
@@ -389,18 +410,115 @@ CatalogAdministration("`**GDSQLCatalogAdministrationService**
 *Purpose:* Manage database and table lifecycle without exposing storage format
 *Database API:* create_database(), rename_database(), drop_database()
 *Table API:* create_table(), rename_table(), alter_table(), drop_table()
-*Plan API:* preview_alter_table(), apply_change_plan()
+*Plan API:* create/alter/rename/drop previews and apply_change_plan()
 *Integrity:* Reject incoming-reference-breaking schema changes
 *Extension point:* Catalog administration backend implementations`")
+
+MigrationHistory("`**Schema Migration History**
+
+-
+*Input:* Ordered GDSQLMigrationDefinition values with typed schema or data steps
+*Integrity:* Deterministic checksums; applied history must be an exact prefix
+*Plan:* GDSQLMigrationPlanner returns pending definitions and destructive status
+*Boundary:* Models never create or infer migrations`")
+
+MigrationHistoryStore("`**GDSQLMigrationHistoryStore**
+
+-
+*Purpose:* Persist project-owned authored history by stable stream
+*API:* load(), append() with expected definition count
+*Boundary:* Shared source definitions, never per-database applied state`")
+
+MigrationSchemaState("`**GDSQLMigrationSchemaState**
+
+-
+*Purpose:* Bind one stable stream and logical database to a verified history prefix
+*Evidence:* History count/head, prefix checksum and whole-schema fingerprint
+*Boundary:* Project-owned trust input for baseline adoption`")
+
+MigrationSchemaStateStore("`**GDSQLMigrationSchemaStateStore**
+
+-
+*Purpose:* Load and advance project-owned schema evidence
+*API:* load(), save() with expected previous history checksum
+*Safety:* Stale protection and monotonic established history positions`")
+
+MigrationStepPlanning("`**Migration Step Planning**
+
+-
+*Input:* Target database and next pending migration
+*API:* GDSQLMigrationStepPlanner.preview_next()
+*Output:* Ordered GDSQLMigrationStepPreview values in one GDSQLMigrationStepPlan
+*Scope:* Direct single-step preview or isolated multi-step simulation without source mutation`")
+
+MigrationSimulation("`**Migration Simulation**
+
+-
+*Contract:* GDSQLMigrationSimulator
+*ConfigFile backend:* Temporary user-storage database copy
+*Behavior:* Apply schema/data steps in authored order through the real pipeline
+*Supports:* Dependent schema, repeated-table data and mixed batches`")
+
+MigrationLedger("`**GDSQLMigrationLedger**
+
+-
+*Purpose:* Persist append-only applied migration evidence
+*Baseline:* One verified adopted history prefix for a pre-existing schema
+*Records:* ID, checksum, application time and resulting schema fingerprint
+*Concurrency:* Adoption and append require the expected ledger revision
+*Extension point:* Migration ledger backend implementations`")
+
+MigrationRecovery("`**GDSQLMigrationRecoveryStore**
+
+-
+*Purpose:* Preserve and restore complete pre-migration database state
+*Evidence:* GDSQLMigrationBackup identity, creation time and SHA-256 fingerprint
+*API:* list_backups(), create_backup(), load_backup(), restore(), discard()
+*Boundary:* Durable recovery, not query transactions or long-term archives`")
+
+MigrationRunner("`**GDSQLMigrationRunner**
+
+-
+*Input:* One validated GDSQLMigrationStepPlan
+*Preconditions:* Current ledger revision and whole-schema fingerprint
+*Success:* Apply every ordered schema/data preview, then append one ledger record
+*Failure:* Restore complete backup and retain structured diagnostics`")
+
+MigrationService("`**GDSQLMigrationService**
+
+-
+*Purpose:* Supported baseline, preview, apply and interruption-recovery orchestration
+*API:* adopt_baseline(), adopt_baseline_if_current(), preview(), apply(), recover_interrupted(), recover_pending()
+*Results:* Up-to-date or next plan; applied record; restored or cleanup-only recovery
+*Composition:* Durable ConfigFile authoring contexts only`")
+
+FreshProvisioning("`**GDSQLEditorFreshSaveProvisioner**
+
+-
+*Purpose:* Create a new writable database at a trusted current schema head
+*Input:* Verified template catalog, authored history, schema state and empty target
+*Mutation:* Copy schema without rows, add foreign keys after tables, adopt baseline
+*Safety:* Verify source and target fingerprints; roll back created catalog on failure`")
 
 TableStorage("`**GDSQLTableStorage**
 
 -
 *Purpose:* Isolate row persistence from query execution
-*Read API:* read_table(), primary-key/index/range lookup, get_capabilities()
+*Read API:* read_table(), read_batch(), read_index_batch(), primary-key/index/range lookup, get_capabilities()
+*Read input:* GDSQLStorageReadRequest with required columns, reference policy and optional batch continuation
 *Mutation API:* stage_insert(), stage_update(), stage_delete()
 *Transaction API:* commit(), rollback()
 *Extension point:* Table storage backend implementations`")
+
+StorageBatches("`**Bounded Storage Reads**
+
+-
+*Request:* Positive batch size plus backend/source-bound opaque GDSQLStorageReadCursor
+*Result:* GDSQLStorageReadBatch with rows, continuation, diagnostics and statistics
+*Ordered index:* Cursor also binds the catalog index and traversal direction
+*Metrics:* Rows scanned/returned, optional bytes/pages and physical-bound flag
+*Window:* Safe scan offsets/limits are applied before Resource materialization
+*Boundary:* Execution passes cursors back without inspecting backend tokens`")
 
 subgraph ConfigFileBackend["ConfigFile backend"]
 ConfigCatalog("`**GDSQLConfigFileCatalogService**
@@ -419,11 +537,73 @@ ConfigAdministration("`**GDSQLConfigFileCatalogAdministrationService**
 *Extends:* GDSQLCatalogAdministrationService
 *Uses:* Catalog reader, path resolver and ConfigFile cache`")
 
+ConfigMigrationLedger("`**GDSQLConfigFileMigrationLedger**
+
+-
+*Purpose:* Validate and persist one database's baseline and ordered applied history
+*Location:* &lt;data_root&gt;/&lt;database&gt;/migrations.cfg
+*Extends:* GDSQLMigrationLedger
+*Uses:* GDSQLDatabasePathResolver`")
+
+ConfigMigrationHistory("`**GDSQLConfigFileMigrationHistoryStore**
+
+-
+*Purpose:* Persist one immutable authored definition per ConfigFile
+*Location:* res://.gdsql/migrations/&lt;stream&gt;/&lt;migration_id&gt;.cfg
+*Integrity:* Filename identity, strict order and recorded checksum
+*Extends:* GDSQLMigrationHistoryStore`")
+
+ConfigMigrationSchemaState("`**GDSQLConfigFileMigrationSchemaStateStore**
+
+-
+*Purpose:* Persist trusted stream/head schema evidence
+*Location:* res://.gdsql/migration_states/&lt;stream&gt;.cfg
+*Safety:* Staged activation, previous-file recovery and stale checks
+*Extends:* GDSQLMigrationSchemaStateStore`")
+
+ConfigMigrationRecovery("`**GDSQLConfigFileMigrationRecoveryStore**
+
+-
+*Purpose:* Fingerprint and restore whole ConfigFile database directories
+*Location:* &lt;data_root&gt;/.gdsql_migration_recovery/&lt;database&gt;/&lt;migration&gt;
+*Safety:* Verified staging copy, directory swap, rollback and cache invalidation
+*Extends:* GDSQLMigrationRecoveryStore`")
+
+ConfigCatalogTransaction("`**GDSQLConfigFileCatalogTransaction**
+
+-
+*Purpose:* Activate one table's schema and row files as a recoverable pair
+*Safety:* Building files, previous files and reopen-time interruption recovery
+*Scope:* Table create and alter replacement`")
+
+ConfigTableLifecycle("`**GDSQLConfigFileTableLifecycleTransaction**
+
+-
+*Purpose:* Move or remove table identities through recoverable commit states
+*Safety:* Preparing/committed markers with rollback or cleanup on reopen
+*Scope:* Table rename and drop; database lifecycle remains separate`")
+
+ConfigDatabaseLifecycle("`**GDSQLConfigFileDatabaseLifecycleTransaction**
+
+-
+*Purpose:* Coordinate registration visibility and database directory identity
+*Safety:* Staged registry plus global preparing/committed recovery markers
+*Scope:* Register, unregister, rename, and destructive drop`")
+
+ConfigTableDataTransaction("`**GDSQLConfigFileTableDataTransaction**
+
+-
+*Purpose:* Activate complete replacement table snapshots as one database commit
+*Safety:* Verified staging plus preparing/committed marker recovery
+*Scope:* Query, transaction, truncate and in-memory checkpoint row persistence`")
+
 ConfigStorage("`**GDSQLConfigFileTableStorage**
 
 -
 *Purpose:* Persist table rows as ConfigFile sections and values
-*API:* Read, primary-key/index/range lookup, staged mutations, commit and rollback
+*API:* Snapshot/scan/ordered-index batches, lookup, staged mutations, commit and rollback
+*Batch behavior:* Bounds decoded rows after ConfigFile has parsed table and index metadata
+*Statistics:* Cache-miss file bytes; zero bytes on cache hits; OS pages unknown
 *Maintains:* Reserved index entries during committed mutations
 *Extends:* GDSQLTableStorage
 *Uses:* Path resolver, ConfigFile cache and Variant codec`")
@@ -433,8 +613,19 @@ ConfigInfrastructure("`**ConfigFile Infrastructure**
 -
 *Purpose:* Contain ConfigFile-specific paths, caching and serialization
 *Path API:* resolve_catalog_path(), resolve_schema_path(), resolve_table_path()
-*Cache API:* get_or_load(), invalidate(), flush()
-*Types:* GDSQLDatabasePathResolver, GDSQLConfigFileCache, GDSQLGodotVariantCodec, GDSQLResourceLocator`")
+*Cache API:* get_or_load(), get_or_load_with_statistics(), invalidate(), flush()
+*Types:* GDSQLDatabasePathResolver, GDSQLConfigFileCache, GDSQLConfigFileCacheLoadResult, GDSQLGodotVariantCodec`")
+
+ResourceMaterialization("`**Resource Materialization**
+
+-
+*Purpose:* Preserve inert referenced-asset identity and materialize it only through explicit policy
+*Identity:* GDSQLResourceReference
+*Deferred state:* GDSQLResourceHandle with sync/threaded load, progress, signals and release
+*Bounded lifetime:* GDSQLResourcePrefetchScope with aggregate progress and release
+*Opt-in:* GDSQLQueryExecutionOptions and ModelQuery.defer_resources()
+*Contract:* GDSQLResourceResolver sync plus optional request/poll
+*Default:* GDSQLGodotResourceResolver`")
 
 ConfigPackageManifest("`**ConfigFile Package Manifest Store**
 
@@ -491,7 +682,8 @@ MemoryStorage("`**GDSQLInMemoryTableStorage**
 
 -
 *Purpose:* Keep authoritative table rows in memory
-*API:* Read, lookup, staged mutations, commit and rollback
+*API:* Snapshot/scan/ordered-index batches, lookup, staged mutations, commit and rollback
+*Batch behavior:* Bounds returned rows after assembling and ordering the effective in-memory set
 *State:* Committed rows, table metadata and dirty versions
 *Extends:* GDSQLTableStorage`")
 
@@ -526,10 +718,12 @@ SQLEditor -->|"tokenize() · parse() · compile()"| Translators
 Database -->|"query() · table()"| Translators
 Translators -->|"build() / compile()"| QuerySpec
 Code -->|"column() · literal() · logical and function factories"| Expr
+Code -->|"author ordered forward schema history"| MigrationHistory
 Expr -->|"creates canonical nodes"| Expression
 Expression -->|"contained by"| QuerySpec
 
 Database -->|"execute(query) · lifecycle methods"| Context
+Context -->|"baseline · preview · apply · recover migration"| MigrationService
 Database -->|"transaction(callback)"| Transaction
 Code -->|"register handles · select roles"| RuntimeRegistry
 Code -->|"bootstrap · role databases · checkpoints"| RuntimeSession
@@ -567,6 +761,35 @@ McpAdapter -.->|"read-only inspection state"| Workbench
 McpAdapter -.->|"profile readiness"| DirectSetup
 McpAdapter -.->|"managed readiness"| ManagedSetup
 Workbench -->|"preview · apply change plan"| CatalogAdministration
+MigrationAuthoring -->|"append immutable definition"| MigrationHistoryStore
+MigrationAuthoring -->|"preview_migrations() · apply_migration()"| Database
+MigrationAuthoring -->|"record verified authored head"| MigrationSchemaStateStore
+MigrationHistory -->|"compare authored and applied prefix"| MigrationLedger
+MigrationHistory -->|"loaded from project stream"| MigrationHistoryStore
+MigrationSchemaState -->|"verify exact authored prefix"| MigrationHistory
+MigrationService -->|"validate complete authored history"| MigrationHistory
+MigrationService -->|"adopt trusted baseline"| MigrationSchemaState
+MigrationService -->|"preview next pending entry"| MigrationStepPlanning
+MigrationService -->|"apply one validated plan"| MigrationRunner
+MigrationService -->|"resolve leftover backup against ledger"| MigrationRecovery
+MigrationService -->|"detect committed migration"| MigrationLedger
+MigrationService -->|"verify baseline and drift fingerprints"| CatalogService
+FreshProvisioning -->|"create schema without rows"| CatalogAdministration
+FreshProvisioning -->|"verify source and target"| MigrationSchemaState
+FreshProvisioning -->|"adopt trusted prefix"| MigrationService
+Workbench -->|"provision new save slot"| FreshProvisioning
+MigrationHistory -->|"preview next pending entry"| MigrationStepPlanning
+MigrationStepPlanning -->|"preview typed table lifecycle"| CatalogAdministration
+MigrationStepPlanning -->|"validate and count canonical update"| Validator
+MigrationStepPlanning -->|"preview ordered multi-step entry"| MigrationSimulation
+MigrationSimulation -->|"isolated schema plans"| CatalogAdministration
+MigrationSimulation -->|"isolated canonical updates"| Executor
+MigrationStepPlanning -->|"validated next plan"| MigrationRunner
+MigrationRunner -->|"create · restore · discard"| MigrationRecovery
+MigrationRunner -->|"apply_change_plan()"| CatalogAdministration
+MigrationRunner -->|"execute canonical row update"| Executor
+MigrationRunner -->|"load · append applied record"| MigrationLedger
+MigrationRunner -->|"read schema for drift and result fingerprints"| CatalogService
 Workbench -->|"table designer context"| ForeignKeyAuthoring
 ForeignKeyAuthoring -->|"typed add/drop intent"| CatalogAdministration
 ForeignKeyAuthoring -.->|"candidate metadata"| ForeignKeys
@@ -597,7 +820,10 @@ ResourceConstraint -->|"static property metadata"| ResourceProperties
 Validator -->|"validate scalar leaf path"| ResourceProperties
 Workbench -.->|"Resource WHERE field choices"| ResourceProperties
 CatalogService -->|"table integrity metadata"| ForeignKeys
-Executor -->|"read_table() · find_by_primary_key()"| TableStorage
+Executor -->|"read_batch() · read_index_batch() · lookup reads"| TableStorage
+Executor -->|"consume bounded scan/index continuations"| StorageBatches
+TableStorage -->|"read_batch(request) · read_index_batch(request)"| StorageBatches
+Executor -->|"materialize required references"| ResourceMaterialization
 Executor -->|"stage_*() · commit() · rollback()"| TableStorage
 Context -->|"validate final transaction state"| ForeignKeyValidation
 ForeignKeyValidation -->|"discover same-database constraints"| CatalogService
@@ -605,6 +831,10 @@ ForeignKeyValidation -->|"read effective session rows"| TableStorage
 
 CatalogService -->|"extended by"| ConfigCatalog
 CatalogAdministration -->|"extended by"| ConfigAdministration
+MigrationLedger -->|"extended by"| ConfigMigrationLedger
+MigrationHistoryStore -->|"extended by"| ConfigMigrationHistory
+MigrationSchemaStateStore -->|"extended by"| ConfigMigrationSchemaState
+MigrationRecovery -->|"extended by"| ConfigMigrationRecovery
 TableStorage -->|"extended by"| ConfigStorage
 TableStorage -->|"extended by"| MemoryStorage
 
@@ -612,8 +842,22 @@ MemoryCheckpoint -->|"reads dirty table versions"| MemoryStorage
 MemoryCheckpoint -->|"stages and commits durable changes"| TableStorage
 
 ConfigCatalog -->|"path resolution"| ConfigInfrastructure
+ConfigCatalog -->|"recover schema/table pairs"| ConfigCatalogTransaction
+ConfigCatalog -->|"recover table lifecycle markers"| ConfigTableLifecycle
+ConfigCatalog -->|"recover root registry/directory lifecycle"| ConfigDatabaseLifecycle
 ConfigAdministration -->|"paths · cache"| ConfigInfrastructure
+ConfigAdministration -->|"replace schema/table pairs"| ConfigCatalogTransaction
+ConfigAdministration -->|"rename/drop table pairs"| ConfigTableLifecycle
+ConfigAdministration -->|"rename/drop databases"| ConfigDatabaseLifecycle
+ConfigCatalogTransaction -->|"paths · ConfigFile activation"| ConfigInfrastructure
+ConfigTableLifecycle -->|"paths · marker activation"| ConfigInfrastructure
+ConfigDatabaseLifecycle -->|"paths · registry/directory activation"| ConfigInfrastructure
+ConfigMigrationLedger -->|"ledger path"| ConfigInfrastructure
+ConfigMigrationRecovery -->|"recovery paths · cache invalidation"| ConfigInfrastructure
 ConfigStorage -->|"paths · cache · codec"| ConfigInfrastructure
+ConfigStorage -->|"recoverable multi-table replacement"| ConfigTableDataTransaction
+ConfigTableDataTransaction -->|"paths · cache invalidation"| ConfigInfrastructure
+ConfigInfrastructure -->|"reference identity · resolver"| ResourceMaterialization
 ConfigPackageManifest -->|"decodes typed metadata"| PackageManifest
 ConfigPackageScaffolder -->|"validates typed metadata"| PackageManifest
 ConfigPackageDiscovery -->|"discover package sources"| PackageResolution
@@ -626,17 +870,22 @@ ConfigSaveContent -->|"saved package expectations"| SaveCompatibility
 Factory -.->|"create_default(data_root)"| Context
 Factory -.->|"constructs and injects"| ConfigInfrastructure
 Factory -.->|"bootstrap()"| RuntimeSession
+Factory -->|"prepare durable registrations before hydration"| MigrationStartup
+MigrationStartup -->|"load trusted prefix"| MigrationHistoryStore
+MigrationStartup -->|"load trusted target schema"| MigrationSchemaStateStore
+MigrationStartup -->|"baseline · recover · preview · apply"| MigrationService
 Factory -.->|"activate_effective_content()"| ContentActivation
 Factory -.->|"create_in_memory(data_root)"| MemoryStorage
 
-class Code,Models,Workbench,ForeignKeyAuthoring,RowBatch,MutationHistory,ModelAssistant,ContentReference,McpAdapter,GraphEditor,SQLEditor,Expr frontend;
-class Database,Context,Factory,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,SetupProfile,ManagedConfiguration,DirectSetup,ManagedSetup,PackageManifest,PackageResolution,ContentOverlay,ContentCache,ContentActivation,SaveCompatibility,Persistence runtime;
+class Code,Models,Workbench,MigrationAuthoring,ForeignKeyAuthoring,RowBatch,MutationHistory,ModelAssistant,ContentReference,McpAdapter,GraphEditor,SQLEditor,Expr frontend;
+class Database,Context,Factory,MigrationStartup,Transaction,RuntimeRegistry,RuntimeSession,RuntimeNode,SetupProfile,ManagedConfiguration,DirectSetup,ManagedSetup,PackageManifest,PackageResolution,ContentOverlay,ContentCache,ContentActivation,SaveCompatibility,Persistence runtime;
 class Translators translation;
 class QuerySpec,Expression canonical;
 class Validator,BoundQuery validation;
 class Planner,PlanNode planning;
-class Executor,ForeignKeyValidation execution;
-class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys catalog;
+class Executor,ForeignKeyValidation,MigrationRunner,MigrationService,FreshProvisioning execution;
+class CatalogService,CatalogAdministration,ResourceConstraint,ResourceProperties,ForeignKeys,MigrationHistory,MigrationHistoryStore,MigrationSchemaState,MigrationSchemaStateStore,MigrationStepPlanning,MigrationSimulation,MigrationLedger,MigrationRecovery catalog;
 class TableStorage storage;
-class ConfigCatalog,ConfigAdministration,ConfigStorage,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
+class ConfigCatalog,ConfigAdministration,ConfigMigrationHistory,ConfigMigrationSchemaState,ConfigMigrationLedger,ConfigMigrationRecovery,ConfigStorage,ConfigTableDataTransaction,ConfigInfrastructure,ConfigPackageManifest,ConfigPackageScaffolder,ConfigPackageDiscovery,ConfigManagedConfiguration,ConfigPackageLayer,ConfigContentCache,ConfigSaveContent,MemoryStorage,MemoryCheckpoint implementation;
+class ResourceMaterialization storage;
 class Results,Materialization result;

@@ -4,6 +4,7 @@ extends MarginContainer
 
 signal create_requested(
 		database_name: StringName,
+		registration_name: StringName,
 		data_root: String,
 		storage_backend_id: StringName,
 		database_role: StringName,
@@ -23,6 +24,7 @@ var _content_root := "res://data"
 var _applying_defaults := false
 
 @onready var _purpose: OptionButton = %Purpose
+@onready var _name_label: Label = %NameLabel
 @onready var _name: LineEdit = %DatabaseName
 @onready var _data_root: LineEdit = %DataRoot
 @onready var _backend: OptionButton = %StorageBackend
@@ -117,6 +119,21 @@ func _apply_purpose_defaults() -> void:
 			_data_root.text = _content_root
 			_backend.select(0)
 	_name.editable = _selected_purpose() != Purpose.MANAGED_BASE
+	_name_label.text = (
+		"Save slot name"
+		if _selected_purpose() == Purpose.SAVE_SLOT
+		else "Database name"
+	)
+	_name.placeholder_text = (
+		"save_1"
+		if _selected_purpose() == Purpose.SAVE_SLOT
+		else "content"
+	)
+	_create.text = (
+		"Create Save Slot"
+		if _selected_purpose() == Purpose.SAVE_SLOT
+		else "Create Database"
+	)
 	_backend.disabled = _selected_purpose() == Purpose.MANAGED_BASE
 	_applying_defaults = false
 	_refresh_summary()
@@ -163,21 +180,31 @@ func _validate() -> void:
 	_refresh_summary()
 	var database_name := _name.text.strip_edges()
 	var data_root := _data_root.text.strip_edges()
+	var name_invalid := not database_name.is_empty() \
+			and not database_name.is_valid_identifier()
 	var managed_data_path_missing := (
 			_selected_purpose() == Purpose.MANAGED_BASE and data_root.get_file().is_empty()
 	)
-	var valid := not database_name.is_empty() and not data_root.is_empty() \
+	var valid := not database_name.is_empty() and not name_invalid \
+			and not data_root.is_empty() \
 			and not managed_data_path_missing
 	_create.disabled = not valid
 	if database_name.is_empty():
 		_hint.text = "Enter a database name."
+	elif name_invalid:
+		_hint.text = (
+			"Use a valid identifier: letters, numbers, and underscores, without spaces."
+		)
 	elif data_root.is_empty():
 		_hint.text = "Choose a data root."
 	elif managed_data_path_missing:
 		_hint.text = "Managed package data must use a directory below its package root."
 	elif _selected_backend() == GDSQLStorageBackendIds.IN_MEMORY:
 		_hint.text = (
-				"Rows load into memory. ConfigFile remains the hydration and checkpoint source."
+				"A new slot receives the active slot's schema without copying its rows. "
+				+ "Rows load into memory and checkpoint to ConfigFile."
+				if _selected_purpose() == Purpose.SAVE_SLOT
+				else "Rows load into memory. ConfigFile remains the hydration and checkpoint source."
 		)
 	else:
 		_hint.text = (
@@ -225,7 +252,16 @@ func _submit() -> void:
 	if _create.disabled:
 		return
 	create_requested.emit(
-		StringName(_name.text.strip_edges()),
+		(
+			GDSQLDatabaseRegistry.DEFAULT_SAVE_DATABASE_NAME
+			if _selected_purpose() == Purpose.SAVE_SLOT
+			else StringName(_name.text.strip_edges())
+		),
+		(
+			StringName(_name.text.strip_edges())
+			if _selected_purpose() == Purpose.SAVE_SLOT
+			else &""
+		),
 		_data_root.text.strip_edges(),
 		_selected_backend(),
 		_selected_role(),

@@ -2,9 +2,28 @@ class_name GDSQLContentCacheTest
 extends GdUnitTestSuite
 
 const TestDatabase = preload("res://tests/utils/gdsql_test_database.gd")
+const REFERENCED_ICON_PATH := "res://addons/gdsql/editor/workspace/icons/key.svg"
 
 var _test_root: String
 var _test_index := 0
+
+
+class CountingResolver:
+	extends GDSQLResourceResolver
+
+	var calls := 0
+	var resolved_resource: Resource
+
+
+	func _init(resource: Resource) -> void:
+		resolved_resource = resource
+
+
+	func resolve(_reference: GDSQLResourceReference) -> GDSQLOperationResult:
+		calls += 1
+		var result := GDSQLOperationResult.new()
+		result.value = resolved_resource
+		return result
 
 
 func before_test() -> void:
@@ -92,6 +111,51 @@ func test_cache_persists_foreign_keys_after_all_referenced_tables_exist() -> voi
 	)
 
 	assert_object(stored.get_foreign_key(&"skills_hero")).is_not_null()
+
+
+func test_cache_rebuild_copies_resource_identity_without_loading_the_asset() -> void:
+	var icon := load(REFERENCED_ICON_PATH) as Resource
+	var source := _source()
+	var source_database := TestDatabase.create_database(
+		source.get_data_root(),
+		_resource_items_table(icon),
+		&"content",
+	)
+	TestDatabase.insert_rows(
+		source_database,
+		[{&"id": "key", &"damage": 0, &"name": "Key", &"icon": icon}],
+		&"items",
+	)
+	var resolver := CountingResolver.new(icon)
+	var cache_root := _test_root.path_join("cache/resource_identity")
+	var cached := _manager(
+		cache_root,
+		GDSQLGodotVariantCodec.new(resolver),
+	).ensure_cache([source])
+
+	assert_bool(cached.is_successful()).is_true()
+	assert_int(resolver.calls).is_zero()
+	var table_text := FileAccess.get_file_as_string(
+		cache_root.path_join("effective_content/tables/items.cfg"),
+	)
+	assert_bool(table_text.contains("resource_reference")).is_true()
+	assert_bool(table_text.contains(REFERENCED_ICON_PATH)).is_true()
+
+	var opened := GDSQLDatabase.open(&"effective_content", cache_root)
+	assert_bool(opened.is_successful()).is_true()
+	var database := opened.get_database()
+	database.context.executor = GDSQLDefaultQueryExecutor.new(resolver)
+	var names := database.execute(
+		database.table(&"items").select().column(&"name").build(),
+	)
+	assert_bool(names.is_successful()).is_true()
+	assert_int(resolver.calls).is_zero()
+	var icons := database.execute(
+		database.table(&"items").select().column(&"icon").build(),
+	)
+	assert_bool(icons.is_successful()).is_true()
+	assert_object(icons.rows[0].get_value(&"icon")).is_same(icon)
+	assert_int(resolver.calls).is_equal(1)
 
 
 func test_invalid_manifest_is_a_recoverable_cache_miss() -> void:
@@ -197,10 +261,13 @@ func test_failed_content_preparation_preserves_the_active_role() -> void:
 	assert_bool(registry.is_registered(&"effective_content")).is_false()
 
 
-func _manager(cache_root: String) -> GDSQLContentCacheManager:
+func _manager(
+		cache_root: String,
+		codec: GDSQLGodotVariantCodec = null,
+) -> GDSQLContentCacheManager:
 	return GDSQLContentCacheManager.new(
 		GDSQLContentOverlayLoader.new(
-			GDSQLConfigFileContentPackageLayerReader.new(),
+			GDSQLConfigFileContentPackageLayerReader.new(codec),
 		),
 		GDSQLConfigFileContentPackageFingerprintProvider.new(),
 		GDSQLConfigFileContentCacheStore.new(cache_root),
@@ -223,6 +290,16 @@ func _items_table() -> GDSQLTableDefinition:
 	var table := GDSQLTableDefinition.new(&"items", &"id")
 	table.add_column(GDSQLColumnDefinition.new(&"id", TYPE_STRING, false, true))
 	table.add_column(GDSQLColumnDefinition.new(&"damage", TYPE_INT, false))
+	return table
+
+
+func _resource_items_table(icon: Resource) -> GDSQLTableDefinition:
+	var table := _items_table()
+	table.add_column(GDSQLColumnDefinition.new(&"name", TYPE_STRING, false))
+	var icon_column := GDSQLColumnDefinition.new(&"icon", TYPE_OBJECT, false)
+	icon_column.resource_type = GDSQLResourceTypeConstraint.from_resource(icon)
+	icon_column.resource_ownership = GDSQLResourceOwnership.Mode.REFERENCED
+	table.add_column(icon_column)
 	return table
 
 

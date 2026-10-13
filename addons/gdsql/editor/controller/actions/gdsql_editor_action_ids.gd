@@ -19,6 +19,7 @@ const CREATE_SAVE_SLOT := &"save_slot.create"
 const SELECT_SAVE_SLOT := &"save_slot.select"
 const DELETE_SAVE_SLOT := &"save_slot.delete"
 const INSTALL_RUNTIME_ADAPTER := &"runtime.install_adapter"
+const CREATE_DATABASE_MIGRATION := &"database_document.create_migration"
 const SAVE_DATABASE_CHANGES := &"database_document.save"
 const REFRESH_DATABASE_CHANGES := &"database_document.refresh"
 const UNDO_TABLE_MUTATION := &"table_document.undo_mutation"
@@ -54,6 +55,7 @@ static func get_all() -> Array[StringName]:
 		SELECT_SAVE_SLOT,
 		DELETE_SAVE_SLOT,
 		INSTALL_RUNTIME_ADAPTER,
+		CREATE_DATABASE_MIGRATION,
 		SAVE_DATABASE_CHANGES,
 		REFRESH_DATABASE_CHANGES,
 		UNDO_TABLE_MUTATION,

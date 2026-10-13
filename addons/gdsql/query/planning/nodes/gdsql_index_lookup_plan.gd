@@ -5,6 +5,7 @@ var table: GDSQLTableDefinition
 var alias: StringName
 var index: GDSQLIndexDefinition
 var values: Array[GDSQLQueryExpression] = []
+var required_columns: Array[StringName] = []
 
 
 func accept(visitor: GDSQLPlanNodeVisitor) -> Variant:

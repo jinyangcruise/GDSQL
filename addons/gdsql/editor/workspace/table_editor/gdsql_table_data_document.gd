@@ -815,7 +815,7 @@ func _duplicate_draft_guidance(primary_keys: Array[Variant]) -> PackedStringArra
 	if _has_copied_unique_constraint():
 		guidance.append("Review the copied unique values before saving.")
 	if _selected_rows_contain_owned_resources(primary_keys):
-		guidance.append("Owned Resource values were deep-cloned; review them before saving.")
+		guidance.append("Embedded Resource values were deep-cloned; review them before saving.")
 	return guidance
 
 
@@ -920,7 +920,7 @@ func _refresh_actions() -> void:
 					"Copy the first selected row into an editable Add Row draft"
 					if _duplicate_requires_draft(selected_keys)
 					else (
-							"Duplicate %d selected row(s) in one transaction; owned Resource values are omitted"
+							"Duplicate %d selected row(s) in one transaction; embedded Resource values are omitted"
 							% selected_count
 					)
 			)

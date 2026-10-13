@@ -1,40 +1,57 @@
 # Resource columns
 
 A Resource column requires a concrete Resource subtype and one storage mode.
-The mode describes ownership; it is independent of whether the table belongs to
-content, save data, or settings.
+The mode describes whether the value is embedded in its row or points to an
+external asset; it is independent of whether the table belongs to content, save
+data, or settings.
 
 | Mode | Stored value | Use when |
 |---|---|---|
-| Owned | Independent Resource value serialized with the row | Each row owns editable Resource properties such as a generated mesh or configuration object |
-| Referenced | Versioned UID/path locator to an existing asset | Rows point to imported textures, audio, scenes, or other project/package assets |
+| Embedded | Independent Resource value serialized with the row | Each row owns editable Resource properties such as a generated mesh or configuration object |
+| External Reference | Versioned UID/path locator to an existing asset | Rows point to imported textures, audio, scenes, or other project/package assets |
 
 ## Choose the mode
 
 In the table schema, set the column type to **Resource**, choose its concrete
-subtype, then choose **Owned** or **Referenced** under **Storage**.
+subtype, then choose **Embedded** or **External Reference** under **Storage**.
 
-Use Referenced for assets already saved in the filesystem. It avoids embedding
-imported data in every table row and follows a Godot UID when available, with a
-path fallback and expected-type check.
+Use **External Reference** for assets already saved in the filesystem. It avoids
+embedding imported data in every table row and follows a Godot UID when
+available, with a path fallback and expected-type check.
 
-Use Owned when the Resource value itself is row data. Owned Resources use
-Godot's native Resource serialization, so complex values can still be larger
-than scalar columns.
+Use **Embedded** when the Resource value itself is row data. Embedded Resources
+use Godot's native Resource serialization, so complex values can still be
+larger than scalar columns.
 
 ## Runtime loading and memory
 
-**Referenced describes persistence ownership; it does not currently guarantee
-lazy loading.** The table stores only a compact UID/path locator, but GDSQL
-resolves that locator with `ResourceLoader.load()` when the row is decoded.
+External Reference columns store a compact locator and use eager loading by
+default. Queries only resolve Resource columns required by the plan; unrelated
+scalar projections and counts do not load them. Asset-heavy code can explicitly
+return deferred handles:
 
-Opening a ConfigFile database normally loads its catalog without reading every
-row. However, a table scan currently decodes every stored column before query
-projection, filtering, or pagination. A query that returns only NPC names can
-therefore still load mesh, texture, audio, or scene references from every
-scanned row. A primary-key or index lookup narrows the affected rows, but still
-decodes every column in each matching row. In-memory hydration and a Managed
-Content cache rebuild may decode complete tables.
+```gdscript
+var result := database.execute(
+    database.table(&"npc_assets").select().build(),
+    GDSQLQueryExecutionOptions.deferred_resources(),
+)
+var scope := result.create_resource_prefetch_scope()
+scope.request_load()
+
+# Poll from a process loop until the snapshot is complete.
+var snapshot := scope.poll_load().get_value() as GDSQLResourcePrefetchProgress
+print(snapshot.progress)
+```
+
+`GDSQLResourceHandle.load()` loads synchronously. `request_load()` plus
+`poll_load()` uses Godot's threaded loader. A prefetch scope coordinates all
+handles returned for one bounded gameplay lifetime and reports aggregate loaded
+and failed counts. A failure does not prevent the scope from finishing its
+other requests.
+
+Resource-dependent filters, ordering, grouping, joins, or derived expressions
+require concrete Resources and therefore reject deferred execution. Run those
+queries with the default eager policy.
 
 For a large asset catalog, keep frequently queried metadata separate from heavy
 assets:
@@ -53,29 +70,27 @@ npc_assets
 - voice
 ```
 
-Browse or query `npc_definitions`, then look up one indexed `npc_assets` row
-when the NPC is needed. This is the reliable lazy-loading boundary in the
-current release; selecting fewer columns alone does not prevent referenced
-Resources from loading.
+Browse or query `npc_definitions`, then look up and prefetch the relevant
+`npc_assets` rows when the NPC is needed. This remains useful because it keeps
+the query and asset working sets bounded.
 
-Godot Resources are reference-counted. To make a loaded asset eligible for
-release, clear it from scene properties and release every result, model, array,
-or other object that still references it. An in-memory GDSQL table can itself
-retain the Resource, so GDSQL does not currently provide a deterministic
-per-table or per-row unload operation. See Godot's
+Call `scope.release()` when its scene, area, encounter, or menu ends. For a
+deferred model, scope release also clears the concrete model properties loaded
+through those handles. Godot Resources are reference-counted, so the asset is
+only eligible for reclamation after scenes, caches, and every other consumer
+also release it. Releasing a scope cannot cancel a native threaded request that
+Godot already accepted. See Godot's
 [`Resource`](https://docs.godotengine.org/en/stable/classes/class_resource.html)
 and
 [`ResourceLoader`](https://docs.godotengine.org/en/stable/classes/class_resourceloader.html)
 documentation for engine caching and reference-count behavior.
 
-Deferred Resource handles, selective column decoding, threaded materialization,
-and explicit content loading/eviction policies are active roadmap work.
-
 ## Editing behavior
 
 The table editor validates the selected Resource against the schema subtype.
-Referenced values are replaced as assets. Owned values expose editable
-Inspector properties and are duplicated when copied into a new-row draft.
+External Reference values are replaced as assets. Embedded values expose
+editable Inspector properties and are duplicated when copied into a new-row
+draft.
 
 Visual Resources may show a thumbnail. Other Resource types use their editor
 icon and are not sent to incompatible preview plugins. Imported audio streams
@@ -89,5 +104,5 @@ Content packages may use package assets, but effective rows must still resolve
 through valid package or project locators. Moving an asset is safest when its
 Godot UID remains valid.
 
-Missing or type-mismatched referenced assets currently resolve as unavailable.
+Missing or type-mismatched external assets currently resolve as unavailable.
 More detailed row-and-column storage diagnostics are part of release QA.

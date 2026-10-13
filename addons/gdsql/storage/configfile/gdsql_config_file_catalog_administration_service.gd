@@ -8,6 +8,9 @@ var _path_resolver: GDSQLDatabasePathResolver
 var _catalog: GDSQLCatalogService
 var _cache: GDSQLConfigFileCache
 var _codec: GDSQLGodotVariantCodec
+var _catalog_transaction: GDSQLConfigFileCatalogTransaction
+var _table_lifecycle: GDSQLConfigFileTableLifecycleTransaction
+var _database_lifecycle: GDSQLConfigFileDatabaseLifecycleTransaction
 
 
 func _init(
@@ -15,11 +18,23 @@ func _init(
 		catalog: GDSQLCatalogService,
 		cache: GDSQLConfigFileCache,
 		codec: GDSQLGodotVariantCodec,
+		catalog_transaction: GDSQLConfigFileCatalogTransaction = null,
+		table_lifecycle: GDSQLConfigFileTableLifecycleTransaction = null,
+		database_lifecycle: GDSQLConfigFileDatabaseLifecycleTransaction = null,
 ) -> void:
 	_path_resolver = path_resolver
 	_catalog = catalog
 	_cache = cache
 	_codec = codec
+	_catalog_transaction = catalog_transaction \
+	if catalog_transaction != null \
+	else GDSQLConfigFileCatalogTransaction.new(path_resolver)
+	_table_lifecycle = table_lifecycle \
+	if table_lifecycle != null \
+	else GDSQLConfigFileTableLifecycleTransaction.new(path_resolver)
+	_database_lifecycle = database_lifecycle \
+	if database_lifecycle != null \
+	else GDSQLConfigFileDatabaseLifecycleTransaction.new(path_resolver)
 
 
 func create_database(database_name: StringName) -> GDSQLCatalogOperationResult:
@@ -28,6 +43,11 @@ func create_database(database_name: StringName) -> GDSQLCatalogOperationResult:
 			&"GDSQL_CATALOG_INVALID_DATABASE_NAME",
 			"Database name '%s' must be a valid identifier." % database_name,
 		)
+	var recovered := _database_lifecycle.recover()
+	if not recovered.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(recovered.diagnostics)
+		return failed
 	var registry_path := _path_resolver.resolve_catalog_path()
 	var directory_error := _ensure_directory(registry_path.get_base_dir())
 	if directory_error != OK:
@@ -54,19 +74,15 @@ func create_database(database_name: StringName) -> GDSQLCatalogOperationResult:
 				&"GDSQL_CATALOG_DIRECTORY_UNWRITABLE",
 				"Could not create database directory '%s'." % folder_path,
 			)
-	registry.set_value(
-		String(database_name),
-		"path",
-		_path_resolver.resolve_database_path(database_name),
-	)
-	if registry.save(registry_path) != OK:
-		return _error(
-			&"GDSQL_CATALOG_SAVE_FAILED",
-			"Could not save database catalog '%s'." % registry_path,
-		)
+	var persisted := _database_lifecycle.register_database(database_name)
+	if not persisted.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(persisted.diagnostics)
+		return failed
 	var definition := GDSQLDatabaseDefinition.new()
 	definition.name = database_name
 	var result := GDSQLCatalogOperationResult.new()
+	result.diagnostics.merge(persisted.diagnostics)
 	result.value = definition
 	return result
 
@@ -85,24 +101,24 @@ func rename_database(
 		return _error(&"GDSQL_CATALOG_UNKNOWN_DATABASE", "Database '%s' is not registered." % current_name)
 	if registry.has_section(String(new_name)):
 		return _error(&"GDSQL_CATALOG_DATABASE_EXISTS", "Database '%s' is already registered." % new_name)
-	var old_path := _path_resolver.resolve_database_path(current_name)
 	var new_path := _path_resolver.resolve_database_path(new_name)
 	if DirAccess.dir_exists_absolute(ProjectSettings.globalize_path(new_path)):
 		return _error(&"GDSQL_CATALOG_DATABASE_DIRECTORY_EXISTS", "Database directory '%s' already exists." % new_path)
 	var database := _catalog.get_database(current_name)
-	if DirAccess.rename_absolute(
-		ProjectSettings.globalize_path(old_path),
-		ProjectSettings.globalize_path(new_path),
-	) != OK:
-		return _error(&"GDSQL_CATALOG_DATABASE_RENAME_FAILED", "Could not rename database directory '%s'." % old_path)
-	registry.erase_section(String(current_name))
-	registry.set_value(String(new_name), "path", new_path)
-	if registry.save(_path_resolver.resolve_catalog_path()) != OK:
-		DirAccess.rename_absolute(ProjectSettings.globalize_path(new_path), ProjectSettings.globalize_path(old_path))
-		return _error(&"GDSQL_CATALOG_SAVE_FAILED", "Could not save the renamed database registration.")
+	if database == null:
+		return _error(
+			&"GDSQL_CATALOG_DATABASE_UNREADABLE",
+			"Database '%s' could not be loaded before rename." % current_name,
+		)
+	var persisted := _database_lifecycle.rename_database(current_name, new_name)
+	if not persisted.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(persisted.diagnostics)
+		return failed
 	_invalidate_database_tables(database, current_name)
 	var definition := _catalog.get_database(new_name)
 	var result := GDSQLCatalogOperationResult.new()
+	result.diagnostics.merge(persisted.diagnostics)
 	result.value = definition
 	return result
 
@@ -125,15 +141,14 @@ func unregister_database(
 			"Database '%s' is not registered." % database_name,
 		)
 	var database := _catalog.get_database(database_name)
-	registry.erase_section(String(database_name))
-	if registry.save(_path_resolver.resolve_catalog_path()) != OK:
-		return _error(
-			&"GDSQL_CATALOG_SAVE_FAILED",
-			"Could not unregister database '%s' from the catalog." \
-					% database_name,
-		)
+	var persisted := _database_lifecycle.unregister_database(database_name)
+	if not persisted.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(persisted.diagnostics)
+		return failed
 	_invalidate_database_tables(database, database_name)
 	var result := GDSQLCatalogOperationResult.new()
+	result.diagnostics.merge(persisted.diagnostics)
 	result.value = database
 	return result
 
@@ -148,17 +163,19 @@ func drop_database(database_name: StringName) -> GDSQLCatalogOperationResult:
 	if not registry.has_section(String(database_name)):
 		return _error(&"GDSQL_CATALOG_UNKNOWN_DATABASE", "Database '%s' is not registered." % database_name)
 	var database := _catalog.get_database(database_name)
-	var registered_path: Variant = registry.get_value(String(database_name), "path", _path_resolver.resolve_database_path(database_name))
-	registry.erase_section(String(database_name))
-	if registry.save(_path_resolver.resolve_catalog_path()) != OK:
-		return _error(&"GDSQL_CATALOG_SAVE_FAILED", "Could not remove database '%s' from the catalog." % database_name)
-	var database_path := _path_resolver.resolve_database_path(database_name)
-	if _remove_directory_recursive(database_path) != OK:
-		registry.set_value(String(database_name), "path", registered_path)
-		registry.save(_path_resolver.resolve_catalog_path())
-		return _error(&"GDSQL_CATALOG_DATABASE_DROP_FAILED", "Could not remove database directory '%s'." % database_path)
+	if database == null:
+		return _error(
+			&"GDSQL_CATALOG_DATABASE_UNREADABLE",
+			"Database '%s' could not be loaded before removal." % database_name,
+		)
+	var persisted := _database_lifecycle.drop_database(database_name)
+	if not persisted.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(persisted.diagnostics)
+		return failed
 	_invalidate_database_tables(database, database_name)
 	var result := GDSQLCatalogOperationResult.new()
+	result.diagnostics.merge(persisted.diagnostics)
 	result.value = database
 	return result
 
@@ -170,6 +187,11 @@ func create_table(
 	var validation := _validate_table(database_name, table)
 	if not validation.is_successful():
 		return validation
+	var recovered := _catalog_transaction.recover_table(database_name, table.name)
+	if not recovered.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(recovered.diagnostics)
+		return failed
 	var registry := ConfigFile.new()
 	if registry.load(_path_resolver.resolve_catalog_path()) != OK \
 			or not registry.has_section(String(database_name)):
@@ -203,41 +225,54 @@ func create_table(
 		)
 	var empty_table := ConfigFile.new()
 	_initialize_table_metadata(empty_table)
-	if empty_table.save(table_path) != OK:
-		return _error(
-			&"GDSQL_CATALOG_TABLE_STORAGE_CREATE_FAILED",
-			"Could not create table storage '%s'." % table_path,
-		)
-	var schema := ConfigFile.new()
-	schema.set_value("table", "name", String(table.name))
-	schema.set_value("table", "primary_key", String(table.primary_key))
-	for column in table.columns:
-		var section := "column:%s" % column.name
-		schema.set_value(section, "type", column.data_type)
-		schema.set_value(section, "nullable", column.nullable)
-		schema.set_value(section, "unique", column.unique)
-		schema.set_value(section, "auto_increment", column.auto_increment)
-		schema.set_value(section, "generation", column.generation)
-		_write_resource_type(schema, section, column)
-		if column.has_default():
-			schema.set_value(section, "default_kind", "static")
-			if column.get_default_value() != null:
-				schema.set_value(
-					section,
-					"default",
-					_codec.encode(column.get_default_value(), column),
-				)
-	_write_index_schema(schema, table)
-	_write_foreign_key_schema(schema, table)
-	if schema.save(schema_path) != OK:
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(table_path))
-		return _error(
-			&"GDSQL_CATALOG_SCHEMA_SAVE_FAILED",
-			"Could not save table schema '%s'." % schema_path,
-		)
+	var persisted := _catalog_transaction.replace_table(
+		database_name,
+		table.name,
+		_build_schema(table),
+		empty_table,
+	)
+	if not persisted.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(persisted.diagnostics)
+		return failed
 	table.database_name = database_name
 	var result := GDSQLCatalogOperationResult.new()
+	result.diagnostics.merge(persisted.diagnostics)
 	result.value = table
+	return result
+
+
+func preview_create_table(
+		database_name: StringName,
+		table: GDSQLTableDefinition,
+) -> GDSQLOperationResult:
+	var validation := _validate_table(database_name, table)
+	if not validation.is_successful():
+		var failed := GDSQLOperationResult.new()
+		failed.diagnostics.merge(validation.diagnostics)
+		return failed
+	var registry := ConfigFile.new()
+	if registry.load(_path_resolver.resolve_catalog_path()) != OK \
+			or not registry.has_section(String(database_name)):
+		return _operation_error(
+			&"GDSQL_CATALOG_UNKNOWN_DATABASE",
+			"Database '%s' is not registered." % database_name,
+		)
+	var schema_path := _path_resolver.resolve_schema_path(database_name, table.name)
+	var table_path := _path_resolver.resolve_table_path(database_name, table.name)
+	if _catalog.has_table(database_name, table.name) \
+			or FileAccess.file_exists(schema_path):
+		return _operation_error(
+			&"GDSQL_CATALOG_TABLE_EXISTS",
+			"Table '%s.%s' already exists." % [database_name, table.name],
+		)
+	if FileAccess.file_exists(table_path):
+		return _operation_error(
+			&"GDSQL_CATALOG_TABLE_STORAGE_EXISTS",
+			"Table storage '%s' already exists without a schema." % table_path,
+		)
+	var result := GDSQLOperationResult.new()
+	result.value = GDSQLCatalogChangePlan.for_create_table(database_name, table)
 	return result
 
 
@@ -261,28 +296,83 @@ func rename_table(
 	)
 	if not dependencies.is_successful():
 		return dependencies
-	var old_schema_path := _path_resolver.resolve_schema_path(database_name, current_name)
 	var new_schema_path := _path_resolver.resolve_schema_path(database_name, new_name)
 	var old_table_path := _path_resolver.resolve_table_path(database_name, current_name)
 	var new_table_path := _path_resolver.resolve_table_path(database_name, new_name)
 	if FileAccess.file_exists(new_schema_path) or FileAccess.file_exists(new_table_path):
 		return _error(&"GDSQL_CATALOG_TABLE_TARGET_EXISTS", "Target files for table '%s' already exist." % new_name)
-	if DirAccess.rename_absolute(ProjectSettings.globalize_path(old_table_path), ProjectSettings.globalize_path(new_table_path)) != OK:
-		return _error(&"GDSQL_CATALOG_TABLE_RENAME_FAILED", "Could not rename table storage '%s'." % old_table_path)
-	if DirAccess.rename_absolute(ProjectSettings.globalize_path(old_schema_path), ProjectSettings.globalize_path(new_schema_path)) != OK:
-		DirAccess.rename_absolute(ProjectSettings.globalize_path(new_table_path), ProjectSettings.globalize_path(old_table_path))
-		return _error(&"GDSQL_CATALOG_TABLE_RENAME_FAILED", "Could not rename table schema '%s'." % old_schema_path)
 	table.name = new_name
 	for foreign_key in table.foreign_keys:
 		if foreign_key.referenced_table == current_name:
 			foreign_key.referenced_table = new_name
-	if _save_schema(new_schema_path, table) != OK:
-		_rollback_table_rename(old_schema_path, new_schema_path, old_table_path, new_table_path)
-		return _error(&"GDSQL_CATALOG_SCHEMA_SAVE_FAILED", "Could not update renamed table schema '%s'." % new_schema_path)
+	var persisted := _table_lifecycle.rename_table(
+		database_name,
+		current_name,
+		new_name,
+		_build_schema(table),
+	)
+	if not persisted.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(persisted.diagnostics)
+		return failed
 	_cache.invalidate(old_table_path)
 	_cache.invalidate(new_table_path)
 	var result := GDSQLCatalogOperationResult.new()
+	result.diagnostics.merge(persisted.diagnostics)
 	result.value = table
+	return result
+
+
+func preview_rename_table(
+		database_name: StringName,
+		current_name: StringName,
+		new_name: StringName,
+) -> GDSQLOperationResult:
+	if not _path_resolver.is_valid_name(new_name) or current_name == new_name:
+		return _operation_error(
+			&"GDSQL_CATALOG_INVALID_TABLE_NAME",
+			"Table rename requires a different valid target name.",
+		)
+	var table := _catalog.get_table(database_name, current_name)
+	if table == null:
+		return _operation_error(
+			&"GDSQL_CATALOG_UNKNOWN_TABLE",
+			"Table '%s.%s' does not exist." % [database_name, current_name],
+		)
+	var new_schema_path := _path_resolver.resolve_schema_path(database_name, new_name)
+	var new_table_path := _path_resolver.resolve_table_path(database_name, new_name)
+	if _catalog.has_table(database_name, new_name) \
+			or FileAccess.file_exists(new_schema_path) \
+			or FileAccess.file_exists(new_table_path):
+		return _operation_error(
+			&"GDSQL_CATALOG_TABLE_EXISTS",
+			"Table '%s.%s' already exists." % [database_name, new_name],
+		)
+	var dependencies := _validate_no_incoming_foreign_keys(
+		database_name,
+		current_name,
+		&"",
+		current_name,
+	)
+	if not dependencies.is_successful():
+		var failed := GDSQLOperationResult.new()
+		failed.diagnostics.merge(dependencies.diagnostics)
+		return failed
+	var table_data := ConfigFile.new()
+	var table_path := _path_resolver.resolve_table_path(database_name, current_name)
+	if table_data.load(table_path) != OK:
+		return _operation_error(
+			&"GDSQL_CATALOG_TABLE_UNREADABLE",
+			"Could not read table storage '%s'." % table_path,
+		)
+	var result := GDSQLOperationResult.new()
+	result.value = GDSQLCatalogChangePlan.for_rename_table(
+		database_name,
+		current_name,
+		new_name,
+		_catalog_fingerprint(table),
+		_get_row_sections(table_data).size(),
+	)
 	return result
 
 
@@ -307,14 +397,52 @@ func drop_table(
 	var table_data := ConfigFile.new()
 	if schema.load(schema_path) != OK or table_data.load(table_path) != OK:
 		return _error(&"GDSQL_CATALOG_TABLE_UNREADABLE", "Could not load table '%s.%s' before dropping it." % [database_name, table_name])
-	if DirAccess.remove_absolute(ProjectSettings.globalize_path(schema_path)) != OK:
-		return _error(&"GDSQL_CATALOG_TABLE_DROP_FAILED", "Could not remove table schema '%s'." % schema_path)
-	if DirAccess.remove_absolute(ProjectSettings.globalize_path(table_path)) != OK:
-		schema.save(schema_path)
-		return _error(&"GDSQL_CATALOG_TABLE_DROP_FAILED", "Could not remove table storage '%s'." % table_path)
+	var persisted := _table_lifecycle.drop_table(database_name, table_name)
+	if not persisted.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(persisted.diagnostics)
+		return failed
 	_cache.invalidate(table_path)
 	var result := GDSQLCatalogOperationResult.new()
+	result.diagnostics.merge(persisted.diagnostics)
 	result.value = table
+	return result
+
+
+func preview_drop_table(
+		database_name: StringName,
+		table_name: StringName,
+) -> GDSQLOperationResult:
+	var table := _catalog.get_table(database_name, table_name)
+	if table == null:
+		return _operation_error(
+			&"GDSQL_CATALOG_UNKNOWN_TABLE",
+			"Table '%s.%s' does not exist." % [database_name, table_name],
+		)
+	var dependencies := _validate_no_incoming_foreign_keys(
+		database_name,
+		table_name,
+		&"",
+		table_name,
+	)
+	if not dependencies.is_successful():
+		var failed := GDSQLOperationResult.new()
+		failed.diagnostics.merge(dependencies.diagnostics)
+		return failed
+	var table_data := ConfigFile.new()
+	var table_path := _path_resolver.resolve_table_path(database_name, table_name)
+	if table_data.load(table_path) != OK:
+		return _operation_error(
+			&"GDSQL_CATALOG_TABLE_UNREADABLE",
+			"Could not read table storage '%s'." % table_path,
+		)
+	var result := GDSQLOperationResult.new()
+	result.value = GDSQLCatalogChangePlan.for_drop_table(
+		database_name,
+		table_name,
+		_catalog_fingerprint(table),
+		_get_row_sections(table_data).size(),
+	)
 	return result
 
 
@@ -385,6 +513,20 @@ func apply_change_plan(
 			&"GDSQL_CATALOG_CHANGE_PLAN_REQUIRED",
 			"A catalog change plan is required.",
 		)
+	if plan.kind == GDSQLCatalogChangePlan.Kind.CREATE_TABLE:
+		if plan.table_definition == null \
+				or plan.table_definition.name != plan.table_name:
+			return _error(
+				&"GDSQL_CATALOG_CHANGE_PLAN_INVALID",
+				"Create-table plan does not contain its authored table definition.",
+			)
+		if _catalog.has_table(plan.database_name, plan.table_name):
+			return _error(
+				&"GDSQL_CATALOG_CHANGE_PLAN_STALE",
+				"Table '%s.%s' was created after this plan was previewed." \
+						% [plan.database_name, plan.table_name],
+			)
+		return create_table(plan.database_name, plan.table_definition)
 	var current_table := _catalog.get_table(plan.database_name, plan.table_name)
 	if current_table == null:
 		return _error(
@@ -397,10 +539,46 @@ func apply_change_plan(
 			"Table '%s.%s' changed after this plan was previewed." \
 					% [plan.database_name, plan.table_name],
 		)
-	return _apply_alterations(
-		plan.database_name,
-		plan.table_name,
-		plan.alterations,
+	match plan.kind:
+		GDSQLCatalogChangePlan.Kind.ALTER_TABLE:
+			return _apply_alterations(
+				plan.database_name,
+				plan.table_name,
+				plan.alterations,
+			)
+		GDSQLCatalogChangePlan.Kind.RENAME_TABLE:
+			if not _path_resolver.is_valid_name(plan.new_table_name) \
+					or plan.new_table_name == plan.table_name:
+				return _error(
+					&"GDSQL_CATALOG_CHANGE_PLAN_INVALID",
+					"Rename-table plan requires a different valid target name.",
+				)
+			var target_schema_path := _path_resolver.resolve_schema_path(
+				plan.database_name,
+				plan.new_table_name,
+			)
+			var target_table_path := _path_resolver.resolve_table_path(
+				plan.database_name,
+				plan.new_table_name,
+			)
+			if _catalog.has_table(plan.database_name, plan.new_table_name) \
+					or FileAccess.file_exists(target_schema_path) \
+					or FileAccess.file_exists(target_table_path):
+				return _error(
+					&"GDSQL_CATALOG_CHANGE_PLAN_STALE",
+					"Rename target '%s.%s' appeared after preview." \
+							% [plan.database_name, plan.new_table_name],
+				)
+			return rename_table(
+				plan.database_name,
+				plan.table_name,
+				plan.new_table_name,
+			)
+		GDSQLCatalogChangePlan.Kind.DROP_TABLE:
+			return drop_table(plan.database_name, plan.table_name)
+	return _error(
+		&"GDSQL_CATALOG_CHANGE_PLAN_INVALID",
+		"Catalog change plan uses an unsupported operation.",
 	)
 
 
@@ -426,10 +604,6 @@ func _apply_alterations(
 		]:
 			changes_table_data = true
 			break
-	var original_data: ConfigFile
-	if changes_table_data:
-		original_data = ConfigFile.new()
-		original_data.parse(table_data.encode_to_text())
 	for alteration in alterations:
 		var alteration_result := _apply_alteration(table, table_data, alteration)
 		if not alteration_result.is_successful():
@@ -437,22 +611,22 @@ func _apply_alterations(
 	var validation := _validate_table(database_name, table, table_data)
 	if not validation.is_successful():
 		return validation
-	var schema_path := _path_resolver.resolve_schema_path(database_name, table_name)
-	var original_schema := ConfigFile.new()
-	if original_schema.load(schema_path) != OK:
-		return _error(&"GDSQL_CATALOG_SCHEMA_UNREADABLE", "Could not read table schema '%s'." % schema_path)
 	if changes_table_data:
 		_rebuild_indexes(table_data, table)
-		if table_data.save(table_path) != OK:
-			return _error(&"GDSQL_CATALOG_TABLE_SAVE_FAILED", "Could not save altered table storage '%s'." % table_path)
-	if _save_schema(schema_path, table) != OK:
-		if changes_table_data:
-			original_data.save(table_path)
-		original_schema.save(schema_path)
-		return _error(&"GDSQL_CATALOG_SCHEMA_SAVE_FAILED", "Could not save altered table schema '%s'." % schema_path)
+	var persisted := _catalog_transaction.replace_table(
+		database_name,
+		table_name,
+		_build_schema(table),
+		table_data,
+	)
+	if not persisted.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(persisted.diagnostics)
+		return failed
 	if changes_table_data:
 		_cache.invalidate(table_path)
 	var result := GDSQLCatalogOperationResult.new()
+	result.diagnostics.merge(persisted.diagnostics)
 	result.value = table
 	return result
 
@@ -1121,6 +1295,10 @@ func _unknown_column(column_name: StringName) -> GDSQLCatalogOperationResult:
 
 
 func _save_schema(path: String, table: GDSQLTableDefinition) -> Error:
+	return _build_schema(table).save(path)
+
+
+func _build_schema(table: GDSQLTableDefinition) -> ConfigFile:
 	var schema := ConfigFile.new()
 	schema.set_value("table", "name", String(table.name))
 	schema.set_value("table", "primary_key", String(table.primary_key))
@@ -1142,7 +1320,7 @@ func _save_schema(path: String, table: GDSQLTableDefinition) -> Error:
 				)
 	_write_index_schema(schema, table)
 	_write_foreign_key_schema(schema, table)
-	return schema.save(path)
+	return schema
 
 
 func _write_index_schema(
@@ -1180,6 +1358,11 @@ func _write_foreign_key_schema(
 
 
 func _load_registry() -> GDSQLCatalogOperationResult:
+	var recovered := _database_lifecycle.recover()
+	if not recovered.is_successful():
+		var failed := GDSQLCatalogOperationResult.new()
+		failed.diagnostics.merge(recovered.diagnostics)
+		return failed
 	var registry := ConfigFile.new()
 	if registry.load(_path_resolver.resolve_catalog_path()) != OK:
 		return _error(&"GDSQL_CATALOG_UNREADABLE", "Could not read the database catalog.")
@@ -1188,39 +1371,11 @@ func _load_registry() -> GDSQLCatalogOperationResult:
 	return result
 
 
-func _rollback_table_rename(
-		old_schema_path: String,
-		new_schema_path: String,
-		old_table_path: String,
-		new_table_path: String,
-) -> void:
-	DirAccess.rename_absolute(ProjectSettings.globalize_path(new_schema_path), ProjectSettings.globalize_path(old_schema_path))
-	DirAccess.rename_absolute(ProjectSettings.globalize_path(new_table_path), ProjectSettings.globalize_path(old_table_path))
-
-
 func _invalidate_database_tables(database: GDSQLDatabaseDefinition, database_name: StringName) -> void:
 	if database == null:
 		return
 	for table in database.tables:
 		_cache.invalidate(_path_resolver.resolve_table_path(database_name, table.name))
-
-
-func _remove_directory_recursive(path: String) -> Error:
-	var absolute_path := ProjectSettings.globalize_path(path)
-	if not DirAccess.dir_exists_absolute(absolute_path):
-		return OK
-	var directory := DirAccess.open(path)
-	if directory == null:
-		return ERR_CANT_OPEN
-	for file_name in directory.get_files():
-		var error := DirAccess.remove_absolute(ProjectSettings.globalize_path(path.path_join(file_name)))
-		if error != OK:
-			return error
-	for directory_name in directory.get_directories():
-		var error := _remove_directory_recursive(path.path_join(directory_name))
-		if error != OK:
-			return error
-	return DirAccess.remove_absolute(absolute_path)
 
 
 func _validate_no_incoming_foreign_keys(

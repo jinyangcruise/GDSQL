@@ -3,62 +3,221 @@ extends GDSQLTableStorage
 
 const TABLE_METADATA_SECTION := "__gdsql_metadata__"
 const INDEX_SECTION_PREFIX := "__gdsql_index__:"
+const IndexBatchSupport = preload(
+	"res://addons/gdsql/storage/reads/gdsql_storage_index_batch_support.gd",
+)
 
 var path_resolver: GDSQLDatabasePathResolver
 var config_cache: GDSQLConfigFileCache
 var codec: GDSQLGodotVariantCodec
+var _table_data_transaction: GDSQLConfigFileTableDataTransaction
+var _recovered_databases: Dictionary[StringName, bool] = { }
 
 
 func _init(
 		_path_resolver: GDSQLDatabasePathResolver,
 		_config_cache: GDSQLConfigFileCache,
 		_codec: GDSQLGodotVariantCodec,
+		_table_data_transaction: GDSQLConfigFileTableDataTransaction = null,
 ) -> void:
 	path_resolver = _path_resolver
 	config_cache = _config_cache
 	codec = _codec
+	self._table_data_transaction = _table_data_transaction \
+	if _table_data_transaction != null \
+	else GDSQLConfigFileTableDataTransaction.new(path_resolver, config_cache)
 
 
 func get_capabilities() -> GDSQLStorageCapabilities:
-	return GDSQLStorageCapabilities.new(true, true)
+	return GDSQLStorageCapabilities.new(true, true, true, true)
 
 
-func read_table(table: GDSQLTableDefinition, session: GDSQLStorageSession) -> GDSQLTableSnapshot:
+func read_table(
+	table: GDSQLTableDefinition,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
+) -> GDSQLTableSnapshot:
 	var snapshot := GDSQLTableSnapshot.new()
 	snapshot.primary_key = table.primary_key
+	if not _ensure_recovered(table.database_name):
+		return snapshot
 	if session != null and session.dirty:
-		snapshot.rows = _build_effective_rows(table, session)
+		snapshot.rows = _build_effective_rows(table, session, request)
 	else:
-		snapshot.rows = _read_persisted_rows(table)
+		snapshot.rows = _read_persisted_rows(table, request)
 	var metadata := _effective_metadata(table, session)
 	snapshot.row_count = int(metadata["row_count"])
 	snapshot.next_auto_increment = int(metadata["next_auto_increment"])
 	return snapshot
 
 
-func find_by_primary_key(
-		table: GDSQLTableDefinition,
-		key: Variant,
-		session: GDSQLStorageSession,
-) -> GDSQLRowRecord:
+func read_batch(
+	table: GDSQLTableDefinition,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLStorageReadBatch:
+	var result := GDSQLStorageReadBatch.new()
+	var recovered := _recover_database(table.database_name)
+	result.diagnostics.merge(recovered.diagnostics)
+	if not recovered.is_successful():
+		return result
+	if not _validate_bounded_read_request(
+		request,
+		GDSQLStorageBackendIds.CONFIG_FILE,
+		table,
+		result,
+	):
+		return result
+	var offset := _cursor_offset(request.cursor, result)
+	if not result.is_successful():
+		return result
+	var path := path_resolver.resolve_table_path(table.database_name, table.name)
+	var cache_load := config_cache.get_or_load_with_statistics(path)
 	if session != null and session.dirty:
-		return _find_effective_row(table, key, session)
+		var batch := _batch_from_rows(
+			_build_effective_rows(
+				table,
+				session,
+				_effective_batch_request(table, request),
+			),
+			offset,
+			request,
+			table,
+		)
+		_apply_cache_load_statistics(batch, cache_load)
+		return batch
+	var config := cache_load.config
+	if config == null:
+		_apply_cache_load_statistics(result, cache_load)
+		result.value = result.rows
+		return result
+	var sections := _get_row_sections(config)
+	if offset > sections.size():
+		var offset_error := _bounded_read_offset_error(offset, sections.size())
+		_apply_cache_load_statistics(offset_error, cache_load)
+		return offset_error
+	var end := mini(offset + request.batch_size, sections.size())
+	for index in range(offset, end):
+		result.rows.append(_read_row(config, sections[index], table, request))
+	result.statistics.rows_scanned = sections.size()
+	result.statistics.rows_returned = result.rows.size()
+	_apply_cache_load_statistics(result, cache_load)
+	if end < sections.size():
+		result.next_cursor = GDSQLStorageReadCursor.new(
+			GDSQLStorageBackendIds.CONFIG_FILE,
+			table.database_name,
+			table.name,
+			end,
+		)
+	result.value = result.rows
+	return result
+
+
+func read_index_batch(
+	table: GDSQLTableDefinition,
+	index: GDSQLIndexDefinition,
+	direction: GDSQLStorageOrderDirection.Direction,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLStorageReadBatch:
+	var result := GDSQLStorageReadBatch.new()
+	var recovered := _recover_database(table.database_name)
+	result.diagnostics.merge(recovered.diagnostics)
+	if not recovered.is_successful():
+		return result
+	if not _validate_ordered_index_read_request(
+		table,
+		index,
+		direction,
+		request,
+		GDSQLStorageBackendIds.CONFIG_FILE,
+		result,
+	):
+		return result
+	var offset := IndexBatchSupport.cursor_offset(
+		request.cursor,
+		index,
+		direction,
+		result,
+	)
+	if not result.is_successful():
+		return result
+	var path := path_resolver.resolve_table_path(table.database_name, table.name)
+	var cache_load := config_cache.get_or_load_with_statistics(path)
+	if session != null and session.dirty:
+		var rows := _build_effective_rows(
+			table,
+			session,
+			_ordered_index_request(table, index, request),
+		)
+		IndexBatchSupport.sort_rows(rows, index, direction)
+		var batch := _ordered_batch_from_rows(
+			rows,
+			offset,
+			request,
+			table,
+			index,
+			direction,
+		)
+		_apply_cache_load_statistics(batch, cache_load)
+		return batch
+	var config := cache_load.config
+	if config == null:
+		_apply_cache_load_statistics(result, cache_load)
+		result.value = result.rows
+		return result
+	var sections := _ordered_index_row_sections(config, table, index, direction)
+	if offset > sections.size():
+		var offset_error := _bounded_read_offset_error(offset, sections.size())
+		_apply_cache_load_statistics(offset_error, cache_load)
+		return offset_error
+	var end := mini(offset + request.batch_size, sections.size())
+	for row_offset in range(offset, end):
+		result.rows.append(_read_row(config, sections[row_offset], table, request))
+	result.statistics.rows_scanned = sections.size()
+	result.statistics.rows_returned = result.rows.size()
+	_apply_cache_load_statistics(result, cache_load)
+	if end < sections.size():
+		result.next_cursor = IndexBatchSupport.create_cursor(
+			GDSQLStorageBackendIds.CONFIG_FILE,
+			table,
+			index,
+			direction,
+			end,
+		)
+	result.value = result.rows
+	return result
+
+
+func find_by_primary_key(
+	table: GDSQLTableDefinition,
+	key: Variant,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
+) -> GDSQLRowRecord:
+	if not _ensure_recovered(table.database_name):
+		return null
+	if session != null and session.dirty:
+		return _find_effective_row(table, key, session, request)
 	var path := path_resolver.resolve_table_path(table.database_name, table.name)
 	var config := config_cache.get_or_load(path)
 	var section := str(key)
 	if config == null or _is_reserved_section(section) or not config.has_section(section):
 		return null
-	return _read_row(config, section, table)
+	return _read_row(config, section, table, request)
 
 
 func find_by_index(
 		table: GDSQLTableDefinition,
-		index: GDSQLIndexDefinition,
-		values: Array[Variant],
-		session: GDSQLStorageSession,
+	index: GDSQLIndexDefinition,
+	values: Array[Variant],
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
+	if not _ensure_recovered(table.database_name):
+		return []
 	if session != null and session.dirty:
-		return _filter_effective_rows(table, index, values, session)
+		return _filter_effective_rows(table, index, values, session, request)
 	var config := config_cache.get_or_load(
 		path_resolver.resolve_table_path(table.database_name, table.name),
 	)
@@ -75,6 +234,7 @@ func find_by_index(
 			config,
 			config.get_value(section, "rows", PackedStringArray()),
 			table,
+			request,
 		)
 	return []
 
@@ -84,11 +244,14 @@ func find_by_index_range(
 		index: GDSQLIndexDefinition,
 		lower_bound: Variant,
 		upper_bound: Variant,
-		include_lower: bool,
-		include_upper: bool,
-		session: GDSQLStorageSession,
+	include_lower: bool,
+	include_upper: bool,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
 	var matching: Array[GDSQLRowRecord] = []
+	if not _ensure_recovered(table.database_name):
+		return matching
 	if index.columns.size() != 1:
 		return matching
 	if lower_bound != null:
@@ -107,7 +270,7 @@ func find_by_index_range(
 		for row in _build_effective_rows(table, session):
 			var value: Variant = row.get_value(index.columns[0])
 			if _value_in_range(value, lower_bound, upper_bound, include_lower, include_upper):
-				matching.append(row)
+				matching.append(_apply_read_request(row, request))
 		return matching
 	var config := config_cache.get_or_load(
 		path_resolver.resolve_table_path(table.database_name, table.name),
@@ -134,6 +297,7 @@ func find_by_index_range(
 					config,
 					config.get_value(section, "rows", PackedStringArray()),
 					table,
+					request,
 				),
 			)
 	return matching
@@ -168,7 +332,8 @@ func stage_insert(
 			),
 		)
 		return result
-	if find_by_primary_key(table, key, session) != null or _has_staged_key(session, table, key):
+	if find_by_primary_key(table, key, session, _identity_request(table)) != null \
+			or _has_staged_key(session, table, key):
 		result.add_diagnostic(
 			GDSQLQueryDiagnostic.new(
 				&"GDSQL_STORAGE_DUPLICATE_PRIMARY_KEY",
@@ -189,7 +354,7 @@ func stage_insert(
 
 func stage_update(table: GDSQLTableDefinition, key: Variant, row: GDSQLRowRecord, session: GDSQLStorageSession) -> GDSQLStorageOperationResult:
 	var result := GDSQLStorageOperationResult.new()
-	if find_by_primary_key(table, key, session) == null:
+	if find_by_primary_key(table, key, session, _identity_request(table)) == null:
 		return _missing_row_result(table, key, &"update")
 	if not row.has_column(table.primary_key) or row.get_value(table.primary_key) != key:
 		result.add_diagnostic(
@@ -208,7 +373,7 @@ func stage_update(table: GDSQLTableDefinition, key: Variant, row: GDSQLRowRecord
 
 
 func stage_delete(table: GDSQLTableDefinition, key: Variant, session: GDSQLStorageSession) -> GDSQLStorageOperationResult:
-	if find_by_primary_key(table, key, session) == null:
+	if find_by_primary_key(table, key, session, _identity_request(table)) == null:
 		return _missing_row_result(table, key, &"delete")
 	var result := GDSQLStorageOperationResult.new()
 	var metadata := _get_session_table_metadata(table, session)
@@ -224,7 +389,11 @@ func stage_truncate(
 		session: GDSQLStorageSession,
 ) -> GDSQLStorageOperationResult:
 	var result := GDSQLStorageOperationResult.new()
-	var removed_rows := _build_effective_rows(table, session).size()
+	var removed_rows := _build_effective_rows(
+		table,
+		session,
+		_identity_request(table),
+	).size()
 	var metadata := _get_session_table_metadata(table, session)
 	metadata["row_count"] = 0
 	metadata["next_auto_increment"] = 1
@@ -255,74 +424,38 @@ func commit(session: GDSQLStorageSession) -> GDSQLStorageCommitResult:
 	if not constraint_result.is_successful():
 		return constraint_result
 	var result := GDSQLStorageCommitResult.new()
-	var touched_paths: Dictionary = { }
-	for operation in session.operations:
-		var table := operation["table"] as GDSQLTableDefinition
-		var path := path_resolver.resolve_table_path(table.database_name, table.name)
-		var directory_error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path.get_base_dir()))
-		if directory_error != OK:
-			return _commit_error(&"GDSQL_STORAGE_DIRECTORY_UNWRITABLE", "Could not create table directory: %s" % path.get_base_dir())
-		var config := config_cache.get_or_load(path)
-		if config == null:
-			return _commit_error(&"GDSQL_STORAGE_TABLE_UNREADABLE", "Could not load table file: %s" % path)
-		var operation_type := operation["type"] as StringName
-		if operation_type == &"truncate":
-			for section in _get_row_sections(config):
-				config.erase_section(section)
-		elif operation_type == &"metadata":
-			pass
-		elif operation_type == &"delete":
-			config.erase_section(str(operation["key"]))
-		else:
-			var row := operation["row"] as GDSQLRowRecord
-			var section := str(row.get_value(table.primary_key))
-			for column: Variant in row.values.keys():
-				config.set_value(
-					section,
-					String(column),
-					codec.encode(row.values[column], table.get_column(column)),
-				)
-		touched_paths[path] = true
-	for table_key in session.table_metadata:
-		var metadata: Dictionary = session.table_metadata[table_key]
-		var table := metadata["table"] as GDSQLTableDefinition
-		var path := path_resolver.resolve_table_path(table.database_name, table.name)
-		var config := config_cache.get_or_load(path)
-		if config == null:
-			return _commit_error(
-				&"GDSQL_STORAGE_TABLE_UNREADABLE",
-				"Could not load table file: %s" % path,
-			)
-		config.set_value(
-			TABLE_METADATA_SECTION,
-			"row_count",
-			int(metadata["row_count"]),
-		)
-		config.set_value(
-			TABLE_METADATA_SECTION,
-			"next_auto_increment",
-			int(metadata["next_auto_increment"]),
-		)
-		touched_paths[path] = true
 	var touched_tables: Dictionary = { }
 	for operation in session.operations:
 		var table := operation["table"] as GDSQLTableDefinition
 		touched_tables[_table_key(table)] = table
-	for table_key in touched_tables:
-		var table := touched_tables[table_key] as GDSQLTableDefinition
-		var path := path_resolver.resolve_table_path(table.database_name, table.name)
-		var config := config_cache.get_or_load(path)
-		if config == null:
+	if touched_tables.is_empty():
+		session.clear()
+		result.value = true
+		return result
+	var database_name := &""
+	var replacements: Dictionary = { }
+	for table_value in touched_tables.values():
+		var table := table_value as GDSQLTableDefinition
+		if database_name == &"":
+			database_name = table.database_name
+		elif table.database_name != database_name:
+			return _commit_error(
+				&"GDSQL_STORAGE_CROSS_DATABASE_SESSION_UNSUPPORTED",
+				"One storage commit cannot replace tables from multiple databases.",
+			)
+		var replacement := _build_replacement(table, session)
+		if replacement == null:
 			return _commit_error(
 				&"GDSQL_STORAGE_TABLE_UNREADABLE",
-				"Could not load table file: %s" % path,
+				"Could not build replacement data for %s.%s." \
+						% [table.database_name, table.name],
 			)
-		_rebuild_indexes(config, table)
-		touched_paths[path] = true
-	for path: String in touched_paths:
-		var save_error := config_cache.flush(path)
-		if save_error != OK:
-			return _commit_error(&"GDSQL_STORAGE_COMMIT_FAILED", "Could not save table file: %s" % path)
+		replacements[table.name] = replacement
+	var activated := _table_data_transaction.replace_tables(database_name, replacements)
+	result.diagnostics.merge(activated.diagnostics)
+	if not activated.is_successful():
+		return result
+	_recovered_databases[database_name] = true
 	session.clear()
 	result.value = true
 	return result
@@ -333,9 +466,12 @@ func rollback(session: GDSQLStorageSession) -> void:
 
 
 func _read_persisted_rows(
-		table: GDSQLTableDefinition,
+	table: GDSQLTableDefinition,
+	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
 	var rows: Array[GDSQLRowRecord] = []
+	if not _ensure_recovered(table.database_name):
+		return rows
 	var path := path_resolver.resolve_table_path(table.database_name, table.name)
 	var config := config_cache.get_or_load(path)
 	if config == null:
@@ -343,8 +479,113 @@ func _read_persisted_rows(
 	for section in config.get_sections():
 		if _is_reserved_section(section):
 			continue
-		rows.append(_read_row(config, section, table))
+		rows.append(_read_row(config, section, table, request))
 	return rows
+
+
+func _batch_from_rows(
+	rows: Array[GDSQLRowRecord],
+	offset: int,
+	request: GDSQLStorageReadRequest,
+	table: GDSQLTableDefinition,
+) -> GDSQLStorageReadBatch:
+	if offset > rows.size():
+		return _bounded_read_offset_error(offset, rows.size())
+	var result := GDSQLStorageReadBatch.new()
+	var end := mini(offset + request.batch_size, rows.size())
+	for index in range(offset, end):
+		result.rows.append(_apply_read_request(rows[index], request))
+	result.statistics.rows_scanned = rows.size()
+	result.statistics.rows_returned = result.rows.size()
+	if end < rows.size():
+		result.next_cursor = GDSQLStorageReadCursor.new(
+			GDSQLStorageBackendIds.CONFIG_FILE,
+			table.database_name,
+			table.name,
+			end,
+		)
+	result.value = result.rows
+	return result
+
+
+func _ordered_batch_from_rows(
+	rows: Array[GDSQLRowRecord],
+	offset: int,
+	request: GDSQLStorageReadRequest,
+	table: GDSQLTableDefinition,
+	index: GDSQLIndexDefinition,
+	direction: GDSQLStorageOrderDirection.Direction,
+) -> GDSQLStorageReadBatch:
+	if offset > rows.size():
+		return _bounded_read_offset_error(offset, rows.size())
+	var result := GDSQLStorageReadBatch.new()
+	var end := mini(offset + request.batch_size, rows.size())
+	for row_offset in range(offset, end):
+		result.rows.append(_apply_read_request(rows[row_offset], request))
+	result.statistics.rows_scanned = rows.size()
+	result.statistics.rows_returned = result.rows.size()
+	if end < rows.size():
+		result.next_cursor = IndexBatchSupport.create_cursor(
+			GDSQLStorageBackendIds.CONFIG_FILE,
+			table,
+			index,
+			direction,
+			end,
+		)
+	result.value = result.rows
+	return result
+
+
+func _apply_cache_load_statistics(
+	result: GDSQLStorageReadBatch,
+	cache_load: GDSQLConfigFileCacheLoadResult,
+) -> void:
+	result.statistics.bytes_read = cache_load.bytes_read
+	result.statistics.pages_read = -1
+	result.statistics.physical_read_bounded = false
+
+
+func _cursor_offset(
+	cursor: GDSQLStorageReadCursor,
+	result: GDSQLStorageReadBatch,
+) -> int:
+	if cursor == null:
+		return 0
+	var token: Variant = cursor.get_token()
+	if token is int and int(token) >= 0:
+		return int(token)
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_STORAGE_CURSOR_INVALID",
+			"The ConfigFile read cursor is invalid.",
+		),
+	)
+	return 0
+
+
+func _effective_batch_request(
+	table: GDSQLTableDefinition,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLStorageReadRequest:
+	var effective_request := request.duplicate_request()
+	if not effective_request.all_columns \
+			and not effective_request.required_columns.has(table.primary_key):
+		effective_request.required_columns.append(table.primary_key)
+	return effective_request
+
+
+func _ordered_index_request(
+	table: GDSQLTableDefinition,
+	index: GDSQLIndexDefinition,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLStorageReadRequest:
+	var effective_request := _effective_batch_request(table, request)
+	if effective_request.all_columns:
+		return effective_request
+	for column_name in index.columns:
+		if not effective_request.required_columns.has(column_name):
+			effective_request.required_columns.append(column_name)
+	return effective_request
 
 
 func _validate_session_constraints(
@@ -356,7 +597,11 @@ func _validate_session_constraints(
 		tables[_table_key(table)] = table
 	for table_value in tables.values():
 		var table := table_value as GDSQLTableDefinition
-		var rows := _build_effective_rows(table, session)
+		var rows := _build_effective_rows(
+			table,
+			session,
+			GDSQLStorageReadRequest.all(true),
+		)
 		var values_result := _validate_row_values(table, rows)
 		if not values_result.is_successful():
 			return values_result
@@ -403,6 +648,11 @@ func _get_session_table_metadata(
 
 
 func _load_table_metadata(table: GDSQLTableDefinition) -> Dictionary:
+	if not _ensure_recovered(table.database_name):
+		return {
+			"row_count": 0,
+			"next_auto_increment": 1,
+		}
 	var path := path_resolver.resolve_table_path(table.database_name, table.name)
 	var config := config_cache.get_or_load(path)
 	if config == null:
@@ -456,12 +706,59 @@ func _table_key(table: GDSQLTableDefinition) -> String:
 	return "%s.%s" % [table.database_name, table.name]
 
 
-func _build_effective_rows(
+func _build_replacement(
 		table: GDSQLTableDefinition,
 		session: GDSQLStorageSession,
+) -> ConfigFile:
+	var config := ConfigFile.new()
+	var rows := _build_effective_rows(
+		table,
+		session,
+		GDSQLStorageReadRequest.all(true),
+	)
+	for row in rows:
+		var section := str(row.get_value(table.primary_key))
+		for column in table.columns:
+			if not row.has_column(column.name):
+				continue
+			config.set_value(
+				section,
+				String(column.name),
+				codec.encode(row.get_value(column.name), column),
+			)
+	var metadata := _effective_metadata(table, session)
+	config.set_value(TABLE_METADATA_SECTION, "row_count", int(metadata["row_count"]))
+	config.set_value(
+		TABLE_METADATA_SECTION,
+		"next_auto_increment",
+		int(metadata["next_auto_increment"]),
+	)
+	_rebuild_indexes(config, table)
+	return config
+
+
+func _recover_database(database_name: StringName) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	if _recovered_databases.has(database_name):
+		result.value = false
+		return result
+	result = _table_data_transaction.recover_database(database_name)
+	if result.is_successful():
+		_recovered_databases[database_name] = true
+	return result
+
+
+func _ensure_recovered(database_name: StringName) -> bool:
+	return _recover_database(database_name).is_successful()
+
+
+func _build_effective_rows(
+	table: GDSQLTableDefinition,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
 	var rows_by_key: Dictionary = { }
-	for row in _read_persisted_rows(table):
+	for row in _read_persisted_rows(table, request):
 		rows_by_key[row.get_value(table.primary_key)] = row
 	for operation in session.operations:
 		var operation_table := operation["table"] as GDSQLTableDefinition
@@ -478,7 +775,10 @@ func _build_effective_rows(
 		if operation["type"] == &"delete":
 			rows_by_key.erase(key)
 		else:
-			rows_by_key[key] = (operation["row"] as GDSQLRowRecord).duplicate_record()
+			rows_by_key[key] = _apply_read_request(
+				operation["row"] as GDSQLRowRecord,
+				request,
+			)
 	var rows: Array[GDSQLRowRecord] = []
 	for row in rows_by_key.values():
 		rows.append(row)
@@ -500,7 +800,10 @@ func _validate_row_values(
 							% [column.name, table.database_name, table.name],
 				)
 			var value: Variant = row.get_value(column.name)
-			if not column.accepts_value(value):
+			if not column.accepts_value(value) and not (
+					value is GDSQLResourceReference
+					and (value as GDSQLResourceReference).matches_column(column)
+			):
 				var expected := column.expected_type_name()
 				return _commit_error(
 					&"GDSQL_STORAGE_COLUMN_TYPE_MISMATCH",
@@ -523,8 +826,9 @@ func _validate_unique_column(
 		primary_key: bool,
 ) -> GDSQLStorageCommitResult:
 	var seen_values: Array[Variant] = []
+	var column := table.get_column(column_name)
 	for row in rows:
-		var value: Variant = row.get_value(column_name)
+		var value: Variant = _comparable_value(row.get_value(column_name), column)
 		if value == null and not primary_key:
 			continue
 		if seen_values.has(value):
@@ -553,7 +857,10 @@ func _validate_unique_index(
 		var values: Array = []
 		var contains_null := false
 		for column_name in index.columns:
-			var value: Variant = row.get_value(column_name)
+			var value: Variant = _comparable_value(
+				row.get_value(column_name),
+				table.get_column(column_name),
+			)
 			values.append(value)
 			contains_null = contains_null or value == null
 		if contains_null:
@@ -575,8 +882,10 @@ func _rebuild_indexes(config: ConfigFile, table: GDSQLTableDefinition) -> void:
 		if section.begins_with(INDEX_SECTION_PREFIX):
 			config.erase_section(section)
 	for index in table.indexes:
+		var index_columns: Array[StringName] = index.columns.duplicate()
+		var request := GDSQLStorageReadRequest.for_columns(index_columns, true)
 		for row_section in _get_row_sections(config):
-			var row := _read_row(config, row_section, table)
+			var row := _read_row(config, row_section, table, request)
 			var values := _normalize_index_values(
 				table,
 				index,
@@ -606,6 +915,22 @@ func _rebuild_indexes(config: ConfigFile, table: GDSQLTableDefinition) -> void:
 			)
 			row_sections.append(row_section)
 			config.set_value(section, "rows", row_sections)
+
+
+func _identity_request(table: GDSQLTableDefinition) -> GDSQLStorageReadRequest:
+	var columns: Array[StringName] = [table.primary_key]
+	return GDSQLStorageReadRequest.for_columns(columns, true)
+
+
+func _comparable_value(value: Variant, column: GDSQLColumnDefinition) -> Variant:
+	if value is GDSQLResourceReference:
+		return (value as GDSQLResourceReference).to_dictionary()
+	if value is Resource and column != null \
+			and column.resource_ownership == GDSQLResourceOwnership.Mode.REFERENCED:
+		var reference := GDSQLResourceReference.from_resource(value, column.resource_type)
+		if reference != null:
+			return reference.to_dictionary()
+	return value
 
 
 func _decode_index_values(
@@ -657,8 +982,9 @@ func _normalize_index_values(
 func _filter_effective_rows(
 		table: GDSQLTableDefinition,
 		index: GDSQLIndexDefinition,
-		values: Array[Variant],
-		session: GDSQLStorageSession,
+	values: Array[Variant],
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
 	var matching: Array[GDSQLRowRecord] = []
 	var normalized_values := _normalize_index_values(table, index, values)
@@ -668,44 +994,64 @@ func _filter_effective_rows(
 			index,
 			_index_values(row, index),
 		) == normalized_values:
-			matching.append(row)
+			matching.append(_apply_read_request(row, request))
 	return matching
 
 
 func _find_effective_row(
-		table: GDSQLTableDefinition,
-		key: Variant,
-		session: GDSQLStorageSession,
+	table: GDSQLTableDefinition,
+	key: Variant,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> GDSQLRowRecord:
 	for row in _build_effective_rows(table, session):
 		if row.get_value(table.primary_key) == key:
-			return row
+			return _apply_read_request(row, request)
 	return null
 
 
 func _rows_for_sections(
 		config: ConfigFile,
-		sections: PackedStringArray,
-		table: GDSQLTableDefinition,
+	sections: PackedStringArray,
+	table: GDSQLTableDefinition,
+	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
 	var rows: Array[GDSQLRowRecord] = []
 	for section in sections:
 		if config.has_section(section) and not _is_reserved_section(section):
-			rows.append(_read_row(config, section, table))
+			rows.append(_read_row(config, section, table, request))
 	return rows
 
 
 func _read_row(
-		config: ConfigFile,
-		section: String,
-		table: GDSQLTableDefinition,
+	config: ConfigFile,
+	section: String,
+	table: GDSQLTableDefinition,
+	request: GDSQLStorageReadRequest = null,
 ) -> GDSQLRowRecord:
 	var values: Dictionary = { }
 	for key in config.get_section_keys(section):
-		values[StringName(key)] = codec.decode(
+		var column_name := StringName(key)
+		if request != null and not request.includes_column(column_name):
+			continue
+		values[column_name] = codec.decode(
 			config.get_value(section, key),
-			table.get_column(StringName(key)),
+			table.get_column(column_name),
+			request != null and request.preserve_resource_references,
 		)
+	return GDSQLRowRecord.new(values)
+
+
+func _apply_read_request(
+	row: GDSQLRowRecord,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLRowRecord:
+	if request == null or request.all_columns:
+		return row.duplicate_record()
+	var values: Dictionary = { }
+	for column_name in request.required_columns:
+		if row.has_column(column_name):
+			values[column_name] = row.get_value(column_name)
 	return GDSQLRowRecord.new(values)
 
 
@@ -714,6 +1060,37 @@ func _get_row_sections(config: ConfigFile) -> PackedStringArray:
 	for section in config.get_sections():
 		if not _is_reserved_section(section):
 			sections.append(section)
+	return sections
+
+
+func _ordered_index_row_sections(
+	config: ConfigFile,
+	table: GDSQLTableDefinition,
+	index: GDSQLIndexDefinition,
+	direction: GDSQLStorageOrderDirection.Direction,
+) -> PackedStringArray:
+	var buckets: Array[Dictionary] = []
+	for section in config.get_sections():
+		if not section.begins_with(_index_prefix(index)):
+			continue
+		buckets.append(
+			{
+				"values": _decode_index_values(
+					config.get_value(section, "values", []),
+					table,
+					index,
+				),
+				"rows": config.get_value(
+					section,
+					"rows",
+					PackedStringArray(),
+				),
+			},
+		)
+	buckets.sort_custom(_index_bucket_precedes.bind(direction))
+	var sections := PackedStringArray()
+	for bucket in buckets:
+		sections.append_array(bucket["rows"] as PackedStringArray)
 	return sections
 
 
@@ -757,6 +1134,18 @@ func _compare_values(left: Variant, right: Variant) -> int:
 	if String(left) == String(right):
 		return 0
 	return -1 if String(left) < String(right) else 1
+
+
+func _index_bucket_precedes(
+	left: Dictionary,
+	right: Dictionary,
+	direction: GDSQLStorageOrderDirection.Direction,
+) -> bool:
+	return IndexBatchSupport.values_precede(
+		left["values"],
+		right["values"],
+		direction,
+	)
 
 
 func _has_staged_key(session: GDSQLStorageSession, table: GDSQLTableDefinition, key: Variant) -> bool:

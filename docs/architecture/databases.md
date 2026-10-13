@@ -37,11 +37,15 @@ Editor documents and database content use separate project-owned roots:
 ```text
 res://.gdsql/
 ├── settings.cfg
-└── graphs/
+├── graphs/
+└── migrations/
+    └── <stream>/
+        └── <migration_id>.cfg
 
 res://data/
 ├── databases.cfg
 └── content/
+	├── migrations.cfg
     ├── schema/
     └── tables/
 ```
@@ -68,6 +72,7 @@ user://gdsql/saves/
 ├── save_1/
 │   ├── databases.cfg
 │   └── game_state/
+│       ├── migrations.cfg
 │       ├── schema/
 │       └── tables/
 └── new_game_plus/
@@ -77,11 +82,13 @@ user://gdsql/saves/
         └── tables/
 ```
 
-The schema definition or initialization code is shipped with the project. On
-first use of a save name, GDSQL creates or opens the corresponding database
-under `user://gdsql/saves/<save_name>/`. Later schema compatibility can use a
-lightweight table or save-format version; a general migration framework remains
-outside the current scope.
+The schema definition and ordered migration history are shipped with the
+project. On first use of a save name, GDSQL creates or opens the corresponding
+database under `user://gdsql/saves/<save_name>/`. Once migrations are applied,
+`migrations.cfg` records their checksums and resulting schema fingerprints.
+This ledger is database state; authored migration definitions remain
+project-owned source. Multiple slots use the same configured migration stream
+while retaining independent applied ledgers.
 
 ### Settings database
 

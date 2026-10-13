@@ -6,19 +6,156 @@ func get_capabilities() -> GDSQLStorageCapabilities:
 	return GDSQLStorageCapabilities.new()
 
 
-func read_table(table: GDSQLTableDefinition, session: GDSQLStorageSession) -> GDSQLTableSnapshot:
+func read_table(
+	table: GDSQLTableDefinition,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
+) -> GDSQLTableSnapshot:
 	return null
 
 
-func find_by_primary_key(table: GDSQLTableDefinition, key: Variant, session: GDSQLStorageSession) -> GDSQLRowRecord:
+## Reads at most request.batch_size rows and returns an opaque continuation.
+## Concrete backends own cursor interpretation and report whether physical I/O
+## was actually bounded.
+func read_batch(
+	table: GDSQLTableDefinition,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLStorageReadBatch:
+	var result := GDSQLStorageReadBatch.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_STORAGE_BOUNDED_READ_UNSUPPORTED",
+			"The selected storage backend does not implement bounded reads.",
+		),
+	)
+	return result
+
+
+## Reads at most request.batch_size rows in one catalog index's value order.
+## The cursor remains backend-owned and valid only for the same index and
+## direction that produced it.
+func read_index_batch(
+	table: GDSQLTableDefinition,
+	index: GDSQLIndexDefinition,
+	direction: GDSQLStorageOrderDirection.Direction,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLStorageReadBatch:
+	var result := GDSQLStorageReadBatch.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_STORAGE_ORDERED_INDEX_READ_UNSUPPORTED",
+			"The selected storage backend does not implement ordered index reads.",
+		),
+	)
+	return result
+
+
+func _validate_bounded_read_request(
+	request: GDSQLStorageReadRequest,
+	backend_id: StringName,
+	table: GDSQLTableDefinition,
+	result: GDSQLStorageReadBatch,
+) -> bool:
+	if request == null or not request.is_bounded():
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_STORAGE_BOUNDED_REQUEST_REQUIRED",
+				"A bounded storage read requires a positive batch size.",
+			),
+		)
+		return false
+	if request.cursor == null:
+		return true
+	if not request.cursor.is_for_backend(backend_id):
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_STORAGE_CURSOR_BACKEND_MISMATCH",
+				"The read cursor belongs to a different storage backend.",
+			),
+		)
+		return false
+	if not request.cursor.is_for_source(table.database_name, table.name):
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_STORAGE_CURSOR_SOURCE_MISMATCH",
+				"The read cursor belongs to a different database table.",
+			),
+		)
+		return false
+	return true
+
+
+func _bounded_read_offset_error(
+	offset: int,
+	row_count: int,
+) -> GDSQLStorageReadBatch:
+	var result := GDSQLStorageReadBatch.new()
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_STORAGE_CURSOR_OUT_OF_RANGE",
+			"Read cursor offset %d exceeds the current row count %d." \
+					% [offset, row_count],
+		),
+	)
+	return result
+
+
+func _validate_ordered_index_read_request(
+	table: GDSQLTableDefinition,
+	index: GDSQLIndexDefinition,
+	direction: GDSQLStorageOrderDirection.Direction,
+	request: GDSQLStorageReadRequest,
+	backend_id: StringName,
+	result: GDSQLStorageReadBatch,
+) -> bool:
+	if not _validate_bounded_read_request(request, backend_id, table, result):
+		return false
+	if index == null:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_STORAGE_ORDERED_INDEX_REQUIRED",
+				"An ordered index read requires a catalog index.",
+			),
+		)
+		return false
+	var catalog_index := table.get_index(index.name)
+	if catalog_index == null or catalog_index.columns != index.columns:
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_STORAGE_ORDERED_INDEX_MISMATCH",
+				"Index '%s' does not match table %s.%s." \
+						% [index.name, table.database_name, table.name],
+			),
+		)
+		return false
+	if not GDSQLStorageOrderDirection.is_valid(direction):
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_STORAGE_ORDER_DIRECTION_INVALID",
+				"An ordered index read requires a valid direction.",
+			),
+		)
+		return false
+	return true
+
+
+func find_by_primary_key(
+	table: GDSQLTableDefinition,
+	key: Variant,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
+) -> GDSQLRowRecord:
 	return null
 
 
 func find_by_index(
 		table: GDSQLTableDefinition,
-		index: GDSQLIndexDefinition,
-		values: Array[Variant],
-		session: GDSQLStorageSession,
+	index: GDSQLIndexDefinition,
+	values: Array[Variant],
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
 	return []
 
@@ -28,9 +165,10 @@ func find_by_index_range(
 		index: GDSQLIndexDefinition,
 		lower_bound: Variant,
 		upper_bound: Variant,
-		include_lower: bool,
-		include_upper: bool,
-		session: GDSQLStorageSession,
+	include_lower: bool,
+	include_upper: bool,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
 	return []
 

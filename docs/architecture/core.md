@@ -194,7 +194,9 @@ A `QuerySpec` is treated as descriptive data rather than an executable object.
 
 Godot 4.5 abstract classes and methods provide explicit contracts for the redesigned architecture.
 
-Adopting `@abstract` makes Godot 4.5 the minimum supported version unless a compatibility layer is maintained.
+`@abstract` requires Godot 4.5 at the language layer. The complete plugin
+supports Godot 4.7 because its editor integration uses `EditorDock`; older
+versions are not part of the supported product matrix.
 
 ```gdscript
 @abstract
@@ -863,6 +865,8 @@ extends PlanNode
 
 var table: TableDefinition
 var alias: StringName
+var pushed_offset: int = 0
+var pushed_limit: int = -1
 
 func accept(visitor: PlanNodeVisitor) -> Variant:
     return visitor.visit_table_scan(self)
@@ -907,6 +911,19 @@ Ordering is applied to source rows before projection so a query may order by a
 source column that is not returned. Projection establishes public output names
 and the result schema. Distinct selection removes duplicate projected rows
 before limit and offset are applied.
+
+The planner may attach `OFFSET`/`LIMIT` directly to a table scan only for a
+single-table query without a predicate, join, grouping, aggregate, ordering, or
+distinct operation. These conditions guarantee that downstream operators cannot
+change which source rows belong to the requested window. Other queries retain
+an explicit `LimitPlan` after their relational operators.
+
+When that same safe query has `ORDER BY`, the planner may instead emit an
+`OrderedIndexScanPlan` when every order clause is a bound column, all directions
+match, and the ordered columns match a catalog index prefix. The node carries
+the index, direction, required columns, and result window. It replaces both
+`SortPlan` and `LimitPlan`; queries with predicates or other row-set-changing
+operators keep the complete relational pipeline.
 
 ```gdscript
 func plan_select(
@@ -963,6 +980,7 @@ Later implementations may choose among alternative operations:
 
 ```text
 TableScanPlan
+OrderedIndexScanPlan
 PrimaryKeyLookupPlan
 IndexLookupPlan
 NestedLoopJoinPlan
@@ -985,11 +1003,13 @@ These decisions do not alter `QuerySpec`.
 Indexes are an execution and storage capability rather than a second query
 model. `IndexDefinition` stores a stable name, an ordered column list, and a
 uniqueness policy in catalog metadata. `StorageCapabilities` reports exact and
-range lookup support without making the planner depend on a concrete backend.
+range lookup, bounded scan, and ordered-index read support without making the
+planner depend on a concrete backend.
 
-The deterministic planner chooses among table scan, primary-key lookup, exact
-index lookup, and range lookup based on bound predicates, index metadata, and
-reported storage capabilities. The initial optimization recognizes literal
+The deterministic planner chooses among table scan, ordered-index scan,
+primary-key lookup, exact index lookup, and range lookup based on bound
+predicates, index metadata, and reported storage capabilities. The initial
+predicate optimization recognizes literal
 comparisons against single-column indexes, including indexed comparisons inside
 an `AND` predicate. It retains the complete predicate as a filter after the
 lookup, preserving semantics when other conditions are present. Composite
@@ -1229,8 +1249,12 @@ game code must query a fresh instance after switching.
 Durable registration metadata uses `GDSQLDatabaseRegistration` and
 `GDSQLDatabaseRegistrySnapshot`. `GDSQLConfigFileDatabaseRegistryStore` stores
 the snapshot in `user://gdsql/databases.cfg`, allowing runtime startup and
-editor tools to inspect database roots, backend types, and role selections.
-Open handles remain attached to the active application context.
+editor tools to inspect database roots, backend types, role selections, and
+stable migration streams. A migration stream identifies the project-owned
+schema history independently from a physical database or registration name.
+It defaults to the logical database name, remains unchanged when a database is
+renamed, and may be shared by multiple physical save slots. Open handles remain
+attached to the active application context.
 
 One `DatabaseRegistration` identifies one logical database. The snapshot and
 registry form the collection that knows every registered database. Registration
@@ -1289,12 +1313,16 @@ node releases its `GDSQLRuntimeSession`. The node emits results for game UI but
 does not print failures or decide whether a game may quit.
 
 `GDSQLRuntimeFactory.bootstrap()` is the supported application composition
-path. It loads the durable registry snapshot, opens every registration through
-its selected backend, restores logical role bindings, creates one
-`GDSQLModelContext`, and registers checkpoint targets for in-memory databases.
-It returns a tested `GDSQLRuntimeSession` facade. ConfigFile registrations need
-no checkpoint target because their commits are already durable; explicit
-checkpoint calls for those roles succeed without writing again.
+path. It loads the durable registry snapshot and opens each registration's
+durable authoring source. Before runtime hydration or model registration,
+`GDSQLMigrationStartupCoordinator` brings that source to its trusted schema
+state. Bootstrap then opens the selected runtime backend, restores logical role
+bindings, creates one `GDSQLModelContext`, and registers checkpoint targets for
+in-memory databases. It returns a tested `GDSQLRuntimeSession` facade.
+ConfigFile registrations need no checkpoint target because their commits are
+already durable; explicit checkpoint calls for those roles succeed without
+writing again. Any migration or registration failure stops bootstrap before a
+partial model context is installed.
 
 Before opening registrations, bootstrap evaluates the snapshot through
 `GDSQLDirectSetupInspector` for direct or unselected setup profiles. Missing or
@@ -1330,11 +1358,25 @@ whether that save may load.
 
 `GDSQLInMemoryCheckpointTarget` composes an `InMemoryTableStorage` source with
 an injected durable `TableStorage`. It synchronizes authoritative dirty tables
-and clears a dirty marker only when the copied version remains current. This
-adapter keeps checkpoint policy outside storage and keeps ConfigFile knowledge
-outside the in-memory backend. `load_table()` establishes a clean authoritative
-memory snapshot before runtime mutation when an existing durable dataset is
-used as the source.
+through one storage session and clears a dirty marker only after that session
+commits and the copied version remains current. A staging or commit failure
+rolls back the session and leaves every participating table dirty for a later
+complete retry. This adapter keeps checkpoint policy outside storage and keeps
+ConfigFile knowledge outside the in-memory backend. `load_table()` establishes
+a clean authoritative memory snapshot before runtime mutation when an existing
+durable dataset is used as the source. Hydration and checkpoint reads preserve
+Resource locators; neither operation loads an external asset merely to transfer
+or compare rows.
+
+ConfigFile storage commits complete replacement files for every touched table
+through `GDSQLConfigFileTableDataTransaction`. The transaction stages and
+verifies all replacements before persisting one database-scoped preparing
+marker, moves the previous files aside, activates every replacement, and then
+promotes the marker to committed. Recovery rolls back every touched table while
+the marker is preparing and keeps the complete new set when it is committed;
+cached table files are invalidated after either outcome. This protects process
+interruption and failed rename boundaries without claiming hardware power-loss
+durability beyond the filesystem guarantees available through Godot.
 
 ### 11.4 Content package metadata
 
@@ -1368,7 +1410,9 @@ databases or mutates source content.
 `GDSQLContentPackageLayerReader` translates one package's selected logical
 database into typed table definitions and `GDSQLContentRowOperation` values.
 The ConfigFile implementation owns catalog, table-file, and `overlays.cfg`
-decoding. `GDSQLContentOverlayLoader` depends only on this reader contract.
+decoding and preserves referenced-asset identity while copying rows.
+`GDSQLContentOverlayLoader` depends only on this reader contract and validates
+those inert references against the copied column definition.
 
 The loader copies compatible schemas and rows into a deterministic
 `GDSQLContentDatabaseSnapshot`. Later packages replace rows with the same
@@ -1443,14 +1487,32 @@ extends RefCounted
 @abstract
 func read_table(
     table: TableDefinition,
-    session: StorageSession
+    session: StorageSession,
+    request: StorageReadRequest = null
 ) -> TableSnapshot
+
+@abstract
+func read_batch(
+    table: TableDefinition,
+    session: StorageSession,
+    request: StorageReadRequest
+) -> StorageReadBatch
+
+@abstract
+func read_index_batch(
+    table: TableDefinition,
+    index: IndexDefinition,
+    direction: StorageOrderDirection,
+    session: StorageSession,
+    request: StorageReadRequest
+) -> StorageReadBatch
 
 @abstract
 func find_by_primary_key(
     table: TableDefinition,
     key: Variant,
-    session: StorageSession
+    session: StorageSession,
+    request: StorageReadRequest = null
 ) -> RowRecord
 
 @abstract
@@ -1525,6 +1587,126 @@ ConfigFileTableStorage
 ```
 
 Storage representations do not propagate upward into the canonical query model.
+
+`GDSQLStorageReadRequest` is descriptive storage input, not query syntax. It
+identifies the columns required by one planned table access and whether
+referenced Resource values must remain inert. The planner derives required
+columns from projection, predicates, joins, grouping, ordering, aggregates,
+and row identity. ConfigFile storage can then skip unrelated keys and return
+`GDSQLResourceReference` values without invoking `ResourceLoader`. The executor
+materializes only required references through its injected resolver before
+expression evaluation, preserving concrete Resource values in ordinary public
+results. Resolver failures become query diagnostics containing database,
+table, row, and column context.
+
+Stage C extends the same request with an optional positive batch size and an
+opaque `GDSQLStorageReadCursor`. A cursor is bound to its backend and source
+table, and its token is created and interpreted only by that storage backend;
+execution may retain it and pass it back, but cannot inspect its token or
+translate it into query meaning. It remains valid only for the unchanged read
+view that produced it. `read_batch()` returns a
+`GDSQLStorageReadBatch` containing at most the requested rows, a continuation
+when more rows remain, structured diagnostics, and typed
+`GDSQLStorageReadStatistics`.
+
+`read_index_batch()` applies the same bounded request to one catalog index in
+ascending or descending value order. Its cursor token also identifies the
+index and direction, so a continuation cannot be reused for a different
+ordered read. The storage-specific direction type prevents the storage
+contract from depending on query-model ordering enums. The initial ConfigFile
+and in-memory adapters support composite index value order and staged-session
+visibility while decoding or projecting only rows in the returned window.
+
+Bounded result size and bounded physical I/O are intentionally distinct. The
+statistics report rows scanned and returned, optional byte/page counts, and
+whether the backend actually bounded physical reading. ConfigFile currently
+parses its complete table file before decoding the requested row window, and
+orders persisted index metadata before decoding the requested indexed window.
+In-memory storage assembles and orders its effective row set before slicing it.
+Both therefore report `physical_read_bounded == false` and the full inspected
+row count. ConfigFile reports the table file length as `bytes_read` when a
+batch causes a cache miss and disk parse, and `0` whenever the lookup is a
+cache hit, including normal continuations; OS page counts remain unknown at
+`-1`. In-memory storage retains
+unknown byte/page counts because it cannot report a backend-neutral physical
+measurement. This compatibility behavior establishes stable execution
+semantics without pretending to provide the future binary backend's I/O
+characteristics.
+
+Table-scan and ordered-index execution consume these responses in bounded
+batches of 256 rows. They keep one storage session and pass each opaque
+continuation back to the same table backend until no continuation remains.
+Storage diagnostics are merged into the query result, cancellation is checked
+between batches, and a repeated continuation is rejected instead of permitting
+a cursor cycle. Backends that do not advertise bounded table reads retain the
+complete-snapshot compatibility path.
+
+When a table or ordered-index scan carries a semantically safe pushed window,
+execution skips its offset and stops at its limit before Resource
+materialization and projection.
+This prevents discarded rows from resolving referenced assets and avoids
+unnecessary downstream work. It does not claim bounded disk I/O: compatibility
+backends still report the complete row set they inspected, while future paged
+backends may satisfy the same request through physical row or index pages.
+
+`GDSQLQueryExecutionResult.statistics` aggregates `storage_batches`,
+`storage_rows_scanned`, `storage_rows_returned`, `storage_bytes_read`,
+`storage_pages_read`, and `storage_physical_read_bounded` independently from
+Resource materialization counters. Unknown byte or page counts remain `-1`.
+Queries with filters, joins, aggregates, sorting, distinct selection, or other
+row-set-changing operations still assemble all batches before those operators
+run. This preserves their semantics without assuming that an early storage
+window is the final result window.
+
+Internal row transfers use a full-column read request with reference
+preservation. Managed package composition, effective-cache writes, in-memory
+hydration, checkpoint comparison, constraint validation, and index rebuilding
+therefore copy validated locator identity without materializing an asset. A
+`GDSQLResourceReference` is accepted as an internal stored value only when its
+ownership mode, expected Resource class, and project-script path match the
+column. It is not exposed as an ordinary eager query result.
+
+`GDSQLResourceHandle` is the explicit deferred-materialization state for one
+reference. It copies the locator, owns an injected `GDSQLResourceResolver`, and
+remains unloaded until `load()` is called. A successful load is type-checked
+against the locator and cached by the handle; a failure retains structured
+diagnostics and can be retried. `release()` removes only the handle's strong
+reference because Godot's cache, scenes, or other consumers may still retain
+the Resource. Threaded loading uses `request_load()` followed by non-blocking
+`poll_load()` calls, with typed `GDSQLResourceLoadProgress` snapshots and
+completion/failure signals. The Godot resolver adapts
+`ResourceLoader.load_threaded_request()` and its status API; other resolvers may
+return a structured unsupported diagnostic. This Stage B contract does not
+silently replace concrete Resource values in ordinary query or model results.
+
+`GDSQLQueryExecutionOptions.deferred_resources()` is the explicit opt-in at the
+execution boundary. It is runtime presentation policy rather than query
+meaning, so it never enters `QuerySpec`. A deferred SELECT returns an unloaded
+`GDSQLResourceHandle` for each referenced Resource value and does not invoke
+the resolver during the query. The planner records whether expression
+evaluation requires concrete Resource values. Queries that filter, sort,
+group, aggregate, join, or derive expressions from Resource columns reject
+deferred execution with a structured diagnostic because those operations
+require a concrete Resource. Callers use eager execution for that query instead
+of receiving silently different semantics.
+
+`GDSQLModelQuery.defer_resources()` applies the same policy to model results.
+The concrete typed Resource property remains null until its retained handle
+loads successfully; the model then updates the property without marking it as
+a user mutation. Handles are available through `get_resource_handle()`, and
+model-owned concrete/handle references can be released together through
+`release_resource()` or `release_all_resources()`.
+
+`GDSQLResourcePrefetchScope` is the bounded lifetime coordinator over a fixed
+set of handles. Deferred query results and models create a scope through
+`create_resource_prefetch_scope()`. The scope requests every unloaded handle,
+polls them without blocking, emits aggregate progress/completion/failure, and
+retains diagnostics while allowing unaffected requests to finish. Its typed
+`GDSQLResourcePrefetchProgress` reports total, loaded, and failed counts.
+`release()` releases every handle-owned strong reference and resets the scope
+for another lifecycle; model properties connected to those handles are cleared
+at the same time. It cannot cancel a native Godot threaded request or release
+references owned by scenes, caches, or other consumers.
 
 A future `GDSQLPagedBinaryTableStorage` can implement the same contract with
 one binary file per table. Each file begins with a typed header containing the
@@ -1682,9 +1864,9 @@ Mutable row counts and generated-key sequences remain owned by physical storage.
 
 Rows and query execution remain outside the catalog.
 
-A lightweight table-version field may later be added to schema metadata for
-game code to detect incompatible saved data. A general migration framework is
-outside the current scope.
+Database schema compatibility is tracked by the ordered migration history and
+applied ledger described in section 13.2. Models remain bindings and never act
+as schema or migration authorities.
 
 ### 13.1 Catalog administration
 
@@ -1718,7 +1900,20 @@ func create_table(
 ) -> CatalogOperationResult
 
 @abstract
+func preview_create_table(
+    database_name: StringName,
+    table: TableDefinition,
+) -> OperationResult
+
+@abstract
 func rename_table(database_name: StringName, current_name: StringName, new_name: StringName) -> CatalogOperationResult
+
+@abstract
+func preview_rename_table(
+    database_name: StringName,
+    current_name: StringName,
+    new_name: StringName,
+) -> OperationResult
 
 @abstract
 func alter_table(
@@ -1741,6 +1936,12 @@ func apply_change_plan(
 
 @abstract
 func drop_table(database_name: StringName, table_name: StringName) -> CatalogOperationResult
+
+@abstract
+func preview_drop_table(
+    database_name: StringName,
+    table_name: StringName,
+) -> OperationResult
 ```
 
 Unregistering removes a logical database from the catalog while preserving its
@@ -1767,6 +1968,32 @@ backend may complete a missing empty table file when an existing stored schema
 exactly matches the requested definition; this repairs incomplete structures
 without overwriting a table or changing its schema.
 
+`GDSQLConfigFileCatalogTransaction` keeps each table's schema and row file as a
+recoverable pair during creation and alteration. Both replacements are written
+to `.building` files before either active file moves to `.previous`. Catalog
+loading resolves leftover artifacts: an incomplete activation restores the old
+pair, while a fully activated pair discards stale previous files. Query and
+catalog layers continue to use logical table identity and never inspect these
+backend-owned suffixes.
+
+`GDSQLConfigFileTableLifecycleTransaction` owns table lifecycle markers under
+the data root. Rename stages the updated schema, moves the row file without
+copying it, and keeps the old schema until an atomic marker commit. Drop
+quarantines both files before its marker commit. Reopening rolls back a
+preparing operation or finishes cleanup for a committed operation before
+catalog discovery exposes tables.
+
+`GDSQLConfigFileDatabaseLifecycleTransaction` coordinates every root registry
+replacement. Registration creation and non-destructive unregister stage
+`databases.cfg` and atomically promote a global preparing marker to committed;
+rollback changes only catalog visibility and always preserves the physical
+database directory. Rename and destructive drop additionally move or quarantine
+that directory inside the same protocol. Recovery runs before any registry read:
+preparing work restores the previous registration state and directory identity,
+while committed work preserves the new logical state and retries artifact
+cleanup. A first registration uses the same protocol even when no prior
+`databases.cfg` exists.
+
 Table alterations are explicit typed intents for column lifecycle, display
 order, defaults, nullability, uniqueness, generated-value and auto-increment
 policies, and indexes. Reordering changes schema order only and does not rewrite
@@ -1781,14 +2008,285 @@ Direct column data-type replacement is intentionally absent. The safe workflow
 adds a column with the new type, moves or converts values through canonical
 mutations, validates the result, and then drops the old column.
 
-`preview_alter_table()` validates the complete request against an isolated copy
-and returns a `CatalogChangePlan` with affected-row count, concise summaries,
-destructive classification, and a source schema fingerprint. Applying the plan
-compares that fingerprint with the current catalog and rejects stale previews.
+The create, alter, rename, and drop preview methods validate a complete request
+without mutation and return a `CatalogChangePlan` with affected-row count,
+concise summaries, destructive classification, and the required stale-state
+evidence. Applying the plan compares that evidence with the current catalog and
+rejects stale previews.
 `alter_table()` remains the immediate code API by previewing and applying in
 one call. Dropping the primary key is rejected. Database and table renames move
 their complete physical structures and update catalog metadata, while drop
 operations remove both metadata and owned storage.
+
+### 13.2 Versioned migrations
+
+Migration history is project-authored, forward-only input above catalog
+administration. `GDSQLMigrationDefinition` owns one stable sortable ID, a
+description, an ordered list of `GDSQLMigrationStep` values, and a deterministic
+SHA-256 checksum. `GDSQLSchemaMigrationStep` targets one table and either reuses
+the existing `GDSQLTableAlteration` vocabulary, carries one complete table
+definition for creation, renames one table, or drops one table.
+`GDSQLDataMigrationStep` describes one canonical UPDATE against one table with
+typed assignments and an optional predicate. A definition recalculates its
+checksum during validation, so changing an already recorded description,
+operation, table, expression, column, index, default, or foreign key is rejected
+as edited history.
+
+Data-migration expressions reuse the canonical query model. Column, literal,
+arithmetic, comparison, logical, null-check, and non-aggregate scalar-function
+expressions are persisted deterministically. Table-qualified columns,
+aggregate functions, Objects, Callables, Signals, and RIDs are rejected at the
+authored boundary. Query validation remains authoritative for table, column,
+function, assignment-type, and predicate-type compatibility.
+
+IDs use only letters, digits, `_`, `-`, and `.`, and must be strictly increasing
+under ordinal comparison. Timestamp-prefixed, fixed-width IDs are the
+recommended authoring convention. Array order is authoritative; migrations
+are never reordered automatically.
+
+`GDSQLMigrationHistoryStore` is the project-source persistence contract for
+loading and append-only extension of one migration stream. It is separate from
+the per-database applied ledger: one authored stream may drive many physical
+save databases, while each database records its own progress. Appends carry an
+expected definition count so concurrent or stale editor sessions cannot
+silently overwrite project history.
+
+`GDSQLConfigFileMigrationHistoryStore` writes one immutable definition per file
+under `res://.gdsql/migrations/<stream>/<migration_id>.cfg`. Files are sorted by
+their stable IDs and activated from staging without replacing an existing
+entry. `GDSQLMigrationDefinitionSerializer` is the dynamic serialization
+boundary for typed alter, create, rename, drop, and row-update steps; canonical
+data expressions; complete create-table definitions; and every current
+`GDSQLTableAlteration` shape. Existing alteration-only definitions retain their
+checksum representation. Loading recomputes and compares the authored checksum;
+edited, renamed, malformed, duplicate, or out-of-order entries return
+structured diagnostics.
+
+`GDSQLMigrationSchemaState` is project-owned trust evidence for one migration
+stream and logical database. It records an authored-history count and head, the
+checksum of that exact prefix, and the whole-schema fingerprint produced at
+that position. `GDSQLMigrationSchemaStateStore` persists this evidence
+independently from both authored definitions and per-database applied ledgers.
+The ConfigFile implementation uses
+`res://.gdsql/migration_states/<stream>.cfg`, stale-checks updates, prevents an
+established history position from being replaced, and activates staged writes
+with recovery of the previous file. The empty-history origin may change while
+the initial schema is still being designed; after a migration head exists,
+advancement requires a later history position.
+
+`GDSQLMigrationLedger` is the persistence contract for append-only applied
+history. `GDSQLAppliedMigration` records the exact migration ID and checksum,
+application time, and resulting whole-schema fingerprint. Both checksums are
+validated SHA-256 values. `GDSQLSchemaFingerprint` deterministically hashes the
+database name and sorted tables, indexes, and foreign keys while preserving
+semantic column and key order.
+`GDSQLConfigFileMigrationLedger` stores the ordered ledger at
+`<data_root>/<database>/migrations.cfg`; the path remains owned by
+`GDSQLDatabasePathResolver`.
+
+An existing current-schema database can establish one explicit
+`GDSQLMigrationBaseline` before ordinary applied records exist. The baseline is
+not a synthetic applied migration. It records the adopted history head and its
+checksum, a checksum of the complete adopted history prefix, adoption time,
+and the verified whole-schema fingerprint. Adoption requires the caller's
+typed project-owned schema state to match both the authored history prefix and
+current catalog fingerprint. Adoption is rejected after any baseline or
+applied record exists. This makes an empty
+ledger unambiguous without claiming that historical migrations were executed.
+Calculating a fingerprint from the candidate database and immediately passing
+it back does not constitute independent verification.
+
+Ledger mutations carry an expected ledger revision. A baseline contributes one
+revision and each applied record contributes one, so stale planners cannot
+silently append to or re-baseline changed evidence. The ConfigFile backend
+uses one initial-1.0 ledger format containing the optional baseline and ordered
+applied records. There is no pre-release format compatibility branch.
+
+`GDSQLMigrationPlanner` compares authored definitions with the applied ledger.
+Without a baseline, applied records must be an exact prefix. With a baseline,
+the adopted prefix checksum must still match and ordinary records must be the
+exact suffix immediately after that prefix. Absent authored history, reordered
+IDs, checksum changes, malformed evidence, and divergent IDs return structured
+diagnostics. A successful `GDSQLMigrationPlan` contains only the pending suffix,
+reports whether it contains destructive alterations, and carries the current
+ledger revision.
+
+`GDSQLMigrationStepPlanner` receives catalog administration, the canonical
+query pipeline, and an isolated simulator through constructor injection and
+previews only the next pending history entry. A single step uses the direct
+catalog or query preview. Multiple steps are evaluated in authored order by
+`GDSQLMigrationSimulator` against isolated database state.
+
+The ConfigFile simulator copies one database into temporary `user://` storage,
+reuses the real catalog and query pipeline there, and removes the copy after
+preview. Each schema plan or data count therefore observes every preceding
+simulated step. This supports dependent schema operations, repeated-table data
+updates, and mixed schema/data migrations without mutating source schema, rows,
+or ledger. `GDSQLMigrationStepPreview` pairs each authored step with its catalog
+plan or affected-row count; `GDSQLMigrationStepPlan` preserves their order,
+summaries, destructive status, and expected ledger revision.
+
+`GDSQLMigrationRecoveryStore` is the backend-neutral durable recovery contract.
+It lists, creates, reloads, restores, and discards pre-migration database
+snapshots. Listing lets startup discover recovery work without assuming a
+backend path layout.
+`GDSQLMigrationBackup` identifies that snapshot and carries its SHA-256 content
+fingerprint and creation time. A backup is not a query transaction or a
+long-term version archive; it is recovery evidence retained until its migration
+finishes safely.
+
+`GDSQLConfigFileMigrationRecoveryStore` copies the complete database directory,
+including schemas, table rows and metadata, indexes, generated-key state, and
+the applied ledger. Completed snapshots are activated from a staging directory
+under `<data_root>/.gdsql_migration_recovery/<database>/<migration_id>` and are
+verified before every restore. Restore copies into separate staging, moves the
+current database aside, activates the verified snapshot with a directory swap,
+and rolls the old directory back if activation fails. Cached ConfigFile table
+entries are invalidated after successful recovery. Corrupt snapshots never
+touch the active database, and identity-based discard permits explicit cleanup
+even when a manifest or snapshot cannot be loaded.
+
+`GDSQLMigrationRunner` composes the catalog, catalog administration, ledger,
+and recovery contracts through constructor injection. `apply()` accepts only a
+validated `GDSQLMigrationStepPlan`, reloads the ledger to reject stale history,
+and compares the current whole-schema fingerprint with the last applied record
+before creating a backup. The plan's database, table, authored checksum, and
+typed operation must describe the same migration.
+
+After those preconditions pass, the runner creates one durable backup, validates
+each preview against its authored step, applies every schema and data operation
+in authored order, fingerprints the resulting schema, and appends one
+`GDSQLAppliedMigration` with the plan's expected ledger revision. A catalog,
+query, changed data-step row count, fingerprint, or ledger failure restores the complete backup, including
+all schema and rows changed earlier in the batch. The backup is discarded only after
+successful ledger persistence or successful recovery. Cleanup failure retains
+the backup and reports a warning without misreporting an otherwise committed
+migration as failed.
+
+`GDSQLMigrationRunResult` exposes the applied record, backup identity,
+automatic-recovery status, and whether recovery files remain. The runner does
+not infer migrations, apply multiple pending entries at once, or bypass catalog
+validation.
+
+`GDSQLMigrationService` is the supported orchestration boundary above those
+components. `preview()` loads the durable ledger, checks the current schema
+against the last baseline or applied fingerprint, validates the complete
+authored history, and returns `GDSQLMigrationPreviewResult`. An up-to-date
+history is a successful preview with no next step plan. `adopt_baseline()`
+verifies and persists initial evidence for a pre-existing current-schema
+database. `adopt_baseline_if_current()` performs the same adoption only when
+the ledger is empty and the current schema independently matches the supplied
+trusted state. `apply()` delegates one explicitly previewed plan to the runner.
+These operations are exposed by the database facade so callers do not compose
+backend migration services themselves.
+
+`recover_interrupted()` resolves a named durable backup against the current
+ledger. If the migration is absent and no later migration is recorded, it
+restores the verified snapshot. If the ledger already contains the migration,
+the schema and ledger commit completed and only backup cleanup was interrupted,
+so the backup is discarded without restoring it. A missing migration followed
+by a later applied ID is divergent history and is never recovered
+automatically. `GDSQLMigrationRecoveryResult` reports which action occurred and
+whether cleanup remains pending.
+
+`recover_pending()` discovers every durable backup through the recovery-store
+contract, rejects backup IDs absent from the authored history, and resolves
+each authored interruption sequentially through `recover_interrupted()`.
+
+`GDSQLMigrationStartupCoordinator` owns schema readiness during runtime
+bootstrap. It loads the registration's authored stream and project-owned
+schema state, verifies that the state names an exact authored-history prefix,
+and targets only that verified prefix. A stream with history but no trusted
+schema state fails closed. A stream with neither is an explicit unconfigured
+no-op.
+
+Project-owned `res://` registrations are read-only during runtime startup. The
+coordinator accepts them without a physical ledger when their current schema
+fingerprint equals the trusted project state. A mismatch fails with
+`GDSQL_MIGRATION_PROJECT_SCHEMA_OUTDATED`; migrations must be applied in the
+editor before running or exporting. Runtime startup never recovers, baselines,
+or mutates project content.
+
+Writable non-`res://` registrations recover pending backups before planning.
+When an empty ledger already matches the trusted target, the coordinator may
+adopt the verified history prefix as its initial baseline. It never derives
+trust from the candidate database itself. Remaining entries are previewed and
+applied one at a time through the recovery-safe service. The coordinator then
+requires the durable catalog fingerprint to equal the trusted target before
+bootstrap may hydrate an in-memory runtime or register models.
+`GDSQLMigrationStartupResult` reports configuration, target history count,
+baseline adoption, recovered IDs, and applied IDs without printing or owning
+runtime UI.
+
+`GDSQLRuntimeFactory.create_default()` composes this service for durable
+ConfigFile databases and injects the same path resolver and ConfigFile cache
+used by catalog and table storage. This shared cache is required so a restored
+directory cannot leave stale rows visible in the active context. In-memory
+runtime contexts do not expose migrations: schema history belongs to their
+durable ConfigFile authoring source, which must migrate before hydration.
+Editor history authoring and destructive confirmation remain a separate
+product flow over this public API. The database document can author the current
+ordered set of schema drafts as one multi-step migration, with one typed step
+per changed table, or author one typed row update. Data authoring reuses
+the typed mutation-value and nested WHERE controls, excludes Resource literals,
+requires an explicit choice before targeting every row, and is unavailable
+while local schema drafts exist. It emits the common typed migration-step
+intent to the editor controller, which rejects authoring while an earlier entry is pending,
+previews the candidate complete history, including isolated simulation when
+multiple schema steps depend on earlier steps, and returns an
+`EditorMigrationPreview` to the scene. The scene shows affected rows and
+step summaries and always requires confirmation; destructive plans receive
+an explicit warning. Confirmation appends the immutable project definition
+before applying its already-previewed plan. If application fails, the appended
+definition remains pending and is presented again on the next database open or
+refresh. After a stream contains its first definition, the database document
+disables direct structural saves; bypassing the ledger would invalidate its
+recorded schema fingerprint. The v1 editor therefore keeps database rename and
+multi-table drafts reversible but unapplied once history has started. Whenever
+editor preview confirms that the durable database is at the authored history
+head, the editor advances its project schema state. State persistence failure
+is reported as a warning and does not recast an already committed catalog
+migration as failed.
+
+#### 13.1 Database lifecycle policy
+
+Migration streams transform schema and rows inside one existing logical
+database. Creating, renaming, unregistering, and destroying that database
+container are administrative lifecycle operations, not migration steps.
+
+A newly provisioned writable database has two valid entry paths. It may replay
+a complete history whose declared origin is an empty database, or it may be
+scaffolded directly at the trusted current schema and receive a verified
+baseline. Runtime replay and verified baseline adoption are implemented.
+`GDSQLEditorFreshSaveProvisioner` implements the second path for new save slots:
+it verifies the active template against independently persisted schema state,
+copies typed table definitions without rows, adds foreign keys only after all
+tables exist, verifies the completed target fingerprint, and adopts the exact
+trusted history prefix as the target baseline. A failed attempt removes the
+catalog structures it created; it never copies or replaces player data.
+
+Save-slot registration identity and logical database identity are distinct.
+Standard slots use their root/registration names (`save_1`, `save_2`) for
+selection while sharing the `game_state` logical database name and migration
+stream. This lets one authored stream drive every physical slot without making
+the slot name part of schema identity. The first slot establishes the schema;
+later slots receive that schema at creation and begin with empty tables.
+Deleting the active slot selects the first naturally ordered remaining slot
+with the same logical database and migration stream. Registration removal and
+role rebinding are persisted as one registry update; deleting the last
+compatible slot intentionally leaves the save role unbound.
+
+The stable stream identity survives physical save-slot creation and database
+location changes. Renaming a database after history starts is currently
+blocked because it requires one coordinated administrative update of registry
+and schema-state metadata. A future rename flow may provide that atomic update,
+but it must not masquerade as a schema migration. Unregister and destroy remain
+explicit user operations. A deployed migration stream must never delete a
+player database or save slot automatically.
+
+Managed effective-content databases are disposable build products. Their
+project package sources migrate during authoring; effective caches are rebuilt
+from those sources instead of maintaining migration ledgers of their own.
 
 ---
 
@@ -2204,6 +2702,9 @@ addons/gdsql/
 │   ├── checkpoint_result.gd
 │   ├── in_memory_checkpoint_target.gd
 │   ├── persistence_coordinator.gd
+│   ├── migration/
+│   │   ├── gdsql_migration_startup_coordinator.gd
+│   │   └── gdsql_migration_startup_result.gd
 │   ├── runtime_session.gd
 │   ├── runtime_node.gd
 │   └── runtime_node.tscn
@@ -2273,16 +2774,25 @@ addons/gdsql/
 │
 ├── storage/
 │   ├── table_storage.gd
+│   ├── gdsql_storage_read_request.gd
 │   ├── storage_backend_ids.gd
 │   ├── storage_session.gd
 │   ├── table_snapshot.gd
 │   ├── row_record.gd
 │   ├── memory/
 │   │   └── in_memory_table_storage.gd
+│   ├── resources/
+│   │   ├── gdsql_resource_reference.gd
+│   │   ├── gdsql_resource_resolver.gd
+│   │   └── gdsql_godot_resource_resolver.gd
 │   └── configfile/
 │       ├── config_file_table_storage.gd
 │       ├── config_file_catalog_service.gd
 │       ├── config_file_catalog_administration_service.gd
+│       ├── gdsql_config_file_catalog_transaction.gd
+│       ├── gdsql_config_file_table_lifecycle_transaction.gd
+│       ├── gdsql_config_file_database_lifecycle_transaction.gd
+│       ├── gdsql_config_file_table_data_transaction.gd
 │       ├── config_file_database_registry_store.gd
 │       ├── config_file_database_explorer.gd
 │       ├── config_file_cache.gd
@@ -2331,9 +2841,14 @@ res://
 │   └── gdsql/                  # Plugin implementation only
 ├── .gdsql/
 │   ├── settings.cfg            # Project/tool settings only
-│   └── graphs/                 # Editor query graph documents
+│   ├── graphs/                 # Editor query graph documents
+│   ├── migrations/             # Project-owned schema history by stream
+│   └── migration_states/       # Trusted history-head schema evidence
 └── data/
-    ├── databases.cfg           # Database catalog
+    ├── databases.cfg                 # Database catalog
+    ├── .gdsql_catalog_transactions/  # Transient table lifecycle markers
+    ├── .gdsql_storage_transactions/  # Transient row-commit markers
+    ├── .gdsql_migration_recovery/    # Migration recovery snapshots
     └── <database>/
         ├── schema/              # Table definitions
         └── tables/              # Row data stored as .cfg or binary table files
@@ -2736,11 +3251,18 @@ query validation and storage, not only by editor filtering.
 
 Every Resource column also declares ownership independently from its physical
 backend layout. `OWNED` means the database owns an independent Resource value;
-editing its properties mutates row data and duplication deep-copies it.
+editing its properties mutates row data and duplication deep-copies it. The
+editor presents this mode as **Embedded**.
 `REFERENCED` means the Resource remains an external project asset; the database
 stores a versioned UID plus fallback path and only replacing the reference
-mutates the row. ConfigFile persists owned values through native Resource
-serialization and referenced values through `GDSQLResourceLocator`. Future
+mutates the row. The editor presents this mode as **External Reference**.
+ConfigFile persists owned values through native Resource
+serialization and referenced values through a `GDSQLResourceReference`.
+References are inert storage values: parsing one never loads its asset. An
+injected `GDSQLResourceResolver` owns materialization, with
+`GDSQLGodotResourceResolver` providing the default UID/path and
+`ResourceLoader` policy. An explicit `GDSQLResourceHandle` may retain that
+identity and resolve it on demand without changing eager query defaults. Future
 backends must preserve these semantics but may choose a different physical
 representation.
 

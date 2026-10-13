@@ -77,19 +77,37 @@ func _plan_select(bound_select: GDSQLBoundSelectQuery, output_schema: GDSQLResul
 	for join in bound_select.joins:
 		for column in join.source.table.columns:
 			source_schema.columns.append(column)
+	var source_required := _required_columns_for_source(bound_select, bound_select.source)
 	if bound_select.joins.is_empty():
-		current = _get_lookup_plan(bound_select, source_schema)
+		current = _get_ordered_index_scan_plan(
+			bound_select,
+			source_schema,
+			source_required,
+		)
+		if current == null:
+			current = _get_lookup_plan(bound_select, source_schema, source_required)
 	if current == null:
-		current = _scan_source(bound_select.source, source_schema)
+		current = _scan_source(bound_select.source, source_schema, source_required)
 		for join in bound_select.joins:
 			var join_plan := GDSQLNestedLoopJoinPlan.new()
 			join_plan.left = current
-			join_plan.right = _scan_source(join.source, source_schema)
+			join_plan.right = _scan_source(
+				join.source,
+				source_schema,
+				_required_columns_for_source(bound_select, join.source),
+			)
 			join_plan.type = join.type
 			join_plan.condition = join.condition
 			join_plan.right_source = join.source
 			join_plan.output_schema = source_schema
 			current = join_plan
+	var ordered_index_window_pushed := current is GDSQLOrderedIndexScanPlan
+	var window_pushed := ordered_index_window_pushed
+	if current is GDSQLTableScanPlan and _can_push_scan_window(bound_select):
+		var scan := current as GDSQLTableScanPlan
+		scan.pushed_offset = bound_select.offset
+		scan.pushed_limit = bound_select.limit
+		window_pushed = true
 	if bound_select.predicate != null:
 		var filter := GDSQLFilterPlan.new()
 		filter.input = current
@@ -115,7 +133,8 @@ func _plan_select(bound_select: GDSQLBoundSelectQuery, output_schema: GDSQLResul
 			having_filter.predicate = bound_select.having
 			having_filter.output_schema = source_schema
 			current = having_filter
-	if not bound_select.ordering.is_empty():
+	if not bound_select.ordering.is_empty() \
+			and not ordered_index_window_pushed:
 		var sort := GDSQLSortPlan.new()
 		sort.input = current
 		sort.ordering = bound_select.ordering.duplicate()
@@ -132,7 +151,8 @@ func _plan_select(bound_select: GDSQLBoundSelectQuery, output_schema: GDSQLResul
 		distinct.input = current
 		distinct.output_schema = output_schema
 		current = distinct
-	if bound_select.limit >= 0 or bound_select.offset > 0:
+	if (bound_select.limit >= 0 or bound_select.offset > 0) \
+			and not window_pushed:
 		var limit := GDSQLLimitPlan.new()
 		limit.input = current
 		limit.limit = bound_select.limit
@@ -140,18 +160,107 @@ func _plan_select(bound_select: GDSQLBoundSelectQuery, output_schema: GDSQLResul
 		limit.output_schema = output_schema
 		current = limit
 	result.plan = GDSQLQueryPlan.new(current)
+	result.plan.requires_concrete_resources = _requires_concrete_resources(
+		bound_select,
+		output_schema,
+	)
 	result.value = result.plan
 	return result
+
+
+func _get_ordered_index_scan_plan(
+	bound_select: GDSQLBoundSelectQuery,
+	output_schema: GDSQLResultSchema,
+	required_columns: Array[StringName],
+) -> GDSQLOrderedIndexScanPlan:
+	if not _can_push_ordered_index_window(bound_select):
+		return null
+	var matching_index := _find_ordering_index(bound_select)
+	if matching_index == null:
+		return null
+	var scan := GDSQLOrderedIndexScanPlan.new()
+	scan.table = bound_select.source.table
+	scan.alias = bound_select.source.alias
+	scan.index = matching_index
+	scan.direction = bound_select.ordering[0].direction
+	scan.required_columns = required_columns
+	scan.pushed_offset = bound_select.offset
+	scan.pushed_limit = bound_select.limit
+	scan.output_schema = output_schema
+	return scan
+
+
+func _can_push_ordered_index_window(bound_select: GDSQLBoundSelectQuery) -> bool:
+	if not _storage_capabilities.supports_ordered_index_reads() \
+			or (bound_select.limit < 0 and bound_select.offset <= 0) \
+			or bound_select.ordering.is_empty():
+		return false
+	if not bound_select.joins.is_empty() \
+			or bound_select.predicate != null \
+			or not bound_select.grouping.is_empty() \
+			or bound_select.having != null \
+			or bound_select.distinct:
+		return false
+	var aggregates: Array[GDSQLFunctionExpression] = []
+	for selected in bound_select.projections:
+		_collect_aggregates(selected.expression, aggregates)
+	for clause in bound_select.ordering:
+		_collect_aggregates(clause.expression, aggregates)
+	return aggregates.is_empty()
+
+
+func _find_ordering_index(
+	bound_select: GDSQLBoundSelectQuery,
+) -> GDSQLIndexDefinition:
+	var ordered_columns: Array[StringName] = []
+	var direction := bound_select.ordering[0].direction
+	for clause in bound_select.ordering:
+		if clause.direction != direction \
+				or not clause.expression is GDSQLBoundColumnExpression:
+			return null
+		var column := clause.expression as GDSQLBoundColumnExpression
+		if not _bound_column_matches_source(column, bound_select.source):
+			return null
+		ordered_columns.append(column.column_id.column_name)
+	for index in bound_select.source.table.indexes:
+		if index.columns.size() < ordered_columns.size():
+			continue
+		var matches := true
+		for column_index in ordered_columns.size():
+			if index.columns[column_index] != ordered_columns[column_index]:
+				matches = false
+				break
+		if matches:
+			return index
+	return null
+
+
+func _can_push_scan_window(bound_select: GDSQLBoundSelectQuery) -> bool:
+	if bound_select.limit < 0 and bound_select.offset <= 0:
+		return false
+	if not bound_select.joins.is_empty() \
+			or bound_select.predicate != null \
+			or not bound_select.grouping.is_empty() \
+			or bound_select.having != null \
+			or not bound_select.ordering.is_empty() \
+			or bound_select.distinct:
+		return false
+	var aggregates: Array[GDSQLFunctionExpression] = []
+	for selected in bound_select.projections:
+		_collect_aggregates(selected.expression, aggregates)
+	return aggregates.is_empty()
 
 
 func _scan_source(
 		source: GDSQLBoundTableSource,
 		output_schema: GDSQLResultSchema,
+		required_columns: Array[StringName],
 ) -> GDSQLTableScanPlan:
 	var scan := GDSQLTableScanPlan.new()
 	scan.table = source.table
 	scan.alias = source.alias
 	scan.output_schema = output_schema
+	scan.required_columns = required_columns
 	return scan
 
 
@@ -171,6 +280,7 @@ func _get_primary_key_lookup(bound_select: GDSQLBoundSelectQuery) -> GDSQLQueryE
 func _get_lookup_plan(
 		bound_select: GDSQLBoundSelectQuery,
 		output_schema: GDSQLResultSchema,
+		required_columns: Array[StringName],
 ) -> GDSQLPlanNode:
 	var primary_key_expression := _get_primary_key_lookup(bound_select)
 	if primary_key_expression != null:
@@ -179,6 +289,7 @@ func _get_lookup_plan(
 		primary_lookup.alias = bound_select.source.alias
 		primary_lookup.key = primary_key_expression
 		primary_lookup.output_schema = output_schema
+		primary_lookup.required_columns = required_columns
 		return primary_lookup
 	if _storage_capabilities.supports_exact_index_lookup():
 		var exact_match := _find_index_comparison(
@@ -193,6 +304,7 @@ func _get_lookup_plan(
 			index_lookup.index = exact_match["index"]
 			index_lookup.values = [exact_match["literal"]]
 			index_lookup.output_schema = output_schema
+			index_lookup.required_columns = required_columns
 			return index_lookup
 	if _storage_capabilities.supports_range_index_lookup():
 		var range_match := _find_index_comparison(
@@ -206,6 +318,7 @@ func _get_lookup_plan(
 			range_lookup.alias = bound_select.source.alias
 			range_lookup.index = range_match["index"]
 			range_lookup.output_schema = output_schema
+			range_lookup.required_columns = required_columns
 			_apply_range_bound(
 				range_lookup,
 				range_match["operator"],
@@ -213,6 +326,139 @@ func _get_lookup_plan(
 			)
 			return range_lookup
 	return null
+
+
+func _required_columns_for_source(
+	query: GDSQLBoundSelectQuery,
+	source: GDSQLBoundTableSource,
+) -> Array[StringName]:
+	var columns: Array[StringName] = []
+	if query.projections.is_empty():
+		for column in source.table.columns:
+			columns.append(column.name)
+	else:
+		for projection in query.projections:
+			_collect_required_columns(projection.expression, source, columns)
+	_collect_required_columns(query.predicate, source, columns)
+	for join in query.joins:
+		_collect_required_columns(join.condition, source, columns)
+	for expression in query.grouping:
+		_collect_required_columns(expression, source, columns)
+	_collect_required_columns(query.having, source, columns)
+	for clause in query.ordering:
+		_collect_required_columns(clause.expression, source, columns)
+	if source.table.primary_key != &"" and not columns.has(source.table.primary_key):
+		columns.append(source.table.primary_key)
+	return columns
+
+
+func _collect_required_columns(
+	expression: GDSQLQueryExpression,
+	source: GDSQLBoundTableSource,
+	columns: Array[StringName],
+) -> void:
+	if expression == null:
+		return
+	if expression is GDSQLBoundColumnExpression:
+		var bound := expression as GDSQLBoundColumnExpression
+		if _bound_column_matches_source(bound, source) \
+				and not columns.has(bound.column_id.column_name):
+			columns.append(bound.column_id.column_name)
+		return
+	if expression is GDSQLComparisonExpression:
+		var comparison := expression as GDSQLComparisonExpression
+		_collect_required_columns(comparison.left, source, columns)
+		_collect_required_columns(comparison.right, source, columns)
+		return
+	if expression is GDSQLLogicalExpression:
+		var logical := expression as GDSQLLogicalExpression
+		_collect_required_columns(logical.left, source, columns)
+		_collect_required_columns(logical.right, source, columns)
+		return
+	if expression is GDSQLArithmeticExpression:
+		var arithmetic := expression as GDSQLArithmeticExpression
+		_collect_required_columns(arithmetic.left, source, columns)
+		_collect_required_columns(arithmetic.right, source, columns)
+		return
+	if expression is GDSQLNullCheckExpression:
+		_collect_required_columns(
+			(expression as GDSQLNullCheckExpression).operand,
+			source,
+			columns,
+		)
+		return
+	if expression is GDSQLFunctionExpression:
+		for argument in (expression as GDSQLFunctionExpression).arguments:
+			_collect_required_columns(argument, source, columns)
+
+
+func _requires_concrete_resources(
+		query: GDSQLBoundSelectQuery,
+		output_schema: GDSQLResultSchema,
+) -> bool:
+	if _expression_uses_resource(query.predicate) \
+			or _expression_uses_resource(query.having):
+		return true
+	for join in query.joins:
+		if _expression_uses_resource(join.condition):
+			return true
+	for expression in query.grouping:
+		if _expression_uses_resource(expression):
+			return true
+	for clause in query.ordering:
+		if _expression_uses_resource(clause.expression):
+			return true
+	for projection in query.projections:
+		if not projection.expression is GDSQLBoundColumnExpression \
+				and _expression_uses_resource(projection.expression):
+			return true
+	if query.distinct:
+		for column in output_schema.columns:
+			if column.data_type == TYPE_OBJECT \
+					and column.resource_ownership == GDSQLResourceOwnership.Mode.REFERENCED:
+				return true
+	return false
+
+
+func _expression_uses_resource(expression: GDSQLQueryExpression) -> bool:
+	if expression == null:
+		return false
+	if expression is GDSQLBoundColumnExpression:
+		return (expression as GDSQLBoundColumnExpression).resource_type != null
+	var children: Array[GDSQLQueryExpression] = []
+	if expression is GDSQLComparisonExpression:
+		children.assign([
+			(expression as GDSQLComparisonExpression).left,
+			(expression as GDSQLComparisonExpression).right,
+		])
+	elif expression is GDSQLLogicalExpression:
+		children.assign([
+			(expression as GDSQLLogicalExpression).left,
+			(expression as GDSQLLogicalExpression).right,
+		])
+	elif expression is GDSQLArithmeticExpression:
+		children.assign([
+			(expression as GDSQLArithmeticExpression).left,
+			(expression as GDSQLArithmeticExpression).right,
+		])
+	elif expression is GDSQLNullCheckExpression:
+		children.append((expression as GDSQLNullCheckExpression).operand)
+	elif expression is GDSQLFunctionExpression:
+		children.assign((expression as GDSQLFunctionExpression).arguments)
+	for child in children:
+		if _expression_uses_resource(child):
+			return true
+	return false
+
+
+func _bound_column_matches_source(
+	column: GDSQLBoundColumnExpression,
+	source: GDSQLBoundTableSource,
+) -> bool:
+	return column.table_id != null \
+			and column.table_id.database_name == source.table.database_name \
+			and column.table_id.table_name == source.table.name \
+			and column.source_qualifier == source.get_qualifier()
 
 
 func _find_index_comparison(

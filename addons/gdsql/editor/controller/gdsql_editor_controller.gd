@@ -21,6 +21,8 @@ var _logs_panel: GDSQLLogsPanel
 var _workspace_loaded := false
 var _request_filesystem_scan: Callable
 var _mutation_histories: Dictionary[String, GDSQLEditorMutationHistory] = { }
+var _migration_history_store: GDSQLMigrationHistoryStore
+var _migration_schema_state_store: GDSQLMigrationSchemaStateStore
 
 
 static func _registration_prefix_for_root(
@@ -41,11 +43,23 @@ func _init(
 		database_dock: GDSQLDatabaseDock,
 		logs_panel: GDSQLLogsPanel,
 		request_filesystem_scan: Callable = Callable(),
+		migration_history_store: GDSQLMigrationHistoryStore = null,
+		migration_schema_state_store: GDSQLMigrationSchemaStateStore = null,
 ) -> void:
 	_workspace = workspace
 	_database_dock = database_dock
 	_logs_panel = logs_panel
 	_request_filesystem_scan = request_filesystem_scan
+	_migration_history_store = (
+			migration_history_store
+			if migration_history_store != null
+			else GDSQLConfigFileMigrationHistoryStore.new()
+	)
+	_migration_schema_state_store = (
+			migration_schema_state_store
+			if migration_schema_state_store != null
+			else GDSQLConfigFileMigrationSchemaStateStore.new()
+	)
 	_create_workbench()
 	_create_actions()
 	_configure_surfaces()
@@ -91,6 +105,20 @@ func shutdown() -> void:
 	if is_instance_valid(_workspace) \
 			and _workspace.database_destroy_submitted.is_connected(_destroy_database):
 		_workspace.database_destroy_submitted.disconnect(_destroy_database)
+	if is_instance_valid(_workspace) \
+			and _workspace.database_migration_preview_submitted.is_connected(
+				_preview_database_migration,
+			):
+		_workspace.database_migration_preview_submitted.disconnect(
+			_preview_database_migration,
+		)
+	if is_instance_valid(_workspace) \
+			and _workspace.database_migration_apply_submitted.is_connected(
+				_apply_database_migration,
+			):
+		_workspace.database_migration_apply_submitted.disconnect(
+			_apply_database_migration,
+		)
 	if is_instance_valid(_workspace) \
 			and _workspace.table_rows_requested.is_connected(_load_table_rows):
 		_workspace.table_rows_requested.disconnect(_load_table_rows)
@@ -153,6 +181,7 @@ func shutdown() -> void:
 	_workspace = null
 	_database_dock = null
 	_mutation_histories.clear()
+	_migration_history_store = null
 	_logs_panel = null
 	action_hub = null
 	workbench = null
@@ -196,6 +225,8 @@ func _configure_surfaces() -> void:
 	_workspace.database_save_submitted.connect(_save_database)
 	_workspace.database_refresh_submitted.connect(_refresh_database_document)
 	_workspace.database_destroy_submitted.connect(_destroy_database)
+	_workspace.database_migration_preview_submitted.connect(_preview_database_migration)
+	_workspace.database_migration_apply_submitted.connect(_apply_database_migration)
 	_workspace.table_rows_requested.connect(_load_table_rows)
 	_workspace.table_reference_rows_requested.connect(_load_table_reference_rows)
 	_workspace.table_content_reference_rows_requested.connect(
@@ -263,12 +294,23 @@ func _install_runtime_adapter() -> GDSQLOperationResult:
 
 func _create_database(
 		database_name: StringName,
+		requested_registration_name: StringName,
 		data_root: String,
 		storage_backend_id: StringName,
 		database_role: StringName,
 		package_root: String,
 ) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
+	var save_template: GDSQLDatabaseRegistration
+	if database_role == GDSQLDatabaseRegistry.SAVE_ROLE:
+		save_template = workbench.get_registration(
+			_get_role_registration(GDSQLDatabaseRegistry.SAVE_ROLE),
+		)
+		database_name = (
+			save_template.database_name
+			if save_template != null
+			else GDSQLDatabaseRegistry.DEFAULT_SAVE_DATABASE_NAME
+		)
 	if not package_root.is_empty():
 		var scaffolded := GDSQLConfigFileContentPackageScaffolder.new().scaffold(
 			package_root,
@@ -291,6 +333,18 @@ func _create_database(
 	if not loaded_existing:
 		database_result = GDSQLDatabase.create(database_name, data_root)
 		result.diagnostics.merge(database_result.diagnostics)
+	if database_result.is_successful() and not loaded_existing \
+			and save_template != null:
+		var provisioned := _provision_fresh_save(
+			save_template,
+			database_result.get_database(),
+		)
+		result.diagnostics.merge(provisioned.diagnostics)
+		if not provisioned.is_successful():
+			var rolled_back := database_result.get_database().drop()
+			result.diagnostics.merge(rolled_back.diagnostics)
+			_record_result("Provision save slot schema", result)
+			return result
 	if database_result.is_successful():
 		if loaded_existing:
 			result.add_diagnostic(
@@ -305,7 +359,11 @@ func _create_database(
 			_scan_project_filesystem()
 		var discovered := workbench.discover_root(
 			data_root,
-			_registration_prefix_for_root(database_name, data_root),
+			(
+				requested_registration_name
+				if requested_registration_name != &""
+				else _registration_prefix_for_root(database_name, data_root)
+			),
 		)
 		result.diagnostics.merge(discovered.diagnostics)
 		if discovered.is_successful():
@@ -316,6 +374,12 @@ func _create_database(
 					storage_backend_id,
 				)
 				result.diagnostics.merge(selected_backend.diagnostics)
+				if result.is_successful() and save_template != null:
+					var migration_stream := workbench.set_migration_stream(
+						registration_name,
+						save_template.migration_stream,
+					)
+					result.diagnostics.merge(migration_stream.diagnostics)
 				if result.is_successful() and database_role != &"":
 					var bound_role := workbench.bind_role(database_role, registration_name)
 					result.diagnostics.merge(bound_role.diagnostics)
@@ -329,6 +393,75 @@ func _create_database(
 		"Load database" if loaded_existing else "Create database",
 		result,
 	)
+	return result
+
+
+func _provision_fresh_save(
+		template_registration: GDSQLDatabaseRegistration,
+		target: GDSQLDatabase,
+) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	var opened := GDSQLRuntimeFactory.open_authoring_registration(template_registration)
+	result.diagnostics.merge(opened.diagnostics)
+	if not opened.is_successful():
+		return result
+	var template_database := opened.get_database()
+	var loaded_history := _migration_history_store.load(
+		template_registration.migration_stream,
+	)
+	result.diagnostics.merge(loaded_history.diagnostics)
+	if not loaded_history.is_successful():
+		return result
+	var history := loaded_history.get_value() as Array[GDSQLMigrationDefinition]
+	var preview := template_database.preview_migrations(history)
+	result.diagnostics.merge(preview.diagnostics)
+	if not preview.is_successful():
+		return result
+	if not preview.is_up_to_date():
+		return _error(
+			&"GDSQL_FRESH_SAVE_TEMPLATE_PENDING",
+			"Apply the active save slot's pending migration before creating another slot.",
+		)
+	var template_definition := template_database.context.catalog.get_database(
+		template_registration.database_name,
+	)
+	var fingerprint := GDSQLSchemaFingerprint.compute(template_definition)
+	var loaded_state := _migration_schema_state_store.load(
+		template_registration.migration_stream,
+	)
+	result.diagnostics.merge(loaded_state.diagnostics)
+	if not loaded_state.is_successful():
+		return result
+	var previous := loaded_state.get_value() as GDSQLMigrationSchemaState
+	var schema_state := GDSQLMigrationSchemaState.from_history(
+		template_registration.migration_stream,
+		template_registration.database_name,
+		history,
+		fingerprint,
+	)
+	if previous == null or previous.history_count != schema_state.history_count \
+			or previous.migration_head_id != schema_state.migration_head_id \
+			or previous.history_checksum != schema_state.history_checksum \
+			or previous.schema_fingerprint != schema_state.schema_fingerprint:
+		var saved := _migration_schema_state_store.save(
+			schema_state,
+			previous.history_checksum if previous != null else "",
+		)
+		result.diagnostics.merge(saved.diagnostics)
+		if not saved.is_successful():
+			return result
+		schema_state = saved.get_value() as GDSQLMigrationSchemaState
+	else:
+		schema_state = previous
+	var provisioned := GDSQLEditorFreshSaveProvisioner.new().provision(
+		template_definition,
+		target,
+		history,
+		schema_state,
+	)
+	result.diagnostics.merge(provisioned.diagnostics)
+	if provisioned.is_successful():
+		result.value = provisioned.get_value()
 	return result
 
 
@@ -380,9 +513,9 @@ func _save_database(
 	for table_change in table_changes:
 		if not result.is_successful():
 			break
-		var preview := workbench.active_session.database.preview_alter_table(
-			table_change.table_name,
-			table_change.alterations,
+		var preview := _preview_table_change(
+			workbench.active_session.database,
+			table_change,
 		)
 		result.diagnostics.merge(preview.diagnostics)
 		if not preview.is_successful():
@@ -407,8 +540,28 @@ func _save_database(
 			workbench.get_inspection(registration_name),
 			workbench.active_session,
 		)
+		_refresh_database_migration_state(registration_name)
 	_record_result("Save database changes", result)
 	return result
+
+
+func _preview_table_change(
+		database: GDSQLDatabase,
+		change: GDSQLEditorTableChange,
+) -> GDSQLOperationResult:
+	if change == null or not change.is_valid():
+		return _error(
+			&"GDSQL_EDITOR_TABLE_CHANGE_INVALID",
+			"Database save requires one valid table change.",
+		)
+	if change.is_drop_table():
+		return database.preview_drop_table(change.table_name)
+	if change.is_rename_table():
+		return database.preview_rename_table(
+			change.table_name,
+			change.new_table_name,
+		)
+	return database.preview_alter_table(change.table_name, change.alterations)
 
 
 func _remove_registration(registration_name: StringName) -> GDSQLOperationResult:
@@ -468,8 +621,141 @@ func _refresh_database_document(
 		)
 		_database_dock.render()
 		navigation_catalog_changed.emit()
+		_refresh_database_migration_state(registration_name)
 	result.value = workbench.active_session
 	_record_result("Refresh database", result)
+	return result
+
+
+func _preview_database_migration(
+		registration_name: StringName,
+		migration_id: String,
+		description: String,
+		migration_steps: Array[GDSQLMigrationStep],
+) -> GDSQLOperationResult:
+	var result := _ensure_active_registration(registration_name)
+	var registration := workbench.get_registration(registration_name)
+	if result.is_successful() and not _migration_steps_are_valid(migration_steps):
+		result.diagnostics.merge(
+			_error(
+				&"GDSQL_EDITOR_MIGRATION_CHANGE_REQUIRED",
+				"Migration authoring requires one or more valid schema or data steps.",
+			).diagnostics,
+		)
+	if result.is_successful() and (
+			registration == null or _migration_history_store == null
+	):
+		result.diagnostics.merge(
+			_error(
+				&"GDSQL_EDITOR_MIGRATION_SERVICES_REQUIRED",
+				"Migration authoring requires a registration and history store.",
+			).diagnostics,
+		)
+	var history: Array[GDSQLMigrationDefinition] = []
+	if result.is_successful():
+		var loaded := _migration_history_store.load(registration.migration_stream)
+		result.diagnostics.merge(loaded.diagnostics)
+		if loaded.is_successful():
+			history = loaded.get_value() as Array[GDSQLMigrationDefinition]
+	if result.is_successful():
+		var current := workbench.active_session.database.preview_migrations(history)
+		result.diagnostics.merge(current.diagnostics)
+		if current.is_successful() and not current.is_up_to_date():
+			var pending := _editor_migration_preview(
+				registration,
+				current.next_plan,
+				history.size(),
+				true,
+			)
+			_workspace.present_database_migration_state(
+				registration_name,
+				history.size(),
+				pending,
+			)
+			_workspace.present_database_migration_preview(registration_name, pending)
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_EDITOR_MIGRATION_PENDING",
+					"Apply the pending migration '%s' before authoring another." \
+							% pending.definition.migration_id,
+				),
+			)
+	if result.is_successful():
+		var definition := GDSQLMigrationDefinition.new(
+			migration_id,
+			description,
+			migration_steps,
+		)
+		var candidate: Array[GDSQLMigrationDefinition] = history.duplicate()
+		candidate.append(definition)
+		var preview := workbench.active_session.database.preview_migrations(candidate)
+		result.diagnostics.merge(preview.diagnostics)
+		if preview.is_successful() and preview.next_plan != null:
+			var editor_preview := _editor_migration_preview(
+				registration,
+				preview.next_plan,
+				history.size(),
+				false,
+			)
+			_workspace.present_database_migration_preview(
+				registration_name,
+				editor_preview,
+			)
+			result.value = editor_preview
+	_record_result("Preview database migration", result)
+	return result
+
+
+func _migration_steps_are_valid(steps: Array[GDSQLMigrationStep]) -> bool:
+	if steps.is_empty():
+		return false
+	for step in steps:
+		if step == null or not step.is_valid():
+			return false
+	return true
+
+
+func _apply_database_migration(
+		preview: GDSQLEditorMigrationPreview,
+) -> GDSQLOperationResult:
+	if preview == null or not preview.is_valid():
+		var invalid := _error(
+			&"GDSQL_EDITOR_MIGRATION_PREVIEW_INVALID",
+			"A valid migration preview is required before application.",
+		)
+		_record_result("Apply database migration", invalid)
+		return invalid
+	var result := _ensure_active_registration(preview.registration_name)
+	if result.is_successful() and not preview.definition_persisted:
+		var appended := _migration_history_store.append(
+			preview.migration_stream,
+			preview.definition,
+			preview.expected_history_count,
+		)
+		result.diagnostics.merge(appended.diagnostics)
+		if appended.is_successful():
+			preview.definition_persisted = true
+			preview.expected_history_count += 1
+			_scan_project_filesystem()
+	if result.is_successful():
+		var applied := workbench.active_session.database.apply_migration(preview.plan)
+		result.diagnostics.merge(applied.diagnostics)
+		result.value = applied.get_value()
+	if result.is_successful():
+		var inspections := workbench.refresh_inspections()
+		result.diagnostics.merge(inspections.diagnostics)
+		var catalog := workbench.active_session.refresh_catalog()
+		result.diagnostics.merge(catalog.diagnostics)
+	if result.is_successful():
+		_workspace.accept_database_saved(
+			preview.registration_name,
+			workbench.get_inspection(preview.registration_name),
+			workbench.active_session,
+		)
+		_database_dock.render()
+		navigation_catalog_changed.emit()
+	_refresh_database_migration_state(preview.registration_name)
+	_record_result("Apply database migration", result)
 	return result
 
 
@@ -1103,10 +1389,144 @@ func _open_registration(
 			workbench.get_inspection(registration_name),
 			workbench.active_session,
 		)
+		_refresh_database_migration_state(registration_name)
 		_database_dock.render()
 	if record_logs:
 		_record_result("Open database", result)
 	return result
+
+
+func _refresh_database_migration_state(
+		registration_name: StringName,
+) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	var state_sync_pending := false
+	var registration := workbench.get_registration(registration_name)
+	if registration == null or workbench.active_session == null \
+			or workbench.active_session.registration.name != registration_name:
+		return result
+	var loaded := _migration_history_store.load(registration.migration_stream)
+	result.diagnostics.merge(loaded.diagnostics)
+	var history: Array[GDSQLMigrationDefinition] = []
+	if loaded.is_successful():
+		history = loaded.get_value() as Array[GDSQLMigrationDefinition]
+		var migration_preview := workbench.active_session.database.preview_migrations(history)
+		result.diagnostics.merge(migration_preview.diagnostics)
+		if migration_preview.is_successful():
+			if migration_preview.is_up_to_date():
+				var synchronized := _synchronize_migration_schema_state(
+					registration,
+					history,
+				)
+				if not synchronized.is_successful():
+					state_sync_pending = true
+					for diagnostic in synchronized.diagnostics.entries:
+						result.add_diagnostic(
+							GDSQLQueryDiagnostic.new(
+								&"GDSQL_MIGRATION_SCHEMA_STATE_SYNC_PENDING",
+								diagnostic.message,
+								GDSQLQueryDiagnostic.Severity.WARNING,
+								diagnostic.source_span,
+								diagnostic.related_object,
+							),
+						)
+			var pending: GDSQLEditorMigrationPreview
+			if migration_preview.next_plan != null:
+				pending = _editor_migration_preview(
+					registration,
+					migration_preview.next_plan,
+					history.size(),
+					true,
+				)
+			_workspace.present_database_migration_state(
+				registration_name,
+				history.size(),
+				pending,
+			)
+	if not result.is_successful():
+		_workspace.present_database_migration_state(
+			registration_name,
+			history.size(),
+			null,
+			_first_diagnostic_message(result),
+		)
+		_record_result("Inspect database migration history", result)
+	elif state_sync_pending:
+		_record_result("Synchronize migration schema state", result)
+	return result
+
+
+func _synchronize_migration_schema_state(
+		registration: GDSQLDatabaseRegistration,
+		history: Array[GDSQLMigrationDefinition],
+) -> GDSQLOperationResult:
+	var result := GDSQLOperationResult.new()
+	if _migration_schema_state_store == null \
+			or workbench.active_session == null \
+			or workbench.active_session.catalog_snapshot == null:
+		return _error(
+			&"GDSQL_MIGRATION_SCHEMA_STATE_DEPENDENCY_REQUIRED",
+			"Migration schema-state synchronization requires an open catalog and state store.",
+		)
+	var database := workbench.active_session.catalog_snapshot.get_database(
+		registration.database_name,
+	)
+	var fingerprint := GDSQLSchemaFingerprint.compute(database)
+	var state := GDSQLMigrationSchemaState.from_history(
+		registration.migration_stream,
+		registration.database_name,
+		history,
+		fingerprint,
+	)
+	if not state.is_valid():
+		return _error(
+			&"GDSQL_MIGRATION_SCHEMA_STATE_INVALID",
+			"The current catalog could not produce valid migration schema state.",
+		)
+	var loaded := _migration_schema_state_store.load(registration.migration_stream)
+	result.diagnostics.merge(loaded.diagnostics)
+	if not loaded.is_successful():
+		return result
+	var previous := loaded.get_value() as GDSQLMigrationSchemaState
+	if previous != null \
+			and previous.database_name == state.database_name \
+			and previous.history_count == state.history_count \
+			and previous.migration_head_id == state.migration_head_id \
+			and previous.history_checksum == state.history_checksum \
+			and previous.schema_fingerprint == state.schema_fingerprint:
+		result.value = previous
+		return result
+	var saved := _migration_schema_state_store.save(
+		state,
+		previous.history_checksum if previous != null else "",
+	)
+	result.diagnostics.merge(saved.diagnostics)
+	if saved.is_successful():
+		result.value = saved.get_value()
+		_scan_project_filesystem()
+	return result
+
+
+func _editor_migration_preview(
+		registration: GDSQLDatabaseRegistration,
+		plan: GDSQLMigrationStepPlan,
+		history_count: int,
+		persisted: bool,
+) -> GDSQLEditorMigrationPreview:
+	return GDSQLEditorMigrationPreview.new(
+		registration.name,
+		registration.migration_stream,
+		plan.migration,
+		plan,
+		history_count,
+		persisted,
+	)
+
+
+func _first_diagnostic_message(result: GDSQLOperationResult) -> String:
+	if result == null or result.diagnostics.entries.is_empty():
+		return "Unknown migration error."
+	return result.diagnostics.entries[0].message
 
 
 func _select_table(registration_name: StringName, table_name: StringName) -> GDSQLOperationResult:
@@ -1199,6 +1619,7 @@ func _delete_save_slot(registration_name: StringName) -> GDSQLOperationResult:
 	var planned := GDSQLSaveSlotDeletionPlan.build(
 		registration,
 		_get_role_registration(GDSQLDatabaseRegistry.SAVE_ROLE),
+		workbench.get_registrations(),
 	)
 	if not planned.is_successful():
 		_record_result("Delete save slot data", planned)
@@ -1211,7 +1632,15 @@ func _delete_save_slot(registration_name: StringName) -> GDSQLOperationResult:
 		var dropped := workbench.active_session.database.drop()
 		result.diagnostics.merge(dropped.diagnostics)
 	if result.is_successful():
-		var removed := workbench.remove_registration(plan.registration_name)
+		var removed := (
+			workbench.remove_registration_and_rebind(
+				plan.registration_name,
+				GDSQLDatabaseRegistry.SAVE_ROLE,
+				plan.fallback_registration_name,
+			)
+			if plan.was_active and plan.fallback_registration_name != &""
+			else workbench.remove_registration(plan.registration_name)
+		)
 		result.diagnostics.merge(removed.diagnostics)
 	if result.is_successful():
 		_workspace.close_registration(plan.registration_name)

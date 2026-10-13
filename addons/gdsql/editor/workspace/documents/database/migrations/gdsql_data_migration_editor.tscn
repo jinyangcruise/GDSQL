@@ -1,0 +1,50 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/gdsql/editor/workspace/documents/database/migrations/gdsql_data_migration_editor.gd" id="1_editor"]
+[ext_resource type="PackedScene" path="res://addons/gdsql/editor/workspace/query_graph/components/mutation_values/mutation_values_editor.tscn" id="2_values"]
+[ext_resource type="PackedScene" path="res://addons/gdsql/editor/workspace/query_graph/components/where_expression/where_expression_editor.tscn" id="3_where"]
+
+[node name="DataMigrationEditor" type="VBoxContainer"]
+custom_minimum_size = Vector2(680, 0)
+theme_override_constants/separation = 8
+script = ExtResource("1_editor")
+
+[node name="TableRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="TableLabel" type="Label" parent="TableRow"]
+layout_mode = 2
+text = "Table"
+
+[node name="TableSelect" type="OptionButton" parent="TableRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="AssignmentsLabel" type="Label" parent="."]
+layout_mode = 2
+text = "Values to update"
+
+[node name="Values" parent="." instance=ExtResource("2_values")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(680, 190)
+layout_mode = 2
+mode = 1
+
+[node name="ResourceNote" type="Label" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.62, 0.67, 0.74, 1)
+text = "Resource values are excluded from durable update assignments. Resource columns remain available in WHERE."
+autowrap_mode = 2
+
+[node name="WhereExpression" parent="." instance=ExtResource("3_where")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="AllRowsConfirmation" type="CheckButton" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Update every row when WHERE is disabled"

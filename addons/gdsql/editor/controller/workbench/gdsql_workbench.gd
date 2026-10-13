@@ -205,6 +205,49 @@ func remove_registration(
 	return result
 
 
+## Removes one registration and moves a role that selected it to a validated
+## replacement in the same persisted registry snapshot.
+func remove_registration_and_rebind(
+		registration_name: StringName,
+		role: StringName,
+		fallback_registration_name: StringName,
+) -> GDSQLOperationResult:
+	var registration := get_registration(registration_name)
+	var fallback := get_registration(fallback_registration_name)
+	if registration == null or fallback == null \
+			or registration_name == fallback_registration_name:
+		return _error(
+			&"GDSQL_WORKBENCH_REGISTRATION_FALLBACK_INVALID",
+			"Registration removal requires a distinct registered fallback.",
+		)
+	var role_binding: GDSQLDatabaseRoleBinding
+	for binding in snapshot.role_bindings:
+		if binding.role == role:
+			role_binding = binding
+			break
+	if role_binding == null or role_binding.registration_name != registration_name:
+		return _error(
+			&"GDSQL_WORKBENCH_ROLE_BINDING_MISMATCH",
+			"Role '%s' does not select registration '%s'." % [role, registration_name],
+		)
+	var registration_index := snapshot.registrations.find(registration)
+	var had_inspection := _inspections.has(registration.name)
+	var inspection := _inspections.get(registration.name) as GDSQLDatabaseInspection
+	var previous_session := active_session
+	role_binding.registration_name = fallback_registration_name
+	_remove_registration_state(registration)
+	var result := _registry.save_snapshot(snapshot)
+	if not result.is_successful():
+		snapshot.registrations.insert(registration_index, registration)
+		if had_inspection:
+			_inspections[registration.name] = inspection
+		role_binding.registration_name = registration_name
+		active_session = previous_session
+		return result
+	result.value = registration
+	return result
+
+
 func set_storage_backend(
 		registration_name: StringName,
 		backend_id: StringName,
@@ -221,6 +264,27 @@ func set_storage_backend(
 			"Database registration '%s' was not found." % registration_name,
 		)
 	registration.storage_backend_id = backend_id
+	var result := _registry.save_snapshot(snapshot)
+	result.value = registration
+	return result
+
+
+func set_migration_stream(
+		registration_name: StringName,
+		migration_stream: StringName,
+) -> GDSQLOperationResult:
+	if migration_stream == &"" or not String(migration_stream).is_valid_identifier():
+		return _error(
+			&"GDSQL_MIGRATION_STREAM_INVALID",
+			"Migration stream '%s' is not a valid identifier." % migration_stream,
+		)
+	var registration := get_registration(registration_name)
+	if registration == null:
+		return _error(
+			&"GDSQL_WORKBENCH_REGISTRATION_NOT_FOUND",
+			"Database registration '%s' was not found." % registration_name,
+		)
+	registration.migration_stream = migration_stream
 	var result := _registry.save_snapshot(snapshot)
 	result.value = registration
 	return result

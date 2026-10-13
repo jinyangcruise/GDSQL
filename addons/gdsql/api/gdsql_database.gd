@@ -52,8 +52,11 @@ func table(table_name: StringName) -> GDSQLQuery:
 	return query().table(table_name)
 
 
-func execute(query_spec: GDSQLQuerySpec) -> GDSQLQueryResult:
-	return context.execute(query_spec)
+func execute(
+		query_spec: GDSQLQuerySpec,
+		options: GDSQLQueryExecutionOptions = null,
+) -> GDSQLQueryResult:
+	return context.execute(query_spec, options)
 
 
 func transaction(callback: Callable) -> GDSQLOperationResult:
@@ -62,6 +65,12 @@ func transaction(callback: Callable) -> GDSQLOperationResult:
 
 func create_table(table_definition: GDSQLTableDefinition) -> GDSQLCatalogOperationResult:
 	return context.create_table(database_name, table_definition)
+
+
+func preview_create_table(
+		table_definition: GDSQLTableDefinition,
+) -> GDSQLOperationResult:
+	return context.preview_create_table(database_name, table_definition)
 
 
 func rename(new_name: StringName) -> GDSQLDatabaseResult:
@@ -97,8 +106,19 @@ func rename_table(
 	return context.rename_table(database_name, current_name, new_name)
 
 
+func preview_rename_table(
+		current_name: StringName,
+		new_name: StringName,
+) -> GDSQLOperationResult:
+	return context.preview_rename_table(database_name, current_name, new_name)
+
+
 func drop_table(table_name: StringName) -> GDSQLCatalogOperationResult:
 	return context.drop_table(database_name, table_name)
+
+
+func preview_drop_table(table_name: StringName) -> GDSQLOperationResult:
+	return context.preview_drop_table(database_name, table_name)
 
 
 ## Removes every row and resets the table's generated integer key sequence.
@@ -135,6 +155,62 @@ func apply_change_plan(
 		)
 		return result
 	return context.apply_change_plan(plan)
+
+
+func preview_migrations(
+		history: Array[GDSQLMigrationDefinition],
+) -> GDSQLMigrationPreviewResult:
+	return context.preview_migrations(database_name, history)
+
+
+func apply_migration(
+		plan: GDSQLMigrationStepPlan,
+) -> GDSQLMigrationRunResult:
+	if plan != null and plan.database_name != database_name:
+		var result := GDSQLMigrationRunResult.new()
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_MIGRATION_PLAN_DATABASE_MISMATCH",
+				"Migration plan targets database '%s', not '%s'." \
+						% [plan.database_name, database_name],
+			),
+		)
+		return result
+	return context.apply_migration(plan)
+
+
+func adopt_migration_baseline(
+		history: Array[GDSQLMigrationDefinition],
+		schema_state: GDSQLMigrationSchemaState,
+) -> GDSQLOperationResult:
+	return context.adopt_migration_baseline(
+		database_name,
+		history,
+		schema_state,
+	)
+
+
+func adopt_migration_baseline_if_current(
+		history: Array[GDSQLMigrationDefinition],
+		schema_state: GDSQLMigrationSchemaState,
+) -> GDSQLOperationResult:
+	return context.adopt_migration_baseline_if_current(
+		database_name,
+		history,
+		schema_state,
+	)
+
+
+func recover_pending_migrations(
+		history: Array[GDSQLMigrationDefinition],
+) -> GDSQLOperationResult:
+	return context.recover_pending_migrations(database_name, history)
+
+
+func recover_interrupted_migration(
+		migration_id: String,
+) -> GDSQLMigrationRecoveryResult:
+	return context.recover_interrupted_migration(database_name, migration_id)
 
 
 func insert(table_name: StringName, values: Dictionary) -> GDSQLQueryResult:

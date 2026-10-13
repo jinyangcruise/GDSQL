@@ -381,13 +381,17 @@ schema configuration through reusable column and index controls. Selecting a
 table opens or focuses a separate data document.
 
 New tables are editable drafts placed after existing table folds and before the
-persistent `Add Table` action. Database rename and new-table definitions remain
-local dirty state until the user requests save and confirms a concise change
-summary. Invalid drafts keep Save unavailable and expose the first actionable
-database, table, column, default, primary-key, or index validation message in
-the document footer. The editor then delegates the typed database rename and
-`TableDefinition` objects to catalog administration. Broader alterations
-continue through previewed `CatalogChangePlan` instances.
+persistent `Add Table` action. Database rename and table changes remain local
+dirty state until the user chooses a valid persistence path. Each existing
+table has one compact actions menu for staging rename or drop; lifecycle intent
+is mutually exclusive with column and constraint drafts and can be restored
+before application. Before migration history begins, direct save confirms a
+concise change summary. One table creation, alteration group, rename, or drop
+can instead be previewed and recorded as an immutable migration; after history
+begins, that migration path is required. Invalid drafts keep both actions
+unavailable and expose the first actionable validation message in the document
+footer. The editor delegates direct typed definitions and previewed
+`CatalogChangePlan` instances to catalog administration.
 
 Registration names are internal identities. User-facing titles and database
 fields display `DatabaseRegistration.database_name`; location and storage
@@ -499,8 +503,10 @@ keys, icons, shortcuts, labels, tooltips, empty states, and display ordering.
 It does not define database behavior, validation policy, filesystem access, or
 transactions.
 
-Project-owned editor state belongs under `res://.gdsql/`. Runtime database
-content remains under the roots selected through database registrations.
+Project-owned editor state belongs under `res://.gdsql/`. Append-only authored
+schema definitions live under `res://.gdsql/migrations/<stream>/`; applied
+migration ledgers remain physical database state. Runtime database content
+remains under the roots selected through database registrations.
 Editor layout preferences that belong to one user may use Godot editor settings
 or user-scoped plugin data rather than project database files.
 

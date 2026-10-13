@@ -55,6 +55,7 @@ func load_snapshot() -> GDSQLOperationResult:
 					StringName(config.get_value(section, "database_name", &"")),
 					String(config.get_value(section, "data_root", "")),
 					backend_id,
+					StringName(config.get_value(section, "migration_stream", &"")),
 				),
 			)
 	if config.has_section(ROLES_SECTION):
@@ -87,6 +88,15 @@ func save_snapshot(snapshot: GDSQLDatabaseRegistrySnapshot) -> GDSQLOperationRes
 							% [registration.name, registration.storage_backend_id],
 				),
 			)
+		if registration.migration_stream == &"" \
+				or not String(registration.migration_stream).is_valid_identifier():
+			result.add_diagnostic(
+				GDSQLQueryDiagnostic.new(
+					&"GDSQL_MIGRATION_STREAM_INVALID",
+					"Database registration '%s' requires a valid migration stream." \
+							% registration.name,
+				),
+			)
 	if not result.is_successful():
 		return result
 	var directory_error := DirAccess.make_dir_recursive_absolute(
@@ -106,6 +116,7 @@ func save_snapshot(snapshot: GDSQLDatabaseRegistrySnapshot) -> GDSQLOperationRes
 		config.set_value(section, "database_name", registration.database_name)
 		config.set_value(section, "data_root", registration.data_root)
 		config.set_value(section, "storage_backend_id", registration.storage_backend_id)
+		config.set_value(section, "migration_stream", registration.migration_stream)
 	for binding in snapshot.role_bindings:
 		config.set_value(ROLES_SECTION, binding.role, binding.registration_name)
 	var save_error := config.save(registry_path)

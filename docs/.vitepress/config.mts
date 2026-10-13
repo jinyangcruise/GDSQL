@@ -33,6 +33,7 @@ export default defineConfig({
             { text: 'Introduction', link: '/guide/introduction' },
             { text: 'Why GDSQL?', link: '/guide/why-gdsql' },
             { text: 'Installation', link: '/guide/installation' },
+            { text: 'Compatibility', link: '/guide/compatibility' },
             { text: 'Create your first project', link: '/guide/getting-started' },
             { text: 'Choose a content profile', link: '/guide/content-profiles' },
             { text: 'Managed content packages', link: '/guide/managed-content' },
@@ -43,6 +44,7 @@ export default defineConfig({
           items: [
             { text: 'Table workbench', link: '/guide/table-workbench' },
             { text: 'Schemas and constraints', link: '/guide/schema-and-constraints' },
+            { text: 'Migrations and recovery', link: '/guide/migrations-and-recovery' },
             { text: 'Resource columns', link: '/guide/resource-columns' },
           ],
         },
@@ -65,6 +67,7 @@ export default defineConfig({
           items: [
             { text: 'Typed query API', link: '/guide/query-api' },
             { text: 'Model API', link: '/guide/model-api' },
+            { text: 'Performance benchmarks', link: '/guide/performance-benchmarks' },
           ],
         },
       ],

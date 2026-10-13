@@ -12,6 +12,7 @@ static func bootstrap(
 		checkpoint_policies: Dictionary = { },
 		default_checkpoint_policy: GDSQLCheckpointPolicy = null,
 		setup_profile: GDSQLSetupProfile.Kind = GDSQLSetupProfile.Kind.DIRECT,
+		migration_startup: GDSQLMigrationStartupCoordinator = null,
 ) -> GDSQLOperationResult:
 	var result := GDSQLOperationResult.new()
 	var registry := GDSQLDatabaseRegistry.new(
@@ -23,18 +24,35 @@ static func bootstrap(
 		return result
 	var persistence := GDSQLPersistenceCoordinator.new()
 	var snapshot := loaded.get_value() as GDSQLDatabaseRegistrySnapshot
+	var startup := migration_startup
+	if startup == null:
+		startup = GDSQLMigrationStartupCoordinator.new(
+			GDSQLConfigFileMigrationHistoryStore.new(),
+			GDSQLConfigFileMigrationSchemaStateStore.new(),
+		)
 	if setup_profile != GDSQLSetupProfile.Kind.MANAGED:
 		var setup := GDSQLDirectSetupInspector.inspect_runtime(snapshot)
 		result.diagnostics.merge(setup.diagnostics)
 	for registration in snapshot.registrations:
-		var opened := open_registration(registration)
+		var durable := open_authoring_registration(registration)
+		result.diagnostics.merge(durable.diagnostics)
+		if not durable.is_successful():
+			return result
+		var prepared := startup.prepare(registration, durable.get_database())
+		result.diagnostics.merge(prepared.diagnostics)
+		if not prepared.is_successful():
+			return result
+		var opened := durable
+		if registration.storage_backend_id == GDSQLStorageBackendIds.IN_MEMORY:
+			opened = open_registration(registration)
 		result.diagnostics.merge(opened.diagnostics)
 		if not opened.is_successful():
-			continue
+			return result
 		var registered := registry.register(registration.name, opened.get_database())
 		result.diagnostics.merge(registered.diagnostics)
-		if not registered.is_successful() \
-				or registration.storage_backend_id != GDSQLStorageBackendIds.IN_MEMORY:
+		if not registered.is_successful():
+			return result
+		if registration.storage_backend_id != GDSQLStorageBackendIds.IN_MEMORY:
 			continue
 		var target := _create_in_memory_checkpoint_target(
 			registration,
@@ -52,6 +70,8 @@ static func bootstrap(
 			policy,
 		)
 		result.diagnostics.merge(persistence_registration.diagnostics)
+		if not persistence_registration.is_successful():
+			return result
 	for binding in snapshot.role_bindings:
 		var bound := registry.bind_role(binding.role, binding.registration_name)
 		result.diagnostics.merge(bound.diagnostics)
@@ -267,7 +287,11 @@ static func _hydrate_in_memory(
 	)
 	var memory := context.storage as GDSQLInMemoryTableStorage
 	for table in database.tables:
-		var snapshot := durable.read_table(table, null)
+		var snapshot := durable.read_table(
+			table,
+			null,
+			GDSQLStorageReadRequest.all(true),
+		)
 		if snapshot == null:
 			result.add_diagnostic(
 				GDSQLQueryDiagnostic.new(
@@ -311,7 +335,18 @@ static func _create_context(
 		cache: GDSQLConfigFileCache,
 		codec: GDSQLGodotVariantCodec,
 ) -> GDSQLDatabaseContext:
-	var catalog: GDSQLCatalogService = GDSQLConfigFileCatalogService.new(path_resolver, codec)
+	var table_data_transaction := GDSQLConfigFileTableDataTransaction.new(
+		path_resolver,
+		cache,
+	)
+	var catalog: GDSQLCatalogService = GDSQLConfigFileCatalogService.new(
+		path_resolver,
+		codec,
+		null,
+		null,
+		null,
+		table_data_transaction,
+	)
 	var catalog_administration: GDSQLCatalogAdministrationService = \
 			GDSQLConfigFileCatalogAdministrationService.new(
 				path_resolver,
@@ -327,6 +362,9 @@ static func _create_context(
 	var function_registry := GDSQLQueryFunctionRegistry.new(function_catalog)
 	var expression_evaluator := GDSQLExpressionEvaluator.new(function_registry)
 	var cancellation := GDSQLQueryCancellationToken.new()
+	var validator := GDSQLDefaultQueryValidator.new(catalog, function_catalog)
+	var query_planner := GDSQLDefaultQueryPlanner.new(storage.get_capabilities())
+	var executor := GDSQLDefaultQueryExecutor.new()
 	var execution_context := GDSQLExecutionContext.new(
 		catalog,
 		storage,
@@ -335,14 +373,46 @@ static func _create_context(
 		function_registry,
 		cancellation,
 	)
+	var migration_service: GDSQLMigrationService
+	if storage is GDSQLConfigFileTableStorage:
+		var ledger := GDSQLConfigFileMigrationLedger.new(path_resolver)
+		var recovery := GDSQLConfigFileMigrationRecoveryStore.new(
+			path_resolver,
+			cache,
+		)
+		migration_service = GDSQLMigrationService.new(
+			ledger,
+			GDSQLMigrationPlanner.new(),
+			GDSQLMigrationStepPlanner.new(
+				catalog_administration,
+				validator,
+				query_planner,
+				executor,
+				execution_context,
+				GDSQLConfigFileMigrationSimulator.new(path_resolver),
+			),
+			GDSQLMigrationRunner.new(
+				catalog,
+				catalog_administration,
+				ledger,
+				recovery,
+				validator,
+				query_planner,
+				executor,
+				execution_context,
+			),
+			recovery,
+			catalog,
+		)
 	return GDSQLDatabaseContext.new(
 		catalog,
 		catalog_administration,
 		storage,
-		GDSQLDefaultQueryValidator.new(catalog, function_catalog),
-		GDSQLDefaultQueryPlanner.new(storage.get_capabilities()),
-		GDSQLDefaultQueryExecutor.new(),
+		validator,
+		query_planner,
+		executor,
 		execution_context,
+		migration_service,
 	)
 
 

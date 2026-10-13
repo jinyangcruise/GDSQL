@@ -11,6 +11,7 @@ extends RefCounted
 const CONTENT_ROLE := &"content"
 const SAVE_ROLE := &"save"
 const SETTINGS_ROLE := &"settings"
+const DEFAULT_SAVE_DATABASE_NAME := &"game_state"
 
 var _databases: Dictionary[StringName, GDSQLDatabase] = { }
 var _role_bindings: Dictionary[StringName, StringName] = { }

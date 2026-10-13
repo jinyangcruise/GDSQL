@@ -10,6 +10,7 @@ var _limit := -1
 var _offset := 0
 var _distinct := false
 var _relationships: Array[StringName] = []
+var _deferred_resources := false
 var _built := false
 
 
@@ -50,6 +51,15 @@ func offset(value: int) -> GDSQLModelQuery:
 func distinct() -> GDSQLModelQuery:
 	_ensure_mutable()
 	_distinct = true
+	return self
+
+
+## Keeps referenced Resource columns unloaded and exposes their handles through
+## the materialized model. Scalar query behavior and concrete model property
+## types remain unchanged.
+func defer_resources() -> GDSQLModelQuery:
+	_ensure_mutable()
+	_deferred_resources = true
 	return self
 
 
@@ -104,7 +114,10 @@ func all() -> GDSQLQueryResult:
 	var spec := to_query_spec()
 	if spec == null:
 		return _query_failure(definition_result)
-	var query_result := database_result.get_database().execute(spec)
+	var query_result := database_result.get_database().execute(
+		spec,
+		GDSQLQueryExecutionOptions.deferred_resources() if _deferred_resources else null,
+	)
 	if not query_result.is_successful():
 		return query_result
 	var materialized := query_result.materialize(
@@ -191,7 +204,7 @@ func _load_relationship(
 	if source_values.is_empty():
 		_attach_empty_relationship(models, relationship)
 		return GDSQLOperationResult.new()
-	var related_result := _context.query(relationship.related_model_script) \
+	var related_result := _related_query(relationship.related_model_script) \
 			.where(_values_predicate(relationship.related_key, source_values)) \
 			.all()
 	if not related_result.is_successful():
@@ -226,7 +239,7 @@ func _load_many_to_many(
 	if source_values.is_empty():
 		_attach_empty_relationship(models, relationship)
 		return GDSQLOperationResult.new()
-	var through_result := _context.query(relationship.through_model_script) \
+	var through_result := _related_query(relationship.through_model_script) \
 			.where(_values_predicate(relationship.through_local_key, source_values)) \
 			.all()
 	if not through_result.is_successful():
@@ -239,7 +252,7 @@ func _load_many_to_many(
 	if related_values.is_empty():
 		_attach_empty_relationship(models, relationship)
 		return GDSQLOperationResult.new()
-	var related_result := _context.query(relationship.related_model_script) \
+	var related_result := _related_query(relationship.related_model_script) \
 			.where(_values_predicate(relationship.related_key, related_values)) \
 			.all()
 	if not related_result.is_successful():
@@ -308,3 +321,8 @@ func _attach_empty_relationship(
 
 func _create_model_array(models: Array, model_script: Script) -> Array:
 	return Array(models, TYPE_OBJECT, &"RefCounted", model_script)
+
+
+func _related_query(model_script: Script) -> GDSQLModelQuery:
+	var query := _context.query(model_script)
+	return query.defer_resources() if _deferred_resources else query

@@ -47,9 +47,13 @@ func _stage_table(
 		table: GDSQLTableDefinition,
 		session: GDSQLStorageSession,
 ) -> GDSQLStorageOperationResult:
-	var source_snapshot := _memory.read_table(table, null)
+	var reference_request := GDSQLStorageReadRequest.all(true)
+	var source_snapshot := _memory.read_table(table, null, reference_request)
 	var source := _rows_by_key(source_snapshot, table)
-	var destination := _rows_by_key(_durable.read_table(table, session), table)
+	var destination := _rows_by_key(
+		_durable.read_table(table, session, reference_request),
+		table,
+	)
 	for key in destination:
 		if not source.has(key):
 			var deleted := _durable.stage_delete(table, key, session)

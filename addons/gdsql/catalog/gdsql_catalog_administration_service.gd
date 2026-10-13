@@ -29,6 +29,13 @@ func create_table(
 
 
 @abstract
+func preview_create_table(
+		database_name: StringName,
+		table: GDSQLTableDefinition,
+) -> GDSQLOperationResult
+
+
+@abstract
 func rename_table(
 		database_name: StringName,
 		current_name: StringName,
@@ -37,10 +44,25 @@ func rename_table(
 
 
 @abstract
+func preview_rename_table(
+		database_name: StringName,
+		current_name: StringName,
+		new_name: StringName,
+) -> GDSQLOperationResult
+
+
+@abstract
 func drop_table(
 		database_name: StringName,
 		table_name: StringName,
 ) -> GDSQLCatalogOperationResult
+
+
+@abstract
+func preview_drop_table(
+		database_name: StringName,
+		table_name: StringName,
+) -> GDSQLOperationResult
 
 
 @abstract

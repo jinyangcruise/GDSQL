@@ -42,16 +42,16 @@ search and paging remain future work.
 ## A Resource is unavailable
 
 Confirm that the asset still exists, its type matches the column's concrete
-Resource subtype, and the column is **Referenced** when it points to a saved
-asset. Imported audio should be selected from an existing audio file, not
-created as an empty `AudioStreamMP3` or `AudioStreamOggVorbis` Resource.
+Resource subtype, and the column uses **External Reference** when it points to
+a saved asset. Imported audio should be selected from an existing audio file,
+not created as an empty `AudioStreamMP3` or `AudioStreamOggVorbis` Resource.
 
-## Referenced Resources use too much memory
+## External references use too much memory
 
-Referenced Resources are compact on disk, but they are not yet lazily
-materialized per field. A table scan currently decodes all columns before
-projection and pagination, so it can load heavy assets that are absent from the
-visible result.
+Resources stored as **External Reference** are compact on disk, but they are not
+yet lazily materialized per field. A table scan currently decodes all columns
+before projection and pagination, so it can load heavy assets that are absent
+from the visible result.
 
 Separate frequently queried metadata from meshes, textures, audio, and scenes,
 then retrieve the heavy row through a primary-key or indexed lookup only when

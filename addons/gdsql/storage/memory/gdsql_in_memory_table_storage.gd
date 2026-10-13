@@ -7,6 +7,10 @@ extends GDSQLTableStorage
 ## adapter can inspect those tables and clear each dirty version after copying
 ## it to a durable [GDSQLTableStorage].
 
+const IndexBatchSupport = preload(
+	"res://addons/gdsql/storage/reads/gdsql_storage_index_batch_support.gd",
+)
+
 var _tables: Dictionary = { }
 var _metadata: Dictionary = { }
 var _definitions: Dictionary = { }
@@ -15,44 +19,135 @@ var _dirty_versions: Dictionary = { }
 
 
 func get_capabilities() -> GDSQLStorageCapabilities:
-	return GDSQLStorageCapabilities.new(true, true)
+	return GDSQLStorageCapabilities.new(true, true, true, true)
 
 
 func read_table(
-		table: GDSQLTableDefinition,
-		session: GDSQLStorageSession,
+	table: GDSQLTableDefinition,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> GDSQLTableSnapshot:
 	var snapshot := GDSQLTableSnapshot.new()
 	snapshot.primary_key = table.primary_key
-	snapshot.rows = _effective_rows(table, session)
+	snapshot.rows = _apply_read_request(_effective_rows(table, session), request)
 	var metadata := _effective_metadata(table, session)
 	snapshot.row_count = int(metadata["row_count"])
 	snapshot.next_auto_increment = int(metadata["next_auto_increment"])
 	return snapshot
 
 
+func read_batch(
+	table: GDSQLTableDefinition,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLStorageReadBatch:
+	var result := GDSQLStorageReadBatch.new()
+	if not _validate_bounded_read_request(
+		request,
+		GDSQLStorageBackendIds.IN_MEMORY,
+		table,
+		result,
+	):
+		return result
+	var offset := _cursor_offset(request.cursor, result)
+	if not result.is_successful():
+		return result
+	var rows := _effective_rows(table, session)
+	if offset > rows.size():
+		result.add_diagnostic(
+			GDSQLQueryDiagnostic.new(
+				&"GDSQL_STORAGE_CURSOR_OUT_OF_RANGE",
+				"Read cursor offset %d exceeds the current row count %d." \
+						% [offset, rows.size()],
+			),
+		)
+		return result
+	var end := mini(offset + request.batch_size, rows.size())
+	for index in range(offset, end):
+		result.rows.append(_project_row(rows[index], request))
+	result.statistics.rows_scanned = rows.size()
+	result.statistics.rows_returned = result.rows.size()
+	if end < rows.size():
+		result.next_cursor = GDSQLStorageReadCursor.new(
+			GDSQLStorageBackendIds.IN_MEMORY,
+			table.database_name,
+			table.name,
+			end,
+		)
+	result.value = result.rows
+	return result
+
+
+func read_index_batch(
+	table: GDSQLTableDefinition,
+	index: GDSQLIndexDefinition,
+	direction: GDSQLStorageOrderDirection.Direction,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLStorageReadBatch:
+	var result := GDSQLStorageReadBatch.new()
+	if not _validate_ordered_index_read_request(
+		table,
+		index,
+		direction,
+		request,
+		GDSQLStorageBackendIds.IN_MEMORY,
+		result,
+	):
+		return result
+	var offset := IndexBatchSupport.cursor_offset(
+		request.cursor,
+		index,
+		direction,
+		result,
+	)
+	if not result.is_successful():
+		return result
+	var rows := _effective_rows(table, session)
+	IndexBatchSupport.sort_rows(rows, index, direction)
+	if offset > rows.size():
+		return _bounded_read_offset_error(offset, rows.size())
+	var end := mini(offset + request.batch_size, rows.size())
+	for row_offset in range(offset, end):
+		result.rows.append(_project_row(rows[row_offset], request))
+	result.statistics.rows_scanned = rows.size()
+	result.statistics.rows_returned = result.rows.size()
+	if end < rows.size():
+		result.next_cursor = IndexBatchSupport.create_cursor(
+			GDSQLStorageBackendIds.IN_MEMORY,
+			table,
+			index,
+			direction,
+			end,
+		)
+	result.value = result.rows
+	return result
+
+
 func find_by_primary_key(
-		table: GDSQLTableDefinition,
-		key: Variant,
-		session: GDSQLStorageSession,
+	table: GDSQLTableDefinition,
+	key: Variant,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> GDSQLRowRecord:
 	for row in _effective_rows(table, session):
 		if row.get_value(table.primary_key) == key:
-			return row
+			return _project_row(row, request)
 	return null
 
 
 func find_by_index(
 		table: GDSQLTableDefinition,
-		index: GDSQLIndexDefinition,
-		values: Array[Variant],
-		session: GDSQLStorageSession,
+	index: GDSQLIndexDefinition,
+	values: Array[Variant],
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
 	var matching: Array[GDSQLRowRecord] = []
 	var expected := _normalize_index_values(table, index, values)
 	for row in _effective_rows(table, session):
 		if _normalize_index_values(table, index, _index_values(row, index)) == expected:
-			matching.append(row)
+			matching.append(_project_row(row, request))
 	return matching
 
 
@@ -61,9 +156,10 @@ func find_by_index_range(
 		index: GDSQLIndexDefinition,
 		lower_bound: Variant,
 		upper_bound: Variant,
-		include_lower: bool,
-		include_upper: bool,
-		session: GDSQLStorageSession,
+	include_lower: bool,
+	include_upper: bool,
+	session: GDSQLStorageSession,
+	request: GDSQLStorageReadRequest = null,
 ) -> Array[GDSQLRowRecord]:
 	var matching: Array[GDSQLRowRecord] = []
 	if index.columns.size() != 1:
@@ -75,7 +171,7 @@ func find_by_index_range(
 	for row in _effective_rows(table, session):
 		var value: Variant = row.get_value(index.columns[0])
 		if _value_in_range(value, lower_bound, upper_bound, include_lower, include_upper):
-			matching.append(row)
+			matching.append(_project_row(row, request))
 	return matching
 
 
@@ -305,6 +401,24 @@ func _table_rows(table: GDSQLTableDefinition) -> Dictionary:
 	return _tables[table_key]
 
 
+func _cursor_offset(
+	cursor: GDSQLStorageReadCursor,
+	result: GDSQLStorageReadBatch,
+) -> int:
+	if cursor == null:
+		return 0
+	var token: Variant = cursor.get_token()
+	if token is int and int(token) >= 0:
+		return int(token)
+	result.add_diagnostic(
+		GDSQLQueryDiagnostic.new(
+			&"GDSQL_STORAGE_CURSOR_INVALID",
+			"The in-memory read cursor is invalid.",
+		),
+	)
+	return 0
+
+
 func _effective_rows(
 		table: GDSQLTableDefinition,
 		session: GDSQLStorageSession,
@@ -333,6 +447,29 @@ func _effective_rows(
 	for row in rows_by_key.values():
 		rows.append(row)
 	return rows
+
+
+func _apply_read_request(
+	rows: Array[GDSQLRowRecord],
+	request: GDSQLStorageReadRequest,
+) -> Array[GDSQLRowRecord]:
+	var projected: Array[GDSQLRowRecord] = []
+	for row in rows:
+		projected.append(_project_row(row, request))
+	return projected
+
+
+func _project_row(
+	row: GDSQLRowRecord,
+	request: GDSQLStorageReadRequest,
+) -> GDSQLRowRecord:
+	if request == null or request.all_columns:
+		return row.duplicate_record()
+	var values: Dictionary = { }
+	for column_name in request.required_columns:
+		if row.has_column(column_name):
+			values[column_name] = row.get_value(column_name)
+	return GDSQLRowRecord.new(values)
 
 
 func _effective_metadata(
@@ -413,7 +550,11 @@ func _validate_session_constraints(
 						"Column '%s' is required in %s.%s." \
 								% [column.name, table.database_name, table.name],
 					)
-				if not column.accepts_value(row.get_value(column.name)):
+				var value: Variant = row.get_value(column.name)
+				if not column.accepts_value(value) and not (
+						value is GDSQLResourceReference
+						and (value as GDSQLResourceReference).matches_column(column)
+				):
 					var expected := column.expected_type_name()
 					return _commit_error(
 						&"GDSQL_STORAGE_COLUMN_TYPE_MISMATCH",
@@ -444,8 +585,9 @@ func _validate_unique_column(
 		primary_key: bool,
 ) -> GDSQLStorageCommitResult:
 	var seen: Array[Variant] = []
+	var column := table.get_column(column_name)
 	for row in rows:
-		var value: Variant = row.get_value(column_name)
+		var value: Variant = _comparable_value(row.get_value(column_name), column)
 		if value == null and not primary_key:
 			continue
 		if seen.has(value):
@@ -469,7 +611,14 @@ func _validate_unique_index(
 ) -> GDSQLStorageCommitResult:
 	var seen: Array[Array] = []
 	for row in rows:
-		var values := _index_values(row, index)
+		var values: Array = []
+		for column_name in index.columns:
+			values.append(
+				_comparable_value(
+					row.get_value(column_name),
+					table.get_column(column_name),
+				),
+			)
 		if values.has(null):
 			continue
 		if seen.has(values):
@@ -482,6 +631,17 @@ func _validate_unique_index(
 	var result := GDSQLStorageCommitResult.new()
 	result.value = true
 	return result
+
+
+func _comparable_value(value: Variant, column: GDSQLColumnDefinition) -> Variant:
+	if value is GDSQLResourceReference:
+		return (value as GDSQLResourceReference).to_dictionary()
+	if value is Resource and column != null \
+			and column.resource_ownership == GDSQLResourceOwnership.Mode.REFERENCED:
+		var reference := GDSQLResourceReference.from_resource(value, column.resource_type)
+		if reference != null:
+			return reference.to_dictionary()
+	return value
 
 
 func _index_values(
