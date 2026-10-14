@@ -5,6 +5,9 @@ signal committed(registration_name: StringName)
 
 const Decoder = preload("res://addons/gdsql/editor/integrations/mcp/authoring/schema/gdsql_mcp_schema_decoder.gd")
 const Ticket = preload("res://addons/gdsql/editor/integrations/mcp/authoring/schema/gdsql_mcp_schema_mutation_ticket.gd")
+const ResourceStorageContext = preload(
+	"res://addons/gdsql/editor/integrations/mcp/authoring/storage/gdsql_mcp_resource_storage_context.gd"
+)
 const HANDLE_TTL_MSEC := 120_000
 
 var _workbench: GDSQLWorkbench
@@ -36,6 +39,7 @@ func preview(request: Dictionary) -> GDSQLOperationResult:
 	if not previewed.is_successful():
 		return previewed
 	var plan := previewed.get_value() as GDSQLCatalogChangePlan
+	var resource_storage_decisions := ResourceStorageContext.describe_intent(intent)
 	var ticket := Ticket.new()
 	ticket.token = Crypto.new().generate_random_bytes(24).hex_encode()
 	ticket.operation = intent["operation"]
@@ -57,6 +61,7 @@ func preview(request: Dictionary) -> GDSQLOperationResult:
 			"summaries": plan.summaries.duplicate(),
 			"affected_rows": plan.affected_rows,
 			"destructive": plan.requires_confirmation(),
+			"resource_storage_decisions": resource_storage_decisions,
 			"confirmation_handle": ticket.token,
 			"expires_in_ms": HANDLE_TTL_MSEC,
 		},

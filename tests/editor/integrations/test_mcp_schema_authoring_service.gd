@@ -244,6 +244,41 @@ func test_resource_columns_require_explicit_valid_storage_semantics() -> void:
 		},
 	)
 	assert_bool(valid.is_successful()).is_true()
+	var decision: Dictionary = valid.get_value()["data"]["resource_storage_decisions"][0]
+	assert_str(decision["column"]).is_equal("portrait")
+	assert_str(decision["selected"]).is_equal("referenced")
+	assert_str(decision["recommended"]).is_equal("referenced")
+	assert_bool(decision["owned_choice_needs_attention"]).is_false()
+	assert_bool(decision["lazy_loading_is_automatic"]).is_false()
+
+
+func test_owned_resource_preview_warns_about_the_embedded_value_choice() -> void:
+	var preview := _service.preview_schema_mutation(
+		{
+			"operation": "alter_table",
+			"registration": "content",
+			"table": "heroes",
+			"alterations": [
+				{
+					"kind": "add_column",
+					"column": {
+						"name": "generated_mesh",
+						"type": "resource",
+						"resource": {
+							"class": "Mesh",
+							"ownership": "owned",
+						},
+					},
+				},
+			],
+		},
+	)
+
+	assert_bool(preview.is_successful()).is_true()
+	var decisions: Array = preview.get_value()["data"]["resource_storage_decisions"]
+	assert_int(decisions.size()).is_equal(1)
+	assert_str(decisions[0]["selected"]).is_equal("owned")
+	assert_bool(decisions[0]["owned_choice_needs_attention"]).is_true()
 
 
 func _table(table_name: StringName) -> GDSQLTableDefinition:

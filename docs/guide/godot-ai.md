@@ -53,6 +53,13 @@ backend selects durable ConfigFile storage. In-memory storage hydrates from the
 durable source at startup and requires periodic, pause, exit, or explicit
 checkpoints before changes become durable.
 
+Schema previews require an explicit storage mode for every Resource column and
+return its decision context. Prefer `referenced` for existing meshes, textures,
+audio, scenes, and other shared assets. Use `owned` only when the complete
+Resource is independent row data. Referenced storage keeps the table compact,
+but loading is eager when the Resource is projected unless the runtime query
+explicitly requests deferred Resources.
+
 Model inspection covers catalog-inferred foreign-key relationships and
 cross-role references registered through the Model Assistant. Explicit
 many-to-many or other custom code remains outside static inspection.

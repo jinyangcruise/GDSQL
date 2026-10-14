@@ -134,7 +134,7 @@ fully autonomous workflows:
 | Choice | Required context | State |
 |---|---|---|
 | ConfigFile or in-memory runtime storage | Persistence, hydration, and checkpoint behavior | Implemented in database/save-slot previews |
-| Owned or referenced Resource storage | Portability, file dependencies, load cost, and future lazy materialization | Backlog |
+| Owned or referenced Resource storage | Portability, file dependencies, load cost, and explicit deferred materialization | Implemented in schema previews |
 | Direct schema mutation or authored migration | Prototype convenience versus deployed-build/team upgrade history | Backlog |
 | Managed package selection and save expectation replacement | Effective-content changes and save compatibility impact | Backlog |
 
@@ -195,6 +195,14 @@ Resource class and explicit `owned` or `referenced` storage. Project-script
 constraints may name only an existing `res://` script; arbitrary paths are
 rejected. Default values remain JSON scalar values, so compound and Resource
 defaults stay in the editor surface.
+
+Create-table and alter-table previews return one structured Resource-storage
+decision for every Resource column they add or change. Referenced storage is
+recommended for existing project or package assets. Owned storage remains
+available for independent row data, but the preview calls out its table-size
+and load-cost implications. The response also states that referenced storage
+does not enable lazy loading automatically; callers must request deferred
+Resource execution explicitly.
 
 ## Registered database lifecycle confirmation
 

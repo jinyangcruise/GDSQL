@@ -261,7 +261,7 @@ func _build_specs() -> Array:
 		specs.append(
 			_spec(
 				"gdsql_preview_schema_mutation",
-				"Validate and preview one registered GDSQL table schema mutation. Returns a short-lived confirmation handle and changes nothing.",
+				"Validate and preview one registered GDSQL table schema mutation. Resource columns require explicit owned or referenced storage and return decision context. Returns a short-lived confirmation handle and changes nothing.",
 				&"preview_schema_mutation",
 				{
 					"type": "object",
