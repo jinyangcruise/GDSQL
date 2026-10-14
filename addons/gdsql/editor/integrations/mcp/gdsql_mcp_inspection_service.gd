@@ -16,6 +16,7 @@ var _explorer: GDSQLDatabaseExplorer
 var _model_count_provider: Callable
 var _runtime_adapter_provider: Callable
 var _model_inspection_service: RefCounted
+var _authoring_available: bool
 
 
 func _init(
@@ -28,6 +29,7 @@ func _init(
 		model_count_provider: Callable = Callable(),
 		runtime_adapter_provider: Callable = Callable(),
 		model_inspection_service: RefCounted = null,
+		authoring_available: bool = false,
 ) -> void:
 	_workbench = workbench
 	_profile_store = profile_store
@@ -38,6 +40,7 @@ func _init(
 	_model_count_provider = model_count_provider
 	_runtime_adapter_provider = runtime_adapter_provider
 	_model_inspection_service = model_inspection_service
+	_authoring_available = authoring_available
 
 
 func get_capabilities() -> GDSQLOperationResult:
@@ -47,29 +50,65 @@ func get_capabilities() -> GDSQLOperationResult:
 	var loaded_profile := _profile_store.load_profile()
 	if not loaded_profile.is_successful():
 		return loaded_profile
+	var selected := loaded_profile.get_value() as GDSQLSetupProfile.Kind
+	var tools := [
+		{ "name": "gdsql_capabilities", "read_only": true },
+	]
+	if _authoring_available:
+		tools.append_array(
+			[
+				{ "name": "gdsql_commit_database_mutation", "read_only": false },
+				{ "name": "gdsql_commit_migration", "read_only": false },
+				{ "name": "gdsql_commit_model_mutation", "read_only": false },
+				{ "name": "gdsql_commit_row_mutation", "read_only": false },
+				{ "name": "gdsql_commit_schema_mutation", "read_only": false },
+				{ "name": "gdsql_commit_setup_mutation", "read_only": false },
+			],
+		)
+	tools.append_array(
+		[
+			{ "name": "gdsql_inspect_models", "read_only": true },
+			{ "name": "gdsql_inspect_schema", "read_only": true },
+			{ "name": "gdsql_inspect_setup", "read_only": true },
+		],
+	)
+	if _authoring_available:
+		tools.append_array(
+			[
+				{ "name": "gdsql_preview_database_mutation", "read_only": false },
+				{ "name": "gdsql_preview_migration", "read_only": false },
+				{ "name": "gdsql_preview_model_mutation", "read_only": false },
+				{ "name": "gdsql_preview_row_mutation", "read_only": false },
+				{ "name": "gdsql_preview_schema_mutation", "read_only": false },
+				{ "name": "gdsql_preview_setup_mutation", "read_only": false },
+				{ "name": "gdsql_query_rows", "read_only": true },
+			],
+		)
 	return _success(
 		{
 			"project_scope": "current_project",
-			"selected_profile": _profile_id(loaded_profile.get_value()),
+			"selected_profile": _profile_id(selected),
+			"onboarding": _onboarding(selected),
 			"features": [
 				{ "id": "capabilities", "enabled": true },
+				{ "id": "database_authoring", "enabled": _authoring_available },
+				{ "id": "migration_authoring", "enabled": _authoring_available },
+				{ "id": "model_authoring", "enabled": _authoring_available },
 				{ "id": "model_inspection", "enabled": true },
-				{ "id": "mutations", "enabled": false },
-				{ "id": "query_drafting", "enabled": false },
+				{ "id": "mutations", "enabled": _authoring_available },
+				{ "id": "query_execution", "enabled": _authoring_available },
+				{ "id": "schema_authoring", "enabled": _authoring_available },
 				{ "id": "schema_inspection", "enabled": true },
+				{ "id": "setup_authoring", "enabled": _authoring_available },
 				{ "id": "setup_inspection", "enabled": true },
 			],
 			"limits": {
 				"default_items": DEFAULT_LIMIT,
 				"maximum_items": MAX_LIMIT,
-				"row_values_exposed": false,
+				"maximum_mutation_rows": GDSQLMcpAuthoringService.MAX_MUTATION_ROWS,
+				"row_values_exposed": _authoring_available,
 			},
-			"tools": [
-				{ "name": "gdsql_capabilities", "read_only": true },
-				{ "name": "gdsql_inspect_models", "read_only": true },
-				{ "name": "gdsql_inspect_schema", "read_only": true },
-				{ "name": "gdsql_inspect_setup", "read_only": true },
-			],
+			"tools": tools,
 		},
 	)
 
@@ -148,12 +187,70 @@ func inspect_setup(requested_profile: StringName = &"selected") -> GDSQLOperatio
 		{
 			"selected_profile": _profile_id(selected),
 			"inspected_profile": _profile_id(profile),
+			"requires_user_decision": selected == GDSQLSetupProfile.Kind.UNSELECTED,
+			"profile_decision": (
+				_profile_decision()
+				if selected == GDSQLSetupProfile.Kind.UNSELECTED
+				else { }
+			),
 			"ready": report.is_ready(),
 			"next_check": String(next.id) if next != null else "",
 			"checks": checks,
 		},
 		_serialize_diagnostics(report.diagnostics),
 	)
+
+
+func _onboarding(profile: GDSQLSetupProfile.Kind) -> Dictionary:
+	var decision_required := profile == GDSQLSetupProfile.Kind.UNSELECTED
+	return {
+		"profile_selection_required": decision_required,
+		"first_tool": "gdsql_inspect_setup",
+		"required_action": (
+			"ask_user_to_choose_content_profile" if decision_required else "inspect_setup_progress"
+		),
+		"profile_decision": _profile_decision() if decision_required else { },
+	}
+
+
+func _profile_decision() -> Dictionary:
+	return {
+		"id": "content_profile",
+		"title": "Choose how authored content reaches the game runtime",
+		"agent_instruction": (
+			"Explain both profiles in the context of the user's game and ask for an explicit "
+			+ "choice. Do not infer or select a profile on the user's behalf."
+		),
+		"options": [
+			{
+				"id": "direct",
+				"label": "Direct Content",
+				"best_for": "A game that ships one authoritative definition database.",
+				"runtime_content": "Reads the registered authored content database directly.",
+				"setup_cost": "low",
+				"includes": ["simple content workflow", "content and save model roles"],
+				"excludes": ["package overlays", "built-in mod provenance", "package-aware saves"],
+			},
+			{
+				"id": "managed",
+				"label": "Managed Content",
+				"best_for": "A game that needs base-game, DLC, mod, or layered content packages.",
+				"runtime_content": "Reads a deterministic effective-content cache built from packages.",
+				"setup_cost": "higher",
+				"includes": [
+					"package overlays", "content provenance", "cache management",
+					"save-package compatibility",
+				],
+				"excludes": [],
+			},
+		],
+		"migration_warning": (
+			"Changing profiles later does not migrate databases, models, Resource paths, "
+			+ "packages, caches, or save expectations automatically."
+		),
+		"selection_operation": "select_profile",
+		"confirmation_required": true,
+	}
 
 
 func inspect_schema(

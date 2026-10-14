@@ -37,7 +37,8 @@ The current implementation provides:
   compatibility reports.
 - Generated/user-owned model bindings, inferred same-database navigation,
   explicit many-to-many relationships, and cross-role content references.
-- Multi-table navigation and read-only Godot-AI MCP inspection tools.
+- Multi-table navigation plus Godot-AI inspection, bounded scalar row query,
+  and preview/confirm row-mutation tools.
 - Resource Stages A–B: required-column reads, inert locator transfer, explicit
   sync/threaded handles, opt-in query/model deferral, and bounded prefetch
   lifetimes.
@@ -53,7 +54,7 @@ tracks only product direction, active work, and deliberately deferred work.
 | Priority | Outcome | State |
 |---|---|---|
 | High — first | Release, recovery, and supported-version QA | Crash-safe table commits, catalog/migration recovery, the public migration/recovery guide, PCK/standalone Linux export gates, and the scalar ConfigFile baseline are implemented; selected supported-platform verification remains. Additional benchmarks are deferred until measurements or real projects justify them |
-| Medium | Godot-AI lifecycle and authoring surface | Inspection tools work; reload, disable, and teardown need live-editor verification before bounded query and preview/commit mutation families are added |
+| Medium | Godot-AI lifecycle and authoring surface | Inspection, bounded scalar query, row/schema/database/model preview/commit, migration authoring/application, profile selection, role binding, and runtime-adapter installation are implemented. Package/cache and save-slot lifecycle plus live disable/re-enable acceptance remain |
 | Medium | Large reference-picker search and paging | Current authoring picker is intentionally bounded |
 | Medium | Opt-in release update checker | Blocked by version and compatibility contracts |
 
@@ -697,13 +698,30 @@ packaging, and compatibility work.
 
 ## 4. Editor and integration completion
 
-- Verify Godot-AI tool registration across plugin load order, reload, disable,
-  teardown, and project changes.
-- Add a UI-independent agent authoring service, then expose bounded query,
-  row-mutation, schema/database, and migration operation families through
-  Godot-AI. Mutations use preview plus one-use confirmation handles. The action
-  hub may refresh or navigate editor UI afterward but does not execute the
-  domain mutation. A future CLI may reuse the same service.
+- **Implemented and tested:** Godot-AI registration handles late plugin load,
+  repeated readiness, registry replacement, contract loss, and GDSQL teardown
+  without stale tools. Live Tools-panel disable/re-enable remains a manual
+  acceptance check; opening another Godot project creates a separate editor
+  process and fresh composition root.
+- **Implemented and tested:** UI-independent bounded scalar queries and atomic
+  row mutations through preview plus one-use confirmation handles. The action
+  hub remains outside domain execution; committed external mutations refresh
+  open editor surfaces.
+- **Implemented and tested:** Registered table creation, rename, drop, and typed
+  alteration authoring reuse canonical catalog previews and stale-plan checks
+  behind expiring one-use confirmation handles. Columns, defaults, generation,
+  indexes, foreign keys, Resource policies, and ordering share one bounded
+  schema family.
+- **Implemented and tested:** Guarded database create, rename, unregister, and
+  destroy coordinate physical lifecycle with durable workbench registrations.
+  Named locations reject arbitrary paths, previews report affected tables,
+  rows, and roles, unregister preserves files, and migration-managed databases
+  reject unsafe rename.
+- **Implemented and tested:** Migration preview/commit accepts bounded ordered
+  schema and scalar data-update steps, applies already-authored pending history,
+  rejects stale plans, and synchronizes trusted project schema state. Explicit
+  recovery inspection remains separate because startup recovery already owns
+  mutation of interrupted backups.
 - Replace the 500-row foreign-key/content-reference popup boundary with
   debounced canonical search and paginated results.
 - Keep editor actions, table navigation, and schema operations exposed through

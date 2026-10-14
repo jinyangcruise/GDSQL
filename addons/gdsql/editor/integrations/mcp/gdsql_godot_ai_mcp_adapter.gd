@@ -11,16 +11,21 @@ const HANDLER_PATH := (
 )
 const POLL_SECONDS := 0.5
 
-var _service: GDSQLMcpInspectionService
+var _inspection_service: GDSQLMcpInspectionService
+var _authoring_service: GDSQLMcpAuthoringService
 var _registry_script: Script
 var _spec_script: Script
 var _registry: Variant
 var _poll_elapsed := 0.0
 
 
-func _init(service: GDSQLMcpInspectionService) -> void:
-	_service = service
-	Context.attach(service)
+func _init(
+		inspection_service: GDSQLMcpInspectionService,
+		authoring_service: GDSQLMcpAuthoringService = null,
+) -> void:
+	_inspection_service = inspection_service
+	_authoring_service = authoring_service
+	Context.attach(inspection_service, authoring_service)
 
 
 func _ready() -> void:
@@ -30,12 +35,10 @@ func _ready() -> void:
 
 func shutdown() -> void:
 	set_process(false)
-	_disconnect_registry()
-	if is_instance_valid(_registry):
-		_registry.call("unregister_source", SOURCE_PATH)
-	_registry = null
-	Context.detach(_service)
-	_service = null
+	_release_registry()
+	Context.detach(_inspection_service, _authoring_service)
+	_inspection_service = null
+	_authoring_service = null
 
 
 func _process(delta: float) -> void:
@@ -48,18 +51,21 @@ func _process(delta: float) -> void:
 
 func _refresh_registry() -> void:
 	if not _load_godot_ai_contract():
-		if is_instance_valid(_registry):
-			_disconnect_registry()
-			_registry = null
+		_adopt_registry(null)
 		return
 	var current: Variant = _registry_script.call("get_instance")
-	if current == _registry:
+	_adopt_registry(current)
+
+
+func _adopt_registry(current: Variant) -> void:
+	if current == _registry and is_instance_valid(_registry):
 		return
-	_disconnect_registry()
+	_release_registry()
+	if not _is_registry_compatible(current):
+		return
 	_registry = current
-	if not is_instance_valid(_registry):
-		return
-	if _registry.has_signal("registry_ready"):
+	if _registry.has_signal("registry_ready") \
+			and not _registry.is_connected("registry_ready", _on_registry_ready):
 		_registry.connect("registry_ready", _on_registry_ready)
 	if bool(_registry.call("is_ready")):
 		_register_tools()
@@ -81,6 +87,20 @@ func _disconnect_registry() -> void:
 		_registry.disconnect("registry_ready", _on_registry_ready)
 
 
+func _release_registry() -> void:
+	_disconnect_registry()
+	if is_instance_valid(_registry) and _registry.has_method("unregister_source"):
+		_registry.call("unregister_source", SOURCE_PATH)
+	_registry = null
+
+
+func _is_registry_compatible(candidate: Variant) -> bool:
+	return is_instance_valid(candidate) \
+			and candidate.has_method("is_ready") \
+			and candidate.has_method("batch_register") \
+			and candidate.has_method("unregister_source")
+
+
 func _on_registry_ready() -> void:
 	_register_tools()
 
@@ -93,71 +113,410 @@ func _register_tools() -> void:
 
 
 func _build_specs() -> Array:
-	return Array(
-		[
+	var specs := [
+		_spec(
+			"gdsql_capabilities",
+			"Start here. Describe the GDSQL surface and report whether the user must choose a content profile before setup.",
+			&"capabilities",
+			{ "type": "object", "additionalProperties": false },
+		),
+		_spec(
+			"gdsql_inspect_setup",
+			"Inspect setup without changing it. If no profile is selected, explain both returned options and ask the user to choose before authoring.",
+			&"inspect_setup",
+			{
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"profile": {
+						"type": "string",
+						"enum": ["selected", "direct", "managed"],
+						"default": "selected",
+					},
+				},
+			},
+		),
+		_spec(
+			"gdsql_inspect_models",
+			"List GDSQL model bindings or inspect one binding's static compatibility and relationships without executing user code.",
+			&"inspect_models",
+			{
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"registration": { "type": "string" },
+					"table": { "type": "string" },
+					"cursor": { "type": "string" },
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": GDSQLMcpInspectionService.MAX_LIMIT,
+						"default": GDSQLMcpInspectionService.DEFAULT_LIMIT,
+					},
+				},
+			},
+		),
+		_spec(
+			"gdsql_inspect_schema",
+			"List registered GDSQL databases and tables or inspect one table schema. Row values are never returned.",
+			&"inspect_schema",
+			{
+				"type": "object",
+				"additionalProperties": false,
+				"properties": {
+					"registration": { "type": "string" },
+					"table": { "type": "string" },
+					"cursor": { "type": "string" },
+					"limit": {
+						"type": "integer",
+						"minimum": 1,
+						"maximum": GDSQLMcpInspectionService.MAX_LIMIT,
+						"default": GDSQLMcpInspectionService.DEFAULT_LIMIT,
+					},
+				},
+			},
+		),
+	]
+	if _authoring_service != null:
+		specs.append(
 			_spec(
-				"gdsql_capabilities",
-				"Describe the installed GDSQL agent surface, limits, and selected setup profile.",
-				&"capabilities",
-				{ "type": "object", "additionalProperties": false },
-			),
-			_spec(
-				"gdsql_inspect_setup",
-				"Inspect the current GDSQL Direct or Managed Content setup checklist without changing the project.",
-				&"inspect_setup",
+				"gdsql_query_rows",
+				"Query bounded scalar row data with structured WHERE, ordering, and opaque cursor pagination.",
+				&"query_rows",
 				{
 					"type": "object",
 					"additionalProperties": false,
+					"required": ["registration", "table"],
 					"properties": {
-						"profile": {
+						"registration": { "type": "string", "minLength": 1 },
+						"table": { "type": "string", "minLength": 1 },
+						"columns": {
+							"type": "array",
+							"items": { "type": "string" },
+							"uniqueItems": true,
+						},
+						"where": { "type": "object" },
+						"order_by": {
+							"type": "array",
+							"maxItems": 8,
+							"items": {
+								"type": "object",
+								"required": ["column"],
+								"additionalProperties": false,
+								"properties": {
+									"column": { "type": "string" },
+									"direction": { "type": "string", "enum": ["asc", "desc"] },
+								},
+							},
+						},
+						"cursor": { "type": "string" },
+						"limit": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": GDSQLMcpAuthoringService.MAX_LIMIT,
+							"default": GDSQLMcpAuthoringService.DEFAULT_LIMIT,
+						},
+					},
+				},
+			),
+		)
+		specs.append(
+			_spec(
+				"gdsql_preview_row_mutation",
+				"Validate and preview a bounded scalar insert, update, or delete. Returns a short-lived confirmation handle and changes nothing.",
+				&"preview_row_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["operation", "registration", "table"],
+					"properties": {
+						"operation": { "type": "string", "enum": ["insert", "update", "delete"] },
+						"registration": { "type": "string", "minLength": 1 },
+						"table": { "type": "string", "minLength": 1 },
+						"rows": { "type": "array", "maxItems": GDSQLMcpAuthoringService.MAX_MUTATION_ROWS },
+						"primary_keys": { "type": "array", "maxItems": GDSQLMcpAuthoringService.MAX_MUTATION_ROWS },
+					},
+				},
+				true,
+			),
+		)
+		specs.append(
+			_spec(
+				"gdsql_commit_row_mutation",
+				"Commit one previewed GDSQL row mutation using its one-use confirmation handle.",
+				&"commit_row_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["handle", "confirm"],
+					"properties": {
+						"handle": { "type": "string", "minLength": 1 },
+						"confirm": { "type": "boolean" },
+					},
+				},
+				true,
+				30_000,
+			),
+		)
+		specs.append(
+			_spec(
+				"gdsql_preview_schema_mutation",
+				"Validate and preview one direct registered-table schema mutation before migration history starts. Returns schema-mode and Resource-storage decision context, a short-lived confirmation handle, and changes nothing.",
+				&"preview_schema_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["operation", "registration", "table"],
+					"properties": {
+						"operation": {
 							"type": "string",
-							"enum": ["selected", "direct", "managed"],
-							"default": "selected",
+							"enum": ["create_table", "rename_table", "drop_table", "alter_table"],
+						},
+						"registration": { "type": "string", "minLength": 1 },
+						"table": { "type": ["string", "object"] },
+						"new_name": { "type": "string" },
+						"alterations": {
+							"type": "array",
+							"maxItems": 32,
+							"items": { "type": "object" },
 						},
 					},
 				},
+				true,
 			),
+		)
+		specs.append(
 			_spec(
-				"gdsql_inspect_models",
-				"List GDSQL model bindings or inspect one binding's static compatibility and relationships without executing user code.",
-				&"inspect_models",
+				"gdsql_commit_schema_mutation",
+				"Commit one previewed GDSQL table schema mutation using its one-use confirmation handle.",
+				&"commit_schema_mutation",
 				{
 					"type": "object",
 					"additionalProperties": false,
+					"required": ["handle", "confirm"],
 					"properties": {
-						"registration": { "type": "string" },
-						"table": { "type": "string" },
-						"cursor": { "type": "string" },
-						"limit": {
-							"type": "integer",
-							"minimum": 1,
-							"maximum": GDSQLMcpInspectionService.MAX_LIMIT,
-							"default": GDSQLMcpInspectionService.DEFAULT_LIMIT,
-						},
+						"handle": { "type": "string", "minLength": 1 },
+						"confirm": { "type": "boolean" },
 					},
 				},
+				true,
+				30_000,
 			),
+		)
+		specs.append(
 			_spec(
-				"gdsql_inspect_schema",
-				"List registered GDSQL databases and tables or inspect one table schema. Row values are never returned.",
-				&"inspect_schema",
+				"gdsql_preview_database_mutation",
+				"Validate and preview creation, rename, unregistration, or destruction of a registered GDSQL database without accepting arbitrary paths.",
+				&"preview_database_mutation",
 				{
 					"type": "object",
 					"additionalProperties": false,
+					"required": ["operation", "registration"],
 					"properties": {
-						"registration": { "type": "string" },
-						"table": { "type": "string" },
-						"cursor": { "type": "string" },
-						"limit": {
-							"type": "integer",
-							"minimum": 1,
-							"maximum": GDSQLMcpInspectionService.MAX_LIMIT,
-							"default": GDSQLMcpInspectionService.DEFAULT_LIMIT,
+						"operation": {
+							"type": "string",
+							"enum": [
+								"create_database", "rename_database",
+								"unregister_database", "destroy_database",
+							],
+						},
+						"registration": { "type": "string", "minLength": 1 },
+						"database": { "type": "string" },
+						"location": {
+							"type": "string",
+							"enum": ["project_data", "settings", "registration_root"],
+						},
+						"root_registration": { "type": "string" },
+						"storage_backend": {
+							"type": "string",
+							"enum": ["configfile", "memory"],
+							"description": "Omit for durable ConfigFile storage. Choose memory only after reviewing hydration and checkpoint behavior in the preview.",
+						},
+						"new_name": { "type": "string" },
+					},
+				},
+				true,
+			),
+		)
+		specs.append(
+			_spec(
+				"gdsql_commit_database_mutation",
+				"Commit one previewed registered-database lifecycle mutation using its one-use confirmation handle.",
+				&"commit_database_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["handle", "confirm"],
+					"properties": {
+						"handle": { "type": "string", "minLength": 1 },
+						"confirm": { "type": "boolean" },
+					},
+				},
+				true,
+				30_000,
+			),
+		)
+		specs.append(
+			_spec(
+				"gdsql_preview_migration",
+				"Preview the next pending migration, or validate a new ordered schema/data migration with schema-mode decision context and without writing.",
+				&"preview_migration",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["registration"],
+					"properties": {
+						"registration": { "type": "string", "minLength": 1 },
+						"migration_id": { "type": "string" },
+						"description": { "type": "string" },
+						"steps": {
+							"type": "array",
+							"minItems": 1,
+							"maxItems": 16,
+							"items": { "type": "object" },
 						},
 					},
 				},
+				true,
+				30_000,
 			),
-		],
+		)
+		specs.append(
+			_spec(
+				"gdsql_commit_migration",
+				"Persist and apply one previewed GDSQL migration using its one-use confirmation handle.",
+				&"commit_migration",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["handle", "confirm"],
+					"properties": {
+						"handle": { "type": "string", "minLength": 1 },
+						"confirm": { "type": "boolean" },
+					},
+				},
+				true,
+				30_000,
+			),
+		)
+		specs.append(
+			_spec(
+				"gdsql_preview_model_mutation",
+				"Preview generated model sources or register/remove a save-to-content model reference without executing user code.",
+				&"preview_model_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["operation"],
+					"properties": {
+						"operation": {
+							"type": "string",
+							"enum": [
+								"generate_model",
+								"register_content_reference",
+								"remove_content_reference",
+							],
+						},
+						"registration": { "type": "string" },
+						"table": { "type": "string" },
+						"class_name": { "type": "string" },
+						"role": { "type": "string" },
+						"model_root": { "type": "string" },
+						"source_registration": { "type": "string" },
+						"source_table": { "type": "string" },
+						"source_column": { "type": "string" },
+						"target_registration": { "type": "string" },
+						"target_table": { "type": "string" },
+						"target_column": { "type": "string" },
+						"target_model_class": { "type": "string" },
+						"relationship_name": { "type": "string" },
+					},
+				},
+				true,
+				30_000,
+			),
+		)
+		specs.append(
+			_spec(
+				"gdsql_commit_model_mutation",
+				"Commit one previewed model-source or cross-role reference mutation using its one-use confirmation handle.",
+				&"commit_model_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["handle", "confirm"],
+					"properties": {
+						"handle": { "type": "string", "minLength": 1 },
+						"confirm": { "type": "boolean" },
+					},
+				},
+				true,
+				30_000,
+			),
+		)
+		specs.append(
+			_spec(
+				"gdsql_preview_setup_mutation",
+				"Preview profile, role, runtime, save-slot, or Managed Content package/cache/save setup. Package selection and save-expectation previews include compatibility impact context.",
+				&"preview_setup_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["operation"],
+					"properties": {
+						"operation": {
+							"type": "string",
+							"enum": [
+								"select_profile", "bind_role", "install_runtime_adapter",
+								"create_save_slot", "delete_save_slot", "build_managed_cache",
+								"configure_managed_packages", "record_save_content",
+							],
+						},
+						"profile": { "type": "string", "enum": ["direct", "managed"] },
+						"role": {
+							"type": "string",
+							"enum": ["content", "save", "settings"],
+						},
+						"registration": { "type": "string", "minLength": 1 },
+						"save_slot": { "type": "string", "minLength": 1 },
+						"storage_backend": {
+							"type": "string",
+							"enum": ["configfile", "memory"],
+							"description": "Omit for durable ConfigFile storage. Choose memory only after reviewing hydration and checkpoint behavior in the preview.",
+						},
+						"enabled_packages": {
+							"type": "array",
+							"maxItems": 128,
+							"uniqueItems": true,
+							"description": "Replaces the enabled optional-package set. Review cache and active-save compatibility impact in the preview.",
+							"items": { "type": "string", "minLength": 1 },
+						},
+					},
+				},
+				true,
+				30_000,
+			),
+		)
+		specs.append(
+			_spec(
+				"gdsql_commit_setup_mutation",
+				"Commit one unchanged setup mutation preview using its one-use confirmation handle.",
+				&"commit_setup_mutation",
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["handle", "confirm"],
+					"properties": {
+						"handle": { "type": "string", "minLength": 1 },
+						"confirm": { "type": "boolean" },
+					},
+				},
+				true,
+				30_000,
+			),
+		)
+	return Array(
+		specs,
 		TYPE_OBJECT,
 		&"RefCounted",
 		_spec_script,
@@ -169,6 +528,8 @@ func _spec(
 		description: String,
 		method: StringName,
 		schema: Dictionary,
+		requires_writable: bool = false,
+		timeout_ms: int = 4500,
 ) -> Variant:
 	var spec: Variant = _spec_script.new()
 	spec.set("name", name)
@@ -179,8 +540,8 @@ func _spec(
 	spec.set("source_path", SOURCE_PATH)
 	spec.set("source", "GDSQL")
 	spec.set("promoted", true)
-	spec.set("timeout_ms", 4500)
+	spec.set("timeout_ms", timeout_ms)
 	spec.set("deferred", false)
-	spec.set("requires_writable", false)
+	spec.set("requires_writable", requires_writable)
 	spec.set("undoable", false)
 	return spec

@@ -14,10 +14,52 @@ const Adapter = preload(
 const ModelInspection = preload(
 	"res://addons/gdsql/editor/integrations/mcp/gdsql_mcp_model_inspection_service.gd"
 )
+const FakeMcpCustomToolSpec = preload(
+	"res://tests/editor/integrations/fixtures/fake_mcp_custom_tool_spec.gd"
+)
+
+
+class FakeToolRegistry extends RefCounted:
+	signal registry_ready
+
+	var ready: bool
+	var batch_calls := 0
+	var unregister_calls := 0
+	var registered_names: Array[String] = []
+	var unregistered_sources: Array[String] = []
+
+
+	func _init(initial_ready: bool = false) -> void:
+		ready = initial_ready
+
+
+	func is_ready() -> bool:
+		return ready
+
+
+	func batch_register(specs: Array) -> bool:
+		batch_calls += 1
+		registered_names.clear()
+		for spec in specs:
+			registered_names.append(String(spec.get("name")))
+		return true
+
+
+	func unregister_source(source_path: String) -> int:
+		unregister_calls += 1
+		unregistered_sources.append(source_path)
+		return registered_names.size()
+
+
+	func mark_ready() -> void:
+		ready = true
+		registry_ready.emit()
+
 
 var _root: String
 var _settings_path: String
 var _test_index := 0
+var _workbench_value: GDSQLWorkbench
 
 
 func before_test() -> void:
@@ -35,8 +77,14 @@ func test_capabilities_are_bounded_and_versioned() -> void:
 	var payload := result.get_value() as Dictionary
 	assert_str(payload["surface_version"]).is_equal("1.0.0")
 	assert_bool(payload["ok"]).is_true()
-	assert_bool(payload["data"]["limits"]["row_values_exposed"]).is_false()
-	assert_int(payload["data"]["tools"].size()).is_equal(4)
+	assert_bool(payload["data"]["limits"]["row_values_exposed"]).is_true()
+	assert_int(payload["data"]["tools"].size()).is_equal(17)
+	var tool_names: Array[String] = []
+	for tool in payload["data"]["tools"]:
+		tool_names.append(tool["name"])
+	var sorted_names := tool_names.duplicate()
+	sorted_names.sort()
+	assert_array(tool_names).contains_exactly(sorted_names)
 	assert_str(payload["data"]["selected_profile"]).is_equal("direct")
 	assert_str(JSON.stringify(payload)).is_not_empty()
 
@@ -85,6 +133,27 @@ func test_setup_inspection_projects_ordered_checks() -> void:
 	assert_str(payload["data"]["checks"][0]["id"]).is_equal("content_database")
 
 
+func test_unselected_setup_requires_an_explicit_profile_decision() -> void:
+	var service := _service(GDSQLSetupProfile.Kind.UNSELECTED)
+
+	var capabilities := service.get_capabilities().get_value() as Dictionary
+	var inspected := service.inspect_setup().get_value() as Dictionary
+
+	assert_bool(capabilities["data"]["onboarding"]["profile_selection_required"]).is_true()
+	assert_str(capabilities["data"]["onboarding"]["required_action"]).is_equal(
+		"ask_user_to_choose_content_profile",
+	)
+	assert_bool(inspected["data"]["requires_user_decision"]).is_true()
+	assert_str(inspected["data"]["profile_decision"]["agent_instruction"]).contains(
+		"Do not infer or select",
+	)
+	var option_ids: Array[String] = []
+	for option in inspected["data"]["profile_decision"]["options"]:
+		option_ids.append(option["id"])
+	assert_array(option_ids).contains_exactly(["direct", "managed"])
+	assert_bool(inspected["data"]["profile_decision"]["confirmation_required"]).is_true()
+
+
 func test_model_inspection_projects_bindings_and_static_relationships() -> void:
 	var service := _service()
 
@@ -125,7 +194,8 @@ func test_schema_inspection_rejects_unknown_targets_and_bad_limits() -> void:
 
 func test_lazy_handler_uses_attached_inspection_service() -> void:
 	var service := _service()
-	BridgeContext.attach(service)
+	var authoring := GDSQLMcpAuthoringService.new(_workbench_value)
+	BridgeContext.attach(service, authoring)
 	var handler := Handler.new()
 
 	var response := handler.capabilities({ }, null)
@@ -137,29 +207,116 @@ func test_lazy_handler_uses_attached_inspection_service() -> void:
 	assert_str(models["data"]["data"]["kind"]).is_equal("model_bindings")
 	assert_str(invalid["status"]).is_equal("error")
 	assert_str(invalid["error"]["code"]).is_equal("INVALID_PARAMS")
-	BridgeContext.detach(service)
+	BridgeContext.detach(service, authoring)
 
 
 func test_godot_ai_specs_follow_the_published_contract() -> void:
 	var service := _service()
-	var adapter := Adapter.new(service)
-	assert_bool(adapter.call("_load_godot_ai_contract")).is_true()
-	adapter.call("_refresh_registry")
+	var authoring := GDSQLMcpAuthoringService.new(_workbench_value)
+	var adapter := Adapter.new(service, authoring)
+	_inject_test_contract(adapter)
 	var specs := adapter.call("_build_specs") as Array
+	var handler := Handler.new()
 
 	assert_bool(specs.is_typed()).is_true()
-	assert_int(specs.size()).is_equal(4)
+	assert_int(specs.size()).is_equal(17)
+	var writable_count := 0
 	for spec in specs:
 		assert_bool((spec.call("validate") as Array).is_empty()).is_true()
+		assert_bool(handler.has_method(spec.get("method"))).is_true()
 		assert_bool(spec.get("promoted")).is_true()
-		assert_bool(spec.get("requires_writable")).is_false()
+		if spec.get("requires_writable"):
+			writable_count += 1
 		assert_bool(spec.get("deferred")).is_false()
 		assert_bool(spec.get("undoable")).is_false()
+	assert_int(writable_count).is_equal(12)
 	adapter.shutdown()
 	adapter.free()
 
 
-func _service() -> GDSQLMcpInspectionService:
+func test_godot_ai_late_startup_registers_after_registry_ready() -> void:
+	var adapter := _adapter()
+	var registry := FakeToolRegistry.new()
+	_inject_test_contract(adapter)
+	assert_object(BridgeContext.get_inspection_service()).is_not_null()
+	assert_object(BridgeContext.get_authoring_service()).is_not_null()
+
+	adapter.call("_adopt_registry", registry)
+	assert_int(registry.batch_calls).is_zero()
+	registry.mark_ready()
+
+	assert_int(registry.batch_calls).is_equal(1)
+	assert_array(registry.registered_names).has_size(17)
+	adapter.shutdown()
+	assert_int(registry.unregister_calls).is_equal(1)
+	assert_array(registry.unregistered_sources).contains_exactly([Adapter.SOURCE_PATH])
+	assert_object(BridgeContext.get_inspection_service()).is_null()
+	assert_object(BridgeContext.get_authoring_service()).is_null()
+	adapter.free()
+
+
+func test_godot_ai_registry_replacement_unregisters_the_previous_instance() -> void:
+	var adapter := _adapter()
+	var first := FakeToolRegistry.new(true)
+	var replacement := FakeToolRegistry.new(true)
+	_inject_test_contract(adapter)
+
+	adapter.call("_adopt_registry", first)
+	adapter.call("_adopt_registry", replacement)
+	first.mark_ready()
+	adapter.call("_adopt_registry", replacement)
+
+	assert_int(first.batch_calls).is_equal(1)
+	assert_int(first.unregister_calls).is_equal(1)
+	assert_int(replacement.batch_calls).is_equal(1)
+	assert_int(replacement.unregister_calls).is_zero()
+	adapter.shutdown()
+	assert_int(replacement.unregister_calls).is_equal(1)
+	adapter.free()
+
+
+func test_godot_ai_contract_loss_unregisters_and_disconnects() -> void:
+	var adapter := _adapter()
+	var registry := FakeToolRegistry.new(true)
+	_inject_test_contract(adapter)
+	adapter.call("_adopt_registry", registry)
+
+	adapter.call("_adopt_registry", null)
+	registry.mark_ready()
+
+	assert_int(registry.batch_calls).is_equal(1)
+	assert_int(registry.unregister_calls).is_equal(1)
+	adapter.shutdown()
+	assert_int(registry.unregister_calls).is_equal(1)
+	adapter.free()
+
+
+func test_godot_ai_same_registry_ready_signal_replaces_specs_after_reload() -> void:
+	var adapter := _adapter()
+	var registry := FakeToolRegistry.new(true)
+	_inject_test_contract(adapter)
+	adapter.call("_adopt_registry", registry)
+
+	registry.mark_ready()
+
+	assert_int(registry.batch_calls).is_equal(2)
+	assert_int(registry.unregister_calls).is_zero()
+	adapter.shutdown()
+	adapter.free()
+
+
+func _adapter() -> Node:
+	var service := _service()
+	return Adapter.new(service, GDSQLMcpAuthoringService.new(_workbench_value))
+
+
+func _inject_test_contract(adapter: Node) -> void:
+	adapter.set("_spec_script", FakeMcpCustomToolSpec)
+
+
+func _service(
+		profile: GDSQLSetupProfile.Kind = GDSQLSetupProfile.Kind.DIRECT,
+) -> GDSQLMcpInspectionService:
 	var content_root := _root.path_join("content")
 	var save_root := _root.path_join("save")
 	var heroes := GDSQLTableDefinition.new(&"heroes", &"id") \
@@ -217,10 +374,10 @@ func _service() -> GDSQLMcpInspectionService:
 	assert_bool(registry.save_snapshot(snapshot).is_successful()).is_true()
 	var workbench := GDSQLWorkbench.new(registry, GDSQLConfigFileDatabaseExplorer.new())
 	assert_bool(workbench.load().is_successful()).is_true()
+	_workbench_value = workbench
 	var profile_store := GDSQLConfigFileSetupProfileStore.new(_settings_path)
-	assert_bool(
-		profile_store.save_profile(GDSQLSetupProfile.Kind.DIRECT).is_successful(),
-	).is_true()
+	if GDSQLSetupProfile.is_selectable(profile):
+		assert_bool(profile_store.save_profile(profile).is_successful()).is_true()
 	var model_inspection := ModelInspection.new(
 		workbench,
 		_test_model_bindings,
@@ -236,6 +393,7 @@ func _service() -> GDSQLMcpInspectionService:
 		func() -> int: return 1,
 		func() -> bool: return true,
 		model_inspection,
+		true,
 	)
 
 

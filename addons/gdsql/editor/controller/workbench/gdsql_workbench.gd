@@ -167,6 +167,68 @@ func discover_children(
 	return result
 
 
+## Adds one already-created logical database to the durable editor registry.
+## Physical creation remains the responsibility of the database lifecycle API.
+func add_registration(
+		registration: GDSQLDatabaseRegistration,
+) -> GDSQLOperationResult:
+	if registration == null \
+			or registration.name == &"" \
+			or not String(registration.name).is_valid_identifier() \
+			or registration.database_name == &"" \
+			or not String(registration.database_name).is_valid_identifier() \
+			or registration.data_root.is_empty():
+		return _error(
+			&"GDSQL_WORKBENCH_REGISTRATION_INVALID",
+			"A registration requires valid registration and database identifiers plus a data root.",
+		)
+	if not GDSQLStorageBackendIds.is_implemented(registration.storage_backend_id):
+		return _error(
+			&"GDSQL_STORAGE_BACKEND_UNAVAILABLE",
+			"Storage backend '%s' is not available." % registration.storage_backend_id,
+		)
+	if registration.migration_stream == &"" \
+			or not String(registration.migration_stream).is_valid_identifier():
+		return _error(
+			&"GDSQL_MIGRATION_STREAM_INVALID",
+			"Migration stream '%s' is not a valid identifier." % registration.migration_stream,
+		)
+	if get_registration(registration.name) != null:
+		return _error(
+			&"GDSQL_WORKBENCH_REGISTRATION_DUPLICATE",
+			"Database registration '%s' already exists." % registration.name,
+		)
+	if _find_registration(registration.database_name, registration.data_root) != null:
+		return _error(
+			&"GDSQL_WORKBENCH_DATABASE_ALREADY_REGISTERED",
+			"Database '%s' at this root is already registered." % registration.database_name,
+		)
+	var discovered := _explorer.inspect_root(registration.data_root)
+	if not discovered.is_successful():
+		return discovered
+	var inspection: GDSQLDatabaseInspection
+	for value in discovered.get_value():
+		var candidate := value as GDSQLDatabaseInspection
+		if candidate.registration.database_name == registration.database_name:
+			inspection = candidate
+			break
+	if inspection == null:
+		return _error(
+			&"GDSQL_WORKBENCH_DATABASE_NOT_FOUND",
+			"Database '%s' was not found at the selected root." % registration.database_name,
+		)
+	inspection.registration = registration
+	snapshot.registrations.append(registration)
+	_inspections[registration.name] = inspection
+	var result := _registry.save_snapshot(snapshot)
+	if not result.is_successful():
+		snapshot.registrations.erase(registration)
+		_inspections.erase(registration.name)
+		return result
+	result.value = registration
+	return result
+
+
 func select_registration(
 		registration_name: StringName,
 ) -> GDSQLOperationResult:
@@ -196,11 +258,27 @@ func remove_registration(
 			&"GDSQL_WORKBENCH_REGISTRATION_NOT_FOUND",
 			"Database registration '%s' was not found." % registration_name,
 		)
+	var registration_index := snapshot.registrations.find(registration)
+	var had_inspection := _inspections.has(registration.name)
+	var inspection := _inspections.get(registration.name) as GDSQLDatabaseInspection
+	var removed_bindings: Array[GDSQLDatabaseRoleBinding] = []
+	for binding in snapshot.role_bindings:
+		if binding.registration_name == registration.name:
+			removed_bindings.append(binding)
+	var previous_session := active_session
 	_remove_registration_state(registration)
 	var result := GDSQLOperationResult.new()
 	if persist:
 		var saved := _registry.save_snapshot(snapshot)
 		result.diagnostics.merge(saved.diagnostics)
+		if not saved.is_successful():
+			snapshot.registrations.insert(registration_index, registration)
+			if had_inspection:
+				_inspections[registration.name] = inspection
+			for binding in removed_bindings:
+				snapshot.role_bindings.append(binding)
+			active_session = previous_session
+			return result
 	result.value = registration
 	return result
 
@@ -324,8 +402,12 @@ func update_database_name(
 			&"GDSQL_WORKBENCH_REGISTRATION_NOT_FOUND",
 			"Database registration '%s' was not found." % registration_name,
 		)
+	var previous_name := registration.database_name
 	registration.database_name = database_name
 	var result := _registry.save_snapshot(snapshot)
+	if not result.is_successful():
+		registration.database_name = previous_name
+		return result
 	result.value = registration
 	return result
 
