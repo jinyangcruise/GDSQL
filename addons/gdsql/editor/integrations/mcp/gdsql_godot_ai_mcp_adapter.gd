@@ -261,7 +261,7 @@ func _build_specs() -> Array:
 		specs.append(
 			_spec(
 				"gdsql_preview_schema_mutation",
-				"Validate and preview one registered GDSQL table schema mutation. Resource columns require explicit owned or referenced storage and return decision context. Returns a short-lived confirmation handle and changes nothing.",
+				"Validate and preview one direct registered-table schema mutation before migration history starts. Returns schema-mode and Resource-storage decision context, a short-lived confirmation handle, and changes nothing.",
 				&"preview_schema_mutation",
 				{
 					"type": "object",
@@ -359,7 +359,7 @@ func _build_specs() -> Array:
 		specs.append(
 			_spec(
 				"gdsql_preview_migration",
-				"Preview the next pending migration, or validate a new ordered schema/data migration without writing.",
+				"Preview the next pending migration, or validate a new ordered schema/data migration with schema-mode decision context and without writing.",
 				&"preview_migration",
 				{
 					"type": "object",
@@ -457,7 +457,7 @@ func _build_specs() -> Array:
 		specs.append(
 			_spec(
 				"gdsql_preview_setup_mutation",
-				"Preview profile, role, runtime, save-slot, or Managed Content package/cache/save setup.",
+				"Preview profile, role, runtime, save-slot, or Managed Content package/cache/save setup. Package selection and save-expectation previews include compatibility impact context.",
 				&"preview_setup_mutation",
 				{
 					"type": "object",
@@ -488,6 +488,7 @@ func _build_specs() -> Array:
 							"type": "array",
 							"maxItems": 128,
 							"uniqueItems": true,
+							"description": "Replaces the enabled optional-package set. Review cache and active-save compatibility impact in the preview.",
 							"items": { "type": "string", "minLength": 1 },
 						},
 					},

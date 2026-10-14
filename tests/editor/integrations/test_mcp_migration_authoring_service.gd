@@ -42,6 +42,12 @@ func test_authored_schema_migration_previews_then_commits() -> void:
 		},
 	)
 	assert_bool(preview.is_successful()).is_true()
+	assert_str(
+		preview.get_value()["data"]["schema_change_decision"]["selected"],
+	).is_equal("migration")
+	assert_bool(
+		preview.get_value()["data"]["schema_change_decision"]["direct_change_allowed"],
+	).is_true()
 	assert_int((history.load(&"game_config").get_value() as Array).size()).is_zero()
 
 	var committed := service.commit_migration(

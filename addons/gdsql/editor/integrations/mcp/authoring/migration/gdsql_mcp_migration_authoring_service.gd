@@ -16,6 +16,9 @@ const ScalarCodec = preload(
 const Ticket = preload(
 	"res://addons/gdsql/editor/integrations/mcp/authoring/migration/gdsql_mcp_migration_ticket.gd"
 )
+const SchemaChangeContext = preload(
+	"res://addons/gdsql/editor/integrations/mcp/authoring/migration/gdsql_mcp_schema_change_context.gd"
+)
 const HANDLE_TTL_MSEC := 120_000
 const MAX_STEPS := 16
 const MAX_ASSIGNMENTS := 32
@@ -54,6 +57,7 @@ func preview(request: Dictionary) -> GDSQLOperationResult:
 	if not loaded.is_successful():
 		return loaded
 	var history := loaded.get_value() as Array[GDSQLMigrationDefinition]
+	var history_count_before := history.size()
 	var definition: GDSQLMigrationDefinition
 	var persisted := true
 	if request.has("steps") or request.has("migration_id") or request.has("description"):
@@ -81,6 +85,10 @@ func preview(request: Dictionary) -> GDSQLOperationResult:
 				"registration": String(registration_name),
 				"history_count": history.size(),
 				"up_to_date": true,
+				"schema_change_decision": SchemaChangeContext.describe(
+					"migration",
+					history_count_before,
+				),
 			},
 		)
 	var plan := planned.next_plan
@@ -110,6 +118,10 @@ func preview(request: Dictionary) -> GDSQLOperationResult:
 			"summaries": plan.summaries(),
 			"affected_rows": plan.affected_rows(),
 			"destructive": plan.requires_confirmation(),
+			"schema_change_decision": SchemaChangeContext.describe(
+				"migration",
+				history_count_before,
+			),
 			"confirmation_handle": ticket.token,
 			"expires_in_ms": HANDLE_TTL_MSEC,
 		},

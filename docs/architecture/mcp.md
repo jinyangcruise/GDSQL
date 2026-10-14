@@ -135,8 +135,8 @@ fully autonomous workflows:
 |---|---|---|
 | ConfigFile or in-memory runtime storage | Persistence, hydration, and checkpoint behavior | Implemented in database/save-slot previews |
 | Owned or referenced Resource storage | Portability, file dependencies, load cost, and explicit deferred materialization | Implemented in schema previews |
-| Direct schema mutation or authored migration | Prototype convenience versus deployed-build/team upgrade history | Backlog |
-| Managed package selection and save expectation replacement | Effective-content changes and save compatibility impact | Backlog |
+| Direct schema mutation or authored migration | Prototype convenience versus deployed-build/team upgrade history | Implemented in schema and migration previews |
+| Managed package selection and save expectation replacement | Effective-content changes and save compatibility impact | Implemented in setup previews |
 
 Destructive database operations already expose distinct unregister/destroy
 operations, affected data, and explicit preview confirmation, so they do not
@@ -204,6 +204,14 @@ and load-cost implications. The response also states that referenced storage
 does not enable lazy loading automatically; callers must request deferred
 Resource execution explicitly.
 
+Schema previews also identify the direct-versus-migration choice. Direct changes
+are available only while the registration's authored migration history is
+empty. After the first history entry is persisted, the MCP surface rejects
+direct schema changes just as the database document does; subsequent changes
+must be ordered migration entries. Migration previews return the same context
+so an agent can explain why durable team or deployed data benefits from
+reproducible history before the first entry is authored.
+
 ## Registered database lifecycle confirmation
 
 Database lifecycle uses a separate service from table `CatalogChangePlan`
@@ -239,6 +247,15 @@ history, schema, ledger revision, affected rows, or summaries changed after
 confirmation are rejected. A new definition is appended immediately before
 application; if application fails it intentionally remains pending and can be
 previewed again. Successful application updates project schema-state evidence.
+
+## Managed Content compatibility decisions
+
+Managed package-selection previews report added and removed packages, whether
+the effective cache must be rebuilt, and the active save's compatibility status
+against the current pre-change cache. A package selection never silently
+rewrites a save expectation. Recording or replacing that expectation is a
+separate preview whose impact states that it stores package fingerprints but
+does not migrate or repair save rows.
 
 ## Godot-AI discovery
 

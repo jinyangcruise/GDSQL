@@ -10,6 +10,9 @@ const Ticket = preload(
 const StorageBackendContext = preload(
 	"res://addons/gdsql/editor/integrations/mcp/authoring/storage/gdsql_mcp_storage_backend_context.gd"
 )
+const ManagedContentDecisionContext = preload(
+	"res://addons/gdsql/editor/integrations/mcp/authoring/setup/gdsql_mcp_managed_content_decision_context.gd"
+)
 const HANDLE_TTL_MSEC := 120_000
 const RUNTIME_AUTOLOAD_SETTING := "autoload/GDSQLRuntime"
 const RUNTIME_NODE_PATH := "res://addons/gdsql/runtime/gdsql_runtime_node.tscn"
@@ -450,13 +453,19 @@ func _prepare_managed_packages(request: Dictionary) -> GDSQLOperationResult:
 	var requested: Array[String] = []
 	for package_id in enabled:
 		requested.append(String(package_id))
+	var changed := previous != requested
 	return _value(
 		{
 			"operation": "configure_managed_packages",
 			"previous_enabled_packages": previous,
 			"enabled_packages": requested,
 			"load_order": _package_summaries(context.get_value()["packages"]),
-			"requires_cache_rebuild": previous != requested,
+			"requires_cache_rebuild": changed,
+			"managed_content_decision": ManagedContentDecisionContext.package_selection(
+				previous,
+				requested,
+				_active_save_compatibility_context(),
+			),
 		},
 	)
 
@@ -491,17 +500,26 @@ func _prepare_record_save_content(request: Dictionary) -> GDSQLOperationResult:
 		return loaded_save
 	var previous := loaded_save.get_value() as GDSQLSaveContentManifest
 	var compatibility := GDSQLSaveContentCompatibilityInspector.inspect(previous, cache)
+	var previous_status := _compatibility_status(compatibility.status)
+	var packages := _fingerprint_summaries(cache.packages)
+	var replaces_previous := previous != null \
+			and compatibility.status != GDSQLSaveContentCompatibilityReport.Status.EXACT
 	return _value(
 		{
 			"operation": "record_save_content",
 			"registration": String(registration.name),
 			"database": String(registration.database_name),
-			"previous_status": _compatibility_status(compatibility.status),
-			"packages": _fingerprint_summaries(cache.packages),
+			"previous_status": previous_status,
+			"packages": packages,
 			"package_count": cache.packages.size(),
-			"replaces_previous_expectation": previous != null \
-					and compatibility.status != GDSQLSaveContentCompatibilityReport.Status.EXACT,
+			"replaces_previous_expectation": replaces_previous,
 			"changes_save_rows": false,
+			"managed_content_decision": ManagedContentDecisionContext.save_expectation(
+				String(registration.name),
+				previous_status,
+				packages,
+				replaces_previous,
+			),
 		},
 	)
 
@@ -524,6 +542,32 @@ func _registration_for_role(role: StringName) -> StringName:
 			if binding.role == role:
 				return binding.registration_name
 	return &""
+
+
+func _active_save_compatibility_context() -> Dictionary:
+	var registration_name := _registration_for_role(GDSQLDatabaseRegistry.SAVE_ROLE)
+	if registration_name == &"":
+		return { "registration": "", "status": "no_active_save" }
+	var registration := _workbench.get_registration(registration_name)
+	if registration == null:
+		return { "registration": String(registration_name), "status": "unavailable" }
+	var loaded_cache := _cache_store.load_manifest()
+	if not loaded_cache.is_successful() or loaded_cache.get_value() == null:
+		return { "registration": String(registration_name), "status": "cache_not_built" }
+	var store := _save_content_store_factory.call(registration.data_root) \
+			as GDSQLSaveContentManifestStore
+	var loaded_save := store.load_manifest()
+	if not loaded_save.is_successful():
+		return { "registration": String(registration_name), "status": "unavailable" }
+	var compatibility := GDSQLSaveContentCompatibilityInspector.inspect(
+		loaded_save.get_value(),
+		loaded_cache.get_value(),
+	)
+	return {
+		"registration": String(registration_name),
+		"status": _compatibility_status(compatibility.status),
+		"scope": "current_cache_before_change",
+	}
 
 
 func _fingerprint(payload: Dictionary = { }) -> String:

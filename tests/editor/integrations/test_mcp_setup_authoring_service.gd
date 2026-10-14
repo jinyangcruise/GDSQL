@@ -188,6 +188,15 @@ func test_managed_packages_and_save_expectations_require_confirmation() -> void:
 		{ "operation": "configure_managed_packages", "enabled_packages": ["mod.example"] },
 	)
 	assert_bool(configured.is_successful()).is_true()
+	var package_decision: Dictionary = configured.get_value()["data"][
+		"managed_content_decision"
+	]
+	assert_bool(package_decision["changes_effective_content"]).is_true()
+	assert_array(package_decision["added_packages"]).contains_exactly(["mod.example"])
+	assert_str(package_decision["active_save_before_change"]["status"]).is_equal(
+		"untracked",
+	)
+	assert_bool(package_decision["updates_save_expectation"]).is_false()
 	assert_bool(
 		service.commit(configured.get_value()["data"]["confirmation_handle"], true) \
 				.is_successful(),
@@ -197,6 +206,9 @@ func test_managed_packages_and_save_expectations_require_confirmation() -> void:
 
 	var recorded := service.preview({ "operation": "record_save_content" })
 	assert_bool(recorded.is_successful()).is_true()
+	var save_decision: Dictionary = recorded.get_value()["data"]["managed_content_decision"]
+	assert_str(save_decision["selected_action"]).is_equal("record_save_expectation")
+	assert_bool(save_decision["changes_save_rows"]).is_false()
 	assert_bool(
 		service.commit(recorded.get_value()["data"]["confirmation_handle"], true) \
 				.is_successful(),

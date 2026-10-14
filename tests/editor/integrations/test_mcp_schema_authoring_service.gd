@@ -6,6 +6,8 @@ const TestDatabase = preload("res://tests/utils/gdsql_test_database.gd")
 var _root: String
 var _database: GDSQLDatabase
 var _service: GDSQLMcpAuthoringService
+var _history_store: GDSQLConfigFileMigrationHistoryStore
+var _state_store: GDSQLConfigFileMigrationSchemaStateStore
 var _test_index := 0
 
 
@@ -27,7 +29,14 @@ func before_test() -> void:
 	assert_bool(registry.save_snapshot(snapshot).is_successful()).is_true()
 	var workbench := GDSQLWorkbench.new(registry, GDSQLConfigFileDatabaseExplorer.new())
 	assert_bool(workbench.load().is_successful()).is_true()
-	_service = GDSQLMcpAuthoringService.new(workbench)
+	_history_store = GDSQLConfigFileMigrationHistoryStore.new(_root.path_join("history"))
+	_state_store = GDSQLConfigFileMigrationSchemaStateStore.new(_root.path_join("states"))
+	_service = GDSQLMcpAuthoringService.new(
+		workbench,
+		{ },
+		_history_store,
+		_state_store,
+	)
 
 
 func test_create_table_requires_preview_and_one_use_confirmation() -> void:
@@ -67,6 +76,8 @@ func test_create_table_requires_preview_and_one_use_confirmation() -> void:
 	assert_bool(preview.is_successful()).is_true()
 	assert_object(_table(&"loadouts")).is_null()
 	var payload := preview.get_value() as Dictionary
+	assert_str(payload["data"]["schema_change_decision"]["selected"]).is_equal("direct")
+	assert_bool(payload["data"]["schema_change_decision"]["decision_required"]).is_true()
 	var handle: String = payload["data"]["confirmation_handle"]
 	assert_bool(_service.commit_schema_mutation(handle, false).is_successful()).is_false()
 	var committed := _service.commit_schema_mutation(handle, true)
@@ -279,6 +290,54 @@ func test_owned_resource_preview_warns_about_the_embedded_value_choice() -> void
 	assert_int(decisions.size()).is_equal(1)
 	assert_str(decisions[0]["selected"]).is_equal("owned")
 	assert_bool(decisions[0]["owned_choice_needs_attention"]).is_true()
+
+
+func test_direct_schema_changes_are_blocked_after_migration_history_starts() -> void:
+	var migration := _service.preview_migration(
+		{
+			"registration": "content",
+			"migration_id": "001_add_level",
+			"description": "Add hero level.",
+			"steps": [
+				{
+					"kind": "schema",
+					"operation": "alter_table",
+					"table": "heroes",
+					"alterations": [
+						{
+							"kind": "add_column",
+							"column": { "name": "level", "type": "int" },
+						},
+					],
+				},
+			],
+		},
+	)
+	assert_bool(migration.is_successful()).is_true()
+	assert_bool(
+		_service.commit_migration(
+			migration.get_value()["data"]["confirmation_handle"],
+			true,
+		).is_successful(),
+	).is_true()
+
+	var direct := _service.preview_schema_mutation(
+		{
+			"operation": "alter_table",
+			"registration": "content",
+			"table": "heroes",
+			"alterations": [
+				{
+					"kind": "add_column",
+					"column": { "name": "score", "type": "int" },
+				},
+			],
+		},
+	)
+	assert_bool(direct.is_successful()).is_false()
+	assert_str(String(direct.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_MCP_SCHEMA_MIGRATION_REQUIRED",
+	)
 
 
 func _table(table_name: StringName) -> GDSQLTableDefinition:

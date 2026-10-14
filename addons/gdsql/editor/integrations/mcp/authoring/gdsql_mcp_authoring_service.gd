@@ -71,7 +71,7 @@ func _init(
 		if migration_schema_state_store != null
 		else GDSQLConfigFileMigrationSchemaStateStore.new()
 	)
-	_schema_authoring = SchemaAuthoring.new(workbench)
+	_schema_authoring = SchemaAuthoring.new(workbench, history_store)
 	_schema_authoring.connect("committed", schema_committed.emit)
 	_database_authoring = DatabaseAuthoring.new(
 		workbench,

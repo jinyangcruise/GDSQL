@@ -8,14 +8,22 @@ const Ticket = preload("res://addons/gdsql/editor/integrations/mcp/authoring/sch
 const ResourceStorageContext = preload(
 	"res://addons/gdsql/editor/integrations/mcp/authoring/storage/gdsql_mcp_resource_storage_context.gd"
 )
+const SchemaChangeContext = preload(
+	"res://addons/gdsql/editor/integrations/mcp/authoring/migration/gdsql_mcp_schema_change_context.gd"
+)
 const HANDLE_TTL_MSEC := 120_000
 
 var _workbench: GDSQLWorkbench
+var _history_store: GDSQLMigrationHistoryStore
 var _tickets: Dictionary[String, Ticket] = { }
 
 
-func _init(workbench: GDSQLWorkbench) -> void:
+func _init(
+	workbench: GDSQLWorkbench,
+	history_store: GDSQLMigrationHistoryStore,
+) -> void:
 	_workbench = workbench
+	_history_store = history_store
 
 
 func preview(request: Dictionary) -> GDSQLOperationResult:
@@ -24,6 +32,17 @@ func preview(request: Dictionary) -> GDSQLOperationResult:
 	var opened := _open_registration(registration_name)
 	if not opened.is_successful():
 		return opened
+	var registration := _workbench.get_registration(registration_name)
+	var loaded_history := _history_store.load(registration.migration_stream)
+	if not loaded_history.is_successful():
+		return loaded_history
+	var history := loaded_history.get_value() as Array[GDSQLMigrationDefinition]
+	if not history.is_empty():
+		return _error(
+			&"GDSQL_MCP_SCHEMA_MIGRATION_REQUIRED",
+			"Direct schema changes are disabled because migration history is active. "
+			+ "Author the change with gdsql_preview_migration.",
+		)
 	var database := opened.get_database()
 	var table: GDSQLTableDefinition
 	if request.get("table") is String:
@@ -61,6 +80,7 @@ func preview(request: Dictionary) -> GDSQLOperationResult:
 			"summaries": plan.summaries.duplicate(),
 			"affected_rows": plan.affected_rows,
 			"destructive": plan.requires_confirmation(),
+			"schema_change_decision": SchemaChangeContext.describe("direct", history.size()),
 			"resource_storage_decisions": resource_storage_decisions,
 			"confirmation_handle": ticket.token,
 			"expires_in_ms": HANDLE_TTL_MSEC,

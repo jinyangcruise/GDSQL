@@ -60,6 +60,18 @@ Resource is independent row data. Referenced storage keeps the table compact,
 but loading is eager when the Resource is projected unless the runtime query
 explicitly requests deferred Resources.
 
+Before the first migration, schema previews explain the choice between a direct
+change and authored migration history. Direct changes suit disposable local
+prototyping. Prefer a migration for team projects, durable saves, or released
+builds. Once history starts, Godot-AI cannot bypass it with a direct schema
+mutation.
+
+Managed package-selection previews list added and removed packages, require an
+effective-cache rebuild when needed, and report the active save's current
+compatibility status. Updating the package set does not update that save's
+expectation. `record_save_content` is a separate confirmed operation and records
+fingerprints only; it does not migrate save rows.
+
 Model inspection covers catalog-inferred foreign-key relationships and
 cross-role references registered through the Model Assistant. Explicit
 many-to-many or other custom code remains outside static inspection.
