@@ -81,3 +81,9 @@ func test_profile_selection_and_save_binding_require_preview() -> void:
 		"user://gdsql/saves/save_2",
 	)
 	assert_bool(save_preview.get_value()["data"]["copies_rows"]).is_false()
+
+	var cache_preview := service.preview({ "operation": "build_managed_cache" })
+	assert_bool(cache_preview.is_successful()).is_false()
+	assert_str(String(cache_preview.diagnostics.entries[0].code)).is_equal(
+		"GDSQL_MCP_MANAGED_PROFILE_REQUIRED",
+	)

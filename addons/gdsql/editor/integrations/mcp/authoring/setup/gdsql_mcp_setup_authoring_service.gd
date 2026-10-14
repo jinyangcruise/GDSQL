@@ -1,6 +1,6 @@
 class_name GDSQLMcpSetupAuthoringService
 extends RefCounted
-## Guarded project setup, runtime installation, and save-slot lifecycle.
+## Guarded project setup, runtime installation, save slots, and managed cache.
 
 signal committed
 
@@ -22,6 +22,11 @@ var _history_store: GDSQLMigrationHistoryStore
 var _state_store: GDSQLMigrationSchemaStateStore
 var _runtime_path_provider: Callable
 var _runtime_installer: Callable
+var _managed_configuration_store: GDSQLManagedContentConfigurationStore
+var _package_discovery: GDSQLContentPackageDiscovery
+var _package_resolver: GDSQLContentPackageResolver
+var _fingerprint_provider: GDSQLContentPackageFingerprintProvider
+var _cache_manager: GDSQLContentCacheManager
 var _tickets: Dictionary[String, GDSQLMcpSetupTicket] = { }
 
 
@@ -32,6 +37,11 @@ func _init(
 		state_store: GDSQLMigrationSchemaStateStore = null,
 		runtime_path_provider: Callable = Callable(),
 		runtime_installer: Callable = Callable(),
+		managed_configuration_store: GDSQLManagedContentConfigurationStore = null,
+		package_discovery: GDSQLContentPackageDiscovery = null,
+		package_resolver: GDSQLContentPackageResolver = null,
+		fingerprint_provider: GDSQLContentPackageFingerprintProvider = null,
+		cache_manager: GDSQLContentCacheManager = null,
 ) -> void:
 	_workbench = workbench
 	_profile_store = (
@@ -53,6 +63,33 @@ func _init(
 		if runtime_installer.is_valid()
 		else Callable(self, "_install_runtime")
 	)
+	_managed_configuration_store = (
+		managed_configuration_store
+		if managed_configuration_store != null
+		else GDSQLConfigFileManagedContentConfigurationStore.new()
+	)
+	_package_discovery = (
+		package_discovery
+		if package_discovery != null
+		else GDSQLConfigFileContentPackageDiscovery.new()
+	)
+	_package_resolver = (
+		package_resolver if package_resolver != null else GDSQLContentPackageResolver.new()
+	)
+	_fingerprint_provider = (
+		fingerprint_provider
+		if fingerprint_provider != null
+		else GDSQLConfigFileContentPackageFingerprintProvider.new()
+	)
+	_cache_manager = (
+		cache_manager
+		if cache_manager != null
+		else GDSQLContentCacheManager.new(
+			GDSQLContentOverlayLoader.new(GDSQLConfigFileContentPackageLayerReader.new()),
+			_fingerprint_provider,
+			GDSQLConfigFileContentCacheStore.new(),
+		)
+	)
 
 
 func preview(request: Dictionary) -> GDSQLOperationResult:
@@ -70,6 +107,8 @@ func preview(request: Dictionary) -> GDSQLOperationResult:
 			prepared = _prepare_create_save(request)
 		"delete_save_slot":
 			prepared = _prepare_delete_save(request)
+		"build_managed_cache":
+			prepared = _prepare_managed_cache(request)
 	if prepared == null:
 		return _error(
 			&"GDSQL_MCP_SETUP_OPERATION_INVALID",
@@ -132,11 +171,12 @@ func commit(handle: String, confirmed: bool) -> GDSQLOperationResult:
 			result = _create_save_slot(ticket.payload)
 		"delete_save_slot":
 			result = _delete_save_slot(ticket.payload)
+		"build_managed_cache":
+			result = _build_managed_cache()
 	if not result.is_successful():
 		return result
 	committed.emit()
-	return _success(
-		{
+	var response := {
 			"kind": "setup_mutation_commit",
 			"operation": ticket.operation,
 			"profile": ticket.payload.get("profile", ""),
@@ -145,8 +185,10 @@ func commit(handle: String, confirmed: bool) -> GDSQLOperationResult:
 			"runtime_path": ticket.payload.get("runtime_path", ""),
 			"save_slot": ticket.payload.get("save_slot", ""),
 			"fallback_registration": ticket.payload.get("fallback_registration", ""),
-		},
-	)
+	}
+	if result.get_value() is Dictionary:
+		response.merge(result.get_value())
+	return _success(response)
 
 
 func _prepare_profile(request: Dictionary) -> GDSQLOperationResult:
@@ -313,6 +355,44 @@ func _prepare_delete_save(request: Dictionary) -> GDSQLOperationResult:
 	)
 
 
+func _prepare_managed_cache(request: Dictionary) -> GDSQLOperationResult:
+	var unknown := _unknown(request, ["operation"])
+	if not unknown.is_empty():
+		return _error(&"GDSQL_MCP_SETUP_FIELD_UNKNOWN", unknown)
+	var profile := _profile_store.load_profile()
+	if not profile.is_successful():
+		return profile
+	if profile.get_value() != GDSQLSetupProfile.Kind.MANAGED:
+		return _error(
+			&"GDSQL_MCP_MANAGED_PROFILE_REQUIRED",
+			"Select the Managed Content profile before building its effective cache.",
+		)
+	var context := _managed_context(false)
+	if not context.is_successful():
+		return context
+	var packages: Array[Dictionary] = []
+	for source in context.get_value()["packages"]:
+		var package := source as GDSQLContentPackageSource
+		packages.append(
+			{
+				"package_id": String(package.manifest.package_id),
+				"version": package.manifest.version,
+				"kind": String(GDSQLContentPackageKind.get_id(package.manifest.kind)),
+			},
+		)
+	return _value(
+		{
+			"operation": "build_managed_cache",
+			"packages": packages,
+			"package_count": packages.size(),
+			"source_database": String(GDSQLContentOverlayLoader.DEFAULT_SOURCE_DATABASE),
+			"effective_database": String(
+				GDSQLContentOverlayLoader.DEFAULT_EFFECTIVE_DATABASE,
+			),
+		},
+	)
+
+
 func _registration_for_role(role: StringName) -> StringName:
 	if _workbench != null:
 		for binding in _workbench.snapshot.role_bindings:
@@ -356,7 +436,52 @@ func _fingerprint(payload: Dictionary = { }) -> String:
 			if loaded_history.is_successful()
 			else "invalid",
 		)
+	if payload.get("operation") == "build_managed_cache":
+		var context := _managed_context(true)
+		values.append(
+			context.get_value()["fingerprints"]
+			if context.is_successful()
+			else ["invalid"],
+		)
 	return var_to_str(values).sha256_text()
+
+
+func _managed_context(include_fingerprints: bool) -> GDSQLOperationResult:
+	var loaded := _managed_configuration_store.load_configuration()
+	if not loaded.is_successful():
+		return loaded
+	var configuration := loaded.get_value() as GDSQLManagedContentConfiguration
+	var discovered := _package_discovery.discover(
+		configuration.base_package_root,
+		configuration.package_container_roots,
+	)
+	if not discovered.is_successful():
+		return discovered
+	var packages: Array[GDSQLContentPackageSource] = []
+	packages.assign(discovered.get_value())
+	var resolved := _package_resolver.resolve(packages, configuration.enabled_package_ids)
+	if not resolved.is_successful():
+		return resolved
+	var fingerprints: Array[String] = []
+	if include_fingerprints:
+		for package in resolved.ordered_packages:
+			var fingerprinted := _fingerprint_provider.fingerprint(package)
+			if not fingerprinted.is_successful():
+				return fingerprinted
+			var fingerprint := fingerprinted.get_value() as GDSQLContentPackageFingerprint
+			fingerprints.append(
+				"%s:%s:%s" % [
+					fingerprint.package_id,
+					fingerprint.version,
+					fingerprint.content_hash,
+				],
+			)
+	return _value(
+		{
+			"packages": resolved.ordered_packages,
+			"fingerprints": fingerprints,
+		},
+	)
 
 
 func _save_template_context(
@@ -466,6 +591,24 @@ func _delete_save_slot(payload: Dictionary) -> GDSQLOperationResult:
 	if plan.was_active:
 		_workbench.bind_role(GDSQLDatabaseRegistry.SAVE_ROLE, registration_name)
 	return dropped
+
+
+func _build_managed_cache() -> GDSQLOperationResult:
+	var context := _managed_context(false)
+	if not context.is_successful():
+		return context
+	var packages: Array[GDSQLContentPackageSource] = []
+	packages.assign(context.get_value()["packages"])
+	var cached := _cache_manager.ensure_cache(packages)
+	var result := GDSQLOperationResult.new()
+	result.diagnostics.merge(cached.diagnostics)
+	if cached.is_successful():
+		result.value = {
+			"cache_status": "rebuilt" if cached.was_rebuilt() else "current",
+			"package_count": cached.manifest.packages.size(),
+			"effective_database": String(cached.manifest.effective_database_name),
+		}
+	return result
 
 
 func _current_runtime_path() -> String:

@@ -456,7 +456,7 @@ func _build_specs() -> Array:
 		specs.append(
 			_spec(
 				"gdsql_preview_setup_mutation",
-				"Preview initial profile selection, role binding, runtime installation, or standard save-slot creation/deletion.",
+				"Preview profile, role, runtime, save-slot, or Managed Content cache setup.",
 				&"preview_setup_mutation",
 				{
 					"type": "object",
@@ -467,7 +467,7 @@ func _build_specs() -> Array:
 							"type": "string",
 							"enum": [
 								"select_profile", "bind_role", "install_runtime_adapter",
-								"create_save_slot", "delete_save_slot",
+								"create_save_slot", "delete_save_slot", "build_managed_cache",
 							],
 						},
 						"profile": { "type": "string", "enum": ["direct", "managed"] },
