@@ -116,13 +116,13 @@ func _build_specs() -> Array:
 	var specs := [
 		_spec(
 			"gdsql_capabilities",
-			"Describe the installed GDSQL agent surface, limits, and selected setup profile.",
+			"Start here. Describe the GDSQL surface and report whether the user must choose a content profile before setup.",
 			&"capabilities",
 			{ "type": "object", "additionalProperties": false },
 		),
 		_spec(
 			"gdsql_inspect_setup",
-			"Inspect the current GDSQL Direct or Managed Content setup checklist without changing the project.",
+			"Inspect setup without changing it. If no profile is selected, explain both returned options and ask the user to choose before authoring.",
 			&"inspect_setup",
 			{
 				"type": "object",

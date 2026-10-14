@@ -8,8 +8,8 @@ absent.
 
 | Tool | Purpose |
 |---|---|
-| `gdsql_capabilities` | Reports the GDSQL inspection version, limits, and available features. |
-| `gdsql_inspect_setup` | Reports Direct or Managed Content checklist readiness. |
+| `gdsql_capabilities` | Reports the GDSQL version, limits, available features, and required onboarding action. |
+| `gdsql_inspect_setup` | Reports setup readiness and, before initial selection, the Direct/Managed decision the agent must present to the user. |
 | `gdsql_inspect_schema` | Lists registrations and tables or describes one table's columns and constraints. |
 | `gdsql_inspect_models` | Lists model bindings or reports static compatibility and relationships for one binding. |
 | `gdsql_query_rows` | Reads a bounded page of scalar row values using typed structured filters. |
@@ -28,6 +28,10 @@ absent.
 
 Godot-AI normally exposes promoted tools with a `custom_` prefix. Enable or
 disable them for the current project from Godot-AI's **Tools** panel.
+
+For a new project, ask the agent to inspect GDSQL setup. If no content profile
+is selected, the result requires the agent to explain both options and obtain
+an explicit choice before it previews any setup mutation.
 
 ## Safety boundary
 

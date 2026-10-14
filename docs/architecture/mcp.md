@@ -96,8 +96,8 @@ is not part of the GDSQL surface version.
 
 | Tool | Input | Result |
 |---|---|---|
-| `gdsql_capabilities` | Empty object | Surface version, project scope, supported features, limits, and tool inventory. |
-| `gdsql_inspect_setup` | Optional `profile`: `selected`, `direct`, or `managed` | Selected profile, readiness, ordered checks, next semantic action, and diagnostics. |
+| `gdsql_capabilities` | Empty object | Surface version, project scope, supported features, limits, tool inventory, and the required first onboarding action. |
+| `gdsql_inspect_setup` | Optional `profile`: `selected`, `direct`, or `managed` | Selected profile, readiness, ordered checks, next semantic action, and diagnostics. An unselected project includes the structured Direct/Managed decision and instructs the agent to ask rather than infer. |
 | `gdsql_inspect_schema` | Optional `registration`, `table`, `cursor`, and bounded `limit` | Registration summaries, table summaries, or one full table definition. |
 | `gdsql_inspect_models` | Optional `registration`, `table`, `cursor`, and bounded `limit` | Binding summaries or one binding's static compatibility, inferred relationships, and registered cross-role references. |
 | `gdsql_query_rows` | Registration, table, optional scalar columns, structured `where`, ordering, cursor, and bounded limit | A deterministic scalar row window and opaque next cursor. |
@@ -121,6 +121,26 @@ the default and maximum limits are declared by `gdsql_capabilities`.
 `gdsql_inspect_setup` reporting an incomplete project is a successful
 inspection, not a tool failure. Missing requested identifiers, malformed input,
 or an unavailable inspection service are failures.
+
+When no content profile is selected, capabilities direct the agent to setup
+inspection first. The inspection response describes both profiles, their setup
+cost and runtime behavior, the migration warning, and the confirmed selection
+operation. The agent must explain the choice in the context of the user's game
+and receive an explicit answer before previewing profile selection.
+
+Other agent-visible choices need the same decision context before they become
+fully autonomous workflows:
+
+| Choice | Required context | State |
+|---|---|---|
+| ConfigFile or in-memory runtime storage | Persistence, hydration, and checkpoint behavior | Backlog |
+| Owned or referenced Resource storage | Portability, file dependencies, load cost, and future lazy materialization | Backlog |
+| Direct schema mutation or authored migration | Prototype convenience versus deployed-build/team upgrade history | Backlog |
+| Managed package selection and save expectation replacement | Effective-content changes and save compatibility impact | Backlog |
+
+Destructive database operations already expose distinct unregister/destroy
+operations, affected data, and explicit preview confirmation, so they do not
+need another onboarding decision layer.
 
 `gdsql_inspect_models` never instantiates a user model or calls
 `relationships()`. It reports same-database relationships inferred from catalog

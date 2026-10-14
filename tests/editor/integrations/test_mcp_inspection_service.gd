@@ -133,6 +133,27 @@ func test_setup_inspection_projects_ordered_checks() -> void:
 	assert_str(payload["data"]["checks"][0]["id"]).is_equal("content_database")
 
 
+func test_unselected_setup_requires_an_explicit_profile_decision() -> void:
+	var service := _service(GDSQLSetupProfile.Kind.UNSELECTED)
+
+	var capabilities := service.get_capabilities().get_value() as Dictionary
+	var inspected := service.inspect_setup().get_value() as Dictionary
+
+	assert_bool(capabilities["data"]["onboarding"]["profile_selection_required"]).is_true()
+	assert_str(capabilities["data"]["onboarding"]["required_action"]).is_equal(
+		"ask_user_to_choose_content_profile",
+	)
+	assert_bool(inspected["data"]["requires_user_decision"]).is_true()
+	assert_str(inspected["data"]["profile_decision"]["agent_instruction"]).contains(
+		"Do not infer or select",
+	)
+	var option_ids: Array[String] = []
+	for option in inspected["data"]["profile_decision"]["options"]:
+		option_ids.append(option["id"])
+	assert_array(option_ids).contains_exactly(["direct", "managed"])
+	assert_bool(inspected["data"]["profile_decision"]["confirmation_required"]).is_true()
+
+
 func test_model_inspection_projects_bindings_and_static_relationships() -> void:
 	var service := _service()
 
@@ -293,7 +314,9 @@ func _inject_test_contract(adapter: Node) -> void:
 	adapter.set("_spec_script", FakeMcpCustomToolSpec)
 
 
-func _service() -> GDSQLMcpInspectionService:
+func _service(
+		profile: GDSQLSetupProfile.Kind = GDSQLSetupProfile.Kind.DIRECT,
+) -> GDSQLMcpInspectionService:
 	var content_root := _root.path_join("content")
 	var save_root := _root.path_join("save")
 	var heroes := GDSQLTableDefinition.new(&"heroes", &"id") \
@@ -353,9 +376,8 @@ func _service() -> GDSQLMcpInspectionService:
 	assert_bool(workbench.load().is_successful()).is_true()
 	_workbench_value = workbench
 	var profile_store := GDSQLConfigFileSetupProfileStore.new(_settings_path)
-	assert_bool(
-		profile_store.save_profile(GDSQLSetupProfile.Kind.DIRECT).is_successful(),
-	).is_true()
+	if GDSQLSetupProfile.is_selectable(profile):
+		assert_bool(profile_store.save_profile(profile).is_successful()).is_true()
 	var model_inspection := ModelInspection.new(
 		workbench,
 		_test_model_bindings,
