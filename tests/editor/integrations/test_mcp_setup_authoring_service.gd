@@ -4,6 +4,34 @@ extends GdUnitTestSuite
 const TestDatabase = preload("res://tests/utils/gdsql_test_database.gd")
 
 
+class FakeCacheStore extends GDSQLContentCacheStore:
+	var manifest: GDSQLContentCacheManifest
+
+
+	func load_manifest() -> GDSQLOperationResult:
+		var result := GDSQLOperationResult.new()
+		result.value = manifest
+		return result
+
+
+	func has_database(_database_name: StringName) -> bool:
+		return manifest != null
+
+
+	func replace(
+			cache_manifest: GDSQLContentCacheManifest,
+			_database: GDSQLContentDatabaseSnapshot,
+	) -> GDSQLOperationResult:
+		manifest = cache_manifest
+		var result := GDSQLOperationResult.new()
+		result.value = true
+		return result
+
+
+	func get_cache_root() -> String:
+		return "user://test-cache"
+
+
 func test_profile_selection_and_save_binding_require_preview() -> void:
 	var root := create_temp_dir("gdsql_mcp_setup_%d" % Time.get_ticks_usec())
 	TestDatabase.create_heroes_database(root)
@@ -87,3 +115,87 @@ func test_profile_selection_and_save_binding_require_preview() -> void:
 	assert_str(String(cache_preview.diagnostics.entries[0].code)).is_equal(
 		"GDSQL_MCP_MANAGED_PROFILE_REQUIRED",
 	)
+
+
+func test_managed_packages_and_save_expectations_require_confirmation() -> void:
+	var root := create_temp_dir("gdsql_mcp_managed_%d" % Time.get_ticks_usec())
+	var base_root := root.path_join("content/base")
+	var packages_root := root.path_join("content/packages")
+	var mod_root := packages_root.path_join("example_mod")
+	assert_bool(
+		GDSQLConfigFileContentPackageScaffolder.new().scaffold(
+			base_root,
+			GDSQLContentPackageManifest.new(
+				&"base.game", "Base Game", "1.0.0", GDSQLContentPackageKind.Kind.BASE_GAME,
+			),
+		).is_successful(),
+	).is_true()
+	assert_bool(
+		GDSQLConfigFileContentPackageScaffolder.new().scaffold(
+			mod_root,
+			GDSQLContentPackageManifest.new(
+				&"mod.example", "Example Mod", "1.0.0", GDSQLContentPackageKind.Kind.MOD,
+			),
+		).is_successful(),
+	).is_true()
+	var save_root := root.path_join("saves/save_1")
+	TestDatabase.create_heroes_database(save_root)
+	var registration := GDSQLDatabaseRegistration.new(
+		&"save_1", TestDatabase.DEFAULT_DATABASE_NAME, save_root,
+	)
+	var snapshot := GDSQLDatabaseRegistrySnapshot.new()
+	snapshot.registrations.assign([registration])
+	snapshot.role_bindings.assign(
+		[GDSQLDatabaseRoleBinding.new(GDSQLDatabaseRegistry.SAVE_ROLE, &"save_1")],
+	)
+	var registry := GDSQLDatabaseRegistry.new(
+		GDSQLConfigFileDatabaseRegistryStore.new(root.path_join("registry.cfg")),
+	)
+	assert_bool(registry.save_snapshot(snapshot).is_successful()).is_true()
+	var workbench := GDSQLWorkbench.new(registry, GDSQLConfigFileDatabaseExplorer.new())
+	assert_bool(workbench.load().is_successful()).is_true()
+	var settings_path := root.path_join("settings.cfg")
+	var profiles := GDSQLConfigFileSetupProfileStore.new(settings_path)
+	assert_bool(profiles.save_profile(GDSQLSetupProfile.Kind.MANAGED).is_successful()).is_true()
+	var configuration_store := GDSQLConfigFileManagedContentConfigurationStore.new(
+		settings_path,
+	)
+	assert_bool(
+		configuration_store.save_configuration(
+			GDSQLManagedContentConfiguration.new(base_root, [packages_root]),
+		).is_successful(),
+	).is_true()
+	var cache_store := FakeCacheStore.new()
+	cache_store.manifest = GDSQLContentCacheManifest.new(
+		&"content",
+		&"effective_content",
+		[
+			GDSQLContentPackageFingerprint.new(&"base.game", "1.0.0", "base-hash"),
+			GDSQLContentPackageFingerprint.new(&"mod.example", "1.0.0", "mod-hash"),
+		],
+	)
+	var service := GDSQLMcpSetupAuthoringService.new(
+		workbench, profiles, null, null, Callable(), Callable(), configuration_store,
+		null, null, null, null, cache_store,
+	)
+
+	var configured := service.preview(
+		{ "operation": "configure_managed_packages", "enabled_packages": ["mod.example"] },
+	)
+	assert_bool(configured.is_successful()).is_true()
+	assert_bool(
+		service.commit(configured.get_value()["data"]["confirmation_handle"], true) \
+				.is_successful(),
+	).is_true()
+	assert_array(configuration_store.load_configuration().get_value().enabled_package_ids) \
+			.contains_exactly([&"mod.example"])
+
+	var recorded := service.preview({ "operation": "record_save_content" })
+	assert_bool(recorded.is_successful()).is_true()
+	assert_bool(
+		service.commit(recorded.get_value()["data"]["confirmation_handle"], true) \
+				.is_successful(),
+	).is_true()
+	var saved := GDSQLConfigFileSaveContentManifestStore.new(save_root).load_manifest()
+	assert_bool(saved.is_successful()).is_true()
+	assert_int((saved.get_value() as GDSQLSaveContentManifest).packages.size()).is_equal(2)

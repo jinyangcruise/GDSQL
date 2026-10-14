@@ -300,7 +300,7 @@ func preview_setup_mutation(params: Dictionary, _context: Variant) -> Dictionary
 		params,
 		[
 			"operation", "profile", "role", "registration",
-			"save_slot", "storage_backend",
+			"save_slot", "storage_backend", "enabled_packages",
 		],
 	)
 	if not invalid.is_empty():
@@ -311,6 +311,12 @@ func preview_setup_mutation(params: Dictionary, _context: Variant) -> Dictionary
 	for key in ["profile", "role", "registration", "save_slot", "storage_backend"]:
 		if params.has(key) and not params[key] is String:
 			return _invalid("%s must be a string." % key)
+	if params.has("enabled_packages"):
+		if not params["enabled_packages"] is Array:
+			return _invalid("enabled_packages must be an array.")
+		for package_id in params["enabled_packages"]:
+			if not package_id is String:
+				return _invalid("enabled_packages entries must be strings.")
 	return _invoke(
 		Callable(_authoring_service(), "preview_setup_mutation").bind(params),
 	)
