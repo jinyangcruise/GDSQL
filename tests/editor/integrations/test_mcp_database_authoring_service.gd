@@ -51,6 +51,11 @@ func test_create_database_requires_preview_and_registers_only_after_commit() -> 
 	)
 
 	assert_bool(preview.is_successful()).is_true()
+	assert_bool(preview.get_value()["data"]["storage_decision"]["default_applied"]) \
+			.is_true()
+	assert_bool(
+		preview.get_value()["data"]["storage_decision"]["requires_checkpoint_management"],
+	).is_false()
 	assert_object(_workbench.get_registration(&"localization")).is_null()
 	assert_bool(GDSQLDatabase.open(&"localization", _root).is_successful()).is_false()
 	var handle: String = preview.get_value()["data"]["confirmation_handle"]

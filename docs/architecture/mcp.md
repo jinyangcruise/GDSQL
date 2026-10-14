@@ -133,7 +133,7 @@ fully autonomous workflows:
 
 | Choice | Required context | State |
 |---|---|---|
-| ConfigFile or in-memory runtime storage | Persistence, hydration, and checkpoint behavior | Backlog |
+| ConfigFile or in-memory runtime storage | Persistence, hydration, and checkpoint behavior | Implemented in database/save-slot previews |
 | Owned or referenced Resource storage | Portability, file dependencies, load cost, and future lazy materialization | Backlog |
 | Direct schema mutation or authored migration | Prototype convenience versus deployed-build/team upgrade history | Backlog |
 | Managed package selection and save expectation replacement | Effective-content changes and save compatibility impact | Backlog |

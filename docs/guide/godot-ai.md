@@ -48,6 +48,11 @@ and rejects the handle if its target changed. Database creation uses named
 GDSQL locations, never arbitrary paths. Unregister preserves database files;
 destroy removes them. The tools are not integrated with Godot Undo/Redo.
 
+Database and save-slot previews also explain storage policy. Omitting the
+backend selects durable ConfigFile storage. In-memory storage hydrates from the
+durable source at startup and requires periodic, pause, exit, or explicit
+checkpoints before changes become durable.
+
 Model inspection covers catalog-inferred foreign-key relationships and
 cross-role references registered through the Model Assistant. Explicit
 many-to-many or other custom code remains outside static inspection.

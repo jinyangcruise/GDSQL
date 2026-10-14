@@ -10,6 +10,9 @@ const Ticket = preload(
 const CanonicalValue = preload(
 	"res://addons/gdsql/migration/gdsql_migration_canonical_value.gd"
 )
+const StorageBackendContext = preload(
+	"res://addons/gdsql/editor/integrations/mcp/authoring/storage/gdsql_mcp_storage_backend_context.gd"
+)
 const HANDLE_TTL_MSEC := 120_000
 const DEFAULT_LOCATIONS := {
 	"project_data": "res://data",
@@ -195,6 +198,7 @@ func _normalize(request: Dictionary) -> GDSQLOperationResult:
 				"location": location,
 				"data_root": root,
 				"storage_backend": String(backend),
+				"storage_backend_defaulted": not request.has("storage_backend"),
 			},
 		)
 	elif operation == "rename_database":
@@ -231,6 +235,10 @@ func _validate(payload: Dictionary) -> GDSQLOperationResult:
 				"database": payload["database"],
 				"location": payload["location"],
 				"storage_backend": payload["storage_backend"],
+				"storage_decision": StorageBackendContext.describe(
+					StringName(payload["storage_backend"]),
+					bool(payload["storage_backend_defaulted"]),
+				),
 				"affected_tables": 0,
 				"affected_rows": 0,
 				"affected_roles": [],

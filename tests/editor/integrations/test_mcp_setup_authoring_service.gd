@@ -105,6 +105,11 @@ func test_profile_selection_and_save_binding_require_preview() -> void:
 		},
 	)
 	assert_bool(save_preview.is_successful()).is_true()
+	assert_bool(
+		save_preview.get_value()["data"]["storage_decision"][
+			"requires_checkpoint_management"
+		],
+	).is_true()
 	assert_str(save_preview.get_value()["data"]["data_root"]).is_equal(
 		"user://gdsql/saves/save_2",
 	)

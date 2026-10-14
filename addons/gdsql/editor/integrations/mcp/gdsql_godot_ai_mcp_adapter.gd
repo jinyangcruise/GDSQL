@@ -330,6 +330,7 @@ func _build_specs() -> Array:
 						"storage_backend": {
 							"type": "string",
 							"enum": ["configfile", "memory"],
+							"description": "Omit for durable ConfigFile storage. Choose memory only after reviewing hydration and checkpoint behavior in the preview.",
 						},
 						"new_name": { "type": "string" },
 					},
@@ -481,6 +482,7 @@ func _build_specs() -> Array:
 						"storage_backend": {
 							"type": "string",
 							"enum": ["configfile", "memory"],
+							"description": "Omit for durable ConfigFile storage. Choose memory only after reviewing hydration and checkpoint behavior in the preview.",
 						},
 						"enabled_packages": {
 							"type": "array",

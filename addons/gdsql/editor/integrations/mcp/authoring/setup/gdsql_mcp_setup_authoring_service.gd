@@ -7,6 +7,9 @@ signal committed
 const Ticket = preload(
 	"res://addons/gdsql/editor/integrations/mcp/authoring/setup/gdsql_mcp_setup_ticket.gd"
 )
+const StorageBackendContext = preload(
+	"res://addons/gdsql/editor/integrations/mcp/authoring/storage/gdsql_mcp_storage_backend_context.gd"
+)
 const HANDLE_TTL_MSEC := 120_000
 const RUNTIME_AUTOLOAD_SETTING := "autoload/GDSQLRuntime"
 const RUNTIME_NODE_PATH := "res://addons/gdsql/runtime/gdsql_runtime_node.tscn"
@@ -335,6 +338,10 @@ func _prepare_create_save(request: Dictionary) -> GDSQLOperationResult:
 			"data_root": GDSQLSaveSlotDeletionPlan.STANDARD_SAVE_SLOTS_ROOT.path_join(slot),
 			"database": String(template.database_name),
 			"storage_backend": String(backend),
+			"storage_decision": StorageBackendContext.describe(
+				backend,
+				not request.has("storage_backend"),
+			),
 			"template_registration": String(template.name),
 			"migration_stream": String(template.migration_stream),
 			"table_count": (data["definition"] as GDSQLDatabaseDefinition).tables.size(),
