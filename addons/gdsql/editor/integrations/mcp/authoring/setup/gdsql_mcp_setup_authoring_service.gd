@@ -1,6 +1,6 @@
 class_name GDSQLMcpSetupAuthoringService
 extends RefCounted
-## Guarded setup-profile selection and durable logical-role binding.
+## Guarded project setup, runtime installation, and save-slot lifecycle.
 
 signal committed
 
@@ -18,6 +18,8 @@ const ROLES: Array[StringName] = [
 
 var _workbench: GDSQLWorkbench
 var _profile_store: GDSQLSetupProfileStore
+var _history_store: GDSQLMigrationHistoryStore
+var _state_store: GDSQLMigrationSchemaStateStore
 var _runtime_path_provider: Callable
 var _runtime_installer: Callable
 var _tickets: Dictionary[String, GDSQLMcpSetupTicket] = { }
@@ -26,12 +28,20 @@ var _tickets: Dictionary[String, GDSQLMcpSetupTicket] = { }
 func _init(
 		workbench: GDSQLWorkbench,
 		profile_store: GDSQLSetupProfileStore = null,
+		history_store: GDSQLMigrationHistoryStore = null,
+		state_store: GDSQLMigrationSchemaStateStore = null,
 		runtime_path_provider: Callable = Callable(),
 		runtime_installer: Callable = Callable(),
 ) -> void:
 	_workbench = workbench
 	_profile_store = (
 		profile_store if profile_store != null else GDSQLConfigFileSetupProfileStore.new()
+	)
+	_history_store = (
+		history_store if history_store != null else GDSQLConfigFileMigrationHistoryStore.new()
+	)
+	_state_store = (
+		state_store if state_store != null else GDSQLConfigFileMigrationSchemaStateStore.new()
 	)
 	_runtime_path_provider = (
 		runtime_path_provider
@@ -56,11 +66,14 @@ func preview(request: Dictionary) -> GDSQLOperationResult:
 			prepared = _prepare_role(request)
 		"install_runtime_adapter":
 			prepared = _prepare_runtime(request)
+		"create_save_slot":
+			prepared = _prepare_create_save(request)
+		"delete_save_slot":
+			prepared = _prepare_delete_save(request)
 	if prepared == null:
 		return _error(
 			&"GDSQL_MCP_SETUP_OPERATION_INVALID",
-			"Operation must be 'select_profile', 'bind_role', or " \
-					+ "'install_runtime_adapter'.",
+			"Unknown setup operation.",
 		)
 	if not prepared.is_successful():
 		return prepared
@@ -68,7 +81,7 @@ func preview(request: Dictionary) -> GDSQLOperationResult:
 	ticket.token = Crypto.new().generate_random_bytes(24).hex_encode()
 	ticket.operation = operation
 	ticket.payload = prepared.get_value()
-	ticket.fingerprint = _fingerprint()
+	ticket.fingerprint = _fingerprint(ticket.payload)
 	ticket.expires_at_msec = Time.get_ticks_msec() + HANDLE_TTL_MSEC
 	_tickets[ticket.token] = ticket
 	var data: Dictionary = ticket.payload.duplicate(true)
@@ -77,7 +90,7 @@ func preview(request: Dictionary) -> GDSQLOperationResult:
 			"kind": "setup_mutation_preview",
 			"confirmation_handle": ticket.token,
 			"expires_in_ms": HANDLE_TTL_MSEC,
-			"destructive": false,
+			"destructive": operation == "delete_save_slot",
 		},
 	)
 	return _success(data)
@@ -97,7 +110,7 @@ func commit(handle: String, confirmed: bool) -> GDSQLOperationResult:
 		)
 	var ticket := _tickets[handle] as GDSQLMcpSetupTicket
 	_tickets.erase(handle)
-	if ticket.fingerprint != _fingerprint():
+	if ticket.fingerprint != _fingerprint(ticket.payload):
 		return _error(
 			&"GDSQL_MCP_SETUP_STALE",
 			"The setup profile, registrations, or role bindings changed after preview.",
@@ -115,6 +128,10 @@ func commit(handle: String, confirmed: bool) -> GDSQLOperationResult:
 			)
 		"install_runtime_adapter":
 			result = _runtime_installer.call() as GDSQLOperationResult
+		"create_save_slot":
+			result = _create_save_slot(ticket.payload)
+		"delete_save_slot":
+			result = _delete_save_slot(ticket.payload)
 	if not result.is_successful():
 		return result
 	committed.emit()
@@ -126,6 +143,8 @@ func commit(handle: String, confirmed: bool) -> GDSQLOperationResult:
 			"role": ticket.payload.get("role", ""),
 			"registration": ticket.payload.get("registration", ""),
 			"runtime_path": ticket.payload.get("runtime_path", ""),
+			"save_slot": ticket.payload.get("save_slot", ""),
+			"fallback_registration": ticket.payload.get("fallback_registration", ""),
 		},
 	)
 
@@ -213,6 +232,87 @@ func _prepare_runtime(request: Dictionary) -> GDSQLOperationResult:
 	)
 
 
+func _prepare_create_save(request: Dictionary) -> GDSQLOperationResult:
+	var unknown := _unknown(request, ["operation", "save_slot", "storage_backend"])
+	if not unknown.is_empty():
+		return _error(&"GDSQL_MCP_SETUP_FIELD_UNKNOWN", unknown)
+	var slot := String(request.get("save_slot", "")).strip_edges()
+	if not slot.is_valid_identifier():
+		return _error(
+			&"GDSQL_MCP_SAVE_SLOT_NAME_INVALID",
+			"save_slot must be a valid identifier.",
+		)
+	if _workbench.get_registration(StringName(slot)) != null:
+		return _error(
+			&"GDSQL_MCP_SAVE_SLOT_EXISTS",
+			"Save slot registration '%s' already exists." % slot,
+		)
+	var backend := StringName(request.get("storage_backend", "configfile"))
+	if not GDSQLStorageBackendIds.is_implemented(backend):
+		return _error(
+			&"GDSQL_STORAGE_BACKEND_UNAVAILABLE",
+			"storage_backend must be 'configfile' or 'memory'.",
+		)
+	var template_name := _registration_for_role(GDSQLDatabaseRegistry.SAVE_ROLE)
+	var template := _workbench.get_registration(template_name)
+	if template == null:
+		return _error(
+			&"GDSQL_MCP_SAVE_TEMPLATE_REQUIRED",
+			"Create and bind the first save database before creating additional slots.",
+		)
+	var context := _save_template_context(template)
+	if not context.is_successful():
+		return context
+	var data := context.get_value() as Dictionary
+	return _value(
+		{
+			"operation": "create_save_slot",
+			"save_slot": slot,
+			"registration": slot,
+			"data_root": GDSQLSaveSlotDeletionPlan.STANDARD_SAVE_SLOTS_ROOT.path_join(slot),
+			"database": String(template.database_name),
+			"storage_backend": String(backend),
+			"template_registration": String(template.name),
+			"migration_stream": String(template.migration_stream),
+			"table_count": (data["definition"] as GDSQLDatabaseDefinition).tables.size(),
+			"copies_rows": false,
+			"becomes_active": true,
+		},
+	)
+
+
+func _prepare_delete_save(request: Dictionary) -> GDSQLOperationResult:
+	var unknown := _unknown(request, ["operation", "registration"])
+	if not unknown.is_empty():
+		return _error(&"GDSQL_MCP_SETUP_FIELD_UNKNOWN", unknown)
+	var registration_name := StringName(request.get("registration", ""))
+	var planned := GDSQLSaveSlotDeletionPlan.build(
+		_workbench.get_registration(registration_name),
+		_registration_for_role(GDSQLDatabaseRegistry.SAVE_ROLE),
+		_workbench.get_registrations(),
+	)
+	if not planned.is_successful():
+		return planned
+	var plan := planned.get_value() as GDSQLSaveSlotDeletionPlan
+	var inspection := _workbench.get_inspection(registration_name)
+	var rows := 0
+	if inspection != null:
+		for table in inspection.tables:
+			rows += table.row_count
+	return _value(
+		{
+			"operation": "delete_save_slot",
+			"save_slot": String(registration_name),
+			"registration": String(registration_name),
+			"database": String(plan.database_name),
+			"was_active": plan.was_active,
+			"fallback_registration": String(plan.fallback_registration_name),
+			"affected_tables": inspection.tables.size() if inspection != null else 0,
+			"affected_rows": rows,
+		},
+	)
+
+
 func _registration_for_role(role: StringName) -> StringName:
 	if _workbench != null:
 		for binding in _workbench.snapshot.role_bindings:
@@ -221,7 +321,7 @@ func _registration_for_role(role: StringName) -> StringName:
 	return &""
 
 
-func _fingerprint() -> String:
+func _fingerprint(payload: Dictionary = { }) -> String:
 	var loaded := _profile_store.load_profile()
 	var values: Array = [
 		GDSQLSetupProfile.get_id(loaded.get_value()) if loaded.is_successful() else &"invalid",
@@ -229,7 +329,15 @@ func _fingerprint() -> String:
 	if _workbench != null:
 		var registrations: Array[String] = []
 		for registration in _workbench.get_registrations():
-			registrations.append("%s:%s" % [registration.name, registration.database_name])
+			var schema := ""
+			var opened := GDSQLRuntimeFactory.open_authoring_registration(registration)
+			if opened.is_successful():
+				schema = GDSQLSchemaFingerprint.compute(
+					opened.get_database().context.catalog.get_database(registration.database_name),
+				)
+			registrations.append(
+				"%s:%s:%s" % [registration.name, registration.database_name, schema],
+			)
 		registrations.sort()
 		var roles: Array[String] = []
 		for binding in _workbench.snapshot.role_bindings:
@@ -238,7 +346,126 @@ func _fingerprint() -> String:
 		values.append(registrations)
 		values.append(roles)
 	values.append(String(_runtime_path_provider.call()))
+	if payload.get("operation") == "create_save_slot":
+		var loaded_history := _history_store.load(StringName(payload["migration_stream"]))
+		var history: Array[GDSQLMigrationDefinition] = []
+		if loaded_history.is_successful():
+			history.assign(loaded_history.get_value())
+		values.append(
+			GDSQLMigrationHistoryChecksum.compute(history, history.size())
+			if loaded_history.is_successful()
+			else "invalid",
+		)
 	return var_to_str(values).sha256_text()
+
+
+func _save_template_context(
+		template: GDSQLDatabaseRegistration,
+) -> GDSQLOperationResult:
+	var opened := GDSQLRuntimeFactory.open_authoring_registration(template)
+	if not opened.is_successful():
+		return opened
+	var database := opened.get_database()
+	var loaded := _history_store.load(template.migration_stream)
+	if not loaded.is_successful():
+		return loaded
+	var history := loaded.get_value() as Array[GDSQLMigrationDefinition]
+	var pending := database.preview_migrations(history)
+	if not pending.is_successful():
+		return pending
+	if not pending.is_up_to_date():
+		return _error(
+			&"GDSQL_FRESH_SAVE_TEMPLATE_PENDING",
+			"Apply the active save slot's pending migration before creating another slot.",
+		)
+	var definition := database.context.catalog.get_database(template.database_name)
+	var state := GDSQLMigrationSchemaState.from_history(
+		template.migration_stream,
+		template.database_name,
+		history,
+		GDSQLSchemaFingerprint.compute(definition),
+	)
+	return _value({ "definition": definition, "history": history, "state": state })
+
+
+func _create_save_slot(payload: Dictionary) -> GDSQLOperationResult:
+	var template := _workbench.get_registration(payload["template_registration"])
+	var context := _save_template_context(template)
+	if not context.is_successful():
+		return context
+	var values := context.get_value() as Dictionary
+	var previous_state := _state_store.load(template.migration_stream)
+	if not previous_state.is_successful():
+		return previous_state
+	var old_state := previous_state.get_value() as GDSQLMigrationSchemaState
+	var saved_state := _state_store.save(
+		values["state"],
+		old_state.history_checksum if old_state != null else "",
+	)
+	if not saved_state.is_successful():
+		return saved_state
+	var created := GDSQLDatabase.create(payload["database"], payload["data_root"])
+	if not created.is_successful():
+		return created
+	var database := created.get_database()
+	var provisioned := GDSQLEditorFreshSaveProvisioner.new().provision(
+		values["definition"], database, values["history"], values["state"],
+	)
+	if not provisioned.is_successful():
+		database.drop()
+		return provisioned
+	var registration := GDSQLDatabaseRegistration.new(
+		StringName(payload["registration"]),
+		StringName(payload["database"]),
+		String(payload["data_root"]),
+		StringName(payload["storage_backend"]),
+		StringName(payload["migration_stream"]),
+	)
+	var registered := _workbench.add_registration(registration)
+	if not registered.is_successful():
+		database.drop()
+		return registered
+	var bound := _workbench.bind_role(GDSQLDatabaseRegistry.SAVE_ROLE, registration.name)
+	if not bound.is_successful():
+		_workbench.remove_registration(registration.name)
+		database.drop()
+		return bound
+	_workbench.refresh_inspections()
+	return _value(registration)
+
+
+func _delete_save_slot(payload: Dictionary) -> GDSQLOperationResult:
+	var registration_name := StringName(payload["registration"])
+	var registration := _workbench.get_registration(registration_name)
+	var planned := GDSQLSaveSlotDeletionPlan.build(
+		registration,
+		_registration_for_role(GDSQLDatabaseRegistry.SAVE_ROLE),
+		_workbench.get_registrations(),
+	)
+	if not planned.is_successful():
+		return planned
+	var plan := planned.get_value() as GDSQLSaveSlotDeletionPlan
+	var opened := GDSQLRuntimeFactory.open_authoring_registration(registration)
+	if not opened.is_successful():
+		return opened
+	var removed := (
+		_workbench.remove_registration_and_rebind(
+			registration_name,
+			GDSQLDatabaseRegistry.SAVE_ROLE,
+			plan.fallback_registration_name,
+		)
+		if plan.was_active and plan.fallback_registration_name != &""
+		else _workbench.remove_registration(registration_name)
+	)
+	if not removed.is_successful():
+		return removed
+	var dropped := opened.get_database().drop()
+	if dropped.is_successful():
+		return dropped
+	_workbench.add_registration(registration)
+	if plan.was_active:
+		_workbench.bind_role(GDSQLDatabaseRegistry.SAVE_ROLE, registration_name)
+	return dropped
 
 
 func _current_runtime_path() -> String:

@@ -456,7 +456,7 @@ func _build_specs() -> Array:
 		specs.append(
 			_spec(
 				"gdsql_preview_setup_mutation",
-				"Preview initial profile selection, logical database-role binding, or GDSQLRuntime autoload installation.",
+				"Preview initial profile selection, role binding, runtime installation, or standard save-slot creation/deletion.",
 				&"preview_setup_mutation",
 				{
 					"type": "object",
@@ -467,6 +467,7 @@ func _build_specs() -> Array:
 							"type": "string",
 							"enum": [
 								"select_profile", "bind_role", "install_runtime_adapter",
+								"create_save_slot", "delete_save_slot",
 							],
 						},
 						"profile": { "type": "string", "enum": ["direct", "managed"] },
@@ -475,6 +476,11 @@ func _build_specs() -> Array:
 							"enum": ["content", "save", "settings"],
 						},
 						"registration": { "type": "string", "minLength": 1 },
+						"save_slot": { "type": "string", "minLength": 1 },
+						"storage_backend": {
+							"type": "string",
+							"enum": ["configfile", "memory"],
+						},
 					},
 				},
 				true,
@@ -484,7 +490,7 @@ func _build_specs() -> Array:
 		specs.append(
 			_spec(
 				"gdsql_commit_setup_mutation",
-				"Commit one unchanged setup-profile or role-binding preview using its one-use confirmation handle.",
+				"Commit one unchanged setup mutation preview using its one-use confirmation handle.",
 				&"commit_setup_mutation",
 				{
 					"type": "object",

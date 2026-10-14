@@ -298,14 +298,17 @@ func commit_model_mutation(params: Dictionary, _context: Variant) -> Dictionary:
 func preview_setup_mutation(params: Dictionary, _context: Variant) -> Dictionary:
 	var invalid := _unknown_parameter(
 		params,
-		["operation", "profile", "role", "registration"],
+		[
+			"operation", "profile", "role", "registration",
+			"save_slot", "storage_backend",
+		],
 	)
 	if not invalid.is_empty():
 		return _invalid(invalid)
 	if not params.get("operation") is String \
 			or String(params.get("operation", "")).is_empty():
 		return _invalid("operation must be a non-empty string.")
-	for key in ["profile", "role", "registration"]:
+	for key in ["profile", "role", "registration", "save_slot", "storage_backend"]:
 		if params.has(key) and not params[key] is String:
 			return _invalid("%s must be a string." % key)
 	return _invoke(

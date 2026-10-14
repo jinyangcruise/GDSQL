@@ -111,7 +111,7 @@ is not part of the GDSQL surface version.
 | `gdsql_commit_migration` | Confirmation handle and explicit `confirm: true` | Authored-history append when needed, stale-safe migration application, and schema-state synchronization status. |
 | `gdsql_preview_model_mutation` | Model generation identifiers, or save/content relationship identifiers | Derived project paths or cross-role reference impact plus a one-use confirmation handle; no write occurs. |
 | `gdsql_commit_model_mutation` | Confirmation handle and explicit `confirm: true` | Generated base replacement with user-file preservation, or one cross-role reference settings change. |
-| `gdsql_preview_setup_mutation` | Initial profile selection, a registered database plus logical role, or runtime-adapter installation | Current and requested setup state plus a one-use confirmation handle. Existing profiles cannot be switched without an explicit content migration. |
+| `gdsql_preview_setup_mutation` | Initial profile selection, a registered database plus logical role, runtime-adapter installation, or standard save-slot creation/deletion | Current and requested setup state plus a one-use confirmation handle. New save slots copy the active save schema without rows; deletion is restricted to direct children of `user://gdsql/saves`. Existing profiles cannot be switched without an explicit content migration. |
 | `gdsql_commit_setup_mutation` | Confirmation handle and explicit `confirm: true` | Durable profile selection, role binding, or conflict-safe runtime autoload installation. |
 
 Input schemas reject unknown fields. Registration and table parameters are

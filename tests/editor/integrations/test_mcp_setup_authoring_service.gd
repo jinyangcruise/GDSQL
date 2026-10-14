@@ -18,9 +18,13 @@ func test_profile_selection_and_save_binding_require_preview() -> void:
 	assert_bool(workbench.load().is_successful()).is_true()
 	var profiles := GDSQLConfigFileSetupProfileStore.new(root.path_join("settings.cfg"))
 	var runtime_state := { "path": "" }
+	var history_store := GDSQLConfigFileMigrationHistoryStore.new(root.path_join("migrations"))
+	var state_store := GDSQLConfigFileMigrationSchemaStateStore.new(root.path_join("states"))
 	var service := GDSQLMcpSetupAuthoringService.new(
 		workbench,
 		profiles,
+		history_store,
+		state_store,
 		func() -> String: return runtime_state["path"],
 		func() -> GDSQLOperationResult:
 			runtime_state["path"] = "*%s" % GDSQLMcpSetupAuthoringService.RUNTIME_NODE_PATH
@@ -64,3 +68,16 @@ func test_profile_selection_and_save_binding_require_preview() -> void:
 	assert_str(runtime_state["path"]).is_equal(
 		"*%s" % GDSQLMcpSetupAuthoringService.RUNTIME_NODE_PATH,
 	)
+
+	var save_preview := service.preview(
+		{
+			"operation": "create_save_slot",
+			"save_slot": "save_2",
+			"storage_backend": "memory",
+		},
+	)
+	assert_bool(save_preview.is_successful()).is_true()
+	assert_str(save_preview.get_value()["data"]["data_root"]).is_equal(
+		"user://gdsql/saves/save_2",
+	)
+	assert_bool(save_preview.get_value()["data"]["copies_rows"]).is_false()

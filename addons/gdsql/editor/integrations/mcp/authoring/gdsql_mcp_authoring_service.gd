@@ -87,7 +87,7 @@ func _init(
 	_migration_authoring.connect("committed", migration_committed.emit)
 	_model_authoring = ModelAuthoring.new(workbench)
 	_model_authoring.connect("committed", model_committed.emit)
-	_setup_authoring = SetupAuthoring.new(workbench)
+	_setup_authoring = SetupAuthoring.new(workbench, null, history_store, state_store)
 	_setup_authoring.connect("committed", setup_committed.emit)
 
 
